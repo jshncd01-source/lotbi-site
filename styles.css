@@ -86,3 +86,162 @@
     height: 36px;
   }
 }
+
+/* SITE-BRAND-01 — LOTBI brand accent + header presence */
+:root {
+  --brand-navy: #182A46;
+  --brand-pink: #EC6685;
+  --brand-violet: #7B62BB;
+  --brand-blue: #4F78C5;
+  --brand-soft: #F8F8FC;
+  --brand-line: #DDE3EE;
+}
+
+/* Tight-cropped approved character lockup; only the wordmark color was changed. */
+.brand-logo {
+  height: 80px;
+}
+
+.topbar {
+  height: 112px;
+  border-bottom-color: var(--brand-line);
+}
+
+.topbar nav {
+  flex-shrink: 0;
+}
+
+.topbar nav a {
+  transition: color 160ms ease;
+}
+
+.topbar nav a:hover,
+.topbar nav a:focus-visible,
+.mail:hover,
+.mail:focus-visible,
+.lotbi-footer .footer-links a:hover,
+.lotbi-footer .footer-links a:focus-visible,
+.lotbi-footer .company-legal a:hover,
+.lotbi-footer .company-legal a:focus-visible {
+  color: var(--brand-blue);
+}
+
+.eyebrow,
+.kicker {
+  color: var(--brand-navy);
+}
+
+.eyebrow::before,
+.kicker::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin: 0 12px 2px 0;
+  border-radius: 999px;
+  background: var(--brand-pink);
+  box-shadow: 7px 0 0 var(--brand-blue);
+}
+
+.lotbi-word {
+  color: var(--brand-navy);
+  white-space: nowrap;
+}
+
+.lotbi-o {
+  display: inline-block;
+  background: linear-gradient(90deg, var(--brand-pink) 0%, var(--brand-violet) 52%, var(--brand-blue) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.status {
+  color: var(--brand-navy);
+  border-color: #DDDFF0;
+  background: var(--brand-soft);
+}
+
+.status::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: var(--brand-violet);
+  vertical-align: 1px;
+}
+
+.section h2,
+.mail {
+  color: var(--brand-navy);
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    height: 92px;
+  }
+
+  .brand-logo {
+    height: 58px;
+  }
+
+  .topbar nav {
+    gap: 9px;
+    font-size: 13px;
+  }
+}
+
+
+
+
+
+/* SITE-BRAND-01 FINAL USAGE POLICY
+   Character lockup: homepage header only.
+   Internal pages: text-only LOTBI.
+*/
+.topbar {
+  height: 100px;
+}
+
+.home-brand-logo {
+  display: block;
+  width: auto;
+  height: 72px;
+  object-fit: contain;
+}
+
+.brand-text-logo {
+  display: inline-flex;
+  align-items: center;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  line-height: 1;
+  color: var(--brand-navy);
+  text-decoration: none;
+}
+
+.brand-text-logo .brand-o {
+  display: inline-block;
+  background: linear-gradient(90deg, var(--brand-pink) 0%, var(--brand-violet) 52%, var(--brand-blue) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    height: 88px;
+  }
+
+  .home-brand-logo {
+    height: 56px;
+    max-width: 190px;
+  }
+
+  .brand-text-logo {
+    font-size: 21px;
+  }
+}
