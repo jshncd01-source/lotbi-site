@@ -65,3 +65,24 @@
 }
 
 
+
+/* SITE-LOGO-01 — approved LOTBI character + wordmark header lockup */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: 46px;
+  object-fit: contain;
+}
+
+@media (max-width: 760px) {
+  .brand-logo {
+    height: 36px;
+  }
+}
