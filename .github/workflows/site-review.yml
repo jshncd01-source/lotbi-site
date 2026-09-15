@@ -36,6 +36,9 @@ jobs:
       - name: Validate public-site hardening
         run: python scripts/validate_hardening.py
 
+      - name: Validate accessibility contracts
+        run: python scripts/validate_accessibility.py
+
       - name: Static serving smoke test
         shell: bash
         run: |
