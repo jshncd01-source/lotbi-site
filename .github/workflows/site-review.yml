@@ -6,6 +6,7 @@ on:
       - site-public-02-review
       - site-home-chat-01-review
       - site-public-hardening-01-review
+      - site-home-nav-01-review
   pull_request:
     branches:
       - main
@@ -30,7 +31,7 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
-      - name: Validate conversational home foundation
+      - name: Validate conversational home navigation and input foundation
         run: python scripts/validate_home_chat.py
 
       - name: Validate public-site hardening
@@ -47,6 +48,6 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
-          for path in / /privacy.html /terms.html /account-deletion.html /contact.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css; do
+          for path in / /privacy.html /terms.html /account-deletion.html /contact.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
