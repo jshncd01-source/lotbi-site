@@ -22,6 +22,7 @@
   <title>LOTBI | 무엇을 도와드릴까요?</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="home-chat.css" />
+  <link rel="stylesheet" href="site-hardening.css" />
 </head>
 <body class="chat-home-page">
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
@@ -44,6 +45,10 @@
           src="assets/lotbi-main-logo.png"
           class="chat-character-logo"
           alt="웃으며 손을 흔드는 LOTBI 캐릭터"
+          width="1535"
+          height="697"
+          decoding="async"
+          fetchpriority="high"
         />
       </div>
 
@@ -76,6 +81,13 @@
       <p id="chat-status" class="sr-only" role="status">
         대화 기능 연결 준비 중 · 현재 입력·마이크·전송은 실행되지 않습니다.
       </p>
+
+      <div id="chat-state-region" class="chat-state-banner" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+      <template id="chat-state-templates">
+        <span data-chat-state="loading">LOTBI에 연결하는 중입니다.</span>
+        <span data-chat-state="unavailable">현재 LOTBI 대화를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.</span>
+        <span data-chat-state="error">연결 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.</span>
+      </template>
     </section>
 
     <footer class="lotbi-footer chat-home-footer">
