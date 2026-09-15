@@ -24,14 +24,13 @@ def main() -> int:
 
     text = INDEX.read_text(encoding="utf-8") if INDEX.exists() else ""
     requirements = {
-        "conversational heading": "무엇을 도와드릴까요?",
         "approved LOTBI asset": 'src="assets/lotbi-main-logo.png"',
         "prompt textarea": 'id="lotbi-prompt"',
         "read-only prompt boundary": "readonly",
         "microphone control": "mic-button",
         "send control": "send-button",
         "disabled controls": "disabled",
-        "connection disclosure": "현재 입력·마이크·전송은 실행되지 않습니다.",
+        "screen-reader connection disclosure": "현재 입력·마이크·전송은 실행되지 않습니다.",
         "login URL": LOGIN_URL,
         "signup URL": SIGNUP_URL,
         "Privacy link": "privacy.html",
@@ -52,10 +51,23 @@ def main() -> int:
     if "fetch(" in lowered or "xmlhttprequest" in lowered or "websocket" in lowered:
         errors.append("index.html: network chat behavior is not allowed in this foundation batch")
 
-    if text.count(LOGIN_URL) < 2:
-        errors.append("index.html: login URL must be exposed in header and account guidance")
-    if text.count(SIGNUP_URL) < 2:
-        errors.append("index.html: signup URL must be exposed in header and account guidance")
+    if text.count(LOGIN_URL) < 1:
+        errors.append("index.html: login URL must be exposed in header")
+    if text.count(SIGNUP_URL) < 1:
+        errors.append("index.html: signup URL must be exposed in header")
+
+    visible_copy_tokens = (
+        'class="chat-copy"',
+        'class="chat-eyebrow"',
+        'class="chat-intro"',
+        'class="account-hint"',
+    )
+    for token in visible_copy_tokens:
+        if token in text:
+            errors.append(f"index.html: main character area must stay copy-free ({token!r})")
+
+    if 'class="sr-only" role="status"' not in text:
+        errors.append("index.html: non-visual honesty boundary must remain available to assistive technology")
 
     if errors:
         print(f"HOME CHAT VALIDATION FAILED ({len(errors)} issue(s))")
