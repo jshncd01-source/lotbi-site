@@ -13,10 +13,7 @@
 
 .chat-home-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 50% 10%, rgba(79, 120, 197, .08), transparent 34%),
-    radial-gradient(circle at 18% 38%, rgba(236, 102, 133, .06), transparent 28%),
-    #fbfcff;
+  background: #fff;
 }
 
 .chat-home-shell {
@@ -91,48 +88,23 @@
 }
 
 .chat-character-wrap {
-  width: min(410px, 72vw);
-  margin-bottom: 4px;
+  width: 206px;
+  height: 270px;
+  margin: 0 0 28px;
+  overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .chat-character-logo {
   display: block;
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-}
-
-.chat-copy {
-  max-width: 760px;
-}
-
-.chat-eyebrow {
-  margin: 10px 0 12px;
-  color: var(--brand-navy);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .16em;
-}
-
-.chat-copy h1 {
-  margin: 0;
-  color: #111827;
-  font-size: clamp(36px, 5vw, 58px);
-  line-height: 1.12;
-  letter-spacing: -.045em;
-}
-
-.chat-intro {
-  max-width: 650px;
-  margin: 16px auto 0;
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1.7;
+  width: auto;
+  max-width: none;
+  height: 270px;
 }
 
 .chat-composer {
   width: min(820px, 100%);
-  margin-top: 34px;
+  margin-top: 0;
   padding: 12px 12px 10px 18px;
   display: grid;
   grid-template-columns: 1fr auto;
@@ -208,24 +180,6 @@
   color: #fff;
 }
 
-.chat-status {
-  margin: 14px 0 0;
-  color: #737b88;
-  font-size: 13px;
-}
-
-.account-hint {
-  margin: 8px 0 0;
-  color: #8a919d;
-  font-size: 12px;
-}
-
-.account-hint a {
-  color: var(--brand-navy);
-  font-weight: 800;
-  text-underline-offset: 3px;
-}
-
 .chat-home-footer {
   margin-top: auto;
 }
@@ -260,26 +214,17 @@
   }
 
   .chat-character-wrap {
-    width: min(300px, 78vw);
+    width: 164px;
+    height: 216px;
+    margin-bottom: 20px;
   }
 
-  .chat-eyebrow {
-    margin-top: 6px;
-    font-size: 10px;
-    letter-spacing: .13em;
-  }
-
-  .chat-copy h1 {
-    font-size: clamp(32px, 10vw, 42px);
-  }
-
-  .chat-intro {
-    margin-top: 12px;
-    font-size: 14px;
+  .chat-character-logo {
+    height: 216px;
   }
 
   .chat-composer {
-    margin-top: 24px;
+    margin-top: 0;
     padding: 10px 10px 9px 14px;
     grid-template-columns: 1fr;
     gap: 6px;
@@ -301,18 +246,6 @@
     height: 40px;
   }
 
-  .chat-status {
-    max-width: 330px;
-    font-size: 11px;
-    line-height: 1.55;
-  }
-
-  .account-hint {
-    max-width: 320px;
-    font-size: 11px;
-    line-height: 1.55;
-  }
-
   .chat-home-footer {
     padding-top: 22px;
   }
@@ -328,6 +261,11 @@
   }
 
   .chat-character-wrap {
-    width: min(270px, 80vw);
+    width: 153px;
+    height: 202px;
+  }
+
+  .chat-character-logo {
+    height: 202px;
   }
 }
