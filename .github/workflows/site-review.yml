@@ -7,6 +7,7 @@ on:
       - site-home-chat-01-review
       - site-public-hardening-01-review
       - site-home-nav-01-review
+      - site-chat-runtime-01-review
   pull_request:
     branches:
       - main
@@ -28,10 +29,15 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Validate public site
         run: python scripts/validate_site.py
 
-      - name: Validate conversational home navigation and input foundation
+      - name: Validate conversational home foundation
         run: python scripts/validate_home_chat.py
 
       - name: Validate public-site hardening
@@ -40,11 +46,20 @@ jobs:
       - name: Validate accessibility contracts
         run: python scripts/validate_accessibility.py
 
+      - name: Validate chat runtime readiness
+        run: python scripts/validate_chat_runtime.py
+
+      - name: Test chat runtime security boundary
+        run: node --test tests/site-chat-runtime-01.test.mjs
+
+      - name: Build static site for server/edge host
+        run: node scripts/build-vercel-static.mjs
+
       - name: Static serving smoke test
         shell: bash
         run: |
           set -euo pipefail
-          python -m http.server 4173 --bind 127.0.0.1 >/tmp/lotbi-site-http.log 2>&1 &
+          python -m http.server 4173 --bind 127.0.0.1 --directory dist >/tmp/lotbi-site-http.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
