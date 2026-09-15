@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Static accessibility contract checks for LOTBI public pages.
 
-No browser/network access is required. The gate focuses on semantics that must
-remain stable while the real Chat/Core and Account Web integrations are pending.
+No browser/network access is required. The gate verifies stable public semantics,
+the writable-but-unsubmitted prompt, and the accessible mobile navigation shell.
 """
 from __future__ import annotations
 
@@ -59,6 +59,10 @@ class A11yParser(HTMLParser):
                 self.positive_tabindex.append(tabindex)
 
 
+def has_class(attrs: dict[str, str | None], class_name: str) -> bool:
+    return class_name in (attrs.get("class") or "").split()
+
+
 def main() -> int:
     errors: list[str] = []
     for rel in PAGES:
@@ -89,26 +93,55 @@ def main() -> int:
                 errors.append("index.html: expected one prompt textarea")
             else:
                 prompt = parser.textareas[0]
-                if "readonly" not in prompt or prompt.get("aria-readonly") != "true":
-                    errors.append("index.html: prompt must remain explicitly read-only before real Chat/Core")
-            if len(parser.buttons) != 2:
-                errors.append("index.html: expected microphone and send buttons")
-            for button in parser.buttons:
+                if "readonly" in prompt or "aria-readonly" in prompt:
+                    errors.append("index.html: prompt must be writable in SITE-HOME-NAV-01")
+                if prompt.get("autocomplete") != "off":
+                    errors.append("index.html: prompt must explicitly opt out of browser autocomplete persistence")
+
+            composer_buttons = [
+                button for button in parser.buttons
+                if has_class(button, "mic-button") or has_class(button, "send-button")
+            ]
+            if len(composer_buttons) != 2:
+                errors.append("index.html: expected microphone and send composer buttons")
+            for button in composer_buttons:
                 if "disabled" not in button:
-                    errors.append("index.html: pre-integration composer controls must remain disabled")
+                    errors.append("index.html: pre-integration mic/send controls must remain disabled")
                 if not (button.get("aria-label") or "").strip():
                     errors.append("index.html: composer button requires an aria-label")
+
+            open_buttons = [button for button in parser.buttons if "data-mobile-nav-open" in button]
+            if len(open_buttons) != 1:
+                errors.append("index.html: expected one mobile menu open control")
+            else:
+                opener = open_buttons[0]
+                if opener.get("aria-controls") != "mobile-nav-drawer":
+                    errors.append("index.html: mobile menu button must control #mobile-nav-drawer")
+                if opener.get("aria-expanded") != "false":
+                    errors.append("index.html: mobile menu button must initialize aria-expanded=false")
+                if not (opener.get("aria-label") or "").strip():
+                    errors.append("index.html: mobile menu button requires an aria-label")
+
+            close_buttons = [button for button in parser.buttons if "data-mobile-nav-close" in button]
+            if len(close_buttons) != 1 or not (close_buttons[0].get("aria-label") or "").strip():
+                errors.append("index.html: mobile drawer requires one labelled close control")
+
+            if 'id="mobile-nav-drawer"' not in text or 'aria-hidden="true"' not in text or "inert" not in text:
+                errors.append("index.html: mobile drawer must initialize hidden and inert")
             if 'id="chat-state-region"' not in text or 'aria-live="polite"' not in text:
                 errors.append("index.html: future state region must be an aria-live polite status region")
 
     styles = (ROOT / "styles.css").read_text(encoding="utf-8")
     hardening = (ROOT / "site-hardening.css").read_text(encoding="utf-8")
+    home = (ROOT / "home-chat.css").read_text(encoding="utf-8")
     if ":focus-visible" not in styles:
         errors.append("styles.css: focus-visible treatment missing")
     if "prefers-reduced-motion" not in hardening:
         errors.append("site-hardening.css: reduced-motion treatment missing")
     if "forced-colors" not in hardening:
         errors.append("site-hardening.css: forced-colors treatment missing")
+    if "prefers-reduced-motion" not in home:
+        errors.append("home-chat.css: drawer/composer motion must respect reduced-motion")
 
     if errors:
         print(f"ACCESSIBILITY VALIDATION FAILED ({len(errors)} issue(s))")
@@ -116,7 +149,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("ACCESSIBILITY VALIDATION PASS — landmarks, heading structure, labels, disabled pre-integration controls, focus and assistive-state contracts verified.")
+    print("ACCESSIBILITY VALIDATION PASS — landmarks, writable prompt label, disabled execution controls, drawer semantics, focus and assistive-state contracts verified.")
     return 0
 
 
