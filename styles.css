@@ -197,6 +197,7 @@
 
 
 
+
 /* SITE-BRAND-01 FINAL USAGE POLICY
    Character lockup: homepage header only.
    Internal pages: text-only LOTBI.
@@ -243,5 +244,122 @@
 
   .brand-text-logo {
     font-size: 21px;
+  }
+}
+
+/* SITE-PUBLIC-02 — accessibility and support-page utilities */
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  z-index: 1000;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--brand-navy);
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+  transform: translateY(-180%);
+  transition: transform 140ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--brand-blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.lead-small {
+  max-width: 760px;
+  margin: 0 0 30px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.notice-card,
+.support-card {
+  border: 1px solid var(--brand-line);
+  border-radius: 20px;
+  background: var(--panel);
+  padding: 26px;
+}
+
+.notice-card {
+  margin: 30px 0 44px;
+}
+
+.notice-card h2,
+.support-card h2 {
+  margin: 0 0 10px;
+  color: var(--brand-navy);
+}
+
+.primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: var(--brand-navy);
+  color: #fff !important;
+  font-weight: 800;
+  text-decoration: none !important;
+}
+
+.primary-link:hover,
+.primary-link:focus-visible {
+  background: #243b61;
+}
+
+.steps-list {
+  max-width: 780px;
+  padding-left: 24px;
+}
+
+.steps-list li {
+  margin: 10px 0;
+  padding-left: 4px;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 30px;
+}
+
+.support-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.support-card a:not(.primary-link),
+.legal .section a:not(.primary-link) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .lead-small {
+    font-size: 16px;
+  }
+
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .notice-card,
+  .support-card {
+    padding: 22px;
   }
 }
