@@ -79,7 +79,7 @@
   .chat-character-wrap {
     width: 132px;
     height: 174px;
-    margin-top: clamp(24px, 7vh, 52px);
+    margin-top: calc(clamp(24px, 7vh, 52px) + 28px);
     margin-bottom: 12px;
   }
 
