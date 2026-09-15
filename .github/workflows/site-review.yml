@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - site-public-02-review
+      - site-home-chat-01-review
   pull_request:
     branches:
       - main
@@ -28,6 +29,9 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
+      - name: Validate conversational home foundation
+        run: python scripts/validate_home_chat.py
+
       - name: Static serving smoke test
         shell: bash
         run: |
@@ -36,6 +40,6 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
-          for path in / /privacy.html /terms.html /account-deletion.html /contact.html /robots.txt /sitemap.xml; do
+          for path in / /privacy.html /terms.html /account-deletion.html /contact.html /robots.txt /sitemap.xml /home-chat.css; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
