@@ -160,3 +160,37 @@
     color: ButtonText;
   }
 }
+
+/* User visual refinement — compact composer without changing its bottom-docked position. */
+.chat-composer {
+  width: min(720px, calc(100% - 12px));
+  padding: 10px 10px 8px 16px;
+  border-radius: 22px;
+}
+
+.chat-input {
+  min-height: 64px;
+  max-height: 140px;
+  padding: 8px 4px 6px;
+}
+
+@media (max-width: 760px) {
+  .chat-composer {
+    width: min(100%, 350px);
+    padding: 9px 9px 8px 13px;
+    border-radius: 20px;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 8px;
+  }
+
+  .chat-input {
+    min-height: 56px;
+  }
+
+  .composer-actions {
+    align-self: end;
+    justify-content: flex-end;
+    padding-bottom: 0;
+  }
+}
