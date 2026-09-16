@@ -1,0 +1,287 @@
+(function (global) {
+  'use strict';
+
+  const LOTBI_ORIGIN = 'https://lotbiai.com';
+  const APP_BRIDGE_PREFIX = '/app/open';
+  const IOS_APP_BRIDGE_ORIGIN = 'https://open.lotbiai.com';
+  const WEB_BYPASS_PARAM = '__lotbi_web';
+  const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
+  const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
+
+  // Production association is intentionally fail-closed until the real Google
+  // Play app-signing certificate, Apple Team ID, association files, and
+  // installed-device restoration are all verified.
+  const LOTBI_APP_LINK_READY = false;
+  const LOTBI_ANDROID_STORE_URL = null;
+  const LOTBI_IOS_STORE_URL = null;
+
+  const BOT_USER_AGENT = /bot|crawler|spider|slurp|bingpreview|googleother/i;
+  const MOBILE_USER_AGENT = /android|iphone|ipad|ipod|mobile/i;
+  const STATIC_EXTENSION = /\.(?:js|css|png|jpe?g|gif|svg|webp|avif|ico|map|txt|xml|json|webmanifest|woff2?|ttf|otf)$/i;
+
+  function detectMobilePlatform(userAgent) {
+    const ua = userAgent || '';
+    if (/android/i.test(ua)) return 'android';
+    if (/iphone|ipad|ipod/i.test(ua) || /macintosh.*mobile/i.test(ua)) return 'ios';
+    return 'other';
+  }
+
+  function isMobileUserAgent(userAgent) {
+    const ua = userAgent || '';
+    return MOBILE_USER_AGENT.test(ua) && !BOT_USER_AGENT.test(ua);
+  }
+
+  function isKakaoInAppBrowser(userAgent) {
+    return /kakaotalk/i.test(userAgent || '');
+  }
+
+  function isMobileEntryExcludedPath(pathname) {
+    const path = pathname || '/';
+    if (
+      path === APP_BRIDGE_PREFIX ||
+      path.startsWith(`${APP_BRIDGE_PREFIX}/`) ||
+      path === '/favicon.ico' ||
+      path === '/robots.txt' ||
+      path === '/sitemap.xml' ||
+      path.startsWith('/.well-known/') ||
+      path.startsWith('/assets/') ||
+      path.startsWith('/scripts/')
+    ) {
+      return true;
+    }
+    return STATIC_EXTENSION.test(path);
+  }
+
+  function sanitizeLotbiTarget(rawTarget) {
+    if (!rawTarget || typeof rawTarget !== 'string') return '/';
+    if (!rawTarget.startsWith('/') || rawTarget.startsWith('//')) return '/';
+    if (rawTarget.includes('\\') || rawTarget.includes('\0')) return '/';
+
+    let url;
+    try {
+      url = new URL(rawTarget, LOTBI_ORIGIN);
+    } catch (_error) {
+      return '/';
+    }
+
+    if (url.origin !== LOTBI_ORIGIN) return '/';
+    if (isMobileEntryExcludedPath(url.pathname)) return '/';
+    url.searchParams.delete(WEB_BYPASS_PARAM);
+    return `${url.pathname}${url.search}`;
+  }
+
+  function buildAppBridgeUrl(target, platform) {
+    const safeTarget = sanitizeLotbiTarget(target);
+    const url = new URL(safeTarget, LOTBI_ORIGIN);
+    const bridgePath = `${APP_BRIDGE_PREFIX}${url.pathname === '/' ? '/' : url.pathname}${url.search}`;
+    return platform === 'ios' ? `${IOS_APP_BRIDGE_ORIGIN}${bridgePath}` : `${LOTBI_ORIGIN}${bridgePath}`;
+  }
+
+  function targetFromAppBridge(pathname, search) {
+    const path = pathname || '/';
+    if (path !== APP_BRIDGE_PREFIX && !path.startsWith(`${APP_BRIDGE_PREFIX}/`)) return '/';
+    const suffix = path.slice(APP_BRIDGE_PREFIX.length);
+    const restoredPath = suffix === '' || suffix === '/' ? '/' : suffix;
+    return sanitizeLotbiTarget(`${restoredPath}${search || ''}`);
+  }
+
+  function safeSessionStorage(windowObject) {
+    try {
+      return windowObject.sessionStorage;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function recordWebChoice(storage, now) {
+    if (!storage) return false;
+    try {
+      storage.setItem(WEB_CHOICE_KEY, String(now));
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function hasFreshWebChoice(storage, now) {
+    if (!storage) return false;
+    try {
+      const raw = storage.getItem(WEB_CHOICE_KEY);
+      if (!raw) return false;
+      const chosenAt = Number(raw);
+      if (!Number.isFinite(chosenAt) || chosenAt > now || now - chosenAt > WEB_CHOICE_TTL_MS) {
+        storage.removeItem(WEB_CHOICE_KEY);
+        return false;
+      }
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function targetWithBypass(target) {
+    const safeTarget = sanitizeLotbiTarget(target);
+    const url = new URL(safeTarget, LOTBI_ORIGIN);
+    url.searchParams.set(WEB_BYPASS_PARAM, '1');
+    return `${url.pathname}${url.search}`;
+  }
+
+  function consumeBypassParameter(windowObject, storage, now) {
+    const url = new URL(windowObject.location.href);
+    if (url.searchParams.get(WEB_BYPASS_PARAM) !== '1') return false;
+    recordWebChoice(storage, now);
+    url.searchParams.delete(WEB_BYPASS_PARAM);
+    const clean = `${url.pathname}${url.search}${url.hash}`;
+    if (windowObject.history && typeof windowObject.history.replaceState === 'function') {
+      windowObject.history.replaceState(null, '', clean);
+    }
+    return true;
+  }
+
+  function officialWordmark() {
+    return '<span class="brand-text-logo lotbi-entry-wordmark" aria-label="LOTBI">L<span class="brand-o" aria-hidden="true">O</span>TBI</span>';
+  }
+
+  function makeOverlay(documentObject) {
+    const overlay = documentObject.createElement('div');
+    overlay.className = 'lotbi-mobile-entry';
+    overlay.setAttribute('data-lotbi-mobile-entry', '');
+    return overlay;
+  }
+
+  function lockPage(documentObject) {
+    documentObject.documentElement.classList.add('lotbi-mobile-entry-lock');
+  }
+
+  function unlockPage(documentObject) {
+    documentObject.documentElement.classList.remove('lotbi-mobile-entry-lock');
+  }
+
+  function renderChooser(windowObject, target, platform, inKakao) {
+    const documentObject = windowObject.document;
+    if (documentObject.querySelector('[data-lotbi-mobile-entry]')) return;
+
+    const overlay = makeOverlay(documentObject);
+    const appControl = LOTBI_APP_LINK_READY
+      ? `<a class="lotbi-entry-action lotbi-entry-action-primary" href="${buildAppBridgeUrl(target, platform)}" rel="external">LOTBI 앱에서 열기</a>`
+      : '<button class="lotbi-entry-action lotbi-entry-action-primary" type="button" disabled aria-disabled="true">LOTBI 앱에서 열기</button><p class="lotbi-entry-status">앱 연결 검증이 완료될 때까지 준비 중입니다.</p>';
+
+    overlay.innerHTML = `
+      <section class="lotbi-entry-card" role="dialog" aria-modal="true" aria-labelledby="lotbi-entry-title">
+        ${officialWordmark()}
+        <div class="lotbi-entry-copy">
+          <p class="lotbi-entry-eyebrow">모바일 이용 안내</p>
+          <h1 id="lotbi-entry-title">롯비를 어떻게 이용할까요?</h1>
+          <p>처음 열었던 LOTBI 주소를 그대로 유지합니다.</p>
+        </div>
+        <div class="lotbi-entry-actions">
+          ${appControl}
+          <button class="lotbi-entry-action lotbi-entry-action-secondary" type="button" data-lotbi-web-choice>웹으로 이용하기</button>
+        </div>
+        ${inKakao ? '<p class="lotbi-entry-notice">앱이 열리지 않으면 카카오톡 오른쪽 위 메뉴에서 외부 브라우저로 열어 주세요.</p>' : ''}
+      </section>`;
+
+    overlay.querySelector('[data-lotbi-web-choice]').addEventListener('click', function () {
+      const storage = safeSessionStorage(windowObject);
+      recordWebChoice(storage, Date.now());
+      overlay.remove();
+      unlockPage(documentObject);
+    });
+
+    documentObject.body.appendChild(overlay);
+    lockPage(documentObject);
+  }
+
+  function renderBridgeFallback(windowObject, target) {
+    const documentObject = windowObject.document;
+    if (documentObject.querySelector('[data-lotbi-mobile-entry]')) return;
+
+    const overlay = makeOverlay(documentObject);
+    overlay.innerHTML = `
+      <section class="lotbi-entry-card" role="dialog" aria-modal="true" aria-labelledby="lotbi-bridge-title">
+        ${officialWordmark()}
+        <div class="lotbi-entry-copy">
+          <p class="lotbi-entry-eyebrow">앱 연결</p>
+          <h1 id="lotbi-bridge-title">LOTBI 앱 준비 중</h1>
+          <p>이 기기에서 앱 연결을 완료하지 못했습니다. 원래 LOTBI 주소로 안전하게 돌아갈 수 있습니다.</p>
+        </div>
+        <div class="lotbi-entry-actions">
+          <button class="lotbi-entry-action lotbi-entry-action-primary" type="button" disabled aria-disabled="true">LOTBI 앱에서 열기</button>
+          <button class="lotbi-entry-action lotbi-entry-action-secondary" type="button" data-lotbi-bridge-web>웹으로 이용하기</button>
+        </div>
+      </section>`;
+
+    overlay.querySelector('[data-lotbi-bridge-web]').addEventListener('click', function () {
+      const storage = safeSessionStorage(windowObject);
+      const stored = recordWebChoice(storage, Date.now());
+      windowObject.location.replace(stored ? target : targetWithBypass(target));
+    });
+
+    documentObject.body.appendChild(overlay);
+    lockPage(documentObject);
+  }
+
+  function shouldShowChooser(options) {
+    const method = (options.method || 'GET').toUpperCase();
+    if (method !== 'GET') return false;
+    if (isMobileEntryExcludedPath(options.pathname || '/')) return false;
+    return isMobileUserAgent(options.userAgent || '');
+  }
+
+  function init(windowObject) {
+    if (!windowObject || !windowObject.document || !windowObject.location) return;
+
+    const pathname = windowObject.location.pathname || '/';
+    const search = windowObject.location.search || '';
+    const storage = safeSessionStorage(windowObject);
+    const now = Date.now();
+
+    if (pathname === APP_BRIDGE_PREFIX || pathname.startsWith(`${APP_BRIDGE_PREFIX}/`)) {
+      renderBridgeFallback(windowObject, targetFromAppBridge(pathname, search));
+      return;
+    }
+
+    if (isMobileEntryExcludedPath(pathname)) return;
+    if (consumeBypassParameter(windowObject, storage, now)) return;
+    if (hasFreshWebChoice(storage, now)) return;
+
+    const userAgent = windowObject.navigator ? windowObject.navigator.userAgent : '';
+    if (!shouldShowChooser({method: 'GET', pathname, userAgent})) return;
+
+    const target = sanitizeLotbiTarget(`${pathname}${search}`);
+    renderChooser(windowObject, target, detectMobilePlatform(userAgent), isKakaoInAppBrowser(userAgent));
+  }
+
+  const api = {
+    LOTBI_ORIGIN,
+    APP_BRIDGE_PREFIX,
+    IOS_APP_BRIDGE_ORIGIN,
+    WEB_BYPASS_PARAM,
+    WEB_CHOICE_TTL_MS,
+    LOTBI_APP_LINK_READY,
+    LOTBI_ANDROID_STORE_URL,
+    LOTBI_IOS_STORE_URL,
+    detectMobilePlatform,
+    isMobileUserAgent,
+    isKakaoInAppBrowser,
+    isMobileEntryExcludedPath,
+    sanitizeLotbiTarget,
+    buildAppBridgeUrl,
+    targetFromAppBridge,
+    targetWithBypass,
+    hasFreshWebChoice,
+    shouldShowChooser,
+    init,
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.LotbiMobileEntry = api;
+
+  if (global.document) {
+    if (global.document.readyState === 'loading') {
+      global.document.addEventListener('DOMContentLoaded', function () { init(global); }, {once: true});
+    } else {
+      init(global);
+    }
+  }
+})(typeof window !== 'undefined' ? window : globalThis);
