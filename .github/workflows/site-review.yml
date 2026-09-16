@@ -8,6 +8,7 @@ on:
       - site-public-hardening-01-review
       - site-home-nav-01-review
       - site-mobile-entry-app-link-01-work
+      - site-web-conversation-integration-01-review-v2
   pull_request:
     branches:
       - main
@@ -19,7 +20,7 @@ permissions:
 jobs:
   validate-static-site:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,8 +38,11 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
-      - name: Validate conversational home navigation and input foundation
+      - name: Validate conversational home shell
         run: python scripts/validate_home_chat.py
+
+      - name: Validate live conversation and handoff contracts
+        run: node scripts/validate_conversation_integration.mjs
 
       - name: Validate public-site hardening
         run: python scripts/validate_hardening.py
@@ -51,6 +55,52 @@ jobs:
 
       - name: Validate company philosophy page
         run: python scripts/validate_about.py
+
+      - name: Validate Production Core CORS contract
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          preflight() {
+            local path="$1"
+            local request_headers="$2"
+            local headers body status origin methods allowed
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            status="$(curl --silent --show-error --output "$body" --dump-header "$headers" --write-out '%{http_code}' \
+              --request OPTIONS "https://api.lotbiai.com${path}" \
+              --header 'Origin: https://lotbiai.com' \
+              --header 'Access-Control-Request-Method: POST' \
+              --header "Access-Control-Request-Headers: ${request_headers}")"
+            [[ "$status" == '204' ]] || { echo "${path}: expected CORS 204, got $status" >&2; cat "$body" >&2; exit 1; }
+            origin="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+            methods="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-methods:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+            allowed="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-headers:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+            [[ "$origin" == 'https://lotbiai.com' ]] || { echo "${path}: unexpected ACAO '$origin'" >&2; exit 1; }
+            grep -Eiq '(^|,)[[:space:]]*POST([[:space:]]*,|$)' <<<"$methods" || { echo "${path}: POST missing from ACAM '$methods'" >&2; exit 1; }
+            for required in ${request_headers//,/ }; do
+              grep -Eiq "(^|,)[[:space:]]*${required}([[:space:]]*,|$)" <<<"$allowed" || { echo "${path}: $required missing from ACAH '$allowed'" >&2; exit 1; }
+            done
+          }
+
+          preflight '/v2/conversation/messages' 'authorization,content-type'
+          preflight '/v2/sessions/handoffs/redeem' 'content-type'
+
+          evil_status="$(curl --silent --show-error --output /tmp/evil-body --write-out '%{http_code}' \
+            --request OPTIONS 'https://api.lotbiai.com/v2/conversation/messages' \
+            --header 'Origin: https://evil.example' \
+            --header 'Access-Control-Request-Method: POST' \
+            --header 'Access-Control-Request-Headers: authorization,content-type')"
+          [[ "$evil_status" == '403' ]] || { echo "evil origin expected 403, got $evil_status" >&2; cat /tmp/evil-body >&2; exit 1; }
+
+          unauth_headers="$(mktemp)"
+          unauth_status="$(curl --silent --show-error --output /tmp/unauth-body --dump-header "$unauth_headers" --write-out '%{http_code}' \
+            --request POST 'https://api.lotbiai.com/v2/conversation/messages' \
+            --header 'Origin: https://lotbiai.com' \
+            --header 'Content-Type: application/json' \
+            --data '{"text":"site-review-unauthenticated-probe"}')"
+          [[ "$unauth_status" == '401' ]] || { echo "unauthenticated conversation expected 401, got $unauth_status" >&2; cat /tmp/unauth-body >&2; exit 1; }
+          grep -Eiq '^access-control-allow-origin:[[:space:]]*https://lotbiai\.com' "$unauth_headers" || { echo 'unauthenticated response missing exact ACAO' >&2; exit 1; }
 
       - name: Static serving smoke test
         shell: bash
@@ -73,6 +123,9 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js /mobile-entry.css /mobile-entry.js /about.css; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-auth.js /site-core.js /auth-callback.js /auth/callback/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
+
+          callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
+          [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
