@@ -113,7 +113,10 @@ def local_target(source: Path, raw_url: str) -> tuple[Path | None, str | None]:
     path_part = unquote(parsed.path)
     if not path_part:
         return source, parsed.fragment or None
-    candidate = (source.parent / path_part).resolve()
+    if path_part.startswith("/"):
+        candidate = (ROOT / path_part.lstrip("/")).resolve()
+    else:
+        candidate = (source.parent / path_part).resolve()
     try:
         candidate.relative_to(ROOT.resolve())
     except ValueError:
