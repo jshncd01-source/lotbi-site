@@ -1,0 +1,36 @@
+/* SITE-FOOTER-BUSINESS-INFO-01 — main-site business information footer */
+.company-legal {
+  font-size: 12px;
+}
+
+.company-legal-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  row-gap: 2px;
+}
+
+.company-legal-row + .company-legal-row {
+  margin-top: 2px;
+}
+
+.company-separator {
+  flex: 0 0 auto;
+  margin: 0 6px;
+  color: #a0a5ad;
+}
+
+.company-legal-links a {
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .company-legal {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .company-separator {
+    margin-inline: 5px;
+  }
+}
