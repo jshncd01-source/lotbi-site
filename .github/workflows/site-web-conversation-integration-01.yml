@@ -1,0 +1,58 @@
+name: SITE-WEB-CONVERSATION-INTEGRATION-01 Review
+
+on:
+  push:
+    branches:
+      - site-web-conversation-integration-01-review
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-core-cors-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe LOTBI Site -> Core conversation preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          body="$(mktemp)"
+          status="$(curl --silent --show-error --output "$body" --dump-header "$headers" --write-out '%{http_code}' \
+            --request OPTIONS 'https://api.lotbiai.com/v2/conversation/messages' \
+            --header 'Origin: https://lotbiai.com' \
+            --header 'Access-Control-Request-Method: POST' \
+            --header 'Access-Control-Request-Headers: authorization,content-type')"
+
+          echo "preflight_status=$status"
+          sed -n '/^access-control-/Ip' "$headers"
+
+          if [[ "$status" != "200" && "$status" != "204" ]]; then
+            echo "Expected successful CORS preflight, got HTTP $status" >&2
+            cat "$body" >&2
+            exit 1
+          fi
+
+          origin="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+          methods="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-methods:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+          allowed_headers="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-headers:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+
+          [[ "$origin" == 'https://lotbiai.com' ]] || { echo "Missing exact Access-Control-Allow-Origin for LOTBI Site: '$origin'" >&2; exit 1; }
+          grep -Eiq '(^|,)[[:space:]]*POST([[:space:]]*,|$)' <<<"$methods" || { echo "POST is not allowed by CORS: '$methods'" >&2; exit 1; }
+          grep -Eiq '(^|,)[[:space:]]*authorization([[:space:]]*,|$)' <<<"$allowed_headers" || { echo "Authorization is not allowed by CORS: '$allowed_headers'" >&2; exit 1; }
+          grep -Eiq '(^|,)[[:space:]]*content-type([[:space:]]*,|$)' <<<"$allowed_headers" || { echo "Content-Type is not allowed by CORS: '$allowed_headers'" >&2; exit 1; }
+
+  static-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/validate_site.py
+      - run: python scripts/validate_home_chat.py
+      - run: python scripts/validate_hardening.py
+      - run: python scripts/validate_accessibility.py
