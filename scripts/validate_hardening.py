@@ -3,8 +3,8 @@
 
 Approved legal/support page content, account URLs and official assets remain locked.
 The mobile entry batch may add only the approved chooser CSS/JS bootstrap to those
-pages. Home interaction remains local-only; the chooser may use short-lived
-sessionStorage but no network, durable token persistence, fake data or secrets.
+pages. The home shell remains isolated from networking; the separately validated
+site-conversation.js module owns the approved Core conversation/handoff runtime.
 """
 from __future__ import annotations
 
@@ -64,9 +64,10 @@ def main() -> int:
     approved_scripts = (
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
+        '<script type="module" src="site-conversation.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved home-shell.js and mobile-entry.js scripts")
+        errors.append("home page may run only approved home-shell.js, mobile-entry.js and site-conversation.js scripts")
 
     combined_home = f"{index}\n{home_js}".lower()
     forbidden_home = (
@@ -85,7 +86,7 @@ def main() -> int:
     )
     for token in forbidden_home:
         if token in combined_home:
-            errors.append(f"forbidden home network/persistence/fake behavior token: {token}")
+            errors.append(f"forbidden home-shell network/persistence/fake behavior token: {token}")
 
     forbidden_mobile = (
         "fetch(",
@@ -127,12 +128,14 @@ def main() -> int:
     )
     for token in state_tokens:
         if token not in index:
-            errors.append(f"missing non-active state contract: {token}")
+            errors.append(f"missing conversation state contract: {token}")
 
     if 'href="site-hardening.css"' not in index:
         errors.append("hardening stylesheet is not linked after approved home stylesheet")
     if 'href="mobile-entry.css"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
+    if 'src="site-conversation.js"' not in index:
+        errors.append("approved conversation module missing from home")
 
     perf_tokens = (
         'width="1535"',
@@ -168,7 +171,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("PUBLIC HARDENING VALIDATION PASS — locked content, account URLs, local-only interaction, chooser fail-closed persistence boundary, responsive/a11y compatibility and performance contracts verified.")
+    print("PUBLIC HARDENING VALIDATION PASS — locked content, account URLs, isolated home shell, chooser boundaries, approved conversation module, responsive/a11y compatibility and performance contracts verified.")
     return 0
 
 
