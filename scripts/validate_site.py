@@ -19,13 +19,18 @@ SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
 REQUIRED_HTML = (
     "index.html",
+    "about.html",
     "privacy.html",
     "terms.html",
     "account-deletion.html",
     "contact.html",
 )
 REQUIRED_FILES = REQUIRED_HTML + (
+    "404.html",
     "styles.css",
+    "about.css",
+    "mobile-entry.css",
+    "mobile-entry.js",
     "robots.txt",
     "sitemap.xml",
     "assets/lotbi-main-logo.png",
@@ -33,6 +38,7 @@ REQUIRED_FILES = REQUIRED_HTML + (
 )
 EXPECTED_CANONICALS = {
     "index.html": f"{SITE_ORIGIN}/",
+    "about.html": f"{SITE_ORIGIN}/about.html",
     "privacy.html": f"{SITE_ORIGIN}/privacy.html",
     "terms.html": f"{SITE_ORIGIN}/terms.html",
     "account-deletion.html": f"{SITE_ORIGIN}/account-deletion.html",
@@ -113,7 +119,10 @@ def local_target(source: Path, raw_url: str) -> tuple[Path | None, str | None]:
     path_part = unquote(parsed.path)
     if not path_part:
         return source, parsed.fragment or None
-    candidate = (source.parent / path_part).resolve()
+    if path_part.startswith("/"):
+        candidate = (ROOT / path_part.lstrip("/")).resolve()
+    else:
+        candidate = (source.parent / path_part).resolve()
     try:
         candidate.relative_to(ROOT.resolve())
     except ValueError:
@@ -201,7 +210,7 @@ def main() -> int:
             fail(errors, "account-deletion.html: must not overclaim immediate hard deletion")
 
     index_text = (ROOT / "index.html").read_text(encoding="utf-8") if (ROOT / "index.html").exists() else ""
-    for required_link in ("privacy.html", "terms.html", "account-deletion.html", "contact.html"):
+    for required_link in ("about.html", "privacy.html", "terms.html", "account-deletion.html", "contact.html"):
         if required_link not in index_text:
             fail(errors, f"index.html: footer/navigation must expose {required_link}")
 
