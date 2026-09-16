@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Fail-closed guardrails for the hardened LOTBI public site.
 
-Approved legal/support pages, account URLs and official assets remain locked. The
-SITE-HOME-NAV-01 local interaction script may operate the drawer and ephemeral
-textarea only; Chat/Core networking, browser persistence and fake data remain forbidden.
+Approved legal/support page content, account URLs and official assets remain locked.
+The mobile entry batch may add only the approved chooser CSS/JS bootstrap to those
+pages. Home interaction remains local-only; the chooser may use short-lived
+sessionStorage but no network, durable token persistence, fake data or secrets.
 """
 from __future__ import annotations
 
@@ -23,10 +24,20 @@ LOCKED_SHA256 = {
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': 'a90b17287a1001f3cd48d9149349d6c03be2735e13bb5c4d2609de6faf2d2bcd',
 }
+CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def locked_bytes(rel: str, path: Path) -> bytes:
+    if rel.endswith('.html'):
+        text = path.read_text(encoding='utf-8')
+        if CHOOSER_BOOTSTRAP not in text:
+            return text.encode('utf-8')
+        return text.replace(CHOOSER_BOOTSTRAP, '', 1).encode('utf-8')
+    return path.read_bytes()
 
 
 def main() -> int:
@@ -37,24 +48,28 @@ def main() -> int:
         if not path.exists():
             errors.append(f"locked file missing: {rel}")
             continue
-        actual = sha256(path)
+        actual = sha256_bytes(locked_bytes(rel, path))
         if actual != expected:
-            errors.append(f"locked file changed: {rel} ({actual})")
+            errors.append(f"locked file changed outside approved chooser bootstrap: {rel} ({actual})")
 
     index = (ROOT / "index.html").read_text(encoding="utf-8")
     css = (ROOT / "site-hardening.css").read_text(encoding="utf-8")
-    home_js_path = ROOT / "home-shell.js"
-    home_js = home_js_path.read_text(encoding="utf-8") if home_js_path.exists() else ""
+    home_js = (ROOT / "home-shell.js").read_text(encoding="utf-8")
+    mobile_js = (ROOT / "mobile-entry.js").read_text(encoding="utf-8")
 
     for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup")):
         if url not in index:
             errors.append(f"{label} URL changed or missing")
 
-    if index.lower().count("<script") != 1 or '<script src="home-shell.js" defer></script>' not in index:
-        errors.append("only the approved local home-shell.js script may run on the home page")
+    approved_scripts = (
+        '<script src="home-shell.js" defer></script>',
+        '<script src="mobile-entry.js" defer></script>',
+    )
+    if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
+        errors.append("home page may run only approved home-shell.js and mobile-entry.js scripts")
 
-    combined = f"{index}\n{home_js}".lower()
-    forbidden = (
+    combined_home = f"{index}\n{home_js}".lower()
+    forbidden_home = (
         "fetch(",
         "xmlhttprequest",
         "websocket",
@@ -68,9 +83,40 @@ def main() -> int:
         "mock-ai",
         "fake production",
     )
-    for token in forbidden:
-        if token in combined:
-            errors.append(f"forbidden network/persistence/fake behavior token: {token}")
+    for token in forbidden_home:
+        if token in combined_home:
+            errors.append(f"forbidden home network/persistence/fake behavior token: {token}")
+
+    forbidden_mobile = (
+        "fetch(",
+        "xmlhttprequest",
+        "websocket",
+        "eventsource",
+        "sendbeacon",
+        "localstorage",
+        "indexeddb",
+        "document.cookie",
+        "authorization:",
+        "bearer ",
+        "client_secret",
+        "mock ai",
+        "fake production",
+        "atglife://product/",
+    )
+    for token in forbidden_mobile:
+        if token in mobile_js.lower():
+            errors.append(f"forbidden chooser network/secret/durable-persistence token: {token}")
+
+    for token in (
+        "const LOTBI_APP_LINK_READY = false",
+        "const LOTBI_ANDROID_STORE_URL = null",
+        "const LOTBI_IOS_STORE_URL = null",
+        "sessionStorage",
+        "WEB_CHOICE_TTL_MS",
+        "'/app/open'",
+    ):
+        if token not in mobile_js:
+            errors.append(f"missing chooser fail-closed/security contract: {token}")
 
     state_tokens = (
         'id="chat-state-region"',
@@ -85,6 +131,8 @@ def main() -> int:
 
     if 'href="site-hardening.css"' not in index:
         errors.append("hardening stylesheet is not linked after approved home stylesheet")
+    if 'href="mobile-entry.css"' not in index:
+        errors.append("mobile chooser stylesheet missing from home")
 
     perf_tokens = (
         'width="1535"',
@@ -120,7 +168,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("PUBLIC HARDENING VALIDATION PASS — legal/support locks, account URLs, local-only interaction, responsive/a11y compatibility and performance contracts verified.")
+    print("PUBLIC HARDENING VALIDATION PASS — locked content, account URLs, local-only interaction, chooser fail-closed persistence boundary, responsive/a11y compatibility and performance contracts verified.")
     return 0
 
 

@@ -1,0 +1,163 @@
+/* SITE-MOBILE-ENTRY-APP-LINK-01 — chooser-first mobile entry surface */
+html.lotbi-mobile-entry-lock,
+html.lotbi-mobile-entry-lock body {
+  overflow: hidden !important;
+}
+
+.lotbi-mobile-entry {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(123, 98, 187, .13) 0 110px, transparent 111px),
+    radial-gradient(circle at 88% 82%, rgba(79, 120, 197, .12) 0 135px, transparent 136px),
+    rgba(245, 247, 250, .98);
+  color: #172033;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+}
+
+.lotbi-entry-card {
+  width: min(100%, 470px);
+  padding: 32px;
+  border: 1px solid var(--brand-line, #dde3ee);
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(24, 42, 70, .14);
+}
+
+.lotbi-entry-wordmark {
+  font-size: 26px;
+  letter-spacing: .06em;
+}
+
+.lotbi-entry-copy {
+  margin-top: 34px;
+}
+
+.lotbi-entry-eyebrow {
+  margin: 0 0 10px;
+  color: var(--brand-violet, #7b62bb);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.lotbi-entry-copy h1 {
+  margin: 0;
+  color: var(--brand-navy, #182a46);
+  font-size: clamp(29px, 8vw, 38px);
+  line-height: 1.18;
+  letter-spacing: -.04em;
+}
+
+.lotbi-entry-copy > p:not(.lotbi-entry-eyebrow) {
+  margin: 14px 0 0;
+  color: #667085;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.lotbi-entry-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.lotbi-entry-action {
+  width: 100%;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 16px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lotbi-entry-action-primary {
+  border: 1px solid var(--brand-navy, #182a46);
+  background: var(--brand-navy, #182a46);
+  color: #fff;
+}
+
+.lotbi-entry-action-primary:disabled {
+  border-color: #c8d0dc;
+  background: #c8d0dc;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.lotbi-entry-action-secondary {
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: var(--brand-navy, #182a46);
+}
+
+.lotbi-entry-action:not(:disabled):hover,
+.lotbi-entry-action:not(:disabled):focus-visible {
+  transform: translateY(-1px);
+}
+
+.lotbi-entry-status,
+.lotbi-entry-notice {
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.lotbi-entry-status {
+  margin-top: -3px;
+  text-align: center;
+}
+
+.lotbi-entry-notice {
+  margin-top: 22px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--brand-violet, #7b62bb);
+  border-radius: 8px;
+  background: #f7f5fb;
+  color: #475467;
+}
+
+@media (max-width: 560px) {
+  .lotbi-mobile-entry {
+    align-items: end;
+    padding: 0;
+    background: rgba(245, 247, 250, .99);
+  }
+
+  .lotbi-entry-card {
+    width: 100%;
+    padding: 28px 22px max(32px, env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 26px 26px 0 0;
+    box-shadow: 0 -16px 44px rgba(24, 42, 70, .11);
+  }
+
+  .lotbi-entry-copy {
+    margin-top: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-entry-action {
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .lotbi-mobile-entry,
+  .lotbi-entry-card,
+  .lotbi-entry-action {
+    forced-color-adjust: auto;
+  }
+}

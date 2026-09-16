@@ -13,10 +13,12 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = (
     "index.html",
+    "about.html",
     "privacy.html",
     "terms.html",
     "account-deletion.html",
     "contact.html",
+    "404.html",
 )
 
 
@@ -134,6 +136,7 @@ def main() -> int:
     styles = (ROOT / "styles.css").read_text(encoding="utf-8")
     hardening = (ROOT / "site-hardening.css").read_text(encoding="utf-8")
     home = (ROOT / "home-chat.css").read_text(encoding="utf-8")
+    entry = (ROOT / "mobile-entry.css").read_text(encoding="utf-8")
     if ":focus-visible" not in styles:
         errors.append("styles.css: focus-visible treatment missing")
     if "prefers-reduced-motion" not in hardening:
@@ -142,6 +145,8 @@ def main() -> int:
         errors.append("site-hardening.css: forced-colors treatment missing")
     if "prefers-reduced-motion" not in home:
         errors.append("home-chat.css: drawer/composer motion must respect reduced-motion")
+    if "prefers-reduced-motion" not in entry or "forced-colors" not in entry:
+        errors.append("mobile-entry.css: chooser must respect reduced-motion and forced-colors")
 
     if errors:
         print(f"ACCESSIBILITY VALIDATION FAILED ({len(errors)} issue(s))")
@@ -149,7 +154,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("ACCESSIBILITY VALIDATION PASS — landmarks, writable prompt label, disabled execution controls, drawer semantics, focus and assistive-state contracts verified.")
+    print("ACCESSIBILITY VALIDATION PASS — landmarks, writable prompt label, disabled execution controls, drawer semantics, chooser accessibility, focus and assistive-state contracts verified.")
     return 0
 
 
