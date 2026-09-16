@@ -59,7 +59,20 @@ jobs:
           python -m http.server 4173 --bind 127.0.0.1 >/tmp/lotbi-site-http.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          sleep 1
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lotbi-site-http.log || true
+            exit 1
+          fi
+
           for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js /mobile-entry.css /mobile-entry.js /about.css; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
