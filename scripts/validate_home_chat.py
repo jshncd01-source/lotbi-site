@@ -4,6 +4,7 @@
 This gate verifies the public conversational UI/interaction foundation only. Text
 entry and the local navigation drawer are allowed; network chat, persistence,
 fake history/orders/reservations and simulated AI behavior remain forbidden.
+The separately validated mobile-entry.js bootstrap may coexist on the page.
 """
 from pathlib import Path
 import sys
@@ -34,6 +35,7 @@ def main() -> int:
         "microphone control": "mic-button",
         "send control": "send-button",
         "local navigation script": 'src="home-shell.js"',
+        "approved mobile chooser": 'src="mobile-entry.js"',
         "desktop sidebar": "chat-sidebar-desktop",
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
@@ -54,11 +56,13 @@ def main() -> int:
         "login URL": LOGIN_URL,
         "signup URL": SIGNUP_URL,
         "account URL": ACCOUNT_URL,
+        "Company link": "about.html",
         "Privacy link": "privacy.html",
         "Terms link": "terms.html",
         "Account deletion link": "account-deletion.html",
         "Contact link": "contact.html",
         "home stylesheet": 'href="home-chat.css"',
+        "chooser stylesheet": 'href="mobile-entry.css"',
     }
     for label, token in requirements.items():
         if token not in text:
@@ -77,8 +81,12 @@ def main() -> int:
     if '<form' in text.lower():
         errors.append("index.html: composer must not submit before real Chat/Core integration")
 
-    if text.lower().count("<script") != 1 or '<script src="home-shell.js" defer></script>' not in text:
-        errors.append("index.html: only the approved local home-shell.js interaction script is allowed")
+    approved_scripts = (
+        '<script src="home-shell.js" defer></script>',
+        '<script src="mobile-entry.js" defer></script>',
+    )
+    if text.lower().count("<script") != len(approved_scripts) or any(script not in text for script in approved_scripts):
+        errors.append("index.html: only approved home-shell.js and mobile-entry.js scripts are allowed")
 
     forbidden_runtime = (
         "fetch(",
@@ -130,7 +138,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME NAV/INPUT VALIDATION PASS — writable ephemeral prompt, empty-state navigation shell, account/legal routes and no-network/no-persistence boundaries verified.")
+    print("HOME NAV/INPUT VALIDATION PASS — writable ephemeral prompt, empty-state navigation shell, account/legal routes and no-network/no-persistence boundaries verified alongside approved mobile chooser bootstrap.")
     return 0
 
 
