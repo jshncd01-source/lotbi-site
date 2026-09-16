@@ -45,6 +45,19 @@ function loadClassicScript(src) {
   });
 }
 
+function normalizeHomeBodyAssets(parsed) {
+  for (const image of parsed.querySelectorAll('img[src]')) {
+    const source = image.getAttribute('src') || '';
+    if (!source || source.startsWith('/') || source.startsWith('data:') || source.startsWith('blob:') || /^[a-z][a-z0-9+.-]*:/i.test(source)) {
+      continue;
+    }
+    const resolved = new URL(source, `${window.location.origin}/`);
+    if (resolved.origin === window.location.origin) {
+      image.setAttribute('src', `${resolved.pathname}${resolved.search}${resolved.hash}`);
+    }
+  }
+}
+
 async function hydrateHomeShell() {
   const response = await fetch('/index.html', {
     method: 'GET',
@@ -58,6 +71,11 @@ async function hydrateHomeShell() {
   if (!parsed.body || !parsed.getElementById('lotbi-prompt') || !parsed.getElementById('conversation-thread')) {
     throw new Error('LOTBI 홈 화면 구조를 확인하지 못했습니다.');
   }
+
+  // The callback lives under /auth/callback. Normalize home-body image URLs
+  // before transplant so the approved LOTBI character never resolves against
+  // /auth/callback/assets/... and degrades to broken image + alt text.
+  normalizeHomeBodyAssets(parsed);
 
   const nextBody = document.importNode(parsed.body, true);
   document.body.replaceWith(nextBody);
