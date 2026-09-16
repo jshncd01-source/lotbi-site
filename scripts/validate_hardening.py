@@ -14,6 +14,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LOGIN_URL = "https://account.lotbiai.com/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
+MOBILE_ENTRY_TAG = '  <script src="/mobile-entry.js"></script>\n'
+MOBILE_ENTRY_ALLOWED_LOCKED_HTML = {
+    "privacy.html",
+    "terms.html",
+    "account-deletion.html",
+    "contact.html",
+}
 LOCKED_SHA256 = {
     'privacy.html': 'f6e94c5fa6730cf10dd4e1a591da2d596f88f9ce2e98bbe54195f7386b035963',
     'terms.html': 'de0dc05c6250f229442d53da55a3610e003f73c89c86043ccb36e80cfda129c4',
@@ -25,8 +32,26 @@ LOCKED_SHA256 = {
 }
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def locked_bytes(rel: str, path: Path, errors: list[str]) -> bytes:
+    data = path.read_bytes()
+    if rel not in MOBILE_ENTRY_ALLOWED_LOCKED_HTML:
+        return data
+
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        errors.append(f"locked HTML is not valid UTF-8: {rel}")
+        return data
+
+    count = text.count(MOBILE_ENTRY_TAG)
+    if count != 1:
+        errors.append(f"locked HTML must contain exactly one approved mobile-entry bootstrap: {rel}")
+        return data
+    return text.replace(MOBILE_ENTRY_TAG, "", 1).encode("utf-8")
 
 
 def main() -> int:
@@ -37,7 +62,7 @@ def main() -> int:
         if not path.exists():
             errors.append(f"locked file missing: {rel}")
             continue
-        actual = sha256(path)
+        actual = sha256_bytes(locked_bytes(rel, path, errors))
         if actual != expected:
             errors.append(f"locked file changed: {rel} ({actual})")
 
@@ -50,8 +75,12 @@ def main() -> int:
         if url not in index:
             errors.append(f"{label} URL changed or missing")
 
-    if index.lower().count("<script") != 1 or '<script src="home-shell.js" defer></script>' not in index:
-        errors.append("only the approved local home-shell.js script may run on the home page")
+    approved_scripts = (
+        '<script src="/mobile-entry.js"></script>',
+        '<script src="home-shell.js" defer></script>',
+    )
+    if index.lower().count("<script") != len(approved_scripts) or any(token not in index for token in approved_scripts):
+        errors.append("only the approved mobile-entry.js and home-shell.js scripts may run on the home page")
 
     combined = f"{index}\n{home_js}".lower()
     forbidden = (
