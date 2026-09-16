@@ -33,6 +33,7 @@ def main() -> int:
         "prompt no-persistence hint": 'autocomplete="off"',
         "microphone control": "mic-button",
         "send control": "send-button",
+        "mobile entry chooser script": 'src="/mobile-entry.js"',
         "local navigation script": 'src="home-shell.js"',
         "desktop sidebar": "chat-sidebar-desktop",
         "mobile menu toggle": "data-mobile-nav-open",
@@ -77,8 +78,12 @@ def main() -> int:
     if '<form' in text.lower():
         errors.append("index.html: composer must not submit before real Chat/Core integration")
 
-    if text.lower().count("<script") != 1 or '<script src="home-shell.js" defer></script>' not in text:
-        errors.append("index.html: only the approved local home-shell.js interaction script is allowed")
+    approved_scripts = (
+        '<script src="/mobile-entry.js"></script>',
+        '<script src="home-shell.js" defer></script>',
+    )
+    if text.lower().count("<script") != len(approved_scripts) or any(token not in text for token in approved_scripts):
+        errors.append("index.html: only the approved mobile-entry.js and home-shell.js interaction scripts are allowed")
 
     forbidden_runtime = (
         "fetch(",
