@@ -2,8 +2,8 @@
   'use strict';
 
   const LOTBI_ORIGIN = 'https://lotbiai.com';
+  const LOTBI_HOST = 'lotbiai.com';
   const APP_BRIDGE_PREFIX = '/app/open';
-  const IOS_APP_BRIDGE_ORIGIN = 'https://open.lotbiai.com';
   const WEB_BYPASS_PARAM = '__lotbi_web';
   const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
   const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
@@ -17,7 +17,11 @@
 
   const BOT_USER_AGENT = /bot|crawler|spider|slurp|bingpreview|googleother/i;
   const MOBILE_USER_AGENT = /android|iphone|ipad|ipod|mobile/i;
-  const STATIC_EXTENSION = /\.(?:js|css|png|jpe?g|gif|svg|webp|avif|ico|map|txt|xml|json|webmanifest|woff2?|ttf|otf)$/i;
+  const STATIC_EXTENSION = /\.(?:js|css|png|jpe?g|gif|svg|webp|avif|ico|map|txt|xml|json|webmanifest|woff2?|ttf|otf|pdf|csv)$/i;
+
+  function isLotbiSiteHost(rawHost) {
+    return String(rawHost || '').trim().toLowerCase() === LOTBI_HOST;
+  }
 
   function detectMobilePlatform(userAgent) {
     const ua = userAgent || '';
@@ -43,7 +47,10 @@
       path === '/favicon.ico' ||
       path === '/robots.txt' ||
       path === '/sitemap.xml' ||
+      path === '/.well-known' ||
       path.startsWith('/.well-known/') ||
+      path === '/api' ||
+      path.startsWith('/api/') ||
       path.startsWith('/assets/') ||
       path.startsWith('/scripts/')
     ) {
@@ -93,7 +100,7 @@
   function sanitizeLotbiTarget(rawTarget) {
     if (!rawTarget || typeof rawTarget !== 'string') return '/';
     if (!rawTarget.startsWith('/') || rawTarget.startsWith('//')) return '/';
-    if (rawTarget.includes('\\') || rawTarget.includes('\0')) return '/';
+    if (rawTarget.includes('\\') || rawTarget.includes('\0') || /%5c|%00/i.test(rawTarget)) return '/';
 
     let url;
     try {
@@ -109,11 +116,11 @@
     return `${raw.pathname || '/'}${stripInternalBypass(raw.search)}`;
   }
 
-  function buildAppBridgeUrl(target, platform) {
+  function buildAppBridgeUrl(target, _platform) {
     const safeTarget = sanitizeLotbiTarget(target);
     const raw = rawTargetParts(safeTarget);
     const bridgePath = `${APP_BRIDGE_PREFIX}${raw.pathname === '/' ? '/' : raw.pathname}${raw.search}`;
-    return platform === 'ios' ? `${IOS_APP_BRIDGE_ORIGIN}${bridgePath}` : `${LOTBI_ORIGIN}${bridgePath}`;
+    return `${LOTBI_ORIGIN}${bridgePath}`;
   }
 
   function targetFromAppBridge(pathname, search) {
@@ -216,7 +223,7 @@
           ${appControl}
           <button class="lotbi-entry-action lotbi-entry-action-secondary" type="button" data-lotbi-web-choice>웹으로 이용하기</button>
         </div>
-        ${inKakao ? '<p class="lotbi-entry-notice">앱이 열리지 않으면 카카오톡 오른쪽 위 메뉴에서 외부 브라우저로 열어 주세요.</p>' : ''}
+        ${inKakao ? '<p class="lotbi-entry-notice">앱이 열리지 않으면 외부 브라우저에서 열어 주세요. 카카오톡에서는 오른쪽 위 메뉴를 이용할 수 있습니다.</p>' : ''}
       </section>`;
 
     overlay.querySelector('[data-lotbi-web-choice]').addEventListener('click', function () {
@@ -262,12 +269,14 @@
   function shouldShowChooser(options) {
     const method = (options.method || 'GET').toUpperCase();
     if (method !== 'GET') return false;
+    if (options.host && !isLotbiSiteHost(options.host)) return false;
     if (isMobileEntryExcludedPath(options.pathname || '/')) return false;
     return isMobileUserAgent(options.userAgent || '');
   }
 
   function init(windowObject) {
     if (!windowObject || !windowObject.document || !windowObject.location) return;
+    if (!isLotbiSiteHost(windowObject.location.hostname)) return;
 
     const pathname = windowObject.location.pathname || '/';
     const search = windowObject.location.search || '';
@@ -284,7 +293,7 @@
     if (hasFreshWebChoice(storage, now)) return;
 
     const userAgent = windowObject.navigator ? windowObject.navigator.userAgent : '';
-    if (!shouldShowChooser({method: 'GET', pathname, userAgent})) return;
+    if (!shouldShowChooser({method: 'GET', host: windowObject.location.hostname, pathname, userAgent})) return;
 
     const target = sanitizeLotbiTarget(`${pathname}${search}`);
     renderChooser(windowObject, target, detectMobilePlatform(userAgent), isKakaoInAppBrowser(userAgent));
@@ -292,13 +301,14 @@
 
   const api = {
     LOTBI_ORIGIN,
+    LOTBI_HOST,
     APP_BRIDGE_PREFIX,
-    IOS_APP_BRIDGE_ORIGIN,
     WEB_BYPASS_PARAM,
     WEB_CHOICE_TTL_MS,
     LOTBI_APP_LINK_READY,
     LOTBI_ANDROID_STORE_URL,
     LOTBI_IOS_STORE_URL,
+    isLotbiSiteHost,
     detectMobilePlatform,
     isMobileUserAgent,
     isKakaoInAppBrowser,

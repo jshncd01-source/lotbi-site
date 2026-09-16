@@ -10,6 +10,7 @@ const source = fs.readFileSync(path.join(ROOT, 'mobile-entry.js'), 'utf8');
 
 const UA = {
   androidChrome: 'Mozilla/5.0 (Linux; Android 16; SM-S938N) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36',
+  samsungInternet: 'Mozilla/5.0 (Linux; Android 16; SM-S938N) AppleWebKit/537.36 SamsungBrowser/28.0 Chrome/130.0 Mobile Safari/537.36',
   iphoneSafari: 'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 Version/19.0 Mobile/15E148 Safari/604.1',
   kakaoAndroid: 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Mobile Safari/537.36 KAKAOTALK 26.8.1',
   kakaoIphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 KAKAOTALK 26.8.1',
@@ -26,8 +27,17 @@ function memoryStorage(initial = {}) {
   };
 }
 
+function chooser(method, pathname, userAgent, host = 'lotbiai.com') {
+  return entry.shouldShowChooser({method, pathname, userAgent, host});
+}
+
 function run() {
+  assert.equal(entry.isLotbiSiteHost('lotbiai.com'), true, 'public host must be accepted');
+  assert.equal(entry.isLotbiSiteHost('account.lotbiai.com'), false, 'account host must stay outside chooser scope');
+  assert.equal(entry.isLotbiSiteHost('evil.example'), false, 'foreign host must be rejected');
+
   assert.equal(entry.isMobileUserAgent(UA.androidChrome), true, 'Android Chrome must be mobile');
+  assert.equal(entry.isMobileUserAgent(UA.samsungInternet), true, 'Samsung Internet must be mobile');
   assert.equal(entry.isMobileUserAgent(UA.iphoneSafari), true, 'iPhone Safari must be mobile');
   assert.equal(entry.isMobileUserAgent(UA.kakaoAndroid), true, 'Kakao Android must be mobile');
   assert.equal(entry.isMobileUserAgent(UA.kakaoIphone), true, 'Kakao iPhone must be mobile');
@@ -39,24 +49,44 @@ function run() {
   assert.equal(entry.isKakaoInAppBrowser(UA.kakaoAndroid), true);
   assert.equal(entry.isKakaoInAppBrowser(UA.kakaoIphone), true);
 
-  assert.equal(entry.shouldShowChooser({method: 'GET', pathname: '/', userAgent: UA.androidChrome}), true);
-  assert.equal(entry.shouldShowChooser({method: 'GET', pathname: '/product/123', userAgent: UA.iphoneSafari}), true);
-  assert.equal(entry.shouldShowChooser({method: 'POST', pathname: '/', userAgent: UA.androidChrome}), false);
-  assert.equal(entry.shouldShowChooser({method: 'GET', pathname: '/', userAgent: UA.desktopChrome}), false);
+  assert.equal(chooser('GET', '/', UA.androidChrome), true, 'Android root must show chooser');
+  assert.equal(chooser('GET', '/product/123', UA.androidChrome), true, 'Android subpath must show chooser');
+  assert.equal(chooser('GET', '/', UA.iphoneSafari), true, 'iPhone root must show chooser');
+  assert.equal(chooser('GET', '/product/123', UA.iphoneSafari), true, 'iPhone subpath must show chooser');
+  assert.equal(chooser('GET', '/', UA.samsungInternet), true, 'Samsung Internet must show chooser');
+  assert.equal(chooser('GET', '/', UA.kakaoAndroid), true, 'Kakao Android must show chooser');
+  assert.equal(chooser('GET', '/', UA.kakaoIphone), true, 'Kakao iPhone must show chooser');
+  assert.equal(chooser('GET', '/', UA.desktopChrome), false, 'desktop must bypass chooser');
+  assert.equal(chooser('GET', '/', UA.androidChrome, 'account.lotbiai.com'), false, 'account host must bypass chooser');
+
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    assert.equal(chooser(method, '/', UA.androidChrome), false, `${method} must bypass chooser`);
+  }
 
   for (const excluded of [
     '/assets/lotbi-main-logo.png',
     '/home-chat.css',
     '/home-shell.js',
+    '/font.woff2',
+    '/favicon.ico',
     '/robots.txt',
     '/sitemap.xml',
+    '/.well-known',
     '/.well-known/assetlinks.json',
     '/.well-known/apple-app-site-association',
+    '/api',
+    '/api/health',
     '/app/open/',
     '/app/open/product/123',
   ]) {
     assert.equal(entry.isMobileEntryExcludedPath(excluded), true, `must bypass chooser: ${excluded}`);
+    assert.equal(chooser('GET', excluded, UA.androidChrome), false, `chooser must not intercept: ${excluded}`);
   }
+
+  const root = '/';
+  assert.equal(entry.sanitizeLotbiTarget(root), root);
+  assert.equal(entry.buildAppBridgeUrl(root, 'android'), 'https://lotbiai.com/app/open/');
+  assert.equal(entry.buildAppBridgeUrl(root, 'ios'), 'https://lotbiai.com/app/open/');
 
   const original = '/product/123?ref=kakao&qty=2';
   assert.equal(entry.sanitizeLotbiTarget(original), original);
@@ -66,7 +96,8 @@ function run() {
   );
   assert.equal(
     entry.buildAppBridgeUrl(original, 'ios'),
-    'https://open.lotbiai.com/app/open/product/123?ref=kakao&qty=2',
+    'https://lotbiai.com/app/open/product/123?ref=kakao&qty=2',
+    'iOS must use the same chooser-first lotbiai.com /app/open contract',
   );
   assert.equal(entry.targetFromAppBridge('/app/open/product/123', '?ref=kakao&qty=2'), original);
 
@@ -77,15 +108,31 @@ function run() {
     encoded,
   );
 
-  assert.equal(entry.sanitizeLotbiTarget('//evil.example/path?x=1'), '/');
-  assert.equal(entry.sanitizeLotbiTarget('https://evil.example/path'), '/');
-  assert.equal(entry.sanitizeLotbiTarget('/\\evil.example/path'), '/');
-  assert.equal(entry.sanitizeLotbiTarget('/assets/secret.json'), '/');
+  for (const malicious of [
+    '//evil.example/path?x=1',
+    'https://evil.example/path',
+    '/\\evil.example/path',
+    '/%5cevil.example/path',
+    '/product/%00bad',
+    '/app/open/product/123',
+  ]) {
+    assert.equal(entry.sanitizeLotbiTarget(malicious), '/', `must reject malicious/recursive target: ${malicious}`);
+  }
+
+  const inertReturnUrl = '/product/123?returnUrl=https://evil.example';
+  const inertBridge = entry.buildAppBridgeUrl(inertReturnUrl, 'android');
+  assert.equal(inertBridge, 'https://lotbiai.com/app/open/product/123?returnUrl=https://evil.example');
+  assert.equal(new URL(inertBridge).origin, 'https://lotbiai.com', 'returnUrl query must never change redirect origin');
 
   assert.equal(
     entry.targetWithBypass('/product/123?next=a%2Fb&note=hello%20world'),
     '/product/123?next=a%2Fb&note=hello%20world&__lotbi_web=1',
     'fallback marker must not rewrite existing encoded query',
+  );
+  assert.equal(
+    entry.targetFromAppBridge('/app/open/app/open/product/123', ''),
+    '/',
+    'recursive /app/open fallback must collapse safely',
   );
 
   const now = 2_000_000;
@@ -100,8 +147,13 @@ function run() {
   assert.ok(source.includes('롯비를 어떻게 이용할까요?'));
   assert.ok(source.includes('LOTBI 앱에서 열기'));
   assert.ok(source.includes('웹으로 이용하기'));
-  assert.ok(source.includes('카카오톡 오른쪽 위 메뉴에서 외부 브라우저로 열어 주세요.'));
+  assert.ok(source.includes('앱이 열리지 않으면 외부 브라우저에서 열어 주세요.'));
+  assert.ok(!source.includes('open.lotbiai.com'), 'bridge must not bypass the fixed lotbiai.com /app/open contract');
   assert.ok(!source.includes('atglife://product/'), 'must not introduce legacy scheme navigation');
+
+  assert.equal(fs.existsSync(path.join(ROOT, '.well-known', 'assetlinks.json')), false, 'must not guess Android association identity');
+  assert.equal(fs.existsSync(path.join(ROOT, '.well-known', 'apple-app-site-association')), false, 'must not guess Apple association identity');
+  assert.equal(fs.existsSync(path.join(ROOT, 'apple-app-site-association')), false, 'must not publish guessed root AASA');
 
   for (const page of ['index.html', 'privacy.html', 'terms.html', 'account-deletion.html', 'contact.html', 'about.html', '404.html']) {
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
@@ -109,7 +161,7 @@ function run() {
     assert.ok(html.includes('mobile-entry.js'), `${page} must load mobile chooser runtime`);
   }
 
-  console.log('MOBILE ENTRY VALIDATION PASS — mobile UAs, chooser-first exclusions, exact target preservation, fail-closed app CTA, loop bypass and open-redirect boundaries verified.');
+  console.log('MOBILE ENTRY VALIDATION PASS — Android/Samsung/iPhone/Kakao/Desktop routing, exact same-origin /app/open target preservation, fail-closed app CTA, safe web bypass, machine/static exclusions and open-redirect/backslash/null/recursive boundaries verified.');
 }
 
 run();
