@@ -18,6 +18,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p artifacts
           headers="$(mktemp)"
           body="$(mktemp)"
           status="$(curl --silent --show-error --output "$body" --dump-header "$headers" --write-out '%{http_code}' \
@@ -25,6 +26,19 @@ jobs:
             --header 'Origin: https://lotbiai.com' \
             --header 'Access-Control-Request-Method: POST' \
             --header 'Access-Control-Request-Headers: authorization,content-type')"
+
+          {
+            echo "request_url=https://api.lotbiai.com/v2/conversation/messages"
+            echo "request_origin=https://lotbiai.com"
+            echo "request_method=OPTIONS"
+            echo "access_control_request_method=POST"
+            echo "access_control_request_headers=authorization,content-type"
+            echo "preflight_status=$status"
+            echo "--- response headers ---"
+            cat "$headers"
+            echo "--- response body ---"
+            cat "$body"
+          } > artifacts/core-cors-preflight.txt
 
           echo "preflight_status=$status"
           sed -n '/^access-control-/Ip' "$headers"
@@ -43,6 +57,15 @@ jobs:
           grep -Eiq '(^|,)[[:space:]]*POST([[:space:]]*,|$)' <<<"$methods" || { echo "POST is not allowed by CORS: '$methods'" >&2; exit 1; }
           grep -Eiq '(^|,)[[:space:]]*authorization([[:space:]]*,|$)' <<<"$allowed_headers" || { echo "Authorization is not allowed by CORS: '$allowed_headers'" >&2; exit 1; }
           grep -Eiq '(^|,)[[:space:]]*content-type([[:space:]]*,|$)' <<<"$allowed_headers" || { echo "Content-Type is not allowed by CORS: '$allowed_headers'" >&2; exit 1; }
+
+      - name: Upload CORS evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-web-conversation-core-cors-evidence
+          path: artifacts/core-cors-preflight.txt
+          if-no-files-found: error
+          retention-days: 7
 
   static-regression:
     runs-on: ubuntu-latest
