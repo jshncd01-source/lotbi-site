@@ -1,6 +1,15 @@
 import {beginSiteHandoff} from './site-auth.js';
 import {sendConversationMessage, SiteCoreError} from './site-core.js';
 
+function ensureConversationStyles() {
+  if (document.querySelector('link[data-site-conversation-styles]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = '/site-conversation.css';
+  link.dataset.siteConversationStyles = 'true';
+  document.head.appendChild(link);
+}
+
 function createMessage(role, text, meta = {}) {
   const article = document.createElement('article');
   article.className = `chat-message chat-message-${role}`;
@@ -41,6 +50,7 @@ function isSessionError(error) {
 }
 
 export function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false} = {}) {
+  ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
   const thread = document.getElementById('conversation-thread');
@@ -197,6 +207,7 @@ function autoMount() {
   if (document.getElementById('lotbi-prompt')) mountConversation();
 }
 
+ensureConversationStyles();
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', autoMount, {once: true});
 } else {
