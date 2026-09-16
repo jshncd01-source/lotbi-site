@@ -7,6 +7,7 @@ on:
       - site-home-chat-01-review
       - site-public-hardening-01-review
       - site-home-nav-01-review
+      - site-mobile-entry-app-link-01-work
   pull_request:
     branches:
       - main
@@ -28,6 +29,11 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Validate public site
         run: python scripts/validate_site.py
 
@@ -40,6 +46,12 @@ jobs:
       - name: Validate accessibility contracts
         run: python scripts/validate_accessibility.py
 
+      - name: Validate mobile entry chooser contracts
+        run: node scripts/validate_mobile_entry.js
+
+      - name: Validate company philosophy page
+        run: python scripts/validate_about.py
+
       - name: Static serving smoke test
         shell: bash
         run: |
@@ -48,6 +60,6 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
-          for path in / /privacy.html /terms.html /account-deletion.html /contact.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js /mobile-entry.css /mobile-entry.js /about.css; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
