@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Fail-closed contract checks for SITE-HOME-NAV-01.
+"""Fail-closed contract checks for the LOTBI conversational home shell.
 
-This gate verifies the public conversational UI/interaction foundation only. Text
-entry and the local navigation drawer are allowed; network chat, persistence,
-fake history/orders/reservations and simulated AI behavior remain forbidden.
-The separately validated mobile-entry.js bootstrap may coexist on the page.
+The shell remains responsible for accessible navigation and input UX. Real
+conversation networking is isolated to the separately validated
+site-conversation.js module; home-shell.js itself remains free of network and
+persistence behavior. The approved mobile-entry.js bootstrap may coexist.
 """
 from pathlib import Path
 import sys
@@ -32,10 +32,13 @@ def main() -> int:
         "approved LOTBI asset": 'src="assets/lotbi-main-logo.png"',
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
+        "prompt length boundary": 'maxlength="1000"',
         "microphone control": "mic-button",
         "send control": "send-button",
+        "conversation thread": 'id="conversation-thread"',
         "local navigation script": 'src="home-shell.js"',
         "approved mobile chooser": 'src="mobile-entry.js"',
+        "approved conversation module": 'src="site-conversation.js"',
         "desktop sidebar": "chat-sidebar-desktop",
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
@@ -52,7 +55,7 @@ def main() -> int:
         "help menu": "도움말 / 문의",
         "empty state": "비어 있음",
         "ready state": "준비",
-        "honest typing boundary": "텍스트 입력은 가능하지만 저장하거나 Core로 전송하지 않습니다.",
+        "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
         "login URL": LOGIN_URL,
         "signup URL": SIGNUP_URL,
         "account URL": ACCOUNT_URL,
@@ -76,19 +79,17 @@ def main() -> int:
     else:
         lowered_textarea = textarea.lower()
         if "readonly" in lowered_textarea or "aria-readonly" in lowered_textarea:
-            errors.append("index.html: prompt must be writable for SITE-HOME-NAV-01")
-
-    if '<form' in text.lower():
-        errors.append("index.html: composer must not submit before real Chat/Core integration")
+            errors.append("index.html: prompt must remain writable")
 
     approved_scripts = (
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
+        '<script type="module" src="site-conversation.js"></script>',
     )
-    if text.lower().count("<script") != len(approved_scripts) or any(script not in text for script in approved_scripts):
-        errors.append("index.html: only approved home-shell.js and mobile-entry.js scripts are allowed")
+    if text.lower().count("<script") != len(approved_scripts) or any(approved not in text for approved in approved_scripts):
+        errors.append("index.html: only approved home-shell.js, mobile-entry.js and site-conversation.js scripts are allowed")
 
-    forbidden_runtime = (
+    forbidden_shell_runtime = (
         "fetch(",
         "xmlhttprequest",
         "websocket",
@@ -100,9 +101,9 @@ def main() -> int:
         "document.cookie",
     )
     combined = f"{text}\n{script}".lower()
-    for token in forbidden_runtime:
+    for token in forbidden_shell_runtime:
         if token in combined:
-            errors.append(f"UI foundation must not use network/persistence runtime: {token}")
+            errors.append(f"home shell must keep network/persistence isolated to approved modules: {token}")
 
     forbidden_fake_data = (
         "data-conversation-id",
@@ -114,10 +115,10 @@ def main() -> int:
     )
     for token in forbidden_fake_data:
         if token in combined:
-            errors.append(f"UI foundation contains forbidden fake-data token: {token}")
+            errors.append(f"home shell contains forbidden fake-data token: {token}")
 
     if 'class="sr-only" role="status"' not in text:
-        errors.append("index.html: non-visual honesty boundary must remain available to assistive technology")
+        errors.append("index.html: live status boundary must remain available to assistive technology")
 
     if text.count(LOGIN_URL) < 1 or text.count(SIGNUP_URL) < 1:
         errors.append("index.html: login/signup URLs must remain exposed in the header")
@@ -133,12 +134,12 @@ def main() -> int:
             errors.append(f"index.html: main character area must stay copy-free ({token!r})")
 
     if errors:
-        print(f"HOME NAV/INPUT VALIDATION FAILED ({len(errors)} issue(s))")
+        print(f"HOME CHAT VALIDATION FAILED ({len(errors)} issue(s))")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print("HOME NAV/INPUT VALIDATION PASS — writable ephemeral prompt, empty-state navigation shell, account/legal routes and no-network/no-persistence boundaries verified alongside approved mobile chooser bootstrap.")
+    print("HOME CHAT VALIDATION PASS — accessible writable composer, isolated live conversation module, navigation/account/legal routes and mobile chooser coexistence verified.")
     return 0
 
 
