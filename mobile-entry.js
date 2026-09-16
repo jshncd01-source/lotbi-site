@@ -52,6 +52,44 @@
     return STATIC_EXTENSION.test(path);
   }
 
+  function decodedFormPart(raw) {
+    try {
+      return decodeURIComponent(String(raw || '').replace(/\+/g, ' '));
+    } catch (_error) {
+      return String(raw || '');
+    }
+  }
+
+  function queryPairParts(pair) {
+    const separator = pair.indexOf('=');
+    if (separator < 0) return [pair, ''];
+    return [pair.slice(0, separator), pair.slice(separator + 1)];
+  }
+
+  function stripInternalBypass(rawSearch) {
+    if (!rawSearch || rawSearch === '?') return '';
+    const kept = rawSearch.slice(1).split('&').filter(function (pair) {
+      const parts = queryPairParts(pair);
+      return decodedFormPart(parts[0]) !== WEB_BYPASS_PARAM;
+    });
+    return kept.length ? `?${kept.join('&')}` : '';
+  }
+
+  function hasWebBypass(rawSearch) {
+    if (!rawSearch) return false;
+    return rawSearch.slice(1).split('&').some(function (pair) {
+      const parts = queryPairParts(pair);
+      return decodedFormPart(parts[0]) === WEB_BYPASS_PARAM && decodedFormPart(parts[1]) === '1';
+    });
+  }
+
+  function rawTargetParts(target) {
+    const withoutHash = target.split('#', 1)[0];
+    const queryIndex = withoutHash.indexOf('?');
+    if (queryIndex < 0) return {pathname: withoutHash, search: ''};
+    return {pathname: withoutHash.slice(0, queryIndex), search: withoutHash.slice(queryIndex)};
+  }
+
   function sanitizeLotbiTarget(rawTarget) {
     if (!rawTarget || typeof rawTarget !== 'string') return '/';
     if (!rawTarget.startsWith('/') || rawTarget.startsWith('//')) return '/';
@@ -66,14 +104,15 @@
 
     if (url.origin !== LOTBI_ORIGIN) return '/';
     if (isMobileEntryExcludedPath(url.pathname)) return '/';
-    url.searchParams.delete(WEB_BYPASS_PARAM);
-    return `${url.pathname}${url.search}`;
+
+    const raw = rawTargetParts(rawTarget);
+    return `${raw.pathname || '/'}${stripInternalBypass(raw.search)}`;
   }
 
   function buildAppBridgeUrl(target, platform) {
     const safeTarget = sanitizeLotbiTarget(target);
-    const url = new URL(safeTarget, LOTBI_ORIGIN);
-    const bridgePath = `${APP_BRIDGE_PREFIX}${url.pathname === '/' ? '/' : url.pathname}${url.search}`;
+    const raw = rawTargetParts(safeTarget);
+    const bridgePath = `${APP_BRIDGE_PREFIX}${raw.pathname === '/' ? '/' : raw.pathname}${raw.search}`;
     return platform === 'ios' ? `${IOS_APP_BRIDGE_ORIGIN}${bridgePath}` : `${LOTBI_ORIGIN}${bridgePath}`;
   }
 
@@ -121,17 +160,16 @@
 
   function targetWithBypass(target) {
     const safeTarget = sanitizeLotbiTarget(target);
-    const url = new URL(safeTarget, LOTBI_ORIGIN);
-    url.searchParams.set(WEB_BYPASS_PARAM, '1');
-    return `${url.pathname}${url.search}`;
+    const raw = rawTargetParts(safeTarget);
+    const separator = raw.search ? '&' : '?';
+    return `${raw.pathname}${raw.search}${separator}${WEB_BYPASS_PARAM}=1`;
   }
 
   function consumeBypassParameter(windowObject, storage, now) {
-    const url = new URL(windowObject.location.href);
-    if (url.searchParams.get(WEB_BYPASS_PARAM) !== '1') return false;
+    const rawSearch = windowObject.location.search || '';
+    if (!hasWebBypass(rawSearch)) return false;
     recordWebChoice(storage, now);
-    url.searchParams.delete(WEB_BYPASS_PARAM);
-    const clean = `${url.pathname}${url.search}${url.hash}`;
+    const clean = `${windowObject.location.pathname}${stripInternalBypass(rawSearch)}${windowObject.location.hash || ''}`;
     if (windowObject.history && typeof windowObject.history.replaceState === 'function') {
       windowObject.history.replaceState(null, '', clean);
     }
