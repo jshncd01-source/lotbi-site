@@ -11,6 +11,7 @@ on:
       - site-web-conversation-integration-01-review-v2
       - site-user-bubble-content-fit-02-review
       - site-web-3d-avatar-integration-01-review
+      - site-web-3d-avatar-fallback-retry-02-review
       - site-sidebar-information-architecture-04-review
       - site-sidebar-information-architecture-04-reconcile
       - site-conversation-sidebar-ux-01-review
@@ -48,6 +49,9 @@ jobs:
 
       - name: Validate sealed 3D Avatar Site integration
         run: node scripts/validate_site_avatar_integration.mjs
+
+      - name: Validate terminal Avatar fallback in browser
+        run: node scripts/validate_site_avatar_fallback_runtime.mjs
 
       - name: Validate Sidebar information architecture
         run: node scripts/validate_sidebar_information_architecture_04.mjs

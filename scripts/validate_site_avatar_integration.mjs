@@ -41,6 +41,10 @@ for (const token of [
   'renderer?.forceContextLoss?.()',
   'disposeScene(avatarRoot)',
   "container.classList.add('avatar-3d-fallback')",
+  'const terminalStages = new WeakSet()',
+  'pendingStage === stage',
+  'terminalStages.add(stage)',
+  '!terminalStages.has(stage)',
   "const documentObserver = new MutationObserver(reconcileAvatar)",
   "window.addEventListener('lotbi:home-shell-hydrated', reconcileAvatar)",
   "Object.defineProperty(window, '__lotbiSiteAvatar'",
@@ -102,4 +106,4 @@ for (const action of ['idle', 'listening', 'thinking', 'speaking', 'wave', 'nod'
 }
 assert.equal(Object.keys(contract.bones).length, 5);
 
-console.log('SITE-WEB-3D-AVATAR-INTEGRATION-01 CONTRACT PASS');
+console.log('SITE-WEB-3D-AVATAR-INTEGRATION-01 + FALLBACK-RETRY-02 CONTRACT PASS');
