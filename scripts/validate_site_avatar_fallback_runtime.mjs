@@ -58,7 +58,10 @@ try{
   await evaluate(send,`(()=>{for(let i=0;i<20;i+=1)document.body.setAttribute('data-avatar-mutation-probe',String(i));return true;})()`);
   await delay(1500);
   const after=await evaluate(send,snapshotExpression);
-  const fallbackLogs=events.filter(event=>event.method==='Log.entryAdded'&&event.params?.entry?.text?.includes('LOTBI 3D Avatar fallback'));
+  const fallbackLogs=events.filter(event=>
+    (event.method==='Log.entryAdded'&&event.params?.entry?.text?.includes('LOTBI 3D Avatar fallback'))||
+    (event.method==='Runtime.consoleAPICalled'&&event.params?.type==='error'&&event.params?.args?.some(arg=>String(arg.value||arg.description||'').includes('LOTBI 3D Avatar fallback')))
+  );
   assert.equal(before.fallback,true);
   assert.equal(after.fallback,true);
   assert.equal(after.canvasCount,0);
