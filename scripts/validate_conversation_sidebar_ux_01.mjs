@@ -12,7 +12,7 @@ const callback = read('auth-callback.js');
 for (const greeting of ['안녕', '안녕하세요', 'hello', '반가워', '고마워', '감사합니다', '도움말']) {
   assert.ok(deterministicReply(greeting), `${greeting} must use a local deterministic reply`);
 }
-for (const utility of ['지금 몇 시야', '오늘 날짜', '오늘 무슨 요일']) {
+for (const utility of ['지금 몇 시야', '오늘 날짜', '오늘 무슨 요일이야']) {
   assert.ok(deterministicReply(utility), `${utility} must use browser time deterministically`);
 }
 for (const general of ['대통령이 누구야', '전주 혁신도시 삼겹살집 추천해줘', '일반 상식 질문', '서울 날씨 알려줘']) {
