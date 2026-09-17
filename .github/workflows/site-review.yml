@@ -46,6 +46,9 @@ jobs:
       - name: Validate Sidebar information architecture
         run: node scripts/validate_sidebar_information_architecture_04.mjs
 
+      - name: Validate Sidebar desktop/mobile viewport rendering
+        run: node scripts/validate_sidebar_viewports_04.mjs
+
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
