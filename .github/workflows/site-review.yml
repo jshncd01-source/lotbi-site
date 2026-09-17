@@ -11,6 +11,7 @@ on:
       - site-web-conversation-integration-01-review-v2
       - site-user-bubble-content-fit-02-review
       - site-web-3d-avatar-integration-01-review
+      - site-subscription-integration-01-work
   pull_request:
     branches:
       - main
@@ -48,6 +49,9 @@ jobs:
 
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
+
+      - name: Validate subscription integration contract
+        run: node scripts/validate_subscription_integration.mjs
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
@@ -146,4 +150,3 @@ jobs:
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
-
