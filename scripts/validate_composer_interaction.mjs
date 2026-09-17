@@ -12,30 +12,35 @@ const homeCss = read('home-chat.css');
 const conversationCss = read('site-conversation.css');
 const combinedCss = `${homeCss}\n${conversationCss}`;
 
-// The mic must be a real interactive control, never permanently disabled in markup.
+// Existing composer controls remain the stable public DOM contract.
 assert.match(index, /class="composer-button mic-button"/);
-assert.doesNotMatch(index, /class="composer-button mic-button"[^>]*\sdisabled(?:\s|>)/);
-assert.match(index, /aria-label="음성 입력"/);
+assert.match(index, /class="composer-button send-button"/);
+assert.match(index, /id="lotbi-prompt"/);
 
-// Send has one explicit submit path; JS owns enabled/disabled state from input + in-flight state.
-assert.match(index, /<form[^>]*class="chat-composer"/);
-assert.match(index, /class="composer-button send-button"[^>]*type="submit"/);
-assert.match(conversation, /composerForm\.addEventListener\('submit'/);
+// Send owns a click path, input-driven enablement, Korean IME completion refresh,
+// Enter submit, Shift+Enter newline, and in-flight duplicate protection.
+assert.match(conversation, /sendButton\.addEventListener\('click'/);
 assert.match(conversation, /sendButton\.disabled\s*=\s*inFlight\s*\|\|\s*prompt\.value\.trim\(\)\.length\s*===\s*0/);
+assert.match(conversation, /prompt\.addEventListener\('input'/);
+assert.match(conversation, /prompt\.addEventListener\('compositionend'/);
 assert.match(conversation, /event\.key\s*===\s*'Enter'/);
 assert.match(conversation, /!event\.shiftKey/);
+assert.match(conversation, /if \(inFlight\) return/);
 
-// Voice input is progressive enhancement: supported browsers request mic permission and start recognition;
-// unsupported/denied states must return visible status instead of a dead button.
+// Voice input is progressive enhancement: the mounted runtime unlocks the mic,
+// supported browsers request permission and start recognition, unsupported/denied
+// states return user feedback instead of a dead control.
 assert.match(conversation, /\.mic-button/);
+assert.match(conversation, /micButton\.disabled\s*=\s*false/);
 assert.match(conversation, /micButton\.addEventListener\('click'/);
 assert.match(conversation, /navigator\.mediaDevices\.getUserMedia/);
 assert.match(conversation, /SpeechRecognition|webkitSpeechRecognition/);
 assert.match(conversation, /ko-KR/);
 assert.match(conversation, /aria-pressed/);
 assert.match(conversation, /음성 입력을 지원하지 않는 브라우저|마이크 권한/);
+assert.match(conversation, /prompt\.dispatchEvent\(new Event\('input'/);
 
-// Composer actions must remain touchable and have visibly distinct states.
+// Composer actions remain touchable and have visibly distinct disabled/active/focus/press/listening states.
 assert.match(combinedCss, /\.composer-button[\s\S]*min-width:\s*44px/);
 assert.match(combinedCss, /\.composer-button[\s\S]*min-height:\s*44px/);
 assert.match(combinedCss, /\.send-button:not\(:disabled\)/);
