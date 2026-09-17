@@ -2,7 +2,7 @@
 
 Research / verification date: 2026-09-17 (Asia/Seoul)
 
-Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
+Current phase: `PRODUCTION PRIVACY / TERMS LEGAL REVIEW PACKAGE — COUNSEL READY`
 
 ## 1. Current status
 
@@ -14,11 +14,17 @@ Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
 - `CALLBACK CONTRACT GREEN BY REVIEW`
 - `PROVIDER DATA MATRIX GREEN BY REVIEW`
 - `FREE TASK PRODUCT POLICY CLOSED`
-- `PRIVACY REVIEW DRAFT UPDATED`
-- `TERMS REVIEW DRAFT UPDATED`
+- `PRODUCTION PRIVACY CANDIDATE = COUNSEL-READY`
+- `PRODUCTION TERMS CANDIDATE = COUNSEL-READY`
+- `LEGAL QUESTIONNAIRE = READY (36 QUESTIONS)`
+- `LEGAL DECISION MATRIX = READY`
+- `OFFICIAL SOURCE REGISTER = READY`
+- `PERSONAL DATA PROCESSING INVENTORY = COUNSEL-READY`
+- `CROSS-REPO IMPLEMENTATION HANDOFF = READY`
+- `LEGAL REVIEW COMPLETE = NO`
 - `PRODUCTION LEGAL MANIFEST NOT DEPLOYED`
-- `PRODUCTION PRIVACY NOT SOCIAL-AUTH READY`
-- `PRODUCTION TERMS NOT SOCIAL-AUTH READY`
+- `PRODUCTION PRIVACY NOT PUBLISHED`
+- `PRODUCTION TERMS NOT PUBLISHED`
 - `PROVIDER REAL E2E PENDING`
 - `PROVIDER SUBMISSION NOT READY`
 - `MAIN NOT PROMOTED BY THIS WORK`
@@ -26,7 +32,9 @@ Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
 
 `PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`.
 
-`PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = NOT GREEN / BLOCKED`.
+`PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED / NOT GREEN`.
+
+`USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`.
 
 ## 2. Implementation baselines
 
@@ -35,313 +43,223 @@ Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
 - Account main supplied baseline: `9cec0b958d22b566f9312521670c7d82d0740e41`
 - Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 - Social contract: `LOTBI_SOCIAL_AUTH_V2`
-- FREE authoritative product policy: `docs/free-monthly-3-task-product-policy.md`
 
-This readiness branch documents the reviewed contract and product/legal readiness only. It does not promote review branches, deploy FREE usage enforcement, or enable Production Social Auth.
+This readiness branch documents reviewed contracts and counsel-preparation only. It does not promote Core/Account/Site main or enable Production Social Auth.
 
-## 3. Public LOTBI legal URLs
+## 3. Counsel package
 
-- Homepage: `https://lotbiai.com/`
-- Privacy: `https://lotbiai.com/privacy.html`
-- Terms: `https://lotbiai.com/terms.html`
-- Account deletion: `https://lotbiai.com/account-deletion.html`
-- Account Web: `https://account.lotbiai.com`
-- Support: `developer@lotbiai.com`
+Authoritative counsel package files:
 
-The public Privacy and Terms URLs are HTTPS and accessible without login. Their source includes a mobile viewport. However content readiness is separate from URL accessibility.
+- `docs/production-legal-review-package.md`
+- `docs/production-legal-review-questionnaire.md`
+- `docs/production-legal-review-decisions.md`
+- `docs/production-legal-official-source-register.md`
+- `docs/production-personal-data-processing-inventory.md`
+- `docs/production-privacy-candidate.md`
+- `docs/production-terms-candidate.md`
+- `docs/production-legal-readiness-decision-matrix.md`
+- `docs/production-legal-manifest-implementation-handoff.md`
 
-### Production Privacy finding
+The package separates:
 
-Current public Privacy is the 2026-09-14 **pre-release version** and says the public website is a static introduction site that does not provide signup/payment/location/voice input and that the policy will be updated before the full service starts processing those data.
+- `[TECHNICALLY VERIFIED]`
+- `[LEGAL REVIEW REQUIRED]`
+- `[USER DECISION REQUIRED]`
+- `[PLACEHOLDER — DO NOT PUBLISH]`
 
-This conflicts with a Production Social Signup launch manifest.
+It is designed so counsel can return a legal decision without guessing LOTBI's Social/Auth/product facts.
 
-Status: `PRIVACY URL ACCESS = GREEN / CONTENT = UPDATE REQUIRED`.
+## 4. Public Production status remains unchanged
 
-### Production Terms finding
+Current public Privacy:
 
-Current public Terms URL is titled/structured as `LOTBI 웹사이트 이용안내` / pre-release website notice, not final Production service Terms covering LOTBI account/Social Login/Plus/transaction relationships.
+`https://lotbiai.com/privacy.html`
 
-Status: `TERMS URL ACCESS = GREEN / CONTENT = UPDATE REQUIRED`.
+remains the 2026-09-14 pre-release/static-site notice and is not the counsel-ready candidate.
 
-### Account deletion finding
+Current public Terms:
 
-Current public account-deletion page points to the real Account Web deletion process and Core receipt/purge model and does not falsely claim immediate hard deletion.
+`https://lotbiai.com/terms.html`
 
-Status: `LOCAL DELETION GUIDANCE = REVIEW READY`, while Provider-specific remote lifecycle still has blockers for Kakao/NAVER/Apple.
+remains the pre-release `웹사이트 이용안내` and is not the counsel-ready candidate.
 
-## 4. Social Signup consent manifest contract
+Current account-deletion guidance remains:
 
-Social Signup requires exactly two LOTBI-owned required consents:
+`https://lotbiai.com/account-deletion.html`
+
+and correctly avoids promising immediate hard delete.
+
+The reviewed Core Social Signup legal-manifest endpoint is not yet deployed to Production; current Production previously verified as returning 404 at:
+
+`GET https://api.lotbiai.com/v2/sessions/providers/signup/consents`
+
+No candidate document is Production authoritative until legal approval, final HTML freeze/hash and explicit user publish approval.
+
+## 5. Current business information verified from Site
+
+- 운영회사: 유한회사 알에이디홀딩스
+- 대표자: 전선혜
+- 주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)
+- 사업자등록번호: 583-88-03679
+- 통신판매업신고번호: 2026-전주덕진-0798
+- email: `developer@lotbiai.com`
+- 대표전화: `063-237-0930`
+
+Privacy officer/department is **not** inferred from these general company fields.
+
+Status:
+
+`PRIVACY_OFFICER_OR_DEPARTMENT = USER DECISION REQUIRED AFTER COUNSEL Q16`.
+
+## 6. Social Signup consent manifest contract retained
+
+Required LOTBI consents remain exactly:
 
 1. `TERMS_OF_SERVICE`
 2. `PRIVACY_POLICY`
 
-Core owns the legal manifest. For both documents it requires configured:
+Each document requires:
 
-- document version;
-- SHA-256;
-- HTTPS URI.
+- `document_version`
+- `document_sha256`
+- `document_uri`
 
-The values are not hardcoded defaults. Missing/malformed configuration fails closed.
+No separate `consent_manifest_version` is created.
 
-Core Social Signup requires exactly two consent records and verifies:
+Core continues to require both accepted/required consents and server-owned manifest equality. Account Web continues to fail closed without both.
 
-- manifest key;
-- version;
-- SHA-256;
-- URI;
-- decision `ACCEPTED`;
-- `required=true`;
-- locale.
+Final canonical URIs remain:
 
-Core stores `UserConsentRecord` with `source=SOCIAL_SIGNUP`, installation/provider/flow evidence and `server_manifest_verified=true`.
+- Terms `https://lotbiai.com/terms.html`
+- Privacy `https://lotbiai.com/privacy.html`
 
-Account Web obtains the manifest from Core. Its Social Signup UI displays two separate required checkboxes and does not enable account creation without both. Browser input cannot invent document version/hash.
+Authoritative SHA-256 values remain `PENDING` until counsel-approved exact final HTML is frozen.
 
-### Production manifest finding
+## 7. Provider minimum data contract retained
 
-The reviewed endpoint is `GET /v2/sessions/providers/signup/consents`, but the current Production endpoint is not deployed/reachable as that reviewed contract. Therefore actual Production document versions/SHA-256/URIs cannot be declared from review code alone.
-
-Status: `PRODUCTION SOCIAL SIGNUP CONSENT MANIFEST = NOT DEPLOYED`.
-
-## 5. Actual Social Signup data contract
-
-### Provider data
-
-| Provider | Reviewed Web scope | Canonical identity | Provider email/name/profile |
+| Provider | Reviewed scope/input | Canonical identity | Provider email/name/profile |
 |---|---|---|---|
 | Google | `openid` | OIDC `sub` | unused |
 | Kakao | `openid` | OIDC `sub` | unused |
-| NAVER | `openid` | official profile `response.id` | additional profile fields unused |
-| Apple | no email/name profile scope | Apple `sub` | email/private relay/full name unused |
+| NAVER | `openid` | official app-scoped `response.id` | additional profile unused |
+| Apple | no email/name profile scope | Apple `sub` | relay email/full name unused |
 
-Provider data not used by the current minimum contract must not be requested for review convenience.
+User-direct signup data remains LOTBI name + account handle.
 
-### User-direct LOTBI signup data
+Provider data not needed by this minimum contract must not be requested for review convenience.
 
-After Provider verification, the user directly enters:
+## 8. Legal review decision status A-P
 
-- LOTBI display name;
-- LOTBI account handle/username.
+All 16 previous `LEGAL_REVIEW_REQUIRED` items are now **decision-ready**, not legally closed.
 
-The handle uses the existing Consumer Username Policy.
+- A `THIRD_PARTY_PROCESSING_AND_OVERSEAS_TRANSFER` — ready for counsel Q01-Q04
+- B `PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD` — ready for counsel Q05-Q07
+- C `STATUTORY_RETENTION_ITEMS_AND_PERIODS` — ready for counsel Q08-Q10
+- D `MINOR_POLICY` — counsel Q11-Q13 then user decision
+- E `PRODUCTION_PURGE_PERIOD` — counsel Q14-Q15
+- F `PRIVACY_OFFICER_OR_DEPARTMENT` — counsel Q16 then user/corporate designation
+- G `CONTRACT_FORMATION_TIME` — counsel Q17-Q18
+- H `LOTBI_PLUS_SUBSCRIPTION_TERMS` — counsel Q19-Q24
+- I `COMMERCE_ROLE_AND_RESPONSIBILITY` — counsel Q25-Q27
+- J `DELETION_RETENTION_AND_PROVIDER_LIFECYCLE` — counsel Q28-Q29 + technical blockers
+- K `SUSPENSION_NOTICE_AND_REMEDY` — counsel Q30
+- L `SERVICE_CHANGE_NOTICE_AND_LIABILITY` — counsel Q31
+- M `TERMS_CHANGE_NOTICE` — counsel Q32
+- N `LIABILITY_DISPUTE_JURISDICTION` — counsel Q33
+- O `OPERATOR_DISCLOSURE_FIELDS` — counsel Q34
+- P `FINAL_DOCUMENT_EFFECTIVE_DATES` — counsel Q35-Q36
 
-Reviewed provisioning stores Provider + `provider_subject`, but Provider email remains `None`, Provider profile remains `{}`, and any external-identity display name comes from the user-entered LOTBI name rather than Provider profile import.
+`LEGAL REVIEW COMPLETE = NO` until approved decisions are returned and recorded.
 
-Signup also creates/stores the normal account-security/evidence lifecycle: installation/session, Passkey enrollment, required consent evidence, recovery path/audit evidence according to the existing account contract.
+## 9. User decisions held, not guessed
 
-## 6. LOGIN / SIGNUP / LINK
+After counsel input, the user/company still needs to choose or formally designate:
 
-- LOGIN: existing external identity, `FEDERATED_LIMITED` then Passkey step-up to FULL.
-- SIGNUP: Provider verification -> LOTBI name/handle + required legal consents -> account creation -> first Passkey enrollment.
-- LINK: existing FULL LOTBI account plus fresh proof; separate from signup.
+- v1 under-14 policy/age-gate approach
+- privacy officer or privacy department
+- Plus cancellation effective-time policy per channel
+- Plus payment-failure/grace entitlement policy
+- Provider-specific remote revoke policy on unlink where product choice remains, including Apple unlink policy
 
-Same email never silently auto-links accounts. Provider subject cannot silently move to a different LOTBI user.
+No placeholder is filled with invented personal/company data.
 
-Apple LOGIN contract is ready by review; Apple SIGNUP/LINK remains blocked.
+## 10. Provider lifecycle blockers retained
 
-## 7. Exact reviewed Web callback contract
+### Google
 
-| Provider | Exact callback |
-|---|---|
-| Google | `https://account.lotbiai.com/api/auth/providers/google/callback` |
-| Kakao | `https://account.lotbiai.com/api/auth/providers/kakao/callback` |
-| NAVER | `https://account.lotbiai.com/api/auth/providers/naver/callback` |
-| Apple | `https://account.lotbiai.com/api/auth/providers/apple/callback` |
+- code/callback reviewed ready
+- scope `openid`
+- `GOOGLE_SCOPE_CONTRACT_VERIFY = OPEN`
+- real configured-client E2E pending
+- Console readiness remains blocked on legal/manifest/E2E gate
 
-Account Web fails closed unless Core returns this exact canonical callback, Web configuration is ready, provider-scoped Production activation is true and the requested purpose is enabled. SIGNUP additionally requires the consent manifest.
+### Kakao
 
-Status split:
-- review-code callback contract: `GREEN`
-- Provider Console registration: `NOT PERFORMED`
-- Production provider env/activation: `UNCHANGED`
-- real callback E2E: `PENDING`
-
-## 8. Account unlink / deletion / purge / Provider revoke
-
-These are four separate operations.
-
-| Operation | LOTBI local behavior | Provider-side behavior |
-|---|---|---|
-| Social Login unlink | external identity -> local `REVOKED`; LOTBI account retained; unique subject reservation retained | current generic path has no remote revoke |
-| LOTBI account deletion | access/authority and local external links revoked; deletion lifecycle starts | provider-specific disconnect/revoke handled separately |
-| final purge | separate operational erasure with lawful/security retention exceptions | not inherently a Provider API call |
-| Provider revoke/unlink | provider authorization relationship ended | provider-specific implementation |
-
-Core local purge default is 30 days, but actual Production setting/legal retention model has not been verified; do not publish a fixed 30-day promise.
-
-`provider_subject` retention basis/period after revoke/deletion remains `LEGAL_REVIEW_REQUIRED`.
-
-## 9. Provider-specific readiness
-
-### GOOGLE
-
-- Code: `GREEN BY REVIEW`
-- Callback: `GREEN BY REVIEW` — exact URL fixed
-- Scope: `openid`
-- Provider profile data: email/name/profile unused
-- Privacy: `BLOCKED — PUBLIC CONTENT UPDATE REQUIRED`
-- Terms: `BLOCKED — PUBLIC CONTENT UPDATE REQUIRED`
-- Consent Manifest: `BLOCKED — PRODUCTION MANIFEST NOT DEPLOYED`
-- Account Deletion: local LOTBI flow documented
-- Domain/branding requirements: documented
-- Real Provider E2E: `PENDING`
-- Scope live verification: `GOOGLE_SCOPE_CONTRACT_VERIFY`
-- Console Readiness: `BLOCKED`
-- Final: `BLOCKED / USER_ACTION_REQUIRED NOT YET`
-
-### KAKAO
-
-- Code: `GREEN BY REVIEW`
-- Callback: `GREEN BY REVIEW`
-- Scope: `openid`
-- Provider profile data: email/profile unused
-- Privacy/Terms: `BLOCKED ON PRODUCTION DOCUMENTS`
-- Consent Manifest: `NOT DEPLOYED`
-- Real Provider E2E: `PENDING`
-- Provider lifecycle: official Kakao documentation requires service account deletion/unmapping to include Kakao Unlink; current generic LOTBI unlink is local-only
-- Lifecycle blocker: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED`
-- Final: `BLOCKED`
+`KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED`
 
 ### NAVER
 
-- Code: `GREEN BY REVIEW`
-- Callback: `GREEN BY REVIEW`
-- Scope: `openid`
-- identity: profile `response.id`
-- additional profile data: unused
-- Privacy/Terms: `BLOCKED ON PRODUCTION DOCUMENTS`
-- Consent Manifest: `NOT DEPLOYED`
-- Real Provider E2E/pre-review evidence: `PENDING`
-- Provider lifecycle: official NAVER documentation describes Token Revocation for service withdrawal/link termination and disconnect notification handling
-- Lifecycle blocker: `NAVER_PROVIDER_LIFECYCLE_BLOCKER — TOKEN_REVOCATION/DISCONNECT INTEGRATION VERIFY`
-- Pre-review: `NOT SUBMITTED`
-- Final: `BLOCKED`
+`NAVER_PROVIDER_LIFECYCLE_BLOCKER — TOKEN_REVOCATION/DISCONNECT INTEGRATION VERIFY`
 
-### APPLE
+### Apple
 
-- LOGIN: `READY BY REVIEW`
-- SIGNUP: `BLOCKED`
-- LINK: `BLOCKED`
-- Callback: `GREEN BY REVIEW`
-- email/private relay/full name dependency: none under current contract
-- Lifecycle blocker: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
-- Required closure: protected revocation token lifecycle, Apple revoke under the approved unlink/account-deletion policy, retry/reconciliation, S2S lifecycle handling, migration/security tests, real Apple E2E
-- Identifier/key change: `NOT PERFORMED`
-- Final: `LOGIN CONTRACT READY / SIGNUP+LINK BLOCKED`
+- LOGIN contract reviewed ready
+- SIGNUP/LINK blocked
+- `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
 
-## 10. FREE authoritative product policy / LOTBI Plus separation
+Legal review does not overwrite any technical blocker.
 
-### FREE
+## 11. FREE / Plus product facts
 
-`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
+FREE authoritative contract remains:
 
-Authoritative FREE values:
+- monthly 3 successful tasks
+- successful final result only = charge
+- same-task clarification no extra charge
+- LOCAL/failure/cancel/incomplete = no charge
+- same-task retry max one charge
+- reset day 1 00:00 KST
+- no carry-over
+- append-only/auditable compensation
 
-- allowance: monthly 3 successful tasks;
-- not 3 messages, questions or AI Provider calls;
-- one task = one user purpose completed by successful delivery of a usable final result;
-- same-task clarification/confirmation does not create an extra charge;
-- a clearly new purpose after the prior result is completed is a new task;
-- ambiguous task boundaries are not split against the user merely to consume allowance;
-- charge only at `USER_RESULT_DELIVERED`, `SUCCESS`, `COMPLETED` or Core-equivalent authoritative final-success state;
-- LOCAL deterministic = usage 0 / AI call 0 / external effect NONE;
-- failure, cancel-before-completion and incomplete work = no charge;
-- retry/duplicate/provider/callback/client/reconciliation retry = no duplicate charge;
-- same successful task max charge = 1;
-- reset = every month on day 1 at 00:00 `Asia/Seoul` / KST;
-- rolling signup-month model = not used;
-- carry-over = NONE;
-- task usage and AI Provider call count are separate metrics;
-- compensation/credit adjustment preserves the original usage event and uses an auditable adjustment event.
+LOTBI Plus remains:
 
-User-facing wording examples:
+- monthly 9,900 KRW
+- Web Toss Payments
+- iPhone App Store
+- Android Google Play
+- not documented as unlimited general AI usage
 
-- `이번 달 무료 작업 2 / 3 사용`
-- `무료 작업 1회 남음`
+Final renewal/cancellation/refund/cooling-off/grace/Store entitlement terms remain Q19-Q24 legal/product decisions.
 
-Help text:
+## 12. Infrastructure/data-flow caution
 
-- `하나의 작업을 완료하기 위한 추가 질문과 확인 대화는 별도 작업으로 계산되지 않습니다.`
-- `실패하거나 결과가 완료되지 않은 요청은 차감되지 않습니다.`
+The counsel package intentionally does not infer final overseas/processor classification from technology names.
 
-Do not say `메시지 3개`, `AI 질문 3번` or `AI 호출 3회`.
+Example: Core repo contains a Render **pilot** blueprint using Singapore; that is not accepted as evidence of current Production hosting/DB/log/backup region. Counsel may require engineering to return the actual Production data-flow manifest before Q01-Q04 can fully close.
 
-The product policy is closed. Actual Core/App usage-ledger implementation remains a separate owning-workstream verification item and is not claimed GREEN by this readiness room.
+FREE usage/subscription/payment schema is also not falsely represented as currently implemented if the reviewed Core schema has not established it.
 
-### LOTBI Plus
+## 13. CI/change boundary
 
-Confirmed product baseline:
+Readiness branch:
 
-- `LOTBI Plus`
-- monthly `9,900원`
-- Web = Toss Payments
-- iPhone = Apple subscription
-- Android = Google Play subscription
-- V1 Web targets: credit/debit card, account-based autopay, TossPay recurring
-- V2 candidates: KakaoPay recurring, Apple Pay recurring
+`review/social-auth-provider-readiness-01-20260917`
 
-LOTBI Plus must not be described as an unlimited general-AI or ChatGPT-replacement usage right.
+The existing Site workflow is not configured for this branch; do not alter CI triggers merely to create a GREEN run.
 
-Status: `LOTBI_PLUS_COMMERCIAL_TERMS = PARTIALLY DECIDED / LEGAL REVIEW REQUIRED FOR FINAL TERMS`.
+No Core main, Account main, Site main, Production env, Provider Console, OAuth credential, secret or Provider activation change is authorized by this package.
 
-Still requires legal/final wording for auto-renewal notice, cancellation effective time, refunds, withdrawal/digital-service treatment and Provider refund vs LOTBI entitlement.
+## 14. Next gate
 
-LOTBI Plus subscription fees must remain separate from external Merchant shopping/reservation/travel/service transaction money. Current policy draft does not describe LOTBI as receiving/settling external Merchant sales proceeds merely because Transaction Kernel controls execution safeguards.
+The only next user action from this room is to send the counsel package to a qualified legal professional and obtain decisions for Q01-Q36.
 
-## 11. LEGAL_REVIEW_REQUIRED
+Current:
 
-The FREE product-policy decision does not close any of the following:
+`USER_ACTION_REQUIRED — LEGAL REVIEW STEP 1`
 
-- `THIRD_PARTY_PROCESSING_AND_OVERSEAS_TRANSFER`
-- `PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD`
-- `STATUTORY_RETENTION_ITEMS_AND_PERIODS`
-- `MINOR_POLICY`
-- `PRODUCTION_PURGE_PERIOD`
-- `PRIVACY_OFFICER_OR_DEPARTMENT`
-- `CONTRACT_FORMATION_TIME`
-- `LOTBI_PLUS_SUBSCRIPTION_TERMS`
-- `COMMERCE_ROLE_AND_RESPONSIBILITY`
-- `DELETION_RETENTION_AND_PROVIDER_LIFECYCLE`
-- `SUSPENSION_NOTICE_AND_REMEDY`
-- `SERVICE_CHANGE_NOTICE_AND_LIABILITY`
-- `TERMS_CHANGE_NOTICE`
-- `LIABILITY_DISPUTE_JURISDICTION`
-- `OPERATOR_DISCLOSURE_FIELDS`
-- `FINAL_DOCUMENT_EFFECTIVE_DATES`
+Google Console remains:
 
-All remain `LEGAL_REVIEW_REQUIRED`.
+`USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`
 
-## 12. CI / change boundary
-
-Readiness branch: `review/social-auth-provider-readiness-01-20260917`.
-
-The existing `lotbi-site` push workflow does not target this branch. Do not edit workflow triggers merely to manufacture a CI run.
-
-Status: `CI = NOT CONFIGURED FOR THIS REVIEW BRANCH` unless separately changed by evidence after this record.
-
-No Core main or Account main edit is authorized/performed from this readiness branch. No Production deploy or Provider Console change is performed.
-
-## 13. USER ACTION gate
-
-Do not issue `USER_ACTION_REQUIRED — GOOGLE STEP 1` until, at minimum:
-
-- required Production Privacy legal decisions are closed and the final document is published;
-- required Production Terms legal decisions are closed and the final document is published;
-- Production Social Signup manifest is deployed and its version/SHA256/URI match the published documents;
-- Account Production verifies the manifest and required two-consent UI;
-- Google Console/OAuth-client preparation is authorized and completed at the correct gate;
-- Google `openid` real E2E is verified;
-- callback/branding/domain/credential requirements are ready;
-- Core/Account Production remains fail-closed until explicitly authorized activation.
-
-Current: `USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`.
-
-## 14. Current conclusion
-
-`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
-
-`PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED / NOT GREEN`
-
-The FREE task product decision is closed, but the actual Production legal pages/manifest, remaining legal review, Provider lifecycle and Google real-E2E requirements are not yet aligned enough for Provider Console submission.
+After counsel decisions → user decisions → approved wording → final Site HTML freeze/hash → explicit user Production publish approval → Core consent manifest → Account Production verification → Google real `openid` E2E → then and only then Google Console action.
