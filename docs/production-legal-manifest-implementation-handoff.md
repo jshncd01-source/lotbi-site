@@ -1,6 +1,6 @@
 # PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST — CROSS-REPO IMPLEMENTATION HANDOFF
 
-> 상태: `HANDOFF READY / DO NOT PUBLISH / DO NOT ACTIVATE PROVIDERS`
+> 상태: `HANDOFF READY / FREE PRODUCT POLICY CLOSED / DO NOT PUBLISH / DO NOT ACTIVATE PROVIDERS`
 >
 > 기준일: 2026-09-17 (Asia/Seoul)
 
@@ -11,8 +11,11 @@ Authoritative reviewed baselines:
 - Account main baseline: `9cec0b958d22b566f9312521670c7d82d0740e41`
 - Account Social review HEAD: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 - Site readiness branch: `review/social-auth-provider-readiness-01-20260917`
+- FREE authoritative product policy: `docs/free-monthly-3-task-product-policy.md`
 
-This handoff does not authorize main promotion, Production deployment, Provider Console changes, secrets, or provider activation.
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`.
+
+This handoff does not authorize main promotion, Production deployment, Provider Console changes, secrets, provider activation, or usage-enforcement deployment.
 
 ---
 
@@ -59,11 +62,26 @@ Remove/replace the pre-release statements that say, in substance:
 
 The new page must reflect the actual enabled Production scope at publication time. It must not claim that a Provider or feature is already active if activation is still false.
 
+The finalized FREE product policy does not itself add Provider data. If Core later persists account-linked FREE usage/compensation metadata, the exact fields and retention must be reconciled into the final Privacy before publication; do not invent task-content retention.
+
 ### `terms.html`
 
 Replace the current pre-release `LOTBI 웹사이트 이용안내` framing and statements that defer the actual account/transaction terms to a later document.
 
 The Production Terms candidate must cover the approved account, Passkey, Social Login, account deletion, FREE, LOTBI Plus and Merchant-separation contract without inventing unresolved refund/renewal/legal conclusions.
+
+FREE wording must preserve this authoritative policy:
+
+- FREE = monthly 3 successful tasks;
+- not 3 messages/questions/AI calls;
+- charge only after successful final user result delivery;
+- same-task clarification/confirmation = no extra charge;
+- LOCAL deterministic = no charge;
+- failure/cancel/incomplete = no charge;
+- retry/duplicate/reconciliation = no duplicate charge;
+- reset = every month on day 1 at 00:00 `Asia/Seoul` / KST;
+- carry-over = NONE;
+- compensation = auditable adjustment without deleting the original usage event.
 
 ## Preserve
 
@@ -87,6 +105,7 @@ The Production Terms candidate must cover the approved account, Passkey, Social 
 - no `app.lotbiai.com` invented;
 - no Provider marked active merely because the policy mentions its possible/approved integration;
 - no secret/client/token value appears;
+- FREE policy wording is consistent with the authoritative policy document;
 - legal review placeholders are removed only after actual legal decision;
 - exact final HTML bytes are frozen for SHA-256 after legal approval.
 
@@ -95,10 +114,11 @@ The Production Terms candidate must cover the approved account, Passkey, Social 
 Do **not** deploy/publish from this handoff until:
 
 - legal review gates are closed;
-- product-policy gates needed by Terms are closed;
 - final effective date and version are selected;
 - exact HTML is approved;
 - user explicitly authorizes Production publish.
+
+The FREE task-definition/reset product-policy gate is already CLOSED and is no longer a publication blocker by itself.
 
 ---
 
@@ -154,7 +174,7 @@ Canonical URIs:
 - Terms: `https://lotbiai.com/terms.html`
 - Privacy: `https://lotbiai.com/privacy.html`
 
-## Authorized future implementation sequence
+## Authorized future legal-manifest implementation sequence
 
 Only after final legal HTML is approved and actually published:
 
@@ -171,7 +191,29 @@ Only after final legal HTML is approved and actually published:
 
 Manifest installation must never implicitly activate Google/Kakao/NAVER/Apple.
 
-## No-change expectations
+## FREE usage implementation handoff
+
+The product decision is CLOSED, but this readiness room does **not** claim the usage ledger/enforcement is implemented in Core.
+
+The owning Core workstream must map its actual task lifecycle to the authoritative policy and verify at minimum:
+
+1. one stable `task_id` or equivalent usage idempotency boundary;
+2. charge only at `USER_RESULT_DELIVERED` / `SUCCESS` / `COMPLETED` or Core-equivalent authoritative final-success state;
+3. request receipt, provider invocation or processing-start alone never charges;
+4. same-task clarification/confirmation is not a separate charge;
+5. LOCAL deterministic path = usage 0 / AI Provider call 0 / external effect NONE;
+6. server/AI/network/validation/auth/payment failures, user cancel before completion, incomplete/aborted work and internal recovery/reconciliation = no charge;
+7. retry/duplicate/provider/callback/client/reconciliation retry cannot charge the same successful task more than once;
+8. usage period bucket resets every month on day 1 at 00:00 `Asia/Seoul` / KST;
+9. no unused FREE allowance carry-over;
+10. task usage and AI Provider-call accounting remain separate;
+11. compensation/credit adjustment is append-only/auditable and does not erase the original usage event;
+12. concurrent retries cannot race into duplicate usage charges;
+13. user-visible usage value is derived from authoritative server usage, not a client-local counter.
+
+The owning workstream should add regression tests for success-only charging, no-charge failure/cancel, KST reset boundary, no carry-over, duplicate retry idempotency and compensation audit behavior before calling implementation GREEN.
+
+## No-change expectations for Social Signup consent
 
 Keep:
 
@@ -210,7 +252,7 @@ Regression files:
 - `tests/social-auth-bff.test.mjs`
 - `tests/provider-readiness-boundary.test.mjs`
 
-## Required Production behavior
+## Required Production Social Signup behavior
 
 After Core Production manifest is installed:
 
@@ -227,6 +269,26 @@ After Core Production manifest is installed:
 9. Social SIGNUP must remain unavailable when `signup_consent_configured=false`;
 10. Apple SIGNUP/LINK must remain blocked while `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER` is open.
 
+## Required FREE user-facing wording
+
+Where Account Web displays FREE usage, use task-based language such as:
+
+- `이번 달 무료 작업 2 / 3 사용`
+- `무료 작업 1회 남음`
+
+Help copy:
+
+- `하나의 작업을 완료하기 위한 추가 질문과 확인 대화는 별도 작업으로 계산되지 않습니다.`
+- `실패하거나 결과가 완료되지 않은 요청은 차감되지 않습니다.`
+
+Do not display:
+
+- `메시지 3개`
+- `AI 질문 3번`
+- `AI 호출 3회`
+
+The displayed usage counter must come from the authoritative server contract once that usage API/contract is implemented; Account Web must not invent a local usage ledger.
+
 ## Exact callback contract retained
 
 - Google: `https://account.lotbiai.com/api/auth/providers/google/callback`
@@ -240,7 +302,7 @@ No callback alias should be invented for Provider Console convenience.
 
 # D. Provider lifecycle handoff boundary
 
-The legal-page/manifest work does not close these implementation blockers:
+The FREE policy closure and legal-page/manifest work do not close these implementation blockers:
 
 - Google: `GOOGLE_SCOPE_CONTRACT_VERIFY = OPEN`
 - Kakao: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED`
@@ -255,6 +317,7 @@ The final public legal pages must reflect the behavior that is actually implemen
 
 Before `USER_ACTION_REQUIRED — GOOGLE STEP 1`:
 
+- all required legal review decisions for Production Privacy/Terms closed;
 - Production Privacy final legal text published;
 - Production Terms final legal text published;
 - exact per-document version/SHA-256/URI finalized;
@@ -264,5 +327,9 @@ Before `USER_ACTION_REQUIRED — GOOGLE STEP 1`:
 - Provider activation remains under explicit separate approval.
 
 Current status:
+
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
+
+`PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED / NOT GREEN`
 
 `USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`.
