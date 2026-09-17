@@ -118,7 +118,7 @@ def main() -> int:
     )
     mobile_drawer = slice_between(
         text,
-        '<aside\n    id="mobile-nav-drawer"',
+        'id="mobile-nav-drawer"',
         '</aside>',
     )
     if not desktop_sidebar:
