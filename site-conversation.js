@@ -60,6 +60,21 @@ function userFacingErrorMessage(error) {
   return 'LOTBI 대화를 완료하지 못했습니다.';
 }
 
+function voiceErrorMessage(error) {
+  const name = error && typeof error === 'object' && typeof error.name === 'string' ? error.name : '';
+  const code = error && typeof error === 'object' && typeof error.error === 'string' ? error.error : '';
+  if (name === 'NotAllowedError' || name === 'SecurityError' || code === 'not-allowed' || code === 'service-not-allowed') {
+    return '마이크 권한이 필요합니다. 브라우저의 사이트 권한에서 마이크를 허용해 주세요.';
+  }
+  if (name === 'NotFoundError' || code === 'audio-capture') {
+    return '사용 가능한 마이크를 찾지 못했습니다. 기기 마이크 연결을 확인해 주세요.';
+  }
+  if (code === 'no-speech') {
+    return '음성이 들리지 않았습니다. 마이크 버튼을 눌러 다시 말씀해 주세요.';
+  }
+  return '음성 입력을 완료하지 못했습니다. 텍스트 입력은 계속 사용할 수 있습니다.';
+}
+
 function appendSafeErrorEvidence(wrapper, error) {
   if (!(error instanceof SiteCoreError)) return;
   if (error.code) wrapper.dataset.errorCode = error.code;
@@ -105,9 +120,14 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
+  const micButton = document.querySelector('.mic-button');
   const thread = document.getElementById('conversation-thread');
   const statusRegion = document.getElementById('chat-status');
-  if (!(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement) || !(thread instanceof HTMLElement)) {
+  const stateRegion = document.getElementById('chat-state-region');
+  if (!(prompt instanceof HTMLTextAreaElement)
+    || !(sendButton instanceof HTMLButtonElement)
+    || !(micButton instanceof HTMLButtonElement)
+    || !(thread instanceof HTMLElement)) {
     return false;
   }
   if (sendButton.dataset.conversationMounted === 'true') return true;
@@ -115,10 +135,29 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
   let inFlight = false;
+  let voiceRequesting = false;
+  let voiceListening = false;
+  let voiceRecognition;
   if (sessionToken) markAuthenticatedAccountUi();
 
   const setStatus = (message) => {
     if (statusRegion) statusRegion.textContent = message;
+  };
+
+  const setVoiceFeedback = (message = '') => {
+    setStatus(message || (sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.'));
+    if (!(stateRegion instanceof HTMLElement)) return;
+    if (!message) {
+      if (stateRegion.dataset.composerVoice === 'true') {
+        stateRegion.hidden = true;
+        stateRegion.textContent = '';
+        delete stateRegion.dataset.composerVoice;
+      }
+      return;
+    }
+    stateRegion.dataset.composerVoice = 'true';
+    stateRegion.textContent = message;
+    stateRegion.hidden = false;
   };
 
   const showThread = () => {
@@ -141,7 +180,103 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     sendButton.disabled = inFlight || prompt.value.trim().length === 0;
     sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송');
     sendButton.title = inFlight ? '전송 중' : '전송';
+    micButton.disabled = inFlight || voiceRequesting;
   };
+
+  const setListeningState = (listening) => {
+    voiceListening = listening;
+    micButton.setAttribute('aria-pressed', String(listening));
+    micButton.setAttribute('aria-label', listening ? '음성 입력 중지' : '음성 입력');
+    micButton.title = listening ? '듣는 중 — 눌러서 종료' : '음성 입력';
+    if (listening) {
+      micButton.dataset.listening = 'true';
+    } else {
+      delete micButton.dataset.listening;
+    }
+  };
+
+  const requestMicrophoneAccess = async () => {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      throw new Error('음성 입력을 지원하지 않는 브라우저입니다.');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    for (const track of stream.getTracks()) track.stop();
+  };
+
+  const speechRecognitionConstructor = () => window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const startVoiceInput = async () => {
+    if (inFlight || voiceRequesting) return;
+    if (voiceListening && voiceRecognition) {
+      voiceRecognition.stop();
+      return;
+    }
+
+    const SpeechRecognition = speechRecognitionConstructor();
+    if (typeof SpeechRecognition !== 'function') {
+      setVoiceFeedback('음성 입력을 지원하지 않는 브라우저입니다. 텍스트로 입력해 주세요.');
+      prompt.focus();
+      return;
+    }
+
+    voiceRequesting = true;
+    micButton.disabled = true;
+    micButton.dataset.requesting = 'true';
+    setVoiceFeedback('마이크 권한을 확인하고 있습니다.');
+
+    try {
+      await requestMicrophoneAccess();
+      const recognition = new SpeechRecognition();
+      voiceRecognition = recognition;
+      recognition.lang = 'ko-KR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setListeningState(true);
+        setVoiceFeedback('듣고 있습니다. 말씀해 주세요.');
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
+        if (!transcript) return;
+        const current = prompt.value.trimEnd();
+        prompt.value = current ? `${current} ${transcript}` : transcript;
+        prompt.dispatchEvent(new Event('input', {bubbles: true}));
+        setVoiceFeedback('음성 입력이 텍스트로 변환되었습니다. 확인 후 전송해 주세요.');
+        prompt.focus();
+      };
+
+      recognition.onerror = (event) => {
+        setVoiceFeedback(voiceErrorMessage(event));
+      };
+
+      recognition.onend = () => {
+        setListeningState(false);
+        if (voiceRecognition === recognition) voiceRecognition = undefined;
+        updateSendState();
+        prompt.focus();
+      };
+
+      recognition.start();
+    } catch (error) {
+      setListeningState(false);
+      setVoiceFeedback(voiceErrorMessage(error));
+      prompt.focus();
+    } finally {
+      voiceRequesting = false;
+      delete micButton.dataset.requesting;
+      updateSendState();
+    }
+  };
+
+  // Markup starts fail-closed. Once the interaction runtime is mounted, the mic
+  // becomes a real control and announces its toggle state to assistive tech.
+  micButton.disabled = false;
+  micButton.setAttribute('aria-pressed', 'false');
+  micButton.setAttribute('aria-label', '음성 입력');
+  micButton.title = '음성 입력';
 
   const showError = (error, retryText, retryWithoutDuplicate) => {
     const wrapper = document.createElement('article');
@@ -198,6 +333,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const loading = append(createLoadingMessage());
     inFlight = true;
     updateSendState();
+    setVoiceFeedback('');
     setStatus('LOTBI 응답을 기다리는 중입니다.');
 
     try {
@@ -226,6 +362,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (inFlight) return;
     const message = prompt.value.trim();
     if (!message) return;
+    if (voiceListening && voiceRecognition) voiceRecognition.stop();
     prompt.value = '';
     prompt.style.height = '';
     updateSendState();
@@ -233,6 +370,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
 
   prompt.addEventListener('input', updateSendState);
+  prompt.addEventListener('compositionend', updateSendState);
   prompt.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
@@ -241,6 +379,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   });
   sendButton.addEventListener('click', () => {
     void submitCurrentPrompt();
+  });
+  micButton.addEventListener('click', () => {
+    void startVoiceInput();
   });
 
   updateSendState();
