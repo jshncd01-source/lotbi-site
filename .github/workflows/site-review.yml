@@ -11,6 +11,7 @@ on:
       - site-web-conversation-integration-01-review-v2
       - site-user-bubble-content-fit-02-review
       - site-web-3d-avatar-integration-01-review
+      - site-web-3d-avatar-fallback-retry-02-review
       - site-sidebar-information-architecture-04-review
       - site-sidebar-information-architecture-04-reconcile
   pull_request:
