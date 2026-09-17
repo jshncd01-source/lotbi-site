@@ -37,6 +37,14 @@ function errorFromResponse(response, payload, fallback) {
   );
 }
 
+function announceInvalidSiteSession(error) {
+  if (!(error instanceof SiteCoreError) || (error.status !== 401 && error.status !== 403)) return;
+  if (typeof globalThis.dispatchEvent !== 'function' || typeof globalThis.CustomEvent !== 'function') return;
+  globalThis.dispatchEvent(new CustomEvent('lotbi:site-session-state', {
+    detail: {authenticated: false},
+  }));
+}
+
 function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
@@ -131,7 +139,9 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
 
   const payload = await readPayload(response);
   if (!response.ok) {
-    throw errorFromResponse(response, payload, 'LOTBI 응답을 받지 못했습니다.');
+    const error = errorFromResponse(response, payload, 'LOTBI 응답을 받지 못했습니다.');
+    announceInvalidSiteSession(error);
+    throw error;
   }
 
   const status = payload.status;

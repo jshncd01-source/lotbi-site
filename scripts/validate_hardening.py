@@ -4,7 +4,8 @@
 Approved legal/support page content, account URLs and official assets remain locked.
 The mobile entry batch may add only the approved chooser CSS/JS bootstrap to those
 pages. The home shell remains isolated from networking; the separately validated
-site-conversation.js module owns the approved Core conversation/handoff runtime.
+site-conversation.js and site-continuity.js modules own the approved Core
+conversation/handoff and authenticated continuity runtimes.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LOGIN_URL = "https://account.lotbiai.com/"
+LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 LOCKED_SHA256 = {
     'privacy.html': 'f6e94c5fa6730cf10dd4e1a591da2d596f88f9ce2e98bbe54195f7386b035963',
@@ -65,9 +66,10 @@ def main() -> int:
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-conversation.js"></script>',
+        '<script type="module" src="site-continuity.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved home-shell.js, mobile-entry.js and site-conversation.js scripts")
+        errors.append("home page may run only approved home-shell.js, mobile-entry.js, site-conversation.js and site-continuity.js scripts")
 
     combined_home = f"{index}\n{home_js}".lower()
     forbidden_home = (
@@ -136,6 +138,8 @@ def main() -> int:
         errors.append("mobile chooser stylesheet missing from home")
     if 'src="site-conversation.js"' not in index:
         errors.append("approved conversation module missing from home")
+    if 'src="site-continuity.js"' not in index:
+        errors.append("approved authenticated continuity module missing from home")
 
     perf_tokens = (
         'width="1535"',
@@ -171,7 +175,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("PUBLIC HARDENING VALIDATION PASS — locked content, account URLs, isolated home shell, chooser boundaries, approved conversation module, responsive/a11y compatibility and performance contracts verified.")
+    print("PUBLIC HARDENING VALIDATION PASS — locked content, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
     return 0
 
 

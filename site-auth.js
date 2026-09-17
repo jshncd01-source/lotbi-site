@@ -1,6 +1,7 @@
 import {SITE_CALLBACK_URI} from './site-core.js';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
+export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/auth/site-session-status';
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
 
@@ -125,6 +126,47 @@ export function parseSiteHandoffCallback(url) {
     throw new SiteHandoffClientError('로그인 연결 코드 또는 상태값이 올바르지 않습니다.', 'SITE_HANDOFF_CALLBACK_INVALID');
   }
   return Object.freeze({code, state});
+}
+
+export async function readAccountSessionStatus(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== 'function') {
+    throw new SiteHandoffClientError('LOTBI 계정 상태를 확인할 수 없습니다.', 'ACCOUNT_SESSION_STATUS_FETCH_UNAVAILABLE');
+  }
+
+  let response;
+  try {
+    response = await fetchImpl(ACCOUNT_SITE_SESSION_STATUS_URL, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'include',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {'Accept': 'application/json'},
+    });
+  } catch {
+    throw new SiteHandoffClientError('LOTBI 계정 상태 서버에 접속하지 못했습니다.', 'ACCOUNT_SESSION_STATUS_NETWORK_ERROR');
+  }
+
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch {
+    throw new SiteHandoffClientError('LOTBI 계정 상태 응답을 확인하지 못했습니다.', 'ACCOUNT_SESSION_STATUS_CONTRACT_INVALID');
+  }
+
+  if (!response.ok) {
+    throw new SiteHandoffClientError('LOTBI 계정 상태를 확인하지 못했습니다.', 'ACCOUNT_SESSION_STATUS_UNAVAILABLE');
+  }
+
+  if (
+    payload?.contract_id !== 'ACCOUNT-SITE-SESSION-STATUS-01'
+    || payload?.schema_version !== 1
+    || typeof payload?.authenticated !== 'boolean'
+  ) {
+    throw new SiteHandoffClientError('LOTBI 계정 상태 응답 형식이 올바르지 않습니다.', 'ACCOUNT_SESSION_STATUS_CONTRACT_INVALID');
+  }
+
+  return payload.authenticated;
 }
 
 export async function beginSiteHandoff(pendingText = '') {
