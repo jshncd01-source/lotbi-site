@@ -11,7 +11,9 @@ const READY_EVENT = 'lotbi-avatar-ready';
 const ERROR_EVENT = 'lotbi-avatar-error';
 
 let activeMount = null;
+let pendingStage = null;
 let mountGeneration = 0;
+const terminalStages = new WeakSet();
 const diagnostics = {
   mounts: 0,
   disposals: 0,
@@ -70,8 +72,9 @@ function currentSnapshot() {
 }
 
 async function mountAvatar(stage) {
-  if (!stage?.isConnected || activeMount?.stage === stage) return;
+  if (!stage?.isConnected || activeMount?.stage === stage || pendingStage === stage || terminalStages.has(stage)) return;
   activeMount?.dispose();
+  pendingStage = stage;
 
   const generation = ++mountGeneration;
   const container = stage.closest('[data-lotbi-avatar-container]');
@@ -136,6 +139,8 @@ async function mountAvatar(stage) {
 
   const fail = (code, error) => {
     if (disposed) return;
+    terminalStages.add(stage);
+    if (pendingStage === stage) pendingStage = null;
     dispose();
     container.classList.add('avatar-3d-fallback');
     diagnostics.state = 'fallback';
@@ -162,6 +167,7 @@ async function mountAvatar(stage) {
     ]);
     if (generation !== mountGeneration || !stage.isConnected) {
       disposeScene(gltf.scene);
+      if (pendingStage === stage) pendingStage = null;
       dispose();
       return;
     }
@@ -233,6 +239,7 @@ async function mountAvatar(stage) {
     animationFrame = requestAnimationFrame(frame);
 
     diagnostics.mounts += 1;
+    if (pendingStage === stage) pendingStage = null;
     diagnostics.loadMs = Math.round(performance.now() - startedAt);
     diagnostics.state = 'ready';
     container.classList.remove('avatar-3d-loading', 'avatar-3d-fallback');
@@ -249,7 +256,7 @@ function reconcileAvatar() {
     activeMount?.dispose();
     return;
   }
-  if (activeMount?.stage !== stage) void mountAvatar(stage);
+  if (activeMount?.stage !== stage && pendingStage !== stage && !terminalStages.has(stage)) void mountAvatar(stage);
 }
 
 const documentObserver = new MutationObserver(reconcileAvatar);
