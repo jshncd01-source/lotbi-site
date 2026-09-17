@@ -113,10 +113,13 @@ function clearPendingConversation(message, idempotencyKey) {
   if (next.length !== entries.length) writePendingConversations(next);
 }
 
+function pendingConversationFor(message) {
+  return readPendingConversations().find(item => item.message === message);
+}
+
 function effectiveConversationKey(message, requestedKey) {
   if (!requestedKey) return '';
-  const pending = readPendingConversations().find(item => item.message === message);
-  return pending?.idempotencyKey || requestedKey;
+  return pendingConversationFor(message)?.idempotencyKey || requestedKey;
 }
 
 function responseProvesNoUncertainCharge(error) {
@@ -205,6 +208,7 @@ export async function sendConversationMessage(sessionToken, text, optionsOrFetch
     throw new SiteCoreError('대화 재시도 식별자가 올바르지 않습니다.', {code: 'INVALID_IDEMPOTENCY_KEY', status: 400});
   }
 
+  const inheritedUncertainIdentity = Boolean(pendingConversationFor(message));
   const effectiveIdempotencyKey = effectiveConversationKey(message, request.idempotencyKey);
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -234,7 +238,13 @@ export async function sendConversationMessage(sessionToken, text, optionsOrFetch
   const payload = await readPayload(response);
   if (!response.ok) {
     const error = errorFromResponse(response, payload, 'LOTBI 응답을 받지 못했습니다.');
-    if (responseProvesNoUncertainCharge(error)) clearPendingConversation(message, effectiveIdempotencyKey);
+    // A definitive non-billable response only resolves a fresh first attempt. If this
+    // request inherited an earlier uncertain identity, a 401/403/4xx or provider 503
+    // proves only that this retry did not charge; it cannot prove the earlier attempt
+    // was uncharged. Preserve the original identity until a valid 200 contract arrives.
+    if (!inheritedUncertainIdentity && responseProvesNoUncertainCharge(error)) {
+      clearPendingConversation(message, effectiveIdempotencyKey);
+    }
     announceInvalidSiteSession(error);
     throw error;
   }
