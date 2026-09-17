@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
+ACCOUNT_URL = "https://account.lotbiai.com/account"
 LOCKED_SHA256 = {
     'privacy.html': 'f6e94c5fa6730cf10dd4e1a591da2d596f88f9ce2e98bbe54195f7386b035963',
     'terms.html': 'de0dc05c6250f229442d53da55a3610e003f73c89c86043ccb36e80cfda129c4',
@@ -55,12 +56,27 @@ def main() -> int:
 
     index = (ROOT / "index.html").read_text(encoding="utf-8")
     css = (ROOT / "site-hardening.css").read_text(encoding="utf-8")
+    auth_css = (ROOT / "site-auth-continuity.css").read_text(encoding="utf-8")
     home_js = (ROOT / "home-shell.js").read_text(encoding="utf-8")
     mobile_js = (ROOT / "mobile-entry.js").read_text(encoding="utf-8")
+    continuity_js = (ROOT / "site-continuity.js").read_text(encoding="utf-8")
 
-    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup")):
-        if url not in index:
-            errors.append(f"{label} URL changed or missing")
+    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup"), (ACCOUNT_URL, "account")):
+        if url not in continuity_js:
+            errors.append(f"{label} URL changed or missing from approved continuity runtime")
+
+    account_start = index.find('<nav class="account-actions"')
+    account_end = index.find('</nav>', account_start)
+    initial_account = index[account_start:account_end] if account_start >= 0 and account_end >= 0 else ""
+    if not initial_account:
+        errors.append("initial account-actions markup missing")
+    else:
+        for forbidden in (">로그인<", ">회원가입<", ">내 계정<"):
+            if forbidden in initial_account:
+                errors.append(f"initial account state must remain neutral before authoritative verification: {forbidden}")
+        for required in ('data-auth-state="checking"', 'aria-busy="true"', 'account-auth-placeholder'):
+            if required not in initial_account:
+                errors.append(f"neutral initial account state missing: {required}")
 
     approved_scripts = (
         '<script src="home-shell.js" defer></script>',
@@ -134,12 +150,23 @@ def main() -> int:
 
     if 'href="site-hardening.css"' not in index:
         errors.append("hardening stylesheet is not linked after approved home stylesheet")
+    if 'href="site-auth-continuity.css"' not in index:
+        errors.append("authenticated continuity stylesheet missing from home")
     if 'href="mobile-entry.css"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
     if 'src="site-conversation.js"' not in index:
         errors.append("approved conversation module missing from home")
     if 'src="site-continuity.js"' not in index:
         errors.append("approved authenticated continuity module missing from home")
+
+    for token in (
+        ".account-auth-placeholder",
+        "min-width: 174px",
+        "min-width: 132px",
+        "var(--brand-line)",
+    ):
+        if token not in auth_css:
+            errors.append(f"missing layout-safe auth continuity style: {token}")
 
     perf_tokens = (
         'width="1535"',
@@ -175,7 +202,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("PUBLIC HARDENING VALIDATION PASS — locked content, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
+    print("PUBLIC HARDENING VALIDATION PASS — locked content, neutral initial auth state, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
     return 0
 
 
