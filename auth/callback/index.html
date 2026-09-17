@@ -17,10 +17,10 @@
   <script type="module" src="/site-continuity.js"></script>
 </head>
 <body class="auth-callback-page">
-  <main class="auth-callback-shell" aria-labelledby="auth-callback-title">
+  <main id="auth-callback-shell" class="auth-callback-shell" aria-labelledby="auth-callback-title" hidden>
     <a class="brand-text-logo auth-callback-brand" href="/" aria-label="LOTBI 홈">L<span class="brand-o">O</span>TBI</a>
-    <h1 id="auth-callback-title">LOTBI 연결 중</h1>
-    <p id="auth-callback-status" role="status" aria-live="polite">안전한 LOTBI Site 세션을 확인하고 있습니다.</p>
+    <h1 id="auth-callback-title">LOTBI 연결 오류</h1>
+    <p id="auth-callback-status" role="alert" aria-live="assertive"></p>
     <a id="auth-callback-retry" class="auth-callback-retry" href="/" hidden>홈에서 다시 시도</a>
   </main>
 </body>
