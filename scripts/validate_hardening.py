@@ -83,9 +83,10 @@ def main() -> int:
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-conversation.js"></script>',
         '<script type="module" src="site-continuity.js"></script>',
+        '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved home-shell.js, mobile-entry.js, site-conversation.js and site-continuity.js scripts")
+        errors.append("home page may run only approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
 
     combined_home = f"{index}\n{home_js}".lower()
     forbidden_home = (
