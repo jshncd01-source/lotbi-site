@@ -38,11 +38,22 @@ function accountActions() {
   return node instanceof HTMLElement ? node : undefined;
 }
 
+function sidebarAccountSlots() {
+  return [...document.querySelectorAll('[data-sidebar-account]')]
+    .filter(node => node instanceof HTMLElement);
+}
+
 function setAuthState(actions, state, busy) {
   actions.dataset.authState = state;
   document.body.dataset.siteAuthState = state;
   if (busy) actions.setAttribute('aria-busy', 'true');
   else actions.removeAttribute('aria-busy');
+}
+
+function setSidebarAuthState(slot, state, busy) {
+  slot.dataset.authState = state;
+  if (busy) slot.setAttribute('aria-busy', 'true');
+  else slot.removeAttribute('aria-busy');
 }
 
 function checkingNodes(message) {
@@ -57,46 +68,119 @@ function checkingNodes(message) {
   return [placeholder, status];
 }
 
+function sidebarCheckingNodes(message) {
+  const placeholder = document.createElement('span');
+  placeholder.className = 'sidebar-account-placeholder';
+  placeholder.setAttribute('aria-hidden', 'true');
+
+  const status = document.createElement('span');
+  status.className = 'sr-only';
+  status.setAttribute('role', 'status');
+  status.textContent = message;
+  return [placeholder, status];
+}
+
+function sidebarAccountLink({href, label, primary, secondary}) {
+  const link = document.createElement('a');
+  link.className = 'sidebar-account-entry';
+  link.href = href;
+  link.setAttribute('aria-label', label);
+
+  const name = document.createElement('span');
+  name.className = 'sidebar-account-name';
+  name.textContent = primary;
+
+  const detail = document.createElement('span');
+  detail.className = 'sidebar-account-handle';
+  detail.textContent = secondary;
+
+  link.append(name, detail);
+  return link;
+}
+
+function markCheckingSidebarAccountUi(message = '계정 상태 확인 중') {
+  for (const slot of sidebarAccountSlots()) {
+    slot.replaceChildren(...sidebarCheckingNodes(message));
+    setSidebarAuthState(slot, AUTH_STATE_CHECKING, true);
+  }
+}
+
+function markAuthenticatedSidebarAccountUi() {
+  for (const slot of sidebarAccountSlots()) {
+    slot.replaceChildren(sidebarAccountLink({
+      href: ACCOUNT_URL,
+      label: 'LOTBI 계정 열기',
+      primary: 'LOTBI 계정',
+      secondary: '계정 관리',
+    }));
+    setSidebarAuthState(slot, AUTH_STATE_AUTHENTICATED, false);
+  }
+}
+
+function markAnonymousSidebarAccountUi() {
+  for (const slot of sidebarAccountSlots()) {
+    slot.replaceChildren(sidebarAccountLink({
+      href: LOGIN_URL,
+      label: 'LOTBI 로그인',
+      primary: '로그인',
+      secondary: 'LOTBI 계정 연결',
+    }));
+    setSidebarAuthState(slot, AUTH_STATE_UNAUTHENTICATED, false);
+  }
+}
+
 export function markCheckingAccountUi(message = '계정 상태 확인 중') {
   const actions = accountActions();
-  if (!actions) return;
-  actions.replaceChildren(...checkingNodes(message));
-  setAuthState(actions, AUTH_STATE_CHECKING, true);
-  delete actions.dataset.siteAuthenticated;
+  if (actions) {
+    actions.replaceChildren(...checkingNodes(message));
+    setAuthState(actions, AUTH_STATE_CHECKING, true);
+    delete actions.dataset.siteAuthenticated;
+  } else {
+    document.body.dataset.siteAuthState = AUTH_STATE_CHECKING;
+  }
   delete document.body.dataset.siteAuthenticated;
+  markCheckingSidebarAccountUi(message);
 }
 
 export function markAuthenticatedAccountUi() {
   const actions = accountActions();
-  if (!actions) return;
-  const account = document.createElement('a');
-  account.className = 'account-action account-login';
-  account.href = ACCOUNT_URL;
-  account.textContent = '내 계정';
-  actions.replaceChildren(account);
-  setAuthState(actions, AUTH_STATE_AUTHENTICATED, false);
-  actions.dataset.siteAuthenticated = 'true';
+  if (actions) {
+    const account = document.createElement('a');
+    account.className = 'account-action account-login';
+    account.href = ACCOUNT_URL;
+    account.textContent = '내 계정';
+    actions.replaceChildren(account);
+    setAuthState(actions, AUTH_STATE_AUTHENTICATED, false);
+    actions.dataset.siteAuthenticated = 'true';
+  } else {
+    document.body.dataset.siteAuthState = AUTH_STATE_AUTHENTICATED;
+  }
   document.body.dataset.siteAuthenticated = 'true';
+  markAuthenticatedSidebarAccountUi();
   recordTiming('header-authenticated', {elapsedMs: Math.round(performanceNow())});
 }
 
 export function markAnonymousAccountUi() {
   const actions = accountActions();
-  if (!actions) return;
-  const login = document.createElement('a');
-  login.className = 'account-action account-login';
-  login.href = LOGIN_URL;
-  login.textContent = '로그인';
+  if (actions) {
+    const login = document.createElement('a');
+    login.className = 'account-action account-login';
+    login.href = LOGIN_URL;
+    login.textContent = '로그인';
 
-  const signup = document.createElement('a');
-  signup.className = 'account-action account-signup';
-  signup.href = SIGNUP_URL;
-  signup.textContent = '회원가입';
+    const signup = document.createElement('a');
+    signup.className = 'account-action account-signup';
+    signup.href = SIGNUP_URL;
+    signup.textContent = '회원가입';
 
-  actions.replaceChildren(login, signup);
-  setAuthState(actions, AUTH_STATE_UNAUTHENTICATED, false);
-  delete actions.dataset.siteAuthenticated;
+    actions.replaceChildren(login, signup);
+    setAuthState(actions, AUTH_STATE_UNAUTHENTICATED, false);
+    delete actions.dataset.siteAuthenticated;
+  } else {
+    document.body.dataset.siteAuthState = AUTH_STATE_UNAUTHENTICATED;
+  }
   delete document.body.dataset.siteAuthenticated;
+  markAnonymousSidebarAccountUi();
   recordTiming('header-unauthenticated', {elapsedMs: Math.round(performanceNow())});
 }
 
