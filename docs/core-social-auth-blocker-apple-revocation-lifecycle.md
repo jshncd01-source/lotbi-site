@@ -1,155 +1,155 @@
-# CORE_SOCIAL_AUTH_BLOCKER — APPLE_REVOCATION_LIFECYCLE
+# CORE_SOCIAL_AUTH_BLOCKER — APPLE REVOCATION / TOKEN LIFECYCLE
 
 Research date: 2026-09-17 (Asia/Seoul)
 
-Owner for implementation: LOTBI Social Login integration workstream (`lotbi-core` / authorized Account integration work)
+Status: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER — OPEN`
 
-Readiness-room boundary: documentation and handoff only. Do not modify Core, generate an Apple private key, register Production credentials, change Apple identifiers, or activate Apple signup/link from this branch.
+Owner for implementation: LOTBI Social Login integration/Core workstream.
 
-## 1. Current LOTBI account-deletion lifecycle
+Readiness boundary: documentation/handoff only. Do not modify Core from this branch, create an Apple private key, register Production credentials, change Apple identifiers, or activate Apple SIGNUP/LINK.
 
-Current Core account deletion intentionally separates immediate access revocation from final erasure.
+Implementation baselines:
+- Core Social review: `b555420b8d75c9e241a6cd9bd534f205499a87d8`
+- Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 
-On a LOTBI account deletion request Core currently:
+## 1. Current reviewed Apple status
 
-- marks the account/identity as deletion requested;
-- revokes active LOTBI sessions;
-- revokes active delegated-payment grants;
-- moves Passkeys/installations/challenges/push subscriptions into revoked/deletion/cancelled states as applicable;
-- moves active external-provider identities to local `REVOKED` state;
-- cancels unfinished Social Auth flows tied to the user/identity;
-- records remote Provider revocation as a separate provider policy;
-- schedules final erasure through an operational purge workflow rather than claiming immediate hard deletion.
+- Apple LOGIN verification contract: `READY BY REVIEW`
+- Apple SIGNUP: `BLOCKED`
+- Apple LINK: `BLOCKED`
+- reviewed lifecycle blocker: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
+- reason: `REVOCATION_LIFECYCLE_REQUIRED`
 
-## 2. Current external-identity unlink behavior
+The production activation gate deliberately reports Apple SIGNUP/LINK purpose support as false even when other provider configuration exists.
 
-The generic LOTBI unlink path is local-only:
+## 2. Existing LOTBI local deletion/unlink lifecycle
 
-- requires a FULL LOTBI session and fresh Passkey proof;
-- sets the selected `ExternalAccountIdentity` to `REVOKED`;
-- revokes relevant `FEDERATED_LIMITED` sessions;
-- cancels unfinished related external-auth flows;
-- keeps the identity's UNIQUE provider-subject reservation;
-- records `remote_revocation_performed=false`;
-- never calls the Provider to delete its account or revoke its authorization.
+Generic LOTBI unlink currently:
 
-This is correct for the generic local unlink contract but must not be described as Apple authorization revocation.
+- requires strong LOTBI proof;
+- changes the external identity to local `REVOKED`;
+- revokes relevant limited sessions;
+- cancels unfinished related Social Auth flows;
+- preserves the unique provider-subject reservation;
+- records no remote Provider revocation.
 
-## 3. Why Apple signup/link is currently blocked
+LOTBI account deletion currently separates:
 
-Current Core can verify Apple login identity tokens and exchange an Apple authorization code using a server-generated Apple client-secret JWT.
+- immediate account/session/authority revocation;
+- local external-identity revocation;
+- later operational purge;
+- lawful/security retention exceptions;
+- remote Provider lifecycle as a separate responsibility.
 
-However, the current Apple exchange path extracts and returns only the `id_token` from the Apple token response. Any Apple access/refresh token in the response is not persisted as durable revocation material.
+This generic local behavior must not be described as Apple token revocation.
 
-Apple's account-deletion guidance for apps using Sign in with Apple requires revoking the user's Apple authorization/token relationship when the user deletes the app account. A reliable revoke-on-deletion lifecycle therefore needs durable, securely retrievable revocation material associated with the correct Apple external identity.
+## 3. Why Apple SIGNUP/LINK remains blocked
 
-Until that exists and is tested, Apple SIGNUP/LINK must remain fail-closed with `EXTERNAL_APPLE_REVOCATION_REQUIRED`.
+The reviewed Apple authorization-code path can generate a server-side Apple client-secret JWT, exchange the authorization code and verify the Apple ID token.
 
-## 4. Provider revoke timing
+However, the current flow does not retain durable encrypted Apple revocation material for later provider-side revocation. A future account created/linked with Apple therefore could not yet guarantee the required revoke lifecycle when the association ends.
 
-The integration workstream must distinguish at least these moments:
+Apple's current REST API provides `POST https://appleid.apple.com/auth/revoke` and requires the matching client identifier plus server-generated client secret and a revocable token.
 
-### A. Normal Apple login
+Until the token lifecycle exists and is tested, Apple SIGNUP/LINK must remain fail-closed.
 
-- Verify Apple identity.
-- Do not revoke authorization merely because a normal login completed.
+## 4. Authoritative integration handoff delta
 
-### B. Apple identity unlink from a retained LOTBI account
+The current production-integration review has resolved the earlier readiness question about Apple-specific unlink direction: the future Apple lifecycle should include provider-side revoke when the Apple association is explicitly ended, not only when the whole LOTBI account is deleted.
 
-Current generic LOTBI semantics are local unlink only.
+Required Apple-specific behavior after implementation:
 
-Whether an Apple-specific unlink should additionally call Apple's revoke endpoint is a product/security decision to be explicitly defined. Do not silently equate local unlink with remote Apple revoke because doing so can change the user's authorization state outside LOTBI.
+### A. Normal Apple LOGIN
 
-Status: `USER_DECISION_REQUIRED — APPLE_UNLINK_REMOTE_REVOKE_POLICY` before implementing Apple-specific unlink behavior.
+- verify identity;
+- do not revoke merely because login succeeded.
 
-### C. LOTBI member account deletion
+### B. Explicit Apple unlink while retaining LOTBI account
 
-For an account that uses Sign in with Apple, the Apple authorization/token relationship must be included in the deletion lifecycle. The implementation should enqueue/perform an idempotent Apple revoke operation using the correct stored revocation material, record success/failure without logging secrets, and reconcile retryable/unknown outcomes before declaring the provider-side lifecycle complete.
+- keep LOTBI account according to local unlink policy;
+- local Apple external identity becomes `REVOKED`;
+- perform or durably schedule the Apple authorization revoke using protected revocation material;
+- safely reconcile retryable/unknown results;
+- do not claim the Apple Account itself was deleted.
+
+### C. LOTBI account deletion
+
+- local account deletion lifecycle starts immediately;
+- Apple authorization revoke must be performed or durably scheduled before provider-side lifecycle closure is claimed;
+- final local purge remains a separate step.
 
 ### D. Apple-originated authorization/account changes
 
-Apple server-to-server notifications can report events such as `consent-revoked` and `account-deleted`. The integration design should consume validated Apple notifications and reconcile the related LOTBI external identity/session state.
+- validate and reconcile Apple server-to-server account-change notifications where implemented;
+- relevant events include authorization/account lifecycle changes such as consent revocation/account deletion;
+- Provider notification does not replace LOTBI's own required revoke path when LOTBI initiates the association termination.
 
-A server-to-server notification does not replace LOTBI's own revoke-on-account-deletion obligation.
+## 5. Revocation material requirements
 
-## 5. Access/refresh token retention requirement
+The Core workstream must choose the appropriate Apple revocable token under the final Apple API contract; the reviewed integration design prefers durable refresh-token material where available/appropriate.
 
-Current Core does not retain Apple access/refresh tokens.
+Requirements:
 
-The implementation workstream must determine the exact Apple token type accepted and most suitable for durable later revocation under the current Apple API. The design should prefer the least-privileged revocation material that Apple accepts and that can be reliably associated with the external identity.
-
-Whatever token is selected:
-
-- store only when necessary for Apple lifecycle compliance;
+- capture only the minimum revocation material needed;
 - encrypt at rest in a dedicated provider-token vault or equivalent protected storage;
-- bind it to provider, external identity, client/service identifier, key version and lifecycle status;
-- never expose it through user/admin read APIs;
-- never write plaintext token values to logs, audit payloads, traces, exceptions or analytics;
-- support key rotation and explicit deletion after the provider lifecycle no longer requires it;
-- ensure duplicate deletion/revoke attempts are idempotent and safe.
+- bind to correct provider/external identity/client identifier/key version/lifecycle state;
+- never expose token material through user/admin APIs;
+- never write plaintext tokens, Apple private key or generated client-secret values to logs, audit payloads, traces, errors or analytics;
+- support key rotation;
+- support deletion of revocation material when no longer required;
+- make revoke processing idempotent/retryable;
+- reconcile uncertain external outcomes rather than silently marking success.
 
-Status: `CORE IMPLEMENTATION REQUIRED`.
+## 6. Apple private key / client secret boundary
 
-## 6. Apple client secret / private key boundary
+Server-side Apple client-secret JWT generation uses protected Team ID, Key ID, private key and matching client/Services ID.
 
-Current Core's Apple client secret is generated server-side as a short-lived ES256 JWT from:
+- `.p8` remains a server-side secret;
+- no `.p8` or secret is committed to the readiness repo;
+- client-secret JWT is generated at use time rather than treated as a public/static credential;
+- key/credential creation is a later explicitly authorized owner/integration action.
 
-- Apple Team ID;
-- Apple Key ID;
-- Apple private key file;
-- the configured Apple client/Services ID.
+## 7. Server-to-server notification handoff
 
-Rules:
+Before Apple Social Signup/Link Production activation, integration should close the final S2S notification design:
 
-- Apple private key remains a server-side Production secret, never committed to source or this readiness repository;
-- client-secret JWT is generated at use time and should not be persisted as a long-lived database credential;
-- private-key contents and generated client-secret values must never be logged;
-- the same protected secret boundary is used for Apple's token/revoke calls;
-- key/credential creation is a later authorized owner/integration step, not readiness work.
+- approved TLS endpoint;
+- signed payload validation;
+- identity mapping without secret exposure;
+- replay/duplicate protection;
+- idempotent state reconciliation;
+- session/identity handling for revoked authorization;
+- safe audit evidence;
+- retry/reconciliation semantics.
 
-## 7. Apple server-to-server notification handoff
+## 8. Lifecycle matrix
 
-Integration should evaluate and implement Apple's server-to-server account-change notification endpoint for the final Apple Production lifecycle.
+| Lifecycle | LOTBI account retained? | Local external identity | Apple remote revoke |
+|---|---|---|---|
+| Apple LOGIN | YES | active when already linked | NO |
+| explicit Apple unlink | YES | -> `REVOKED`, reservation policy retained | `REQUIRED BY REVIEWED FUTURE LIFECYCLE`, not implemented yet |
+| LOTBI account deletion | NO active account use | active Apple link -> `REVOKED` | `REQUIRED`, not implemented yet |
+| final LOTBI purge | NO | final subject handling depends on legal/security policy | separate from Apple revoke result |
+| Apple-originated revoke/account event | account may still exist | reconcile identity/session usability | Provider already changed authorization state |
 
-Minimum design requirements:
+## 9. Required closure evidence
 
-- TLS endpoint under an approved LOTBI server host;
-- validate Apple's signed payload before any state mutation;
-- handle relevant authorization/account lifecycle events idempotently;
-- map the event to the correct Apple external identity without exposing raw credentials;
-- revoke/disable LOTBI federated sessions as appropriate;
-- preserve audit evidence without secret/token contents;
-- protect against replay/duplicate delivery;
-- define retry/reconciliation behavior.
+Do not open Apple SIGNUP/LINK until integration evidence shows at least:
 
-Status: `CORE_SOCIAL_AUTH_HANDOFF — APPLE_SERVER_TO_SERVER_NOTIFICATION`.
-
-## 8. Account deletion vs unlink vs final purge vs Provider revoke
-
-| Lifecycle | Local LOTBI account retained? | Local external identity | Final LOTBI data erase? | Apple authorization remotely revoked? |
-|---|---|---|---|---|
-| Apple unlink | YES | `REVOKED`, reservation retained | NO | CURRENTLY NO; policy decision required for future Apple-specific behavior |
-| LOTBI account deletion request | NO active use; deletion lifecycle starts | active links -> `REVOKED` | NOT YET; purge follows | MUST be included for Sign in with Apple accounts before lifecycle is complete |
-| LOTBI final purge | NO | subject retention treatment depends on final policy/legal design | YES except lawful/security retention | separate from local database purge; reconcile Apple revoke result |
-| Apple authorization revoke event | LOTBI account may or may not still exist | must reconcile identity/session usability | NO automatic LOTBI account hard-delete solely by terminology | Provider-side authorization is revoked |
-
-## 9. Required tests before opening Apple SIGNUP/LINK
-
-At minimum:
-
-1. Apple token material is captured only when required and encrypted at rest;
-2. no secret/token appears in logs/repr/audit/API responses;
-3. account deletion triggers Apple revoke exactly once logically, with safe idempotent retry;
-4. Provider rejection vs temporary outage is distinguished;
-5. crash/unknown-state recovery cannot silently skip required revoke;
-6. successful revoke marks provider-lifecycle evidence without claiming immediate LOTBI hard deletion;
-7. Apple unlink behavior matches the explicit approved unlink policy;
-8. server-to-server signed notifications validate and reconcile safely;
-9. revoked/deleted Apple identity cannot mint a usable LOTBI federated session;
-10. regression confirms Google/Kakao/NAVER lifecycle behavior is unchanged.
+1. protected revocation token capture/storage;
+2. no token/key/client-secret leakage;
+3. explicit Apple unlink triggers safe remote revoke lifecycle;
+4. LOTBI account deletion triggers safe remote revoke lifecycle;
+5. idempotent retry and unknown-state recovery;
+6. rejection vs temporary outage handling;
+7. validated S2S notification/reconciliation if required by final architecture;
+8. revoked Apple identity cannot mint a usable LOTBI federated session;
+9. migrations/security tests complete;
+10. real Apple development/sandbox E2E evidence;
+11. Google/Kakao/NAVER regression remains unaffected.
 
 ## 10. Closure condition
 
-`CORE_SOCIAL_AUTH_BLOCKER — APPLE_REVOCATION_LIFECYCLE` may close only after the integration workstream produces implementation + migration/security review + tests + real Apple development/sandbox evidence for the approved lifecycle.
+`APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER` closes only after implementation + migration/security review + tests + real Apple E2E evidence.
 
-Readiness documentation alone does not close this blocker.
+Readiness documentation and Console configuration alone never close this blocker.
