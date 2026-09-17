@@ -39,6 +39,12 @@ function successfulConversation() {
   };
 }
 
+function pendingEntries() {
+  if (!memorySession.size) return [];
+  const value = JSON.parse([...memorySession.values()][0]);
+  return Array.isArray(value?.entries) ? value.entries : [value];
+}
+
 {
   let request;
   const fetchMock = async (url, init) => {
@@ -165,8 +171,8 @@ function successfulConversation() {
 }
 
 {
-  // A structured Core provider failure is explicitly zero-unit. It is safe to clear
-  // the pending key; a later new submission may have its own fresh logical identity.
+  // A structured Core provider failure on a fresh first attempt is explicitly zero-unit.
+  // It is safe to clear that fresh pending key; a later new submission gets a new identity.
   let caught;
   try {
     await sendConversationMessage(
@@ -200,6 +206,111 @@ function successfulConversation() {
     },
   );
   assert.equal(newRequest.init.headers['Idempotency-Key'], 'chat-provider-fresh-0002');
+}
+
+{
+  // If the identity was inherited from an earlier uncertain request, a later session
+  // error proves only the retry was uncharged. Keep the original key through reauth so
+  // the next valid response resolves the same logical task instead of risking a double charge.
+  const message = '재로그인 경계 불확실 요청';
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      message,
+      {idempotencyKey: 'chat-reauth-original-0001'},
+      async () => { throw new TypeError('uncertain initial network'); },
+    );
+  } catch (error) {
+    assert.ok(error instanceof SiteCoreError);
+    assert.equal(error.code, 'WEB_CONVERSATION_NETWORK_ERROR');
+  }
+  assert.equal(pendingEntries()[0].idempotencyKey, 'chat-reauth-original-0001');
+
+  let expiredRetry;
+  try {
+    await sendConversationMessage(
+      'expired-site-token',
+      message,
+      {idempotencyKey: 'chat-reauth-new-0002'},
+      async (url, init) => {
+        expiredRetry = {url, init};
+        return jsonResponse({detail: {code: 'SESSION_EXPIRED', message: 'expired'}}, 401);
+      },
+    );
+  } catch (error) {
+    assert.ok(error instanceof SiteCoreError);
+    assert.equal(error.code, 'SESSION_EXPIRED');
+  }
+  assert.equal(expiredRetry.init.headers['Idempotency-Key'], 'chat-reauth-original-0001');
+  assert.equal(pendingEntries()[0].idempotencyKey, 'chat-reauth-original-0001');
+
+  let afterReauth;
+  await sendConversationMessage(
+    'fresh-site-token',
+    message,
+    {idempotencyKey: 'chat-reauth-new-0003'},
+    async (url, init) => {
+      afterReauth = {url, init};
+      return jsonResponse(successfulConversation());
+    },
+  );
+  assert.equal(afterReauth.init.headers['Idempotency-Key'], 'chat-reauth-original-0001');
+  assert.equal(memorySession.size, 0);
+}
+
+{
+  // The same rule applies when an inherited uncertain identity later receives an
+  // explicit provider 503. The 503 is zero-unit for that retry, but cannot prove the
+  // earlier uncertain attempt was uncharged. Retain the original identity until 200.
+  const message = 'provider 재시도 경계 불확실 요청';
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      message,
+      {idempotencyKey: 'chat-inherited-provider-original-0001'},
+      async () => { throw new TypeError('uncertain initial network'); },
+    );
+  } catch (error) {
+    assert.ok(error instanceof SiteCoreError);
+  }
+
+  let providerRetry;
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      message,
+      {idempotencyKey: 'chat-inherited-provider-new-0002'},
+      async (url, init) => {
+        providerRetry = {url, init};
+        return jsonResponse({
+          detail: {
+            code: 'AI_PROVIDER_UNAVAILABLE',
+            message: 'temporarily unavailable',
+            retryable: true,
+            correlation_id: 'req-inherited-provider-failed',
+          },
+        }, 503);
+      },
+    );
+  } catch (error) {
+    assert.ok(error instanceof SiteCoreError);
+    assert.equal(error.code, 'AI_PROVIDER_UNAVAILABLE');
+  }
+  assert.equal(providerRetry.init.headers['Idempotency-Key'], 'chat-inherited-provider-original-0001');
+  assert.equal(pendingEntries()[0].idempotencyKey, 'chat-inherited-provider-original-0001');
+
+  let finalRetry;
+  await sendConversationMessage(
+    'site-memory-token',
+    message,
+    {idempotencyKey: 'chat-inherited-provider-new-0003'},
+    async (url, init) => {
+      finalRetry = {url, init};
+      return jsonResponse(successfulConversation());
+    },
+  );
+  assert.equal(finalRetry.init.headers['Idempotency-Key'], 'chat-inherited-provider-original-0001');
+  assert.equal(memorySession.size, 0);
 }
 
 {
@@ -260,6 +371,7 @@ for (const token of [
   "const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,160}$/u",
   "const PENDING_CONVERSATION_STORAGE_KEY = 'lotbi.site.conversation.pending.v1'",
   'const PENDING_CONVERSATION_LIMIT = 20',
+  'const inheritedUncertainIdentity = Boolean(pendingConversationFor(message))',
   "headers['Idempotency-Key'] = effectiveIdempotencyKey",
   'rememberPendingConversation(message, effectiveIdempotencyKey)',
   'clearPendingConversation(message, effectiveIdempotencyKey)',
