@@ -88,9 +88,19 @@ assert.ok(!staticAccountActions.includes('>회원가입<'), 'initial static head
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
 assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js"'));
+assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
+assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
+assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
+assert.ok(!callbackHtml.includes('LOTBI 연결 중'), 'normal callback markup must not expose a loading card title');
+assert.ok(!callbackHtml.includes('LOTBI Site 세션을 확인하고 있습니다.'), 'normal callback markup must not expose pending copy');
 assert.ok(callback.includes("new CustomEvent('lotbi:site-session-state'"));
 assert.ok(callback.includes('authenticated: true'));
 assert.ok(callback.includes('expiresAt: session.expiresAt'));
+assert.ok(callback.includes('showCallbackError'));
+assert.ok(callback.includes("document.body.classList.add('auth-callback-error-page')"));
+assert.ok(callback.includes('callbackShell.hidden = false'));
+assert.ok(callback.includes('retryLink.hidden = false'));
+assert.ok(!callback.includes("setStatus('LOTBI Site 세션을 확인하고 있습니다.')"), 'normal callback pending path must remain visually silent');
 
 for (const token of [
   "export const AUTH_STATE_CHECKING = 'checking'",
@@ -124,13 +134,18 @@ assert.equal((continuity.match(/setTimeout\(/g) || []).length, 1, 'only the real
 assert.ok(continuity.includes('Math.min(delay, 2_147_000_000)'), 'the sole timer must remain bound to the actual session expiry');
 for (const forbiddenDelay of ['sleep(', 'retryDelay', 'AUTH_DELAY', '5000)', '5_000']) {
   assert.ok(!continuity.includes(forbiddenDelay), `fixed auth delay is forbidden: ${forbiddenDelay}`);
+  assert.ok(!callback.includes(forbiddenDelay), `fixed callback delay is forbidden: ${forbiddenDelay}`);
 }
 
 assert.ok(continuityCss.includes('min-width: 174px'));
 assert.ok(continuityCss.includes('min-width: 132px'));
 assert.ok(continuityCss.includes('.account-auth-placeholder'));
-assert.ok(continuityCss.includes('var(--brand-line)'));
-assert.ok(continuityCss.includes('#f0f2f7'));
+assert.ok(continuityCss.includes('visibility: hidden'));
+assert.ok(continuityCss.includes('body.auth-callback-page:not(.auth-callback-error-page)'));
+assert.ok(continuityCss.includes('.auth-callback-page:not(.auth-callback-error-page) .auth-callback-shell'));
+assert.ok(!continuityCss.includes('.account-auth-placeholder::before'));
+assert.ok(!continuityCss.includes('.account-auth-placeholder::after'));
+assert.ok(!continuityCss.includes('#f0f2f7'), 'checking state must not paint the old gray skeleton');
 
 for (const timing of [
   "recordTiming('site-boot'",
@@ -182,4 +197,4 @@ for (const preserved of [
   assert.ok(conversation.includes(preserved), `composer regression: ${preserved}`);
 }
 
-console.log('SITE-AUTH-CONTINUITY-02 / FLASH-01 CONTRACT PASS');
+console.log('SITE-AUTH-CONTINUITY-02 / FLASH-01 / SEAMLESS-02 CONTRACT PASS');
