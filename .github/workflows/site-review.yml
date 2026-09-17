@@ -44,6 +44,9 @@ jobs:
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
+      - name: Validate composer send and voice interaction
+        run: node scripts/validate_composer_interaction.mjs
+
       - name: Validate public-site hardening
         run: python scripts/validate_hardening.py
 
