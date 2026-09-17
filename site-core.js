@@ -8,6 +8,7 @@ const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,160}$/u;
 const PENDING_CONVERSATION_STORAGE_KEY = 'lotbi.site.conversation.pending.v1';
+const PENDING_CONVERSATION_LIMIT = 20;
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -65,48 +66,57 @@ function conversationSessionStorage() {
   }
 }
 
-function readPendingConversation() {
+function normalizePendingEntry(value) {
+  const message = typeof value?.message === 'string' ? value.message.trim() : '';
+  const idempotencyKey = typeof value?.idempotencyKey === 'string' ? value.idempotencyKey.trim() : '';
+  if (!message || !IDEMPOTENCY_KEY_RE.test(idempotencyKey)) return undefined;
+  return {message, idempotencyKey};
+}
+
+function readPendingConversations() {
   const storage = conversationSessionStorage();
-  if (!storage) return undefined;
+  if (!storage) return [];
   try {
     const raw = storage.getItem(PENDING_CONVERSATION_STORAGE_KEY);
-    if (!raw) return undefined;
+    if (!raw) return [];
     const value = JSON.parse(raw);
-    const message = typeof value?.message === 'string' ? value.message.trim() : '';
-    const idempotencyKey = typeof value?.idempotencyKey === 'string' ? value.idempotencyKey.trim() : '';
-    if (!message || !IDEMPOTENCY_KEY_RE.test(idempotencyKey)) {
-      storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
-      return undefined;
-    }
-    return {message, idempotencyKey};
+    const rawEntries = Array.isArray(value?.entries) ? value.entries : [value];
+    const entries = rawEntries.map(normalizePendingEntry).filter(Boolean).slice(0, PENDING_CONVERSATION_LIMIT);
+    if (!entries.length) storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
+    return entries;
   } catch {
     try { storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY); } catch {}
-    return undefined;
+    return [];
   }
 }
 
-function rememberPendingConversation(message, idempotencyKey) {
-  if (!message || !IDEMPOTENCY_KEY_RE.test(idempotencyKey)) return;
+function writePendingConversations(entries) {
   const storage = conversationSessionStorage();
   if (!storage) return;
+  const normalized = entries.map(normalizePendingEntry).filter(Boolean).slice(0, PENDING_CONVERSATION_LIMIT);
   try {
-    storage.setItem(PENDING_CONVERSATION_STORAGE_KEY, JSON.stringify({message, idempotencyKey}));
+    if (!normalized.length) storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
+    else storage.setItem(PENDING_CONVERSATION_STORAGE_KEY, JSON.stringify({entries: normalized}));
   } catch {}
 }
 
+function rememberPendingConversation(message, idempotencyKey) {
+  const entry = normalizePendingEntry({message, idempotencyKey});
+  if (!entry) return;
+  const entries = readPendingConversations().filter(item => item.message !== entry.message);
+  writePendingConversations([entry, ...entries]);
+}
+
 function clearPendingConversation(message, idempotencyKey) {
-  const storage = conversationSessionStorage();
-  if (!storage) return;
-  const pending = readPendingConversation();
-  if (!pending || pending.message !== message || pending.idempotencyKey !== idempotencyKey) return;
-  try { storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY); } catch {}
+  const entries = readPendingConversations();
+  const next = entries.filter(item => !(item.message === message && item.idempotencyKey === idempotencyKey));
+  if (next.length !== entries.length) writePendingConversations(next);
 }
 
 function effectiveConversationKey(message, requestedKey) {
   if (!requestedKey) return '';
-  const pending = readPendingConversation();
-  if (pending && pending.message === message) return pending.idempotencyKey;
-  return requestedKey;
+  const pending = readPendingConversations().find(item => item.message === message);
+  return pending?.idempotencyKey || requestedKey;
 }
 
 function responseProvesNoUncertainCharge(error) {
