@@ -7,14 +7,14 @@
   overflow: hidden;
 }
 
-/* SITE-SIDEBAR-LOGO-CLIP-FIX-01 — use the wrapper's available width while
-   preserving the official 334x96 asset ratio. The previous fixed 34px height
-   rendered the complete mark at only ~118px wide, making the right-side LOTBI
-   letters appear visually cropped even though the element box was not clipped. */
+/* SITE-SIDEBAR-LOGO-RIGHT-EDGE-SAFE-FIT-02 — preserve the official
+   334x96 asset ratio while reserving a 10px visual safety inset on the right.
+   A full 100% fit left no breathing room inside the overflow-hidden wrapper,
+   so the final LOTBI letter could still look clipped at Production pixels. */
 .sidebar-brand-logo {
   display: block;
-  width: 100%;
-  max-width: 100%;
+  width: calc(100% - 10px);
+  max-width: calc(100% - 10px);
   height: auto;
   min-width: 0;
   object-fit: contain;
