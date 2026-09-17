@@ -47,7 +47,7 @@ const cases = [
 function htmlFor() {
   const escapedCss = css.replaceAll('</style>', '<\\/style>');
   return `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><style>${escapedCss}</style></head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${escapedCss}</style></head>
 <body class="chat-home-page conversation-active">
 <div class="chat-app-shell">
   <aside class="chat-sidebar chat-sidebar-desktop"></aside>
@@ -97,6 +97,11 @@ for (const text of samples) {
 const tcs = getComputedStyle(thread);
 const acs = getComputedStyle(assistant);
 document.getElementById('render-result').textContent = JSON.stringify({
+  viewport: {
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    clientWidth: document.documentElement.clientWidth,
+  },
   rows,
   thread: {
     width: thread.getBoundingClientRect().width,
@@ -140,8 +145,11 @@ function render(width, height) {
   return JSON.parse(match[1].replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>'));
 }
 
-function assertContentFit(label, result) {
+function assertContentFit(label, result, expectedViewportWidth) {
   const tolerance = 1.5;
+  if (Math.abs(result.viewport.innerWidth - expectedViewportWidth) > tolerance) {
+    throw new Error(`${label}: expected ${expectedViewportWidth}px viewport, got ${result.viewport.innerWidth}px`);
+  }
   for (const row of result.rows) {
     const expected = row.textHeight + row.verticalPadding;
     if (row.bubbleHeight > expected + tolerance) {
@@ -164,6 +172,6 @@ const desktop = render(1440, 900);
 const mobile = render(390, 844);
 console.log('SITE-USER-BUBBLE-CONTENT-FIT-02 desktop', JSON.stringify(desktop));
 console.log('SITE-USER-BUBBLE-CONTENT-FIT-02 mobile', JSON.stringify(mobile));
-assertContentFit('desktop', desktop);
-assertContentFit('mobile', mobile);
+assertContentFit('desktop', desktop, 1440);
+assertContentFit('mobile', mobile, 390);
 console.log('SITE-USER-BUBBLE-CONTENT-FIT-02 PASS');
