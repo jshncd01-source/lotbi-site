@@ -11,6 +11,7 @@ on:
       - site-web-conversation-integration-01-review-v2
       - site-user-bubble-content-fit-02-review
       - site-web-3d-avatar-integration-01-review
+      - site-web-3d-avatar-production-verify-01
   pull_request:
     branches:
       - main
@@ -118,6 +119,18 @@ jobs:
             --data '{"text":"site-review-unauthenticated-probe"}')"
           [[ "$unauth_status" == '401' ]] || { echo "unauthenticated conversation expected 401, got $unauth_status" >&2; cat /tmp/unauth-body >&2; exit 1; }
           grep -Eiq '^access-control-allow-origin:[[:space:]]*https://lotbiai\.com' "$unauth_headers" || { echo 'unauthenticated response missing exact ACAO' >&2; exit 1; }
+
+      - name: Verify deployed 3D Avatar in real browser
+        run: node scripts/verify_avatar_production.mjs
+
+      - name: Upload 3D Avatar Production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-web-3d-avatar-production-evidence
+          path: avatar-production-evidence/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Static serving smoke test
         shell: bash
