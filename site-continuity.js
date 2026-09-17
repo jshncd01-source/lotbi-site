@@ -137,6 +137,7 @@ function markAnonymousSidebarAccountUi() {
     }));
     setSidebarAuthState(slot, AUTH_STATE_UNAUTHENTICATED, false);
   }
+  window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'));
 }
 
 export function markCheckingAccountUi(message = '계정 상태 확인 중') {
