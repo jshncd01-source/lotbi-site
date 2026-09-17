@@ -168,10 +168,14 @@
   border-radius: 22px;
 }
 
+/* SITE-COMPOSER-AUTO-GROW-01 — one visible line through about twelve lines.
+   `lh` follows the prompt's actual line-height so font changes keep the cap honest. */
 .chat-input {
-  min-height: 64px;
-  max-height: 140px;
-  padding: 8px 4px 6px;
+  min-height: calc(1lh + 14px);
+  max-height: calc(12lh + 14px);
+  padding: 7px 8px 7px 4px;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
 }
 
 @media (max-width: 760px) {
@@ -185,7 +189,15 @@
   }
 
   .chat-input {
-    min-height: 56px;
+    min-height: calc(1lh + 12px);
+    max-height: min(calc(12lh + 12px), 40vh);
+    padding: 6px 7px 6px 2px;
+  }
+
+  @supports (height: 100dvh) {
+    .chat-input {
+      max-height: min(calc(12lh + 12px), 40dvh);
+    }
   }
 
   .composer-actions {

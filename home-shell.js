@@ -42,19 +42,30 @@
   if (prompt instanceof HTMLTextAreaElement) {
     const resizePrompt = () => {
       prompt.style.height = 'auto';
-      const maxHeight = Number.parseFloat(window.getComputedStyle(prompt).maxHeight) || 140;
-      prompt.style.height = `${Math.min(prompt.scrollHeight, maxHeight)}px`;
+      const styles = window.getComputedStyle(prompt);
+      const minHeight = Number.parseFloat(styles.minHeight) || 40;
+      const maxHeight = Number.parseFloat(styles.maxHeight) || 320;
+      const nextHeight = Math.min(Math.max(prompt.scrollHeight, minHeight), maxHeight);
+      prompt.style.height = `${nextHeight}px`;
+      prompt.style.overflowY = prompt.scrollHeight > maxHeight ? 'auto' : 'hidden';
     };
 
     prompt.addEventListener('input', resizePrompt);
+    prompt.addEventListener('compositionend', resizePrompt);
+    window.addEventListener('resize', resizePrompt);
+
+    // Establish the compact one-line baseline immediately and keep all later
+    // typing, paste, newline, IME and programmatic input events on one path.
+    resizePrompt();
+
     window.addEventListener('pagehide', () => {
       prompt.value = '';
-      prompt.style.height = '';
+      resizePrompt();
     });
     window.addEventListener('pageshow', (event) => {
       if (event.persisted) {
         prompt.value = '';
-        prompt.style.height = '';
+        resizePrompt();
       }
     });
   }
