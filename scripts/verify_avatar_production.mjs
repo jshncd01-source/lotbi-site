@@ -133,6 +133,7 @@ const results = [
   await verify('mobile-390',390,844,true)
 ];
 fs.writeFileSync(path.join(OUT,'summary.json'),JSON.stringify(results,null,2));
+console.log('SITE-WEB-3D-AVATAR BROWSER ERROR DETAILS', JSON.stringify(results.map(r => ({label:r.label,browserErrors:r.browserErrors}))));
 console.log('SITE-WEB-3D-AVATAR PRODUCTION BROWSER PASS', JSON.stringify(results.map(r => ({
   label:r.label,viewport:r.initial.viewport,loadMs:r.finalTPlus3.state.loadMs,
   canvasCount:r.finalTPlus3.canvasCount,overflowX:r.finalTPlus3.overflowX,errors:r.browserErrors.length
