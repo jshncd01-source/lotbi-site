@@ -1,0 +1,98 @@
+name: SITE Sidebar Logo Production Measure
+
+on:
+  push:
+    branches:
+      - site-sidebar-logo-clip-fix-01-measure
+
+permissions:
+  contents: read
+
+jobs:
+  measure-production-logo:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Measure Production computed logo geometry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet selenium
+          python - <<'PY'
+          import json, shutil, time
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+
+          CHROME = shutil.which('google-chrome') or shutil.which('google-chrome-stable') or shutil.which('chromium')
+          if not CHROME:
+              raise SystemExit('Chrome not available')
+
+          def measure(width, height):
+              opts = Options()
+              opts.binary_location = CHROME
+              opts.add_argument('--headless=new')
+              opts.add_argument('--no-sandbox')
+              opts.add_argument('--disable-gpu')
+              opts.add_argument('--disable-dev-shm-usage')
+              opts.add_argument(f'--window-size={width},{height}')
+              driver = webdriver.Chrome(options=opts)
+              try:
+                  driver.get(f'https://lotbiai.com/?logo_measure={width}x{height}-{int(time.time())}')
+                  time.sleep(3)
+                  sidebar = driver.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop')
+                  wrapper = driver.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop .sidebar-brand')
+                  logo = driver.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop .sidebar-brand-logo')
+                  new_chat = driver.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop .nav-item-primary')
+                  result = driver.execute_script('''
+                    const [sidebar, wrapper, logo, newChat] = arguments;
+                    const pick = (el) => {
+                      const s = getComputedStyle(el);
+                      const r = el.getBoundingClientRect();
+                      return {
+                        display: s.display,
+                        width: s.width,
+                        height: s.height,
+                        maxWidth: s.maxWidth,
+                        maxHeight: s.maxHeight,
+                        minWidth: s.minWidth,
+                        objectFit: s.objectFit,
+                        objectPosition: s.objectPosition,
+                        overflow: s.overflow,
+                        overflowX: s.overflowX,
+                        overflowY: s.overflowY,
+                        flexShrink: s.flexShrink,
+                        paddingLeft: s.paddingLeft,
+                        paddingRight: s.paddingRight,
+                        marginLeft: s.marginLeft,
+                        marginRight: s.marginRight,
+                        transform: s.transform,
+                        position: s.position,
+                        rect: {left:r.left, right:r.right, top:r.top, bottom:r.bottom, width:r.width, height:r.height},
+                        clientWidth: el.clientWidth,
+                        clientHeight: el.clientHeight,
+                        scrollWidth: el.scrollWidth,
+                        scrollHeight: el.scrollHeight,
+                      };
+                    };
+                    return {
+                      viewport: {width: innerWidth, height: innerHeight},
+                      natural: {width: logo.naturalWidth, height: logo.naturalHeight},
+                      complete: logo.complete,
+                      currentSrc: logo.currentSrc,
+                      sidebar: pick(sidebar),
+                      wrapper: pick(wrapper),
+                      logo: pick(logo),
+                      newChat: pick(newChat),
+                      rightEdgeDelta: wrapper.getBoundingClientRect().right - logo.getBoundingClientRect().right,
+                      leftEdgeDelta: logo.getBoundingClientRect().left - wrapper.getBoundingClientRect().left,
+                      ratioIntrinsic: logo.naturalWidth / logo.naturalHeight,
+                      ratioRendered: logo.getBoundingClientRect().width / logo.getBoundingClientRect().height,
+                    };
+                  ''', sidebar, wrapper, logo, new_chat)
+                  return result
+              finally:
+                  driver.quit()
+
+          for w,h in ((1440,900),(1366,900)):
+              print(f'LOGO_MEASURE_{w}x{h}=' + json.dumps(measure(w,h), ensure_ascii=False, sort_keys=True))
+          PY
