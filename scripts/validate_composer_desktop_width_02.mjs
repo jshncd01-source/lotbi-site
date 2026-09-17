@@ -59,9 +59,9 @@ assert.match(
 // ratio with a 10px right safety inset. Do not widen the 220px sidebar.
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?margin:\s*0\s+10px\s+18px/);
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?overflow:\s*hidden/);
-assert.match(sidebarCss, /\\.sidebar-brand-logo\\s*\\{[\\s\\S]*?width:\\s*calc\\(100%\\s*-\\s*10px\\)/);
-assert.match(sidebarCss, /\\.sidebar-brand-logo\\s*\\{[\\s\\S]*?max-width:\\s*calc\\(100%\\s*-\\s*10px\\)/);
-assert.doesNotMatch(sidebarCss, /\\.sidebar-brand-logo\\s*\\{[\\s\\S]*?width:\\s*100%/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*calc\(100%\s*-\s*10px\)/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*calc\(100%\s*-\s*10px\)/);
+assert.doesNotMatch(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*100%/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*auto/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-fit:\s*contain/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-position:\s*left center/);
