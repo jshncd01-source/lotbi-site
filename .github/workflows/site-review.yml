@@ -9,6 +9,7 @@ on:
       - site-home-nav-01-review
       - site-mobile-entry-app-link-01-work
       - site-web-conversation-integration-01-review-v2
+      - site-user-bubble-content-fit-02-review
   pull_request:
     branches:
       - main
@@ -43,6 +44,9 @@ jobs:
 
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
+
+      - name: Validate user bubble content-fit rendering
+        run: node scripts/validate_user_bubble_content_fit.mjs
 
       - name: Validate authenticated return and refresh continuity
         run: node scripts/validate_auth_continuity_02.mjs
