@@ -79,6 +79,7 @@ def main() -> int:
                 errors.append(f"neutral initial account state missing: {required}")
 
     approved_scripts = (
+        '<script type="importmap">',
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-conversation.js"></script>',
@@ -86,7 +87,7 @@ def main() -> int:
         '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
+        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
 
     combined_home = f"{index}\n{home_js}".lower()
     forbidden_home = (
