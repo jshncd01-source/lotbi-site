@@ -6,6 +6,7 @@ const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
+const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,160}$/u;
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -107,8 +108,20 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
   });
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch) {
-  assertFetch(fetchImpl);
+function conversationRequestOptions(optionsOrFetch, fetchImpl) {
+  if (typeof optionsOrFetch === 'function') {
+    return {idempotencyKey: '', fetchImpl: optionsOrFetch};
+  }
+  const options = optionsOrFetch && typeof optionsOrFetch === 'object' ? optionsOrFetch : {};
+  return {
+    idempotencyKey: typeof options.idempotencyKey === 'string' ? options.idempotencyKey.trim() : '',
+    fetchImpl,
+  };
+}
+
+export async function sendConversationMessage(sessionToken, text, optionsOrFetch = {}, fetchImpl = globalThis.fetch) {
+  const request = conversationRequestOptions(optionsOrFetch, fetchImpl);
+  assertFetch(request.fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
   if (!token) {
@@ -117,19 +130,25 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
   if (!message || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
   }
+  if (request.idempotencyKey && !IDEMPOTENCY_KEY_RE.test(request.idempotencyKey)) {
+    throw new SiteCoreError('대화 재시도 식별자가 올바르지 않습니다.', {code: 'INVALID_IDEMPOTENCY_KEY', status: 400});
+  }
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+  if (request.idempotencyKey) headers['Idempotency-Key'] = request.idempotencyKey;
 
   let response;
   try {
-    response = await fetchImpl(`${CORE_ORIGIN}${CONVERSATION_PATH}`, {
+    response = await request.fetchImpl(`${CORE_ORIGIN}${CONVERSATION_PATH}`, {
       method: 'POST',
       mode: 'cors',
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({text: message}),
     });
   } catch {
