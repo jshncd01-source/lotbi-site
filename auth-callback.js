@@ -9,6 +9,21 @@ import {mountConversation} from './site-conversation.js';
 
 const statusNode = document.getElementById('auth-callback-status');
 const retryLink = document.getElementById('auth-callback-retry');
+const callbackBootStartedAt = globalThis.performance?.now?.() ?? 0;
+
+function performanceNow() {
+  return globalThis.performance?.now?.() ?? 0;
+}
+
+function recordTiming(name, detail = {}) {
+  try {
+    globalThis.performance?.mark?.(`lotbi-auth:${name}`, {detail: Object.freeze({...detail})});
+  } catch {
+    // Timing evidence is diagnostic-only and must never affect authentication.
+  }
+}
+
+recordTiming('callback-boot', {elapsedMs: Math.round(callbackBootStartedAt)});
 
 function setStatus(message, isError = false) {
   if (statusNode) {
@@ -95,14 +110,27 @@ async function completeSiteHandoff() {
 
   history.replaceState(null, '', callbackPathWithoutQuery());
   const context = readAndClearSiteHandoffContext(callback.state);
+  recordTiming('account-handoff-return', {
+    durationMs: Math.max(0, Date.now() - context.startedAt),
+  });
+
   setStatus('LOTBI Site 세션을 확인하고 있습니다.');
+  const redeemStartedAt = performanceNow();
   const session = await redeemSiteHandoff({
     handoffCode: callback.code,
     state: callback.state,
     codeVerifier: context.codeVerifier,
   });
+  recordTiming('core-redeem', {
+    durationMs: Math.round(Math.max(0, performanceNow() - redeemStartedAt)),
+  });
 
+  const hydrateStartedAt = performanceNow();
   await hydrateHomeShell();
+  recordTiming('callback-hydrate', {
+    durationMs: Math.round(Math.max(0, performanceNow() - hydrateStartedAt)),
+  });
+
   history.replaceState(null, '', '/');
   const mounted = mountConversation({
     sessionToken: session.sessionToken,
@@ -117,8 +145,16 @@ async function completeSiteHandoff() {
       expiresAt: session.expiresAt,
     },
   }));
+
+  recordTiming('callback-complete', {
+    durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
+    handoffToHeaderMs: Math.max(0, Date.now() - context.startedAt),
+  });
 }
 
 void completeSiteHandoff().catch((error) => {
+  recordTiming('callback-error', {
+    durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
+  });
   setStatus(callbackErrorMessage(error), true);
 });
