@@ -56,6 +56,8 @@ function safeTimezone(clientContext) {
   if (!clientContext || typeof clientContext !== 'object') return '';
   const value = typeof clientContext.timezone === 'string' ? clientContext.timezone.trim() : '';
   if (!value || value.length > 64 || !IANA_TIMEZONE_PATTERN.test(value)) return '';
+  const segments = value.split('/');
+  if (segments.some(segment => segment === '.' || segment === '..')) return '';
   return value;
 }
 
