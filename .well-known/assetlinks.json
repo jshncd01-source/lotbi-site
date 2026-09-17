@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.lotbiai.app",
+      "sha256_cert_fingerprints": [
+        "56:E5:0D:D9:CD:25:BA:0C:47:80:65:64:2E:F6:B5:D2:55:90:19:9C:EC:02:BF:83:A0:62:37:19:18:F7:19:A2"
+      ]
+    }
+  }
+]
