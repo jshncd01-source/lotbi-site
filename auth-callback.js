@@ -1,7 +1,9 @@
 import {
   callbackPathWithoutQuery,
+  clearSiteAuthContinuity,
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
+  rememberSiteAuthContinuity,
   SiteHandoffClientError,
 } from './site-auth.js';
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js';
@@ -83,6 +85,7 @@ async function completeSiteHandoff() {
     state: callback.state,
     codeVerifier: context.codeVerifier,
   });
+  rememberSiteAuthContinuity(session.expiresAt);
 
   await hydrateHomeShell();
   history.replaceState(null, '', '/');
@@ -95,5 +98,6 @@ async function completeSiteHandoff() {
 }
 
 void completeSiteHandoff().catch((error) => {
+  clearSiteAuthContinuity();
   setStatus(callbackErrorMessage(error), true);
 });
