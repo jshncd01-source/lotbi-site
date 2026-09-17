@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
 HOME_CSS = ROOT / "home-chat.css"
 HOME_JS = ROOT / "home-shell.js"
+CONTINUITY_JS = ROOT / "site-continuity.js"
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
@@ -22,12 +23,18 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 def main() -> int:
     errors: list[str] = []
 
-    for path, label in ((INDEX, "index.html"), (HOME_CSS, "home-chat.css"), (HOME_JS, "home-shell.js")):
+    for path, label in (
+        (INDEX, "index.html"),
+        (HOME_CSS, "home-chat.css"),
+        (HOME_JS, "home-shell.js"),
+        (CONTINUITY_JS, "site-continuity.js"),
+    ):
         if not path.exists() or path.stat().st_size == 0:
             errors.append(f"missing or empty {label}")
 
     text = INDEX.read_text(encoding="utf-8") if INDEX.exists() else ""
     script = HOME_JS.read_text(encoding="utf-8") if HOME_JS.exists() else ""
+    continuity = CONTINUITY_JS.read_text(encoding="utf-8") if CONTINUITY_JS.exists() else ""
 
     requirements = {
         "approved LOTBI asset": 'src="assets/lotbi-main-logo.png"',
@@ -41,6 +48,9 @@ def main() -> int:
         "approved mobile chooser": 'src="mobile-entry.js"',
         "approved conversation module": 'src="site-conversation.js"',
         "approved continuity module": 'src="site-continuity.js"',
+        "auth continuity stylesheet": 'href="site-auth-continuity.css"',
+        "neutral initial auth state": 'data-auth-state="checking"',
+        "neutral auth placeholder": 'class="account-auth-placeholder"',
         "desktop sidebar": "chat-sidebar-desktop",
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
@@ -58,8 +68,6 @@ def main() -> int:
         "empty state": "비어 있음",
         "ready state": "준비",
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
-        "login URL": LOGIN_URL,
-        "signup URL": SIGNUP_URL,
         "account URL": ACCOUNT_URL,
         "Company link": "about.html",
         "Privacy link": "privacy.html",
@@ -72,6 +80,20 @@ def main() -> int:
     for label, token in requirements.items():
         if token not in text:
             errors.append(f"index.html: missing {label}")
+
+    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup"), (ACCOUNT_URL, "account")):
+        if url not in continuity:
+            errors.append(f"site-continuity.js: {label} URL changed or missing")
+
+    account_start = text.find('<nav class="account-actions"')
+    account_end = text.find('</nav>', account_start)
+    initial_account = text[account_start:account_end] if account_start >= 0 and account_end >= 0 else ""
+    if not initial_account:
+        errors.append("index.html: initial account-actions markup not found")
+    else:
+        for forbidden in (">로그인<", ">회원가입<", ">내 계정<"):
+            if forbidden in initial_account:
+                errors.append(f"index.html: initial auth state must stay neutral ({forbidden})")
 
     textarea_start = text.find('<textarea')
     textarea_end = text.find('</textarea>', textarea_start)
@@ -123,9 +145,6 @@ def main() -> int:
     if 'class="sr-only" role="status"' not in text:
         errors.append("index.html: live status boundary must remain available to assistive technology")
 
-    if text.count(LOGIN_URL) < 1 or text.count(SIGNUP_URL) < 1:
-        errors.append("index.html: login/signup URLs must remain exposed in the header")
-
     visible_copy_tokens = (
         'class="chat-copy"',
         'class="chat-eyebrow"',
@@ -142,7 +161,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — accessible writable composer, isolated conversation/continuity modules, navigation/account/legal routes and mobile chooser coexistence verified.")
+    print("HOME CHAT VALIDATION PASS — neutral initial auth state, accessible writable composer, isolated conversation/continuity modules, navigation/account/legal routes and mobile chooser coexistence verified.")
     return 0
 
 
