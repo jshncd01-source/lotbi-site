@@ -7,6 +7,7 @@ const cssFiles = [
   'styles.css',
   'home-chat.css',
   'site-hardening.css',
+  'site-sidebar-nav.css',
   'site-auth-continuity.css',
   'footer-business-info.css',
   'mobile-entry.css',
