@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 
-const TARGET = 'https://lotbiai.com/?avatar-production-verify=e4314a2e';
+const TARGET = 'https://lotbiai.com/?avatar-production-verify=ca6f06f4';
 const OUT = path.resolve('avatar-production-evidence');
 fs.mkdirSync(OUT, {recursive: true});
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
