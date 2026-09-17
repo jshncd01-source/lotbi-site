@@ -64,7 +64,22 @@ const SNAPSHOT = `(() => {
   const stage = document.querySelector('[data-lotbi-avatar-stage]');
   const composer = document.querySelector('.chat-composer');
   const sidebar = document.querySelector('.chat-sidebar');
+  const canvas = stage?.querySelector('canvas');
   const rect = el => el ? ({x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}) : null;
+  let visiblePixels = null;
+  if (canvas) {
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    if (gl) {
+      const width = gl.drawingBufferWidth, height = gl.drawingBufferHeight;
+      const pixels = new Uint8Array(width * height * 4);
+      gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+      let minX=width,minY=height,maxX=-1,maxY=-1,count=0;
+      for (let y=0;y<height;y+=1) for (let x=0;x<width;x+=1) {
+        if (pixels[(y*width+x)*4+3] > 8) { minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);count+=1; }
+      }
+      visiblePixels = count ? {count,minX,minY,maxX,maxY,left:minX,right:width-1-maxX,bottom:minY,top:height-1-maxY,bufferWidth:width,bufferHeight:height} : {count,bufferWidth:width,bufferHeight:height};
+    }
+  }
   return {
     state,
     ready: wrap?.classList.contains('avatar-3d-ready') || false,
@@ -74,6 +89,7 @@ const SNAPSHOT = `(() => {
     stage: rect(stage),
     composer: rect(composer),
     sidebar: rect(sidebar),
+    visiblePixels,
     overflowX: Math.max(document.documentElement.scrollWidth-innerWidth,document.body.scrollWidth-innerWidth)
   };
 })()`;
@@ -110,8 +126,9 @@ async function verify(label, width, height, mobile) {
     if (initial.viewport.width !== width || initial.viewport.height !== height) throw new Error(`${label}: viewport ${JSON.stringify(initial.viewport)}`);
     await delay(3000);
     const finalTPlus3 = await evaluate(send, SNAPSHOT);
-    if (!finalTPlus3.ready || finalTPlus3.fallback || finalTPlus3.canvasCount !== 1 || finalTPlus3.overflowX > 0) {
-      throw new Error(`${label}: unstable ${JSON.stringify(finalTPlus3)}`);
+    const pixels = finalTPlus3.visiblePixels;
+    if (!finalTPlus3.ready || finalTPlus3.fallback || finalTPlus3.canvasCount !== 1 || finalTPlus3.overflowX > 0 || !pixels?.count || Math.min(pixels.left,pixels.right,pixels.top,pixels.bottom) < 1) {
+      throw new Error(`${label}: unstable or clipped ${JSON.stringify(finalTPlus3)}`);
     }
     const screenshot = await send('Page.captureScreenshot', {format:'png',fromSurface:true,captureBeyondViewport:false});
     fs.writeFileSync(path.join(OUT,`${label}-${width}x${height}-tplus3.png`), Buffer.from(screenshot.data,'base64'));
@@ -136,5 +153,5 @@ fs.writeFileSync(path.join(OUT,'summary.json'),JSON.stringify(results,null,2));
 console.log('SITE-WEB-3D-AVATAR BROWSER ERROR DETAILS', JSON.stringify(results.map(r => ({label:r.label,browserErrors:r.browserErrors}))));
 console.log('SITE-WEB-3D-AVATAR PRODUCTION BROWSER PASS', JSON.stringify(results.map(r => ({
   label:r.label,viewport:r.initial.viewport,loadMs:r.finalTPlus3.state.loadMs,
-  canvasCount:r.finalTPlus3.canvasCount,overflowX:r.finalTPlus3.overflowX,errors:r.browserErrors.length
+  canvasCount:r.finalTPlus3.canvasCount,visiblePixels:r.finalTPlus3.visiblePixels,overflowX:r.finalTPlus3.overflowX,errors:r.browserErrors.length
 }))));
