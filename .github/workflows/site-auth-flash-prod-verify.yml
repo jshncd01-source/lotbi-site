@@ -1,0 +1,93 @@
+name: SITE Auth Flash Production Verify
+
+on:
+  push:
+    branches:
+      - site-auth-continuity-flash-01-prod-verify
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-auth-flash:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify deployed neutral auth shell and assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          root="$(mktemp)"
+          continuity="$(mktemp)"
+          css="$(mktemp)"
+
+          root_status="$(curl --silent --show-error --output "$root" --write-out '%{http_code}' "https://lotbiai.com/?flash_verify=${probe}")"
+          [[ "$root_status" == '200' ]] || { echo "root expected 200, got $root_status" >&2; exit 1; }
+
+          python - "$root" <<'PY'
+          import re, sys
+          text=open(sys.argv[1], encoding='utf-8').read()
+          match=re.search(r'<nav class="account-actions"[^>]*>[\s\S]*?</nav>', text)
+          if not match:
+              raise SystemExit('account-actions markup missing')
+          auth=match.group(0)
+          required=(
+              'data-auth-state="checking"',
+              'aria-busy="true"',
+              'account-auth-placeholder',
+              '계정 상태 확인 중',
+          )
+          for token in required:
+              if token not in auth:
+                  raise SystemExit(f'initial neutral auth contract missing: {token}')
+          for forbidden in ('>로그인<', '>회원가입<', '>내 계정<'):
+              if forbidden in auth:
+                  raise SystemExit(f'initial static auth claim forbidden: {forbidden}')
+          if 'href="site-auth-continuity.css"' not in text:
+              raise SystemExit('auth continuity stylesheet link missing')
+          if 'type="module" src="site-continuity.js"' not in text:
+              raise SystemExit('continuity module missing')
+          if not re.search(r'id="lotbi-prompt"[\s\S]*?rows="1"', text):
+              raise SystemExit('composer rows=1 regression')
+          print('PRODUCTION RAW ROOT: neutral checking shell + rows=1 PASS')
+          PY
+
+          js_status="$(curl --silent --show-error --output "$continuity" --write-out '%{http_code}' "https://lotbiai.com/site-continuity.js?flash_verify=${probe}")"
+          [[ "$js_status" == '200' ]] || { echo "site-continuity.js expected 200, got $js_status" >&2; exit 1; }
+          for token in \
+            "AUTH_STATE_CHECKING = 'checking'" \
+            "AUTH_STATE_AUTHENTICATED = 'authenticated'" \
+            "AUTH_STATE_UNAUTHENTICATED = 'unauthenticated'" \
+            'markCheckingAccountUi' \
+            "recordTiming('account-status'"; do
+            grep -Fq "$token" "$continuity" || { echo "continuity token missing: $token" >&2; exit 1; }
+          done
+
+          css_status="$(curl --silent --show-error --output "$css" --write-out '%{http_code}' "https://lotbiai.com/site-auth-continuity.css?flash_verify=${probe}")"
+          [[ "$css_status" == '200' ]] || { echo "site-auth-continuity.css expected 200, got $css_status" >&2; cat "$css" >&2; exit 1; }
+          grep -Fq '.account-auth-placeholder' "$css" || { echo 'auth placeholder CSS missing' >&2; exit 1; }
+          grep -Fq 'min-width: 174px' "$css" || { echo 'desktop auth min-width missing' >&2; exit 1; }
+          grep -Fq 'min-width: 132px' "$css" || { echo 'mobile auth min-width missing' >&2; exit 1; }
+
+          status_headers="$(mktemp)"
+          status_body="$(mktemp)"
+          status_metrics="$(mktemp)"
+          curl --silent --show-error --output "$status_body" --dump-header "$status_headers" \
+            --write-out '%{http_code} %{time_namelookup} %{time_connect} %{time_appconnect} %{time_starttransfer} %{time_total}\n' \
+            --header 'Origin: https://lotbiai.com' \
+            'https://account.lotbiai.com/api/auth/site-session-status' > "$status_metrics"
+          read -r status_code dns connect tls ttfb total < "$status_metrics"
+          [[ "$status_code" == '200' ]] || { echo "Account status expected 200, got $status_code" >&2; cat "$status_body" >&2; exit 1; }
+          python - "$status_body" <<'PY'
+          import json, sys
+          body=json.load(open(sys.argv[1], encoding='utf-8'))
+          expected={'contract_id':'ACCOUNT-SITE-SESSION-STATUS-01','schema_version':1,'authenticated':False}
+          if body != expected:
+              raise SystemExit(f'unexpected unauth status body: {body!r}')
+          PY
+          grep -Eiq '^access-control-allow-origin:[[:space:]]*https://lotbiai\.com' "$status_headers" || { echo 'Account status ACAO mismatch' >&2; exit 1; }
+          grep -Eiq '^access-control-allow-credentials:[[:space:]]*true' "$status_headers" || { echo 'Account status ACAC mismatch' >&2; exit 1; }
+
+          echo "ACCOUNT STATUS LATENCY seconds dns=$dns connect=$connect tls=$tls ttfb=$ttfb total=$total"
+          echo 'SITE-AUTH-CONTINUITY-FLASH-01 PRODUCTION RAW CONTRACT PASS'
