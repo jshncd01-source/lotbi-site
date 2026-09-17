@@ -56,4 +56,6 @@ assert.match(hardeningCss, /\.chat-input\s*\{[\s\S]*?padding:[^;]+;/);
 assert.doesNotMatch(hardeningCss, /white-space:\s*nowrap/);
 assert.doesNotMatch(hardeningCss, /overflow-x:\s*(?:auto|scroll)/);
 
+await import('./validate_composer_desktop_width_02.mjs');
+
 console.log('SITE-COMPOSER-AUTO-GROW-01 + HORIZONTAL-FIT CONTRACT PASS');

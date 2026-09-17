@@ -161,9 +161,26 @@
   }
 }
 
+/* CONTROL TOWER ADDENDUM — Desktop brand belongs to the navigation hierarchy.
+   The left edge matches nav-item text: sidebar padding 12px + this 10px margin. */
+.sidebar-brand {
+  margin: 4px 10px 22px;
+  font-size: 22px;
+}
+
+@media (min-width: 901px) {
+  .topbar-left {
+    display: none;
+  }
+
+  .chat-topbar {
+    justify-content: flex-end;
+  }
+}
+
 /* User visual refinement — compact composer without changing its bottom-docked position. */
 .chat-composer {
-  width: min(720px, calc(100% - 12px));
+  width: min(960px, calc(100% - 12px));
   padding: 10px 10px 8px 16px;
   border-radius: 22px;
   grid-template-columns: minmax(0, 1fr);
