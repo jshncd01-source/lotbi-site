@@ -1,77 +1,91 @@
-# LOTBI Production Legal Review Decisions
+# LOTBI Production Compliance / Risk Decision Register
 
-> 상태: `DECISION INPUT TEMPLATE READY / ALL COUNSEL DECISIONS PENDING / DO NOT PUBLISH`
+> 상태: `INTERNAL DECISION REGISTER ACTIVE / COUNSEL OPTIONAL / DO NOT PUBLISH`
 >
 > 기준일: 2026-09-17 (Asia/Seoul)
 
-이 문서는 외부 법률검토 결과를 기술 구현과 법률문구에 연결하기 위한 authoritative decision input template이다.
+이 문서는 외부 법률전문가의 필수 승인 입력지가 아니다.
 
-원칙:
+현재 목적:
 
-- 법률전문가 답변 전 `DECISION`을 추측해 채우지 않는다.
-- 승인 문구가 확정되면 Privacy/Terms 후보와 cross-repo handoff를 같은 decision ID로 갱신한다.
-- `TECHNICAL ACTION`은 Core/Site/Account/App 등 실제 소유 repo와 연결한다.
-- Production publish, Core manifest 배포, Provider activation은 별도 사용자 승인 gate를 유지한다.
+- 공식자료와 LOTBI 기술사실로 내부 결론을 기록;
+- 사용자 직접 정책결정을 추적;
+- Provider/paid/Merchant 기능별 기술 blocker를 추적;
+- 필요 시 외부 counsel 의견을 **optional risk review**로 추가.
 
-## Decision register
+## Decision status legend
 
-| ID | QUESTION | DECISION | LEGAL BASIS | APPROVED WORDING | TECHNICAL ACTION | OWNER | STATUS |
-|---|---|---|---|---|---|---|---|
-| Q01 | Social Providers의 제3자 제공/위탁/국외이전 분류 | PENDING | PENDING | PENDING | PENDING | Legal + Privacy + Core | PENDING |
-| Q02 | Render/Vercel/OpenAI 국외이전 근거·고지 | PENDING | PENDING | PENDING | Production data-flow manifest 필요 | Legal + Infra/Core/Web | PENDING |
-| Q03 | AI Provider task payload 법적근거/민감정보 통제 | PENDING | PENDING | PENDING | AI payload/data minimization contract | Legal + Core | PENDING |
-| Q04 | Toss/App Store/Google Play 개인정보 관계 | PENDING | PENDING | PENDING | channel data inventory | Legal + Payments/Core/App | PENDING |
-| Q05 | provider_subject unlink 후 보존 근거/기간 | PENDING | PENDING | PENDING | retention/purge contract | Legal + Security/Core | PENDING |
-| Q06 | provider_subject 비가역 변환 대안 | PENDING | PENDING | PENDING | security design if approved | Legal + Security/Core | PENDING |
-| Q07 | Kakao user-id 삭제정책과 reservation 조정 | PENDING | PENDING | PENDING | Kakao lifecycle implementation | Legal + Core Social | PENDING |
-| Q08 | Plus 거래기록 법정보존 | PENDING | PENDING | PENDING | retention mapping | Legal + Payments/Core | PENDING |
-| Q09 | Merchant transaction record 보존 | PENDING | PENDING | PENDING | merchant-role retention mapping | Legal + Transaction Kernel | PENDING |
-| Q10 | consent/audit/deletion evidence 보존 | PENDING | PENDING | PENDING | audit retention configuration | Legal + Security/Core | PENDING |
-| Q11 | v1 만14세 미만 가입 제한 정책 | PENDING | PENDING | PENDING | age-policy gate if adopted | User + Legal + Account/App/Core | PENDING |
-| Q12 | 최소 age verification 방식 | PENDING | PENDING | PENDING | age-gate implementation | User + Legal + Account/App/Core | PENDING |
-| Q13 | 14~18세 구독/거래 법정대리인 고지 | PENDING | PENDING | PENDING | purchase/sign-up UI if required | Legal + Payments/App/Web | PENDING |
-| Q14 | deletion 일반정보 운영상 purge 기간 | PENDING | PENDING | PENDING | purge configuration | Legal + Core | PENDING |
-| Q15 | backup/log 삭제 및 purge receipt 표현 | PENDING | PENDING | PENDING | infra purge/log contract | Legal + Infra/Core | PENDING |
-| Q16 | 개인정보 보호책임자/담당부서 지정·공개 | PENDING | PENDING | PENDING | Privacy contact fields | User + Legal + Site | PENDING |
-| Q17 | Social Signup 계약 성립시점 | PENDING | PENDING | PENDING | Terms/UI state wording | Legal + Core/Account | PENDING |
-| Q18 | account provisioned / Passkey incomplete 상태 | PENDING | PENDING | PENDING | account-state/UI contract | Legal + Core/Account | PENDING |
-| Q19 | Web Toss 자동갱신/결제일 표시 | PENDING | PENDING | PENDING | subscription checkout UI | Legal + Payments/Web | PENDING |
-| Q20 | 채널별 해지 효력시점 | PENDING | PENDING | PENDING | entitlement policy | User + Legal + Payments/App | PENDING |
-| Q21 | Web 환불/청약철회/디지털 제공개시 | PENDING | PENDING | PENDING | refund workflow | Legal + Payments/Web | PENDING |
-| Q22 | Store 환불과 LOTBI entitlement | PENDING | PENDING | PENDING | store notification/reconciliation | Legal + App/Core | PENDING |
-| Q23 | 결제실패/grace period 서비스권한 | PENDING | PENDING | PENDING | dunning/entitlement state machine | User + Legal + Payments/Core | PENDING |
-| Q24 | 가격인상/FREE→유료 동의·고지 | PENDING | PENDING | PENDING | notice/consent UI | Legal + Payments/Site/App | PENDING |
-| Q25 | Merchant flow별 LOTBI 법적 지위 | PENDING | PENDING | PENDING | per-merchant legal-role matrix | Legal + Transaction Kernel | PENDING |
-| Q26 | 주문/결제 전달 시 중개자 의무 적용범위 | PENDING | PENDING | PENDING | transaction disclosure controls | Legal + Core/Admin | PENDING |
-| Q27 | 판매자/배송/취소/환불/분쟁 고지 | PENDING | PENDING | PENDING | approval/receipt UI | Legal + App/Web/Core | PENDING |
-| Q28 | account deletion 시 Provider remote revoke 시점 | PENDING | PENDING | PENDING | Kakao/NAVER/Apple lifecycle | Legal + Core Social | PENDING |
-| Q29 | unlink 시 remote Provider revoke 정책 | PENDING | PENDING | PENDING | provider-specific unlink policy | User + Legal + Core Social | PENDING |
-| Q30 | 이용제한 통지/이의/Plus 처리 | PENDING | PENDING | PENDING | restriction/notice workflow | Legal + Core/Account | PENDING |
-| Q31 | 서비스 변경/중단/종료 고지·보상 | PENDING | PENDING | PENDING | notice/termination workflow | Legal + Product/Site | PENDING |
-| Q32 | 약관변경 고지·재동의 기준 | PENDING | PENDING | PENDING | legal manifest/version flow | Legal + Site/Core/Account | PENDING |
-| Q33 | 책임제한/분쟁/관할 | PENDING | PENDING | PENDING | Terms only unless process required | Legal | PENDING |
-| Q34 | 사업자정보 필수 표시위치 | PENDING | PENDING | PENDING | Site/checkout/receipt layout | Legal + Site/Web/App | PENDING |
-| Q35 | Privacy/Terms 시행일·사전고지 | PENDING | PENDING | PENDING | publication schedule | Legal + Site | PENDING |
-| Q36 | version/SHA-256 consent evidence 운영 | PENDING | PENDING | PENDING | final manifest freeze/hash | Legal + Core/Site/Account | PENDING |
+- `INTERNALLY RESOLVED FOR SOCIAL LOGIN PREP`: Social Login 준비에 필요한 문구/처리방향이 정해짐
+- `TECHNICAL VERIFY REQUIRED`: 법률가가 아니라 engineering/config 확인이 남음
+- `USER DECISION REQUIRED`: 회사/제품 소유자 선택 필요
+- `DEFERRED TO PAID FEATURE`: Plus 결제 활성화 전에 닫으면 됨
+- `DEFERRED TO MERCHANT FEATURE`: 실제 Merchant flow 활성화 전에 닫으면 됨
+- `PROVIDER TECHNICAL BLOCKER`: Provider 계약/코드 구현이 남음
+- `COUNSEL REVIEW RECOMMENDED`: 외부 검토 권장, hard gate 아님
 
-## User decisions that counsel input may unlock
+## Register
 
-현재 아래 제품/운영 결정은 법률의견을 받은 뒤 사용자가 최종 선택해야 한다.
+| ID | Topic | Current disposition | Owner / next action |
+|---|---|---|---|
+| Q01 | Social Provider processing classification | `INTERNALLY RESOLVED FOR SOCIAL LOGIN PREP` — factual disclosure, no blanket third-party/processor label | Privacy/Site |
+| Q02 | Production infra overseas/processor data | `TECHNICAL VERIFY REQUIRED` | Core/Web/Infra before publish |
+| Q03 | AI Provider task payload | `TECHNICAL VERIFY REQUIRED + COUNSEL REVIEW RECOMMENDED` | AI/Core before AI Production data disclosure |
+| Q04 | Toss/App Store/Play privacy relationship | `DEFERRED TO PAID FEATURE + COUNSEL REVIEW RECOMMENDED` | Payments/App/Core |
+| Q05 | provider_subject unlink retention | `INTERNALLY RESOLVED FOR WORDING / TECHNICAL PURGE VERIFY` | Security/Core |
+| Q06 | provider_subject transform/delete on purge | `TECHNICAL/POLICY VERIFY REQUIRED` | Security/Core |
+| Q07 | Kakao user-id deletion | `PROVIDER TECHNICAL BLOCKER` | Core Social |
+| Q08 | Plus statutory transaction retention | `DEFERRED TO PAID FEATURE` | Payments/Core |
+| Q09 | Merchant transaction retention | `DEFERRED TO MERCHANT FEATURE + COUNSEL REVIEW RECOMMENDED` | Transaction Kernel |
+| Q10 | consent/audit/deletion evidence retention | `INTERNALLY RESOLVED FOR WORDING / TECHNICAL RETENTION CONFIG VERIFY` | Security/Core |
+| Q11 | under-14 v1 policy | `USER DECISION REQUIRED — D1` | User / recommended A |
+| Q12 | age gate implementation | `DEPENDS ON D1 / TECHNICAL HANDOFF READY` | Account/App/Core |
+| Q13 | 14~18 paid/merchant handling | `DEFERRED TO PAID/MERCHANT FEATURE` | Payments/App |
+| Q14 | ordinary-account purge period | `INTERNALLY RESOLVED FOR PUBLIC WORDING / TECHNICAL CONFIG VERIFY` | Core |
+| Q15 | backup/log purge | `TECHNICAL VERIFY REQUIRED` | Infra/Core |
+| Q16 | privacy officer/contact | `USER DECISION REQUIRED — D2` | User / recommended A |
+| Q17 | membership contract formation | `INTERNALLY RESOLVED FOR TERMS CANDIDATE` | Terms/Site |
+| Q18 | Passkey-incomplete account | `TECHNICAL UX VERIFY REQUIRED` | Core/Account |
+| Q19 | Toss recurring billing display | `DEFERRED TO PAID FEATURE` | Payments/Web |
+| Q20 | Plus cancellation effect | `USER DECISION D4 / DEFERRED TO PAID FEATURE` | User / recommended A |
+| Q21 | Web refund/withdrawal | `DEFERRED TO PAID FEATURE + COUNSEL REVIEW RECOMMENDED` | Payments/Web |
+| Q22 | Store refund vs entitlement | `DEFERRED TO PAID FEATURE + TECHNICAL VERIFY` | App/Core |
+| Q23 | Plus grace | `USER DECISION D5 / DEFERRED TO PAID FEATURE` | User / recommended A |
+| Q24 | price increase/free→paid notice | `OFFICIAL LAW CONFIRMED / DEFERRED TO PAID FEATURE` | Payments/Site/App |
+| Q25 | Merchant legal role | `DEFERRED TO MERCHANT FEATURE + COUNSEL REVIEW RECOMMENDED` | Transaction Kernel |
+| Q26 | intermediary duties | `DEFERRED TO MERCHANT FEATURE + COUNSEL REVIEW RECOMMENDED` | Core/Admin |
+| Q27 | seller/cancel/refund disclosure | `DEFERRED TO MERCHANT FEATURE` | App/Web/Core |
+| Q28 | deletion remote revoke | `PROVIDER TECHNICAL BLOCKER` | Core Social |
+| Q29 | unlink remote revoke | `USER DECISION D3 + PROVIDER TECHNICAL BLOCKER` | User/Core Social / recommended A |
+| Q30 | suspension notice/remedy | `INTERNALLY RESOLVED FOR TERMS CANDIDATE` | Terms/Account |
+| Q31 | service change/interruption | `INTERNALLY RESOLVED FOR SOCIAL LOGIN; PAID DETAILS DEFERRED` | Product/Site |
+| Q32 | Terms change/reconsent | `INTERNALLY RESOLVED FOR TERMS CANDIDATE` | Site/Core/Account |
+| Q33 | liability/jurisdiction | `INTERNALLY RESOLVED CONSERVATIVELY + COUNSEL REVIEW RECOMMENDED` | Terms |
+| Q34 | operator disclosure | `TECHNICALLY VERIFIED` | Site/Web/App |
+| Q35 | effective/publication date | `USER PUBLISH APPROVAL STEP` | User/Site |
+| Q36 | version/SHA/URI evidence | `TECHNICAL CONTRACT READY` | Site/Core/Account |
 
-- `MINOR_POLICY`: v1 만14세 미만 가입 제한 채택 여부 및 age gate 방식
-- `PRIVACY_OFFICER_OR_DEPARTMENT`: 실제 책임자/담당부서 지정
-- `LOTBI_PLUS_CANCELLATION_EFFECT`: 채널별 해지 효력 정책
-- `LOTBI_PLUS_PAYMENT_FAILURE_GRACE`: 결제실패/grace 중 서비스권한 정책
-- `APPLE_UNLINK_REMOTE_REVOKE_POLICY` 및 Provider별 unlink remote revoke 범위
+## User-decision authority
 
-이 항목들은 법률검토 전 자동 결정하지 않는다.
+Source:
 
-## Completion rule
+`docs/production-user-policy-decisions.md`
 
-다음 조건을 만족해도 이 문서만으로 Production 변경 권한이 생기지 않는다.
+Recommended bundle:
 
-1. 관련 Q가 `APPROVED` 또는 `APPROVED WITH CHANGES`;
-2. legal basis가 기록됨;
-3. approved wording이 Privacy/Terms candidate에 반영됨;
-4. 필요한 technical action이 owning repo handoff에 연결됨;
-5. final legal pages가 별도 사용자 승인 전에는 `DO NOT PUBLISH` 유지.
+- `D1=A`: v1 under-14 signup not supported
+- `D2=A`: privacy officer = 전선혜 / `developer@lotbiai.com` / `063-237-0930`
+- `D3=A`: explicit unlink/account deletion → Provider remote revoke when provider implementation is GREEN
+- `D4=A`: Plus cancellation → entitlement through current paid-period end
+- `D5=A`: channel-authoritative limited grace/retry
+
+Only D1 and D2 are immediate Privacy/Terms finalization decisions for FREE Social Login publication.
+
+## Counsel policy
+
+`LEGAL_COUNSEL_REVIEW = OPTIONAL / RECOMMENDED`
+
+No Q row remains blocked solely because an outside lawyer has not signed or answered it.
+
+External counsel opinion, if obtained later, can update this register without reverting technically confirmed product contracts to unknown state.
+
+Production publish and Provider activation remain separate explicit approval/technical gates.
