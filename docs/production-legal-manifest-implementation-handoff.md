@@ -1,222 +1,183 @@
 # PRODUCTION PRIVACY / TERMS / SOCIAL SIGNUP MANIFEST — CROSS-REPO HANDOFF
 
-> 상태: `HANDOFF READY / COUNSEL OPTIONAL / USER APPROVAL REQUIRED / DO NOT PUBLISH YET`
+> 상태: `SITE REVIEW GREEN / CORE MANIFEST READY / ACCOUNT AGE-GATE HANDOFF READY / PRODUCTION NOT PUBLISHED`
 >
 > 기준일: 2026-09-17 (Asia/Seoul)
-
-Reviewed baselines:
-
-- Core main baseline: `23d6c99658704a84a09c3edd7b3474a1db77387b`
-- Core Social review: `b555420b8d75c9e241a6cd9bd534f205499a87d8`
-- Account main baseline: `9cec0b958d22b566f9312521670c7d82d0740e41`
-- Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
-- Readiness branch: `review/social-auth-provider-readiness-01-20260917`
 
 Policy:
 
 `LEGAL_COUNSEL_REVIEW = OPTIONAL / RECOMMENDED / NOT HARD BLOCKER`
 
-This document does not authorize main promotion, Production deployment, Provider Console changes, secrets, or provider activation.
+User policy:
+
+- `D1=A = APPROVED / CLOSED`
+- `D2=A = APPROVED / CLOSED`
+
+This handoff does not authorize main promotion, Production deployment, Provider Console changes, secrets, Provider activation, billing, payment, refund, order or live-money.
 
 ---
 
-# A. LOTBI 공식사이트 개발방
+# A. LOTBI Site — REVIEW GREEN
 
 Repository:
 
 `jshncd01-source/lotbi-site`
 
-## Branch rule
+Latest Site main used as branch base:
 
-The readiness branch is documentation-only and diverged from Site main. Do **not** merge it directly into current main.
+`e4314a2e6e8862f3ca1731465e0b3ca3b534a204`
 
-When user approves final policy decisions and publication preparation:
+Fresh branch created from that exact main:
 
-1. fetch latest `lotbi-site/main`;
-2. create a fresh dedicated legal-page review branch;
-3. port approved content from:
-   - `docs/production-privacy-candidate.md`
-   - `docs/production-terms-candidate.md`
-4. preserve unrelated Site changes;
-5. no main promotion until explicit approval.
+`site-legal-pages-social-auth-01-review`
 
-## Target files
+Final review HEAD:
+
+`3785844a54472523e9069c0a9b733f16b625daab`
+
+Draft PR:
+
+`#32 — SITE-LEGAL-PAGES-SOCIAL-AUTH-01 — Production Privacy/Terms review`
+
+PR remains draft/open/not merged.
+
+## Site changed files
 
 - `privacy.html`
 - `terms.html`
+- `scripts/validate_legal_pages.py`
+- `scripts/validate_hardening.py` — only legal-page approved hash baselines updated
+- `scripts/emit_social_signup_legal_manifest.py`
+- `.github/workflows/legal-pages-review.yml`
 
-Conditional if provider/deletion wording needs alignment:
+No Home/Avatar/conversation/auth/mobile chooser feature file was modified by this legal-page batch.
 
-- `account-deletion.html`
+## D1/D2 reflected in public candidate HTML
 
-## User decisions to apply
+D1:
 
-### D1
+- LOTBI v1 under-14 signup unsupported
+- required text before signup completion: `만 14세 이상입니다 (필수)`
+- not described as government identity verification or guardian verification
 
-If approved `A`:
+D2:
 
-- Terms/Privacy state v1 under-14 signup is not supported;
-- Account/App signup must have the same minimum `14세 이상` gate before account provisioning;
-- do not add DOB collection unless a later design explicitly requires it.
-
-### D2
-
-If approved `A`:
-
-Privacy contact:
-
-- 개인정보 보호책임자: 전선혜
+- 개인정보 보호책임자: `전선혜`
 - email: `developer@lotbiai.com`
 - phone: `063-237-0930`
 
-## Production processor/data-flow technical manifest
+## Site review evidence
 
-Before final `privacy.html` freeze, Site owner must receive verified values from Core/Web/Infra for **actually active Production services only**:
+At exact HEAD `3785844a54472523e9069c0a9b733f16b625daab`:
 
-- hosting/database provider and processing region;
-- Account Web hosting provider and region;
-- active AI provider/data flow if AI feature is live;
-- actual retention/contract fields needed for overseas processing disclosure;
-- Toss/App Store/Google Play only if those purchase channels are activated.
+- Legal Pages Review Gate run `35202185023` = `SUCCESS`
+- Public Site Review Gate run `35202184989` = `SUCCESS`
 
-Do not copy the Render Singapore pilot example as a Production fact.
+Legal gate verified:
 
-Do not list a vendor merely because LOTBI has an account or repository with that vendor.
+- approved D1/D2
+- Social Provider minimum identifiers
+- no Provider profile overcollection claim
+- FREE contract
+- Plus channel wording without live-sale overclaim
+- no pre-release/internal review marker
+- Site structure/hardening/accessibility
+- reviewed manifest values
 
-## Remove current pre-release wording
+Public Site gate also verified the existing Site contracts including Home shell, sealed Avatar integration, conversation/handoff, auth continuity, hardening, accessibility, mobile chooser, Production Core CORS and static smoke.
 
-`privacy.html` must no longer say:
+## Production boundary
 
-- this is only a static introduction site;
-- signup is not provided;
-- full Privacy will only be published later.
+Do not merge PR #32 or publish until explicit user approval.
 
-`terms.html` must no longer be only `웹사이트 이용안내` that defers the actual account/service Terms.
-
-## Preserve
-
-- `https://lotbiai.com/privacy.html`
-- `https://lotbiai.com/terms.html`
-- HTTPS/no-login public access
-- mobile viewport
-- LOTBI brand
-- verified company fields
-- deletion/contact links
-
-## Final Site validation
-
-- no review marker (`VERIFY`, `USER DECISION`, `DO NOT PUBLISH`) remains in public HTML;
-- internal links work;
-- no fake `app.lotbiai.com`;
-- no Provider marked active before actual activation;
-- no secret/token/private key appears;
-- legal URLs remain canonical;
-- exact final HTML is frozen before hash calculation.
+If HTML changes after this review, rerun both workflows and recompute legal-document hashes.
 
 ---
 
-# B. Core / Social Auth Core owner
+# B. Core Social Signup consent manifest — READY / NOT DEPLOYED
 
 Repository:
 
 `jshncd01-source/lotbi-core`
 
-## Existing Social Signup legal contract — keep unchanged
+Reviewed Social baseline:
 
-Required keys:
+`b555420b8d75c9e241a6cd9bd534f205499a87d8`
+
+Required keys remain exactly:
 
 - `TERMS_OF_SERVICE`
 - `PRIVACY_POLICY`
 
-Both:
+Both require:
 
 - `decision=ACCEPTED`
 - `required=true`
 
-Each document:
+No `consent_manifest_version`.
 
-- `document_version`
-- `document_sha256`
-- `document_uri`
-
-No separate `consent_manifest_version`.
-
-Contract-owning files:
-
-- `app/auth_social_consent.py`
-- `app/auth_provider_signup.py`
-- `app/auth_provider_production_gate_api.py`
-
-Endpoints:
-
-- `GET /v2/sessions/providers/signup/consents`
-- `GET /v2/sessions/providers/readiness`
-
-## Production environment contract
+## Reviewed exact values
 
 Terms:
 
-- `LOTBI_SOCIAL_TERMS_VERSION`
-- `LOTBI_SOCIAL_TERMS_SHA256`
-- `LOTBI_SOCIAL_TERMS_URI`
+- `LOTBI_SOCIAL_TERMS_VERSION=LOTBI_TERMS_2026-09-17_R1`
+- `LOTBI_SOCIAL_TERMS_SHA256=53ab6c93262f7fb46ee75504717fbdf99442ec8da1a98d12c6f54e9cc6865a6d`
+- `LOTBI_SOCIAL_TERMS_URI=https://lotbiai.com/terms.html`
 
 Privacy:
 
-- `LOTBI_SOCIAL_PRIVACY_VERSION`
-- `LOTBI_SOCIAL_PRIVACY_SHA256`
-- `LOTBI_SOCIAL_PRIVACY_URI`
+- `LOTBI_SOCIAL_PRIVACY_VERSION=LOTBI_PRIVACY_2026-09-17_R1`
+- `LOTBI_SOCIAL_PRIVACY_SHA256=76f35a0816fe78e0ee035a380dfe5aa96059fcb478fe031b9a808b6f90b20a57`
+- `LOTBI_SOCIAL_PRIVACY_URI=https://lotbiai.com/privacy.html`
 
-Canonical URIs:
+These hashes are exact UTF-8 bytes from Site review HEAD and were emitted by CI. They become Production authoritative only after the exact same bytes are published unchanged and fetched back from Production successfully.
 
-- `https://lotbiai.com/terms.html`
-- `https://lotbiai.com/privacy.html`
+## Post-publish Core sequence
 
-## Authorized future sequence after user publish approval
+1. publish exact reviewed Site HTML after explicit approval;
+2. fetch Production Privacy/Terms response and verify exact bytes/hash;
+3. configure the six Core manifest values;
+4. keep all Provider Production activation flags false unless separately approved;
+5. verify `GET /v2/sessions/providers/signup/consents` returns exactly two docs;
+6. verify `/v2/sessions/providers/readiness` reports signup consent configured;
+7. run Social Signup regression/CI.
 
-1. Site final HTML published from approved commit;
-2. fetch/reconfirm exact Production responses;
-3. use the final agreed `LOTBI_TERMS_<DATE>_R<n>` / `LOTBI_PRIVACY_<DATE>_R<n>` versions;
-4. compute/verify SHA-256 from exact final HTML bytes;
-5. configure the six manifest fields;
-6. keep Provider Production activation false unless separately approved;
-7. verify `/signup/consents` returns exactly two documents;
-8. verify `/readiness` shows `signup_consent_configured=true`;
-9. verify malformed/missing/client-mismatched manifest fails closed;
-10. run Social Signup regressions and CI.
+Current:
 
-## D1 age-policy technical handoff
-
-If user approves `D1=A`, owning Core/Account/App workstream must add and verify a minimal under-14 prevention contract before Social Signup is opened.
-
-Requirements:
-
-- signup cannot complete without 14+ confirmation;
-- do not silently invent/collect full DOB unless explicitly designed;
-- Web/App behavior consistent;
-- evidence does not falsely claim formal identity age verification if only self-confirmation is used.
-
-## Provider blockers remain
-
-- Google `GOOGLE_SCOPE_CONTRACT_VERIFY = OPEN`
-- Kakao Unlink + user-id deletion/purge
-- NAVER token revoke + disconnect
-- Apple SIGNUP/LINK revocation lifecycle
-
-D3 user decision is implemented only after approval and provider-specific design.
+`CORE CONSENT MANIFEST = READY FOR POST-PUBLISH INSTALL / NOT DEPLOYED`
 
 ---
 
-# C. Account Web owner
+# C. Account Web — D1 + consent implementation handoff READY
 
 Repository:
 
 `jshncd01-source/lotbi-web`
 
-Reviewed baseline:
+Reviewed Social baseline:
 
 `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 
-Existing Social Signup consent UI remains valid and should not be redesigned.
+Existing required legal consents remain:
+
+- `이용약관 동의 (필수)`
+- `개인정보 처리방침 동의 (필수)`
+
+Both must remain fail-closed.
+
+D1 approved addition before Social Signup completion:
+
+`만 14세 이상입니다 (필수)`
+
+Implementation requirements:
+
+- default false / unconfirmed
+- no signup completion while false
+- do not call it government age verification
+- do not add Provider email/name/profile import
+- do not auto-link/merge by email
+- do not let client invent legal document version/hash/URI
+- age confirmation and Terms/Privacy document consents remain semantically distinct
 
 Relevant files:
 
@@ -226,77 +187,57 @@ Relevant files:
 - `src/lib/core/social-auth.ts`
 - `src/lib/auth/provider-readiness.ts`
 
-Required behavior after Core Production manifest exists:
-
-1. context returns exactly Terms + Privacy;
-2. UI displays both as required;
-3. one/zero consents cannot create account;
-4. links use Core-returned canonical HTTPS URI;
-5. browser cannot invent version/hash/URI;
-6. complete BFF revalidates legal key set;
-7. Provider email never silently merges account;
-8. buttons remain fail-closed on Core readiness/activation/purpose;
-9. signup fails closed when `signup_consent_configured=false`;
-10. Apple SIGNUP/LINK remains unavailable while lifecycle blocker is open.
-
-If `D1=A` is approved, add the same 14+ confirmation gate to the Social Signup completion experience before submitting account provisioning.
-
-Recommended user wording:
-
-`만 14세 이상입니다 (필수)`
-
-Do not label it as government identity verification if it is only user confirmation.
+This readiness room marks the **handoff/contract READY**, not the Account implementation GREEN.
 
 ---
 
-# D. App owner
+# D. Provider blockers retained
 
-Android/iOS signup must follow the same D1 policy when native Social Signup is activated.
+- Google: `GOOGLE_SCOPE_CONTRACT_VERIFY = OPEN`
+- Kakao: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED`
+- NAVER: `NAVER_PROVIDER_LIFECYCLE_BLOCKER — TOKEN_REVOCATION/DISCONNECT INTEGRATION VERIFY`
+- Apple LOGIN: `READY BY REVIEW`
+- Apple SIGNUP/LINK: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
 
-Do not create a platform-specific exception that allows under-14 signup while Web blocks it.
-
-D4/D5 Plus choices are paid-service implementation handoffs and do not change Social Signup consent keys.
-
----
-
-# E. Production Privacy/Terms version and hash rule
-
-Sequence is fixed:
-
-`user approves final wording`
-→ `latest Site main fresh branch`
-→ `privacy.html / terms.html freeze`
-→ `document version fixed`
-→ `exact UTF-8 bytes SHA-256`
-→ `same files Production publish`
-→ `Production response recheck`
-→ `Core manifest configured with matching version/hash/URI`
-→ `Account manifest verification`
-
-Draft Markdown hash is never authoritative.
+No Provider Console or activation action is authorized by this handoff.
 
 ---
 
-# F. Google Console readiness gate
+# E. Production SHA/version rule
+
+Sequence remains:
+
+`exact Site HTML reviewed GREEN`
+→ `explicit user publish approval`
+→ `same files main/publish`
+→ `Production HTTPS bytes recheck`
+→ `version/hash/URI confirmed`
+→ `Core manifest install`
+→ `Account Production manifest/age-gate verification`
+→ `Provider-specific real E2E`
+
+If publication occurs after changing the displayed effective date or any HTML byte, the SHA-256 must be recomputed and version reviewed before Core deployment.
+
+---
+
+# F. Google Console gate
+
+External counsel certification is not required.
 
 Do not issue `USER_ACTION_REQUIRED — GOOGLE STEP 1` until:
 
-1. D1/D2 decided;
-2. final Privacy/Terms HTML is clean and approved;
-3. Production processor/data-flow technical table is verified;
-4. Privacy/Terms are published;
-5. final version/SHA/URI is fixed;
-6. Core Production legal manifest is deployed and verified;
-7. Account Production signup manifest is verified;
-8. Google callback/branding/domain prerequisites are ready.
+1. exact reviewed Privacy/Terms are published;
+2. Production bytes match reviewed hashes;
+3. Core Production legal manifest is deployed and verified;
+4. Account Production required consents + D1 age confirmation are implemented and verified;
+5. callback/branding/domain prerequisites remain ready.
 
-External lawyer certification is **not** a required item.
-
-Google `openid` real E2E remains required before final Google provider activation/production-green claim.
+Google real `openid` E2E remains required before Google activation can be called Production GREEN.
 
 Current:
 
-- `PRIVACY = READY FOR USER APPROVAL`
-- `TERMS = READY FOR USER APPROVAL`
-- `PRODUCTION PUBLISH = PENDING USER APPROVAL`
+- `SITE LEGAL PAGES = REVIEW GREEN`
+- `CORE MANIFEST HANDOFF = READY`
+- `ACCOUNT SIGNUP HANDOFF = READY`
+- `PRODUCTION PUBLISH = PENDING EXPLICIT USER APPROVAL`
 - `USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`.
