@@ -202,12 +202,64 @@ function successfulConversation() {
   assert.equal(newRequest.init.headers['Idempotency-Key'], 'chat-provider-fresh-0002');
 }
 
+{
+  // Multiple unresolved messages must not overwrite one another. Each later same-text
+  // attempt recovers its own original key and clears only that entry after success.
+  const failNetwork = async () => { throw new TypeError('uncertain network'); };
+  for (const [message, key] of [
+    ['첫 번째 unresolved 요청', 'chat-multi-original-a-0001'],
+    ['두 번째 unresolved 요청', 'chat-multi-original-b-0001'],
+  ]) {
+    let caught;
+    try {
+      await sendConversationMessage('site-memory-token', message, {idempotencyKey: key}, failNetwork);
+    } catch (error) {
+      caught = error;
+    }
+    assert.ok(caught instanceof SiteCoreError);
+    assert.equal(caught.code, 'WEB_CONVERSATION_NETWORK_ERROR');
+  }
+
+  assert.equal(memorySession.size, 1, 'bounded pending entries share one sessionStorage record');
+  const pending = JSON.parse([...memorySession.values()][0]);
+  assert.equal(pending.entries.length, 2);
+
+  let firstRetry;
+  await sendConversationMessage(
+    'site-memory-token',
+    '첫 번째 unresolved 요청',
+    {idempotencyKey: 'chat-multi-new-a-0002'},
+    async (url, init) => {
+      firstRetry = {url, init};
+      return jsonResponse(successfulConversation());
+    },
+  );
+  assert.equal(firstRetry.init.headers['Idempotency-Key'], 'chat-multi-original-a-0001');
+  const afterFirst = JSON.parse([...memorySession.values()][0]);
+  assert.equal(afterFirst.entries.length, 1);
+  assert.equal(afterFirst.entries[0].idempotencyKey, 'chat-multi-original-b-0001');
+
+  let secondRetry;
+  await sendConversationMessage(
+    'site-memory-token',
+    '두 번째 unresolved 요청',
+    {idempotencyKey: 'chat-multi-new-b-0002'},
+    async (url, init) => {
+      secondRetry = {url, init};
+      return jsonResponse(successfulConversation());
+    },
+  );
+  assert.equal(secondRetry.init.headers['Idempotency-Key'], 'chat-multi-original-b-0001');
+  assert.equal(memorySession.size, 0);
+}
+
 const core = read('site-core.js');
 const conversation = read('site-conversation.js');
 
 for (const token of [
   "const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,160}$/u",
   "const PENDING_CONVERSATION_STORAGE_KEY = 'lotbi.site.conversation.pending.v1'",
+  'const PENDING_CONVERSATION_LIMIT = 20',
   "headers['Idempotency-Key'] = effectiveIdempotencyKey",
   'rememberPendingConversation(message, effectiveIdempotencyKey)',
   'clearPendingConversation(message, effectiveIdempotencyKey)',
@@ -228,6 +280,6 @@ assert.ok(
 
 assert.ok(!conversation.includes('localStorage.setItem') || conversation.includes('STORAGE_PREFIX'));
 assert.ok(!core.includes('credentials: \'include\''), 'Site child bearer boundary must continue using credentials=omit');
-assert.ok(!core.includes('sessionToken') || !core.includes('sessionStorage.setItem'), 'session token must never be persisted in retry storage');
+assert.ok(!core.includes('sessionStorage.setItem'), 'retry persistence must never write through an unguarded global sessionStorage reference');
 
 console.log('SITE-FREE-USAGE-RETRY-IDENTITY-01 CONTRACT PASS');
