@@ -8,6 +8,7 @@ const conversation = read('site-conversation.js');
 const conversationCss = read('site-conversation.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const callback = read('auth-callback.js');
+const continuity = read('site-continuity.js');
 
 for (const greeting of ['안녕', '안녕하세요', 'hello', '반가워', '고마워', '감사합니다', '도움말']) {
   assert.ok(deterministicReply(greeting), `${greeting} must use a local deterministic reply`);
@@ -48,6 +49,8 @@ for (const color of ['default', 'blue', 'purple', 'green', 'orange', 'pink', 'gr
 }
 assert.ok(conversation.includes("storageKey(namespace, 'preferences')"));
 assert.ok(conversation.includes("storageKey(namespace, 'threads')"));
+assert.ok(continuity.includes("window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'))"), 'resolved anonymous auth state must notify the conversation mount after asynchronous boot');
+assert.ok(conversation.includes("!stateReady && document.body.dataset.siteAuthState === 'unauthenticated'"), 'guest namespace must hydrate after asynchronous unauthenticated state resolution');
 
 for (const label of ['개인 맞춤 설정', '프로필', '설정', '도움말', '로그아웃']) {
   assert.ok(conversation.includes(label), `profile menu missing ${label}`);
