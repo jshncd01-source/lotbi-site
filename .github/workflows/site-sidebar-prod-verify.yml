@@ -1,0 +1,156 @@
+name: SITE Sidebar Production Verify
+
+on:
+  push:
+    branches:
+      - site-sidebar-nav-cleanup-01-prod-verify
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-sidebar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify live Desktop and Mobile sidebar
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet selenium
+          python - <<'PY'
+          import json
+          import shutil
+          import time
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.common.action_chains import ActionChains
+
+          CHROME = shutil.which('google-chrome') or shutil.which('google-chrome-stable') or shutil.which('chromium')
+          if not CHROME:
+              raise SystemExit('Chrome not available')
+
+          forbidden = ('비어 있음', '준비 중', 'Account')
+
+          def driver_for(width, height):
+              options = Options()
+              options.binary_location = CHROME
+              options.add_argument('--headless=new')
+              options.add_argument('--no-sandbox')
+              options.add_argument('--disable-gpu')
+              options.add_argument('--disable-dev-shm-usage')
+              options.add_argument(f'--window-size={width},{height}')
+              options.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
+              return webdriver.Chrome(options=options)
+
+          def severe_console(driver):
+              bad = []
+              for entry in driver.get_log('browser'):
+                  if entry.get('level') == 'SEVERE':
+                      message = entry.get('message', '')
+                      # Chrome may report unrelated favicon/network noise; there is no favicon contract.
+                      if 'favicon' not in message.lower():
+                          bad.append(message)
+              return bad
+
+          stamp = str(int(time.time()))
+
+          # Desktop
+          d = driver_for(1440, 1000)
+          try:
+              d.get(f'https://lotbiai.com/?sidebar_verify={stamp}')
+              time.sleep(4)
+              sidebar = d.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop')
+              logo = d.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop .sidebar-brand-logo')
+              recent = d.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop .sidebar-history-scroll')
+              bottom = d.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop .sidebar-bottom-nav')
+              account_actions = d.find_element(By.CSS_SELECTOR, '.account-actions')
+              composer = d.find_element(By.CSS_SELECTOR, '.chat-composer')
+              avatar = d.find_element(By.CSS_SELECTOR, '.chat-character-wrap')
+
+              sidebar_text = sidebar.text
+              for token in forbidden:
+                  if token in sidebar_text:
+                      raise SystemExit(f'Desktop sidebar exposes forbidden text: {token}')
+              if '준비' in sidebar_text:
+                  raise SystemExit('Desktop sidebar exposes 준비 text')
+              for label in ('+ 새 대화', '최근 대화', '오늘', '어제', '최근 7일', '이전', '주문 내역', '예약 내역', '내 계정', '설정', '도움말 / 문의'):
+                  if label not in sidebar_text:
+                      raise SystemExit(f'Desktop sidebar missing label: {label}')
+
+              if not logo.is_displayed() or d.execute_script('return arguments[0].naturalWidth', logo) <= 0:
+                  raise SystemExit('Desktop official sidebar logo not rendered')
+              if d.execute_script('return getComputedStyle(arguments[0]).overflowY', sidebar) not in ('hidden', 'clip'):
+                  raise SystemExit('Desktop sidebar itself must not scroll')
+              if d.execute_script('return getComputedStyle(arguments[0]).overflowY', recent) != 'auto':
+                  raise SystemExit('Recent conversation area must own vertical scrolling')
+              if d.execute_script('return getComputedStyle(arguments[0]).display', account_actions) != 'none':
+                  raise SystemExit('Desktop duplicate header account controls must be hidden')
+
+              viewport_h = d.execute_script('return window.innerHeight')
+              bottom_rect = d.execute_script('return arguments[0].getBoundingClientRect()', bottom)
+              sidebar_rect = d.execute_script('return arguments[0].getBoundingClientRect()', sidebar)
+              if bottom_rect['bottom'] > viewport_h + 1 or bottom_rect['top'] < 0:
+                  raise SystemExit(f'Desktop bottom nav not kept in viewport: {bottom_rect}')
+              if abs(sidebar_rect['height'] - viewport_h) > 3:
+                  raise SystemExit(f'Desktop sidebar height not viewport locked: sidebar={sidebar_rect["height"]}, viewport={viewport_h}')
+
+              account = d.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop a[href="https://account.lotbiai.com/account"]')
+              help_link = d.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop a[href="contact.html"]')
+              if account.text.strip() != '내 계정' or help_link.text.strip() != '도움말 / 문의':
+                  raise SystemExit('Desktop account/help labels or links changed')
+              if not composer.is_displayed() or not avatar.is_displayed():
+                  raise SystemExit('Composer or Avatar regressed on Desktop')
+              if d.execute_script('return document.documentElement.scrollWidth > window.innerWidth + 1'):
+                  raise SystemExit('Desktop horizontal overflow detected')
+              bad = severe_console(d)
+              if bad:
+                  raise SystemExit('Desktop console errors: ' + json.dumps(bad, ensure_ascii=False))
+              print('DESKTOP PRODUCTION SIDEBAR: GREEN')
+              print('DESKTOP_BOTTOM_NAV_RECT=' + json.dumps(bottom_rect, sort_keys=True))
+          finally:
+              d.quit()
+
+          # Mobile ~390px
+          m = driver_for(390, 844)
+          try:
+              m.get(f'https://lotbiai.com/?sidebar_mobile_verify={stamp}')
+              time.sleep(4)
+              desktop_sidebar = m.find_element(By.CSS_SELECTOR, '.chat-sidebar-desktop')
+              if dstyle := m.execute_script('return getComputedStyle(arguments[0]).display', desktop_sidebar):
+                  if dstyle != 'none':
+                      raise SystemExit(f'Desktop sidebar visible on Mobile: {dstyle}')
+              account_actions = m.find_element(By.CSS_SELECTOR, '.account-actions')
+              if m.execute_script('return getComputedStyle(arguments[0]).display', account_actions) == 'none':
+                  raise SystemExit('Mobile top account affordance was removed')
+
+              opener = m.find_element(By.CSS_SELECTOR, '[data-mobile-nav-open]')
+              ActionChains(m).move_to_element(opener).click().perform()
+              time.sleep(0.4)
+              drawer = m.find_element(By.CSS_SELECTOR, '#mobile-nav-drawer')
+              drawer_text = drawer.text
+              if drawer.get_attribute('aria-hidden') != 'false':
+                  raise SystemExit('Mobile drawer did not open')
+              for token in forbidden:
+                  if token in drawer_text:
+                      raise SystemExit(f'Mobile drawer exposes forbidden text: {token}')
+              if '준비' in drawer_text:
+                  raise SystemExit('Mobile drawer exposes 준비 text')
+              for label in ('+ 새 대화', '최근 대화', '오늘', '어제', '최근 7일', '이전', '주문 내역', '예약 내역', '내 계정', '설정', '도움말 / 문의'):
+                  if label not in drawer_text:
+                      raise SystemExit(f'Mobile drawer missing label: {label}')
+              mobile_account = m.find_element(By.CSS_SELECTOR, '#mobile-nav-drawer a[href="https://account.lotbiai.com/account"]')
+              if not mobile_account.is_displayed() or mobile_account.text.strip() != '내 계정':
+                  raise SystemExit('Mobile account access missing')
+              if m.execute_script('return document.documentElement.scrollWidth > window.innerWidth + 1'):
+                  raise SystemExit('Mobile horizontal overflow detected')
+              bad = severe_console(m)
+              if bad:
+                  raise SystemExit('Mobile console errors: ' + json.dumps(bad, ensure_ascii=False))
+              print('MOBILE 390 PRODUCTION NAV: GREEN')
+          finally:
+              m.quit()
+
+          print('SITE-SIDEBAR-NAV-CLEANUP-01 PRODUCTION E2E PASS')
+          PY
