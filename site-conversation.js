@@ -1,6 +1,8 @@
 import {beginSiteHandoff} from './site-auth.js';
 import {sendConversationMessage, SiteCoreError} from './site-core.js';
 
+const FAST_PATH_LOADING_DELAY_MS = 180;
+
 function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
@@ -8,6 +10,22 @@ function ensureConversationStyles() {
   link.href = '/site-conversation.css';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
+}
+
+function resolvedBrowserTimezone() {
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return typeof timezone === 'string' && timezone.trim() ? timezone.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function monotonicNow() {
+  if (globalThis.performance && typeof globalThis.performance.now === 'function') {
+    return globalThis.performance.now();
+  }
+  return Date.now();
 }
 
 function createMessage(role, text, meta = {}) {
@@ -101,6 +119,21 @@ function logSafeConversationFailure(error) {
     status: error.status,
     retryable: error.retryable,
     correlationId: error.correlationId,
+  });
+}
+
+function logSafeConversationTiming(response, roundTripMs, renderMs) {
+  const routing = response?.routing && typeof response.routing === 'object' ? response.routing : {};
+  console.info('[LOTBI conversation timing]', {
+    correlationId: response?.correlationId,
+    route: routing.route,
+    localIntent: routing.local_intent,
+    aiRequired: routing.ai_required,
+    aiCalls: routing.ai_calls,
+    provider: routing.provider,
+    coreLatencyMs: routing.latency_ms,
+    siteRoundTripMs: Math.max(0, Math.round(roundTripMs)),
+    siteRenderMs: Math.max(0, Math.round(renderMs)),
   });
 }
 
@@ -330,28 +363,47 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
 
     if (appendUserMessage) append(createMessage('user', message));
-    const loading = append(createLoadingMessage());
     inFlight = true;
     updateSendState();
     setVoiceFeedback('');
     setStatus('LOTBI 응답을 기다리는 중입니다.');
 
+    let loading;
+    const loadingTimer = setTimeout(() => {
+      if (inFlight) loading = append(createLoadingMessage());
+    }, FAST_PATH_LOADING_DELAY_MS);
+    const requestStarted = monotonicNow();
+
     try {
-      const response = await sendConversationMessage(sessionToken, message);
-      loading.remove();
+      const timezone = resolvedBrowserTimezone();
+      const response = await sendConversationMessage(
+        sessionToken,
+        message,
+        timezone ? {timezone} : undefined,
+      );
+      const roundTripMs = monotonicNow() - requestStarted;
+      clearTimeout(loadingTimer);
+      if (loading?.isConnected) loading.remove();
+
+      const renderStarted = monotonicNow();
       append(createMessage('assistant', response.assistantText, {
         status: response.status,
         responseMode: response.responseMode,
         correlationId: response.correlationId,
         followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true,
       }));
+      const renderMs = monotonicNow() - renderStarted;
+      logSafeConversationTiming(response, roundTripMs, renderMs);
       setStatus(response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.');
     } catch (caught) {
-      loading.remove();
+      clearTimeout(loadingTimer);
+      if (loading?.isConnected) loading.remove();
       if (isSessionError(caught)) sessionToken = undefined;
       showError(caught, message, true);
       setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
+      clearTimeout(loadingTimer);
+      if (loading?.isConnected) loading.remove();
       inFlight = false;
       updateSendState();
       prompt.focus();
