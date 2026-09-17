@@ -1,4 +1,8 @@
-import {beginSiteHandoff} from './site-auth.js';
+import {
+  beginSiteHandoff,
+  clearSiteAuthContinuity,
+  hasSiteAuthContinuity,
+} from './site-auth.js';
 import {sendConversationMessage, SiteCoreError} from './site-core.js';
 
 function ensureConversationStyles() {
@@ -8,6 +12,47 @@ function ensureConversationStyles() {
   link.href = '/site-conversation.css';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
+}
+
+export function renderAccountNavigation(state = 'anonymous') {
+  const nav = document.querySelector('[data-site-account-nav]');
+  if (!(nav instanceof HTMLElement)) return false;
+  const normalized = state === 'authenticated' || state === 'pending' ? state : 'anonymous';
+  nav.dataset.authState = normalized;
+  for (const node of nav.querySelectorAll('[data-site-auth-anonymous]')) {
+    if (node instanceof HTMLElement) node.hidden = normalized !== 'anonymous';
+  }
+  for (const node of nav.querySelectorAll('[data-site-auth-authenticated]')) {
+    if (node instanceof HTMLElement) node.hidden = normalized !== 'authenticated';
+  }
+  return true;
+}
+
+function showAuthStartError(error) {
+  const region = document.getElementById('chat-state-region');
+  if (!(region instanceof HTMLElement)) return;
+  region.hidden = false;
+  region.textContent = error instanceof Error ? error.message : 'LOTBI 로그인 연결을 시작하지 못했습니다.';
+}
+
+async function startSiteHandoff(pendingText = '') {
+  renderAccountNavigation('pending');
+  try {
+    await beginSiteHandoff(pendingText);
+  } catch (error) {
+    renderAccountNavigation('anonymous');
+    throw error;
+  }
+}
+
+function bindSiteLoginAction() {
+  const login = document.querySelector('[data-site-login]');
+  if (!(login instanceof HTMLAnchorElement) || login.dataset.siteLoginBound === 'true') return;
+  login.dataset.siteLoginBound = 'true';
+  login.addEventListener('click', (event) => {
+    event.preventDefault();
+    void startSiteHandoff('').catch(showAuthStartError);
+  });
 }
 
 function createMessage(role, text, meta = {}) {
@@ -51,6 +96,7 @@ function isSessionError(error) {
 
 export function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false} = {}) {
   ensureConversationStyles();
+  bindSiteLoginAction();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
   const thread = document.getElementById('conversation-thread');
@@ -63,6 +109,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
   let inFlight = false;
+  renderAccountNavigation(sessionToken ? 'authenticated' : 'anonymous');
 
   const setStatus = (message) => {
     if (statusRegion) statusRegion.textContent = message;
@@ -114,7 +161,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         retry.disabled = true;
         if (isSessionError(error) || !sessionToken) {
           try {
-            await beginSiteHandoff(retryText);
+            await startSiteHandoff(retryText);
           } catch (caught) {
             retry.disabled = false;
             body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.';
@@ -136,7 +183,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
     if (!sessionToken) {
       try {
-        await beginSiteHandoff(message);
+        await startSiteHandoff(message);
       } catch (caught) {
         showError(caught, message, false);
       }
@@ -161,7 +208,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       setStatus(response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.');
     } catch (caught) {
       loading.remove();
-      if (isSessionError(caught)) sessionToken = undefined;
+      if (isSessionError(caught)) {
+        sessionToken = undefined;
+        clearSiteAuthContinuity();
+        renderAccountNavigation('anonymous');
+      }
       showError(caught, message, true);
       setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
@@ -204,7 +255,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 }
 
 function autoMount() {
-  if (document.getElementById('lotbi-prompt')) mountConversation();
+  if (!document.getElementById('lotbi-prompt')) return;
+  mountConversation();
+  if (hasSiteAuthContinuity()) {
+    renderAccountNavigation('pending');
+    void startSiteHandoff('').catch(showAuthStartError);
+  }
 }
 
 ensureConversationStyles();
