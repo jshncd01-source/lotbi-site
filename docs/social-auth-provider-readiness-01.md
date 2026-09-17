@@ -13,6 +13,7 @@ Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
 - `ACCOUNT BFF GREEN BY REVIEW`
 - `CALLBACK CONTRACT GREEN BY REVIEW`
 - `PROVIDER DATA MATRIX GREEN BY REVIEW`
+- `FREE TASK PRODUCT POLICY CLOSED`
 - `PRIVACY REVIEW DRAFT UPDATED`
 - `TERMS REVIEW DRAFT UPDATED`
 - `PRODUCTION LEGAL MANIFEST NOT DEPLOYED`
@@ -23,6 +24,8 @@ Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
 - `MAIN NOT PROMOTED BY THIS WORK`
 - `PRODUCTION NOT CHANGED BY THIS WORK`
 
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`.
+
 `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = NOT GREEN / BLOCKED`.
 
 ## 2. Implementation baselines
@@ -32,8 +35,9 @@ Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
 - Account main supplied baseline: `9cec0b958d22b566f9312521670c7d82d0740e41`
 - Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 - Social contract: `LOTBI_SOCIAL_AUTH_V2`
+- FREE authoritative product policy: `docs/free-monthly-3-task-product-policy.md`
 
-This readiness branch documents the reviewed contract only. It does not promote those review branches or enable Production Social Auth.
+This readiness branch documents the reviewed contract and product/legal readiness only. It does not promote review branches, deploy FREE usage enforcement, or enable Production Social Auth.
 
 ## 3. Public LOTBI legal URLs
 
@@ -197,7 +201,7 @@ Core local purge default is 30 days, but actual Production setting/legal retenti
 - Consent Manifest: `NOT DEPLOYED`
 - Real Provider E2E: `PENDING`
 - Provider lifecycle: official Kakao documentation requires service account deletion/unmapping to include Kakao Unlink; current generic LOTBI unlink is local-only
-- Lifecycle blocker: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK/ACCOUNT_DELETION INTEGRATION REQUIRED`
+- Lifecycle blocker: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED`
 - Final: `BLOCKED`
 
 ### NAVER
@@ -223,22 +227,62 @@ Core local purge default is 30 days, but actual Production setting/legal retenti
 - Callback: `GREEN BY REVIEW`
 - email/private relay/full name dependency: none under current contract
 - Lifecycle blocker: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
-- Required closure: protected revocation token lifecycle, Apple revoke on explicit Apple unlink and account deletion, retry/reconciliation, S2S lifecycle handling, migration/security tests, real Apple E2E
+- Required closure: protected revocation token lifecycle, Apple revoke under the approved unlink/account-deletion policy, retry/reconciliation, S2S lifecycle handling, migration/security tests, real Apple E2E
 - Identifier/key change: `NOT PERFORMED`
 - Final: `LOGIN CONTRACT READY / SIGNUP+LINK BLOCKED`
 
-## 10. LOTBI Plus and external Merchant separation
+## 10. FREE authoritative product policy / LOTBI Plus separation
+
+### FREE
+
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
+
+Authoritative FREE values:
+
+- allowance: monthly 3 successful tasks;
+- not 3 messages, questions or AI Provider calls;
+- one task = one user purpose completed by successful delivery of a usable final result;
+- same-task clarification/confirmation does not create an extra charge;
+- a clearly new purpose after the prior result is completed is a new task;
+- ambiguous task boundaries are not split against the user merely to consume allowance;
+- charge only at `USER_RESULT_DELIVERED`, `SUCCESS`, `COMPLETED` or Core-equivalent authoritative final-success state;
+- LOCAL deterministic = usage 0 / AI call 0 / external effect NONE;
+- failure, cancel-before-completion and incomplete work = no charge;
+- retry/duplicate/provider/callback/client/reconciliation retry = no duplicate charge;
+- same successful task max charge = 1;
+- reset = every month on day 1 at 00:00 `Asia/Seoul` / KST;
+- rolling signup-month model = not used;
+- carry-over = NONE;
+- task usage and AI Provider call count are separate metrics;
+- compensation/credit adjustment preserves the original usage event and uses an auditable adjustment event.
+
+User-facing wording examples:
+
+- `이번 달 무료 작업 2 / 3 사용`
+- `무료 작업 1회 남음`
+
+Help text:
+
+- `하나의 작업을 완료하기 위한 추가 질문과 확인 대화는 별도 작업으로 계산되지 않습니다.`
+- `실패하거나 결과가 완료되지 않은 요청은 차감되지 않습니다.`
+
+Do not say `메시지 3개`, `AI 질문 3번` or `AI 호출 3회`.
+
+The product policy is closed. Actual Core/App usage-ledger implementation remains a separate owning-workstream verification item and is not claimed GREEN by this readiness room.
+
+### LOTBI Plus
 
 Confirmed product baseline:
 
 - `LOTBI Plus`
 - monthly `9,900원`
-- FREE = monthly `3개 작업`
 - Web = Toss Payments
 - iPhone = Apple subscription
 - Android = Google Play subscription
 - V1 Web targets: credit/debit card, account-based autopay, TossPay recurring
 - V2 candidates: KakaoPay recurring, Apple Pay recurring
+
+LOTBI Plus must not be described as an unlimited general-AI or ChatGPT-replacement usage right.
 
 Status: `LOTBI_PLUS_COMMERCIAL_TERMS = PARTIALLY DECIDED / LEGAL REVIEW REQUIRED FOR FINAL TERMS`.
 
@@ -248,15 +292,26 @@ LOTBI Plus subscription fees must remain separate from external Merchant shoppin
 
 ## 11. LEGAL_REVIEW_REQUIRED
 
-- overseas transfer classification/disclosure;
-- third-party provision / entrusted processing / other legal classification;
-- provider-subject retention basis/period;
-- statutory audit/transaction retention;
-- under-14/minor policy;
-- actual Production purge period;
-- external Merchant responsibility/intermediation legal role;
-- Plus auto-renewal/cancellation/refund/cooling-off final wording;
-- final Provider-specific deletion/unlink disclosure after lifecycle implementation.
+The FREE product-policy decision does not close any of the following:
+
+- `THIRD_PARTY_PROCESSING_AND_OVERSEAS_TRANSFER`
+- `PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD`
+- `STATUTORY_RETENTION_ITEMS_AND_PERIODS`
+- `MINOR_POLICY`
+- `PRODUCTION_PURGE_PERIOD`
+- `PRIVACY_OFFICER_OR_DEPARTMENT`
+- `CONTRACT_FORMATION_TIME`
+- `LOTBI_PLUS_SUBSCRIPTION_TERMS`
+- `COMMERCE_ROLE_AND_RESPONSIBILITY`
+- `DELETION_RETENTION_AND_PROVIDER_LIFECYCLE`
+- `SUSPENSION_NOTICE_AND_REMEDY`
+- `SERVICE_CHANGE_NOTICE_AND_LIABILITY`
+- `TERMS_CHANGE_NOTICE`
+- `LIABILITY_DISPUTE_JURISDICTION`
+- `OPERATOR_DISCLOSURE_FIELDS`
+- `FINAL_DOCUMENT_EFFECTIVE_DATES`
+
+All remain `LEGAL_REVIEW_REQUIRED`.
 
 ## 12. CI / change boundary
 
@@ -272,17 +327,21 @@ No Core main or Account main edit is authorized/performed from this readiness br
 
 Do not issue `USER_ACTION_REQUIRED — GOOGLE STEP 1` until, at minimum:
 
-- Production Privacy is updated and legally reviewed as required;
-- Production Terms is updated and legally reviewed as required;
+- required Production Privacy legal decisions are closed and the final document is published;
+- required Production Terms legal decisions are closed and the final document is published;
 - Production Social Signup manifest is deployed and its version/SHA256/URI match the published documents;
+- Account Production verifies the manifest and required two-consent UI;
+- Google Console/OAuth-client preparation is authorized and completed at the correct gate;
 - Google `openid` real E2E is verified;
 - callback/branding/domain/credential requirements are ready;
 - Core/Account Production remains fail-closed until explicitly authorized activation.
 
-Current: `USER_ACTION_REQUIRED = NOT YET`.
+Current: `USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`.
 
 ## 14. Current conclusion
 
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
+
 `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED / NOT GREEN`
 
-The reviewed code contract is materially ready, but the actual Production legal pages/manifest and Provider lifecycle/E2E requirements are not yet aligned enough for Provider Console submission.
+The FREE task product decision is closed, but the actual Production legal pages/manifest, remaining legal review, Provider lifecycle and Google real-E2E requirements are not yet aligned enough for Provider Console submission.
