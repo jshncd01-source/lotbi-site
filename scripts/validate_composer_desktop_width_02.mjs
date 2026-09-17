@@ -55,8 +55,21 @@ assert.match(
   /@media\s*\(min-width:\s*901px\)[\s\S]*?\.topbar-left,[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/,
 );
 
-// Sidebar logo aligns with navigation text without changing the established 220px sidebar width.
+// SITE-SIDEBAR-LOGO-CLIP-FIX-01 — preserve the official asset ratio and use
+// the wrapper's available width. Do not widen the established 220px sidebar.
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?margin:\s*0\s+10px\s+18px/);
-assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*150px/);
+assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?overflow:\s*hidden/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*100%/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*100%/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*auto/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-fit:\s*contain/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-position:\s*left center/);
+assert.doesNotMatch(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*34px/);
 
-console.log('SITE-COMPOSER-DESKTOP-WIDTH-02 + DESKTOP-SIDEBAR-BRAND CONTRACT PASS');
+const logoPng = readFileSync(path.join(ROOT, 'assets/lotbi-logo-header.png'));
+assert.equal(logoPng.toString('ascii', 1, 4), 'PNG');
+assert.equal(logoPng.toString('ascii', 12, 16), 'IHDR');
+assert.equal(logoPng.readUInt32BE(16), 334, 'official sidebar logo intrinsic width changed');
+assert.equal(logoPng.readUInt32BE(20), 96, 'official sidebar logo intrinsic height changed');
+
+console.log('SITE-COMPOSER-DESKTOP-WIDTH-02 + SITE-SIDEBAR-LOGO-CLIP-FIX-01 CONTRACT PASS');
