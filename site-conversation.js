@@ -364,8 +364,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (!message) return;
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
     prompt.value = '';
-    prompt.style.height = '';
-    updateSendState();
+    prompt.dispatchEvent(new Event('input', {bubbles: true}));
     await requestAssistant(message, true);
   };
 
