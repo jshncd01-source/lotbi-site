@@ -1,0 +1,105 @@
+name: SITE Auth Seamless Production Verify
+
+on:
+  push:
+    branches:
+      - site-auth-continuity-seamless-02-prod-verify
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-seamless-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify Production raw assets and browser DOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date +%s)"
+
+          curl --fail --silent --show-error "https://lotbiai.com/?verify=${stamp}" -o /tmp/root.html
+          curl --fail --silent --show-error "https://lotbiai.com/site-auth-continuity.css?verify=${stamp}" -o /tmp/auth.css
+          curl --fail --silent --show-error "https://lotbiai.com/auth/callback/?verify_raw=${stamp}" -o /tmp/callback.html
+          curl --fail --silent --show-error "https://lotbiai.com/auth-callback.js?verify=${stamp}" -o /tmp/callback.js
+
+          grep -F 'data-auth-state="checking" aria-busy="true"' /tmp/root.html >/dev/null
+          grep -F 'class="account-auth-placeholder" aria-hidden="true"' /tmp/root.html >/dev/null
+          grep -F 'visibility: hidden' /tmp/auth.css >/dev/null
+          grep -F 'min-width: 174px' /tmp/auth.css >/dev/null
+          grep -F 'min-width: 132px' /tmp/auth.css >/dev/null
+          ! grep -F '.account-auth-placeholder::before' /tmp/auth.css >/dev/null
+          ! grep -F '.account-auth-placeholder::after' /tmp/auth.css >/dev/null
+          ! grep -F '#f0f2f7' /tmp/auth.css >/dev/null
+
+          grep -F 'id="auth-callback-shell"' /tmp/callback.html >/dev/null
+          grep -F 'aria-labelledby="auth-callback-title" hidden' /tmp/callback.html >/dev/null
+          grep -F 'LOTBI 연결 오류' /tmp/callback.html >/dev/null
+          ! grep -F 'LOTBI 연결 중' /tmp/callback.html >/dev/null
+          ! grep -F 'LOTBI Site 세션을 확인하고 있습니다.' /tmp/callback.html >/dev/null
+          grep -F "document.body.classList.add('auth-callback-error-page')" /tmp/callback.js >/dev/null
+          grep -F 'callbackShell.hidden = false' /tmp/callback.js >/dev/null
+          grep -F 'retryLink.hidden = false' /tmp/callback.js >/dev/null
+          ! grep -F "setStatus('LOTBI Site 세션을 확인하고 있습니다.')" /tmp/callback.js >/dev/null
+
+          account_status_time="$(curl --silent --show-error --output /tmp/account-status.json --write-out '%{time_total}' \
+            --header 'Origin: https://lotbiai.com' \
+            'https://account.lotbiai.com/api/auth/site-session-status')"
+          python - <<'PY'
+          import json
+          body=json.load(open('/tmp/account-status.json', encoding='utf-8'))
+          expected={'contract_id':'ACCOUNT-SITE-SESSION-STATUS-01','schema_version':1,'authenticated':False}
+          if body != expected:
+              raise SystemExit(f'unexpected unauthenticated Account status contract: {body!r}')
+          print('PRODUCTION ACCOUNT STATUS CONTRACT: unauthenticated=false path GREEN')
+          PY
+          echo "ACCOUNT_STATUS_HTTP_SECONDS=${account_status_time}"
+
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          if [ -n "$CHROME" ]; then
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --virtual-time-budget=5000 --dump-dom \
+              "https://lotbiai.com/?verify_dom=${stamp}" > /tmp/root-dom.html
+
+            python - <<'PY'
+          from html.parser import HTMLParser
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.depth=0; self.in_target=False; self.target_depth=0; self.text=[]; self.attrs={}
+              def handle_starttag(self, tag, attrs):
+                  self.depth += 1
+                  data=dict(attrs)
+                  if tag == 'nav' and 'account-actions' in (data.get('class') or '').split() and not self.in_target:
+                      self.in_target=True; self.target_depth=self.depth; self.attrs=data
+              def handle_endtag(self, tag):
+                  if self.in_target and self.depth == self.target_depth and tag == 'nav': self.in_target=False
+                  self.depth -= 1
+              def handle_data(self, data):
+                  if self.in_target: self.text.append(data)
+          html=open('/tmp/root-dom.html',encoding='utf-8').read(); p=P(); p.feed(html)
+          text=' '.join(' '.join(p.text).split())
+          if '로그인' not in text or '회원가입' not in text or '내 계정' in text:
+              raise SystemExit(f'unexpected settled unauthenticated header: {text!r}')
+          if p.attrs.get('data-auth-state') != 'unauthenticated':
+              raise SystemExit(f'expected unauthenticated data-auth-state, got {p.attrs!r}')
+          if 'aria-busy' in p.attrs:
+              raise SystemExit('settled unauthenticated header must not remain aria-busy')
+          print('PRODUCTION ROOT SETTLED DOM: 로그인/회원가입 only, no header 내 계정')
+          PY
+
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --virtual-time-budget=3000 --dump-dom \
+              "https://lotbiai.com/auth/callback/?bad=1&verify=${stamp}" > /tmp/error-dom.html
+
+            grep -F 'auth-callback-error-page' /tmp/error-dom.html >/dev/null
+            grep -F 'LOTBI 연결 오류' /tmp/error-dom.html >/dev/null
+            grep -F '홈에서 다시 시도' /tmp/error-dom.html >/dev/null
+            ! grep -F 'LOTBI 연결 중' /tmp/error-dom.html >/dev/null
+            ! grep -F 'LOTBI Site 세션을 확인하고 있습니다.' /tmp/error-dom.html >/dev/null
+            echo 'PRODUCTION INVALID CALLBACK DOM: error UI only, no normal-flow pending card'
+          else
+            echo 'Chrome unavailable on runner; raw Production contract checks completed.'
+          fi
+
+          echo 'SITE-AUTH-CONTINUITY-SEAMLESS-02 PRODUCTION CONTRACT PASS'
