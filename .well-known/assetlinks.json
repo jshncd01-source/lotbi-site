@@ -10,5 +10,17 @@
         "56:E5:0D:D9:CD:25:BA:0C:47:80:65:64:2E:F6:B5:D2:55:90:19:9C:EC:02:BF:83:A0:62:37:19:18:F7:19:A2"
       ]
     }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.lotbiai.testauth",
+      "sha256_cert_fingerprints": [
+        "42:A9:70:D6:62:DE:39:03:BD:30:FC:09:4A:B5:A0:D0:62:33:0C:C9:ED:37:BD:84:DB:73:E0:0A:97:F2:55:8A"
+      ]
+    }
   }
 ]
