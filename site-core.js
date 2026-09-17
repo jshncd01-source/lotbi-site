@@ -4,6 +4,7 @@ export const SITE_CALLBACK_URI = 'https://lotbiai.com/auth/callback';
 
 const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
+const SUBSCRIPTION_PATH = '/v2/subscription';
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -49,6 +50,81 @@ function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
   }
+}
+
+function subscriptionContractError() {
+  return new SiteCoreError('LOTBI 구독 응답 형식이 올바르지 않습니다.', {code: 'SUBSCRIPTION_CONTRACT_INVALID'});
+}
+
+function subscriptionRecord(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw subscriptionContractError();
+  return value;
+}
+
+function subscriptionEnum(value, allowed) {
+  if (typeof value !== 'string' || !allowed.includes(value)) throw subscriptionContractError();
+  return value;
+}
+
+function subscriptionInteger(value) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) throw subscriptionContractError();
+  return value;
+}
+
+function subscriptionBoolean(value) {
+  if (typeof value !== 'boolean') throw subscriptionContractError();
+  return value;
+}
+
+function subscriptionPeriod(value) {
+  if (value === null) return null;
+  if (typeof value !== 'string' || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) || Number.isNaN(Date.parse(value))) {
+    throw subscriptionContractError();
+  }
+  return value;
+}
+
+function parseSubscriptionState(value) {
+  const payload = subscriptionRecord(value);
+  const plan = subscriptionEnum(payload.plan, ['FREE', 'LOTBI_PLUS']);
+  const status = subscriptionEnum(payload.status, ['FREE', 'ACTIVE', 'GRACE', 'PAST_DUE', 'CANCEL_AT_PERIOD_END', 'EXPIRED']);
+  const provider = payload.provider === null ? null : subscriptionEnum(payload.provider, ['TOSS', 'APPLE', 'GOOGLE_PLAY']);
+  if (payload.price !== 9900 || payload.currency !== 'KRW' || payload.free_units !== 3) throw subscriptionContractError();
+
+  const usedFreeUnits = subscriptionInteger(payload.used_free_units);
+  const remainingFreeUnits = subscriptionInteger(payload.remaining_free_units);
+  if (remainingFreeUnits > 3) throw subscriptionContractError();
+
+  const entitled = subscriptionBoolean(payload.entitled);
+  if (plan === 'FREE' && (status !== 'FREE' || entitled)) throw subscriptionContractError();
+  if (plan === 'LOTBI_PLUS' && status === 'FREE') throw subscriptionContractError();
+
+  if (!Array.isArray(payload.web_payment_methods)) throw subscriptionContractError();
+  const seenMethods = new Set();
+  const webPaymentMethods = payload.web_payment_methods.map(item => {
+    const method = subscriptionRecord(item);
+    const code = subscriptionEnum(method.code, ['CARD', 'BANK_ACCOUNT']);
+    if (seenMethods.has(code) || typeof method.display_name !== 'string' || !method.display_name.trim()) {
+      throw subscriptionContractError();
+    }
+    seenMethods.add(code);
+    return {code, displayName: method.display_name};
+  });
+
+  return {
+    plan,
+    status,
+    price: 9900,
+    currency: 'KRW',
+    provider,
+    currentPeriodEnd: subscriptionPeriod(payload.current_period_end),
+    cancelAtPeriodEnd: subscriptionBoolean(payload.cancel_at_period_end),
+    freeUnits: 3,
+    usedFreeUnits,
+    remainingFreeUnits,
+    entitled,
+    webPaymentMethods,
+  };
 }
 
 export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetchImpl = globalThis.fetch) {
@@ -103,6 +179,43 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
     installationId: typeof payload.installation_id === 'string' ? payload.installation_id : '',
     expiresAt: typeof payload.expires_at === 'string' ? payload.expires_at : '',
   });
+}
+
+export async function readSubscriptionState(sessionToken, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
+  if (!token) {
+    throw new SiteCoreError('LOTBI Site 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
+  }
+
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${SUBSCRIPTION_PATH}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 구독 서버에 접속하지 못했습니다.', {
+      code: 'SUBSCRIPTION_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = errorFromResponse(response, payload, 'LOTBI 구독 상태를 확인하지 못했습니다.');
+    announceInvalidSiteSession(error);
+    throw error;
+  }
+
+  return Object.freeze(parseSubscriptionState(payload));
 }
 
 export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch) {

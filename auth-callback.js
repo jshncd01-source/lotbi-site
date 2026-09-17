@@ -6,6 +6,7 @@ import {
 } from './site-auth.js';
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js';
 import {mountConversation} from './site-conversation.js';
+import {mountSubscription} from './site-subscription.js';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -145,6 +146,8 @@ async function completeSiteHandoff() {
   });
   if (!mounted) throw new Error('LOTBI 대화 화면을 시작하지 못했습니다.');
 
+  await mountSubscription({sessionToken: session.sessionToken});
+
   window.dispatchEvent(new CustomEvent('lotbi:site-session-state', {
     detail: {
       authenticated: true,
@@ -164,4 +167,3 @@ void completeSiteHandoff().catch((error) => {
   });
   showCallbackError(callbackErrorMessage(error));
 });
-
