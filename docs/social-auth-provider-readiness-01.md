@@ -1,400 +1,288 @@
 # SOCIAL-AUTH-PROVIDER-READINESS-01
 
-Research date: 2026-09-17 (Asia/Seoul)
+Research / verification date: 2026-09-17 (Asia/Seoul)
 
-Status:
+Current phase: `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS VERIFY`
 
-- `FIRST READINESS REVIEW GREEN`
-- `DOCUMENT PREPARATION IN PROGRESS`
-- `PRIVACY UPDATE REQUIRED`
-- `TERMS UPDATE REQUIRED`
-- `LEGAL REVIEW REQUIRED`
+## 1. Current status
+
+- `INTERNAL READINESS BASELINE GREEN`
+- `CORE SOCIAL REVIEW GREEN`
+- `ACCOUNT WEB SOCIAL REVIEW GREEN`
+- `ACTIVATION GATE GREEN BY REVIEW`
+- `ACCOUNT BFF GREEN BY REVIEW`
+- `CALLBACK CONTRACT GREEN BY REVIEW`
+- `PROVIDER DATA MATRIX GREEN BY REVIEW`
+- `PRIVACY REVIEW DRAFT UPDATED`
+- `TERMS REVIEW DRAFT UPDATED`
+- `PRODUCTION LEGAL MANIFEST NOT DEPLOYED`
+- `PRODUCTION PRIVACY NOT SOCIAL-AUTH READY`
+- `PRODUCTION TERMS NOT SOCIAL-AUTH READY`
+- `PROVIDER REAL E2E PENDING`
 - `PROVIDER SUBMISSION NOT READY`
-- `MAIN NOT PROMOTED`
-- `PRODUCTION NOT CHANGED`
+- `MAIN NOT PROMOTED BY THIS WORK`
+- `PRODUCTION NOT CHANGED BY THIS WORK`
 
-This is an internal readiness record. It does not authorize Provider submission, Production OAuth activation, secret creation/registration, Apple identifier/key changes, Core modification, or main promotion.
+`PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = NOT GREEN / BLOCKED`.
 
-## 1. Scope and safety boundary
+## 2. Implementation baselines
 
-This work owns only:
+- Core main supplied baseline: `23d6c99658704a84a09c3edd7b3474a1db77387b`
+- Core Social review: `b555420b8d75c9e241a6cd9bd534f205499a87d8`
+- Account main supplied baseline: `9cec0b958d22b566f9312521670c7d82d0740e41`
+- Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
+- Social contract: `LOTBI_SOCIAL_AUTH_V2`
 
-- current Provider requirements research;
-- policy/consent consistency;
-- brand assets/readiness;
-- homepage/policy/support URL readiness;
-- Provider data-minimization matrix;
-- callback contract discovery;
-- signup/login/unlink/deletion evidence requirements;
-- Core blocker handoff documentation.
+This readiness branch documents the reviewed contract only. It does not promote those review branches or enable Production Social Auth.
 
-Out of scope:
+## 3. Public LOTBI legal URLs
 
-- real OAuth/OIDC Production integration changes;
-- Provider secret/key creation;
-- Production env/credential changes;
-- Google/Kakao/NAVER/Apple external submission;
-- Core main promotion;
-- Apple private-key generation/exposure.
-
-## 2. LOTBI canonical service baseline
-
-- Service: `LOTBI`
-- Homepage: `https://lotbiai.com`
+- Homepage: `https://lotbiai.com/`
+- Privacy: `https://lotbiai.com/privacy.html`
+- Terms: `https://lotbiai.com/terms.html`
+- Account deletion: `https://lotbiai.com/account-deletion.html`
 - Account Web: `https://account.lotbiai.com`
-- API: `https://api.lotbiai.com`
-- Admin: `https://admin.lotbiai.com`
-- iOS target Bundle ID: `com.lotbiai.app`
-- Android package: `com.lotbiai.app`
-- Support/privacy contact: `developer@lotbiai.com`
-- `app.lotbiai.com`: not an approved LOTBI host; do not invent/register it.
+- Support: `developer@lotbiai.com`
 
-Brand assets available in `lotbi-site`:
+The public Privacy and Terms URLs are HTTPS and accessible without login. Their source includes a mobile viewport. However content readiness is separate from URL accessibility.
 
-- `assets/lotbi-logo-header.png`
-- `assets/lotbi-main-logo.png`
-- `assets/lotbi-og-share.png`
+### Production Privacy finding
 
-## 3. Public-policy baseline
+Current public Privacy is the 2026-09-14 **pre-release version** and says the public website is a static introduction site that does not provide signup/payment/location/voice input and that the policy will be updated before the full service starts processing those data.
 
-### Homepage
+This conflicts with a Production Social Signup launch manifest.
 
-Public LOTBI homepage is reachable without login and identifies the service. It provides navigation to Privacy, Terms/use notice, Account Deletion and Contact.
+Status: `PRIVACY URL ACCESS = GREEN / CONTENT = UPDATE REQUIRED`.
 
-Status: `REVIEW_READY_CONTENT`.
+### Production Terms finding
 
-### Privacy
+Current public Terms URL is titled/structured as `LOTBI 웹사이트 이용안내` / pre-release website notice, not final Production service Terms covering LOTBI account/Social Login/Plus/transaction relationships.
 
-Current public `privacy.html` is still a pre-release/static-site policy and is not sufficient as the final Social Login/Production privacy policy.
+Status: `TERMS URL ACCESS = GREEN / CONTENT = UPDATE REQUIRED`.
 
-A Core-aligned review draft now exists at:
+### Account deletion finding
 
-`docs/privacy-social-login-review-draft.md`
+Current public account-deletion page points to the real Account Web deletion process and Core receipt/purge model and does not falsely claim immediate hard deletion.
 
-It covers:
+Status: `LOCAL DELETION GUIDANCE = REVIEW READY`, while Provider-specific remote lifecycle still has blockers for Kakao/NAVER/Apple.
 
-- Google/Kakao/NAVER/Apple;
-- stable provider subject/identifier usage;
-- current non-use of Provider email/name/profile as Social identity;
-- external identity lifecycle;
-- Social unlink;
-- LOTBI account deletion;
-- final purge;
-- Provider authorization revoke as a separate lifecycle;
-- provider-subject reservation/retention boundary.
+## 4. Social Signup consent manifest contract
 
-Status: `REVIEW DRAFT READY / PUBLIC UPDATE REQUIRED / LEGAL_REVIEW_REQUIRED`.
+Social Signup requires exactly two LOTBI-owned required consents:
 
-### Terms
+1. `TERMS_OF_SERVICE`
+2. `PRIVACY_POLICY`
 
-Current public `terms.html` remains a pre-release website use notice, not final Production LOTBI Terms.
+Core owns the legal manifest. For both documents it requires configured:
 
-A Production-service review draft now exists at:
+- document version;
+- SHA-256;
+- HTTPS URI.
 
-`docs/terms-social-auth-review-draft.md`
+The values are not hardcoded defaults. Missing/malformed configuration fails closed.
 
-It covers:
+Core Social Signup requires exactly two consent records and verifies:
 
-- LOTBI account;
-- external login services;
-- Provider outages/policy changes;
-- link/unlink;
-- member deletion;
-- service interruption;
-- LOTBI Plus separation;
-- external Merchant transactions vs LOTBI-owned paid services;
-- legal-review boundaries.
+- manifest key;
+- version;
+- SHA-256;
+- URI;
+- decision `ACCEPTED`;
+- `required=true`;
+- locale.
 
-Status: `REVIEW DRAFT READY / PUBLIC UPDATE REQUIRED / LEGAL_REVIEW_REQUIRED`.
+Core stores `UserConsentRecord` with `source=SOCIAL_SIGNUP`, installation/provider/flow evidence and `server_manifest_verified=true`.
 
-### Account deletion
+Account Web obtains the manifest from Core. Its Social Signup UI displays two separate required checkboxes and does not enable account creation without both. Browser input cannot invent document version/hash.
 
-Current public Account Deletion guidance points users toward the actual Account Web/Core lifecycle and does not falsely promise immediate hard deletion.
+### Production manifest finding
 
-Status: `REVIEW_READY`, subject to final Production purge/Provider-revoke alignment.
+The reviewed endpoint is `GET /v2/sessions/providers/signup/consents`, but the current Production endpoint is not deployed/reachable as that reviewed contract. Therefore actual Production document versions/SHA-256/URIs cannot be declared from review code alone.
 
-### Support
+Status: `PRODUCTION SOCIAL SIGNUP CONSENT MANIFEST = NOT DEPLOYED`.
 
-Public support/privacy/account contact exists.
+## 5. Actual Social Signup data contract
 
-Status: `READY`.
+### Provider data
 
-## 4. Authoritative Core Social Auth contract
+| Provider | Reviewed Web scope | Canonical identity | Provider email/name/profile |
+|---|---|---|---|
+| Google | `openid` | OIDC `sub` | unused |
+| Kakao | `openid` | OIDC `sub` | unused |
+| NAVER | `openid` | official profile `response.id` | additional profile fields unused |
+| Apple | no email/name profile scope | Apple `sub` | email/private relay/full name unused |
 
-Current authoritative implementation baseline is `lotbi-core/main`, contract `LOTBI_SOCIAL_AUTH_V2`.
+Provider data not used by the current minimum contract must not be requested for review convenience.
 
-Key facts:
+### User-direct LOTBI signup data
 
-- Web uses Core-owned authorization-code Provider redirects.
-- Android/iOS use official Provider SDK tokens and Core native Social Auth endpoints; native does not reuse the Web callback.
-- Social LOGIN starts at `FEDERATED_LIMITED` and requires Passkey step-up for FULL assurance.
-- Social SIGNUP requires LOTBI `TERMS_OF_SERVICE` and `PRIVACY_POLICY` consent, then first Passkey enrollment.
-- canonical external identity is Provider + stable Provider subject/identifier.
-- Provider email is not an account key.
-- same-email accounts are not auto-linked.
-- Provider subject cannot silently migrate to another LOTBI user.
+After Provider verification, the user directly enters:
 
-## 5. Provider data matrix
+- LOTBI display name;
+- LOTBI account handle/username.
 
-| Provider | Stable subject / identifier | Email | Name | Profile | Other personal data |
-|---|---|---|---|---|---|
-| Google | `REQUIRED` — OIDC `sub` | `UNUSED` | `UNUSED` | `UNUSED` | `UNUSED` under current identity model |
-| Kakao | `REQUIRED` — OIDC `sub` | `UNUSED` | `UNUSED` | `UNUSED` | `UNUSED` under current identity model |
-| NAVER | `REQUIRED` — profile `response.id` | `UNUSED` | `UNUSED` | `UNUSED` | `UNUSED` under current identity model |
-| Apple | `REQUIRED` when lifecycle-enabled — Apple `sub` | `UNUSED` | `UNUSED` | `UNUSED` | no private-relay/full-name dependency in current Core |
+The handle uses the existing Consumer Username Policy.
 
-Detailed matrix/lifecycle record:
+Reviewed provisioning stores Provider + `provider_subject`, but Provider email remains `None`, Provider profile remains `{}`, and any external-identity display name comes from the user-entered LOTBI name rather than Provider profile import.
 
-`docs/provider-data-lifecycle-matrix.md`
+Signup also creates/stores the normal account-security/evidence lifecycle: installation/session, Passkey enrollment, required consent evidence, recovery path/audit evidence according to the existing account contract.
 
-Policy: LOTBI does not request information it does not actually use merely for Provider review.
+## 6. LOGIN / SIGNUP / LINK
 
-## 6. Google scope final readiness assessment
+- LOGIN: existing external identity, `FEDERATED_LIMITED` then Passkey step-up to FULL.
+- SIGNUP: Provider verification -> LOTBI name/handle + required legal consents -> account creation -> first Passkey enrollment.
+- LINK: existing FULL LOTBI account plus fresh proof; separate from signup.
 
-Current Core Web authorization uses `scope=openid` only.
+Same email never silently auto-links accounts. Provider subject cannot silently move to a different LOTBI user.
 
-Official Google scope documentation lists:
+Apple LOGIN contract is ready by review; Apple SIGNUP/LINK remains blocked.
 
-- `openid`
-- `email`
-- `profile`
+## 7. Exact reviewed Web callback contract
 
-as separate scopes.
+| Provider | Exact callback |
+|---|---|
+| Google | `https://account.lotbiai.com/api/auth/providers/google/callback` |
+| Kakao | `https://account.lotbiai.com/api/auth/providers/kakao/callback` |
+| NAVER | `https://account.lotbiai.com/api/auth/providers/naver/callback` |
+| Apple | `https://account.lotbiai.com/api/auth/providers/apple/callback` |
 
-Therefore this readiness project does **not** conclude that `openid`-only is wrong merely because `email` or `profile` are absent.
+Account Web fails closed unless Core returns this exact canonical callback, Web configuration is ready, provider-scoped Production activation is true and the requested purpose is enabled. SIGNUP additionally requires the consent manifest.
 
-At the same time, Google's current OIDC authorization reference describes its scope parameter for the documented OIDC flow as beginning with `openid` and including `profile`, `email`, or both. The correct LOTBI conclusion is therefore not to guess, but to verify the minimum current Core flow using a valid configured Google OAuth client.
+Status split:
+- review-code callback contract: `GREEN`
+- Provider Console registration: `NOT PERFORMED`
+- Production provider env/activation: `UNCHANGED`
+- real callback E2E: `PENDING`
 
-Current Core already implements local checks for:
+## 8. Account unlink / deletion / purge / Provider revoke
 
-- stable `sub`;
-- Google issuer;
-- configured audience and `azp` when needed;
-- nonce;
-- state/binding;
-- exact callback contract;
-- PKCE S256;
-- replay protection;
-- token lifetime.
+These are four separate operations.
 
-Still missing before closing the blocker:
-
-- real authorization request acceptance with the minimum scope;
-- real authorization-code callback;
-- token exchange;
-- ID-token issuance;
-- successful current Google consent configuration/E2E.
-
-No scope expansion is authorized from this readiness room.
-
-Status:
-
-`CORE_SOCIAL_AUTH_BLOCKER — GOOGLE_SCOPE_CONTRACT_VERIFY`
-
-Detailed handoff:
-
-`docs/google-scope-contract-verification.md`
-
-## 7. Callback URI assessment
-
-Core obtains exact Provider Web redirect URI from:
-
-`LOTBI_SOCIAL_<PROVIDER>_WEB_REDIRECT_URI`
-
-Core tests use an example pattern under `https://account.lotbiai.com/auth/web/<provider>/callback`, but that pattern is test-fixture data and is not sufficient to declare the Production callback authoritative.
-
-The inspected Account Web Social Signup review branch does not yet own/implement the complete Provider callback transport needed to close that contract.
-
-Therefore:
-
-| Provider | Authoritative callback URI | Status |
+| Operation | LOTBI local behavior | Provider-side behavior |
 |---|---|---|
-| Google | not yet fixed | `CALLBACK_PENDING_INTEGRATION` |
-| Kakao | not yet fixed | `CALLBACK_PENDING_INTEGRATION` |
-| NAVER | not yet fixed | `CALLBACK_PENDING_INTEGRATION` |
-| Apple | not yet fixed | `CALLBACK_PENDING_INTEGRATION` |
+| Social Login unlink | external identity -> local `REVOKED`; LOTBI account retained; unique subject reservation retained | current generic path has no remote revoke |
+| LOTBI account deletion | access/authority and local external links revoked; deletion lifecycle starts | provider-specific disconnect/revoke handled separately |
+| final purge | separate operational erasure with lawful/security retention exceptions | not inherently a Provider API call |
+| Provider revoke/unlink | provider authorization relationship ended | provider-specific implementation |
 
-No guessed Provider callback may be registered.
+Core local purge default is 30 days, but actual Production setting/legal retention model has not been verified; do not publish a fixed 30-day promise.
 
-Detailed closure rules:
+`provider_subject` retention basis/period after revoke/deletion remains `LEGAL_REVIEW_REQUIRED`.
 
-`docs/callback-contract-readiness.md`
-
-## 8. Identity/deletion/revocation lifecycle matrix
-
-These four operations remain separate:
-
-| Operation | Current Core meaning | Remote Provider action |
-|---|---|---|
-| A. Social Login unlink | Keep LOTBI account; local external identity -> `REVOKED`; subject reservation retained | generic unlink: NO remote revoke |
-| B. LOTBI account deletion request | revoke account access/authority and local Provider links; enter deletion lifecycle | Provider revoke handled separately |
-| C. LOTBI final purge | separate operational erasure workflow with legal/security retention exceptions | not itself a Provider operation |
-| D. Provider authorization revoke | Provider-specific token/authorization lifecycle | changes Provider-side authorization state |
-
-The current local Core default purge configuration is 30 days, but the actual Production value has not been verified. Do not publish a fixed 30-day policy from this readiness evidence alone.
-
-The exact legal basis/period for retaining or transforming a revoked/reserved provider subject remains unresolved.
-
-## 9. Apple revocation Core blocker handoff
-
-Apple LOGIN verification preparation exists, but Apple SIGNUP/LINK remains intentionally fail-closed with:
-
-`EXTERNAL_APPLE_REVOCATION_REQUIRED`
-
-Current Apple code exchange verifies an ID token but does not retain access/refresh token as durable later revocation material. Therefore an account created/linked with Sign in with Apple cannot yet guarantee the required provider-side revoke-on-LOTBI-account-deletion lifecycle.
-
-Required integration work includes:
-
-- approved encrypted provider-token/revocation-material vault;
-- no plaintext token/key/client-secret logging;
-- Apple revoke-on-LOTBI-account-deletion;
-- retry/idempotency/unknown-state reconciliation;
-- Apple client-secret/private-key server-side secret boundary;
-- Apple server-to-server account-change notification validation/reconciliation;
-- tests and real Apple development/sandbox evidence.
-
-Generic LOTBI unlink is local-only today. Whether Apple-specific unlink should also remotely revoke authorization is a separate decision:
-
-`USER_DECISION_REQUIRED — APPLE_UNLINK_REMOTE_REVOKE_POLICY`
-
-Detailed Core handoff:
-
-`docs/core-social-auth-blocker-apple-revocation-lifecycle.md`
-
-## 10. Provider readiness
+## 9. Provider-specific readiness
 
 ### GOOGLE
 
-- Homepage: `READY CONTENT`
-- Support: `READY`
-- Branding source assets: `READY FOR FORMAT ADAPTATION`
-- Data model: `READY — MINIMUM SUBJECT-ONLY INTENT`
-- Scope: `GOOGLE_SCOPE_CONTRACT_VERIFY`
-- Callback: `CALLBACK_PENDING_INTEGRATION`
-- Privacy: `REVIEW DRAFT READY / LEGAL REVIEW REQUIRED`
-- Terms: `REVIEW DRAFT READY / LEGAL REVIEW REQUIRED`
-- Domain/ownership requirement: `DOCUMENTED / USER ACTION LATER`
-- Real Provider E2E: `NOT VERIFIED`
-- Submission: `NOT SUBMITTED`
+- Code: `GREEN BY REVIEW`
+- Callback: `GREEN BY REVIEW` — exact URL fixed
+- Scope: `openid`
+- Provider profile data: email/name/profile unused
+- Privacy: `BLOCKED — PUBLIC CONTENT UPDATE REQUIRED`
+- Terms: `BLOCKED — PUBLIC CONTENT UPDATE REQUIRED`
+- Consent Manifest: `BLOCKED — PRODUCTION MANIFEST NOT DEPLOYED`
+- Account Deletion: local LOTBI flow documented
+- Domain/branding requirements: documented
+- Real Provider E2E: `PENDING`
+- Scope live verification: `GOOGLE_SCOPE_CONTRACT_VERIFY`
+- Console Readiness: `BLOCKED`
+- Final: `BLOCKED / USER_ACTION_REQUIRED NOT YET`
 
 ### KAKAO
 
-- Data minimization: `READY`
-- Additional profile permission: `NOT NEEDED UNDER CURRENT MODEL`
-- Callback: `CALLBACK_PENDING_INTEGRATION`
-- Privacy/Terms consistency: `REVIEW DRAFT READY / LEGAL REVIEW REQUIRED`
-- Real Provider E2E: `NOT VERIFIED`
-- Review/additional-permission submission: `NOT SUBMITTED`
+- Code: `GREEN BY REVIEW`
+- Callback: `GREEN BY REVIEW`
+- Scope: `openid`
+- Provider profile data: email/profile unused
+- Privacy/Terms: `BLOCKED ON PRODUCTION DOCUMENTS`
+- Consent Manifest: `NOT DEPLOYED`
+- Real Provider E2E: `PENDING`
+- Provider lifecycle: official Kakao documentation requires service account deletion/unmapping to include Kakao Unlink; current generic LOTBI unlink is local-only
+- Lifecycle blocker: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK/ACCOUNT_DELETION INTEGRATION REQUIRED`
+- Final: `BLOCKED`
 
 ### NAVER
 
-- canonical identity: app-scoped `response.id`
-- Data minimization: `READY`
-- Additional profile fields: `NOT NEEDED UNDER CURRENT MODEL`
-- Callback: `CALLBACK_PENDING_INTEGRATION`
-- Pre-review evidence: `WAITING FOR WORKING E2E`
-- Submission: `NOT SUBMITTED`
+- Code: `GREEN BY REVIEW`
+- Callback: `GREEN BY REVIEW`
+- Scope: `openid`
+- identity: profile `response.id`
+- additional profile data: unused
+- Privacy/Terms: `BLOCKED ON PRODUCTION DOCUMENTS`
+- Consent Manifest: `NOT DEPLOYED`
+- Real Provider E2E/pre-review evidence: `PENDING`
+- Provider lifecycle: official NAVER documentation describes Token Revocation for service withdrawal/link termination and disconnect notification handling
+- Lifecycle blocker: `NAVER_PROVIDER_LIFECYCLE_BLOCKER — TOKEN_REVOCATION/DISCONNECT INTEGRATION VERIFY`
+- Pre-review: `NOT SUBMITTED`
+- Final: `BLOCKED`
 
 ### APPLE
 
-- basic App ID/Services ID requirements: `DOCUMENTED`
-- email/full-name dependency: `NONE UNDER CURRENT CORE`
-- Callback: `CALLBACK_PENDING_INTEGRATION`
-- Apple SIGNUP/LINK: `BLOCKED — APPLE_REVOCATION_LIFECYCLE`
-- Identifier/key actual changes: `NOT PERFORMED`
-- Real Provider E2E: `NOT VERIFIED`
-- External action/submission: `NOT PERFORMED`
+- LOGIN: `READY BY REVIEW`
+- SIGNUP: `BLOCKED`
+- LINK: `BLOCKED`
+- Callback: `GREEN BY REVIEW`
+- email/private relay/full name dependency: none under current contract
+- Lifecycle blocker: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
+- Required closure: protected revocation token lifecycle, Apple revoke on explicit Apple unlink and account deletion, retry/reconciliation, S2S lifecycle handling, migration/security tests, real Apple E2E
+- Identifier/key change: `NOT PERFORMED`
+- Final: `LOGIN CONTRACT READY / SIGNUP+LINK BLOCKED`
 
-## 11. Core blocker handoff list
+## 10. LOTBI Plus and external Merchant separation
 
-### `CORE_SOCIAL_AUTH_BLOCKER — GOOGLE_SCOPE_CONTRACT_VERIFY`
+Confirmed product baseline:
 
-Owner: Social Login integration workstream.
+- `LOTBI Plus`
+- monthly `9,900원`
+- FREE = monthly `3개 작업`
+- Web = Toss Payments
+- iPhone = Apple subscription
+- Android = Google Play subscription
+- V1 Web targets: credit/debit card, account-based autopay, TossPay recurring
+- V2 candidates: KakaoPay recurring, Apple Pay recurring
 
-Need valid configured Google client E2E for minimum scope before scope expansion or submission.
+Status: `LOTBI_PLUS_COMMERCIAL_TERMS = PARTIALLY DECIDED / LEGAL REVIEW REQUIRED FOR FINAL TERMS`.
 
-### `CORE_SOCIAL_AUTH_BLOCKER — APPLE_REVOCATION_LIFECYCLE`
+Still requires legal/final wording for auto-renewal notice, cancellation effective time, refunds, withdrawal/digital-service treatment and Provider refund vs LOTBI entitlement.
 
-Owner: Social Login integration/Core workstream.
+LOTBI Plus subscription fees must remain separate from external Merchant shopping/reservation/travel/service transaction money. Current policy draft does not describe LOTBI as receiving/settling external Merchant sales proceeds merely because Transaction Kernel controls execution safeguards.
 
-Need encrypted revocation material, revoke-on-account-deletion, secret boundary, notifications/reconciliation and tests before Apple SIGNUP/LINK activation.
+## 11. LEGAL_REVIEW_REQUIRED
 
-### `CALLBACK_PENDING_INTEGRATION`
+- overseas transfer classification/disclosure;
+- third-party provision / entrusted processing / other legal classification;
+- provider-subject retention basis/period;
+- statutory audit/transaction retention;
+- under-14/minor policy;
+- actual Production purge period;
+- external Merchant responsibility/intermediation legal role;
+- Plus auto-renewal/cancellation/refund/cooling-off final wording;
+- final Provider-specific deletion/unlink disclosure after lifecycle implementation.
 
-Owner: Social Login integration workstream.
+## 12. CI / change boundary
 
-Applies to Google/Kakao/NAVER/Apple Web until one exact deployed callback per Provider is implemented and evidenced.
+Readiness branch: `review/social-auth-provider-readiness-01-20260917`.
 
-## 12. LEGAL_REVIEW_REQUIRED
+The existing `lotbi-site` push workflow does not target this branch. Do not edit workflow triggers merely to manufacture a CI run.
 
-- overseas-transfer classification/disclosure for each Provider relationship;
-- third-party provision vs entrusted processing vs other lawful characterization;
-- exact revoked/reserved provider-subject retention basis and period;
-- statutory transaction/audit retention periods;
-- under-14/minor account policy and guardian consent;
-- final public purge timing;
-- Production Terms: limitation of liability, service interruption, termination, dispute/jurisdiction;
-- LOTBI's legal role for Merchant transactions / commerce intermediation;
-- LOTBI Plus subscription/refund/renewal terms if included at launch.
+Status: `CI = NOT CONFIGURED FOR THIS REVIEW BRANCH` unless separately changed by evidence after this record.
 
-## 13. USER_DECISION_REQUIRED
+No Core main or Account main edit is authorized/performed from this readiness branch. No Production deploy or Provider Console change is performed.
 
-Current internal decisions that cannot be silently invented:
+## 13. USER ACTION gate
 
-1. `APPLE_UNLINK_REMOTE_REVOKE_POLICY` — when a user keeps the LOTBI account but unlinks Apple, should LOTBI also revoke Apple authorization remotely, or only perform the current local unlink?
-2. `LOTBI_PLUS_COMMERCIAL_TERMS` — if Plus is part of launch scope, actual paid features, sales channel, renewal, cancellation and refund model must be supplied before final Terms.
-3. Minor eligibility policy, if not resolved through legal review/business policy.
+Do not issue `USER_ACTION_REQUIRED — GOOGLE STEP 1` until, at minimum:
 
-These do not authorize external Provider action.
+- Production Privacy is updated and legally reviewed as required;
+- Production Terms is updated and legally reviewed as required;
+- Production Social Signup manifest is deployed and its version/SHA256/URI match the published documents;
+- Google `openid` real E2E is verified;
+- callback/branding/domain/credential requirements are ready;
+- Core/Account Production remains fail-closed until explicitly authorized activation.
 
-## 14. CI / verification boundary
+Current: `USER_ACTION_REQUIRED = NOT YET`.
 
-Current `lotbi-site` workflow push triggers do not include `review/social-auth-provider-readiness-01-20260917`.
+## 14. Current conclusion
 
-Do not edit CI triggers merely to make this documentation branch run automatically.
+`PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED / NOT GREEN`
 
-Required final reporting status unless an existing workflow is explicitly run by another authorized mechanism:
-
-`CI = NOT CONFIGURED FOR THIS REVIEW BRANCH`
-
-Local/static document validation may be reported separately and must not be mislabeled as CI.
-
-## 15. External submission stop rule
-
-Still prohibited:
-
-- Google Console Production submission/verification;
-- Kakao review/application;
-- NAVER review application;
-- Apple Developer Identifier/Services ID/key changes;
-- Production credential generation;
-- secret registration;
-- OAuth Production activation;
-- main promotion.
-
-## 16. USER_ACTION gate
-
-Do not issue:
-
-`USER_ACTION_REQUIRED — GOOGLE STEP 1`
-
-until all of the following are ready:
-
-- authoritative Google callback fixed;
-- Privacy review draft complete and legal gaps isolated;
-- Terms review draft complete and legal gaps isolated;
-- Google minimum scope live contract verified;
-- Google branding material prepared to current console format;
-- homepage/policy/support URLs ready;
-- Google domain requirement documented;
-- Google client/secret requirement list documented without secret values.
-
-Current status:
-
-`USER_ACTION_REQUIRED = NOT YET`
-
-## 17. Current readiness conclusion
-
-`SOCIAL-AUTH-PROVIDER-READINESS-01 = INTERNAL DOCUMENT READINESS ADVANCED`
-
-The policy/data/lifecycle documentation is materially prepared, but Provider submission readiness is **not** closed because callback integration, Google minimum-scope live E2E, Apple revocation lifecycle, final legal review and real Provider evidence remain outstanding.
+The reviewed code contract is materially ready, but the actual Production legal pages/manifest and Provider lifecycle/E2E requirements are not yet aligned enough for Provider Console submission.
