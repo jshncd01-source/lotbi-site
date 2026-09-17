@@ -14,6 +14,7 @@ on:
       - site-web-3d-avatar-fallback-retry-02-review
       - site-sidebar-information-architecture-04-review
       - site-sidebar-information-architecture-04-reconcile
+      - site-conversation-sidebar-ux-01-review
   pull_request:
     branches:
       - main
@@ -61,6 +62,9 @@ jobs:
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
+      - name: Validate conversation, profile and thread UX contracts
+        run: node scripts/validate_conversation_sidebar_ux_01.mjs
+
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
 
@@ -93,27 +97,30 @@ jobs:
           preflight() {
             local path="$1"
             local request_headers="$2"
+            local request_method="$3"
             local headers body status origin methods allowed
             headers="$(mktemp)"
             body="$(mktemp)"
             status="$(curl --silent --show-error --output "$body" --dump-header "$headers" --write-out '%{http_code}' \
               --request OPTIONS "https://api.lotbiai.com${path}" \
               --header 'Origin: https://lotbiai.com' \
-              --header 'Access-Control-Request-Method: POST' \
+              --header "Access-Control-Request-Method: ${request_method}" \
               --header "Access-Control-Request-Headers: ${request_headers}")"
             [[ "$status" == '204' ]] || { echo "${path}: expected CORS 204, got $status" >&2; cat "$body" >&2; exit 1; }
             origin="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
             methods="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-methods:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
             allowed="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-headers:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
             [[ "$origin" == 'https://lotbiai.com' ]] || { echo "${path}: unexpected ACAO '$origin'" >&2; exit 1; }
-            grep -Eiq '(^|,)[[:space:]]*POST([[:space:]]*,|$)' <<<"$methods" || { echo "${path}: POST missing from ACAM '$methods'" >&2; exit 1; }
+            grep -Eiq "(^|,)[[:space:]]*${request_method}([[:space:]]*,|$)" <<<"$methods" || { echo "${path}: ${request_method} missing from ACAM '$methods'" >&2; exit 1; }
             for required in ${request_headers//,/ }; do
               grep -Eiq "(^|,)[[:space:]]*${required}([[:space:]]*,|$)" <<<"$allowed" || { echo "${path}: $required missing from ACAH '$allowed'" >&2; exit 1; }
             done
           }
 
-          preflight '/v2/conversation/messages' 'authorization,content-type'
-          preflight '/v2/sessions/handoffs/redeem' 'content-type'
+          preflight '/v2/conversation/messages' 'authorization,content-type' 'POST'
+          preflight '/v2/sessions/handoffs/redeem' 'content-type' 'POST'
+          preflight '/v2/me' 'authorization' 'GET'
+          preflight '/v2/sessions/logout' 'authorization' 'POST'
 
           evil_status="$(curl --silent --show-error --output /tmp/evil-body --write-out '%{http_code}' \
             --request OPTIONS 'https://api.lotbiai.com/v2/conversation/messages' \
@@ -152,7 +159,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-refined-v1.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-continuity.js /site-auth.js /site-core.js /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-refined-v1.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 

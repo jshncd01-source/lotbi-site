@@ -65,7 +65,7 @@ for (const required of [
   'function markCheckingSidebarAccountUi',
   'function markAuthenticatedSidebarAccountUi',
   'function markAnonymousSidebarAccountUi',
-  "const ACCOUNT_URL = 'https://account.lotbiai.com/account'",
+  "button.dataset.profileMenuTrigger = ''",
   "const LOGIN_URL = '/auth/start/'",
 ]) {
   assert.ok(continuity.includes(required), `missing sidebar auth continuity contract: ${required}`);

@@ -140,6 +140,7 @@ async function completeSiteHandoff() {
   history.replaceState(null, '', '/');
   const mounted = mountConversation({
     sessionToken: session.sessionToken,
+    identityKey: session.installationId,
     initialText: context.pendingText,
     autoSend: Boolean(context.pendingText),
   });
@@ -149,6 +150,7 @@ async function completeSiteHandoff() {
     detail: {
       authenticated: true,
       expiresAt: session.expiresAt,
+      installationId: session.installationId,
     },
   }));
 
@@ -164,4 +166,3 @@ void completeSiteHandoff().catch((error) => {
   });
   showCallbackError(callbackErrorMessage(error));
 });
-

@@ -5,7 +5,6 @@ export const AUTH_STATE_CHECKING = 'checking';
 export const AUTH_STATE_AUTHENTICATED = 'authenticated';
 export const AUTH_STATE_UNAUTHENTICATED = 'unauthenticated';
 
-const ACCOUNT_URL = 'https://account.lotbiai.com/account';
 const LOGIN_URL = '/auth/start/';
 const SIGNUP_URL = 'https://account.lotbiai.com/signup';
 
@@ -14,6 +13,7 @@ let siteSessionExpiresAt = 0;
 let checking = false;
 let redirecting = false;
 let expiryTimer;
+let siteLogoutSuppressed = false;
 
 function performanceNow() {
   return globalThis.performance?.now?.() ?? 0;
@@ -107,14 +107,24 @@ function markCheckingSidebarAccountUi(message = '계정 상태 확인 중') {
 
 function markAuthenticatedSidebarAccountUi() {
   for (const slot of sidebarAccountSlots()) {
-    slot.replaceChildren(sidebarAccountLink({
-      href: ACCOUNT_URL,
-      label: 'LOTBI 계정 열기',
-      primary: 'LOTBI 계정',
-      secondary: '계정 관리',
-    }));
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sidebar-account-entry sidebar-profile-trigger';
+    button.dataset.profileMenuTrigger = '';
+    button.setAttribute('aria-haspopup', 'menu');
+    button.setAttribute('aria-expanded', 'false');
+    button.setAttribute('aria-label', '프로필 메뉴 열기');
+    const primary = document.createElement('span');
+    primary.className = 'sidebar-account-name';
+    primary.textContent = '로그인된 사용자';
+    const secondary = document.createElement('span');
+    secondary.className = 'sidebar-account-handle';
+    secondary.textContent = '프로필 메뉴';
+    button.append(primary, secondary);
+    slot.replaceChildren(button);
     setSidebarAuthState(slot, AUTH_STATE_AUTHENTICATED, false);
   }
+  window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'));
 }
 
 function markAnonymousSidebarAccountUi() {
@@ -145,10 +155,13 @@ export function markCheckingAccountUi(message = '계정 상태 확인 중') {
 export function markAuthenticatedAccountUi() {
   const actions = accountActions();
   if (actions) {
-    const account = document.createElement('a');
+    const account = document.createElement('button');
+    account.type = 'button';
     account.className = 'account-action account-login';
-    account.href = ACCOUNT_URL;
-    account.textContent = '내 계정';
+    account.dataset.profileMenuTrigger = '';
+    account.setAttribute('aria-haspopup', 'menu');
+    account.setAttribute('aria-expanded', 'false');
+    account.textContent = '프로필';
     actions.replaceChildren(account);
     setAuthState(actions, AUTH_STATE_AUTHENTICATED, false);
     actions.dataset.siteAuthenticated = 'true';
@@ -230,6 +243,14 @@ export async function synchronizeAccountContinuity() {
       return;
     }
 
+    if (siteLogoutSuppressed) {
+      siteSessionActive = false;
+      siteSessionExpiresAt = 0;
+      clearExpiryTimer();
+      markAnonymousAccountUi();
+      return;
+    }
+
     if (hasLiveSiteSession()) {
       markAuthenticatedAccountUi();
       return;
@@ -255,6 +276,7 @@ function handleSiteSessionState(event) {
   if (!detail || typeof detail.authenticated !== 'boolean') return;
 
   if (detail.authenticated) {
+    siteLogoutSuppressed = false;
     siteSessionActive = true;
     markAuthenticatedAccountUi();
     if (typeof detail.expiresAt === 'string') scheduleExpiry(detail.expiresAt);
@@ -264,6 +286,11 @@ function handleSiteSessionState(event) {
   siteSessionActive = false;
   siteSessionExpiresAt = 0;
   clearExpiryTimer();
+  if (detail.reason === 'site-logout') {
+    siteLogoutSuppressed = true;
+    markAnonymousAccountUi();
+    return;
+  }
   markCheckingAccountUi('계정 상태 다시 확인 중');
   if (rootLocation()) void synchronizeAccountContinuity();
 }
