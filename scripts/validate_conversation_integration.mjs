@@ -15,6 +15,8 @@ const {
   SITE_AUDIENCE,
   SITE_CALLBACK_URI,
   SiteCoreError,
+  getCurrentSiteUser,
+  logoutSiteSession,
   redeemSiteHandoff,
   sendConversationMessage,
 } = await import('../site-core.js');
@@ -33,6 +35,34 @@ class MemoryStorage {
   getItem(key) { return this.map.has(key) ? this.map.get(key) : null; }
   setItem(key, value) { this.map.set(key, String(value)); }
   removeItem(key) { this.map.delete(key); }
+}
+
+{
+  const requests = [];
+  const fetchMock = async (url, init) => {
+    requests.push({url, init});
+    if (url.endsWith('/v2/me')) return jsonResponse({
+      user: {id: 'user-1', name: '전선혜', account_handle: 'lotbi_user.01'},
+      session: {id: 'site-session-1', assurance_level: 'FULL', expires_at: '2030-01-01T00:00:00Z'},
+      installation: {id: 'installation-1'},
+    });
+    return jsonResponse({session_id: 'site-session-1', status: 'REVOKED'});
+  };
+  const identity = await getCurrentSiteUser('site-memory-token', fetchMock);
+  assert.deepEqual(identity, {
+    userId: 'user-1', name: '전선혜', accountHandle: 'lotbi_user.01',
+    sessionId: 'site-session-1', installationId: 'installation-1', expiresAt: '2030-01-01T00:00:00Z',
+  });
+  const logout = await logoutSiteSession('site-memory-token', fetchMock);
+  assert.deepEqual(logout, {sessionId: 'site-session-1', status: 'REVOKED'});
+  assert.equal(requests[0].url, 'https://api.lotbiai.com/v2/me');
+  assert.equal(requests[0].init.method, 'GET');
+  assert.equal(requests[1].url, 'https://api.lotbiai.com/v2/sessions/logout');
+  assert.equal(requests[1].init.method, 'POST');
+  for (const request of requests) {
+    assert.equal(request.init.credentials, 'omit');
+    assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
+  }
 }
 
 function jsonResponse(body, status = 200) {
@@ -204,6 +234,8 @@ assert.ok(conversation.includes("event.key === 'Enter'"));
 assert.ok(conversation.includes('!event.shiftKey'));
 assert.ok(conversation.includes('beginSiteHandoff'));
 assert.ok(conversation.includes('sendConversationMessage'));
+assert.ok(conversation.includes('getCurrentSiteUser'));
+assert.ok(conversation.includes('logoutSiteSession'));
 assert.ok(core.includes("Authorization: `Bearer ${token}`"));
 assert.ok(core.includes("payload.contract_id !== 'CORE-WEB-CHAT-01'"));
 
