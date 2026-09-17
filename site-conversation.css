@@ -1,10 +1,10 @@
 .conversation-thread {
   width: min(820px, 100%);
   max-height: min(46vh, 520px);
-  margin: 18px 0 16px;
+  margin: 10px 0 18px;
   padding: 2px 4px 8px;
   display: grid;
-  gap: 12px;
+  gap: 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
   text-align: left;
@@ -15,26 +15,37 @@
   display: none;
 }
 
+/* SITE-CHAT-LAYOUT-TYPO-01 — role-specific message presentation.
+   User messages remain compact bubbles; LOTBI replies are plain text in the
+   shared conversation column so the Avatar and answer read as one speaker. */
 .chat-message {
-  max-width: min(84%, 680px);
-  padding: 12px 14px;
-  border-radius: 18px;
+  min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
   word-break: normal;
 }
 
 .chat-message-user {
+  width: fit-content;
+  max-width: min(78%, 640px);
+  min-height: 0;
+  padding: 9px 13px;
   justify-self: end;
+  border-radius: 18px;
   border-bottom-right-radius: 6px;
   background: var(--brand-navy);
   color: #fff;
 }
 
 .chat-message-assistant {
-  justify-self: start;
-  border: 1px solid #e0e5ed;
-  border-bottom-left-radius: 6px;
-  background: #f7f8fb;
+  width: min(100%, 720px);
+  max-width: 720px;
+  padding: 0 8px;
+  justify-self: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: #303642;
 }
 
@@ -43,9 +54,12 @@
 }
 
 .chat-message-error {
+  width: auto;
   justify-self: stretch;
   max-width: 100%;
+  padding: 12px 14px;
   border: 1px solid #e5b9c3;
+  border-radius: 16px;
   background: #fff6f8;
   color: #7b2438;
 }
@@ -53,8 +67,9 @@
 .chat-message-body {
   margin: 0;
   white-space: pre-wrap;
-  font-size: 15px;
-  line-height: 1.62;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .chat-message-meta {
@@ -62,13 +77,14 @@
   margin-top: 8px;
   color: #667085;
   font-size: 12px;
+  line-height: 1.5;
   font-weight: 700;
 }
 
 .chat-error-evidence {
   overflow-wrap: anywhere;
   color: #7b5260;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -80,7 +96,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -180,7 +196,8 @@
   border-color: rgba(123, 98, 187, .20);
   background: #faf9fd;
   color: #5b6472;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.55;
   text-align: center;
 }
 
@@ -190,7 +207,7 @@
   width: 126px;
   height: 166px;
   margin-top: 14px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: block;
   visibility: visible;
   opacity: 1;
@@ -208,7 +225,8 @@
   flex: 1 1 160px;
   min-height: 96px;
   max-height: min(40vh, 460px);
-  margin-bottom: 12px;
+  margin-top: 0;
+  margin-bottom: 14px;
 }
 
 .conversation-active .chat-composer {
@@ -275,20 +293,34 @@
 
 @media (max-width: 760px) {
   .conversation-thread {
+    width: 100%;
     max-height: 40svh;
-    margin: 10px 0 12px;
+    margin: 8px 0 12px;
     padding-inline: 0;
-    gap: 10px;
+    gap: 14px;
   }
 
-  .chat-message {
-    max-width: 90%;
-    padding: 10px 12px;
+  .chat-message-user {
+    width: fit-content;
+    max-width: 88%;
+    padding: 9px 12px;
     border-radius: 16px;
+    border-bottom-right-radius: 6px;
+  }
+
+  .chat-message-assistant {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 4px;
+  }
+
+  .chat-message-error {
+    padding: 11px 12px;
   }
 
   .chat-message-body {
-    font-size: 14px;
+    font-size: 16px;
+    line-height: 1.6;
   }
 
   .composer-button {
@@ -315,6 +347,7 @@
     flex-basis: 120px;
     min-height: 84px;
     max-height: min(34svh, 320px);
+    margin-top: 0;
   }
 
   .conversation-active .chat-composer {
@@ -332,8 +365,8 @@
 }
 
 @media (max-width: 390px) {
-  .chat-message {
-    max-width: 94%;
+  .chat-message-user {
+    max-width: 92%;
   }
 }
 
