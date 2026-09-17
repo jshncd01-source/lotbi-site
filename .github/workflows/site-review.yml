@@ -3,6 +3,7 @@ name: Public Site Review Gate
 on:
   push:
     branches:
+      - main
       - site-public-02-review
       - site-home-chat-01-review
       - site-public-hardening-01-review
