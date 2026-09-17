@@ -1,0 +1,93 @@
+name: SITE Sidebar Logo Review V2 Verify
+
+on:
+  push:
+    branches:
+      - site-sidebar-logo-clip-fix-01-review-v2-verify
+
+permissions:
+  contents: read
+
+jobs:
+  verify-review-logo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify review logo geometry at Desktop widths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet selenium
+          python -m http.server 8765 >/tmp/lotbi-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          sleep 1
+          python - <<'PY'
+          import json, shutil, time
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+
+          CHROME = shutil.which('google-chrome') or shutil.which('google-chrome-stable') or shutil.which('chromium')
+          if not CHROME:
+              raise SystemExit('Chrome not available')
+
+          def measure(width, height):
+              opts=Options(); opts.binary_location=CHROME
+              for arg in ('--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage'):
+                  opts.add_argument(arg)
+              opts.add_argument(f'--window-size={width},{height}')
+              d=webdriver.Chrome(options=opts)
+              try:
+                  d.get(f'http://127.0.0.1:8765/?review_logo={width}')
+                  time.sleep(1)
+                  sidebar=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop')
+                  wrapper=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-brand')
+                  logo=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-brand-logo')
+                  recent=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-history-scroll')
+                  bottom=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-bottom-nav')
+                  result=d.execute_script('''
+                    const [sidebar,wrapper,logo,recent,bottom]=arguments;
+                    const rect=(el)=>{const r=el.getBoundingClientRect(); return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};
+                    const cs=(el)=>{const s=getComputedStyle(el); return {width:s.width,height:s.height,maxWidth:s.maxWidth,overflow:s.overflow,overflowY:s.overflowY,objectFit:s.objectFit,objectPosition:s.objectPosition,flexShrink:s.flexShrink}};
+                    return {
+                      viewport:{width:innerWidth,height:innerHeight}, natural:{width:logo.naturalWidth,height:logo.naturalHeight},
+                      sidebar:{rect:rect(sidebar),style:cs(sidebar)}, wrapper:{rect:rect(wrapper),style:cs(wrapper)}, logo:{rect:rect(logo),style:cs(logo)},
+                      recent:{rect:rect(recent),style:cs(recent)}, bottom:{rect:rect(bottom)},
+                      rightEdgeDelta:wrapper.getBoundingClientRect().right-logo.getBoundingClientRect().right,
+                      leftEdgeDelta:logo.getBoundingClientRect().left-wrapper.getBoundingClientRect().left,
+                      ratioIntrinsic:logo.naturalWidth/logo.naturalHeight,
+                      ratioRendered:logo.getBoundingClientRect().width/logo.getBoundingClientRect().height,
+                      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+                    };
+                  ''',sidebar,wrapper,logo,recent,bottom)
+                  if result['natural'] != {'width':334,'height':96}:
+                      raise SystemExit(f'unexpected intrinsic asset: {result}')
+                  if abs(result['ratioRendered']-result['ratioIntrinsic']) > 0.02:
+                      raise SystemExit(f'logo ratio distortion: {result}')
+                  if result['logo']['rect']['right'] > result['wrapper']['rect']['right'] + 0.5:
+                      raise SystemExit(f'logo right edge exceeds wrapper: {result}')
+                  if result['logo']['rect']['left'] < result['wrapper']['rect']['left'] - 0.5:
+                      raise SystemExit(f'logo left edge exceeds wrapper: {result}')
+                  if result['logo']['rect']['width'] < 170:
+                      raise SystemExit(f'logo failed to use available wrapper width: {result}')
+                  if result['logo']['rect']['height'] < 48:
+                      raise SystemExit(f'logo remains too small: {result}')
+                  if not 219 <= result['sidebar']['rect']['width'] <= 221:
+                      raise SystemExit(f'220px sidebar contract changed: {result}')
+                  if result['sidebar']['style']['overflow'] not in ('hidden','clip'):
+                      raise SystemExit(f'sidebar overflow contract changed: {result}')
+                  if result['recent']['style']['overflowY'] != 'auto':
+                      raise SystemExit(f'recent scroll contract changed: {result}')
+                  if result['bottom']['rect']['bottom'] > result['viewport']['height'] + 1:
+                      raise SystemExit(f'bottom nav left viewport: {result}')
+                  if result['horizontalOverflow']:
+                      raise SystemExit(f'horizontal overflow introduced: {result}')
+                  return result
+              finally:
+                  d.quit()
+
+          for w,h in ((1440,900),(1366,900)):
+              print(f'REVIEW_V2_LOGO_{w}x{h}='+json.dumps(measure(w,h),ensure_ascii=False,sort_keys=True))
+          print('SITE-SIDEBAR-LOGO-CLIP-FIX-01 LATEST-MAIN REVIEW RENDER PASS')
+          PY
