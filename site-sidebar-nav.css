@@ -1,0 +1,66 @@
+/* SITE-SIDEBAR-NAV-CLEANUP-01 — Desktop navigation hierarchy without changing feature readiness. */
+.sidebar-brand {
+  min-height: 42px;
+  margin: 0 10px 18px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.sidebar-brand-logo {
+  display: block;
+  width: auto;
+  max-width: 150px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.nav-history-list li {
+  justify-content: flex-start;
+}
+
+@media (min-width: 901px) {
+  .chat-sidebar-desktop {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-nav-desktop {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 14px;
+  }
+
+  .sidebar-nav-desktop > .nav-item-primary {
+    flex: 0 0 auto;
+  }
+
+  .sidebar-history-section {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-history-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .sidebar-bottom-nav {
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid #e2e6ee;
+    background: #f7f8fb;
+  }
+
+  /* Desktop account access lives in the fixed sidebar; mobile keeps the top affordance. */
+  .topbar-left,
+  .account-actions {
+    display: none;
+  }
+}

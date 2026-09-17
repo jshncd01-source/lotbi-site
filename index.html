@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="home-chat.css" />
   <link rel="stylesheet" href="site-hardening.css" />
+  <link rel="stylesheet" href="site-sidebar-nav.css" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
   <link rel="stylesheet" href="footer-business-info.css" />
   <link rel="stylesheet" href="mobile-entry.css" />
@@ -36,38 +37,39 @@
 
   <div class="chat-app-shell">
     <aside class="chat-sidebar chat-sidebar-desktop" aria-label="LOTBI 탐색 메뉴">
-      <a class="brand-text-logo sidebar-brand" href="index.html" aria-label="LOTBI 홈">
-        L<span class="brand-o">O</span>TBI
+      <a class="sidebar-brand" href="index.html" aria-label="LOTBI 홈">
+        <img class="sidebar-brand-logo" src="assets/lotbi-logo-header.png" alt="LOTBI" aria-hidden="true" />
       </a>
 
-      <nav class="sidebar-nav">
-        <button class="nav-item nav-item-primary" type="button" disabled aria-label="새 대화 — 준비 중">
+      <nav class="sidebar-nav sidebar-nav-desktop">
+        <button class="nav-item nav-item-primary" type="button" disabled aria-label="새 대화">
           <span>+ 새 대화</span>
-          <span class="nav-status">준비</span>
         </button>
 
-        <section class="nav-section" aria-labelledby="desktop-recent-title">
+        <section class="nav-section sidebar-history-section" aria-labelledby="desktop-recent-title">
           <h2 id="desktop-recent-title" class="nav-section-title">최근 대화</h2>
-          <ul class="nav-history-list">
-            <li><span>오늘</span><span class="nav-status">비어 있음</span></li>
-            <li><span>어제</span><span class="nav-status">비어 있음</span></li>
-            <li><span>최근 7일</span><span class="nav-status">비어 있음</span></li>
-            <li><span>이전</span><span class="nav-status">비어 있음</span></li>
-          </ul>
+          <div class="sidebar-history-scroll">
+            <ul class="nav-history-list">
+              <li><span>오늘</span></li>
+              <li><span>어제</span></li>
+              <li><span>최근 7일</span></li>
+              <li><span>이전</span></li>
+            </ul>
+          </div>
         </section>
 
-        <div class="nav-section nav-actions">
-          <button class="nav-item" type="button" disabled aria-label="주문 내역 — 준비 중">
-            <span>주문 내역</span><span class="nav-status">준비</span>
+        <div class="nav-section nav-actions sidebar-bottom-nav">
+          <button class="nav-item" type="button" disabled aria-label="주문 내역">
+            <span>주문 내역</span>
           </button>
-          <button class="nav-item" type="button" disabled aria-label="예약 내역 — 준비 중">
-            <span>예약 내역</span><span class="nav-status">준비</span>
+          <button class="nav-item" type="button" disabled aria-label="예약 내역">
+            <span>예약 내역</span>
           </button>
           <a class="nav-item nav-link" href="https://account.lotbiai.com/account">
-            <span>내 계정</span><span class="nav-status">Account</span>
+            <span>내 계정</span>
           </a>
-          <button class="nav-item" type="button" disabled aria-label="설정 — 준비 중">
-            <span>설정</span><span class="nav-status">준비</span>
+          <button class="nav-item" type="button" disabled aria-label="설정">
+            <span>설정</span>
           </button>
           <a class="nav-item nav-link" href="contact.html">
             <span>도움말 / 문의</span>
@@ -209,33 +211,32 @@
     </div>
 
     <nav class="sidebar-nav" aria-label="LOTBI 모바일 탐색 메뉴">
-      <button class="nav-item nav-item-primary" type="button" disabled aria-label="새 대화 — 준비 중">
+      <button class="nav-item nav-item-primary" type="button" disabled aria-label="새 대화">
         <span>+ 새 대화</span>
-        <span class="nav-status">준비</span>
       </button>
 
       <section class="nav-section" aria-labelledby="mobile-recent-title">
         <h2 id="mobile-recent-title" class="nav-section-title">최근 대화</h2>
         <ul class="nav-history-list">
-          <li><span>오늘</span><span class="nav-status">비어 있음</span></li>
-          <li><span>어제</span><span class="nav-status">비어 있음</span></li>
-          <li><span>최근 7일</span><span class="nav-status">비어 있음</span></li>
-          <li><span>이전</span><span class="nav-status">비어 있음</span></li>
+          <li><span>오늘</span></li>
+          <li><span>어제</span></li>
+          <li><span>최근 7일</span></li>
+          <li><span>이전</span></li>
         </ul>
       </section>
 
       <div class="nav-section nav-actions">
-        <button class="nav-item" type="button" disabled aria-label="주문 내역 — 준비 중">
-          <span>주문 내역</span><span class="nav-status">준비</span>
+        <button class="nav-item" type="button" disabled aria-label="주문 내역">
+          <span>주문 내역</span>
         </button>
-        <button class="nav-item" type="button" disabled aria-label="예약 내역 — 준비 중">
-          <span>예약 내역</span><span class="nav-status">준비</span>
+        <button class="nav-item" type="button" disabled aria-label="예약 내역">
+          <span>예약 내역</span>
         </button>
         <a class="nav-item nav-link" href="https://account.lotbiai.com/account">
-          <span>내 계정</span><span class="nav-status">Account</span>
+          <span>내 계정</span>
         </a>
-        <button class="nav-item" type="button" disabled aria-label="설정 — 준비 중">
-          <span>설정</span><span class="nav-status">준비</span>
+        <button class="nav-item" type="button" disabled aria-label="설정">
+          <span>설정</span>
         </button>
         <a class="nav-item nav-link" href="contact.html">
           <span>도움말 / 문의</span>
