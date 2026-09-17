@@ -7,6 +7,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 const {sendConversationMessage, SiteCoreError} = await import('../site-core.js');
 
+const memorySession = new Map();
+Object.defineProperty(globalThis, 'sessionStorage', {
+  configurable: true,
+  value: {
+    getItem(key) { return memorySession.has(key) ? memorySession.get(key) : null; },
+    setItem(key, value) { memorySession.set(key, String(value)); },
+    removeItem(key) { memorySession.delete(key); },
+  },
+});
+
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -52,6 +62,7 @@ function successfulConversation() {
   assert.equal(request.init.headers['Content-Type'], 'application/json');
   assert.equal(request.init.headers['Idempotency-Key'], 'chat-logical-unit-0001');
   assert.deepEqual(JSON.parse(request.init.body), {text: '원격 AI 요청'});
+  assert.equal(memorySession.size, 0, 'validated 200 contract must clear pending retry identity');
 }
 
 {
@@ -87,12 +98,119 @@ function successfulConversation() {
   assert.equal(request.init.headers['Idempotency-Key'], undefined);
 }
 
+{
+  // A transport failure has no trustworthy server outcome. Preserve the old key so an
+  // F5/re-created UI that supplies a fresh key for the same message still reuses the
+  // uncertain logical identity rather than risking a second FREE charge.
+  let caught;
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      'F5 네트워크 불확실 요청',
+      {idempotencyKey: 'chat-refresh-original-0001'},
+      async () => { throw new TypeError('network lost after request'); },
+    );
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught instanceof SiteCoreError);
+  assert.equal(caught.code, 'WEB_CONVERSATION_NETWORK_ERROR');
+  assert.equal(caught.retryable, true);
+
+  let retriedRequest;
+  const reply = await sendConversationMessage(
+    'site-memory-token',
+    'F5 네트워크 불확실 요청',
+    {idempotencyKey: 'chat-refresh-new-0002'},
+    async (url, init) => {
+      retriedRequest = {url, init};
+      return jsonResponse(successfulConversation());
+    },
+  );
+  assert.equal(reply.status, 'ANSWERED');
+  assert.equal(retriedRequest.init.headers['Idempotency-Key'], 'chat-refresh-original-0001');
+  assert.equal(memorySession.size, 0);
+}
+
+{
+  // A syntactically successful HTTP response with an invalid LOTBI contract remains
+  // uncertain: Core may have completed/charged before an intermediary corrupted the
+  // payload. Keep the original key for the next same-message attempt.
+  let caught;
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      '계약 파손 불확실 요청',
+      {idempotencyKey: 'chat-contract-original-0001'},
+      async () => jsonResponse({contract_id: 'BROKEN'}),
+    );
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught instanceof SiteCoreError);
+  assert.equal(caught.code, 'WEB_CONVERSATION_CONTRACT_INVALID');
+
+  let retriedRequest;
+  await sendConversationMessage(
+    'site-memory-token',
+    '계약 파손 불확실 요청',
+    {idempotencyKey: 'chat-contract-new-0002'},
+    async (url, init) => {
+      retriedRequest = {url, init};
+      return jsonResponse(successfulConversation());
+    },
+  );
+  assert.equal(retriedRequest.init.headers['Idempotency-Key'], 'chat-contract-original-0001');
+  assert.equal(memorySession.size, 0);
+}
+
+{
+  // A structured Core provider failure is explicitly zero-unit. It is safe to clear
+  // the pending key; a later new submission may have its own fresh logical identity.
+  let caught;
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      '명확한 provider 실패 요청',
+      {idempotencyKey: 'chat-provider-failed-0001'},
+      async () => jsonResponse({
+        detail: {
+          code: 'AI_PROVIDER_UNAVAILABLE',
+          message: 'temporarily unavailable',
+          retryable: true,
+          correlation_id: 'req-provider-failed',
+        },
+      }, 503),
+    );
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught instanceof SiteCoreError);
+  assert.equal(caught.code, 'AI_PROVIDER_UNAVAILABLE');
+  assert.equal(memorySession.size, 0);
+
+  let newRequest;
+  await sendConversationMessage(
+    'site-memory-token',
+    '명확한 provider 실패 요청',
+    {idempotencyKey: 'chat-provider-fresh-0002'},
+    async (url, init) => {
+      newRequest = {url, init};
+      return jsonResponse(successfulConversation());
+    },
+  );
+  assert.equal(newRequest.init.headers['Idempotency-Key'], 'chat-provider-fresh-0002');
+}
+
 const core = read('site-core.js');
 const conversation = read('site-conversation.js');
 
 for (const token of [
   "const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,160}$/u",
-  "headers['Idempotency-Key'] = request.idempotencyKey",
+  "const PENDING_CONVERSATION_STORAGE_KEY = 'lotbi.site.conversation.pending.v1'",
+  "headers['Idempotency-Key'] = effectiveIdempotencyKey",
+  'rememberPendingConversation(message, effectiveIdempotencyKey)',
+  'clearPendingConversation(message, effectiveIdempotencyKey)',
 ]) assert.ok(core.includes(token), `missing Site Core idempotency contract: ${token}`);
 
 for (const token of [
@@ -110,5 +228,6 @@ assert.ok(
 
 assert.ok(!conversation.includes('localStorage.setItem') || conversation.includes('STORAGE_PREFIX'));
 assert.ok(!core.includes('credentials: \'include\''), 'Site child bearer boundary must continue using credentials=omit');
+assert.ok(!core.includes('sessionToken') || !core.includes('sessionStorage.setItem'), 'session token must never be persisted in retry storage');
 
 console.log('SITE-FREE-USAGE-RETRY-IDENTITY-01 CONTRACT PASS');
