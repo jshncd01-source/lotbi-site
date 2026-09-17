@@ -1,107 +1,230 @@
-# PRODUCTION SOCIAL SIGNUP LEGAL READINESS — DECISION MATRIX
+# PRODUCTION SOCIAL SIGNUP LEGAL / POLICY READINESS — DECISION MATRIX
 
 > 기준일: 2026-09-17 (Asia/Seoul)
 >
-> 상태: `COUNSEL-READY DECISION MATRIX / FREE PRODUCT POLICY CLOSED / PRODUCTION NOT GREEN`
+> 상태: `EXTERNAL COUNSEL NOT HARD BLOCKER / PRIVACY+TERMS READY FOR USER APPROVAL / PRODUCTION NOT PUBLISHED`
 
-이 matrix는 법률결론이 아니라 **결정해야 할 항목과 owner**를 고정한다. 상세 근거와 후보문구는 `docs/production-legal-review-package.md`, 질문은 `docs/production-legal-review-questionnaire.md`, 답변 입력은 `docs/production-legal-review-decisions.md`를 사용한다.
-
-## 1. Technically / product-policy fixed
+## 1. Fixed technical/product contracts
 
 | Item | Fixed contract |
 |---|---|
 | Social consent keys | exactly `TERMS_OF_SERVICE` + `PRIVACY_POLICY` |
-| Consent evidence | both required/ACCEPTED; per-document version + SHA-256 + HTTPS URI; no separate manifest version |
-| Privacy canonical URI | `https://lotbiai.com/privacy.html` |
-| Terms canonical URI | `https://lotbiai.com/terms.html` |
-| Google Social ID | OIDC `sub`; reviewed Web scope `openid`; email/profile unused |
-| Kakao Social ID | OIDC `sub`; reviewed Web scope `openid`; email/profile unused |
-| NAVER Social ID | official `response.id`; reviewed Web scope `openid`; additional profile unused |
-| Apple Social ID | `sub`; email/name scope unused |
-| LOTBI Signup input | user-entered LOTBI name + handle |
-| Same-email merge | forbidden |
-| LOGIN | federated limited → Passkey step-up → FULL |
-| SIGNUP | Provider verification → name/handle + two legal consents → account provisioning → Passkey enrollment |
-| LINK | existing FULL LOTBI account + fresh proof; separate from signup |
-| Generic unlink | local `REVOKED`; account retained; current generic path has no remote revoke |
-| Account deletion | access/session/authority/external local link revoke first; final purge separate; not immediate hard delete |
-| FREE | monthly 3 successful tasks; reset day 1 00:00 KST; no carry-over; LOCAL/failure/cancel/incomplete 0; same-task retry max 1; auditable compensation |
-| LOTBI Plus | monthly KRW 9,900; Web Toss / iPhone App Store / Android Google Play |
-| Plus vs Merchant | LOTBI subscription fee separated from external Merchant transaction money |
-| Operator current Site fields | 유한회사 알에이디홀딩스 / 대표자 전선혜 / 주소 / 사업자등록 583-88-03679 / 통신판매 2026-전주덕진-0798 / developer@lotbiai.com / 063-237-0930 |
+| Consent requirement | both `ACCEPTED`, `required=true` |
+| Consent metadata | per document: version + SHA-256 + HTTPS URI |
+| Fake manifest version | none; do not create `consent_manifest_version` |
+| Privacy URI | `https://lotbiai.com/privacy.html` |
+| Terms URI | `https://lotbiai.com/terms.html` |
+| Google | reviewed `openid`, stable `sub`; email/profile unused |
+| Kakao | reviewed `openid`, stable `sub`; email/profile unused |
+| NAVER | reviewed `openid`, `response.id`; additional profile unused |
+| Apple | stable `sub`; email/name scope unused |
+| LOTBI signup input | user enters LOTBI name + handle |
+| Same-email merge | prohibited |
+| Passkey | Social LOGIN step-up / Signup enrollment security contract |
+| Account deletion | access/session/authority revoke → deletion lifecycle → final purge separate |
+| FREE | monthly 3 successful tasks |
+| FREE reset | day 1, 00:00 `Asia/Seoul` |
+| FREE carry-over | none |
+| LOCAL/failure/cancel/incomplete | no FREE charge |
+| Same-task retry | no duplicate charge |
+| Plus | KRW 9,900/month |
+| Plus channels | Web Toss / iPhone App Store / Android Google Play |
+| Merchant money | separate from LOTBI Plus subscription fee |
 
-`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`.
+## 2. External legal counsel policy
 
-Implementation of FREE ledger/enforcement remains owning Core/App verification work and does not reopen the product decision.
+Old rule:
 
-## 2. Counsel-ready legal decisions
+`EXTERNAL LEGAL REVIEW = HARD BLOCKER`
 
-| ID | Legal blocker | Technical status | Counsel / user action | Questionnaire | Current status |
-|---|---|---|---|---|---|
-| A | `THIRD_PARTY_PROCESSING_AND_OVERSEAS_TRANSFER` | Provider minimum data known; Production vendor/data-flow manifest incomplete | classify each Provider/infra/payment relationship and overseas basis | Q01-Q04 | `READY FOR COUNSEL REVIEW` |
-| B | `PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD` | revoked unique reservation exists for takeover prevention | legal basis/max period/final transformation/delete rule | Q05-Q07 | `READY FOR COUNSEL REVIEW` |
-| C | `STATUTORY_RETENTION_ITEMS_AND_PERIODS` | transaction/audit/deletion evidence exists; Plus/Merchant roles differ | map exact records to legal basis/period | Q08-Q10 | `READY FOR COUNSEL REVIEW` |
-| D | `MINOR_POLICY` | no reviewed under-14 gate | counsel review + user choose v1 restriction/age gate | Q11-Q13 | `USER DECISION REQUIRED AFTER COUNSEL` |
-| E | `PRODUCTION_PURGE_PERIOD` | access revoke and final purge separated | general data purge period; backup/log policy | Q14-Q15 | `READY FOR COUNSEL REVIEW` |
-| F | `PRIVACY_OFFICER_OR_DEPARTMENT` | general contact exists; CPO/department not confirmed | counsel confirms designation duty; user supplies/designates actual field | Q16 | `USER DECISION REQUIRED AFTER COUNSEL` |
-| G | `CONTRACT_FORMATION_TIME` | signup state sequence fixed | choose legal account/contract formation point | Q17-Q18 | `READY FOR COUNSEL REVIEW` |
-| H | `LOTBI_PLUS_SUBSCRIPTION_TERMS` | price/channels fixed | renewal/cancel/refund/cooling-off/grace/store entitlement | Q19-Q24 | `READY FOR COUNSEL REVIEW` |
-| I | `COMMERCE_ROLE_AND_RESPONSIBILITY` | Kernel technical role fixed; payment role not generalized | determine per-Merchant legal role/disclosures | Q25-Q27 | `READY FOR COUNSEL REVIEW` |
-| J | `DELETION_RETENTION_AND_PROVIDER_LIFECYCLE` | local deletion lifecycle fixed; remote Provider blockers open | Provider revoke timing and user-facing completion semantics | Q28-Q29 | `LEGAL + IMPLEMENTATION BLOCKED` |
-| K | `SUSPENSION_NOTICE_AND_REMEDY` | security restriction capability needed | fair notice/remedy/permanent suspension/Plus impact | Q30 | `READY FOR COUNSEL REVIEW` |
-| L | `SERVICE_CHANGE_NOTICE_AND_LIABILITY` | external dependency interruption possible | notice/refund/remedy/liability wording | Q31 | `READY FOR COUNSEL REVIEW` |
-| M | `TERMS_CHANGE_NOTICE` | versioned legal evidence available | notice periods/reconsent/existing Plus users | Q32 | `READY FOR COUNSEL REVIEW` |
-| N | `LIABILITY_DISPUTE_JURISDICTION` | no technical conclusion | fair liability/dispute/jurisdiction terms | Q33 | `READY FOR COUNSEL REVIEW` |
-| O | `OPERATOR_DISCLOSURE_FIELDS` | current business fields confirmed | confirm mandatory placement/additional fields | Q34 | `READY FOR COUNSEL REVIEW` |
-| P | `FINAL_DOCUMENT_EFFECTIVE_DATES` | version/hash mechanism fixed | publication/effective dates and existing-user notice | Q35-Q36 | `READY FOR COUNSEL REVIEW` |
+is retired.
 
-None of A-P is legally CLOSED merely because this package is counsel-ready.
+Current rule:
 
-## 3. User decisions explicitly held
+`LEGAL_COUNSEL_REVIEW = OPTIONAL / RECOMMENDED / NOT HARD BLOCKER`
 
-The following are not guessed in this room:
+Counsel is particularly recommended for:
 
-| Decision | Current state | Trigger to decide |
-|---|---|---|
-| v1 under-14 policy / age gate | `USER DECISION REQUIRED` | counsel answer Q11-Q13 |
-| privacy officer or department | `USER DECISION REQUIRED` | counsel answer Q16 + actual corporate designation |
-| Plus cancellation effective time per channel | `USER DECISION REQUIRED` | counsel answer Q20 |
-| Plus payment-failure/grace entitlement | `USER DECISION REQUIRED` | counsel answer Q23 |
-| Provider-specific remote revoke on unlink, including Apple unlink policy | `USER DECISION REQUIRED` | counsel answer Q28-Q29 + Provider implementation constraints |
+- complex overseas processing/transfer structure;
+- Plus refund/withdrawal;
+- Merchant legal role;
+- material liability allocation.
 
-## 4. Provider implementation blockers retained
+Lack of an outside lawyer's approval does not by itself block:
 
-| Provider | Blocker |
-|---|---|
-| Google | `GOOGLE_SCOPE_CONTRACT_VERIFY = OPEN`; `openid` minimum real E2E pending |
-| Kakao | `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED` |
-| NAVER | `NAVER_PROVIDER_LIFECYCLE_BLOCKER — TOKEN_REVOCATION/DISCONNECT INTEGRATION VERIFY` |
-| Apple | LOGIN contract ready; SIGNUP/LINK `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER` |
+- fact-based Privacy/Terms publication;
+- Google branding/domain/privacy/terms preparation;
+- Social Signup consent manifest preparation.
 
-## 5. Data-flow facts needed from engineering before final counsel close
+## 3. Immediate user decisions for FREE Social Login publication
 
-The legal package is ready to start review now, but counsel may return `NEED MORE FACTS` for infrastructure rows. Engineering/operations must provide when requested:
+Source:
 
-- actual Production Render/Vercel/DB/log/backup regions and contracts/DPA/subprocessors;
-- exact AI Provider payload categories and Production enablement/retention configuration;
-- actual Toss/App Store/Google Play receipt/payment/subscription fields retained by LOTBI;
-- FREE usage/subscription ledger schema after implementation;
-- backup/log deletion behavior;
-- Provider-specific remote revoke implementation result.
+`docs/production-user-policy-decisions.md`
 
-A pilot `render.yaml` using Singapore does **not** by itself establish current Production data residence.
+### D1 — Minor policy
 
-## 6. Document status
+Recommended:
 
-- `PRODUCTION PRIVACY CANDIDATE = COUNSEL-READY`
-- `PRODUCTION TERMS CANDIDATE = COUNSEL-READY`
-- `LEGAL QUESTIONNAIRE = READY (36 QUESTIONS)`
-- `LEGAL DECISION MATRIX = READY`
-- `LEGAL REVIEW COMPLETE = NO`
-- `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED / NOT GREEN`
-- `PRODUCTION PUBLISH = NONE`
-- `USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`
+`A = v1 does not support under-14 signup; require 14+ confirmation`.
 
-## 7. Next gate
+Status:
 
-Counsel decisions → user-required product/corporate decisions → approved wording → Production data-flow facts where requested → final Privacy/Terms HTML freeze → exact SHA-256 → user-approved publish → Core Production consent manifest → Account Production verification → Google real `openid` E2E → only then Google Console user-action gate.
+`USER DECISION REQUIRED`
+
+### D2 — Privacy officer/contact
+
+Recommended:
+
+`A = 개인정보 보호책임자 전선혜 / developer@lotbiai.com / 063-237-0930`.
+
+Status:
+
+`USER DECISION REQUIRED`
+
+These are the only immediate user decisions required to finalize the FREE Social Login Privacy/Terms wording.
+
+## 4. Decisions not blocking FREE Social Login publication
+
+### D3 — Provider remote revoke
+
+Recommended:
+
+`A = explicit unlink/account deletion performs Provider remote revoke where official Provider contract supports/requires it`.
+
+Status:
+
+`USER DECISION + PROVIDER-SPECIFIC TECHNICAL BLOCKER`
+
+Close before the affected Provider activation, not before all Privacy/Terms drafting.
+
+### D4 — Plus cancellation effect
+
+Recommended:
+
+`A = auto-renew off; entitlement remains through current paid-period end`.
+
+Status:
+
+`PAID SERVICE ACTIVATION DECISION`
+
+### D5 — Plus payment-failure grace
+
+Recommended:
+
+`A = channel-authoritative limited grace/retry state`.
+
+Status:
+
+`PAID SERVICE ACTIVATION DECISION`
+
+D4/D5 do not block FREE Social Login publication if Plus purchase remains inactive until its final paid-service terms are ready.
+
+## 5. Technical publish checks
+
+These are engineering/configuration facts, not counsel gates.
+
+### Privacy/processor data-flow check
+
+Before final `privacy.html` freeze:
+
+- identify actual Production hosting/database provider;
+- identify Account Web hosting provider;
+- identify enabled AI Provider/data path, if AI is active;
+- identify actual data-processing/transfer country and retention/contract information;
+- list Toss/Store relationships only if those paid channels are active;
+- do not infer Production region from pilot config.
+
+Status:
+
+`PRODUCTION_DATA_FLOW_VERIFY_REQUIRED`
+
+### Final HTML/hash
+
+- latest Site main → fresh legal-page review branch
+- final approved text → exact HTML freeze
+- exact UTF-8 bytes SHA-256
+- same files publish
+- Production response recheck
+- Core manifest values must match
+
+Status:
+
+`READY HANDOFF / NOT EXECUTED`
+
+## 6. Provider technical blockers
+
+### Google
+
+`GOOGLE_SCOPE_CONTRACT_VERIFY = OPEN`
+
+Current reviewed minimum remains `scope=openid`, `sub` identity only. Real configured-client E2E must verify actual Google acceptance/token/ID-token contract before activation.
+
+### Kakao
+
+`KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE`
+
+### NAVER
+
+`NAVER_PROVIDER_LIFECYCLE_BLOCKER — TOKEN_REVOCATION / DISCONNECT`
+
+### Apple
+
+- LOGIN contract: ready by review
+- SIGNUP/LINK: blocked
+- `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
+
+These blockers are technical/Provider-contract blockers and are not removed by the new counsel policy.
+
+## 7. Privacy / Terms state
+
+`docs/production-privacy-candidate.md`
+
+= `TECHNICALLY / POLICY READY FOR USER APPROVAL`
+
+`docs/production-terms-candidate.md`
+
+= `TECHNICALLY / POLICY READY FOR USER APPROVAL`
+
+They are not yet Production published and still contain review-only D1/D2/technical-publish markers that must be resolved/removed before final HTML.
+
+## 8. Google Console gate — redefined
+
+Required before `USER_ACTION_REQUIRED — GOOGLE STEP 1`:
+
+A. Privacy final service wording approved
+
+B. Terms final service wording approved
+
+C. immediate user decisions D1/D2 completed
+
+D. actual Production processor/data-flow table verified and final Privacy HTML clean
+
+E. Privacy/Terms Production publish explicitly approved and completed
+
+F. document version / SHA-256 / HTTPS URI finalized
+
+G. Core Social Signup consent manifest deployed and verified
+
+H. Account Signup legal manifest verified in Production
+
+I. callback/branding/domain prerequisites ready
+
+Then:
+
+`USER_ACTION_REQUIRED — GOOGLE STEP 1`
+
+External counsel certification is **not** in this gate.
+
+Google real `openid` E2E remains required before final provider activation/production-green claim.
+
+## 9. Current statuses
+
+- `PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
+- `LEGAL_COUNSEL_REVIEW = OPTIONAL / RECOMMENDED`
+- `PRODUCTION PRIVACY = READY FOR USER APPROVAL`
+- `PRODUCTION TERMS = READY FOR USER APPROVAL`
+- `PRODUCTION PUBLISH = PENDING USER APPROVAL`
+- `PRODUCTION SOCIAL SIGNUP CONSENT MANIFEST = NOT DEPLOYED`
+- `GOOGLE STEP 1 = NOT YET`
+- `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED ON USER DECISIONS + PUBLISH/MANIFEST + TECHNICAL GATES, NOT COUNSEL`.
