@@ -8,6 +8,10 @@
 > - Core Social review: `b555420b8d75c9e241a6cd9bd534f205499a87d8`
 > - Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 >
+> FREE authoritative product policy: `docs/free-monthly-3-task-product-policy.md`
+>
+> `PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
+>
 > 이 문서는 `https://lotbiai.com/terms.html` 교체 후보문이다. 현재 확정된 제품·인증 계약만 본문에 반영하고, 구독 환불·청약철회·책임제한 등 법률 판단이 필요한 부분은 `LEGAL_REVIEW_REQUIRED`로 남긴다.
 
 ---
@@ -134,18 +138,60 @@ Provider authorization revoke는 Provider별 lifecycle과 구분합니다.
 
 ## 제6조 FREE 이용한도
 
-LOTBI FREE 이용자는 현재 제품정책상 **월 3개 작업**을 이용할 수 있습니다.
+LOTBI FREE 이용자는 제품정책상 **매월 3개의 성공 작업**을 이용할 수 있습니다.
 
-**PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET**
+`3개 작업`은 채팅 메시지 3개, 질문 3번 또는 AI Provider 호출 3회를 뜻하지 않습니다.
 
-Production 약관·요금제 화면을 확정하기 전에 다음 운영정의를 하나로 맞춰야 합니다.
+### 1. 작업 산정 및 차감
 
-- “작업” 1건의 산정 기준
-- 월 이용한도의 초기화 기준일/시간대
-- 실패·취소·중단 작업의 차감 여부
-- 프로모션 또는 보상 작업의 처리
+하나의 작업은 이용자가 하나의 목적을 요청하고 LOTBI가 실제 사용할 수 있는 최종 사용자 결과를 성공적으로 전달하는 단위입니다.
 
-본 후보는 확정되지 않은 산정규칙을 임의로 만들지 않습니다.
+회사는 서버의 `USER_RESULT_DELIVERED`, `SUCCESS`, `COMPLETED` 또는 당시 Core에서 이에 동등하게 정의한 authoritative final-success 상태에서만 해당 작업을 1회 차감하도록 운영합니다.
+
+다음 자체만으로는 FREE 작업을 차감하지 않습니다.
+
+- 사용자가 요청을 전송한 경우
+- AI Provider 또는 외부 Provider 호출을 시작한 경우
+- 내부 처리를 시작한 경우
+- 중간 결과만 생성한 경우
+
+최종 사용자 결과가 성공적으로 전달되지 않으면 FREE 작업을 차감하지 않습니다.
+
+### 2. 동일 작업 내부 확인대화
+
+하나의 사용자 목적을 완료하기 위한 조건 확인, 추가 질문, 지역·예산·인원·날짜 확인, 옵션 선택 및 동일 task 내부 보완대화는 별도 작업으로 차감하지 않습니다.
+
+최종 결과가 완료된 뒤 이용자가 명백히 새로운 목적의 독립 작업을 요청하면 새 작업으로 계산할 수 있습니다. 경계가 애매한 경우 하나의 자연스러운 목적을 이용자에게 불리하게 과도하게 여러 작업으로 분할하지 않습니다.
+
+### 3. LOCAL 및 미차감 작업
+
+`AI_LEVEL_0 / LOCAL deterministic` 범위의 단순 대화는 FREE 작업을 차감하지 않으며, 해당 경로는 AI Provider 호출 없이 처리하는 것을 제품정책으로 합니다.
+
+서버 오류, HTTP 5xx, AI Provider 장애, timeout, network failure, validation/authentication/payment failure, 사용자 결과 미전달, 완료 전 취소·중단, 시스템 장애, 내부 retry 또는 reconciliation 등 **최종 성공 결과가 전달되지 않은 요청은 차감하지 않습니다.**
+
+### 4. 중복차감 금지
+
+같은 `task_id` 또는 동등한 usage idempotency boundary에서 retry, duplicate request, network/provider/callback/client retry, reconciliation 등이 반복되어도 하나의 성공 작업은 **최대 1회**만 차감합니다.
+
+LOTBI task usage와 AI Provider 호출 횟수는 서로 다른 개념이며, 내부 Provider retry 때문에 FREE 작업을 추가 차감하지 않습니다.
+
+### 5. 월 초기화 및 이월
+
+FREE 작업 사용량은 회원가입일 기준 rolling month가 아니라 **calendar month** 기준으로 운영합니다.
+
+- 초기화: 매월 1일 `00:00`
+- 기준 시간대: `Asia/Seoul` / KST
+- 미사용 작업 이월: 없음
+
+따라서 전월에 남은 작업은 다음 달 allowance에 누적되지 않으며, 새 달에는 3개의 FREE 작업으로 새로 시작합니다.
+
+### 6. 잘못된 차감과 보상
+
+정상 이용자에게 잘못 차감되었거나 서비스 장애 등에 대한 보상이 필요한 경우 기존 usage event를 삭제하거나 과거 기록을 임의 수정하지 않습니다.
+
+별도의 compensation, credit adjustment 또는 Core의 동등한 감사 가능한 조정 event로 복구하며, 원 usage event와 조정 사유·조정량을 감사 가능한 형태로 보존하는 방향으로 구현합니다.
+
+사용자 화면에서는 `이번 달 무료 작업 2 / 3 사용`, `무료 작업 1회 남음` 등 작업 단위로 이해할 수 있게 표시하고 `메시지 3개`, `AI 질문 3번`처럼 오해될 수 있는 표현을 사용하지 않습니다.
 
 ## 제7조 LOTBI Plus
 
@@ -155,6 +201,8 @@ Production 약관·요금제 화면을 확정하기 전에 다음 운영정의�
 
 - 서비스명: `LOTBI Plus`
 - 월 구독료: `9,900원`
+
+LOTBI Plus를 `무제한 일반 AI 사용권` 또는 일반 ChatGPT 대체 이용권으로 표현하지 않습니다. LOTBI Plus는 LOTBI 서비스 범위의 유료 구독입니다.
 
 세금 포함 여부 및 실제 결제화면 표시형식은 판매채널·법률검토·결제계약에 맞춰 Production UI와 동일하게 확정합니다.
 
@@ -282,19 +330,18 @@ Production 유료서비스/통신판매 구조에 따라 사업자등록정보, 
 
 ## Publication gate
 
-이 후보문은 다음이 닫힌 후에만 `terms.html` Production 후보로 승격할 수 있습니다.
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET`은 2026-09-17 authoritative product policy로 CLOSED다. 이 후보문은 다음 법률/배포 항목이 닫힌 후에만 `terms.html` Production 후보로 승격할 수 있습니다.
 
 1. `LEGAL_REVIEW_REQUIRED — CONTRACT_FORMATION_TIME`
-2. `PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET`
-3. `LEGAL_REVIEW_REQUIRED — LOTBI_PLUS_SUBSCRIPTION_TERMS`
-4. `LEGAL_REVIEW_REQUIRED — COMMERCE_ROLE_AND_RESPONSIBILITY`
-5. `LEGAL_REVIEW_REQUIRED — DELETION_RETENTION_AND_PROVIDER_LIFECYCLE`
-6. `LEGAL_REVIEW_REQUIRED — SUSPENSION_NOTICE_AND_REMEDY`
-7. `LEGAL_REVIEW_REQUIRED — SERVICE_CHANGE_NOTICE_AND_LIABILITY`
-8. `LEGAL_REVIEW_REQUIRED — TERMS_CHANGE_NOTICE`
-9. `LEGAL_REVIEW_REQUIRED — LIABILITY_DISPUTE_JURISDICTION`
-10. `LEGAL_REVIEW_REQUIRED — OPERATOR_DISCLOSURE_FIELDS`
-11. 최종 시행일·document version 확정
-12. 정확한 배포 HTML SHA-256 산출
+2. `LEGAL_REVIEW_REQUIRED — LOTBI_PLUS_SUBSCRIPTION_TERMS`
+3. `LEGAL_REVIEW_REQUIRED — COMMERCE_ROLE_AND_RESPONSIBILITY`
+4. `LEGAL_REVIEW_REQUIRED — DELETION_RETENTION_AND_PROVIDER_LIFECYCLE`
+5. `LEGAL_REVIEW_REQUIRED — SUSPENSION_NOTICE_AND_REMEDY`
+6. `LEGAL_REVIEW_REQUIRED — SERVICE_CHANGE_NOTICE_AND_LIABILITY`
+7. `LEGAL_REVIEW_REQUIRED — TERMS_CHANGE_NOTICE`
+8. `LEGAL_REVIEW_REQUIRED — LIABILITY_DISPUTE_JURISDICTION`
+9. `LEGAL_REVIEW_REQUIRED — OPERATOR_DISCLOSURE_FIELDS`
+10. 최종 시행일·document version 확정
+11. 정확한 배포 HTML SHA-256 산출
 
 그 전에는 `DO NOT PUBLISH`.
