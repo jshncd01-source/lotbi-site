@@ -9,6 +9,7 @@ const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 const index = read('index.html');
 const homeCss = read('home-chat.css');
 const hardeningCss = read('site-hardening.css');
+const sidebarCss = read('site-sidebar-nav.css');
 
 // SITE-COMPOSER-DESKTOP-WIDTH-02: desktop composer must no longer be capped at 720px.
 assert.match(
@@ -38,26 +39,24 @@ assert.match(homeCss, /\.chat-input\s*\{[\s\S]*?font-size:\s*17px/);
 assert.doesNotMatch(hardeningCss, /letter-spacing:\s*-\d/);
 assert.doesNotMatch(hardeningCss, /white-space:\s*nowrap/);
 
-// Desktop brand belongs to the sidebar hierarchy, using the existing official text-wordmark treatment.
+// Desktop brand belongs to the sidebar hierarchy and uses the approved logo asset.
 const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-desktop"[\s\S]*?<\/aside>/)?.[0] || '';
-assert.match(desktopAside, /<a class="brand-text-logo sidebar-brand" href="index\.html" aria-label="LOTBI 홈">/);
+assert.match(desktopAside, /<a class="sidebar-brand" href="index\.html" aria-label="LOTBI 홈">/);
+assert.match(desktopAside, /<img class="sidebar-brand-logo" src="assets\/lotbi-logo-header\.png" alt="LOTBI"/);
 assert.ok(
-  desktopAside.indexOf('sidebar-brand') < desktopAside.indexOf('<nav class="sidebar-nav">'),
+  desktopAside.indexOf('sidebar-brand') < desktopAside.indexOf('<nav class="sidebar-nav sidebar-nav-desktop">'),
   'desktop sidebar brand must appear before navigation',
 );
 
 // The main topbar brand remains available for tablet/mobile only; desktop must not duplicate it.
 assert.match(index, /class="brand-text-logo chat-brand mobile-header-brand" href="index\.html"/);
 assert.match(
-  hardeningCss,
-  /@media\s*\(min-width:\s*901px\)[\s\S]*?\.topbar-left\s*\{[\s\S]*?display:\s*none/,
-);
-assert.match(
-  hardeningCss,
-  /@media\s*\(min-width:\s*901px\)[\s\S]*?\.chat-topbar\s*\{[\s\S]*?justify-content:\s*flex-end/,
+  sidebarCss,
+  /@media\s*\(min-width:\s*901px\)[\s\S]*?\.topbar-left,[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/,
 );
 
-// Sidebar logo aligns with navigation text without changing sidebar width.
-assert.match(hardeningCss, /\.sidebar-brand\s*\{[\s\S]*?margin:\s*4px\s+10px\s+22px/);
+// Sidebar logo aligns with navigation text without changing the established 220px sidebar width.
+assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?margin:\s*0\s+10px\s+18px/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*150px/);
 
 console.log('SITE-COMPOSER-DESKTOP-WIDTH-02 + DESKTOP-SIDEBAR-BRAND CONTRACT PASS');
