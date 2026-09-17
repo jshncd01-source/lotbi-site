@@ -3,8 +3,9 @@
 
 The shell remains responsible for accessible navigation and input UX. Real
 conversation networking is isolated to the separately validated
-site-conversation.js module; home-shell.js itself remains free of network and
-persistence behavior. The approved mobile-entry.js bootstrap may coexist.
+site-conversation.js module; authenticated continuity is isolated to the
+approved site-continuity.js module; home-shell.js itself remains free of
+network and persistence behavior. The approved mobile-entry.js bootstrap may coexist.
 """
 from pathlib import Path
 import sys
@@ -13,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
 HOME_CSS = ROOT / "home-chat.css"
 HOME_JS = ROOT / "home-shell.js"
-LOGIN_URL = "https://account.lotbiai.com/"
+LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
 
@@ -39,6 +40,7 @@ def main() -> int:
         "local navigation script": 'src="home-shell.js"',
         "approved mobile chooser": 'src="mobile-entry.js"',
         "approved conversation module": 'src="site-conversation.js"',
+        "approved continuity module": 'src="site-continuity.js"',
         "desktop sidebar": "chat-sidebar-desktop",
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
@@ -85,9 +87,10 @@ def main() -> int:
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-conversation.js"></script>',
+        '<script type="module" src="site-continuity.js"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) or any(approved not in text for approved in approved_scripts):
-        errors.append("index.html: only approved home-shell.js, mobile-entry.js and site-conversation.js scripts are allowed")
+        errors.append("index.html: only approved home-shell.js, mobile-entry.js, site-conversation.js and site-continuity.js scripts are allowed")
 
     forbidden_shell_runtime = (
         "fetch(",
@@ -139,7 +142,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — accessible writable composer, isolated live conversation module, navigation/account/legal routes and mobile chooser coexistence verified.")
+    print("HOME CHAT VALIDATION PASS — accessible writable composer, isolated conversation/continuity modules, navigation/account/legal routes and mobile chooser coexistence verified.")
     return 0
 
 

@@ -110,6 +110,13 @@ async function completeSiteHandoff() {
     autoSend: Boolean(context.pendingText),
   });
   if (!mounted) throw new Error('LOTBI 대화 화면을 시작하지 못했습니다.');
+
+  window.dispatchEvent(new CustomEvent('lotbi:site-session-state', {
+    detail: {
+      authenticated: true,
+      expiresAt: session.expiresAt,
+    },
+  }));
 }
 
 void completeSiteHandoff().catch((error) => {

@@ -44,6 +44,9 @@ jobs:
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
+      - name: Validate authenticated return and refresh continuity
+        run: node scripts/validate_auth_continuity_02.mjs
+
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
@@ -129,7 +132,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-auth.js /site-core.js /auth-callback.js /auth/callback/; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-continuity.js /site-auth.js /site-core.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 
