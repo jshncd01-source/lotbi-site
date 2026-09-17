@@ -28,7 +28,6 @@
 .chat-message-user {
   width: fit-content;
   max-width: min(78%, 640px);
-  min-height: 0;
   padding: 9px 13px;
   justify-self: end;
   border-radius: 18px;
