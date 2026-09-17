@@ -18,8 +18,8 @@ LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
 LOCKED_SHA256 = {
-    'privacy.html': 'f6e94c5fa6730cf10dd4e1a591da2d596f88f9ce2e98bbe54195f7386b035963',
-    'terms.html': 'de0dc05c6250f229442d53da55a3610e003f73c89c86043ccb36e80cfda129c4',
+    'privacy.html': '565841e5b504d996bb8dbc55f18759915af7cbcee27ff8740c32c6d94518f89d',
+    'terms.html': '915cc774883f793536908cc260057c5aa106885796b3c5351daecac69b6b8ccc',
     'account-deletion.html': '1b3c9fb3d15f4cdb7a3bb123362827b19cc79e35eae8e8d33efcde7d6c09f090',
     'contact.html': 'f4c618fade0a17d16a1484372c8c4681b3479a502b8ef5719b13855d5a97acae',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
