@@ -166,16 +166,35 @@
   width: min(720px, calc(100% - 12px));
   padding: 10px 10px 8px 16px;
   border-radius: 22px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: end;
+  column-gap: 0;
+  row-gap: 4px;
 }
 
 /* SITE-COMPOSER-AUTO-GROW-01 — one visible line through about twelve lines.
    `lh` follows the prompt's actual line-height so font changes keep the cap honest. */
 .chat-input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: calc(1lh + 14px);
   max-height: calc(12lh + 14px);
-  padding: 7px 8px 7px 4px;
+  padding: 7px 4px;
   overflow-y: hidden;
   overscroll-behavior: contain;
+}
+
+/* SITE-COMPOSER-HORIZONTAL-FIT-01 — controls no longer reserve a permanent
+   second column beside the text. They occupy their own bottom row. */
+.composer-actions {
+  grid-column: 1 / -1;
+  justify-self: end;
+  align-self: end;
+  justify-content: flex-end;
+  padding-bottom: 0;
 }
 
 @media (max-width: 760px) {
@@ -183,15 +202,21 @@
     width: min(100%, 350px);
     padding: 9px 9px 8px 13px;
     border-radius: 20px;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
     align-items: end;
-    gap: 8px;
+    column-gap: 0;
+    row-gap: 4px;
   }
 
   .chat-input {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     min-height: calc(1lh + 12px);
     max-height: min(calc(12lh + 12px), 40vh);
-    padding: 6px 7px 6px 2px;
+    padding: 6px 2px;
   }
 
   @supports (height: 100dvh) {
@@ -201,6 +226,8 @@
   }
 
   .composer-actions {
+    grid-column: 1 / -1;
+    justify-self: end;
     align-self: end;
     justify-content: flex-end;
     padding-bottom: 0;
