@@ -9,13 +9,15 @@ const conversationCss = read('site-conversation.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const callback = read('auth-callback.js');
 
-for (const greeting of ['안녕', '안녕하세요', 'hello', '반가워', '감사합니다']) {
+for (const greeting of ['안녕', '안녕하세요', 'hello', '반가워', '고마워', '감사합니다', '도움말']) {
   assert.ok(deterministicReply(greeting), `${greeting} must use a local deterministic reply`);
 }
 for (const utility of ['지금 몇 시야', '오늘 날짜', '오늘 무슨 요일']) {
   assert.ok(deterministicReply(utility), `${utility} must use browser time deterministically`);
 }
-assert.equal(deterministicReply('서울 날씨 알려줘'), undefined, 'general conversation must remain on Core');
+for (const general of ['대통령이 누구야', '전주 혁신도시 삼겹살집 추천해줘', '일반 상식 질문', '서울 날씨 알려줘']) {
+  assert.equal(deterministicReply(general), undefined, `${general} must remain on authoritative Core/search routing`);
+}
 
 const localBranch = conversation.indexOf('const local = deterministicReply(message)');
 const authBranch = conversation.indexOf('if (!sessionToken)', localBranch);
@@ -23,6 +25,8 @@ const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, mes
 assert.ok(localBranch > 0 && authBranch > localBranch && coreCall > authBranch, 'deterministic routing must precede auth/Core');
 assert.ok(conversation.includes("recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0})"));
 assert.ok(conversation.includes("lastPath = 'LOCAL_DETERMINISTIC'"));
+assert.ok(conversation.includes('[LOTBI deterministic evidence]'));
+assert.ok(conversation.includes('data.conversationCoreRequests') || conversation.includes('dataset.conversationCoreRequests'));
 
 assert.equal((index.match(/data-lotbi-avatar-stage/g) || []).length, 1, 'only one Avatar stage is allowed');
 assert.ok(index.includes('data-home-avatar-anchor'));
@@ -54,8 +58,10 @@ for (const a11y of ["event.key === 'Escape'", "event.key !== 'Tab'", "setAttribu
 for (const imageContract of ["image/jpeg", "image/png", "image/webp", 'PHOTO_BYTES_LIMIT', 'PHOTO_DIMENSION_LIMIT', "canvas.toDataURL('image/webp'"]) {
   assert.ok(conversation.includes(imageContract), `profile photo contract missing ${imageContract}`);
 }
-assert.ok(conversation.includes("logout.disabled = true"), 'logout must fail closed until an authoritative Site logout contract exists');
-assert.ok(conversation.includes('Site-origin 로그아웃 계약'));
+assert.ok(conversation.includes('logoutSiteSession(sessionToken)'), 'logout must use the authoritative Site child-session contract');
+assert.ok(conversation.includes("reason: 'site-logout'"), 'successful logout must transition Site UI to unauthenticated');
+assert.ok(conversation.includes('serverIdentity?.accountHandle'), 'profile row must use the server handle when available');
+assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile identity must come from Core /v2/me');
 assert.ok(sidebarCss.includes('.sidebar-profile-trigger'));
 assert.ok(conversationCss.includes('@media (max-width: 760px)'));
 assert.ok(conversationCss.includes('max-height: 88svh'));
