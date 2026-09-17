@@ -20,8 +20,17 @@ const extract = (startPattern, endPattern) => {
   return tail.slice(0, end + tail.match(endPattern)[0].length);
 };
 
+const extractAsideById = id => {
+  const idPosition = index.indexOf(`id="${id}"`);
+  assert.notEqual(idPosition, -1, `missing aside id ${id}`);
+  const start = index.lastIndexOf('<aside', idPosition);
+  const end = index.indexOf('</aside>', idPosition);
+  assert.ok(start >= 0 && end >= 0, `missing aside boundary for ${id}`);
+  return index.slice(start, end + '</aside>'.length);
+};
+
 const desktop = extract(/<aside class="chat-sidebar chat-sidebar-desktop"/, /<\/aside>/);
-const mobile = extract(/<aside\s+[\s\S]*?id="mobile-nav-drawer"/, /<\/aside>/);
+const mobile = extractAsideById('mobile-nav-drawer');
 
 for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   for (const required of ['+ 새 대화', '내 작업', '라이브러리', '연결 서비스', '최근 대화']) {
