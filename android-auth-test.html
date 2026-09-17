@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>LOTBI Android 인증 테스트</title>
+  <style>
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17191d;background:#f5f7fa}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;display:flex;justify-content:center}
+    main{width:min(100%,560px);padding:28px 20px 48px}
+    .brand{font-size:30px;font-weight:900;letter-spacing:.12em;color:#182a46}.brand b{color:#b45fae}
+    h1{font-size:23px;margin:14px 0 8px}.sub{font-size:14px;line-height:1.5;color:#626874}
+    .notice{margin:16px 0;padding:12px 14px;border-radius:12px;background:#fff4f0;color:#8c3526;font-size:13px;line-height:1.5}
+    .card{margin-top:16px;background:#fff;border:1px solid #e1e5ea;border-radius:16px;padding:18px;box-shadow:0 3px 14px rgba(0,0,0,.04)}
+    label{display:block;font-size:13px;font-weight:700;margin:14px 0 6px}
+    input{width:100%;height:50px;border:1px solid #b8bdc5;border-radius:12px;padding:0 13px;font-size:16px;background:#fff}
+    button{width:100%;min-height:50px;border:0;border-radius:12px;margin-top:12px;font-size:15px;font-weight:800;background:#182a46;color:#fff}
+    button.secondary{background:#f2f4f7;color:#182a46;border:1px solid #d7dbe2}
+    button:disabled{opacity:.5}.status{white-space:pre-wrap;margin-top:16px;padding:14px;border-radius:12px;background:#f7f8fa;font-size:14px;line-height:1.55}
+    .ok{color:#176b45}.bad{color:#9b2d24}.tiny{font-size:12px;color:#8a909a;margin-top:16px;line-height:1.5}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">L<b>O</b>TBI</div>
+  <h1>회원가입 · 기본 로그인 테스트</h1>
+  <div class="sub">소셜 로그인 없이 LOTBI Production Core의 일반 계정 생성과 패스키 로그인을 실제로 확인합니다.</div>
+  <div class="notice">테스트 전용 화면입니다. 결제·구매·주문 기능은 실행하지 않습니다.</div>
+
+  <section class="card">
+    <strong>1. 신규 회원가입</strong>
+    <label for="name">이름</label>
+    <input id="name" maxlength="120" autocomplete="name" placeholder="테스트 사용자" />
+    <label for="signupHandle">아이디</label>
+    <input id="signupHandle" maxlength="64" autocomplete="username" autocapitalize="none" placeholder="3자 이상" />
+    <button id="signupBtn">회원가입 + 패스키 만들기</button>
+  </section>
+
+  <section class="card">
+    <strong>2. 기존 계정 로그인</strong>
+    <label for="loginHandle">아이디</label>
+    <input id="loginHandle" maxlength="64" autocomplete="username webauthn" autocapitalize="none" placeholder="가입한 아이디" />
+    <button id="loginBtn">패스키 로그인</button>
+    <button id="verifyBtn" class="secondary">현재 세션 확인</button>
+    <button id="logoutBtn" class="secondary">테스트 세션 삭제</button>
+  </section>
+
+  <div id="status" class="status">준비됨</div>
+  <div class="tiny">Core: https://api.lotbiai.com · RP: lotbiai.com<br>세션 토큰은 이 테스트 페이지의 브라우저 localStorage에만 저장됩니다.</div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const API = 'https://api.lotbiai.com';
+  const statusEl = document.getElementById('status');
+  const signupBtn = document.getElementById('signupBtn');
+  const loginBtn = document.getElementById('loginBtn');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  function setStatus(text, kind='') {
+    statusEl.textContent = text;
+    statusEl.className = 'status ' + kind;
+  }
+  function setBusy(busy) {
+    [signupBtn, loginBtn, verifyBtn, logoutBtn].forEach(b => b.disabled = busy);
+  }
+  function b64urlToBytes(value) {
+    const base64 = String(value).replace(/-/g, '+').replace(/_/g, '/')
+      + '='.repeat((4 - String(value).length % 4) % 4);
+    const raw = atob(base64);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return bytes;
+  }
+  function bytesToB64url(value) {
+    if (value === null || value === undefined) return null;
+    const bytes = value instanceof ArrayBuffer ? new Uint8Array(value) :
+      ArrayBuffer.isView(value) ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength) :
+      new Uint8Array(value);
+    let raw = '';
+    for (const byte of bytes) raw += String.fromCharCode(byte);
+    return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+  function decodeCreateOptions(options) {
+    const out = structuredClone(options);
+    out.challenge = b64urlToBytes(out.challenge);
+    out.user.id = b64urlToBytes(out.user.id);
+    if (Array.isArray(out.excludeCredentials)) {
+      out.excludeCredentials = out.excludeCredentials.map(item => ({...item, id: b64urlToBytes(item.id)}));
+    }
+    return out;
+  }
+  function decodeGetOptions(options) {
+    const out = structuredClone(options);
+    out.challenge = b64urlToBytes(out.challenge);
+    if (Array.isArray(out.allowCredentials)) {
+      out.allowCredentials = out.allowCredentials.map(item => ({...item, id: b64urlToBytes(item.id)}));
+    }
+    return out;
+  }
+  function serializeRegistration(credential) {
+    const response = credential.response;
+    const result = {
+      id: credential.id,
+      rawId: bytesToB64url(credential.rawId),
+      type: credential.type,
+      response: {
+        clientDataJSON: bytesToB64url(response.clientDataJSON),
+        attestationObject: bytesToB64url(response.attestationObject),
+      },
+      clientExtensionResults: credential.getClientExtensionResults(),
+    };
+    if (typeof response.getTransports === 'function') result.response.transports = response.getTransports();
+    if (credential.authenticatorAttachment) result.authenticatorAttachment = credential.authenticatorAttachment;
+    return result;
+  }
+  function serializeAssertion(credential) {
+    const response = credential.response;
+    const result = {
+      id: credential.id,
+      rawId: bytesToB64url(credential.rawId),
+      type: credential.type,
+      response: {
+        clientDataJSON: bytesToB64url(response.clientDataJSON),
+        authenticatorData: bytesToB64url(response.authenticatorData),
+        signature: bytesToB64url(response.signature),
+        userHandle: response.userHandle ? bytesToB64url(response.userHandle) : null,
+      },
+      clientExtensionResults: credential.getClientExtensionResults(),
+    };
+    if (credential.authenticatorAttachment) result.authenticatorAttachment = credential.authenticatorAttachment;
+    return result;
+  }
+  async function api(path, {method='GET', token, body}={}) {
+    const headers = {Accept:'application/json'};
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const response = await fetch(API + path, {
+      method, headers, mode:'cors', credentials:'omit',
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = payload && typeof payload.detail === 'object' ? payload.detail : {};
+      const message = detail.message || detail.code || payload.message || ('HTTP ' + response.status);
+      throw new Error(message);
+    }
+    return payload;
+  }
+  function saveSession(token, handle) {
+    localStorage.setItem('lotbi_auth_test_token', token);
+    if (handle) localStorage.setItem('lotbi_auth_test_handle', handle);
+  }
+  function token() { return localStorage.getItem('lotbi_auth_test_token') || ''; }
+  function rememberedHandle() { return localStorage.getItem('lotbi_auth_test_handle') || ''; }
+  function showMe(me, headline) {
+    const user = me.user || {};
+    const session = me.session || {};
+    setStatus('✅ ' + headline + '\n\n이름: ' + (user.name || '') +
+      '\n아이디: ' + (user.account_handle || rememberedHandle()) +
+      '\n보증 수준: ' + (session.assurance_level || '') +
+      '\nCore: ' + API, 'ok');
+  }
+
+  signupBtn.addEventListener('click', async () => {
+    const name = document.getElementById('name').value.trim();
+    const handle = document.getElementById('signupHandle').value.trim();
+    if (!name || handle.length < 3) return setStatus('❌ 이름과 3자 이상의 아이디를 입력해 주세요.', 'bad');
+    if (!window.PublicKeyCredential || !navigator.credentials) return setStatus('❌ 이 브라우저는 패스키를 지원하지 않습니다. 최신 Chrome을 사용해 주세요.', 'bad');
+    setBusy(true);
+    try {
+      setStatus('LOTBI 계정을 만들고 있어요…');
+      const created = await api('/v2/accounts', {method:'POST', body:{
+        name, account_handle:handle, installation_label:'LOTBI Android web auth test', platform:'ANDROID'
+      }});
+      const enrollmentToken = created.session_token;
+      setStatus('패스키 생성 정보를 요청하고 있어요…');
+      const options = await api('/v2/passkeys/register/options', {method:'POST', token:enrollmentToken});
+      setStatus('휴대폰의 지문·얼굴·화면 잠금으로 패스키를 만들어 주세요.');
+      const credential = await navigator.credentials.create({publicKey:decodeCreateOptions(options.publicKey)});
+      if (!credential) throw new Error('패스키 생성 응답이 없습니다.');
+      setStatus('패스키를 LOTBI 계정에 등록하고 있어요…');
+      const finished = await api('/v2/passkeys/register/finish', {method:'POST', token:enrollmentToken, body:{
+        challenge_id:options.challenge_id, credential:serializeRegistration(credential)
+      }});
+      const fullToken = finished.session_token;
+      if (finished.assurance_level !== 'FULL' || !fullToken) throw new Error('Core가 FULL 교체 세션을 반환하지 않았습니다.');
+      saveSession(fullToken, handle);
+      document.getElementById('loginHandle').value = handle;
+      const me = await api('/v2/me', {token:fullToken});
+      showMe(me, '회원가입 + 패스키 등록 완료');
+    } catch (error) {
+      setStatus('❌ ' + (error && error.message ? error.message : String(error)), 'bad');
+    } finally { setBusy(false); }
+  });
+
+  loginBtn.addEventListener('click', async () => {
+    const handle = document.getElementById('loginHandle').value.trim();
+    if (handle.length < 3) return setStatus('❌ 로그인할 아이디를 3자 이상 입력해 주세요.', 'bad');
+    if (!window.PublicKeyCredential || !navigator.credentials) return setStatus('❌ 이 브라우저는 패스키를 지원하지 않습니다.', 'bad');
+    setBusy(true);
+    try {
+      setStatus('로그인용 패스키 정보를 요청하고 있어요…');
+      const options = await api('/v2/sessions/passkey/options', {method:'POST', body:{
+        account_handle:handle, installation_label:'LOTBI Android web auth test', platform:'ANDROID'
+      }});
+      setStatus('저장된 LOTBI 패스키로 인증해 주세요.');
+      const credential = await navigator.credentials.get({publicKey:decodeGetOptions(options.publicKey)});
+      if (!credential) throw new Error('패스키 로그인 응답이 없습니다.');
+      setStatus('Production Core에서 로그인 세션을 확인하고 있어요…');
+      const session = await api('/v2/sessions/passkey/finish', {method:'POST', body:{
+        challenge_id:options.challenge_id, credential:serializeAssertion(credential)
+      }});
+      if (session.assurance_level !== 'FULL') throw new Error('FULL 세션이 반환되지 않았습니다.');
+      saveSession(session.session_token, handle);
+      const me = await api('/v2/me', {token:session.session_token});
+      showMe(me, '패스키 로그인 완료');
+    } catch (error) {
+      setStatus('❌ ' + (error && error.message ? error.message : String(error)), 'bad');
+    } finally { setBusy(false); }
+  });
+
+  verifyBtn.addEventListener('click', async () => {
+    const current = token();
+    if (!current) return setStatus('❌ 저장된 테스트 세션이 없습니다.', 'bad');
+    setBusy(true);
+    try { showMe(await api('/v2/me', {token:current}), '현재 세션 검증 성공'); }
+    catch (error) { setStatus('❌ ' + (error && error.message ? error.message : String(error)), 'bad'); }
+    finally { setBusy(false); }
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('lotbi_auth_test_token');
+    setStatus('이 브라우저의 LOTBI 테스트 세션을 삭제했습니다.');
+  });
+
+  const savedHandle = rememberedHandle();
+  if (savedHandle) document.getElementById('loginHandle').value = savedHandle;
+  if (!window.isSecureContext) setStatus('❌ 보안 HTTPS 컨텍스트가 아니어서 패스키를 사용할 수 없습니다.', 'bad');
+})();
+</script>
+</body>
+</html>
