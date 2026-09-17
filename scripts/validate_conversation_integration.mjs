@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import test from 'node:test';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 
@@ -22,9 +23,13 @@ const {
   ACCOUNT_SITE_HANDOFF_URL,
   HANDOFF_CONTEXT_KEY,
   HANDOFF_CONTEXT_TTL_MS,
+  SITE_AUTH_CONTINUITY_KEY,
   SiteHandoffClientError,
+  clearSiteAuthContinuity,
   createSiteHandoffContext,
+  hasSiteAuthContinuity,
   readAndClearSiteHandoffContext,
+  rememberSiteAuthContinuity,
   storeSiteHandoffContext,
 } = await import('../site-auth.js');
 
@@ -93,6 +98,19 @@ assert.notEqual(context.codeVerifier, context.codeChallenge);
     () => readAndClearSiteHandoffContext(context.state, storage, now + HANDOFF_CONTEXT_TTL_MS + 1),
     error => error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_INVALID',
   );
+}
+
+{
+  const storage = new MemoryStorage();
+  const expiresAt = new Date(now + 60_000).toISOString();
+  assert.equal(rememberSiteAuthContinuity(expiresAt, storage, now), true);
+  const raw = storage.getItem(SITE_AUTH_CONTINUITY_KEY);
+  assert.ok(raw);
+  assert.equal(hasSiteAuthContinuity(storage, now + 1), true);
+  assert.doesNotMatch(raw, /token|bearer|session_id|installation/i);
+  clearSiteAuthContinuity(storage);
+  assert.equal(hasSiteAuthContinuity(storage, now + 1), false);
+  assert.equal(rememberSiteAuthContinuity(new Date(now - 1).toISOString(), storage, now), false);
 }
 
 {
@@ -186,6 +204,9 @@ for (const token of [
   'type="module" src="site-conversation.js"',
   'maxlength="1000"',
   'aria-label="전송"',
+  'data-site-account-nav',
+  'data-site-auth-anonymous data-site-login',
+  'data-site-auth-authenticated hidden>내 계정</a>',
   '유한회사 알에이디홀딩스',
   '대표자: 전선혜',
   '사업자등록번호: 583-88-03679',
@@ -196,14 +217,22 @@ for (const token of [
 assert.ok(auth.includes('sessionStorage'));
 assert.ok(auth.includes('code_challenge'));
 assert.ok(auth.includes("crypto.subtle.digest('SHA-256'"));
+assert.ok(auth.includes('SITE_AUTH_CONTINUITY_KEY'));
 assert.ok(callback.includes('history.replaceState'));
 assert.ok(callback.includes('readAndClearSiteHandoffContext'));
 assert.ok(callback.includes('redeemSiteHandoff'));
+assert.ok(callback.includes('rememberSiteAuthContinuity(session.expiresAt)'));
 assert.ok(callbackHtml.includes('noindex,nofollow,noarchive'));
 assert.ok(conversation.includes("event.key === 'Enter'"));
 assert.ok(conversation.includes('!event.shiftKey'));
 assert.ok(conversation.includes('beginSiteHandoff'));
 assert.ok(conversation.includes('sendConversationMessage'));
+assert.ok(conversation.includes("renderAccountNavigation(sessionToken ? 'authenticated' : 'anonymous')"));
+assert.ok(conversation.includes("renderAccountNavigation('pending')"));
+assert.ok(conversation.includes('hasSiteAuthContinuity()'));
+assert.ok(conversation.includes("void startSiteHandoff('').catch(showAuthStartError)"));
+assert.ok(conversation.includes("login.addEventListener('click'"));
+assert.ok(conversation.includes('clearSiteAuthContinuity()'));
 assert.ok(core.includes("Authorization: `Bearer ${token}`"));
 assert.ok(core.includes("payload.contract_id !== 'CORE-WEB-CHAT-01'"));
 
