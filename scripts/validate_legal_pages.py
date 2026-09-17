@@ -69,7 +69,7 @@ def main() -> int:
         require(privacy, needle, "privacy.html", errors)
     require(privacy, "이메일, 이름, 닉네임, 프로필 사진", "privacy.html", errors)
     require(privacy, "LOTBI 이름", "privacy.html", errors)
-    require(privacy, "account handle", "privacy.html", errors)
+    require(privacy, "계정 아이디(handle)", "privacy.html", errors)
 
     # Account/security/deletion lifecycle.
     for needle in ("Passkey", "로그인 세션", "Social Login 연결 해제", "계정 삭제 요청", "hard delete"):
