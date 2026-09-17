@@ -91,9 +91,10 @@
           </a>
         </div>
 
-        <nav class="account-actions" aria-label="계정 메뉴">
-          <a class="account-action account-login" href="https://account.lotbiai.com/">로그인</a>
-          <a class="account-action account-signup" href="https://account.lotbiai.com/signup">회원가입</a>
+        <nav class="account-actions" aria-label="계정 메뉴" data-site-account-nav data-auth-state="anonymous">
+          <a class="account-action account-login" href="https://account.lotbiai.com/" data-site-auth-anonymous data-site-login>로그인</a>
+          <a class="account-action account-signup" href="https://account.lotbiai.com/signup" data-site-auth-anonymous>회원가입</a>
+          <a class="account-action account-account" href="https://account.lotbiai.com/account" data-site-auth-authenticated hidden>내 계정</a>
         </nav>
       </header>
 
