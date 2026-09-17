@@ -102,9 +102,20 @@ assert.notEqual(context.codeVerifier, context.codeChallenge);
     return jsonResponse({session_id: 'site-session-1', status: 'REVOKED'});
   };
   const identity = await getCurrentSiteUser('site-memory-token', fetchMock);
-  assert.equal(identity.userId, 'user-1');
+  assert.deepEqual(identity, {
+    userId: 'user-1', name: '전선혜', accountHandle: 'lotbi_user.01',
+    sessionId: 'site-session-1', installationId: 'installation-1', expiresAt: '2030-01-01T00:00:00Z',
+  });
   const logout = await logoutSiteSession('site-memory-token', fetchMock);
   assert.deepEqual(logout, {sessionId: 'site-session-1', status: 'REVOKED'});
+  assert.equal(requests[0].url, 'https://api.lotbiai.com/v2/me');
+  assert.equal(requests[0].init.method, 'GET');
+  assert.equal(requests[1].url, 'https://api.lotbiai.com/v2/sessions/logout');
+  assert.equal(requests[1].init.method, 'POST');
+  for (const request of requests) {
+    assert.equal(request.init.credentials, 'omit');
+    assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
+  }
 }
 
 {
@@ -116,7 +127,15 @@ assert.notEqual(context.codeVerifier, context.codeChallenge);
   const session = await redeemSiteHandoff({handoffCode: 'h'.repeat(43), state: context.state, codeVerifier: context.codeVerifier}, fetchMock);
   assert.equal(session.sessionToken, 'site-session-token-only-for-unit-test');
   assert.equal(request.url, 'https://api.lotbiai.com/v2/sessions/handoffs/redeem');
+  assert.equal(request.init.method, 'POST');
   assert.equal(request.init.credentials, 'omit');
+  assert.deepEqual(request.init.headers, {'Content-Type': 'application/json'});
+  const body = JSON.parse(request.init.body);
+  assert.equal(body.audience, 'lotbiai.com');
+  assert.equal(body.callback_uri, 'https://lotbiai.com/auth/callback');
+  assert.equal(body.handoff_code, 'h'.repeat(43));
+  assert.equal(body.code_verifier, context.codeVerifier);
+  assert.ok(!('authorization' in Object.fromEntries(Object.entries(request.init.headers).map(([key, value]) => [key.toLowerCase(), value]))));
 }
 
 for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
@@ -128,6 +147,12 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   const fetchMock = async (url, init) => { request = {url, init}; return jsonResponse(conversationSuccess()); };
   const reply = await sendConversationMessage('site-memory-token', '안녕하세요', fetchMock);
   assert.equal(reply.status, 'ANSWERED');
+  assert.equal(reply.assistantText, '실제 Core 계약 형태의 테스트 응답');
+  assert.equal(request.url, 'https://api.lotbiai.com/v2/conversation/messages');
+  assert.equal(request.init.method, 'POST');
+  assert.equal(request.init.credentials, 'omit');
+  assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
+  assert.equal(request.init.headers['Content-Type'], 'application/json');
   assert.deepEqual(JSON.parse(request.init.body), {text: '안녕하세요'});
 }
 {
@@ -171,6 +196,7 @@ const footerCss = read('footer-business-info.css');
 for (const token of ['id="conversation-thread"','type="module" src="site-conversation.js?v=20260917-1"','maxlength="1000"','aria-label="전송"','유한회사 알에이디홀딩스','대표자: 전선혜','사업자등록번호: 583-88-03679','통신판매업신고번호: 2026-전주덕진-0798','사업자정보확인']) assert.ok(index.includes(token), `missing index contract: ${token}`);
 assert.ok(auth.includes('sessionStorage'));
 assert.ok(auth.includes('code_challenge'));
+assert.ok(auth.includes("crypto.subtle.digest('SHA-256'"));
 assert.ok(callback.includes('history.replaceState'));
 assert.ok(callback.includes('readAndClearSiteHandoffContext'));
 assert.ok(callback.includes('redeemSiteHandoff'));
