@@ -13,6 +13,7 @@ let siteSessionExpiresAt = 0;
 let checking = false;
 let redirecting = false;
 let expiryTimer;
+let siteLogoutSuppressed = false;
 
 function performanceNow() {
   return globalThis.performance?.now?.() ?? 0;
@@ -242,6 +243,14 @@ export async function synchronizeAccountContinuity() {
       return;
     }
 
+    if (siteLogoutSuppressed) {
+      siteSessionActive = false;
+      siteSessionExpiresAt = 0;
+      clearExpiryTimer();
+      markAnonymousAccountUi();
+      return;
+    }
+
     if (hasLiveSiteSession()) {
       markAuthenticatedAccountUi();
       return;
@@ -267,6 +276,7 @@ function handleSiteSessionState(event) {
   if (!detail || typeof detail.authenticated !== 'boolean') return;
 
   if (detail.authenticated) {
+    siteLogoutSuppressed = false;
     siteSessionActive = true;
     markAuthenticatedAccountUi();
     if (typeof detail.expiresAt === 'string') scheduleExpiry(detail.expiresAt);
@@ -276,6 +286,11 @@ function handleSiteSessionState(event) {
   siteSessionActive = false;
   siteSessionExpiresAt = 0;
   clearExpiryTimer();
+  if (detail.reason === 'site-logout') {
+    siteLogoutSuppressed = true;
+    markAnonymousAccountUi();
+    return;
+  }
   markCheckingAccountUi('계정 상태 다시 확인 중');
   if (rootLocation()) void synchronizeAccountContinuity();
 }
