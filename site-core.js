@@ -4,6 +4,8 @@ export const SITE_CALLBACK_URI = 'https://lotbiai.com/auth/callback';
 
 const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
+const CURRENT_USER_PATH = '/v2/me';
+const LOGOUT_PATH = '/v2/sessions/logout';
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -167,4 +169,68 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
   });
+}
+
+function bearerToken(sessionToken) {
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
+  if (!token) {
+    throw new SiteCoreError('LOTBI Site 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
+  }
+  return token;
+}
+
+async function siteSessionRequest(path, sessionToken, {method = 'GET'} = {}, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
+      method,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {Authorization: `Bearer ${bearerToken(sessionToken)}`},
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 계정 서버에 접속하지 못했습니다.', {
+      code: 'SITE_SESSION_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = errorFromResponse(response, payload, 'LOTBI Site 세션 요청을 완료하지 못했습니다.');
+    announceInvalidSiteSession(error);
+    throw error;
+  }
+  return payload;
+}
+
+export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(CURRENT_USER_PATH, sessionToken, {}, fetchImpl);
+  const user = payload && typeof payload.user === 'object' ? payload.user : {};
+  const session = payload && typeof payload.session === 'object' ? payload.session : {};
+  const installation = payload && typeof payload.installation === 'object' ? payload.installation : {};
+  const userId = typeof user.id === 'string' ? user.id.trim() : '';
+  const sessionId = typeof session.id === 'string' ? session.id.trim() : '';
+  const installationId = typeof installation.id === 'string' ? installation.id.trim() : '';
+  if (!userId || !sessionId || !installationId || session.assurance_level !== 'FULL') {
+    throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    userId,
+    name: typeof user.name === 'string' ? user.name.trim() : '',
+    accountHandle: typeof user.account_handle === 'string' ? user.account_handle.trim() : '',
+    sessionId,
+    installationId,
+    expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+  });
+}
+
+export async function logoutSiteSession(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(LOGOUT_PATH, sessionToken, {method: 'POST'}, fetchImpl);
+  if (!payload || typeof payload.session_id !== 'string' || payload.status !== 'REVOKED') {
+    throw new SiteCoreError('LOTBI 로그아웃 응답이 올바르지 않습니다.', {code: 'SITE_LOGOUT_CONTRACT_INVALID'});
+  }
+  return Object.freeze({sessionId: payload.session_id, status: payload.status});
 }
