@@ -49,6 +49,9 @@ jobs:
       - name: Validate sealed 3D Avatar Site integration
         run: node scripts/validate_site_avatar_integration.mjs
 
+      - name: Validate terminal Avatar fallback in browser
+        run: node scripts/validate_site_avatar_fallback_runtime.mjs
+
       - name: Validate Sidebar information architecture
         run: node scripts/validate_sidebar_information_architecture_04.mjs
 
