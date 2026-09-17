@@ -1,0 +1,69 @@
+name: LOTBI Android Auth Test APK
+
+on:
+  push:
+    branches: [android-auth-test-apk-01-work]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-auth-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: '15859902'
+          packages: 'platform-tools'
+
+      - name: Install SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=3             'platforms;android-37'             'build-tools;37.0.0'             'platform-tools' >/dev/null
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Build unsigned auth-test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p android-auth-test :app:assembleRelease --stacktrace
+
+      - name: Align and inspect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="${ANDROID_HOME}/build-tools/37.0.0"
+          SRC='android-auth-test/app/build/outputs/apk/release/app-release-unsigned.apk'
+          OUT="${RUNNER_TEMP}/lotbi-auth-test"
+          mkdir -p "${OUT}"
+          "${BT}/zipalign" -f -p 4 "${SRC}" "${OUT}/LOTBI-Android-Auth-Test-unsigned-aligned.apk"
+          "${BT}/aapt" dump badging "${OUT}/LOTBI-Android-Auth-Test-unsigned-aligned.apk" | tee "${OUT}/apk-badging.txt"
+          grep -Fq "package: name='com.lotbiai.testauth' versionCode='1' versionName='0.1-auth-test'" "${OUT}/apk-badging.txt"
+          cp "${BT}/lib/apksigner.jar" "${OUT}/apksigner.jar"
+          printf '%s\n' "${GITHUB_SHA}" > "${OUT}/source-head.txt"
+          sha256sum "${OUT}/LOTBI-Android-Auth-Test-unsigned-aligned.apk" > "${OUT}/SHA256SUMS"
+
+      - name: Upload unsigned auth-test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: lotbi-android-auth-test-unsigned
+          path: ${{ runner.temp }}/lotbi-auth-test
+          if-no-files-found: error
+          retention-days: 7
