@@ -7,6 +7,7 @@ const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,160}$/u;
+const PENDING_CONVERSATION_STORAGE_KEY = 'lotbi.site.conversation.pending.v1';
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -52,6 +53,66 @@ function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
   }
+}
+
+function conversationSessionStorage() {
+  try {
+    const storage = globalThis.sessionStorage;
+    if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function' || typeof storage.removeItem !== 'function') return undefined;
+    return storage;
+  } catch {
+    return undefined;
+  }
+}
+
+function readPendingConversation() {
+  const storage = conversationSessionStorage();
+  if (!storage) return undefined;
+  try {
+    const raw = storage.getItem(PENDING_CONVERSATION_STORAGE_KEY);
+    if (!raw) return undefined;
+    const value = JSON.parse(raw);
+    const message = typeof value?.message === 'string' ? value.message.trim() : '';
+    const idempotencyKey = typeof value?.idempotencyKey === 'string' ? value.idempotencyKey.trim() : '';
+    if (!message || !IDEMPOTENCY_KEY_RE.test(idempotencyKey)) {
+      storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
+      return undefined;
+    }
+    return {message, idempotencyKey};
+  } catch {
+    try { storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY); } catch {}
+    return undefined;
+  }
+}
+
+function rememberPendingConversation(message, idempotencyKey) {
+  if (!message || !IDEMPOTENCY_KEY_RE.test(idempotencyKey)) return;
+  const storage = conversationSessionStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(PENDING_CONVERSATION_STORAGE_KEY, JSON.stringify({message, idempotencyKey}));
+  } catch {}
+}
+
+function clearPendingConversation(message, idempotencyKey) {
+  const storage = conversationSessionStorage();
+  if (!storage) return;
+  const pending = readPendingConversation();
+  if (!pending || pending.message !== message || pending.idempotencyKey !== idempotencyKey) return;
+  try { storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY); } catch {}
+}
+
+function effectiveConversationKey(message, requestedKey) {
+  if (!requestedKey) return '';
+  const pending = readPendingConversation();
+  if (pending && pending.message === message) return pending.idempotencyKey;
+  return requestedKey;
+}
+
+function responseProvesNoUncertainCharge(error) {
+  if (!(error instanceof SiteCoreError)) return false;
+  if (error.status > 0 && error.status < 500) return true;
+  return error.status === 503 && (error.code === 'AI_PROVIDER_UNAVAILABLE' || error.code === 'AI_RESPONSE_UNAVAILABLE');
 }
 
 export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetchImpl = globalThis.fetch) {
@@ -134,11 +195,13 @@ export async function sendConversationMessage(sessionToken, text, optionsOrFetch
     throw new SiteCoreError('대화 재시도 식별자가 올바르지 않습니다.', {code: 'INVALID_IDEMPOTENCY_KEY', status: 400});
   }
 
+  const effectiveIdempotencyKey = effectiveConversationKey(message, request.idempotencyKey);
   const headers = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
-  if (request.idempotencyKey) headers['Idempotency-Key'] = request.idempotencyKey;
+  if (effectiveIdempotencyKey) headers['Idempotency-Key'] = effectiveIdempotencyKey;
+  if (effectiveIdempotencyKey) rememberPendingConversation(message, effectiveIdempotencyKey);
 
   let response;
   try {
@@ -161,6 +224,7 @@ export async function sendConversationMessage(sessionToken, text, optionsOrFetch
   const payload = await readPayload(response);
   if (!response.ok) {
     const error = errorFromResponse(response, payload, 'LOTBI 응답을 받지 못했습니다.');
+    if (responseProvesNoUncertainCharge(error)) clearPendingConversation(message, effectiveIdempotencyKey);
     announceInvalidSiteSession(error);
     throw error;
   }
@@ -180,6 +244,7 @@ export async function sendConversationMessage(sessionToken, text, optionsOrFetch
     throw new SiteCoreError('LOTBI 대화 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
   }
 
+  clearPendingConversation(message, effectiveIdempotencyKey);
   return Object.freeze({
     status,
     assistantText,
