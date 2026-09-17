@@ -200,8 +200,11 @@ def main() -> int:
 
     sidebar_style_tokens = (
         ".sidebar-brand-logo",
-        "max-width: 150px",
-        "height: 34px",
+        "width: 100%",
+        "max-width: 100%",
+        "height: auto",
+        "object-fit: contain",
+        "object-position: left center",
         "@media (min-width: 901px)",
         ".chat-sidebar-desktop",
         "overflow: hidden",
@@ -219,6 +222,9 @@ def main() -> int:
     for token in sidebar_style_tokens:
         if token not in sidebar_css:
             errors.append(f"site-sidebar-nav.css: missing desktop sidebar contract {token}")
+
+    if "height: 34px" in sidebar_css:
+        errors.append("site-sidebar-nav.css: fixed 34px logo height must not return")
 
     if "@media (max-width: 900px)" not in HOME_CSS.read_text(encoding="utf-8"):
         errors.append("home-chat.css: mobile drawer breakpoint missing")
@@ -239,7 +245,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — desktop logo/recent-scroll/fixed-bottom navigation cleanup, mobile account access, neutral auth continuity and composer contracts verified.")
+    print("HOME CHAT VALIDATION PASS — full-ratio desktop sidebar logo, recent-scroll/fixed-bottom navigation, mobile account access, neutral auth continuity and composer contracts verified.")
     return 0
 
 
