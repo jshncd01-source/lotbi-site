@@ -10,6 +10,7 @@ on:
       - site-mobile-entry-app-link-01-work
       - site-web-conversation-integration-01-review-v2
       - site-user-bubble-content-fit-02-review
+      - site-sidebar-information-architecture-04-review
   pull_request:
     branches:
       - main
@@ -41,6 +42,9 @@ jobs:
 
       - name: Validate conversational home shell
         run: python scripts/validate_home_chat.py
+
+      - name: Validate Sidebar information architecture
+        run: node scripts/validate_sidebar_information_architecture_04.mjs
 
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
