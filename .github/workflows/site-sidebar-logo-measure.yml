@@ -12,13 +12,14 @@ jobs:
   measure-production-logo:
     runs-on: ubuntu-24.04
     steps:
-      - name: Measure Production computed logo geometry
+      - name: Measure Production computed logo geometry and pixel occupancy
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --quiet selenium
+          python -m pip install --quiet selenium pillow
           python - <<'PY'
-          import json, shutil, time
+          import io, json, shutil, time, urllib.request
+          from PIL import Image
           from selenium import webdriver
           from selenium.webdriver.chrome.options import Options
           from selenium.webdriver.common.by import By
@@ -26,6 +27,50 @@ jobs:
           CHROME = shutil.which('google-chrome') or shutil.which('google-chrome-stable') or shutil.which('chromium')
           if not CHROME:
               raise SystemExit('Chrome not available')
+
+          ASSET='https://lotbiai.com/assets/lotbi-logo-header.png'
+          source_bytes=urllib.request.urlopen(ASSET, timeout=20).read()
+          source=Image.open(io.BytesIO(source_bytes)).convert('RGBA')
+          alpha=source.getchannel('A')
+          bbox=alpha.getbbox()
+          def band_counts(mask, bands=4):
+              w,h=mask.size
+              pix=mask.load()
+              out=[]
+              for i in range(bands):
+                  x0=round(w*i/bands); x1=round(w*(i+1)/bands)
+                  out.append(sum(1 for y in range(h) for x in range(x0,x1) if pix[x,y] > 8))
+              return out
+          print('SOURCE_PIXEL_ANALYSIS=' + json.dumps({
+              'size': source.size,
+              'alphaBBox': bbox,
+              'alphaBandCounts': band_counts(alpha),
+              'rightmostOpaqueX': (bbox[2]-1 if bbox else None),
+          }, sort_keys=True))
+
+          def rendered_pixel_analysis(png_bytes):
+              image=Image.open(io.BytesIO(png_bytes)).convert('RGB')
+              w,h=image.size
+              p=image.load()
+              # Page/sidebar background is sampled from image corners. Count pixels
+              # materially different from the closest corner color in each width band.
+              corners=[p[0,0], p[w-1,0], p[0,h-1], p[w-1,h-1]]
+              def dist(a,b): return sum(abs(a[i]-b[i]) for i in range(3))
+              def foreground(x,y): return min(dist(p[x,y], c) for c in corners) > 24
+              xs=[]; ys=[]; counts=[]
+              for band in range(4):
+                  x0=round(w*band/4); x1=round(w*(band+1)/4)
+                  count=0
+                  for y in range(h):
+                      for x in range(x0,x1):
+                          if foreground(x,y):
+                              count += 1; xs.append(x); ys.append(y)
+                  counts.append(count)
+              return {
+                  'size':[w,h],
+                  'foregroundBandCounts':counts,
+                  'foregroundBBox': ([min(xs),min(ys),max(xs)+1,max(ys)+1] if xs else None),
+              }
 
           def measure(width, height):
               opts = Options()
@@ -89,6 +134,7 @@ jobs:
                       ratioRendered: logo.getBoundingClientRect().width / logo.getBoundingClientRect().height,
                     };
                   ''', sidebar, wrapper, logo, new_chat)
+                  result['renderedPixels']=rendered_pixel_analysis(logo.screenshot_as_png)
                   return result
               finally:
                   driver.quit()
