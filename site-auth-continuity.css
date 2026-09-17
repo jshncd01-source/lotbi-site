@@ -12,6 +12,8 @@
   height: 42px;
   visibility: hidden;
   pointer-events: none;
+  border-color: var(--brand-line);
+  background: transparent;
 }
 
 /* The callback must stay visually blank during the normal pending/success
