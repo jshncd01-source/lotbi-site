@@ -200,8 +200,8 @@ def main() -> int:
 
     sidebar_style_tokens = (
         ".sidebar-brand-logo",
-        "width: 100%",
-        "max-width: 100%",
+        "width: calc(100% - 10px)",
+        "max-width: calc(100% - 10px)",
         "height: auto",
         "object-fit: contain",
         "object-position: left center",
@@ -225,6 +225,9 @@ def main() -> int:
 
     if "height: 34px" in sidebar_css:
         errors.append("site-sidebar-nav.css: fixed 34px logo height must not return")
+
+    if "width: 100%" in sidebar_css or "max-width: 100%" in sidebar_css:
+        errors.append("site-sidebar-nav.css: edge-to-edge desktop logo fit must not return")
 
     if "@media (max-width: 900px)" not in HOME_CSS.read_text(encoding="utf-8"):
         errors.append("home-chat.css: mobile drawer breakpoint missing")
