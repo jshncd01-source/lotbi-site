@@ -11,7 +11,8 @@ const shell = read('home-shell.js');
 const conversation = read('site-conversation.js');
 const homeCss = read('home-chat.css');
 const hardeningCss = read('site-hardening.css');
-const combinedCss = `${homeCss}\n${hardeningCss}`;
+const conversationCss = read('site-conversation.css');
+const combinedCss = `${homeCss}\n${hardeningCss}\n${conversationCss}`;
 
 // Compact one-line baseline.
 assert.match(index, /id="lotbi-prompt"[\s\S]*?rows="1"/);
