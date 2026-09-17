@@ -44,10 +44,10 @@ const cases = [
   '이 문장은 사용자 메시지가 충분히 길어졌을 때 최대 폭까지 자연스럽게 늘어난 뒤 정상적으로 여러 줄로 줄바꿈되고, 각 줄 수만큼 높이가 증가하는지 확인하기 위한 긴 한글 질문입니다. 추가 문장을 이어서 데스크톱과 모바일 양쪽에서 동일한 content-fit 높이 계약을 검증합니다.',
 ];
 
-function htmlFor() {
+function fixtureMarkup() {
   const escapedCss = css.replaceAll('</style>', '<\\/style>');
   return `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><style>${escapedCss}</style></head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${escapedCss}</style></head>
 <body class="chat-home-page conversation-active">
 <div class="chat-app-shell">
   <aside class="chat-sidebar chat-sidebar-desktop"></aside>
@@ -63,19 +63,33 @@ function htmlFor() {
     </section>
   </main>
 </div>
+</body></html>`;
+}
+
+function htmlFor(width, height) {
+  const markup = JSON.stringify(fixtureMarkup());
+  return `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"></head><body>
+<iframe id="fixture-frame" title="LOTBI render fixture" style="display:block;width:${width}px;height:${height}px;border:0"></iframe>
 <pre id="render-result"></pre>
 <script>
+const frame = document.getElementById('fixture-frame');
+const doc = frame.contentDocument;
+doc.open();
+doc.write(${markup});
+doc.close();
+const win = frame.contentWindow;
 const samples = ${JSON.stringify(cases)};
-const bubble = document.querySelector('.chat-message-user');
+const bubble = doc.querySelector('.chat-message-user');
 const body = bubble.querySelector('.chat-message-body');
-const assistant = document.querySelector('.chat-message-assistant');
-const thread = document.querySelector('.conversation-thread');
+const assistant = doc.querySelector('.chat-message-assistant');
+const thread = doc.querySelector('.conversation-thread');
 const rows = [];
 for (const text of samples) {
   body.textContent = text;
   const br = bubble.getBoundingClientRect();
   const tr = body.getBoundingClientRect();
-  const cs = getComputedStyle(bubble);
+  const cs = win.getComputedStyle(bubble);
   rows.push({
     text,
     textWidth: tr.width,
@@ -94,9 +108,14 @@ for (const text of samples) {
     aspectRatio: cs.aspectRatio,
   });
 }
-const tcs = getComputedStyle(thread);
-const acs = getComputedStyle(assistant);
+const tcs = win.getComputedStyle(thread);
+const acs = win.getComputedStyle(assistant);
 document.getElementById('render-result').textContent = JSON.stringify({
+  viewport: {
+    innerWidth: win.innerWidth,
+    innerHeight: win.innerHeight,
+    clientWidth: doc.documentElement.clientWidth,
+  },
   rows,
   thread: {
     width: thread.getBoundingClientRect().width,
@@ -110,8 +129,8 @@ document.getElementById('render-result').textContent = JSON.stringify({
     width: assistant.getBoundingClientRect().width,
     borderTopWidth: acs.borderTopWidth,
     backgroundColor: acs.backgroundColor,
-    fontSize: getComputedStyle(assistant.querySelector('.chat-message-body')).fontSize,
-    lineHeight: getComputedStyle(assistant.querySelector('.chat-message-body')).lineHeight,
+    fontSize: win.getComputedStyle(assistant.querySelector('.chat-message-body')).fontSize,
+    lineHeight: win.getComputedStyle(assistant.querySelector('.chat-message-body')).lineHeight,
   },
 });
 </script></body></html>`;
@@ -120,14 +139,14 @@ document.getElementById('render-result').textContent = JSON.stringify({
 function render(width, height) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-user-bubble-'));
   const fixture = path.join(tmp, 'fixture.html');
-  fs.writeFileSync(fixture, htmlFor(), 'utf8');
+  fs.writeFileSync(fixture, htmlFor(width, height), 'utf8');
   const browser = browserPath();
   const run = spawnSync(browser, [
     '--headless=new',
     '--no-sandbox',
     '--disable-gpu',
     '--disable-dev-shm-usage',
-    `--window-size=${width},${height}`,
+    '--window-size=1600,1000',
     '--virtual-time-budget=500',
     '--dump-dom',
     `file://${fixture}`,
@@ -140,8 +159,14 @@ function render(width, height) {
   return JSON.parse(match[1].replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>'));
 }
 
-function assertContentFit(label, result) {
+function assertContentFit(label, result, expectedViewportWidth) {
   const tolerance = 1.5;
+  if (Math.abs(result.viewport.innerWidth - expectedViewportWidth) > tolerance) {
+    throw new Error(`${label}: expected ${expectedViewportWidth}px viewport, got ${result.viewport.innerWidth}px`);
+  }
+  if (result.thread.width > expectedViewportWidth + tolerance) {
+    throw new Error(`${label}: conversation thread ${result.thread.width}px exceeds viewport ${expectedViewportWidth}px`);
+  }
   for (const row of result.rows) {
     const expected = row.textHeight + row.verticalPadding;
     if (row.bubbleHeight > expected + tolerance) {
@@ -155,6 +180,9 @@ function assertContentFit(label, result) {
   for (const row of shortRows) {
     if (row.textHeight > 30) throw new Error(`${label} short message wrapped unexpectedly: ${JSON.stringify(row.text)}`);
   }
+  if (label === 'mobile' && result.rows[0].maxWidth !== '92%') {
+    throw new Error(`mobile: expected <=390px max-width override 92%, got ${result.rows[0].maxWidth}`);
+  }
   if (result.assistant.borderTopWidth !== '0px') throw new Error(`${label}: assistant border regression`);
   if (result.assistant.backgroundColor !== 'rgba(0, 0, 0, 0)') throw new Error(`${label}: assistant background regression`);
   if (result.assistant.fontSize !== '16px') throw new Error(`${label}: assistant typography regression`);
@@ -164,6 +192,6 @@ const desktop = render(1440, 900);
 const mobile = render(390, 844);
 console.log('SITE-USER-BUBBLE-CONTENT-FIT-02 desktop', JSON.stringify(desktop));
 console.log('SITE-USER-BUBBLE-CONTENT-FIT-02 mobile', JSON.stringify(mobile));
-assertContentFit('desktop', desktop);
-assertContentFit('mobile', mobile);
+assertContentFit('desktop', desktop, 1440);
+assertContentFit('mobile', mobile, 390);
 console.log('SITE-USER-BUBBLE-CONTENT-FIT-02 PASS');
