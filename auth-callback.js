@@ -7,6 +7,8 @@ import {
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js';
 import {mountConversation} from './site-conversation.js';
 
+const callbackShell = document.getElementById('auth-callback-shell');
+const titleNode = document.getElementById('auth-callback-title');
 const statusNode = document.getElementById('auth-callback-status');
 const retryLink = document.getElementById('auth-callback-retry');
 const callbackBootStartedAt = globalThis.performance?.now?.() ?? 0;
@@ -25,12 +27,16 @@ function recordTiming(name, detail = {}) {
 
 recordTiming('callback-boot', {elapsedMs: Math.round(callbackBootStartedAt)});
 
-function setStatus(message, isError = false) {
+function showCallbackError(message) {
+  document.body.classList.add('auth-callback-error-page');
+  document.title = 'LOTBI | 로그인 연결 오류';
+  if (callbackShell) callbackShell.hidden = false;
+  if (titleNode) titleNode.textContent = 'LOTBI 연결 오류';
   if (statusNode) {
     statusNode.textContent = message;
-    statusNode.classList.toggle('auth-callback-error', isError);
+    statusNode.classList.add('auth-callback-error');
   }
-  if (retryLink) retryLink.hidden = !isError;
+  if (retryLink) retryLink.hidden = false;
 }
 
 function callbackErrorMessage(error) {
@@ -114,7 +120,6 @@ async function completeSiteHandoff() {
     durationMs: Math.max(0, Date.now() - context.startedAt),
   });
 
-  setStatus('LOTBI Site 세션을 확인하고 있습니다.');
   const redeemStartedAt = performanceNow();
   const session = await redeemSiteHandoff({
     handoffCode: callback.code,
@@ -156,5 +161,5 @@ void completeSiteHandoff().catch((error) => {
   recordTiming('callback-error', {
     durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
   });
-  setStatus(callbackErrorMessage(error), true);
+  showCallbackError(callbackErrorMessage(error));
 });
