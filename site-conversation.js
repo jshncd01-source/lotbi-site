@@ -1,5 +1,5 @@
 import {beginSiteHandoff} from './site-auth.js';
-import {sendConversationMessage, SiteCoreError} from './site-core.js';
+import {getCurrentSiteUser, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js';
 import {deterministicReply} from './site-deterministic.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -16,6 +16,7 @@ const COLOR_OPTIONS = Object.freeze([
 const diagnostics = {
   deterministicReplies: 0, coreCalls: 0, providerCallsAvoided: 0,
   lastPath: 'idle', lastVisibleAnswerMs: null, lastCoreDurationMs: null,
+  lastCoreRequestDelta: null, lastExternalAiRequestDelta: null,
 };
 
 function ensureConversationStyles() {
@@ -30,6 +31,19 @@ function ensureConversationStyles() {
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
 function recordTiming(name, detail = {}) {
   try { globalThis.performance?.mark?.(`lotbi-conversation:${name}`, {detail: Object.freeze({...detail})}); } catch {}
+}
+function resourceCounts() {
+  const resources = globalThis.performance?.getEntriesByType?.('resource') || [];
+  return {
+    core: resources.filter(entry => String(entry.name || '').includes('/v2/conversation/messages')).length,
+    externalAi: resources.filter(entry => /api\.openai\.com|anthropic\.com|generativelanguage\.googleapis\.com/iu.test(String(entry.name || ''))).length,
+  };
+}
+function publishDiagnostics() {
+  document.body.dataset.conversationPath = diagnostics.lastPath;
+  document.body.dataset.conversationLatencyMs = String(diagnostics.lastVisibleAnswerMs ?? '');
+  document.body.dataset.conversationCoreRequests = String(diagnostics.lastCoreRequestDelta ?? '');
+  document.body.dataset.conversationExternalAiRequests = String(diagnostics.lastExternalAiRequestDelta ?? '');
 }
 function safeStorage() {
   try {
@@ -160,6 +174,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let namespace = normalizedNamespace(identityKey);
   let state = {threads: [], activeThreadId: null, draft: ''};
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: ''};
+  let serverIdentity;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let openSurface, surfaceRestoreFocus;
 
@@ -261,8 +276,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (visual instanceof HTMLImageElement) { visual.src = preferences.photo; visual.alt = ''; }
     else { visual.textContent = initials(preferences.displayName || 'LOTBI'); visual.setAttribute('aria-hidden', 'true'); }
     const copy = document.createElement('span'); copy.className = 'sidebar-profile-copy';
-    const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = preferences.displayName || '로그인된 사용자';
-    const handle = document.createElement('span'); handle.className = 'sidebar-account-handle'; handle.textContent = '계정 프로필 연결 대기';
+    const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = serverIdentity?.name || preferences.displayName || '로그인된 사용자';
+    const handle = document.createElement('span'); handle.className = 'sidebar-account-handle'; handle.textContent = serverIdentity?.accountHandle ? `@${serverIdentity.accountHandle}` : '프로필 메뉴';
     copy.append(name, handle); button.append(visual, copy); return button;
   };
   const refreshAuthenticatedProfileSlots = () => {
@@ -270,6 +285,16 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     for (const slot of document.querySelectorAll('[data-sidebar-account]')) {
       if (!(slot instanceof HTMLElement)) continue;
       slot.replaceChildren(profileButton()); slot.dataset.authState = 'authenticated'; slot.removeAttribute('aria-busy');
+    }
+  };
+  const loadServerIdentity = async () => {
+    if (!sessionToken) return;
+    try {
+      const identity = await getCurrentSiteUser(sessionToken);
+      if (namespace && identity.installationId !== namespace) throw new SiteCoreError('Site 사용자 namespace가 일치하지 않습니다.', {code: 'SITE_IDENTITY_NAMESPACE_MISMATCH'});
+      serverIdentity = identity; refreshAuthenticatedProfileSlots();
+    } catch (error) {
+      if (isSessionError(error)) sessionToken = undefined;
     }
   };
 
@@ -337,7 +362,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     image.src = objectUrl;
   });
   const openProfile = () => {
-    const {backdrop, panel, content} = modalShell('프로필', '현재 Account 계약에는 Site용 닉네임·handle 조회가 없어 사진과 표시 이름은 이 브라우저에만 저장됩니다.');
+    const {backdrop, panel, content} = modalShell('프로필', '계정 이름과 handle은 Core /v2/me에서 읽고, 사진과 로컬 표시 이름은 이 브라우저에만 저장됩니다.');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(preferences.displayName || 'LOTBI');
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
@@ -347,7 +372,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const name = document.createElement('input'); name.type = 'text'; name.maxLength = 40; name.value = preferences.displayName; name.autocomplete = 'off'; nameLabel.appendChild(name);
     const handle = document.createElement('div'); handle.className = 'site-readonly-field';
     const handleTitle = document.createElement('strong'); handleTitle.textContent = '@handle';
-    const handleValue = document.createElement('span'); handleValue.textContent = 'Account Site identity 계약 필요'; handle.append(handleTitle, handleValue);
+    const handleValue = document.createElement('span'); handleValue.textContent = serverIdentity?.accountHandle ? `@${serverIdentity.accountHandle}` : '등록된 handle 없음'; handle.append(handleTitle, handleValue);
     const save = document.createElement('button'); save.type = 'button'; save.className = 'site-button site-button-primary'; save.textContent = '저장';
     photo.addEventListener('change', async () => {
       const file = photo.files?.[0]; if (!file) return; error.textContent = '';
@@ -388,10 +413,23 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); button.textContent = label;
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
     }
-    const logout = document.createElement('button'); logout.type = 'button'; logout.setAttribute('role', 'menuitem'); logout.setAttribute('aria-disabled', 'true');
-    logout.disabled = true; logout.className = 'profile-menu-logout'; logout.textContent = '로그아웃'; logout.title = 'Site-origin 로그아웃 계약 연결이 필요합니다.';
-    const blocker = document.createElement('p'); blocker.className = 'profile-contract-note'; blocker.textContent = '로그아웃은 Account/Core Site 계약 연결 후 사용할 수 있습니다.';
-    menu.append(logout, blocker); layer.appendChild(menu); trigger.setAttribute('aria-expanded', 'true'); installSurfaceBehavior(layer, menu);
+    const logout = document.createElement('button'); logout.type = 'button'; logout.setAttribute('role', 'menuitem');
+    logout.className = 'profile-menu-logout'; logout.textContent = '로그아웃'; logout.disabled = !sessionToken;
+    if (!sessionToken) logout.title = 'Site child session 연결 후 사용할 수 있습니다.';
+    logout.addEventListener('click', async () => {
+      if (!sessionToken) return;
+      logout.disabled = true; logout.textContent = '로그아웃 중…';
+      try {
+        await logoutSiteSession(sessionToken); sessionToken = undefined; serverIdentity = undefined; closeSurface();
+        switchNamespace(browserAnonymousNamespace());
+        window.dispatchEvent(new CustomEvent(SESSION_STATE_EVENT, {detail: {authenticated: false, reason: 'site-logout'}}));
+        setStatus('LOTBI Site에서 로그아웃했습니다. 이 브라우저의 계정별 대화는 분리 보존됩니다.');
+      } catch (error) {
+        logout.disabled = false; logout.textContent = '로그아웃';
+        setStatus(error instanceof Error ? error.message : '로그아웃하지 못했습니다.');
+      }
+    });
+    menu.appendChild(logout); layer.appendChild(menu); trigger.setAttribute('aria-expanded', 'true'); installSurfaceBehavior(layer, menu);
   };
 
   const setVoiceFeedback = (message = '') => {
@@ -460,7 +498,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
   const requestAssistant = async (text, appendUserMessage = true) => {
     const message = typeof text === 'string' ? text.trim() : ''; if (!message || inFlight) return;
-    const submittedAt = performanceNow(); recordTiming('T0-submit', {length: message.length});
+    const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     ensureThread(message);
     if (appendUserMessage) {
@@ -473,7 +511,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       const record = {role: 'assistant', text: local, meta: {status: 'ANSWERED', responseMode: 'LOCAL_DETERMINISTIC'}};
       appendNode(createMessage('assistant', local, record.meta)); appendPersistedMessage(record);
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt));
-      recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: 0, providerCalls: 0});
+      const requestsAfter = resourceCounts();
+      diagnostics.lastCoreRequestDelta = requestsAfter.core - requestsBefore.core;
+      diagnostics.lastExternalAiRequestDelta = requestsAfter.externalAi - requestsBefore.externalAi;
+      publishDiagnostics();
+      recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: diagnostics.lastCoreRequestDelta, providerCalls: 0, externalAiCalls: diagnostics.lastExternalAiRequestDelta});
+      console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
     if (!sessionToken) {
@@ -526,6 +569,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   window.addEventListener(SIDEBAR_RENDERED_EVENT, refreshAuthenticatedProfileSlots);
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
+  if (sessionToken) void loadServerIdentity();
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
   return true;
 }
