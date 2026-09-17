@@ -1,0 +1,670 @@
+{
+  "version": "1.0.0",
+  "time_unit": "seconds",
+  "interpolation": "smoothstep per segment; unspecified controls = zero",
+  "speaking_note": "CP4 visual timing only; CP5 replaces emphasis with actual audio clock/envelope",
+  "clips": {
+    "idle": {
+      "duration": 4,
+      "loop": true,
+      "peak_time": 1,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          1,
+          {
+            "hover_m": 0.006,
+            "body_roll_deg": 1
+          }
+        ],
+        [
+          2,
+          {
+            "hover_m": 0.001
+          }
+        ],
+        [
+          3,
+          {
+            "hover_m": -0.004,
+            "body_roll_deg": -1
+          }
+        ],
+        [
+          4,
+          {}
+        ]
+      ]
+    },
+    "blink": {
+      "duration": 0.6,
+      "loop": false,
+      "peak_time": 0.28,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.16,
+          {}
+        ],
+        [
+          0.28,
+          {
+            "blink_L": 1,
+            "blink_R": 1
+          }
+        ],
+        [
+          0.38,
+          {
+            "blink_L": 1,
+            "blink_R": 1
+          }
+        ],
+        [
+          0.5,
+          {}
+        ],
+        [
+          0.6,
+          {}
+        ]
+      ]
+    },
+    "listening": {
+      "duration": 4,
+      "loop": true,
+      "peak_time": 1.7,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.6,
+          {
+            "head_pitch_deg": 5,
+            "head_roll_deg": -4,
+            "display_glow": 0.15
+          }
+        ],
+        [
+          1.7,
+          {
+            "head_pitch_deg": 5,
+            "head_roll_deg": -4,
+            "gaze_x": 0.15,
+            "display_glow": 0.3
+          }
+        ],
+        [
+          3.4,
+          {
+            "head_pitch_deg": 4,
+            "head_roll_deg": -3,
+            "display_glow": 0.15
+          }
+        ],
+        [
+          4,
+          {}
+        ]
+      ]
+    },
+    "thinking": {
+      "duration": 4,
+      "loop": true,
+      "peak_time": 2,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.7,
+          {
+            "head_yaw_deg": -10,
+            "head_pitch_deg": -5,
+            "gaze_x": -0.45,
+            "gaze_y": 0.65
+          }
+        ],
+        [
+          2,
+          {
+            "head_yaw_deg": -10,
+            "head_pitch_deg": -5,
+            "head_roll_deg": 3,
+            "gaze_x": -0.45,
+            "gaze_y": 0.65,
+            "display_glow": 0.25
+          }
+        ],
+        [
+          3.2,
+          {
+            "head_yaw_deg": -6,
+            "head_pitch_deg": -3,
+            "gaze_y": 0.4
+          }
+        ],
+        [
+          4,
+          {}
+        ]
+      ]
+    },
+    "speaking": {
+      "duration": 3,
+      "loop": true,
+      "peak_time": 1.45,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.3,
+          {
+            "head_pitch_deg": 2,
+            "display_glow": 0.35
+          }
+        ],
+        [
+          0.65,
+          {
+            "head_pitch_deg": -2,
+            "gaze_y": 0.2,
+            "display_glow": 0.75
+          }
+        ],
+        [
+          1,
+          {
+            "head_pitch_deg": 3,
+            "body_pitch_deg": 1,
+            "display_glow": 0.35
+          }
+        ],
+        [
+          1.45,
+          {
+            "head_roll_deg": 2,
+            "head_pitch_deg": -1,
+            "display_glow": 0.65
+          }
+        ],
+        [
+          1.9,
+          {
+            "head_pitch_deg": 2,
+            "display_glow": 0.2
+          }
+        ],
+        [
+          2.45,
+          {
+            "head_roll_deg": -2,
+            "display_glow": 0.5
+          }
+        ],
+        [
+          3,
+          {}
+        ]
+      ]
+    },
+    "laugh": {
+      "duration": 2.4,
+      "loop": false,
+      "peak_time": 0.9,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.3,
+          {
+            "blink_L": 0.35,
+            "blink_R": 0.35,
+            "head_pitch_deg": -4,
+            "arm_L_lift_deg": 15,
+            "arm_R_lift_deg": 15
+          }
+        ],
+        [
+          0.6,
+          {
+            "blink_L": 0.5,
+            "blink_R": 0.5,
+            "head_pitch_deg": 3,
+            "body_pitch_deg": 3,
+            "hover_m": 0.004
+          }
+        ],
+        [
+          0.9,
+          {
+            "blink_L": 0.35,
+            "blink_R": 0.35,
+            "head_pitch_deg": -5,
+            "body_pitch_deg": -2,
+            "arm_L_lift_deg": 20,
+            "arm_R_lift_deg": 20
+          }
+        ],
+        [
+          1.2,
+          {
+            "blink_L": 0.5,
+            "blink_R": 0.5,
+            "head_pitch_deg": 3,
+            "body_pitch_deg": 3,
+            "hover_m": 0.004
+          }
+        ],
+        [
+          1.5,
+          {
+            "blink_L": 0.35,
+            "blink_R": 0.35,
+            "head_pitch_deg": -5,
+            "arm_L_lift_deg": 20,
+            "arm_R_lift_deg": 20
+          }
+        ],
+        [
+          1.9,
+          {
+            "head_pitch_deg": 2,
+            "body_pitch_deg": 2
+          }
+        ],
+        [
+          2.4,
+          {}
+        ]
+      ]
+    },
+    "cry": {
+      "duration": 3.6,
+      "loop": false,
+      "peak_time": 1.7,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.6,
+          {
+            "eye_sad": 1,
+            "head_pitch_deg": 7,
+            "head_roll_deg": -3,
+            "tear_L": 1,
+            "tear_R": 0.9
+          }
+        ],
+        [
+          1.2,
+          {
+            "eye_sad": 1,
+            "head_pitch_deg": 8,
+            "body_pitch_deg": 2,
+            "tear_L": 0.85,
+            "tear_R": 1
+          }
+        ],
+        [
+          1.7,
+          {
+            "eye_sad": 1,
+            "head_pitch_deg": 6,
+            "body_pitch_deg": -1,
+            "tear_L": 1,
+            "tear_R": 1
+          }
+        ],
+        [
+          2.2,
+          {
+            "eye_sad": 1,
+            "head_pitch_deg": 8,
+            "body_pitch_deg": 2,
+            "tear_L": 1,
+            "tear_R": 0.85
+          }
+        ],
+        [
+          2.8,
+          {
+            "eye_sad": 1,
+            "head_pitch_deg": 6,
+            "tear_L": 1,
+            "tear_R": 1
+          }
+        ],
+        [
+          3.6,
+          {}
+        ]
+      ]
+    },
+    "surprised": {
+      "duration": 2.6,
+      "loop": false,
+      "peak_time": 0.9,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.35,
+          {
+            "eye_surprised": 1,
+            "head_pitch_deg": -6,
+            "body_pitch_deg": -3,
+            "arm_L_lift_deg": 28,
+            "arm_R_lift_deg": 28,
+            "display_glow": 0.55
+          }
+        ],
+        [
+          0.9,
+          {
+            "eye_surprised": 1,
+            "head_pitch_deg": -4,
+            "arm_L_lift_deg": 22,
+            "arm_R_lift_deg": 22,
+            "display_glow": 0.25
+          }
+        ],
+        [
+          1.8,
+          {
+            "eye_surprised": 0.8,
+            "head_pitch_deg": -2
+          }
+        ],
+        [
+          2.6,
+          {}
+        ]
+      ]
+    },
+    "worried": {
+      "duration": 3.6,
+      "loop": false,
+      "peak_time": 0.7,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.7,
+          {
+            "eye_worried": 1,
+            "head_roll_deg": 5,
+            "head_pitch_deg": 4,
+            "arm_L_lift_deg": 12
+          }
+        ],
+        [
+          1.6,
+          {
+            "eye_worried": 1,
+            "head_roll_deg": -4,
+            "head_pitch_deg": 4,
+            "gaze_x": -0.25
+          }
+        ],
+        [
+          2.7,
+          {
+            "eye_worried": 1,
+            "head_roll_deg": 3,
+            "head_pitch_deg": 5,
+            "gaze_x": 0.2
+          }
+        ],
+        [
+          3.6,
+          {}
+        ]
+      ]
+    },
+    "excited": {
+      "duration": 3,
+      "loop": false,
+      "peak_time": 1.4,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.4,
+          {
+            "hover_m": 0.01,
+            "body_roll_deg": -3,
+            "head_roll_deg": -3,
+            "arm_L_lift_deg": 48,
+            "arm_R_lift_deg": 32,
+            "display_glow": 0.5
+          }
+        ],
+        [
+          0.9,
+          {
+            "hover_m": -0.004,
+            "body_roll_deg": 3,
+            "arm_L_lift_deg": 30,
+            "arm_R_lift_deg": 50
+          }
+        ],
+        [
+          1.4,
+          {
+            "hover_m": 0.012,
+            "body_roll_deg": -3,
+            "head_roll_deg": -3,
+            "arm_L_lift_deg": 50,
+            "arm_R_lift_deg": 30,
+            "display_glow": 0.6
+          }
+        ],
+        [
+          1.9,
+          {
+            "hover_m": -0.004,
+            "body_roll_deg": 3,
+            "arm_L_lift_deg": 30,
+            "arm_R_lift_deg": 50
+          }
+        ],
+        [
+          2.35,
+          {
+            "hover_m": 0.008,
+            "arm_L_lift_deg": 35,
+            "arm_R_lift_deg": 35
+          }
+        ],
+        [
+          3,
+          {}
+        ]
+      ]
+    },
+    "nod": {
+      "duration": 1.8,
+      "loop": false,
+      "peak_time": 0.65,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.3,
+          {
+            "head_pitch_deg": -3
+          }
+        ],
+        [
+          0.65,
+          {
+            "head_pitch_deg": 10
+          }
+        ],
+        [
+          0.95,
+          {
+            "head_pitch_deg": -2
+          }
+        ],
+        [
+          1.3,
+          {
+            "head_pitch_deg": 7
+          }
+        ],
+        [
+          1.8,
+          {}
+        ]
+      ]
+    },
+    "wave": {
+      "duration": 2.8,
+      "loop": false,
+      "peak_time": 0.85,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.5,
+          {
+            "arm_L_lift_deg": 92,
+            "head_roll_deg": -3
+          }
+        ],
+        [
+          0.85,
+          {
+            "arm_L_lift_deg": 92,
+            "arm_L_swing_deg": 13,
+            "arm_L_twist_deg": 7,
+            "head_roll_deg": -3
+          }
+        ],
+        [
+          1.15,
+          {
+            "arm_L_lift_deg": 80,
+            "arm_L_swing_deg": -13,
+            "arm_L_twist_deg": -7
+          }
+        ],
+        [
+          1.45,
+          {
+            "arm_L_lift_deg": 95,
+            "arm_L_swing_deg": 13,
+            "arm_L_twist_deg": 7
+          }
+        ],
+        [
+          1.75,
+          {
+            "arm_L_lift_deg": 80,
+            "arm_L_swing_deg": -13,
+            "arm_L_twist_deg": -7
+          }
+        ],
+        [
+          2.1,
+          {
+            "arm_L_lift_deg": 90,
+            "head_roll_deg": -3
+          }
+        ],
+        [
+          2.8,
+          {}
+        ]
+      ]
+    },
+    "celebrate": {
+      "duration": 3.2,
+      "loop": false,
+      "peak_time": 0.55,
+      "keys": [
+        [
+          0,
+          {}
+        ],
+        [
+          0.55,
+          {
+            "arm_L_lift_deg": 98,
+            "arm_R_lift_deg": 98,
+            "head_pitch_deg": -5,
+            "hover_m": 0.012,
+            "display_glow": 0.8
+          }
+        ],
+        [
+          1,
+          {
+            "arm_L_lift_deg": 82,
+            "arm_R_lift_deg": 82,
+            "head_pitch_deg": 2,
+            "hover_m": -0.005
+          }
+        ],
+        [
+          1.5,
+          {
+            "arm_L_lift_deg": 98,
+            "arm_R_lift_deg": 98,
+            "head_pitch_deg": -5,
+            "hover_m": 0.012,
+            "body_roll_deg": 3,
+            "display_glow": 0.6
+          }
+        ],
+        [
+          2.1,
+          {
+            "arm_L_lift_deg": 90,
+            "arm_R_lift_deg": 90,
+            "head_roll_deg": -3
+          }
+        ],
+        [
+          2.6,
+          {
+            "arm_L_lift_deg": 40,
+            "arm_R_lift_deg": 40,
+            "head_pitch_deg": 5
+          }
+        ],
+        [
+          3.2,
+          {}
+        ]
+      ]
+    }
+  }
+}
