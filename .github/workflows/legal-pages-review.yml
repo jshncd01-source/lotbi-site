@@ -8,6 +8,7 @@ on:
       - privacy.html
       - terms.html
       - scripts/validate_legal_pages.py
+      - scripts/emit_social_signup_legal_manifest.py
       - .github/workflows/legal-pages-review.yml
   workflow_dispatch:
 
@@ -38,3 +39,6 @@ jobs:
 
       - name: Validate accessibility contracts
         run: python scripts/validate_accessibility.py
+
+      - name: Emit reviewed Social Signup legal manifest values
+        run: python scripts/emit_social_signup_legal_manifest.py
