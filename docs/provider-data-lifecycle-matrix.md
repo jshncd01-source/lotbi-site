@@ -62,6 +62,8 @@ For each consent Core requires the server-owned manifest values to match exactly
 - `required=true`;
 - locale.
 
+There is no separate top-level `consent_manifest_version` field in the reviewed contract; the authoritative manifest identity is the pair of document metadata records.
+
 Core stores a `UserConsentRecord` with `source=SOCIAL_SIGNUP`, installation reference, provider/flow evidence, and `server_manifest_verified=true`. Provider subject is not copied into the consent evidence payload.
 
 Account Web fetches the manifest from Core and does not allow the browser to invent version/hash values. Both required checkboxes must be accepted before Social Signup completion.
@@ -85,9 +87,18 @@ Current reviewed LOTBI flow stores no Google access/refresh token as account ide
 
 ### Kakao
 
-Current generic LOTBI unlink is local-only. Kakao's current official Login documentation says that when a Kakao Login user requests service account deletion or unmapping, the service must include a Kakao Unlink API request; Kakao unlink revokes the issued tokens/authorization. Kakao also provides unlink webhooks for Provider-originated disconnect events.
+Current generic LOTBI unlink is local-only. Kakao's current official Login documentation states that when a Kakao Login user requests service account deletion or unmapping, the service must include a Kakao Unlink API request; Kakao unlink revokes issued tokens/authorization. Kakao also provides unlink webhooks for Provider-originated disconnect events.
 
-Status: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK/ACCOUNT_DELETION INTEGRATION REQUIRED` before Kakao Production Social Signup is called complete.
+Kakao's current policy additionally treats the service user ID assigned at link time as personal information and states that user personal information, including that user ID, must be irreversibly destroyed on service account deletion unless a permitted retention path is established under Kakao's policy. This does not match a blanket promise to retain the Kakao subject reservation indefinitely after account deletion.
+
+Required closure:
+
+- implement/verify Kakao Unlink for service account deletion/unmapping;
+- close webhook/reconciliation design for Provider-originated unlink;
+- define final purge treatment for Kakao `provider_subject` so the unique-reservation security goal does not silently violate Kakao deletion policy;
+- align Privacy/Terms with the implemented result.
+
+Status: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED`.
 
 ### NAVER
 
@@ -111,6 +122,8 @@ For final account deletion/purge, the legal basis, duration, transformation or e
 
 `LEGAL_REVIEW_REQUIRED — PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD`.
 
+Kakao has an additional Provider-policy constraint as described above; its final subject purge behavior must be explicitly reconciled rather than hidden inside the generic retention rule.
+
 ## 7. Deletion timing
 
 Core has configurable purge timing and a local default of 30 days. The actual Production value has not been verified and must not be published as a fixed 30-day promise from this evidence alone.
@@ -126,6 +139,7 @@ Status: `PRODUCTION LEGAL MANIFEST = NOT DEPLOYED / NOT GREEN`.
 - overseas-transfer classification/disclosure;
 - third-party provision vs entrusted processing vs other legal characterization;
 - reserved/revoked `provider_subject` retention basis and period;
+- Kakao user-ID deletion/purge treatment consistent with Kakao policy and applicable law;
 - statutory transaction/audit retention requirements;
 - under-14/minor eligibility and guardian consent;
 - final public purge period;
