@@ -8,6 +8,10 @@
 > - Core Social review: `b555420b8d75c9e241a6cd9bd534f205499a87d8`
 > - Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 >
+> FREE authoritative product policy: `docs/free-monthly-3-task-product-policy.md`
+>
+> `PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`. 이 제품정책 확정 자체가 새로운 Provider 개인정보 수집을 의미하지 않는다. FREE usage ledger/enforcement가 Production에 구현될 때 실제 저장되는 계정연결 usage/adjustment metadata와 보유기간은 코드·법률 검토 후 본 방침과 다시 정합시켜야 하며, 현재 확인되지 않은 task content 저장을 임의로 기재하지 않는다.
+>
 > 이 문서는 `https://lotbiai.com/privacy.html` 교체 후보문이다. 기술 사실은 현재 reviewed Social Auth/Account 계약에 맞췄지만, 아래 `LEGAL_REVIEW_REQUIRED` 항목이 닫히기 전 Production 공개본으로 사용하지 않는다.
 
 ---
@@ -82,6 +86,8 @@ Apple은 LOGIN 계약은 준비되어 있으나 SIGNUP/LINK는 Provider revocati
 - 계정/인증/삭제 lifecycle에 필요한 보안·감사 기록
 
 `UserConsentRecord`에는 Social Signup의 Provider subject 자체를 동의증빙 값으로 중복 저장하지 않는 현재 Core 계약을 유지합니다.
+
+FREE usage 정책에 따른 사용량·보상 ledger가 Production에 추가되는 경우에는 실제 구현에서 계정과 연결해 저장하는 task/usage outcome, 월 usage period, compensation/credit adjustment 등 **실제 metadata만** 확인하여 처리항목·목적·보유기간을 최종 공개본에 반영합니다. 이 후보문은 현재 검증되지 않은 task 대화내용 또는 AI Provider 호출기록을 FREE usage 개인정보 항목으로 임의 선언하지 않습니다.
 
 ### 2.4 인증 과정에서 일시적으로 처리되는 정보
 
@@ -257,6 +263,8 @@ Social Signup consent evidence는 이용자가 동의한 당시 문서의 `docum
 ---
 
 ## Publication gate
+
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET`은 CLOSED다. 다만 FREE usage ledger의 실제 개인정보 처리항목/보유기간은 구현 후 최종 Privacy와 정합시켜야 한다.
 
 이 후보문은 다음 항목이 닫힌 후에만 `privacy.html` Production 후보로 승격할 수 있습니다.
 
