@@ -35,8 +35,17 @@ function extract(pattern, label) {
   return match[0];
 }
 
+function extractAsideById(id, label) {
+  const idPosition = index.indexOf(`id="${id}"`);
+  if (idPosition < 0) throw new Error(`missing ${label} id`);
+  const start = index.lastIndexOf('<aside', idPosition);
+  const end = index.indexOf('</aside>', idPosition);
+  if (start < 0 || end < 0) throw new Error(`missing ${label} aside boundary`);
+  return index.slice(start, end + '</aside>'.length);
+}
+
 const desktopAside = extract(/<aside class="chat-sidebar chat-sidebar-desktop"[\s\S]*?<\/aside>/, 'desktop sidebar');
-const mobileAside = extract(/<aside\s+[\s\S]*?id="mobile-nav-drawer"[\s\S]*?<\/aside>/, 'mobile drawer');
+const mobileAside = extractAsideById('mobile-nav-drawer', 'mobile drawer');
 
 function fixtureMarkup(mode) {
   const escapedCss = css.replaceAll('</style>', '<\\/style>');
@@ -111,7 +120,7 @@ function render(width, height, mode) {
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
   const match = run.stdout.match(/<pre id="render-result">([^<]+)<\/pre>/);
-  if (!match) throw new Error('Sidebar render result not found');
+  if (!match) throw new Error(`Sidebar render result not found (${mode}); browser stderr: ${run.stderr.slice(-1000)}`);
   return JSON.parse(match[1].replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>'));
 }
 
