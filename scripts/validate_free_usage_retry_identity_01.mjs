@@ -43,11 +43,15 @@ function successfulConversation() {
   );
   assert.equal(reply.status, 'ANSWERED');
   assert.equal(request.url, 'https://api.lotbiai.com/v2/conversation/messages');
+  assert.equal(request.init.method, 'POST');
+  assert.equal(request.init.mode, 'cors');
+  assert.equal(request.init.credentials, 'omit');
+  assert.equal(request.init.cache, 'no-store');
+  assert.equal(request.init.referrerPolicy, 'no-referrer');
   assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
   assert.equal(request.init.headers['Content-Type'], 'application/json');
   assert.equal(request.init.headers['Idempotency-Key'], 'chat-logical-unit-0001');
-  assert.equal(request.init.credentials, 'omit');
-  assert.equal(request.init.cache, 'no-store');
+  assert.deepEqual(JSON.parse(request.init.body), {text: '원격 AI 요청'});
 }
 
 {
