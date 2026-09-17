@@ -1,0 +1,40 @@
+name: Legal Pages Review Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - privacy.html
+      - terms.html
+      - scripts/validate_legal_pages.py
+      - .github/workflows/legal-pages-review.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-legal-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate Production legal pages
+        run: python scripts/validate_legal_pages.py
+
+      - name: Validate public-site structure
+        run: python scripts/validate_site.py
+
+      - name: Validate public-site hardening
+        run: python scripts/validate_hardening.py
+
+      - name: Validate accessibility contracts
+        run: python scripts/validate_accessibility.py
