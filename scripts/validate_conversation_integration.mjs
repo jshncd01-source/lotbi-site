@@ -207,10 +207,13 @@ assert.ok(conversation.includes('sendConversationMessage'));
 assert.ok(core.includes("Authorization: `Bearer ${token}`"));
 assert.ok(core.includes("payload.contract_id !== 'CORE-WEB-CHAT-01'"));
 
-const allRuntime = `${auth}\n${core}\n${conversation}\n${callback}`.toLowerCase();
+const credentialRuntime = `${auth}\n${core}\n${callback}`.toLowerCase();
 for (const forbidden of ['localstorage', 'document.cookie', 'client_secret', 'api_key', 'openai_api_key']) {
-  assert.ok(!allRuntime.includes(forbidden), `forbidden runtime token: ${forbidden}`);
+  assert.ok(!credentialRuntime.includes(forbidden), `forbidden credential runtime token: ${forbidden}`);
 }
+assert.ok(conversation.includes('window.localStorage'), 'conversation/preferences require explicit browser-local persistence');
+assert.ok(conversation.includes('installationId'), 'authenticated local persistence must use the stable installation namespace');
+assert.ok(!conversation.includes('storage.setItem(STORAGE_PREFIX, sessionToken'), 'Site bearer must never enter durable storage');
 assert.ok(!auth.includes('session_token'), 'handoff storage module must never persist a bearer');
 assert.ok(!auth.includes('Authorization'), 'Account bearer must never be handled by Site handoff state module');
 assert.ok(!callback.includes('sessionStorage.setItem'), 'callback must not persist the Site bearer');

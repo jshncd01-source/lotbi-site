@@ -13,6 +13,7 @@ on:
       - site-web-3d-avatar-integration-01-review
       - site-sidebar-information-architecture-04-review
       - site-sidebar-information-architecture-04-reconcile
+      - site-conversation-sidebar-ux-01-review
   pull_request:
     branches:
       - main
@@ -56,6 +57,9 @@ jobs:
 
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
+
+      - name: Validate conversation, profile and thread UX contracts
+        run: node scripts/validate_conversation_sidebar_ux_01.mjs
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
@@ -148,7 +152,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-refined-v1.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-continuity.js /site-auth.js /site-core.js /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /home-chat.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-refined-v1.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 

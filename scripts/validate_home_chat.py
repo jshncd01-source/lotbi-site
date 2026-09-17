@@ -101,9 +101,11 @@ def main() -> int:
         if token not in text:
             errors.append(f"index.html: missing {label}")
 
-    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup"), (ACCOUNT_URL, "account")):
+    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup")):
         if url not in continuity:
             errors.append(f"site-continuity.js: {label} URL changed or missing")
+    if ACCOUNT_URL in continuity:
+        errors.append("site-continuity.js: authenticated profile must open in-page instead of navigating to Account")
 
     account_start = text.find('<nav class="account-actions"')
     account_end = text.find('</nav>', account_start)

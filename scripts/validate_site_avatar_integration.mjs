@@ -64,8 +64,10 @@ for (const token of [
 ]) assert.ok(avatarCss.includes(token), `missing Avatar CSS contract: ${token}`);
 
 assert.ok(conversationCss.includes('.conversation-active .chat-character-wrap'));
-assert.ok(conversationCss.includes('width: 126px'));
-assert.ok(conversationCss.includes('width: 92px'));
+assert.ok(conversationCss.includes('width: 44px'));
+assert.ok(conversationCss.includes('width: 38px'));
+assert.ok(conversationCss.includes('.chat-assistant-row'));
+assert.ok(conversationCss.includes('.assistant-avatar-slot'));
 
 const requiredFiles = [
   'assets/models/lotbi-refined-v1.glb',

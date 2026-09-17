@@ -53,7 +53,7 @@
 
       <nav class="sidebar-nav sidebar-nav-desktop" aria-label="대화 및 서비스 탐색">
         <div class="sidebar-primary-nav">
-          <button class="nav-item nav-item-primary" type="button" disabled aria-label="새 대화">
+          <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
             <span>+ 새 대화</span>
           </button>
           <button class="nav-item" type="button" data-sidebar-destination="work" disabled aria-disabled="true">
@@ -111,18 +111,20 @@
       </header>
 
       <section class="chat-hero" aria-label="LOTBI 대화 시작">
-        <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
-          <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
-          <img
-            src="assets/lotbi-main-logo.png"
-            class="chat-character-logo"
-            data-lotbi-avatar-fallback
-            alt="웃으며 손을 흔드는 LOTBI 캐릭터"
-            width="1535"
-            height="697"
-            decoding="async"
-            fetchpriority="high"
-          />
+        <div class="home-avatar-anchor" data-home-avatar-anchor>
+          <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
+            <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
+            <img
+              src="assets/lotbi-main-logo.png"
+              class="chat-character-logo"
+              data-lotbi-avatar-fallback
+              alt="웃으며 손을 흔드는 LOTBI 캐릭터"
+              width="1535"
+              height="697"
+              decoding="async"
+              fetchpriority="high"
+            />
+          </div>
         </div>
 
         <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
@@ -219,7 +221,7 @@
 
     <nav class="sidebar-nav" aria-label="LOTBI 모바일 탐색 메뉴">
       <div class="sidebar-primary-nav">
-        <button class="nav-item nav-item-primary" type="button" disabled aria-label="새 대화">
+        <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
           <span>+ 새 대화</span>
         </button>
         <button class="nav-item" type="button" data-sidebar-destination="work" disabled aria-disabled="true">

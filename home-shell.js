@@ -58,13 +58,8 @@
     // typing, paste, newline, IME and programmatic input events on one path.
     resizePrompt();
 
-    window.addEventListener('pagehide', () => {
-      prompt.value = '';
-      resizePrompt();
-    });
     window.addEventListener('pageshow', (event) => {
       if (event.persisted) {
-        prompt.value = '';
         resizePrompt();
       }
     });

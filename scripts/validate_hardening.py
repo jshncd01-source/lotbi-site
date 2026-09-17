@@ -61,9 +61,11 @@ def main() -> int:
     mobile_js = (ROOT / "mobile-entry.js").read_text(encoding="utf-8")
     continuity_js = (ROOT / "site-continuity.js").read_text(encoding="utf-8")
 
-    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup"), (ACCOUNT_URL, "account")):
+    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup")):
         if url not in continuity_js:
             errors.append(f"{label} URL changed or missing from approved continuity runtime")
+    if ACCOUNT_URL in continuity_js:
+        errors.append("authenticated profile must not navigate to the full-page Account surface")
 
     account_start = index.find('<nav class="account-actions"')
     account_end = index.find('</nav>', account_start)

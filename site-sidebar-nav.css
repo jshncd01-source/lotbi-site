@@ -60,9 +60,21 @@
 
 .nav-history-list a,
 .nav-history-list button {
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
   min-width: 0;
   color: inherit;
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.nav-history-list button[aria-current="true"] {
+  color: var(--brand-navy);
+  font-weight: 800;
 }
 
 .nav-history-list [data-conversation-title] {
@@ -99,11 +111,39 @@
   border-radius: 12px;
   color: var(--brand-navy);
   text-decoration: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .sidebar-account-entry:hover {
   background: #eceff5;
 }
+
+.sidebar-profile-trigger {
+  inline-size: 100%;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  align-content: normal;
+  gap: 9px;
+}
+
+.sidebar-profile-avatar {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e5eaf3;
+  color: var(--brand-navy);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.sidebar-profile-copy { min-width: 0; display: grid; gap: 1px; }
 
 .sidebar-account-name,
 .sidebar-account-handle {
