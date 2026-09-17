@@ -3,6 +3,7 @@ import {SITE_CALLBACK_URI} from './site-core.js';
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
+export const SITE_AUTH_CONTINUITY_KEY = 'lotbi.site-auth-continuity.v1';
 
 const STATE_PATTERN = /^[\x21-\x7e]{16,256}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
@@ -37,6 +38,14 @@ function browserStorage() {
     return window.sessionStorage;
   } catch {
     throw new SiteHandoffClientError('브라우저의 임시 로그인 연결 저장소를 사용할 수 없습니다.', 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
+  }
+}
+
+function optionalBrowserStorage() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return undefined;
   }
 }
 
@@ -104,6 +113,38 @@ export function readAndClearSiteHandoffContext(returnedState, storage = browserS
   }
 
   return Object.freeze(context);
+}
+
+export function rememberSiteAuthContinuity(expiresAt, storage = optionalBrowserStorage(), now = Date.now()) {
+  if (!storage || typeof expiresAt !== 'string') return false;
+  const expiresAtMs = Date.parse(expiresAt);
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= now) {
+    storage.removeItem(SITE_AUTH_CONTINUITY_KEY);
+    return false;
+  }
+  storage.setItem(SITE_AUTH_CONTINUITY_KEY, JSON.stringify({version: 1, expiresAt: expiresAtMs}));
+  return true;
+}
+
+export function hasSiteAuthContinuity(storage = optionalBrowserStorage(), now = Date.now()) {
+  if (!storage) return false;
+  const raw = storage.getItem(SITE_AUTH_CONTINUITY_KEY);
+  if (!raw) return false;
+  try {
+    const marker = JSON.parse(raw);
+    if (!marker || marker.version !== 1 || typeof marker.expiresAt !== 'number' || marker.expiresAt <= now) {
+      storage.removeItem(SITE_AUTH_CONTINUITY_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    storage.removeItem(SITE_AUTH_CONTINUITY_KEY);
+    return false;
+  }
+}
+
+export function clearSiteAuthContinuity(storage = optionalBrowserStorage()) {
+  if (storage) storage.removeItem(SITE_AUTH_CONTINUITY_KEY);
 }
 
 export function parseSiteHandoffCallback(url) {
