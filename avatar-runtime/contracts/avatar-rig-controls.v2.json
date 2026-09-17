@@ -1,0 +1,365 @@
+{
+  "version": "2.0.0",
+  "status": "CP4_ANIMATION_CONTROL_CONTRACT",
+  "design_policy": "MOUTHLESS_ALL_STATES",
+  "rig_object": "LOTBI_Rig",
+  "source_blender_version": "4.5.13 LTS",
+  "axes": {
+    "authoring": "Blender Z-up, front -Y",
+    "delivery": "glTF Y-up, front +Z",
+    "bone_local": "All rest bones: +Y points along Blender +Z; bone +Z points toward Blender -Y"
+  },
+  "bones": {
+    "Root": {
+      "parent": null,
+      "head": [
+        0,
+        0,
+        0
+      ],
+      "length": 0.12
+    },
+    "Body": {
+      "parent": "Root",
+      "head": [
+        0,
+        0.012,
+        0.31
+      ],
+      "length": 0.14
+    },
+    "Head": {
+      "parent": "Body",
+      "head": [
+        0,
+        0,
+        0.62
+      ],
+      "length": 0.19
+    },
+    "Arm_L_Joint": {
+      "parent": "Body",
+      "head": [
+        0.216,
+        0.015,
+        0.435
+      ],
+      "length": 0.09
+    },
+    "Arm_R_Joint": {
+      "parent": "Body",
+      "head": [
+        -0.216,
+        0.015,
+        0.435
+      ],
+      "length": 0.09
+    }
+  },
+  "mesh_bindings": {
+    "HeadShell": "Head",
+    "DisplayRim": "Head",
+    "FacePanel": "Head",
+    "Eye_L": "Head",
+    "Eye_R": "Head",
+    "BodyShell": "Body",
+    "ArmSocket_L": "Body",
+    "Arm_L": "Arm_L_Joint",
+    "SideAccent_L": "Head",
+    "ArmSocket_R": "Body",
+    "Arm_R": "Arm_R_Joint",
+    "SideAccent_R": "Head",
+    "TopAccentShell": "Head",
+    "TopAccent": "Head",
+    "ChestBadge": "Body",
+    "ChestBadgeRim": "Body",
+    "BodyPanelSeam": "Body",
+    "Tear_L": "Head",
+    "Tear_R": "Head"
+  },
+  "controls": {
+    "root_yaw_deg": {
+      "min": -180,
+      "max": 180,
+      "default": 0,
+      "bone": "Root",
+      "property": "rotation_euler",
+      "axis_index": 1,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "hover_m": {
+      "min": -0.01,
+      "max": 0.015,
+      "default": 0,
+      "bone": "Root",
+      "property": "location",
+      "axis_index": 1,
+      "sign": 1,
+      "unit": "meters"
+    },
+    "body_pitch_deg": {
+      "min": -6,
+      "max": 6,
+      "default": 0,
+      "bone": "Body",
+      "property": "rotation_euler",
+      "axis_index": 0,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "body_yaw_deg": {
+      "min": -10,
+      "max": 10,
+      "default": 0,
+      "bone": "Body",
+      "property": "rotation_euler",
+      "axis_index": 1,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "body_roll_deg": {
+      "min": -5,
+      "max": 5,
+      "default": 0,
+      "bone": "Body",
+      "property": "rotation_euler",
+      "axis_index": 2,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "head_pitch_deg": {
+      "min": -10,
+      "max": 12,
+      "default": 0,
+      "bone": "Head",
+      "property": "rotation_euler",
+      "axis_index": 0,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "head_yaw_deg": {
+      "min": -25,
+      "max": 25,
+      "default": 0,
+      "bone": "Head",
+      "property": "rotation_euler",
+      "axis_index": 1,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "head_roll_deg": {
+      "min": -8,
+      "max": 8,
+      "default": 0,
+      "bone": "Head",
+      "property": "rotation_euler",
+      "axis_index": 2,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "arm_L_lift_deg": {
+      "min": 0,
+      "max": 100,
+      "default": 0,
+      "bone": "Arm_L_Joint",
+      "property": "rotation_euler",
+      "axis_index": 2,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "arm_R_lift_deg": {
+      "min": 0,
+      "max": 100,
+      "default": 0,
+      "bone": "Arm_R_Joint",
+      "property": "rotation_euler",
+      "axis_index": 2,
+      "sign": -1,
+      "unit": "degrees"
+    },
+    "arm_L_swing_deg": {
+      "min": -15,
+      "max": 15,
+      "default": 0,
+      "bone": "Arm_L_Joint",
+      "property": "rotation_euler",
+      "axis_index": 0,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "arm_R_swing_deg": {
+      "min": -15,
+      "max": 15,
+      "default": 0,
+      "bone": "Arm_R_Joint",
+      "property": "rotation_euler",
+      "axis_index": 0,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "arm_L_twist_deg": {
+      "min": -10,
+      "max": 10,
+      "default": 0,
+      "bone": "Arm_L_Joint",
+      "property": "rotation_euler",
+      "axis_index": 1,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "arm_R_twist_deg": {
+      "min": -10,
+      "max": 10,
+      "default": 0,
+      "bone": "Arm_R_Joint",
+      "property": "rotation_euler",
+      "axis_index": 1,
+      "sign": 1,
+      "unit": "degrees"
+    },
+    "blink_L": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "blink_R": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "gaze_x": {
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "gaze_y": {
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "display_glow": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "eye_surprised": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "eye_sad": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "eye_worried": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "tear_L": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    },
+    "tear_R": {
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "bone": null,
+      "property": null,
+      "axis_index": null,
+      "sign": null,
+      "unit": "normalized"
+    }
+  },
+  "eye_targets": {
+    "Eye_L": [
+      "Blink",
+      "LookPosX",
+      "LookNegX",
+      "LookUp",
+      "LookDown",
+      "Surprised",
+      "Sad",
+      "Worried"
+    ],
+    "Eye_R": [
+      "Blink",
+      "LookPosX",
+      "LookNegX",
+      "LookUp",
+      "LookDown",
+      "Surprised",
+      "Sad",
+      "Worried"
+    ]
+  },
+  "morph_mapping": "runtime/animation.mjs eyeWeights: normalize emotion weights, crossfade emotion into Blink, attenuate gaze for extreme expressions. Tear Reveal = tear_L/R.",
+  "eye_surface_policy": "Emotional morphs follow visor. Convex morph interpolation stays in front of curved visor; inspect sampled mixtures. Tears grow from subpixel neutral dots at eye corners; no central lower face geometry.",
+  "material_controls": {
+    "Display_CyanWhite": {
+      "emission_strength": "2.1 + 1.5 * display_glow"
+    },
+    "Visor_DeepNavy": {
+      "emission_color_linear": [
+        0.02,
+        0.07,
+        0.14
+      ],
+      "emission_strength": "0.2 * display_glow"
+    }
+  },
+  "runtime_boundary": "runtime/three-binding.mjs implements joint/morph/emission mapping. Baked GLB clips contain joints/morphs; material brightness requires runtime. Do not run mixer and controller on same nodes simultaneously.",
+  "intentional_contacts": [
+    "Head/body hidden seating overlap",
+    "Arm sockets attach inside the torso"
+  ],
+  "qa_clip_is_not_production_animation": false
+}

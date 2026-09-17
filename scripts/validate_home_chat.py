@@ -8,16 +8,31 @@ approved site-continuity.js module; home-shell.js itself remains free of
 network and persistence behavior. The approved mobile-entry.js bootstrap may coexist.
 """
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
 HOME_CSS = ROOT / "home-chat.css"
+SIDEBAR_CSS = ROOT / "site-sidebar-nav.css"
+AVATAR_CSS = ROOT / "site-avatar.css"
+AVATAR_JS = ROOT / "site-avatar.js"
 HOME_JS = ROOT / "home-shell.js"
 CONTINUITY_JS = ROOT / "site-continuity.js"
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
+CONNECTED_SERVICES_URL = "https://account.lotbiai.com/external-identities"
+
+
+def slice_between(text: str, start_token: str, end_token: str) -> str:
+    start = text.find(start_token)
+    if start < 0:
+        return ""
+    end = text.find(end_token, start)
+    if end < 0:
+        return ""
+    return text[start:end + len(end_token)]
 
 
 def main() -> int:
@@ -26,6 +41,9 @@ def main() -> int:
     for path, label in (
         (INDEX, "index.html"),
         (HOME_CSS, "home-chat.css"),
+        (SIDEBAR_CSS, "site-sidebar-nav.css"),
+        (AVATAR_CSS, "site-avatar.css"),
+        (AVATAR_JS, "site-avatar.js"),
         (HOME_JS, "home-shell.js"),
         (CONTINUITY_JS, "site-continuity.js"),
     ):
@@ -35,9 +53,11 @@ def main() -> int:
     text = INDEX.read_text(encoding="utf-8") if INDEX.exists() else ""
     script = HOME_JS.read_text(encoding="utf-8") if HOME_JS.exists() else ""
     continuity = CONTINUITY_JS.read_text(encoding="utf-8") if CONTINUITY_JS.exists() else ""
+    sidebar_css = SIDEBAR_CSS.read_text(encoding="utf-8") if SIDEBAR_CSS.exists() else ""
 
     requirements = {
-        "approved LOTBI asset": 'src="assets/lotbi-main-logo.png"',
+        "approved LOTBI character asset": 'src="assets/lotbi-main-logo.png"',
+        "approved LOTBI sidebar logo asset": 'src="assets/lotbi-logo-header.png"',
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
         "prompt length boundary": 'maxlength="1000"',
@@ -46,29 +66,29 @@ def main() -> int:
         "conversation thread": 'id="conversation-thread"',
         "local navigation script": 'src="home-shell.js"',
         "approved mobile chooser": 'src="mobile-entry.js"',
-        "approved conversation module": 'src="site-conversation.js"',
-        "approved continuity module": 'src="site-continuity.js"',
+        "approved 3D Avatar module": 'src="site-avatar.js"',
+        "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
+        "approved 3D Avatar stage": "data-lotbi-avatar-stage",
+        "approved static Avatar fallback": "data-lotbi-avatar-fallback",
+        "approved conversation module": 'src="site-conversation.js?v=20260917-1"',
+        "approved continuity module": 'src="site-continuity.js?v=20260917-1"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css"',
         "neutral initial auth state": 'data-auth-state="checking"',
         "neutral auth placeholder": 'class="account-auth-placeholder"',
         "desktop sidebar": "chat-sidebar-desktop",
+        "desktop sidebar nav": "sidebar-nav-desktop",
+        "desktop recent scroll": "sidebar-history-scroll",
+        "account footer": "sidebar-account-footer",
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "+ 새 대화",
+        "work menu": "내 작업",
+        "library menu": "라이브러리",
+        "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
-        "today bucket": "오늘",
-        "yesterday bucket": "어제",
-        "seven-day bucket": "최근 7일",
-        "older bucket": "이전",
-        "orders menu": "주문 내역",
-        "reservations menu": "예약 내역",
-        "account menu": "내 계정",
-        "settings menu": "설정",
-        "help menu": "도움말 / 문의",
-        "empty state": "비어 있음",
-        "ready state": "준비",
+        "connected services URL": CONNECTED_SERVICES_URL,
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
-        "account URL": ACCOUNT_URL,
         "Company link": "about.html",
         "Privacy link": "privacy.html",
         "Terms link": "terms.html",
@@ -81,9 +101,11 @@ def main() -> int:
         if token not in text:
             errors.append(f"index.html: missing {label}")
 
-    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup"), (ACCOUNT_URL, "account")):
+    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup")):
         if url not in continuity:
             errors.append(f"site-continuity.js: {label} URL changed or missing")
+    if ACCOUNT_URL in continuity:
+        errors.append("site-continuity.js: authenticated profile must open in-page instead of navigating to Account")
 
     account_start = text.find('<nav class="account-actions"')
     account_end = text.find('</nav>', account_start)
@@ -95,6 +117,78 @@ def main() -> int:
             if forbidden in initial_account:
                 errors.append(f"index.html: initial auth state must stay neutral ({forbidden})")
 
+    desktop_sidebar = slice_between(
+        text,
+        '<aside class="chat-sidebar chat-sidebar-desktop"',
+        '</aside>',
+    )
+    mobile_drawer = slice_between(
+        text,
+        'id="mobile-nav-drawer"',
+        '</aside>',
+    )
+    if not desktop_sidebar:
+        errors.append("index.html: desktop sidebar block not found")
+    if not mobile_drawer:
+        errors.append("index.html: mobile drawer block not found")
+
+    for label, block in (("desktop sidebar", desktop_sidebar), ("mobile drawer", mobile_drawer)):
+        for forbidden in (
+            "주문 내역",
+            "예약 내역",
+            ">내 계정<",
+            ">설정<",
+            "도움말 / 문의",
+            ">오늘<",
+            ">어제<",
+            ">최근 7일<",
+            ">이전<",
+            "비어 있음",
+            ">준비<",
+            "준비 중",
+        ):
+            if forbidden in block:
+                errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
+
+        for required in ("+ 새 대화", "내 작업", "라이브러리", "연결 서비스", "최근 대화"):
+            if required not in block:
+                errors.append(f"index.html: {label} missing approved IA item: {required}")
+
+        if CONNECTED_SERVICES_URL not in block:
+            errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
+        if 'data-sidebar-account' not in block:
+            errors.append(f"index.html: {label} missing auth-driven account identity slot")
+        if 'data-auth-state="checking"' not in block:
+            errors.append(f"index.html: {label} account slot must initialize neutral")
+        if "조승환" in block or "@jshncd01" in block:
+            errors.append(f"index.html: {label} must not hardcode user identity")
+
+        for destination in ("work", "library"):
+            pattern = rf'<button[^>]*data-sidebar-destination="{destination}"[^>]*disabled'
+            if not re.search(pattern, block):
+                errors.append(f"index.html: {label} {destination} must remain fail-closed until authoritative route exists")
+
+        recent_match = re.search(
+            r'<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?</ul>',
+            block,
+        )
+        if not recent_match:
+            errors.append(f"index.html: {label} recent conversation list contract missing")
+        elif "<li" in recent_match.group(0):
+            errors.append(f"index.html: {label} must not fabricate recent conversation titles or date buckets")
+
+    for required in (
+        'class="sidebar-brand"',
+        'class="sidebar-brand-logo"',
+        'class="sidebar-nav sidebar-nav-desktop"',
+        'class="sidebar-primary-nav"',
+        'class="nav-section sidebar-history-section"',
+        'class="sidebar-history-scroll"',
+        'class="sidebar-account-footer"',
+    ):
+        if required not in desktop_sidebar:
+            errors.append(f"index.html: desktop sidebar hierarchy missing {required}")
+
     textarea_start = text.find('<textarea')
     textarea_end = text.find('</textarea>', textarea_start)
     textarea = text[textarea_start:textarea_end] if textarea_start >= 0 and textarea_end >= 0 else ""
@@ -104,15 +198,20 @@ def main() -> int:
         lowered_textarea = textarea.lower()
         if "readonly" in lowered_textarea or "aria-readonly" in lowered_textarea:
             errors.append("index.html: prompt must remain writable")
+        if 'rows="1"' not in textarea:
+            errors.append("index.html: composer must preserve one-row initial contract")
 
     approved_scripts = (
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
-        '<script type="module" src="site-conversation.js"></script>',
-        '<script type="module" src="site-continuity.js"></script>',
+        '<script type="module" src="site-avatar.js"></script>',
+        '<script type="module" src="site-conversation.js?v=20260917-1"></script>',
+        '<script type="module" src="site-continuity.js?v=20260917-1"></script>',
     )
-    if text.lower().count("<script") != len(approved_scripts) or any(approved not in text for approved in approved_scripts):
-        errors.append("index.html: only approved home-shell.js, mobile-entry.js, site-conversation.js and site-continuity.js scripts are allowed")
+    if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
+        errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
+    if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
+        errors.append("index.html: sealed Three.js import map missing or changed")
 
     forbidden_shell_runtime = (
         "fetch(",
@@ -145,6 +244,46 @@ def main() -> int:
     if 'class="sr-only" role="status"' not in text:
         errors.append("index.html: live status boundary must remain available to assistive technology")
 
+    sidebar_style_tokens = (
+        ".sidebar-brand-logo",
+        "width: calc(100% - 10px)",
+        "max-width: calc(100% - 10px)",
+        "height: auto",
+        "object-fit: contain",
+        "object-position: left center",
+        ".sidebar-primary-nav",
+        ".sidebar-history-section",
+        ".sidebar-history-scroll",
+        "overflow-y: auto",
+        "scrollbar-gutter: stable",
+        ".sidebar-account-footer",
+        "margin-top: auto",
+        ".sidebar-account-entry",
+        "text-overflow: ellipsis",
+        "@media (min-width: 901px)",
+        ".chat-sidebar-desktop",
+        ".sidebar-nav-desktop",
+        "min-height: 0",
+        ".account-actions",
+        "display: none",
+        "@media (max-width: 900px)",
+        ".mobile-nav-drawer",
+        "overflow: hidden",
+    )
+    for token in sidebar_style_tokens:
+        if token not in sidebar_css:
+            errors.append(f"site-sidebar-nav.css: missing sidebar IA contract {token}")
+
+    if "height: 34px" in sidebar_css:
+        errors.append("site-sidebar-nav.css: fixed 34px logo height must not return")
+
+    logo_rule = slice_between(sidebar_css, ".sidebar-brand-logo {", "}")
+    if "width: 100%" in logo_rule or "max-width: 100%" in logo_rule:
+        errors.append("site-sidebar-nav.css: edge-to-edge desktop logo fit must not return")
+
+    if "@media (max-width: 900px)" not in HOME_CSS.read_text(encoding="utf-8"):
+        errors.append("home-chat.css: mobile drawer breakpoint missing")
+
     visible_copy_tokens = (
         'class="chat-copy"',
         'class="chat-eyebrow"',
@@ -161,7 +300,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — neutral initial auth state, accessible writable composer, isolated conversation/continuity modules, navigation/account/legal routes and mobile chooser coexistence verified.")
+    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, simplified AI-service sidebar IA, recent-scroll/fixed-account layout, neutral auth continuity and composer contracts verified.")
     return 0
 
 

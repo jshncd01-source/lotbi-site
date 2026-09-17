@@ -18,8 +18,8 @@ LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
 LOCKED_SHA256 = {
-    'privacy.html': 'f6e94c5fa6730cf10dd4e1a591da2d596f88f9ce2e98bbe54195f7386b035963',
-    'terms.html': 'de0dc05c6250f229442d53da55a3610e003f73c89c86043ccb36e80cfda129c4',
+    'privacy.html': '565841e5b504d996bb8dbc55f18759915af7cbcee27ff8740c32c6d94518f89d',
+    'terms.html': '915cc774883f793536908cc260057c5aa106885796b3c5351daecac69b6b8ccc',
     'account-deletion.html': '1b3c9fb3d15f4cdb7a3bb123362827b19cc79e35eae8e8d33efcde7d6c09f090',
     'contact.html': 'f4c618fade0a17d16a1484372c8c4681b3479a502b8ef5719b13855d5a97acae',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
@@ -61,9 +61,11 @@ def main() -> int:
     mobile_js = (ROOT / "mobile-entry.js").read_text(encoding="utf-8")
     continuity_js = (ROOT / "site-continuity.js").read_text(encoding="utf-8")
 
-    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup"), (ACCOUNT_URL, "account")):
+    for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup")):
         if url not in continuity_js:
             errors.append(f"{label} URL changed or missing from approved continuity runtime")
+    if ACCOUNT_URL in continuity_js:
+        errors.append("authenticated profile must not navigate to the full-page Account surface")
 
     account_start = index.find('<nav class="account-actions"')
     account_end = index.find('</nav>', account_start)
@@ -79,13 +81,15 @@ def main() -> int:
                 errors.append(f"neutral initial account state missing: {required}")
 
     approved_scripts = (
+        '<script type="importmap">',
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
-        '<script type="module" src="site-conversation.js"></script>',
-        '<script type="module" src="site-continuity.js"></script>',
+        '<script type="module" src="site-conversation.js?v=20260917-1"></script>',
+        '<script type="module" src="site-continuity.js?v=20260917-1"></script>',
+        '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved home-shell.js, mobile-entry.js, site-conversation.js and site-continuity.js scripts")
+        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
 
     combined_home = f"{index}\n{home_js}".lower()
     forbidden_home = (
@@ -154,9 +158,9 @@ def main() -> int:
         errors.append("authenticated continuity stylesheet missing from home")
     if 'href="mobile-entry.css"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
-    if 'src="site-conversation.js"' not in index:
+    if 'src="site-conversation.js?v=20260917-1"' not in index:
         errors.append("approved conversation module missing from home")
-    if 'src="site-continuity.js"' not in index:
+    if 'src="site-continuity.js?v=20260917-1"' not in index:
         errors.append("approved authenticated continuity module missing from home")
 
     for token in (

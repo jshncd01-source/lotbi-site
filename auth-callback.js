@@ -100,6 +100,7 @@ async function hydrateHomeShell() {
 
   const nextBody = document.importNode(parsed.body, true);
   document.body.replaceWith(nextBody);
+  window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
   await loadClassicScript('/home-shell.js');
   await loadClassicScript('/mobile-entry.js');
@@ -139,6 +140,7 @@ async function completeSiteHandoff() {
   history.replaceState(null, '', '/');
   const mounted = mountConversation({
     sessionToken: session.sessionToken,
+    identityKey: session.installationId,
     initialText: context.pendingText,
     autoSend: Boolean(context.pendingText),
   });
@@ -148,6 +150,7 @@ async function completeSiteHandoff() {
     detail: {
       authenticated: true,
       expiresAt: session.expiresAt,
+      installationId: session.installationId,
     },
   }));
 

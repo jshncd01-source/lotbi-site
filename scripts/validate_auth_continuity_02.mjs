@@ -73,9 +73,10 @@ const callbackHtml = read('auth/callback/index.html');
 const core = read('site-core.js');
 const conversation = read('site-conversation.js');
 const continuityCss = read('site-auth-continuity.css');
+const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js"'));
+assert.ok(index.includes('type="module" src="site-continuity.js?v=20260917-1"'));
 assert.ok(index.includes('href="site-auth-continuity.css"'));
 assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
 assert.ok(index.includes('class="account-auth-placeholder" aria-hidden="true"'));
@@ -91,6 +92,27 @@ assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
+
+// SITE-SIDEBAR-LOGO-AUTH-HYDRATE-REGRESSION-03 — auth callback transplants
+// the complete home body into the callback document. Every home stylesheet must
+// already be present there or the transplanted Sidebar can fall back to the
+// official image's intrinsic 334px width and clip after history returns to '/'.
+const stylesheetHrefs = html => [...html.matchAll(/<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi)]
+  .map(([, href]) => href.replace(/^\//, ''));
+const homeStylesheets = stylesheetHrefs(index);
+const callbackStylesheets = stylesheetHrefs(callbackHtml);
+for (const href of homeStylesheets) {
+  assert.ok(callbackStylesheets.includes(href), `callback hydration missing home stylesheet: ${href}`);
+}
+assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css"'));
+assert.ok(
+  callbackStylesheets.indexOf('site-hardening.css') < callbackStylesheets.indexOf('site-sidebar-nav.css')
+    && callbackStylesheets.indexOf('site-sidebar-nav.css') < callbackStylesheets.indexOf('site-auth-continuity.css'),
+  'callback must preserve the home cascade order around Sidebar and auth styles',
+);
+assert.ok(sidebarCss.includes('.sidebar-brand-logo'));
+assert.ok(sidebarCss.includes('width: calc(100% - 10px)'));
+assert.ok(sidebarCss.includes('max-width: calc(100% - 10px)'));
 assert.ok(!callbackHtml.includes('LOTBI 연결 중'), 'normal callback markup must not expose a loading card title');
 assert.ok(!callbackHtml.includes('LOTBI Site 세션을 확인하고 있습니다.'), 'normal callback markup must not expose pending copy');
 assert.ok(callback.includes("new CustomEvent('lotbi:site-session-state'"));
@@ -114,8 +136,8 @@ for (const token of [
   "window.addEventListener('pageshow'",
   "window.addEventListener('focus'",
   "document.addEventListener('visibilitychange'",
-  "const ACCOUNT_URL = 'https://account.lotbiai.com/account'",
-  'account.href = ACCOUNT_URL',
+  "account.dataset.profileMenuTrigger = ''",
+  "account.setAttribute('aria-haspopup', 'menu')",
   "const LOGIN_URL = '/auth/start/'",
   'login.href = LOGIN_URL',
   'scheduleExpiry',

@@ -1,0 +1,273 @@
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs';
+import {createRefinementBinding} from './avatar-runtime/runtime/refinement-binding.mjs';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs';
+
+const MODEL_URL = '/assets/models/lotbi-refined-v1.glb';
+const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json';
+const CONTRACT_URL = '/avatar-runtime/contracts/avatar-rig-controls.v2.json';
+const READY_EVENT = 'lotbi-avatar-ready';
+const ERROR_EVENT = 'lotbi-avatar-error';
+
+let activeMount = null;
+let pendingStage = null;
+let mountGeneration = 0;
+const terminalStages = new WeakSet();
+const diagnostics = {
+  mounts: 0,
+  disposals: 0,
+  loadMs: null,
+  state: 'waiting',
+  errorCode: null,
+};
+
+const monotonicSeconds = () => performance.now() / 1000;
+
+async function fetchJson(url) {
+  const response = await fetch(url, {
+    method: 'GET',
+    credentials: 'same-origin',
+    cache: 'force-cache',
+    referrerPolicy: 'same-origin',
+  });
+  if (!response.ok) throw new Error(`LOTBI Avatar asset load failed: ${url}`);
+  return response.json();
+}
+
+function emit(name, detail) {
+  window.dispatchEvent(new CustomEvent(name, {detail: Object.freeze({...detail})}));
+}
+
+function disposeScene(root) {
+  root?.traverse(object => {
+    if (object.geometry?.dispose) object.geometry.dispose();
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      if (!material) continue;
+      for (const value of Object.values(material)) {
+        if (value?.isTexture && value.dispose) value.dispose();
+      }
+      material.dispose?.();
+    }
+  });
+}
+
+function currentSnapshot() {
+  const stage = document.querySelector('[data-lotbi-avatar-stage]');
+  return Object.freeze({
+    version: 'site-web-3d-avatar-integration-01',
+    sourceHead: 'cc7c974f9922df802ff7243f8015078abeb2553e',
+    model: MODEL_URL,
+    ready: diagnostics.state === 'ready',
+    state: diagnostics.state,
+    errorCode: diagnostics.errorCode,
+    loadMs: diagnostics.loadMs,
+    mounts: diagnostics.mounts,
+    disposals: diagnostics.disposals,
+    connectedStage: Boolean(stage?.isConnected),
+    canvasCount: stage?.querySelectorAll('canvas').length ?? 0,
+    width: stage?.clientWidth ?? 0,
+    height: stage?.clientHeight ?? 0,
+  });
+}
+
+async function mountAvatar(stage) {
+  if (!stage?.isConnected || activeMount?.stage === stage || pendingStage === stage || terminalStages.has(stage)) return;
+  activeMount?.dispose();
+  pendingStage = stage;
+
+  const generation = ++mountGeneration;
+  const container = stage.closest('[data-lotbi-avatar-container]');
+  if (!container) return;
+
+  const startedAt = performance.now();
+  diagnostics.state = 'loading';
+  diagnostics.errorCode = null;
+  container.classList.remove('avatar-3d-ready', 'avatar-3d-fallback');
+  container.classList.add('avatar-3d-loading');
+
+  let renderer = null;
+  let scene = null;
+  let avatarRoot = null;
+  let floor = null;
+  let resizeObserver = null;
+  let animationFrame = 0;
+  let disposed = false;
+  let controller = null;
+  let reducedMotionQuery = null;
+
+  const resize = () => {
+    if (disposed || !renderer) return;
+    const width = Math.max(1, stage.clientWidth);
+    const height = Math.max(1, stage.clientHeight);
+    renderer.setSize(width, height, false);
+    const camera = activeMount?.stage === stage ? activeMount.camera : null;
+    if (camera) {
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+  };
+
+  const handleVisibility = () => {
+    if (!controller || disposed) return;
+    try {
+      controller.setBackground(document.hidden, monotonicSeconds());
+    } catch (error) {
+      console.error('LOTBI Avatar lifecycle fallback', error);
+    }
+  };
+
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    cancelAnimationFrame(animationFrame);
+    resizeObserver?.disconnect();
+    window.removeEventListener('resize', resize);
+    document.removeEventListener('visibilitychange', handleVisibility);
+    reducedMotionQuery?.removeEventListener?.('change', handleReducedMotion);
+    renderer?.domElement.removeEventListener('webglcontextlost', handleContextLost);
+    disposeScene(avatarRoot);
+    floor?.geometry.dispose();
+    floor?.material.dispose();
+    renderer?.dispose();
+    renderer?.forceContextLoss?.();
+    renderer?.domElement.remove();
+    container.classList.remove('avatar-3d-loading', 'avatar-3d-ready');
+    diagnostics.disposals += 1;
+    if (activeMount?.stage === stage) activeMount = null;
+  };
+
+  const fail = (code, error) => {
+    if (disposed) return;
+    terminalStages.add(stage);
+    if (pendingStage === stage) pendingStage = null;
+    dispose();
+    container.classList.add('avatar-3d-fallback');
+    diagnostics.state = 'fallback';
+    diagnostics.errorCode = code;
+    emit(ERROR_EVENT, {code});
+    console.error('LOTBI 3D Avatar fallback', error);
+  };
+
+  const handleContextLost = event => {
+    event.preventDefault();
+    fail('WEBGL_CONTEXT_LOST', new Error('WebGL context lost'));
+  };
+
+  const handleReducedMotion = event => {
+    if (!controller || disposed) return;
+    controller.setReducedMotion(Boolean(event.matches), monotonicSeconds());
+  };
+
+  try {
+    const [contract, clips, gltf] = await Promise.all([
+      fetchJson(CONTRACT_URL),
+      fetchJson(CLIPS_URL),
+      new GLTFLoader().loadAsync(MODEL_URL),
+    ]);
+    if (generation !== mountGeneration || !stage.isConnected) {
+      disposeScene(gltf.scene);
+      if (pendingStage === stage) pendingStage = null;
+      dispose();
+      return;
+    }
+
+    scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(31, 1, .01, 30);
+    camera.position.set(.62, .85, 2.9);
+    camera.lookAt(0, .55, 0);
+
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      premultipliedAlpha: true,
+      preserveDrawingBuffer: false,
+      powerPreference: 'high-performance',
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.setClearColor(0x000000, 0);
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
+    stage.replaceChildren(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xe6efff, 0xb4bfd3, 1.5));
+    const key = new THREE.DirectionalLight(0xfff5f3, 4.2);
+    key.position.set(-2, 3, 4);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0xa9caff, 2);
+    rim.position.set(2, 1, -2);
+    scene.add(rim);
+
+    avatarRoot = new THREE.Group();
+    avatarRoot.name = 'LOTBIAvatarSiteRuntimeRoot';
+    avatarRoot.add(gltf.scene);
+    scene.add(avatarRoot);
+
+    floor = new THREE.Mesh(
+      new THREE.CircleGeometry(.33, 64),
+      new THREE.MeshBasicMaterial({color: 0xdce5f5, transparent: true, opacity: .72}),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -.07;
+    avatarRoot.add(floor);
+
+    const binding = createRefinementBinding(gltf.scene, contract);
+    reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    controller = new AvatarController(clips, contract, {
+      speechMode: 'audio',
+      reducedMotion: reducedMotionQuery.matches,
+    });
+    reducedMotionQuery.addEventListener?.('change', handleReducedMotion);
+
+    activeMount = {stage, camera, dispose};
+    resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(stage);
+    window.addEventListener('resize', resize, {passive: true});
+    document.addEventListener('visibilitychange', handleVisibility);
+    resize();
+
+    const frame = timestampMs => {
+      if (disposed) return;
+      const time = timestampMs / 1000;
+      const controls = controller.sample(time);
+      binding.apply(sampleRefinement(controller, time, controls));
+      renderer.render(scene, camera);
+      animationFrame = requestAnimationFrame(frame);
+    };
+    animationFrame = requestAnimationFrame(frame);
+
+    diagnostics.mounts += 1;
+    if (pendingStage === stage) pendingStage = null;
+    diagnostics.loadMs = Math.round(performance.now() - startedAt);
+    diagnostics.state = 'ready';
+    container.classList.remove('avatar-3d-loading', 'avatar-3d-fallback');
+    container.classList.add('avatar-3d-ready');
+    emit(READY_EVENT, {loadMs: diagnostics.loadMs, model: MODEL_URL});
+  } catch (error) {
+    fail('RUNTIME_INIT_FAILED', error);
+  }
+}
+
+function reconcileAvatar() {
+  const stage = document.querySelector('[data-lotbi-avatar-stage]');
+  if (!stage) {
+    activeMount?.dispose();
+    return;
+  }
+  if (activeMount?.stage !== stage && pendingStage !== stage && !terminalStages.has(stage)) void mountAvatar(stage);
+}
+
+const documentObserver = new MutationObserver(reconcileAvatar);
+documentObserver.observe(document.documentElement, {childList: true, subtree: true});
+window.addEventListener('lotbi:home-shell-hydrated', reconcileAvatar);
+window.addEventListener('pagehide', () => activeMount?.dispose(), {once: true});
+
+Object.defineProperty(window, '__lotbiSiteAvatar', {
+  value: Object.freeze({snapshot: currentSnapshot}),
+  writable: false,
+  configurable: false,
+});
+
+reconcileAvatar();

@@ -1,0 +1,49 @@
+/* SITE-WEB-3D-AVATAR-INTEGRATION-01 — the sealed 3D runtime occupies the
+   existing LOTBI character slot. The approved static image remains visible
+   until WebGL and the official GLB are ready, and remains the fail-safe. */
+.chat-character-wrap {
+  position: relative;
+  isolation: isolate;
+}
+
+.site-avatar-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.site-avatar-stage canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chat-character-logo {
+  position: relative;
+  z-index: 0;
+  transition: opacity 180ms ease;
+}
+
+.chat-character-wrap.avatar-3d-ready .site-avatar-stage {
+  opacity: 1;
+}
+
+.chat-character-wrap.avatar-3d-ready .chat-character-logo {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.chat-character-wrap.avatar-3d-fallback .site-avatar-stage {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-avatar-stage,
+  .chat-character-logo {
+    transition: none;
+  }
+}

@@ -4,6 +4,8 @@ export const SITE_CALLBACK_URI = 'https://lotbiai.com/auth/callback';
 
 const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
+const CURRENT_USER_PATH = '/v2/me';
+const LOGOUT_PATH = '/v2/sessions/logout';
 const IANA_TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 
 export class SiteCoreError extends Error {
@@ -52,21 +54,31 @@ function assertFetch(fetchImpl) {
   }
 }
 
-function safeTimezone(clientContext) {
-  if (!clientContext || typeof clientContext !== 'object') return '';
-  const value = typeof clientContext.timezone === 'string' ? clientContext.timezone.trim() : '';
-  if (!value || value.length > 64 || !IANA_TIMEZONE_PATTERN.test(value)) return '';
-  const segments = value.split('/');
-  if (segments.some(segment => segment === '.' || segment === '..')) return '';
-  return value;
+function browserTimezone() {
+  try {
+    const value = globalThis.Intl?.DateTimeFormat?.().resolvedOptions?.().timeZone;
+    return typeof value === 'string' ? value.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+function safeTimezone(value) {
+  const timezone = typeof value === 'string' ? value.trim() : '';
+  if (!timezone || timezone.length > 64 || !IANA_TIMEZONE_PATTERN.test(timezone)) return '';
+  if (timezone.split('/').some(segment => segment === '.' || segment === '..')) return '';
+  return timezone;
 }
 
 function conversationTransport(contextOrFetch, fetchOverride) {
   if (typeof contextOrFetch === 'function') {
-    return {clientContext: undefined, fetchImpl: contextOrFetch};
+    return {timezone: '', fetchImpl: contextOrFetch};
   }
+  const explicit = contextOrFetch && typeof contextOrFetch === 'object'
+    ? safeTimezone(contextOrFetch.timezone)
+    : '';
   return {
-    clientContext: contextOrFetch && typeof contextOrFetch === 'object' ? contextOrFetch : undefined,
+    timezone: explicit || (contextOrFetch === undefined && fetchOverride === undefined ? safeTimezone(browserTimezone()) : ''),
     fetchImpl: typeof fetchOverride === 'function' ? fetchOverride : globalThis.fetch,
   };
 }
@@ -126,7 +138,7 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
 }
 
 export async function sendConversationMessage(sessionToken, text, contextOrFetch, fetchOverride) {
-  const {clientContext, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
+  const {timezone, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -138,7 +150,6 @@ export async function sendConversationMessage(sessionToken, text, contextOrFetch
   }
 
   const requestBody = {text: message};
-  const timezone = safeTimezone(clientContext);
   if (timezone) requestBody.client_context = {timezone};
 
   let response;
@@ -197,4 +208,68 @@ export async function sendConversationMessage(sessionToken, text, contextOrFetch
     retrySafe: payload.retry_safe === true,
     routing,
   });
+}
+
+function bearerToken(sessionToken) {
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
+  if (!token) {
+    throw new SiteCoreError('LOTBI Site 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
+  }
+  return token;
+}
+
+async function siteSessionRequest(path, sessionToken, {method = 'GET'} = {}, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
+      method,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {Authorization: `Bearer ${bearerToken(sessionToken)}`},
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 계정 서버에 접속하지 못했습니다.', {
+      code: 'SITE_SESSION_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = errorFromResponse(response, payload, 'LOTBI Site 세션 요청을 완료하지 못했습니다.');
+    announceInvalidSiteSession(error);
+    throw error;
+  }
+  return payload;
+}
+
+export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(CURRENT_USER_PATH, sessionToken, {}, fetchImpl);
+  const user = payload && typeof payload.user === 'object' ? payload.user : {};
+  const session = payload && typeof payload.session === 'object' ? payload.session : {};
+  const installation = payload && typeof payload.installation === 'object' ? payload.installation : {};
+  const userId = typeof user.id === 'string' ? user.id.trim() : '';
+  const sessionId = typeof session.id === 'string' ? session.id.trim() : '';
+  const installationId = typeof installation.id === 'string' ? installation.id.trim() : '';
+  if (!userId || !sessionId || !installationId || session.assurance_level !== 'FULL') {
+    throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    userId,
+    name: typeof user.name === 'string' ? user.name.trim() : '',
+    accountHandle: typeof user.account_handle === 'string' ? user.account_handle.trim() : '',
+    sessionId,
+    installationId,
+    expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+  });
+}
+
+export async function logoutSiteSession(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(LOGOUT_PATH, sessionToken, {method: 'POST'}, fetchImpl);
+  if (!payload || typeof payload.session_id !== 'string' || payload.status !== 'REVOKED') {
+    throw new SiteCoreError('LOTBI 로그아웃 응답이 올바르지 않습니다.', {code: 'SITE_LOGOUT_CONTRACT_INVALID'});
+  }
+  return Object.freeze({sessionId: payload.session_id, status: payload.status});
 }

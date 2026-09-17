@@ -1,0 +1,223 @@
+/* SITE-SIDEBAR-NAV-CLEANUP-01 — Desktop navigation hierarchy without changing feature readiness. */
+.sidebar-brand {
+  min-height: 42px;
+  margin: 0 10px 18px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* SITE-SIDEBAR-LOGO-RIGHT-EDGE-SAFE-FIT-02 — preserve the official
+   334x96 asset ratio while reserving a 10px visual safety inset on the right.
+   A full 100% fit left no breathing room inside the overflow-hidden wrapper,
+   so the final LOTBI letter could still look clipped at Production pixels. */
+.sidebar-brand-logo {
+  display: block;
+  width: calc(100% - 10px);
+  max-width: calc(100% - 10px);
+  height: auto;
+  min-width: 0;
+  object-fit: contain;
+  object-position: left center;
+  flex: 0 1 auto;
+}
+
+/* SITE-SIDEBAR-INFORMATION-ARCHITECTURE-04 — fixed primary actions +
+   independently scrolling recent conversations + fixed account identity. */
+.sidebar-primary-nav {
+  display: grid;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.sidebar-primary-nav .nav-item:disabled {
+  opacity: .58;
+}
+
+.sidebar-primary-nav .nav-link:focus-visible,
+.sidebar-account-entry:focus-visible {
+  outline: 2px solid var(--brand-violet, #7b62bb);
+  outline-offset: 2px;
+}
+
+.sidebar-history-section {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-history-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.nav-history-list li {
+  justify-content: flex-start;
+}
+
+.nav-history-list a,
+.nav-history-list button {
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.nav-history-list button[aria-current="true"] {
+  color: var(--brand-navy);
+  font-weight: 800;
+}
+
+.nav-history-list [data-conversation-title] {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-overflow: ellipsis;
+}
+
+.sidebar-account-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding: 12px 4px 0;
+  border-top: 1px solid #e2e6ee;
+  background: #f7f8fb;
+}
+
+.sidebar-account-slot {
+  min-height: 54px;
+  display: grid;
+  align-items: center;
+}
+
+.sidebar-account-entry {
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 10px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  border-radius: 12px;
+  color: var(--brand-navy);
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-account-entry:hover {
+  background: #eceff5;
+}
+
+.sidebar-profile-trigger {
+  inline-size: 100%;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  align-content: normal;
+  gap: 9px;
+}
+
+.sidebar-profile-avatar {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e5eaf3;
+  color: var(--brand-navy);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.sidebar-profile-copy { min-width: 0; display: grid; gap: 1px; }
+
+.sidebar-account-name,
+.sidebar-account-handle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-name {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.sidebar-account-handle {
+  color: #737b88;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.sidebar-account-placeholder {
+  display: block;
+  width: 74%;
+  height: 32px;
+  margin-inline: 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #e9edf4 20%, #f4f6fa 50%, #e9edf4 80%);
+  background-size: 200% 100%;
+  animation: sidebar-account-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sidebar-account-pulse {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (min-width: 901px) {
+  .chat-sidebar-desktop {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-nav-desktop {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 14px;
+  }
+
+  /* Desktop account access lives in the fixed sidebar; mobile keeps the top affordance. */
+  .topbar-left,
+  .account-actions {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .mobile-nav-drawer {
+    overflow: hidden;
+  }
+
+  .mobile-nav-drawer .sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    gap: 14px;
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-account-placeholder {
+    animation: none;
+  }
+}
