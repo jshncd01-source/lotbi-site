@@ -44,6 +44,8 @@
     if (
       path === APP_BRIDGE_PREFIX ||
       path.startsWith(`${APP_BRIDGE_PREFIX}/`) ||
+      path === '/auth' ||
+      path.startsWith('/auth/') ||
       path === '/favicon.ico' ||
       path === '/robots.txt' ||
       path === '/sitemap.xml' ||

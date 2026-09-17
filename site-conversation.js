@@ -49,6 +49,58 @@ function isSessionError(error) {
     && (error.status === 401 || error.status === 403 || error.code === 'SITE_SESSION_REQUIRED' || error.code === 'SESSION_INVALID' || error.code === 'SESSION_EXPIRED');
 }
 
+function userFacingErrorMessage(error) {
+  if (isSessionError(error)) {
+    return 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.';
+  }
+  if (error instanceof SiteCoreError && (error.code === 'AI_PROVIDER_UNAVAILABLE' || error.code === 'AI_RESPONSE_UNAVAILABLE')) {
+    return 'LOTBI AI 응답을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+  }
+  if (error instanceof Error) return error.message;
+  return 'LOTBI 대화를 완료하지 못했습니다.';
+}
+
+function appendSafeErrorEvidence(wrapper, error) {
+  if (!(error instanceof SiteCoreError)) return;
+  if (error.code) wrapper.dataset.errorCode = error.code;
+  if (error.status) wrapper.dataset.httpStatus = String(error.status);
+  if (error.correlationId) wrapper.dataset.correlationId = error.correlationId;
+
+  const evidence = [];
+  if (error.code) evidence.push(`오류 코드 ${error.code}`);
+  if (error.status) evidence.push(`HTTP ${error.status}`);
+  if (error.correlationId) evidence.push(`확인 ID ${error.correlationId}`);
+  if (!evidence.length) return;
+
+  const meta = document.createElement('span');
+  meta.className = 'chat-message-meta chat-error-evidence';
+  meta.textContent = evidence.join(' · ');
+  wrapper.appendChild(meta);
+}
+
+function logSafeConversationFailure(error) {
+  if (!(error instanceof SiteCoreError)) return;
+  // Never log the bearer, request Authorization header, or user message.
+  console.error('[LOTBI conversation request failed]', {
+    code: error.code,
+    status: error.status,
+    retryable: error.retryable,
+    correlationId: error.correlationId,
+  });
+}
+
+function markAuthenticatedAccountUi() {
+  const accountActions = document.querySelector('.account-actions');
+  if (!(accountActions instanceof HTMLElement)) return;
+  const account = document.createElement('a');
+  account.className = 'account-action account-login';
+  account.href = 'https://account.lotbiai.com/account';
+  account.textContent = '내 계정';
+  accountActions.replaceChildren(account);
+  accountActions.dataset.siteAuthenticated = 'true';
+  document.body.dataset.siteAuthenticated = 'true';
+}
+
 export function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false} = {}) {
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
@@ -63,6 +115,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
   let inFlight = false;
+  if (sessionToken) markAuthenticatedAccountUi();
 
   const setStatus = (message) => {
     if (statusRegion) statusRegion.textContent = message;
@@ -97,12 +150,10 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
     const body = document.createElement('p');
     body.className = 'chat-message-body';
-    body.textContent = isSessionError(error)
-      ? 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.'
-      : error instanceof Error
-        ? error.message
-        : 'LOTBI 대화를 완료하지 못했습니다.';
+    body.textContent = userFacingErrorMessage(error);
     wrapper.appendChild(body);
+    appendSafeErrorEvidence(wrapper, error);
+    logSafeConversationFailure(error);
 
     const retryable = isSessionError(error) || !(error instanceof SiteCoreError) || error.retryable;
     if (retryable) {

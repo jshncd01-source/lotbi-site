@@ -65,6 +65,13 @@
   font-weight: 700;
 }
 
+.chat-error-evidence {
+  overflow-wrap: anywhere;
+  color: #7b5260;
+  font-size: 11px;
+  font-weight: 650;
+}
+
 .chat-retry-button {
   margin-top: 10px;
   padding: 8px 12px;
@@ -83,19 +90,36 @@
   opacity: .56;
 }
 
+/* Conversation state changes content density only. The approved LOTBI
+   character remains mounted/visible and the composer keeps its bottom slot. */
 .conversation-active .chat-character-wrap {
   width: 126px;
   height: 166px;
   margin-top: 14px;
   margin-bottom: 8px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  flex: 0 0 auto;
 }
 
 .conversation-active .chat-character-logo {
+  display: block;
   height: 166px;
+  visibility: visible;
+  opacity: 1;
+}
+
+.conversation-active .conversation-thread {
+  flex: 1 1 160px;
+  min-height: 96px;
+  max-height: min(40vh, 460px);
+  margin-bottom: 12px;
 }
 
 .conversation-active .chat-composer {
-  margin-top: 0;
+  margin-top: auto;
+  flex: 0 0 auto;
 }
 
 .auth-callback-page {
@@ -182,6 +206,16 @@
 
   .conversation-active .chat-character-logo {
     height: 121px;
+  }
+
+  .conversation-active .conversation-thread {
+    flex-basis: 120px;
+    min-height: 84px;
+    max-height: min(34svh, 320px);
+  }
+
+  .conversation-active .chat-composer {
+    margin-top: auto;
   }
 
   .auth-callback-page {
