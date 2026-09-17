@@ -44,45 +44,61 @@ LOTBI가 Google, Kakao, NAVER, Apple 계정을 이용한 회원가입·로그인
 - LOTBI 저장: Provider 종류 + Provider 이용자 식별자 — 단, 현재 Apple signup/link는 revocation lifecycle 준비 전까지 fail-closed 상태
 - 현재 미사용: 이메일, Apple private relay 이메일, 전체 이름
 
-## 3. 공개 개인정보처리방침에 들어가야 할 사실관계
+## 3. Social Login 연결 해제와 회원 탈퇴
+
+현재 Core 계약은 두 절차를 명확히 구분한다.
+
+### 특정 Social Login 연결 해제
+- LOTBI 계정 자체를 삭제하지 않는다.
+- 해당 외부계정 링크를 `REVOKED` 상태로 전환한다.
+- 외부 Provider 계정 자체를 삭제하거나 원격 revoke하지 않는다(`remote_revocation_performed=false`).
+- 기존 외부계정 identity의 UNIQUE 예약을 유지하여 같은 provider subject를 다른 LOTBI 계정으로 옮기지 못하게 한다.
+- 동일한 LOTBI 계정 소유자가 새 Passkey/provider proof를 제시하는 명시적 LINK 절차로 다시 활성화할 수 있는 구조다.
+
+따라서 공개 정책에서 “연결 해제 즉시 provider subject 행을 완전 삭제한다”고 쓰면 현재 구현과 불일치한다.
+
+### LOTBI 회원 탈퇴/계정 삭제 요청
+- 사용자 상태와 계정 identity를 `DELETION_REQUESTED`로 전환한다.
+- 활성 세션, 결제 위임권한, 설치정보, 인증 challenge, push subscription 등의 접근권한을 revoke/cancel한다.
+- 활성 ExternalAccountIdentity의 로컬 링크를 즉시 `REVOKED`로 전환한다.
+- 원격 Provider revoke는 별도 Provider 정책/절차로 취급한다.
+- 최종 erasure는 별도의 operational purge workflow다.
+- 법률상 또는 보안상 보관이 필요한 transaction/audit records는 별도 보관될 수 있도록 설계돼 있다.
+
+Core 기본 설정의 `account_deletion_purge_days`는 30일이지만 Production 환경값이 동일하다고 아직 검증하지 않았으므로 공개 정책에는 현재 단계에서 “30일”을 확정 문구로 쓰지 않는다.
+
+## 4. 공개 개인정보처리방침에 들어가야 할 사실관계
 
 최종 공개본에는 최소한 아래 사항이 실제 Production 구조와 일치하도록 포함되어야 한다.
 
-1. LOTBI가 사용하는 Social Login Provider
-   - Google
-   - Kakao
-   - NAVER
-   - Apple
+1. LOTBI가 사용하는 Social Login Provider: Google, Kakao, NAVER, Apple
 2. 각 Provider에서 실제 접근하는 정보
-3. 이용 목적
-   - 본인/계정 식별
-   - 로그인 처리
-   - 신규 가입 또는 기존 계정 연결
-   - 연결 관리
+3. 이용 목적: 본인/계정 식별, 로그인 처리, 신규 가입 또는 기존 계정 연결, 연결 관리
 4. LOTBI가 저장하는 항목과 인증 순간에만 검증하는 항목의 구분
 5. Social Login 연결 해제와 LOTBI 회원 탈퇴가 서로 다른 기능이라는 점
-6. 회원 탈퇴/계정 삭제 시 외부계정 식별정보가 어떻게 처리되는지
-7. 법령상 보관 의무가 있는 경우의 예외
-8. 이용자의 열람·정정·삭제·처리정지 등 권리 및 문의 방법
-9. Provider와의 데이터 처리 관계가 국외이전·제3자 제공·처리위탁 중 어느 법적 구조에 해당하는지에 대한 최종 검토 결과
-10. 개인정보 문의 연락처
+6. 연결 해제 시 로컬 link가 revoked되고 UNIQUE identity reservation이 유지되는 현재 구조
+7. 회원 탈퇴 시 즉시 접근 revoke 후 별도 purge lifecycle이 진행된다는 점
+8. 법령상 보관 의무가 있는 경우의 예외
+9. 이용자의 권리 및 문의 방법
+10. Provider와의 데이터 처리 관계가 국외이전·제3자 제공·처리위탁 중 어느 법적 구조에 해당하는지에 대한 최종 검토 결과
 
-## 4. 공개본에 아직 확정해서 쓰지 말아야 하는 항목
-
-다음은 현재 구현/법률 확인이 끝나지 않아 숫자나 법적 성격을 임의로 확정하지 않는다.
+## 5. 공개본에 아직 확정해서 쓰지 말아야 하는 항목
 
 ### LEGAL_REVIEW_REQUIRED
-- `provider_subject`의 정확한 보유기간 또는 보유기간 결정 기준
+- revoked `provider_subject`의 정확한 보유기간 또는 보유기간 결정 기준
 - Google/Kakao/NAVER/Apple 인증 과정의 개인정보보호법상 국외이전/제3자 제공/처리위탁 등 정확한 법적 분류
 - 관계 법령에 따른 별도 보존 항목 및 기간
 - 만 14세 미만 가입정책과 법정대리인 동의 필요 여부를 반영한 최종 문구
 
+### DEPLOYMENT_VERIFY_REQUIRED
+- Production `account_deletion_purge_days` 실제 설정값
+- Provider별 실제 Production scope 및 callback URI
+
 ### CORE_SOCIAL_AUTH_BLOCKER
 - Google: `openid` 단독 scope의 Production 계약 적합성 검증
 - Apple: signup/link에 필요한 revocation lifecycle storage/처리 계약
-- Social Login 연결 해제 시 외부계정 식별정보의 정확한 삭제/상태변경 처리
 
-## 5. 공개 정책 삽입용 후보 문구 — 법률 검토 전
+## 6. 공개 정책 삽입용 후보 문구 — 법률 검토 전
 
 아래 문구는 의미/구조 검토용이며 그대로 게시하는 최종 법률문구가 아니다.
 
@@ -92,13 +108,14 @@ LOTBI는 이용자가 선택하는 경우 Google, Kakao, NAVER 또는 Apple 계�
 
 현재 LOTBI의 기본 Social Login 계약은 외부 계정의 이메일, 전화번호, 생년월일, 성별, 주소 또는 친구목록을 LOTBI 계정 식별을 위해 요구하지 않는 최소수집 구조를 원칙으로 합니다. 실제 제공되는 정보의 범위는 이용자가 선택한 인증사업자, 인증사업자의 설정 및 LOTBI가 운영 시점에 요청하는 권한 범위에 따라 달라질 수 있습니다.
 
-외부 인증사업자와의 계정 연결을 해제하는 것과 LOTBI 회원 자체를 탈퇴하는 것은 서로 다른 절차입니다. LOTBI 회원 탈퇴 및 계정 삭제에 관한 자세한 사항은 계정 삭제 안내 및 실제 계정 관리 화면에서 확인할 수 있습니다.
+특정 외부 인증수단의 연결을 해제하는 것과 LOTBI 회원 자체를 탈퇴하는 것은 서로 다른 절차입니다. 연결 해제 시 LOTBI 내 해당 인증수단의 사용이 중지되며, 회원 탈퇴 시 계정 접근권한을 우선 회수한 뒤 별도의 삭제·보존 절차가 진행됩니다. 구체적인 보관·파기 기준은 실제 Production 설정과 관계 법령 검토 결과에 따라 최종 개인정보처리방침에 명시합니다.
 
 ※ 최종 공개 전 실제 Production scope, 보관기간/파기 기준, 국외이전·제3자 제공·처리위탁 해당 여부, Apple revocation lifecycle을 반영하여 문구를 확정해야 한다.
 
-## 6. 현재 판정
+## 7. 현재 판정
 
 - Social Login 처리정보 구조: `REVIEW READY`
+- 연결 해제/회원탈퇴 구현 사실관계: `REVIEW READY`
 - 최소수집 원칙: `READY`
 - 공개 Privacy 문서 반영: `UPDATE REQUIRED`
 - 법적 최종 문구: `LEGAL_REVIEW_REQUIRED`
