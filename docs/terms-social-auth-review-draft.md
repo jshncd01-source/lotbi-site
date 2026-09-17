@@ -1,6 +1,6 @@
 # LOTBI 이용약관 — Production Service / Social Auth 검토 초안
 
-> 상태: `REVIEW DRAFT READY / PUBLIC UPDATE REQUIRED / LEGAL_REVIEW_REQUIRED`
+> 상태: `REVIEW DRAFT READY / FREE PRODUCT POLICY CLOSED / PUBLIC UPDATE REQUIRED / LEGAL_REVIEW_REQUIRED`
 >
 > 조사 기준일: 2026-09-17
 >
@@ -9,6 +9,9 @@
 Implementation baselines:
 - Core Social review: `b555420b8d75c9e241a6cd9bd534f205499a87d8`
 - Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
+- FREE authoritative product policy: `docs/free-monthly-3-task-product-policy.md`
+
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`.
 
 ## 1. 현재 Production 공개본 상태
 
@@ -68,18 +71,52 @@ Provider 장애, API 중단, Provider 계정 상태, 정책변경 등으로 특�
 
 서비스 변경/중단 조항도 이미 성립한 거래·구독상의 의무와 법정 권리를 일괄 소멸시키는 표현으로 작성하지 않는다.
 
-## 6. LOTBI Plus — 확정 제품 기준과 미확정 법률문구
+## 6. FREE 및 LOTBI Plus — 확정 제품 기준과 미확정 법률문구
 
-LOTBI Plus의 사업조건이 전부 미정인 것은 아니다.
+### FREE authoritative policy
+
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`.
+
+확정값:
+
+- FREE allowance: 매월 3개의 성공 작업
+- `3개 작업`은 메시지/질문/AI Provider 호출 3회가 아님
+- 하나의 사용자 목적을 완성하기 위한 확인·추가질문·옵션선택은 동일 task 내부이며 추가차감 없음
+- 최종 사용자 결과가 성공적으로 전달된 authoritative final-success 상태에서만 1회 차감
+- LOCAL deterministic path는 usage 0 / AI Provider call 0 / external effect NONE
+- 실패·취소 전 완료·미완료·장애·internal retry/reconciliation은 미차감
+- 같은 task/usage idempotency boundary의 retry/duplicate/provider/callback/client/reconciliation은 중복차감 금지
+- reset = 매월 1일 00:00 `Asia/Seoul` / KST
+- rolling signup month 방식 사용 안 함
+- carry-over = NONE
+- task usage와 AI Provider call count는 별도 계량
+- 잘못된 차감/서비스 보상은 원 usage event를 삭제하지 않고 별도 auditable compensation/credit adjustment로 처리
+
+사용자 표시 예:
+
+- `이번 달 무료 작업 2 / 3 사용`
+- `무료 작업 1회 남음`
+
+도움말:
+
+- `하나의 작업을 완료하기 위한 추가 질문과 확인 대화는 별도 작업으로 계산되지 않습니다.`
+- `실패하거나 결과가 완료되지 않은 요청은 차감되지 않습니다.`
+
+`메시지 3개`, `AI 질문 3번`처럼 오해되는 표현은 사용하지 않는다.
+
+실제 Core/App usage ledger/enforcement 구현 완료는 별도 owning workstream에서 검증해야 하며, 제품정책 결정이 닫힌 것과 구현 GREEN은 구분한다.
+
+### LOTBI Plus
 
 현재 확정 제품 기준:
 
 - 상품명: `LOTBI Plus`
 - 가격: 월 `9,900원`
-- FREE 기준: 월 `3개 작업`
 - Web 판매/결제 채널: Toss Payments
 - iPhone: Apple subscription
 - Android: Google Play subscription
+
+LOTBI Plus를 `무제한 일반 AI 사용권` 또는 일반 ChatGPT 대체 이용권으로 문서화하지 않는다.
 
 V1 Web 결제 목표:
 
@@ -133,20 +170,32 @@ Social Signup manifest는 정식 Terms의 version, SHA-256, HTTPS URI를 Core se
 
 ## 10. LEGAL_REVIEW_REQUIRED
 
-- 계약 성립/가입 완료 시점의 최종 표현
-- 만 14세 미만/미성년자 정책
-- 계정 제한/정지/해지 사유·절차
-- Provider 장애 시 고지/복구 책임
-- 회원탈퇴 후 법정보존
-- 손해배상/면책
-- 분쟁해결/준거법/관할
-- 전자상거래/통신판매중개/예약/구매중개에서 LOTBI의 실제 법적 지위
-- 외부 Merchant의 배송/취소/환불과 LOTBI 책임의 구분
-- Plus 자동갱신/해지/환불/청약철회 최종 문구
+FREE 정책 결정으로 다음 법률 blocker를 닫지 않는다.
+
+- `THIRD_PARTY_PROCESSING_AND_OVERSEAS_TRANSFER`
+- `PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD`
+- `STATUTORY_RETENTION_ITEMS_AND_PERIODS`
+- `MINOR_POLICY`
+- `PRODUCTION_PURGE_PERIOD`
+- `PRIVACY_OFFICER_OR_DEPARTMENT`
+- `CONTRACT_FORMATION_TIME`
+- `LOTBI_PLUS_SUBSCRIPTION_TERMS`
+- `COMMERCE_ROLE_AND_RESPONSIBILITY`
+- `DELETION_RETENTION_AND_PROVIDER_LIFECYCLE`
+- `SUSPENSION_NOTICE_AND_REMEDY`
+- `SERVICE_CHANGE_NOTICE_AND_LIABILITY`
+- `TERMS_CHANGE_NOTICE`
+- `LIABILITY_DISPUTE_JURISDICTION`
+- `OPERATOR_DISCLOSURE_FIELDS`
+- `FINAL_DOCUMENT_EFFECTIVE_DATES`
+
+All remain `LEGAL_REVIEW_REQUIRED`.
 
 ## 11. 현재 판정
 
 - Social Auth 계약 사실: `REVIEW CONTRACT VERIFIED`
+- FREE task product policy: `CLOSED / AUTHORITATIVE`
+- FREE usage enforcement implementation: `OWNING WORKSTREAM VERIFICATION REQUIRED`
 - LOTBI Plus 제품 기준: `PARTIALLY DECIDED`
 - Plus 법률 최종조건: `LEGAL_REVIEW_REQUIRED`
 - 외부 Merchant와 Plus 금전흐름 구분: `DOCUMENTED`
