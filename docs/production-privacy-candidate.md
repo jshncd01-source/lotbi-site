@@ -1,305 +1,266 @@
-# LOTBI 개인정보처리방침 — Production Counsel-Ready Candidate
+# LOTBI 개인정보처리방침 — Production User-Approval Candidate
 
-> 상태: `COUNSEL-READY / LEGAL_REVIEW_REQUIRED / DO NOT PUBLISH`
+> 상태: `TECHNICALLY / POLICY READY FOR USER APPROVAL / EXTERNAL COUNSEL OPTIONAL / DO NOT PUBLISH`
 >
-> 작성 기준일: 2026-09-17 (Asia/Seoul)
+> 기준일: 2026-09-17 (Asia/Seoul)
 >
 > Core Social review: `b555420b8d75c9e241a6cd9bd534f205499a87d8`
 >
 > Account Social review: `5eadea164d559a4f3c45dfca18d6c2acf95a40c0`
 >
-> 상세 fact inventory: `docs/production-personal-data-processing-inventory.md`
+> User decisions: `docs/production-user-policy-decisions.md`
 >
-> 법률질문: `docs/production-legal-review-questionnaire.md`
+> Data inventory: `docs/production-personal-data-processing-inventory.md`
 
-## 검토 표시
+이 후보는 외부 변호사 승인서를 Production 선행조건으로 요구하지 않는다. 실제 LOTBI 코드/제품정책, 현재 시행 법령과 Provider 공식 문서를 기준으로 작성한다.
 
-- `[TECHNICALLY VERIFIED]`: 코드·공개사이트·확정 제품정책에서 확인된 사실
-- `[LEGAL REVIEW REQUIRED]`: 법률전문가의 법적 분류/근거/최종문구 필요
-- `[USER DECISION REQUIRED]`: 사용자/회사 운영결정이 필요
-- `[PLACEHOLDER — DO NOT PUBLISH]`: 실제 Production 공개 전에 반드시 확정/제거해야 하는 placeholder
+외부 법률전문가 검토는 국외이전·Merchant 지위·유료서비스 환불 등 복잡한 영역의 추가 risk review로 권장하지만 Social Login Privacy 공개의 필수 인증 gate가 아니다.
 
-이 후보는 외부 법률전문가에게 전달하기 위한 문서이며 법률검토 완료본이 아니다.
+실제 Production 게시 전 남은 것은:
+
+1. 사용자 결정 `D1`, `D2` 확정;
+2. 게시 시점 실제 Production infrastructure/processor/data-location 기술검증;
+3. 최종 HTML freeze/version/SHA-256;
+4. 사용자 Production publish 승인.
 
 ---
 
 # 개인정보처리방침
 
-유한회사 알에이디홀딩스(이하 “회사”)는 LOTBI(롯비) 서비스를 제공하면서 이용자의 개인정보를 보호하고 관련 고충을 처리하기 위하여 개인정보처리방침을 수립·공개합니다.
+유한회사 알에이디홀딩스(이하 “회사”)는 LOTBI(롯비) 서비스를 제공하면서 이용자의 개인정보를 보호하고 관련 고충을 처리하기 위해 다음과 같이 개인정보처리방침을 공개합니다.
 
-**시행일: [PLACEHOLDER — DO NOT PUBLISH / LEGAL REVIEW REQUIRED — FINAL_DOCUMENT_EFFECTIVE_DATES]**
+**시행일: [FINAL HTML PUBLISH DATE에서 확정]**
 
-## 1. 개인정보의 처리 목적
+## 1. 개인정보 처리 목적
 
-### 1.1 LOTBI 계정 생성 및 관리 — [TECHNICALLY VERIFIED]
+회사는 다음 목적에 필요한 범위에서 개인정보를 처리합니다.
 
-회사는 다음 목적을 위해 필요한 계정·인증 정보를 처리합니다.
-
-- LOTBI 회원계정 생성 및 식별
+- LOTBI 회원계정 생성·식별·관리
 - LOTBI 이름 및 계정 아이디(handle) 관리
-- 이용약관 및 개인정보처리방침 동의 확인과 증빙
-- Passkey 등록·인증, 계정복구 및 보안
-- 로그인 세션과 설치/기기 연결 상태 관리
-- Social Login 연결·연결해제
-- 회원탈퇴/계정삭제 요청 및 삭제 lifecycle 처리
-- 인증 위변조·재사용·세션 탈취·부정이용 방지
-
-### 1.2 Social Login — [TECHNICALLY VERIFIED]
-
-이용자가 선택하는 경우 Google, Kakao, NAVER 또는 Apple 인증을 LOTBI 회원가입·로그인·계정 연결에 사용할 수 있습니다.
-
-Provider 인증 성공은 LOTBI 이용약관 또는 개인정보처리방침 동의를 대신하지 않습니다. 신규 Social Signup은 LOTBI가 제시하는 이용약관과 개인정보처리방침에 각각 필수 동의해야 합니다.
-
-### 1.3 FREE 이용량 및 유료구독 — [PRODUCT POLICY VERIFIED / IMPLEMENTATION VERIFY REQUIRED]
-
-LOTBI FREE는 매월 3개의 **성공 작업** 정책을 사용합니다. 이는 메시지/질문/AI Provider 호출 3회를 의미하지 않습니다. 최종 사용자 결과가 성공적으로 전달된 작업만 차감하고 LOCAL/실패/취소/미완료/retry는 제품정책에 따라 별도 또는 중복 차감하지 않습니다.
-
-FREE usage ledger와 LOTBI Plus subscription/payment schema의 실제 Production 저장필드가 확정되면 본 방침의 처리항목·목적·보유기간을 실제 구현과 일치시키도록 갱신합니다.
-
-`[LEGAL REVIEW REQUIRED — FREE usage/subscription event의 개인정보 해당범위와 보존기간]`
+- Passkey 등록·인증 및 계정 보안
+- Social Login 회원가입·로그인·외부계정 연결
+- 이용약관·개인정보처리방침 동의 확인 및 증빙
+- 로그인 세션·설치정보·인증흐름 관리
+- 부정접근·계정탈취·재사용·replay 방지와 보안감사
+- 회원탈퇴·계정삭제·외부계정 연결해제 처리
+- 서비스 문의 및 개인정보 관련 고충처리
+- 실제 활성화된 경우 FREE 사용량, LOTBI Plus 구독 및 결제상태 관리
 
 ## 2. 처리하는 개인정보 항목
 
-### 2.1 이용자가 LOTBI에 직접 입력하는 계정정보 — [TECHNICALLY VERIFIED]
+### 2.1 이용자가 LOTBI에 직접 입력하는 정보
 
-Social Signup을 포함한 신규 계정 생성 시 이용자가 LOTBI에 직접 입력하는 정보:
+회원가입 시:
 
 - LOTBI 이름
 - LOTBI 계정 아이디(handle)
 
-이는 Social Login Provider에서 가져오는 이름·닉네임과 구분됩니다.
+이 값들은 Social Login Provider에서 가져오는 이름·프로필과 구분됩니다.
 
-### 2.2 Social Login Provider별 최소 식별정보 — [TECHNICALLY VERIFIED]
+### 2.2 Social Login Provider별 최소 식별정보
 
-| Provider | 현재 reviewed LOTBI가 identity로 사용하는 값 | 현재 Social identity로 사용하지 않는 Provider 정보 |
-|---|---|---|
-| Google | OIDC `sub` | 이메일, 이름, profile 정보 |
-| Kakao | OIDC `sub` | 카카오계정 이메일, 닉네임/profile 등 추가정보 |
-| NAVER | 공식 profile API의 app-scoped `response.id` | 이메일, 이름, 전화번호, 생일/출생연도, 성별, 연령대 등 추가 profile |
-| Apple | Apple `sub` | 이메일, private relay email, 전체 이름 |
+현재 reviewed Social Auth 계약은 다음 최소값만 Social identity로 사용합니다.
 
-현재 reviewed Web scope는 Google/Kakao/NAVER가 `openid`이고 Apple은 email/name profile scope를 요청하지 않습니다.
+| Provider | 요청/사용 계약 | LOTBI가 계정식별에 사용하는 값 | 현재 Social identity로 사용하지 않는 정보 |
+|---|---|---|---|
+| Google | `openid` | Google OIDC `sub` | 이메일, 이름, 프로필 |
+| Kakao | `openid` | Kakao OIDC `sub` | 이메일, 닉네임, 프로필 등 추가 개인정보 |
+| NAVER | `openid` | 공식 profile API의 `response.id` | 이메일, 이름, 전화번호, 생일, 성별 등 추가 profile |
+| Apple | email/name scope 미사용 | Apple `sub` | 이메일, private relay email, full name |
 
-Google `openid` 최소 scope는 실제 configured-client E2E가 남아 있으며, 기술검증 전 email/profile scope를 임의 추가하지 않습니다.
+Provider 인증과정에서는 authorization code, ID/access token 등 인증용 material이 일시 처리될 수 있습니다. 현재 계약상 Provider email/name/profile을 LOTBI Social identity로 영구 저장하지 않습니다.
 
-Apple LOGIN contract는 review-ready이나 Apple SIGNUP/LINK는 revocation lifecycle이 구현·검증되기 전 활성화하지 않습니다.
+Apple SIGNUP/LINK는 별도 revocation lifecycle 구현이 완료되기 전 활성화하지 않습니다.
 
-### 2.3 계정·인증·동의 증빙 — [TECHNICALLY VERIFIED]
+### 2.3 계정·인증·보안 정보
 
-서비스는 계정·인증 및 보안을 위해 다음 정보를 처리할 수 있습니다.
+현재 Core/Account 계약에서 처리되는 정보에는 다음이 포함됩니다.
 
-- LOTBI 내부 사용자/계정 식별자 및 계정 상태
+- LOTBI 내부 user/account identifier와 account state
 - Social Login Provider 종류와 `provider_subject`
-- external identity 연결상태
-- ClientInstallation 식별정보·platform·상태 등 설치 lifecycle 정보
-- UserSession 식별자, installation 연결, authentication assurance/status, 만료/폐기 정보
-- Passkey credential ID, 공개키, sign counter, transports, credential 상태 등 서버 검증용 metadata
-- 이용약관/개인정보처리방침 동의 key, document version, SHA-256, HTTPS URI, decision, required 여부, locale, 동의 출처/flow/installation evidence
-- AccountDeletionRequest 및 deletion lifecycle evidence
-- 보안·거래·관리자 행위에 필요한 audit event
+- external identity 상태
+- ClientInstallation 식별자·platform·상태
+- UserSession 식별자·token hash·assurance level·만료/revoke 상태
+- Passkey credential identifier, public key, sign counter, transports 등 공개키 인증 metadata
+- Terms/Privacy consent key, document version, SHA-256, URI, decision, required flag, locale, source 및 관련 evidence
+- 인증·보안·삭제 lifecycle의 감사기록
+- AccountDeletionRequest 및 처리상태/receipt 관련 metadata
 
-Passkey의 **개인키 또는 기기 생체정보 자체를 LOTBI 서버가 보관한다고 기재하지 않습니다.**
+비밀번호, Passkey private key, Provider client secret, OAuth client secret, `.p8` private key 같은 비밀정보는 공개 정책상 계정 개인정보 항목으로 수집하는 값이 아니며 서비스가 사용자에게 이메일로 제출하도록 요구하지 않습니다.
 
-### 2.4 OAuth/OIDC 과정의 일시정보 — [TECHNICALLY VERIFIED]
+### 2.4 FREE usage / Plus / payment
 
-OAuth/OIDC 과정에서는 authorization code, ID/access token 등 Provider 인증정보가 서버에서 일시 처리될 수 있습니다. 현재 최소 Social identity 계약은 이를 Provider 이메일/profile과 같은 영구 계정정보로 취급하지 않습니다.
+확정된 FREE 제품정책은 매월 3개의 성공 작업이며 메시지 수나 AI Provider call 수와 동일하지 않습니다.
 
-Apple SIGNUP/LINK의 future revoke에 필요한 장기 revocation material은 아직 GREEN이 아니며, 구현 시 암호화된 최소 권한 material만 lifecycle 목적에 맞춰 보관하도록 별도 검토합니다.
-
-### 2.5 브라우저 인증 쿠키 — [TECHNICALLY VERIFIED]
-
-- `__Host-lotbi_session`: Account Web 로그인 세션 유지용 HttpOnly/Secure 쿠키
-- `__Host-lotbi_social_flow`: Social Login callback 흐름을 연결하는 단기 HttpOnly/Secure 쿠키; reviewed flow 최대수명 300초
-
-현재 위 쿠키는 로그인/인증 목적의 필수 쿠키이며 광고·행태분석 선택쿠키로 설명하지 않습니다.
-
-### 2.6 향후 또는 구현검증 필요 항목
-
-다음은 제품정책/서비스계획에 포함되지만 현재 이 법률패키지에서 Production schema까지 확정됐다고 표시하지 않습니다.
-
-- ConsumerDeviceSession 예정 구조
-- FREE usage event 및 compensation/credit adjustment
-- LOTBI Plus subscription entitlement/event
-- Toss/App Store/Google Play payment/subscription reference
-- AI Provider에 전송되는 실제 task payload 범위
-
-`[LEGAL REVIEW REQUIRED + TECHNICAL INVENTORY REQUIRED]` 실제 schema와 Production data flow가 정해진 뒤 처리항목·보유기간·외부처리 관계를 확정합니다.
+FREE usage ledger, Plus subscription entitlement, payment-provider reference의 **실제 Production 저장필드가 구현/활성화되는 경우** 그 실제 필드와 보유기간을 게시본에 반영합니다. 현재 확인되지 않은 task content 저장을 임의로 고지하지 않습니다.
 
 ## 3. 개인정보의 처리 및 보유기간
 
-### 3.1 활성계정 — [TECHNICALLY VERIFIED / PERIOD LEGAL REVIEW REQUIRED]
+회사는 목적 달성에 필요한 기간 동안 개인정보를 처리합니다.
 
-LOTBI 이름, handle, 계정·인증정보 및 활성 Social identity는 계정 서비스 제공에 필요한 기간 동안 처리합니다.
+### 계정 기본정보
 
-### 3.2 Social Login 연결해제와 provider_subject
+LOTBI 이름, handle 및 활성 계정정보는 회원계정 유지기간 동안 처리하고, 회원탈퇴/계정삭제 lifecycle이 완료되면 관계 법령상 별도 보존이 필요한 기록을 제외하고 파기합니다.
 
-현재 generic unlink는 LOTBI 계정을 유지하고 해당 external identity를 local `REVOKED`로 전환하며 관련 제한 session/미완료 flow를 정리합니다. Provider 계정 자체 삭제와 동일하지 않습니다.
+### Social Login identity
 
-현재 Core는 다른 LOTBI 계정으로의 silent takeover/reassignment 방지를 위해 unlink 후에도 Provider + subject unique reservation을 유지합니다.
+Provider identity는 해당 Social Login이 계정에 연결된 기간 동안 처리합니다.
 
-`[LEGAL REVIEW REQUIRED — PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD]`
+외부계정 연결 해제 시 현재 LOTBI Core는 external identity를 local `REVOKED` 상태로 전환합니다. 계정탈취·잘못된 재연결을 막기 위한 제한된 보안 reservation이 필요한 경우에도 목적에 필요한 범위로 제한하며, account deletion/final purge와 Provider별 공식 삭제정책을 적용합니다.
 
-법률전문가가 다음을 확정해야 합니다.
+Kakao/NAVER/Apple은 각 Provider 공식 lifecycle 구현이 완료된 뒤 해당 Provider를 활성화합니다.
 
-- retention 법적근거
-- 최대 보존기간/종료조건
-- account deletion 후 처리
-- final purge 시 원문삭제·비가역 변환·별도 보안보존 중 허용 방식
-- Kakao 등 Provider별 삭제정책과의 정합성
+### Session / auth flow
 
-### 3.3 계정삭제 요청 — [TECHNICALLY VERIFIED]
+Session은 만료 또는 revoke 시까지, 일회성 authentication flow/challenge는 해당 인증목적의 짧은 유효기간 또는 소비 시점까지 처리합니다. Social flow cookie의 reviewed 최대 flow lifetime은 300초입니다.
 
-계정삭제 요청이 접수되면 즉시 모든 데이터를 hard delete한다고 약속하지 않습니다. 현재 lifecycle은 우선:
+### Consent / security / deletion evidence
 
-- 계정 접근 차단
-- 활성 UserSession revoke
-- 활성 authority/grant revoke
-- external identity local revoke
-- Passkey/installation/challenge/push 등 관련 authority lifecycle 정리
-- 미완료 Social Auth flow 취소 및 민감 material 제거
-- deletion lifecycle 시작
+동의증빙, 보안감사 및 계정삭제 처리기록은 해당 계정의 동의·보안·삭제 상태를 증명하고 분쟁 또는 법령상 의무에 대응하기 위해 필요한 기간 동안 최소 범위로 보존할 수 있습니다.
 
-후 별도 final purge로 진행합니다.
+### 법정 거래기록
 
-### 3.4 final purge 기간
+LOTBI Plus 또는 적용되는 전자상거래가 활성화되는 경우 관계 법령상 보존대상에 해당하는 기록은 법정기간 동안 일반 계정정보와 분리하여 보존할 수 있습니다. 현재 전자상거래법 시행령은 적용되는 거래에서 표시·광고 6개월, 계약/청약철회 5년, 대금결제·재화공급 5년, 소비자 불만·분쟁 3년의 기록보존 기준을 두고 있습니다. 실제 LOTBI record가 어떤 범주에 해당하는지는 해당 기능의 실제 거래역할에 맞춰 적용합니다.
 
-`[LEGAL REVIEW REQUIRED — PRODUCTION_PURGE_PERIOD]`
+## 4. 개인정보의 파기
 
-source default 숫자를 Production 약속으로 사용하지 않습니다. 일반 계정정보, backup/log, security evidence, 법정보존기록을 구분해 실제 보유기간과 삭제방식을 확정해야 합니다.
+처리목적이 달성되고 보유 필요성이 종료된 개인정보는 복구하기 어렵도록 삭제 또는 파기합니다.
 
-### 3.5 법령상 보존
+LOTBI는 다음 lifecycle을 같은 것으로 취급하지 않습니다.
 
-`[LEGAL REVIEW REQUIRED — STATUTORY_RETENTION_ITEMS_AND_PERIODS]`
+1. Social Login 연결 해제
+2. LOTBI 계정 삭제 요청
+3. 법령/분쟁대응상 별도 보존
+4. Provider authorization revoke/unlink
+5. 최종 purge
 
-전자상거래법 등 실제 적용되는 법령이 요구하는 거래·결제·청약철회·소비자분쟁 기록은 법적근거와 필요한 범위에서 일반 계정정보와 구분하여 보존할 수 있습니다. LOTBI Plus와 외부 Merchant 거래 각각에 실제 적용되는 record/기간을 counsel이 확정해야 합니다.
+계정 삭제 요청이 접수되면 먼저 계정 접근, 활성 session/authority, external identity local access를 revoke하고 deletion lifecycle을 시작합니다. 모든 데이터가 요청 즉시 한 번에 hard delete된다고 약속하지 않습니다.
 
-## 4. 개인정보 파기 절차 및 방법
+최종 purge 시 법정 보존이 필요한 기록은 별도 분리보관하고 그 외 정보는 처리목적이 끝난 범위에서 파기합니다.
 
-처리목적 달성, 보유기간 경과 등으로 개인정보가 불필요해진 경우 관계 법령상 보존의무가 없는 정보는 복구가 어렵도록 삭제 또는 파기합니다.
+## 5. Social Login 연결·해제 및 Provider lifecycle
 
-다음 lifecycle은 같은 시점/같은 작업이라고 단정하지 않습니다.
+기존 LOTBI 계정에 Provider identity를 추가하는 `LINK`는 신규 Signup과 별도 절차입니다. Provider email이 기존 계정과 같다는 이유만으로 자동 병합하지 않습니다.
 
-- Social Login local unlink
-- LOTBI account deletion request
-- Provider authorization revoke/unlink
-- statutory retention
-- final purge
-- provider_subject security reservation 처리
+현재 Provider lifecycle 상태:
 
-`[LEGAL REVIEW REQUIRED]` 전자정보 삭제, backup/log 격리 및 최종파기 방법의 공개수준을 실제 Production infrastructure에 맞춰 확정합니다.
+- Google: minimum scope real E2E verification pending (`GOOGLE_SCOPE_CONTRACT_VERIFY`)
+- Kakao: Unlink + service user-id deletion/purge lifecycle 구현 전 Provider activation 금지
+- NAVER: token revocation + disconnect notification lifecycle 검증 전 Provider activation 금지
+- Apple: LOGIN contract ready; SIGNUP/LINK는 revocation-token lifecycle 구현 전 금지
 
-## 5. Social Login Provider 연결 및 lifecycle
+사용자가 Social Login 연결을 해제하거나 LOTBI 계정을 삭제할 때 Provider-side authorization까지 revoke하는 정책은 `docs/production-user-policy-decisions.md`의 `D3`에서 정하며, 각 Provider 공식 계약과 실제 기술구현이 준비된 범위에서 적용합니다.
 
-### 5.1 LINK — [TECHNICALLY VERIFIED]
+## 6. 외부 서비스, 처리위탁, 제3자 제공 및 국외이전
 
-기존 LOTBI 계정에 Provider identity를 연결하는 LINK는 신규 Social Signup과 별개이며 현재 reviewed contract는 FULL LOTBI session과 fresh proof를 요구합니다. Provider 이메일 동일성만으로 자동 merge하지 않습니다.
+### Social Login Provider
 
-### 5.2 UNLINK — [TECHNICALLY VERIFIED / PROVIDER BLOCKED]
+이용자가 Social Login을 선택하면 Google, Kakao, NAVER 또는 Apple의 인증서비스로 이동하거나 해당 Provider와 인증통신이 이루어집니다. Provider 자체 계정 및 인증화면에서의 개인정보 처리는 각 Provider의 개인정보 정책에도 적용됩니다.
 
-현재 generic unlink는 local `REVOKED`이고 remote Provider revoke가 아닙니다.
+LOTBI는 현재 위 Provider로부터 제2.2항의 최소 식별정보를 받아 계정인증에 사용하며, Provider email/name/profile을 review 편의를 위해 추가 수집하지 않습니다.
 
-- Google: real E2E/Production revoke policy verification pending
-- Kakao: `KAKAO_PROVIDER_LIFECYCLE_BLOCKER — UNLINK + USER_ID DELETION/PURGE POLICY REQUIRED`
-- NAVER: `NAVER_PROVIDER_LIFECYCLE_BLOCKER — TOKEN_REVOCATION/DISCONNECT INTEGRATION VERIFY`
-- Apple: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`
+단순히 외국계 Provider를 사용한다는 이유만으로 LOTBI의 모든 데이터 흐름을 일률적으로 “제3자 제공” 또는 “처리위탁”으로 표시하지 않습니다. 실제 LOTBI가 개인정보를 외부 사업자에게 제공·처리위탁·보관하는 flow는 아래 Production technical manifest를 기준으로 게시합니다.
 
-`[LEGAL REVIEW REQUIRED — DELETION_RETENTION_AND_PROVIDER_LIFECYCLE]` remote revoke를 unlink/account deletion에 어떻게 연결할지 Provider별로 확정합니다.
+### Production infrastructure / AI / payment processor table — [TECHNICAL PUBLISH CHECK]
 
-## 6. 제3자 제공·처리위탁·국외이전
+Production publish 직전 Core/Web/App 실제 배포설정과 계약을 확인하여 **활성 사용 중인 사업자만** 다음 형식으로 `privacy.html`에 넣습니다.
 
-`[PLACEHOLDER — DO NOT PUBLISH]`
+| 사업자 | 실제 역할 | 처리 항목 | 목적 | 처리/이전 국가 | 보유기간/종료조건 | 근거/고지 방식 |
+|---|---|---|---|---|---|---|
+| 실제 Production hosting/database provider | VERIFY | VERIFY | 서비스 hosting/database | VERIFY | 계약/계정 삭제 정책에 따른 기간 | 실제 계약 기준 |
+| 실제 Account Web hosting provider | VERIFY | VERIFY | Account Web 제공 | VERIFY | 실제 계약 기준 | 실제 계약 기준 |
+| 활성 AI Provider | 활성화된 경우만 | 서비스 수행에 필요한 최소 task payload | AI 기능 수행 | provider contract 기준 | provider contract/LOTBI 설정 기준 | 실제 데이터 flow 기준 |
+| Toss Payments | Web Plus 활성화된 경우만 | 결제/구독에 필요한 최소정보·reference | 결제/정기결제 | 실제 계약 기준 | 법령/계약 기준 | 실제 결제계약 기준 |
+| Apple App Store / Google Play | 해당 Store 판매 활성화 시 | Store transaction/subscription reference | 구독 판매·entitlement | Store 정책 기준 | 법령/Store 정책 기준 | 실제 판매채널 기준 |
 
-`[LEGAL REVIEW REQUIRED — THIRD_PARTY_PROCESSING_AND_OVERSEAS_TRANSFER]`
+이 표의 `VERIFY`는 **외부 counsel 대기항목이 아니라 engineering/contract fact verification 항목**입니다. 실제 Production 값을 확인하지 않은 vendor를 Privacy에 사용 중이라고 허위 표시하지 않습니다.
 
-현재 조사만으로 Google/Kakao/NAVER/Apple, Render, Vercel, GitHub, OpenAI, Toss Payments, Apple App Store, Google Play의 관계를 일괄 `제3자 제공`, `처리위탁` 또는 `국외이전 없음`으로 확정하지 않습니다.
+개인정보 보호법 제28조의8상 실제 개인정보 국외 제공·처리위탁·보관이 발생하는 경우에는 적용 가능한 국외이전 근거에 맞춰 이전항목, 국가, 시기·방법, 수령자, 목적·기간 등 필요한 사항을 게시본에 구체적으로 반영합니다.
 
-최종 공개본에는 실제 Production data-flow manifest와 계약/DPA를 기준으로 해당되는 경우 다음을 반영해야 합니다.
+`LEGAL_COUNSEL_REVIEW_RECOMMENDED`: 복잡한 국외이전/processor 구조는 추가 법률검토를 권장하지만 외부 변호사 인증 자체는 Social Login launch hard gate가 아닙니다.
 
-- 제공·위탁·이전받는 자
-- 처리/이전 국가 또는 location
-- 개인정보 항목
-- 목적
-- 시점/방법
-- 보유·이용기간
-- 법적근거
-- 별도 동의가 필요한 경우 거부방법/효과
+## 7. 정보주체의 권리 및 행사방법
 
-## 7. 정보주체의 권리와 행사방법
+이용자는 관계 법령에 따라 개인정보 열람, 정정·삭제, 처리정지 및 동의철회 등을 요청할 수 있습니다.
 
-이용자는 관계 법령이 정하는 범위에서 열람, 정정·삭제, 처리정지, 동의철회 등 권리를 행사할 수 있습니다.
+- LOTBI 계정 삭제 안내: `https://lotbiai.com/account-deletion.html`
+- 계정/개인정보 문의: `developer@lotbiai.com`
+- 대표전화: `063-237-0930`
 
-LOTBI account deletion은 `https://lotbiai.com/account-deletion.html`에 안내된 Account Web 공식 절차를 사용합니다.
+Social Login 연결 해제와 LOTBI account deletion은 서로 다른 기능입니다.
 
-Social Login unlink와 LOTBI account deletion은 서로 다른 절차입니다.
+## 8. 안전성 확보조치
 
-`[LEGAL REVIEW REQUIRED]` 대리인, 본인확인, 처리기간 및 이의/고충 절차의 최종문구를 확정합니다.
+현재 reviewed Social/Auth 계약에는 다음과 같은 보안경계가 포함됩니다.
 
-## 8. 개인정보의 안전성 확보조치
+- HTTPS callback
+- HttpOnly/Secure/SameSite authentication cookie
+- state/nonce/PKCE 또는 Provider별 동등한 인증검증
+- issuer/audience/provider subject 검증
+- one-time flow/binding/replay 방지
+- Passkey 기반 인증/step-up
+- session/authority revoke 및 audit evidence
 
-### [TECHNICALLY VERIFIED]
+내부 secret, token, private key 또는 보안설정의 민감한 값을 Privacy에 공개하지 않습니다.
 
-현재 reviewed auth 계약의 보안경계에는 다음이 포함됩니다.
+## 9. 만 14세 미만 이용자 — [USER DECISION D1]
 
-- HTTPS callback/transport
-- HttpOnly/Secure/SameSite 인증쿠키
-- Provider issuer/audience/subject 등 검증
-- state/nonce/PKCE 또는 Provider별 동등 검증
-- flow binding/replay 방지
-- Passkey step-up
-- session/authority revoke
-- append-only consent evidence
-- secret/token 값의 public policy 노출 금지
+현재 reviewed signup에는 법정대리인 동의 workflow가 없습니다.
 
-보안상 상세한 secret, signing key, API key, raw credential 값은 개인정보처리방침에 공개하지 않습니다.
+**추천 Production 기본안:**
 
-## 9. 개인정보 보호책임자 및 문의
+`LOTBI v1은 만 14세 미만 이용자의 회원가입을 지원하지 않습니다. 회원가입 시 이용자는 만 14세 이상임을 확인해야 하며, 만 14세 미만임이 확인된 경우 계정 생성을 진행하지 않습니다.`
 
-### [TECHNICALLY VERIFIED — company/contact]
+사용자가 `D1=A`를 승인하면 위 문구를 최종 게시본에 고정하고 Account/App/Core에 최소 age-confirmation gate 구현을 handoff합니다.
 
-- 운영회사: 유한회사 알에이디홀딩스
+만 14세 미만 가입을 허용하는 `D1=B`를 선택하면 법정대리인 동의·확인 workflow가 구현되기 전에는 해당 가입을 열지 않습니다.
+
+## 10. 개인정보 보호책임자 및 문의 — [USER DECISION D2]
+
+현재 회사 일반정보:
+
+- 회사명: 유한회사 알에이디홀딩스
 - 대표자: 전선혜
 - 주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)
 - 사업자등록번호: 583-88-03679
 - 통신판매업신고번호: 2026-전주덕진-0798
-- 서비스/개인정보 문의: `developer@lotbiai.com`
+- 이메일: `developer@lotbiai.com`
 - 대표전화: `063-237-0930`
 
-### [USER DECISION REQUIRED — PRIVACY_OFFICER_OR_DEPARTMENT]
+**추천 Production 기본안:**
 
-`[PLACEHOLDER — DO NOT PUBLISH] 개인정보 보호책임자 성명 또는 개인정보 보호업무 담당부서의 공식 명칭 및 연락처`
+- 개인정보 보호책임자: 전선혜
+- 개인정보 문의: `developer@lotbiai.com`
+- 전화: `063-237-0930`
 
-법률전문가는 개인정보 보호책임자 지정의무/예외 여부와 최종 공개필드를 확인해야 합니다.
+사용자가 `D2=A`를 승인하면 위 값으로 확정합니다. 별도 담당자/부서를 지정하려면 `D2=B`로 실제 정보를 입력합니다.
 
-## 10. 만 14세 미만 이용자
+## 11. 방침의 변경
 
-`[USER DECISION REQUIRED + LEGAL REVIEW REQUIRED — MINOR_POLICY]`
+본 방침이 변경되는 경우 관계 법령과 변경 중요도에 따라 적용일과 변경내용을 서비스 또는 공식사이트에 고지합니다.
 
-현재 reviewed signup에는 만14세 미만 age gate 또는 법정대리인 동의 flow가 구현됐다고 확인되지 않았습니다.
+Social Signup은 사용자가 동의한 당시 Terms/Privacy의 `document_version`, SHA-256, HTTPS URI를 Core server-owned manifest와 함께 evidence로 보존하는 계약을 사용합니다.
 
-가장 단순한 v1 후보는 **만14세 미만 회원가입 제한**이지만 아직 채택/구현된 정책으로 표시하지 않습니다. counsel 검토 후 사용자 결정과 Core/Account/App 기술변경이 필요합니다.
+---
 
-## 11. 방침의 변경과 Social Signup evidence
+# Production publication gate
 
-Social Signup은 이용자가 본 당시 Terms/Privacy의 `document_version`, SHA-256, HTTPS URI와 동의 evidence를 Core server-owned manifest에 결합합니다.
+외부 counsel 승인서는 필수 gate가 아니다.
 
-`[LEGAL REVIEW REQUIRED — FINAL_DOCUMENT_EFFECTIVE_DATES]` 적용일, 사전고지 기간, 기존회원 재동의/공지 필요범위를 확정합니다.
+게시 전 필수:
 
-## 12. Publication gate
+1. `D1` 및 `D2` 사용자 결정;
+2. 실제 Production infrastructure/processor/data-location technical manifest 검증;
+3. Provider별 활성화하려는 lifecycle blocker의 기술검증;
+4. 최종 HTML에 검토용 marker/VERIFY placeholder가 남지 않았는지 확인;
+5. 시행일/document version 확정;
+6. exact UTF-8 HTML bytes SHA-256 산출;
+7. 사용자 Production publish 승인.
 
-이 문서는 **counsel-ready**이나 다음 조건 전에는 Production에 공개하지 않습니다.
+현재 상태:
 
-- Q01~Q36 관련 필요한 legal decisions 반영
-- CPO/담당부서 확정
-- minor policy 확정 및 필요한 구현 준비
-- Production infrastructure/provider/payment data-flow inventory 확정
-- provider_subject/purge/statutory retention 확정
-- Provider lifecycle blocker에 맞는 최종 문구 반영
-- 시행일·document version 확정
-- final `privacy.html` exact bytes freeze 및 SHA-256 산출
-- 사용자 명시적 Production publish 승인
+`PRODUCTION PRIVACY = TECHNICALLY / POLICY READY FOR USER APPROVAL`
 
-현재:
+`EXTERNAL LEGAL COUNSEL = OPTIONAL / RECOMMENDED, NOT HARD BLOCKER`
 
-`PRODUCTION PRIVACY CANDIDATE = COUNSEL-READY`
-
-`PRODUCTION PUBLISH = NONE`
+`PRODUCTION PUBLISH = PENDING USER APPROVAL`.
