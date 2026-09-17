@@ -55,8 +55,8 @@ assert.match(
   /@media\s*\(min-width:\s*901px\)[\s\S]*?\.topbar-left,[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/,
 );
 
-// SITE-SIDEBAR-LOGO-CLIP-FIX-01 — preserve the official asset ratio and use
-// the wrapper's available width. Do not widen the established 220px sidebar.
+// SITE-SIDEBAR-LOGO-RIGHT-EDGE-SAFE-FIT-02 — preserve the official asset
+// ratio with a 10px right safety inset. Do not widen the 220px sidebar.
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?margin:\s*0\s+10px\s+18px/);
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?overflow:\s*hidden/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*100%/);
@@ -72,4 +72,4 @@ assert.equal(logoPng.toString('ascii', 12, 16), 'IHDR');
 assert.equal(logoPng.readUInt32BE(16), 334, 'official sidebar logo intrinsic width changed');
 assert.equal(logoPng.readUInt32BE(20), 96, 'official sidebar logo intrinsic height changed');
 
-console.log('SITE-COMPOSER-DESKTOP-WIDTH-02 + SITE-SIDEBAR-LOGO-CLIP-FIX-01 CONTRACT PASS');
+console.log('SITE-COMPOSER-DESKTOP-WIDTH-02 + SITE-SIDEBAR-LOGO-RIGHT-EDGE-SAFE-FIT-02 CONTRACT PASS');
