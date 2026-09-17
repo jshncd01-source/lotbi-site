@@ -112,17 +112,39 @@ Reviewed Apple LOGIN verification exists. Apple SIGNUP/LINK remains blocked beca
 
 Status: `APPLE_SOCIAL_AUTH_LIFECYCLE_BLOCKER`.
 
-## 6. Provider-subject reservation and retention
+## 6. Provider-subject reservation decision table
 
-Current local unlink retains the external identity row/unique provider-subject reservation after status becomes `REVOKED`, preventing silent migration of a Provider identity to another LOTBI user.
+Current local unlink retains the external identity row/unique provider-subject reservation after status becomes `REVOKED`. The security objective is to prevent a previously-linked Provider identity from being silently reassigned to a different LOTBI user and to preserve controlled same-owner relink semantics.
 
-Public policy must not promise immediate hard deletion of `provider_subject` on local unlink.
+This does **not** establish a legal right to retain the identifier forever.
 
-For final account deletion/purge, the legal basis, duration, transformation or erasure rule for a revoked/reserved `provider_subject` remains:
+| Decision point | Current reviewed behavior | Reason / security objective | Final decision still required |
+|---|---|---|---|
+| Why retain after local unlink? | `provider_subject` reservation remains with `REVOKED` identity | prevent identity takeover/reassignment; prevent silent migration to another LOTBI account; support explicit same-owner relink | legal basis for retention must be confirmed |
+| How long after local unlink? | current unlink implementation defines no separate expiry for the reservation | current code prioritizes identity-binding safety | `LEGAL_REVIEW_REQUIRED` — define period/event that ends reservation |
+| Relink | same owner may explicitly re-link using fresh LOTBI Passkey/provider proof under current design | preserve secure account continuity without email/name auto-merge | ensure Provider-specific revoke/unlink semantics still allow intended relink |
+| Account deletion request | active external identity becomes local `REVOKED`; deletion lifecycle starts | immediately remove active authority before final purge | retention during deletion window must match Privacy and Provider obligations |
+| Final purge | generic contract does not yet define one universal subject deletion/transformation rule | final purge is separate from local unlink | decide delete vs irreversible transform vs narrowly-justified security retention |
+| Kakao conflict check | Kakao policy requires unlink and service user ID deletion/purge treatment on service withdrawal unless an allowed retention path applies | current generic reservation cannot be assumed valid indefinitely | `KAKAO_PROVIDER_LIFECYCLE_BLOCKER` + legal review required |
+| NAVER conflict check | token revocation/disconnect handling must be integrated | local reservation and Provider authorization are different layers | confirm whether identifier retention after service withdrawal is permitted/necessary under final NAVER contract |
+| Apple conflict check | remote revoke lifecycle is mandatory blocker for SIGNUP/LINK; local subject reservation remains a separate DB question | Provider authorization must terminate even if local anti-takeover evidence is retained temporarily | define subject handling after successful Apple revoke and final purge |
+| Google conflict check | no separate final rule is declared by this readiness work | avoid inventing a Provider-specific retention rule before final integration | verify final Google deletion/revoke policy and legal basis at Production integration |
+
+Public policy must not promise immediate hard deletion of `provider_subject` on local unlink, but it also must not claim indefinite retention.
+
+Authoritative open item:
 
 `LEGAL_REVIEW_REQUIRED — PROVIDER_SUBJECT_RETENTION_BASIS_AND_PERIOD`.
 
-Kakao has an additional Provider-policy constraint as described above; its final subject purge behavior must be explicitly reconciled rather than hidden inside the generic retention rule.
+Required closure output:
+
+1. legal/security basis for any post-unlink reservation;
+2. maximum retention period or explicit termination event;
+3. account-deletion treatment before final purge;
+4. final-purge deletion/transformation rule;
+5. Provider-specific exception matrix;
+6. database/migration behavior that implements the approved rule;
+7. Privacy/Terms wording that matches the implementation.
 
 ## 7. Deletion timing
 
