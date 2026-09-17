@@ -138,22 +138,27 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   );
 }
 
+function conversationSuccess(overrides = {}) {
+  return {
+    contract_id: 'CORE-WEB-CHAT-01',
+    schema_version: 1,
+    correlation_id: 'req_unit_test',
+    status: 'ANSWERED',
+    assistant_text: '실제 Core 계약 형태의 테스트 응답',
+    intent: {action: 'UNKNOWN'},
+    response_mode: 'MODEL',
+    follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+    retry_safe: true,
+    safety: {execution_authority: false, external_side_effect: false},
+    ...overrides,
+  };
+}
+
 {
   let request;
   const fetchMock = async (url, init) => {
     request = {url, init};
-    return jsonResponse({
-      contract_id: 'CORE-WEB-CHAT-01',
-      schema_version: 1,
-      correlation_id: 'req_unit_test',
-      status: 'ANSWERED',
-      assistant_text: '실제 Core 계약 형태의 테스트 응답',
-      intent: {action: 'UNKNOWN'},
-      response_mode: 'MODEL',
-      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
-      retry_safe: true,
-      safety: {execution_authority: false, external_side_effect: false},
-    });
+    return jsonResponse(conversationSuccess());
   };
   const reply = await sendConversationMessage('site-memory-token', '안녕하세요', fetchMock);
   assert.equal(reply.status, 'ANSWERED');
@@ -164,6 +169,52 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
   assert.equal(request.init.headers['Content-Type'], 'application/json');
   assert.deepEqual(JSON.parse(request.init.body), {text: '안녕하세요'});
+}
+
+{
+  let request;
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse(conversationSuccess({
+      assistant_text: '지금은 오후 1시 25분이에요.',
+      response_mode: 'LOCAL_DETERMINISTIC',
+      routing: {
+        route: 'LOCAL',
+        local_intent: 'CURRENT_TIME',
+        ai_required: false,
+        ai_calls: 0,
+        provider: 'NONE',
+        latency_ms: 2,
+        estimated_ai_cost: 0,
+      },
+    }));
+  };
+  const reply = await sendConversationMessage(
+    'site-memory-token',
+    '지금 몇시야',
+    {timezone: 'Asia/Seoul'},
+    fetchMock,
+  );
+  assert.equal(reply.routing.route, 'LOCAL');
+  assert.equal(reply.routing.ai_calls, 0);
+  assert.deepEqual(JSON.parse(request.init.body), {
+    text: '지금 몇시야',
+    client_context: {timezone: 'Asia/Seoul'},
+  });
+  const serialized = request.init.body.toLowerCase();
+  for (const forbiddenContext of ['gps', 'latitude', 'longitude', 'address', 'device_secret']) {
+    assert.ok(!serialized.includes(forbiddenContext), `forbidden conversation context: ${forbiddenContext}`);
+  }
+}
+
+{
+  let request;
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse(conversationSuccess());
+  };
+  await sendConversationMessage('site-memory-token', '지금 몇시야', {timezone: '../Asia/Seoul'}, fetchMock);
+  assert.deepEqual(JSON.parse(request.init.body), {text: '지금 몇시야'}, 'invalid timezone must be omitted client-side');
 }
 
 await expectReject(
@@ -204,8 +255,12 @@ assert.ok(conversation.includes("event.key === 'Enter'"));
 assert.ok(conversation.includes('!event.shiftKey'));
 assert.ok(conversation.includes('beginSiteHandoff'));
 assert.ok(conversation.includes('sendConversationMessage'));
+assert.ok(conversation.includes('Intl.DateTimeFormat().resolvedOptions().timeZone'));
+assert.ok(conversation.includes('FAST_PATH_LOADING_DELAY_MS = 180'));
+assert.ok(conversation.includes("console.info('[LOTBI conversation timing]'"));
 assert.ok(core.includes("Authorization: `Bearer ${token}`"));
 assert.ok(core.includes("payload.contract_id !== 'CORE-WEB-CHAT-01'"));
+assert.ok(core.includes('client_context'));
 
 const allRuntime = `${auth}\n${core}\n${conversation}\n${callback}`.toLowerCase();
 for (const forbidden of ['localstorage', 'document.cookie', 'client_secret', 'api_key', 'openai_api_key']) {
