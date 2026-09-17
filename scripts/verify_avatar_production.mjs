@@ -57,6 +57,34 @@ async function evaluate(send, expression) {
   return result.result.value;
 }
 
+const PIXEL_PROBE = `(() => {
+  const install = proto => {
+    for (const name of ['drawElements','drawArrays']) {
+      const original = proto?.[name];
+      if (!original || original.__lotbiWrapped) continue;
+      function wrapped(...args) {
+        const result = original.apply(this,args);
+        try {
+          if (!this.canvas?.closest?.('[data-lotbi-avatar-stage]')) return result;
+          const width=this.drawingBufferWidth,height=this.drawingBufferHeight;
+          const pixels=new Uint8Array(width*height*4);
+          this.readPixels(0,0,width,height,this.RGBA,this.UNSIGNED_BYTE,pixels);
+          let bounds=window.__lotbiPixelBounds;
+          if (!bounds || bounds.bufferWidth!==width || bounds.bufferHeight!==height) bounds={count:0,minX:width,minY:height,maxX:-1,maxY:-1,bufferWidth:width,bufferHeight:height};
+          for(let y=0;y<height;y+=1) for(let x=0;x<width;x+=1) if(pixels[(y*width+x)*4+3]>8){bounds.count+=1;bounds.minX=Math.min(bounds.minX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxX=Math.max(bounds.maxX,x);bounds.maxY=Math.max(bounds.maxY,y);}
+          if(bounds.count){bounds.left=bounds.minX;bounds.right=width-1-bounds.maxX;bounds.bottom=bounds.minY;bounds.top=height-1-bounds.maxY;}
+          window.__lotbiPixelBounds=bounds;
+        } catch {}
+        return result;
+      }
+      wrapped.__lotbiWrapped=true;
+      proto[name]=wrapped;
+    }
+  };
+  install(window.WebGLRenderingContext?.prototype);
+  install(window.WebGL2RenderingContext?.prototype);
+})()`;
+
 const SNAPSHOT = `(() => {
   const api = window.__lotbiSiteAvatar;
   const state = api?.snapshot?.() || null;
@@ -64,22 +92,8 @@ const SNAPSHOT = `(() => {
   const stage = document.querySelector('[data-lotbi-avatar-stage]');
   const composer = document.querySelector('.chat-composer');
   const sidebar = document.querySelector('.chat-sidebar');
-  const canvas = stage?.querySelector('canvas');
   const rect = el => el ? ({x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}) : null;
-  let visiblePixels = null;
-  if (canvas) {
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-    if (gl) {
-      const width = gl.drawingBufferWidth, height = gl.drawingBufferHeight;
-      const pixels = new Uint8Array(width * height * 4);
-      gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
-      let minX=width,minY=height,maxX=-1,maxY=-1,count=0;
-      for (let y=0;y<height;y+=1) for (let x=0;x<width;x+=1) {
-        if (pixels[(y*width+x)*4+3] > 8) { minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);count+=1; }
-      }
-      visiblePixels = count ? {count,minX,minY,maxX,maxY,left:minX,right:width-1-maxX,bottom:minY,top:height-1-maxY,bufferWidth:width,bufferHeight:height} : {count,bufferWidth:width,bufferHeight:height};
-    }
-  }
+  const visiblePixels = window.__lotbiPixelBounds || null;
   return {
     state,
     ready: wrap?.classList.contains('avatar-3d-ready') || false,
@@ -112,6 +126,7 @@ async function verify(label, width, height, mobile) {
     await send('Page.enable');
     await send('Runtime.enable');
     await send('Log.enable');
+    await send('Page.addScriptToEvaluateOnNewDocument',{source:PIXEL_PROBE});
     await send('Emulation.setDeviceMetricsOverride', {width,height,deviceScaleFactor:1,mobile,screenWidth:width,screenHeight:height});
     await send('Page.navigate', {url:TARGET});
 
