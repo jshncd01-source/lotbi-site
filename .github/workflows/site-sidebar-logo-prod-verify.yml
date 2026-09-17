@@ -1,0 +1,154 @@
+name: SITE Sidebar Logo Production Verify
+
+on:
+  push:
+    branches:
+      - site-sidebar-logo-clip-fix-01-prod-verify
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-logo:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify Production Desktop logo geometry and Mobile regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet selenium pillow
+          python - <<'PY'
+          import io, json, shutil, time, urllib.request
+          from PIL import Image
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.common.action_chains import ActionChains
+
+          CHROME = shutil.which('google-chrome') or shutil.which('google-chrome-stable') or shutil.which('chromium')
+          if not CHROME:
+              raise SystemExit('Chrome not available')
+
+          def make_driver(width, height):
+              opts=Options(); opts.binary_location=CHROME
+              for arg in ('--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage'):
+                  opts.add_argument(arg)
+              opts.add_argument(f'--window-size={width},{height}')
+              opts.set_capability('goog:loggingPrefs', {'browser':'ALL'})
+              return webdriver.Chrome(options=opts)
+
+          def severe_console(d):
+              return [e.get('message','') for e in d.get_log('browser') if e.get('level') == 'SEVERE' and 'favicon' not in e.get('message','').lower()]
+
+          source_bytes=urllib.request.urlopen('https://lotbiai.com/assets/lotbi-logo-header.png', timeout=20).read()
+          source=Image.open(io.BytesIO(source_bytes)).convert('RGBA')
+          if source.size != (334,96):
+              raise SystemExit(f'Production official asset intrinsic size changed: {source.size}')
+          alpha=source.getchannel('A')
+          source_bbox=alpha.getbbox()
+          if not source_bbox or source_bbox[2] < 329:
+              raise SystemExit(f'Production source logo lacks expected right-side opaque content: {source_bbox}')
+
+          def element_pixel_analysis(png_bytes):
+              image=Image.open(io.BytesIO(png_bytes)).convert('RGB')
+              w,h=image.size; p=image.load()
+              corners=[p[0,0],p[w-1,0],p[0,h-1],p[w-1,h-1]]
+              def dist(a,b): return sum(abs(a[i]-b[i]) for i in range(3))
+              def fg(x,y): return min(dist(p[x,y],c) for c in corners)>24
+              counts=[]; xs=[]; ys=[]
+              for band in range(4):
+                  x0=round(w*band/4); x1=round(w*(band+1)/4); count=0
+                  for y in range(h):
+                      for x in range(x0,x1):
+                          if fg(x,y):
+                              count+=1; xs.append(x); ys.append(y)
+                  counts.append(count)
+              return {'size':[w,h], 'foregroundBandCounts':counts, 'foregroundBBox':([min(xs),min(ys),max(xs)+1,max(ys)+1] if xs else None)}
+
+          stamp=str(int(time.time()))
+          desktop_results=[]
+          for width,height in ((1440,900),(1366,900)):
+              d=make_driver(width,height)
+              try:
+                  d.get(f'https://lotbiai.com/?sidebar_logo_prod={width}-{stamp}')
+                  time.sleep(4)
+                  sidebar=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop')
+                  wrapper=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-brand')
+                  logo=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-brand-logo')
+                  recent=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-history-scroll')
+                  bottom=d.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop .sidebar-bottom-nav')
+                  result=d.execute_script('''
+                    const [sidebar,wrapper,logo,recent,bottom]=arguments;
+                    const rect=(el)=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};
+                    const css=(el)=>{const s=getComputedStyle(el);return {width:s.width,height:s.height,maxWidth:s.maxWidth,maxHeight:s.maxHeight,minWidth:s.minWidth,objectFit:s.objectFit,objectPosition:s.objectPosition,display:s.display,flexShrink:s.flexShrink,overflow:s.overflow,overflowX:s.overflowX,overflowY:s.overflowY,paddingLeft:s.paddingLeft,paddingRight:s.paddingRight,marginLeft:s.marginLeft,marginRight:s.marginRight,transform:s.transform,position:s.position}};
+                    return {
+                      viewport:{width:innerWidth,height:innerHeight},
+                      natural:{width:logo.naturalWidth,height:logo.naturalHeight}, currentSrc:logo.currentSrc,
+                      sidebar:{rect:rect(sidebar),css:css(sidebar),clientWidth:sidebar.clientWidth,scrollWidth:sidebar.scrollWidth},
+                      wrapper:{rect:rect(wrapper),css:css(wrapper),clientWidth:wrapper.clientWidth,scrollWidth:wrapper.scrollWidth},
+                      logo:{rect:rect(logo),css:css(logo),clientWidth:logo.clientWidth,scrollWidth:logo.scrollWidth},
+                      recent:{rect:rect(recent),css:css(recent)}, bottom:{rect:rect(bottom)},
+                      rightEdgeDelta:wrapper.getBoundingClientRect().right-logo.getBoundingClientRect().right,
+                      leftEdgeDelta:logo.getBoundingClientRect().left-wrapper.getBoundingClientRect().left,
+                      ratioIntrinsic:logo.naturalWidth/logo.naturalHeight,
+                      ratioRendered:logo.getBoundingClientRect().width/logo.getBoundingClientRect().height,
+                      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+                    };
+                  ''',sidebar,wrapper,logo,recent,bottom)
+                  result['pixels']=element_pixel_analysis(logo.screenshot_as_png)
+                  if result['natural'] != {'width':334,'height':96}: raise SystemExit(f'intrinsic mismatch {width}: {result}')
+                  if result['currentSrc'].split('?')[0] != 'https://lotbiai.com/assets/lotbi-logo-header.png': raise SystemExit(f'wrong logo asset {width}: {result}')
+                  if not 219 <= result['sidebar']['rect']['width'] <= 221: raise SystemExit(f'sidebar width changed {width}: {result}')
+                  if not 174 <= result['wrapper']['rect']['width'] <= 176: raise SystemExit(f'wrapper width unexpected {width}: {result}')
+                  if not 174 <= result['logo']['rect']['width'] <= 176: raise SystemExit(f'logo width unexpected {width}: {result}')
+                  if not 49 <= result['logo']['rect']['height'] <= 51: raise SystemExit(f'logo height unexpected {width}: {result}')
+                  if result['logo']['rect']['left'] < result['wrapper']['rect']['left']-0.5 or result['logo']['rect']['right'] > result['wrapper']['rect']['right']+0.5: raise SystemExit(f'logo box overflow {width}: {result}')
+                  if abs(result['ratioRendered']-result['ratioIntrinsic']) > 0.02: raise SystemExit(f'ratio distorted {width}: {result}')
+                  if result['sidebar']['css']['overflow'] not in ('hidden','clip'): raise SystemExit(f'sidebar overflow changed {width}: {result}')
+                  if result['wrapper']['css']['overflow'] not in ('hidden','clip'): raise SystemExit(f'wrapper overflow changed {width}: {result}')
+                  if result['recent']['css']['overflowY'] != 'auto': raise SystemExit(f'recent scroll changed {width}: {result}')
+                  if result['bottom']['rect']['bottom'] > result['viewport']['height']+1: raise SystemExit(f'bottom nav out of viewport {width}: {result}')
+                  if result['horizontalOverflow']: raise SystemExit(f'horizontal overflow {width}: {result}')
+                  if result['pixels']['foregroundBandCounts'][3] <= 0: raise SystemExit(f'right-side logo pixels missing {width}: {result}')
+                  bad=severe_console(d)
+                  if bad: raise SystemExit(f'console errors {width}: {bad}')
+                  d.save_screenshot(f'/tmp/lotbi-sidebar-{width}.png')
+                  desktop_results.append(result)
+                  print(f'PRODUCTION_LOGO_{width}x{height}='+json.dumps(result,ensure_ascii=False,sort_keys=True))
+              finally:
+                  d.quit()
+
+          m=make_driver(390,844)
+          try:
+              m.get(f'https://lotbiai.com/?sidebar_logo_mobile={stamp}')
+              time.sleep(4)
+              desktop=m.find_element(By.CSS_SELECTOR,'.chat-sidebar-desktop')
+              if m.execute_script('return getComputedStyle(arguments[0]).display',desktop) != 'none': raise SystemExit('desktop sidebar visible on mobile')
+              account=m.find_element(By.CSS_SELECTOR,'.account-actions')
+              if m.execute_script('return getComputedStyle(arguments[0]).display',account) == 'none': raise SystemExit('mobile account affordance missing')
+              opener=m.find_element(By.CSS_SELECTOR,'[data-mobile-nav-open]')
+              ActionChains(m).move_to_element(opener).click().perform(); time.sleep(.4)
+              drawer=m.find_element(By.CSS_SELECTOR,'#mobile-nav-drawer')
+              if drawer.get_attribute('aria-hidden') != 'false': raise SystemExit('mobile drawer failed to open')
+              mobile_account=m.find_element(By.CSS_SELECTOR,'#mobile-nav-drawer a[href="https://account.lotbiai.com/account"]')
+              if not mobile_account.is_displayed(): raise SystemExit('mobile drawer account link missing')
+              if m.execute_script('return document.documentElement.scrollWidth>innerWidth+1'): raise SystemExit('mobile horizontal overflow')
+              bad=severe_console(m)
+              if bad: raise SystemExit(f'mobile console errors: {bad}')
+              m.save_screenshot('/tmp/lotbi-sidebar-mobile-390.png')
+              print('MOBILE_390_REGRESSION=GREEN')
+          finally:
+              m.quit()
+
+          print('SOURCE_ALPHA_BBOX='+json.dumps(source_bbox))
+          print('SITE-SIDEBAR-LOGO-CLIP-FIX-01 PRODUCTION RENDER PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-sidebar-logo-clip-fix-production-screenshots
+          path: |
+            /tmp/lotbi-sidebar-1440.png
+            /tmp/lotbi-sidebar-1366.png
+            /tmp/lotbi-sidebar-mobile-390.png
+          if-no-files-found: error
+          retention-days: 7
