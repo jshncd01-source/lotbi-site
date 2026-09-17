@@ -1,6 +1,10 @@
 import {beginSiteHandoff, readAccountSessionStatus} from './site-auth.js';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
+export const AUTH_STATE_CHECKING = 'checking';
+export const AUTH_STATE_AUTHENTICATED = 'authenticated';
+export const AUTH_STATE_UNAUTHENTICATED = 'unauthenticated';
+
 const ACCOUNT_URL = 'https://account.lotbiai.com/account';
 const LOGIN_URL = '/auth/start/';
 const SIGNUP_URL = 'https://account.lotbiai.com/signup';
@@ -11,6 +15,20 @@ let checking = false;
 let redirecting = false;
 let expiryTimer;
 
+function performanceNow() {
+  return globalThis.performance?.now?.() ?? 0;
+}
+
+function recordTiming(name, detail = {}) {
+  try {
+    globalThis.performance?.mark?.(`lotbi-auth:${name}`, {detail: Object.freeze({...detail})});
+  } catch {
+    // Timing evidence is diagnostic-only and must never affect authentication.
+  }
+}
+
+recordTiming('site-boot', {elapsedMs: Math.round(performanceNow())});
+
 function rootLocation() {
   return window.location.pathname === '/' || window.location.pathname === '/index.html';
 }
@@ -18,6 +36,34 @@ function rootLocation() {
 function accountActions() {
   const node = document.querySelector('.account-actions');
   return node instanceof HTMLElement ? node : undefined;
+}
+
+function setAuthState(actions, state, busy) {
+  actions.dataset.authState = state;
+  document.body.dataset.siteAuthState = state;
+  if (busy) actions.setAttribute('aria-busy', 'true');
+  else actions.removeAttribute('aria-busy');
+}
+
+function checkingNodes(message) {
+  const placeholder = document.createElement('span');
+  placeholder.className = 'account-auth-placeholder';
+  placeholder.setAttribute('aria-hidden', 'true');
+
+  const status = document.createElement('span');
+  status.className = 'sr-only';
+  status.setAttribute('role', 'status');
+  status.textContent = message;
+  return [placeholder, status];
+}
+
+export function markCheckingAccountUi(message = '계정 상태 확인 중') {
+  const actions = accountActions();
+  if (!actions) return;
+  actions.replaceChildren(...checkingNodes(message));
+  setAuthState(actions, AUTH_STATE_CHECKING, true);
+  delete actions.dataset.siteAuthenticated;
+  delete document.body.dataset.siteAuthenticated;
 }
 
 export function markAuthenticatedAccountUi() {
@@ -28,8 +74,10 @@ export function markAuthenticatedAccountUi() {
   account.href = ACCOUNT_URL;
   account.textContent = '내 계정';
   actions.replaceChildren(account);
+  setAuthState(actions, AUTH_STATE_AUTHENTICATED, false);
   actions.dataset.siteAuthenticated = 'true';
   document.body.dataset.siteAuthenticated = 'true';
+  recordTiming('header-authenticated', {elapsedMs: Math.round(performanceNow())});
 }
 
 export function markAnonymousAccountUi() {
@@ -46,8 +94,10 @@ export function markAnonymousAccountUi() {
   signup.textContent = '회원가입';
 
   actions.replaceChildren(login, signup);
+  setAuthState(actions, AUTH_STATE_UNAUTHENTICATED, false);
   delete actions.dataset.siteAuthenticated;
   delete document.body.dataset.siteAuthenticated;
+  recordTiming('header-unauthenticated', {elapsedMs: Math.round(performanceNow())});
 }
 
 function clearExpiryTimer() {
@@ -66,7 +116,7 @@ function scheduleExpiry(expiresAt) {
   expiryTimer = setTimeout(() => {
     siteSessionActive = false;
     siteSessionExpiresAt = 0;
-    markAnonymousAccountUi();
+    markCheckingAccountUi('계정 상태 다시 확인 중');
     void synchronizeAccountContinuity();
   }, Math.min(delay, 2_147_000_000));
 }
@@ -79,8 +129,15 @@ function hasLiveSiteSession() {
 export async function synchronizeAccountContinuity() {
   if (!rootLocation() || checking || redirecting) return;
   checking = true;
+  markCheckingAccountUi();
+  const statusStartedAt = performanceNow();
   try {
     const authenticated = await readAccountSessionStatus();
+    recordTiming('account-status', {
+      durationMs: Math.round(Math.max(0, performanceNow() - statusStartedAt)),
+      authenticated,
+    });
+
     if (!authenticated) {
       siteSessionActive = false;
       siteSessionExpiresAt = 0;
@@ -95,11 +152,15 @@ export async function synchronizeAccountContinuity() {
     }
 
     redirecting = true;
+    recordTiming('auth-start-transition', {elapsedMs: Math.round(performanceNow())});
     await beginSiteHandoff();
   } catch {
-    // Fail closed: cold pages keep their anonymous markup. If a verified Site
-    // session is already active, preserve it only until its known expiry.
-    if (!hasLiveSiteSession()) markAnonymousAccountUi();
+    recordTiming('account-status-error', {
+      durationMs: Math.round(Math.max(0, performanceNow() - statusStartedAt)),
+    });
+    // Fail closed without lying about logout or login. A transient Account/Core
+    // verification failure remains neutral until a later explicit recheck.
+    markCheckingAccountUi('계정 상태를 확인하지 못했습니다. 다시 확인 중입니다.');
   } finally {
     checking = false;
   }
@@ -119,7 +180,7 @@ function handleSiteSessionState(event) {
   siteSessionActive = false;
   siteSessionExpiresAt = 0;
   clearExpiryTimer();
-  markAnonymousAccountUi();
+  markCheckingAccountUi('계정 상태 다시 확인 중');
   if (rootLocation()) void synchronizeAccountContinuity();
 }
 
