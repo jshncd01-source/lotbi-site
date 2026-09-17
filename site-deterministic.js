@@ -14,7 +14,7 @@ export function deterministicReply(text, now = new Date()) {
     const value = new Intl.DateTimeFormat('ko-KR', {year: 'numeric', month: 'long', day: 'numeric'}).format(now);
     return `오늘은 ${value}입니다. (${timeZone})`;
   }
-  if (/^(오늘)?(요일|무슨요일|오늘요일)$/u.test(exact)) {
+  if (/^(오늘)?(요일|무슨요일|무슨요일이야|오늘요일)$/u.test(exact)) {
     const value = new Intl.DateTimeFormat('ko-KR', {weekday: 'long'}).format(now);
     return `오늘은 ${value}입니다. (${timeZone})`;
   }
