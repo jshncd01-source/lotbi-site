@@ -1,35 +1,32 @@
-/* SITE-AUTH-CONTINUITY-FLASH-01 — neutral auth header while server-authoritative state is resolving. */
+/* SITE-AUTH-CONTINUITY-SEAMLESS-02 — reserve auth layout without visible loading controls. */
 .account-actions {
   min-width: 174px;
   min-height: 42px;
   justify-content: flex-end;
 }
 
+/* CHECKING remains accessible to assistive technology, but sighted users see
+   only the reserved Header slot — no skeleton, pill, shimmer or fake state. */
 .account-auth-placeholder {
   width: 164px;
   height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  visibility: hidden;
+  pointer-events: none;
+  border-color: var(--brand-line);
+  background: transparent;
 }
 
-.account-auth-placeholder::before,
-.account-auth-placeholder::after {
-  content: "";
-  height: 42px;
-  border: 1px solid var(--brand-line);
-  border-radius: 999px;
-  background: #f0f2f7;
-  box-sizing: border-box;
+/* The callback must stay visually blank during the normal pending/success
+   path. The existing callback card is reserved exclusively for a real error. */
+body.auth-callback-page:not(.auth-callback-error-page) {
+  display: block;
+  padding: 0;
+  background: #fff;
 }
 
-.account-auth-placeholder::before {
-  width: 66px;
-}
-
-.account-auth-placeholder::after {
-  width: 88px;
+.auth-callback-page:not(.auth-callback-error-page) .auth-callback-shell,
+.auth-callback-shell[hidden] {
+  display: none;
 }
 
 @media (max-width: 760px) {
@@ -41,19 +38,5 @@
   .account-auth-placeholder {
     width: 126px;
     height: 36px;
-    gap: 6px;
-  }
-
-  .account-auth-placeholder::before,
-  .account-auth-placeholder::after {
-    height: 36px;
-  }
-
-  .account-auth-placeholder::before {
-    width: 52px;
-  }
-
-  .account-auth-placeholder::after {
-    width: 68px;
   }
 }
