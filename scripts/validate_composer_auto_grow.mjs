@@ -11,7 +11,8 @@ const shell = read('home-shell.js');
 const conversation = read('site-conversation.js');
 const homeCss = read('home-chat.css');
 const hardeningCss = read('site-hardening.css');
-const combinedCss = `${homeCss}\n${hardeningCss}`;
+const conversationCss = read('site-conversation.css');
+const combinedCss = `${homeCss}\n${hardeningCss}\n${conversationCss}`;
 
 // Compact one-line baseline.
 assert.match(index, /id="lotbi-prompt"[\s\S]*?rows="1"/);
@@ -37,9 +38,22 @@ assert.match(shell, /resizePrompt\(\)/);
 assert.match(conversation, /prompt\.value\s*=\s*current\s*\?\s*`\$\{current\} \$\{transcript\}`\s*:\s*transcript;[\s\S]*?prompt\.dispatchEvent\(new Event\('input'/);
 assert.match(conversation, /prompt\.value\s*=\s*'';[\s\S]*?prompt\.dispatchEvent\(new Event\('input'/);
 
-// Buttons remain a stable right-bottom column and never overlap textarea text.
-assert.match(combinedCss, /\.chat-composer[\s\S]*?grid-template-columns:\s*1fr\s+auto/);
-assert.match(combinedCss, /\.composer-actions[\s\S]*?align-self:\s*end/);
-assert.match(combinedCss, /\.chat-input[\s\S]*?padding:[^;]+;/);
+// SITE-COMPOSER-HORIZONTAL-FIT-01: textarea owns the full content row and
+// action controls move to a separate bottom row instead of consuming text width.
+assert.match(hardeningCss, /\.chat-composer\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+assert.match(hardeningCss, /\.chat-composer\s*\{[\s\S]*?grid-template-rows:\s*auto\s+auto/);
+assert.match(hardeningCss, /\.chat-composer\s*\{[\s\S]*?column-gap:\s*0/);
+assert.match(hardeningCss, /\.chat-input\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1/);
+assert.match(hardeningCss, /\.chat-input\s*\{[\s\S]*?width:\s*100%/);
+assert.match(hardeningCss, /\.chat-input\s*\{[\s\S]*?min-width:\s*0/);
+assert.match(hardeningCss, /\.composer-actions\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1/);
+assert.match(hardeningCss, /\.composer-actions\s*\{[\s\S]*?justify-self:\s*end/);
 
-console.log('SITE-COMPOSER-AUTO-GROW-01 CONTRACT PASS');
+// Buttons remain a stable right-bottom control row and never overlap textarea text.
+assert.match(combinedCss, /\.composer-button[\s\S]*?min-width:\s*44px/);
+assert.match(combinedCss, /\.composer-button[\s\S]*?min-height:\s*44px/);
+assert.match(hardeningCss, /\.chat-input\s*\{[\s\S]*?padding:[^;]+;/);
+assert.doesNotMatch(hardeningCss, /white-space:\s*nowrap/);
+assert.doesNotMatch(hardeningCss, /overflow-x:\s*(?:auto|scroll)/);
+
+console.log('SITE-COMPOSER-AUTO-GROW-01 + HORIZONTAL-FIT CONTRACT PASS');
