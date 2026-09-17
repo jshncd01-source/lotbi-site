@@ -22,8 +22,124 @@
   flex: 0 1 auto;
 }
 
+/* SITE-SIDEBAR-INFORMATION-ARCHITECTURE-04 — fixed primary actions +
+   independently scrolling recent conversations + fixed account identity. */
+.sidebar-primary-nav {
+  display: grid;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.sidebar-primary-nav .nav-item:disabled {
+  opacity: .58;
+}
+
+.sidebar-primary-nav .nav-link:focus-visible,
+.sidebar-account-entry:focus-visible {
+  outline: 2px solid var(--brand-violet, #7b62bb);
+  outline-offset: 2px;
+}
+
+.sidebar-history-section {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-history-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .nav-history-list li {
   justify-content: flex-start;
+}
+
+.nav-history-list a,
+.nav-history-list button {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.nav-history-list [data-conversation-title] {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-overflow: ellipsis;
+}
+
+.sidebar-account-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding: 12px 4px 0;
+  border-top: 1px solid #e2e6ee;
+  background: #f7f8fb;
+}
+
+.sidebar-account-slot {
+  min-height: 54px;
+  display: grid;
+  align-items: center;
+}
+
+.sidebar-account-entry {
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 10px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  border-radius: 12px;
+  color: var(--brand-navy);
+  text-decoration: none;
+}
+
+.sidebar-account-entry:hover {
+  background: #eceff5;
+}
+
+.sidebar-account-name,
+.sidebar-account-handle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-name {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.sidebar-account-handle {
+  color: #737b88;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.sidebar-account-placeholder {
+  display: block;
+  width: 74%;
+  height: 32px;
+  margin-inline: 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #e9edf4 20%, #f4f6fa 50%, #e9edf4 80%);
+  background-size: 200% 100%;
+  animation: sidebar-account-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sidebar-account-pulse {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
 
 @media (min-width: 901px) {
@@ -39,35 +155,29 @@
     gap: 14px;
   }
 
-  .sidebar-nav-desktop > .nav-item-primary {
-    flex: 0 0 auto;
-  }
-
-  .sidebar-history-section {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .sidebar-history-scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-  }
-
-  .sidebar-bottom-nav {
-    flex: 0 0 auto;
-    margin-top: auto;
-    padding-top: 12px;
-    border-top: 1px solid #e2e6ee;
-    background: #f7f8fb;
-  }
-
   /* Desktop account access lives in the fixed sidebar; mobile keeps the top affordance. */
   .topbar-left,
   .account-actions {
     display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .mobile-nav-drawer {
+    overflow: hidden;
+  }
+
+  .mobile-nav-drawer .sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    gap: 14px;
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-account-placeholder {
+    animation: none;
   }
 }

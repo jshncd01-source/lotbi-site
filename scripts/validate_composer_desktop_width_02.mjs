@@ -44,7 +44,7 @@ const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-deskto
 assert.match(desktopAside, /<a class="sidebar-brand" href="index\.html" aria-label="LOTBI 홈">/);
 assert.match(desktopAside, /<img class="sidebar-brand-logo" src="assets\/lotbi-logo-header\.png" alt="LOTBI"/);
 assert.ok(
-  desktopAside.indexOf('sidebar-brand') < desktopAside.indexOf('<nav class="sidebar-nav sidebar-nav-desktop">'),
+  desktopAside.indexOf('sidebar-brand') < desktopAside.indexOf('<nav class="sidebar-nav sidebar-nav-desktop"'),
   'desktop sidebar brand must appear before navigation',
 );
 
