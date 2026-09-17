@@ -11,6 +11,8 @@ on:
       - site-web-conversation-integration-01-review-v2
       - site-user-bubble-content-fit-02-review
       - site-web-3d-avatar-integration-01-review
+      - site-sidebar-information-architecture-04-review
+      - site-sidebar-information-architecture-04-reconcile
   pull_request:
     branches:
       - main
@@ -45,6 +47,12 @@ jobs:
 
       - name: Validate sealed 3D Avatar Site integration
         run: node scripts/validate_site_avatar_integration.mjs
+
+      - name: Validate Sidebar information architecture
+        run: node scripts/validate_sidebar_information_architecture_04.mjs
+
+      - name: Validate Sidebar desktop/mobile viewport rendering
+        run: node scripts/validate_sidebar_viewports_04.mjs
 
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
@@ -146,4 +154,3 @@ jobs:
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
-

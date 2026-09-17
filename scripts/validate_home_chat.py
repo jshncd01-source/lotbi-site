@@ -8,6 +8,7 @@ approved site-continuity.js module; home-shell.js itself remains free of
 network and persistence behavior. The approved mobile-entry.js bootstrap may coexist.
 """
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +22,7 @@ CONTINUITY_JS = ROOT / "site-continuity.js"
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
+CONNECTED_SERVICES_URL = "https://account.lotbiai.com/external-identities"
 
 
 def slice_between(text: str, start_token: str, end_token: str) -> str:
@@ -77,22 +79,16 @@ def main() -> int:
         "desktop sidebar": "chat-sidebar-desktop",
         "desktop sidebar nav": "sidebar-nav-desktop",
         "desktop recent scroll": "sidebar-history-scroll",
-        "desktop bottom nav": "sidebar-bottom-nav",
+        "account footer": "sidebar-account-footer",
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "+ 새 대화",
+        "work menu": "내 작업",
+        "library menu": "라이브러리",
+        "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
-        "today bucket": "오늘",
-        "yesterday bucket": "어제",
-        "seven-day bucket": "최근 7일",
-        "older bucket": "이전",
-        "orders menu": "주문 내역",
-        "reservations menu": "예약 내역",
-        "account menu": "내 계정",
-        "settings menu": "설정",
-        "help menu": "도움말 / 문의",
+        "connected services URL": CONNECTED_SERVICES_URL,
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
-        "account URL": ACCOUNT_URL,
         "Company link": "about.html",
         "Privacy link": "privacy.html",
         "Terms link": "terms.html",
@@ -135,21 +131,58 @@ def main() -> int:
         errors.append("index.html: mobile drawer block not found")
 
     for label, block in (("desktop sidebar", desktop_sidebar), ("mobile drawer", mobile_drawer)):
-        for forbidden in ("비어 있음", ">준비<", "준비 중", ">Account<", "— 준비"):
+        for forbidden in (
+            "주문 내역",
+            "예약 내역",
+            ">내 계정<",
+            ">설정<",
+            "도움말 / 문의",
+            ">오늘<",
+            ">어제<",
+            ">최근 7일<",
+            ">이전<",
+            "비어 있음",
+            ">준비<",
+            "준비 중",
+        ):
             if forbidden in block:
-                errors.append(f"index.html: {label} exposes removed temporary copy: {forbidden}")
-        if ACCOUNT_URL not in block:
-            errors.append(f"index.html: {label} must preserve account access")
-        if "도움말 / 문의" not in block or 'href="contact.html"' not in block:
-            errors.append(f"index.html: {label} must preserve help/contact navigation")
+                errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
+
+        for required in ("+ 새 대화", "내 작업", "라이브러리", "연결 서비스", "최근 대화"):
+            if required not in block:
+                errors.append(f"index.html: {label} missing approved IA item: {required}")
+
+        if CONNECTED_SERVICES_URL not in block:
+            errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
+        if 'data-sidebar-account' not in block:
+            errors.append(f"index.html: {label} missing auth-driven account identity slot")
+        if 'data-auth-state="checking"' not in block:
+            errors.append(f"index.html: {label} account slot must initialize neutral")
+        if "조승환" in block or "@jshncd01" in block:
+            errors.append(f"index.html: {label} must not hardcode user identity")
+
+        for destination in ("work", "library"):
+            pattern = rf'<button[^>]*data-sidebar-destination="{destination}"[^>]*disabled'
+            if not re.search(pattern, block):
+                errors.append(f"index.html: {label} {destination} must remain fail-closed until authoritative route exists")
+
+        recent_match = re.search(
+            r'<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?</ul>',
+            block,
+        )
+        if not recent_match:
+            errors.append(f"index.html: {label} recent conversation list contract missing")
+        elif "<li" in recent_match.group(0):
+            errors.append(f"index.html: {label} must not fabricate recent conversation titles or date buckets")
 
     for required in (
         'class="sidebar-brand"',
         'class="sidebar-brand-logo"',
         'class="sidebar-nav sidebar-nav-desktop"',
+        'class="sidebar-primary-nav"',
         'class="nav-section sidebar-history-section"',
         'class="sidebar-history-scroll"',
-        'class="nav-section nav-actions sidebar-bottom-nav"',
+        'class="sidebar-account-footer"',
     ):
         if required not in desktop_sidebar:
             errors.append(f"index.html: desktop sidebar hierarchy missing {required}")
@@ -216,28 +249,34 @@ def main() -> int:
         "height: auto",
         "object-fit: contain",
         "object-position: left center",
-        "@media (min-width: 901px)",
-        ".chat-sidebar-desktop",
-        "overflow: hidden",
-        ".sidebar-nav-desktop",
-        "min-height: 0",
+        ".sidebar-primary-nav",
         ".sidebar-history-section",
         ".sidebar-history-scroll",
         "overflow-y: auto",
         "scrollbar-gutter: stable",
-        ".sidebar-bottom-nav",
+        ".sidebar-account-footer",
         "margin-top: auto",
+        ".sidebar-account-entry",
+        "text-overflow: ellipsis",
+        "@media (min-width: 901px)",
+        ".chat-sidebar-desktop",
+        ".sidebar-nav-desktop",
+        "min-height: 0",
         ".account-actions",
         "display: none",
+        "@media (max-width: 900px)",
+        ".mobile-nav-drawer",
+        "overflow: hidden",
     )
     for token in sidebar_style_tokens:
         if token not in sidebar_css:
-            errors.append(f"site-sidebar-nav.css: missing desktop sidebar contract {token}")
+            errors.append(f"site-sidebar-nav.css: missing sidebar IA contract {token}")
 
     if "height: 34px" in sidebar_css:
         errors.append("site-sidebar-nav.css: fixed 34px logo height must not return")
 
-    if "width: 100%" in sidebar_css or "max-width: 100%" in sidebar_css:
+    logo_rule = slice_between(sidebar_css, ".sidebar-brand-logo {", "}")
+    if "width: 100%" in logo_rule or "max-width: 100%" in logo_rule:
         errors.append("site-sidebar-nav.css: edge-to-edge desktop logo fit must not return")
 
     if "@media (max-width: 900px)" not in HOME_CSS.read_text(encoding="utf-8"):
@@ -259,10 +298,9 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — full-ratio desktop sidebar logo, recent-scroll/fixed-bottom navigation, mobile account access, neutral auth continuity and composer contracts verified.")
+    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, simplified AI-service sidebar IA, recent-scroll/fixed-account layout, neutral auth continuity and composer contracts verified.")
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
