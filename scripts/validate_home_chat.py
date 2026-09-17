@@ -4,7 +4,8 @@
 The shell remains responsible for accessible navigation and input UX. Real
 conversation networking is isolated to the separately validated
 site-conversation.js module; authenticated continuity is isolated to the
-approved site-continuity.js module; home-shell.js itself remains free of
+approved site-continuity.js module; subscription reads are isolated to the
+approved site-subscription.js module; home-shell.js itself remains free of
 network and persistence behavior. The approved mobile-entry.js bootstrap may coexist.
 """
 from pathlib import Path
@@ -71,6 +72,7 @@ def main() -> int:
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
         "approved conversation module": 'src="site-conversation.js"',
+        "approved subscription module": 'src="site-subscription.js"',
         "approved continuity module": 'src="site-continuity.js"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css"',
@@ -204,10 +206,11 @@ def main() -> int:
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
         '<script type="module" src="site-conversation.js"></script>',
+        '<script type="module" src="site-subscription.js"></script>',
         '<script type="module" src="site-continuity.js"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
-        errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
+        errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/subscription/continuity scripts are allowed")
     if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
         errors.append("index.html: sealed Three.js import map missing or changed")
 
@@ -298,7 +301,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, simplified AI-service sidebar IA, recent-scroll/fixed-account layout, neutral auth continuity and composer contracts verified.")
+    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, simplified AI-service sidebar IA, recent-scroll/fixed-account layout, neutral auth continuity, subscription module isolation and composer contracts verified.")
     return 0
 
 

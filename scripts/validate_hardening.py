@@ -4,8 +4,8 @@
 Approved legal/support page content, account URLs and official assets remain locked.
 The mobile entry batch may add only the approved chooser CSS/JS bootstrap to those
 pages. The home shell remains isolated from networking; the separately validated
-site-conversation.js and site-continuity.js modules own the approved Core
-conversation/handoff and authenticated continuity runtimes.
+site-conversation.js, site-subscription.js and site-continuity.js modules own the
+approved Core conversation/subscription/handoff and authenticated continuity runtimes.
 """
 from __future__ import annotations
 
@@ -83,11 +83,12 @@ def main() -> int:
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-conversation.js"></script>',
+        '<script type="module" src="site-subscription.js"></script>',
         '<script type="module" src="site-continuity.js"></script>',
         '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
+        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-subscription.js, site-continuity.js and site-avatar.js scripts")
 
     combined_home = f"{index}\n{home_js}".lower()
     forbidden_home = (
@@ -158,6 +159,8 @@ def main() -> int:
         errors.append("mobile chooser stylesheet missing from home")
     if 'src="site-conversation.js"' not in index:
         errors.append("approved conversation module missing from home")
+    if 'src="site-subscription.js"' not in index:
+        errors.append("approved subscription module missing from home")
     if 'src="site-continuity.js"' not in index:
         errors.append("approved authenticated continuity module missing from home")
 
@@ -204,7 +207,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("PUBLIC HARDENING VALIDATION PASS — locked content, neutral initial auth state, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
+    print("PUBLIC HARDENING VALIDATION PASS — locked content, neutral initial auth state, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/subscription/continuity modules, responsive/a11y compatibility and performance contracts verified.")
     return 0
 
 

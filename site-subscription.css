@@ -1,0 +1,125 @@
+.site-subscription-card {
+  width: min(calc(100% - 32px), 920px);
+  margin: 8px auto 28px;
+  padding: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.07);
+}
+
+.site-subscription-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.site-subscription-eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.site-subscription-header h2 {
+  margin: 0;
+  font-size: clamp(1.18rem, 2.4vw, 1.55rem);
+  line-height: 1.25;
+}
+
+.site-subscription-account-link {
+  flex: 0 0 auto;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+}
+
+.site-subscription-plans,
+.site-subscription-live-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.site-subscription-plan,
+.site-subscription-live-grid > div {
+  min-width: 0;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.site-subscription-plan h3,
+.site-subscription-plan p,
+.site-subscription-live p {
+  margin: 0;
+}
+
+.site-subscription-plan h3 {
+  font-size: 0.98rem;
+  margin-bottom: 8px;
+}
+
+.site-subscription-price {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 1.12rem;
+}
+
+.site-subscription-plan p + p {
+  margin-top: 5px;
+}
+
+.site-subscription-live {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.site-subscription-summary {
+  margin-bottom: 12px !important;
+  font-weight: 700;
+}
+
+.site-subscription-live-grid span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.site-subscription-live-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.site-subscription-reset {
+  margin-top: 10px !important;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+@media (max-width: 720px) {
+  .site-subscription-card {
+    width: min(calc(100% - 24px), 920px);
+    margin-bottom: 20px;
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .site-subscription-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .site-subscription-plans,
+  .site-subscription-live-grid {
+    grid-template-columns: 1fr;
+  }
+}
