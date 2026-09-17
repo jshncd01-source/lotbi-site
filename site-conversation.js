@@ -566,7 +566,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       refreshAuthenticatedProfileSlots();
     } else if (!sessionToken) switchNamespace(browserAnonymousNamespace());
   });
-  window.addEventListener(SIDEBAR_RENDERED_EVENT, refreshAuthenticatedProfileSlots);
+  window.addEventListener(SIDEBAR_RENDERED_EVENT, () => {
+    refreshAuthenticatedProfileSlots();
+    if (!stateReady && document.body.dataset.siteAuthState === 'unauthenticated') {
+      switchNamespace(browserAnonymousNamespace());
+    }
+  });
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
   if (sessionToken) void loadServerIdentity();
