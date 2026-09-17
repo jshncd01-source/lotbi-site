@@ -6,6 +6,9 @@ const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
+const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,160}$/u;
+const PENDING_CONVERSATION_STORAGE_KEY = 'lotbi.site.conversation.pending.v1';
+const PENDING_CONVERSATION_LIMIT = 20;
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -51,6 +54,78 @@ function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
   }
+}
+
+function conversationSessionStorage() {
+  try {
+    const storage = globalThis.sessionStorage;
+    if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function' || typeof storage.removeItem !== 'function') return undefined;
+    return storage;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizePendingEntry(value) {
+  const message = typeof value?.message === 'string' ? value.message.trim() : '';
+  const idempotencyKey = typeof value?.idempotencyKey === 'string' ? value.idempotencyKey.trim() : '';
+  if (!message || !IDEMPOTENCY_KEY_RE.test(idempotencyKey)) return undefined;
+  return {message, idempotencyKey};
+}
+
+function readPendingConversations() {
+  const storage = conversationSessionStorage();
+  if (!storage) return [];
+  try {
+    const raw = storage.getItem(PENDING_CONVERSATION_STORAGE_KEY);
+    if (!raw) return [];
+    const value = JSON.parse(raw);
+    const rawEntries = Array.isArray(value?.entries) ? value.entries : [value];
+    const entries = rawEntries.map(normalizePendingEntry).filter(Boolean).slice(0, PENDING_CONVERSATION_LIMIT);
+    if (!entries.length) storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
+    return entries;
+  } catch {
+    try { storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY); } catch {}
+    return [];
+  }
+}
+
+function writePendingConversations(entries) {
+  const storage = conversationSessionStorage();
+  if (!storage) return;
+  const normalized = entries.map(normalizePendingEntry).filter(Boolean).slice(0, PENDING_CONVERSATION_LIMIT);
+  try {
+    if (!normalized.length) storage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
+    else storage.setItem(PENDING_CONVERSATION_STORAGE_KEY, JSON.stringify({entries: normalized}));
+  } catch {}
+}
+
+function rememberPendingConversation(message, idempotencyKey) {
+  const entry = normalizePendingEntry({message, idempotencyKey});
+  if (!entry) return;
+  const entries = readPendingConversations().filter(item => item.message !== entry.message);
+  writePendingConversations([entry, ...entries]);
+}
+
+function clearPendingConversation(message, idempotencyKey) {
+  const entries = readPendingConversations();
+  const next = entries.filter(item => !(item.message === message && item.idempotencyKey === idempotencyKey));
+  if (next.length !== entries.length) writePendingConversations(next);
+}
+
+function pendingConversationFor(message) {
+  return readPendingConversations().find(item => item.message === message);
+}
+
+function effectiveConversationKey(message, requestedKey) {
+  if (!requestedKey) return '';
+  return pendingConversationFor(message)?.idempotencyKey || requestedKey;
+}
+
+function responseProvesNoUncertainCharge(error) {
+  if (!(error instanceof SiteCoreError)) return false;
+  if (error.status > 0 && error.status < 500) return true;
+  return error.status === 503 && (error.code === 'AI_PROVIDER_UNAVAILABLE' || error.code === 'AI_RESPONSE_UNAVAILABLE');
 }
 
 export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetchImpl = globalThis.fetch) {
@@ -107,8 +182,20 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
   });
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch) {
-  assertFetch(fetchImpl);
+function conversationRequestOptions(optionsOrFetch, fetchImpl) {
+  if (typeof optionsOrFetch === 'function') {
+    return {idempotencyKey: '', fetchImpl: optionsOrFetch};
+  }
+  const options = optionsOrFetch && typeof optionsOrFetch === 'object' ? optionsOrFetch : {};
+  return {
+    idempotencyKey: typeof options.idempotencyKey === 'string' ? options.idempotencyKey.trim() : '',
+    fetchImpl,
+  };
+}
+
+export async function sendConversationMessage(sessionToken, text, optionsOrFetch = {}, fetchImpl = globalThis.fetch) {
+  const request = conversationRequestOptions(optionsOrFetch, fetchImpl);
+  assertFetch(request.fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
   if (!token) {
@@ -117,19 +204,28 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
   if (!message || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
   }
+  if (request.idempotencyKey && !IDEMPOTENCY_KEY_RE.test(request.idempotencyKey)) {
+    throw new SiteCoreError('대화 재시도 식별자가 올바르지 않습니다.', {code: 'INVALID_IDEMPOTENCY_KEY', status: 400});
+  }
+
+  const inheritedUncertainIdentity = Boolean(pendingConversationFor(message));
+  const effectiveIdempotencyKey = effectiveConversationKey(message, request.idempotencyKey);
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+  if (effectiveIdempotencyKey) headers['Idempotency-Key'] = effectiveIdempotencyKey;
+  if (effectiveIdempotencyKey) rememberPendingConversation(message, effectiveIdempotencyKey);
 
   let response;
   try {
-    response = await fetchImpl(`${CORE_ORIGIN}${CONVERSATION_PATH}`, {
+    response = await request.fetchImpl(`${CORE_ORIGIN}${CONVERSATION_PATH}`, {
       method: 'POST',
       mode: 'cors',
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({text: message}),
     });
   } catch {
@@ -142,6 +238,13 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
   const payload = await readPayload(response);
   if (!response.ok) {
     const error = errorFromResponse(response, payload, 'LOTBI 응답을 받지 못했습니다.');
+    // A definitive non-billable response only resolves a fresh first attempt. If this
+    // request inherited an earlier uncertain identity, a 401/403/4xx or provider 503
+    // proves only that this retry did not charge; it cannot prove the earlier attempt
+    // was uncharged. Preserve the original identity until a valid 200 contract arrives.
+    if (!inheritedUncertainIdentity && responseProvesNoUncertainCharge(error)) {
+      clearPendingConversation(message, effectiveIdempotencyKey);
+    }
     announceInvalidSiteSession(error);
     throw error;
   }
@@ -161,6 +264,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     throw new SiteCoreError('LOTBI 대화 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
   }
 
+  clearPendingConversation(message, effectiveIdempotencyKey);
   return Object.freeze({
     status,
     assistantText,

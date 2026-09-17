@@ -16,6 +16,7 @@ on:
       - site-sidebar-information-architecture-04-review
       - site-sidebar-information-architecture-04-reconcile
       - site-conversation-sidebar-ux-01-review
+      - site-free-usage-retry-identity-01-work
   pull_request:
     branches:
       - main
@@ -62,6 +63,9 @@ jobs:
 
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
+
+      - name: Validate FREE usage retry identity contract
+        run: node scripts/validate_free_usage_retry_identity_01.mjs
 
       - name: Validate conversation, profile and thread UX contracts
         run: node scripts/validate_conversation_sidebar_ux_01.mjs
