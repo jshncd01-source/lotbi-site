@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="home-chat.css" />
   <link rel="stylesheet" href="site-hardening.css" />
+  <link rel="stylesheet" href="site-auth-continuity.css" />
   <link rel="stylesheet" href="footer-business-info.css" />
   <link rel="stylesheet" href="mobile-entry.css" />
   <script src="home-shell.js" defer></script>
@@ -92,9 +93,9 @@
           </a>
         </div>
 
-        <nav class="account-actions" aria-label="계정 메뉴">
-          <a class="account-action account-login" href="/auth/start/">로그인</a>
-          <a class="account-action account-signup" href="https://account.lotbiai.com/signup">회원가입</a>
+        <nav class="account-actions" aria-label="계정 메뉴" data-auth-state="checking" aria-busy="true">
+          <span class="account-auth-placeholder" aria-hidden="true"></span>
+          <span class="sr-only" role="status">계정 상태 확인 중</span>
         </nav>
       </header>
 

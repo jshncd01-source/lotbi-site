@@ -1,0 +1,59 @@
+/* SITE-AUTH-CONTINUITY-FLASH-01 — neutral auth header while server-authoritative state is resolving. */
+.account-actions {
+  min-width: 174px;
+  min-height: 42px;
+  justify-content: flex-end;
+}
+
+.account-auth-placeholder {
+  width: 164px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.account-auth-placeholder::before,
+.account-auth-placeholder::after {
+  content: "";
+  height: 42px;
+  border: 1px solid var(--brand-line);
+  border-radius: 999px;
+  background: #f0f2f7;
+  box-sizing: border-box;
+}
+
+.account-auth-placeholder::before {
+  width: 66px;
+}
+
+.account-auth-placeholder::after {
+  width: 88px;
+}
+
+@media (max-width: 760px) {
+  .account-actions {
+    min-width: 132px;
+    min-height: 36px;
+  }
+
+  .account-auth-placeholder {
+    width: 126px;
+    height: 36px;
+    gap: 6px;
+  }
+
+  .account-auth-placeholder::before,
+  .account-auth-placeholder::after {
+    height: 36px;
+  }
+
+  .account-auth-placeholder::before {
+    width: 52px;
+  }
+
+  .account-auth-placeholder::after {
+    width: 68px;
+  }
+}
