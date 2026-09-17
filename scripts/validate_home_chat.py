@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
 HOME_CSS = ROOT / "home-chat.css"
 SIDEBAR_CSS = ROOT / "site-sidebar-nav.css"
+AVATAR_CSS = ROOT / "site-avatar.css"
+AVATAR_JS = ROOT / "site-avatar.js"
 HOME_JS = ROOT / "home-shell.js"
 CONTINUITY_JS = ROOT / "site-continuity.js"
 LOGIN_URL = "/auth/start/"
@@ -38,6 +40,8 @@ def main() -> int:
         (INDEX, "index.html"),
         (HOME_CSS, "home-chat.css"),
         (SIDEBAR_CSS, "site-sidebar-nav.css"),
+        (AVATAR_CSS, "site-avatar.css"),
+        (AVATAR_JS, "site-avatar.js"),
         (HOME_JS, "home-shell.js"),
         (CONTINUITY_JS, "site-continuity.js"),
     ):
@@ -60,6 +64,10 @@ def main() -> int:
         "conversation thread": 'id="conversation-thread"',
         "local navigation script": 'src="home-shell.js"',
         "approved mobile chooser": 'src="mobile-entry.js"',
+        "approved 3D Avatar module": 'src="site-avatar.js"',
+        "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
+        "approved 3D Avatar stage": "data-lotbi-avatar-stage",
+        "approved static Avatar fallback": "data-lotbi-avatar-fallback",
         "approved conversation module": 'src="site-conversation.js"',
         "approved continuity module": 'src="site-continuity.js"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
@@ -161,11 +169,14 @@ def main() -> int:
     approved_scripts = (
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
+        '<script type="module" src="site-avatar.js"></script>',
         '<script type="module" src="site-conversation.js"></script>',
         '<script type="module" src="site-continuity.js"></script>',
     )
-    if text.lower().count("<script") != len(approved_scripts) or any(approved not in text for approved in approved_scripts):
-        errors.append("index.html: only approved home-shell.js, mobile-entry.js, site-conversation.js and site-continuity.js scripts are allowed")
+    if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
+        errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
+    if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
+        errors.append("index.html: sealed Three.js import map missing or changed")
 
     forbidden_shell_runtime = (
         "fetch(",
@@ -254,3 +265,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

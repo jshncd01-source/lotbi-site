@@ -23,12 +23,22 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="home-chat.css" />
   <link rel="stylesheet" href="site-hardening.css" />
+  <link rel="stylesheet" href="site-avatar.css" />
   <link rel="stylesheet" href="site-sidebar-nav.css" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
   <link rel="stylesheet" href="footer-business-info.css" />
   <link rel="stylesheet" href="mobile-entry.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/avatar-runtime/vendor/three/three.module.js",
+      "three/addons/": "/avatar-runtime/vendor/three/addons/"
+    }
+  }
+  </script>
   <script src="home-shell.js" defer></script>
   <script src="mobile-entry.js" defer></script>
+  <script type="module" src="site-avatar.js"></script>
   <script type="module" src="site-conversation.js"></script>
   <script type="module" src="site-continuity.js"></script>
 </head>
@@ -106,10 +116,12 @@
       </header>
 
       <section class="chat-hero" aria-label="LOTBI 대화 시작">
-        <div class="chat-character-wrap" aria-label="LOTBI 캐릭터">
+        <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
+          <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
           <img
             src="assets/lotbi-main-logo.png"
             class="chat-character-logo"
+            data-lotbi-avatar-fallback
             alt="웃으며 손을 흔드는 LOTBI 캐릭터"
             width="1535"
             height="697"
@@ -246,3 +258,4 @@
   </aside>
 </body>
 </html>
+
