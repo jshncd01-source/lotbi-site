@@ -2,11 +2,11 @@
 
 > 기준일: 2026-09-17 (Asia/Seoul)
 >
-> 상태: `DECISION BOUNDARY READY / PRODUCTION NOT GREEN`
+> 상태: `DECISION BOUNDARY READY / FREE PRODUCT POLICY CLOSED / PRODUCTION NOT GREEN`
 
-This matrix separates facts that can already be fixed from legal/product/provider decisions that this readiness room must not invent.
+This matrix separates facts that can already be fixed from legal/provider decisions that this readiness room must not invent.
 
-## 1. TECHNICALLY FIXED / implementation-backed
+## 1. TECHNICALLY / PRODUCT-POLICY FIXED
 
 | Item | Fixed contract |
 |---|---|
@@ -38,14 +38,28 @@ This matrix separates facts that can already be fixed from legal/product/provide
 | Support email | `developer@lotbiai.com` |
 | Representative phone | `063-237-0930` |
 | Operator | 유한회사 알에이디홀딩스 |
-| FREE allowance | monthly 3 free tasks; not equivalent to 3 chat messages |
-| LOTBI Plus | monthly KRW 9,900 product baseline |
+| FREE allowance | monthly 3 successful tasks; not 3 messages/questions/AI calls |
+| FREE charge point | only successful final user result delivered under authoritative success outcome; max once per task usage boundary |
+| Same-task clarification | no additional FREE charge for clarification/confirmation needed to complete one purpose |
+| LOCAL deterministic | FREE usage 0 / AI provider call 0 / external effect NONE |
+| Failure/cancel/incomplete | no FREE charge when final successful user result was not delivered |
+| Retry/idempotency | retry/duplicate/network/provider/callback/client/reconciliation retry cannot create duplicate charge; same success max 1 |
+| FREE reset | calendar month; every month on day 1 at 00:00 `Asia/Seoul` / KST |
+| FREE carry-over | NONE |
+| FREE compensation | preserve original usage event; append auditable compensation/credit adjustment or Core-equivalent adjustment |
+| FREE user wording | show task usage such as `이번 달 무료 작업 2 / 3 사용`; do not say `메시지 3개` or `AI 질문 3번` |
+| Task usage vs AI calls | separate metrics; `LOTBI task usage != AI provider call` |
+| LOTBI Plus | monthly KRW 9,900 product baseline; not documented as unlimited general-AI usage |
 | Subscription channels | Web Toss Payments / iPhone App Store / Android Google Play |
 | Merchant separation | LOTBI subscription fee is separate from external Merchant transaction money |
 
+Authoritative FREE source:
+
+`docs/free-monthly-3-task-product-policy.md`
+
 ## 2. LEGAL_REVIEW_REQUIRED
 
-These cannot be closed by code inspection alone.
+These cannot be closed by code inspection or the FREE product-policy decision alone.
 
 | Legal item | Why unresolved / required output |
 |---|---|
@@ -68,20 +82,28 @@ These cannot be closed by code inspection alone.
 
 Until these are closed, `production-privacy-candidate.md` and `production-terms-candidate.md` remain `DO NOT PUBLISH`.
 
-## 3. PRODUCT_POLICY_CONFIRMATION_REQUIRED
+## 3. PRODUCT POLICY — CLOSED
 
-Current confirmed FREE policy is monthly three tasks and must not be represented as three chat messages. No existing authoritative decision was found for the following operational details:
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
 
-- what exactly counts as one task;
-- monthly reset day/time/timezone;
-- whether failed/cancelled/interrupted tasks consume an allowance;
-- promotion/compensation task treatment.
+Authoritative values fixed on 2026-09-17:
 
-Status:
+- FREE = monthly 3 successful tasks;
+- one task = one user purpose culminating in a successfully delivered usable final result;
+- same-task clarification/confirmation dialogue = no extra charge;
+- clear new purpose after completed result = new task;
+- ambiguous task boundary must not be split against the user merely to consume allowance;
+- charge only at authoritative final-success/user-result-delivered state;
+- LOCAL deterministic = no charge;
+- failure/cancel/incomplete = no charge;
+- same task retry/duplicate/reconciliation = no duplicate charge;
+- reset = every month on day 1 at 00:00 KST / `Asia/Seoul`;
+- rolling signup-month model = not used;
+- carry-over = NONE;
+- task usage and AI Provider call count = separate;
+- compensation = append-only/auditable adjustment; original usage event is not deleted or rewritten.
 
-`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET`
-
-These values should be fixed consistently across product UI, entitlement enforcement and Terms before Production publication.
+Implementation completion of the usage ledger/enforcement remains an owning Core/App workstream verification item. That does not reopen the product-policy decision.
 
 ## 4. PROVIDER_LIFECYCLE_IMPLEMENTATION_REQUIRED
 
@@ -159,8 +181,10 @@ Current:
 
 ## 7. CURRENT GATE
 
+`PRODUCT_POLICY_CONFIRMATION_REQUIRED — FREE_TASK_DEFINITION_AND_RESET = CLOSED`
+
 `PRODUCTION SOCIAL SIGNUP LEGAL MANIFEST READINESS = BLOCKED / NOT GREEN`
 
 `USER_ACTION_REQUIRED — GOOGLE STEP 1 = NOT YET`
 
-The next gate is final legal/product decisions → approved/frozen Site HTML → user-approved Production publish → version/hash verification → Core Production consent manifest → Account Production verification → Google `openid` real E2E.
+The next gate is legal review closure → approved/frozen Site HTML → exact HTML SHA-256 → user-approved Production publish → Core Production consent manifest → Account Production verification → Google Console/OAuth-client preparation when authorized → Google `openid` real E2E.
