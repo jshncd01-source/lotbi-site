@@ -215,6 +215,7 @@ async function mountAvatar(stage) {
 
     const binding = createRefinementBinding(gltf.scene, contract);
     reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const runtimeEpochSeconds = monotonicSeconds();
     controller = new AvatarController(clips, contract, {
       speechMode: 'audio',
       reducedMotion: reducedMotionQuery.matches,
@@ -230,7 +231,7 @@ async function mountAvatar(stage) {
 
     const frame = timestampMs => {
       if (disposed) return;
-      const time = timestampMs / 1000;
+      const time = Math.max(0, timestampMs / 1000 - runtimeEpochSeconds);
       const controls = controller.sample(time);
       binding.apply(sampleRefinement(controller, time, controls));
       renderer.render(scene, camera);
