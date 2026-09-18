@@ -74,18 +74,9 @@
   flex-shrink: 0;
 }
 
-.brand-logo {
-  display: block;
-  width: auto;
-  height: 46px;
-  object-fit: contain;
-}
 
 @media (max-width: 760px) {
-  .brand-logo {
-    height: 36px;
   }
-}
 
 /* SITE-BRAND-01 — LOTBI brand accent + header presence */
 :root {
@@ -98,9 +89,6 @@
 }
 
 /* Tight-cropped approved character lockup; only the wordmark color was changed. */
-.brand-logo {
-  height: 80px;
-}
 
 .topbar {
   height: 112px;
@@ -183,10 +171,7 @@
     height: 92px;
   }
 
-  .brand-logo {
-    height: 58px;
-  }
-
+  
   .topbar nav {
     gap: 9px;
     font-size: 13px;
@@ -198,38 +183,33 @@
 
 
 
-/* SITE-BRAND-01 FINAL USAGE POLICY
-   Character lockup: homepage header only.
-   Internal pages: text-only LOTBI.
-*/
+/* SITE-USER-FACING-LOGO-CONSISTENCY-01
+   Every rendered LOTBI brand slot uses the single approved image asset.
+   Do not recreate or recolor the official wordmark with text/CSS. */
 .topbar {
   height: 100px;
 }
 
-.home-brand-logo {
-  display: block;
-  width: auto;
-  height: 72px;
-  object-fit: contain;
-}
-
-.brand-text-logo {
+.lotbi-official-brand {
   display: inline-flex;
   align-items: center;
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: .12em;
-  line-height: 1;
-  color: var(--brand-navy);
+  flex-shrink: 0;
+  min-width: 0;
   text-decoration: none;
 }
 
-.brand-text-logo .brand-o {
-  display: inline-block;
-  background: linear-gradient(90deg, var(--brand-pink) 0%, var(--brand-violet) 52%, var(--brand-blue) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.lotbi-official-brand-logo {
+  display: block;
+  width: auto;
+  height: 48px;
+  max-width: 190px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.auth-callback-brand .lotbi-official-brand-logo {
+  height: 54px;
+  max-width: 196px;
 }
 
 @media (max-width: 760px) {
@@ -237,13 +217,14 @@
     height: 88px;
   }
 
-  .home-brand-logo {
-    height: 56px;
-    max-width: 190px;
+  .lotbi-official-brand-logo {
+    height: 42px;
+    max-width: 160px;
   }
 
-  .brand-text-logo {
-    font-size: 21px;
+  .auth-callback-brand .lotbi-official-brand-logo {
+    height: 48px;
+    max-width: 176px;
   }
 }
 

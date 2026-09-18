@@ -17,6 +17,7 @@ from urllib.parse import unquote, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
+OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-color.jpg"
 REQUIRED_HTML = (
     "index.html",
     "about.html",
@@ -24,6 +25,12 @@ REQUIRED_HTML = (
     "terms.html",
     "account-deletion.html",
     "contact.html",
+)
+BRAND_SURFACES = REQUIRED_HTML + (
+    "404.html",
+    "auth/start/index.html",
+    "auth/callback/index.html",
+    "android-auth-test.html",
 )
 REQUIRED_FILES = REQUIRED_HTML + (
     "404.html",
@@ -34,6 +41,7 @@ REQUIRED_FILES = REQUIRED_HTML + (
     "robots.txt",
     "sitemap.xml",
     "assets/lotbi-main-logo.png",
+    "assets/lotbi-logo-official-color.jpg",
     "assets/lotbi-og-share.png",
 )
 EXPECTED_CANONICALS = {
@@ -200,6 +208,28 @@ def main() -> int:
                     docs[target.resolve()] = target_doc
                 if fragment not in target_doc.ids:
                     fail(errors, f"{rel_source}: missing fragment #{fragment} in {target.relative_to(ROOT)}")
+
+    for rel in BRAND_SURFACES:
+        path = ROOT / rel
+        if not path.exists():
+            fail(errors, f"{rel}: missing user-facing brand surface")
+            continue
+        surface = path.read_text(encoding="utf-8")
+        if OFFICIAL_LOGO_SRC not in surface:
+            fail(errors, f"{rel}: official LOTBI logo asset is missing")
+        for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal"):
+            if forbidden in surface:
+                fail(errors, f"{rel}: legacy/text-only logo reference must not render: {forbidden}")
+
+    mobile_entry = (ROOT / "mobile-entry.js").read_text(encoding="utf-8") if (ROOT / "mobile-entry.js").exists() else ""
+    if OFFICIAL_LOGO_SRC not in mobile_entry:
+        fail(errors, "mobile-entry.js: mobile chooser must use official LOTBI logo asset")
+    for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal"):
+        if forbidden in mobile_entry:
+            fail(errors, f"mobile-entry.js: legacy/text-only logo reference must not render: {forbidden}")
+
+    if (ROOT / "assets/lotbi-logo-header.png").exists():
+        fail(errors, "legacy assets/lotbi-logo-header.png must not remain in the deploy tree")
 
     delete_page = ROOT / "account-deletion.html"
     if delete_page.exists():
