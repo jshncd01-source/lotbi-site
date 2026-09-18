@@ -95,6 +95,8 @@ async function mountAvatar(stage) {
   let disposed = false;
   let controller = null;
   let reducedMotionQuery = null;
+  let runtimeEpochSeconds = 0;
+  const runtimeSeconds = () => Math.max(0, monotonicSeconds() - runtimeEpochSeconds);
 
   const resize = () => {
     if (disposed || !renderer) return;
@@ -111,7 +113,7 @@ async function mountAvatar(stage) {
   const handleVisibility = () => {
     if (!controller || disposed) return;
     try {
-      controller.setBackground(document.hidden, monotonicSeconds());
+      controller.setBackground(document.hidden, runtimeSeconds());
     } catch (error) {
       console.error('LOTBI Avatar lifecycle fallback', error);
     }
@@ -156,7 +158,7 @@ async function mountAvatar(stage) {
 
   const handleReducedMotion = event => {
     if (!controller || disposed) return;
-    controller.setReducedMotion(Boolean(event.matches), monotonicSeconds());
+    controller.setReducedMotion(Boolean(event.matches), runtimeSeconds());
   };
 
   try {
@@ -215,6 +217,7 @@ async function mountAvatar(stage) {
 
     const binding = createRefinementBinding(gltf.scene, contract);
     reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    runtimeEpochSeconds = monotonicSeconds();
     controller = new AvatarController(clips, contract, {
       speechMode: 'audio',
       reducedMotion: reducedMotionQuery.matches,
@@ -230,7 +233,7 @@ async function mountAvatar(stage) {
 
     const frame = timestampMs => {
       if (disposed) return;
-      const time = timestampMs / 1000;
+      const time = runtimeSeconds();
       const controls = controller.sample(time);
       binding.apply(sampleRefinement(controller, time, controls));
       renderer.render(scene, camera);

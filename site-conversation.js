@@ -13,12 +13,6 @@ const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
   ['orange', '오렌지'], ['pink', '분홍'], ['gray', '회색'],
 ]);
-const RESPONSE_GRADE_OPTIONS = Object.freeze([
-  ['LIGHT', '라이트'],
-  ['STANDARD', '스탠다드'],
-  ['PREMIUM', '프리미엄'],
-]);
-const DEFAULT_RESPONSE_GRADE = 'STANDARD';
 const diagnostics = {
   deterministicReplies: 0, coreCalls: 0, providerCallsAvoided: 0,
   lastPath: 'idle', lastVisibleAnswerMs: null, lastCoreDurationMs: null,
@@ -29,7 +23,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260918-grade1';
+  link.href = '/site-conversation.css?v=20260918-profile3';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -165,18 +159,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
   const micButton = document.querySelector('.mic-button');
-  const responseGradeControl = document.querySelector('[data-response-grade-control]');
-  const responseGradeTrigger = document.querySelector('[data-response-grade-trigger]');
-  const responseGradeMenu = document.querySelector('[data-response-grade-menu]');
-  const responseGradeOptions = responseGradeMenu ? [...responseGradeMenu.querySelectorAll('[data-response-grade]')] : [];
   const thread = document.getElementById('conversation-thread');
   const statusRegion = document.getElementById('chat-status');
   const stateRegion = document.getElementById('chat-state-region');
   const homeAvatarAnchor = document.querySelector('[data-home-avatar-anchor]');
   const avatar = document.querySelector('[data-lotbi-avatar-container]');
   if (!(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement) || !(micButton instanceof HTMLButtonElement)
-    || !(responseGradeControl instanceof HTMLElement) || !(responseGradeTrigger instanceof HTMLButtonElement)
-    || !(responseGradeMenu instanceof HTMLElement) || responseGradeOptions.length !== RESPONSE_GRADE_OPTIONS.length
     || !(thread instanceof HTMLElement) || !(homeAvatarAnchor instanceof HTMLElement) || !(avatar instanceof HTMLElement)) return false;
   if (sendButton.dataset.conversationMounted === 'true') return true;
   sendButton.dataset.conversationMounted = 'true';
@@ -185,7 +173,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
   let namespace = normalizedNamespace(identityKey);
   let state = {threads: [], activeThreadId: null, draft: ''};
-  let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
+  let preferences = {color: 'default', theme: 'system', displayName: '', photo: ''};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let openSurface, openSurfaceTrigger, surfaceRestoreFocus;
@@ -194,25 +182,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
   const savePreferences = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences)); };
-  const responseGradeLabel = grade => RESPONSE_GRADE_OPTIONS.find(([key]) => key === grade)?.[1] || '스탠다드';
-  const syncResponseGradeUi = () => {
-    const grade = RESPONSE_GRADE_OPTIONS.some(([key]) => key === preferences.responseGrade) ? preferences.responseGrade : DEFAULT_RESPONSE_GRADE;
-    preferences.responseGrade = grade;
-    const label = responseGradeLabel(grade);
-    const labelNode = responseGradeTrigger.querySelector('[data-response-grade-label]');
-    if (labelNode) labelNode.textContent = label;
-    responseGradeTrigger.setAttribute('aria-label', `응답 등급: ${label}`);
-    for (const option of responseGradeOptions) {
-      const selected = option.dataset.responseGrade === grade;
-      option.setAttribute('aria-checked', String(selected));
-      option.tabIndex = selected ? 0 : -1;
-    }
-  };
   const applyPreferences = () => {
     document.body.dataset.chatColor = COLOR_OPTIONS.some(([key]) => key === preferences.color) ? preferences.color : 'default';
     document.body.dataset.siteTheme = ['system', 'light', 'dark'].includes(preferences.theme) ? preferences.theme : 'system';
-    document.body.dataset.responseGrade = preferences.responseGrade;
-    syncResponseGradeUi();
   };
   const restoreAvatarHome = () => { if (avatar.parentElement !== homeAvatarAnchor) homeAvatarAnchor.appendChild(avatar); };
   const showThread = () => { thread.hidden = false; document.body.classList.add('conversation-active'); };
@@ -291,7 +263,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       theme: ['system', 'light', 'dark'].includes(loadedPreferences.theme) ? loadedPreferences.theme : 'system',
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
       photo: typeof loadedPreferences.photo === 'string' && loadedPreferences.photo.startsWith('data:image/') ? loadedPreferences.photo : '',
-      responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
     applyPreferences(); renderActiveThread(); renderRecent(); refreshAuthenticatedProfileSlots();
@@ -498,41 +469,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     menu.appendChild(logout); layer.appendChild(menu); trigger.setAttribute('aria-expanded', 'true'); installSurfaceBehavior(layer, menu, {trigger});
   };
 
-  let responseGradeOpen = false;
-  const closeResponseGradeMenu = ({restoreFocus = false} = {}) => {
-    responseGradeMenu.hidden = true;
-    responseGradeTrigger.setAttribute('aria-expanded', 'false');
-    responseGradeOpen = false;
-    if (restoreFocus) responseGradeTrigger.focus();
-  };
-  const openResponseGradeMenu = ({edge = ''} = {}) => {
-    responseGradeMenu.hidden = false;
-    responseGradeTrigger.setAttribute('aria-expanded', 'true');
-    responseGradeOpen = true;
-    queueMicrotask(() => {
-      const items = responseGradeOptions.filter(option => option instanceof HTMLButtonElement);
-      if (!items.length) return;
-      if (edge === 'first') { items[0].focus(); return; }
-      if (edge === 'last') { items[items.length - 1].focus(); return; }
-      (items.find(option => option.dataset.responseGrade === preferences.responseGrade) || items[0]).focus();
-    });
-  };
-  const selectResponseGrade = grade => {
-    if (!RESPONSE_GRADE_OPTIONS.some(([key]) => key === grade)) return;
-    if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
-    preferences.responseGrade = grade;
-    applyPreferences();
-    savePreferences();
-    setStatus(`응답 등급을 ${responseGradeLabel(grade)}로 설정했습니다.`);
-    closeResponseGradeMenu({restoreFocus: true});
-  };
-  const moveResponseGradeFocus = offset => {
-    const items = responseGradeOptions.filter(option => option instanceof HTMLButtonElement);
-    const current = items.indexOf(document.activeElement);
-    if (!items.length || current < 0) return;
-    items[(current + offset + items.length) % items.length].focus();
-  };
-
   const setVoiceFeedback = (message = '') => {
     setStatus(message || (sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.'));
     if (!(stateRegion instanceof HTMLElement)) return;
@@ -647,28 +583,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
 
   micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
-  responseGradeTrigger.addEventListener('click', () => {
-    if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
-    else openResponseGradeMenu();
-  });
-  responseGradeTrigger.addEventListener('keydown', event => {
-    if (event.key === 'ArrowDown') { event.preventDefault(); openResponseGradeMenu({edge: 'first'}); }
-    else if (event.key === 'ArrowUp') { event.preventDefault(); openResponseGradeMenu({edge: 'last'}); }
-  });
-  responseGradeMenu.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
-    else if (event.key === 'ArrowDown') { event.preventDefault(); moveResponseGradeFocus(1); }
-    else if (event.key === 'ArrowUp') { event.preventDefault(); moveResponseGradeFocus(-1); }
-    else if (event.key === 'Home') { event.preventDefault(); responseGradeOptions[0]?.focus(); }
-    else if (event.key === 'End') { event.preventDefault(); responseGradeOptions[responseGradeOptions.length - 1]?.focus(); }
-    else if (event.key === 'Tab') closeResponseGradeMenu();
-  });
-  for (const option of responseGradeOptions) {
-    option.addEventListener('click', () => selectResponseGrade(option.dataset.responseGrade || ''));
-  }
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && responseGradeOpen) { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
-  });
   prompt.addEventListener('input', () => { updateSendState(); if (stateReady) { state.draft = prompt.value.slice(0, 1000); saveState(); } });
   prompt.addEventListener('compositionend', updateSendState);
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });
@@ -676,7 +590,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   micButton.addEventListener('click', () => void startVoiceInput());
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
-    if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
     const newChat = target?.closest('[data-new-conversation]');
     if (newChat) { event.preventDefault(); startNewConversation(); return; }
     const staleLogin = target?.closest('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]');
@@ -705,7 +618,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       switchNamespace(browserAnonymousNamespace());
     }
   });
-  syncResponseGradeUi();
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
   if (sessionToken) void loadServerProfile();

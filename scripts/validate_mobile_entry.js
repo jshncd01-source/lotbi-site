@@ -142,7 +142,9 @@ function run() {
   assert.equal(entry.hasFreshWebChoice(fresh, now), true, 'fresh web choice must suppress chooser');
   assert.equal(entry.hasFreshWebChoice(stale, now), false, 'expired web choice must not suppress chooser');
 
-  assert.equal(entry.LOTBI_APP_LINK_READY, false, 'app CTA must remain fail-closed before production association E2E');
+  assert.equal(entry.LOTBI_APP_LINK_READY, true, 'chooser CTA must be enabled with a safe /app/open web fallback');
+  assert.equal(entry.LOTBI_ANDROID_APP_LINK_READY, true, 'Android native takeover must be enabled only with the approved release association');
+  assert.equal(entry.LOTBI_IOS_APP_LINK_READY, false, 'iOS native takeover must remain pending until Production AASA/device verification');
   assert.equal(entry.LOTBI_ANDROID_STORE_URL, null, 'must not invent Play Store listing');
   assert.equal(entry.LOTBI_IOS_STORE_URL, null, 'must not invent App Store listing');
   assert.equal(entry.OFFICIAL_LOGO_SRC, '/assets/lotbi-logo-header.png', 'chooser must use the authoritative LOTBI logo asset');
@@ -156,11 +158,43 @@ function run() {
   assert.ok(source.includes('롯비를 어떻게 이용할까요?'));
   assert.ok(source.includes('LOTBI 앱에서 열기'));
   assert.ok(source.includes('웹으로 이용하기'));
+  assert.ok(source.includes('data-lotbi-app-choice'), 'chooser app CTA must be an enabled navigation control');
+  assert.ok(source.includes('LOTBI 앱을 열지 못했어요'), 'failed native takeover must render a safe web fallback');
+  assert.ok(!source.includes('앱 연결 검증이 완료될 때까지 준비 중입니다.'), 'stale globally-disabled readiness notice must be removed');
   assert.ok(source.includes('앱이 열리지 않으면 외부 브라우저에서 열어 주세요.'));
   assert.ok(!source.includes('open.lotbiai.com'), 'bridge must not bypass the fixed lotbiai.com /app/open contract');
   assert.ok(!source.includes('atglife://product/'), 'must not introduce legacy scheme navigation');
 
-  assert.equal(fs.existsSync(path.join(ROOT, '.well-known', 'assetlinks.json')), false, 'must not guess Android association identity');
+  const androidAssociationPath = path.join(ROOT, '.well-known', 'assetlinks.json');
+  assert.equal(fs.existsSync(androidAssociationPath), true, 'approved Android passkey association must remain published');
+  const androidAssociations = JSON.parse(fs.readFileSync(androidAssociationPath, 'utf8'));
+  assert.ok(Array.isArray(androidAssociations) && androidAssociations.length > 0, 'Android association file must contain approved entries');
+  const productionAndroidAssociation = androidAssociations.find(item => item?.target?.package_name === 'com.lotbiai.app');
+  assert.ok(productionAndroidAssociation, 'production LOTBI Android association missing');
+  assert.deepEqual(
+    productionAndroidAssociation.target.sha256_cert_fingerprints,
+    ['56:E5:0D:D9:CD:25:BA:0C:47:80:65:64:2E:F6:B5:D2:55:90:19:9C:EC:02:BF:83:A0:62:37:19:18:F7:19:A2'],
+    'approved LOTBI Android release fingerprint must remain unchanged',
+  );
+  assert.ok(
+    productionAndroidAssociation.relation.includes('delegate_permission/common.get_login_creds'),
+    'Android passkey credential-sharing relation must remain published',
+  );
+  assert.ok(
+    productionAndroidAssociation.relation.includes('delegate_permission/common.handle_all_urls'),
+    'Android App Link handling relation must be published for the production LOTBI package',
+  );
+  const testAuthAssociation = androidAssociations.find(item => item?.target?.package_name === 'com.lotbiai.testauth');
+  assert.ok(testAuthAssociation, 'controlled test-auth association missing');
+  assert.deepEqual(
+    testAuthAssociation.relation,
+    ['delegate_permission/common.get_login_creds'],
+    'controlled test-auth package must remain credential-sharing only',
+  );
+  for (const item of androidAssociations) {
+    assert.ok(Array.isArray(item?.relation), 'Android association relation must be explicit');
+    assert.equal(item?.target?.namespace, 'android_app', 'Android association target namespace changed');
+  }
   assert.equal(fs.existsSync(path.join(ROOT, '.well-known', 'apple-app-site-association')), false, 'must not guess Apple association identity');
   assert.equal(fs.existsSync(path.join(ROOT, 'apple-app-site-association')), false, 'must not publish guessed root AASA');
 
@@ -170,7 +204,7 @@ function run() {
     assert.ok(html.includes('mobile-entry.js'), `${page} must load mobile chooser runtime`);
   }
 
-  console.log('MOBILE ENTRY VALIDATION PASS — Android/Samsung/iPhone/Kakao/Desktop routing, exact same-origin /app/open target preservation, fail-closed app CTA, safe web bypass, machine/static exclusions and open-redirect/backslash/null/recursive boundaries verified.');
+  console.log('MOBILE ENTRY VALIDATION PASS — official logo, enabled chooser CTA, Android release association, exact same-origin /app/open target preservation, safe web fallback, platform boundaries and redirect protections verified.');
 }
 
 run();

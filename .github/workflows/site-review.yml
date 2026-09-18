@@ -59,6 +59,9 @@ jobs:
       - name: Validate conversational home shell
         run: python scripts/validate_home_chat.py
 
+      - name: Validate mobile Home keyboard and Avatar stability
+        run: node scripts/validate_mobile_home_ux_stability_01.mjs
+
       - name: Validate sealed 3D Avatar Site integration
         run: node scripts/validate_site_avatar_integration.mjs
 
@@ -78,17 +81,14 @@ jobs:
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
 
+      - name: Validate authenticated return and refresh continuity
+        run: node scripts/validate_auth_continuity_02.mjs
+
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
-      - name: Validate response grade selector
-        run: node scripts/validate_response_grade_selector_01.mjs
-
       - name: Validate composer auto-grow interaction
         run: node scripts/validate_composer_auto_grow.mjs
-
-      - name: Validate authenticated return and refresh continuity
-        run: node scripts/validate_auth_continuity_02.mjs
 
       - name: Validate public-site hardening
         run: python scripts/validate_hardening.py
