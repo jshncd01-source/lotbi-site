@@ -84,15 +84,28 @@ function safeTimezone(value) {
   return timezone;
 }
 
+function safeRecentContext(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value.slice(-6)) {
+    if (!item || typeof item !== 'object') continue;
+    const role = typeof item.role === 'string' ? item.role.trim().toLowerCase() : '';
+    const text = typeof item.text === 'string' ? item.text.trim() : '';
+    if (!['user', 'assistant'].includes(role) || !text) continue;
+    out.push({role, text: text.slice(0, 500)});
+  }
+  return out;
+}
+
 function conversationTransport(contextOrFetch, fetchOverride) {
   if (typeof contextOrFetch === 'function') {
-    return {timezone: '', fetchImpl: contextOrFetch};
+    return {timezone: '', recentContext: [], fetchImpl: contextOrFetch};
   }
-  const explicit = contextOrFetch && typeof contextOrFetch === 'object'
-    ? safeTimezone(contextOrFetch.timezone)
-    : '';
+  const context = contextOrFetch && typeof contextOrFetch === 'object' ? contextOrFetch : undefined;
+  const hasExplicitTimezone = Boolean(context && Object.prototype.hasOwnProperty.call(context, 'timezone'));
   return {
-    timezone: explicit || (contextOrFetch === undefined && fetchOverride === undefined ? safeTimezone(browserTimezone()) : ''),
+    timezone: hasExplicitTimezone ? safeTimezone(context.timezone) : safeTimezone(browserTimezone()),
+    recentContext: safeRecentContext(context?.recentContext),
     fetchImpl: typeof fetchOverride === 'function' ? fetchOverride : globalThis.fetch,
   };
 }
@@ -152,7 +165,7 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
 }
 
 export async function sendConversationMessage(sessionToken, text, contextOrFetch, fetchOverride) {
-  const {timezone, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
+  const {timezone, recentContext, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -165,6 +178,7 @@ export async function sendConversationMessage(sessionToken, text, contextOrFetch
 
   const requestBody = {text: message};
   if (timezone) requestBody.client_context = {timezone};
+  if (recentContext.length) requestBody.recent_context = recentContext;
 
   let response;
   try {
