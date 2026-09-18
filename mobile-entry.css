@@ -32,9 +32,10 @@ html.lotbi-mobile-entry-lock body {
   display: block;
   width: auto;
   height: 52px;
-  max-width: 190px;
   object-fit: contain;
-  object-position: left center;
+  border: 0;
+  box-shadow: none;
+  filter: none;
 }
 
 .lotbi-entry-copy {

@@ -57,7 +57,7 @@ def main() -> int:
 
     requirements = {
         "approved LOTBI character asset": 'src="assets/lotbi-main-logo.png"',
-        "approved LOTBI sidebar logo asset": 'src="/assets/lotbi-logo-official-color.jpg"',
+        "approved LOTBI sidebar logo asset": 'src="/assets/lotbi-logo-official-d3b499fe546c.jpg"',
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
         "prompt length boundary": 'maxlength="1000"',
@@ -101,9 +101,9 @@ def main() -> int:
         if token not in text:
             errors.append(f"index.html: missing {label}")
 
-    if text.count('src="/assets/lotbi-logo-official-color.jpg"') != 3:
+    if text.count('src="/assets/lotbi-logo-official-d3b499fe546c.jpg"') != 3:
         errors.append("index.html: desktop sidebar, mobile topbar and mobile drawer must share the official logo asset")
-    for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal"):
+    for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
         if forbidden in text:
             errors.append(f"index.html: legacy/text-only logo reference must not render: {forbidden}")
 
@@ -252,11 +252,12 @@ def main() -> int:
 
     sidebar_style_tokens = (
         ".sidebar-brand-logo",
-        "width: calc(100% - 10px)",
-        "max-width: calc(100% - 10px)",
-        "height: auto",
+        "width: auto",
+        "height: 64px",
         "object-fit: contain",
-        "object-position: left center",
+        "border: 0",
+        "box-shadow: none",
+        "filter: none",
         ".sidebar-primary-nav",
         ".sidebar-history-section",
         ".sidebar-history-scroll",
@@ -280,12 +281,10 @@ def main() -> int:
         if token not in sidebar_css:
             errors.append(f"site-sidebar-nav.css: missing sidebar IA contract {token}")
 
-    if "height: 34px" in sidebar_css:
-        errors.append("site-sidebar-nav.css: fixed 34px logo height must not return")
-
     logo_rule = slice_between(sidebar_css, ".sidebar-brand-logo {", "}")
-    if "width: 100%" in logo_rule or "max-width: 100%" in logo_rule:
-        errors.append("site-sidebar-nav.css: edge-to-edge desktop logo fit must not return")
+    for forbidden_logo_style in ("width: calc(", "max-width:", "height: auto", "object-position:", "transform:"):
+        if forbidden_logo_style in logo_rule:
+            errors.append(f"site-sidebar-nav.css: official logo rule must stay minimal: {forbidden_logo_style}")
 
     if "@media (max-width: 900px)" not in HOME_CSS.read_text(encoding="utf-8"):
         errors.append("home-chat.css: mobile drawer breakpoint missing")

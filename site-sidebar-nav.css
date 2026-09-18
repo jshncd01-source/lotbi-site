@@ -7,19 +7,17 @@
   overflow: hidden;
 }
 
-/* SITE-SIDEBAR-LOGO-RIGHT-EDGE-SAFE-FIT-02 — preserve the official
-   334x96 asset ratio while reserving a 10px visual safety inset on the right.
-   A full 100% fit left no breathing room inside the overflow-hidden wrapper,
-   so the final LOTBI letter could still look clipped at Production pixels. */
+/* Official 366x137 LOTBI lockup: fixed display height, intrinsic width. */
 .sidebar-brand-logo {
   display: block;
-  width: calc(100% - 10px);
-  max-width: calc(100% - 10px);
-  height: auto;
+  width: auto;
+  height: 64px;
   min-width: 0;
   object-fit: contain;
-  object-position: left center;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
+  border: 0;
+  box-shadow: none;
+  filter: none;
 }
 
 .mobile-header-brand {
@@ -33,8 +31,10 @@
   display: block;
   width: auto;
   height: 34px;
-  max-width: 102px;
   object-fit: contain;
+  border: 0;
+  box-shadow: none;
+  filter: none;
 }
 
 .mobile-drawer-brand {
@@ -47,8 +47,10 @@
   display: block;
   width: auto;
   height: 38px;
-  max-width: 138px;
   object-fit: contain;
+  border: 0;
+  box-shadow: none;
+  filter: none;
 }
 
 /* SITE-SIDEBAR-INFORMATION-ARCHITECTURE-04 — fixed primary actions +

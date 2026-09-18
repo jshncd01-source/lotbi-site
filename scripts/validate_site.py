@@ -7,6 +7,7 @@ image alt text, canonical URLs, robots/sitemap coverage, and the official accoun
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -17,7 +18,10 @@ from urllib.parse import unquote, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
-OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-color.jpg"
+OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-d3b499fe546c.jpg"
+OFFICIAL_LOGO_REL = "assets/lotbi-logo-official-d3b499fe546c.jpg"
+OFFICIAL_LOGO_SHA256 = "d3b499fe546cd044fcf6622e92822c3fb48bef9cd6cea2830db57a41dd4ae410"
+OFFICIAL_LOGO_BYTES = 12367
 REQUIRED_HTML = (
     "index.html",
     "about.html",
@@ -41,7 +45,7 @@ REQUIRED_FILES = REQUIRED_HTML + (
     "robots.txt",
     "sitemap.xml",
     "assets/lotbi-main-logo.png",
-    "assets/lotbi-logo-official-color.jpg",
+    OFFICIAL_LOGO_REL,
     "assets/lotbi-og-share.png",
 )
 EXPECTED_CANONICALS = {
@@ -150,6 +154,15 @@ def main() -> int:
         elif path.is_file() and path.stat().st_size == 0:
             fail(errors, f"required file is empty: {rel}")
 
+    logo_path = ROOT / OFFICIAL_LOGO_REL
+    if logo_path.exists():
+        logo_bytes = logo_path.read_bytes()
+        if len(logo_bytes) != OFFICIAL_LOGO_BYTES:
+            fail(errors, f"{OFFICIAL_LOGO_REL}: expected {OFFICIAL_LOGO_BYTES} bytes, got {len(logo_bytes)}")
+        logo_sha = hashlib.sha256(logo_bytes).hexdigest()
+        if logo_sha != OFFICIAL_LOGO_SHA256:
+            fail(errors, f"{OFFICIAL_LOGO_REL}: SHA-256 mismatch: {logo_sha}")
+
     docs: dict[Path, DocumentParser] = {}
     for rel in REQUIRED_HTML:
         path = ROOT / rel
@@ -217,14 +230,14 @@ def main() -> int:
         surface = path.read_text(encoding="utf-8")
         if OFFICIAL_LOGO_SRC not in surface:
             fail(errors, f"{rel}: official LOTBI logo asset is missing")
-        for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal"):
+        for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
             if forbidden in surface:
                 fail(errors, f"{rel}: legacy/text-only logo reference must not render: {forbidden}")
 
     mobile_entry = (ROOT / "mobile-entry.js").read_text(encoding="utf-8") if (ROOT / "mobile-entry.js").exists() else ""
     if OFFICIAL_LOGO_SRC not in mobile_entry:
         fail(errors, "mobile-entry.js: mobile chooser must use official LOTBI logo asset")
-    for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal"):
+    for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
         if forbidden in mobile_entry:
             fail(errors, f"mobile-entry.js: legacy/text-only logo reference must not render: {forbidden}")
 
