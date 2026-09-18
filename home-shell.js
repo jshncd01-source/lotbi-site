@@ -6,6 +6,40 @@
   const openButtons = Array.from(document.querySelectorAll('[data-mobile-nav-open]'));
   const closeButton = document.querySelector('[data-mobile-nav-close]');
   const prompt = document.getElementById('lotbi-prompt');
+  const mobileViewportQuery = window.matchMedia('(max-width: 760px)');
+  let mobileViewportBaseline = Math.max(
+    document.documentElement.clientHeight || 0,
+    window.innerHeight || 0,
+    window.visualViewport?.height || 0,
+  );
+  let mobileViewportWidth = Math.max(window.innerWidth || 0, window.visualViewport?.width || 0);
+  let viewportSyncFrame = 0;
+
+  const syncMobileViewport = () => {
+    cancelAnimationFrame(viewportSyncFrame);
+    viewportSyncFrame = requestAnimationFrame(() => {
+      const viewport = window.visualViewport;
+      const visibleHeight = Math.max(1, Math.round(viewport?.height || window.innerHeight || document.documentElement.clientHeight || 1));
+      const visibleWidth = Math.max(1, Math.round(viewport?.width || window.innerWidth || document.documentElement.clientWidth || 1));
+      document.documentElement.style.setProperty('--lotbi-mobile-viewport-height', `${visibleHeight}px`);
+
+      const widthChanged = Math.abs(visibleWidth - mobileViewportWidth) > 40;
+      if (widthChanged) {
+        mobileViewportWidth = visibleWidth;
+        mobileViewportBaseline = visibleHeight;
+      }
+
+      const promptFocused = prompt instanceof HTMLTextAreaElement && document.activeElement === prompt;
+      if (!mobileViewportQuery.matches || !promptFocused) {
+        mobileViewportBaseline = visibleHeight;
+        document.body.classList.remove('mobile-keyboard-open');
+        return;
+      }
+
+      const keyboardInset = Math.max(0, mobileViewportBaseline - visibleHeight);
+      document.body.classList.toggle('mobile-keyboard-open', keyboardInset >= 120);
+    });
+  };
 
   if (drawer && backdrop && openButtons.length > 0 && closeButton) {
     let lastFocused = null;
@@ -61,7 +95,16 @@
     window.addEventListener('pageshow', (event) => {
       if (event.persisted) {
         resizePrompt();
+        syncMobileViewport();
       }
     });
+
+    prompt.addEventListener('focus', syncMobileViewport);
+    prompt.addEventListener('blur', syncMobileViewport);
   }
+
+  window.visualViewport?.addEventListener('resize', syncMobileViewport, {passive: true});
+  window.visualViewport?.addEventListener('scroll', syncMobileViewport, {passive: true});
+  window.addEventListener('resize', syncMobileViewport, {passive: true});
+  syncMobileViewport();
 })();
