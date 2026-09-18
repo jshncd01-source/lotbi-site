@@ -33,9 +33,10 @@ const wait=async(fn,label)=>{for(let i=0;i<100;i+=1){if(fn())return;await sleep(
 const click=node=>node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
 const state=()=>JSON.parse(localStorage.getItem('lotbi.site.ux.v1.threads.install-profile-test')||'{}');
 const counts={me:0,subscription:0,logout:0,other:0};
+let releaseSubscription;const subscriptionGate=new Promise(resolve=>{releaseSubscription=resolve});
 window.fetch=async input=>{const u=String(typeof input==='string'?input:input?.url||'');
 if(u.endsWith('/v2/me')){counts.me+=1;return new Response(JSON.stringify({user:{id:'usr',name:'홍길동',account_handle:'hong'},session:{id:'ses',assurance_level:'FULL',expires_at:'2099-01-01T00:00:00Z'},installation:{id:'install-profile-test'}}),{status:200,headers:{'Content-Type':'application/json'}})}
-if(u.endsWith('/v2/subscription')){counts.subscription+=1;return new Response(JSON.stringify({plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,free_units:3,used_free_units:1,remaining_free_units:2}),{status:200,headers:{'Content-Type':'application/json'}})}
+if(u.endsWith('/v2/subscription')){counts.subscription+=1;await subscriptionGate;return new Response(JSON.stringify({plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,free_units:3,used_free_units:1,remaining_free_units:2}),{status:200,headers:{'Content-Type':'application/json'}})}
 if(u.endsWith('/v2/sessions/logout')){counts.logout+=1;return new Response(JSON.stringify({session_id:'ses',status:'REVOKED'}),{status:200,headers:{'Content-Type':'application/json'}})}
 counts.other+=1;return new Response('{}',{status:500})};
 try{
@@ -59,6 +60,8 @@ const before=state(),url=location.href,id=before.activeThreadId,msgs=JSON.string
 let trigger=document.querySelector('[data-profile-menu-trigger]');
 if(!(trigger instanceof HTMLButtonElement)||trigger.hasAttribute('href'))throw new Error('authenticated trigger');
 click(trigger);await wait(()=>document.querySelector('.profile-popover'),'open');
+if(document.querySelector('.profile-popover-summary-plan'))throw new Error('plan must not be fabricated before subscription response');
+releaseSubscription();await wait(()=>document.querySelector('.profile-popover-summary-plan')?.textContent==='LOTBI_PLUS','late plan hydration');
 if(location.href!==url||document.querySelector('.profile-popover-summary-name')?.textContent!=='홍길동'||document.querySelector('.profile-popover-summary-handle')?.textContent!=='@hong'||document.querySelector('.profile-popover-summary-plan')?.textContent!=='LOTBI_PLUS')throw new Error('profile summary/url');
 const labels=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].map(n=>n.textContent).join('|');
 if(labels!=='프로필|개인 맞춤 설정|설정|도움말|로그아웃'||counts.logout!==0)throw new Error('menu/logout-before-click');
