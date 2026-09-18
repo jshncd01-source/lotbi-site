@@ -5,6 +5,7 @@ export const SITE_CALLBACK_URI = 'https://lotbiai.com/auth/callback';
 const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
+const SUBSCRIPTION_PATH = '/v2/subscription';
 const LOGOUT_PATH = '/v2/sessions/logout';
 
 export class SiteCoreError extends Error {
@@ -224,6 +225,33 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+  });
+}
+
+export async function getCurrentSubscription(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(SUBSCRIPTION_PATH, sessionToken, {}, fetchImpl);
+  const plan = typeof payload?.plan === 'string' ? payload.plan.trim() : '';
+  const status = typeof payload?.status === 'string' ? payload.status.trim() : '';
+  const freeUnits = Number.isInteger(payload?.free_units) ? payload.free_units : null;
+  const usedFreeUnits = Number.isInteger(payload?.used_free_units) ? payload.used_free_units : null;
+  const remainingFreeUnits = Number.isInteger(payload?.remaining_free_units) ? payload.remaining_free_units : null;
+  if (
+    !/^[A-Z][A-Z0-9_]{0,63}$/.test(plan)
+    || !/^[A-Z][A-Z0-9_]{0,63}$/.test(status)
+    || typeof payload?.entitled !== 'boolean'
+    || freeUnits === null || freeUnits < 0
+    || usedFreeUnits === null || usedFreeUnits < 0
+    || remainingFreeUnits === null || remainingFreeUnits < 0
+  ) {
+    throw new SiteCoreError('LOTBI 구독 정보 응답이 올바르지 않습니다.', {code: 'SITE_SUBSCRIPTION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    plan,
+    status,
+    entitled: payload.entitled,
+    freeUnits,
+    usedFreeUnits,
+    remainingFreeUnits,
   });
 }
 
