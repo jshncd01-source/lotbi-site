@@ -138,6 +138,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let voiceRequesting = false;
   let voiceListening = false;
   let voiceRecognition;
+  let avatarSequence = 0;
+  let voiceAvatarRequestId;
+  const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
+  const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
+    detail: Object.freeze({phase, requestId}),
+  }));
   if (sessionToken) markAuthenticatedAccountUi();
 
   const setStatus = (message) => {
@@ -234,6 +240,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
+        voiceAvatarRequestId = nextAvatarRequestId('voice');
+        driveAvatar('listening-start', voiceAvatarRequestId);
         setListeningState(true);
         setVoiceFeedback('듣고 있습니다. 말씀해 주세요.');
       };
@@ -253,6 +261,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       };
 
       recognition.onend = () => {
+        if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId);
+        voiceAvatarRequestId = undefined;
         setListeningState(false);
         if (voiceRecognition === recognition) voiceRecognition = undefined;
         updateSendState();
@@ -331,6 +341,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
     if (appendUserMessage) append(createMessage('user', message));
     const loading = append(createLoadingMessage());
+    const avatarRequestId = nextAvatarRequestId('turn');
+    driveAvatar('response-wait', avatarRequestId);
     inFlight = true;
     updateSendState();
     setVoiceFeedback('');
@@ -346,7 +358,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true,
       }));
       setStatus(response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.');
+      driveAvatar('response-complete', avatarRequestId);
     } catch (caught) {
+      driveAvatar('cancel', avatarRequestId);
       loading.remove();
       if (isSessionError(caught)) sessionToken = undefined;
       showError(caught, message, true);
