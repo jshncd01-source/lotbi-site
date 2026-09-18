@@ -16,10 +16,12 @@ const {
   SITE_CALLBACK_URI,
   SiteCoreError,
   getCurrentSiteUser,
+  getSubscriptionState,
   logoutSiteSession,
   redeemSiteHandoff,
   sendConversationMessage,
 } = await import('../site-core.js');
+const {deterministicReply} = await import('../site-deterministic.js');
 const {
   ACCOUNT_SITE_HANDOFF_URL,
   HANDOFF_CONTEXT_KEY,
@@ -35,6 +37,58 @@ class MemoryStorage {
   getItem(key) { return this.map.has(key) ? this.map.get(key) : null; }
   setItem(key, value) { this.map.set(key, String(value)); }
   removeItem(key) { this.map.delete(key); }
+}
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
+}
+
+async function expectReject(promise, code) {
+  let caught;
+  try { await promise; } catch (error) { caught = error; }
+  assert.ok(caught instanceof Error, `expected rejection ${code}`);
+  assert.equal(caught.code, code);
+}
+
+function conversationSuccess(overrides = {}) {
+  return {
+    contract_id: 'CORE-WEB-CHAT-01', schema_version: 1, correlation_id: 'req_unit_test',
+    status: 'ANSWERED', assistant_text: '실제 Core 계약 형태의 테스트 응답',
+    intent: {action: 'UNKNOWN'}, response_mode: 'MODEL',
+    follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+    retry_safe: true, safety: {execution_authority: false, external_side_effect: false}, ...overrides,
+  };
+}
+
+assert.equal(CORE_ORIGIN, 'https://api.lotbiai.com');
+assert.equal(SITE_AUDIENCE, 'lotbiai.com');
+assert.equal(SITE_CALLBACK_URI, 'https://lotbiai.com/auth/callback');
+assert.equal(ACCOUNT_SITE_HANDOFF_URL, 'https://account.lotbiai.com/auth/site-handoff');
+
+const now = 1_800_000_000_000;
+const context = await createSiteHandoffContext('첫 실제 메시지', now);
+assert.equal(context.version, 1);
+assert.match(context.state, /^[A-Za-z0-9_-]{43}$/);
+assert.match(context.codeVerifier, /^[A-Za-z0-9_-]{43}$/);
+assert.match(context.codeChallenge, /^[A-Za-z0-9_-]{43}$/);
+assert.notEqual(context.codeVerifier, context.codeChallenge);
+
+{
+  const storage = new MemoryStorage();
+  storeSiteHandoffContext(context, storage);
+  assert.ok(storage.getItem(HANDOFF_CONTEXT_KEY));
+  assert.throws(() => readAndClearSiteHandoffContext('different-state-0123456789', storage, now + 1), error => error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_STATE_MISMATCH');
+  assert.equal(storage.getItem(HANDOFF_CONTEXT_KEY), null);
+}
+{
+  const storage = new MemoryStorage();
+  storage.setItem(HANDOFF_CONTEXT_KEY, JSON.stringify({...context, codeVerifier: ''}));
+  assert.throws(() => readAndClearSiteHandoffContext(context.state, storage, now + 1), error => error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_INVALID');
+}
+{
+  const storage = new MemoryStorage();
+  storeSiteHandoffContext(context, storage);
+  assert.throws(() => readAndClearSiteHandoffContext(context.state, storage, now + HANDOFF_CONTEXT_TTL_MS + 1), error => error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_INVALID');
 }
 
 {
@@ -65,85 +119,43 @@ class MemoryStorage {
   }
 }
 
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {'Content-Type': 'application/json'},
-  });
-}
-
-async function expectReject(promise, code) {
-  let caught;
-  try {
-    await promise;
-  } catch (error) {
-    caught = error;
-  }
-  assert.ok(caught instanceof Error, `expected rejection ${code}`);
-  assert.equal(caught.code, code);
-}
-
-assert.equal(CORE_ORIGIN, 'https://api.lotbiai.com');
-assert.equal(SITE_AUDIENCE, 'lotbiai.com');
-assert.equal(SITE_CALLBACK_URI, 'https://lotbiai.com/auth/callback');
-assert.equal(ACCOUNT_SITE_HANDOFF_URL, 'https://account.lotbiai.com/auth/site-handoff');
-
-const now = 1_800_000_000_000;
-const context = await createSiteHandoffContext('첫 실제 메시지', now);
-assert.equal(context.version, 1);
-assert.match(context.state, /^[A-Za-z0-9_-]{43}$/);
-assert.match(context.codeVerifier, /^[A-Za-z0-9_-]{43}$/);
-assert.match(context.codeChallenge, /^[A-Za-z0-9_-]{43}$/);
-assert.notEqual(context.codeVerifier, context.codeChallenge);
-
 {
-  const storage = new MemoryStorage();
-  storeSiteHandoffContext(context, storage);
-  assert.ok(storage.getItem(HANDOFF_CONTEXT_KEY));
-  assert.throws(
-    () => readAndClearSiteHandoffContext('different-state-0123456789', storage, now + 1),
-    error => error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_STATE_MISMATCH',
-  );
-  assert.equal(storage.getItem(HANDOFF_CONTEXT_KEY), null, 'state mismatch must consume local handoff context');
-}
-
-{
-  const storage = new MemoryStorage();
-  storage.setItem(HANDOFF_CONTEXT_KEY, JSON.stringify({...context, codeVerifier: ''}));
-  assert.throws(
-    () => readAndClearSiteHandoffContext(context.state, storage, now + 1),
-    error => error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_INVALID',
-  );
-}
-
-{
-  const storage = new MemoryStorage();
-  storeSiteHandoffContext(context, storage);
-  assert.throws(
-    () => readAndClearSiteHandoffContext(context.state, storage, now + HANDOFF_CONTEXT_TTL_MS + 1),
-    error => error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_INVALID',
-  );
+  let request;
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      plan: 'FREE',
+      status: 'ACTIVE',
+      price: 9900,
+      currency: 'KRW',
+      provider: null,
+      current_period_end: null,
+      cancel_at_period_end: false,
+      free_units: 3,
+      used_free_units: 3,
+      remaining_free_units: 0,
+      entitled: false,
+      web_payment_methods: [{code: 'CARD', display_name: '카드'}],
+    });
+  };
+  const subscription = await getSubscriptionState('site-memory-token', fetchMock);
+  assert.equal(request.url, 'https://api.lotbiai.com/v2/subscription');
+  assert.equal(request.init.method, 'GET');
+  assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
+  assert.equal(subscription.price, 9900);
+  assert.equal(subscription.currency, 'KRW');
+  assert.equal(subscription.freeUnits, 3);
+  assert.equal(subscription.remainingFreeUnits, 0);
+  assert.deepEqual(subscription.webPaymentMethods, [{code: 'CARD', displayName: '카드'}]);
 }
 
 {
   let request;
   const fetchMock = async (url, init) => {
     request = {url, init};
-    return jsonResponse({
-      session_token: 'site-session-token-only-for-unit-test',
-      session_type: 'Bearer',
-      session_id: 'session-1',
-      installation_id: 'installation-1',
-      assurance_level: 'FULL',
-      audience: 'lotbiai.com',
-      expires_at: '2030-01-01T00:00:00Z',
-    });
+    return jsonResponse({session_token: 'site-session-token-only-for-unit-test', session_type: 'Bearer', session_id: 'session-1', installation_id: 'installation-1', assurance_level: 'FULL', audience: 'lotbiai.com', expires_at: '2030-01-01T00:00:00Z'});
   };
-  const session = await redeemSiteHandoff({
-    handoffCode: 'h'.repeat(43),
-    state: context.state,
-    codeVerifier: context.codeVerifier,
-  }, fetchMock);
+  const session = await redeemSiteHandoff({handoffCode: 'h'.repeat(43), state: context.state, codeVerifier: context.codeVerifier}, fetchMock);
   assert.equal(session.sessionToken, 'site-session-token-only-for-unit-test');
   assert.equal(request.url, 'https://api.lotbiai.com/v2/sessions/handoffs/redeem');
   assert.equal(request.init.method, 'POST');
@@ -158,33 +170,12 @@ assert.notEqual(context.codeVerifier, context.codeChallenge);
 }
 
 for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
-  await expectReject(
-    redeemSiteHandoff({
-      handoffCode: 'h'.repeat(43),
-      state: context.state,
-      codeVerifier: context.codeVerifier,
-    }, async () => jsonResponse({detail: {code, message: 'rejected'}}, 400)),
-    code,
-  );
+  await expectReject(redeemSiteHandoff({handoffCode: 'h'.repeat(43), state: context.state, codeVerifier: context.codeVerifier}, async () => jsonResponse({detail: {code, message: 'rejected'}}, 400)), code);
 }
 
 {
   let request;
-  const fetchMock = async (url, init) => {
-    request = {url, init};
-    return jsonResponse({
-      contract_id: 'CORE-WEB-CHAT-01',
-      schema_version: 1,
-      correlation_id: 'req_unit_test',
-      status: 'ANSWERED',
-      assistant_text: '실제 Core 계약 형태의 테스트 응답',
-      intent: {action: 'UNKNOWN'},
-      response_mode: 'MODEL',
-      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
-      retry_safe: true,
-      safety: {execution_authority: false, external_side_effect: false},
-    });
-  };
+  const fetchMock = async (url, init) => { request = {url, init}; return jsonResponse(conversationSuccess()); };
   const reply = await sendConversationMessage('site-memory-token', '안녕하세요', fetchMock);
   assert.equal(reply.status, 'ANSWERED');
   assert.equal(reply.assistantText, '실제 Core 계약 형태의 테스트 응답');
@@ -195,13 +186,88 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   assert.equal(request.init.headers['Content-Type'], 'application/json');
   assert.deepEqual(JSON.parse(request.init.body), {text: '안녕하세요'});
 }
+{
+  let request;
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse(conversationSuccess({assistant_text: '지금은 오후 1시 25분이에요.', response_mode: 'LOCAL_DETERMINISTIC', routing: {route: 'LOCAL', local_intent: 'CURRENT_TIME', ai_required: false, ai_calls: 0, provider: 'NONE', latency_ms: 2, estimated_ai_cost: 0}}));
+  };
+  const reply = await sendConversationMessage('site-memory-token', '지금 몇시야', {timezone: 'Asia/Seoul'}, fetchMock);
+  assert.equal(reply.routing.route, 'LOCAL');
+  assert.equal(reply.routing.ai_calls, 0);
+  assert.deepEqual(JSON.parse(request.init.body), {text: '지금 몇시야', client_context: {timezone: 'Asia/Seoul'}});
+  const serialized = request.init.body.toLowerCase();
+  for (const forbiddenContext of ['gps', 'latitude', 'longitude', 'address', 'device_secret']) assert.ok(!serialized.includes(forbiddenContext));
+}
+{
+  let request;
+  const fetchMock = async (url, init) => { request = {url, init}; return jsonResponse(conversationSuccess()); };
+  await sendConversationMessage('site-memory-token', '지금 몇시야', {timezone: '../Asia/Seoul'}, fetchMock);
+  assert.deepEqual(JSON.parse(request.init.body), {text: '지금 몇시야'});
+}
 
-await expectReject(
-  sendConversationMessage('site-memory-token', '안녕하세요', async () => jsonResponse({
-    detail: {code: 'SESSION_EXPIRED', message: 'expired'},
-  }, 401)),
-  'SESSION_EXPIRED',
-);
+{
+  let request;
+  const history = Array.from({length: 8}, (_, index) => ({
+    role: index % 2 === 0 ? 'user' : 'assistant',
+    text: `history-${index}-${'x'.repeat(520)}`,
+  }));
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse(conversationSuccess());
+  };
+  await sendConversationMessage(
+    'site-memory-token',
+    '후속 질문',
+    {timezone: 'Asia/Seoul', recentContext: history, idempotencyKey: 'site-ai-request-0001'},
+    fetchMock,
+  );
+  assert.equal(request.init.headers['Idempotency-Key'], 'site-ai-request-0001');
+  const body = JSON.parse(request.init.body);
+  assert.equal(body.client_context.timezone, 'Asia/Seoul');
+  assert.equal(body.recent_context.length, 6);
+  assert.ok(body.recent_context.every(item => ['user', 'assistant'].includes(item.role)));
+  assert.ok(body.recent_context.every(item => item.text.length <= 500));
+  assert.ok(body.recent_context[0].text.startsWith('history-2-'));
+  assert.ok(body.recent_context[5].text.startsWith('history-7-'));
+}
+
+await expectReject(sendConversationMessage('site-memory-token', '안녕하세요', async () => jsonResponse({detail: {code: 'SESSION_EXPIRED', message: 'expired'}}, 401)), 'SESSION_EXPIRED');
+
+{
+  let caught;
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      '복잡한 비교를 해줘',
+      async () => jsonResponse({detail: {
+        code: 'FREE_LIMIT_REACHED',
+        message: 'Monthly FREE meaningful-AI allowance is exhausted',
+        retryable: false,
+        l0_available: true,
+        upgrade_available: true,
+        upgrade_action: 'VIEW_SUBSCRIPTION_OPTIONS',
+      }}, 429),
+    );
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught instanceof SiteCoreError);
+  assert.equal(caught.code, 'FREE_LIMIT_REACHED');
+  assert.equal(caught.status, 429);
+  assert.equal(caught.retryable, false);
+  assert.equal(caught.l0Available, true);
+  assert.equal(caught.upgradeAvailable, true);
+  assert.equal(caught.upgradeAction, 'VIEW_SUBSCRIPTION_OPTIONS');
+}
+
+assert.ok(deterministicReply('안녕'));
+assert.ok(deterministicReply('고마워'));
+assert.ok(deterministicReply('알겠어'));
+assert.ok(deterministicReply('도움말'));
+assert.ok(deterministicReply('지금 몇시야'));
+assert.ok(deterministicReply('오늘 날짜'));
+assert.ok(deterministicReply('오늘 무슨 요일'));
 
 const index = read('index.html');
 const auth = read('site-auth.js');
@@ -211,18 +277,7 @@ const callback = read('auth-callback.js');
 const callbackHtml = read('auth/callback/index.html');
 const footerCss = read('footer-business-info.css');
 
-for (const token of [
-  'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260917-1"',
-  'maxlength="1000"',
-  'aria-label="전송"',
-  '유한회사 알에이디홀딩스',
-  '대표자: 전선혜',
-  '사업자등록번호: 583-88-03679',
-  '통신판매업신고번호: 2026-전주덕진-0798',
-  '사업자정보확인',
-]) assert.ok(index.includes(token), `missing index contract: ${token}`);
-
+for (const token of ['id="conversation-thread"','type="module" src="site-conversation.js?v=20260917-1"','maxlength="1000"','aria-label="전송"','유한회사 알에이디홀딩스','대표자: 전선혜','사업자등록번호: 583-88-03679','통신판매업신고번호: 2026-전주덕진-0798','사업자정보확인']) assert.ok(index.includes(token), `missing index contract: ${token}`);
 assert.ok(auth.includes('sessionStorage'));
 assert.ok(auth.includes('code_challenge'));
 assert.ok(auth.includes("crypto.subtle.digest('SHA-256'"));
@@ -234,26 +289,28 @@ assert.ok(conversation.includes("event.key === 'Enter'"));
 assert.ok(conversation.includes('!event.shiftKey'));
 assert.ok(conversation.includes('beginSiteHandoff'));
 assert.ok(conversation.includes('sendConversationMessage'));
+assert.ok(conversation.includes('getSubscriptionState'));
+assert.ok(conversation.includes('구독 옵션 보기'));
+assert.ok(conversation.includes("newId('ai-request')"));
+assert.ok(conversation.includes('idempotencyKey: logicalRequestId'));
+assert.ok(conversation.includes('deterministicReply'));
 assert.ok(conversation.includes('getCurrentSiteUser'));
 assert.ok(conversation.includes('logoutSiteSession'));
 assert.ok(core.includes("Authorization: `Bearer ${token}`"));
 assert.ok(core.includes("payload.contract_id !== 'CORE-WEB-CHAT-01'"));
+assert.ok(core.includes('client_context'));
+assert.ok(core.includes('resolvedOptions?.().timeZone'));
 
 const credentialRuntime = `${auth}\n${core}\n${callback}`.toLowerCase();
-for (const forbidden of ['localstorage', 'document.cookie', 'client_secret', 'api_key', 'openai_api_key']) {
-  assert.ok(!credentialRuntime.includes(forbidden), `forbidden credential runtime token: ${forbidden}`);
-}
-assert.ok(conversation.includes('window.localStorage'), 'conversation/preferences require explicit browser-local persistence');
-assert.ok(conversation.includes('installationId'), 'authenticated local persistence must use the stable installation namespace');
-assert.ok(!conversation.includes('storage.setItem(STORAGE_PREFIX, sessionToken'), 'Site bearer must never enter durable storage');
-assert.ok(!auth.includes('session_token'), 'handoff storage module must never persist a bearer');
-assert.ok(!auth.includes('Authorization'), 'Account bearer must never be handled by Site handoff state module');
-assert.ok(!callback.includes('sessionStorage.setItem'), 'callback must not persist the Site bearer');
-assert.ok(!conversation.includes('sessionStorage.setItem'), 'conversation must not persist the Site bearer');
-assert.ok(!footerCss.includes('conversation'), 'business footer stylesheet must remain unrelated to conversation integration');
-
-for (const forbiddenEffect of ['/orders', '/payments', '/reservations', '/execute', 'payment_attempted']) {
-  assert.ok(!conversation.includes(forbiddenEffect), `conversation client must not start external effects: ${forbiddenEffect}`);
-}
+for (const forbidden of ['localstorage', 'document.cookie', 'client_secret', 'api_key', 'openai_api_key']) assert.ok(!credentialRuntime.includes(forbidden), `forbidden credential runtime token: ${forbidden}`);
+assert.ok(conversation.includes('window.localStorage'));
+assert.ok(conversation.includes('installationId'));
+assert.ok(!conversation.includes('storage.setItem(STORAGE_PREFIX, sessionToken'));
+assert.ok(!auth.includes('session_token'));
+assert.ok(!auth.includes('Authorization'));
+assert.ok(!callback.includes('sessionStorage.setItem'));
+assert.ok(!conversation.includes('sessionStorage.setItem'));
+assert.ok(!footerCss.includes('conversation'));
+for (const forbiddenEffect of ['/orders', '/payments', '/reservations', '/execute', 'payment_attempted']) assert.ok(!conversation.includes(forbiddenEffect), `conversation client must not start external effects: ${forbiddenEffect}`);
 
 console.log('SITE-WEB-CONVERSATION-INTEGRATION-01 CONTRACT PASS');

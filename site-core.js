@@ -6,15 +6,29 @@ const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
+const SUBSCRIPTION_PATH = '/v2/subscription';
+const IANA_TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,160}$/;
 
 export class SiteCoreError extends Error {
-  constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
+  constructor(message, {
+    code = 'SITE_CORE_ERROR',
+    status = 0,
+    retryable = false,
+    correlationId = '',
+    l0Available = false,
+    upgradeAvailable = false,
+    upgradeAction = '',
+  } = {}) {
     super(message);
     this.name = 'SiteCoreError';
     this.code = code;
     this.status = status;
     this.retryable = retryable;
     this.correlationId = correlationId;
+    this.l0Available = l0Available;
+    this.upgradeAvailable = upgradeAvailable;
+    this.upgradeAction = upgradeAction;
   }
 }
 
@@ -35,6 +49,9 @@ function errorFromResponse(response, payload, fallback) {
       status: response.status,
       retryable: detail.retryable === true,
       correlationId: typeof detail.correlation_id === 'string' ? detail.correlation_id : '',
+      l0Available: detail.l0_available === true,
+      upgradeAvailable: detail.upgrade_available === true,
+      upgradeAction: typeof detail.upgrade_action === 'string' ? detail.upgrade_action : '',
     },
   );
 }
@@ -51,6 +68,54 @@ function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
   }
+}
+
+function browserTimezone() {
+  try {
+    const value = globalThis.Intl?.DateTimeFormat?.().resolvedOptions?.().timeZone;
+    return typeof value === 'string' ? value.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+function safeTimezone(value) {
+  const timezone = typeof value === 'string' ? value.trim() : '';
+  if (!timezone || timezone.length > 64 || !IANA_TIMEZONE_PATTERN.test(timezone)) return '';
+  if (timezone.split('/').some(segment => segment === '.' || segment === '..')) return '';
+  return timezone;
+}
+
+function safeIdempotencyKey(value) {
+  const key = typeof value === 'string' ? value.trim() : '';
+  return IDEMPOTENCY_KEY_PATTERN.test(key) ? key : '';
+}
+
+function safeRecentContext(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value.slice(-6)) {
+    if (!item || typeof item !== 'object') continue;
+    const role = typeof item.role === 'string' ? item.role.trim().toLowerCase() : '';
+    const text = typeof item.text === 'string' ? item.text.trim() : '';
+    if (!['user', 'assistant'].includes(role) || !text) continue;
+    out.push({role, text: text.slice(0, 500)});
+  }
+  return out;
+}
+
+function conversationTransport(contextOrFetch, fetchOverride) {
+  if (typeof contextOrFetch === 'function') {
+    return {timezone: '', recentContext: [], fetchImpl: contextOrFetch};
+  }
+  const context = contextOrFetch && typeof contextOrFetch === 'object' ? contextOrFetch : undefined;
+  const hasExplicitTimezone = Boolean(context && Object.prototype.hasOwnProperty.call(context, 'timezone'));
+  return {
+    timezone: hasExplicitTimezone ? safeTimezone(context.timezone) : safeTimezone(browserTimezone()),
+    recentContext: safeRecentContext(context?.recentContext),
+    idempotencyKey: safeIdempotencyKey(context?.idempotencyKey),
+    fetchImpl: typeof fetchOverride === 'function' ? fetchOverride : globalThis.fetch,
+  };
 }
 
 export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetchImpl = globalThis.fetch) {
@@ -107,7 +172,8 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
   });
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch) {
+export async function sendConversationMessage(sessionToken, text, contextOrFetch, fetchOverride) {
+  const {timezone, recentContext, idempotencyKey, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -117,6 +183,10 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
   if (!message || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
   }
+
+  const requestBody = {text: message};
+  if (timezone) requestBody.client_context = {timezone};
+  if (recentContext.length) requestBody.recent_context = recentContext;
 
   let response;
   try {
@@ -129,8 +199,9 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...(idempotencyKey ? {'Idempotency-Key': idempotencyKey} : {}),
       },
-      body: JSON.stringify({text: message}),
+      body: JSON.stringify(requestBody),
     });
   } catch {
     throw new SiteCoreError('LOTBI 대화 서버에 접속하지 못했습니다.', {
@@ -161,6 +232,10 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     throw new SiteCoreError('LOTBI 대화 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
   }
 
+  const routing = payload.routing && typeof payload.routing === 'object'
+    ? Object.freeze({...payload.routing})
+    : undefined;
+
   return Object.freeze({
     status,
     assistantText,
@@ -168,6 +243,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
+    routing,
   });
 }
 
@@ -224,6 +300,44 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+  });
+}
+
+export async function getSubscriptionState(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(SUBSCRIPTION_PATH, sessionToken, {}, fetchImpl);
+  const plan = typeof payload.plan === 'string' ? payload.plan.trim() : '';
+  const status = typeof payload.status === 'string' ? payload.status.trim() : '';
+  const currency = typeof payload.currency === 'string' ? payload.currency.trim() : '';
+  const price = Number(payload.price);
+  const freeUnits = Number(payload.free_units);
+  const usedFreeUnits = Number(payload.used_free_units);
+  const remainingFreeUnits = Number(payload.remaining_free_units);
+  const methods = Array.isArray(payload.web_payment_methods)
+    ? payload.web_payment_methods
+        .filter(item => item && typeof item.code === 'string' && typeof item.display_name === 'string')
+        .map(item => Object.freeze({code: item.code.trim(), displayName: item.display_name.trim()}))
+        .filter(item => item.code && item.displayName)
+    : [];
+  if (
+    !plan || !status || !currency
+    || !Number.isInteger(price) || price < 0
+    || !Number.isInteger(freeUnits) || freeUnits < 0
+    || !Number.isInteger(usedFreeUnits) || usedFreeUnits < 0
+    || !Number.isInteger(remainingFreeUnits) || remainingFreeUnits < 0
+    || typeof payload.entitled !== 'boolean'
+  ) {
+    throw new SiteCoreError('LOTBI 구독 정보 응답이 올바르지 않습니다.', {code: 'SITE_SUBSCRIPTION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    plan,
+    status,
+    price,
+    currency,
+    freeUnits,
+    usedFreeUnits,
+    remainingFreeUnits,
+    entitled: payload.entitled,
+    webPaymentMethods: Object.freeze(methods),
   });
 }
 

@@ -1,5 +1,5 @@
 import {beginSiteHandoff} from './site-auth.js';
-import {getCurrentSiteUser, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js';
+import {getCurrentSiteUser, getSubscriptionState, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js';
 import {deterministicReply} from './site-deterministic.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -100,6 +100,9 @@ function isSessionError(error) {
 }
 function userFacingErrorMessage(error) {
   if (isSessionError(error)) return 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.';
+  if (error instanceof SiteCoreError && error.code === 'FREE_LIMIT_REACHED') {
+    return '이번 달 무료 AI 3회를 모두 사용했습니다. 인사·감사·도움말·시간·날짜 같은 0-AI 기능은 계속 사용할 수 있습니다. 추가 AI 사용은 구독 옵션에서 이어갈 수 있습니다.';
+  }
   if (error instanceof SiteCoreError && (error.code === 'AI_PROVIDER_UNAVAILABLE' || error.code === 'AI_RESPONSE_UNAVAILABLE')) return 'LOTBI AI 응답을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof Error) return error.message;
   return 'LOTBI 대화를 완료하지 못했습니다.';
@@ -117,6 +120,9 @@ function appendSafeErrorEvidence(wrapper, error) {
   if (error.code) wrapper.dataset.errorCode = error.code;
   if (error.status) wrapper.dataset.httpStatus = String(error.status);
   if (error.correlationId) wrapper.dataset.correlationId = error.correlationId;
+  if (error.l0Available) wrapper.dataset.l0Available = 'true';
+  if (error.upgradeAvailable) wrapper.dataset.upgradeAvailable = 'true';
+  if (error.upgradeAction) wrapper.dataset.upgradeAction = error.upgradeAction;
   const evidence = [];
   if (error.code) evidence.push(`오류 코드 ${error.code}`);
   if (error.status) evidence.push(`HTTP ${error.status}`);
@@ -219,6 +225,17 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const record = threadRecord(); if (!record) return;
     record.messages.push(message); record.messages = record.messages.slice(-MESSAGE_LIMIT); record.updatedAt = Date.now();
     state.threads.sort((a, b) => b.updatedAt - a.updatedAt); saveState(); renderRecent();
+  };
+  const recentContextForRequest = currentText => {
+    const record = threadRecord();
+    if (!record || !Array.isArray(record.messages)) return [];
+    const messages = [...record.messages];
+    const last = messages[messages.length - 1];
+    if (last?.role === 'user' && String(last.text || '').trim() === currentText) messages.pop();
+    return messages
+      .filter(item => (item?.role === 'user' || item?.role === 'assistant') && typeof item.text === 'string' && item.text.trim())
+      .slice(-6)
+      .map(item => ({role: item.role, text: item.text.trim().slice(0, 500)}));
   };
   const renderActiveThread = () => {
     restoreAvatarHome(); thread.replaceChildren();
@@ -327,6 +344,39 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const content = document.createElement('div'); content.className = 'site-modal-content'; panel.appendChild(content); backdrop.appendChild(panel);
     return {backdrop, panel, content};
   };
+  const openSubscriptionOptions = async () => {
+    if (!sessionToken) {
+      await beginSiteHandoff('구독 옵션 확인');
+      return;
+    }
+    const snapshot = await getSubscriptionState(sessionToken);
+    const {backdrop, panel, content} = modalShell(
+      'LOTBI Plus',
+      '무료 AI 사용량을 모두 사용한 뒤 추가 AI 작업이 필요할 때 확인할 수 있는 구독 옵션입니다.',
+    );
+    const price = document.createElement('p');
+    price.className = 'site-readonly-field';
+    const amount = new Intl.NumberFormat('ko-KR').format(snapshot.price);
+    price.textContent = `LOTBI Plus 월 ${amount} ${snapshot.currency}`;
+
+    const usage = document.createElement('p');
+    usage.className = 'site-readonly-field';
+    usage.textContent = `이번 달 무료 AI ${snapshot.usedFreeUnits} / ${snapshot.freeUnits}회 사용 · 남은 횟수 ${snapshot.remainingFreeUnits}회`;
+
+    const methods = document.createElement('p');
+    methods.className = 'site-readonly-field';
+    methods.textContent = snapshot.webPaymentMethods.length
+      ? `현재 확인된 웹 결제수단: ${snapshot.webPaymentMethods.map(item => item.displayName).join(', ')}`
+      : '현재 확인된 웹 결제수단이 없습니다.';
+
+    const safety = document.createElement('p');
+    safety.className = 'site-modal-description';
+    safety.textContent = '이 화면은 구독 옵션 안내만 제공합니다. 결제·갱신·환불·취소를 자동 실행하지 않습니다.';
+
+    content.append(price, usage, methods, safety);
+    installSurfaceBehavior(backdrop, panel, {modal: true});
+  };
+
   const colorPicker = () => {
     const fieldset = document.createElement('fieldset'); fieldset.className = 'color-picker';
     const legend = document.createElement('legend'); legend.textContent = '대화 색상'; fieldset.appendChild(legend);
@@ -476,11 +526,29 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
-  const showError = (error, retryText, retryWithoutDuplicate) => {
+  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId) => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
     const retryable = isSessionError(error) || !(error instanceof SiteCoreError) || error.retryable;
+    if (error instanceof SiteCoreError && error.code === 'FREE_LIMIT_REACHED' && error.upgradeAvailable) {
+      const upgrade = document.createElement('button');
+      upgrade.type = 'button';
+      upgrade.className = 'chat-retry-button';
+      upgrade.textContent = '구독 옵션 보기';
+      upgrade.dataset.upgradeAction = error.upgradeAction || 'VIEW_SUBSCRIPTION_OPTIONS';
+      upgrade.addEventListener('click', async () => {
+        upgrade.disabled = true;
+        try {
+          await openSubscriptionOptions();
+        } catch (caught) {
+          body.textContent = caught instanceof Error ? caught.message : '구독 옵션을 불러오지 못했습니다.';
+        } finally {
+          if (upgrade.isConnected) upgrade.disabled = false;
+        }
+      });
+      wrapper.appendChild(upgrade);
+    }
     if (retryable) {
       const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'chat-retry-button'; retry.textContent = isSessionError(error) ? '다시 연결' : '다시 시도';
       retry.addEventListener('click', async () => {
@@ -490,14 +558,15 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate);
+        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId);
       });
       wrapper.appendChild(retry);
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true) => {
+  const requestAssistant = async (text, appendUserMessage = true, existingLogicalRequestId = '') => {
     const message = typeof text === 'string' ? text.trim() : ''; if (!message || inFlight) return;
+    const logicalRequestId = existingLogicalRequestId || newId('ai-request');
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     ensureThread(message);
@@ -527,7 +596,10 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
     try {
-      const response = await sendConversationMessage(sessionToken, message);
+      const response = await sendConversationMessage(sessionToken, message, {
+        recentContext: recentContextForRequest(message),
+        idempotencyKey: logicalRequestId,
+      });
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
@@ -536,7 +608,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       setStatus(response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.');
     } catch (caught) {
       loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-      showError(caught, message, true); setStatus('LOTBI 대화를 완료하지 못했습니다.');
+      showError(caught, message, true, logicalRequestId); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
   };
   const submitCurrentPrompt = async () => {

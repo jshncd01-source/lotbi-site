@@ -22,8 +22,10 @@ for (const general of ['대통령이 누구야', '전주 혁신도시 삼겹살�
 
 const localBranch = conversation.indexOf('const local = deterministicReply(message)');
 const authBranch = conversation.indexOf('if (!sessionToken)', localBranch);
-const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message)', authBranch);
+const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message,', authBranch);
 assert.ok(localBranch > 0 && authBranch > localBranch && coreCall > authBranch, 'deterministic routing must precede auth/Core');
+assert.ok(conversation.includes('idempotencyKey: logicalRequestId'), 'Core request must carry the stable logical idempotency key');
+assert.ok(conversation.includes('recentContext: recentContextForRequest(message)'), 'Core request must carry only bounded recent context');
 assert.ok(conversation.includes("recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0})"));
 assert.ok(conversation.includes("lastPath = 'LOCAL_DETERMINISTIC'"));
 assert.ok(conversation.includes('[LOTBI deterministic evidence]'));
@@ -65,6 +67,8 @@ assert.ok(conversation.includes('logoutSiteSession(sessionToken)'), 'logout must
 assert.ok(conversation.includes("reason: 'site-logout'"), 'successful logout must transition Site UI to unauthenticated');
 assert.ok(conversation.includes('serverIdentity?.accountHandle'), 'profile row must use the server handle when available');
 assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile identity must come from Core /v2/me');
+assert.ok(conversation.includes('getSubscriptionState(sessionToken)'), 'FREE exhaustion must expose read-only subscription options');
+assert.ok(conversation.includes('구독 옵션 보기'), 'FREE exhaustion must expose an upgrade-path control');
 assert.ok(sidebarCss.includes('.sidebar-profile-trigger'));
 assert.ok(conversationCss.includes('@media (max-width: 760px)'));
 assert.ok(conversationCss.includes('max-height: 88svh'));
