@@ -76,7 +76,7 @@ const continuityCss = read('site-auth-continuity.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js?v=20260917-1"'));
+assert.ok(index.includes('type="module" src="site-continuity.js?v=20260918-profile3"'));
 assert.ok(index.includes('href="site-auth-continuity.css"'));
 assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
 assert.ok(index.includes('class="account-auth-placeholder" aria-hidden="true"'));
