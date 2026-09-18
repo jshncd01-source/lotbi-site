@@ -84,8 +84,8 @@ def main() -> int:
         '<script type="importmap">',
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
-        '<script type="module" src="site-conversation.js?v=20260917-1"></script>',
-        '<script type="module" src="site-continuity.js?v=20260917-1"></script>',
+        '<script type="module" src="site-conversation.js?v=20260918-grade1"></script>',
+        '<script type="module" src="site-continuity.js?v=20260918-profile3"></script>',
         '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
@@ -158,9 +158,9 @@ def main() -> int:
         errors.append("authenticated continuity stylesheet missing from home")
     if 'href="mobile-entry.css"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
-    if 'src="site-conversation.js?v=20260917-1"' not in index:
+    if 'src="site-conversation.js?v=20260918-grade1"' not in index:
         errors.append("approved conversation module missing from home")
-    if 'src="site-continuity.js?v=20260917-1"' not in index:
+    if 'src="site-continuity.js?v=20260918-profile3"' not in index:
         errors.append("approved authenticated continuity module missing from home")
 
     for token in (
