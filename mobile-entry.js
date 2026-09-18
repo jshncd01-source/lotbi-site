@@ -7,7 +7,7 @@
   const WEB_BYPASS_PARAM = '__lotbi_web';
   const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
   const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
-  const OFFICIAL_LOGO_SRC = '/assets/lotbi-logo-official-color.jpg';
+  const OFFICIAL_LOGO_SRC = '/assets/lotbi-logo-official-color-d3b499fe546c.jpg';
 
   // Production association is intentionally fail-closed until the real Google
   // Play app-signing certificate, Apple Team ID, association files, and
