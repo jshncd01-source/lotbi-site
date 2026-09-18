@@ -1,5 +1,5 @@
 import {beginSiteHandoff} from './site-auth.js';
-import {getCurrentSiteUser, getCurrentSubscription, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js';
+import {getCurrentSiteUser, getCurrentSubscription, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js?v=20260918-profile3';
 import {deterministicReply} from './site-deterministic.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -23,7 +23,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css';
+  link.href = '/site-conversation.css?v=20260918-profile3';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
