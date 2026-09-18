@@ -44,8 +44,12 @@ def main() -> int:
         if concept not in about:
             errors.append(f"about.html: missing business philosophy concept: {concept}")
 
-    if 'class="brand brand-text-logo"' not in about or 'class="brand-o"' not in about:
-        errors.append("about.html: official LOTBI wordmark styling must be reused")
+    if (
+        'class="brand lotbi-official-brand"' not in about
+        or 'class="lotbi-official-brand-logo"' not in about
+        or 'src="/assets/lotbi-logo-header.png"' not in about
+    ):
+        errors.append("about.html: official LOTBI brand asset must be reused")
     if 'href="about.html"' not in index:
         errors.append("index.html: company introduction must be discoverable from the public home")
     if "https://lotbiai.com/about.html" not in sitemap:
