@@ -68,6 +68,8 @@ assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile id
 assert.ok(conversation.includes('getCurrentSubscription(sessionToken)'), 'profile plan must come from the canonical Core subscription read');
 assert.ok(core.includes("const SUBSCRIPTION_PATH = '/v2/subscription'"), 'Site must target only the canonical subscription read path');
 assert.ok(core.includes('export async function getCurrentSubscription'), 'Site subscription parser must be explicit and read-only');
+assert.ok(core.includes("announceSessionFailure = true"), 'session requests must preserve the existing default invalid-session signaling');
+assert.ok(core.includes("siteSessionRequest(SUBSCRIPTION_PATH, sessionToken, {announceSessionFailure: false}"), 'optional subscription enrichment must not mutate auth state when unavailable');
 assert.ok(conversation.includes('serverSubscription?.plan'), 'profile summary may render only the returned canonical plan');
 assert.ok(conversation.includes("openSurfaceTrigger === trigger"), 'repeated profile-trigger click must toggle the popover closed');
 assert.ok(conversation.includes("a.sidebar-account-entry[href=\"/auth/start/\"]"), 'stale anonymous footer entry must be detectable');
