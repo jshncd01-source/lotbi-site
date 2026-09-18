@@ -188,9 +188,10 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   await sendConversationMessage(
     'site-memory-token',
     '후속 질문',
-    {timezone: 'Asia/Seoul', recentContext: history},
+    {timezone: 'Asia/Seoul', recentContext: history, idempotencyKey: 'site-ai-request-0001'},
     fetchMock,
   );
+  assert.equal(request.init.headers['Idempotency-Key'], 'site-ai-request-0001');
   const body = JSON.parse(request.init.body);
   assert.equal(body.client_context.timezone, 'Asia/Seoul');
   assert.equal(body.recent_context.length, 6);
@@ -257,6 +258,8 @@ assert.ok(conversation.includes("event.key === 'Enter'"));
 assert.ok(conversation.includes('!event.shiftKey'));
 assert.ok(conversation.includes('beginSiteHandoff'));
 assert.ok(conversation.includes('sendConversationMessage'));
+assert.ok(conversation.includes("newId('ai-request')"));
+assert.ok(conversation.includes('idempotencyKey: logicalRequestId'));
 assert.ok(conversation.includes('deterministicReply'));
 assert.ok(conversation.includes('getCurrentSiteUser'));
 assert.ok(conversation.includes('logoutSiteSession'));
