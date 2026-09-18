@@ -293,7 +293,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.accountHandle}`; copy.appendChild(handle);
     }
     if (serverSubscription?.plan) {
-      const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = serverSubscription.plan; copy.appendChild(plan);
+      const planLabels = {FREE: 'LOTBI Free', LOTBI_PLUS: 'LOTBI Plus'};
+      const planName = planLabels[serverSubscription.plan] || serverSubscription.plan;
+      const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = `현재 이용 등급 · ${planName}`; copy.appendChild(plan);
     }
     summary.append(profileVisual(), copy); return summary;
   };

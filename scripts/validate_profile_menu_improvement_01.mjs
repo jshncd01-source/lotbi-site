@@ -61,8 +61,8 @@ let trigger=document.querySelector('[data-profile-menu-trigger]');
 if(!(trigger instanceof HTMLButtonElement)||trigger.hasAttribute('href'))throw new Error('authenticated trigger');
 click(trigger);await wait(()=>document.querySelector('.profile-popover'),'open');
 if(document.querySelector('.profile-popover-summary-plan'))throw new Error('plan must not be fabricated before subscription response');
-releaseSubscription();await wait(()=>document.querySelector('.profile-popover-summary-plan')?.textContent==='LOTBI_PLUS','late plan hydration');
-if(location.href!==url||document.querySelector('.profile-popover-summary-name')?.textContent!=='홍길동'||document.querySelector('.profile-popover-summary-handle')?.textContent!=='@hong'||document.querySelector('.profile-popover-summary-plan')?.textContent!=='LOTBI_PLUS')throw new Error('profile summary/url');
+releaseSubscription();await wait(()=>document.querySelector('.profile-popover-summary-plan')?.textContent==='현재 이용 등급 · LOTBI Plus','late plan hydration');
+if(location.href!==url||document.querySelector('.profile-popover-summary-name')?.textContent!=='홍길동'||document.querySelector('.profile-popover-summary-handle')?.textContent!=='@hong'||document.querySelector('.profile-popover-summary-plan')?.textContent!=='현재 이용 등급 · LOTBI Plus')throw new Error('profile summary/url');
 const labels=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].map(n=>n.textContent).join('|');
 if(labels!=='프로필|개인 맞춤 설정|설정|도움말|로그아웃'||counts.logout!==0)throw new Error('menu/logout-before-click');
 let after=state();if(after.activeThreadId!==id||after.draft!=='작성 중인 초안'||prompt.value!=='작성 중인 초안'||JSON.stringify(after.threads[0].messages)!==msgs)throw new Error('continuity open');
@@ -74,7 +74,7 @@ await wait(()=>slot.querySelector('[data-profile-menu-trigger]')&&document.query
 after=state();if(!ev.defaultPrevented||location.href!==url||after.activeThreadId!==id||after.draft!=='작성 중인 초안'||JSON.stringify(after.threads[0].messages)!==msgs||counts.logout!==0)throw new Error('stale self-heal continuity');
 const measured=document.querySelector('.profile-popover').getBoundingClientRect(),mobile=innerWidth<=900,rect={width:measured.width,left:measured.left,right:measured.right,top:measured.top,bottom:measured.bottom},expectedWidth=mobile?Math.max(0,innerWidth-20):264;if(rect.left<-1||rect.right>innerWidth+1||rect.top<-1||rect.bottom>innerHeight+1||Math.abs(rect.width-expectedWidth)>3)throw new Error('popover viewport/layout');
 const logout=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].find(n=>n.textContent==='로그아웃');click(logout);await wait(()=>counts.logout===1,'logout');await wait(()=>document.querySelector('[data-sidebar-account] a[href="/auth/start/"]'),'logout UI');
-out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile},profile:{name:'홍길동',handle:'@hong',plan:'LOTBI_PLUS'},continuity:{urlUnchanged:location.href===url,threadId:id,draft:after.draft,messageCount:after.threads[0].messages.length},close:{toggle:true,outside:true,escape:true},selfHeal:true,counts,popover:{width:rect.width,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}})
+out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile},profile:{name:'홍길동',handle:'@hong',plan:'현재 이용 등급 · LOTBI Plus'},continuity:{urlUnchanged:location.href===url,threadId:id,draft:after.draft,messageCount:after.threads[0].messages.length},close:{toggle:true,outside:true,escape:true},selfHeal:true,counts,popover:{width:rect.width,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}})
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),counts})}
 </script></body></html>`;
 
