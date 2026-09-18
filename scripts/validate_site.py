@@ -18,10 +18,10 @@ from urllib.parse import unquote, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
-OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-d3b499fe546c.jpg"
-OFFICIAL_LOGO_REL = "assets/lotbi-logo-official-d3b499fe546c.jpg"
-OFFICIAL_LOGO_SHA256 = "d3b499fe546cd044fcf6622e92822c3fb48bef9cd6cea2830db57a41dd4ae410"
-OFFICIAL_LOGO_BYTES = 12367
+OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-header.png"
+OFFICIAL_LOGO_REL = "assets/lotbi-logo-header.png"
+OFFICIAL_LOGO_SHA256 = "82142cc6f99a7409157481c8b7850564c73492758e361eb411f674d073a8e707"
+OFFICIAL_LOGO_BYTES = 24019
 REQUIRED_HTML = (
     "index.html",
     "about.html",
@@ -230,19 +230,16 @@ def main() -> int:
         surface = path.read_text(encoding="utf-8")
         if OFFICIAL_LOGO_SRC not in surface:
             fail(errors, f"{rel}: official LOTBI logo asset is missing")
-        for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
+        for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-horizontal", "lotbi-logo-official-d3b499fe546c.jpg", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
             if forbidden in surface:
                 fail(errors, f"{rel}: legacy/text-only logo reference must not render: {forbidden}")
 
     mobile_entry = (ROOT / "mobile-entry.js").read_text(encoding="utf-8") if (ROOT / "mobile-entry.js").exists() else ""
     if OFFICIAL_LOGO_SRC not in mobile_entry:
         fail(errors, "mobile-entry.js: mobile chooser must use official LOTBI logo asset")
-    for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
+    for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-horizontal", "lotbi-logo-official-d3b499fe546c.jpg", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
         if forbidden in mobile_entry:
             fail(errors, f"mobile-entry.js: legacy/text-only logo reference must not render: {forbidden}")
-
-    if (ROOT / "assets/lotbi-logo-header.png").exists():
-        fail(errors, "legacy assets/lotbi-logo-header.png must not remain in the deploy tree")
 
     delete_page = ROOT / "account-deletion.html"
     if delete_page.exists():

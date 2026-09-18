@@ -65,7 +65,7 @@ function run() {
 
   for (const excluded of [
     '/assets/lotbi-main-logo.png',
-    '/assets/lotbi-logo-official-d3b499fe546c.jpg',
+    '/assets/lotbi-logo-header.png',
     '/home-chat.css',
     '/home-shell.js',
     '/font.woff2',
@@ -145,11 +145,12 @@ function run() {
   assert.equal(entry.LOTBI_APP_LINK_READY, false, 'app CTA must remain fail-closed before production association E2E');
   assert.equal(entry.LOTBI_ANDROID_STORE_URL, null, 'must not invent Play Store listing');
   assert.equal(entry.LOTBI_IOS_STORE_URL, null, 'must not invent App Store listing');
-  assert.equal(entry.OFFICIAL_LOGO_SRC, '/assets/lotbi-logo-official-d3b499fe546c.jpg', 'chooser must use the authoritative LOTBI logo asset');
+  assert.equal(entry.OFFICIAL_LOGO_SRC, '/assets/lotbi-logo-header.png', 'chooser must use the authoritative LOTBI logo asset');
   assert.ok(source.includes('class="lotbi-entry-logo"'), 'chooser must render the official logo as an image');
   assert.ok(!source.includes('brand-text-logo'), 'text-only LOTBI logo must not return to the chooser');
   assert.ok(!source.includes('brand-o'), 'CSS-recolored O must not return to the chooser');
   assert.ok(!source.includes('lotbi-logo-official-color.jpg'), 'unversioned JPEG logo must not return to the chooser');
+  assert.ok(!source.includes('lotbi-logo-official-d3b499fe546c.jpg'), 'white-background JPEG logo must not return to the chooser');
   assert.ok(!source.includes('lotbi-logo-official-color-d3b499fe546c.jpg'), 'old JPEG cache-bust logo must not return to the chooser');
   assert.ok(!source.includes('lotbi-logo-official-color-727a1940b747.png'), 'old PNG logo must not return to the chooser');
   assert.ok(source.includes('롯비를 어떻게 이용할까요?'));
