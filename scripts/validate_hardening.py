@@ -131,15 +131,19 @@ def main() -> int:
             errors.append(f"forbidden chooser network/secret/durable-persistence token: {token}")
 
     for token in (
-        "const LOTBI_APP_LINK_READY = false",
+        "const LOTBI_APP_LINK_READY = true",
+        "const LOTBI_ANDROID_APP_LINK_READY = true",
+        "const LOTBI_IOS_APP_LINK_READY = false",
         "const LOTBI_ANDROID_STORE_URL = null",
         "const LOTBI_IOS_STORE_URL = null",
+        "data-lotbi-app-choice",
+        "LOTBI 앱을 열지 못했어요",
         "sessionStorage",
         "WEB_CHOICE_TTL_MS",
         "'/app/open'",
     ):
         if token not in mobile_js:
-            errors.append(f"missing chooser fail-closed/security contract: {token}")
+            errors.append(f"missing chooser app-open/security contract: {token}")
 
     state_tokens = (
         'id="chat-state-region"',
