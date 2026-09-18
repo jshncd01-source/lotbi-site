@@ -10,9 +10,9 @@
 /* Restored approved 334x96 transparent LOTBI lockup from the last known-good Site state. */
 .sidebar-brand-logo {
   display: block;
-  width: calc(100% - 10px);
-  max-width: calc(100% - 10px);
-  height: auto;
+  width: auto;
+  max-width: 100%;
+  height: 48px;
   min-width: 0;
   object-fit: contain;
   object-position: left center;
