@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
-OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-color-d3b499fe546c.jpg"
+OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-color-727a1940b747.png"
 REQUIRED_HTML = (
     "index.html",
     "about.html",
@@ -217,7 +217,7 @@ def main() -> int:
         surface = path.read_text(encoding="utf-8")
         if OFFICIAL_LOGO_SRC not in surface:
             fail(errors, f"{rel}: official LOTBI logo asset is missing")
-        for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal"):
+        for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg"):
             if forbidden in surface:
                 fail(errors, f"{rel}: legacy/text-only logo reference must not render: {forbidden}")
 
