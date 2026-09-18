@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LOTBI profile menu mobile runtime preview</title>
+</head>
+<body>
+  <iframe
+    id="mobile-frame"
+    title="LOTBI profile mobile fixture"
+    src="./profile-menu-runtime-preview.html?viewport=390x844"
+    width="390"
+    height="844"
+    style="display:block;border:0"
+  ></iframe>
+  <pre id="mobile-result">pending</pre>
+  <script>
+    const frame = document.getElementById('mobile-frame');
+    const output = document.getElementById('mobile-result');
+    const timer = setInterval(() => {
+      try {
+        const text = frame.contentDocument?.getElementById('profile-result')?.textContent || '';
+        if (text && text !== 'pending') {
+          clearInterval(timer);
+          output.textContent = text;
+        }
+      } catch (error) {
+        clearInterval(timer);
+        output.textContent = JSON.stringify({ok:false,error:String(error)});
+      }
+    }, 50);
+    setTimeout(() => {
+      if (output.textContent === 'pending') {
+        clearInterval(timer);
+        output.textContent = JSON.stringify({ok:false,error:'mobile fixture timeout'});
+      }
+    }, 10000);
+  </script>
+</body>
+</html>
