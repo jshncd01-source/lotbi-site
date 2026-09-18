@@ -57,7 +57,7 @@ def main() -> int:
 
     requirements = {
         "approved LOTBI character asset": 'src="assets/lotbi-main-logo.png"',
-        "approved LOTBI sidebar logo asset": 'src="/assets/lotbi-logo-official-color.jpg"',
+        "approved LOTBI sidebar logo asset": 'src="/assets/lotbi-logo-official-color-d3b499fe546c.jpg"',
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
         "prompt length boundary": 'maxlength="1000"',
@@ -101,7 +101,7 @@ def main() -> int:
         if token not in text:
             errors.append(f"index.html: missing {label}")
 
-    if text.count('src="/assets/lotbi-logo-official-color.jpg"') != 3:
+    if text.count('src="/assets/lotbi-logo-official-color-d3b499fe546c.jpg"') != 3:
         errors.append("index.html: desktop sidebar, mobile topbar and mobile drawer must share the official logo asset")
     for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-header.png", "lotbi-logo-horizontal"):
         if forbidden in text:

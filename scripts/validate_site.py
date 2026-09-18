@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
-OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-color.jpg"
+OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-official-color-d3b499fe546c.jpg"
 REQUIRED_HTML = (
     "index.html",
     "about.html",
@@ -41,7 +41,7 @@ REQUIRED_FILES = REQUIRED_HTML + (
     "robots.txt",
     "sitemap.xml",
     "assets/lotbi-main-logo.png",
-    "assets/lotbi-logo-official-color.jpg",
+    "assets/lotbi-logo-official-color-d3b499fe546c.jpg",
     "assets/lotbi-og-share.png",
 )
 EXPECTED_CANONICALS = {
