@@ -175,6 +175,31 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   assert.deepEqual(JSON.parse(request.init.body), {text: '지금 몇시야'});
 }
 
+{
+  let request;
+  const history = Array.from({length: 8}, (_, index) => ({
+    role: index % 2 === 0 ? 'user' : 'assistant',
+    text: `history-${index}-${'x'.repeat(520)}`,
+  }));
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse(conversationSuccess());
+  };
+  await sendConversationMessage(
+    'site-memory-token',
+    '후속 질문',
+    {timezone: 'Asia/Seoul', recentContext: history},
+    fetchMock,
+  );
+  const body = JSON.parse(request.init.body);
+  assert.equal(body.client_context.timezone, 'Asia/Seoul');
+  assert.equal(body.recent_context.length, 6);
+  assert.ok(body.recent_context.every(item => ['user', 'assistant'].includes(item.role)));
+  assert.ok(body.recent_context.every(item => item.text.length <= 500));
+  assert.ok(body.recent_context[0].text.startsWith('history-2-'));
+  assert.ok(body.recent_context[5].text.startsWith('history-7-'));
+}
+
 await expectReject(sendConversationMessage('site-memory-token', '안녕하세요', async () => jsonResponse({detail: {code: 'SESSION_EXPIRED', message: 'expired'}}, 401)), 'SESSION_EXPIRED');
 
 {
