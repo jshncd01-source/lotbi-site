@@ -188,6 +188,7 @@
    Do not recreate or recolor the official wordmark with text/CSS. */
 .topbar {
   height: 100px;
+  border-bottom: 0;
 }
 
 .lotbi-official-brand {
@@ -202,14 +203,14 @@
   display: block;
   width: auto;
   height: 48px;
-  max-width: 190px;
   object-fit: contain;
-  object-position: left center;
+  border: 0;
+  box-shadow: none;
+  filter: none;
 }
 
 .auth-callback-brand .lotbi-official-brand-logo {
   height: 54px;
-  max-width: 196px;
 }
 
 @media (max-width: 760px) {
@@ -219,12 +220,10 @@
 
   .lotbi-official-brand-logo {
     height: 42px;
-    max-width: 160px;
   }
 
   .auth-callback-brand .lotbi-official-brand-logo {
     height: 48px;
-    max-width: 176px;
   }
 }
 
