@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deterministicReply} from '../site-deterministic.js';
+import './validate_anonymous_conversation_persistence_01.mjs';
 
 const read = path => readFileSync(path, 'utf8');
 const index = read('index.html');

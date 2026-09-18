@@ -76,7 +76,7 @@ const continuityCss = read('site-auth-continuity.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js?v=20260917-1"'));
+assert.ok(index.includes('type="module" src="site-continuity.js?v=20260918-profile3"'));
 assert.ok(index.includes('href="site-auth-continuity.css"'));
 assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
 assert.ok(index.includes('class="account-auth-placeholder" aria-hidden="true"'));
@@ -104,15 +104,15 @@ const callbackStylesheets = stylesheetHrefs(callbackHtml);
 for (const href of homeStylesheets) {
   assert.ok(callbackStylesheets.includes(href), `callback hydration missing home stylesheet: ${href}`);
 }
-assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css"'));
+assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260918-homewordmark4"'));
 assert.ok(
-  callbackStylesheets.indexOf('site-hardening.css') < callbackStylesheets.indexOf('site-sidebar-nav.css')
-    && callbackStylesheets.indexOf('site-sidebar-nav.css') < callbackStylesheets.indexOf('site-auth-continuity.css'),
+  callbackStylesheets.indexOf('site-hardening.css') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260918-homewordmark4')
+    && callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260918-homewordmark4') < callbackStylesheets.indexOf('site-auth-continuity.css'),
   'callback must preserve the home cascade order around Sidebar and auth styles',
 );
 assert.ok(sidebarCss.includes('.sidebar-brand-logo'));
-assert.ok(sidebarCss.includes('width: calc(100% - 10px)'));
-assert.ok(sidebarCss.includes('max-width: calc(100% - 10px)'));
+assert.ok(sidebarCss.includes('width: auto;'));
+assert.ok(sidebarCss.includes('max-width: none;'));
 assert.ok(!callbackHtml.includes('LOTBI 연결 중'), 'normal callback markup must not expose a loading card title');
 assert.ok(!callbackHtml.includes('LOTBI Site 세션을 확인하고 있습니다.'), 'normal callback markup must not expose pending copy');
 assert.ok(callback.includes("new CustomEvent('lotbi:site-session-state'"));

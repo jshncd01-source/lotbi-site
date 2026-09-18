@@ -42,30 +42,32 @@ assert.doesNotMatch(hardeningCss, /white-space:\s*nowrap/);
 // Desktop brand belongs to the sidebar hierarchy and uses the approved logo asset.
 const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-desktop"[\s\S]*?<\/aside>/)?.[0] || '';
 assert.match(desktopAside, /<a class="sidebar-brand" href="index\.html" aria-label="LOTBI 홈">/);
-assert.match(desktopAside, /<img class="sidebar-brand-logo" src="assets\/lotbi-logo-header\.png" alt="LOTBI"/);
+assert.ok(desktopAside.includes('<img class="sidebar-brand-logo" src="/assets/lotbi-logo-header.png" alt="LOTBI 캐릭터"'));
+assert.match(desktopAside, /<span class="sidebar-brand-mascot-crop"/);
+assert.match(desktopAside, /<span class="sidebar-brand-wordmark"/);
 assert.ok(
   desktopAside.indexOf('sidebar-brand') < desktopAside.indexOf('<nav class="sidebar-nav sidebar-nav-desktop"'),
   'desktop sidebar brand must appear before navigation',
 );
 
 // The main topbar brand remains available for tablet/mobile only; desktop must not duplicate it.
-assert.match(index, /class="brand-text-logo chat-brand mobile-header-brand" href="index\.html"/);
+assert.ok(index.includes('<a class="chat-brand mobile-header-brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈">'));
 assert.match(
   sidebarCss,
   /@media\s*\(min-width:\s*901px\)[\s\S]*?\.topbar-left,[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/,
 );
 
-// SITE-SIDEBAR-LOGO-RIGHT-EDGE-SAFE-FIT-02 — preserve the official asset
-// ratio with a 10px right safety inset. Do not widen the 220px sidebar.
+// Current sidebar brand keeps the approved mascot pixels in a fixed crop and
+// renders the LOTBI wordmark separately without widening the 220px sidebar.
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?margin:\s*0\s+10px\s+18px/);
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?overflow:\s*hidden/);
-assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*calc\(100%\s*-\s*10px\)/);
-assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*calc\(100%\s*-\s*10px\)/);
-assert.doesNotMatch(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*100%/);
-assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*auto/);
+assert.match(sidebarCss, /\.sidebar-brand-mascot-crop\s*\{[\s\S]*?width:\s*49px[\s\S]*?height:\s*48px/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*auto/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*none/);
+assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*48px/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-fit:\s*contain/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-position:\s*left center/);
-assert.doesNotMatch(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*34px/);
+assert.doesNotMatch(sidebarCss, /\.sidebar-brand-logo\s*\{[^}]*height:\s*34px/);
 
 const logoPng = readFileSync(path.join(ROOT, 'assets/lotbi-logo-header.png'));
 assert.equal(logoPng.toString('ascii', 1, 4), 'PNG');
