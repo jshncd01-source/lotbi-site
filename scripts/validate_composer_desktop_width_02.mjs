@@ -51,7 +51,7 @@ assert.ok(
 );
 
 // The main topbar brand remains available for tablet/mobile only; desktop must not duplicate it.
-assert.match(index, /class="brand-text-logo chat-brand mobile-header-brand" href="index\.html"/);
+assert.ok(index.includes('<a class="chat-brand mobile-header-brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈">'));
 assert.match(
   sidebarCss,
   /@media\s*\(min-width:\s*901px\)[\s\S]*?\.topbar-left,[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/,
