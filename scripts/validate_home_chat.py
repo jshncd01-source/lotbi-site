@@ -252,9 +252,9 @@ def main() -> int:
 
     sidebar_style_tokens = (
         ".sidebar-brand-logo",
-        "width: calc(100% - 10px)",
-        "max-width: calc(100% - 10px)",
-        "height: auto",
+        "width: auto",
+        "max-width: 100%",
+        "height: 48px",
         "object-fit: contain",
         "object-position: left center",
         "border: 0",
@@ -284,7 +284,7 @@ def main() -> int:
             errors.append(f"site-sidebar-nav.css: missing sidebar IA contract {token}")
 
     logo_rule = slice_between(sidebar_css, ".sidebar-brand-logo {", "}")
-    for forbidden_logo_style in ("height: 64px", "height: 48px", "transform:"):
+    for forbidden_logo_style in ("height: 64px", "width: calc(100% - 10px)", "transform:"):
         if forbidden_logo_style in logo_rule:
             errors.append(f"site-sidebar-nav.css: transparent sidebar logo sizing regressed: {forbidden_logo_style}")
 
