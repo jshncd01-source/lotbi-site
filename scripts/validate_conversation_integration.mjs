@@ -177,6 +177,33 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
 
 await expectReject(sendConversationMessage('site-memory-token', '안녕하세요', async () => jsonResponse({detail: {code: 'SESSION_EXPIRED', message: 'expired'}}, 401)), 'SESSION_EXPIRED');
 
+{
+  let caught;
+  try {
+    await sendConversationMessage(
+      'site-memory-token',
+      '복잡한 비교를 해줘',
+      async () => jsonResponse({detail: {
+        code: 'FREE_LIMIT_REACHED',
+        message: 'Monthly FREE meaningful-AI allowance is exhausted',
+        retryable: false,
+        l0_available: true,
+        upgrade_available: true,
+        upgrade_action: 'VIEW_SUBSCRIPTION_OPTIONS',
+      }}, 429),
+    );
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught instanceof SiteCoreError);
+  assert.equal(caught.code, 'FREE_LIMIT_REACHED');
+  assert.equal(caught.status, 429);
+  assert.equal(caught.retryable, false);
+  assert.equal(caught.l0Available, true);
+  assert.equal(caught.upgradeAvailable, true);
+  assert.equal(caught.upgradeAction, 'VIEW_SUBSCRIPTION_OPTIONS');
+}
+
 assert.ok(deterministicReply('안녕'));
 assert.ok(deterministicReply('고마워'));
 assert.ok(deterministicReply('알겠어'));
