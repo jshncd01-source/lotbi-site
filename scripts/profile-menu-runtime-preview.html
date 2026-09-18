@@ -159,10 +159,19 @@
         || counts.logout !== 0
       ) throw new Error('stale self-heal continuity');
 
-      const rect = document.querySelector('.profile-popover').getBoundingClientRect();
-      if (rect.left < -1 || rect.right > innerWidth + 1 || rect.top < -1 || rect.bottom > innerHeight + 1) {
-        throw new Error('popover viewport');
-      }
+      const measured = document.querySelector('.profile-popover').getBoundingClientRect();
+      const rect = {
+        width: measured.width,
+        left: measured.left,
+        right: measured.right,
+        top: measured.top,
+        bottom: measured.bottom,
+      };
+      const expectedWidth = innerWidth <= 900 ? Math.max(0, innerWidth - 20) : 264;
+      if (
+        rect.left < -1 || rect.right > innerWidth + 1 || rect.top < -1 || rect.bottom > innerHeight + 1
+        || Math.abs(rect.width - expectedWidth) > 3
+      ) throw new Error('popover viewport/layout');
 
       const logout = [...document.querySelectorAll('.profile-popover [role="menuitem"]')]
         .find(node => node.textContent === '로그아웃');
