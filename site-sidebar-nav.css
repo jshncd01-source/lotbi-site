@@ -254,3 +254,100 @@
     animation: none;
   }
 }
+
+
+/* SITE-LOGO-COLOR-HOTFIX-01 */
+.lotbi-color-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  line-height: 1;
+}
+
+.lotbi-color-logo-mascot {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.lotbi-color-logo-mascot img {
+  position: absolute;
+  left: 0;
+  display: block;
+  width: auto;
+  max-width: none;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+}
+
+.lotbi-color-logo-word {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: #182a46;
+  font-weight: 900;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.lotbi-color-logo-o {
+  display: inline-block;
+  background: linear-gradient(90deg, #ec6685 0%, #7b62bb 54%, #4f78c5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sidebar-brand .lotbi-color-logo-mascot {
+  width: 52px;
+  height: 76px;
+}
+
+.sidebar-brand .lotbi-color-logo-mascot img {
+  top: -1px;
+  height: 78px;
+}
+
+.sidebar-brand .lotbi-color-logo-word {
+  font-size: 36px;
+}
+
+.mobile-header-brand .lotbi-color-logo {
+  gap: 4px;
+}
+
+.mobile-header-brand .lotbi-color-logo-mascot {
+  width: 25px;
+  height: 36px;
+}
+
+.mobile-header-brand .lotbi-color-logo-mascot img {
+  top: 0;
+  height: 37px;
+}
+
+.mobile-header-brand .lotbi-color-logo-word {
+  font-size: 20px;
+}
+
+.mobile-drawer-brand .lotbi-color-logo {
+  gap: 5px;
+}
+
+.mobile-drawer-brand .lotbi-color-logo-mascot {
+  width: 29px;
+  height: 42px;
+}
+
+.mobile-drawer-brand .lotbi-color-logo-mascot img {
+  top: 0;
+  height: 43px;
+}
+
+.mobile-drawer-brand .lotbi-color-logo-word {
+  font-size: 23px;
+}
