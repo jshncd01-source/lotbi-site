@@ -9,10 +9,13 @@
   const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
   const OFFICIAL_LOGO_SRC = '/assets/lotbi-logo-header.png';
 
-  // Production association is intentionally fail-closed until the real Google
-  // Play app-signing certificate, Apple Team ID, association files, and
-  // installed-device restoration are all verified.
-  const LOTBI_APP_LINK_READY = false;
+  // The chooser CTA is safe to enable because /app/open always retains a web
+  // fallback. Android native takeover is backed by the approved LOTBI release
+  // signing certificate. iOS native takeover remains pending until Production
+  // AASA and a real signed-device verification are complete.
+  const LOTBI_APP_LINK_READY = true;
+  const LOTBI_ANDROID_APP_LINK_READY = true;
+  const LOTBI_IOS_APP_LINK_READY = false;
   const LOTBI_ANDROID_STORE_URL = null;
   const LOTBI_IOS_STORE_URL = null;
 
@@ -210,9 +213,7 @@
     if (documentObject.querySelector('[data-lotbi-mobile-entry]')) return;
 
     const overlay = makeOverlay(documentObject);
-    const appControl = LOTBI_APP_LINK_READY
-      ? `<a class="lotbi-entry-action lotbi-entry-action-primary" href="${buildAppBridgeUrl(target, platform)}" rel="external">LOTBI 앱에서 열기</a>`
-      : '<button class="lotbi-entry-action lotbi-entry-action-primary" type="button" disabled aria-disabled="true">LOTBI 앱에서 열기</button><p class="lotbi-entry-status">앱 연결 검증이 완료될 때까지 준비 중입니다.</p>';
+    const appControl = `<a class="lotbi-entry-action lotbi-entry-action-primary" data-lotbi-app-choice href="${buildAppBridgeUrl(target, platform)}" rel="external">LOTBI 앱에서 열기</a>`;
 
     overlay.innerHTML = `
       <section class="lotbi-entry-card" role="dialog" aria-modal="true" aria-labelledby="lotbi-entry-title">
@@ -250,12 +251,11 @@
         ${officialLogoMarkup()}
         <div class="lotbi-entry-copy">
           <p class="lotbi-entry-eyebrow">앱 연결</p>
-          <h1 id="lotbi-bridge-title">LOTBI 앱 준비 중</h1>
-          <p>이 기기에서 앱 연결을 완료하지 못했습니다. 원래 LOTBI 주소로 안전하게 돌아갈 수 있습니다.</p>
+          <h1 id="lotbi-bridge-title">LOTBI 앱을 열지 못했어요</h1>
+          <p>앱이 설치되어 있지 않거나 이 환경에서 앱 연결을 사용할 수 없습니다. 원래 LOTBI 주소로 안전하게 돌아갈 수 있습니다.</p>
         </div>
         <div class="lotbi-entry-actions">
-          <button class="lotbi-entry-action lotbi-entry-action-primary" type="button" disabled aria-disabled="true">LOTBI 앱에서 열기</button>
-          <button class="lotbi-entry-action lotbi-entry-action-secondary" type="button" data-lotbi-bridge-web>웹으로 이용하기</button>
+          <button class="lotbi-entry-action lotbi-entry-action-primary" type="button" data-lotbi-bridge-web>웹으로 이용하기</button>
         </div>
       </section>`;
 
@@ -309,6 +309,8 @@
     WEB_BYPASS_PARAM,
     WEB_CHOICE_TTL_MS,
     LOTBI_APP_LINK_READY,
+    LOTBI_ANDROID_APP_LINK_READY,
+    LOTBI_IOS_APP_LINK_READY,
     LOTBI_ANDROID_STORE_URL,
     LOTBI_IOS_STORE_URL,
     OFFICIAL_LOGO_SRC,
