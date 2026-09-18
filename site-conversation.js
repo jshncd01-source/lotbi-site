@@ -100,6 +100,9 @@ function isSessionError(error) {
 }
 function userFacingErrorMessage(error) {
   if (isSessionError(error)) return 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.';
+  if (error instanceof SiteCoreError && error.code === 'FREE_LIMIT_REACHED') {
+    return '이번 달 무료 AI 3회를 모두 사용했습니다. 인사·감사·도움말·시간·날짜 같은 0-AI 기능은 계속 사용할 수 있습니다. 추가 AI 사용은 구독 옵션에서 이어갈 수 있습니다.';
+  }
   if (error instanceof SiteCoreError && (error.code === 'AI_PROVIDER_UNAVAILABLE' || error.code === 'AI_RESPONSE_UNAVAILABLE')) return 'LOTBI AI 응답을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof Error) return error.message;
   return 'LOTBI 대화를 완료하지 못했습니다.';
@@ -117,6 +120,9 @@ function appendSafeErrorEvidence(wrapper, error) {
   if (error.code) wrapper.dataset.errorCode = error.code;
   if (error.status) wrapper.dataset.httpStatus = String(error.status);
   if (error.correlationId) wrapper.dataset.correlationId = error.correlationId;
+  if (error.l0Available) wrapper.dataset.l0Available = 'true';
+  if (error.upgradeAvailable) wrapper.dataset.upgradeAvailable = 'true';
+  if (error.upgradeAction) wrapper.dataset.upgradeAction = error.upgradeAction;
   const evidence = [];
   if (error.code) evidence.push(`오류 코드 ${error.code}`);
   if (error.status) evidence.push(`HTTP ${error.status}`);
