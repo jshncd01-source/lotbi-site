@@ -253,7 +253,7 @@ def main() -> int:
     sidebar_style_tokens = (
         ".sidebar-brand-logo",
         "width: auto",
-        "height: 48px",
+        "height: 64px",
         "object-fit: contain",
         "border: 0",
         "box-shadow: none",
