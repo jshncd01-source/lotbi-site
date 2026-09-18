@@ -213,8 +213,8 @@ def main() -> int:
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260917-1"></script>',
-        '<script type="module" src="site-continuity.js?v=20260917-1"></script>',
+        '<script type="module" src="site-conversation.js?v=20260918-profile3"></script>',
+        '<script type="module" src="site-continuity.js?v=20260918-profile3"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
         errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
