@@ -402,7 +402,7 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   position: absolute;
   left: 12px;
   bottom: 80px;
-  width: 196px;
+  width: 264px;
   padding: 7px;
   display: grid;
   gap: 2px;
@@ -410,6 +410,53 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 18px 48px rgba(24, 42, 70, .18);
+}
+
+.profile-popover-summary {
+  margin-bottom: 4px;
+  padding: 10px 10px 12px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #e6e9ef;
+}
+
+.profile-popover-summary .sidebar-profile-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.profile-popover-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.profile-popover-summary-name,
+.profile-popover-summary-handle,
+.profile-popover-summary-plan {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-popover-summary-name {
+  color: #303642;
+  font-size: 14px;
+}
+
+.profile-popover-summary-handle,
+.profile-popover-summary-plan {
+  color: #737b88;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-popover-summary-plan {
+  font-weight: 800;
+  letter-spacing: .02em;
 }
 
 .profile-popover button {
@@ -523,7 +570,11 @@ body[data-site-theme="dark"] .chat-composer,
 body[data-site-theme="dark"] .site-modal,
 body[data-site-theme="dark"] .profile-popover { background: #202631; color: #edf0f5; border-color: #424b59; }
 body[data-site-theme="dark"] .chat-input,
-body[data-site-theme="dark"] .profile-popover button { color: #edf0f5; }
+body[data-site-theme="dark"] .profile-popover button,
+body[data-site-theme="dark"] .profile-popover-summary-name { color: #edf0f5; }
+body[data-site-theme="dark"] .profile-popover-summary { border-color: #424b59; }
+body[data-site-theme="dark"] .profile-popover-summary-handle,
+body[data-site-theme="dark"] .profile-popover-summary-plan { color: #aeb6c3; }
 body[data-site-theme="dark"] .site-field input,
 body[data-site-theme="dark"] .site-field select,
 body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5; border-color: #515b69; }
