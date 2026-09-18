@@ -67,6 +67,8 @@ assert.ok(conversation.includes('logoutSiteSession(sessionToken)'), 'logout must
 assert.ok(conversation.includes("reason: 'site-logout'"), 'successful logout must transition Site UI to unauthenticated');
 assert.ok(conversation.includes('serverIdentity?.accountHandle'), 'profile row must use the server handle when available');
 assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile identity must come from Core /v2/me');
+assert.ok(conversation.includes('getSubscriptionState(sessionToken)'), 'FREE exhaustion must expose read-only subscription options');
+assert.ok(conversation.includes('구독 옵션 보기'), 'FREE exhaustion must expose an upgrade-path control');
 assert.ok(sidebarCss.includes('.sidebar-profile-trigger'));
 assert.ok(conversationCss.includes('@media (max-width: 760px)'));
 assert.ok(conversationCss.includes('max-height: 88svh'));
