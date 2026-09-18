@@ -180,7 +180,7 @@ function bearerToken(sessionToken) {
   return token;
 }
 
-async function siteSessionRequest(path, sessionToken, {method = 'GET'} = {}, fetchImpl = globalThis.fetch) {
+async function siteSessionRequest(path, sessionToken, {method = 'GET', announceSessionFailure = true} = {}, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   let response;
   try {
@@ -201,7 +201,7 @@ async function siteSessionRequest(path, sessionToken, {method = 'GET'} = {}, fet
   const payload = await readPayload(response);
   if (!response.ok) {
     const error = errorFromResponse(response, payload, 'LOTBI Site 세션 요청을 완료하지 못했습니다.');
-    announceInvalidSiteSession(error);
+    if (announceSessionFailure) announceInvalidSiteSession(error);
     throw error;
   }
   return payload;
@@ -229,7 +229,7 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
 }
 
 export async function getCurrentSubscription(sessionToken, fetchImpl = globalThis.fetch) {
-  const payload = await siteSessionRequest(SUBSCRIPTION_PATH, sessionToken, {}, fetchImpl);
+  const payload = await siteSessionRequest(SUBSCRIPTION_PATH, sessionToken, {announceSessionFailure: false}, fetchImpl);
   const plan = typeof payload?.plan === 'string' ? payload.plan.trim() : '';
   const status = typeof payload?.status === 'string' ? payload.status.trim() : '';
   const freeUnits = Number.isInteger(payload?.free_units) ? payload.free_units : null;
