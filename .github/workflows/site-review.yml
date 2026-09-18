@@ -78,9 +78,6 @@ jobs:
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
 
-      - name: Validate authenticated return and refresh continuity
-        run: node scripts/validate_auth_continuity_02.mjs
-
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
@@ -89,6 +86,9 @@ jobs:
 
       - name: Validate composer auto-grow interaction
         run: node scripts/validate_composer_auto_grow.mjs
+
+      - name: Validate authenticated return and refresh continuity
+        run: node scripts/validate_auth_continuity_02.mjs
 
       - name: Validate public-site hardening
         run: python scripts/validate_hardening.py
