@@ -4,11 +4,9 @@ export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-h
 export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/auth/site-session-status';
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
-export const ANONYMOUS_CONVERSATION_NAMESPACE_KEY = 'lotbi.site.ux.v1.anonymous-namespace';
 
 const STATE_PATTERN = /^[\x21-\x7e]{16,256}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
-const ANONYMOUS_NAMESPACE_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export class SiteHandoffClientError extends Error {
   constructor(message, code = 'SITE_HANDOFF_CLIENT_ERROR') {
@@ -41,45 +39,6 @@ function browserStorage() {
   } catch {
     throw new SiteHandoffClientError('브라우저의 임시 로그인 연결 저장소를 사용할 수 없습니다.', 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
   }
-}
-
-function optionalBrowserStorage(name) {
-  try {
-    return window?.[name];
-  } catch {
-    return undefined;
-  }
-}
-
-function normalizedAnonymousNamespace(value) {
-  const namespace = typeof value === 'string' ? value.trim() : '';
-  return ANONYMOUS_NAMESPACE_PATTERN.test(namespace) ? namespace : '';
-}
-
-export function ensureDurableAnonymousConversationNamespace({
-  durableStorage = optionalBrowserStorage('localStorage'),
-  legacySessionStorage = optionalBrowserStorage('sessionStorage'),
-  createNamespace = () => `anonymous-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`,
-} = {}) {
-  let value = '';
-  try { value = normalizedAnonymousNamespace(durableStorage?.getItem(ANONYMOUS_CONVERSATION_NAMESPACE_KEY)); } catch {}
-  if (!value) {
-    try { value = normalizedAnonymousNamespace(legacySessionStorage?.getItem(ANONYMOUS_CONVERSATION_NAMESPACE_KEY)); } catch {}
-  }
-  if (!value) value = normalizedAnonymousNamespace(createNamespace());
-  if (!value) throw new SiteHandoffClientError('비로그인 대화 저장 식별자를 만들 수 없습니다.', 'ANONYMOUS_NAMESPACE_UNAVAILABLE');
-
-  try { durableStorage?.setItem(ANONYMOUS_CONVERSATION_NAMESPACE_KEY, value); } catch {}
-  try { legacySessionStorage?.setItem(ANONYMOUS_CONVERSATION_NAMESPACE_KEY, value); } catch {}
-  return value;
-}
-
-if (
-  typeof window !== 'undefined'
-  && typeof document !== 'undefined'
-  && document.getElementById('lotbi-prompt')
-) {
-  ensureDurableAnonymousConversationNamespace();
 }
 
 export async function createSiteHandoffContext(pendingText = '', now = Date.now()) {
