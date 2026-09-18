@@ -226,6 +226,17 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     record.messages.push(message); record.messages = record.messages.slice(-MESSAGE_LIMIT); record.updatedAt = Date.now();
     state.threads.sort((a, b) => b.updatedAt - a.updatedAt); saveState(); renderRecent();
   };
+  const recentContextForRequest = currentText => {
+    const record = threadRecord();
+    if (!record || !Array.isArray(record.messages)) return [];
+    const messages = [...record.messages];
+    const last = messages[messages.length - 1];
+    if (last?.role === 'user' && String(last.text || '').trim() === currentText) messages.pop();
+    return messages
+      .filter(item => (item?.role === 'user' || item?.role === 'assistant') && typeof item.text === 'string' && item.text.trim())
+      .slice(-6)
+      .map(item => ({role: item.role, text: item.text.trim().slice(0, 500)}));
+  };
   const renderActiveThread = () => {
     restoreAvatarHome(); thread.replaceChildren();
     const record = threadRecord();
@@ -533,7 +544,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
     try {
-      const response = await sendConversationMessage(sessionToken, message);
+      const response = await sendConversationMessage(sessionToken, message, {
+        recentContext: recentContextForRequest(message),
+      });
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
