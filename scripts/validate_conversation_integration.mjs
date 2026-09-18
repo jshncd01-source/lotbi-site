@@ -16,6 +16,7 @@ const {
   SITE_CALLBACK_URI,
   SiteCoreError,
   getCurrentSiteUser,
+  getSubscriptionState,
   logoutSiteSession,
   redeemSiteHandoff,
   sendConversationMessage,
@@ -116,6 +117,36 @@ assert.notEqual(context.codeVerifier, context.codeChallenge);
     assert.equal(request.init.credentials, 'omit');
     assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
   }
+}
+
+{
+  let request;
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      plan: 'FREE',
+      status: 'ACTIVE',
+      price: 9900,
+      currency: 'KRW',
+      provider: null,
+      current_period_end: null,
+      cancel_at_period_end: false,
+      free_units: 3,
+      used_free_units: 3,
+      remaining_free_units: 0,
+      entitled: false,
+      web_payment_methods: [{code: 'CARD', display_name: '카드'}],
+    });
+  };
+  const subscription = await getSubscriptionState('site-memory-token', fetchMock);
+  assert.equal(request.url, 'https://api.lotbiai.com/v2/subscription');
+  assert.equal(request.init.method, 'GET');
+  assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
+  assert.equal(subscription.price, 9900);
+  assert.equal(subscription.currency, 'KRW');
+  assert.equal(subscription.freeUnits, 3);
+  assert.equal(subscription.remainingFreeUnits, 0);
+  assert.deepEqual(subscription.webPaymentMethods, [{code: 'CARD', displayName: '카드'}]);
 }
 
 {
@@ -258,6 +289,8 @@ assert.ok(conversation.includes("event.key === 'Enter'"));
 assert.ok(conversation.includes('!event.shiftKey'));
 assert.ok(conversation.includes('beginSiteHandoff'));
 assert.ok(conversation.includes('sendConversationMessage'));
+assert.ok(conversation.includes('getSubscriptionState'));
+assert.ok(conversation.includes('구독 옵션 보기'));
 assert.ok(conversation.includes("newId('ai-request')"));
 assert.ok(conversation.includes('idempotencyKey: logicalRequestId'));
 assert.ok(conversation.includes('deterministicReply'));
