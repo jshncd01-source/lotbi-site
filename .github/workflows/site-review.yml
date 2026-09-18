@@ -84,6 +84,9 @@ jobs:
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
+      - name: Validate response grade selector
+        run: node scripts/validate_response_grade_selector_01.mjs
+
       - name: Validate composer auto-grow interaction
         run: node scripts/validate_composer_auto_grow.mjs
 
