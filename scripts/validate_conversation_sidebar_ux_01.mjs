@@ -65,6 +65,15 @@ assert.ok(conversation.includes('logoutSiteSession(sessionToken)'), 'logout must
 assert.ok(conversation.includes("reason: 'site-logout'"), 'successful logout must transition Site UI to unauthenticated');
 assert.ok(conversation.includes('serverIdentity?.accountHandle'), 'profile row must use the server handle when available');
 assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile identity must come from Core /v2/me');
+assert.ok(conversation.includes('getCurrentSubscription(sessionToken)'), 'profile plan must come from the canonical Core subscription read');
+assert.ok(core.includes("const SUBSCRIPTION_PATH = '/v2/subscription'"), 'Site must target only the canonical subscription read path');
+assert.ok(core.includes('export async function getCurrentSubscription'), 'Site subscription parser must be explicit and read-only');
+assert.ok(conversation.includes('serverSubscription?.plan'), 'profile summary may render only the returned canonical plan');
+assert.ok(conversation.includes("openSurfaceTrigger === trigger"), 'repeated profile-trigger click must toggle the popover closed');
+assert.ok(conversation.includes("a.sidebar-account-entry[href=\"/auth/start/\"]"), 'stale anonymous footer entry must be detectable');
+assert.ok(conversation.includes('if (staleLogin instanceof HTMLElement && sessionToken)'), 'a live Site session must self-heal a stale anonymous footer before navigation');
+assert.ok(conversation.includes('profile-popover-summary'), 'profile popover must include server-backed identity summary');
+assert.ok(conversationCss.includes('.profile-popover-summary-plan'), 'profile popover plan summary styling missing');
 assert.ok(sidebarCss.includes('.sidebar-profile-trigger'));
 assert.ok(conversationCss.includes('@media (max-width: 760px)'));
 assert.ok(conversationCss.includes('max-height: 88svh'));
