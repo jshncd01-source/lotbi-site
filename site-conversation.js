@@ -493,7 +493,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
-  const showError = (error, retryText, retryWithoutDuplicate) => {
+  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId) => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
@@ -507,14 +507,15 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate);
+        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId);
       });
       wrapper.appendChild(retry);
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true) => {
+  const requestAssistant = async (text, appendUserMessage = true, existingLogicalRequestId = '') => {
     const message = typeof text === 'string' ? text.trim() : ''; if (!message || inFlight) return;
+    const logicalRequestId = existingLogicalRequestId || newId('ai-request');
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     ensureThread(message);
@@ -546,6 +547,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     try {
       const response = await sendConversationMessage(sessionToken, message, {
         recentContext: recentContextForRequest(message),
+        idempotencyKey: logicalRequestId,
       });
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
@@ -555,7 +557,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       setStatus(response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.');
     } catch (caught) {
       loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-      showError(caught, message, true); setStatus('LOTBI 대화를 완료하지 못했습니다.');
+      showError(caught, message, true, logicalRequestId); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
   };
   const submitCurrentPrompt = async () => {
