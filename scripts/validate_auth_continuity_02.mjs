@@ -104,10 +104,10 @@ const callbackStylesheets = stylesheetHrefs(callbackHtml);
 for (const href of homeStylesheets) {
   assert.ok(callbackStylesheets.includes(href), `callback hydration missing home stylesheet: ${href}`);
 }
-assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css"'));
+assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260918-homewordmark4"'));
 assert.ok(
-  callbackStylesheets.indexOf('site-hardening.css') < callbackStylesheets.indexOf('site-sidebar-nav.css')
-    && callbackStylesheets.indexOf('site-sidebar-nav.css') < callbackStylesheets.indexOf('site-auth-continuity.css'),
+  callbackStylesheets.indexOf('site-hardening.css') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260918-homewordmark4')
+    && callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260918-homewordmark4') < callbackStylesheets.indexOf('site-auth-continuity.css'),
   'callback must preserve the home cascade order around Sidebar and auth styles',
 );
 assert.ok(sidebarCss.includes('.sidebar-brand-logo'));
