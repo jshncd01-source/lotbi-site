@@ -9,13 +9,24 @@ const LOGOUT_PATH = '/v2/sessions/logout';
 const IANA_TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 
 export class SiteCoreError extends Error {
-  constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
+  constructor(message, {
+    code = 'SITE_CORE_ERROR',
+    status = 0,
+    retryable = false,
+    correlationId = '',
+    l0Available = false,
+    upgradeAvailable = false,
+    upgradeAction = '',
+  } = {}) {
     super(message);
     this.name = 'SiteCoreError';
     this.code = code;
     this.status = status;
     this.retryable = retryable;
     this.correlationId = correlationId;
+    this.l0Available = l0Available;
+    this.upgradeAvailable = upgradeAvailable;
+    this.upgradeAction = upgradeAction;
   }
 }
 
@@ -36,6 +47,9 @@ function errorFromResponse(response, payload, fallback) {
       status: response.status,
       retryable: detail.retryable === true,
       correlationId: typeof detail.correlation_id === 'string' ? detail.correlation_id : '',
+      l0Available: detail.l0_available === true,
+      upgradeAvailable: detail.upgrade_available === true,
+      upgradeAction: typeof detail.upgrade_action === 'string' ? detail.upgrade_action : '',
     },
   );
 }
