@@ -6,6 +6,7 @@ const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
+const IANA_TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -51,6 +52,35 @@ function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
   }
+}
+
+function browserTimezone() {
+  try {
+    const value = globalThis.Intl?.DateTimeFormat?.().resolvedOptions?.().timeZone;
+    return typeof value === 'string' ? value.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+function safeTimezone(value) {
+  const timezone = typeof value === 'string' ? value.trim() : '';
+  if (!timezone || timezone.length > 64 || !IANA_TIMEZONE_PATTERN.test(timezone)) return '';
+  if (timezone.split('/').some(segment => segment === '.' || segment === '..')) return '';
+  return timezone;
+}
+
+function conversationTransport(contextOrFetch, fetchOverride) {
+  if (typeof contextOrFetch === 'function') {
+    return {timezone: '', fetchImpl: contextOrFetch};
+  }
+  const explicit = contextOrFetch && typeof contextOrFetch === 'object'
+    ? safeTimezone(contextOrFetch.timezone)
+    : '';
+  return {
+    timezone: explicit || (contextOrFetch === undefined && fetchOverride === undefined ? safeTimezone(browserTimezone()) : ''),
+    fetchImpl: typeof fetchOverride === 'function' ? fetchOverride : globalThis.fetch,
+  };
 }
 
 export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetchImpl = globalThis.fetch) {
@@ -107,7 +137,8 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
   });
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch) {
+export async function sendConversationMessage(sessionToken, text, contextOrFetch, fetchOverride) {
+  const {timezone, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -117,6 +148,9 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
   if (!message || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
   }
+
+  const requestBody = {text: message};
+  if (timezone) requestBody.client_context = {timezone};
 
   let response;
   try {
@@ -130,7 +164,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({text: message}),
+      body: JSON.stringify(requestBody),
     });
   } catch {
     throw new SiteCoreError('LOTBI 대화 서버에 접속하지 못했습니다.', {
@@ -161,6 +195,10 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     throw new SiteCoreError('LOTBI 대화 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
   }
 
+  const routing = payload.routing && typeof payload.routing === 'object'
+    ? Object.freeze({...payload.routing})
+    : undefined;
+
   return Object.freeze({
     status,
     assistantText,
@@ -168,6 +206,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
+    routing,
   });
 }
 
