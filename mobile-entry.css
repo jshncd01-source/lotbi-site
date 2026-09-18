@@ -28,9 +28,13 @@ html.lotbi-mobile-entry-lock body {
   box-shadow: 0 24px 70px rgba(24, 42, 70, .14);
 }
 
-.lotbi-entry-wordmark {
-  font-size: 26px;
-  letter-spacing: .06em;
+.lotbi-entry-logo {
+  display: block;
+  width: auto;
+  height: 52px;
+  max-width: 190px;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .lotbi-entry-copy {
