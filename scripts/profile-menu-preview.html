@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LOTBI Profile Menu Side-Branch Verification</title>
+  <style>
+    html,body{margin:0;padding:0;font-family:system-ui,sans-serif}
+    iframe{display:block;border:0}
+    #result{white-space:pre-wrap}
+  </style>
+</head>
+<body>
+<pre id="result">PENDING</pre>
+<script type="module">
+const params = new URLSearchParams(location.search);
+const mode = params.get('mode');
+const output = document.getElementById('result');
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const wait = async (fn, label) => {
+  for (let index = 0; index < 150; index += 1) {
+    if (fn()) return;
+    await sleep(20);
+  }
+  throw new Error(`timeout: ${label}`);
+};
+const click = node => node.dispatchEvent(new MouseEvent('click', {bubbles:true,cancelable:true,view:window}));
+
+if (!mode) {
+  output.textContent = 'RUNNING';
+  const cases = [
+    ['desktop', 1440, 900],
+    ['mobile', 390, 844],
+  ];
+  const results = {};
+  const frames = [];
+  for (const [name, width, height] of cases) {
+    const frame = document.createElement('iframe');
+    frame.width = String(width);
+    frame.height = String(height);
+    frame.src = `${location.pathname}?mode=${name}`;
+    frame.dataset.case = name;
+    frames.push(frame);
+    document.body.appendChild(frame);
+  }
+  addEventListener('message', event => {
+    if (event.origin !== location.origin || !event.data?.lotbiProfileVerification) return;
+    results[event.data.mode] = event.data.result;
+    if (Object.keys(results).length !== cases.length) return;
+    const ok = cases.every(([name]) => results[name]?.ok === true);
+    output.textContent = JSON.stringify({ok, results}, null, 2);
+    document.body.dataset.verification = ok ? 'PASS' : 'FAIL';
+  });
+} else {
+  for (const href of [
+    '../styles.css',
+    '../home-chat.css',
+    '../site-sidebar-nav.css',
+    '../site-auth-continuity.css',
+    '../site-conversation.css',
+  ]) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  }
+
+  const counts = {me:0, subscription:0, logout:0, other:0};
+  window.fetch = async input => {
+    const url = String(typeof input === 'string' ? input : input?.url || '');
+    if (url.endsWith('/v2/me')) {
+      counts.me += 1;
+      return new Response(JSON.stringify({
+        user:{id:'usr',name:'홍길동',account_handle:'hong'},
+        session:{id:'ses',assurance_level:'FULL',expires_at:'2099-01-01T00:00:00Z'},
+        installation:{id:'install-profile-test'},
+      }), {status:200,headers:{'Content-Type':'application/json'}});
+    }
+    if (url.endsWith('/v2/subscription')) {
+      counts.subscription += 1;
+      return new Response(JSON.stringify({
+        plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,
+        free_units:3,used_free_units:1,remaining_free_units:2,
+      }), {status:200,headers:{'Content-Type':'application/json'}});
+    }
+    if (url.endsWith('/v2/sessions/logout')) {
+      counts.logout += 1;
+      return new Response(JSON.stringify({session_id:'ses',status:'REVOKED'}), {
+        status:200,headers:{'Content-Type':'application/json'},
+      });
+    }
+    counts.other += 1;
+    return new Response('{}', {status:500,headers:{'Content-Type':'application/json'}});
+  };
+
+  const result = {ok:false, mode, counts};
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+
+    document.body.innerHTML = '<div id="root"><div data-sidebar-account></div></div><pre id="result"></pre>';
+    const root = document.getElementById('root');
+    const continuity = await import('../site-continuity.js?profile-preview=1');
+    const conversation = await import('../site-conversation.js?profile-preview=1');
+
+    continuity.markAnonymousAccountUi();
+    const anonymous = document.querySelector('[data-sidebar-account] a.sidebar-account-entry');
+    if (!(anonymous instanceof HTMLAnchorElement)) throw new Error('anonymous login entry missing');
+    if (anonymous.getAttribute('href') !== '/auth/start/') throw new Error('anonymous login route mismatch');
+    if (document.querySelector('[data-profile-menu-trigger]')) throw new Error('anonymous user must not receive profile trigger');
+
+    root.innerHTML = `
+      <aside class="chat-sidebar">
+        <ul data-recent-conversations></ul>
+        <div class="sidebar-account-footer">
+          <div class="sidebar-account-slot" data-sidebar-account></div>
+        </div>
+      </aside>
+      <main class="chat-home-shell">
+        <div data-home-avatar-anchor>
+          <div data-lotbi-avatar-container class="chat-character-wrap"><span class="chat-character-logo">LOTBI</span></div>
+        </div>
+        <div id="conversation-thread" class="conversation-thread" hidden></div>
+        <textarea id="lotbi-prompt" class="chat-input"></textarea>
+        <button class="send-button" type="button">전송</button>
+        <button class="mic-button" type="button">마이크</button>
+        <p id="chat-status"></p>
+        <div id="chat-state-region" hidden></div>
+      </main>`;
+    document.body.dataset.siteAuthState = 'authenticated';
+
+    const state = () => JSON.parse(localStorage.getItem('lotbi.site.ux.v1.threads.install-profile-test') || '{}');
+    if (!conversation.mountConversation({sessionToken:'side-test-token',identityKey:'install-profile-test'})) {
+      throw new Error('conversation mount failed');
+    }
+    await wait(() => document.querySelector('.sidebar-account-name')?.textContent === '홍길동', 'server name');
+    await wait(() => document.querySelector('.sidebar-account-handle')?.textContent === '@hong', 'server handle');
+    await wait(() => counts.subscription === 1, 'subscription read');
+
+    const prompt = document.getElementById('lotbi-prompt');
+    const send = document.querySelector('.send-button');
+    prompt.value = '안녕';
+    prompt.dispatchEvent(new Event('input', {bubbles:true}));
+    click(send);
+    await wait(() => state().threads?.[0]?.messages?.length === 2, 'deterministic conversation');
+
+    prompt.value = '작성 중인 초안';
+    prompt.dispatchEvent(new Event('input', {bubbles:true}));
+    const before = state();
+    const originalUrl = location.href;
+    const threadId = before.activeThreadId;
+    const messages = JSON.stringify(before.threads[0].messages);
+
+    let trigger = document.querySelector('[data-profile-menu-trigger]');
+    if (!(trigger instanceof HTMLButtonElement)) throw new Error('authenticated trigger must be button');
+    if (trigger.hasAttribute('href')) throw new Error('authenticated trigger must not navigate');
+    click(trigger);
+    await wait(() => document.querySelector('.profile-popover'), 'popover open');
+
+    if (location.href !== originalUrl) throw new Error('URL changed on profile click');
+    if (document.querySelector('.profile-popover-summary-name')?.textContent !== '홍길동') throw new Error('name summary mismatch');
+    if (document.querySelector('.profile-popover-summary-handle')?.textContent !== '@hong') throw new Error('handle summary mismatch');
+    if (document.querySelector('.profile-popover-summary-plan')?.textContent !== 'LOTBI_PLUS') throw new Error('plan summary mismatch');
+
+    const labels = [...document.querySelectorAll('.profile-popover [role="menuitem"]')].map(node => node.textContent);
+    if (labels.join('|') !== '프로필|개인 맞춤 설정|설정|도움말|로그아웃') throw new Error('menu order mismatch');
+    if (counts.logout !== 0) throw new Error('logout occurred before direct click');
+
+    let after = state();
+    if (after.activeThreadId !== threadId) throw new Error('thread changed on popover open');
+    if (after.draft !== '작성 중인 초안' || prompt.value !== '작성 중인 초안') throw new Error('draft changed on popover open');
+    if (JSON.stringify(after.threads[0].messages) !== messages) throw new Error('messages changed on popover open');
+
+    click(trigger);
+    await wait(() => !document.querySelector('.profile-popover'), 'second click close');
+
+    trigger = document.querySelector('[data-profile-menu-trigger]');
+    click(trigger);
+    await wait(() => document.querySelector('.profile-popover-layer'), 'outside close setup');
+    click(document.querySelector('.profile-popover-layer'));
+    await wait(() => !document.querySelector('.profile-popover'), 'outside close');
+
+    trigger = document.querySelector('[data-profile-menu-trigger]');
+    click(trigger);
+    await wait(() => document.querySelector('.profile-popover'), 'escape close setup');
+    document.querySelector('.profile-popover').dispatchEvent(new KeyboardEvent('keydown', {
+      key:'Escape',bubbles:true,cancelable:true,
+    }));
+    await wait(() => !document.querySelector('.profile-popover'), 'escape close');
+
+    const slot = document.querySelector('[data-sidebar-account]');
+    slot.innerHTML = '<a class="sidebar-account-entry" href="/auth/start/">로그인</a>';
+    const stale = slot.querySelector('a');
+    const staleClick = new MouseEvent('click', {bubbles:true,cancelable:true,view:window});
+    stale.dispatchEvent(staleClick);
+    await wait(() => slot.querySelector('[data-profile-menu-trigger]') && document.querySelector('.profile-popover'), 'stale login self-heal');
+
+    after = state();
+    if (!staleClick.defaultPrevented) throw new Error('stale login navigation not prevented');
+    if (location.href !== originalUrl) throw new Error('URL changed during stale login self-heal');
+    if (after.activeThreadId !== threadId || after.draft !== '작성 중인 초안') throw new Error('state changed during stale login self-heal');
+    if (JSON.stringify(after.threads[0].messages) !== messages) throw new Error('messages changed during stale login self-heal');
+    if (counts.logout !== 0) throw new Error('logout occurred during self-heal');
+
+    const rect = document.querySelector('.profile-popover').getBoundingClientRect();
+    if (rect.left < -1 || rect.right > innerWidth + 1 || rect.top < -1 || rect.bottom > innerHeight + 1) {
+      throw new Error(`popover outside viewport ${JSON.stringify({left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:innerWidth,height:innerHeight})}`);
+    }
+
+    const logout = [...document.querySelectorAll('.profile-popover [role="menuitem"]')].find(node => node.textContent === '로그아웃');
+    click(logout);
+    await wait(() => counts.logout === 1, 'direct logout request');
+    await wait(() => document.querySelector('[data-sidebar-account] a[href="/auth/start/"]'), 'anonymous UI after logout');
+
+    result.ok = true;
+    result.viewport = {width:innerWidth,height:innerHeight};
+    result.profile = {name:'홍길동',handle:'@hong',plan:'LOTBI_PLUS'};
+    result.continuity = {urlUnchanged:location.href === originalUrl,threadId,draft:after.draft,messageCount:after.threads[0].messages.length};
+    result.close = {secondClick:true,outside:true,escape:true};
+    result.selfHeal = true;
+  } catch (error) {
+    result.error = String(error?.stack || error);
+  }
+
+  parent.postMessage({lotbiProfileVerification:true,mode,result}, location.origin);
+  document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+}
+</script>
+</body>
+</html>
