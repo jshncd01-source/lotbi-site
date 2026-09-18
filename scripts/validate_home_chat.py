@@ -73,7 +73,7 @@ def main() -> int:
         "approved conversation module": 'src="site-conversation.js?v=20260918-profile3"',
         "approved continuity module": 'src="site-continuity.js?v=20260918-profile3"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260918-homewordmark2"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260918-homewordmark3"',
         "neutral initial auth state": 'data-auth-state="checking"',
         "neutral auth placeholder": 'class="account-auth-placeholder"',
         "desktop sidebar": "chat-sidebar-desktop",
@@ -186,6 +186,8 @@ def main() -> int:
     for required in (
         'class="sidebar-brand"',
         'class="sidebar-brand-logo"',
+        'class="sidebar-brand-mascot-crop"',
+        'class="sidebar-brand-wordmark"',
         'class="sidebar-nav sidebar-nav-desktop"',
         'class="sidebar-primary-nav"',
         'class="nav-section sidebar-history-section"',
@@ -211,8 +213,8 @@ def main() -> int:
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260917-1"></script>',
-        '<script type="module" src="site-continuity.js?v=20260917-1"></script>',
+        '<script type="module" src="site-conversation.js?v=20260918-profile3"></script>',
+        '<script type="module" src="site-continuity.js?v=20260918-profile3"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
         errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
@@ -251,10 +253,16 @@ def main() -> int:
         errors.append("index.html: live status boundary must remain available to assistive technology")
 
     sidebar_style_tokens = (
+        ".sidebar-brand-mascot-crop",
+        "width: 49px",
         ".sidebar-brand-logo",
         "width: auto",
-        "max-width: 100%",
+        "max-width: none",
         "height: 48px",
+        ".sidebar-brand-wordmark",
+        "font-size: 31px",
+        "font-weight: 700",
+        "letter-spacing: 0",
         "object-fit: contain",
         "object-position: left center",
         "border: 0",
