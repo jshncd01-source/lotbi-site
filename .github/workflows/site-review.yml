@@ -42,6 +42,23 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Verify Production profile cache generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          index="$(curl --fail --silent --show-error 'https://lotbiai.com/index.html?verify=20260918-profile3-ci')"
+          grep -F 'site-conversation.js?v=20260918-profile3' <<<"$index"
+          grep -F 'site-continuity.js?v=20260918-profile3' <<<"$index"
+
+          conversation="$(curl --fail --silent --show-error 'https://lotbiai.com/site-conversation.js?v=20260918-profile3&verify=20260918-profile3-ci')"
+          grep -F "from './site-core.js?v=20260918-profile3';" <<<"$conversation"
+          grep -F "link.href = '/site-conversation.css?v=20260918-profile3';" <<<"$conversation"
+
+          curl --fail --silent --show-error 'https://lotbiai.com/site-core.js?v=20260918-profile3&verify=20260918-profile3-ci' >/dev/null
+          profile_css="$(curl --fail --silent --show-error 'https://lotbiai.com/site-conversation.css?v=20260918-profile3&verify=20260918-profile3-ci')"
+          grep -F '.profile-popover' <<<"$profile_css"
+          echo 'PROFILE PRODUCTION CACHE-BUST PASS'
+
       - name: Validate public site
         run: python scripts/validate_site.py
 
