@@ -42,7 +42,9 @@ assert.doesNotMatch(hardeningCss, /white-space:\s*nowrap/);
 // Desktop brand belongs to the sidebar hierarchy and uses the approved logo asset.
 const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-desktop"[\s\S]*?<\/aside>/)?.[0] || '';
 assert.match(desktopAside, /<a class="sidebar-brand" href="index\.html" aria-label="LOTBI 홈">/);
-assert.match(desktopAside, /<img class="sidebar-brand-logo" src="assets\/lotbi-logo-header\.png" alt="LOTBI"/);
+assert.match(desktopAside, /<img class="sidebar-brand-logo" src="\\/assets\\/lotbi-logo-header\\.png" alt="LOTBI 캐릭터"/);
+assert.match(desktopAside, /<span class="sidebar-brand-mascot-crop"/);
+assert.match(desktopAside, /<span class="sidebar-brand-wordmark"/);
 assert.ok(
   desktopAside.indexOf('sidebar-brand') < desktopAside.indexOf('<nav class="sidebar-nav sidebar-nav-desktop"'),
   'desktop sidebar brand must appear before navigation',
