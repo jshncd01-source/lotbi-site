@@ -118,7 +118,7 @@ jobs:
             done
           }
 
-          preflight '/v2/conversation/messages' 'authorization,content-type' 'POST'
+          preflight '/v2/conversation/messages' 'authorization,content-type,idempotency-key' 'POST'
           preflight '/v2/sessions/handoffs/redeem' 'content-type' 'POST'
           preflight '/v2/me' 'authorization' 'GET'
           preflight '/v2/sessions/logout' 'authorization' 'POST'
