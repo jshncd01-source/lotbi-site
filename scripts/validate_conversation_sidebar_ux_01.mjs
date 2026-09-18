@@ -5,6 +5,7 @@ import {deterministicReply} from '../site-deterministic.js';
 const read = path => readFileSync(path, 'utf8');
 const index = read('index.html');
 const conversation = read('site-conversation.js');
+const core = read('site-core.js');
 const conversationCss = read('site-conversation.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const callback = read('auth-callback.js');
