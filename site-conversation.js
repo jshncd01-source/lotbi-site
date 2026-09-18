@@ -303,6 +303,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       if (!(slot instanceof HTMLElement)) continue;
       slot.replaceChildren(profileButton()); slot.dataset.authState = 'authenticated'; slot.removeAttribute('aria-busy');
     }
+    const openSummary = openSurface?.querySelector?.('.profile-popover-summary');
+    if (openSummary instanceof HTMLElement) openSummary.replaceWith(profileSummary());
   };
   const loadServerProfile = async () => {
     if (!sessionToken) return;
@@ -582,7 +584,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const newChat = target?.closest('[data-new-conversation]');
     if (newChat) { event.preventDefault(); startNewConversation(); return; }
     const staleLogin = target?.closest('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]');
-    if (staleLogin instanceof HTMLElement && sessionToken) {
+    if (staleLogin instanceof HTMLElement && sessionToken && document.body.dataset.siteAuthState === 'authenticated') {
       const slot = staleLogin.closest('[data-sidebar-account]');
       event.preventDefault();
       refreshAuthenticatedProfileSlots();
