@@ -7,14 +7,16 @@
   overflow: hidden;
 }
 
-/* Official 366x137 LOTBI lockup: fixed display height, intrinsic width. */
+/* Restored approved 334x96 transparent LOTBI lockup from the last known-good Site state. */
 .sidebar-brand-logo {
   display: block;
-  width: auto;
-  height: 64px;
+  width: calc(100% - 10px);
+  max-width: calc(100% - 10px);
+  height: auto;
   min-width: 0;
   object-fit: contain;
-  flex: 0 0 auto;
+  object-position: left center;
+  flex: 0 1 auto;
   border: 0;
   box-shadow: none;
   filter: none;
