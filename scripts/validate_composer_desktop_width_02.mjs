@@ -67,7 +67,7 @@ assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*none/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*48px/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-fit:\s*contain/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?object-position:\s*left center/);
-assert.doesNotMatch(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*34px/);
+assert.doesNotMatch(sidebarCss, /\.sidebar-brand-logo\s*\{[^}]*height:\s*34px/);
 
 const logoPng = readFileSync(path.join(ROOT, 'assets/lotbi-logo-header.png'));
 assert.equal(logoPng.toString('ascii', 1, 4), 'PNG');
