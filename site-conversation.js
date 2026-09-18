@@ -1,5 +1,5 @@
 import {beginSiteHandoff} from './site-auth.js';
-import {getCurrentSiteUser, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js';
+import {getCurrentSiteUser, getCurrentSubscription, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js';
 import {deterministicReply} from './site-deterministic.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -174,9 +174,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let namespace = normalizedNamespace(identityKey);
   let state = {threads: [], activeThreadId: null, draft: ''};
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: ''};
-  let serverIdentity;
+  let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
-  let openSurface, surfaceRestoreFocus;
+  let openSurface, openSurfaceTrigger, surfaceRestoreFocus;
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
@@ -267,18 +267,35 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
     applyPreferences(); renderActiveThread(); renderRecent(); refreshAuthenticatedProfileSlots();
   };
+  const profileVisual = () => {
+    const visual = document.createElement(preferences.photo ? 'img' : 'span');
+    visual.className = 'sidebar-profile-avatar';
+    if (visual instanceof HTMLImageElement) { visual.src = preferences.photo; visual.alt = ''; }
+    else { visual.textContent = initials(serverIdentity?.name || preferences.displayName || 'LOTBI'); visual.setAttribute('aria-hidden', 'true'); }
+    return visual;
+  };
   const profileButton = () => {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'sidebar-account-entry sidebar-profile-trigger';
     button.dataset.profileMenuTrigger = ''; button.setAttribute('aria-haspopup', 'menu'); button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-label', '프로필 메뉴 열기');
-    const visual = document.createElement(preferences.photo ? 'img' : 'span'); visual.className = 'sidebar-profile-avatar';
-    if (visual instanceof HTMLImageElement) { visual.src = preferences.photo; visual.alt = ''; }
-    else { visual.textContent = initials(preferences.displayName || 'LOTBI'); visual.setAttribute('aria-hidden', 'true'); }
     const copy = document.createElement('span'); copy.className = 'sidebar-profile-copy';
     const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = serverIdentity?.name || preferences.displayName || '로그인된 사용자';
     const handle = document.createElement('span'); handle.className = 'sidebar-account-handle'; handle.textContent = serverIdentity?.accountHandle ? `@${serverIdentity.accountHandle}` : '프로필 메뉴';
-    copy.append(name, handle); button.append(visual, copy); return button;
+    copy.append(name, handle); button.append(profileVisual(), copy); return button;
+  };
+  const profileSummary = () => {
+    const summary = document.createElement('div'); summary.className = 'profile-popover-summary'; summary.setAttribute('role', 'presentation');
+    const copy = document.createElement('div'); copy.className = 'profile-popover-summary-copy';
+    const name = document.createElement('strong'); name.className = 'profile-popover-summary-name'; name.textContent = serverIdentity?.name || preferences.displayName || '로그인된 사용자';
+    copy.appendChild(name);
+    if (serverIdentity?.accountHandle) {
+      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.accountHandle}`; copy.appendChild(handle);
+    }
+    if (serverSubscription?.plan) {
+      const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = serverSubscription.plan; copy.appendChild(plan);
+    }
+    summary.append(profileVisual(), copy); return summary;
   };
   const refreshAuthenticatedProfileSlots = () => {
     if (document.body.dataset.siteAuthState !== 'authenticated' && !sessionToken) return;
@@ -287,7 +304,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       slot.replaceChildren(profileButton()); slot.dataset.authState = 'authenticated'; slot.removeAttribute('aria-busy');
     }
   };
-  const loadServerIdentity = async () => {
+  const loadServerProfile = async () => {
     if (!sessionToken) return;
     try {
       const identity = await getCurrentSiteUser(sessionToken);
@@ -295,18 +312,25 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       serverIdentity = identity; refreshAuthenticatedProfileSlots();
     } catch (error) {
       if (isSessionError(error)) sessionToken = undefined;
+      return;
+    }
+    try {
+      serverSubscription = await getCurrentSubscription(sessionToken);
+      refreshAuthenticatedProfileSlots();
+    } catch {
+      serverSubscription = undefined;
     }
   };
 
   const closeSurface = () => {
     if (!openSurface) return;
     for (const trigger of document.querySelectorAll('[data-profile-menu-trigger]')) trigger.setAttribute('aria-expanded', 'false');
-    openSurface.remove(); openSurface = undefined; document.body.classList.remove('site-overlay-open');
+    openSurface.remove(); openSurface = undefined; openSurfaceTrigger = undefined; document.body.classList.remove('site-overlay-open');
     if (surfaceRestoreFocus instanceof HTMLElement && surfaceRestoreFocus.isConnected) surfaceRestoreFocus.focus();
     surfaceRestoreFocus = undefined;
   };
-  const installSurfaceBehavior = (surface, panel, {modal = false} = {}) => {
-    closeSurface(); openSurface = surface; surfaceRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const installSurfaceBehavior = (surface, panel, {modal = false, trigger} = {}) => {
+    closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     document.body.appendChild(surface); document.body.classList.add('site-overlay-open');
     surface.addEventListener('click', event => { if (event.target === surface) closeSurface(); });
     surface.addEventListener('keydown', event => {
@@ -407,9 +431,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     content.appendChild(links); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const openProfileMenu = trigger => {
+    if (openSurface && openSurfaceTrigger === trigger) { closeSurface(); return; }
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
     const menu = document.createElement('div'); menu.className = 'profile-popover'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '프로필 메뉴');
-    for (const [label, action] of [['개인 맞춤 설정', openPersonalization], ['프로필', openProfile], ['설정', openSettings], ['도움말', openHelp]]) {
+    menu.appendChild(profileSummary());
+    for (const [label, action] of [['프로필', openProfile], ['개인 맞춤 설정', openPersonalization], ['설정', openSettings], ['도움말', openHelp]]) {
       const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); button.textContent = label;
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
     }
@@ -420,7 +446,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       if (!sessionToken) return;
       logout.disabled = true; logout.textContent = '로그아웃 중…';
       try {
-        await logoutSiteSession(sessionToken); sessionToken = undefined; serverIdentity = undefined; closeSurface();
+        await logoutSiteSession(sessionToken); sessionToken = undefined; serverIdentity = undefined; serverSubscription = undefined; closeSurface();
         switchNamespace(browserAnonymousNamespace());
         window.dispatchEvent(new CustomEvent(SESSION_STATE_EVENT, {detail: {authenticated: false, reason: 'site-logout'}}));
         setStatus('LOTBI Site에서 로그아웃했습니다. 이 브라우저의 계정별 대화는 분리 보존됩니다.');
@@ -429,7 +455,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         setStatus(error instanceof Error ? error.message : '로그아웃하지 못했습니다.');
       }
     });
-    menu.appendChild(logout); layer.appendChild(menu); trigger.setAttribute('aria-expanded', 'true'); installSurfaceBehavior(layer, menu);
+    menu.appendChild(logout); layer.appendChild(menu); trigger.setAttribute('aria-expanded', 'true'); installSurfaceBehavior(layer, menu, {trigger});
   };
 
   const setVoiceFeedback = (message = '') => {
@@ -555,6 +581,15 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const target = event.target instanceof Element ? event.target : null;
     const newChat = target?.closest('[data-new-conversation]');
     if (newChat) { event.preventDefault(); startNewConversation(); return; }
+    const staleLogin = target?.closest('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]');
+    if (staleLogin instanceof HTMLElement && sessionToken) {
+      const slot = staleLogin.closest('[data-sidebar-account]');
+      event.preventDefault();
+      refreshAuthenticatedProfileSlots();
+      const healedTrigger = slot?.querySelector('[data-profile-menu-trigger]');
+      if (healedTrigger instanceof HTMLElement) openProfileMenu(healedTrigger);
+      return;
+    }
     const trigger = target?.closest('[data-profile-menu-trigger]');
     if (trigger instanceof HTMLElement) { event.preventDefault(); openProfileMenu(trigger); }
   });
@@ -574,7 +609,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   });
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
-  if (sessionToken) void loadServerIdentity();
+  if (sessionToken) void loadServerProfile();
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
   return true;
 }
