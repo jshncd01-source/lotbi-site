@@ -73,7 +73,8 @@ assert.ok(core.includes("siteSessionRequest(SUBSCRIPTION_PATH, sessionToken, {an
 assert.ok(conversation.includes('serverSubscription?.plan'), 'profile summary may render only the returned canonical plan');
 assert.ok(conversation.includes("openSurfaceTrigger === trigger"), 'repeated profile-trigger click must toggle the popover closed');
 assert.ok(conversation.includes("a.sidebar-account-entry[href=\"/auth/start/\"]"), 'stale anonymous footer entry must be detectable');
-assert.ok(conversation.includes('if (staleLogin instanceof HTMLElement && sessionToken)'), 'a live Site session must self-heal a stale anonymous footer before navigation');
+assert.ok(conversation.includes("if (staleLogin instanceof HTMLElement && sessionToken && document.body.dataset.siteAuthState === 'authenticated')"), 'only a confirmed authenticated Site session may self-heal a stale anonymous footer');
+assert.ok(conversation.includes("openSummary.replaceWith(profileSummary())"), 'an already-open popover must receive late server identity/plan hydration');
 assert.ok(conversation.includes('profile-popover-summary'), 'profile popover must include server-backed identity summary');
 assert.ok(conversationCss.includes('.profile-popover-summary-plan'), 'profile popover plan summary styling missing');
 assert.ok(sidebarCss.includes('.sidebar-profile-trigger'));
