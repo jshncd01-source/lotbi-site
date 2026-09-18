@@ -7,6 +7,7 @@
   const WEB_BYPASS_PARAM = '__lotbi_web';
   const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
   const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
+  const OFFICIAL_LOGO_SRC = '/assets/lotbi-logo-official-color.jpg';
 
   // Production association is intentionally fail-closed until the real Google
   // Play app-signing certificate, Apple Team ID, association files, and
@@ -185,8 +186,8 @@
     return true;
   }
 
-  function officialWordmark() {
-    return '<span class="brand-text-logo lotbi-entry-wordmark" aria-label="LOTBI">L<span class="brand-o" aria-hidden="true">O</span>TBI</span>';
+  function officialLogoMarkup() {
+    return `<img class="lotbi-entry-logo" src="${OFFICIAL_LOGO_SRC}" alt="LOTBI" width="366" height="137" decoding="async">`;
   }
 
   function makeOverlay(documentObject) {
@@ -215,7 +216,7 @@
 
     overlay.innerHTML = `
       <section class="lotbi-entry-card" role="dialog" aria-modal="true" aria-labelledby="lotbi-entry-title">
-        ${officialWordmark()}
+        ${officialLogoMarkup()}
         <div class="lotbi-entry-copy">
           <p class="lotbi-entry-eyebrow">모바일 이용 안내</p>
           <h1 id="lotbi-entry-title">롯비를 어떻게 이용할까요?</h1>
@@ -246,7 +247,7 @@
     const overlay = makeOverlay(documentObject);
     overlay.innerHTML = `
       <section class="lotbi-entry-card" role="dialog" aria-modal="true" aria-labelledby="lotbi-bridge-title">
-        ${officialWordmark()}
+        ${officialLogoMarkup()}
         <div class="lotbi-entry-copy">
           <p class="lotbi-entry-eyebrow">앱 연결</p>
           <h1 id="lotbi-bridge-title">LOTBI 앱 준비 중</h1>
@@ -310,6 +311,7 @@
     LOTBI_APP_LINK_READY,
     LOTBI_ANDROID_STORE_URL,
     LOTBI_IOS_STORE_URL,
+    OFFICIAL_LOGO_SRC,
     isLotbiSiteHost,
     detectMobilePlatform,
     isMobileUserAgent,
