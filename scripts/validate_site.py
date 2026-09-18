@@ -20,8 +20,8 @@ SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
 OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-header.png"
 OFFICIAL_LOGO_REL = "assets/lotbi-logo-header.png"
-OFFICIAL_LOGO_SHA256 = "450a0ccf803dec339d04e28d9257469171752fbb2cbb4d3a9607f835fc79de1b"
-OFFICIAL_LOGO_BYTES = 4423
+OFFICIAL_LOGO_SHA256 = "fb4189aff6d00928b8c76eeafe951a2d8d83c52914c838a7e8d0bf4b05369ac7"
+OFFICIAL_LOGO_BYTES = 4751
 REQUIRED_HTML = (
     "index.html",
     "about.html",
