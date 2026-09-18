@@ -7,7 +7,7 @@
   const WEB_BYPASS_PARAM = '__lotbi_web';
   const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
   const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
-  const OFFICIAL_LOGO_SRC = '/assets/lotbi-logo-official-d3b499fe546c.jpg';
+  const OFFICIAL_LOGO_SRC = '/assets/lotbi-logo-header.png';
 
   // Production association is intentionally fail-closed until the real Google
   // Play app-signing certificate, Apple Team ID, association files, and
@@ -187,7 +187,7 @@
   }
 
   function officialLogoMarkup() {
-    return `<img class="lotbi-entry-logo" src="${OFFICIAL_LOGO_SRC}" alt="LOTBI" width="366" height="137" decoding="async">`;
+    return `<img class="lotbi-entry-logo" src="${OFFICIAL_LOGO_SRC}" alt="LOTBI" width="334" height="96" decoding="async">`;
   }
 
   function makeOverlay(documentObject) {
