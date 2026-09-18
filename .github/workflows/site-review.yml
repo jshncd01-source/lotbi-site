@@ -45,6 +45,17 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
+      # Run feature-owned profile regressions before unrelated Site gates so
+      # active logo/main work cannot hide whether this branch is executable.
+      - name: Validate conversation, profile and thread UX contracts
+        run: node scripts/validate_conversation_sidebar_ux_01.mjs
+
+      - name: Validate same-page profile menu runtime
+        run: node scripts/validate_profile_menu_improvement_01.mjs
+
+      # Run the feature-owned profile regression before unrelated Site gates so
+      # active logo/main work cannot hide whether this branch is executable.
+
       - name: Validate conversational home shell
         run: python scripts/validate_home_chat.py
 
@@ -63,8 +74,6 @@ jobs:
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
-      - name: Validate conversation, profile and thread UX contracts
-        run: node scripts/validate_conversation_sidebar_ux_01.mjs
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
