@@ -160,7 +160,21 @@ function run() {
   assert.ok(!source.includes('open.lotbiai.com'), 'bridge must not bypass the fixed lotbiai.com /app/open contract');
   assert.ok(!source.includes('atglife://product/'), 'must not introduce legacy scheme navigation');
 
-  assert.equal(fs.existsSync(path.join(ROOT, '.well-known', 'assetlinks.json')), false, 'must not guess Android association identity');
+  const androidAssociationPath = path.join(ROOT, '.well-known', 'assetlinks.json');
+  assert.equal(fs.existsSync(androidAssociationPath), true, 'approved Android passkey association must remain published');
+  const androidAssociations = JSON.parse(fs.readFileSync(androidAssociationPath, 'utf8'));
+  assert.ok(Array.isArray(androidAssociations) && androidAssociations.length > 0, 'Android association file must contain approved entries');
+  assert.ok(androidAssociations.some(item => item?.target?.package_name === 'com.lotbiai.app'), 'production LOTBI Android passkey association missing');
+  assert.equal(
+    androidAssociations.some(item => Array.isArray(item?.relation) && item.relation.includes('delegate_permission/common.handle_all_urls')),
+    false,
+    'mobile App Links must remain disabled until production association E2E',
+  );
+  for (const item of androidAssociations) {
+    assert.ok(Array.isArray(item?.relation), 'Android association relation must be explicit');
+    assert.ok(item.relation.every(value => value === 'delegate_permission/common.get_login_creds'), 'Android association must remain passkey credential-sharing only');
+    assert.equal(item?.target?.namespace, 'android_app', 'Android association target namespace changed');
+  }
   assert.equal(fs.existsSync(path.join(ROOT, '.well-known', 'apple-app-site-association')), false, 'must not guess Apple association identity');
   assert.equal(fs.existsSync(path.join(ROOT, 'apple-app-site-association')), false, 'must not publish guessed root AASA');
 
