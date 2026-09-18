@@ -111,8 +111,8 @@ assert.ok(
   'callback must preserve the home cascade order around Sidebar and auth styles',
 );
 assert.ok(sidebarCss.includes('.sidebar-brand-logo'));
-assert.ok(sidebarCss.includes('width: calc(100% - 10px)'));
-assert.ok(sidebarCss.includes('max-width: calc(100% - 10px)'));
+assert.ok(sidebarCss.includes('width: auto;'));
+assert.ok(sidebarCss.includes('max-width: none;'));
 assert.ok(!callbackHtml.includes('LOTBI 연결 중'), 'normal callback markup must not expose a loading card title');
 assert.ok(!callbackHtml.includes('LOTBI Site 세션을 확인하고 있습니다.'), 'normal callback markup must not expose pending copy');
 assert.ok(callback.includes("new CustomEvent('lotbi:site-session-state'"));
