@@ -1,3 +1,5 @@
+import './site-conversation-storage.js';
+
 export function deterministicReply(text, now = new Date()) {
   const normalized = String(text || '').trim().toLowerCase().replace(/[!?.,~ㅎㅎㅋ]+$/gu, '').replace(/\s+/gu, ' ');
   const exact = normalized.replace(/\s/gu, '');
