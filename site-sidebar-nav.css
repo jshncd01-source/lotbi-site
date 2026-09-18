@@ -22,6 +22,35 @@
   flex: 0 1 auto;
 }
 
+.mobile-header-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.mobile-header-logo {
+  display: block;
+  width: auto;
+  height: 34px;
+  max-width: 102px;
+  object-fit: contain;
+}
+
+.mobile-drawer-brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.mobile-drawer-brand-logo {
+  display: block;
+  width: auto;
+  height: 38px;
+  max-width: 138px;
+  object-fit: contain;
+}
+
 /* SITE-SIDEBAR-INFORMATION-ARCHITECTURE-04 — fixed primary actions +
    independently scrolling recent conversations + fixed account identity. */
 .sidebar-primary-nav {
