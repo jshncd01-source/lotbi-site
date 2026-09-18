@@ -101,7 +101,7 @@ def main() -> int:
         if token not in text:
             errors.append(f"index.html: missing {label}")
 
-    if text.count('src="/assets/lotbi-logo-official-d3b499fe546c.jpg"') != 3:
+    if text.count('src="/assets/lotbi-logo-header.png"') != 3:
         errors.append("index.html: desktop sidebar, mobile topbar and mobile drawer must share the official logo asset")
     for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-horizontal", "lotbi-logo-official-d3b499fe546c.jpg", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
         if forbidden in text:
