@@ -66,7 +66,7 @@ if(location.href!==url||document.querySelector('.profile-popover-summary-name')?
 const labels=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].map(n=>n.textContent).join('|');
 if(labels!=='프로필|개인 맞춤 설정|설정|도움말|로그아웃'||counts.logout!==0)throw new Error('menu/logout-before-click');
 let after=state();if(after.activeThreadId!==id||after.draft!=='작성 중인 초안'||prompt.value!=='작성 중인 초안'||JSON.stringify(after.threads[0].messages)!==msgs)throw new Error('continuity open');
-click(trigger);await wait(()=>!document.querySelector('.profile-popover'),'toggle close');
+trigger=document.querySelector('[data-profile-menu-trigger]');click(trigger);await wait(()=>!document.querySelector('.profile-popover'),'toggle close');
 trigger=document.querySelector('[data-profile-menu-trigger]');click(trigger);await wait(()=>document.querySelector('.profile-popover-layer'),'outside setup');click(document.querySelector('.profile-popover-layer'));await wait(()=>!document.querySelector('.profile-popover'),'outside close');
 trigger=document.querySelector('[data-profile-menu-trigger]');click(trigger);await wait(()=>document.querySelector('.profile-popover'),'escape setup');document.querySelector('.profile-popover').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await wait(()=>!document.querySelector('.profile-popover'),'escape close');
 const slot=document.querySelector('[data-sidebar-account]');slot.innerHTML='<a class="sidebar-account-entry" href="/auth/start/">로그인</a>';const stale=slot.querySelector('a'),ev=new MouseEvent('click',{bubbles:true,cancelable:true,view:window});stale.dispatchEvent(ev);

@@ -303,7 +303,14 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (document.body.dataset.siteAuthState !== 'authenticated' && !sessionToken) return;
     for (const slot of document.querySelectorAll('[data-sidebar-account]')) {
       if (!(slot instanceof HTMLElement)) continue;
-      slot.replaceChildren(profileButton()); slot.dataset.authState = 'authenticated'; slot.removeAttribute('aria-busy');
+      const existingTrigger = slot.querySelector('[data-profile-menu-trigger]');
+      const button = profileButton();
+      if (openSurface?.classList?.contains('profile-popover-layer') && openSurfaceTrigger === existingTrigger) {
+        button.setAttribute('aria-expanded', 'true');
+        openSurfaceTrigger = button;
+        if (surfaceRestoreFocus === existingTrigger) surfaceRestoreFocus = button;
+      }
+      slot.replaceChildren(button); slot.dataset.authState = 'authenticated'; slot.removeAttribute('aria-busy');
     }
     const openSummary = openSurface?.querySelector?.('.profile-popover-summary');
     if (openSummary instanceof HTMLElement) openSummary.replaceWith(profileSummary());
