@@ -6,6 +6,7 @@ const CONVERSATION_PATH = '/v2/conversation/messages';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
+const SUBSCRIPTION_PATH = '/v2/subscription';
 const IANA_TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,160}$/;
 
@@ -299,6 +300,44 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+  });
+}
+
+export async function getSubscriptionState(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(SUBSCRIPTION_PATH, sessionToken, {}, fetchImpl);
+  const plan = typeof payload.plan === 'string' ? payload.plan.trim() : '';
+  const status = typeof payload.status === 'string' ? payload.status.trim() : '';
+  const currency = typeof payload.currency === 'string' ? payload.currency.trim() : '';
+  const price = Number(payload.price);
+  const freeUnits = Number(payload.free_units);
+  const usedFreeUnits = Number(payload.used_free_units);
+  const remainingFreeUnits = Number(payload.remaining_free_units);
+  const methods = Array.isArray(payload.web_payment_methods)
+    ? payload.web_payment_methods
+        .filter(item => item && typeof item.code === 'string' && typeof item.display_name === 'string')
+        .map(item => Object.freeze({code: item.code.trim(), displayName: item.display_name.trim()}))
+        .filter(item => item.code && item.displayName)
+    : [];
+  if (
+    !plan || !status || !currency
+    || !Number.isInteger(price) || price < 0
+    || !Number.isInteger(freeUnits) || freeUnits < 0
+    || !Number.isInteger(usedFreeUnits) || usedFreeUnits < 0
+    || !Number.isInteger(remainingFreeUnits) || remainingFreeUnits < 0
+    || typeof payload.entitled !== 'boolean'
+  ) {
+    throw new SiteCoreError('LOTBI 구독 정보 응답이 올바르지 않습니다.', {code: 'SITE_SUBSCRIPTION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    plan,
+    status,
+    price,
+    currency,
+    freeUnits,
+    usedFreeUnits,
+    remainingFreeUnits,
+    entitled: payload.entitled,
+    webPaymentMethods: Object.freeze(methods),
   });
 }
 
