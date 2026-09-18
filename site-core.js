@@ -7,6 +7,7 @@ const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const LOGOUT_PATH = '/v2/sessions/logout';
 const IANA_TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,160}$/;
 
 export class SiteCoreError extends Error {
   constructor(message, {
@@ -84,6 +85,11 @@ function safeTimezone(value) {
   return timezone;
 }
 
+function safeIdempotencyKey(value) {
+  const key = typeof value === 'string' ? value.trim() : '';
+  return IDEMPOTENCY_KEY_PATTERN.test(key) ? key : '';
+}
+
 function safeRecentContext(value) {
   if (!Array.isArray(value)) return [];
   const out = [];
@@ -106,6 +112,7 @@ function conversationTransport(contextOrFetch, fetchOverride) {
   return {
     timezone: hasExplicitTimezone ? safeTimezone(context.timezone) : safeTimezone(browserTimezone()),
     recentContext: safeRecentContext(context?.recentContext),
+    idempotencyKey: safeIdempotencyKey(context?.idempotencyKey),
     fetchImpl: typeof fetchOverride === 'function' ? fetchOverride : globalThis.fetch,
   };
 }
@@ -165,7 +172,7 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
 }
 
 export async function sendConversationMessage(sessionToken, text, contextOrFetch, fetchOverride) {
-  const {timezone, recentContext, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
+  const {timezone, recentContext, idempotencyKey, fetchImpl} = conversationTransport(contextOrFetch, fetchOverride);
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -191,6 +198,7 @@ export async function sendConversationMessage(sessionToken, text, contextOrFetch
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...(idempotencyKey ? {'Idempotency-Key': idempotencyKey} : {}),
       },
       body: JSON.stringify(requestBody),
     });
