@@ -37,21 +37,28 @@
   gap: 0;
   flex: 0 0 auto;
   white-space: nowrap;
-  font-family: "Malgun Gothic", "Segoe UI", sans-serif;
-  font-size: 31px;
-  font-weight: 700;
+  font-family: "Arial Black", "Segoe UI Black", "Malgun Gothic", "Segoe UI", sans-serif;
+  font-size: 30px;
+  font-weight: 900;
   line-height: 1;
-  letter-spacing: 0;
+  letter-spacing: -1.6px;
   font-kerning: normal;
+  font-synthesis: weight;
   text-rendering: geometricPrecision;
+}
+
+.sidebar-brand-wordmark > span + span {
+  margin-left: -1.2px;
 }
 
 .sidebar-brand-wordmark-navy {
   color: var(--brand-navy, #182a46);
+  -webkit-text-stroke: .3px currentColor;
 }
 
 .sidebar-brand-wordmark-o {
   color: var(--brand-violet, #7b62bb);
+  -webkit-text-stroke: .3px currentColor;
 }
 
 .mobile-header-brand {
