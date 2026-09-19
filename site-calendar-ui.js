@@ -1,4 +1,5 @@
-import {getLifeToday, getLifeUpcoming, SiteCoreError} from './site-calendar.js';
+import {getLifeToday, getLifeUpcoming} from './site-calendar.js';
+import {SiteCoreError} from './site-core.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
