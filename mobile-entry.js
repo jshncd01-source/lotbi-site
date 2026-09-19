@@ -13,6 +13,7 @@
   // fallback. Android native takeover is backed by the approved LOTBI release
   // signing certificate. iOS native takeover remains pending until Production
   // AASA and a real signed-device verification are complete.
+  const LOTBI_AUTO_CHOOSER_ENABLED = false;
   const LOTBI_APP_LINK_READY = true;
   const LOTBI_ANDROID_APP_LINK_READY = true;
   const LOTBI_IOS_APP_LINK_READY = false;
@@ -270,6 +271,7 @@
   }
 
   function shouldShowChooser(options) {
+    if (!LOTBI_AUTO_CHOOSER_ENABLED) return false;
     const method = (options.method || 'GET').toUpperCase();
     if (method !== 'GET') return false;
     if (options.host && !isLotbiSiteHost(options.host)) return false;
@@ -308,6 +310,7 @@
     APP_BRIDGE_PREFIX,
     WEB_BYPASS_PARAM,
     WEB_CHOICE_TTL_MS,
+    LOTBI_AUTO_CHOOSER_ENABLED,
     LOTBI_APP_LINK_READY,
     LOTBI_ANDROID_APP_LINK_READY,
     LOTBI_IOS_APP_LINK_READY,
