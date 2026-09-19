@@ -12,6 +12,10 @@ on:
       - .github/workflows/legal-pages-review.yml
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+
 permissions:
   contents: read
 
