@@ -12,10 +12,13 @@ const css = read('site-conversation.css');
 
 for (const token of [
   "const PRODUCT_CARD_SEARCH_PATH = '/v2/product-resolutions/search'",
+  "const PUBLIC_PRODUCT_CARD_SEARCH_PATH = '/v2/public/product-cards/search'",
+  'export async function searchPublicProductCards',
   'export async function searchProductCards',
   'export async function getProductCards',
   'export async function reviewProductCard',
   "payload.contract_id !== 'CORE-RICH-PRODUCT-DISCOVERY-01'",
+  "payload.contract_id !== 'CORE-PUBLIC-RICH-PRODUCT-DISCOVERY-01'",
   "payload.contract_id !== 'CORE-SHOP-UI-01A'",
   "payload.contract_id !== 'CORE-RICH-PRODUCT-REVIEW-01'",
   'payload.external_side_effect !== false',
@@ -28,9 +31,12 @@ for (const token of [
 
 for (const token of [
   'searchProductCards',
+  'searchPublicProductCards',
   'getProductCards',
   'reviewProductCard',
   'compactRichProductMeta',
+  'anonymousProductSearchQuery',
+  'PUBLIC_RICH_PRODUCT_DISCOVERY',
   'createProductCardRail',
   "rail.dataset.richCardType = 'PRODUCT'",
   "detail.rel = 'noopener noreferrer'",
@@ -40,7 +46,9 @@ for (const token of [
   '아직 주문·결제는 실행하지 않았습니다.',
   "type: 'PRODUCT'",
   'resolution_hash: rich.resolutionHash',
+  'display_id: rich.displayId',
   'candidate_index: card.candidate_index',
+  "await beginSiteHandoff(rich.originalText || rich.query || card.title)",
 ]) assert.ok(conversation.includes(token), 'missing Product Rich Card behavior: ' + token);
 
 for (const forbidden of [
@@ -63,6 +71,8 @@ for (const token of [
 ]) assert.ok(css.includes(token), 'missing Rich Card responsive CSS contract: ' + token);
 
 assert.ok(!conversation.includes('http://'), 'Rich Card runtime must not embed insecure product/image URLs');
+assert.ok(core.includes("headers: {}"), 'anonymous product search must not send Authorization');
+assert.ok(core.includes("credentials: 'omit'"), 'anonymous product search must omit credentials');
 assert.ok(conversation.includes("card.product_url.startsWith('https://')"));
 assert.ok(conversation.includes("card.image_url.startsWith('https://')"));
 

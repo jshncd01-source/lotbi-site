@@ -16,6 +16,7 @@ const {
   SITE_CALLBACK_URI,
   SiteCoreError,
   getCurrentSiteUser,
+  searchPublicProductCards,
   logoutSiteSession,
   redeemSiteHandoff,
   sendConversationMessage,
@@ -188,12 +189,59 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   const reply = await sendConversationMessage('site-memory-token', '안녕하세요', fetchMock);
   assert.equal(reply.status, 'ANSWERED');
   assert.equal(reply.assistantText, '실제 Core 계약 형태의 테스트 응답');
+  assert.equal(reply.intent.action, 'UNKNOWN');
   assert.equal(request.url, 'https://api.lotbiai.com/v2/conversation/messages');
   assert.equal(request.init.method, 'POST');
   assert.equal(request.init.credentials, 'omit');
   assert.equal(request.init.headers.Authorization, 'Bearer site-memory-token');
   assert.equal(request.init.headers['Content-Type'], 'application/json');
   assert.deepEqual(JSON.parse(request.init.body), {text: '안녕하세요'});
+}
+
+{
+  let request;
+  const publicReply = await searchPublicProductCards({
+    query: 'RAD RA',
+    maxResults: 6,
+  }, async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      contract_id: 'CORE-PUBLIC-RICH-PRODUCT-DISCOVERY-01',
+      schema_version: 1,
+      display_id: 'pdc_' + 'a'.repeat(24),
+      status: 'DISPLAY_READY',
+      query: 'RAD RA',
+      merchant: {code: 'RAD_GODOMALL', name: 'RAD Mall'},
+      source_mode: 'GODOMALL_STOREFRONT',
+      candidate_count: 1,
+      cards: [{
+        candidate_index: 0,
+        merchant_code: 'RAD_GODOMALL',
+        source: 'GODOMALL_STOREFRONT',
+        title: 'RAD RA',
+        price: 12000,
+        currency: 'KRW',
+        available: true,
+        product_url: 'https://merchant.example/product/1',
+        image_url: 'https://merchant.example/image/1.jpg',
+      }],
+      display_evidence: true,
+      purchase_requires_login: true,
+      selection_available: false,
+      external_side_effect: false,
+      execution_authority: false,
+      transaction_created: false,
+      order_created: false,
+      payment_attempted: false,
+      live_money: false,
+    });
+  });
+  assert.equal(publicReply.cards.length, 1);
+  assert.equal(publicReply.purchaseRequiresLogin, true);
+  assert.match(request.url, /^https:\/\/api\.lotbiai\.com\/v2\/public\/product-cards\/search\?/);
+  assert.equal(request.init.method, 'GET');
+  assert.equal(request.init.credentials, 'omit');
+  assert.deepEqual(request.init.headers, {});
 }
 
 await expectReject(
@@ -213,7 +261,7 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260920-richcards1"',
+  'type="module" src="site-conversation.js?v=20260920-richcards2"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',
