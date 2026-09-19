@@ -759,3 +759,194 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
     transform: none;
   }
 }
+
+
+/* LOTBI Universal Rich Action Cards — Phase 1 product vertical slice */
+.lotbi-rich-card-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(244px, 286px);
+  gap: 12px;
+  width: min(100%, 960px);
+  margin-top: 14px;
+  padding: 2px 4px 10px 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline mandatory;
+  scrollbar-width: thin;
+}
+
+.lotbi-rich-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 10px 28px rgba(18, 28, 45, .08);
+  scroll-snap-align: start;
+}
+
+.lotbi-rich-card-media {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #f3f5f8;
+}
+
+.lotbi-rich-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lotbi-rich-card-placeholder {
+  color: #7d8796;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.lotbi-rich-card-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px 14px 10px;
+}
+
+.lotbi-rich-card-source {
+  color: #697386;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lotbi-rich-card-title {
+  display: -webkit-box;
+  min-height: 44px;
+  margin: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lotbi-rich-card-price {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.lotbi-rich-card-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  color: #697386;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.lotbi-rich-card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 10px 10px 12px;
+  border-top: 1px solid rgba(116, 126, 145, .16);
+}
+
+.lotbi-rich-card-action {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 7px;
+  border: 1px solid rgba(84, 95, 114, .28);
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lotbi-rich-card-action-primary {
+  background: #151b28;
+  color: #fff;
+  border-color: #151b28;
+}
+
+.lotbi-rich-card-action:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.lotbi-rich-card-action:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card,
+body[data-site-theme="system"] .lotbi-rich-card {
+  border-color: rgba(173, 184, 201, .24);
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card {
+  background: #202631;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-media {
+  background: #171c25;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-source,
+body[data-site-theme="dark"] .lotbi-rich-card-evidence,
+body[data-site-theme="dark"] .lotbi-rich-card-placeholder {
+  color: #aeb6c3;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
+  background: #edf0f5;
+  color: #151922;
+  border-color: #edf0f5;
+}
+
+@media (max-width: 760px) {
+  .lotbi-rich-card-rail {
+    grid-auto-columns: minmax(252px, 82vw);
+    width: calc(100vw - 70px);
+    max-width: 100%;
+    margin-right: -8px;
+    padding-bottom: 12px;
+  }
+
+  .lotbi-rich-card-actions {
+    gap: 5px;
+  }
+
+  .lotbi-rich-card-action {
+    min-height: 44px;
+    padding-inline: 5px;
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 390px) {
+  .lotbi-rich-card-rail {
+    grid-auto-columns: minmax(238px, 84vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-rich-card-rail {
+    scroll-behavior: auto;
+  }
+}
