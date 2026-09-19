@@ -1,0 +1,391 @@
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js';
+
+const SESSION_STATE_EVENT = 'lotbi:site-session-state';
+const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
+const ACTIVITY_ID_PATTERN = /^activity_[0-9a-f]{32}$/;
+const OCCURRENCE_ID_PATTERN = /^occurrence_[0-9a-f]{32}$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
+
+function assertFetch(fetchImpl) {
+  if (typeof fetchImpl !== 'function') {
+    throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
+  }
+}
+
+function bearerToken(sessionToken) {
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
+  if (!token) {
+    throw new SiteCoreError('LOTBI Site 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
+  }
+  return token;
+}
+
+function logicalRequestId(value) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  if (!LOGICAL_REQUEST_PATTERN.test(normalized)) {
+    throw new SiteCoreError('일정 요청 식별자가 올바르지 않습니다.', {code: 'LIFE_LOGICAL_REQUEST_ID_INVALID', status: 422});
+  }
+  return normalized;
+}
+
+function isoDate(value, label) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  if (!DATE_PATTERN.test(normalized)) {
+    throw new SiteCoreError(`${label} 날짜가 올바르지 않습니다.`, {code: 'LIFE_DATE_INVALID', status: 422});
+  }
+  return normalized;
+}
+
+function timezoneName(value) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  if (!TIMEZONE_PATTERN.test(normalized) || normalized.length > 80) {
+    throw new SiteCoreError('시간대가 올바르지 않습니다.', {code: 'LIFE_TIMEZONE_INVALID', status: 422});
+  }
+  return normalized;
+}
+
+async function readPayload(response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function responseError(response, payload) {
+  const detail = payload && typeof payload.detail === 'object' ? payload.detail : {};
+  return new SiteCoreError(
+    typeof detail.message === 'string' && detail.message
+      ? detail.message
+      : 'LOTBI 일정 요청을 완료하지 못했습니다.',
+    {
+      code: typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`,
+      status: response.status,
+      retryable: detail.retryable === true,
+      correlationId: typeof detail.correlation_id === 'string' ? detail.correlation_id : '',
+    },
+  );
+}
+
+function announceInvalidSiteSession(error) {
+  if (!(error instanceof SiteCoreError) || (error.status !== 401 && error.status !== 403)) return;
+  if (typeof globalThis.dispatchEvent !== 'function' || typeof globalThis.CustomEvent !== 'function') return;
+  globalThis.dispatchEvent(new CustomEvent(SESSION_STATE_EVENT, {
+    detail: {authenticated: false},
+  }));
+}
+
+async function calendarRequest(
+  path,
+  sessionToken,
+  {method = 'GET', body, announceSessionFailure = true} = {},
+  fetchImpl = globalThis.fetch,
+) {
+  assertFetch(fetchImpl);
+  const headers = {Authorization: `Bearer ${bearerToken(sessionToken)}`};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
+      method,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers,
+      ...(body === undefined ? {} : {body: JSON.stringify(body)}),
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 일정 서버에 접속하지 못했습니다.', {
+      code: 'LIFE_CALENDAR_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = responseError(response, payload);
+    if (announceSessionFailure) announceInvalidSiteSession(error);
+    throw error;
+  }
+  return payload;
+}
+
+function assertReadResponse(payload, expectedView) {
+  if (
+    !payload
+    || payload.view !== expectedView
+    || typeof payload.as_of !== 'string'
+    || typeof payload.timezone !== 'string'
+    || payload.coverage !== 'PERSONAL_ACTIVITY_ONLY'
+    || !Array.isArray(payload.items)
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+    || payload.items.some(item => (
+      !item
+      || typeof item !== 'object'
+      || typeof item.projection_id !== 'string'
+      || typeof item.activity_id !== 'string'
+      || !ACTIVITY_ID_PATTERN.test(item.activity_id)
+      || typeof item.occurrence_id !== 'string'
+      || !OCCURRENCE_ID_PATTERN.test(item.occurrence_id)
+      || typeof item.title !== 'string'
+      || !Number.isInteger(item.activity_revision)
+      || !Number.isInteger(item.occurrence_revision)
+      || typeof item.local_date !== 'string'
+      || (item.local_datetime !== null && typeof item.local_datetime !== 'string')
+      || item.confirmation_level !== 'USER_ATTESTED'
+      || item.provider_verified !== false
+      || item.source_kind !== 'USER_INPUT'
+      || !Array.isArray(item.allowed_actions)
+      || item.allowed_actions.some(action => action !== 'UPDATE' && action !== 'REMOVE')
+    ))
+  ) {
+    throw new SiteCoreError('LOTBI 일정 조회 응답 형식이 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    view: payload.view,
+    asOf: payload.as_of,
+    timezone: payload.timezone,
+    coverage: payload.coverage,
+    items: Object.freeze(payload.items.map(item => Object.freeze({...item}))),
+    aiCalls: 0,
+    providerApiCalls: 0,
+  });
+}
+
+function assertAttentionResponse(payload) {
+  if (
+    !payload
+    || payload.view !== 'ATTENTION'
+    || typeof payload.as_of !== 'string'
+    || typeof payload.timezone !== 'string'
+    || payload.coverage !== 'PERSONAL_ACTIVITY_ONLY'
+    || !Array.isArray(payload.items)
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+    || payload.items.some(item => (
+      !item
+      || typeof item !== 'object'
+      || typeof item.projection_id !== 'string'
+      || !ACTIVITY_ID_PATTERN.test(item.activity_id)
+      || !OCCURRENCE_ID_PATTERN.test(item.occurrence_id)
+      || typeof item.title !== 'string'
+      || !DATE_PATTERN.test(item.due_date)
+      || !['UPCOMING', 'DUE_TODAY', 'OVERDUE'].includes(item.state)
+      || !Number.isInteger(item.days_until_due)
+      || item.confirmation_level !== 'USER_ATTESTED'
+      || item.provider_verified !== false
+      || item.source_kind !== 'USER_INPUT'
+      || !Array.isArray(item.allowed_actions)
+      || item.allowed_actions.some(action => action !== 'UPDATE' && action !== 'REMOVE')
+    ))
+  ) {
+    throw new SiteCoreError('LOTBI 주의 일정 응답 형식이 올바르지 않습니다.', {code: 'LIFE_ATTENTION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    view: 'ATTENTION',
+    asOf: payload.as_of,
+    timezone: payload.timezone,
+    coverage: payload.coverage,
+    items: Object.freeze(payload.items.map(item => Object.freeze({...item}))),
+    aiCalls: 0,
+    providerApiCalls: 0,
+  });
+}
+
+function assertMutationResponse(payload) {
+  if (
+    !payload
+    || typeof payload.activity_id !== 'string'
+    || !ACTIVITY_ID_PATTERN.test(payload.activity_id)
+    || typeof payload.occurrence_id !== 'string'
+    || !OCCURRENCE_ID_PATTERN.test(payload.occurrence_id)
+    || typeof payload.title !== 'string'
+    || !Number.isInteger(payload.activity_revision)
+    || !Number.isInteger(payload.occurrence_revision)
+    || payload.confirmation_level !== 'USER_ATTESTED'
+    || payload.provider_verified !== false
+    || payload.read_your_writes !== true
+    || !payload.temporal
+    || typeof payload.temporal !== 'object'
+  ) {
+    throw new SiteCoreError('LOTBI 일정 변경 응답 형식이 올바르지 않습니다.', {code: 'LIFE_MUTATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    activityId: payload.activity_id,
+    occurrenceId: payload.occurrence_id,
+    title: payload.title,
+    activityState: payload.activity_state,
+    activityRevision: payload.activity_revision,
+    occurrenceRevision: payload.occurrence_revision,
+    temporal: Object.freeze({...payload.temporal}),
+    temporalSemantics: payload.temporal_semantics,
+    busy: payload.busy,
+    confirmationLevel: payload.confirmation_level,
+    providerVerified: false,
+    readYourWrites: true,
+  });
+}
+
+function assertCommandResponse(payload) {
+  if (
+    !payload
+    || typeof payload.assistant_text !== 'string'
+    || payload.parser_type !== 'DETERMINISTIC_KO_EXPLICIT_ACTIVITY_V1'
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+    || payload.confirmation_level !== 'USER_ATTESTED'
+  ) {
+    throw new SiteCoreError('LOTBI 일정 명령 응답 형식이 올바르지 않습니다.', {code: 'LIFE_COMMAND_CONTRACT_INVALID'});
+  }
+  return Object.freeze({activity: assertMutationResponse(payload.activity), assistantText: payload.assistant_text, parserType: payload.parser_type, aiCalls: 0, providerApiCalls: 0});
+}
+
+export function isExplicitLifeCalendarCommand(text) {
+  return /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/.test(String(text || ''));
+}
+
+export async function executeLifeCalendarCommand(sessionToken, {logicalRequestId: requestId, text, timezone}, fetchImpl = globalThis.fetch) {
+  const commandText = typeof text === 'string' ? text.trim() : '';
+  if (!commandText || commandText.length > 1000) throw new SiteCoreError('일정 명령이 올바르지 않습니다.', {code: 'LIFE_COMMAND_INPUT_INVALID', status: 422});
+  const payload = await calendarRequest('/v2/life/commands', sessionToken, {
+    method: 'POST',
+    body: {logical_request_id: logicalRequestId(requestId), text: commandText, timezone: timezoneName(timezone)},
+  }, fetchImpl);
+  return assertCommandResponse(payload);
+}
+
+export async function getLifeToday(sessionToken, timezone, fetchImpl = globalThis.fetch) {
+  const zone = timezoneName(timezone);
+  const payload = await calendarRequest(
+    `/v2/life/today?timezone=${encodeURIComponent(zone)}`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertReadResponse(payload, 'TODAY');
+}
+
+export async function getLifeUpcoming(sessionToken, {timezone, through}, fetchImpl = globalThis.fetch) {
+  const zone = timezoneName(timezone);
+  const throughDate = isoDate(through, '종료');
+  const payload = await calendarRequest(
+    `/v2/life/upcoming?timezone=${encodeURIComponent(zone)}&through=${encodeURIComponent(throughDate)}`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertReadResponse(payload, 'UPCOMING');
+}
+
+export async function getLifeAgenda(sessionToken, {timezone, start, end}, fetchImpl = globalThis.fetch) {
+  const zone = timezoneName(timezone);
+  const startDate = isoDate(start, '시작');
+  const endDate = isoDate(end, '종료');
+  const payload = await calendarRequest(
+    `/v2/life/agenda?timezone=${encodeURIComponent(zone)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertReadResponse(payload, 'AGENDA');
+}
+
+export async function getLifeAttention(
+  sessionToken,
+  {timezone, horizonDays = 14} = {},
+  fetchImpl = globalThis.fetch,
+) {
+  const zone = timezoneName(timezone);
+  if (!Number.isInteger(horizonDays) || horizonDays < 0 || horizonDays > 365) {
+    throw new SiteCoreError('주의 일정 조회 범위가 올바르지 않습니다.', {code: 'LIFE_ATTENTION_HORIZON_INVALID', status: 422});
+  }
+  const payload = await calendarRequest(
+    `/v2/life/attention?timezone=${encodeURIComponent(zone)}&horizon_days=${horizonDays}`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertAttentionResponse(payload);
+}
+
+export async function createLifeActivity(
+  sessionToken,
+  {logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN'},
+  fetchImpl = globalThis.fetch,
+) {
+  const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+  if (!normalizedTitle || normalizedTitle.length > 240 || !temporal || typeof temporal !== 'object') {
+    throw new SiteCoreError('일정 입력값이 올바르지 않습니다.', {code: 'LIFE_ACTIVITY_INPUT_INVALID', status: 422});
+  }
+  const payload = await calendarRequest(
+    '/v2/life/activities',
+    sessionToken,
+    {
+      method: 'POST',
+      body: {
+        logical_request_id: logicalRequestId(requestId),
+        title: normalizedTitle,
+        temporal,
+        temporal_semantics: temporalSemantics,
+        busy,
+      },
+    },
+    fetchImpl,
+  );
+  return assertMutationResponse(payload);
+}
+
+export async function rescheduleLifeActivity(
+  sessionToken,
+  activityId,
+  {logicalRequestId: requestId, expectedRevision, temporal},
+  fetchImpl = globalThis.fetch,
+) {
+  const id = typeof activityId === 'string' ? activityId.trim() : '';
+  if (!ACTIVITY_ID_PATTERN.test(id) || !Number.isInteger(expectedRevision) || expectedRevision < 1 || !temporal || typeof temporal !== 'object') {
+    throw new SiteCoreError('일정 변경값이 올바르지 않습니다.', {code: 'LIFE_RESCHEDULE_INPUT_INVALID', status: 422});
+  }
+  const payload = await calendarRequest(
+    `/v2/life/activities/${encodeURIComponent(id)}`,
+    sessionToken,
+    {
+      method: 'PATCH',
+      body: {
+        logical_request_id: logicalRequestId(requestId),
+        expected_revision: expectedRevision,
+        temporal,
+      },
+    },
+    fetchImpl,
+  );
+  return assertMutationResponse(payload);
+}
+
+export async function removeLifeActivity(
+  sessionToken,
+  activityId,
+  {logicalRequestId: requestId, expectedRevision},
+  fetchImpl = globalThis.fetch,
+) {
+  const id = typeof activityId === 'string' ? activityId.trim() : '';
+  if (!ACTIVITY_ID_PATTERN.test(id) || !Number.isInteger(expectedRevision) || expectedRevision < 1) {
+    throw new SiteCoreError('일정 삭제값이 올바르지 않습니다.', {code: 'LIFE_REMOVE_INPUT_INVALID', status: 422});
+  }
+  const payload = await calendarRequest(
+    `/v2/life/activities/${encodeURIComponent(id)}/remove`,
+    sessionToken,
+    {
+      method: 'POST',
+      body: {
+        logical_request_id: logicalRequestId(requestId),
+        expected_revision: expectedRevision,
+      },
+    },
+    fetchImpl,
+  );
+  return assertMutationResponse(payload);
+}

@@ -1,0 +1,136 @@
+[data-life-calendar-panel][hidden] {
+  display: none !important;
+}
+
+.life-calendar-panel {
+  box-sizing: border-box;
+  width: min(760px, calc(100% - 32px));
+  margin: 18px auto 8px;
+  padding: 16px 18px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.life-calendar-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.life-calendar-heading h2,
+.life-calendar-group-title {
+  margin: 0;
+  color: #111827;
+}
+
+.life-calendar-heading h2 {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.life-calendar-coverage,
+.life-calendar-empty,
+.life-calendar-loading,
+.life-calendar-error {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.life-calendar-body {
+  display: grid;
+  gap: 14px;
+}
+
+.life-calendar-group {
+  display: grid;
+  gap: 8px;
+}
+
+.life-calendar-group-title {
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.life-calendar-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.life-calendar-item {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.035);
+}
+
+.life-calendar-item-actions {
+  grid-column: 2;
+  display: flex;
+  gap: 6px;
+}
+
+.life-calendar-item-actions button {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  padding: 4px 8px;
+}
+
+.life-calendar-item-time {
+  color: #374151;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.life-calendar-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.life-calendar-item-title {
+  overflow: hidden;
+  color: #111827;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.life-calendar-item-meta {
+  color: #6b7280;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 720px) {
+  .life-calendar-panel {
+    width: calc(100% - 24px);
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .life-calendar-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .life-calendar-item {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+}
