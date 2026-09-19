@@ -154,6 +154,46 @@ function assertReadResponse(payload, expectedView) {
   });
 }
 
+function assertAttentionResponse(payload) {
+  if (
+    !payload
+    || payload.view !== 'ATTENTION'
+    || typeof payload.as_of !== 'string'
+    || typeof payload.timezone !== 'string'
+    || payload.coverage !== 'PERSONAL_ACTIVITY_ONLY'
+    || !Array.isArray(payload.items)
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+    || payload.items.some(item => (
+      !item
+      || typeof item !== 'object'
+      || typeof item.projection_id !== 'string'
+      || !ACTIVITY_ID_PATTERN.test(item.activity_id)
+      || !OCCURRENCE_ID_PATTERN.test(item.occurrence_id)
+      || typeof item.title !== 'string'
+      || !DATE_PATTERN.test(item.due_date)
+      || !['UPCOMING', 'DUE_TODAY', 'OVERDUE'].includes(item.state)
+      || !Number.isInteger(item.days_until_due)
+      || item.confirmation_level !== 'USER_ATTESTED'
+      || item.provider_verified !== false
+      || item.source_kind !== 'USER_INPUT'
+      || !Array.isArray(item.allowed_actions)
+      || item.allowed_actions.some(action => action !== 'UPDATE' && action !== 'REMOVE')
+    ))
+  ) {
+    throw new SiteCoreError('LOTBI 주의 일정 응답 형식이 올바르지 않습니다.', {code: 'LIFE_ATTENTION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    view: 'ATTENTION',
+    asOf: payload.as_of,
+    timezone: payload.timezone,
+    coverage: payload.coverage,
+    items: Object.freeze(payload.items.map(item => Object.freeze({...item}))),
+    aiCalls: 0,
+    providerApiCalls: 0,
+  });
+}
+
 function assertMutationResponse(payload) {
   if (
     !payload
@@ -222,6 +262,24 @@ export async function getLifeAgenda(sessionToken, {timezone, start, end}, fetchI
     fetchImpl,
   );
   return assertReadResponse(payload, 'AGENDA');
+}
+
+export async function getLifeAttention(
+  sessionToken,
+  {timezone, horizonDays = 14} = {},
+  fetchImpl = globalThis.fetch,
+) {
+  const zone = timezoneName(timezone);
+  if (!Number.isInteger(horizonDays) || horizonDays < 0 || horizonDays > 365) {
+    throw new SiteCoreError('주의 일정 조회 범위가 올바르지 않습니다.', {code: 'LIFE_ATTENTION_HORIZON_INVALID', status: 422});
+  }
+  const payload = await calendarRequest(
+    `/v2/life/attention?timezone=${encodeURIComponent(zone)}&horizon_days=${horizonDays}`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertAttentionResponse(payload);
 }
 
 export async function createLifeActivity(
