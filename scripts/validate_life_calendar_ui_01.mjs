@@ -42,7 +42,7 @@ const responses = {
     'site-token',
     {
       timezone: 'Asia/Seoul',
-      now: new Date(2026, 8, 30, 9, 0, 0),
+      now: new Date('2026-09-29T15:30:00Z'),
       fetchImpl: async (url, init) => {
         requests.push({url, init});
         const parsed = new URL(url);
@@ -63,6 +63,22 @@ const responses = {
   assert.equal(snapshot.today.aiCalls, 0);
   assert.equal(snapshot.upcoming.providerApiCalls, 0);
   assert.equal(snapshot.through, '2026-10-07');
+
+  const utcSnapshot = await loadLifeCalendarSnapshot(
+    'site-token',
+    {
+      timezone: 'UTC',
+      now: new Date('2026-09-29T15:30:00Z'),
+      fetchImpl: async (url) => {
+        const parsed = new URL(url);
+        return jsonResponse({
+          ...responses[parsed.pathname],
+          timezone: 'UTC',
+        });
+      },
+    },
+  );
+  assert.equal(utcSnapshot.through, '2026-10-06');
 }
 
 const index = read('index.html');
