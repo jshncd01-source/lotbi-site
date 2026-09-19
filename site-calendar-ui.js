@@ -187,3 +187,12 @@ export async function mountLifeCalendar({
   window.addEventListener(SESSION_STATE_EVENT, onSessionState);
   return true;
 }
+
+export async function mountLifeCalendarIfEnabled(options = {}) {
+  const root = options.root ?? document.querySelector('[data-life-calendar-panel]');
+  if (!(root instanceof HTMLElement) || root.dataset.calendarEnabled !== 'true') {
+    if (root instanceof HTMLElement) root.hidden = true;
+    return false;
+  }
+  return mountLifeCalendar({...options, root});
+}
