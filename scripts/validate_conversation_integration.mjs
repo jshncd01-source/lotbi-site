@@ -21,7 +21,7 @@ const {
   redeemSiteHandoff,
   sendConversationMessage,
   sendGuestConversationMessage,
-} = await import('../site-core.js');
+} = await import('../site-core.js?v=20260920-guest3');
 const {
   ACCOUNT_SITE_HANDOFF_URL,
   HANDOFF_CONTEXT_KEY,
