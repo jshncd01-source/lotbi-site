@@ -13,17 +13,33 @@ function resolvedTimezone() {
   }
 }
 
-function localDateString(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function datePartsInTimezone(now, timezone) {
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat('en', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now);
+  } catch {
+    throw new SiteCoreError('시간대가 올바르지 않습니다.', {code: 'LIFE_TIMEZONE_INVALID', status: 422});
+  }
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+  };
 }
 
-function plusDaysLocal(date, days) {
-  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  next.setDate(next.getDate() + days);
-  return next;
+function addDaysDateString({year, month, day}, days) {
+  const value = new Date(Date.UTC(year, month - 1, day + days));
+  return [
+    String(value.getUTCFullYear()).padStart(4, '0'),
+    String(value.getUTCMonth() + 1).padStart(2, '0'),
+    String(value.getUTCDate()).padStart(2, '0'),
+  ].join('-');
 }
 
 function displayTime(item) {
@@ -93,7 +109,7 @@ export async function loadLifeCalendarSnapshot(
     fetchImpl = globalThis.fetch,
   } = {},
 ) {
-  const through = localDateString(plusDaysLocal(now, 7));
+  const through = addDaysDateString(datePartsInTimezone(now, timezone), 7);
   const [today, upcoming] = await Promise.all([
     getLifeToday(sessionToken, timezone, fetchImpl),
     getLifeUpcoming(sessionToken, {timezone, through}, fetchImpl),
