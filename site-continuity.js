@@ -29,6 +29,38 @@ function recordTiming(name, detail = {}) {
 
 recordTiming('site-boot', {elapsedMs: Math.round(performanceNow())});
 
+function installDirectLoginHandoff(link) {
+  link.addEventListener('click', event => {
+    if (
+      event.defaultPrevented
+      || event.button !== 0
+      || event.metaKey
+      || event.ctrlKey
+      || event.shiftKey
+      || event.altKey
+      || document.body.dataset.siteAuthState === AUTH_STATE_AUTHENTICATED
+    ) return;
+
+    event.preventDefault();
+    if (redirecting) return;
+    redirecting = true;
+    recordTiming('login-click', {elapsedMs: Math.round(performanceNow())});
+    recordTiming('auth-start-transition', {
+      elapsedMs: Math.round(performanceNow()),
+      source: 'direct-login',
+    });
+    void beginSiteHandoff().catch(() => {
+      recordTiming('auth-start-error', {elapsedMs: Math.round(performanceNow())});
+      try {
+        window.location.assign(LOGIN_URL);
+      } catch {
+        redirecting = false;
+      }
+    });
+  });
+  return link;
+}
+
 function rootLocation() {
   return window.location.pathname === '/' || window.location.pathname === '/index.html';
 }
@@ -129,12 +161,13 @@ function markAuthenticatedSidebarAccountUi() {
 
 function markAnonymousSidebarAccountUi() {
   for (const slot of sidebarAccountSlots()) {
-    slot.replaceChildren(sidebarAccountLink({
+    const login = installDirectLoginHandoff(sidebarAccountLink({
       href: LOGIN_URL,
       label: 'LOTBI 로그인',
       primary: '로그인',
       secondary: 'LOTBI 계정 연결',
     }));
+    slot.replaceChildren(login);
     setSidebarAuthState(slot, AUTH_STATE_UNAUTHENTICATED, false);
   }
   window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'));
@@ -181,6 +214,7 @@ export function markAnonymousAccountUi() {
     login.className = 'account-action account-login';
     login.href = LOGIN_URL;
     login.textContent = '로그인';
+    installDirectLoginHandoff(login);
 
     const signup = document.createElement('a');
     signup.className = 'account-action account-signup';
