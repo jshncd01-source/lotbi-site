@@ -36,7 +36,8 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   }
 
   assert.ok(block.includes('data-sidebar-account'), `${label} sidebar missing account identity slot`);
-  assert.ok(block.includes('data-auth-state="checking"'), `${label} account identity must initialize neutral`);
+  assert.ok(block.includes('data-auth-state="unauthenticated"'), `${label} account identity must initialize anonymous-first`);
+  assert.ok(block.includes('>로그인<') && block.includes('LOTBI 계정 연결'), `${label} must expose the anonymous login CTA immediately`);
   assert.ok(!block.includes('조승환') && !block.includes('@jshncd01'), `${label} sidebar must not hardcode user identity`);
 
   assert.match(block, /<button[^>]*data-sidebar-destination="work"[^>]*disabled[^>]*>[\s\S]*?내 작업[\s\S]*?<\/button>/, `${label} 내 작업 must remain fail-closed until an authoritative task route exists`);

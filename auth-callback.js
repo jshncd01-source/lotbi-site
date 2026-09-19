@@ -3,8 +3,8 @@ import {
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
   SiteHandoffClientError,
-} from './site-auth.js';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js';
+} from './site-auth.js?v=20260920-fallback4';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260920-guest3';
 import {mountConversation} from './site-conversation.js';
 import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js';
 
