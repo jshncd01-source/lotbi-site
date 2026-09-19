@@ -189,6 +189,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
+  let avatarSequence = 0, voiceAvatarRequestId;
+  const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
+  const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
+    detail: Object.freeze({phase, requestId}),
+  }));
   let openSurface, openSurfaceTrigger, surfaceRestoreFocus;
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
@@ -295,7 +300,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    applyPreferences(); renderActiveThread(); renderRecent(); refreshAuthenticatedProfileSlots();
+    applyPreferences(); renderActiveThread(); renderRecent();
+    document.body.dataset.conversationRestore = 'ready';
+    refreshAuthenticatedProfileSlots();
   };
   const profileVisual = () => {
     const visual = document.createElement(preferences.photo ? 'img' : 'span');
@@ -566,14 +573,14 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     try {
       await requestMicrophoneAccess(); const recognition = new SpeechRecognition(); voiceRecognition = recognition;
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
+      recognition.onstart = () => { voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
       recognition.onresult = event => {
         const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || ''; if (!transcript) return;
         const current = prompt.value.trimEnd(); prompt.value = current ? `${current} ${transcript}` : transcript;
         prompt.dispatchEvent(new Event('input', {bubbles: true})); setVoiceFeedback('음성 입력이 텍스트로 변환되었습니다. 확인 후 전송해 주세요.'); prompt.focus();
       };
       recognition.onerror = event => setVoiceFeedback(voiceErrorMessage(event));
-      recognition.onend = () => { setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
+      recognition.onend = () => { if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
       recognition.start();
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
@@ -646,6 +653,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
+    const avatarRequestId = nextAvatarRequestId('turn'); driveAvatar('response-wait', avatarRequestId);
     const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
@@ -657,7 +665,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       appendNode(createMessage('assistant', response.assistantText, meta)); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: 1});
       setStatus(response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.');
+      driveAvatar('response-complete', avatarRequestId);
     } catch (caught) {
+      driveAvatar('cancel', avatarRequestId);
       loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
       showError(caught, message, true); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
