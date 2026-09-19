@@ -78,19 +78,22 @@ const continuityCss = read('site-auth-continuity.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js?v=20260918-profile3"'));
+assert.ok(index.includes('type="module" src="site-continuity.js?v=20260920-logincta2"'));
 assert.ok(index.includes('href="site-auth-continuity.css"'));
-assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
-assert.ok(index.includes('class="account-auth-placeholder" aria-hidden="true"'));
-assert.ok(index.includes('계정 상태 확인 중'));
+assert.ok(index.includes('data-auth-state="unauthenticated"'));
+assert.ok(index.includes('class="account-action account-login" href="/auth/start/">로그인</a>'));
+assert.ok(index.includes('class="account-action account-signup" href="https://account.lotbiai.com/signup">회원가입</a>'));
+assert.ok(!index.includes('data-auth-state="checking" aria-busy="true"'), 'initial Home must not block account actions behind checking state');
+assert.equal((index.match(/data-sidebar-account data-auth-state="unauthenticated"/g) || []).length, 2, 'desktop/mobile Sidebar must expose anonymous login immediately');
+assert.ok(index.includes('<span class="sidebar-account-handle">LOTBI 계정 연결</span>'));
 
 const staticAccountActions = index.match(/<nav class="account-actions"[\s\S]*?<\/nav>/)?.[0] || '';
 assert.ok(staticAccountActions, 'initial account-actions markup must exist');
-assert.ok(!staticAccountActions.includes('>로그인<'), 'initial static header must not claim unauthenticated state');
-assert.ok(!staticAccountActions.includes('>회원가입<'), 'initial static header must not claim unauthenticated state');
+assert.ok(staticAccountActions.includes('>로그인<'), 'initial static header must expose login immediately');
+assert.ok(staticAccountActions.includes('>회원가입<'), 'initial static header must expose signup immediately');
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
-assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js"'));
+assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-logincta2"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
@@ -179,8 +182,8 @@ assert.ok(auth.includes("recordTiming('account-navigation-start')"), 'handoff mu
 const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity()');
 const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStart);
 const syncBody = continuity.slice(syncStart, syncEnd);
-assert.ok(syncBody.indexOf('markCheckingAccountUi();') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must enter neutral checking state before Account status resolves');
-assert.ok(syncBody.includes("markCheckingAccountUi('계정 상태를 확인하지 못했습니다. 다시 확인 중입니다.')"), '503/network failures must remain neutral instead of claiming logout');
+assert.ok(syncBody.indexOf('if (!hasLiveSiteSession()) markAnonymousAccountUi();') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must keep login/signup visible until authenticated=true is confirmed');
+assert.ok(syncBody.includes('redirecting = false;') && syncBody.includes('markAnonymousAccountUi();'), '503/network or handoff failures must keep the anonymous login CTA usable');
 assert.equal((continuity.match(/setTimeout\(/g) || []).length, 1, 'only the real Site-session expiry timer is allowed');
 assert.ok(continuity.includes('Math.min(delay, 2_147_000_000)'), 'the sole timer must remain bound to the actual session expiry');
 for (const forbiddenDelay of ['sleep(', 'retryDelay', 'AUTH_DELAY', '5000)', '5_000']) {
