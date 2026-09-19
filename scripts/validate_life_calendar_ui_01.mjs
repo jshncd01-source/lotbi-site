@@ -34,6 +34,15 @@ const responses = {
     ai_calls: 0,
     provider_api_calls: 0,
   },
+  '/v2/life/attention': {
+    view: 'ATTENTION',
+    as_of: '2026-09-30T00:00:00Z',
+    timezone: 'Asia/Seoul',
+    coverage: 'PERSONAL_ACTIVITY_ONLY',
+    items: [],
+    ai_calls: 0,
+    provider_api_calls: 0,
+  },
 };
 
 {
@@ -53,15 +62,17 @@ const responses = {
     },
   );
 
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 3);
   assert.ok(requests.some(({url}) => url.includes('/v2/life/today?timezone=Asia%2FSeoul')));
   assert.ok(requests.some(({url}) => url.includes('/v2/life/upcoming?timezone=Asia%2FSeoul&through=2026-10-07')));
+  assert.ok(requests.some(({url}) => url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=14')));
   for (const {init} of requests) {
     assert.equal(init.headers.Authorization, 'Bearer site-token');
     assert.equal(init.credentials, 'omit');
   }
   assert.equal(snapshot.today.aiCalls, 0);
   assert.equal(snapshot.upcoming.providerApiCalls, 0);
+  assert.equal(snapshot.attention.aiCalls, 0);
   assert.equal(snapshot.through, '2026-10-07');
 
   const utcSnapshot = await loadLifeCalendarSnapshot(
@@ -101,6 +112,8 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
 assert.ok(ui.includes("getLifeUpcoming(sessionToken, {timezone, through}, fetchImpl)"));
+assert.ok(ui.includes("getLifeAttention(sessionToken, {timezone, horizonDays: 14}, fetchImpl)"));
+assert.ok(ui.includes("sectionNode('주의 필요'"));
 assert.ok(ui.includes("coverage.textContent = 'LOTBI에 등록된 개인 일정 기준'"));
 assert.ok(ui.includes("'오늘 등록된 일정이 없어요.'"));
 assert.ok(ui.includes("'앞으로 7일간 등록된 일정이 없어요.'"));
