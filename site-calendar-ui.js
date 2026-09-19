@@ -1,4 +1,4 @@
-import {getLifeToday, getLifeUpcoming} from './site-calendar.js';
+import {getLifeAttention, getLifeToday, getLifeUpcoming} from './site-calendar.js';
 import {SiteCoreError} from './site-core.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -110,11 +110,12 @@ export async function loadLifeCalendarSnapshot(
   } = {},
 ) {
   const through = addDaysDateString(datePartsInTimezone(now, timezone), 7);
-  const [today, upcoming] = await Promise.all([
+  const [today, upcoming, attention] = await Promise.all([
     getLifeToday(sessionToken, timezone, fetchImpl),
     getLifeUpcoming(sessionToken, {timezone, through}, fetchImpl),
+    getLifeAttention(sessionToken, {timezone, horizonDays: 14}, fetchImpl),
   ]);
-  return Object.freeze({today, upcoming, timezone, through});
+  return Object.freeze({today, upcoming, attention, timezone, through});
 }
 
 export async function mountLifeCalendar({
@@ -160,6 +161,11 @@ export async function mountLifeCalendar({
     body.replaceChildren(
       sectionNode('오늘', snapshot.today.items, '오늘 등록된 일정이 없어요.'),
       sectionNode('예정', snapshot.upcoming.items, '앞으로 7일간 등록된 일정이 없어요.'),
+      sectionNode('주의 필요', snapshot.attention.items.map(item => ({
+        ...item,
+        local_datetime: null,
+        title: item.title,
+      })), '주의가 필요한 마감 일정이 없어요.'),
     );
     root.dataset.calendarState = 'ready';
   } catch (error) {
