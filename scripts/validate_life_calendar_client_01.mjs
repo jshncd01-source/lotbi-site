@@ -76,7 +76,19 @@ const mutation = {
   assert.equal(value.view, 'TODAY');
   assert.equal(value.aiCalls, 0);
   assert.equal(value.providerApiCalls, 0);
-  assert.equal(value.items[0].provider_verified, false);
+  const utcValue = await getLifeToday('site-token', 'UTC', async (url) => {
+    assert.equal(url, `${CORE_ORIGIN}/v2/life/today?timezone=UTC`);
+    return jsonResponse({
+      view: 'TODAY',
+      as_of: '2026-09-30T00:00:00Z',
+      timezone: 'UTC',
+      coverage: 'PERSONAL_ACTIVITY_ONLY',
+      items: [],
+      ai_calls: 0,
+      provider_api_calls: 0,
+    });
+  });
+  assert.equal(utcValue.timezone, 'UTC');
 }
 
 {
@@ -219,6 +231,15 @@ const mutation = {
 }
 
 for (const payload of [
+  {
+    view: 'TODAY',
+    as_of: '2026-09-30T00:00:00Z',
+    timezone: 'Asia/Seoul',
+    coverage: 'PERSONAL_ACTIVITY_ONLY',
+    items: [{...readItem, provider_verified: true}],
+    ai_calls: 0,
+    provider_api_calls: 0,
+  },
   {
     view: 'TODAY',
     as_of: '2026-09-30T00:00:00Z',
