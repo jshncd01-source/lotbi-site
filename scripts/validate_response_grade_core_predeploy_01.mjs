@@ -10,6 +10,9 @@ const core = read('site-core.js');
 const conversation = read('site-conversation.js');
 const index = read('index.html');
 
+assert.match(index, /site-conversation\.js\?v=20260919-corepredeploy1/);
+assert.match(conversation, /site-core\.js\?v=20260919-idem1/);
+
 assert.match(core, /AI_IDEMPOTENCY_KEY_PATTERN\s*=\s*\/\^\[A-Za-z0-9\._:-\]\{8,160\}\$\//);
 assert.match(core, /headers\['Idempotency-Key'\]\s*=\s*idempotencyKey/);
 assert.match(core, /SITE_AI_IDEMPOTENCY_INVALID/);
