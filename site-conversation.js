@@ -1,6 +1,7 @@
 import {beginSiteHandoff} from './site-auth.js';
 import {getCurrentSiteUser, getCurrentSubscription, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js?v=20260918-profile3';
 import {deterministicReply} from './site-deterministic.js';
+import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
@@ -577,7 +578,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
-  const showError = (error, retryText, retryWithoutDuplicate) => {
+  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '') => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
@@ -591,13 +592,13 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate);
+        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId);
       });
       wrapper.appendChild(retry);
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true) => {
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '') => {
     const message = typeof text === 'string' ? text.trim() : ''; if (!message || inFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
@@ -622,6 +623,27 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
     if (!sessionToken) {
       try { await beginSiteHandoff(message); } catch (caught) { showError(caught, message, false); }
+      return;
+    }
+    if (isExplicitLifeCalendarCommand(message)) {
+      const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
+      const calendarRequestId = logicalRequestId || newId('calendar');
+      try {
+        const calendar = await executeLifeCalendarCommand(sessionToken, {
+          logicalRequestId: calendarRequestId, text: message,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+        });
+        loading.parentElement?.remove();
+        const meta = {status: 'ANSWERED', responseMode: calendar.parserType};
+        appendNode(createMessage('assistant', calendar.assistantText, meta));
+        appendPersistedMessage({role: 'assistant', text: calendar.assistantText, meta});
+        diagnostics.lastPath = 'CORE_CALENDAR_DETERMINISTIC'; diagnostics.coreCalls += 1; diagnostics.providerCallsAvoided += 1;
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+        setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
+      } catch (caught) {
+        loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
+        showError(caught, message, true, calendarRequestId);
+      } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
     const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
