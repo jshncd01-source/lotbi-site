@@ -4,6 +4,7 @@ export const SITE_CALLBACK_URI = 'https://lotbiai.com/auth/callback';
 
 const CONVERSATION_PATH = '/v2/conversation/messages';
 const PRODUCT_CARD_SEARCH_PATH = '/v2/product-resolutions/search';
+const PUBLIC_PRODUCT_CARD_SEARCH_PATH = '/v2/public/product-cards/search';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const SUBSCRIPTION_PATH = '/v2/subscription';
@@ -247,6 +248,73 @@ async function authenticatedJsonRequest(path, sessionToken, {method = 'GET', bod
     throw error;
   }
   return payload;
+}
+
+
+export async function searchPublicProductCards({
+  query,
+  merchantCode = '',
+  merchantExplicit = false,
+  maxResults = 6,
+} = {}, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const normalizedQuery = typeof query === 'string' ? query.trim() : '';
+  if (!normalizedQuery || normalizedQuery.length > 500) {
+    throw new SiteCoreError('상품 검색어를 확인해 주세요.', {code: 'RICH_PRODUCT_QUERY_INVALID'});
+  }
+  const params = new URLSearchParams({
+    query: normalizedQuery,
+    max_results: String(Number.isInteger(maxResults) ? Math.min(6, Math.max(1, maxResults)) : 6),
+  });
+  if (typeof merchantCode === 'string' && merchantCode.trim()) params.set('merchant_code', merchantCode.trim());
+  if (merchantExplicit === true) params.set('merchant_explicit', 'true');
+
+  let response;
+  try {
+    response = await fetchImpl(CORE_ORIGIN + PUBLIC_PRODUCT_CARD_SEARCH_PATH + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {},
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 상품 검색 서버에 접속하지 못했습니다.', {
+      code: 'RICH_PRODUCT_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    throw errorFromResponse(response, payload, '상품 정보를 확인하지 못했습니다.');
+  }
+  if (
+    payload.contract_id !== 'CORE-PUBLIC-RICH-PRODUCT-DISCOVERY-01'
+    || payload.schema_version !== 1
+    || typeof payload.display_id !== 'string'
+    || !Array.isArray(payload.cards)
+    || payload.cards.some(card => !assertRichProductCard(card))
+    || payload.purchase_requires_login !== true
+    || payload.selection_available !== false
+    || payload.external_side_effect !== false
+    || payload.execution_authority !== false
+    || payload.transaction_created !== false
+    || payload.order_created !== false
+    || payload.payment_attempted !== false
+    || payload.live_money !== false
+  ) {
+    throw new SiteCoreError('공개 상품 카드 응답 형식이 올바르지 않습니다.', {code: 'PUBLIC_RICH_PRODUCT_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    displayId: payload.display_id,
+    status: payload.status,
+    query: typeof payload.query === 'string' ? payload.query : normalizedQuery,
+    merchant: payload.merchant && typeof payload.merchant === 'object' ? Object.freeze({...payload.merchant}) : Object.freeze({}),
+    sourceMode: typeof payload.source_mode === 'string' ? payload.source_mode : '',
+    cards: Object.freeze(payload.cards.slice(0, 6).map(card => Object.freeze({...card}))),
+    purchaseRequiresLogin: true,
+  });
 }
 
 export async function searchProductCards(sessionToken, {
