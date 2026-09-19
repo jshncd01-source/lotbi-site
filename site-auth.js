@@ -1,4 +1,4 @@
-import {SITE_CALLBACK_URI} from './site-core.js';
+import {SITE_CALLBACK_URI} from './site-core.js?v=20260920-guest3';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/auth/site-session-status';

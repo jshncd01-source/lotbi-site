@@ -10,7 +10,7 @@ const {
   removeLifeActivity,
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
-const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js');
+const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260920-guest3');
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {

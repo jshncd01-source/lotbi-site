@@ -23,9 +23,22 @@ for (const general of ['대통령이 누구야', '전주 혁신도시 삼겹살�
 }
 
 const localBranch = conversation.indexOf('const local = deterministicReply(message)');
-const authBranch = conversation.indexOf('if (!sessionToken)', localBranch);
-const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message)', authBranch);
-assert.ok(localBranch > 0 && authBranch > localBranch && coreCall > authBranch, 'deterministic routing must precede auth/Core');
+const calendarAuthBranch = conversation.indexOf('if (!sessionToken && isExplicitLifeCalendarCommand(message))', localBranch);
+const guestBranch = conversation.indexOf('if (!sessionToken) {', calendarAuthBranch);
+const guestCall = conversation.indexOf('sendGuestConversationMessage({', guestBranch);
+const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message)', guestCall);
+assert.ok(
+  localBranch > 0
+    && calendarAuthBranch > localBranch
+    && guestBranch > calendarAuthBranch
+    && guestCall > guestBranch
+    && coreCall > guestCall,
+  'deterministic routing must precede account-required Calendar, anonymous guest Core, then authenticated Core',
+);
+assert.ok(conversation.includes("lastPath = 'CORE_GUEST_CONVERSATION'"), 'ordinary anonymous questions must use the guest Core path');
+assert.ok(conversation.includes('const guestRequestId = logicalRequestId || newId(\'guest-ai\')'), 'guest provider calls require a stable logical request ID');
+assert.ok(conversation.includes('if (isGuestSessionError(caught)) clearGuestSession()'), 'expired guest sessions may be renewed without forcing account login');
+assert.ok(!conversation.includes('if (isSessionError(error) || !sessionToken)'), 'anonymous retry must not force account handoff');
 assert.ok(conversation.includes("recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0})"));
 assert.ok(conversation.includes("lastPath = 'LOCAL_DETERMINISTIC'"));
 assert.ok(conversation.includes('[LOTBI deterministic evidence]'));
@@ -68,6 +81,14 @@ assert.ok(conversation.includes("reason: 'site-logout'"), 'successful logout mus
 assert.ok(conversation.includes('serverIdentity?.accountHandle'), 'profile row must use the server handle when available');
 assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile identity must come from Core /v2/me');
 assert.ok(conversation.includes('getCurrentSubscription(sessionToken)'), 'profile plan must come from the canonical Core subscription read');
+assert.ok(core.includes("const GUEST_SESSION_PATH = '/v2/conversation/guest/sessions'"), 'Site must use the isolated guest session endpoint');
+assert.ok(core.includes("const GUEST_CONVERSATION_PATH = '/v2/conversation/guest/messages'"), 'Site must use the isolated guest message endpoint');
+assert.ok(core.includes('export async function createGuestConversationSession'), 'Site must issue guest sessions without a consumer bearer');
+assert.ok(core.includes('export async function sendGuestConversationMessage'), 'Site must expose a dedicated guest message client');
+assert.ok(core.includes("'Idempotency-Key': logicalKey"), 'guest message requests must send stable idempotency');
+assert.ok(core.includes("'X-LOTBI-Guest-Token': token"), 'guest message requests must carry only the guest namespace token');
+assert.ok(core.includes('payload.safety.execution_authority !== false'), 'guest response parsing must fail closed if execution authority is not explicitly false');
+assert.ok(core.includes('payload.safety.external_side_effect !== false'), 'guest response parsing must fail closed if an external side effect is claimed');
 assert.ok(core.includes("const SUBSCRIPTION_PATH = '/v2/subscription'"), 'Site must target only the canonical subscription read path');
 assert.ok(core.includes('export async function getCurrentSubscription'), 'Site subscription parser must be explicit and read-only');
 assert.ok(core.includes("announceSessionFailure = true"), 'session requests must preserve the existing default invalid-session signaling');
