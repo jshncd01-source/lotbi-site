@@ -73,7 +73,7 @@ def main() -> int:
         "approved conversation module": 'src="site-conversation.js?v=20260918-grade1"',
         "approved continuity module": 'src="site-continuity.js?v=20260918-profile3"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260918-homewordmark4"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260919-homewordmark5"',
         "neutral initial auth state": 'data-auth-state="checking"',
         "neutral auth placeholder": 'class="account-auth-placeholder"',
         "desktop sidebar": "chat-sidebar-desktop",
@@ -254,7 +254,7 @@ def main() -> int:
 
     sidebar_style_tokens = (
         ".sidebar-brand-mascot-crop",
-        "width: 49px",
+        "width: 32px",
         ".sidebar-brand-logo",
         "width: auto",
         "max-width: none",
@@ -292,6 +292,19 @@ def main() -> int:
     for token in sidebar_style_tokens:
         if token not in sidebar_css:
             errors.append(f"site-sidebar-nav.css: missing sidebar IA contract {token}")
+
+    brand_rule = slice_between(sidebar_css, ".sidebar-brand {", "}")
+    if "text-decoration: none" not in brand_rule:
+        errors.append("site-sidebar-nav.css: desktop Home logo link underline must remain disabled")
+
+    mascot_crop_rule = slice_between(sidebar_css, ".sidebar-brand-mascot-crop {", "}")
+    for token in ("width: 32px", "flex: 0 0 32px", "overflow: hidden"):
+        if token not in mascot_crop_rule:
+            errors.append(f"site-sidebar-nav.css: mascot crop must exclude the legacy raster wordmark: {token}")
+
+    wordmark_rule = slice_between(sidebar_css, ".sidebar-brand-wordmark {", "}")
+    if "text-decoration: none" not in wordmark_rule:
+        errors.append("site-sidebar-nav.css: Home LOTBI wordmark underline must remain disabled")
 
     logo_rule = slice_between(sidebar_css, ".sidebar-brand-logo {", "}")
     for forbidden_logo_style in ("height: 64px", "width: calc(100% - 10px)", "transform:"):
