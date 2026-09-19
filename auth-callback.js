@@ -6,6 +6,7 @@ import {
 } from './site-auth.js';
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js';
 import {mountConversation} from './site-conversation.js';
+import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -145,6 +146,7 @@ async function completeSiteHandoff() {
     autoSend: Boolean(context.pendingText),
   });
   if (!mounted) throw new Error('LOTBI 대화 화면을 시작하지 못했습니다.');
+  await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});
 
   window.dispatchEvent(new CustomEvent('lotbi:site-session-state', {
     detail: {
