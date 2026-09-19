@@ -1,0 +1,143 @@
+name: Temporary LOTBI favicon asset generator
+
+on:
+  push:
+    branches:
+      - site-favicon-brand-metadata-prod-hotfix-01-work
+
+permissions:
+  contents: write
+
+jobs:
+  generate-icons:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: site-favicon-brand-metadata-prod-hotfix-01-work
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Pillow
+        run: python -m pip install --disable-pip-version-check pillow==11.3.0
+
+      - name: Generate favicon assets from approved Site character asset
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          src_path = Path("assets/lotbi-logo-header.png")
+          im = Image.open(src_path).convert("RGBA")
+          w, h = im.size
+
+          alpha = im.getchannel("A")
+          use_alpha = alpha.getextrema()[0] < 255
+
+          if use_alpha:
+              def is_foreground(x, y):
+                  return im.getpixel((x, y))[3] > 16
+          else:
+              bg = im.getpixel((w - 1, 0))[:3]
+              def is_foreground(x, y):
+                  r, g, b, _ = im.getpixel((x, y))
+                  return max(abs(r-bg[0]), abs(g-bg[1]), abs(b-bg[2])) > 18
+
+          counts = [sum(1 for y in range(h) if is_foreground(x, y)) for x in range(w)]
+          try:
+              start = next(i for i, c in enumerate(counts) if c > 0)
+          except StopIteration:
+              raise SystemExit("approved logo asset contains no visible pixels")
+
+          # The approved header asset places the character first, then the raster wordmark.
+          # Find the first transparent/blank separator after the character, while staying
+          # safely before the wordmark region.
+          separator = None
+          search_end = min(w, 96)
+          for x in range(start + 18, max(start + 19, search_end - 3)):
+              if all(counts[k] == 0 for k in range(x, min(x + 3, w))):
+                  if any(counts[k] > 0 for k in range(x + 3, min(x + 32, w))):
+                      separator = x
+                      break
+
+          if separator is None:
+              # Historical Site crop boundary kept the mascot within the first ~49 px.
+              separator = min(w, start + 46)
+
+          xs, ys = [], []
+          for x in range(start, separator):
+              for y in range(h):
+                  if is_foreground(x, y):
+                      xs.append(x)
+                      ys.append(y)
+          if not xs:
+              raise SystemExit("could not isolate approved LOTBI character")
+
+          left, right = min(xs), max(xs) + 1
+          top, bottom = min(ys), max(ys) + 1
+
+          # Favicon should emphasize the face / upper body rather than the raster wordmark.
+          visible_h = bottom - top
+          upper_bottom = min(bottom, top + max(24, round(visible_h * 0.72)))
+
+          pad_x = 2
+          pad_y = 2
+          crop_box = (
+              max(0, left - pad_x),
+              max(0, top - pad_y),
+              min(separator, right + pad_x),
+              min(h, upper_bottom + pad_y),
+          )
+          character = im.crop(crop_box)
+
+          def render(size, *, opaque=False, content_ratio=0.88):
+              bg = (255, 255, 255, 255) if opaque else (0, 0, 0, 0)
+              canvas = Image.new("RGBA", (size, size), bg)
+              max_side = max(1, round(size * content_ratio))
+              cw, ch = character.size
+              scale = min(max_side / cw, max_side / ch)
+              nw = max(1, round(cw * scale))
+              nh = max(1, round(ch * scale))
+              resized = character.resize((nw, nh), Image.Resampling.LANCZOS)
+              x = (size - nw) // 2
+              y = (size - nh) // 2
+              canvas.alpha_composite(resized, (x, y))
+              return canvas
+
+          render(16, content_ratio=0.94).save("favicon-16x16.png", optimize=True)
+          render(32, content_ratio=0.92).save("favicon-32x32.png", optimize=True)
+          render(180, opaque=True, content_ratio=0.86).convert("RGB").save("apple-touch-icon.png", optimize=True)
+          render(192, content_ratio=0.88).save("icon-192.png", optimize=True)
+          render(512, content_ratio=0.88).save("icon-512.png", optimize=True)
+
+          master = render(256, content_ratio=0.90)
+          master.save("favicon.ico", format="ICO", sizes=[(16,16), (32,32), (48,48), (64,64), (128,128), (256,256)])
+
+          print({
+              "source": str(src_path),
+              "source_size": im.size,
+              "separator_x": separator,
+              "character_bbox": (left, top, right, bottom),
+              "favicon_crop": crop_box,
+          })
+          PY
+
+      - name: Commit generated icon assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add favicon.ico favicon-16x16.png favicon-32x32.png apple-touch-icon.png icon-192.png icon-512.png
+          if git diff --cached --quiet; then
+            echo "No favicon changes to commit"
+            exit 0
+          fi
+          git commit -m "chore(site): generate LOTBI favicon assets"
+          git push origin HEAD:site-favicon-brand-metadata-prod-hotfix-01-work
