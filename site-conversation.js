@@ -1,5 +1,5 @@
 import {beginSiteHandoff} from './site-auth.js';
-import {getCurrentSiteUser, getCurrentSubscription, logoutSiteSession, sendConversationMessage, SiteCoreError} from './site-core.js?v=20260918-profile3';
+import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, logoutSiteSession, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-guest3';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 
@@ -42,7 +42,7 @@ function recordTiming(name, detail = {}) {
 function resourceCounts() {
   const resources = globalThis.performance?.getEntriesByType?.('resource') || [];
   return {
-    core: resources.filter(entry => String(entry.name || '').includes('/v2/conversation/messages')).length,
+    core: resources.filter(entry => String(entry.name || '').includes('/v2/conversation/')).length,
     externalAi: resources.filter(entry => /api\.openai\.com|anthropic\.com|generativelanguage\.googleapis\.com/iu.test(String(entry.name || ''))).length,
   };
 }
@@ -101,11 +101,17 @@ function createLoadingMessage() {
   article.dataset.transient = 'true'; article.setAttribute('role', 'status');
   return article;
 }
+function isGuestSessionError(error) {
+  return error instanceof SiteCoreError
+    && (error.code === 'GUEST_SESSION_INVALID' || error.code === 'GUEST_SESSION_EXPIRED');
+}
 function isSessionError(error) {
   return error instanceof SiteCoreError
+    && !isGuestSessionError(error)
     && (error.status === 401 || error.status === 403 || error.code === 'SITE_SESSION_REQUIRED' || error.code === 'SESSION_INVALID' || error.code === 'SESSION_EXPIRED');
 }
 function userFacingErrorMessage(error) {
+  if (isGuestSessionError(error)) return '익명 대화 세션이 만료되었습니다. 다시 시도하면 새 세션으로 이어집니다.';
   if (isSessionError(error)) return 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.';
   if (error instanceof SiteCoreError && (error.code === 'AI_PROVIDER_UNAVAILABLE' || error.code === 'AI_RESPONSE_UNAVAILABLE')) return 'LOTBI AI 응답을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof Error) return error.message;
@@ -189,6 +195,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
+  let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
   const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
   const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
@@ -198,6 +205,47 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
+  const guestSessionStorageKey = () => {
+    const owner = normalizedNamespace(namespace) || browserAnonymousNamespace();
+    return storageKey(owner, 'guest-session');
+  };
+  const clearGuestSession = () => {
+    guestSessionToken = undefined;
+    guestSessionExpiresAt = 0;
+    try { safeSessionStorage()?.removeItem(guestSessionStorageKey()); } catch {}
+  };
+  const readGuestSession = () => {
+    if (guestSessionToken && guestSessionExpiresAt > Date.now() + 5000) return guestSessionToken;
+    const stored = safeParse(safeSessionStorage()?.getItem(guestSessionStorageKey()), {});
+    const token = typeof stored.guestToken === 'string' ? stored.guestToken.trim() : '';
+    const expiresAt = typeof stored.expiresAt === 'string' ? Date.parse(stored.expiresAt) : NaN;
+    if (token.length >= 32 && token.length <= 256 && Number.isFinite(expiresAt) && expiresAt > Date.now() + 5000) {
+      guestSessionToken = token; guestSessionExpiresAt = expiresAt; return token;
+    }
+    clearGuestSession();
+    return undefined;
+  };
+  const ensureGuestSession = async () => {
+    const current = readGuestSession();
+    if (current) return current;
+    const issued = await createGuestConversationSession();
+    guestSessionToken = issued.guestToken;
+    guestSessionExpiresAt = Date.parse(issued.expiresAt);
+    try {
+      safeSessionStorage()?.setItem(guestSessionStorageKey(), JSON.stringify({
+        guestToken: issued.guestToken,
+        expiresAt: issued.expiresAt,
+      }));
+    } catch {}
+    return issued.guestToken;
+  };
+  const guestRecentContext = () => {
+    const messages = threadRecord()?.messages;
+    if (!Array.isArray(messages) || !messages.length) return [];
+    return messages.slice(0, -1).filter(item =>
+      item && (item.role === 'user' || item.role === 'assistant') && typeof item.text === 'string' && item.text.trim()
+    ).slice(-6).map(item => ({role: item.role, text: item.text.trim().slice(0, 500)}));
+  };
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
   const savePreferences = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences)); };
   const responseGradeLabel = grade => RESPONSE_GRADE_OPTIONS.find(([key]) => key === grade)?.[1] || '스탠다드';
@@ -589,12 +637,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
-    const retryable = isSessionError(error) || !(error instanceof SiteCoreError) || error.retryable;
+    const retryable = isSessionError(error) || isGuestSessionError(error) || !(error instanceof SiteCoreError) || error.retryable;
     if (retryable) {
       const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'chat-retry-button'; retry.textContent = isSessionError(error) ? '다시 연결' : '다시 시도';
       retry.addEventListener('click', async () => {
         retry.disabled = true;
-        if (isSessionError(error) || !sessionToken) {
+        if (isSessionError(error)) {
           try { await beginSiteHandoff(retryText); }
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
@@ -628,8 +676,37 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
-    if (!sessionToken) {
+    if (!sessionToken && isExplicitLifeCalendarCommand(message)) {
       try { await beginSiteHandoff(message); } catch (caught) { showError(caught, message, false); }
+      return;
+    }
+    if (!sessionToken) {
+      const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
+      const guestRequestId = logicalRequestId || newId('guest-ai');
+      diagnostics.lastPath = 'CORE_GUEST_CONVERSATION'; diagnostics.coreCalls += 1;
+      const coreStartedAt = performanceNow(); recordTiming('T1-core-guest-request', {coreCall: diagnostics.coreCalls});
+      try {
+        const token = await ensureGuestSession();
+        const response = await sendGuestConversationMessage({
+          guestToken: token,
+          text: message,
+          idempotencyKey: guestRequestId,
+          recentContext: guestRecentContext(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+        });
+        diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
+        recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
+        loading.parentElement?.remove();
+        const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        appendNode(createMessage('assistant', response.assistantText, meta)); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+        diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: 1});
+        setStatus(response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.');
+      } catch (caught) {
+        loading.parentElement?.remove();
+        if (isGuestSessionError(caught)) clearGuestSession();
+        showError(caught, message, true, guestRequestId);
+        setStatus('LOTBI 대화를 완료하지 못했습니다.');
+      } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
     if (isExplicitLifeCalendarCommand(message)) {
@@ -738,7 +815,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
   });
   syncResponseGradeUi();
-  updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.');
+  updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '로그인 없이도 LOTBI와 바로 대화할 수 있습니다. 계정 기능이 필요할 때만 로그인합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
   if (sessionToken) void loadServerProfile();
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
