@@ -7,6 +7,7 @@ const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const SUBSCRIPTION_PATH = '/v2/subscription';
 const LOGOUT_PATH = '/v2/sessions/logout';
+const AI_IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,160}$/;
 
 export class SiteCoreError extends Error {
   constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
@@ -108,16 +109,30 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
   });
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch) {
+export async function sendConversationMessage(sessionToken, text, optionsOrFetch = {}, maybeFetch = globalThis.fetch) {
+  const fetchImpl = typeof optionsOrFetch === 'function' ? optionsOrFetch : maybeFetch;
+  const options = typeof optionsOrFetch === 'function'
+    ? {}
+    : (optionsOrFetch && typeof optionsOrFetch === 'object' ? optionsOrFetch : {});
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
+  const idempotencyKey = typeof options.idempotencyKey === 'string' ? options.idempotencyKey.trim() : '';
   if (!token) {
     throw new SiteCoreError('LOTBI Site 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
   }
   if (!message || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
   }
+  if (idempotencyKey && !AI_IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+    throw new SiteCoreError('대화 요청 식별자가 올바르지 않습니다.', {code: 'SITE_AI_IDEMPOTENCY_INVALID', status: 422});
+  }
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
 
   let response;
   try {
@@ -127,10 +142,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({text: message}),
     });
   } catch {
