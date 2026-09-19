@@ -22,7 +22,7 @@ CONTINUITY_JS = ROOT / "site-continuity.js"
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
-CONNECTED_SERVICES_URL = "https://account.lotbiai.com/external-identities"
+CONNECTED_SERVICES_URL = "https://account.lotbiai.com/connected-services"
 
 
 def slice_between(text: str, start_token: str, end_token: str) -> str:
