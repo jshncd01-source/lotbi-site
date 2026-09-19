@@ -55,7 +55,7 @@ const sendPos = index.indexOf('class="composer-button send-button"', micPos);
 assert.ok(gradePos >= 0 && micPos > gradePos && sendPos > micPos, 'selector, mic and send order must be preserved');
 assert.match(conversation, /micButton\.disabled = false/);
 assert.match(conversation, /micButton\.addEventListener\('click'/);
-assert.match(conversation, /sendConversationMessage\(sessionToken, message\)/);
+assert.match(conversation, /sendConversationMessage\(sessionToken, message, \{idempotencyKey: stableLogicalRequestId\}\)/);
 
 // Phase 1 must not wire the selected grade into the Core request.
 assert.match(core, /body:\s*JSON\.stringify\(\{text: message\}\)/);
