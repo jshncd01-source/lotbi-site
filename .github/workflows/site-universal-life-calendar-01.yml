@@ -11,6 +11,7 @@ on:
       - 'site-continuity.js'
       - 'index.html'
       - 'auth/callback/index.html'
+      - 'auth-callback.js'
       - 'scripts/validate_life_calendar_client_01.mjs'
       - 'scripts/validate_life_calendar_ui_01.mjs'
       - 'scripts/validate_auth_continuity_02.mjs'
