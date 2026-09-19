@@ -15,23 +15,46 @@ const css = [
 ].map(read).join('\n\n');
 const shell = read('home-shell.js');
 const avatar = read('site-avatar.js');
+const conversation = read('site-conversation.js');
 const controller = read('avatar-runtime/runtime/controller.mjs');
 
 for (const token of [
   "window.visualViewport?.addEventListener('resize', syncMobileViewport",
   "window.visualViewport?.addEventListener('scroll', syncMobileViewport",
-  "'--lotbi-mobile-viewport-height'",
+  "window.addEventListener('orientationchange'",
+  "window.matchMedia('(pointer: coarse)')",
+  "navigator.maxTouchPoints",
+  "'--lotbi-visible-viewport-height'",
+  "'--lotbi-visible-viewport-offset-top'",
+  "'--lotbi-keyboard-inset'",
   "'mobile-keyboard-open'",
-  "keyboardInset >= 120",
+  "'mobile-keyboard-tight'",
+  "keyboardRatio <= 0.84",
+  "mobileViewportBaseline * 0.16",
+  "viewport?.height || window.innerHeight",
 ]) assert.ok(shell.includes(token), `missing keyboard viewport contract: ${token}`);
+assert.ok(!shell.includes("matchMedia('(max-width: 760px)')"), 'keyboard detection must not be tied to the old phone-width breakpoint');
 
 for (const token of [
   'body.mobile-keyboard-open .chat-home-footer',
   'display: none !important',
   'body.mobile-keyboard-open .chat-composer',
   'body.mobile-keyboard-open .home-avatar-anchor .chat-character-wrap',
-  'var(--lotbi-mobile-viewport-height, 100dvh)',
+  'body.mobile-keyboard-tight .home-avatar-anchor',
+  'body.mobile-keyboard-tight .response-grade-trigger',
+  'position: fixed',
+  'var(--lotbi-visible-viewport-height, 100dvh)',
+  'var(--lotbi-visible-viewport-offset-top, 0px)',
+  'scroll-padding-bottom',
 ]) assert.ok(css.includes(token), `missing compact mobile layout contract: ${token}`);
+
+for (const token of [
+  'const isThreadNearBottom = () =>',
+  'forceScroll = false',
+  'suppressScroll = false',
+  "{forceScroll: true}",
+  "window.addEventListener('lotbi:keyboard-viewport'",
+]) assert.ok(conversation.includes(token), `missing conversation scroll contract: ${token}`);
 
 assert.ok(avatar.includes('runtimeEpochSeconds = monotonicSeconds()'));
 assert.ok(avatar.includes('const time = runtimeSeconds()'));
@@ -56,7 +79,7 @@ function fixture(keyboard, visibleHeight) {
 <div class="chat-app-shell"><main class="chat-home-shell">
 <header class="chat-topbar"><div class="topbar-left"><button class="mobile-menu-button"></button><a class="chat-brand">LOTBI</a></div><nav class="account-actions"><a class="account-action account-login">로그인</a><a class="account-action account-signup">회원가입</a></nav></header>
 <section class="chat-hero"><div class="home-avatar-anchor"><div class="chat-character-wrap"><div class="site-avatar-stage"></div><img class="chat-character-logo" alt=""></div></div>
-<div class="chat-composer"><textarea class="chat-input" rows="1">테스트</textarea><div class="composer-actions"><button class="composer-button mic-button">M</button><button class="composer-button send-button">S</button></div></div><div class="chat-state-banner" hidden></div></section>
+<div class="chat-composer"><textarea class="chat-input" rows="1">테스트</textarea><div class="composer-actions"><div class="response-grade-control"><button class="response-grade-trigger">스탠다드<span class="response-grade-chevron">▾</span></button></div><button class="composer-button mic-button">M</button><button class="composer-button send-button">S</button></div></div><div class="chat-state-banner" hidden></div></section>
 <footer class="lotbi-footer chat-home-footer">footer</footer>
 </main></div></body></html>`;
 }
@@ -70,7 +93,7 @@ const win=frame.contentWindow;
 document.getElementById('r').textContent=JSON.stringify({
   viewport:{width:win.innerWidth,height:win.innerHeight,scrollHeight:doc.documentElement.scrollHeight},
   topbar:rect('.chat-topbar'), avatar:rect('.chat-character-wrap'), composer:rect('.chat-composer'),
-  mic:rect('.mic-button'), send:rect('.send-button'),
+  input:rect('.chat-input'), grade:rect('.response-grade-trigger'), mic:rect('.mic-button'), send:rect('.send-button'),
   accountDisplay:win.getComputedStyle(doc.querySelector('.account-actions')).display,
   footerDisplay:win.getComputedStyle(doc.querySelector('.chat-home-footer')).display
 });</script></body></html>`;
@@ -85,19 +108,34 @@ document.getElementById('r').textContent=JSON.stringify({
   return JSON.parse(match[1].replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>'));
 }
 
-for (const [label,width,height] of [['phone',390,420],['large-phone',600,520],['tablet-like',720,640]]) {
+for (const [label,width,height] of [
+  ['fold-cover',344,420],
+  ['phone',390,420],
+  ['large-phone',600,520],
+  ['near-old-breakpoint',761,430],
+  ['fold-unfolded',884,430],
+]) {
   const result = render(width,height,true);
   console.log(label, JSON.stringify(result));
   assert.equal(result.footerDisplay,'none',`${label}: footer intrudes into keyboard viewport`);
-  assert.notEqual(result.accountDisplay,'none',`${label}: mobile account actions hidden`);
   assert.ok(result.composer.top >= 0 && result.composer.bottom <= height + 2, `${label}: composer clipped`);
+  assert.ok(result.input.height > 0 && result.input.bottom <= result.composer.bottom + 2, `${label}: textarea clipped`);
+  assert.ok(result.grade.width > 0 && result.grade.bottom <= result.composer.bottom + 2, `${label}: response grade clipped`);
   assert.ok(result.mic.width > 0 && result.mic.bottom <= height + 2, `${label}: mic clipped`);
   assert.ok(result.send.width > 0 && result.send.bottom <= height + 2, `${label}: send clipped`);
   assert.ok(result.avatar.top >= -2 && result.avatar.bottom <= result.composer.top + 2, `${label}: Avatar clipped or overlaps composer`);
   assert.ok(result.viewport.scrollHeight <= height + 2, `${label}: keyboard layout introduced body scroll/blank space`);
 }
 
-const normal = render(390,844,false);
-assert.notEqual(normal.accountDisplay,'none','normal mobile top login/signup must remain visible');
-assert.notEqual(normal.footerDisplay,'none','normal mobile footer must remain available');
+for (const [label,width,height] of [
+  ['normal-mobile',390,844],
+  ['fold-cover-closed',344,720],
+  ['fold-unfolded-closed',884,720],
+  ['desktop',1280,800],
+]) {
+  const result = render(width,height,false);
+  assert.notEqual(result.footerDisplay,'none',`${label}: normal closed-keyboard footer must remain available`);
+  assert.ok(result.composer.width > 0, `${label}: composer missing when keyboard closed`);
+}
+
 console.log('SITE-MOBILE-HOME-UX-STABILITY-01 PASS');
