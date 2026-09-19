@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 const {
   createLifeActivity,
   getLifeAgenda,
+  getLifeAttention,
   getLifeToday,
   getLifeUpcoming,
   removeLifeActivity,
@@ -135,6 +136,46 @@ const mutation = {
     agendaUrl,
     `${CORE_ORIGIN}/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-30&end=2026-10-07`,
   );
+}
+
+{
+  let attentionUrl = '';
+  const attention = await getLifeAttention(
+    'site-token',
+    {timezone: 'Asia/Seoul', horizonDays: 14},
+    async (url) => {
+      attentionUrl = url;
+      return jsonResponse({
+        view: 'ATTENTION',
+        as_of: '2026-09-30T00:00:00Z',
+        timezone: 'Asia/Seoul',
+        coverage: 'PERSONAL_ACTIVITY_ONLY',
+        items: [{
+          projection_id: 'attention_projection_1',
+          activity_id: 'activity_0123456789abcdef0123456789abcdef',
+          occurrence_id: 'occurrence_0123456789abcdef0123456789abcdef',
+          title: '반품 마감',
+          due_date: '2026-10-05',
+          state: 'UPCOMING',
+          days_until_due: 5,
+          confirmation_level: 'USER_ATTESTED',
+          provider_verified: false,
+          source_kind: 'USER_INPUT',
+          allowed_actions: ['UPDATE', 'REMOVE'],
+        }],
+        ai_calls: 0,
+        provider_api_calls: 0,
+      });
+    },
+  );
+  assert.equal(
+    attentionUrl,
+    `${CORE_ORIGIN}/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=14`,
+  );
+  assert.equal(attention.view, 'ATTENTION');
+  assert.equal(attention.aiCalls, 0);
+  assert.equal(attention.providerApiCalls, 0);
+  assert.equal(attention.items[0].due_date, '2026-10-05');
 }
 
 {
