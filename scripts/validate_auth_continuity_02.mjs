@@ -78,7 +78,7 @@ const continuityCss = read('site-auth-continuity.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js?v=20260918-profile3"'));
+assert.ok(index.includes('type="module" src="site-continuity.js?v=20260920-logincta2"'));
 assert.ok(index.includes('href="site-auth-continuity.css"'));
 assert.ok(index.includes('data-auth-state="unauthenticated"'));
 assert.ok(index.includes('class="account-action account-login" href="/auth/start/">로그인</a>'));
@@ -93,7 +93,7 @@ assert.ok(staticAccountActions.includes('>로그인<'), 'initial static header m
 assert.ok(staticAccountActions.includes('>회원가입<'), 'initial static header must expose signup immediately');
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
-assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js"'));
+assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-logincta2"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
