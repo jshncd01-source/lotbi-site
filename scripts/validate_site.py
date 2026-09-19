@@ -32,7 +32,6 @@ REQUIRED_HTML = (
 )
 BRAND_SURFACES = REQUIRED_HTML + (
     "404.html",
-    "auth/start/index.html",
     "auth/callback/index.html",
     "android-auth-test.html",
 )
