@@ -31,7 +31,7 @@ for (const token of [
   "'mobile-keyboard-tight'",
   "keyboardRatio <= 0.84",
   "mobileViewportBaseline * 0.16",
-  "viewport?.height || window.innerHeight",
+  "window.visualViewport?.height || window.innerHeight",
 ]) assert.ok(shell.includes(token), `missing keyboard viewport contract: ${token}`);
 assert.ok(!shell.includes("matchMedia('(max-width: 760px)')"), 'keyboard detection must not be tied to the old phone-width breakpoint');
 
