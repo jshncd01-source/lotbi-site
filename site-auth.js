@@ -1,6 +1,7 @@
 import {SITE_CALLBACK_URI} from './site-core.js?v=20260920-guest3';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
+export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
 export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/auth/site-session-status';
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
@@ -51,33 +52,42 @@ function browserStorage() {
 
 export async function createSiteHandoffContext(pendingText = '', now = Date.now()) {
   if (!globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle || typeof globalThis.btoa !== 'function') {
-    throw new SiteHandoffClientError('이 브라우저에서는 안전한 로그인 연결을 시작할 수 없습니다.', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE');
+    throw new SiteHandoffClientError('이 브라우저에서는 안전한 사이트 로그인 연결을 사용할 수 없습니다.', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE');
   }
-  const state = randomBase64Url(32);
-  const codeVerifier = randomBase64Url(32);
-  const codeChallenge = await s256(codeVerifier);
-  const message = typeof pendingText === 'string' ? pendingText.trim().slice(0, 1000) : '';
-  return Object.freeze({
-    version: 1,
-    state,
-    codeVerifier,
-    codeChallenge,
-    pendingText: message,
-    startedAt: now,
-  });
+  try {
+    const state = randomBase64Url(32);
+    const codeVerifier = randomBase64Url(32);
+    const codeChallenge = await s256(codeVerifier);
+    const message = typeof pendingText === 'string' ? pendingText.trim().slice(0, 1000) : '';
+    return Object.freeze({
+      version: 1,
+      state,
+      codeVerifier,
+      codeChallenge,
+      pendingText: message,
+      startedAt: now,
+    });
+  } catch (error) {
+    if (error instanceof SiteHandoffClientError) throw error;
+    throw new SiteHandoffClientError('이 브라우저에서는 안전한 사이트 로그인 연결을 사용할 수 없습니다.', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE');
+  }
 }
 
 export function storeSiteHandoffContext(context, storage = browserStorage()) {
   if (!context || context.version !== 1 || !STATE_PATTERN.test(context.state) || !VERIFIER_PATTERN.test(context.codeVerifier)) {
     throw new SiteHandoffClientError('로그인 연결 정보를 저장할 수 없습니다.', 'SITE_HANDOFF_CONTEXT_INVALID');
   }
-  storage.setItem(HANDOFF_CONTEXT_KEY, JSON.stringify({
-    version: 1,
-    state: context.state,
-    codeVerifier: context.codeVerifier,
-    pendingText: context.pendingText,
-    startedAt: context.startedAt,
-  }));
+  try {
+    storage.setItem(HANDOFF_CONTEXT_KEY, JSON.stringify({
+      version: 1,
+      state: context.state,
+      codeVerifier: context.codeVerifier,
+      pendingText: context.pendingText,
+      startedAt: context.startedAt,
+    }));
+  } catch {
+    throw new SiteHandoffClientError('브라우저의 임시 로그인 연결 저장소를 사용할 수 없습니다.', 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
+  }
 }
 
 export function readAndClearSiteHandoffContext(returnedState, storage = browserStorage(), now = Date.now()) {
@@ -177,9 +187,23 @@ export async function readAccountSessionStatus(fetchImpl = globalThis.fetch) {
   return payload.authenticated;
 }
 
+export function shouldUseAccountSiteFallback(error) {
+  return error instanceof SiteHandoffClientError
+    && (error.code === 'SITE_HANDOFF_CRYPTO_UNAVAILABLE' || error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
+}
+
 export async function beginSiteHandoff(pendingText = '') {
-  const context = await createSiteHandoffContext(pendingText);
-  storeSiteHandoffContext(context);
+  let context;
+  try {
+    context = await createSiteHandoffContext(pendingText);
+    storeSiteHandoffContext(context);
+  } catch (error) {
+    if (!shouldUseAccountSiteFallback(error)) throw error;
+    recordTiming('account-navigation-fallback');
+    window.location.assign(ACCOUNT_SITE_FALLBACK_URL);
+    return;
+  }
+
   const target = new URL(ACCOUNT_SITE_HANDOFF_URL);
   target.searchParams.set('state', context.state);
   target.searchParams.set('code_challenge', context.codeChallenge);
