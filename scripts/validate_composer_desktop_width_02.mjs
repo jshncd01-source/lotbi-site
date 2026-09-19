@@ -61,7 +61,7 @@ assert.match(
 // renders the LOTBI wordmark separately without widening the 220px sidebar.
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?margin:\s*0\s+10px\s+18px/);
 assert.match(sidebarCss, /\.sidebar-brand\s*\{[\s\S]*?overflow:\s*hidden/);
-assert.match(sidebarCss, /\.sidebar-brand-mascot-crop\s*\{[\s\S]*?width:\s*49px[\s\S]*?height:\s*48px/);
+assert.match(sidebarCss, /\.sidebar-brand-mascot-crop\s*\{[\s\S]*?width:\s*32px[\s\S]*?height:\s*48px/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?width:\s*auto/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?max-width:\s*none/);
 assert.match(sidebarCss, /\.sidebar-brand-logo\s*\{[\s\S]*?height:\s*48px/);
