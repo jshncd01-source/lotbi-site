@@ -141,7 +141,7 @@ function logSafeConversationFailure(error) {
 
 const PRODUCT_MERCHANT_HINTS = Object.freeze([
   ['COUPANG_CONSUMER', /(?:쿠팡|coupang)/iu],
-  ['RAD_GODOMALL', /(?:알에이디|\brad\b|carcare\s*rad|carcarerad)/iu],
+  ['RAD_GODOMALL', /(?:알에이디|\\brad\\b|carcare\\s*rad|carcarerad)/iu],
   ['CAFE24_MCP', /(?:카페24|cafe24)/iu],
   ['SHOPIFY_STOREFRONT', /(?:쇼피파이|shopify)/iu],
 ]);
@@ -250,6 +250,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let richCardActionInFlight = false;
+  let avatarSequence = 0, voiceAvatarRequestId;
+  const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
+  const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
+    detail: Object.freeze({phase, requestId}),
+  }));
   let openSurface, openSurfaceTrigger, surfaceRestoreFocus;
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
@@ -359,7 +364,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       const item = document.createElement('article');
       item.className = 'lotbi-rich-card lotbi-rich-card-product';
       item.dataset.candidateIndex = String(card.candidate_index);
-
       const media = document.createElement('div');
       media.className = 'lotbi-rich-card-media';
       if (card.image_url) {
@@ -371,126 +375,68 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         image.decoding = 'async';
         image.referrerPolicy = 'no-referrer';
         image.addEventListener('error', () => {
-          image.remove();
-          media.classList.add('lotbi-rich-card-placeholder');
-          media.textContent = '이미지 없음';
+          image.remove(); media.classList.add('lotbi-rich-card-placeholder'); media.textContent = '이미지 없음';
         }, {once: true});
         media.appendChild(image);
       } else {
-        media.classList.add('lotbi-rich-card-placeholder');
-        media.textContent = '이미지 없음';
+        media.classList.add('lotbi-rich-card-placeholder'); media.textContent = '이미지 없음';
       }
-
-      const copy = document.createElement('div');
-      copy.className = 'lotbi-rich-card-copy';
-      const source = document.createElement('span');
-      source.className = 'lotbi-rich-card-source';
-      source.textContent = sourceLabel(rich, card);
-      const title = document.createElement('h3');
-      title.className = 'lotbi-rich-card-title';
-      title.textContent = card.title;
-      const price = document.createElement('strong');
-      price.className = 'lotbi-rich-card-price';
-      price.textContent = formatCardMoney(card.price, card.currency);
+      const copy = document.createElement('div'); copy.className = 'lotbi-rich-card-copy';
+      const source = document.createElement('span'); source.className = 'lotbi-rich-card-source'; source.textContent = sourceLabel(rich, card);
+      const title = document.createElement('h3'); title.className = 'lotbi-rich-card-title'; title.textContent = card.title;
+      const price = document.createElement('strong'); price.className = 'lotbi-rich-card-price'; price.textContent = formatCardMoney(card.price, card.currency);
       copy.append(source, title, price);
-
-      const evidence = document.createElement('div');
-      evidence.className = 'lotbi-rich-card-evidence';
+      const evidence = document.createElement('div'); evidence.className = 'lotbi-rich-card-evidence';
       if (typeof card.rating === 'number') {
         const rating = document.createElement('span');
         rating.textContent = '★ ' + card.rating.toFixed(1) + (Number.isInteger(card.review_count) ? ' · 리뷰 ' + new Intl.NumberFormat('ko-KR').format(card.review_count) : '');
         evidence.appendChild(rating);
       }
       if (Number.isInteger(card.shipping_eta_days)) {
-        const eta = document.createElement('span');
-        eta.textContent = '배송 예상 ' + card.shipping_eta_days + '일';
-        evidence.appendChild(eta);
+        const eta = document.createElement('span'); eta.textContent = '배송 예상 ' + card.shipping_eta_days + '일'; evidence.appendChild(eta);
       }
       if (Number.isInteger(card.shipping_fee)) {
-        const fee = document.createElement('span');
-        fee.textContent = card.shipping_fee === 0 ? '배송비 무료' : '배송비 ' + formatCardMoney(card.shipping_fee, card.currency);
-        evidence.appendChild(fee);
+        const fee = document.createElement('span'); fee.textContent = card.shipping_fee === 0 ? '배송비 무료' : '배송비 ' + formatCardMoney(card.shipping_fee, card.currency); evidence.appendChild(fee);
       }
       if (!evidence.childElementCount) {
-        const note = document.createElement('span');
-        note.textContent = '판매처에서 상세 정보 확인';
-        evidence.appendChild(note);
+        const note = document.createElement('span'); note.textContent = '판매처에서 상세 정보 확인'; evidence.appendChild(note);
       }
       copy.appendChild(evidence);
-
-      const actions = document.createElement('div');
-      actions.className = 'lotbi-rich-card-actions';
+      const actions = document.createElement('div'); actions.className = 'lotbi-rich-card-actions';
       if (card.product_url) {
-        const detail = document.createElement('a');
-        detail.className = 'lotbi-rich-card-action';
-        detail.href = card.product_url;
-        detail.target = '_blank';
-        detail.rel = 'noopener noreferrer';
-        detail.referrerPolicy = 'no-referrer';
-        detail.textContent = '상세보기';
-        actions.appendChild(detail);
+        const detail = document.createElement('a'); detail.className = 'lotbi-rich-card-action'; detail.href = card.product_url;
+        detail.target = '_blank'; detail.rel = 'noopener noreferrer'; detail.referrerPolicy = 'no-referrer'; detail.textContent = '상세보기'; actions.appendChild(detail);
       } else {
-        const detail = document.createElement('button');
-        detail.type = 'button';
-        detail.className = 'lotbi-rich-card-action';
-        detail.disabled = true;
-        detail.textContent = '상세보기';
-        detail.title = '공식 상세 링크를 확인할 수 없습니다.';
-        actions.appendChild(detail);
+        const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-rich-card-action'; detail.disabled = true;
+        detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
       }
-
-      const box = document.createElement('button');
-      box.type = 'button';
-      box.className = 'lotbi-rich-card-action';
+      const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
       const syncBoxLabel = () => { box.textContent = isInLotbiBox(rich, card) ? '✓ 롯비함' : '+ 롯비함'; };
       syncBoxLabel();
-      box.addEventListener('click', () => {
-        const added = toggleLotbiBox(rich, card);
-        syncBoxLabel();
-        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
-      });
+      box.addEventListener('click', () => { const added = toggleLotbiBox(rich, card); syncBoxLabel(); setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.'); });
       actions.appendChild(box);
-
-      const buy = document.createElement('button');
-      buy.type = 'button';
-      buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary';
-      buy.textContent = '구매하기';
+      const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
       buy.disabled = rich.expired || card.available === false;
       if (rich.expired) buy.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
       else if (card.available === false) buy.title = '현재 판매 가능 상태가 아닙니다.';
       buy.addEventListener('click', async () => {
         if (richCardActionInFlight || !sessionToken) return;
-        richCardActionInFlight = true;
-        buy.disabled = true;
-        buy.textContent = '확인 중…';
+        richCardActionInFlight = true; buy.disabled = true; buy.textContent = '확인 중…';
         try {
-          const review = await reviewProductCard(sessionToken, {
-            resolutionId: rich.resolutionId,
-            resolutionHash: rich.resolutionHash,
-            candidateIndex: card.candidate_index,
-          });
+          const review = await reviewProductCard(sessionToken, {resolutionId: rich.resolutionId, resolutionHash: rich.resolutionHash, candidateIndex: card.candidate_index});
           const currentPrice = formatCardMoney(review.card.price, review.card.currency);
           const reviewText = review.priceChanged
             ? '판매처의 현재 가격이 바뀌어 ' + currentPrice + '으로 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.'
             : '판매처에서 현재 가격 ' + currentPrice + '과 상품 상태를 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.';
           const meta = {status: 'PURCHASE_REVIEW_REQUIRED', responseMode: 'RICH_PRODUCT_REVIEW'};
-          appendNode(createMessage('assistant', reviewText, meta));
-          appendPersistedMessage({role: 'assistant', text: reviewText, meta});
-          buy.textContent = '구매 검토됨';
-          setStatus('구매 전 최신 상품 정보를 확인했습니다. 결제는 실행하지 않았습니다.');
+          appendNode(createMessage('assistant', reviewText, meta)); appendPersistedMessage({role: 'assistant', text: reviewText, meta});
+          buy.textContent = '구매 검토됨'; setStatus('구매 전 최신 상품 정보를 확인했습니다. 결제는 실행하지 않았습니다.');
         } catch (error) {
-          buy.textContent = '다시 확인';
-          buy.disabled = false;
-          const message = userFacingErrorMessage(error);
-          setStatus(message);
-        } finally {
-          richCardActionInFlight = false;
-        }
+          buy.textContent = '다시 확인'; buy.disabled = false; setStatus(userFacingErrorMessage(error));
+        } finally { richCardActionInFlight = false; }
       });
       actions.appendChild(buy);
-
-      item.append(media, copy, actions);
-      rail.appendChild(item);
+      item.append(media, copy, actions); rail.appendChild(item);
     }
     return rail;
   };
@@ -498,8 +444,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const node = createMessage(message.role, message.text, message.meta || {});
     const rich = compactRichProductMeta(message.meta?.richProduct);
     if (message.role === 'assistant' && rich) {
-      const rail = createProductCardRail(rich);
-      if (rail) node.appendChild(rail);
+      const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
     }
     return node;
   };
@@ -549,7 +494,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    applyPreferences(); renderActiveThread(); renderRecent(); refreshAuthenticatedProfileSlots();
+    applyPreferences(); renderActiveThread(); renderRecent();
+    document.body.dataset.conversationRestore = 'ready';
+    refreshAuthenticatedProfileSlots();
   };
   const profileVisual = () => {
     const visual = document.createElement(preferences.photo ? 'img' : 'span');
@@ -820,14 +767,14 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     try {
       await requestMicrophoneAccess(); const recognition = new SpeechRecognition(); voiceRecognition = recognition;
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
+      recognition.onstart = () => { voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
       recognition.onresult = event => {
         const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || ''; if (!transcript) return;
         const current = prompt.value.trimEnd(); prompt.value = current ? `${current} ${transcript}` : transcript;
         prompt.dispatchEvent(new Event('input', {bubbles: true})); setVoiceFeedback('음성 입력이 텍스트로 변환되었습니다. 확인 후 전송해 주세요.'); prompt.focus();
       };
       recognition.onerror = event => setVoiceFeedback(voiceErrorMessage(event));
-      recognition.onend = () => { setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
+      recognition.onend = () => { if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
       recognition.start();
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
@@ -900,6 +847,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
+    const avatarRequestId = nextAvatarRequestId('turn'); driveAvatar('response-wait', avatarRequestId);
     const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
@@ -913,40 +861,29 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         try {
           const merchantHint = productMerchantHint(message, response.intent);
           const discovery = await searchProductCards(sessionToken, {
-            query: response.intent.product_query,
-            originalText: message,
-            merchantCode: merchantHint.merchantCode,
-            merchantExplicit: merchantHint.merchantExplicit,
-            brand: typeof response.intent.brand === 'string' ? response.intent.brand : '',
+            query: response.intent.product_query, originalText: message, merchantCode: merchantHint.merchantCode,
+            merchantExplicit: merchantHint.merchantExplicit, brand: typeof response.intent.brand === 'string' ? response.intent.brand : '',
             maxPrice: Number.isInteger(response.intent.max_price) ? response.intent.max_price : null,
-            preferences: Array.isArray(response.intent.preferences) ? response.intent.preferences : [],
-            maxResults: 6,
+            preferences: Array.isArray(response.intent.preferences) ? response.intent.preferences : [], maxResults: 6,
           });
           const cards = await getProductCards(sessionToken, discovery.resolutionId);
           richProduct = compactRichProductMeta({
-            resolutionId: cards.resolutionId,
-            resolutionHash: cards.resolutionHash,
-            merchant: discovery.merchant,
-            sourceMode: cards.sourceMode || discovery.sourceMode,
-            expired: cards.expired,
-            cards: cards.cards,
+            resolutionId: cards.resolutionId, resolutionHash: cards.resolutionHash, merchant: discovery.merchant,
+            sourceMode: cards.sourceMode || discovery.sourceMode, expired: cards.expired, cards: cards.cards,
           });
         } catch (cardError) {
-          console.info('[LOTBI rich product cards unavailable]', {
-            code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN',
-          });
+          console.info('[LOTBI rich product cards unavailable]', {code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN'});
         }
       }
       if (richProduct) meta.richProduct = richProduct;
       const assistantNode = createMessage('assistant', response.assistantText, meta);
-      if (richProduct) {
-        const rail = createProductCardRail(richProduct);
-        if (rail) assistantNode.appendChild(rail);
-      }
+      if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
       appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
+      driveAvatar('response-complete', avatarRequestId);
     } catch (caught) {
+      driveAvatar('cancel', avatarRequestId);
       loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
       showError(caught, message, true); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
