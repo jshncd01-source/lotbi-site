@@ -6,14 +6,21 @@
   align-items: center;
   gap: 8px;
   overflow: hidden;
+  text-decoration: none;
+}
+
+.sidebar-brand:hover,
+.sidebar-brand:visited,
+.sidebar-brand:focus-visible {
+  text-decoration: none;
 }
 
 /* Keep the approved mascot pixels exactly; hide only the raster wordmark. */
 .sidebar-brand-mascot-crop {
-  width: 49px;
+  width: 32px;
   height: 48px;
   overflow: hidden;
-  flex: 0 0 49px;
+  flex: 0 0 32px;
 }
 
 .sidebar-brand-logo {
@@ -45,6 +52,7 @@
   font-kerning: normal;
   font-synthesis: weight;
   text-rendering: geometricPrecision;
+  text-decoration: none;
 }
 
 .sidebar-brand-wordmark > span + span {
