@@ -64,7 +64,7 @@ def main() -> int:
         "microphone control": "mic-button",
         "send control": "send-button",
         "conversation thread": 'id="conversation-thread"',
-        "local navigation script": 'src="home-shell.js"',
+        "local navigation script": 'src="home-shell.js?v=20260920-fold5"',
         "approved mobile entry runtime": 'src="mobile-entry.js?v=20260920-homefirst1"',
         "approved 3D Avatar module": 'src="site-avatar.js"',
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
@@ -215,7 +215,7 @@ def main() -> int:
             errors.append("index.html: composer must preserve one-row initial contract")
 
     approved_scripts = (
-        '<script src="home-shell.js" defer></script>',
+        '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
         '<script type="module" src="site-conversation.js?v=20260920-fallback4"></script>',

@@ -252,87 +252,121 @@
 }
 
 
-/* SITE-MOBILE-HOME-UX-STABILITY-01 — compact only the actually visible mobile
-   viewport while a virtual keyboard is open. Desktop and normal mobile remain
-   on their existing layout; the footer is removed from the keyboard viewport. */
-@media (max-width: 760px) {
-  body.mobile-keyboard-open {
-    height: var(--lotbi-mobile-viewport-height, 100dvh);
-    min-height: var(--lotbi-mobile-viewport-height, 100dvh);
-    overflow: hidden;
-    overscroll-behavior-y: none;
-  }
-
-  body.mobile-keyboard-open .chat-app-shell,
-  body.mobile-keyboard-open .chat-home-shell {
-    height: var(--lotbi-mobile-viewport-height, 100dvh);
-    min-height: 0;
-    max-height: var(--lotbi-mobile-viewport-height, 100dvh);
-  }
-
-  body.mobile-keyboard-open .chat-home-shell {
-    overflow: hidden;
-  }
-
-  body.mobile-keyboard-open .chat-topbar {
-    min-height: 56px;
-    flex: 0 0 56px;
-  }
-
-  body.mobile-keyboard-open .chat-hero {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: auto;
-    padding-top: 4px;
-    padding-bottom: max(6px, env(safe-area-inset-bottom));
-    overflow: hidden;
-  }
-
-  body.mobile-keyboard-open .home-avatar-anchor {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  body.mobile-keyboard-open .home-avatar-anchor .chat-character-wrap {
-    width: clamp(82px, 22dvh, 116px);
-    height: clamp(108px, 29dvh, 152px);
-    margin: 0 0 4px;
-  }
-
-  body.mobile-keyboard-open .home-avatar-anchor .chat-character-logo {
-    height: 100%;
-  }
-
-  body.mobile-keyboard-open .conversation-thread {
-    min-height: 0;
-    max-height: none;
-  }
-
-  body.mobile-keyboard-open.conversation-active .conversation-thread {
-    flex: 1 1 auto;
-    margin: 0 0 6px;
-  }
-
-  body.mobile-keyboard-open .chat-composer {
-    flex: 0 0 auto;
-    margin-top: 0;
-    margin-bottom: 0;
-  }
-
-  body.mobile-keyboard-open .chat-input {
-    max-height: min(calc(6lh + 12px), 24dvh);
-  }
-
-  body.mobile-keyboard-open .chat-state-banner {
-    flex: 0 0 auto;
-    margin-top: 4px;
-  }
-
-  body.mobile-keyboard-open .chat-home-footer {
-    display: none !important;
-    content-visibility: hidden;
-  }
+/* SITE-PUBLIC-UX-FOLD-KEYBOARD-05 — keyboard layout follows the actual
+   visible viewport, not a phone-width breakpoint. JS adds the state only for
+   touch/coarse devices after a meaningful viewport-height reduction. */
+body.mobile-keyboard-open {
+  height: var(--lotbi-visible-viewport-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior-y: none;
 }
+
+body.mobile-keyboard-open .chat-app-shell {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--lotbi-visible-viewport-offset-top, 0px);
+  width: 100%;
+  height: var(--lotbi-visible-viewport-height, 100dvh);
+  min-height: 0;
+  max-height: var(--lotbi-visible-viewport-height, 100dvh);
+  overflow: hidden;
+}
+
+body.mobile-keyboard-open .chat-home-shell {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+body.mobile-keyboard-open .chat-topbar {
+  min-height: 56px;
+  flex: 0 0 56px;
+}
+
+body.mobile-keyboard-open .chat-hero {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  padding-top: 4px;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+body.mobile-keyboard-open .home-avatar-anchor {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.mobile-keyboard-open .home-avatar-anchor .chat-character-wrap {
+  width: clamp(76px, 20dvh, 116px);
+  height: clamp(100px, 26dvh, 152px);
+  margin: 0 0 4px;
+}
+
+body.mobile-keyboard-open .home-avatar-anchor .chat-character-logo {
+  height: 100%;
+}
+
+body.mobile-keyboard-tight .home-avatar-anchor {
+  flex: 0 0 0;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+body.mobile-keyboard-open .conversation-thread {
+  min-height: 0;
+  max-height: none;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+  scroll-padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+body.mobile-keyboard-open.conversation-active .conversation-thread {
+  flex: 1 1 auto;
+  margin: 0 0 6px;
+}
+
+body.mobile-keyboard-open .chat-composer {
+  flex: 0 0 auto;
+  margin-top: 0;
+  margin-bottom: 0;
+  max-height: min(46dvh, 280px);
+}
+
+body.mobile-keyboard-open .chat-input {
+  min-height: 44px;
+  max-height: min(calc(6lh + 12px), 24dvh, 140px);
+}
+
+body.mobile-keyboard-open .composer-actions {
+  flex-wrap: nowrap;
+}
+
+body.mobile-keyboard-tight .response-grade-trigger {
+  width: 44px;
+  min-width: 44px;
+  padding-inline: 0;
+  font-size: 0;
+}
+
+body.mobile-keyboard-tight .response-grade-chevron {
+  font-size: 10px;
+}
+
+body.mobile-keyboard-open .chat-state-banner {
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+
+body.mobile-keyboard-open .chat-home-footer {
+  display: none !important;
+  content-visibility: hidden;
+}
+

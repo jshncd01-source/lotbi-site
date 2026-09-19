@@ -82,7 +82,7 @@ def main() -> int:
 
     approved_scripts = (
         '<script type="importmap">',
-        '<script src="home-shell.js" defer></script>',
+        '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-conversation.js?v=20260920-fallback4"></script>',
         '<script type="module" src="site-continuity.js?v=20260920-fallback4"></script>',
@@ -156,7 +156,7 @@ def main() -> int:
         if token not in index:
             errors.append(f"missing conversation state contract: {token}")
 
-    if 'href="site-hardening.css"' not in index:
+    if 'href="site-hardening.css?v=20260920-fold5"' not in index:
         errors.append("hardening stylesheet is not linked after approved home stylesheet")
     if 'href="site-auth-continuity.css"' not in index:
         errors.append("authenticated continuity stylesheet missing from home")
