@@ -70,8 +70,8 @@ def main() -> int:
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
-        "approved conversation module": 'src="site-conversation.js?v=20260920-guest3"',
-        "approved continuity module": 'src="site-continuity.js?v=20260920-logincta2"',
+        "approved conversation module": 'src="site-conversation.js?v=20260920-fallback4"',
+        "approved continuity module": 'src="site-continuity.js?v=20260920-fallback4"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260919-homewordmark5"',
         "anonymous initial auth state": 'data-auth-state="unauthenticated"',
@@ -218,8 +218,8 @@ def main() -> int:
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-guest3"></script>',
-        '<script type="module" src="site-continuity.js?v=20260920-logincta2"></script>',
+        '<script type="module" src="site-conversation.js?v=20260920-fallback4"></script>',
+        '<script type="module" src="site-continuity.js?v=20260920-fallback4"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
         errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")

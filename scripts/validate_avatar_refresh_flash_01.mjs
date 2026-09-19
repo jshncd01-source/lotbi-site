@@ -16,7 +16,7 @@ assert.match(
 );
 assert.match(
   index,
-  /site-conversation\.js\?v=20260920-guest3/,
+  /site-conversation\.js\?v=20260920-fallback4/,
   'hotfix must use a fresh conversation asset cache key',
 );
 
