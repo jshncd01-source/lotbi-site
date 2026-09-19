@@ -19,8 +19,8 @@ function jsonResponse(body, status = 200) {
 
 const readItem = {
   projection_id: 'projection_1',
-  activity_id: 'activity_1',
-  occurrence_id: 'occurrence_1',
+  activity_id: 'activity_0123456789abcdef0123456789abcdef',
+  occurrence_id: 'occurrence_0123456789abcdef0123456789abcdef',
   title: '병원 가기',
   local_date: '2026-09-30',
   local_datetime: '2026-09-30T15:00:00',
@@ -34,8 +34,8 @@ const readItem = {
 };
 
 const mutation = {
-  activity_id: 'activity_1',
-  occurrence_id: 'occurrence_1',
+  activity_id: 'activity_0123456789abcdef0123456789abcdef',
+  occurrence_id: 'occurrence_0123456789abcdef0123456789abcdef',
   title: '병원 가기',
   activity_state: 'ACTIVE',
   activity_revision: 1,
@@ -171,7 +171,7 @@ const mutation = {
     temporal_semantics: 'USER_PLANNED_TIME',
     busy: 'UNKNOWN',
   });
-  assert.equal(result.activityId, 'activity_1');
+  assert.equal(result.activityId, 'activity_0123456789abcdef0123456789abcdef');
   assert.equal(result.providerVerified, false);
   assert.equal(result.readYourWrites, true);
 }
@@ -180,7 +180,7 @@ const mutation = {
   let request;
   await rescheduleLifeActivity(
     'site-token',
-    'activity_1',
+    'activity_0123456789abcdef0123456789abcdef',
     {
       logicalRequestId: 'req.site.calendar.resched01',
       expectedRevision: 1,
@@ -195,7 +195,7 @@ const mutation = {
       return jsonResponse({...mutation, occurrence_revision: 2});
     },
   );
-  assert.equal(request.url, `${CORE_ORIGIN}/v2/life/activities/activity_1`);
+  assert.equal(request.url, `${CORE_ORIGIN}/v2/life/activities/activity_0123456789abcdef0123456789abcdef`);
   assert.equal(request.init.method, 'PATCH');
   assert.deepEqual(JSON.parse(request.init.body), {
     logical_request_id: 'req.site.calendar.resched01',
@@ -212,7 +212,7 @@ const mutation = {
   let request;
   await removeLifeActivity(
     'site-token',
-    'activity_1',
+    'activity_0123456789abcdef0123456789abcdef',
     {
       logicalRequestId: 'req.site.calendar.remove01',
       expectedRevision: 1,
@@ -222,7 +222,7 @@ const mutation = {
       return jsonResponse({...mutation, activity_state: 'REMOVED', activity_revision: 2});
     },
   );
-  assert.equal(request.url, `${CORE_ORIGIN}/v2/life/activities/activity_1/remove`);
+  assert.equal(request.url, `${CORE_ORIGIN}/v2/life/activities/activity_0123456789abcdef0123456789abcdef/remove`);
   assert.equal(request.init.method, 'POST');
   assert.deepEqual(JSON.parse(request.init.body), {
     logical_request_id: 'req.site.calendar.remove01',
