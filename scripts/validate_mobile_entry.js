@@ -87,7 +87,8 @@ function run() {
   const root = '/';
   assert.equal(entry.sanitizeLotbiTarget(root), root);
   assert.equal(entry.buildAppBridgeUrl(root, 'android'), 'https://lotbiai.com/app/open/');
-  assert.equal(entry.buildAppBridgeUrl(root, 'ios'), 'https://lotbiai.com/app/open/');
+  assert.equal(entry.buildAppBridgeUrl(root, 'ios'), 'https://open.lotbiai.com/app/open/');
+  assert.equal(entry.IOS_APP_OPEN_ORIGIN, 'https://open.lotbiai.com');
 
   const original = '/product/123?ref=kakao&qty=2';
   assert.equal(entry.sanitizeLotbiTarget(original), original);
@@ -97,8 +98,8 @@ function run() {
   );
   assert.equal(
     entry.buildAppBridgeUrl(original, 'ios'),
-    'https://lotbiai.com/app/open/product/123?ref=kakao&qty=2',
-    'iOS must use the same chooser-first lotbiai.com /app/open contract',
+    'https://open.lotbiai.com/app/open/product/123?ref=kakao&qty=2',
+    'iOS Safari chooser must use the dedicated cross-subdomain Universal Link bridge',
   );
   assert.equal(entry.targetFromAppBridge('/app/open/product/123', '?ref=kakao&qty=2'), original);
 
@@ -162,7 +163,8 @@ function run() {
   assert.ok(source.includes('LOTBI 앱을 열지 못했어요'), 'failed native takeover must render a safe web fallback');
   assert.ok(!source.includes('앱 연결 검증이 완료될 때까지 준비 중입니다.'), 'stale globally-disabled readiness notice must be removed');
   assert.ok(source.includes('앱이 열리지 않으면 외부 브라우저에서 열어 주세요.'));
-  assert.ok(!source.includes('open.lotbiai.com'), 'bridge must not bypass the fixed lotbiai.com /app/open contract');
+  assert.ok(source.includes('https://open.lotbiai.com'), 'iOS Safari bridge must use the dedicated app-open subdomain');
+  assert.ok(source.includes("platform === 'ios' ? IOS_APP_OPEN_ORIGIN : LOTBI_ORIGIN"), 'Android and iOS bridge origins must remain platform-scoped');
   assert.ok(!source.includes('atglife://product/'), 'must not introduce legacy scheme navigation');
 
   const androidAssociationPath = path.join(ROOT, '.well-known', 'assetlinks.json');

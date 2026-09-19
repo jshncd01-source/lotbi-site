@@ -3,6 +3,7 @@
 
   const LOTBI_ORIGIN = 'https://lotbiai.com';
   const LOTBI_HOST = 'lotbiai.com';
+  const IOS_APP_OPEN_ORIGIN = 'https://open.lotbiai.com';
   const APP_BRIDGE_PREFIX = '/app/open';
   const WEB_BYPASS_PARAM = '__lotbi_web';
   const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
@@ -122,11 +123,12 @@
     return `${raw.pathname || '/'}${stripInternalBypass(raw.search)}`;
   }
 
-  function buildAppBridgeUrl(target, _platform) {
+  function buildAppBridgeUrl(target, platform) {
     const safeTarget = sanitizeLotbiTarget(target);
     const raw = rawTargetParts(safeTarget);
     const bridgePath = `${APP_BRIDGE_PREFIX}${raw.pathname === '/' ? '/' : raw.pathname}${raw.search}`;
-    return `${LOTBI_ORIGIN}${bridgePath}`;
+    const bridgeOrigin = platform === 'ios' ? IOS_APP_OPEN_ORIGIN : LOTBI_ORIGIN;
+    return `${bridgeOrigin}${bridgePath}`;
   }
 
   function targetFromAppBridge(pathname, search) {
@@ -305,6 +307,7 @@
   const api = {
     LOTBI_ORIGIN,
     LOTBI_HOST,
+    IOS_APP_OPEN_ORIGIN,
     APP_BRIDGE_PREFIX,
     WEB_BYPASS_PARAM,
     WEB_CHOICE_TTL_MS,
