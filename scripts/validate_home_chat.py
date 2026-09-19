@@ -65,7 +65,7 @@ def main() -> int:
         "send control": "send-button",
         "conversation thread": 'id="conversation-thread"',
         "local navigation script": 'src="home-shell.js"',
-        "approved mobile chooser": 'src="mobile-entry.js"',
+        "approved mobile entry runtime": 'src="mobile-entry.js?v=20260920-homefirst1"',
         "approved 3D Avatar module": 'src="site-avatar.js"',
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
@@ -211,7 +211,7 @@ def main() -> int:
 
     approved_scripts = (
         '<script src="home-shell.js" defer></script>',
-        '<script src="mobile-entry.js" defer></script>',
+        '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
         '<script type="module" src="site-conversation.js?v=20260918-grade1"></script>',
         '<script type="module" src="site-continuity.js?v=20260918-profile3"></script>',
