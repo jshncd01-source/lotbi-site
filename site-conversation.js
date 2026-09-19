@@ -276,15 +276,20 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const showBlankHome = () => {
     restoreAvatarHome(); thread.replaceChildren(); thread.hidden = true; document.body.classList.remove('conversation-active');
   };
+  const isThreadNearBottom = () => (
+    thread.scrollHeight - thread.scrollTop - thread.clientHeight <= 72
+  );
   const scrollThread = () => { thread.scrollTop = thread.scrollHeight; };
-  const appendNode = node => {
+  const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
+    const shouldStick = forceScroll || (!suppressScroll && isThreadNearBottom());
     showThread();
     if (node instanceof HTMLElement && node.dataset.role === 'assistant') {
       const row = document.createElement('div'); row.className = 'chat-assistant-row';
       const slot = document.createElement('div'); slot.className = 'assistant-avatar-slot'; slot.setAttribute('aria-hidden', 'true');
       slot.appendChild(avatar); row.append(slot, node); thread.appendChild(row);
     } else thread.appendChild(node);
-    scrollThread(); return node;
+    if (!suppressScroll && shouldStick) scrollThread();
+    return node;
   };
   const renderRecent = () => {
     for (const list of document.querySelectorAll('[data-recent-conversations]')) {
@@ -309,8 +314,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     restoreAvatarHome(); thread.replaceChildren();
     const record = threadRecord();
     if (!record || !record.messages.length) { showBlankHome(); return; }
-    for (const message of record.messages) appendNode(createMessage(message.role, message.text, message.meta || {}));
     showThread();
+    for (const message of record.messages) {
+      appendNode(createMessage(message.role, message.text, message.meta || {}), {suppressScroll: true});
+    }
+    scrollThread();
   };
   const closeMobileDrawer = () => {
     const close = document.querySelector('[data-mobile-nav-close]');
@@ -662,7 +670,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     ensureThread(message);
     if (appendUserMessage) {
-      appendNode(createMessage('user', message)); appendPersistedMessage({role: 'user', text: message, meta: {}});
+      appendNode(createMessage('user', message), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {}});
     }
     const local = deterministicReply(message);
     if (local) {
@@ -752,6 +760,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       showError(caught, message, true); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
   };
+  window.addEventListener('lotbi:keyboard-viewport', () => {
+    if (!thread.hidden && isThreadNearBottom()) {
+      requestAnimationFrame(scrollThread);
+    }
+  });
+
   const submitCurrentPrompt = async () => {
     if (inFlight) return; const message = prompt.value.trim(); if (!message) return;
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
