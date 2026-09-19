@@ -24,7 +24,7 @@ for (const general of ['대통령이 누구야', '전주 혁신도시 삼겹살�
 
 const localBranch = conversation.indexOf('const local = deterministicReply(message)');
 const authBranch = conversation.indexOf('if (!sessionToken)', localBranch);
-const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message)', authBranch);
+const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message, {idempotencyKey: stableLogicalRequestId})', authBranch);
 assert.ok(localBranch > 0 && authBranch > localBranch && coreCall > authBranch, 'deterministic routing must precede auth/Core');
 assert.ok(conversation.includes("recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0})"));
 assert.ok(conversation.includes("lastPath = 'LOCAL_DETERMINISTIC'"));
