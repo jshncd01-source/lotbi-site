@@ -1,4 +1,4 @@
-import {beginSiteHandoff, readAccountSessionStatus} from './site-auth.js';
+import {beginSiteHandoff, readAccountSessionStatus} from './site-auth.js?v=20260920-fallback4';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
