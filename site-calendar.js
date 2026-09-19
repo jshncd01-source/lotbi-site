@@ -3,7 +3,7 @@ import {CORE_ORIGIN, SiteCoreError} from './site-core.js';
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)+$/;
+const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 
 function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
@@ -121,6 +121,21 @@ function assertReadResponse(payload, expectedView) {
     || !Array.isArray(payload.items)
     || payload.ai_calls !== 0
     || payload.provider_api_calls !== 0
+    || payload.items.some(item => (
+      !item
+      || typeof item !== 'object'
+      || typeof item.projection_id !== 'string'
+      || typeof item.activity_id !== 'string'
+      || typeof item.occurrence_id !== 'string'
+      || typeof item.title !== 'string'
+      || typeof item.local_date !== 'string'
+      || (item.local_datetime !== null && typeof item.local_datetime !== 'string')
+      || item.confirmation_level !== 'USER_ATTESTED'
+      || item.provider_verified !== false
+      || item.source_kind !== 'USER_INPUT'
+      || !Array.isArray(item.allowed_actions)
+      || item.allowed_actions.some(action => action !== 'UPDATE' && action !== 'REMOVE')
+    ))
   ) {
     throw new SiteCoreError('LOTBI 일정 조회 응답 형식이 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
   }
