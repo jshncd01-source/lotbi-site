@@ -70,6 +70,8 @@ const auth = read('site-auth.js');
 const continuity = read('site-continuity.js');
 const callback = read('auth-callback.js');
 const callbackHtml = read('auth/callback/index.html');
+const authStart = read('auth-start.js');
+const authStartHtml = read('auth/start/index.html');
 const core = read('site-core.js');
 const conversation = read('site-conversation.js');
 const continuityCss = read('site-auth-continuity.css');
@@ -92,6 +94,17 @@ assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
+
+assert.ok(authStartHtml.includes('id="auth-start-error-shell"'));
+assert.ok(authStartHtml.includes('aria-labelledby="auth-start-error-title" hidden'));
+assert.ok(!authStartHtml.includes('LOTBI 연결 중'), 'fallback normal path must not expose a loading title');
+assert.ok(!authStartHtml.includes('안전한 계정 연결을 시작하고 있습니다.'), 'removed interstitial copy must not remain in fallback markup');
+assert.ok(!authStartHtml.includes('rel="stylesheet"'), 'fallback redirect must not block on Site stylesheets');
+assert.ok(!authStartHtml.includes('<img'), 'fallback redirect must not fetch render-only logo imagery');
+assert.ok(authStart.includes('void beginSiteHandoff().catch(setError);'));
+assert.ok(authStart.includes('errorShell.hidden = false'));
+assert.ok(authStart.includes('retryLink.hidden = false'));
+assert.ok(authStart.includes("statusNode.textContent = '로그인을 시작하지 못했습니다. 브라우저 설정을 확인한 후 다시 시도해 주세요.'"));
 
 // SITE-SIDEBAR-LOGO-AUTH-HYDRATE-REGRESSION-03 — auth callback transplants
 // the complete home body into the callback document. Every home stylesheet must
@@ -140,12 +153,28 @@ for (const token of [
   "account.setAttribute('aria-haspopup', 'menu')",
   "const LOGIN_URL = '/auth/start/'",
   'login.href = LOGIN_URL',
+  'installDirectLoginHandoff',
+  "link.addEventListener('click'",
+  "recordTiming('login-click'",
+  'window.location.assign(LOGIN_URL)',
   'scheduleExpiry',
   'if (!authenticated)',
   'await beginSiteHandoff()',
 ]) {
   assert.ok(continuity.includes(token), `missing continuity contract: ${token}`);
 }
+
+assert.equal((continuity.match(/installDirectLoginHandoff\(/g) || []).length, 3, 'one direct-login helper plus header/sidebar bindings are required');
+assert.ok(continuity.includes('const login = installDirectLoginHandoff(sidebarAccountLink({'), 'sidebar login must use direct handoff');
+assert.ok(continuity.includes('installDirectLoginHandoff(login);'), 'header login must use direct handoff');
+const directStart = continuity.indexOf('function installDirectLoginHandoff(link)');
+const directEnd = continuity.indexOf('\nfunction rootLocation()', directStart);
+const directBody = continuity.slice(directStart, directEnd);
+assert.ok(directBody.indexOf('event.preventDefault();') < directBody.indexOf('if (redirecting) return;'), 'normal direct click must cancel /auth/start/ navigation before duplicate guard');
+assert.ok(directBody.indexOf('redirecting = true;') < directBody.indexOf('void beginSiteHandoff()'), 'duplicate guard must engage before handoff creation');
+assert.ok(directBody.includes('document.body.dataset.siteAuthState === AUTH_STATE_AUTHENTICATED'), 'authenticated stale sidebar recovery must remain available');
+assert.ok(conversation.includes('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]'), 'authenticated stale sidebar login self-heal selector must remain intact');
+assert.ok(auth.includes("recordTiming('account-navigation-start')"), 'handoff must mark cross-origin Account navigation start');
 
 const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity()');
 const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStart);
@@ -157,6 +186,7 @@ assert.ok(continuity.includes('Math.min(delay, 2_147_000_000)'), 'the sole timer
 for (const forbiddenDelay of ['sleep(', 'retryDelay', 'AUTH_DELAY', '5000)', '5_000']) {
   assert.ok(!continuity.includes(forbiddenDelay), `fixed auth delay is forbidden: ${forbiddenDelay}`);
   assert.ok(!callback.includes(forbiddenDelay), `fixed callback delay is forbidden: ${forbiddenDelay}`);
+  assert.ok(!authStart.includes(forbiddenDelay), `fixed fallback delay is forbidden: ${forbiddenDelay}`);
 }
 
 assert.ok(continuityCss.includes('min-width: 174px'));
