@@ -8,6 +8,14 @@ export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
 const STATE_PATTERN = /^[\x21-\x7e]{16,256}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 
+function recordTiming(name) {
+  try {
+    globalThis.performance?.mark?.(`lotbi-auth:${name}`);
+  } catch {
+    // Timing evidence is diagnostic-only and must never affect authentication.
+  }
+}
+
 export class SiteHandoffClientError extends Error {
   constructor(message, code = 'SITE_HANDOFF_CLIENT_ERROR') {
     super(message);
@@ -175,6 +183,7 @@ export async function beginSiteHandoff(pendingText = '') {
   const target = new URL(ACCOUNT_SITE_HANDOFF_URL);
   target.searchParams.set('state', context.state);
   target.searchParams.set('code_challenge', context.codeChallenge);
+  recordTiming('account-navigation-start');
   window.location.assign(target.toString());
 }
 
