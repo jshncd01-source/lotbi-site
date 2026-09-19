@@ -49,13 +49,14 @@ function run() {
   assert.equal(entry.isKakaoInAppBrowser(UA.kakaoAndroid), true);
   assert.equal(entry.isKakaoInAppBrowser(UA.kakaoIphone), true);
 
-  assert.equal(chooser('GET', '/', UA.androidChrome), true, 'Android root must show chooser');
-  assert.equal(chooser('GET', '/product/123', UA.androidChrome), true, 'Android subpath must show chooser');
-  assert.equal(chooser('GET', '/', UA.iphoneSafari), true, 'iPhone root must show chooser');
-  assert.equal(chooser('GET', '/product/123', UA.iphoneSafari), true, 'iPhone subpath must show chooser');
-  assert.equal(chooser('GET', '/', UA.samsungInternet), true, 'Samsung Internet must show chooser');
-  assert.equal(chooser('GET', '/', UA.kakaoAndroid), true, 'Kakao Android must show chooser');
-  assert.equal(chooser('GET', '/', UA.kakaoIphone), true, 'Kakao iPhone must show chooser');
+  assert.equal(entry.LOTBI_AUTO_CHOOSER_ENABLED, false, 'normal mobile navigation must be Home-first');
+  assert.equal(chooser('GET', '/', UA.androidChrome), false, 'Android root must open Home directly');
+  assert.equal(chooser('GET', '/product/123', UA.androidChrome), false, 'Android subpath must open web directly');
+  assert.equal(chooser('GET', '/', UA.iphoneSafari), false, 'iPhone root must open Home directly');
+  assert.equal(chooser('GET', '/product/123', UA.iphoneSafari), false, 'iPhone subpath must open web directly');
+  assert.equal(chooser('GET', '/', UA.samsungInternet), false, 'Samsung Internet must open Home directly');
+  assert.equal(chooser('GET', '/', UA.kakaoAndroid), false, 'Kakao Android must open web directly');
+  assert.equal(chooser('GET', '/', UA.kakaoIphone), false, 'Kakao iPhone must open web directly');
   assert.equal(chooser('GET', '/', UA.desktopChrome), false, 'desktop must bypass chooser');
   assert.equal(chooser('GET', '/', UA.androidChrome, 'account.lotbiai.com'), false, 'account host must bypass chooser');
 
@@ -142,7 +143,7 @@ function run() {
   assert.equal(entry.hasFreshWebChoice(fresh, now), true, 'fresh web choice must suppress chooser');
   assert.equal(entry.hasFreshWebChoice(stale, now), false, 'expired web choice must not suppress chooser');
 
-  assert.equal(entry.LOTBI_APP_LINK_READY, true, 'chooser CTA must be enabled with a safe /app/open web fallback');
+  assert.equal(entry.LOTBI_APP_LINK_READY, true, 'explicit /app/open bridge must remain enabled with a safe web fallback');
   assert.equal(entry.LOTBI_ANDROID_APP_LINK_READY, true, 'Android native takeover must be enabled only with the approved release association');
   assert.equal(entry.LOTBI_IOS_APP_LINK_READY, false, 'iOS native takeover must remain pending until Production AASA/device verification');
   assert.equal(entry.LOTBI_ANDROID_STORE_URL, null, 'must not invent Play Store listing');
@@ -204,7 +205,7 @@ function run() {
     assert.ok(html.includes('mobile-entry.js'), `${page} must load mobile chooser runtime`);
   }
 
-  console.log('MOBILE ENTRY VALIDATION PASS — official logo, enabled chooser CTA, Android release association, exact same-origin /app/open target preservation, safe web fallback, platform boundaries and redirect protections verified.');
+  console.log('MOBILE HOME-FIRST VALIDATION PASS — automatic mobile chooser disabled; explicit same-origin /app/open bridge, Android release association, safe web fallback, platform boundaries and redirect protections preserved.');
 }
 
 run();

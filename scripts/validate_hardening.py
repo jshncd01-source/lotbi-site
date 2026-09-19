@@ -83,7 +83,7 @@ def main() -> int:
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js" defer></script>',
-        '<script src="mobile-entry.js" defer></script>',
+        '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-conversation.js?v=20260918-grade1"></script>',
         '<script type="module" src="site-continuity.js?v=20260918-profile3"></script>',
         '<script type="module" src="site-avatar.js"></script>',
