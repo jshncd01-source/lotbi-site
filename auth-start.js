@@ -1,19 +1,17 @@
-import {beginSiteHandoff, SiteHandoffClientError} from './site-auth.js';
+import {beginSiteHandoff} from './site-auth.js';
 
+const errorShell = document.getElementById('auth-start-error-shell');
 const statusNode = document.getElementById('auth-start-status');
 const retryLink = document.getElementById('auth-start-retry');
 
-function setError(error) {
+function setError() {
   if (statusNode) {
-    statusNode.textContent = error instanceof SiteHandoffClientError || error instanceof Error
-      ? error.message
-      : '안전한 LOTBI 계정 연결을 시작하지 못했습니다.';
-    statusNode.classList.add('auth-callback-error');
+    statusNode.textContent = '로그인을 시작하지 못했습니다. 브라우저 설정을 확인한 후 다시 시도해 주세요.';
   }
   if (retryLink) retryLink.hidden = false;
+  if (errorShell) errorShell.hidden = false;
 }
 
-// This page deliberately owns no returnUrl or bearer state. The Site origin
-// creates PKCE S256 state/verifier, then Account uses its host-only HttpOnly
-// FULL session to request the one-time Core handoff.
+// Fallback-only route. Normal Home login starts the same PKCE S256 handoff
+// directly from the Home document and never loads this page.
 void beginSiteHandoff().catch(setError);
