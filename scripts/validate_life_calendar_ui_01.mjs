@@ -99,7 +99,7 @@ const css = read('site-calendar.css');
 
 assert.ok(index.includes('href="site-calendar.css"'));
 assert.ok(index.includes('data-life-calendar-panel'));
-assert.ok(index.includes('data-calendar-enabled="false"'));
+assert.ok(index.includes('data-calendar-enabled="true"'));
 assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
 assert.ok(callback.includes('href="/site-calendar.css"'));
 const callbackJs = read('auth-callback.js');
@@ -119,6 +119,8 @@ assert.ok(ui.includes("'오늘 등록된 일정이 없어요.'"));
 assert.ok(ui.includes("'앞으로 7일간 등록된 일정이 없어요.'"));
 assert.ok(ui.includes("detail?.authenticated === false"));
 assert.ok(ui.includes("root.dataset.calendarEnabled !== 'true'"));
+assert.ok(ui.includes("removeLifeActivity(context.sessionToken"));
+assert.ok(ui.includes("rescheduleLifeActivity(context.sessionToken"));
 assert.ok(ui.includes('return mountLifeCalendar({...options, root});'));
 assert.ok(css.includes('[data-life-calendar-panel][hidden]'));
 assert.ok(css.includes('.life-calendar-panel'));

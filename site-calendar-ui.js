@@ -1,4 +1,4 @@
-import {getLifeAttention, getLifeToday, getLifeUpcoming} from './site-calendar.js';
+import {getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js';
 import {SiteCoreError} from './site-core.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -50,7 +50,11 @@ function displayTime(item) {
   return '종일';
 }
 
-function itemNode(item) {
+function mutationRequestId(kind) {
+  return `site.calendar.${kind}.${globalThis.crypto?.randomUUID?.() || Date.now()}`;
+}
+
+function itemNode(item, context) {
   const li = document.createElement('li');
   li.className = 'life-calendar-item';
   li.dataset.activityId = item.activity_id;
@@ -74,10 +78,37 @@ function itemNode(item) {
 
   copy.append(title, meta);
   li.append(time, copy);
+  if (context && Number.isInteger(item.activity_revision) && Number.isInteger(item.occurrence_revision)) {
+    const actions = document.createElement('span'); actions.className = 'life-calendar-item-actions';
+    const reschedule = document.createElement('button'); reschedule.type = 'button'; reschedule.textContent = '시간 변경';
+    reschedule.addEventListener('click', async () => {
+      const next = globalThis.prompt?.('새 날짜와 시간을 입력해 주세요. (YYYY-MM-DDTHH:MM)', item.local_datetime?.slice(0, 16) || '');
+      if (!next) return;
+      reschedule.disabled = true;
+      try {
+        await rescheduleLifeActivity(context.sessionToken, item.activity_id, {
+          logicalRequestId: mutationRequestId('reschedule'), expectedRevision: item.occurrence_revision,
+          temporal: {kind: 'LOCAL_DATE_TIME', local_datetime: next, timezone_name: context.timezone},
+        });
+        await context.refresh();
+      } finally { reschedule.disabled = false; }
+    });
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '일정에서 제거';
+    remove.addEventListener('click', async () => {
+      remove.disabled = true;
+      try {
+        await removeLifeActivity(context.sessionToken, item.activity_id, {
+          logicalRequestId: mutationRequestId('remove'), expectedRevision: item.activity_revision,
+        });
+        await context.refresh();
+      } finally { remove.disabled = false; }
+    });
+    actions.append(reschedule, remove); li.appendChild(actions);
+  }
   return li;
 }
 
-function sectionNode(titleText, items, emptyText) {
+function sectionNode(titleText, items, emptyText, context) {
   const section = document.createElement('section');
   section.className = 'life-calendar-group';
 
@@ -96,7 +127,7 @@ function sectionNode(titleText, items, emptyText) {
 
   const list = document.createElement('ul');
   list.className = 'life-calendar-list';
-  for (const item of items) list.appendChild(itemNode(item));
+  for (const item of items) list.appendChild(itemNode(item, context));
   section.appendChild(list);
   return section;
 }
@@ -156,18 +187,24 @@ export async function mountLifeCalendar({
   body.appendChild(loading);
   root.replaceChildren(heading, body);
 
-  try {
+  const refresh = async () => {
     const snapshot = await loadLifeCalendarSnapshot(sessionToken, {timezone, now, fetchImpl});
+    const context = {sessionToken, timezone, refresh};
     body.replaceChildren(
-      sectionNode('오늘', snapshot.today.items, '오늘 등록된 일정이 없어요.'),
-      sectionNode('예정', snapshot.upcoming.items, '앞으로 7일간 등록된 일정이 없어요.'),
+      sectionNode('오늘', snapshot.today.items, '오늘 등록된 일정이 없어요.', context),
+      sectionNode('예정', snapshot.upcoming.items, '앞으로 7일간 등록된 일정이 없어요.', context),
       sectionNode('주의 필요', snapshot.attention.items.map(item => ({
         ...item,
         local_datetime: null,
         title: item.title,
-      })), '주의가 필요한 마감 일정이 없어요.'),
+      })), '주의가 필요한 마감 일정이 없어요.', context),
     );
     root.dataset.calendarState = 'ready';
+  };
+  window.addEventListener('lotbi:life-calendar-refresh', () => { void refresh(); });
+
+  try {
+    await refresh();
   } catch (error) {
     body.replaceChildren();
     const message = document.createElement('p');

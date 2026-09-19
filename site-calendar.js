@@ -132,6 +132,8 @@ function assertReadResponse(payload, expectedView) {
       || typeof item.occurrence_id !== 'string'
       || !OCCURRENCE_ID_PATTERN.test(item.occurrence_id)
       || typeof item.title !== 'string'
+      || !Number.isInteger(item.activity_revision)
+      || !Number.isInteger(item.occurrence_revision)
       || typeof item.local_date !== 'string'
       || (item.local_datetime !== null && typeof item.local_datetime !== 'string')
       || item.confirmation_level !== 'USER_ATTESTED'
@@ -226,6 +228,34 @@ function assertMutationResponse(payload) {
     providerVerified: false,
     readYourWrites: true,
   });
+}
+
+function assertCommandResponse(payload) {
+  if (
+    !payload
+    || typeof payload.assistant_text !== 'string'
+    || payload.parser_type !== 'DETERMINISTIC_KO_EXPLICIT_ACTIVITY_V1'
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+    || payload.confirmation_level !== 'USER_ATTESTED'
+  ) {
+    throw new SiteCoreError('LOTBI 일정 명령 응답 형식이 올바르지 않습니다.', {code: 'LIFE_COMMAND_CONTRACT_INVALID'});
+  }
+  return Object.freeze({activity: assertMutationResponse(payload.activity), assistantText: payload.assistant_text, parserType: payload.parser_type, aiCalls: 0, providerApiCalls: 0});
+}
+
+export function isExplicitLifeCalendarCommand(text) {
+  return /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/.test(String(text || ''));
+}
+
+export async function executeLifeCalendarCommand(sessionToken, {logicalRequestId: requestId, text, timezone}, fetchImpl = globalThis.fetch) {
+  const commandText = typeof text === 'string' ? text.trim() : '';
+  if (!commandText || commandText.length > 1000) throw new SiteCoreError('일정 명령이 올바르지 않습니다.', {code: 'LIFE_COMMAND_INPUT_INVALID', status: 422});
+  const payload = await calendarRequest('/v2/life/commands', sessionToken, {
+    method: 'POST',
+    body: {logical_request_id: logicalRequestId(requestId), text: commandText, timezone: timezoneName(timezone)},
+  }, fetchImpl);
+  return assertCommandResponse(payload);
 }
 
 export async function getLifeToday(sessionToken, timezone, fetchImpl = globalThis.fetch) {
