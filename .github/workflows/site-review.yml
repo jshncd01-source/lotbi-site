@@ -62,6 +62,9 @@ jobs:
       - name: Validate mobile Home keyboard and Avatar stability
         run: node scripts/validate_mobile_home_ux_stability_01.mjs
 
+      - name: Validate persisted conversation Avatar first-paint restore
+        run: node scripts/validate_avatar_refresh_flash_01.mjs
+
       - name: Validate sealed 3D Avatar Site integration
         run: node scripts/validate_site_avatar_integration.mjs
 

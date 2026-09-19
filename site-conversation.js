@@ -294,7 +294,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    applyPreferences(); renderActiveThread(); renderRecent(); refreshAuthenticatedProfileSlots();
+    applyPreferences(); renderActiveThread(); renderRecent();
+    document.body.dataset.conversationRestore = 'ready';
+    refreshAuthenticatedProfileSlots();
   };
   const profileVisual = () => {
     const visual = document.createElement(preferences.photo ? 'img' : 'span');
