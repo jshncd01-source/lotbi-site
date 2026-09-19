@@ -1,4 +1,4 @@
-import {beginSiteHandoff} from './site-auth.js';
+import {beginSiteHandoff} from './site-auth.js?v=20260920-fallback4';
 import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, logoutSiteSession, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-guest3';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
