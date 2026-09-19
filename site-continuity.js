@@ -248,7 +248,7 @@ function scheduleExpiry(expiresAt) {
   expiryTimer = setTimeout(() => {
     siteSessionActive = false;
     siteSessionExpiresAt = 0;
-    markCheckingAccountUi('계정 상태 다시 확인 중');
+    markAnonymousAccountUi();
     void synchronizeAccountContinuity();
   }, Math.min(delay, 2_147_000_000));
 }
@@ -261,7 +261,7 @@ function hasLiveSiteSession() {
 export async function synchronizeAccountContinuity() {
   if (!rootLocation() || checking || redirecting) return;
   checking = true;
-  markCheckingAccountUi();
+  if (!hasLiveSiteSession()) markAnonymousAccountUi();
   const statusStartedAt = performanceNow();
   try {
     const authenticated = await readAccountSessionStatus();
@@ -298,9 +298,10 @@ export async function synchronizeAccountContinuity() {
     recordTiming('account-status-error', {
       durationMs: Math.round(Math.max(0, performanceNow() - statusStartedAt)),
     });
-    // Fail closed without lying about logout or login. A transient Account/Core
-    // verification failure remains neutral until a later explicit recheck.
-    markCheckingAccountUi('계정 상태를 확인하지 못했습니다. 다시 확인 중입니다.');
+    // The anonymous CTA is the safe default: a transient Account/Core failure
+    // must never hide login/signup or leave the account slot as a placeholder.
+    redirecting = false;
+    markAnonymousAccountUi();
   } finally {
     checking = false;
   }
@@ -326,7 +327,7 @@ function handleSiteSessionState(event) {
     markAnonymousAccountUi();
     return;
   }
-  markCheckingAccountUi('계정 상태 다시 확인 중');
+  markAnonymousAccountUi();
   if (rootLocation()) void synchronizeAccountContinuity();
 }
 

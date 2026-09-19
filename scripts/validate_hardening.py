@@ -73,19 +73,19 @@ def main() -> int:
     if not initial_account:
         errors.append("initial account-actions markup missing")
     else:
-        for forbidden in (">로그인<", ">회원가입<", ">내 계정<"):
-            if forbidden in initial_account:
-                errors.append(f"initial account state must remain neutral before authoritative verification: {forbidden}")
-        for required in ('data-auth-state="checking"', 'aria-busy="true"', 'account-auth-placeholder'):
+        for required in (">로그인<", ">회원가입<", 'data-auth-state="unauthenticated"', 'href="/auth/start/"', 'href="https://account.lotbiai.com/signup"'):
             if required not in initial_account:
-                errors.append(f"neutral initial account state missing: {required}")
+                errors.append(f"anonymous-first initial account state missing: {required}")
+        for forbidden in (">내 계정<", ">프로필<", 'data-auth-state="checking"', 'aria-busy="true"', 'account-auth-placeholder'):
+            if forbidden in initial_account:
+                errors.append(f"initial anonymous account state exposes blocked/authenticated UI: {forbidden}")
 
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-conversation.js?v=20260920-avatarv5prod1"></script>',
-        '<script type="module" src="site-continuity.js?v=20260918-profile3"></script>',
+        '<script type="module" src="site-continuity.js?v=20260920-logincta2"></script>',
         '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
@@ -164,7 +164,7 @@ def main() -> int:
         errors.append("mobile chooser stylesheet missing from home")
     if 'src="site-conversation.js?v=20260920-avatarv5prod1"' not in index:
         errors.append("approved conversation module missing from home")
-    if 'src="site-continuity.js?v=20260918-profile3"' not in index:
+    if 'src="site-continuity.js?v=20260920-logincta2"' not in index:
         errors.append("approved authenticated continuity module missing from home")
 
     for token in (
@@ -210,7 +210,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("PUBLIC HARDENING VALIDATION PASS — locked content, neutral initial auth state, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
+    print("PUBLIC HARDENING VALIDATION PASS — locked content, anonymous-first initial auth state, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
     return 0
 
 
