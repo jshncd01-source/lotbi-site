@@ -2,6 +2,8 @@ import {CORE_ORIGIN, SiteCoreError} from './site-core.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
+const ACTIVITY_ID_PATTERN = /^activity_[0-9a-f]{32}$/;
+const OCCURRENCE_ID_PATTERN = /^occurrence_[0-9a-f]{32}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 
@@ -126,7 +128,9 @@ function assertReadResponse(payload, expectedView) {
       || typeof item !== 'object'
       || typeof item.projection_id !== 'string'
       || typeof item.activity_id !== 'string'
+      || !ACTIVITY_ID_PATTERN.test(item.activity_id)
       || typeof item.occurrence_id !== 'string'
+      || !OCCURRENCE_ID_PATTERN.test(item.occurrence_id)
       || typeof item.title !== 'string'
       || typeof item.local_date !== 'string'
       || (item.local_datetime !== null && typeof item.local_datetime !== 'string')
@@ -154,7 +158,9 @@ function assertMutationResponse(payload) {
   if (
     !payload
     || typeof payload.activity_id !== 'string'
+    || !ACTIVITY_ID_PATTERN.test(payload.activity_id)
     || typeof payload.occurrence_id !== 'string'
+    || !OCCURRENCE_ID_PATTERN.test(payload.occurrence_id)
     || typeof payload.title !== 'string'
     || !Number.isInteger(payload.activity_revision)
     || !Number.isInteger(payload.occurrence_revision)
@@ -252,7 +258,7 @@ export async function rescheduleLifeActivity(
   fetchImpl = globalThis.fetch,
 ) {
   const id = typeof activityId === 'string' ? activityId.trim() : '';
-  if (!id || !Number.isInteger(expectedRevision) || expectedRevision < 1 || !temporal || typeof temporal !== 'object') {
+  if (!ACTIVITY_ID_PATTERN.test(id) || !Number.isInteger(expectedRevision) || expectedRevision < 1 || !temporal || typeof temporal !== 'object') {
     throw new SiteCoreError('일정 변경값이 올바르지 않습니다.', {code: 'LIFE_RESCHEDULE_INPUT_INVALID', status: 422});
   }
   const payload = await calendarRequest(
@@ -278,7 +284,7 @@ export async function removeLifeActivity(
   fetchImpl = globalThis.fetch,
 ) {
   const id = typeof activityId === 'string' ? activityId.trim() : '';
-  if (!id || !Number.isInteger(expectedRevision) || expectedRevision < 1) {
+  if (!ACTIVITY_ID_PATTERN.test(id) || !Number.isInteger(expectedRevision) || expectedRevision < 1) {
     throw new SiteCoreError('일정 삭제값이 올바르지 않습니다.', {code: 'LIFE_REMOVE_INPUT_INVALID', status: 422});
   }
   const payload = await calendarRequest(
