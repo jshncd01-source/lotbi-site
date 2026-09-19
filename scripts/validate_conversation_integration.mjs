@@ -196,6 +196,44 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   assert.deepEqual(JSON.parse(request.init.body), {text: '안녕하세요'});
 }
 
+{
+  let request;
+  const fetchMock = async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      contract_id: 'CORE-WEB-CHAT-01',
+      schema_version: 1,
+      correlation_id: 'req_idempotency_test',
+      status: 'ANSWERED',
+      assistant_text: 'stable request identity response',
+      intent: {action: 'UNKNOWN'},
+      response_mode: 'MODEL',
+      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+      retry_safe: true,
+      safety: {execution_authority: false, external_side_effect: false},
+    });
+  };
+  const reply = await sendConversationMessage(
+    'site-memory-token',
+    '일반 질문',
+    {idempotencyKey: 'site-ai-unit-0001'},
+    fetchMock,
+  );
+  assert.equal(reply.status, 'ANSWERED');
+  assert.equal(request.init.headers['Idempotency-Key'], 'site-ai-unit-0001');
+  assert.deepEqual(JSON.parse(request.init.body), {text: '일반 질문'});
+}
+
+await expectReject(
+  sendConversationMessage(
+    'site-memory-token',
+    '일반 질문',
+    {idempotencyKey: 'bad'},
+    async () => { throw new Error('invalid key must fail before fetch'); },
+  ),
+  'SITE_AI_IDEMPOTENCY_INVALID',
+);
+
 await expectReject(
   sendConversationMessage('site-memory-token', '안녕하세요', async () => jsonResponse({
     detail: {code: 'SESSION_EXPIRED', message: 'expired'},
