@@ -74,8 +74,9 @@ def main() -> int:
         "approved continuity module": 'src="site-continuity.js?v=20260918-profile3"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260919-homewordmark5"',
-        "neutral initial auth state": 'data-auth-state="checking"',
-        "neutral auth placeholder": 'class="account-auth-placeholder"',
+        "anonymous initial auth state": 'data-auth-state="unauthenticated"',
+        "anonymous login CTA": '>로그인<',
+        "anonymous signup CTA": '>회원가입<',
         "desktop sidebar": "chat-sidebar-desktop",
         "desktop sidebar nav": "sidebar-nav-desktop",
         "desktop recent scroll": "sidebar-history-scroll",
@@ -119,9 +120,11 @@ def main() -> int:
     if not initial_account:
         errors.append("index.html: initial account-actions markup not found")
     else:
-        for forbidden in (">로그인<", ">회원가입<", ">내 계정<"):
-            if forbidden in initial_account:
-                errors.append(f"index.html: initial auth state must stay neutral ({forbidden})")
+        for required in (">로그인<", ">회원가입<"):
+            if required not in initial_account:
+                errors.append(f"index.html: initial anonymous auth state missing CTA ({required})")
+        if ">내 계정<" in initial_account or ">프로필<" in initial_account:
+            errors.append("index.html: initial anonymous auth state must not claim authentication")
 
     desktop_sidebar = slice_between(
         text,
@@ -164,8 +167,10 @@ def main() -> int:
             errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
         if 'data-sidebar-account' not in block:
             errors.append(f"index.html: {label} missing auth-driven account identity slot")
-        if 'data-auth-state="checking"' not in block:
-            errors.append(f"index.html: {label} account slot must initialize neutral")
+        if 'data-auth-state="unauthenticated"' not in block:
+            errors.append(f"index.html: {label} account slot must initialize anonymous-first")
+        if ">로그인<" not in block or "LOTBI 계정 연결" not in block:
+            errors.append(f"index.html: {label} must expose the anonymous login CTA immediately")
         if "조승환" in block or "@jshncd01" in block:
             errors.append(f"index.html: {label} must not hardcode user identity")
 
@@ -330,7 +335,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, simplified AI-service sidebar IA, recent-scroll/fixed-account layout, neutral auth continuity and composer contracts verified.")
+    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, anonymous-first auth CTA continuity, recent-scroll/fixed-account layout and composer contracts verified.")
     return 0
 
 
