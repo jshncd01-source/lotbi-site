@@ -39,7 +39,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-attachments3';
+  link.href = '/site-conversation.css?v=20260920-lotbibox2';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -497,6 +497,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const saveLotbiBox = items => {
     if (storage) storage.setItem(lotbiBoxKey(), JSON.stringify(items.slice(0, 100)));
   };
+  const removeLotbiBoxItem = key => {
+    const normalizedKey = typeof key === 'string' ? key : '';
+    const items = loadLotbiBox().filter(item => item.key !== normalizedKey);
+    saveLotbiBox(items);
+    return items;
+  };
+  const refreshLotbiBoxControls = () => {
+    const keys = new Set(loadLotbiBox().map(item => item.key));
+    for (const control of document.querySelectorAll('[data-lotbi-box-toggle-key]')) {
+      if (!(control instanceof HTMLButtonElement)) continue;
+      const saved = keys.has(control.dataset.lotbiBoxToggleKey || '');
+      control.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+      control.setAttribute('aria-pressed', String(saved));
+    }
+  };
   const lotbiBoxItemKey = (rich, card) => [rich.resolutionId || rich.displayId, card.candidate_index, card.merchant_code || ''].join(':');
   const isInLotbiBox = (rich, card) => loadLotbiBox().some(item => item.key === lotbiBoxItemKey(rich, card));
   const toggleLotbiBox = (rich, card) => {
@@ -585,9 +600,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
       }
       const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
-      const syncBoxLabel = () => { box.textContent = isInLotbiBox(rich, card) ? '✓ 롯비함' : '+ 롯비함'; };
+      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
+      const syncBoxLabel = () => {
+        const saved = isInLotbiBox(rich, card);
+        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+        box.setAttribute('aria-pressed', String(saved));
+      };
       syncBoxLabel();
-      box.addEventListener('click', () => { const added = toggleLotbiBox(rich, card); syncBoxLabel(); setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.'); });
+      box.addEventListener('click', () => {
+        const added = toggleLotbiBox(rich, card);
+        refreshLotbiBoxControls();
+        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
+      });
       actions.appendChild(box);
       const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
       buy.disabled = rich.expired || card.available === false;
@@ -931,6 +955,88 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       message.textContent = '캘린더를 열지 못했습니다.';
       content.replaceChildren(message);
     }
+  };
+
+  const openLotbiBox = trigger => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
+    panel.classList.add('site-lotbi-box-modal');
+    const list = document.createElement('div');
+    list.className = 'lotbi-box-list';
+    list.setAttribute('aria-live', 'polite');
+
+    const render = () => {
+      const items = loadLotbiBox();
+      if (!items.length) {
+        const empty = document.createElement('div'); empty.className = 'lotbi-box-empty';
+        const title = document.createElement('strong'); title.textContent = '아직 롯비함에 담은 항목이 없어요.';
+        const copy = document.createElement('p'); copy.textContent = '검색 결과에서 “+ 롯비함”을 눌러 저장할 수 있어요.';
+        empty.append(title, copy);
+        list.replaceChildren(empty);
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      for (const item of items) {
+        const card = document.createElement('article');
+        card.className = 'lotbi-box-card';
+        card.dataset.lotbiBoxKey = item.key;
+
+        const media = document.createElement('div'); media.className = 'lotbi-box-card-media';
+        const imageUrl = typeof item.image_reference === 'string' && item.image_reference.startsWith('https://') ? item.image_reference : '';
+        if (imageUrl) {
+          const image = document.createElement('img');
+          image.src = imageUrl; image.alt = typeof item.display_title === 'string' ? item.display_title : '저장 상품';
+          image.loading = 'lazy'; image.decoding = 'async'; image.referrerPolicy = 'no-referrer';
+          image.addEventListener('error', () => { image.remove(); media.textContent = '이미지 없음'; media.classList.add('lotbi-box-card-placeholder'); }, {once: true});
+          media.appendChild(image);
+        } else {
+          media.textContent = '이미지 없음'; media.classList.add('lotbi-box-card-placeholder');
+        }
+
+        const body = document.createElement('div'); body.className = 'lotbi-box-card-body';
+        const source = document.createElement('span'); source.className = 'lotbi-box-card-source';
+        source.textContent = typeof item.source === 'string' && item.source.trim() ? item.source.trim() : '판매처';
+        const title = document.createElement('h3'); title.className = 'lotbi-box-card-title';
+        title.textContent = typeof item.display_title === 'string' && item.display_title.trim() ? item.display_title.trim() : '저장 상품';
+        body.append(source, title);
+        const priceSnapshot = item.display_price_snapshot;
+        if (priceSnapshot && Number.isInteger(priceSnapshot.amount)) {
+          const price = document.createElement('strong'); price.className = 'lotbi-box-card-price';
+          price.textContent = formatCardMoney(priceSnapshot.amount, priceSnapshot.currency || 'KRW');
+          body.appendChild(price);
+        }
+
+        const actions = document.createElement('div'); actions.className = 'lotbi-box-card-actions';
+        const detailUrl = [item.source_url, item.external_reference].find(value => typeof value === 'string' && value.startsWith('https://')) || '';
+        if (detailUrl) {
+          const detail = document.createElement('a');
+          detail.className = 'lotbi-box-card-action'; detail.href = detailUrl; detail.target = '_blank';
+          detail.rel = 'noopener noreferrer'; detail.referrerPolicy = 'no-referrer'; detail.textContent = '상세보기';
+          actions.appendChild(detail);
+        } else {
+          const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-box-card-action';
+          detail.textContent = '상세보기'; detail.disabled = true; detail.title = '공식 상세 링크를 확인할 수 없습니다.';
+          actions.appendChild(detail);
+        }
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'lotbi-box-card-action lotbi-box-card-remove';
+        remove.textContent = '롯비함에서 제거'; remove.setAttribute('aria-label', `${title.textContent} 롯비함에서 제거`);
+        remove.addEventListener('click', () => {
+          removeLotbiBoxItem(item.key);
+          refreshLotbiBoxControls();
+          render();
+          setStatus('롯비함에서 제거했습니다.');
+        });
+        actions.appendChild(remove);
+        card.append(media, body, actions);
+        fragment.appendChild(card);
+      }
+      list.replaceChildren(fragment);
+    };
+
+    content.appendChild(list);
+    render();
+    installSurfaceBehavior(backdrop, panel, {modal: true, trigger});
   };
 
   const openHelp = () => {
@@ -1309,6 +1415,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const target = event.target instanceof Element ? event.target : null;
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
+    const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
+    if (lotbiBoxTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openLotbiBox(lotbiBoxTrigger);
+      return;
+    }
     const calendarView = target?.closest('[data-calendar-view]');
     if (calendarView instanceof HTMLButtonElement) {
       event.preventDefault();
@@ -1335,6 +1447,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   window.addEventListener(SESSION_STATE_EVENT, event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (!detail || typeof detail.authenticated !== 'boolean') return;
+    if (openSurface?.querySelector('.lotbi-box-list')) closeSurface();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();

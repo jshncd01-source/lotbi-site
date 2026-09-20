@@ -873,6 +873,207 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 .help-links a { min-height: 44px; padding: 10px 12px; border-radius: 10px; color: #18345f; font-weight: 750; text-decoration: none; }
 .help-links a:hover, .help-links a:focus-visible { background: #f0f2f7; }
 
+
+/* LOTBI Box — existing namespace-local saved Product surface. */
+.site-lotbi-box-modal {
+  width: min(100%, 760px);
+}
+
+.lotbi-box-list {
+  display: grid;
+  gap: 12px;
+}
+
+.lotbi-box-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 28px 18px;
+  border: 1px dashed #cfd6e2;
+  border-radius: 16px;
+  background: #f8f9fb;
+  text-align: center;
+}
+
+.lotbi-box-empty strong {
+  color: #303642;
+  font-size: 16px;
+}
+
+.lotbi-box-empty p {
+  margin: 0;
+  color: #687180;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.lotbi-box-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid #dfe4ec;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.lotbi-box-card-media {
+  width: 112px;
+  min-height: 112px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #f2f4f7;
+}
+
+.lotbi-box-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lotbi-box-card-placeholder {
+  color: #7d8796;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lotbi-box-card-body {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 12px 14px;
+}
+
+.lotbi-box-card-source {
+  color: #697386;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lotbi-box-card-title {
+  margin: 0;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.lotbi-box-card-price {
+  font-size: 16px;
+}
+
+.lotbi-box-card-actions {
+  width: 132px;
+  padding: 10px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  border-left: 1px solid #e5e8ef;
+}
+
+.lotbi-box-card-action {
+  min-height: 40px;
+  padding: 8px 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cfd6e2;
+  border-radius: 10px;
+  background: #fff;
+  color: #303642;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 780;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lotbi-box-card-action:hover:not(:disabled),
+.lotbi-box-card-action:focus-visible {
+  background: #f0f2f7;
+}
+
+.lotbi-box-card-action:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .24);
+  outline-offset: 2px;
+}
+
+.lotbi-box-card-action:disabled {
+  opacity: .52;
+  cursor: not-allowed;
+}
+
+.lotbi-box-card-remove {
+  color: #8a2940;
+}
+
+body[data-site-theme="dark"] .lotbi-box-empty,
+body[data-site-theme="dark"] .lotbi-box-card,
+body[data-site-theme="dark"] .lotbi-box-card-action {
+  background: #202631;
+  color: #edf0f5;
+  border-color: #424b59;
+}
+
+body[data-site-theme="dark"] .lotbi-box-card-media {
+  background: #171c25;
+}
+
+body[data-site-theme="dark"] .lotbi-box-empty strong {
+  color: #edf0f5;
+}
+
+body[data-site-theme="dark"] .lotbi-box-empty p,
+body[data-site-theme="dark"] .lotbi-box-card-source,
+body[data-site-theme="dark"] .lotbi-box-card-placeholder {
+  color: #aeb6c3;
+}
+
+@media (max-width: 620px) {
+  .lotbi-box-card {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .lotbi-box-card-media {
+    width: 88px;
+    min-height: 96px;
+  }
+
+  .lotbi-box-card-actions {
+    grid-column: 1 / -1;
+    width: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid #e5e8ef;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-box-card {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .lotbi-box-card-media {
+    width: 76px;
+  }
+
+  .lotbi-box-card-body {
+    padding-inline: 10px;
+  }
+
+  .lotbi-box-card-action {
+    min-height: 44px;
+    padding-inline: 6px;
+    font-size: 11.5px;
+  }
+}
+
 body[data-site-theme="dark"] { background: #151922; color: #eef1f6; }
 body[data-site-theme="dark"] .chat-home-shell { background: #151922; }
 body[data-site-theme="dark"] .chat-message-assistant { color: #edf0f5; }

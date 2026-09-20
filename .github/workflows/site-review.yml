@@ -87,6 +87,9 @@ jobs:
           node --check site-conversation.js
           node scripts/validate_rich_product_cards_01.mjs
 
+      - name: Validate LOTBI Box navigation and saved surface
+        run: node scripts/validate_lotbi_box_nav_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
