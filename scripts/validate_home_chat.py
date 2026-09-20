@@ -73,7 +73,7 @@ def main() -> int:
         "approved conversation module": 'src="site-conversation.js?v=20260920-richcards5"',
         "approved continuity module": 'src="site-continuity.js?v=20260920-fallback4"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260919-homewordmark5"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-sidebar8"',
         "anonymous initial auth state": 'data-auth-state="unauthenticated"',
         "anonymous login CTA": '>로그인<',
         "anonymous signup CTA": '>회원가입<',
@@ -84,8 +84,6 @@ def main() -> int:
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "+ 새 대화",
-        "work menu": "내 작업",
-        "library menu": "라이브러리",
         "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
         "connected services URL": CONNECTED_SERVICES_URL,
@@ -101,6 +99,10 @@ def main() -> int:
     for label, token in requirements.items():
         if token not in text:
             errors.append(f"index.html: missing {label}")
+
+    for removed_sidebar_item in ("내 작업", "라이브러리"):
+        if removed_sidebar_item in text:
+            errors.append(f"index.html: disabled Sidebar placeholder must be removed: {removed_sidebar_item}")
 
     if text.count('src="/assets/lotbi-logo-header.png"') != 3:
         errors.append("index.html: desktop sidebar, mobile topbar and mobile drawer must share the official logo asset")
