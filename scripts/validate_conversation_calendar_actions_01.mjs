@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 const {
   createAvailableCalendarAction,
   normalizePersistedCalendarAction,
+  recoverCalendarActionAfterReload,
   runCalendarAction,
 } = await import('../site-calendar-actions.js');
 
@@ -149,7 +150,9 @@ assert.equal(guest2.state, 'SUCCESS');
 assert.equal(guest1.result.guestEventId, guest2.result.guestEventId);
 assert.equal(lockCalls, 2);
 
-const inFlightReload = normalizePersistedCalendarAction({...authAction, state: 'IN_FLIGHT'});
+const inFlightLive = normalizePersistedCalendarAction({...authAction, state: 'IN_FLIGHT'});
+assert.equal(inFlightLive.state, 'IN_FLIGHT');
+const inFlightReload = recoverCalendarActionAfterReload(inFlightLive);
 assert.equal(inFlightReload.state, 'UNKNOWN_RESULT');
 assert.equal(normalizePersistedCalendarAction({...authAction, state: 'SUCCESS', result: null}), null);
 
