@@ -9,19 +9,24 @@ const {
 } = await import('../site-calendar-model.js');
 
 const february = calendarMonthGrid(2026, 2);
-assert.equal(february.length, 42);
+assert.equal(february.length, 28);
 assert.deepEqual(february[0], {
   date: '2026-02-01', year: 2026, month: 2, day: 1, weekday: 0, inCurrentMonth: true,
 });
 assert.equal(february[27].date, '2026-02-28');
-assert.equal(february[28].date, '2026-03-01');
-assert.equal(february[28].inCurrentMonth, false);
-assert.deepEqual(monthGridRange(2026, 2), {start: '2026-02-01', end: '2026-03-14'});
+assert.deepEqual(monthGridRange(2026, 2), {start: '2026-02-01', end: '2026-02-28'});
+
+const fiveWeekMonth = calendarMonthGrid(2026, 9);
+assert.equal(fiveWeekMonth.length, 35);
+assert.equal(fiveWeekMonth[0].date, '2026-08-30');
+assert.equal(fiveWeekMonth[34].date, '2026-10-03');
+assert.deepEqual(monthGridRange(2026, 9), {start: '2026-08-30', end: '2026-10-03'});
 
 const leap = calendarMonthGrid(2024, 2);
 assert.equal(leap.find(cell => cell.date === '2024-02-29')?.inCurrentMonth, true);
 
 const saturdayStart = calendarMonthGrid(2026, 8);
+assert.equal(saturdayStart.length, 42);
 assert.equal(saturdayStart[0].date, '2026-07-26');
 assert.equal(saturdayStart[6].date, '2026-08-01');
 assert.deepEqual(monthGridRange(2026, 8), {start: '2026-07-26', end: '2026-09-05'});
