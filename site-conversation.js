@@ -1,4 +1,4 @@
-import {beginSiteHandoff} from './site-auth.js?v=20260920-fallback4';
+import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
 import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
@@ -888,6 +888,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
     if (!sessionToken) {
       try {
+        clearSiteLogoutSuppression();
         await beginSiteHandoff();
       } catch (error) {
         setStatus(error instanceof Error ? error.message : '캘린더를 열기 위한 로그인 연결을 시작하지 못했습니다.');
@@ -923,6 +924,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     content.appendChild(links); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const beginAccountLogoutHandoff = () => {
+    markSiteLogoutSuppression();
     const form = document.createElement('form');
     form.method = 'post';
     form.action = 'https://account.lotbiai.com/auth/site-logout';
