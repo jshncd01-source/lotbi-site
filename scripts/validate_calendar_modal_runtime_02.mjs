@@ -208,7 +208,7 @@ try{
   const weekRange=modal.querySelector('[data-agenda-scope="week"]');
   if(!(weekRange instanceof HTMLButtonElement))throw new Error('Agenda this-week control missing');
   click(weekRange);
-  await wait(()=>weekRange.getAttribute('aria-pressed')==='true','Agenda week range');
+  await wait(()=>modal.querySelector('[data-agenda-scope="week"]')?.getAttribute('aria-pressed')==='true','Agenda week range');
   result.agendaRanges=true;
   await mode('확인 필요');
   await mode('월');
