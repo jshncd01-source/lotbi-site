@@ -6,7 +6,7 @@ import path from 'node:path';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 
-const {loadLifeCalendarManagerView, loadLifeCalendarSnapshot} = await import('../site-calendar-ui.js');
+const {loadGuestLifeCalendarManagerView, loadLifeCalendarManagerView, loadLifeCalendarSnapshot} = await import('../site-calendar-ui.js');
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -151,10 +151,41 @@ const responses = {
   }
 }
 
+
+{
+  const guestBase = {
+    timezone: 'Asia/Seoul',
+    now: new Date('2026-09-29T15:30:00Z'),
+  };
+  for (const [view, expectedKind] of [['all', 'agenda'], ['today', 'agenda'], ['attention', 'attention']]) {
+    const result = loadGuestLifeCalendarManagerView({...guestBase, view});
+    assert.equal(result.key, view);
+    assert.equal(result.kind, expectedKind);
+    assert.equal(result.date, '2026-09-30');
+    assert.equal(result.guest, true);
+    assert.deepEqual(result.items, []);
+    assert.match(result.description, /로그인 없이 사용하는 캘린더/);
+  }
+  const dated = loadGuestLifeCalendarManagerView({...guestBase, view: 'date', date: '2026-10-03'});
+  assert.equal(dated.key, 'date');
+  assert.equal(dated.date, '2026-10-03');
+  assert.deepEqual(dated.items, []);
+}
+
 const index = read('index.html');
 const callback = read('auth/callback/index.html');
 const ui = read('site-calendar-ui.js');
 const css = read('site-calendar.css');
+const conversation = read('site-conversation.js');
+const openCalendarStart = conversation.indexOf('const openCalendar = async view =>');
+const openCalendarEnd = conversation.indexOf('const openHelp = () =>', openCalendarStart);
+assert.ok(openCalendarStart >= 0 && openCalendarEnd > openCalendarStart, 'Calendar open handler missing');
+const openCalendar = conversation.slice(openCalendarStart, openCalendarEnd);
+assert.ok(!openCalendar.includes('beginSiteHandoff('), 'anonymous Calendar entry must not start Account handoff');
+assert.ok(!openCalendar.includes('clearSiteLogoutSuppression('), 'anonymous Calendar entry must not alter logout suppression');
+assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry must mount the manager for guest and authenticated users');
+assert.ok(openCalendar.includes('sessionToken ?'), 'Calendar copy must distinguish authenticated and guest entry without gating');
+
 
 assert.ok(index.includes('href="site-calendar.css?v=20260920-calnav9"'));
 assert.ok(index.includes('data-life-calendar-panel'));
@@ -182,6 +213,8 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
 assert.ok(ui.includes("getLifeAgenda("));
 assert.ok(ui.includes("export async function loadLifeCalendarManagerView"));
+assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
+assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes("export async function mountLifeCalendarManager"));
 assert.ok(ui.includes("['all', '전체 일정']"));
 assert.ok(ui.includes("['today', '오늘']"));
