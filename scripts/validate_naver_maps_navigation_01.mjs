@@ -103,6 +103,8 @@ assert.match(coreSource, /placeResult: payload\.place_result/u);
 assert.match(conversationSource, /navigate\.addEventListener\('click'/u);
 assert.match(conversationSource, /openNaverMapsPlace\(place\)/u);
 assert.match(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
+assert.match(conversationSource, /detail\.textContent = '상세보기'/u);
+assert.doesNotMatch(conversationSource, /detail\.textContent = '네이버에서 보기'/u);
 assert.match(conversationSource, /buildNaverStaticMapThumbnailUrl\(place\)/u);
 assert.match(conversationSource, /image\.loading = 'lazy'/u);
 assert.match(conversationSource, /media\.textContent = 'NAVER 지도'/u);
