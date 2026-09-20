@@ -12,7 +12,7 @@ const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarVersion = '20260920-realcal1';
-const entryVersion = '20260920-timeline1';
+const entryVersion = '20260920-navtimeline1';
 assert.ok(index.includes(`site-calendar.css?v=${calendarVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));

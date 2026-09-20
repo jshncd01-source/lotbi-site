@@ -1,7 +1,8 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260920-attachments1';
+import * as siteCore from './site-core.js?v=20260920-nav1';
+import {isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-nav1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attachments1';
-import {formatConversationTimestamp, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-timeline1';
+import {formatConversationTimestamp, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-navtimeline1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
@@ -40,7 +41,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-timeline1';
+  link.href = '/site-conversation.css?v=20260920-navtimeline1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -663,11 +664,124 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     return rail;
   };
+  const compactPlaceResultMeta = (value, capturedAt = Date.now()) => {
+    const normalized = normalizePlaceResult(value, {capturedAt});
+    if (!normalized) return null;
+    return {
+      contract_id: normalized.contractId,
+      schema_version: normalized.schemaVersion,
+      result_set_id: normalized.resultSetId,
+      provider_code: normalized.providerCode,
+      source: normalized.source,
+      query: normalized.query,
+      captured_at: normalized.capturedAt,
+      results: normalized.results.map(place => ({
+        result_id: place.resultId,
+        place_id: place.placeId,
+        name: place.name,
+        category: place.category,
+        address: place.address,
+        road_address: place.address,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        coordinate_system: place.coordinateSystem,
+        coordinate_authority: place.coordinateAuthority,
+        source_url: place.sourceUrl,
+        navigation_capability: place.navigationCapable,
+      })),
+    };
+  };
+  const normalizedPersistedPlaceResult = value => {
+    if (!value || typeof value !== 'object') return null;
+    return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
+  };
+  const createPlaceCardRail = placeValue => {
+    const placeResult = normalizedPersistedPlaceResult(placeValue);
+    if (!placeResult) return null;
+    const fresh = isPlaceResultFresh(placeResult);
+    const rail = document.createElement('section');
+    rail.className = 'lotbi-rich-card-rail';
+    rail.dataset.richCardType = 'PLACE';
+    rail.dataset.placeResultSetId = placeResult.resultSetId;
+    rail.setAttribute('aria-label', '장소 검색 결과');
+    for (const place of placeResult.results) {
+      const item = document.createElement('article');
+      item.className = 'lotbi-rich-card lotbi-rich-card-place';
+      item.dataset.candidateIndex = String(place.candidateIndex);
+      const media = document.createElement('div');
+      media.className = 'lotbi-rich-card-media lotbi-rich-card-placeholder';
+      media.textContent = 'NAVER 지도';
+      const copy = document.createElement('div');
+      copy.className = 'lotbi-rich-card-copy';
+      const source = document.createElement('span');
+      source.className = 'lotbi-rich-card-source';
+      source.textContent = place.category || 'NAVER 장소';
+      const title = document.createElement('h3');
+      title.className = 'lotbi-rich-card-title';
+      title.textContent = place.name;
+      const address = document.createElement('span');
+      address.className = 'lotbi-rich-card-price';
+      address.textContent = place.address;
+      copy.append(source, title, address);
+      const evidence = document.createElement('div');
+      evidence.className = 'lotbi-rich-card-evidence';
+      const coordinate = document.createElement('span');
+      coordinate.textContent = place.navigationCapable ? 'NAVER Maps Geocoding · WGS84 확인' : '좌표 미확정 · 네이버지도 검색으로 연결';
+      evidence.appendChild(coordinate);
+      if (!fresh) {
+        const expired = document.createElement('span');
+        expired.textContent = '검색 결과 만료 · 다시 검색 필요';
+        evidence.appendChild(expired);
+      }
+      copy.appendChild(evidence);
+      const actions = document.createElement('div');
+      actions.className = 'lotbi-rich-card-actions';
+      if (place.sourceUrl) {
+        const detail = document.createElement('a');
+        detail.className = 'lotbi-rich-card-action';
+        detail.href = place.sourceUrl;
+        detail.target = '_blank';
+        detail.rel = 'noopener noreferrer';
+        detail.referrerPolicy = 'no-referrer';
+        detail.textContent = '네이버에서 보기';
+        actions.appendChild(detail);
+      }
+      const navigate = document.createElement('button');
+      navigate.type = 'button';
+      navigate.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary';
+      navigate.textContent = place.navigationCapable ? '길안내' : '네이버지도에서 찾기';
+      navigate.disabled = !fresh;
+      if (!fresh) navigate.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
+      navigate.addEventListener('click', () => {
+        if (!isPlaceResultFresh(placeResult)) {
+          navigate.disabled = true;
+          navigate.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
+          setStatus('장소 검색 결과가 만료되었습니다. 다시 검색해 주세요.');
+          return;
+        }
+        const opened = openNaverMapsPlace(place);
+        if (!opened.opened) {
+          setStatus('네이버지도 연결을 안전하게 시작하지 못했습니다.');
+          return;
+        }
+        setStatus(place.navigationCapable ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도 검색으로 연결합니다.');
+      });
+      actions.appendChild(navigate);
+      item.append(media, copy, actions);
+      rail.appendChild(item);
+    }
+    return rail;
+  };
+
   const messageNode = message => {
     const node = createMessage(message.role, message.text, message.meta || {});
     const rich = compactRichProductMeta(message.meta?.richProduct);
+    const place = normalizedPersistedPlaceResult(message.meta?.placeResult);
     if (message.role === 'assistant' && rich) {
       const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
+    }
+    if (message.role === 'assistant' && place) {
+      const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
     }
     return node;
   };
@@ -1305,10 +1419,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
+        const placeResult = compactPlaceResultMeta(response.placeResult);
+        if (placeResult) meta.placeResult = placeResult;
         const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
         appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
-        setStatus(richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
+        setStatus(placeResult ? '로그인 없이 실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
       } catch (caught) {
         loading.parentElement?.remove();
         if (isGuestSessionError(caught)) clearGuestSession();
@@ -1361,10 +1477,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
+      const placeResult = compactPlaceResultMeta(response.placeResult);
+      if (placeResult) meta.placeResult = placeResult;
       const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
       appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
-      setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
+      setStatus(placeResult ? '실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
       driveAvatar('response-complete', avatarRequestId);
     } catch (caught) {
       driveAvatar('cancel', avatarRequestId);
