@@ -51,6 +51,8 @@ try{
 localStorage.clear();
 importPhase='continuity';
 const continuity=await import('/site-continuity.js?profile-test=1');
+importPhase='auth';
+await import('/site-auth.js?v=20260920-fallback4');
 importPhase='attachments';
 await import('/site-attachments.js?v=20260920-attachments1');
 importPhase='core';
