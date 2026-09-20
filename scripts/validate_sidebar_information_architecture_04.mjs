@@ -27,11 +27,11 @@ const mobile = extractAside(
 );
 
 for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
-  for (const required of ['+ 새 대화', '내 작업', '라이브러리', '연결 서비스', '최근 대화']) {
+  for (const required of ['+ 새 대화', '연결 서비스', '최근 대화']) {
     assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
   }
 
-  for (const removed of ['주문 내역', '예약 내역', '>내 계정<', '>설정<', '도움말 / 문의', '>오늘<', '>어제<', '>최근 7일<', '>이전<']) {
+  for (const removed of ['내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '>설정<', '도움말 / 문의', '>오늘<', '>어제<', '>최근 7일<', '>이전<']) {
     assert.ok(!block.includes(removed), `${label} sidebar must remove ${removed}`);
   }
 
@@ -40,9 +40,17 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   assert.ok(block.includes('>로그인<') && block.includes('LOTBI 계정 연결'), `${label} must expose the anonymous login CTA immediately`);
   assert.ok(!block.includes('조승환') && !block.includes('@jshncd01'), `${label} sidebar must not hardcode user identity`);
 
-  assert.match(block, /<button[^>]*data-sidebar-destination="work"[^>]*disabled[^>]*>[\s\S]*?내 작업[\s\S]*?<\/button>/, `${label} 내 작업 must remain fail-closed until an authoritative task route exists`);
-  assert.match(block, /<button[^>]*data-sidebar-destination="library"[^>]*disabled[^>]*>[\s\S]*?라이브러리[\s\S]*?<\/button>/, `${label} 라이브러리 must remain fail-closed until an authoritative library route exists`);
-  assert.match(block, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must use the Account Web connected-services hub`);
+  assert.ok(!block.includes('data-sidebar-destination="work"'), `${label} must not keep the disabled work placeholder in the primary navigation`);
+  assert.ok(!block.includes('data-sidebar-destination="library"'), `${label} must not keep the disabled library placeholder in the primary navigation`);
+  const primary = block.match(/<div class="sidebar-primary-nav">[\s\S]*?<\/div>/)?.[0] || '';
+  assert.ok(primary.includes('data-new-conversation'), `${label} primary navigation must keep new conversation`);
+  assert.ok(!primary.includes('connected-services'), `${label} connected services must not remain a primary action`);
+  const secondary = block.match(/<div class="sidebar-secondary-nav"[^>]*>[\s\S]*?<\/div>/)?.[0] || '';
+  assert.match(secondary, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must remain available only as a secondary Account Web link`);
+  const recentPos = block.indexOf('sidebar-history-section');
+  const secondaryPos = block.indexOf('sidebar-secondary-nav');
+  const accountPos = block.indexOf('sidebar-account-footer');
+  assert.ok(recentPos >= 0 && secondaryPos > recentPos && accountPos > secondaryPos, `${label} order must be new chat → recent conversations → connected services → account CTA`);
 
   const recent = block.match(/<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?<\/ul>/)?.[0] || '';
   assert.ok(recent, `${label} sidebar missing recent conversation list`);
@@ -56,6 +64,7 @@ assert.ok(sidebarCss.includes('@media (min-width: 901px)'));
 assert.match(sidebarCss, /@media \(min-width: 901px\)[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/, 'Desktop topbar account affordance must remain presentation-hidden');
 assert.ok(sidebarCss.includes('.sidebar-history-scroll'));
 assert.ok(sidebarCss.includes('overflow-y: auto'));
+assert.ok(sidebarCss.includes('.sidebar-secondary-nav'));
 assert.ok(sidebarCss.includes('.sidebar-account-footer'));
 assert.ok(sidebarCss.includes('margin-top: auto'));
 assert.ok(sidebarCss.includes('.sidebar-account-entry'));
