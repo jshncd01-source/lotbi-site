@@ -137,7 +137,7 @@ try {
   await page.setViewportSize({width: 768, height: 900});
   const calendarButton = page.locator('[data-calendar-view]:visible').first();
   if (await calendarButton.count()) {
-    await calendarButton.click();
+    await calendarButton.evaluate(button => button.click());
     const modal = page.locator('.site-calendar-modal');
     await modal.waitFor({state: 'visible', timeout: 15000});
     result.calendar = {opened: true};
