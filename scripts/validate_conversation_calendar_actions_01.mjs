@@ -283,6 +283,14 @@ for (const token of [
   "createConversationCalendarPartial",
   "conversationCalendarItemsFromResponse",
   "recoverConversationCalendarItemAfterReload",
+  "latestSinglePartialCalendarCandidate",
+  "clearResolvedPartialCandidate",
+  "parentCandidateId",
+  "calendarDirectUnknown",
+  "normalizeConversationCalendarDirectUnknown",
+  "isUnknownDirectCalendarWriteError",
+  "등록 결과를 아직 확인하지 못했습니다.",
+  "결과 확인",
   "등록하려면 시간을 알려주세요.",
   "등록하려면 날짜를 알려주세요.",
   "restoreConversation: true",
@@ -302,6 +310,22 @@ const partialEnd = conversationSource.indexOf('const createConversationCalendarA
 assert.ok(partialStart >= 0 && partialEnd > partialStart, 'partial Calendar candidate renderer missing');
 const partialRenderer = conversationSource.slice(partialStart, partialEnd);
 assert.ok(!partialRenderer.includes('캘린더에 등록'), 'partial candidates must never render a register button');
+assert.ok(
+  conversationSource.includes("const local = attachments.length || calendarCandidateContext ? null : deterministicReply(message);"),
+  'structured partial continuation must bypass local deterministic replies',
+);
+
+const unknownStart = conversationSource.indexOf('const createConversationCalendarDirectUnknown = value =>');
+const unknownEnd = conversationSource.indexOf('const normalizeConversationCalendarItem = value =>', unknownStart);
+assert.ok(unknownStart >= 0 && unknownEnd > unknownStart, 'direct UNKNOWN_RESULT renderer missing');
+const unknownRenderer = conversationSource.slice(unknownStart, unknownEnd);
+for (const token of [
+  'pending.logicalRequestId',
+  'Date.parse(pending.turnCreatedAt)',
+  'pending.timezone',
+  "false,",
+]) assert.ok(unknownRenderer.includes(token), `direct UNKNOWN_RESULT replay must preserve: ${token}`);
+assert.ok(unknownRenderer.includes("'결과 확인'"), 'direct UNKNOWN_RESULT must expose result verification');
 assert.ok(!conversationSource.includes("assistantText.match("), 'assistant free text must not become Calendar authority');
 assert.ok(!conversationSource.includes("beginSiteHandoff(message); } catch (caught) { showError(caught, message, false);"), 'Guest direct Calendar command must not force login handoff');
 
