@@ -777,7 +777,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         detail.target = '_blank';
         detail.rel = 'noopener noreferrer';
         detail.referrerPolicy = 'no-referrer';
-        detail.textContent = '네이버에서 보기';
+        detail.textContent = '상세보기';
         actions.appendChild(detail);
       }
       const navigate = document.createElement('button');
