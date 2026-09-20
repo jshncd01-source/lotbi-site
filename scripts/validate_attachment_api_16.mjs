@@ -41,12 +41,13 @@ await uploadConversationAttachment({guestToken:'g'.repeat(40), file:png}, async 
 let authBody;
 await sendConversationMessage('site-token', '', async (_url, options) => {
   authBody = JSON.parse(options.body);
+  assert.equal(options.headers['Idempotency-Key'], 'auth-attach-0001');
   return new Response(JSON.stringify({
     contract_id:'CORE-WEB-CHAT-01', schema_version:1, status:'ANSWERED',
     assistant_text:'첨부를 확인했습니다.', response_mode:'AI_GENERATED_NON_AUTHORITATIVE',
     correlation_id:'corr-auth', follow_up:{required:false},
   }), {status:200, headers:{'content-type':'application/json'}});
-}, ['att_1234567890abcdef1234']);
+}, ['att_1234567890abcdef1234'], 'auth-attach-0001');
 assert.equal(authBody.text, '첨부 파일을 확인해 주세요.');
 assert.deepEqual(authBody.attachment_ids, ['att_1234567890abcdef1234']);
 
