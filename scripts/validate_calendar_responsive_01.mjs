@@ -75,5 +75,8 @@ assert.ok(manager.includes("case 'PageUp'"));
 assert.ok(manager.includes("case 'PageDown'"));
 assert.ok(manager.includes('state.detailOpen = false'));
 assert.ok(manager.includes('state.dayCollapsed'));
+assert.ok(manager.includes("root.addEventListener('keydown'"), 'Calendar root Escape containment missing');
+assert.ok(manager.includes("!root.querySelector('.calendar-editor-dialog')"), 'Calendar detail Escape must defer to the editor');
+assert.ok(manager.includes('event.stopPropagation();'), 'Calendar Escape surfaces must stop outer modal propagation');
 
 console.log('LOTBI Calendar responsive, navigation and cache contract: PASS');
