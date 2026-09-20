@@ -77,6 +77,10 @@ for (const imageContract of ["image/jpeg", "image/png", "image/webp", 'PHOTO_BYT
   assert.ok(conversation.includes(imageContract), `profile photo contract missing ${imageContract}`);
 }
 assert.ok(conversation.includes('logoutSiteSession(sessionToken)'), 'logout must use the authoritative Site child-session contract');
+assert.ok(conversation.includes("form.action = 'https://account.lotbiai.com/auth/site-logout'"), 'logout must continue through the fixed Account-origin handoff');
+assert.ok(conversation.includes("input.name = 'intent'"), 'logout handoff must carry only the bounded intent field');
+assert.ok(conversation.includes("input.value = 'logout'"), 'logout handoff must declare the fixed logout intent');
+assert.ok(conversation.indexOf('await logoutSiteSession(sessionToken)') < conversation.indexOf('beginAccountLogoutHandoff()'), 'Account logout handoff must start only after Site child revocation succeeds');
 assert.ok(conversation.includes("reason: 'site-logout'"), 'successful logout must transition Site UI to unauthenticated');
 assert.ok(conversation.includes('serverIdentity?.accountHandle'), 'profile row must use the server handle when available');
 assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile identity must come from Core /v2/me');

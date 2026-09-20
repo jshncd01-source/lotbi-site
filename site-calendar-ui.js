@@ -149,6 +149,8 @@ export async function loadLifeCalendarSnapshot(
   return Object.freeze({today, upcoming, attention, timezone, through});
 }
 
+const activeCalendarMounts = new WeakMap();
+
 export async function mountLifeCalendar({
   sessionToken,
   root = document.querySelector('[data-life-calendar-panel]'),
@@ -157,14 +159,12 @@ export async function mountLifeCalendar({
   fetchImpl = globalThis.fetch,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
-  if (typeof sessionToken !== 'string' || !sessionToken.trim()) {
-    root.hidden = true;
-    root.replaceChildren();
-    return false;
-  }
-
-  root.hidden = false;
-  root.setAttribute('aria-busy', 'true');
+  activeCalendarMounts.get(root)?.();
+  root.hidden = true;
+  root.replaceChildren();
+  root.removeAttribute('aria-busy');
+  delete root.dataset.calendarState;
+  if (typeof sessionToken !== 'string' || !sessionToken.trim()) return false;
 
   const heading = document.createElement('div');
   heading.className = 'life-calendar-heading';
@@ -181,53 +181,70 @@ export async function mountLifeCalendar({
   const body = document.createElement('div');
   body.className = 'life-calendar-body';
 
-  const loading = document.createElement('p');
-  loading.className = 'life-calendar-loading';
-  loading.textContent = '일정을 확인하고 있어요.';
-  body.appendChild(loading);
   root.replaceChildren(heading, body);
 
-  const refresh = async () => {
-    const snapshot = await loadLifeCalendarSnapshot(sessionToken, {timezone, now, fetchImpl});
-    const context = {sessionToken, timezone, refresh};
-    body.replaceChildren(
-      sectionNode('오늘', snapshot.today.items, '오늘 등록된 일정이 없어요.', context),
-      sectionNode('예정', snapshot.upcoming.items, '앞으로 7일간 등록된 일정이 없어요.', context),
-      sectionNode('주의 필요', snapshot.attention.items.map(item => ({
-        ...item,
-        local_datetime: null,
-        title: item.title,
-      })), '주의가 필요한 마감 일정이 없어요.', context),
-    );
-    root.dataset.calendarState = 'ready';
+  let active = true;
+  let generation = 0;
+  const onRefresh = () => { void refresh(); };
+  const dispose = () => {
+    active = false;
+    generation += 1;
+    window.removeEventListener('lotbi:life-calendar-refresh', onRefresh);
+    window.removeEventListener(SESSION_STATE_EVENT, onSessionState);
+    if (activeCalendarMounts.get(root) === dispose) activeCalendarMounts.delete(root);
   };
-  window.addEventListener('lotbi:life-calendar-refresh', () => { void refresh(); });
-
-  try {
-    await refresh();
-  } catch (error) {
-    body.replaceChildren();
-    const message = document.createElement('p');
-    message.className = 'life-calendar-error';
-    message.textContent = error instanceof SiteCoreError && (error.status === 401 || error.status === 403)
-      ? '일정을 보려면 LOTBI에 다시 로그인해 주세요.'
-      : '일정을 불러오지 못했습니다.';
-    body.appendChild(message);
-    root.dataset.calendarState = 'error';
-  } finally {
-    root.removeAttribute('aria-busy');
-  }
-
   const onSessionState = event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (detail?.authenticated === false) {
+      dispose();
       root.hidden = true;
       root.replaceChildren();
+      root.removeAttribute('aria-busy');
       delete root.dataset.calendarState;
-      window.removeEventListener(SESSION_STATE_EVENT, onSessionState);
     }
   };
+
+  const refresh = async () => {
+    if (!active) return;
+    const requestGeneration = ++generation;
+    root.setAttribute('aria-busy', 'true');
+    try {
+      const snapshot = await loadLifeCalendarSnapshot(sessionToken, {timezone, now, fetchImpl});
+      if (!active || requestGeneration !== generation) return;
+      const groups = [snapshot.today?.items, snapshot.upcoming?.items, snapshot.attention?.items];
+      if (!groups.every(Array.isArray)) throw new Error('Invalid calendar snapshot');
+      if (groups.every(items => items.length === 0)) {
+        body.replaceChildren();
+        root.hidden = true;
+        root.dataset.calendarState = 'empty';
+        return;
+      }
+      const context = {sessionToken, timezone, refresh};
+      body.replaceChildren(
+        sectionNode('오늘', snapshot.today.items, '오늘 등록된 일정이 없어요.', context),
+        sectionNode('예정', snapshot.upcoming.items, '앞으로 7일간 등록된 일정이 없어요.', context),
+        sectionNode('주의 필요', snapshot.attention.items.map(item => ({
+          ...item,
+          local_datetime: null,
+          title: item.title,
+        })), '주의가 필요한 마감 일정이 없어요.', context),
+      );
+      root.dataset.calendarState = 'ready';
+      root.hidden = false;
+    } catch {
+      if (!active || requestGeneration !== generation) return;
+      root.hidden = true;
+      body.replaceChildren();
+      root.dataset.calendarState = 'error';
+    } finally {
+      if (active && requestGeneration === generation) root.removeAttribute('aria-busy');
+    }
+  };
+
+  activeCalendarMounts.set(root, dispose);
+  window.addEventListener('lotbi:life-calendar-refresh', onRefresh);
   window.addEventListener(SESSION_STATE_EVENT, onSessionState);
+  await refresh();
   return true;
 }
 
