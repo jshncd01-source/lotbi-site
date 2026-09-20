@@ -1,4 +1,4 @@
-import {createLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260920-realcal1';
+import {createLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260920-convcal1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-realcal1';
 import {
   addCivilDays,
@@ -56,6 +56,33 @@ function eventTime(item) {
 function isAllDay(item) {
   return item?.all_day === true || !item?.local_datetime;
 }
+function canonicalActivityLocalDate(value) {
+  const temporal = value?.temporal;
+  if (!temporal || typeof temporal !== 'object') return '';
+  if (typeof temporal.local_date === 'string' && validCivilDate(temporal.local_date)) return temporal.local_date;
+  if (typeof temporal.local_datetime === 'string' && validCivilDate(temporal.local_datetime.slice(0, 10))) return temporal.local_datetime.slice(0, 10);
+  return '';
+}
+
+function normalizedDeepOpen(value) {
+  if (!value || typeof value !== 'object') return null;
+  const scope = String(value.scope || '').trim().toUpperCase();
+  const dateHint = validCivilDate(value.dateHint) ? value.dateHint : '';
+  const timezone = typeof value.timezone === 'string' ? value.timezone.trim() : '';
+  if (scope === 'AUTH') {
+    const activityId = typeof value.activityId === 'string' ? value.activityId.trim() : '';
+    const occurrenceId = typeof value.occurrenceId === 'string' ? value.occurrenceId.trim() : '';
+    if (!/^activity_[0-9a-f]{32}$/.test(activityId) || (occurrenceId && !/^occurrence_[0-9a-f]{32}$/.test(occurrenceId))) return null;
+    return Object.freeze({scope, activityId, occurrenceId, dateHint, timezone});
+  }
+  if (scope === 'GUEST') {
+    const guestEventId = typeof value.guestEventId === 'string' ? value.guestEventId.trim() : '';
+    if (!/^guest_[0-9a-f-]{36}$/i.test(guestEventId)) return null;
+    return Object.freeze({scope, guestEventId, dateHint, timezone});
+  }
+  return null;
+}
+
 
 export function buildCalendarTemporal({localDate, time = '', allDay = false, timezone = DEFAULT_TIMEZONE}) {
   if (!validCivilDate(localDate)) throw new SiteCoreError('날짜가 올바르지 않습니다.', {code: 'LIFE_DATE_INVALID', status: 422});
@@ -385,11 +412,13 @@ export async function mountLifeCalendarManager({
   now = new Date(),
   fetchImpl = globalThis.fetch,
   guestRepository,
+  deepOpen,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
   const todayDate = dateInTimezone(now, timezone);
-  const initialDate = todayDate;
+  const deepOpenTarget = normalizedDeepOpen(deepOpen);
+  const initialDate = deepOpenTarget?.dateHint || todayDate;
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
@@ -519,6 +548,100 @@ export async function mountLifeCalendarManager({
     void refresh();
   };
   window.addEventListener('lotbi:life-calendar-refresh', onRefresh);
-  await refresh();
+
+  const showDeepOpenTerminal = (message, stateName) => {
+    state.loading = false;
+    updateChrome();
+    const notice = document.createElement('p');
+    notice.className = 'calendar-deep-open-notice';
+    notice.setAttribute('role', 'status');
+    notice.textContent = message;
+    status.replaceChildren(notice);
+    viewport.replaceChildren();
+    root.dataset.calendarDeepOpen = stateName;
+  };
+
+  const openDeepTarget = async () => {
+    if (!deepOpenTarget) {
+      await refresh();
+      return;
+    }
+    if ((authenticated && deepOpenTarget.scope !== 'AUTH') || (!authenticated && deepOpenTarget.scope !== 'GUEST')) {
+      showDeepOpenTerminal('이 일정은 현재 캘린더 범위에서 열 수 없습니다.', 'scope-mismatch');
+      return;
+    }
+
+    let targetItem;
+    let latestDate = deepOpenTarget.dateHint;
+    let moved = false;
+    if (authenticated) {
+      let canonical;
+      try {
+        canonical = await getLifeActivity(sessionToken, deepOpenTarget.activityId, fetchImpl);
+      } catch (error) {
+        if (error instanceof SiteCoreError && error.status === 404) {
+          showDeepOpenTerminal('일정을 찾을 수 없거나 현재 계정에서 접근할 수 없습니다.', 'not-found');
+          return;
+        }
+        showDeepOpenTerminal('일정을 확인하지 못했습니다.', 'lookup-failed');
+        return;
+      }
+      latestDate = canonicalActivityLocalDate(canonical);
+      if (!latestDate) {
+        showDeepOpenTerminal('일정 날짜를 확인하지 못했습니다.', 'invalid-date');
+        return;
+      }
+      if (canonical.activityState === 'REMOVED') {
+        showDeepOpenTerminal('삭제된 일정입니다.', 'deleted');
+        return;
+      }
+      if (deepOpenTarget.occurrenceId && canonical.occurrenceId !== deepOpenTarget.occurrenceId) {
+        showDeepOpenTerminal('일정의 발생 항목이 변경되어 기존 링크로 열 수 없습니다.', 'occurrence-changed');
+        return;
+      }
+      moved = Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
+      const parts = civilDateParts(latestDate);
+      state.mode = 'month';
+      state.selectedDate = latestDate;
+      state.year = parts.year;
+      state.month = parts.month;
+      await refresh();
+      targetItem = state.items.find(item => (
+        item.activity_id === deepOpenTarget.activityId
+        && (!deepOpenTarget.occurrenceId || item.occurrence_id === deepOpenTarget.occurrenceId)
+      ));
+    } else {
+      targetItem = repository.list().find(item => item.id === deepOpenTarget.guestEventId);
+      if (!targetItem) {
+        showDeepOpenTerminal('삭제된 일정입니다.', 'deleted');
+        return;
+      }
+      latestDate = targetItem.local_date;
+      moved = Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
+      const parts = civilDateParts(latestDate);
+      state.mode = 'month';
+      state.selectedDate = latestDate;
+      state.year = parts.year;
+      state.month = parts.month;
+      await refresh();
+      targetItem = state.items.find(item => item.id === deepOpenTarget.guestEventId);
+    }
+
+    if (!targetItem) {
+      showDeepOpenTerminal('일정을 찾지 못했습니다.', 'not-found');
+      return;
+    }
+    root.dataset.calendarDeepOpen = 'opened';
+    if (moved) {
+      const notice = document.createElement('p');
+      notice.className = 'calendar-deep-open-notice';
+      notice.setAttribute('role', 'status');
+      notice.textContent = '일정이 변경되어 최신 날짜로 열었습니다.';
+      status.replaceChildren(notice);
+    }
+    openEditor(targetItem, latestDate);
+  };
+
+  await openDeepTarget();
   return true;
 }
