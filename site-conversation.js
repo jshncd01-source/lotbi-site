@@ -317,7 +317,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
     detail: Object.freeze({phase, requestId}),
   }));
-  let openSurface, openSurfaceTrigger, surfaceRestoreFocus;
+  let openSurface, openSurfaceTrigger, surfaceRestoreFocus, surfaceCloseCallback;
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
@@ -1125,12 +1125,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const closeSurface = () => {
     if (!openSurface) return;
     for (const trigger of document.querySelectorAll('[data-profile-menu-trigger]')) trigger.setAttribute('aria-expanded', 'false');
-    openSurface.remove(); openSurface = undefined; openSurfaceTrigger = undefined; document.body.classList.remove('site-overlay-open');
+    const onClose = surfaceCloseCallback;
+    openSurface.remove(); openSurface = undefined; openSurfaceTrigger = undefined; surfaceCloseCallback = undefined; document.body.classList.remove('site-overlay-open');
+    if (typeof onClose === 'function') {
+      try { onClose(); } catch {}
+    }
     if (surfaceRestoreFocus instanceof HTMLElement && surfaceRestoreFocus.isConnected) surfaceRestoreFocus.focus();
     surfaceRestoreFocus = undefined;
   };
-  const installSurfaceBehavior = (surface, panel, {modal = false, trigger} = {}) => {
-    closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const installSurfaceBehavior = (surface, panel, {modal = false, trigger, onClose} = {}) => {
+    closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; surfaceCloseCallback = typeof onClose === 'function' ? onClose : undefined;
     document.body.appendChild(surface); document.body.classList.add('site-overlay-open');
     surface.addEventListener('click', event => { if (event.target === surface) closeSurface(); });
     surface.addEventListener('keydown', event => {
@@ -1263,10 +1267,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
     themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const openCalendar = async view => {
+  const openCalendar = async (view, {deepOpen, restoreConversation = false} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
+
+    const returnState = restoreConversation ? Object.freeze({
+      namespace,
+      threadId: state.activeThreadId,
+      scrollTop: mainScrollHost.scrollTop,
+      draft: prompt.value,
+    }) : null;
 
     const {backdrop, panel, content} = modalShell(
       '캘린더',
@@ -1275,11 +1286,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
     );
     panel.classList.add('site-calendar-modal');
-    installSurfaceBehavior(backdrop, panel, {modal: true});
+    installSurfaceBehavior(backdrop, panel, {
+      modal: true,
+      onClose: returnState ? () => {
+        if (namespace !== returnState.namespace) return;
+        if (returnState.threadId && state.threads.some(item => item.id === returnState.threadId)) {
+          state.activeThreadId = returnState.threadId;
+          state.draft = returnState.draft.slice(0, 1000);
+          prompt.value = state.draft;
+          prompt.dispatchEvent(new Event('input', {bubbles: true}));
+          saveState();
+          renderActiveThread();
+          requestAnimationFrame(() => { mainScrollHost.scrollTop = returnState.scrollTop; });
+        }
+      } : undefined,
+    });
     const mounted = await mountLifeCalendarManager({
       sessionToken,
       root: content,
       initialView,
+      deepOpen,
     });
     if (!mounted) {
       const message = document.createElement('p');
