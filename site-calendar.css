@@ -134,3 +134,171 @@
     grid-template-columns: 48px minmax(0, 1fr);
   }
 }
+
+
+/* SITE-PUBLIC-UX-CALENDAR-NAV-09 — shared Desktop/Mobile Calendar navigation. */
+.sidebar-calendar-nav {
+  flex: 0 0 auto;
+}
+
+.sidebar-calendar-summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.sidebar-calendar-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar-calendar-summary::after {
+  content: '▾';
+  margin-left: auto;
+  font-size: 11px;
+  transition: transform 140ms ease;
+}
+
+.sidebar-calendar-nav[open] .sidebar-calendar-summary::after {
+  transform: rotate(180deg);
+}
+
+.sidebar-calendar-subnav {
+  display: grid;
+  gap: 2px;
+  padding: 4px 0 0 12px;
+}
+
+.sidebar-calendar-subnav .nav-item {
+  min-height: 36px;
+  padding: 7px 10px;
+  color: #5e6672;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sidebar-calendar-subnav .nav-item:hover,
+.sidebar-calendar-subnav .nav-item:focus-visible,
+.sidebar-calendar-subnav .nav-item[aria-current="true"] {
+  background: #eceff5;
+  color: var(--brand-navy, #182a46);
+}
+
+/* Full Calendar manager reuses the existing safe modal shell. */
+.site-calendar-modal {
+  width: min(100%, 860px);
+  max-height: min(88vh, 820px);
+}
+
+.life-calendar-manager-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.life-calendar-manager-tab {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #d5dbe6;
+  border-radius: 999px;
+  background: #fff;
+  color: #3d4653;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.life-calendar-manager-tab[aria-selected="true"] {
+  border-color: var(--brand-navy, #182a46);
+  background: var(--brand-navy, #182a46);
+  color: #fff;
+}
+
+.life-calendar-manager-tab:focus-visible,
+.life-calendar-manager-date input:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .26);
+  outline-offset: 2px;
+}
+
+.life-calendar-manager-date {
+  width: fit-content;
+  display: grid;
+  gap: 6px;
+  color: #3d4653;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.life-calendar-manager-date[hidden] {
+  display: none !important;
+}
+
+.life-calendar-manager-date input {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #cfd6e2;
+  border-radius: 10px;
+  background: #fff;
+  color: #303642;
+  font: inherit;
+}
+
+.life-calendar-manager-note {
+  margin: 0;
+  color: #626b78;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.life-calendar-manager-body {
+  display: grid;
+  gap: 14px;
+  min-height: 120px;
+}
+
+.life-calendar-attention-item {
+  grid-template-columns: 104px minmax(0, 1fr);
+}
+
+body[data-site-theme="dark"] .life-calendar-manager-tab,
+body[data-site-theme="dark"] .life-calendar-manager-date input {
+  border-color: #515b69;
+  background: #171c25;
+  color: #edf0f5;
+}
+
+body[data-site-theme="dark"] .life-calendar-manager-tab[aria-selected="true"] {
+  background: #edf0f5;
+  color: #171c25;
+}
+
+body[data-site-theme="dark"] .life-calendar-manager-note,
+body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
+  color: #aeb6c3;
+}
+
+@media (max-width: 760px) {
+  .site-calendar-modal {
+    width: 100%;
+    max-height: 92svh;
+  }
+
+  .life-calendar-manager-tabs {
+    gap: 6px;
+  }
+
+  .life-calendar-manager-tab {
+    min-height: 38px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .life-calendar-attention-item {
+    grid-template-columns: 86px minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-calendar-summary::after {
+    transition: none;
+  }
+}
