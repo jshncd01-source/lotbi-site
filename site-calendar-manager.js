@@ -615,13 +615,22 @@ export async function mountLifeCalendarManager({
   root,
   initialView = 'month',
   timezone = resolvedTimezone(),
-  now = new Date(),
+  now,
   fetchImpl = globalThis.fetch,
   guestRepository,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
-  const todayDate = dateInTimezone(now, timezone);
+  const clock = typeof now === 'function'
+    ? now
+    : now instanceof Date
+      ? () => now
+      : () => new Date();
+  const currentNow = () => {
+    const value = clock();
+    return value instanceof Date ? value : new Date(value);
+  };
+  const todayDate = dateInTimezone(currentNow(), timezone);
   const initialDate = todayDate;
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
@@ -756,7 +765,7 @@ export async function mountLifeCalendarManager({
     state.loading = true; render(); root.setAttribute('aria-busy', 'true');
     try {
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now, fetchImpl});
+        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl});
         if (result.kind === 'attention') state.attention = result.items;
         else {
           state.items = result.items;
@@ -826,12 +835,18 @@ export async function mountLifeCalendarManager({
   previous.addEventListener('click', async () => {
     if (state.mode === 'year') state.year -= 1;
     else { state.month -= 1; if (state.month < 1) { state.month = 12; state.year -= 1; } }
-    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`; state.detailOpen = false; await refresh();
+    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
+    state.detailOpen = false;
+    if (state.mode === 'agenda') state.agendaScope = 'month';
+    await refresh();
   });
   next.addEventListener('click', async () => {
     if (state.mode === 'year') state.year += 1;
     else { state.month += 1; if (state.month > 12) { state.month = 1; state.year += 1; } }
-    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`; state.detailOpen = false; await refresh();
+    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
+    state.detailOpen = false;
+    if (state.mode === 'agenda') state.agendaScope = 'month';
+    await refresh();
   });
   today.addEventListener('click', async () => {
     const parts = civilDateParts(todayDate); state.year = parts.year; state.month = parts.month; state.selectedDate = todayDate; state.mode = 'month'; state.detailOpen = true; state.dayCollapsed = false; await refresh();
@@ -858,10 +873,50 @@ export async function mountLifeCalendarManager({
   };
   window.addEventListener('resize', onResize);
 
+  const refreshTodayIfNeeded = async () => {
+    const nextToday = dateInTimezone(currentNow(), timezone);
+    if (nextToday === state.todayDate) return;
+    const followedToday = state.selectedDate === state.todayDate;
+    state.todayDate = nextToday;
+    if (followedToday) {
+      const parts = civilDateParts(nextToday);
+      const monthChanged = parts.year !== state.year || parts.month !== state.month;
+      state.selectedDate = nextToday;
+      state.year = parts.year;
+      state.month = parts.month;
+      if (monthChanged && authenticated) await refresh();
+      else render();
+      return;
+    }
+    render();
+  };
+
+  const cleanupLifecycle = () => {
+    window.removeEventListener('resize', onResize);
+    window.removeEventListener('focus', onResume);
+    window.removeEventListener('pageshow', onResume);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.clearInterval(todayTimer);
+    window.removeEventListener('lotbi:life-calendar-refresh', onRefresh);
+  };
+  const onResume = () => {
+    if (!root.isConnected) { cleanupLifecycle(); return; }
+    void refreshTodayIfNeeded();
+  };
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') onResume();
+  };
+  window.addEventListener('focus', onResume);
+  window.addEventListener('pageshow', onResume);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  const todayTimer = window.setInterval(() => {
+    if (!root.isConnected) { cleanupLifecycle(); return; }
+    void refreshTodayIfNeeded();
+  }, 60_000);
+
   const onRefresh = event => {
     if (!root.isConnected) {
-      window.removeEventListener('lotbi:life-calendar-refresh', onRefresh);
-      window.removeEventListener('resize', onResize);
+      cleanupLifecycle();
       return;
     }
     if (event.detail?.source === root) return;
