@@ -6,6 +6,7 @@ import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldS
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
+import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
 const {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -41,7 +42,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-conversationpolish1';
+  link.href = '/site-conversation.css?v=20260920-messageux1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -96,8 +97,7 @@ function createMessage(role, text, meta = {}) {
   if (meta.status) article.dataset.status = meta.status;
   if (meta.responseMode) article.dataset.responseMode = meta.responseMode;
   if (meta.correlationId) article.dataset.correlationId = meta.correlationId;
-  const body = document.createElement('p');
-  body.className = 'chat-message-body'; body.textContent = text;
+  const body = createSafeMessageBody(text);
   article.appendChild(body);
   if (Array.isArray(meta.attachments) && meta.attachments.length) {
     const list = document.createElement('div'); list.className = 'message-attachment-list'; list.setAttribute('aria-label', '첨부 파일');
@@ -119,6 +119,7 @@ function createMessage(role, text, meta = {}) {
     note.className = 'chat-message-meta'; note.textContent = '추가 확인이 필요합니다.';
     article.appendChild(note);
   }
+  if (role === 'user') enhanceExpandableUserMessage(article, body, text);
   return article;
 }
 function createLoadingMessage() {
