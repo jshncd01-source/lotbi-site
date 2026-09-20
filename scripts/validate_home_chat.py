@@ -184,7 +184,7 @@ def main() -> int:
                 errors.append(f"index.html: {label} must not keep disabled {destination} destination in the DOM")
 
         primary_match = re.search(
-            r'<div class="sidebar-primary-nav">[sS]*?</div>',
+            r'<div class="sidebar-primary-nav">[\s\S]*?</div>',
             block,
         )
         if not primary_match or "data-new-conversation" not in primary_match.group(0):
@@ -193,7 +193,7 @@ def main() -> int:
             errors.append(f"index.html: {label} connected services must be secondary, not primary")
 
         secondary_match = re.search(
-            r'<div class="sidebar-secondary-nav"[^>]*>[sS]*?</div>',
+            r'<div class="sidebar-secondary-nav"[^>]*>[\s\S]*?</div>',
             block,
         )
         if not secondary_match or "connected-services" not in secondary_match.group(0):
