@@ -1,5 +1,6 @@
 import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js';
 import {SiteCoreError} from './site-core.js';
+export {buildCalendarAriaLabel, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=20260920-realcal1';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
@@ -78,33 +79,6 @@ function itemNode(item, context) {
 
   copy.append(title, meta);
   li.append(time, copy);
-  if (context && Number.isInteger(item.activity_revision) && Number.isInteger(item.occurrence_revision)) {
-    const actions = document.createElement('span'); actions.className = 'life-calendar-item-actions';
-    const reschedule = document.createElement('button'); reschedule.type = 'button'; reschedule.textContent = '시간 변경';
-    reschedule.addEventListener('click', async () => {
-      const next = globalThis.prompt?.('새 날짜와 시간을 입력해 주세요. (YYYY-MM-DDTHH:MM)', item.local_datetime?.slice(0, 16) || '');
-      if (!next) return;
-      reschedule.disabled = true;
-      try {
-        await rescheduleLifeActivity(context.sessionToken, item.activity_id, {
-          logicalRequestId: mutationRequestId('reschedule'), expectedRevision: item.occurrence_revision,
-          temporal: {kind: 'LOCAL_DATE_TIME', local_datetime: next, timezone_name: context.timezone},
-        });
-        await context.refresh();
-      } finally { reschedule.disabled = false; }
-    });
-    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '일정에서 제거';
-    remove.addEventListener('click', async () => {
-      remove.disabled = true;
-      try {
-        await removeLifeActivity(context.sessionToken, item.activity_id, {
-          logicalRequestId: mutationRequestId('remove'), expectedRevision: item.activity_revision,
-        });
-        await context.refresh();
-      } finally { remove.disabled = false; }
-    });
-    actions.append(reschedule, remove); li.appendChild(actions);
-  }
   return li;
 }
 
@@ -207,7 +181,7 @@ export function loadGuestLifeCalendarManagerView({
   });
 }
 
-export async function loadLifeCalendarManagerView(
+async function loadLegacyLifeCalendarManagerView(
   sessionToken,
   {
     view = 'all',
@@ -357,7 +331,7 @@ function attentionNodes(items) {
   return [section];
 }
 
-export async function mountLifeCalendarManager({
+async function mountLegacyLifeCalendarManager({
   sessionToken,
   root,
   initialView = 'all',

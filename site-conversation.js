@@ -2,7 +2,7 @@ import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression}
 import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-guestcal1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
@@ -882,8 +882,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const openCalendar = async view => {
-    const allowed = new Set(['all', 'today', 'upcoming', 'attention', 'date']);
-    const initialView = allowed.has(view) ? view : 'all';
+    const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
+    const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
 
     const {backdrop, panel, content} = modalShell(
