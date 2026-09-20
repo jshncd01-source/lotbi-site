@@ -63,6 +63,19 @@ jobs:
       - name: Validate Bare White Home skin scope
         run: python scripts/validate_bare_white_home_skin_01.py
 
+      - name: Render Bare White Home desktop/mobile evidence
+        env:
+          BARE_WHITE_EVIDENCE_DIR: ${{ runner.temp }}/bare-white-home
+        run: node scripts/validate_bare_white_home_render_01.mjs
+
+      - name: Upload Bare White Home render evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: bare-white-home-render-${{ github.sha }}
+          path: ${{ runner.temp }}/bare-white-home
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Validate mobile Home keyboard and Avatar stability
         run: node scripts/validate_mobile_home_ux_stability_01.mjs
 
