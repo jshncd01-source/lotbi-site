@@ -108,6 +108,6 @@ assert.match(conversationSource, /image\.loading = 'lazy'/u);
 assert.match(conversationSource, /media\.textContent = 'NAVER 지도'/u);
 assert.match(conversationSource, /로그인 없이 실제 장소 카드/u);
 assert.doesNotMatch(conversationSource, /openNaverMapsPlace\([^)]*response\.placeResult/u);
-assert.match(indexSource, /site-conversation\.js\?v=20260920-placecardhotfix1/u);
+assert.match(indexSource, /site-conversation\.js\?v=20260920-calendarentry4/u);
 
 console.log('NAVER Maps place navigation + static thumbnail contract: PASS');
