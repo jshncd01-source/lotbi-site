@@ -22,11 +22,11 @@ for (const general of ['대통령이 누구야', '전주 혁신도시 삼겹살�
   assert.equal(deterministicReply(general), undefined, `${general} must remain on authoritative Core/search routing`);
 }
 
-const localBranch = conversation.indexOf('const local = deterministicReply(message)');
-const calendarAuthBranch = conversation.indexOf('if (!sessionToken && isExplicitLifeCalendarCommand(message))', localBranch);
+const localBranch = conversation.indexOf('const local = attachments.length ? null : deterministicReply(message)');
+const calendarAuthBranch = conversation.indexOf('if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message))', localBranch);
 const guestBranch = conversation.indexOf('if (!sessionToken) {', calendarAuthBranch);
 const guestCall = conversation.indexOf('sendGuestConversationMessage({', guestBranch);
-const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message)', guestCall);
+const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message, globalThis.fetch, attachments.map(item => item.id))', guestCall);
 assert.ok(
   localBranch > 0
     && calendarAuthBranch > localBranch
@@ -36,6 +36,8 @@ assert.ok(
   'deterministic routing must precede account-required Calendar, anonymous guest Core, then authenticated Core',
 );
 assert.ok(conversation.includes("lastPath = 'CORE_GUEST_CONVERSATION'"), 'ordinary anonymous questions must use the guest Core path');
+assert.ok(conversation.includes('const local = attachments.length ? null : deterministicReply(message)'), 'selected attachments must bypass local deterministic replies');
+assert.ok(conversation.includes('if (!attachments.length && isExplicitLifeCalendarCommand(message))'), 'selected attachments must not execute Calendar commands');
 assert.ok(conversation.includes('const guestRequestId = logicalRequestId || newId(\'guest-ai\')'), 'guest provider calls require a stable logical request ID');
 assert.ok(conversation.includes('if (isGuestSessionError(caught)) clearGuestSession()'), 'expired guest sessions may be renewed without forcing account login');
 assert.ok(!conversation.includes('if (isSessionError(error) || !sessionToken)'), 'anonymous retry must not force account handoff');
