@@ -397,9 +397,9 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   min-height: 92px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   overflow: hidden;
-  padding: 6px 7px;
+  padding: 3px 5px;
   background: #fff;
   color: #303642;
 }
@@ -407,11 +407,11 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-date-cell:nth-child(7n + 1) .calendar-date-number { color: #b54848; }
 .calendar-date-cell:nth-child(7n) .calendar-date-number { color: #3568a8; }
 .calendar-date-cell[data-selected="true"] { z-index: 1; box-shadow: inset 0 0 0 2px rgba(24, 42, 70, .58); background: #f6f8fb; }
-.calendar-date-header { min-width: 0; min-height: 29px; display: flex; align-items: center; gap: 5px; }
+.calendar-date-header { min-width: 0; min-height: 24px; display: flex; align-items: center; gap: 4px; }
 .calendar-date-trigger {
   flex: 0 0 auto;
-  min-width: 29px;
-  min-height: 29px;
+  min-width: 26px;
+  min-height: 26px;
   display: inline-grid;
   place-items: center;
   padding: 0;
@@ -436,7 +436,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 2px;
+  gap: 1px;
   overflow: hidden;
 }
 .calendar-event-chip {
