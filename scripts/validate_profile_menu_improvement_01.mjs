@@ -53,6 +53,8 @@ importPhase='continuity';
 const continuity=await import('/site-continuity.js?profile-test=1');
 importPhase='attachments';
 await import('/site-attachments.js?profile-test=1');
+importPhase='core';
+await import('/site-core.js?profile-test=1');
 importPhase='conversation';
 const conversation=await import('/site-conversation.js?profile-test=1');
 continuity.markAnonymousAccountUi();
