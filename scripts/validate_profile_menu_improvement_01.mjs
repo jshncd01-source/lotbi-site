@@ -46,9 +46,10 @@ if(u.endsWith('/v2/me')){counts.me+=1;return new Response(JSON.stringify({user:{
 if(u.endsWith('/v2/subscription')){counts.subscription+=1;await subscriptionGate;return new Response(JSON.stringify({plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,free_units:3,used_free_units:1,remaining_free_units:2}),{status:200,headers:{'Content-Type':'application/json'}})}
 if(u.endsWith('/v2/sessions/logout')){counts.logout+=1;return new Response(JSON.stringify({session_id:'ses',status:'REVOKED'}),{status:200,headers:{'Content-Type':'application/json'}})}
 counts.other+=1;return new Response('{}',{status:500})};
+let importPhase='boot';
 try{
 localStorage.clear();
-let importPhase='continuity';
+importPhase='continuity';
 const continuity=await import('/site-continuity.js?profile-test=1');
 importPhase='attachments';
 await import('/site-attachments.js?profile-test=1');
