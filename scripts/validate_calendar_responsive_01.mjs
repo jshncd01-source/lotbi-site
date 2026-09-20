@@ -11,17 +11,16 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarVersion = '20260920-realcal1';
-const calendarStyleVersion = '20260920-realcal2';
-const entryVersion = '20260920-calendarentry3';
-assert.ok(index.includes(`site-calendar.css?v=${calendarStyleVersion}`));
-assert.ok(callback.includes(`/site-calendar.css?v=${calendarStyleVersion}`));
-assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));
-assert.ok(callback.includes(`/auth-callback.js?v=${entryVersion}`));
+const calendarVersion = '20260920-calux1';
+assert.ok(index.includes(`site-calendar.css?v=${calendarVersion}`));
+assert.ok(callback.includes(`/site-calendar.css?v=${calendarVersion}`));
+assert.ok(index.includes(`site-conversation.js?v=${calendarVersion}`));
+assert.ok(callback.includes(`/auth-callback.js?v=${calendarVersion}`));
 assert.ok(conversation.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
 assert.ok(callbackJs.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
-assert.ok(callbackJs.includes(`./site-conversation.js?v=${entryVersion}`));
+assert.ok(callbackJs.includes(`./site-conversation.js?v=${calendarVersion}`));
 assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarVersion}`));
+assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarVersion}`));
 for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js']) {
   assert.ok(workflow.includes(`'${module}'`), `focused workflow missing ${module}`);
 }
@@ -35,11 +34,16 @@ assert.ok(css.includes('@media (max-width: 520px)'));
 assert.ok(css.includes('.site-modal.site-calendar-modal {'), 'Calendar must outrank the later generic site-modal rule');
 assert.ok(css.includes('width: min(1180px, calc(100vw - 40px))'));
 assert.ok(css.includes('height: calc(100dvh - 40px)'));
-assert.ok(css.includes('grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr)'));
-assert.ok(css.includes('grid-template-rows: repeat(6, minmax(0, 1fr))'));
+assert.ok(css.includes('.calendar-month-layout { position: relative; display: block;'), 'desktop Month must own the primary width');
+for (const weeks of [4, 5, 6]) {
+  assert.ok(css.includes(`.calendar-month-grid[data-week-count="${weeks}"]`), `missing ${weeks}-week geometry`);
+}
+assert.ok(css.includes('position: fixed;'), 'desktop selected-day detail must overlay instead of consuming a permanent column');
+assert.ok(css.includes('grid-template-columns: 42px minmax(120px, 1fr) 42px auto'), 'mobile toolbar first row contract missing');
+assert.ok(css.includes('grid-template-columns: repeat(4, minmax(0, 1fr))'), 'mobile view controls must be discoverable without horizontal scrolling');
+assert.ok(css.includes('.calendar-event-stack { display: none; }'), 'touch Month should prefer overview plus selected-day list');
+assert.ok(css.includes('.calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'mobile Year must use readable two-column summaries');
 assert.ok(css.includes('white-space: nowrap'));
-assert.ok(css.includes('flex-shrink: 0'));
-assert.ok(css.includes('scrollbar-width: none'));
 assert.ok(css.includes('overflow-y: auto'));
 assert.ok(css.includes('overflow-y: hidden'));
 assert.ok(css.includes('min-width: 0'));
@@ -61,5 +65,11 @@ assert.ok(conversation.includes('event.stopPropagation();'), 'direct Calendar en
 assert.ok(!conversation.includes("const calendarView = target?.closest('[data-calendar-view]');"), 'Calendar must not depend on the late document click delegate');
 assert.ok(manager.includes("if (value === 'today' || value === 'all' || value === 'date') return 'month'"));
 assert.ok(manager.includes("if (value === 'upcoming') return 'agenda'"));
+assert.ok(manager.includes("case 'Home'"));
+assert.ok(manager.includes("case 'End'"));
+assert.ok(manager.includes("case 'PageUp'"));
+assert.ok(manager.includes("case 'PageDown'"));
+assert.ok(manager.includes('state.detailOpen = false'));
+assert.ok(manager.includes('state.dayCollapsed'));
 
 console.log('LOTBI Calendar responsive, navigation and cache contract: PASS');
