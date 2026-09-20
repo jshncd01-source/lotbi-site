@@ -70,7 +70,7 @@ def main() -> int:
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
-        "approved conversation module": 'src="site-conversation.js?v=20260920-richcards5"',
+        "approved conversation module": 'src="site-conversation.js?v=20260920-calnav9"',
         "approved continuity module": 'src="site-continuity.js?v=20260920-fallback4"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-sidebar8"',
@@ -84,6 +84,12 @@ def main() -> int:
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "+ 새 대화",
+        "calendar menu": "캘린더",
+        "calendar all": "전체 일정",
+        "calendar upcoming": "예정된 일정",
+        "calendar attention": "확인 필요",
+        "calendar by date": "날짜별 보기",
+        "calendar stylesheet": 'href="site-calendar.css?v=20260920-calnav9"',
         "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
         "connected services URL": CONNECTED_SERVICES_URL,
@@ -150,7 +156,6 @@ def main() -> int:
             ">내 계정<",
             ">설정<",
             "도움말 / 문의",
-            ">오늘<",
             ">어제<",
             ">최근 7일<",
             ">이전<",
@@ -161,7 +166,7 @@ def main() -> int:
             if forbidden in block:
                 errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
 
-        for required in ("+ 새 대화", "연결 서비스", "최근 대화"):
+        for required in ("+ 새 대화", "캘린더", "전체 일정", "오늘", "예정된 일정", "확인 필요", "날짜별 보기", "연결 서비스", "최근 대화"):
             if required not in block:
                 errors.append(f"index.html: {label} missing approved IA item: {required}")
         for removed in ("내 작업", "라이브러리"):
@@ -215,6 +220,8 @@ def main() -> int:
         'class="sidebar-brand-wordmark"',
         'class="sidebar-nav sidebar-nav-desktop"',
         'class="sidebar-primary-nav"',
+        'class="sidebar-calendar-nav"',
+        'class="sidebar-calendar-subnav"',
         'class="nav-section sidebar-history-section"',
         'class="sidebar-history-scroll"',
         'class="sidebar-secondary-nav"',
@@ -239,7 +246,7 @@ def main() -> int:
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-richcards5"></script>',
+        '<script type="module" src="site-conversation.js?v=20260920-calnav9"></script>',
         '<script type="module" src="site-continuity.js?v=20260920-fallback4"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
