@@ -42,7 +42,7 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
 
   assert.match(block, /<button[^>]*data-sidebar-destination="work"[^>]*disabled[^>]*>[\s\S]*?내 작업[\s\S]*?<\/button>/, `${label} 내 작업 must remain fail-closed until an authoritative task route exists`);
   assert.match(block, /<button[^>]*data-sidebar-destination="library"[^>]*disabled[^>]*>[\s\S]*?라이브러리[\s\S]*?<\/button>/, `${label} 라이브러리 must remain fail-closed until an authoritative library route exists`);
-  assert.match(block, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/external-identities"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must use the existing Account Web external-identities route`);
+  assert.match(block, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must use the Account Web connected-services hub`);
 
   const recent = block.match(/<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?<\/ul>/)?.[0] || '';
   assert.ok(recent, `${label} sidebar missing recent conversation list`);

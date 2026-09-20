@@ -6,38 +6,81 @@
   const openButtons = Array.from(document.querySelectorAll('[data-mobile-nav-open]'));
   const closeButton = document.querySelector('[data-mobile-nav-close]');
   const prompt = document.getElementById('lotbi-prompt');
-  const mobileViewportQuery = window.matchMedia('(max-width: 760px)');
-  let mobileViewportBaseline = Math.max(
-    document.documentElement.clientHeight || 0,
-    window.innerHeight || 0,
-    window.visualViewport?.height || 0,
+  const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
+  const currentVisibleHeight = () => Math.max(
+    1,
+    Math.round(window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 1),
   );
-  let mobileViewportWidth = Math.max(window.innerWidth || 0, window.visualViewport?.width || 0);
+  const currentVisibleWidth = () => Math.max(
+    1,
+    Math.round(window.visualViewport?.width || window.innerWidth || document.documentElement.clientWidth || 1),
+  );
+  const currentLayoutHeight = () => Math.max(
+    currentVisibleHeight(),
+    Math.round(window.innerHeight || 0),
+    Math.round(document.documentElement.clientHeight || 0),
+  );
+  const softwareKeyboardCapable = () => (
+    coarsePointerQuery.matches
+    || Number(navigator.maxTouchPoints || 0) > 0
+    || 'ontouchstart' in window
+  );
+  let mobileViewportBaseline = currentLayoutHeight();
+  let mobileViewportWidth = currentVisibleWidth();
   let viewportSyncFrame = 0;
+  let resizePrompt = () => {};
 
   const syncMobileViewport = () => {
     cancelAnimationFrame(viewportSyncFrame);
     viewportSyncFrame = requestAnimationFrame(() => {
       const viewport = window.visualViewport;
-      const visibleHeight = Math.max(1, Math.round(viewport?.height || window.innerHeight || document.documentElement.clientHeight || 1));
-      const visibleWidth = Math.max(1, Math.round(viewport?.width || window.innerWidth || document.documentElement.clientWidth || 1));
-      document.documentElement.style.setProperty('--lotbi-mobile-viewport-height', `${visibleHeight}px`);
+      const visibleHeight = currentVisibleHeight();
+      const visibleWidth = currentVisibleWidth();
+      const offsetTop = Math.max(0, Math.round(viewport?.offsetTop || 0));
+      const layoutHeight = currentLayoutHeight();
 
-      const widthChanged = Math.abs(visibleWidth - mobileViewportWidth) > 40;
+      document.documentElement.style.setProperty('--lotbi-mobile-viewport-height', `${visibleHeight}px`);
+      document.documentElement.style.setProperty('--lotbi-visible-viewport-height', `${visibleHeight}px`);
+      document.documentElement.style.setProperty('--lotbi-visible-viewport-width', `${visibleWidth}px`);
+      document.documentElement.style.setProperty('--lotbi-visible-viewport-offset-top', `${offsetTop}px`);
+
+      const widthChanged = Math.abs(visibleWidth - mobileViewportWidth) > 72;
       if (widthChanged) {
         mobileViewportWidth = visibleWidth;
-        mobileViewportBaseline = visibleHeight;
+        mobileViewportBaseline = layoutHeight;
       }
 
       const promptFocused = prompt instanceof HTMLTextAreaElement && document.activeElement === prompt;
-      if (!mobileViewportQuery.matches || !promptFocused) {
-        mobileViewportBaseline = visibleHeight;
-        document.body.classList.remove('mobile-keyboard-open');
+      if (!promptFocused || !softwareKeyboardCapable()) {
+        mobileViewportBaseline = Math.max(visibleHeight, layoutHeight);
+        document.documentElement.style.setProperty('--lotbi-keyboard-inset', '0px');
+        document.body.classList.remove('mobile-keyboard-open', 'mobile-keyboard-tight');
+        resizePrompt();
         return;
       }
 
+      mobileViewportBaseline = Math.max(mobileViewportBaseline, layoutHeight, visibleHeight);
       const keyboardInset = Math.max(0, mobileViewportBaseline - visibleHeight);
-      document.body.classList.toggle('mobile-keyboard-open', keyboardInset >= 120);
+      const keyboardRatio = visibleHeight / Math.max(1, mobileViewportBaseline);
+      const openThreshold = Math.max(96, Math.round(mobileViewportBaseline * 0.16));
+      const keyboardOpen = keyboardInset >= openThreshold && keyboardRatio <= 0.84;
+      const keyboardTight = keyboardOpen && (keyboardRatio <= 0.62 || visibleHeight <= 460);
+
+      document.documentElement.style.setProperty('--lotbi-keyboard-inset', `${Math.round(keyboardInset)}px`);
+      document.body.classList.toggle('mobile-keyboard-open', keyboardOpen);
+      document.body.classList.toggle('mobile-keyboard-tight', keyboardTight);
+      resizePrompt();
+
+      window.dispatchEvent(new CustomEvent('lotbi:keyboard-viewport', {
+        detail: Object.freeze({
+          open: keyboardOpen,
+          tight: keyboardTight,
+          visibleHeight,
+          visibleWidth,
+          offsetTop,
+          keyboardInset: Math.round(keyboardInset),
+        }),
+      }));
     });
   };
 
@@ -74,7 +117,7 @@
   }
 
   if (prompt instanceof HTMLTextAreaElement) {
-    const resizePrompt = () => {
+    resizePrompt = () => {
       prompt.style.height = 'auto';
       const styles = window.getComputedStyle(prompt);
       const minHeight = Number.parseFloat(styles.minHeight) || 40;
@@ -106,5 +149,11 @@
   window.visualViewport?.addEventListener('resize', syncMobileViewport, {passive: true});
   window.visualViewport?.addEventListener('scroll', syncMobileViewport, {passive: true});
   window.addEventListener('resize', syncMobileViewport, {passive: true});
+  window.addEventListener('orientationchange', () => {
+    mobileViewportBaseline = currentLayoutHeight();
+    mobileViewportWidth = currentVisibleWidth();
+    document.body.classList.remove('mobile-keyboard-open', 'mobile-keyboard-tight');
+    syncMobileViewport();
+  }, {passive: true});
   syncMobileViewport();
 })();

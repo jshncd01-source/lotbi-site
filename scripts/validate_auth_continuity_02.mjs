@@ -7,10 +7,12 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const {
+  ACCOUNT_SITE_FALLBACK_URL,
   ACCOUNT_SITE_SESSION_STATUS_URL,
   SiteHandoffClientError,
   readAccountSessionStatus,
-} = await import('../site-auth.js');
+  shouldUseAccountSiteFallback,
+} = await import('../site-auth.js?v=20260920-fallback4');
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -20,6 +22,13 @@ function jsonResponse(body, status = 200) {
 }
 
 assert.equal(ACCOUNT_SITE_SESSION_STATUS_URL, 'https://account.lotbiai.com/api/auth/site-session-status');
+assert.equal(ACCOUNT_SITE_FALLBACK_URL, 'https://account.lotbiai.com/?site_fallback=1');
+assert.equal(new URL(ACCOUNT_SITE_FALLBACK_URL).searchParams.get('site_fallback'), '1');
+assert.equal(new URL(ACCOUNT_SITE_FALLBACK_URL).searchParams.has('state'), false);
+assert.equal(new URL(ACCOUNT_SITE_FALLBACK_URL).searchParams.has('code_challenge'), false);
+assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE')), true);
+assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_STORAGE_UNAVAILABLE')), true);
+assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_STATE_MISMATCH')), false);
 
 {
   let request;
@@ -78,7 +87,7 @@ const continuityCss = read('site-auth-continuity.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js?v=20260920-logincta2"'));
+assert.ok(index.includes('type="module" src="site-continuity.js?v=20260920-fallback4"'));
 assert.ok(index.includes('href="site-auth-continuity.css"'));
 assert.ok(index.includes('data-auth-state="unauthenticated"'));
 assert.ok(index.includes('class="account-action account-login" href="/auth/start/">로그인</a>'));
@@ -93,12 +102,17 @@ assert.ok(staticAccountActions.includes('>로그인<'), 'initial static header m
 assert.ok(staticAccountActions.includes('>회원가입<'), 'initial static header must expose signup immediately');
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
-assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-logincta2"'));
+assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-fallback4"'));
+assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-fallback4"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
 
 assert.ok(authStartHtml.includes('id="auth-start-error-shell"'));
+assert.ok(authStartHtml.includes('src="/auth-start.js?v=20260920-fallback4"'));
+assert.ok(authStartHtml.includes('href="https://account.lotbiai.com/?site_fallback=1"'));
+assert.ok(authStartHtml.includes('>계정 로그인으로 이동</a>'));
+assert.ok(!authStartHtml.includes('href="/auth/start/" hidden>다시 시도</a>'), 'fallback error recovery must not recurse into /auth/start/');
 assert.ok(authStartHtml.includes('aria-labelledby="auth-start-error-title" hidden'));
 assert.ok(!authStartHtml.includes('LOTBI 연결 중'), 'fallback normal path must not expose a loading title');
 assert.ok(!authStartHtml.includes('안전한 계정 연결을 시작하고 있습니다.'), 'removed interstitial copy must not remain in fallback markup');
@@ -122,7 +136,7 @@ for (const href of homeStylesheets) {
 }
 assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260919-homewordmark5"'));
 assert.ok(
-  callbackStylesheets.indexOf('site-hardening.css') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260919-homewordmark5')
+  callbackStylesheets.indexOf('site-hardening.css?v=20260920-composer6') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260919-homewordmark5')
     && callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260919-homewordmark5') < callbackStylesheets.indexOf('site-auth-continuity.css'),
   'callback must preserve the home cascade order around Sidebar and auth styles',
 );
@@ -177,7 +191,11 @@ assert.ok(directBody.indexOf('event.preventDefault();') < directBody.indexOf('if
 assert.ok(directBody.indexOf('redirecting = true;') < directBody.indexOf('void beginSiteHandoff()'), 'duplicate guard must engage before handoff creation');
 assert.ok(directBody.includes('document.body.dataset.siteAuthState === AUTH_STATE_AUTHENTICATED'), 'authenticated stale sidebar recovery must remain available');
 assert.ok(conversation.includes('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]'), 'authenticated stale sidebar login self-heal selector must remain intact');
-assert.ok(auth.includes("recordTiming('account-navigation-start')"), 'handoff must mark cross-origin Account navigation start');
+assert.ok(auth.includes("recordTiming('account-navigation-start')"), 'normal handoff must mark cross-origin Account navigation start');
+assert.ok(auth.includes("recordTiming('account-navigation-fallback')"), 'fallback must be separately observable');
+assert.ok(auth.includes('window.location.assign(ACCOUNT_SITE_FALLBACK_URL)'), 'crypto/storage failure must navigate to the Account-only fallback');
+assert.ok(auth.includes("error.code === 'SITE_HANDOFF_CRYPTO_UNAVAILABLE'"));
+assert.ok(auth.includes("error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE'"));
 
 const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity()');
 const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStart);

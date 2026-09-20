@@ -196,7 +196,15 @@ function run() {
     assert.ok(Array.isArray(item?.relation), 'Android association relation must be explicit');
     assert.equal(item?.target?.namespace, 'android_app', 'Android association target namespace changed');
   }
-  assert.equal(fs.existsSync(path.join(ROOT, '.well-known', 'apple-app-site-association')), false, 'must not guess Apple association identity');
+  const appleAssociationPath = path.join(ROOT, '.well-known', 'apple-app-site-association');
+  if (fs.existsSync(appleAssociationPath)) {
+    const appleAssociation = JSON.parse(fs.readFileSync(appleAssociationPath, 'utf8'));
+    assert.deepEqual(
+      appleAssociation,
+      { applinks: { apps: [], details: [] } },
+      'Apple association must remain fail-closed until the real Apple application identifier prefix is verified',
+    );
+  }
   assert.equal(fs.existsSync(path.join(ROOT, 'apple-app-site-association')), false, 'must not publish guessed root AASA');
 
   for (const page of ['index.html', 'privacy.html', 'terms.html', 'account-deletion.html', 'contact.html', 'about.html', '404.html']) {
