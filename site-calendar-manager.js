@@ -121,6 +121,16 @@ export function buildCalendarAriaLabel(cell, count) {
   return `${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`;
 }
 
+export function countCalendarEventsByMonth(items, year) {
+  const counts = Array(12).fill(0);
+  for (const item of Array.isArray(items) ? items : []) {
+    if (!validCivilDate(item?.local_date)) continue;
+    const parts = civilDateParts(item.local_date);
+    if (parts.year === year) counts[parts.month - 1] += 1;
+  }
+  return counts;
+}
+
 export async function loadLifeCalendarManagerView(
   sessionToken,
   {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch} = {},
@@ -262,6 +272,7 @@ function renderYear(state, actions) {
   const grid = document.createElement('div');
   grid.className = 'calendar-year-grid';
   grid.setAttribute('aria-label', `${state.year}년 연간 달력`);
+  const counts = countCalendarEventsByMonth(state.items, state.year);
   for (const month of calendarYearOverview(state.year)) {
     const card = button('', 'calendar-year-month');
     card.dataset.yearMonth = String(month.month);
@@ -272,8 +283,9 @@ function renderYear(state, actions) {
     for (const cell of month.cells) {
       const day = document.createElement('span'); day.textContent = cell.inCurrentMonth ? String(cell.day) : ''; dates.appendChild(day);
     }
-    card.append(title, weekdays, dates);
-    card.setAttribute('aria-label', `${state.year}년 ${month.month}월 보기`);
+    const count = document.createElement('span'); count.className = 'calendar-year-event-count'; count.textContent = `일정 ${counts[month.month - 1]}개`;
+    card.append(title, weekdays, dates, count);
+    card.setAttribute('aria-label', `${state.year}년 ${month.month}월, 일정 ${counts[month.month - 1]}개, 월간 보기`);
     card.addEventListener('click', () => actions.selectMonth(month.month));
     grid.appendChild(card);
   }
