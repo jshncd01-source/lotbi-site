@@ -32,7 +32,7 @@ const browser = browserCandidates.map(candidate => {
 const fixture = path.join(os.tmpdir(), `lotbi-chat-layout-${process.pid}.html`);
 const source = html
   .replace(/<script[\s\S]*?<\/script>/gi, '')
-  .replace('</body>', `<script>
+  .replace('</body>', `<script>(() => {
     const thread = document.getElementById('conversation-thread');
     thread.hidden = false;
     document.body.classList.add('conversation-active');
@@ -47,7 +47,7 @@ const source = html
         const item = document.createElement('li'); item.textContent = '최근 대화 ' + index; list.appendChild(item);
       }
     }
-  <\/script></body>`)
+  })();<\/script></body>`)
   .replaceAll('href="styles.css"', `href="file://${path.join(ROOT, 'styles.css')}"`)
   .replaceAll('href="home-chat.css"', `href="file://${path.join(ROOT, 'home-chat.css')}"`)
   .replace(/href="site-hardening\.css[^\"]*"/, `href="file://${path.join(ROOT, 'site-hardening.css')}"`)
@@ -61,7 +61,7 @@ fs.writeFileSync(fixture, source);
 
 if (browser) try {
   for (const [width, height] of [[390, 844], [412, 915], [768, 900], [1280, 900], [1440, 900]]) {
-    const script = `
+    const script = `(() => {
       const shell = document.querySelector('.chat-app-shell');
       const main = document.querySelector('.chat-home-shell');
       const hero = document.querySelector('.chat-hero');
@@ -89,6 +89,7 @@ if (browser) try {
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       };
       document.body.textContent = JSON.stringify(result);
+    })();
     `;
     const probe = fixture.replace('.html', `-${width}.html`);
     fs.writeFileSync(probe, source.replace('</body>', `<script>${script}<\/script></body>`));
