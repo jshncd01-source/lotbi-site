@@ -161,9 +161,12 @@ def main() -> int:
             if forbidden in block:
                 errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
 
-        for required in ("+ 새 대화", "내 작업", "라이브러리", "연결 서비스", "최근 대화"):
+        for required in ("+ 새 대화", "연결 서비스", "최근 대화"):
             if required not in block:
                 errors.append(f"index.html: {label} missing approved IA item: {required}")
+        for removed in ("내 작업", "라이브러리"):
+            if removed in block:
+                errors.append(f"index.html: {label} must remove disabled placeholder: {removed}")
 
         if CONNECTED_SERVICES_URL not in block:
             errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
@@ -177,9 +180,24 @@ def main() -> int:
             errors.append(f"index.html: {label} must not hardcode user identity")
 
         for destination in ("work", "library"):
-            pattern = rf'<button[^>]*data-sidebar-destination="{destination}"[^>]*disabled'
-            if not re.search(pattern, block):
-                errors.append(f"index.html: {label} {destination} must remain fail-closed until authoritative route exists")
+            if f'data-sidebar-destination="{destination}"' in block:
+                errors.append(f"index.html: {label} must not keep disabled {destination} destination in the DOM")
+
+        primary_match = re.search(
+            r'<div class="sidebar-primary-nav">[sS]*?</div>',
+            block,
+        )
+        if not primary_match or "data-new-conversation" not in primary_match.group(0):
+            errors.append(f"index.html: {label} primary navigation must contain new conversation")
+        elif "connected-services" in primary_match.group(0):
+            errors.append(f"index.html: {label} connected services must be secondary, not primary")
+
+        secondary_match = re.search(
+            r'<div class="sidebar-secondary-nav"[^>]*>[sS]*?</div>',
+            block,
+        )
+        if not secondary_match or "connected-services" not in secondary_match.group(0):
+            errors.append(f"index.html: {label} must keep connected services in the secondary region")
 
         recent_match = re.search(
             r'<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?</ul>',
@@ -199,6 +217,7 @@ def main() -> int:
         'class="sidebar-primary-nav"',
         'class="nav-section sidebar-history-section"',
         'class="sidebar-history-scroll"',
+        'class="sidebar-secondary-nav"',
         'class="sidebar-account-footer"',
     ):
         if required not in desktop_sidebar:
