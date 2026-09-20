@@ -11,14 +11,15 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarVersion = '20260920-calendarentry4';
+const calendarVersion = '20260920-calux1';
+const entryVersion = '20260920-calendarentry4';
 assert.ok(index.includes(`site-calendar.css?v=${calendarVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarVersion}`));
-assert.ok(index.includes(`site-conversation.js?v=${calendarVersion}`));
-assert.ok(callback.includes(`/auth-callback.js?v=${calendarVersion}`));
+assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));
+assert.ok(callback.includes(`/auth-callback.js?v=${entryVersion}`));
 assert.ok(conversation.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
 assert.ok(callbackJs.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
-assert.ok(callbackJs.includes(`./site-conversation.js?v=${calendarVersion}`));
+assert.ok(callbackJs.includes(`./site-conversation.js?v=${entryVersion}`));
 assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarVersion}`));
 assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarVersion}`));
 for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js']) {
