@@ -42,7 +42,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-messageux1';
+  link.href = '/site-conversation.css?v=20260920-scrollfix1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -281,6 +281,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const responseGradeMenu = document.querySelector('[data-response-grade-menu]');
   const responseGradeOptions = responseGradeMenu ? [...responseGradeMenu.querySelectorAll('[data-response-grade]')] : [];
   const thread = document.getElementById('conversation-thread');
+  const mainScrollHost = document.getElementById('main-content');
   const statusRegion = document.getElementById('chat-status');
   const stateRegion = document.getElementById('chat-state-region');
   const homeAvatarAnchor = document.querySelector('[data-home-avatar-anchor]');
@@ -293,7 +294,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     || attachmentInputs.some(input => !(input instanceof HTMLInputElement))
     || !(responseGradeControl instanceof HTMLElement) || !(responseGradeTrigger instanceof HTMLButtonElement)
     || !(responseGradeMenu instanceof HTMLElement) || responseGradeOptions.length !== RESPONSE_GRADE_OPTIONS.length
-    || !(thread instanceof HTMLElement) || !(homeAvatarAnchor instanceof HTMLElement) || !(avatar instanceof HTMLElement)
+    || !(thread instanceof HTMLElement) || !(mainScrollHost instanceof HTMLElement)
+    || !(homeAvatarAnchor instanceof HTMLElement) || !(avatar instanceof HTMLElement)
   ) return false;
   if (sendButton.dataset.conversationMounted === 'true') return true;
   sendButton.dataset.conversationMounted = 'true';
@@ -403,9 +405,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     restoreAvatarHome(); thread.replaceChildren(); lastRenderedCreatedAt = undefined; thread.hidden = true; document.body.classList.remove('conversation-active');
   };
   const isThreadNearBottom = () => (
-    thread.scrollHeight - thread.scrollTop - thread.clientHeight <= 72
+    mainScrollHost.scrollHeight - mainScrollHost.scrollTop - mainScrollHost.clientHeight <= 72
   );
-  const scrollThread = () => { thread.scrollTop = thread.scrollHeight; };
+  const scrollThread = () => { mainScrollHost.scrollTop = mainScrollHost.scrollHeight; };
   const createConversationSeparator = createdAt => {
     const label = formatConversationTimestamp(createdAt);
     if (!label) return null;
