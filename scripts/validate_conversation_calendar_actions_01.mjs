@@ -314,6 +314,14 @@ assert.ok(
   conversationSource.includes("const local = attachments.length || calendarCandidateContext ? null : deterministicReply(message);"),
   'structured partial continuation must bypass local deterministic replies',
 );
+const selectorStart = conversationSource.indexOf('const latestSinglePartialCalendarCandidate = () =>');
+const selectorEnd = conversationSource.indexOf('const clearResolvedPartialCandidate = candidateId =>', selectorStart);
+assert.ok(selectorStart >= 0 && selectorEnd > selectorStart, 'partial continuation selector missing');
+const partialSelector = conversationSource.slice(selectorStart, selectorEnd);
+assert.ok(
+  partialSelector.includes('messages[messages.length - 1]') && !partialSelector.includes('for (let index'),
+  'partial continuation must only use the immediately preceding assistant turn',
+);
 
 const unknownStart = conversationSource.indexOf('const createConversationCalendarDirectUnknown = value =>');
 const unknownEnd = conversationSource.indexOf('const normalizeConversationCalendarItem = value =>', unknownStart);
