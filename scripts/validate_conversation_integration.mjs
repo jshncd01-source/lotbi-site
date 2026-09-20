@@ -30,7 +30,7 @@ const {
   createSiteHandoffContext,
   readAndClearSiteHandoffContext,
   storeSiteHandoffContext,
-} = await import('../site-auth.js?v=20260920-fallback4');
+} = await import('../site-auth.js?v=20260920-authux1');
 
 class MemoryStorage {
   constructor() { this.map = new Map(); }
