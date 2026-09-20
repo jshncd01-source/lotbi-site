@@ -72,6 +72,25 @@ const oneLine=node=>getComputedStyle(node).whiteSpace==='nowrap' && node.scrollH
 const noX=node=>node.scrollWidth<=node.clientWidth+1;
 try{
   localStorage.clear();
+  const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260920-calux1');
+  const guestRepo=createGuestCalendarRepository(localStorage);
+  const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+  const part=Object.fromEntries(parts.map(value=>[value.type,value.value]));
+  const fixtureCounts=[0,1,2,3,5,8];
+  const fixtureTitles=['치과','고객 미팅','미용실','저녁 약속','자동차 검사','긴 한글 제목 일정이 셀에서 안전하게 줄임표로 표시되는지 확인','English planning review','123 🚗'];
+  const fixtureDates=fixtureCounts.map((_,index)=>`${part.year}-${part.month}-${String(10+index).padStart(2,'0')}`);
+  fixtureCounts.forEach((count,dateIndex)=>{
+    for(let eventIndex=0;eventIndex<count;eventIndex+=1){
+      const hour=9+Math.floor(eventIndex/2);
+      const minute=eventIndex%2===0?'00':'30';
+      guestRepo.create({
+        title:fixtureTitles[eventIndex%fixtureTitles.length],
+        local_date:fixtureDates[dateIndex],
+        local_datetime:`${fixtureDates[dateIndex]}T${String(hour).padStart(2,'0')}:${minute}:00`,
+        all_day:false,
+      });
+    }
+  });
   const conversation=await import('/site-conversation.js?v=20260920-calux1');
   if(!conversation.mountConversation())throw new Error('conversation mount');
   const entry=document.querySelector('.chat-sidebar-desktop [data-calendar-view="all"]');
@@ -127,6 +146,29 @@ try{
   if(!result.toolbar.todayOneLine||!result.toolbar.attentionOneLine)throw new Error('toolbar label wrapped');
   if(!result.modal.noX||!result.content.noX||!result.grid.noX)throw new Error('horizontal overflow');
   if(result.guest!=='guest')throw new Error('guest calendar contract');
+
+  const density=[];
+  fixtureCounts.forEach((expected,index)=>{
+    const cell=grid.querySelector('[data-calendar-date="'+fixtureDates[index]+'"]');
+    if(!cell)throw new Error('fixture date missing '+fixtureDates[index]);
+    const rows=[...cell.querySelectorAll('.calendar-event-chip')];
+    if(rows.length!==expected)throw new Error('fixture row count '+fixtureDates[index]+' '+rows.length+' expected '+expected);
+    const countText=cell.querySelector('.calendar-mobile-event-count')?.textContent||'';
+    const more=cell.querySelector('.calendar-event-overflow');
+    const visible=rows.filter(row=>!row.hidden&&getComputedStyle(row).display!=='none').length;
+    const hiddenCount=more&&!more.hidden&&getComputedStyle(more).display!=='none'?Number(more.dataset.hiddenCount||0):0;
+    if(desktop){
+      if(visible+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]+' visible '+visible+' hidden '+hiddenCount+' expected '+expected);
+      if(hiddenCount>0&&more.textContent!==hiddenCount+'개 더 보기')throw new Error('overflow copy mismatch '+fixtureDates[index]);
+      const stack=cell.querySelector('.calendar-event-stack');
+      if(getComputedStyle(stack).overflowY==='auto'||getComputedStyle(stack).overflowY==='scroll')throw new Error('cell inner scrollbar '+fixtureDates[index]);
+    }else if(countText!==(expected?expected+'개':'')){
+      throw new Error('mobile event count mismatch '+fixtureDates[index]+' '+countText+' expected '+expected);
+    }
+    density.push({date:fixtureDates[index],expected,visible,hiddenCount});
+  });
+  result.density=density;
+
   if(desktop){
     if(modalRect.width<1050)throw new Error('desktop modal too narrow '+modalRect.width);
     if(modalRect.height<innerHeight-60)throw new Error('desktop modal too short '+modalRect.height);
@@ -135,6 +177,16 @@ try{
     if(result.calendar.widthRatio<0.97)throw new Error('desktop Month does not own available width '+result.calendar.widthRatio);
     if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
+
+    const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
+    const eventButton=eventCell?.querySelector('.calendar-event-chip');
+    if(!(eventButton instanceof HTMLButtonElement))throw new Error('event click target missing');
+    click(eventButton);
+    await wait(()=>modal.querySelector('.calendar-editor-dialog'),'event editor');
+    if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 수정')throw new Error('event click opened wrong surface');
+    click(modal.querySelector('.calendar-editor-cancel'));
+    await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'event editor close');
+    result.eventSelection=true;
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
@@ -190,12 +242,13 @@ fs.writeFileSync(INNER,fixture,'utf8');
 const server=spawn('python',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
 try{
   waitServer();
-  const cases=[[1440,900],[768,900],[390,844]];
+  const cases=[[1280,900],[1440,900],[1440,1200],[768,900],[340,800],[390,844],[412,915],[320,800]];
   const results=cases.map(([w,h])=>run(browser,w,h));
-  const desktop=results[0];
-  if(!desktop.controls||!desktop.dateSelection)throw new Error('desktop controls/date selection');
+  const desktops=results.filter(value=>value.desktop);
+  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection))throw new Error('desktop controls/date/event selection');
   for(const value of results){
     if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
+    if(value.density.map(entry=>entry.expected).join(',')!=='0,1,2,3,5,8')throw new Error('fixture matrix incomplete');
   }
   console.log('CALENDAR MODAL RUNTIME PASS',JSON.stringify(results));
 }finally{
