@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const {createGuestCalendarRepository} = await import('../site-calendar-guest.js');
+const {buildCalendarTemporal, createCalendarMutationController} = await import('../site-calendar-manager.js');
+
+function memoryStorage() {
+  const values = new Map();
+  return {getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value))};
+}
+
+assert.deepEqual(buildCalendarTemporal({localDate: '2026-09-24', allDay: true, timezone: 'Asia/Seoul'}), {
+  kind: 'DATE_ONLY', local_date: '2026-09-24',
+});
+assert.deepEqual(buildCalendarTemporal({localDate: '2026-09-24', time: '15:30', allDay: false, timezone: 'Asia/Seoul'}), {
+  kind: 'LOCAL_DATE_TIME', local_datetime: '2026-09-24T15:30:00', timezone_name: 'Asia/Seoul',
+});
+
+const guestRepository = createGuestCalendarRepository(memoryStorage(), {
+  uuid: () => '00000000-0000-4000-8000-000000000001',
+  now: () => new Date('2026-09-20T04:00:00.000Z'),
+});
+const guest = createCalendarMutationController({guestRepository, timezone: 'Asia/Seoul'});
+const guestCreated = await guest.create({title: '치과', localDate: '2026-09-24', time: '15:00', allDay: false});
+assert.equal(guestCreated.title, '치과');
+const guestUpdated = await guest.update(guestCreated, {title: '치과 검진', localDate: '2026-09-25', allDay: true});
+assert.equal(guestUpdated.id, guestCreated.id);
+assert.equal(guestUpdated.title, '치과 검진');
+assert.equal(await guest.remove(guestUpdated), true);
+assert.deepEqual(guestRepository.list(), []);
+
+const requests = [];
+const mutation = {
+  activity_id: 'activity_0123456789abcdef0123456789abcdef',
+  occurrence_id: 'occurrence_0123456789abcdef0123456789abcdef', title: '병원', activity_state: 'ACTIVE',
+  activity_revision: 3, occurrence_revision: 4,
+  temporal: {kind: 'LOCAL_DATE_TIME', local_datetime: '2026-09-24T15:00:00', timezone_name: 'Asia/Seoul'},
+  temporal_semantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', confirmation_level: 'USER_ATTESTED', provider_verified: false, read_your_writes: true,
+};
+const fetchImpl = async (url, init) => {
+  requests.push({url, init, body: JSON.parse(init.body)});
+  return new Response(JSON.stringify(mutation), {status: init.method === 'POST' && url.endsWith('/activities') ? 201 : 200, headers: {'Content-Type': 'application/json'}});
+};
+let requestIndex = 0;
+const auth = createCalendarMutationController({
+  sessionToken: 'site-token', timezone: 'Asia/Seoul', fetchImpl,
+  requestId: kind => `req.calendar.${kind}.${++requestIndex}`,
+});
+await auth.create({title: '병원', localDate: '2026-09-24', time: '15:00', allDay: false});
+assert.equal(requests[0].init.method, 'POST');
+assert.deepEqual(requests[0].body.temporal, mutation.temporal);
+await auth.update({activity_id: mutation.activity_id, occurrence_revision: 4, title: '병원'}, {title: '병원', localDate: '2026-09-25', allDay: true});
+assert.equal(requests[1].init.method, 'PATCH');
+assert.equal(requests[1].body.expected_revision, 4);
+assert.deepEqual(requests[1].body.temporal, {kind: 'DATE_ONLY', local_date: '2026-09-25'});
+await auth.remove({activity_id: mutation.activity_id, activity_revision: 3});
+assert.equal(requests[2].init.method, 'POST');
+assert.match(requests[2].url, /\/remove$/);
+assert.equal(requests[2].body.expected_revision, 3);
+
+const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
+const legacy = fs.readFileSync('site-calendar-ui.js', 'utf8');
+const css = fs.readFileSync('site-calendar.css', 'utf8');
+for (const token of ['calendar-editor-dialog', "setAttribute('role', 'dialog')", 'calendar-editor-title', 'calendar-editor-date', 'calendar-editor-time', 'calendar-editor-all-day', 'calendar-editor-confirm-delete', 'STALE_REVISION']) assert.ok(manager.includes(token), `missing editor contract: ${token}`);
+assert.ok(!manager.includes('prompt('));
+assert.ok(!legacy.includes('prompt('));
+assert.ok(css.includes('.calendar-editor-dialog'));
+assert.ok(css.includes('.calendar-editor-confirm-delete'));
+
+console.log('LOTBI Calendar event editor and mutation contract: PASS');
