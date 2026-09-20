@@ -131,6 +131,7 @@ try{
     toolbar:{todayOneLine:oneLine(today),attentionOneLine:oneLine(attention),scrollWidth:toolbar.scrollWidth,clientWidth:toolbar.clientWidth,noX:noX(toolbar)},
     calendar:{width:calRect.width,layoutWidth:layoutRect.width,widthRatio:layoutRect.width>0?calRect.width/layoutRect.width:0},
     detail:{
+      hidden:detail.hidden,
       position:getComputedStyle(detail).position,
       overflowY:getComputedStyle(detail).overflowY,
       scrollHeight:detail.scrollHeight,
@@ -178,27 +179,39 @@ try{
     if(result.modal.overflowY!=='hidden')throw new Error('desktop modal must not scroll');
     if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
     if(result.calendar.widthRatio<0.97)throw new Error('desktop Month does not own available width '+result.calendar.widthRatio);
+    if(!result.detail.hidden)throw new Error('desktop Calendar must start with an unobstructed Month');
     if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
 
     const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const eventButton=eventCell?.querySelector('.calendar-event-chip');
     if(!(eventButton instanceof HTMLButtonElement))throw new Error('event click target missing');
+    eventButton.focus();
     click(eventButton);
     await wait(()=>modal.querySelector('.calendar-editor-dialog'),'event editor');
     if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 수정')throw new Error('event click opened wrong surface');
     click(modal.querySelector('.calendar-editor-cancel'));
     await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'event editor close');
+    await wait(()=>document.activeElement?.dataset.calendarEventId===eventButton.dataset.calendarEventId,'event focus restore');
     result.eventSelection=true;
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
+    if(result.detail.hidden)throw new Error('touch Calendar must show the selected-day surface on entry');
     if(result.detail.position!=='static')throw new Error('touch selected-day surface must flow below Month');
     if(detailRect.top<gridRect.bottom-2)throw new Error('touch selected-day surface overlaps Month');
   }
 
   const mode=async name=>{const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);click(button);await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name)};
-  await mode('연도'); await mode('일정'); await mode('확인 필요'); await mode('월');
+  await mode('연도');
+  await mode('일정');
+  const weekRange=modal.querySelector('[data-agenda-scope="week"]');
+  if(!(weekRange instanceof HTMLButtonElement))throw new Error('Agenda this-week control missing');
+  click(weekRange);
+  await wait(()=>weekRange.getAttribute('aria-pressed')==='true','Agenda week range');
+  result.agendaRanges=true;
+  await mode('확인 필요');
+  await mode('월');
   const title=modal.querySelector('.calendar-title-button').textContent;
   click(modal.querySelector('.calendar-nav-button')); await wait(()=>modal.querySelector('.calendar-title-button').textContent!==title,'previous');
   click(modal.querySelectorAll('.calendar-nav-button')[1]); await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
@@ -248,7 +261,7 @@ try{
   const cases=[[1280,900],[1440,900],[1440,1200],[768,900],[340,800],[390,844],[412,915],[320,800]];
   const results=cases.map(([w,h])=>run(browser,w,h));
   const desktops=results.filter(value=>value.desktop);
-  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection))throw new Error('desktop controls/date/event selection');
+  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.agendaRanges))throw new Error('desktop controls/date/event/Agenda selection');
   for(const value of results){
     if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
     if(value.density.map(entry=>entry.expected).join(',')!=='0,1,2,3,5,8')throw new Error('fixture matrix incomplete');
