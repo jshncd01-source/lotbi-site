@@ -6,9 +6,9 @@ import {
   recoverMissingSiteHandoffContext,
   SiteHandoffClientError,
 } from './site-auth.js?v=20260920-authux1';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260920-guest3';
-import {mountConversation} from './site-conversation.js?v=20260920-calux1';
-import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-calux1';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260920-convcal1';
+import {mountConversation} from './site-conversation.js?v=20260920-convcal1';
+import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-convcal1';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
