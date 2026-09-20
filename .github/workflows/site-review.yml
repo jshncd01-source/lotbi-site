@@ -69,6 +69,7 @@ jobs:
         run: node scripts/validate_bare_white_home_render_01.mjs
 
       - name: Upload Bare White Home render evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bare-white-home-render-${{ github.sha }}
