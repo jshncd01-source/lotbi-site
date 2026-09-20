@@ -98,11 +98,11 @@ function createMessage(role, text, meta = {}) {
     const list = document.createElement('div'); list.className = 'message-attachment-list'; list.setAttribute('aria-label', '첨부 파일');
     for (const attachment of meta.attachments) {
       const item = document.createElement('div'); item.className = 'message-attachment-card';
-      const name = safeAttachmentName(attachment?.filename);
-      if (String(attachment?.mediaType || '').startsWith('image/') && attachment?.previewUrl) {
+      const name = safeAttachmentName(attachment && attachment.filename);
+      if (String((attachment && attachment.mediaType) || '').startsWith('image/') && attachment && attachment.previewUrl) {
         const image = document.createElement('img'); image.className = 'message-attachment-image'; image.src = attachment.previewUrl; image.alt = name; item.appendChild(image);
       } else {
-        const icon = document.createElement('span'); icon.className = 'message-attachment-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = attachment?.mediaType === 'application/pdf' ? 'PDF' : '파일'; item.appendChild(icon);
+        const icon = document.createElement('span'); icon.className = 'message-attachment-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = attachment && attachment.mediaType === 'application/pdf' ? 'PDF' : '파일'; item.appendChild(icon);
       }
       const label = document.createElement('span'); label.className = 'message-attachment-name'; label.textContent = name; item.appendChild(label); list.appendChild(item);
     }
@@ -987,7 +987,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let responseGradeOpen = false;
   let selectedAttachments = [];
   let attachmentUploading = false;
-  const releaseAttachmentPreview = item => { if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl); };
+  const releaseAttachmentPreview = item => { if (item && item.previewUrl) URL.revokeObjectURL(item.previewUrl); };
   const renderAttachmentPreview = () => {
     const fragment = document.createDocumentFragment();
     selectedAttachments.forEach((item, index) => {
@@ -1117,7 +1117,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const message = typeof text === 'string' ? text.trim() : ''; if ((!message && !attachments.length) || inFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
-    ensureThread(message || attachments[0]?.filename || '첨부 파일');
+    ensureThread(message || (attachments[0] && attachments[0].filename) || '첨부 파일');
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes, previewUrl: item.previewUrl || ''}));
       appendNode(createMessage('user', message, {attachments: attachmentMeta}), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {attachments: attachmentMeta.map(({previewUrl, ...item}) => item)}});
@@ -1299,8 +1299,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   attachmentButton.addEventListener('click', () => attachmentInput.click());
   attachmentInput.addEventListener('change', () => void addAttachmentFiles(attachmentInput.files));
   const composerStack = attachmentButton.closest('.chat-composer-stack');
-  composerStack?.addEventListener('dragover', event => { if (event.dataTransfer?.types?.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } });
-  composerStack?.addEventListener('drop', event => { if (event.dataTransfer?.files?.length) { event.preventDefault(); void addAttachmentFiles(event.dataTransfer.files); } });
+  if (composerStack) composerStack.addEventListener('dragover', event => { if (event.dataTransfer && event.dataTransfer.types && event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } });
+  if (composerStack) composerStack.addEventListener('drop', event => { if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) { event.preventDefault(); void addAttachmentFiles(event.dataTransfer.files); } });
   micButton.addEventListener('click', () => void startVoiceInput());
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;

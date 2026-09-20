@@ -147,7 +147,7 @@ export async function uploadConversationAttachment({sessionToken = '', guestToke
   }
   const payload = await readPayload(response);
   if (!response.ok) throw errorFromResponse(response, payload, '첨부 파일을 업로드하지 못했습니다.');
-  const attachment = payload?.attachment;
+  const attachment = payload && payload.attachment;
   if (payload.contract_id !== 'CORE-CONVERSATION-ATTACHMENT-01' || payload.schema_version !== 1 || !attachment || !/^att_[A-Za-z0-9]{8,56}$/.test(String(attachment.id || '')) || attachment.status !== 'READY') {
     throw new SiteCoreError('첨부 파일 응답 형식이 올바르지 않습니다.', {code: 'CONVERSATION_ATTACHMENT_CONTRACT_INVALID'});
   }
