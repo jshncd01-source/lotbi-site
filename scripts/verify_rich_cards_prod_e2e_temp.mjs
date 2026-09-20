@@ -111,6 +111,7 @@ for (const [name, m] of Object.entries(results)) {
   if (!m.conversationAlignmentOk) throw new Error(`${name}:CONVERSATION_ALIGNMENT`);
   if (!m.compactDesktop) throw new Error(`${name}:DESKTOP_CARD_TOO_WIDE`);
   if ((name === 'foldCover340' || name === 'mobile390') && !m.railScrollable) throw new Error(`${name}:HORIZONTAL_SCROLL_MISSING`);
+  if ((name === 'foldCover340' || name === 'mobile390') && !m.secondCardPartialVisible) throw new Error(`${name}:NEXT_CARD_PEEK_MISSING`);
 }
 await browser.close();
 console.log('LOTBI PRODUCT RICH CARD PRODUCTION RESPONSIVE E2E PASS');
