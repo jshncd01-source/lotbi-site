@@ -16,8 +16,8 @@ for (const token of [
   'toggleThreadPin',
   'openRenameThread',
   'openDeleteThread',
-  'data.conversationMenu',
-  'data.conversationAction',
+  'dataset.conversationMenu',
+  'dataset.conversationAction',
 ]) {
   assert.ok(conversation.includes(token), `PHASE 10 conversation contract missing: ${token}`);
 }
