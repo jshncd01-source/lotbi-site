@@ -713,7 +713,11 @@ export async function mountLifeCalendarManager({
         case 'Enter': case ' ':
           event.preventDefault(); void actions.selectDate(date, {openDetail: true}); break;
         case 'Escape':
-          if (state.detailOpen) { event.preventDefault(); actions.closeDay(); }
+          if (state.detailOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            actions.closeDay();
+          }
           break;
         default: break;
       }
