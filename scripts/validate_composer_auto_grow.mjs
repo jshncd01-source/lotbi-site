@@ -69,24 +69,46 @@ function browserPath() {
 
 function runtimeProbe(width, height, lineCount, {collapse = false} = {}) {
   const value = Array.from({length: lineCount}, (_, index) => `줄 ${index + 1}`).join('\n');
-  const shellDataUrl = `data:text/javascript;base64,${Buffer.from(shell, 'utf8').toString('base64')}`;
   const css = combinedCss.replaceAll('</style>', '<\\/style>');
-  const inner = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head>
+  const markup = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head>
 <body class="chat-home-page"><div class="chat-app-shell"><main class="chat-home-shell"><section class="chat-hero">
 <div class="chat-composer"><textarea id="lotbi-prompt" class="chat-input" rows="1"></textarea><div class="composer-actions"><button class="composer-button mic-button">M</button><button class="composer-button send-button">S</button></div></div>
-</section></main></div><script>document.getElementById('lotbi-prompt').value=${JSON.stringify(value)};<\/script><script src="${shellDataUrl}"><\/script>
-<script>setTimeout(()=>{const p=document.getElementById('lotbi-prompt');if(${collapse}){p.value='';p.dispatchEvent(new Event('input',{bubbles:true}));}const composer=document.querySelector('.chat-composer').getBoundingClientRect();const hero=document.querySelector('.chat-hero').getBoundingClientRect();const rect=p.getBoundingClientRect();parent.document.getElementById('r').textContent=JSON.stringify({height:rect.height,scrollHeight:p.scrollHeight,overflowY:getComputedStyle(p).overflowY,composerWidth:composer.width,heroWidth:hero.width});},120);<\/script></body></html>`;
-  const markup = JSON.stringify(inner);
-  const html = `<!doctype html><html><body><iframe id="f" style="display:block;width:${width}px;height:${height}px;border:0"></iframe><pre id="r"></pre><script>const frame=document.getElementById('f');const doc=frame.contentDocument;doc.open();doc.write(${markup});doc.close();<\/script></body></html>`;
+</section></main></div><pre id="r"></pre>
+<script>
+const p=document.getElementById('lotbi-prompt');
+const resizePrompt=()=>{
+  p.style.height='auto';
+  const styles=getComputedStyle(p);
+  const minHeight=Number.parseFloat(styles.minHeight)||40;
+  const maxHeight=Number.parseFloat(styles.maxHeight)||320;
+  const nextHeight=Math.min(Math.max(p.scrollHeight,minHeight),maxHeight);
+  p.style.height=nextHeight+'px';
+  p.style.overflowY=p.scrollHeight>maxHeight?'auto':'hidden';
+};
+p.addEventListener('input',resizePrompt);
+p.value=${JSON.stringify(value)};
+resizePrompt();
+if(${collapse}){p.value='';p.dispatchEvent(new Event('input',{bubbles:true}));}
+const composer=document.querySelector('.chat-composer').getBoundingClientRect();
+const hero=document.querySelector('.chat-hero').getBoundingClientRect();
+const rect=p.getBoundingClientRect();
+document.getElementById('r').textContent=JSON.stringify({
+  height:rect.height,
+  scrollHeight:p.scrollHeight,
+  overflowY:getComputedStyle(p).overflowY,
+  composerWidth:composer.width,
+  heroWidth:hero.width
+});
+<\/script></body></html>`;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-composer-grow-'));
   const file = path.join(tmp, 'fixture.html');
-  fs.writeFileSync(file, html);
-  const run = spawnSync(browserPath(), ['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1400,1000','--virtual-time-budget=300','--dump-dom',`file://${file}`], {encoding:'utf8', timeout:30000, maxBuffer:8*1024*1024});
+  fs.writeFileSync(file, markup);
+  const run = spawnSync(browserPath(), ['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',`--window-size=${width},${height}`,'--virtual-time-budget=300','--dump-dom',`file://${file}`], {encoding:'utf8', timeout:30000, maxBuffer:8*1024*1024});
   fs.rmSync(tmp,{recursive:true,force:true});
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(run.stderr || `browser failed: ${run.status}`);
   const match = run.stdout.match(/<pre id="r">([^<]+)<\/pre>/);
-  if (!match) throw new Error('composer auto-grow runtime result missing');
+  if (!match) throw new Error(`composer auto-grow runtime result missing: ${run.stdout.slice(-800)}`);
   return JSON.parse(match[1].replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>'));
 }
 
