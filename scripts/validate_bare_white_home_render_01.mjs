@@ -165,8 +165,15 @@ function assertWhite(label, value) {
 
 function assertCase(label, result, width, height) {
   const tolerance = 3;
-  if (Math.abs(result.viewport.width - width) > tolerance || Math.abs(result.viewport.height - height) > tolerance) {
-    throw new Error(`${label}: viewport mismatch ${result.viewport.width}x${result.viewport.height}`);
+  if (Math.abs(result.viewport.width - width) > tolerance) {
+    throw new Error(`${label}: viewport width mismatch ${result.viewport.width} != ${width}`);
+  }
+  // GitHub's headless Chrome reserves a small vertical browser band even when
+  // --window-size is exact. The narrower resulting CSS viewport is stricter
+  // for fold/reachability, so accept that bounded reduction instead of
+  // mistaking browser chrome for a responsive-layout failure.
+  if (result.viewport.height > height + tolerance || result.viewport.height < height - 120) {
+    throw new Error(`${label}: unexpected viewport height ${result.viewport.height} for window ${height}`);
   }
   if (result.viewport.scrollWidth > result.viewport.clientWidth + tolerance) {
     throw new Error(`${label}: horizontal overflow ${result.viewport.scrollWidth} > ${result.viewport.clientWidth}`);
