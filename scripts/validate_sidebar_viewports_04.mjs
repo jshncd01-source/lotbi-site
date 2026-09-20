@@ -81,15 +81,46 @@ if (!primary || !calendar || !recent || !recentList || !secondary || !footer) th
 const calendarViews = [...calendar.querySelectorAll('[data-calendar-view]')];
 if (calendarViews.length !== 5) throw new Error('Calendar submenu expected 5 views, got ' + calendarViews.length);
 calendar.open = true;
-for (const title of ${JSON.stringify(injectedTitles)}) {
+for (const [index, title] of ${JSON.stringify(injectedTitles)}.entries()) {
   const li = doc.createElement('li');
-  const link = doc.createElement('a');
-  link.href = '#';
-  link.dataset.conversationTitle = '';
-  link.title = title;
-  link.setAttribute('aria-label', title);
-  link.textContent = title;
-  li.append(link);
+  li.className = 'conversation-history-item';
+  li.dataset.pinned = String(index === 0);
+  const open = doc.createElement('button');
+  open.type = 'button';
+  open.className = 'conversation-history-open';
+  open.setAttribute('aria-label', title + ' 대화 열기');
+  const titleNode = doc.createElement('span');
+  titleNode.dataset.conversationTitle = '';
+  titleNode.title = title;
+  titleNode.textContent = title;
+  open.append(titleNode);
+  if (index === 0) {
+    const pin = doc.createElement('span');
+    pin.className = 'conversation-history-pin';
+    pin.textContent = '고정';
+    pin.setAttribute('aria-hidden', 'true');
+    open.append(pin);
+  }
+  const actions = doc.createElement('details');
+  actions.className = 'conversation-history-actions';
+  actions.dataset.conversationMenu = '';
+  const trigger = doc.createElement('summary');
+  trigger.className = 'conversation-history-menu-trigger';
+  trigger.dataset.conversationMenuTrigger = '';
+  trigger.setAttribute('aria-label', title + ' 대화 메뉴');
+  trigger.textContent = '⋯';
+  const menu = doc.createElement('div');
+  menu.className = 'conversation-history-menu';
+  menu.setAttribute('role', 'menu');
+  for (const label of ['상단에 고정', '이름 바꾸기', '삭제']) {
+    const action = doc.createElement('button');
+    action.type = 'button';
+    action.setAttribute('role', 'menuitem');
+    action.textContent = label;
+    menu.append(action);
+  }
+  actions.append(trigger, menu);
+  li.append(open, actions);
   recentList.append(li);
 }
 const firstTitle = surface.querySelector('[data-conversation-title]');
