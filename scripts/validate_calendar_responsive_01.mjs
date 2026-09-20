@@ -78,5 +78,9 @@ assert.ok(manager.includes('state.dayCollapsed'));
 assert.ok(manager.includes("root.addEventListener('keydown'"), 'Calendar root Escape containment missing');
 assert.ok(manager.includes("!root.querySelector('.calendar-editor-dialog')"), 'Calendar detail Escape must defer to the editor');
 assert.ok(manager.includes('event.stopPropagation();'), 'Calendar Escape surfaces must stop outer modal propagation');
+assert.ok(manager.includes('let refreshGeneration = 0;'), 'Calendar Manager stale-response generation guard missing');
+assert.ok(manager.includes('const requestGeneration = ++refreshGeneration;'), 'Calendar Manager must version each refresh');
+assert.ok(manager.includes('requestGeneration !== refreshGeneration'), 'Calendar Manager must reject stale refreshes');
+assert.ok(conversation.includes("openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')"), 'Calendar surface must close across Site identity changes');
 
 console.log('LOTBI Calendar responsive, navigation and cache contract: PASS');
