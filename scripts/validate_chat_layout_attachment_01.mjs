@@ -19,8 +19,8 @@ assert.match(html, /class="attachment-preview-strip"/);
 assert.ok(html.includes('LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.'));
 assert.match(styles, /\.chat-home-page\s*\{[^}]*height:\s*100dvh[^}]*overflow:\s*hidden/s);
 assert.match(styles, /\.chat-home-shell\s*\{[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
-assert.match(styles, /\.conversation-thread,[\s\S]*?width:\s*min\(960px,\s*100%\)[\s\S]*?overflow-y:\s*auto/);
-assert.match(styles, /\.chat-composer-stack\s*\{[^}]*width:\s*min\(960px,\s*100%\)/s);
+assert.match(styles, /\.conversation-thread,[\s\S]*?width:\s*min\(760px,\s*100%\)[\s\S]*?overflow-y:\s*auto/);
+assert.match(styles, /\.chat-composer-stack\s*\{[^}]*width:\s*min\(760px,\s*100%\)/s);
 
 const browserCandidates = [process.env.CHROME_BIN, 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean);
 const browser = browserCandidates.map(candidate => {
@@ -44,7 +44,7 @@ const source = html
 fs.writeFileSync(fixture, source);
 
 if (browser) try {
-  for (const [width, height] of [[390, 844], [412, 915], [768, 900], [1280, 900], [1440, 900]]) {
+  for (const [width, height] of [[340, 780], [390, 844], [412, 915], [768, 900], [1280, 900], [1440, 900]]) {
     const script = `(() => {
       try {
       const thread = document.querySelector('.conversation-thread');

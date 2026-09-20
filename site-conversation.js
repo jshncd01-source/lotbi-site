@@ -1,6 +1,7 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260920-attachments1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attachments1';
+import {formatConversationTimestamp, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-timeline1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
@@ -39,7 +40,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-lotbibox2';
+  link.href = '/site-conversation.css?v=20260920-timeline1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -298,6 +299,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
+  let lastRenderedCreatedAt;
   let richCardActionInFlight = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
@@ -391,12 +393,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const restoreAvatarHome = () => { if (avatar.parentElement !== homeAvatarAnchor) homeAvatarAnchor.appendChild(avatar); };
   const showThread = () => { thread.hidden = false; document.body.classList.add('conversation-active'); };
   const showBlankHome = () => {
-    restoreAvatarHome(); thread.replaceChildren(); thread.hidden = true; document.body.classList.remove('conversation-active');
+    restoreAvatarHome(); thread.replaceChildren(); lastRenderedCreatedAt = undefined; thread.hidden = true; document.body.classList.remove('conversation-active');
   };
   const isThreadNearBottom = () => (
     thread.scrollHeight - thread.scrollTop - thread.clientHeight <= 72
   );
   const scrollThread = () => { thread.scrollTop = thread.scrollHeight; };
+  const createConversationSeparator = createdAt => {
+    const label = formatConversationTimestamp(createdAt);
+    if (!label) return null;
+    const separator = document.createElement('time');
+    separator.className = 'conversation-time-separator';
+    separator.dateTime = new Date(createdAt).toISOString();
+    separator.textContent = label;
+    return separator;
+  };
   const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
     const shouldStick = forceScroll || (!suppressScroll && isThreadNearBottom());
     showThread();
@@ -640,7 +651,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
             ? '판매처의 현재 가격이 바뀌어 ' + currentPrice + '으로 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.'
             : '판매처에서 현재 가격 ' + currentPrice + '과 상품 상태를 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.';
           const meta = {status: 'PURCHASE_REVIEW_REQUIRED', responseMode: 'RICH_PRODUCT_REVIEW'};
-          appendNode(createMessage('assistant', reviewText, meta)); appendPersistedMessage({role: 'assistant', text: reviewText, meta});
+          const reviewRecord = timestampedConversationMessage({role: 'assistant', text: reviewText, meta});
+          appendConversationRecord(reviewRecord); appendPersistedMessage(reviewRecord);
           buy.textContent = '구매 검토됨'; setStatus('구매 전 최신 상품 정보를 확인했습니다. 결제는 실행하지 않았습니다.');
         } catch (error) {
           buy.textContent = '다시 확인'; buy.disabled = false; setStatus(userFacingErrorMessage(error));
@@ -659,13 +671,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     return node;
   };
+  const appendConversationRecord = (message, options = {}) => {
+    if (shouldShowConversationSeparator(lastRenderedCreatedAt, message?.createdAt)) {
+      const separator = createConversationSeparator(message.createdAt);
+      if (separator) appendNode(separator, {suppressScroll: true});
+    }
+    if (Number.isFinite(Number(message?.createdAt)) && Number(message.createdAt) > 0) {
+      lastRenderedCreatedAt = Number(message.createdAt);
+    }
+    return appendNode(messageNode(message), options);
+  };
   const renderActiveThread = () => {
     restoreAvatarHome(); thread.replaceChildren();
+    lastRenderedCreatedAt = undefined;
     const record = threadRecord();
     if (!record || !record.messages.length) { showBlankHome(); return; }
     showThread();
     for (const message of record.messages) {
-      appendNode(messageNode(message), {suppressScroll: true});
+      appendConversationRecord(message, {suppressScroll: true});
     }
     scrollThread();
   };
@@ -1228,14 +1251,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes, previewUrl: item.previewUrl ? item.previewUrl : ''}));
       const persistedAttachments = attachmentMeta.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes}));
-      appendNode(createMessage('user', message, {attachments: attachmentMeta}), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {attachments: persistedAttachments}});
+      const userRecord = timestampedConversationMessage({role: 'user', text: message, meta: {attachments: persistedAttachments}});
+      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true}); appendPersistedMessage(userRecord);
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
-      const record = {role: 'assistant', text: local, meta: {status: 'ANSWERED', responseMode: 'LOCAL_DETERMINISTIC'}};
-      appendNode(createMessage('assistant', local, record.meta)); appendPersistedMessage(record);
+      const record = timestampedConversationMessage({role: 'assistant', text: local, meta: {status: 'ANSWERED', responseMode: 'LOCAL_DETERMINISTIC'}});
+      appendConversationRecord(record); appendPersistedMessage(record);
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt));
       const requestsAfter = resourceCounts();
       diagnostics.lastCoreRequestDelta = requestsAfter.core - requestsBefore.core;
@@ -1281,9 +1305,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
-        const assistantNode = createMessage('assistant', response.assistantText, meta);
-        if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
-        appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+        const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
+        appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
         setStatus(richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
       } catch (caught) {
@@ -1304,8 +1327,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         });
         loading.parentElement?.remove();
         const meta = {status: 'ANSWERED', responseMode: calendar.parserType};
-        appendNode(createMessage('assistant', calendar.assistantText, meta));
-        appendPersistedMessage({role: 'assistant', text: calendar.assistantText, meta});
+        const calendarRecord = timestampedConversationMessage({role: 'assistant', text: calendar.assistantText, meta});
+        appendConversationRecord(calendarRecord);
+        appendPersistedMessage(calendarRecord);
         diagnostics.lastPath = 'CORE_CALENDAR_DETERMINISTIC'; diagnostics.coreCalls += 1; diagnostics.providerCallsAvoided += 1;
         window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
@@ -1337,9 +1361,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
-      const assistantNode = createMessage('assistant', response.assistantText, meta);
-      if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
-      appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+      const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
+      appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
       driveAvatar('response-complete', avatarRequestId);

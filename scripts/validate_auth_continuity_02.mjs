@@ -202,7 +202,7 @@ assert.ok(!staticAccountActions.includes('>회원가입<'), 'initial static head
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
 assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-authux1"'));
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-lotbibox2"'));
+assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-timeline1"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
