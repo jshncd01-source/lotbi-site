@@ -1083,6 +1083,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
     if (!sessionToken && isExplicitLifeCalendarCommand(message)) {
+      clearSiteLogoutSuppression();
       try { await beginSiteHandoff(message); } catch (caught) { showError(caught, message, false); }
       return;
     }
