@@ -108,6 +108,9 @@ jobs:
       - name: Validate chat layout and attachment composer
         run: node scripts/validate_chat_layout_attachment_01.mjs
 
+      - name: Validate centered conversation timeline
+        run: node scripts/validate_conversation_timeline_01.mjs
+
       - name: Validate response grade selector
         run: node scripts/validate_response_grade_selector_01.mjs
 
@@ -205,7 +208,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-conversation-timeline.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 
