@@ -86,7 +86,7 @@ def main() -> int:
         "calendar menu": "캘린더",
         "calendar today": "오늘",
         "calendar attention": "확인 필요",
-        "calendar stylesheet": 'href="site-calendar.css?v=20260920-realcal1"',
+        "calendar stylesheet": 'href="site-calendar.css?v=20260920-realcal2"',
         "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
         "connected services URL": CONNECTED_SERVICES_URL,
