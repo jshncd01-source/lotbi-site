@@ -3,6 +3,8 @@ export const SITE_AUDIENCE = 'lotbiai.com';
 export const SITE_CALLBACK_URI = 'https://lotbiai.com/auth/callback';
 
 const CONVERSATION_PATH = '/v2/conversation/messages';
+const PRODUCT_CARD_SEARCH_PATH = '/v2/product-resolutions/search';
+const PUBLIC_PRODUCT_CARD_SEARCH_PATH = '/v2/public/product-cards/search';
 const GUEST_SESSION_PATH = '/v2/conversation/guest/sessions';
 const GUEST_CONVERSATION_PATH = '/v2/conversation/guest/messages';
 const GUEST_IDEMPOTENCY_RE = /^[A-Za-z0-9._:-]{8,160}$/;
@@ -172,6 +174,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
+    intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
   });
 }
 
@@ -306,6 +309,7 @@ export async function sendGuestConversationMessage({
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
+    intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
   });
 }
 
@@ -342,6 +346,231 @@ async function siteSessionRequest(path, sessionToken, {method = 'GET', announceS
     throw error;
   }
   return payload;
+}
+
+function assertRichProductCard(card) {
+  return card
+    && Number.isInteger(card.candidate_index)
+    && typeof card.title === 'string'
+    && card.title.trim().length > 0
+    && (card.price === null || card.price === undefined || Number.isInteger(card.price))
+    && typeof card.currency === 'string';
+}
+
+async function authenticatedJsonRequest(path, sessionToken, {method = 'GET', body = undefined} = {}, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const headers = {Authorization: 'Bearer ' + bearerToken(sessionToken)};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  let response;
+  try {
+    response = await fetchImpl(CORE_ORIGIN + path, {
+      method,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers,
+      ...(body === undefined ? {} : {body: JSON.stringify(body)}),
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 상품 검색 서버에 접속하지 못했습니다.', {
+      code: 'RICH_PRODUCT_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = errorFromResponse(response, payload, '상품 정보를 확인하지 못했습니다.');
+    announceInvalidSiteSession(error);
+    throw error;
+  }
+  return payload;
+}
+
+
+export async function searchPublicProductCards({
+  query,
+  merchantCode = '',
+  merchantExplicit = false,
+  maxResults = 6,
+} = {}, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const normalizedQuery = typeof query === 'string' ? query.trim() : '';
+  if (!normalizedQuery || normalizedQuery.length > 500) {
+    throw new SiteCoreError('상품 검색어를 확인해 주세요.', {code: 'RICH_PRODUCT_QUERY_INVALID'});
+  }
+  const params = new URLSearchParams({
+    query: normalizedQuery,
+    max_results: String(Number.isInteger(maxResults) ? Math.min(6, Math.max(1, maxResults)) : 6),
+  });
+  if (typeof merchantCode === 'string' && merchantCode.trim()) params.set('merchant_code', merchantCode.trim());
+  if (merchantExplicit === true) params.set('merchant_explicit', 'true');
+
+  let response;
+  try {
+    response = await fetchImpl(CORE_ORIGIN + PUBLIC_PRODUCT_CARD_SEARCH_PATH + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {},
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 상품 검색 서버에 접속하지 못했습니다.', {
+      code: 'RICH_PRODUCT_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    throw errorFromResponse(response, payload, '상품 정보를 확인하지 못했습니다.');
+  }
+  if (
+    payload.contract_id !== 'CORE-PUBLIC-RICH-PRODUCT-DISCOVERY-01'
+    || payload.schema_version !== 1
+    || typeof payload.display_id !== 'string'
+    || !Array.isArray(payload.cards)
+    || payload.cards.some(card => !assertRichProductCard(card))
+    || payload.purchase_requires_login !== true
+    || payload.selection_available !== false
+    || payload.external_side_effect !== false
+    || payload.execution_authority !== false
+    || payload.transaction_created !== false
+    || payload.order_created !== false
+    || payload.payment_attempted !== false
+    || payload.live_money !== false
+  ) {
+    throw new SiteCoreError('공개 상품 카드 응답 형식이 올바르지 않습니다.', {code: 'PUBLIC_RICH_PRODUCT_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    displayId: payload.display_id,
+    status: payload.status,
+    query: typeof payload.query === 'string' ? payload.query : normalizedQuery,
+    merchant: payload.merchant && typeof payload.merchant === 'object' ? Object.freeze({...payload.merchant}) : Object.freeze({}),
+    sourceMode: typeof payload.source_mode === 'string' ? payload.source_mode : '',
+    cards: Object.freeze(payload.cards.slice(0, 6).map(card => Object.freeze({...card}))),
+    purchaseRequiresLogin: true,
+  });
+}
+
+export async function searchProductCards(sessionToken, {
+  query,
+  originalText = '',
+  merchantCode = '',
+  merchantExplicit = false,
+  brand = '',
+  maxPrice = null,
+  preferences = [],
+  maxResults = 6,
+} = {}, fetchImpl = globalThis.fetch) {
+  const normalizedQuery = typeof query === 'string' ? query.trim() : '';
+  if (!normalizedQuery || normalizedQuery.length > 500) {
+    throw new SiteCoreError('상품 검색어를 확인해 주세요.', {code: 'RICH_PRODUCT_QUERY_INVALID'});
+  }
+  const payload = await authenticatedJsonRequest(PRODUCT_CARD_SEARCH_PATH, sessionToken, {
+    method: 'POST',
+    body: {
+      query: normalizedQuery,
+      original_text: typeof originalText === 'string' && originalText.trim() ? originalText.trim().slice(0, 1000) : normalizedQuery,
+      merchant_code: typeof merchantCode === 'string' && merchantCode.trim() ? merchantCode.trim() : null,
+      merchant_explicit: merchantExplicit === true,
+      brand: typeof brand === 'string' && brand.trim() ? brand.trim().slice(0, 120) : null,
+      max_price: Number.isInteger(maxPrice) && maxPrice >= 0 ? maxPrice : null,
+      preferences: Array.isArray(preferences) ? preferences.filter(value => typeof value === 'string').slice(0, 12) : [],
+      max_results: Number.isInteger(maxResults) ? Math.min(6, Math.max(1, maxResults)) : 6,
+    },
+  }, fetchImpl);
+  if (
+    payload.contract_id !== 'CORE-RICH-PRODUCT-DISCOVERY-01'
+    || payload.schema_version !== 1
+    || typeof payload.resolution_id !== 'string'
+    || !/^[0-9a-f]{64}$/.test(String(payload.resolution_hash || ''))
+    || typeof payload.cards_path !== 'string'
+    || payload.external_side_effect !== false
+    || payload.execution_authority !== false
+    || payload.live_money !== false
+  ) {
+    throw new SiteCoreError('상품 검색 응답 형식이 올바르지 않습니다.', {code: 'RICH_PRODUCT_SEARCH_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    commandId: payload.command_id,
+    resolutionId: payload.resolution_id,
+    resolutionHash: payload.resolution_hash,
+    status: payload.status,
+    merchant: payload.merchant && typeof payload.merchant === 'object' ? Object.freeze({...payload.merchant}) : Object.freeze({}),
+    sourceMode: payload.source_mode,
+    candidateCount: Number.isInteger(payload.candidate_count) ? payload.candidate_count : 0,
+    cardsPath: payload.cards_path,
+  });
+}
+
+export async function getProductCards(sessionToken, resolutionId, fetchImpl = globalThis.fetch) {
+  const id = typeof resolutionId === 'string' ? resolutionId.trim() : '';
+  if (!/^[A-Za-z0-9_-]{4,80}$/.test(id)) {
+    throw new SiteCoreError('상품 후보 식별자가 올바르지 않습니다.', {code: 'RICH_PRODUCT_RESOLUTION_INVALID'});
+  }
+  const payload = await authenticatedJsonRequest('/v2/product-resolutions/' + encodeURIComponent(id) + '/cards', sessionToken, {}, fetchImpl);
+  if (
+    payload.contract_id !== 'CORE-SHOP-UI-01A'
+    || payload.schema_version !== 1
+    || payload.resolution_id !== id
+    || !/^[0-9a-f]{64}$/.test(String(payload.resolution_hash || ''))
+    || !Array.isArray(payload.cards)
+    || payload.external_side_effect !== false
+    || payload.execution_authority !== false
+    || payload.cards.some(card => !assertRichProductCard(card))
+  ) {
+    throw new SiteCoreError('상품 카드 응답 형식이 올바르지 않습니다.', {code: 'RICH_PRODUCT_CARDS_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    resolutionId: payload.resolution_id,
+    resolutionHash: payload.resolution_hash,
+    status: payload.status,
+    query: typeof payload.query === 'string' ? payload.query : '',
+    sourceMode: typeof payload.source_mode === 'string' ? payload.source_mode : '',
+    expired: payload.expired === true,
+    cards: Object.freeze(payload.cards.map(card => Object.freeze({...card}))),
+  });
+}
+
+export async function reviewProductCard(sessionToken, {
+  resolutionId,
+  resolutionHash,
+  candidateIndex,
+} = {}, fetchImpl = globalThis.fetch) {
+  const id = typeof resolutionId === 'string' ? resolutionId.trim() : '';
+  const hash = typeof resolutionHash === 'string' ? resolutionHash.trim() : '';
+  if (!id || !/^[0-9a-f]{64}$/.test(hash) || !Number.isInteger(candidateIndex) || candidateIndex < 0 || candidateIndex > 19) {
+    throw new SiteCoreError('구매 검토 대상이 올바르지 않습니다.', {code: 'RICH_PRODUCT_REVIEW_INPUT_INVALID'});
+  }
+  const payload = await authenticatedJsonRequest('/v2/product-resolutions/' + encodeURIComponent(id) + '/review', sessionToken, {
+    method: 'POST',
+    body: {candidate_index: candidateIndex, expected_resolution_hash: hash},
+  }, fetchImpl);
+  if (
+    payload.contract_id !== 'CORE-RICH-PRODUCT-REVIEW-01'
+    || payload.schema_version !== 1
+    || payload.resolution_id !== id
+    || payload.resolution_hash !== hash
+    || payload.candidate_index !== candidateIndex
+    || !assertRichProductCard(payload.card)
+    || payload.review_required !== true
+    || payload.external_side_effect !== false
+    || payload.execution_authority !== false
+    || payload.transaction_created !== false
+    || payload.order_created !== false
+    || payload.payment_attempted !== false
+    || payload.live_money !== false
+  ) {
+    throw new SiteCoreError('구매 검토 응답 형식이 올바르지 않습니다.', {code: 'RICH_PRODUCT_REVIEW_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    card: Object.freeze({...payload.card}),
+    merchant: payload.merchant && typeof payload.merchant === 'object' ? Object.freeze({...payload.merchant}) : Object.freeze({}),
+    priceChanged: payload.price_changed === true,
+    nextStep: payload.next_step,
+  });
 }
 
 export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fetch) {

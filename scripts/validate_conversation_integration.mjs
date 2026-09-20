@@ -21,7 +21,7 @@ const {
   redeemSiteHandoff,
   sendConversationMessage,
   sendGuestConversationMessage,
-} = await import('../site-core.js?v=20260920-guest3');
+} = await import('../site-core.js?v=20260920-richcards5');
 const {
   ACCOUNT_SITE_HANDOFF_URL,
   HANDOFF_CONTEXT_KEY,
@@ -190,6 +190,7 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   const reply = await sendConversationMessage('site-memory-token', '안녕하세요', fetchMock);
   assert.equal(reply.status, 'ANSWERED');
   assert.equal(reply.assistantText, '실제 Core 계약 형태의 테스트 응답');
+  assert.equal(reply.intent.action, 'UNKNOWN');
   assert.equal(request.url, 'https://api.lotbiai.com/v2/conversation/messages');
   assert.equal(request.init.method, 'POST');
   assert.equal(request.init.credentials, 'omit');
@@ -247,6 +248,7 @@ await expectReject(
     });
   });
   assert.equal(reply.status, 'ANSWERED');
+  assert.equal(reply.intent.action, 'UNKNOWN');
   assert.equal(request.url, 'https://api.lotbiai.com/v2/conversation/guest/messages');
   assert.equal(request.init.method, 'POST');
   assert.equal(request.init.credentials, 'omit');
@@ -281,7 +283,7 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260920-grade7b"',
+  'type="module" src="site-conversation.js?v=20260920-richcards5"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',

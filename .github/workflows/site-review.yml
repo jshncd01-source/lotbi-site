@@ -78,6 +78,12 @@ jobs:
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
+      - name: Validate Universal Rich Product Cards
+        run: |
+          node --check site-core.js
+          node --check site-conversation.js
+          node scripts/validate_rich_product_cards_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
@@ -138,6 +144,12 @@ jobs:
           }
 
           preflight '/v2/conversation/messages' 'authorization,content-type' 'POST'
+          preflight '/v2/conversation/guest/sessions' 'content-type' 'POST'
+          preflight '/v2/conversation/guest/messages' 'content-type,idempotency-key,x-lotbi-guest-token' 'POST'
+          preflight '/v2/product-resolutions/search' 'authorization,content-type' 'POST'
+          preflight '/v2/product-resolutions/prs_smoke/cards' 'authorization' 'GET'
+          preflight '/v2/product-resolutions/prs_smoke/review' 'authorization,content-type' 'POST'
+          preflight '/v2/public/product-cards/search' '' 'GET'
           preflight '/v2/sessions/handoffs/redeem' 'content-type' 'POST'
           preflight '/v2/me' 'authorization' 'GET'
           preflight '/v2/sessions/logout' 'authorization' 'POST'
