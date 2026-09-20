@@ -3,6 +3,7 @@ const NAVER_MAPS_ANDROID_PACKAGE = 'com.nhn.android.nmap';
 const NAVER_MAPS_ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.nhn.android.nmap';
 const NAVER_MAPS_IOS_STORE_URL = 'https://itunes.apple.com/app/id311867728?mt=8';
 const NAVER_MAPS_WEB_SEARCH_BASE = 'https://map.naver.com/p/search/';
+const NAVER_STATIC_MAP_THUMBNAIL_BASE = 'https://api.lotbiai.com/v2/maps/static-place-thumbnail';
 const NAVIGATION_TTL_MS = 10 * 60 * 1000;
 
 function text(value) {
@@ -78,8 +79,14 @@ export function isPlaceResultFresh(placeResult, now = Date.now()) {
     && now - placeResult.capturedAt <= NAVIGATION_TTL_MS;
 }
 
+function localityHint(address) {
+  return text(address).split(/\s+/u).filter(Boolean).slice(0, 2).join(' ');
+}
+
 function searchQuery(place) {
-  return [text(place?.name), text(place?.address)].filter(Boolean).join(' ');
+  const name = text(place?.name);
+  const locality = localityHint(place?.address);
+  return [name, locality].filter(Boolean).join(' ').slice(0, 120);
 }
 
 function navigationParams(place, appname) {
@@ -122,15 +129,47 @@ export function buildNaverMapsWebSearchUrl(place) {
   return NAVER_MAPS_WEB_SEARCH_BASE + encodeURIComponent(query);
 }
 
+export function buildNaverStaticMapThumbnailUrl(place) {
+  if (!place || typeof place !== 'object' || place.navigationCapable !== true) return '';
+  const latitude = finiteCoordinate(place.latitude);
+  const longitude = finiteCoordinate(place.longitude);
+  if (
+    latitude === null
+    || longitude === null
+    || latitude < 31.43
+    || latitude > 44.35
+    || longitude < 122.37
+    || longitude > 132
+    || text(place.coordinateSystem).toUpperCase() !== 'WGS84'
+    || text(place.coordinateAuthority) !== 'NAVER_MAPS_GEOCODING'
+  ) return '';
+  const url = new URL(NAVER_STATIC_MAP_THUMBNAIL_BASE);
+  url.searchParams.set('latitude', latitude.toFixed(7));
+  url.searchParams.set('longitude', longitude.toFixed(7));
+  return url.toString();
+}
+
+function mobilePlatform(userAgent) {
+  const ua = String(userAgent || '');
+  return Object.freeze({
+    android: /Android/iu.test(ua),
+    ios: /iPhone|iPad|iPod/iu.test(ua),
+  });
+}
+
+export function naverMapsPlaceActionLabel(place, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
+  const {android, ios} = mobilePlatform(userAgent);
+  if (!android && !ios) return '네이버지도에서 보기';
+  return place?.navigationCapable === true ? '길안내' : '네이버지도에서 찾기';
+}
+
 export function openNaverMapsPlace(place, {
   windowRef = globalThis.window,
   userAgent = globalThis.navigator?.userAgent || '',
   now = () => Date.now(),
 } = {}) {
   if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
-  const ua = String(userAgent || '');
-  const android = /Android/iu.test(ua);
-  const ios = /iPhone|iPad|iPod/iu.test(ua);
+  const {android, ios} = mobilePlatform(userAgent);
 
   if (android) {
     const uri = buildNaverMapsAndroidIntentUri(place);
