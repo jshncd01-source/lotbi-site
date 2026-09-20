@@ -769,6 +769,19 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
     content.appendChild(links); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
+  const beginAccountLogoutHandoff = () => {
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = 'https://account.lotbiai.com/auth/site-logout';
+    form.hidden = true;
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'intent';
+    input.value = 'logout';
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.requestSubmit();
+  };
   const openProfileMenu = trigger => {
     if (openSurface && openSurfaceTrigger === trigger) { closeSurface(); return; }
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
@@ -788,7 +801,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         await logoutSiteSession(sessionToken); sessionToken = undefined; serverIdentity = undefined; serverSubscription = undefined; closeSurface();
         switchNamespace(browserAnonymousNamespace());
         window.dispatchEvent(new CustomEvent(SESSION_STATE_EVENT, {detail: {authenticated: false, reason: 'site-logout'}}));
-        setStatus('LOTBI Site에서 로그아웃했습니다. 이 브라우저의 계정별 대화는 분리 보존됩니다.');
+        setStatus('LOTBI 계정 로그아웃을 마무리하고 있습니다.');
+        beginAccountLogoutHandoff();
       } catch (error) {
         logout.disabled = false; logout.textContent = '로그아웃';
         setStatus(error instanceof Error ? error.message : '로그아웃하지 못했습니다.');
