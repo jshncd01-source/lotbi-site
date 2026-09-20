@@ -79,8 +79,7 @@ const secondary = surface.querySelector('.sidebar-secondary-nav');
 const footer = surface.querySelector('.sidebar-account-footer');
 if (!primary || !calendar || !recent || !recentList || !secondary || !footer) throw new Error('Sidebar IA fixture contract incomplete');
 const calendarViews = [...calendar.querySelectorAll('[data-calendar-view]')];
-if (calendarViews.length !== 5) throw new Error('Calendar submenu expected 5 views, got ' + calendarViews.length);
-calendar.open = true;
+if (calendarViews.length !== 3) throw new Error('Calendar navigation expected root + 2 quick views, got ' + calendarViews.length);
 for (const [index, title] of ${JSON.stringify(injectedTitles)}.entries()) {
   const li = doc.createElement('li');
   li.className = 'conversation-history-item';
@@ -183,7 +182,7 @@ function assertViewport(label, result, width, height, mode) {
   ) {
     throw new Error(`${label}: scrolling recent conversations moved fixed primary/secondary/account regions`);
   }
-  if (result.calendar.viewCount !== 5) throw new Error(`${label}: Calendar submenu count changed (${result.calendar.viewCount})`);
+  if (result.calendar.viewCount !== 3) throw new Error(`${label}: Calendar navigation count changed (${result.calendar.viewCount})`);
   if (result.calendar.top < 0 || result.calendar.bottom > height + tolerance) {
     throw new Error(`${label}: expanded Calendar navigation left the viewport (${result.calendar.top}..${result.calendar.bottom})`);
   }
@@ -199,8 +198,9 @@ function assertViewport(label, result, width, height, mode) {
 }
 
 const cases = [
-  ['desktop-1440', 1440, 900, 'desktop'],
-  ['desktop-1366', 1366, 768, 'desktop'],
+  ['desktop-1280', 1280, 800, 'desktop'],
+  ['tablet-768', 768, 1024, 'mobile'],
+  ['mobile-412', 412, 915, 'mobile'],
   ['mobile-390', 390, 844, 'mobile'],
 ];
 for (const [label, width, height, mode] of cases) {
