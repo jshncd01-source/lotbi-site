@@ -13,7 +13,7 @@ const css = read('site-conversation.css');
 assert.equal((html.match(/data-lotbi-box-open/g) || []).length, 2, 'Desktop and mobile must both expose LOTBI Box');
 assert.equal((html.match(/aria-label="롯비함 열기"/g) || []).length, 2, 'LOTBI Box navigation must be labelled');
 assert.ok(html.includes('site-calendar.css?v=20260920-realcal2'), 'real Calendar CSS must remain preserved');
-assert.ok(html.includes('site-conversation.js?v=20260920-messageux1'), 'LOTBI Box must remain on the fresh combined conversation runtime');
+assert.ok(html.includes('site-conversation.js?v=20260920-scrollfix1'), 'LOTBI Box must remain on the fresh combined conversation runtime');
 assert.ok(html.indexOf('data-new-conversation') < html.indexOf('data-lotbi-box-open'), 'LOTBI Box follows new conversation');
 assert.ok(html.indexOf('data-lotbi-box-open') < html.indexOf('data-calendar-view="all"'), 'LOTBI Box precedes Calendar');
 
