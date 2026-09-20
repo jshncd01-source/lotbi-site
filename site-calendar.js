@@ -89,6 +89,36 @@ function announceInvalidSiteSession(error) {
   }));
 }
 
+async function publicCalendarRequest(
+  path,
+  {method = 'GET', body} = {},
+  fetchImpl = globalThis.fetch,
+) {
+  assertFetch(fetchImpl);
+  const headers = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
+      method,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers,
+      ...(body === undefined ? {} : {body: JSON.stringify(body)}),
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 일정 서버에 접속하지 못했습니다.', {
+      code: 'LIFE_CALENDAR_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) throw responseError(response, payload);
+  return payload;
+}
+
 async function calendarRequest(
   path,
   sessionToken,
@@ -243,6 +273,33 @@ function assertMutationResponse(payload) {
   });
 }
 
+function assertCommandPreviewResponse(payload) {
+  if (
+    !payload
+    || typeof payload.title !== 'string'
+    || !payload.title.trim()
+    || !payload.temporal
+    || typeof payload.temporal !== 'object'
+    || payload.temporal.kind !== 'LOCAL_DATE_TIME'
+    || typeof payload.temporal.local_datetime !== 'string'
+    || typeof payload.temporal.timezone_name !== 'string'
+    || payload.temporal_semantics !== 'USER_PLANNED_TIME'
+    || payload.parser_type !== 'DETERMINISTIC_KO_EXPLICIT_ACTIVITY_V1'
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+  ) {
+    throw new SiteCoreError('LOTBI 일정 명령 미리보기 형식이 올바르지 않습니다.', {code: 'LIFE_COMMAND_PREVIEW_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    title: payload.title.trim(),
+    temporal: Object.freeze({...payload.temporal}),
+    temporalSemantics: payload.temporal_semantics,
+    parserType: payload.parser_type,
+    aiCalls: 0,
+    providerApiCalls: 0,
+  });
+}
+
 function assertCommandResponse(payload) {
   if (
     !payload
@@ -263,14 +320,40 @@ export function isExplicitLifeCalendarCommand(text) {
   return !NON_WRITE_LIFE_CALENDAR_PATTERNS.some(pattern => pattern.test(source));
 }
 
-export async function executeLifeCalendarCommand(sessionToken, {logicalRequestId: requestId, text, timezone}, fetchImpl = globalThis.fetch) {
+export async function executeLifeCalendarCommand(sessionToken, {logicalRequestId: requestId, text, timezone, turnCreatedAt = ''}, fetchImpl = globalThis.fetch) {
   const commandText = typeof text === 'string' ? text.trim() : '';
-  if (!commandText || commandText.length > 1000) throw new SiteCoreError('일정 명령이 올바르지 않습니다.', {code: 'LIFE_COMMAND_INPUT_INVALID', status: 422});
+  const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
+  if (!commandText || commandText.length > 1000 || (createdAt && !Number.isFinite(Date.parse(createdAt)))) {
+    throw new SiteCoreError('일정 명령이 올바르지 않습니다.', {code: 'LIFE_COMMAND_INPUT_INVALID', status: 422});
+  }
   const payload = await calendarRequest('/v2/life/commands', sessionToken, {
     method: 'POST',
-    body: {logical_request_id: logicalRequestId(requestId), text: commandText, timezone: timezoneName(timezone)},
+    body: {
+      logical_request_id: logicalRequestId(requestId),
+      text: commandText,
+      timezone: timezoneName(timezone),
+      ...(createdAt ? {turn_created_at: createdAt} : {}),
+    },
   }, fetchImpl);
   return assertCommandResponse(payload);
+}
+
+export async function previewLifeCalendarCommand({logicalRequestId: requestId, text, timezone, turnCreatedAt}, fetchImpl = globalThis.fetch) {
+  const commandText = typeof text === 'string' ? text.trim() : '';
+  const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
+  if (!commandText || commandText.length > 1000 || !createdAt || !Number.isFinite(Date.parse(createdAt))) {
+    throw new SiteCoreError('일정 명령 미리보기 입력이 올바르지 않습니다.', {code: 'LIFE_COMMAND_INPUT_INVALID', status: 422});
+  }
+  const payload = await publicCalendarRequest('/v2/life/commands/preview', {
+    method: 'POST',
+    body: {
+      logical_request_id: logicalRequestId(requestId),
+      text: commandText,
+      timezone: timezoneName(timezone),
+      turn_created_at: createdAt,
+    },
+  }, fetchImpl);
+  return assertCommandPreviewResponse(payload);
 }
 
 export async function getLifeToday(sessionToken, timezone, fetchImpl = globalThis.fetch) {
@@ -333,7 +416,7 @@ export async function getLifeActivity(sessionToken, activityId, fetchImpl = glob
     throw new SiteCoreError('일정 식별자가 올바르지 않습니다.', {code: 'LIFE_ACTIVITY_ID_INVALID', status: 422});
   }
   const payload = await calendarRequest(
-    `/v2/life/activities/${encodeURIComponent(id)}`,
+    `/v2/life/activity-lookups/${encodeURIComponent(id)}`,
     sessionToken,
     {},
     fetchImpl,
