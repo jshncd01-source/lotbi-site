@@ -69,13 +69,13 @@ function browserPath() {
 
 function runtimeProbe(width, height, lineCount, {collapse = false} = {}) {
   const value = Array.from({length: lineCount}, (_, index) => `줄 ${index + 1}`).join('\n');
-  const shellScript = shell.replaceAll('</script>', '<\\/script>');
+  const shellDataUrl = `data:text/javascript;base64,${Buffer.from(shell, 'utf8').toString('base64')}`;
   const css = combinedCss.replaceAll('</style>', '<\\/style>');
   const inner = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head>
 <body class="chat-home-page"><div class="chat-app-shell"><main class="chat-home-shell"><section class="chat-hero">
 <div class="chat-composer"><textarea id="lotbi-prompt" class="chat-input" rows="1"></textarea><div class="composer-actions"><button class="composer-button mic-button">M</button><button class="composer-button send-button">S</button></div></div>
-</section></main></div><script>document.getElementById('lotbi-prompt').value=${JSON.stringify(value)};<\/script><script>${shellScript}<\/script>
-<script>setTimeout(()=>{const p=document.getElementById('lotbi-prompt');if(${collapse}){p.value='';p.dispatchEvent(new Event('input',{bubbles:true}));}const composer=document.querySelector('.chat-composer').getBoundingClientRect();const hero=document.querySelector('.chat-hero').getBoundingClientRect();const rect=p.getBoundingClientRect();parent.document.getElementById('r').textContent=JSON.stringify({height:rect.height,scrollHeight:p.scrollHeight,overflowY:getComputedStyle(p).overflowY,composerWidth:composer.width,heroWidth:hero.width});},60);<\/script></body></html>`;
+</section></main></div><script>document.getElementById('lotbi-prompt').value=${JSON.stringify(value)};<\/script><script src="${shellDataUrl}"><\/script>
+<script>setTimeout(()=>{const p=document.getElementById('lotbi-prompt');if(${collapse}){p.value='';p.dispatchEvent(new Event('input',{bubbles:true}));}const composer=document.querySelector('.chat-composer').getBoundingClientRect();const hero=document.querySelector('.chat-hero').getBoundingClientRect();const rect=p.getBoundingClientRect();parent.document.getElementById('r').textContent=JSON.stringify({height:rect.height,scrollHeight:p.scrollHeight,overflowY:getComputedStyle(p).overflowY,composerWidth:composer.width,heroWidth:hero.width});},120);<\/script></body></html>`;
   const markup = JSON.stringify(inner);
   const html = `<!doctype html><html><body><iframe id="f" style="display:block;width:${width}px;height:${height}px;border:0"></iframe><pre id="r"></pre><script>const frame=document.getElementById('f');const doc=frame.contentDocument;doc.open();doc.write(${markup});doc.close();<\/script></body></html>`;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-composer-grow-'));
