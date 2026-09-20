@@ -21,7 +21,7 @@ const {
   redeemSiteHandoff,
   sendConversationMessage,
   sendGuestConversationMessage,
-} = await import('../site-core.js?v=20260920-attachments1');
+} = await import('../site-core.js?v=20260920-attach16prod');
 const {
   ACCOUNT_SITE_HANDOFF_URL,
   HANDOFF_CONTEXT_KEY,
@@ -283,7 +283,7 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260920-conversationpolish1"',
+  'type="module" src="site-conversation.js?v=20260920-attach16prod"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',
