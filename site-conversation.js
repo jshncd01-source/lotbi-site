@@ -879,11 +879,56 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return action ? Object.freeze({kind: 'ACTION', action}) : null;
   };
 
+  const latestSinglePartialCalendarCandidate = () => {
+    const messages = threadRecord()?.messages;
+    if (!Array.isArray(messages) || !messages.length) return null;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message?.role !== 'assistant') continue;
+      if (!Array.isArray(message.meta?.calendarItems) || message.meta.calendarItems.length !== 1) return null;
+      const item = normalizeConversationCalendarItem(message.meta.calendarItems[0]);
+      return item?.kind === 'PARTIAL' ? item.candidate : null;
+    }
+    return null;
+  };
+
+  const clearResolvedPartialCandidate = candidateId => {
+    const id = String(candidateId || '').trim();
+    if (!/^calcand_[0-9a-f]{24}$/.test(id)) return;
+    let changed = false;
+    for (const record of state.threads) {
+      if (!Array.isArray(record.messages)) continue;
+      let recordChanged = false;
+      record.messages = record.messages.map(message => {
+        if (!Array.isArray(message?.meta?.calendarItems)) return message;
+        const remaining = message.meta.calendarItems.filter(rawItem => {
+          const item = normalizeConversationCalendarItem(rawItem);
+          return !(item?.kind === 'PARTIAL' && item.candidate.candidateId === id);
+        });
+        if (remaining.length === message.meta.calendarItems.length) return message;
+        const meta = {...message.meta};
+        if (remaining.length) meta.calendarItems = remaining;
+        else delete meta.calendarItems;
+        changed = true;
+        recordChanged = true;
+        return {...message, meta};
+      });
+      if (recordChanged) record.updatedAt = Date.now();
+    }
+    thread.querySelector('[data-calendar-candidate-id="' + id + '"]')?.remove();
+    if (changed) {
+      sortThreads();
+      saveState();
+      renderRecent();
+    }
+  };
+
   const conversationCalendarItemsFromResponse = (response, scope) => {
     const set = response?.calendarCandidateSet;
     if (!set || !Array.isArray(set.candidates)) return [];
     return set.candidates.map(member => {
       if (member?.kind === 'COMPLETE') {
+        if (member.candidate?.parentCandidateId) clearResolvedPartialCandidate(member.candidate.parentCandidateId);
         const action = createAvailableCalendarAction(member.candidate, {scope, ownerNamespace: namespace});
         return action ? Object.freeze({kind: 'ACTION', action}) : null;
       }
@@ -2029,6 +2074,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
     ensureThread(displayMessage);
+    const calendarCandidateContext = attachments.length ? null : latestSinglePartialCalendarCandidate();
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
@@ -2124,6 +2170,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
           turnCreatedAt: sourceTurnCreatedAtIso,
           attachmentIds: attachments.map(item => item.id),
+          calendarCandidateContext,
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
@@ -2213,6 +2260,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         authenticatedRequestId,
         Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
         sourceTurnCreatedAtIso,
+        calendarCandidateContext,
       );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
