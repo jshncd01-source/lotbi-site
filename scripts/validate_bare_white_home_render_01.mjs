@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {pathToFileURL} from 'node:url';
 
 const index = fs.readFileSync('index.html', 'utf8');
 const cssFiles = [
@@ -37,48 +38,58 @@ function browserPath() {
 
 const bodyMatch = index.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
 if (!bodyMatch) throw new Error('index.html body markup not found');
-
 const bodyMarkup = bodyMatch[1];
 const escapedCss = css.replaceAll('</style>', '<\\/style>');
-const fixturePath = path.resolve(`.bare-white-home-review-${process.pid}.html`);
+const baseHref = pathToFileURL(path.resolve('.') + path.sep).href;
 const evidenceDir = process.env.BARE_WHITE_EVIDENCE_DIR
   ? path.resolve(process.env.BARE_WHITE_EVIDENCE_DIR)
   : fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-bare-white-home-'));
 fs.mkdirSync(evidenceDir, {recursive: true});
+const browser = browserPath();
 
-const fixture = `<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>${escapedCss}</style>
-</head>
-<body class="chat-home-page" data-conversation-restore="ready">
-${bodyMarkup}
+function innerDocument() {
+  return `<!doctype html><html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="${baseHref}">
+<style>${escapedCss}</style>
+</head><body class="chat-home-page" data-conversation-restore="ready">${bodyMarkup}</body></html>`;
+}
+
+function outerFixture(width, height) {
+  const inner = JSON.stringify(innerDocument());
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#fff;overflow:hidden}iframe{display:block;border:0;width:${width}px;height:${height}px}</style>
+</head><body>
+<iframe id="home-frame" title="LOTBI Bare White Home exact viewport"></iframe>
 <pre id="bare-white-render-result" hidden></pre>
 <script>
+const frame = document.getElementById('home-frame');
+const doc = frame.contentDocument;
+doc.open(); doc.write(${inner}); doc.close();
+const win = frame.contentWindow;
 setTimeout(() => {
-  const body = document.body;
-  const root = document.documentElement;
-  const sidebar = document.querySelector('.chat-sidebar-desktop');
-  const drawer = document.querySelector('.mobile-nav-drawer');
-  const shell = document.querySelector('.chat-home-shell');
-  const hero = document.querySelector('.chat-hero');
-  const avatar = document.querySelector('.chat-character-wrap');
-  const composer = document.querySelector('.chat-composer');
-  const primary = document.querySelector('.nav-item-primary');
-  const responseGrade = document.querySelector('[data-response-grade-control]');
-  const safety = document.querySelector('.chat-safety-copy');
+  const body = doc.body;
+  const root = doc.documentElement;
+  const sidebar = doc.querySelector('.chat-sidebar-desktop');
+  const drawer = doc.querySelector('.mobile-nav-drawer');
+  const shell = doc.querySelector('.chat-home-shell');
+  const hero = doc.querySelector('.chat-hero');
+  const avatar = doc.querySelector('.chat-character-wrap');
+  const composer = doc.querySelector('.chat-composer');
+  const primary = doc.querySelector('.nav-item-primary');
+  const responseGrade = doc.querySelector('[data-response-grade-control]');
+  const safety = doc.querySelector('.chat-safety-copy');
   if (!sidebar || !drawer || !shell || !hero || !avatar || !composer || !primary || !responseGrade || !safety) {
     throw new Error('Bare White Home fixture contract incomplete');
   }
-  const style = node => getComputedStyle(node);
+  const style = node => win.getComputedStyle(node);
   const rect = node => {
     const value = node.getBoundingClientRect();
     return {left:value.left,right:value.right,top:value.top,bottom:value.bottom,width:value.width,height:value.height};
   };
   document.getElementById('bare-white-render-result').textContent = JSON.stringify({
-    viewport: {width:innerWidth,height:innerHeight,clientWidth:root.clientWidth,scrollWidth:root.scrollWidth},
+    viewport: {width:win.innerWidth,height:win.innerHeight,clientWidth:root.clientWidth,scrollWidth:root.scrollWidth},
     body: {background:style(body).backgroundColor,color:style(body).color},
     shell: {background:style(shell).backgroundColor,rect:rect(shell)},
     sidebar: {
@@ -110,13 +121,9 @@ setTimeout(() => {
     safety: {color:style(safety).color,fontSize:style(safety).fontSize},
     responseGrade: {hidden:responseGrade.hidden,display:style(responseGrade).display},
   });
-}, 40);
-</script>
-</body>
-</html>`;
-
-fs.writeFileSync(fixturePath, fixture, 'utf8');
-const browser = browserPath();
+}, 80);
+</script></body></html>`;
+}
 
 function decodeHtml(value) {
   return value
@@ -128,35 +135,46 @@ function decodeHtml(value) {
 }
 
 function render(label, width, height) {
-  const url = `file://${fixturePath}`;
+  const fixturePath = path.resolve(`.bare-white-home-review-${process.pid}-${label}.html`);
+  fs.writeFileSync(fixturePath, outerFixture(width, height), 'utf8');
+  const url = pathToFileURL(fixturePath).href;
+  // Headless Chrome enforces a 500px minimum top-level width. The iframe is
+  // the authoritative CSS viewport, so mobile media queries still run at the
+  // exact requested 390/412px widths.
+  const outerWidth = Math.max(width, 500);
+  const outerHeight = height + 100;
   const common = [
     '--headless=new',
     '--no-sandbox',
     '--disable-gpu',
     '--disable-dev-shm-usage',
     '--force-device-scale-factor=1',
-    `--window-size=${width},${height}`,
-    '--virtual-time-budget=900',
+    `--window-size=${outerWidth},${outerHeight}`,
+    '--virtual-time-budget=1200',
   ];
-  const dump = spawnSync(browser, [...common, '--dump-dom', url], {
-    encoding:'utf8', timeout:30000, maxBuffer:16 * 1024 * 1024,
-  });
-  if (dump.error) throw dump.error;
-  if (dump.status !== 0) throw new Error(`${label}: browser dump failed (${dump.status}): ${dump.stderr}`);
-  const match = dump.stdout.match(/<pre id="bare-white-render-result" hidden="">([^<]+)<\/pre>/)
-    || dump.stdout.match(/<pre id="bare-white-render-result"[^>]*>([^<]+)<\/pre>/);
-  if (!match) throw new Error(`${label}: render result not found`);
-  const result = JSON.parse(decodeHtml(match[1]));
+  try {
+    const dump = spawnSync(browser, [...common, '--dump-dom', url], {
+      encoding:'utf8', timeout:30000, maxBuffer:16 * 1024 * 1024,
+    });
+    if (dump.error) throw dump.error;
+    if (dump.status !== 0) throw new Error(`${label}: browser dump failed (${dump.status}): ${dump.stderr}`);
+    const match = dump.stdout.match(/<pre id="bare-white-render-result" hidden="">([^<]+)<\/pre>/)
+      || dump.stdout.match(/<pre id="bare-white-render-result"[^>]*>([^<]+)<\/pre>/);
+    if (!match) throw new Error(`${label}: render result not found`);
+    const result = JSON.parse(decodeHtml(match[1]));
 
-  const screenshot = path.join(evidenceDir, `${label}.png`);
-  const shot = spawnSync(browser, [...common, `--screenshot=${screenshot}`, url], {
-    encoding:'utf8', timeout:30000, maxBuffer:4 * 1024 * 1024,
-  });
-  if (shot.error) throw shot.error;
-  if (shot.status !== 0 || !fs.existsSync(screenshot) || fs.statSync(screenshot).size === 0) {
-    throw new Error(`${label}: screenshot failed (${shot.status}): ${shot.stderr}`);
+    const screenshot = path.join(evidenceDir, `${label}.png`);
+    const shot = spawnSync(browser, [...common, `--screenshot=${screenshot}`, url], {
+      encoding:'utf8', timeout:30000, maxBuffer:4 * 1024 * 1024,
+    });
+    if (shot.error) throw shot.error;
+    if (shot.status !== 0 || !fs.existsSync(screenshot) || fs.statSync(screenshot).size === 0) {
+      throw new Error(`${label}: screenshot failed (${shot.status}): ${shot.stderr}`);
+    }
+    return result;
+  } finally {
+    fs.rmSync(fixturePath, {force:true});
   }
-  return result;
 }
 
 function assertWhite(label, value) {
@@ -165,15 +183,8 @@ function assertWhite(label, value) {
 
 function assertCase(label, result, width, height) {
   const tolerance = 3;
-  if (Math.abs(result.viewport.width - width) > tolerance) {
-    throw new Error(`${label}: viewport width mismatch ${result.viewport.width} != ${width}`);
-  }
-  // GitHub's headless Chrome reserves a small vertical browser band even when
-  // --window-size is exact. The narrower resulting CSS viewport is stricter
-  // for fold/reachability, so accept that bounded reduction instead of
-  // mistaking browser chrome for a responsive-layout failure.
-  if (result.viewport.height > height + tolerance || result.viewport.height < height - 120) {
-    throw new Error(`${label}: unexpected viewport height ${result.viewport.height} for window ${height}`);
+  if (Math.abs(result.viewport.width - width) > tolerance || Math.abs(result.viewport.height - height) > tolerance) {
+    throw new Error(`${label}: exact iframe viewport mismatch ${result.viewport.width}x${result.viewport.height}`);
   }
   if (result.viewport.scrollWidth > result.viewport.clientWidth + tolerance) {
     throw new Error(`${label}: horizontal overflow ${result.viewport.scrollWidth} > ${result.viewport.clientWidth}`);
@@ -211,17 +222,13 @@ const cases = [
   ['web-mobile-412', 412, 915],
 ];
 
-try {
-  const results = {};
-  for (const [label, width, height] of cases) {
-    const result = render(label, width, height);
-    assertCase(label, result, width, height);
-    results[label] = result;
-    console.log('LOTBI BARE WHITE HOME RENDER', label, JSON.stringify(result));
-  }
-  fs.writeFileSync(path.join(evidenceDir, 'render-results.json'), JSON.stringify(results, null, 2));
-  console.log('LOTBI BARE WHITE HOME RENDER PASS');
-  console.log('EVIDENCE_DIR=' + evidenceDir);
-} finally {
-  fs.rmSync(fixturePath, {force:true});
+const results = {};
+for (const [label, width, height] of cases) {
+  const result = render(label, width, height);
+  assertCase(label, result, width, height);
+  results[label] = result;
+  console.log('LOTBI BARE WHITE HOME RENDER', label, JSON.stringify(result));
 }
+fs.writeFileSync(path.join(evidenceDir, 'render-results.json'), JSON.stringify(results, null, 2));
+console.log('LOTBI BARE WHITE HOME RENDER PASS');
+console.log('EVIDENCE_DIR=' + evidenceDir);
