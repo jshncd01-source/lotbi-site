@@ -48,8 +48,11 @@ if(u.endsWith('/v2/sessions/logout')){counts.logout+=1;return new Response(JSON.
 counts.other+=1;return new Response('{}',{status:500})};
 try{
 localStorage.clear();
+let importPhase='continuity';
 const continuity=await import('/site-continuity.js?profile-test=1');
+importPhase='attachments';
 await import('/site-attachments.js?profile-test=1');
+importPhase='conversation';
 const conversation=await import('/site-conversation.js?profile-test=1');
 continuity.markAnonymousAccountUi();
 const anon=document.querySelector('[data-sidebar-account] a.sidebar-account-entry');
@@ -83,7 +86,7 @@ after=state();if(!ev.defaultPrevented||location.href!==url||after.activeThreadId
 const measured=document.querySelector('.profile-popover').getBoundingClientRect(),layoutWidth=document.documentElement.clientWidth,layoutHeight=document.documentElement.clientHeight,mobile=innerWidth<=900,rect={width:measured.width,left:measured.left,right:measured.right,top:measured.top,bottom:measured.bottom},expectedWidth=mobile?Math.max(0,layoutWidth-20):264;if(rect.left<-1||rect.right>layoutWidth+1||rect.top<-1||rect.bottom>layoutHeight+1||Math.abs(rect.width-expectedWidth)>3)throw new Error('popover viewport/layout '+JSON.stringify({rect,expectedWidth,innerWidth,innerHeight,layoutWidth,layoutHeight,mobile}));
 const logout=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].find(n=>n.textContent==='로그아웃');click(logout);await wait(()=>counts.logout===1,'logout');await wait(()=>counts.accountLogout===1,'account logout handoff');await wait(()=>document.querySelector('[data-sidebar-account] a[href="/auth/start/"]'),'logout UI');
 out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile},profile:{name:'홍길동',handle:'@hong',plan:'현재 이용 등급 · LOTBI Plus'},continuity:{urlUnchanged:location.href===url,threadId:id,draft:after.draft,messageCount:after.threads[0].messages.length},close:{toggle:true,outside:true,escape:true},selfHeal:true,counts,popover:{width:rect.width,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}})
-}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),counts})}
+}catch(e){out.textContent=JSON.stringify({ok:false,error:String((typeof importPhase==='string'?importPhase+': ':'')+(e?.stack||e)),counts})}
 </script></body></html>`;
 
 function waitServer(){for(let i=0;i<40;i+=1){const p=spawnSync('curl',['--fail','--silent',ORIGIN+'/'],{timeout:1000});if(p.status===0)return;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,100)}throw new Error('server start')}
