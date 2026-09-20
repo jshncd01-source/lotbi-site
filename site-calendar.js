@@ -327,6 +327,20 @@ export async function getLifeAttention(
   return assertAttentionResponse(payload);
 }
 
+export async function getLifeActivity(sessionToken, activityId, fetchImpl = globalThis.fetch) {
+  const id = typeof activityId === 'string' ? activityId.trim() : '';
+  if (!ACTIVITY_ID_PATTERN.test(id)) {
+    throw new SiteCoreError('일정 식별자가 올바르지 않습니다.', {code: 'LIFE_ACTIVITY_ID_INVALID', status: 422});
+  }
+  const payload = await calendarRequest(
+    `/v2/life/activities/${encodeURIComponent(id)}`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertMutationResponse(payload);
+}
+
 export async function createLifeActivity(
   sessionToken,
   {logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN'},
