@@ -64,6 +64,9 @@ await import('/site-calendar-ui.js?v=20260920-calnav9');
 importPhase='conversation';
 const conversationSource=await fetch('/site-conversation.js?profile-parse=1').then(response=>response.text());
 try{new Function(conversationSource.replace(/^import[^\\n]*\\n/gm,'').replace('export function mountConversation','function mountConversation'))}catch(parseError){throw new Error('conversation parse detail: '+parseError.stack)}
+const moduleProbe=conversationSource.replace(/^import[^\\n]*\\n/gm,'');
+const moduleProbeUrl=URL.createObjectURL(new Blob([moduleProbe],{type:'text/javascript'}));
+try{await import(moduleProbeUrl)}catch(parseError){throw new Error('conversation module detail: '+parseError.stack)}finally{URL.revokeObjectURL(moduleProbeUrl)}
 const conversation=await import('/site-conversation.js?profile-test=1');
 continuity.markAnonymousAccountUi();
 const anon=document.querySelector('[data-sidebar-account] a.sidebar-account-entry');
