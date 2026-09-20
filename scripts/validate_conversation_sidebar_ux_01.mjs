@@ -26,14 +26,16 @@ const localBranch = conversation.indexOf('const local = attachments.length ? nul
 const calendarAuthBranch = conversation.indexOf('if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message))', localBranch);
 const guestBranch = conversation.indexOf('if (!sessionToken) {', calendarAuthBranch);
 const guestCall = conversation.indexOf('sendGuestConversationMessage({', guestBranch);
-const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message, globalThis.fetch, attachments.map(item => item.id))', guestCall);
+const coreCall = conversation.indexOf('const response = await sendConversationMessage(', guestCall);
+const attachmentKey = conversation.indexOf('authenticatedRequestId', coreCall);
 assert.ok(
   localBranch > 0
     && calendarAuthBranch > localBranch
     && guestBranch > calendarAuthBranch
     && guestCall > guestBranch
-    && coreCall > guestCall,
-  'deterministic routing must precede account-required Calendar, anonymous guest Core, then authenticated Core',
+    && coreCall > guestCall
+    && attachmentKey > coreCall,
+  'deterministic routing must precede account-required Calendar, anonymous guest Core, then stable authenticated Core',
 );
 assert.ok(conversation.includes("lastPath = 'CORE_GUEST_CONVERSATION'"), 'ordinary anonymous questions must use the guest Core path');
 assert.ok(conversation.includes('const local = attachments.length ? null : deterministicReply(message)'), 'selected attachments must bypass local deterministic replies');
