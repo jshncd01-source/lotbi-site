@@ -300,8 +300,14 @@ try {
     () => cdp.evaluate("document.activeElement?.dataset.calendarDateTrigger || null"),
     'Enter date focus restore',
   );
-  await cdp.command('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Escape', code: 'Escape'});
-  await cdp.command('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Escape', code: 'Escape'});
+  await cdp.command('Input.dispatchKeyEvent', {
+    type: 'keyDown', key: 'Escape', code: 'Escape',
+    windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+  });
+  await cdp.command('Input.dispatchKeyEvent', {
+    type: 'keyUp', key: 'Escape', code: 'Escape',
+    windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+  });
   await waitFor(
     () => cdp.evaluate("document.querySelector('.calendar-day-panel')?.hidden === true"),
     'Escape selected-day detail',
