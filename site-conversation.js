@@ -2,6 +2,7 @@ import {beginSiteHandoff} from './site-auth.js?v=20260920-fallback4';
 import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-calnav9';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
@@ -761,6 +762,39 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
     themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
+  const openCalendar = async view => {
+    const allowed = new Set(['all', 'today', 'upcoming', 'attention', 'date']);
+    const initialView = allowed.has(view) ? view : 'all';
+    closeMobileDrawer();
+
+    if (!sessionToken) {
+      try {
+        await beginSiteHandoff();
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : '캘린더를 열기 위한 로그인 연결을 시작하지 못했습니다.');
+      }
+      return;
+    }
+
+    const {backdrop, panel, content} = modalShell(
+      '캘린더',
+      'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.',
+    );
+    panel.classList.add('site-calendar-modal');
+    installSurfaceBehavior(backdrop, panel, {modal: true});
+    const mounted = await mountLifeCalendarManager({
+      sessionToken,
+      root: content,
+      initialView,
+    });
+    if (!mounted) {
+      const message = document.createElement('p');
+      message.className = 'life-calendar-error';
+      message.textContent = '캘린더를 열지 못했습니다.';
+      content.replaceChildren(message);
+    }
+  };
+
   const openHelp = () => {
     const {backdrop, panel, content} = modalShell('도움말'); const links = document.createElement('nav');
     links.className = 'help-links'; links.setAttribute('aria-label', '도움말 링크');
@@ -1068,6 +1102,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
+    const calendarView = target?.closest('[data-calendar-view]');
+    if (calendarView instanceof HTMLButtonElement) {
+      event.preventDefault();
+      void openCalendar(calendarView.dataset.calendarView || 'all');
+      return;
+    }
     const newChat = target?.closest('[data-new-conversation]');
     if (newChat) { event.preventDefault(); startNewConversation(); return; }
     const staleLogin = target?.closest('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]');
