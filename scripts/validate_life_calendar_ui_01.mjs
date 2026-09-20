@@ -121,12 +121,16 @@ const responses = {
   const month = await loadLifeCalendarManagerView('site-token', {...base, view: 'month'});
   assert.equal(month.key, 'month');
   assert.equal(month.kind, 'agenda');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-10'));
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
 
   calls.length = 0;
   const today = await loadLifeCalendarManagerView('site-token', {...base, view: 'today'});
   assert.equal(today.key, 'month');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-10'));
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
 
   calls.length = 0;
   const year = await loadLifeCalendarManagerView('site-token', {...base, view: 'year'});
@@ -143,7 +147,7 @@ const responses = {
   const agenda = await loadLifeCalendarManagerView('site-token', {...base, view: 'agenda', date: '2026-10-02'});
   assert.equal(agenda.key, 'agenda');
   assert.equal(agenda.date, '2026-10-02');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-11-07'));
+  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-10-31'));
 
   for (const call of calls) {
     assert.equal(call.init.headers.Authorization, 'Bearer site-token');
@@ -188,7 +192,7 @@ assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry m
 assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish authenticated and guest entry without gating');
 
 
-assert.ok(index.includes('href="site-calendar.css?v=20260920-realcal2"'));
+assert.ok(index.includes('href="site-calendar.css?v=20260920-calux1"'));
 assert.ok(index.includes('data-life-calendar-panel'));
 assert.ok(index.includes('data-calendar-enabled="true"'));
 assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
@@ -202,9 +206,9 @@ for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 �
 for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
   assert.ok(!index.includes(forbidden), `internal Calendar term leaked into user UI: ${forbidden}`);
 }
-assert.ok(callback.includes('href="/site-calendar.css?v=20260920-realcal2"'));
+assert.ok(callback.includes('href="/site-calendar.css?v=20260920-calux1"'));
 const callbackJs = read('auth-callback.js');
-assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-realcal1';"));
+assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-calux1';"));
 assert.ok(callbackJs.includes('await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});'));
 
 for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
@@ -213,7 +217,7 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("from './site-calendar-manager.js?v=20260920-realcal1'"));
+assert.ok(ui.includes("from './site-calendar-manager.js?v=20260920-calux1'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes('mountLifeCalendarManager'));
