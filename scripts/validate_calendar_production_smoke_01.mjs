@@ -322,10 +322,10 @@ try {
   const guestDate = await cdp.evaluate("(() => { const cell=[...document.querySelectorAll('.calendar-date-cell[data-current-month=\"true\"]')].find(node=>node.dataset.calendarDate && node.dataset.today!=='true'); const trigger=cell?.querySelector('.calendar-date-trigger'); trigger?.click(); return cell?.dataset.calendarDate||null; })()");
   if (!guestDate) throw new Error('Guest CRUD target date missing');
   await waitFor(
-    () => cdp.evaluate("Boolean(document.querySelector('.calendar-day-panel:not([hidden]) .calendar-day-add'))"),
+    () => cdp.evaluate("Boolean(document.querySelector('.calendar-day-panel:not([hidden]) .calendar-add-button'))"),
     'Guest day add control',
   );
-  await cdp.evaluate("document.querySelector('.calendar-day-panel:not([hidden]) .calendar-day-add').click(); true");
+  await cdp.evaluate("document.querySelector('.calendar-day-panel:not([hidden]) .calendar-add-button').click(); true");
   await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-editor-dialog'))"), 'Guest add editor');
   await cdp.evaluate("(() => { const title=document.querySelector('.calendar-editor-title'); const date=document.querySelector('.calendar-editor-date'); const time=document.querySelector('.calendar-editor-time'); const allDay=document.querySelector('.calendar-editor-all-day input'); title.value='LOTBI Production E2E temporary'; title.dispatchEvent(new Event('input',{bubbles:true})); date.value=" + JSON.stringify("__GUEST_DATE__") + "; if(allDay?.checked){allDay.click();} time.value='15:30'; time.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('.calendar-editor-save').click(); return true; })()".replace('"__GUEST_DATE__"', JSON.stringify(guestDate)));
   await waitFor(
