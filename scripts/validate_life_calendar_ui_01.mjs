@@ -192,6 +192,10 @@ assert.ok(ui.includes("coverage.textContent = 'LOTBI에 등록된 개인 일정 
 assert.ok(ui.includes("'오늘 등록된 일정이 없어요.'"));
 assert.ok(ui.includes("'앞으로 7일간 등록된 일정이 없어요.'"));
 assert.ok(ui.includes("detail?.authenticated === false"));
+assert.ok(ui.includes("root.dataset.calendarState = 'empty'"));
+assert.ok(ui.includes('root.hidden = false'));
+assert.ok(ui.includes('const onRefresh = () => { void refresh(); }'));
+assert.ok(ui.includes('const requestGeneration = ++generation'));
 assert.ok(ui.includes("root.dataset.calendarEnabled !== 'true'"));
 assert.ok(ui.includes("removeLifeActivity(context.sessionToken"));
 assert.ok(ui.includes("rescheduleLifeActivity(context.sessionToken"));
