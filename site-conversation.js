@@ -2,7 +2,7 @@ import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression}
 import * as siteCore from './site-core.js?v=20260920-nav1';
 import {isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-nav1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attachments1';
-import {formatConversationTimestamp, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-navtimeline1';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
@@ -41,7 +41,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-navtimeline1';
+  link.href = '/site-conversation.css?v=20260920-conversationpolish1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -301,6 +301,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let lastRenderedCreatedAt;
+  let timestampRefreshTimer;
   let richCardActionInFlight = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
@@ -408,6 +409,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     separator.dateTime = new Date(createdAt).toISOString();
     separator.textContent = label;
     return separator;
+  };
+  const refreshConversationTimeLabels = () => {
+    for (const separator of thread.querySelectorAll('time.conversation-time-separator[datetime]')) {
+      const label = formatConversationTimestamp(separator.dateTime);
+      if (label) separator.textContent = label;
+    }
+    window.clearTimeout(timestampRefreshTimer);
+    timestampRefreshTimer = window.setTimeout(refreshConversationTimeLabels, millisecondsUntilNextLocalMidnight() + 50);
   };
   const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
     const shouldStick = forceScroll || (!suppressScroll && isThreadNearBottom());
@@ -1601,6 +1610,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   });
   syncResponseGradeUi();
+  refreshConversationTimeLabels();
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '로그인 없이도 LOTBI와 바로 대화할 수 있습니다. 계정 기능이 필요할 때만 로그인합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
   if (sessionToken) void loadServerProfile();

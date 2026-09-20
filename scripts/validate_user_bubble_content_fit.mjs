@@ -185,7 +185,10 @@ function assertContentFit(label, result, expectedViewportWidth) {
   }
   if (result.assistant.borderTopWidth !== '0px') throw new Error(`${label}: assistant border regression`);
   if (result.assistant.backgroundColor !== 'rgba(0, 0, 0, 0)') throw new Error(`${label}: assistant background regression`);
-  if (result.assistant.fontSize !== '16px') throw new Error(`${label}: assistant typography regression`);
+  const expectedAssistantFontSize = label === 'desktop' ? '17px' : '16px';
+  if (result.assistant.fontSize !== expectedAssistantFontSize) {
+    throw new Error(`${label}: expected ${expectedAssistantFontSize} assistant typography, got ${result.assistant.fontSize}`);
+  }
 }
 
 const desktop = render(1440, 900);

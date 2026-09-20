@@ -111,6 +111,8 @@ jobs:
           node scripts/validate_attachment_files_01.mjs
 
       - name: Validate chat layout and attachment composer
+        env:
+          REQUIRE_BROWSER: 1
         run: node scripts/validate_chat_layout_attachment_01.mjs
 
       - name: Validate centered conversation timeline

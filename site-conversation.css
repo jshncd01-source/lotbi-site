@@ -36,7 +36,7 @@
   border-radius: 18px;
   border-bottom-right-radius: 6px;
   background: var(--user-bubble, var(--brand-navy));
-  color: #fff;
+  color: var(--user-bubble-foreground, #fff);
 }
 
 .chat-message-assistant {
@@ -70,7 +70,7 @@
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.6;
 }
 
@@ -489,7 +489,7 @@
   }
 }
 
-body[data-chat-color="default"] { --user-bubble: #18345f; }
+body[data-chat-color="default"] { --user-bubble: #fff1f3; --user-bubble-foreground: #303238; }
 body[data-chat-color="blue"] { --user-bubble: #1d4ed8; }
 body[data-chat-color="purple"] { --user-bubble: #6d28d9; }
 body[data-chat-color="green"] { --user-bubble: #047857; }
@@ -542,6 +542,8 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   margin: 0 0 8px;
   padding: 10px 6px 18px;
   gap: 12px;
+  align-content: start;
+  grid-auto-rows: max-content;
   overflow-y: auto;
   overflow-x: hidden;
 }
