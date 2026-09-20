@@ -596,3 +596,21 @@ body[data-site-theme="dark"] .calendar-editor-title[readonly] { background: #242
 @media (prefers-reduced-motion: reduce) {
   .calendar-skeleton { animation: none; }
 }
+
+.calendar-deep-open-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #d9dee8;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #465164;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+body[data-site-theme="dark"] .calendar-deep-open-notice {
+  border-color: #46515f;
+  background: #222936;
+  color: #dce1e8;
+}
+
