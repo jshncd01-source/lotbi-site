@@ -13,7 +13,7 @@ const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarVersion = '20260920-realcal1';
 const calendarStyleVersion = '20260920-realcal2';
-const entryVersion = '20260920-scrollfix2';
+const entryVersion = '20260920-calendarentry3';
 assert.ok(index.includes(`site-calendar.css?v=${calendarStyleVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarStyleVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));
@@ -25,7 +25,7 @@ assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarVersion}`));
 for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js']) {
   assert.ok(workflow.includes(`'${module}'`), `focused workflow missing ${module}`);
 }
-for (const test of ['validate_calendar_month_grid_01.mjs', 'validate_calendar_year_view_01.mjs', 'validate_guest_calendar_local_01.mjs', 'validate_calendar_real_ui_01.mjs', 'validate_calendar_event_editor_01.mjs', 'validate_calendar_responsive_01.mjs']) {
+for (const test of ['validate_calendar_month_grid_01.mjs', 'validate_calendar_year_view_01.mjs', 'validate_guest_calendar_local_01.mjs', 'validate_calendar_real_ui_01.mjs', 'validate_calendar_event_editor_01.mjs', 'validate_calendar_responsive_01.mjs', 'validate_calendar_modal_runtime_02.mjs']) {
   assert.ok(workflow.includes(test), `focused workflow missing ${test}`);
 }
 
@@ -55,6 +55,10 @@ assert.ok(openCalendar.includes("'year'"));
 assert.ok(openCalendar.includes("'agenda'"));
 assert.ok(openCalendar.includes("'attention'"));
 assert.ok(!openCalendar.includes('beginSiteHandoff('));
+assert.ok(conversation.includes("calendarEntry.dataset.calendarEntryBound = 'true'"), 'Calendar buttons must bind directly');
+assert.ok(conversation.includes("calendarEntry.addEventListener('click'"), 'Calendar entry click listener missing');
+assert.ok(conversation.includes('event.stopPropagation();'), 'direct Calendar entry must avoid duplicate delegated opening');
+assert.ok(!conversation.includes("const calendarView = target?.closest('[data-calendar-view]');"), 'Calendar must not depend on the late document click delegate');
 assert.ok(manager.includes("if (value === 'today' || value === 'all' || value === 'date') return 'month'"));
 assert.ok(manager.includes("if (value === 'upcoming') return 'agenda'"));
 

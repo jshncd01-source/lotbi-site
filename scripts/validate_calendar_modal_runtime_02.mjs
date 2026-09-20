@@ -1,0 +1,184 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {spawn, spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const INNER_REL = 'scripts/.calendar-runtime-inner.html';
+const INNER = path.join(ROOT, INNER_REL);
+const WRAPPER_REL = 'scripts/.calendar-runtime-wrapper.html';
+const WRAPPER = path.join(ROOT, WRAPPER_REL);
+const PORT = 4191;
+const ORIGIN = 'http://127.0.0.1:' + PORT;
+
+function browserPath() {
+  for (const name of [process.env.CHROME_BIN, 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
+    if (name.includes('/') && fs.existsSync(name)) return name;
+    const found = spawnSync('which', [name], {encoding: 'utf8'});
+    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim();
+  }
+  throw new Error('Chrome/Chromium is required');
+}
+
+const fixture = `<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/home-chat.css">
+<link rel="stylesheet" href="/site-calendar.css?v=20260920-realcal2">
+</head><body class="chat-home-page" data-site-auth-state="unauthenticated">
+<aside class="chat-sidebar chat-sidebar-desktop">
+  <button type="button" data-calendar-view="all">캘린더</button>
+  <button type="button" data-calendar-view="today">오늘</button>
+  <button type="button" data-calendar-view="attention">확인 필요</button>
+</aside>
+<main id="main-content" class="chat-home-shell" tabindex="0">
+  <div data-home-avatar-anchor><div data-lotbi-avatar-container></div></div>
+  <div id="conversation-thread" class="conversation-thread" hidden></div>
+  <div class="chat-composer-stack">
+    <div data-attachment-preview hidden></div>
+    <textarea id="lotbi-prompt"></textarea>
+    <div data-attachment-control>
+      <button type="button" data-attachment-trigger aria-expanded="false">+</button>
+      <div data-attachment-menu hidden>
+        <button type="button" role="menuitem" data-attachment-action="camera">카메라</button>
+        <button type="button" role="menuitem" data-attachment-action="photos">사진</button>
+        <button type="button" role="menuitem" data-attachment-action="files">파일</button>
+      </div>
+      <input type="file" data-attachment-input="camera">
+      <input type="file" data-attachment-input="photos">
+      <input type="file" data-attachment-input="files">
+    </div>
+  </div>
+  <div data-response-grade-control hidden inert>
+    <button type="button" data-response-grade-trigger disabled><span data-response-grade-label>스탠다드</span></button>
+    <div data-response-grade-menu hidden>
+      <button type="button" data-response-grade="LIGHT" disabled></button>
+      <button type="button" data-response-grade="STANDARD" disabled></button>
+      <button type="button" data-response-grade="PREMIUM" disabled></button>
+    </div>
+  </div>
+  <button class="send-button" type="button">전송</button>
+  <button class="mic-button" type="button">마이크</button>
+  <p id="chat-status"></p>
+  <div id="chat-state-region" hidden></div>
+</main>
+<pre id="calendar-result">pending</pre>
+<script type="module">
+const out=document.getElementById('calendar-result');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const wait=async(fn,label)=>{for(let i=0;i<140;i+=1){if(fn())return;await sleep(20)}throw new Error('timeout '+label)};
+const click=node=>node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
+const oneLine=node=>getComputedStyle(node).whiteSpace==='nowrap' && node.scrollHeight<=node.clientHeight+2;
+const noX=node=>node.scrollWidth<=node.clientWidth+1;
+try{
+  localStorage.clear();
+  const conversation=await import('/site-conversation.js?v=20260920-calendarentry3');
+  if(!conversation.mountConversation())throw new Error('conversation mount');
+  const entry=document.querySelector('.chat-sidebar-desktop [data-calendar-view="all"]');
+  if(!(entry instanceof HTMLButtonElement))throw new Error('calendar entry missing');
+  if(entry.dataset.calendarEntryBound!=='true')throw new Error('calendar entry not directly bound');
+  click(entry);
+  await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),'calendar modal');
+  const modal=document.querySelector('.site-modal.site-calendar-modal');
+  const content=modal.querySelector('.site-modal-content');
+  await wait(()=>content?.dataset.calendarManagerView==='month','month view');
+  const grid=modal.querySelector('.calendar-month-grid');
+  const layout=modal.querySelector('.calendar-month-layout');
+  const today=modal.querySelector('.calendar-today-button');
+  const attention=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='확인 필요');
+  const calendar=layout?.children?.[0], detail=layout?.children?.[1];
+  if(!grid||!layout||!today||!attention||!calendar||!detail)throw new Error('month chrome missing');
+  const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect();
+  const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
+  const desktop=innerWidth>900;
+  const result={
+    ok:true,
+    viewport:{width:innerWidth,height:innerHeight},
+    bound:true,
+    guest:content.dataset.calendarAccess,
+    modal:{width:modalRect.width,height:modalRect.height,overflowY:getComputedStyle(modal).overflowY,noX:noX(modal)},
+    content:{overflowY:getComputedStyle(content).overflowY,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,noX:noX(content)},
+    grid:{cells:grid.querySelectorAll('.calendar-date-cell').length,noX:noX(grid),bottom:gridRect.bottom,contentBottom:contentRect.bottom},
+    toolbar:{todayOneLine:oneLine(today),attentionOneLine:oneLine(attention),scrollWidth:modal.querySelector('.calendar-toolbar').scrollWidth,clientWidth:modal.querySelector('.calendar-toolbar').clientWidth},
+    ratio:detailRect.width>0?calRect.width/detailRect.width:0,
+    detail:{overflowY:getComputedStyle(detail).overflowY,scrollHeight:detail.scrollHeight,clientHeight:detail.clientHeight},
+    desktop
+  };
+  if(result.grid.cells!==42)throw new Error('month grid not 42');
+  if(!result.toolbar.todayOneLine||!result.toolbar.attentionOneLine)throw new Error('toolbar label wrapped');
+  if(!result.modal.noX||!result.content.noX||!result.grid.noX)throw new Error('horizontal overflow');
+  if(result.guest!=='guest')throw new Error('guest calendar contract');
+  if(desktop){
+    if(modalRect.width<1050)throw new Error('desktop modal too narrow '+modalRect.width);
+    if(modalRect.height<innerHeight-60)throw new Error('desktop modal too short '+modalRect.height);
+    if(result.modal.overflowY!=='hidden')throw new Error('desktop modal must not scroll');
+    if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
+    if(result.ratio<1.7||result.ratio>2.3)throw new Error('desktop calendar/detail ratio '+result.ratio);
+    if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop six rows not initially visible');
+    if(detail.scrollHeight>detail.clientHeight+1)throw new Error('empty detail unexpectedly scrolls');
+  }else{
+    if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
+    if(getComputedStyle(modal.querySelector('.calendar-toolbar')).whiteSpace==='normal')throw new Error('responsive toolbar wraps');
+  }
+
+  const mode=async name=>{const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);click(button);await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name)};
+  await mode('연도'); await mode('일정'); await mode('확인 필요'); await mode('월');
+  const title=modal.querySelector('.calendar-title-button').textContent;
+  click(modal.querySelector('.calendar-nav-button')); await wait(()=>modal.querySelector('.calendar-title-button').textContent!==title,'previous');
+  click(modal.querySelectorAll('.calendar-nav-button')[1]); await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
+  const ordinary=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
+  const selectedDate=ordinary?.dataset.calendarDate;
+  click(ordinary); await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
+  click(modal.querySelector('.calendar-today-button')); await wait(()=>content.dataset.calendarManagerView==='month','today');
+  result.controls=true;result.dateSelection=true;
+  out.textContent=JSON.stringify(result);
+}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),viewport:{width:innerWidth,height:innerHeight}})}
+</script></body></html>`;
+
+function waitServer(){
+  for(let i=0;i<50;i+=1){
+    const p=spawnSync('curl',['--fail','--silent',ORIGIN+'/'],{timeout:1000});
+    if(p.status===0)return;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,100);
+  }
+  throw new Error('server start');
+}
+function wrapperMarkup(w,h){
+  return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
+  const frame=document.getElementById('case-frame'),out=document.getElementById('result');
+  const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('calendar-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
+  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},9000);
+  <\/script></body></html>`;
+}
+function run(browser,w,h){
+  fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
+  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=10000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:35000,maxBuffer:12*1024*1024});
+  if(r.error)throw r.error;
+  if(r.status!==0)throw new Error('browser '+r.status+' '+r.stderr);
+  const a='<pre id="result">',b='</pre>',i=r.stdout.indexOf(a),j=r.stdout.indexOf(b,i);
+  if(i<0||j<0)throw new Error('result missing');
+  const raw=r.stdout.slice(i+a.length,j).replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>');
+  const v=JSON.parse(raw);
+  if(!v.ok)throw new Error(v.error);
+  if(v.viewport.width!==w||v.viewport.height!==h)throw new Error('viewport '+v.viewport.width+'x'+v.viewport.height+' expected '+w+'x'+h);
+  return v;
+}
+
+const browser=browserPath();
+fs.writeFileSync(INNER,fixture,'utf8');
+const server=spawn('python',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
+try{
+  waitServer();
+  const cases=[[1440,900],[768,900],[390,844]];
+  const results=cases.map(([w,h])=>run(browser,w,h));
+  const desktop=results[0];
+  if(!desktop.controls||!desktop.dateSelection)throw new Error('desktop controls/date selection');
+  for(const value of results){
+    if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||value.grid.cells!==42)throw new Error('responsive Calendar contract');
+  }
+  console.log('CALENDAR MODAL RUNTIME PASS',JSON.stringify(results));
+}finally{
+  server.kill('SIGTERM');
+  fs.rmSync(INNER,{force:true});
+  fs.rmSync(WRAPPER,{force:true});
+}
