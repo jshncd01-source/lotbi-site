@@ -228,6 +228,11 @@ try:
               threadHidden: thread.hidden,
               transcriptOverflowY: getComputedStyle(thread).overflowY,
               mainOverflowY: getComputedStyle(main).overflowY,
+              bodyOverflowY: getComputedStyle(document.body).overflowY,
+              mainTabIndex: main.tabIndex,
+              mainRight: main.getBoundingClientRect().right,
+              mainScrollbarThickness: main.offsetWidth - main.clientWidth,
+              scrollbarGutter: getComputedStyle(main).scrollbarGutter,
               horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
               composerVisible: cr.width > 0 && cr.height > 0 && cr.bottom <= innerHeight + 2 && cr.top < innerHeight,
               avatarVisible: ar.width > 0 && ar.height > 0 && getComputedStyle(avatar).display !== 'none',
@@ -237,11 +242,16 @@ try:
         assert probe["height"] == height, probe
         assert probe["conversationActive"] is True, probe
         assert probe["threadHidden"] is False, probe
-        assert probe["transcriptOverflowY"] == "auto", probe
-        assert probe["mainOverflowY"] == "hidden", probe
+        assert probe["bodyOverflowY"] == "hidden", probe
+        assert probe["mainOverflowY"] == "auto", probe
+        assert probe["transcriptOverflowY"] == "visible", probe
+        assert probe["mainTabIndex"] == 0, probe
         assert probe["horizontalOverflow"] is False, probe
         assert probe["composerVisible"] is True, probe
         assert probe["avatarVisible"] is True, probe
+        if width >= 1280:
+            assert abs(probe["mainRight"] - width) < 2, probe
+            assert probe["mainScrollbarThickness"] > 0, probe
         active_layout.append(probe)
     result["active_conversation_layout"] = active_layout
 
@@ -300,18 +310,26 @@ try:
         return {
           threadOverflowY: getComputedStyle(thread).overflowY,
           mainOverflowY: getComputedStyle(main).overflowY,
+          bodyOverflowY: getComputedStyle(document.body).overflowY,
+          mainTabIndex: main.tabIndex,
+          mainRight: main.getBoundingClientRect().right,
+          mainScrollbarThickness: main.offsetWidth - main.clientWidth,
           horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
           composerVisible: composer.getBoundingClientRect().bottom <= innerHeight + 2,
           avatarVisible: avatar.getBoundingClientRect().width > 0 && avatar.getBoundingClientRect().height > 0,
           sendExists: Boolean(document.querySelector('.send-button')),
         };
     """)
-    assert final_probe["threadOverflowY"] == "auto", final_probe
-    assert final_probe["mainOverflowY"] == "hidden", final_probe
+    assert final_probe["threadOverflowY"] == "visible", final_probe
+    assert final_probe["mainOverflowY"] == "auto", final_probe
+    assert final_probe["bodyOverflowY"] == "hidden", final_probe
+    assert final_probe["mainTabIndex"] == 0, final_probe
     assert final_probe["horizontalOverflow"] is False, final_probe
     assert final_probe["composerVisible"] is True, final_probe
     assert final_probe["avatarVisible"] is True, final_probe
     assert final_probe["sendExists"] is True, final_probe
+    assert abs(final_probe["mainRight"] - 1280) < 2, final_probe
+    assert final_probe["mainScrollbarThickness"] > 0, final_probe
     result["final_scroll"] = final_probe
     result["overall"] = "GREEN"
 
