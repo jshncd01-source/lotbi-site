@@ -1,5 +1,6 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
-import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
+import {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260920-attach16';
+import {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} from './site-attachments.js?v=20260920-attach16';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-calnav9';
@@ -35,7 +36,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-richcards5';
+  link.href = '/site-conversation.css?v=20260920-attach16';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -249,6 +250,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
   const micButton = document.querySelector('.mic-button');
+  const attachmentControl = document.querySelector('[data-attachment-control]');
+  const attachmentTrigger = document.querySelector('[data-attachment-trigger]');
+  const attachmentMenu = document.querySelector('[data-attachment-menu]');
+  const attachmentPreview = document.querySelector('[data-attachment-preview]');
+  const attachmentInputs = [...document.querySelectorAll('[data-attachment-input]')];
   const responseGradeControl = document.querySelector('[data-response-grade-control]');
   const responseGradeTrigger = document.querySelector('[data-response-grade-trigger]');
   const responseGradeMenu = document.querySelector('[data-response-grade-menu]');
@@ -259,6 +265,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const homeAvatarAnchor = document.querySelector('[data-home-avatar-anchor]');
   const avatar = document.querySelector('[data-lotbi-avatar-container]');
   if (!(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement) || !(micButton instanceof HTMLButtonElement)
+    || !(attachmentControl instanceof HTMLElement) || !(attachmentTrigger instanceof HTMLButtonElement)
+    || !(attachmentMenu instanceof HTMLElement) || !(attachmentPreview instanceof HTMLElement)
+    || attachmentInputs.length !== 3 || attachmentInputs.some(input => !(input instanceof HTMLInputElement))
     || !(responseGradeControl instanceof HTMLElement) || !(responseGradeTrigger instanceof HTMLButtonElement)
     || !(responseGradeMenu instanceof HTMLElement) || responseGradeOptions.length !== RESPONSE_GRADE_OPTIONS.length
     || !(thread instanceof HTMLElement) || !(homeAvatarAnchor instanceof HTMLElement) || !(avatar instanceof HTMLElement)) return false;
@@ -273,6 +282,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let richCardActionInFlight = false;
+  let selectedAttachments = [];
+  let attachmentUploadsInFlight = 0;
+  let attachmentMenuOpen = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
   const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
