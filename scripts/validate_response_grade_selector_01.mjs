@@ -52,11 +52,13 @@ const sendPos = index.indexOf('class="composer-button send-button"', micPos);
 assert.ok(gradePos >= 0 && micPos > gradePos && sendPos > micPos, 'grade, mic and send DOM order must remain stable');
 assert.match(conversation, /micButton\.disabled = false/);
 assert.match(conversation, /micButton\.addEventListener\('click'/);
-assert.match(conversation, /sendConversationMessage\(sessionToken, message, globalThis\.fetch, attachments\.map\(item => item\.id\)\)/);
+assert.match(conversation, /sendConversationMessage\([\s\S]*activeSessionToken,[\s\S]*message,[\s\S]*attachments\.map\(item => item\.id\)/);
 
-// Authoritative Core support does not exist yet, so neither authenticated nor
-// guest browser requests may send a client-invented grade field.
-assert.match(core, /JSON\.stringify\(attachments\.length[\s\S]*:\s*\{text: message\}\)/);
+// Authoritative response-grade support does not exist yet. Attachment IDs may
+// be sent by PHASE 16, but neither authenticated nor guest requests may invent a grade field.
+assert.match(core, /const body = \{text: message \|\| '첨부 파일을 확인해 주세요\.'\}/);
+assert.match(core, /if \(attachments\.length\) body\.attachment_ids = attachments/);
+assert.match(core, /body:\s*JSON\.stringify\(body\)/);
 assert.doesNotMatch(core, /response_grade|responseGrade|LIGHT|STANDARD|PREMIUM/);
 
 console.log('SITE-PUBLIC-UX-RESPONSE-GRADE-07 HIDDEN-UNTIL-CORE CONTRACT PASS');

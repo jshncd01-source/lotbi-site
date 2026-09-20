@@ -121,6 +121,15 @@ jobs:
           REQUIRE_BROWSER: 1
         run: node scripts/validate_chat_layout_attachment_01.mjs
 
+      - name: Validate PHASE 16 attachment file preflight
+        run: node scripts/validate_attachment_files_16.mjs
+
+      - name: Validate PHASE 16 attachment Core API contract
+        run: node scripts/validate_attachment_api_16.mjs
+
+      - name: Validate PHASE 16 attachment composer
+        run: node scripts/validate_attachment_composer_16.mjs
+
       - name: Validate centered conversation timeline
         run: node scripts/validate_conversation_timeline_01.mjs
 
