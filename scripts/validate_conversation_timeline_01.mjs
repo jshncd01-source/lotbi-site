@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 import {
   formatConversationTimestamp,
+  millisecondsUntilNextLocalMidnight,
   shouldShowConversationSeparator,
   timestampedConversationMessage,
 } from '../site-conversation-timeline.js';
@@ -22,8 +24,20 @@ const now = atSeoul('2026-09-20T17:00:00');
 
 assert.equal(formatConversationTimestamp(atSeoul('2026-09-20T15:49:00'), {now, offsetMinutes: SEOUL_OFFSET_MINUTES}), '오늘 오후 3:49');
 assert.equal(formatConversationTimestamp(atSeoul('2026-09-19T10:12:00'), {now, offsetMinutes: SEOUL_OFFSET_MINUTES}), '어제 오전 10:12');
-assert.equal(formatConversationTimestamp(atSeoul('2026-09-18T20:03:00'), {now, offsetMinutes: SEOUL_OFFSET_MINUTES}), '9월 18일 오후 8:03');
+assert.equal(formatConversationTimestamp(atSeoul('2026-09-18T20:03:00'), {now, offsetMinutes: SEOUL_OFFSET_MINUTES}), '2026년 9월 18일 오후 8:03');
 assert.equal(formatConversationTimestamp(undefined, {now, offsetMinutes: SEOUL_OFFSET_MINUTES}), '');
+const dstProbe = spawnSync(process.execPath, ['--input-type=module', '-e', `
+  import {formatConversationTimestamp} from './site-conversation-timeline.js';
+  const createdAt = Date.parse('2026-03-08T01:30:00-05:00');
+  const now = Date.parse('2026-03-09T00:15:00-04:00');
+  if (formatConversationTimestamp(createdAt, {now}) !== '어제 오전 1:30') process.exit(1);
+`], {cwd: ROOT, env: {...process.env, TZ: 'America/New_York'}, encoding: 'utf8'});
+assert.equal(dstProbe.status, 0, 'today/yesterday must use the local offset applicable to each instant across DST');
+assert.equal(
+  millisecondsUntilNextLocalMidnight(atSeoul('2026-09-20T23:59:30'), {offsetMinutes: SEOUL_OFFSET_MINUTES}),
+  30_000,
+  'open pages refresh labels exactly at the next local midnight',
+);
 
 const first = atSeoul('2026-09-20T15:00:00');
 assert.equal(shouldShowConversationSeparator(undefined, first, {offsetMinutes: SEOUL_OFFSET_MINUTES}), true, 'first timestamped message starts a segment');
@@ -40,6 +54,8 @@ assert.equal(timestampedConversationMessage(stamped, first + 9999).createdAt, fi
 
 assert.match(conversation, /timestampedConversationMessage/);
 assert.match(conversation, /createConversationSeparator/);
+assert.match(conversation, /refreshConversationTimeLabels/);
+assert.match(conversation, /millisecondsUntilNextLocalMidnight/);
 assert.match(conversation, /shouldShowConversationSeparator/);
 assert.match(conversation, /createdAt/);
 assert.match(css, /\.conversation-thread,[\s\S]*?width:\s*min\(760px,\s*100%\)/);
@@ -47,9 +63,10 @@ assert.match(css, /\.chat-composer-stack\s*\{[^}]*width:\s*min\(760px,\s*100%\)/
 assert.match(css, /\.conversation-time-separator\s*\{[^}]*text-align:\s*center[^}]*font-weight:\s*400[^}]*color:\s*#[0-9a-fA-F]{6}/s);
 assert.doesNotMatch(css, /\.conversation-time-separator\s*\{[^}]*(?:background|border|box-shadow):/s);
 assert.match(css, /@media\s*\(max-width:\s*390px\)/);
-assert.ok(html.includes('site-conversation.js?v=20260920-navtimeline1'));
-assert.ok(callback.includes("./site-conversation.js?v=20260920-navtimeline1"));
+assert.ok(html.includes('site-conversation.js?v=20260920-conversationpolish1'));
+assert.ok(callback.includes("./site-conversation.js?v=20260920-conversationpolish1"));
 assert.ok(reviewWorkflow.includes('node scripts/validate_conversation_timeline_01.mjs'), 'required Site CI must run the timeline regression');
+assert.ok(reviewWorkflow.includes('REQUIRE_BROWSER: 1'), 'required Site CI must fail instead of silently skipping browser geometry');
 assert.ok(reviewWorkflow.includes('/site-conversation-timeline.js'), 'static serving smoke must include the timeline module');
 
 for (const width of [340, 390, 412, 768, 1280, 1440]) {
