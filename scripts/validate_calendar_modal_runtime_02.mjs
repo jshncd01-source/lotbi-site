@@ -244,9 +244,20 @@ try{
   await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),'delegated fallback calendar modal');
   result.replacedEntryFallback=true;
 
+  const fallbackModal=document.querySelector('.site-modal.site-calendar-modal');
+  const draftEvent=fallbackModal?.querySelector('.calendar-event-chip');
+  if(!(draftEvent instanceof HTMLButtonElement))throw new Error('identity draft event missing');
+  click(draftEvent);
+  await wait(()=>fallbackModal.querySelector('.calendar-editor-dialog'),'identity edit draft editor');
+  const draftTitle=fallbackModal.querySelector('.calendar-editor-title');
+  if(!(draftTitle instanceof HTMLInputElement))throw new Error('identity edit draft input missing');
+  draftTitle.value='UNSAVED-IDENTITY-DRAFT';
+  draftTitle.dispatchEvent(new Event('input',{bubbles:true}));
   window.dispatchEvent(new CustomEvent('lotbi:site-session-state',{detail:{authenticated:true,identityKey:'auth-A'}}));
   await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'identity change closes Calendar');
+  if(document.querySelector('.calendar-editor-title')?.value==='UNSAVED-IDENTITY-DRAFT')throw new Error('identity change leaked Calendar edit draft');
   result.identitySurfaceClose=true;
+  result.identityDraftDiscard=true;
 
   const raceRoot=document.createElement('div');
   raceRoot.id='calendar-race-root';
@@ -298,6 +309,109 @@ try{
   if(raceRoot.getAttribute('aria-busy')==='true')throw new Error('latest Calendar request left aria-busy set');
   result.staleResponseGuard=true;
   raceRoot.remove();
+
+  const isolationDate=fixtureDates[0];
+  const guestOnly=guestRepo.create({
+    title:'GUEST-ONLY',
+    local_date:isolationDate,
+    local_datetime:null,
+    all_day:true
+  });
+  const makeRoot=id=>{const node=document.createElement('div');node.id=id;document.body.appendChild(node);return node;};
+  const selectedDateOf=node=>node.querySelector('.calendar-date-cell[data-selected="true"]')?.dataset.calendarDate||null;
+
+  const guestRootA=makeRoot('guest-isolation-a');
+  await managerModule.mountLifeCalendarManager({
+    root:guestRootA,
+    initialView:'month',
+    timezone:'Asia/Seoul',
+    now:new Date('2026-09-20T00:00:00Z'),
+    guestRepository:guestRepo
+  });
+  if(guestRootA.dataset.calendarAccess!=='guest'||!guestRootA.textContent.includes('GUEST-ONLY'))throw new Error('initial Guest Calendar isolation state missing');
+  const guestDateTrigger=guestRootA.querySelector('[data-calendar-date-trigger="'+isolationDate+'"]');
+  if(!(guestDateTrigger instanceof HTMLButtonElement))throw new Error('Guest isolation date trigger missing');
+  click(guestDateTrigger);
+  await wait(()=>selectedDateOf(guestRootA)===isolationDate,'Guest selected-date change');
+  const guestSelected=isolationDate;
+  guestRootA.remove();
+
+  const agendaPayload=(title,activityHex,occurrenceHex)=>({
+    view:'AGENDA',
+    as_of:'2026-09-20T00:00:00Z',
+    timezone:'Asia/Seoul',
+    coverage:'PERSONAL_ACTIVITY_ONLY',
+    items:[{
+      projection_id:'projection_'+title.toLowerCase().replaceAll('-','_'),
+      activity_id:'activity_'+activityHex,
+      occurrence_id:'occurrence_'+occurrenceHex,
+      title,
+      activity_revision:1,
+      occurrence_revision:1,
+      local_date:'2026-09-20',
+      local_datetime:null,
+      confirmation_level:'USER_ATTESTED',
+      provider_verified:false,
+      source_kind:'USER_INPUT',
+      allowed_actions:['UPDATE','REMOVE']
+    }],
+    ai_calls:0,
+    provider_api_calls:0
+  });
+  const emptyAttention=()=>({
+    view:'ATTENTION',
+    as_of:'2026-09-20T00:00:00Z',
+    timezone:'Asia/Seoul',
+    coverage:'PERSONAL_ACTIVITY_ONLY',
+    items:[],
+    ai_calls:0,
+    provider_api_calls:0
+  });
+  const authFetch=(title,activityHex,occurrenceHex)=>async url=>new Response(
+    JSON.stringify(String(url).includes('/attention')?emptyAttention():agendaPayload(title,activityHex,occurrenceHex)),
+    {status:200,headers:{'Content-Type':'application/json'}}
+  );
+
+  const authRootA=makeRoot('auth-isolation-a');
+  await managerModule.mountLifeCalendarManager({
+    sessionToken:'token-A',
+    root:authRootA,
+    initialView:'month',
+    timezone:'Asia/Seoul',
+    now:new Date('2026-09-20T00:00:00Z'),
+    fetchImpl:authFetch('AUTH-A-ONLY','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+  });
+  const authASelected=selectedDateOf(authRootA);
+  if(authRootA.dataset.calendarAccess!=='authenticated'||!authRootA.textContent.includes('AUTH-A-ONLY')||authRootA.textContent.includes('GUEST-ONLY'))throw new Error('Auth A leaked Guest Calendar state');
+  if(authASelected===guestSelected)throw new Error('Auth A inherited Guest selected date');
+  authRootA.remove();
+
+  const guestRootB=makeRoot('guest-isolation-b');
+  await managerModule.mountLifeCalendarManager({
+    root:guestRootB,
+    initialView:'month',
+    timezone:'Asia/Seoul',
+    now:new Date('2026-09-20T00:00:00Z'),
+    guestRepository:guestRepo
+  });
+  if(guestRootB.dataset.calendarAccess!=='guest'||!guestRootB.textContent.includes('GUEST-ONLY')||guestRootB.textContent.includes('AUTH-A-ONLY'))throw new Error('Guest state did not remain isolated after Auth A logout');
+  guestRootB.remove();
+
+  const authRootB=makeRoot('auth-isolation-b');
+  await managerModule.mountLifeCalendarManager({
+    sessionToken:'token-B',
+    root:authRootB,
+    initialView:'month',
+    timezone:'Asia/Seoul',
+    now:new Date('2026-09-20T00:00:00Z'),
+    fetchImpl:authFetch('AUTH-B-ONLY','cccccccccccccccccccccccccccccccc','dddddddddddddddddddddddddddddddd')
+  });
+  if(authRootB.dataset.calendarAccess!=='authenticated'||!authRootB.textContent.includes('AUTH-B-ONLY')||authRootB.textContent.includes('AUTH-A-ONLY')||authRootB.textContent.includes('GUEST-ONLY'))throw new Error('Auth B leaked prior Calendar identity state');
+  authRootB.remove();
+  guestRepo.remove(guestOnly.id);
+
+  result.guestAuthIsolation=true;
+  result.guestAuthMatrix={guestSelected,authASelected};
 
   out.textContent=JSON.stringify(result);
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),viewport:{width:innerWidth,height:innerHeight}})}
