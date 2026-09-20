@@ -5,6 +5,7 @@ import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod'
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260920-convcal1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
@@ -844,6 +845,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     saveState(); renderRecent(); return record;
   };
   const validThread = value => value && typeof value.id === 'string' && typeof value.title === 'string' && Array.isArray(value.messages);
+  const normalizeStoredMessage = value => {
+    if (!value || typeof value !== 'object' || !['user', 'assistant'].includes(value.role) || typeof value.text !== 'string') return null;
+    const meta = value.meta && typeof value.meta === 'object' ? {...value.meta} : {};
+    if ('calendarAction' in meta) {
+      const recovered = recoverCalendarActionAfterReload(meta.calendarAction);
+      if (recovered) meta.calendarAction = recovered;
+      else delete meta.calendarAction;
+    }
+    return {...value, meta};
+  };
   const normalizeStoredThread = value => {
     if (!validThread(value)) return null;
     return {
@@ -851,6 +862,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       title: normalizedThreadTitle(value.title) || '새 대화',
       pinned: value.pinned === true,
       pinnedAt: value.pinned === true && Number.isFinite(Number(value.pinnedAt)) ? Number(value.pinnedAt) : 0,
+      messages: value.messages.map(normalizeStoredMessage).filter(Boolean).slice(-MESSAGE_LIMIT),
     };
   };
   const switchNamespace = nextNamespace => {
