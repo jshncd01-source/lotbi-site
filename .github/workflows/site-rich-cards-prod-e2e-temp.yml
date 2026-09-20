@@ -1,0 +1,37 @@
+name: SITE-RICH-CARDS-PROD-E2E-TEMP
+
+on:
+  push:
+    branches:
+      - site-rich-cards-prod-e2e-verify-01
+
+permissions:
+  contents: read
+
+jobs:
+  production-responsive-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright package
+        run: npm install --no-save playwright@1.55.0
+
+      - name: Verify Chrome is available
+        run: google-chrome --version
+
+      - name: Run live Product Rich Card responsive E2E
+        run: node scripts/verify_rich_cards_prod_e2e_temp.mjs
+
+      - name: Upload viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-rich-cards-prod-e2e-viewports
+          path: artifacts/*.png
+          if-no-files-found: warn
