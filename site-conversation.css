@@ -945,6 +945,12 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
   }
 }
 
+@media (max-width: 360px) {
+  .lotbi-rich-card-rail {
+    grid-auto-columns: minmax(196px, 62vw);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lotbi-rich-card-rail {
     scroll-behavior: auto;
