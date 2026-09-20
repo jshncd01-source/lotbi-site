@@ -1,4 +1,4 @@
-import {getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js';
+import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js';
 import {SiteCoreError} from './site-core.js';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
