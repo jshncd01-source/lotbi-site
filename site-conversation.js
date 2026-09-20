@@ -99,7 +99,8 @@ function createMessage(role, text, meta = {}) {
     for (const attachment of meta.attachments) {
       const item = document.createElement('div'); item.className = 'message-attachment-card';
       const name = safeAttachmentName(attachment && attachment.filename);
-      if (String((attachment && attachment.mediaType) || '').startsWith('image/') && attachment && attachment.previewUrl) {
+      const mediaType = attachment && attachment.mediaType ? attachment.mediaType : '';
+      if (String(mediaType).startsWith('image/') && attachment && attachment.previewUrl) {
         const image = document.createElement('img'); image.className = 'message-attachment-image'; image.src = attachment.previewUrl; image.alt = name; item.appendChild(image);
       } else {
         const icon = document.createElement('span'); icon.className = 'message-attachment-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = attachment && attachment.mediaType === 'application/pdf' ? 'PDF' : '파일'; item.appendChild(icon);
@@ -1058,10 +1059,10 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     stateRegion.dataset.composerVoice = 'true'; stateRegion.textContent = message; stateRegion.hidden = false;
   };
   const updateSendState = () => {
-    sendButton.disabled = inFlight || attachmentUploading || (prompt.value.trim().length === 0 && selectedAttachments.length === 0);
+    sendButton.disabled = inFlight ? true : (attachmentUploading ? true : (prompt.value.trim().length === 0 && selectedAttachments.length === 0));
     sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송'); sendButton.title = inFlight ? '전송 중' : '전송';
-    micButton.disabled = inFlight || attachmentUploading || voiceRequesting;
-    attachmentButton.disabled = inFlight || attachmentUploading;
+    micButton.disabled = inFlight ? true : (attachmentUploading ? true : voiceRequesting);
+    attachmentButton.disabled = inFlight ? true : attachmentUploading;
   };
   const setListeningState = listening => {
     voiceListening = listening; micButton.setAttribute('aria-pressed', String(listening));
@@ -1114,12 +1115,13 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     appendNode(wrapper);
   };
   const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', attachments = []) => {
-    const message = typeof text === 'string' ? text.trim() : ''; if ((!message && !attachments.length) || inFlight) return;
+    const message = typeof text === 'string' ? text.trim() : ''; if ((!message && !attachments.length) ? true : inFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
-    ensureThread(message || (attachments[0] && attachments[0].filename) || '첨부 파일');
+    const threadSeed = message ? message : ((attachments[0] && attachments[0].filename) ? attachments[0].filename : '첨부 파일');
+    ensureThread(threadSeed);
     if (appendUserMessage) {
-      const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes, previewUrl: item.previewUrl || ''}));
+      const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes, previewUrl: item.previewUrl ? item.previewUrl : ''}));
       appendNode(createMessage('user', message, {attachments: attachmentMeta}), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {attachments: attachmentMeta.map(({previewUrl, ...item}) => item)}});
     }
     const local = attachments.length ? null : deterministicReply(message);
@@ -1247,7 +1249,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   });
 
   const submitCurrentPrompt = async () => {
-    if (inFlight || attachmentUploading) return; const message = prompt.value.trim(); if (!message && !selectedAttachments.length) return;
+    if (inFlight ? true : attachmentUploading) return; const message = prompt.value.trim(); if (!message && !selectedAttachments.length) return;
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
     attachmentUploading = true; updateSendState(); setStatus('첨부 파일을 안전하게 업로드하고 있습니다.');
     try {
