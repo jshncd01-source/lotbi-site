@@ -1,5 +1,5 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260920-attach16prod';
+import * as siteCore from './site-core.js?v=20260920-convcal1';
 import {isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-nav1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
@@ -7,7 +7,7 @@ import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260920-convcal1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-convcal1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260920-convcal1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-calux1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-convcal1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
