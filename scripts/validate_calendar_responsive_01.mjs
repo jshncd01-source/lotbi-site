@@ -12,15 +12,16 @@ const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarVersion = '20260920-calux1';
-const entryVersion = '20260920-calendarentry4';
+const runtimeVersion = '20260920-calfocus1';
+const entryVersion = '20260920-calendarentry5';
 assert.ok(index.includes(`site-calendar.css?v=${calendarVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));
 assert.ok(callback.includes(`/auth-callback.js?v=${entryVersion}`));
-assert.ok(conversation.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
-assert.ok(callbackJs.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
+assert.ok(conversation.includes(`./site-calendar-ui.js?v=${runtimeVersion}`));
+assert.ok(callbackJs.includes(`./site-calendar-ui.js?v=${runtimeVersion}`));
 assert.ok(callbackJs.includes(`./site-conversation.js?v=${entryVersion}`));
-assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarVersion}`));
+assert.ok(ui.includes(`./site-calendar-manager.js?v=${runtimeVersion}`));
 assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarVersion}`));
 for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js']) {
   assert.ok(workflow.includes(`'${module}'`), `focused workflow missing ${module}`);
@@ -73,6 +74,8 @@ assert.ok(manager.includes("case 'Home'"));
 assert.ok(manager.includes("case 'End'"));
 assert.ok(manager.includes("case 'PageUp'"));
 assert.ok(manager.includes("case 'PageDown'"));
+assert.ok(manager.includes("case 'Escape'"));
+assert.ok(manager.includes("event.preventDefault();\n            event.stopPropagation();\n            actions.closeDay();"), 'Escape must close only selected-day detail before restoring focus');
 assert.ok(manager.includes('state.detailOpen = false'));
 assert.ok(manager.includes('state.dayCollapsed'));
 
