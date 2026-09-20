@@ -128,7 +128,7 @@ try{
   click(modal.querySelectorAll('.calendar-nav-button')[1]); await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
   const ordinary=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
   const selectedDate=ordinary?.dataset.calendarDate;
-  click(ordinary); await wait(()=>modal.querySelector(`[data-calendar-date="${selectedDate}"]`)?.dataset.selected==='true','date selection');
+  click(ordinary); await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
   click(modal.querySelector('.calendar-today-button')); await wait(()=>content.dataset.calendarManagerView==='month','today');
   result.controls=true;result.dateSelection=true;
   out.textContent=JSON.stringify(result);
