@@ -156,7 +156,7 @@ def main() -> int:
         if token not in index:
             errors.append(f"missing conversation state contract: {token}")
 
-    if 'href="site-hardening.css?v=20260920-fold5"' not in index:
+    if 'href="site-hardening.css?v=20260920-composer6"' not in index:
         errors.append("hardening stylesheet is not linked after approved home stylesheet")
     if 'href="site-auth-continuity.css"' not in index:
         errors.append("authenticated continuity stylesheet missing from home")

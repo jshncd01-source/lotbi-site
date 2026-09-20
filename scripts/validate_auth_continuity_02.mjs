@@ -136,7 +136,7 @@ for (const href of homeStylesheets) {
 }
 assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260919-homewordmark5"'));
 assert.ok(
-  callbackStylesheets.indexOf('site-hardening.css?v=20260920-fold5') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260919-homewordmark5')
+  callbackStylesheets.indexOf('site-hardening.css?v=20260920-composer6') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260919-homewordmark5')
     && callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260919-homewordmark5') < callbackStylesheets.indexOf('site-auth-continuity.css'),
   'callback must preserve the home cascade order around Sidebar and auth styles',
 );

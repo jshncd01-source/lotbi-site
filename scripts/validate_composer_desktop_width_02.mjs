@@ -27,11 +27,12 @@ assert.doesNotMatch(
 assert.match(homeCss, /\.chat-app-shell\s*\{[\s\S]*?grid-template-columns:\s*220px\s+minmax\(0,\s*1fr\)/);
 assert.match(homeCss, /\.chat-home-shell\s*\{[\s\S]*?width:\s*min\(100%,\s*1240px\)/);
 
-// Mobile keeps its existing compact, viewport-safe composer policy.
+// Mobile/Fold uses the full available content column; the stale 350px cap is forbidden.
 assert.match(
   hardeningCss,
-  /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-composer\s*\{[\s\S]*?width:\s*min\(100%,\s*350px\)/,
+  /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-composer\s*\{[\s\S]*?width:\s*100%[\s\S]*?max-width:\s*none/,
 );
+assert.doesNotMatch(hardeningCss, /\.chat-composer\s*\{[^}]*350px/);
 assert.match(hardeningCss, /max-height:\s*min\(calc\(12lh\s*\+\s*12px\),\s*40dvh\)/);
 
 // Font readability is not traded away to manufacture capacity.
