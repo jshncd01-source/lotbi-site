@@ -37,8 +37,9 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   }
 
   assert.ok(block.includes('data-sidebar-account'), `${label} sidebar missing account identity slot`);
-  assert.ok(block.includes('data-auth-state="unauthenticated"'), `${label} account identity must initialize anonymous-first`);
-  assert.ok(block.includes('>로그인<') && block.includes('LOTBI 계정 연결'), `${label} must expose the anonymous login CTA immediately`);
+  assert.ok(block.includes('data-auth-state="checking"'), `${label} account identity must initialize in neutral checking state`);
+  assert.ok(block.includes('sidebar-account-placeholder'), `${label} must reserve account space without premature identity copy`);
+  assert.ok(!block.includes('>로그인<') && !block.includes('LOTBI 계정 연결'), `${label} must not flash anonymous login copy before status resolves`);
   assert.ok(!block.includes('조승환') && !block.includes('@jshncd01'), `${label} sidebar must not hardcode user identity`);
 
   assert.ok(!block.includes('data-sidebar-destination="work"'), `${label} must not keep the disabled work placeholder in the primary navigation`);
