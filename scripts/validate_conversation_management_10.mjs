@@ -82,7 +82,7 @@ for (const cssToken of [
 assert.ok(index.includes('href="site-sidebar-nav.css?v=20260920-attachments1"'), 'Home must cache-bust PHASE 10 Sidebar CSS');
 assert.ok(index.includes('src="site-conversation.js?v=20260920-messageux1"'), 'Home must cache-bust the combined conversation runtime');
 assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260920-attachments1"'), 'auth callback must share PHASE 10 Sidebar CSS');
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-attach16prod"'), 'auth callback entry must use the combined conversation cache key');
+assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-messageux1"'), 'auth callback entry must use the combined conversation cache key');
 assert.ok(callbackJs.includes("from './site-conversation.js?v=20260920-messageux1'"), 'auth callback must import the combined conversation runtime');
 
 console.log('SITE-PUBLIC-UX-CONVERSATION-MANAGEMENT-10 CONTRACT PASS');
