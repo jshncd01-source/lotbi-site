@@ -79,7 +79,7 @@ const secondary = surface.querySelector('.sidebar-secondary-nav');
 const footer = surface.querySelector('.sidebar-account-footer');
 if (!primary || !calendar || !recent || !recentList || !secondary || !footer) throw new Error('Sidebar IA fixture contract incomplete');
 const calendarViews = [...calendar.querySelectorAll('[data-calendar-view]')];
-if (calendarViews.length !== 5) throw new Error(`Calendar submenu expected 5 views, got ${calendarViews.length}`);
+if (calendarViews.length !== 5) throw new Error('Calendar submenu expected 5 views, got ' + calendarViews.length);
 calendar.open = true;
 for (const title of ${JSON.stringify(injectedTitles)}) {
   const li = doc.createElement('li');
