@@ -1,0 +1,40 @@
+name: PHASE16 Production Attachment E2E Evidence
+
+on:
+  push:
+    branches:
+      - site-phase16-production-e2e-evidence-01
+
+permissions:
+  contents: read
+
+jobs:
+  production-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium==4.35.0
+
+      - name: Chrome availability
+        run: google-chrome --version || chromium --version
+
+      - name: PHASE 16 actual Production guest attachment E2E
+        env:
+          E2E_URL: https://lotbiai.com/?phase16-ci=${{ github.sha }}
+        run: python scripts/phase16_production_e2e_evidence.py | tee /tmp/phase16-evidence/run.log
+
+      - name: Upload PHASE 16 E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase16-production-e2e-evidence-${{ github.sha }}
+          path: /tmp/phase16-evidence
+          if-no-files-found: warn
+          retention-days: 14
