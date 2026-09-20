@@ -176,10 +176,16 @@ function conversationClientContext(timezone, turnCreatedAt) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
   if (!timezoneName && !createdAt) return null;
-  if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64 || !createdAt || !Number.isFinite(Date.parse(createdAt))) {
-    throw new SiteCoreError('대화 시간 기준값이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
+  if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64) {
+    throw new SiteCoreError('대화 시간대가 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
   }
-  return Object.freeze({timezone: timezoneName, turn_created_at: createdAt});
+  if (createdAt && !Number.isFinite(Date.parse(createdAt))) {
+    throw new SiteCoreError('대화 시각 기준값이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
+  }
+  return Object.freeze({
+    timezone: timezoneName,
+    ...(createdAt ? {turn_created_at: createdAt} : {}),
+  });
 }
 
 function normalizeAttachmentIds(attachmentIds) {
