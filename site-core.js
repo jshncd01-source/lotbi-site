@@ -11,6 +11,11 @@ const CONVERSATION_ATTACHMENT_PATH = '/v2/conversation/attachments';
 const GUEST_CONVERSATION_ATTACHMENT_PATH = '/v2/conversation/guest/attachments';
 const ATTACHMENT_ID_RE = /^att_[0-9a-f]{20}$/;
 const GUEST_IDEMPOTENCY_RE = /^[A-Za-z0-9._:-]{8,160}$/;
+const CALENDAR_CANDIDATE_ID_RE = /^calcand_[0-9a-f]{24}$/;
+const CALENDAR_ACTION_ID_RE = /^calact_[0-9a-f]{24}$/;
+const CALENDAR_WRITE_REQUEST_RE = /^calendar-action:[0-9a-f]{24}$/;
+const LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
+const TIMEZONE_RE = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const SUBSCRIPTION_PATH = '/v2/subscription';
@@ -114,6 +119,67 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
     installationId: typeof payload.installation_id === 'string' ? payload.installation_id : '',
     expiresAt: typeof payload.expires_at === 'string' ? payload.expires_at : '',
   });
+}
+
+function normalizeCalendarCandidate(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== 'object') throw new SiteCoreError('LOTBI 일정 후보 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  const temporal = value.temporal && typeof value.temporal === 'object' ? value.temporal : null;
+  const title = typeof value.title === 'string' ? value.title.trim() : '';
+  const sourceTurnRef = typeof value.source_turn_ref === 'string' ? value.source_turn_ref.trim() : '';
+  const sourceTurnCreatedAt = typeof value.source_turn_created_at === 'string' ? value.source_turn_created_at.trim() : '';
+  const localDatetime = typeof temporal?.local_datetime === 'string' ? temporal.local_datetime.trim() : '';
+  const timezoneName = typeof temporal?.timezone_name === 'string' ? temporal.timezone_name.trim() : '';
+  const missingFields = Array.isArray(value.missing_fields) ? value.missing_fields : null;
+  if (
+    value.contract_id !== 'CORE-CALENDAR-CANDIDATE-01'
+    || value.schema_version !== 1
+    || value.candidate_version !== 1
+    || !CALENDAR_CANDIDATE_ID_RE.test(String(value.candidate_id || ''))
+    || !CALENDAR_ACTION_ID_RE.test(String(value.action_id || ''))
+    || !GUEST_IDEMPOTENCY_RE.test(sourceTurnRef)
+    || !sourceTurnCreatedAt || !Number.isFinite(Date.parse(sourceTurnCreatedAt))
+    || !title || title.length > 240
+    || temporal?.kind !== 'LOCAL_DATE_TIME'
+    || !LOCAL_DATETIME_RE.test(localDatetime)
+    || !TIMEZONE_RE.test(timezoneName) || timezoneName.length > 80
+    || value.temporal_semantics !== 'USER_PLANNED_TIME'
+    || value.meaning !== 'PERSONAL_CALENDAR_ACTIVITY'
+    || !missingFields || missingFields.length !== 0
+    || value.approval_state !== 'NOT_APPROVED'
+    || value.execution_state !== 'NOT_EXECUTED'
+    || !CALENDAR_WRITE_REQUEST_RE.test(String(value.write_logical_request_id || ''))
+    || 'activity_id' in value || 'occurrence_id' in value
+  ) {
+    throw new SiteCoreError('LOTBI 일정 후보 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    contractId: value.contract_id,
+    schemaVersion: value.schema_version,
+    candidateId: value.candidate_id,
+    actionId: value.action_id,
+    candidateVersion: value.candidate_version,
+    sourceTurnRef,
+    sourceTurnCreatedAt,
+    title,
+    temporal: Object.freeze({kind: temporal.kind, localDatetime, timezoneName}),
+    temporalSemantics: value.temporal_semantics,
+    meaning: value.meaning,
+    missingFields: Object.freeze([]),
+    approvalState: value.approval_state,
+    executionState: value.execution_state,
+    writeLogicalRequestId: value.write_logical_request_id,
+  });
+}
+
+function conversationClientContext(timezone, turnCreatedAt) {
+  const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
+  const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
+  if (!timezoneName && !createdAt) return null;
+  if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64 || !createdAt || !Number.isFinite(Date.parse(createdAt))) {
+    throw new SiteCoreError('대화 시간 기준값이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
+  }
+  return Object.freeze({timezone: timezoneName, turn_created_at: createdAt});
 }
 
 function normalizeAttachmentIds(attachmentIds) {
@@ -226,7 +292,7 @@ export async function deleteConversationAttachment({sessionToken = '', guestToke
   throw error;
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '') {
+export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '') {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -242,6 +308,8 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     throw new SiteCoreError('첨부 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_ATTACHMENT_IDEMPOTENCY_KEY', status: 422});
   }
   const body = {text: message || '첨부 파일을 확인해 주세요.'};
+  const clientContext = conversationClientContext(timezone, turnCreatedAt);
+  if (clientContext) body.client_context = clientContext;
   if (attachments.length) body.attachment_ids = attachments;
 
   let response;
@@ -297,6 +365,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     retrySafe: payload.retry_safe === true,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
+    calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
   });
 }
 
@@ -357,6 +426,7 @@ export async function sendGuestConversationMessage({
   idempotencyKey,
   recentContext = [],
   timezone = '',
+  turnCreatedAt = '',
   attachmentIds = [],
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
@@ -375,12 +445,13 @@ export async function sendGuestConversationMessage({
     throw new SiteCoreError('익명 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_GUEST_IDEMPOTENCY_KEY', status: 422});
   }
 
+  const clientContext = conversationClientContext(timezoneName, turnCreatedAt);
   const body = {
     text: message || '첨부 파일을 확인해 주세요.',
     recent_context: normalizeGuestRecentContext(recentContext),
   };
   if (attachments.length) body.attachment_ids = attachments;
-  if (timezoneName && timezoneName.length <= 64) body.client_context = {timezone: timezoneName};
+  if (clientContext) body.client_context = clientContext;
 
   let response;
   try {
@@ -436,6 +507,7 @@ export async function sendGuestConversationMessage({
     retrySafe: payload.retry_safe === true,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
+    calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
   });
 }
 
