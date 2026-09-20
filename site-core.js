@@ -226,7 +226,7 @@ export async function deleteConversationAttachment({sessionToken = '', guestToke
   throw error;
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = []) {
+export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '') {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -234,8 +234,12 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     throw new SiteCoreError('LOTBI Site 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
   }
   const attachments = normalizeAttachmentIds(attachmentIds);
+  const logicalKey = typeof idempotencyKey === 'string' ? idempotencyKey.trim() : '';
   if ((!message && !attachments.length) || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
+  }
+  if (attachments.length && !GUEST_IDEMPOTENCY_RE.test(logicalKey)) {
+    throw new SiteCoreError('첨부 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_ATTACHMENT_IDEMPOTENCY_KEY', status: 422});
   }
   const body = {text: message || '첨부 파일을 확인해 주세요.'};
   if (attachments.length) body.attachment_ids = attachments;
@@ -251,6 +255,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...(logicalKey ? {'Idempotency-Key': logicalKey} : {}),
       },
       body: JSON.stringify(body),
     });
