@@ -1,4 +1,4 @@
-import {createLifeActivity} from './site-calendar.js';
+import {createLifeActivity} from './site-calendar.js?v=20260920-convcal1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-convcal1';
 import {getCurrentSiteUser, SiteCoreError} from './site-core.js?v=20260920-convcal1';
 
