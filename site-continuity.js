@@ -1,4 +1,4 @@
-import {beginSiteHandoff, readAccountSessionStatus} from './site-auth.js?v=20260920-fallback4';
+import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=20260920-fallback4';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -13,7 +13,7 @@ let siteSessionExpiresAt = 0;
 let checking = false;
 let redirecting = false;
 let expiryTimer;
-let siteLogoutSuppressed = false;
+let siteLogoutSuppressed = hasSiteLogoutSuppression();
 
 function performanceNow() {
   return globalThis.performance?.now?.() ?? 0;
@@ -43,6 +43,8 @@ function installDirectLoginHandoff(link) {
 
     event.preventDefault();
     if (redirecting) return;
+    clearSiteLogoutSuppression();
+    siteLogoutSuppressed = false;
     redirecting = true;
     recordTiming('login-click', {elapsedMs: Math.round(performanceNow())});
     recordTiming('auth-start-transition', {
@@ -271,6 +273,8 @@ export async function synchronizeAccountContinuity() {
     });
 
     if (!authenticated) {
+      clearSiteLogoutSuppression();
+      siteLogoutSuppressed = false;
       siteSessionActive = false;
       siteSessionExpiresAt = 0;
       clearExpiryTimer();
@@ -278,7 +282,8 @@ export async function synchronizeAccountContinuity() {
       return;
     }
 
-    if (siteLogoutSuppressed) {
+    if (siteLogoutSuppressed || hasSiteLogoutSuppression()) {
+      siteLogoutSuppressed = true;
       siteSessionActive = false;
       siteSessionExpiresAt = 0;
       clearExpiryTimer();
@@ -312,6 +317,7 @@ function handleSiteSessionState(event) {
   if (!detail || typeof detail.authenticated !== 'boolean') return;
 
   if (detail.authenticated) {
+    clearSiteLogoutSuppression();
     siteLogoutSuppressed = false;
     siteSessionActive = true;
     markAuthenticatedAccountUi();
@@ -323,6 +329,7 @@ function handleSiteSessionState(event) {
   siteSessionExpiresAt = 0;
   clearExpiryTimer();
   if (detail.reason === 'site-logout') {
+    markSiteLogoutSuppression();
     siteLogoutSuppressed = true;
     markAnonymousAccountUi();
     return;
