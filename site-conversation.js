@@ -899,6 +899,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const message = row.closest('.chat-message');
       const wrapper = message?.parentElement?.classList.contains('chat-assistant-row') ? message.parentElement : message;
       wrapper?.remove();
+    } else {
+      for (const pendingRow of thread.querySelectorAll('[data-calendar-direct-request-id]')) {
+        if (pendingRow instanceof HTMLElement && pendingRow.dataset.calendarDirectRequestId === id) {
+          const message = pendingRow.closest('.chat-message');
+          const wrapper = message?.parentElement?.classList.contains('chat-assistant-row') ? message.parentElement : message;
+          wrapper?.remove();
+        }
+      }
     }
     if (changed) {
       sortThreads();
@@ -913,6 +921,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const row = document.createElement('section');
     row.className = 'conversation-calendar-action';
     row.dataset.calendarDirectState = 'UNKNOWN_RESULT';
+    row.dataset.calendarDirectRequestId = pending.logicalRequestId;
     row.setAttribute('aria-label', '캘린더 직접 등록 결과 확인');
 
     const status = document.createElement('div');
@@ -2182,7 +2191,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
       appendPersistedMessage(userRecord);
     }
-    const local = attachments.length ? null : deterministicReply(message);
+    const local = attachments.length || calendarCandidateContext ? null : deterministicReply(message);
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
