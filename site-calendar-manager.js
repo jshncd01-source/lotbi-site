@@ -541,7 +541,7 @@ function renderAttention(state) {
   })));
 }
 
-function calendarEditorDialog({root, item, selectedDate, authenticated, controller, onSaved, onStale}) {
+function calendarEditorDialog({root, item, selectedDate, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
   const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
@@ -587,7 +587,10 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
   }
   form.append(titleLabel, titleNote, dateLabel, allDayLabel, timeLabel, error, actions);
   dialog.append(heading, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
-  const close = () => backdrop.remove();
+  const close = () => {
+    backdrop.remove();
+    onClose();
+  };
   cancel.addEventListener('click', close);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
   dialog.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
@@ -733,16 +736,8 @@ export async function mountLifeCalendarManager({
       }
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
-    onAdd: date => {
-      state.detailOpen = false;
-      render();
-      queueMicrotask(() => openEditor(null, date));
-    },
-    onEvent: item => {
-      state.detailOpen = false;
-      render();
-      queueMicrotask(() => openEditor(item, item.local_date || item.due_date));
-    },
+    onAdd: date => openEditor(null, date),
+    onEvent: item => openEditor(item, item.local_date || item.due_date),
   };
 
   function render() {
@@ -781,18 +776,51 @@ export async function mountLifeCalendarManager({
     } finally { root.removeAttribute('aria-busy'); }
   }
 
-  openEditor = (item, date) => calendarEditorDialog({
-    root, item, selectedDate: date, authenticated, controller: mutationController,
-    onSaved: async nextDate => {
-      if (validCivilDate(nextDate)) {
-        const parts = civilDateParts(nextDate); state.selectedDate = nextDate; state.year = parts.year; state.month = parts.month; state.mode = 'month';
-        state.detailOpen = true; state.dayCollapsed = false;
-      }
-      await refresh();
-      window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
-    },
-    onStale: refresh,
-  });
+  const focusCalendarContext = (origin, item) => {
+    queueMicrotask(() => {
+      const eventId = item?.id || item?.activity_id || '';
+      const eventTarget = origin.mode === 'agenda' && eventId
+        ? root.querySelector(`[data-calendar-event-id="${eventId}"]`)
+        : null;
+      const dateTarget = origin.mode === 'month'
+        ? root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`)
+        : null;
+      const agendaTarget = origin.mode === 'agenda'
+        ? root.querySelector(`[data-agenda-scope="${origin.agendaScope}"]`)
+        : null;
+      const modeTarget = modeButtons.get(origin.mode);
+      (eventTarget || dateTarget || agendaTarget || modeTarget)?.focus();
+    });
+  };
+
+  openEditor = (item, date) => {
+    const origin = Object.freeze({
+      mode: state.mode,
+      selectedDate: state.selectedDate,
+      year: state.year,
+      month: state.month,
+      agendaScope: state.agendaScope,
+      detailOpen: state.detailOpen,
+      dayCollapsed: state.dayCollapsed,
+    });
+    return calendarEditorDialog({
+      root, item, selectedDate: date, authenticated, controller: mutationController,
+      onSaved: async () => {
+        state.mode = origin.mode;
+        state.selectedDate = origin.selectedDate;
+        state.year = origin.year;
+        state.month = origin.month;
+        state.agendaScope = origin.agendaScope;
+        state.detailOpen = origin.detailOpen;
+        state.dayCollapsed = origin.dayCollapsed;
+        await refresh();
+        focusCalendarContext(origin, item);
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
+      },
+      onStale: refresh,
+      onClose: () => focusCalendarContext(origin, item),
+    });
+  };
 
   previous.addEventListener('click', async () => {
     if (state.mode === 'year') state.year -= 1;
