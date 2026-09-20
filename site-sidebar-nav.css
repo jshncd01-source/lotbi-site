@@ -178,6 +178,125 @@
   text-overflow: ellipsis;
 }
 
+.nav-history-list .conversation-history-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nav-history-list .conversation-history-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+}
+
+.conversation-history-pin {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #e9e4f7;
+  color: var(--brand-violet, #6d55a8);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.conversation-history-actions {
+  position: relative;
+  min-width: 0;
+}
+
+.conversation-history-menu-trigger {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #737b88;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.conversation-history-menu-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.conversation-history-menu-trigger:hover,
+.conversation-history-menu-trigger:focus-visible,
+.conversation-history-actions[open] > .conversation-history-menu-trigger {
+  background: #eceff5;
+  color: var(--brand-navy);
+}
+
+.conversation-history-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 138px;
+  padding: 5px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #d8dde7;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(25, 36, 56, .14);
+}
+
+.nav-history-list .conversation-history-menu button {
+  inline-size: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  text-align: left;
+}
+
+.nav-history-list .conversation-history-menu button:hover,
+.nav-history-list .conversation-history-menu button:focus-visible {
+  background: #f0f2f7;
+}
+
+.nav-history-list .conversation-history-delete {
+  color: #a02645;
+}
+
+.conversation-management-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.conversation-delete-confirm {
+  border: 1px solid #a02645;
+  background: #a02645;
+  color: #fff;
+}
+
+body[data-site-theme="dark"] .conversation-history-pin {
+  background: #352e4b;
+  color: #d6c9ff;
+}
+
+body[data-site-theme="dark"] .conversation-history-menu {
+  border-color: #424b59;
+  background: #1f2632;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+}
+
+body[data-site-theme="dark"] .conversation-history-menu-trigger:hover,
+body[data-site-theme="dark"] .conversation-history-menu-trigger:focus-visible,
+body[data-site-theme="dark"] .conversation-history-actions[open] > .conversation-history-menu-trigger,
+body[data-site-theme="dark"] .conversation-history-menu button:hover,
+body[data-site-theme="dark"] .conversation-history-menu button:focus-visible {
+  background: #2a3140;
+}
+
 .sidebar-account-footer {
   flex: 0 0 auto;
   margin-top: auto;
