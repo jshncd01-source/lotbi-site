@@ -28,11 +28,11 @@ const mobile = extractAside(
 );
 
 for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
-  for (const required of ['+ 새 대화', '캘린더', '전체 일정', '오늘', '예정된 일정', '확인 필요', '날짜별 보기', '연결 서비스', '최근 대화']) {
+  for (const required of ['+ 새 대화', '캘린더', '오늘', '확인 필요', '연결 서비스', '최근 대화']) {
     assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
   }
 
-  for (const removed of ['내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '>설정<', '도움말 / 문의', '>어제<', '>최근 7일<', '>이전<']) {
+  for (const removed of ['내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '>설정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
     assert.ok(!block.includes(removed), `${label} sidebar must remove ${removed}`);
   }
 
@@ -48,11 +48,14 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   assert.ok(!primary.includes('connected-services'), `${label} connected services must not remain a primary action`);
   const secondary = block.match(/<div class="sidebar-secondary-nav"[^>]*>[\s\S]*?<\/div>/)?.[0] || '';
   assert.match(secondary, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must remain available only as a secondary Account Web link`);
-  const calendar = block.match(/<details class="sidebar-calendar-nav"[^>]*>[\s\S]*?<\/details>/)?.[0] || '';
-  assert.ok(calendar.includes('>캘린더</summary>'), `${label} Calendar parent menu missing`);
-  assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 5, `${label} must expose five Calendar subviews`);
-  for (const calendarLabel of ['전체 일정', '오늘', '예정된 일정', '확인 필요', '날짜별 보기']) {
-    assert.ok(calendar.includes(calendarLabel), `${label} Calendar submenu missing ${calendarLabel}`);
+  const calendar = block.match(/<div class="sidebar-calendar-nav"[^>]*>[\s\S]*?(?=<section class="nav-section sidebar-history-section")/)?.[0] || '';
+  assert.match(calendar, /<button[^>]*data-calendar-view="all"[^>]*>캘린더<\/button>/, `${label} Calendar root action missing`);
+  assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 3, `${label} must expose Calendar root plus two quick views`);
+  for (const calendarLabel of ['오늘', '확인 필요']) {
+    assert.ok(calendar.includes(calendarLabel), `${label} Calendar quick view missing ${calendarLabel}`);
+  }
+  for (const removedCalendarLabel of ['전체 일정', '예정된 일정', '날짜별 보기']) {
+    assert.ok(!calendar.includes(`>${removedCalendarLabel}<`), `${label} Calendar navigation must hide ${removedCalendarLabel}`);
   }
   for (const internal of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
     assert.ok(!calendar.includes(internal), `${label} leaked internal Calendar term: ${internal}`);

@@ -160,9 +160,12 @@ assert.ok(index.includes('href="site-calendar.css?v=20260920-calnav9"'));
 assert.ok(index.includes('data-life-calendar-panel'));
 assert.ok(index.includes('data-calendar-enabled="true"'));
 assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
-assert.equal((index.match(/data-calendar-view="/g) || []).length, 10, 'Desktop + Mobile must each expose five Calendar subviews');
-for (const label of ['캘린더', '전체 일정', '오늘', '예정된 일정', '확인 필요', '날짜별 보기']) {
+assert.equal((index.match(/data-calendar-view="/g) || []).length, 6, 'Desktop + Mobile must each expose Calendar root, Today and Needs Attention');
+for (const label of ['캘린더', '오늘', '확인 필요']) {
   assert.ok(index.includes(label), `missing Korean Calendar navigation label: ${label}`);
+}
+for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 보기']) {
+  assert.ok(!index.includes(`>${hiddenNavLabel}<`), `Calendar navigation must not expose ${hiddenNavLabel}`);
 }
 for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
   assert.ok(!index.includes(forbidden), `internal Calendar term leaked into user UI: ${forbidden}`);
@@ -181,6 +184,7 @@ assert.ok(ui.includes("getLifeAgenda("));
 assert.ok(ui.includes("export async function loadLifeCalendarManagerView"));
 assert.ok(ui.includes("export async function mountLifeCalendarManager"));
 assert.ok(ui.includes("['all', '전체 일정']"));
+assert.ok(ui.includes("['today', '오늘']"));
 assert.ok(ui.includes("['upcoming', '예정된 일정']"));
 assert.ok(ui.includes("['attention', '확인 필요']"));
 assert.ok(ui.includes("['date', '날짜별 보기']"));
