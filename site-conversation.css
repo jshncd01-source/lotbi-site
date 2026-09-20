@@ -602,6 +602,11 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   scroll-padding-bottom: 168px;
 }
 
+.conversation-active .chat-home-shell {
+  width: 100%;
+  margin-inline: 0;
+}
+
 .chat-topbar {
   flex: 0 0 auto;
 }

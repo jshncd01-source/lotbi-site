@@ -42,7 +42,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-scrollfix1';
+  link.href = '/site-conversation.css?v=20260920-scrollfix2';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }

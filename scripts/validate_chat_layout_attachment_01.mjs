@@ -23,6 +23,7 @@ assert.ok(html.includes('LOTBI는 실수할 수 있습니다. 중요한 정보�
 assert.match(styles, /\.chat-home-page\s*\{[^}]*height:\s*100dvh[^}]*overflow:\s*hidden/s);
 assert.match(html, /<main id="main-content" class="chat-home-shell" tabindex="0">/);
 assert.match(styles, /\.chat-home-shell\s*\{[^}]*min-height:\s*0[^}]*overflow-x:\s*hidden[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/s);
+assert.match(styles, /\.conversation-active \.chat-home-shell\s*\{[^}]*width:\s*100%[^}]*margin-inline:\s*0/s);
 assert.match(styles, /\.conversation-thread,[\s\S]*?width:\s*min\(760px,\s*100%\)[\s\S]*?overflow:\s*visible/);
 assert.doesNotMatch(styles, /\.conversation-thread[^}]*scrollbar-width:\s*none/s);
 assert.doesNotMatch(styles, /\.conversation-thread::\-webkit-scrollbar[\s\S]*?display:\s*none/s);
@@ -58,7 +59,7 @@ fs.writeFileSync(fixture, source);
 
 if (browser) try {
   const geometry = [];
-  for (const [width, height] of [[340, 780], [390, 844], [412, 915], [768, 900], [1280, 900], [1440, 900], [1440, 1200]]) {
+  for (const [width, height] of [[340, 780], [390, 844], [412, 915], [768, 900], [1280, 900], [1440, 900], [1440, 1200], [1920, 1080]]) {
     const script = `(() => {
       try {
       const thread = document.querySelector('.conversation-thread');
