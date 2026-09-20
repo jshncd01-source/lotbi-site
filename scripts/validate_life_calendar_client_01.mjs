@@ -4,6 +4,7 @@ const {
   createLifeActivity,
   executeLifeCalendarCommand,
   isExplicitLifeCalendarCommand,
+  getLifeActivity,
   getLifeAgenda,
   getLifeAttention,
   getLifeToday,
@@ -222,6 +223,23 @@ const mutation = {
   assert.equal(attention.aiCalls, 0);
   assert.equal(attention.providerApiCalls, 0);
   assert.equal(attention.items[0].due_date, '2026-10-05');
+}
+
+
+{
+  let lookupUrl = '';
+  const found = await getLifeActivity(
+    'site-token',
+    'activity_0123456789abcdef0123456789abcdef',
+    async (url, init) => {
+      lookupUrl = url;
+      assert.equal(init.method, 'GET');
+      return jsonResponse(mutation);
+    },
+  );
+  assert.equal(lookupUrl, `${CORE_ORIGIN}/v2/life/activities/activity_0123456789abcdef0123456789abcdef`);
+  assert.equal(found.activityId, mutation.activity_id);
+  assert.equal(found.occurrenceId, mutation.occurrence_id);
 }
 
 {
