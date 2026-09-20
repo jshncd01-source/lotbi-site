@@ -526,6 +526,20 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-mini-grid span { min-height: 17px; display: grid; place-items: center; font-size: 9px; font-variant-numeric: tabular-nums; }
 .calendar-year-event-count { display: block; margin-top: 7px; color: #687180; font-size: 10px; font-weight: 800; }
 .calendar-agenda-view { display: grid; gap: 16px; }
+.calendar-agenda-toolbar { display: flex; flex-wrap: wrap; gap: 6px; }
+.calendar-agenda-range {
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid #d5dbe6;
+  border-radius: 999px;
+  background: #fff;
+  color: #303642;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+.calendar-agenda-range[aria-pressed="true"] { border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
 .calendar-agenda-view h3 { margin: 0 0 8px; font-size: 14px; }
 
 .calendar-editor-backdrop { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, .48); }
@@ -582,6 +596,8 @@ body[data-site-theme="dark"] .calendar-event-chip:hover { background: #263751; }
 body[data-site-theme="dark"] .calendar-event-time,
 body[data-site-theme="dark"] .calendar-event-overflow { color: #b9c5d7; }
 body[data-site-theme="dark"] .calendar-attention-marker { color: #f2b774; }
+body[data-site-theme="dark"] .calendar-agenda-range { border-color: #465162; background: #171c25; color: #edf0f5; }
+body[data-site-theme="dark"] .calendar-agenda-range[aria-pressed="true"] { background: #edf0f5; color: #171c25; }
 body[data-site-theme="dark"] .calendar-editor-dialog { background: #171c25; }
 body[data-site-theme="dark"] .calendar-editor-dialog h3,
 body[data-site-theme="dark"] .calendar-editor-form > label { color: #edf0f5; }
