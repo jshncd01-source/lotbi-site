@@ -121,12 +121,16 @@ const responses = {
   const month = await loadLifeCalendarManagerView('site-token', {...base, view: 'month'});
   assert.equal(month.key, 'month');
   assert.equal(month.kind, 'agenda');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-10'));
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
 
   calls.length = 0;
   const today = await loadLifeCalendarManagerView('site-token', {...base, view: 'today'});
   assert.equal(today.key, 'month');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-10'));
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
 
   calls.length = 0;
   const year = await loadLifeCalendarManagerView('site-token', {...base, view: 'year'});
@@ -143,7 +147,7 @@ const responses = {
   const agenda = await loadLifeCalendarManagerView('site-token', {...base, view: 'agenda', date: '2026-10-02'});
   assert.equal(agenda.key, 'agenda');
   assert.equal(agenda.date, '2026-10-02');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-11-07'));
+  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-10-31'));
 
   for (const call of calls) {
     assert.equal(call.init.headers.Authorization, 'Bearer site-token');
