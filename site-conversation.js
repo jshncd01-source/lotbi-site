@@ -1342,6 +1342,41 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
 
   micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
+  attachmentTrigger.addEventListener('click', () => {
+    if (attachmentMenuOpen) closeAttachmentMenu({restoreFocus: true});
+    else openAttachmentMenu();
+  });
+  attachmentTrigger.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      openAttachmentMenu();
+    }
+  });
+  attachmentMenu.addEventListener('keydown', event => {
+    const items = [...attachmentMenu.querySelectorAll('[role="menuitem"]')].filter(item => item instanceof HTMLButtonElement);
+    const current = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') { event.preventDefault(); closeAttachmentMenu({restoreFocus: true}); return; }
+    if (event.key === 'Tab') { closeAttachmentMenu(); return; }
+    if (!items.length || current < 0) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const offset = event.key === 'ArrowDown' ? 1 : -1;
+      items[(current + offset + items.length) % items.length].focus();
+    } else if (event.key === 'Home') { event.preventDefault(); items[0].focus(); }
+    else if (event.key === 'End') { event.preventDefault(); items[items.length - 1].focus(); }
+  });
+  for (const action of attachmentMenu.querySelectorAll('[data-attachment-action]')) {
+    if (!(action instanceof HTMLButtonElement)) continue;
+    action.addEventListener('click', () => {
+      const mode = action.dataset.attachmentAction || '';
+      const input = attachmentInputs.find(candidate => candidate.dataset.attachmentInput === mode);
+      closeAttachmentMenu();
+      if (input instanceof HTMLInputElement) input.click();
+    });
+  }
+  for (const input of attachmentInputs) {
+    input.addEventListener('change', () => void uploadAttachmentFiles(input));
+  }
   if (RESPONSE_GRADE_BACKEND_ENABLED) {
     responseGradeTrigger.addEventListener('click', () => {
       if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
@@ -1374,6 +1409,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
+    if (attachmentMenuOpen && !target?.closest('[data-attachment-control]')) closeAttachmentMenu();
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
     const calendarView = target?.closest('[data-calendar-view]');
     if (calendarView instanceof HTMLButtonElement) {
@@ -1396,11 +1432,15 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (trigger instanceof HTMLElement) { event.preventDefault(); openProfileMenu(trigger); }
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeConversationMenus();
+    if (event.key === 'Escape') {
+      closeConversationMenus();
+      if (attachmentMenuOpen) closeAttachmentMenu({restoreFocus: true});
+    }
   });
   window.addEventListener(SESSION_STATE_EVENT, event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (!detail || typeof detail.authenticated !== 'boolean') return;
+    if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
@@ -1413,6 +1453,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
   });
   syncResponseGradeUi();
+  renderAttachmentPreview();
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '로그인 없이도 LOTBI와 바로 대화할 수 있습니다. 계정 기능이 필요할 때만 로그인합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
   if (sessionToken) void loadServerProfile();
