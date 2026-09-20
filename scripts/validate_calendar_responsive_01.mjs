@@ -11,7 +11,7 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarVersion = '20260920-calux1';
+const calendarVersion = '20260920-calendarentry4';
 assert.ok(index.includes(`site-calendar.css?v=${calendarVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${calendarVersion}`));
