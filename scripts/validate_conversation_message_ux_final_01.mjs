@@ -23,8 +23,9 @@ const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/site-review.
 
 assert.ok(!css.includes('#fff1f3'), 'legacy pink default bubble must be removed');
 assert.match(css, /body\[data-chat-color="default"\]\s*\{[^}]*--user-bubble:\s*#f5f3f2[^}]*--user-bubble-foreground:\s*#303238/s);
-assert.match(css, /\.conversation-thread,[\s\S]*?overflow-y:\s*auto[\s\S]*?scrollbar-width:\s*none[\s\S]*?-ms-overflow-style:\s*none/);
-assert.match(css, /\.conversation-thread::\-webkit-scrollbar,[\s\S]*?width:\s*0[\s\S]*?height:\s*0[\s\S]*?display:\s*none/);
+assert.match(css, /\.conversation-thread,[\s\S]*?overflow:\s*visible/);
+assert.doesNotMatch(css, /\.conversation-thread[^}]*scrollbar-width:\s*none/s);
+assert.doesNotMatch(css, /\.conversation-thread::\-webkit-scrollbar[\s\S]*?display:\s*none/s);
 assert.match(css, /\.chat-message-user\.is-collapsible:not\(\.is-expanded\) \.chat-message-body\s*\{[^}]*max-height:[^;}]+;[^}]*overflow:\s*hidden/s);
 assert.match(css, /\.chat-message-user\.is-collapsible\.is-expanded \.chat-message-body\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/s);
 assert.match(css, /\.chat-code-block\s*\{[\s\S]*?overflow-x:\s*auto[\s\S]*?overflow-y:\s*hidden/);
@@ -69,8 +70,8 @@ function fixtureMarkup() {
   return `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${escapedCss}</style></head>
 <body class="chat-home-page conversation-active" data-chat-color="default">
-<div style="width:100%;height:700px;overflow:hidden">
-  <div id="conversation-thread" class="conversation-thread" style="height:330px;max-height:330px">
+<div style="width:100%;min-height:700px">
+  <div id="conversation-thread" class="conversation-thread">
     <article id="short" class="chat-message chat-message-user"><div class="chat-message-body">짧은 메시지</div></article>
     <article id="long" class="chat-message chat-message-user is-collapsible">
       <div class="chat-message-body">${'긴 사용자 메시지 내용입니다. 화면을 과도하게 차지하지 않도록 접힌 상태의 실제 높이를 검증합니다. '.repeat(42)}</div>
@@ -114,7 +115,6 @@ longButton.setAttribute('aria-expanded', 'true');
 longButton.textContent = '접기';
 const expandedHeight = long.getBoundingClientRect().height;
 const threadStyle = win.getComputedStyle(thread);
-const scrollbarStyle = win.getComputedStyle(thread, '::-webkit-scrollbar');
 const userStyle = win.getComputedStyle(short);
 const result = {
   viewportWidth: win.innerWidth,
@@ -133,10 +133,8 @@ const result = {
   codeWidth: code.getBoundingClientRect().width,
   threadWidth: thread.getBoundingClientRect().width,
   threadOverflowY: threadStyle.overflowY,
-  threadScrollable: thread.scrollHeight > thread.clientHeight,
-  scrollbarWidth: threadStyle.scrollbarWidth,
-  webkitScrollbarDisplay: scrollbarStyle.display,
-  webkitScrollbarWidth: scrollbarStyle.width,
+  threadScrollHeight: thread.scrollHeight,
+  threadClientHeight: thread.clientHeight,
   userBackground: userStyle.backgroundColor,
   userForeground: userStyle.color,
   userFontSize: win.getComputedStyle(short.querySelector('.chat-message-body')).fontSize,
@@ -181,10 +179,8 @@ for (const width of [340, 390, 412, 768, 1280, 1440]) {
   assert.equal(value.expandedAria, 'true');
   assert.equal(value.codeOverflowY, 'hidden', `${width}px code surface must not vertically scroll`);
   assert.ok(value.codeWidth <= value.threadWidth + 1.5, `${width}px code bubble must stay inside transcript`);
-  assert.equal(value.threadOverflowY, 'auto', `${width}px transcript remains scroll authority`);
-  assert.equal(value.threadScrollable, true, `${width}px transcript fixture must remain scrollable`);
-  assert.equal(value.scrollbarWidth, 'none', `${width}px transcript scrollbar-width must be none`);
-  assert.ok(value.webkitScrollbarDisplay === 'none' || value.webkitScrollbarWidth === '0px', `${width}px WebKit scrollbar chrome must be hidden`);
+  assert.equal(value.threadOverflowY, 'visible', `${width}px transcript must flow into the main pane`);
+  assert.equal(value.threadScrollHeight, value.threadClientHeight, `${width}px transcript must expand to its full content height`);
   assert.equal(value.userBackground, 'rgb(245, 243, 242)', `${width}px default bubble must be low-saturation warm neutral`);
   assert.equal(value.userForeground, 'rgb(48, 50, 56)', `${width}px default text must stay dark charcoal`);
   assert.equal(value.userFontSize, value.assistantFontSize, `${width}px user/assistant typography must match`);
