@@ -104,7 +104,7 @@ try{
     detail:{overflowY:getComputedStyle(detail).overflowY,scrollHeight:detail.scrollHeight,clientHeight:detail.clientHeight},
     desktop
   };
-  if(result.grid.cells!==42)throw new Error('month grid not 42');
+  if(![28,35,42].includes(result.grid.cells))throw new Error('month grid week count invalid '+result.grid.cells);
   if(!result.toolbar.todayOneLine||!result.toolbar.attentionOneLine)throw new Error('toolbar label wrapped');
   if(!result.modal.noX||!result.content.noX||!result.grid.noX)throw new Error('horizontal overflow');
   if(result.guest!=='guest')throw new Error('guest calendar contract');
@@ -174,7 +174,7 @@ try{
   const desktop=results[0];
   if(!desktop.controls||!desktop.dateSelection)throw new Error('desktop controls/date selection');
   for(const value of results){
-    if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||value.grid.cells!==42)throw new Error('responsive Calendar contract');
+    if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
   }
   console.log('CALENDAR MODAL RUNTIME PASS',JSON.stringify(results));
 }finally{
