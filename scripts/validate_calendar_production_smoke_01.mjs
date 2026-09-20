@@ -319,7 +319,7 @@ try {
   keyboardEscape.enterFocus = enterFocus;
 
   const guestTitle = 'LOTBI Production E2E temporary';
-  const guestDate = await cdp.evaluate("(() => { const cell=[...document.querySelectorAll('.calendar-date-cell[data-current-month=\"true\"]')].find(node=>node.dataset.calendarDate && !node.dataset.today); const trigger=cell?.querySelector('.calendar-date-trigger'); trigger?.click(); return cell?.dataset.calendarDate||null; })()");
+  const guestDate = await cdp.evaluate("(() => { const cell=[...document.querySelectorAll('.calendar-date-cell[data-current-month=\"true\"]')].find(node=>node.dataset.calendarDate && node.dataset.today!=='true'); const trigger=cell?.querySelector('.calendar-date-trigger'); trigger?.click(); return cell?.dataset.calendarDate||null; })()");
   if (!guestDate) throw new Error('Guest CRUD target date missing');
   await waitFor(
     () => cdp.evaluate("Boolean(document.querySelector('.calendar-day-panel:not([hidden]) .calendar-day-add'))"),
