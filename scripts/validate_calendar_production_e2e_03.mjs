@@ -263,9 +263,10 @@ try {
   const dateSelected = await cdp.evaluate(`(() => {
     const modal=document.querySelector('.site-modal.site-calendar-modal');
     const cell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(node=>node.dataset.selected!=='true');
-    if(!(cell instanceof HTMLButtonElement)) return '';
-    const date=cell.dataset.calendarDate || '';
-    cell.click();
+    const trigger=cell?.querySelector('[data-calendar-date-trigger]');
+    if(!(trigger instanceof HTMLButtonElement)) return '';
+    const date=cell.dataset.calendarDate || trigger.dataset.calendarDateTrigger || '';
+    trigger.click();
     return date;
   })()`);
   if (!dateSelected) throw new Error('Production Calendar date selection target missing');
