@@ -78,7 +78,7 @@ try{
   const part=Object.fromEntries(parts.map(value=>[value.type,value.value]));
   const fixtureCounts=[0,1,2,3,5,8];
   const fixtureTitles=['치과','고객 미팅','미용실','저녁 약속','자동차 검사','긴 한글 제목 일정이 셀에서 안전하게 줄임표로 표시되는지 확인','English planning review','123 🚗'];
-  const fixtureDates=fixtureCounts.map((_,index)=>`${part.year}-${part.month}-${String(10+index).padStart(2,'0')}`);
+  const fixtureDates=fixtureCounts.map((_,index)=>part.year+'-'+part.month+'-'+String(10+index).padStart(2,'0'));
   fixtureCounts.forEach((count,dateIndex)=>{
     for(let eventIndex=0;eventIndex<count;eventIndex+=1){
       const hour=9+Math.floor(eventIndex/2);
@@ -86,7 +86,7 @@ try{
       guestRepo.create({
         title:fixtureTitles[eventIndex%fixtureTitles.length],
         local_date:fixtureDates[dateIndex],
-        local_datetime:`${fixtureDates[dateIndex]}T${String(hour).padStart(2,'0')}:${minute}:00`,
+        local_datetime:fixtureDates[dateIndex]+'T'+String(hour).padStart(2,'0')+':'+minute+':00',
         all_day:false,
       });
     }
