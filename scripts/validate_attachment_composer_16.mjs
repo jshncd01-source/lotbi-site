@@ -21,13 +21,19 @@ for (const token of [
   'selectedAttachments',
   'attachmentUploadsInFlight',
   'attachmentIds: attachments.map(item => item.id)',
-  'sendConversationMessage(sessionToken, message, globalThis.fetch, attachments.map(item => item.id))',
+  'authenticatedRequestId',
+  'attachments.map(item => item.id)',
+  'clearSentAttachments(attachments, {guest: token})',
+  'clearSentAttachments(attachments, {session: activeSessionToken})',
   'const local = attachments.length ? null : deterministicReply(message)',
   'if (!attachments.length && isExplicitLifeCalendarCommand(message))',
 ]) {
   assert.ok(runtime.includes(token), `missing attachment runtime contract: ${token}`);
 }
-assert.match(runtime, /if \(attachments\.length\) clearSentAttachments\(\)/);
+assert.ok(runtime.includes("appendPersistedMessage({role: 'user', text: displayMessage, meta: {}})"));
+assert.ok(runtime.includes("attachmentNote.textContent = `첨부: ${attachmentSummary(attachments)}`"));
+assert.ok(runtime.includes("const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`"));
+assert.doesNotMatch(runtime, /첨부 파일 확인:/);
 assert.doesNotMatch(runtime, /localStorage[^\n]*attachment|attachment[^\n]*localStorage/i);
 
 for (const token of [
