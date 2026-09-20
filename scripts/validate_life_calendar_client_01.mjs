@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 const {
   createLifeActivity,
   executeLifeCalendarCommand,
+  isExplicitLifeCalendarCommand,
   getLifeAgenda,
   getLifeAttention,
   getLifeToday,
@@ -11,6 +12,20 @@ const {
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
 const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260920-guest3');
+
+assert.equal(isExplicitLifeCalendarCommand('9월 30일 오후 3시에 병원 가'), true);
+for (const value of [
+  '9월 30일 오후 3시에 병원 갈까?',
+  '9월 30일 오후 3시에 병원 안 가',
+  '9월 30일 오후 3시에 병원 가는 일정은 등록하지 마',
+  '9월 30일 오후 3시에 병원 일정 있어?',
+  '9월 30일 오후 3시에 병원 가면 좋을까?',
+  '9월 30일 오후 3시에 병원 갈 것 같아',
+  '9월 30일 오후 3시에 민수가 병원 간대',
+  '9월 30일 오후 3시에 병원 가라고 했어',
+]) {
+  assert.equal(isExplicitLifeCalendarCommand(value), false, value);
+}
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
