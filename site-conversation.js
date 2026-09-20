@@ -1,6 +1,6 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260920-attach16prod';
-import {isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-nav1';
+import {buildNaverStaticMapThumbnailUrl, isPlaceResultFresh, naverMapsPlaceActionLabel, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-placecardhotfix1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -727,6 +727,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const media = document.createElement('div');
       media.className = 'lotbi-rich-card-media lotbi-rich-card-placeholder';
       media.textContent = 'NAVER 지도';
+      const thumbnailUrl = buildNaverStaticMapThumbnailUrl(place);
+      if (thumbnailUrl) {
+        const image = document.createElement('img');
+        image.className = 'lotbi-rich-card-image';
+        image.src = thumbnailUrl;
+        image.alt = `${place.name} 위치 NAVER 지도`;
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        image.referrerPolicy = 'no-referrer';
+        image.addEventListener('error', () => {
+          image.remove();
+          media.classList.add('lotbi-rich-card-placeholder');
+          media.textContent = 'NAVER 지도';
+        }, {once: true});
+        media.classList.remove('lotbi-rich-card-placeholder');
+        media.textContent = '';
+        media.appendChild(image);
+      }
       const copy = document.createElement('div');
       copy.className = 'lotbi-rich-card-copy';
       const source = document.createElement('span');
@@ -765,7 +783,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const navigate = document.createElement('button');
       navigate.type = 'button';
       navigate.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary';
-      navigate.textContent = place.navigationCapable ? '길안내' : '네이버지도에서 찾기';
+      navigate.textContent = naverMapsPlaceActionLabel(place);
       navigate.disabled = !fresh;
       if (!fresh) navigate.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
       navigate.addEventListener('click', () => {
@@ -780,7 +798,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           setStatus('네이버지도 연결을 안전하게 시작하지 못했습니다.');
           return;
         }
-        setStatus(place.navigationCapable ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도 검색으로 연결합니다.');
+        const navigationMode = opened.mode === 'NAVER_NAVIGATION_INTENT' || opened.mode === 'NAVER_NAVIGATION_URL_SCHEME';
+        setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
       });
       actions.appendChild(navigate);
       item.append(media, copy, actions);
