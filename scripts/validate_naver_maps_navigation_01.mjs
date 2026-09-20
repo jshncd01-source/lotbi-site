@@ -66,6 +66,6 @@ assert.match(conversationSource, /navigate\.addEventListener\('click'/u);
 assert.match(conversationSource, /openNaverMapsPlace\(place\)/u);
 assert.match(conversationSource, /로그인 없이 실제 장소 카드/u);
 assert.doesNotMatch(conversationSource, /openNaverMapsPlace\([^)]*response\.placeResult/u);
-assert.match(indexSource, /site-conversation\.js\?v=20260920-calendarentry3/u);
+assert.match(indexSource, /site-conversation\.js\?v=20260920-calux1/u);
 
 console.log('NAVER Maps place navigation contract: PASS');
