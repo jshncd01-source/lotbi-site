@@ -1111,15 +1111,25 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
-  for (const calendarEntry of document.querySelectorAll('[data-calendar-view]')) {
-    if (!(calendarEntry instanceof HTMLButtonElement) || calendarEntry.dataset.calendarEntryBound === 'true') continue;
-    calendarEntry.dataset.calendarEntryBound = 'true';
-    calendarEntry.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      void openCalendar(calendarEntry.dataset.calendarView || 'all');
-    });
-  }
+  const bindCalendarEntries = () => {
+    for (const calendarEntry of document.querySelectorAll('[data-calendar-view]')) {
+      if (!(calendarEntry instanceof HTMLButtonElement) || calendarEntry.dataset.calendarEntryBound === 'true') continue;
+      calendarEntry.dataset.calendarEntryBound = 'true';
+      calendarEntry.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        void openCalendar(calendarEntry.dataset.calendarView || 'all');
+      });
+    }
+  };
+  bindCalendarEntries();
+
+  document.addEventListener('click', event => {
+    const target = event.target instanceof Element ? event.target.closest('[data-calendar-view]') : null;
+    if (!(target instanceof HTMLButtonElement)) return;
+    event.preventDefault();
+    void openCalendar(target.dataset.calendarView || 'all');
+  });
 
   const openLotbiBox = trigger => {
     closeMobileDrawer();
@@ -1784,6 +1794,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } else if (!sessionToken) switchNamespace(browserAnonymousNamespace());
   });
   window.addEventListener(SIDEBAR_RENDERED_EVENT, () => {
+    bindCalendarEntries();
     refreshAuthenticatedProfileSlots();
     if (!stateReady && document.body.dataset.siteAuthState === 'unauthenticated') {
       switchNamespace(browserAnonymousNamespace());
