@@ -156,7 +156,7 @@ const callback = read('auth/callback/index.html');
 const ui = read('site-calendar-ui.js');
 const css = read('site-calendar.css');
 
-assert.ok(index.includes('href="site-calendar.css?v=20260920-calnav9a"'));
+assert.ok(index.includes('href="site-calendar.css?v=20260920-calnav9"'));
 assert.ok(index.includes('data-life-calendar-panel'));
 assert.ok(index.includes('data-calendar-enabled="true"'));
 assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
