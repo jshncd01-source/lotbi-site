@@ -22,7 +22,7 @@ CONTINUITY_JS = ROOT / "site-continuity.js"
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
-CONNECTED_SERVICES_URL = "https://account.lotbiai.com/external-identities"
+CONNECTED_SERVICES_URL = "https://account.lotbiai.com/connected-services"
 
 
 def slice_between(text: str, start_token: str, end_token: str) -> str:
@@ -64,14 +64,14 @@ def main() -> int:
         "microphone control": "mic-button",
         "send control": "send-button",
         "conversation thread": 'id="conversation-thread"',
-        "local navigation script": 'src="home-shell.js"',
+        "local navigation script": 'src="home-shell.js?v=20260920-fold5"',
         "approved mobile entry runtime": 'src="mobile-entry.js?v=20260920-homefirst1"',
         "approved 3D Avatar module": 'src="site-avatar.js"',
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
-        "approved conversation module": 'src="site-conversation.js?v=20260920-richcards2"',
-        "approved continuity module": 'src="site-continuity.js?v=20260920-logincta2"',
+        "approved conversation module": 'src="site-conversation.js?v=20260920-richcards4"',
+        "approved continuity module": 'src="site-continuity.js?v=20260920-fallback4"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260919-homewordmark5"',
         "anonymous initial auth state": 'data-auth-state="unauthenticated"',
@@ -215,11 +215,11 @@ def main() -> int:
             errors.append("index.html: composer must preserve one-row initial contract")
 
     approved_scripts = (
-        '<script src="home-shell.js" defer></script>',
+        '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-richcards2"></script>',
-        '<script type="module" src="site-continuity.js?v=20260920-logincta2"></script>',
+        '<script type="module" src="site-conversation.js?v=20260920-richcards4"></script>',
+        '<script type="module" src="site-continuity.js?v=20260920-fallback4"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
         errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
