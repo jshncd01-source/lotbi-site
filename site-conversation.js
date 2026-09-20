@@ -264,7 +264,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     preferences.responseGrade = grade;
     responseGradeControl.hidden = !available;
     responseGradeControl.setAttribute('aria-hidden', String(!available));
+    if (available) responseGradeControl.removeAttribute('inert');
+    else responseGradeControl.setAttribute('inert', '');
     responseGradeTrigger.disabled = !available;
+    for (const option of responseGradeOptions) {
+      if (option instanceof HTMLButtonElement) option.disabled = !available;
+    }
     if (!available) {
       responseGradeMenu.hidden = true;
       responseGradeTrigger.setAttribute('aria-expanded', 'false');
@@ -789,28 +794,30 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
 
   micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
-  responseGradeTrigger.addEventListener('click', () => {
-    if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
-    else openResponseGradeMenu();
-  });
-  responseGradeTrigger.addEventListener('keydown', event => {
-    if (event.key === 'ArrowDown') { event.preventDefault(); openResponseGradeMenu({edge: 'first'}); }
-    else if (event.key === 'ArrowUp') { event.preventDefault(); openResponseGradeMenu({edge: 'last'}); }
-  });
-  responseGradeMenu.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
-    else if (event.key === 'ArrowDown') { event.preventDefault(); moveResponseGradeFocus(1); }
-    else if (event.key === 'ArrowUp') { event.preventDefault(); moveResponseGradeFocus(-1); }
-    else if (event.key === 'Home') { event.preventDefault(); responseGradeOptions[0]?.focus(); }
-    else if (event.key === 'End') { event.preventDefault(); responseGradeOptions[responseGradeOptions.length - 1]?.focus(); }
-    else if (event.key === 'Tab') closeResponseGradeMenu();
-  });
-  for (const option of responseGradeOptions) {
-    option.addEventListener('click', () => selectResponseGrade(option.dataset.responseGrade || ''));
+  if (RESPONSE_GRADE_BACKEND_ENABLED) {
+    responseGradeTrigger.addEventListener('click', () => {
+      if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
+      else openResponseGradeMenu();
+    });
+    responseGradeTrigger.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown') { event.preventDefault(); openResponseGradeMenu({edge: 'first'}); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); openResponseGradeMenu({edge: 'last'}); }
+    });
+    responseGradeMenu.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
+      else if (event.key === 'ArrowDown') { event.preventDefault(); moveResponseGradeFocus(1); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); moveResponseGradeFocus(-1); }
+      else if (event.key === 'Home') { event.preventDefault(); responseGradeOptions[0]?.focus(); }
+      else if (event.key === 'End') { event.preventDefault(); responseGradeOptions[responseGradeOptions.length - 1]?.focus(); }
+      else if (event.key === 'Tab') closeResponseGradeMenu();
+    });
+    for (const option of responseGradeOptions) {
+      option.addEventListener('click', () => selectResponseGrade(option.dataset.responseGrade || ''));
+    }
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && responseGradeOpen) { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
+    });
   }
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && responseGradeOpen) { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
-  });
   prompt.addEventListener('input', () => { updateSendState(); if (stateReady) { state.draft = prompt.value.slice(0, 1000); saveState(); } });
   prompt.addEventListener('compositionend', updateSendState);
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });
