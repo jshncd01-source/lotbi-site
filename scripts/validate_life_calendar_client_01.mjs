@@ -13,7 +13,7 @@ const {
   removeLifeActivity,
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
-const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260920-guest3');
+const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260921-convcal2');
 
 assert.equal(isExplicitLifeCalendarCommand('9월 30일 오후 3시에 병원 가'), true);
 for (const value of [
