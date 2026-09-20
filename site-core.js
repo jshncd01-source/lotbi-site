@@ -242,7 +242,30 @@ export function normalizeCalendarPartialCandidate(value) {
 }
 
 export function serializeCalendarPartialCandidateContext(value) {
-  const candidate = normalizeCalendarPartialCandidate(value);
+  const source = value?.contractId === 'CORE-CALENDAR-PARTIAL-CANDIDATE-01'
+    ? {
+        contract_id: value.contractId,
+        schema_version: value.schemaVersion,
+        candidate_id: value.candidateId,
+        candidate_version: value.candidateVersion,
+        source_turn_ref: value.sourceTurnRef,
+        source_turn_created_at: value.sourceTurnCreatedAt,
+        title: value.title,
+        temporal: {
+          kind: value.temporal?.kind,
+          local_date: value.temporal?.localDate,
+          local_time: value.temporal?.localTime,
+          timezone_name: value.temporal?.timezoneName,
+        },
+        temporal_semantics: value.temporalSemantics,
+        meaning: value.meaning,
+        missing_fields: Array.isArray(value.missingFields) ? [...value.missingFields] : value.missingFields,
+        approval_state: value.approvalState,
+        execution_state: value.executionState,
+        ...(value.memberIndex == null ? {} : {member_index: value.memberIndex}),
+      }
+    : value;
+  const candidate = normalizeCalendarPartialCandidate(source);
   if (!candidate) return null;
   return Object.freeze({
     contract_id: candidate.contractId,
