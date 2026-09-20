@@ -183,6 +183,23 @@ try{
     if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
 
+    const selectedTrigger=modal.querySelector('.calendar-date-trigger[data-selected="true"]');
+    if(!(selectedTrigger instanceof HTMLButtonElement))throw new Error('selected date trigger missing');
+    const selectedBefore=selectedTrigger.dataset.calendarDateTrigger;
+    selectedTrigger.focus();
+    selectedTrigger.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
+    await wait(()=>modal.querySelector('.calendar-date-cell[data-selected="true"]')?.dataset.calendarDate!==selectedBefore,'keyboard ArrowRight');
+    const keyboardDate=modal.querySelector('.calendar-date-cell[data-selected="true"]')?.dataset.calendarDate;
+    const keyboardTrigger=modal.querySelector('[data-calendar-date-trigger="'+keyboardDate+'"]');
+    if(!(keyboardTrigger instanceof HTMLButtonElement))throw new Error('keyboard-selected date trigger missing');
+    keyboardTrigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===false,'keyboard Enter detail');
+    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===keyboardDate,'keyboard focus after Enter');
+    document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'keyboard Escape close');
+    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===keyboardDate,'keyboard focus restore');
+    result.keyboard=true;
+
     const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const eventButton=eventCell?.querySelector('.calendar-event-chip');
     if(!(eventButton instanceof HTMLButtonElement))throw new Error('event click target missing');
@@ -267,14 +284,16 @@ fs.writeFileSync(INNER,fixture,'utf8');
 const server=spawn('python',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
 try{
   waitServer();
-  const cases=[[1280,900],[1440,900],[1440,1200],[768,900],[340,800],[390,844],[412,915],[320,800]];
+  const cases=[[1280,900],[1440,900],[1440,1200],[768,900],[640,450],[340,800],[390,844],[412,915],[320,800]];
   const results=cases.map(([w,h])=>run(browser,w,h));
   const desktops=results.filter(value=>value.desktop);
-  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.agendaRanges))throw new Error('desktop controls/date/event/Agenda selection');
+  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.agendaRanges&&value.keyboard))throw new Error('desktop controls/date/event/Agenda/keyboard selection');
   for(const value of results){
     if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
     if(value.density.map(entry=>entry.expected).join(',')!=='0,1,2,3,5,8')throw new Error('fixture matrix incomplete');
   }
+  const zoomEquivalent=results.find(value=>value.viewport.width===640&&value.viewport.height===450);
+  if(!zoomEquivalent||!zoomEquivalent.modal.noX||!zoomEquivalent.content.noX||!zoomEquivalent.grid.noX)throw new Error('200% zoom equivalent viewport contract');
   console.log('CALENDAR MODAL RUNTIME PASS',JSON.stringify(results));
 }finally{
   server.kill('SIGTERM');
