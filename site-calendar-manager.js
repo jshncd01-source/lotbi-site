@@ -1,5 +1,5 @@
 import {createLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260920-convcal1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-calux1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-convcal1';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,7 +10,7 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260920-calux1';
-import {SiteCoreError} from './site-core.js?v=20260920-guest3';
+import {SiteCoreError} from './site-core.js?v=20260920-convcal1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
