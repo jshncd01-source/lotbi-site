@@ -1,0 +1,47 @@
+name: PHASE 16 Production Attachment E2E
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  phase16-production-attachment-e2e:
+    if: ${{ github.head_ref == 'site-phase16-prod-e2e-ci-01-work' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run PHASE 16 Production attachment E2E
+        run: node scripts/phase16_production_attachment_e2e.mjs
+
+      - name: Upload PHASE 16 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase16-production-attachment-e2e
+          path: phase16-e2e-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
