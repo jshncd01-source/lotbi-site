@@ -216,7 +216,8 @@
 
 @media (max-width: 760px) {
   .chat-composer {
-    width: min(100%, 350px);
+    width: 100%;
+    max-width: none;
     padding: 9px 9px 8px 13px;
     border-radius: 20px;
     grid-template-columns: minmax(0, 1fr);
