@@ -9,6 +9,7 @@ const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';
 const THREAD_LIMIT = 50;
 const MESSAGE_LIMIT = 120;
+const THREAD_TITLE_LIMIT = 60;
 const PHOTO_BYTES_LIMIT = 2 * 1024 * 1024;
 const PHOTO_DIMENSION_LIMIT = 4096;
 const COLOR_OPTIONS = Object.freeze([
@@ -217,8 +218,11 @@ function formatCardMoney(amount, currency = 'KRW') {
   return new Intl.NumberFormat('ko-KR', {style: 'currency', currency}).format(amount);
 }
 
+function normalizedThreadTitle(value) {
+  return String(value || '').replace(/\s+/gu, ' ').trim().slice(0, THREAD_TITLE_LIMIT);
+}
 function titleFromMessage(text) {
-  const value = text.replace(/\s+/gu, ' ').trim();
+  const value = normalizedThreadTitle(text);
   return value.length <= 36 ? value : `${value.slice(0, 35).trimEnd()}…`;
 }
 function newId(prefix) { return `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`; }
@@ -378,16 +382,78 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (!suppressScroll && shouldStick) scrollThread();
     return node;
   };
+  const closeConversationMenus = except => {
+    for (const menu of document.querySelectorAll('details[data-conversation-menu][open]')) {
+      if (menu !== except) menu.removeAttribute('open');
+    }
+  };
+  const sortThreads = () => {
+    state.threads.sort((a, b) => {
+      const aPinned = a.pinned === true;
+      const bPinned = b.pinned === true;
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+      if (aPinned && bPinned) {
+        const pinDelta = Number(b.pinnedAt || 0) - Number(a.pinnedAt || 0);
+        if (pinDelta) return pinDelta;
+      }
+      return Number(b.updatedAt || 0) - Number(a.updatedAt || 0);
+    });
+  };
+  const toggleThreadPin = id => {
+    const record = state.threads.find(item => item.id === id); if (!record) return;
+    record.pinned = record.pinned !== true;
+    record.pinnedAt = record.pinned ? Date.now() : 0;
+    sortThreads(); saveState(); renderRecent();
+    setStatus(record.pinned ? '대화를 상단에 고정했습니다.' : '대화 고정을 해제했습니다.');
+  };
   const renderRecent = () => {
     for (const list of document.querySelectorAll('[data-recent-conversations]')) {
       if (!(list instanceof HTMLElement)) continue;
       const fragment = document.createDocumentFragment();
       for (const item of state.threads) {
-        const li = document.createElement('li'); const button = document.createElement('button');
-        button.type = 'button'; button.dataset.conversationTitle = ''; button.dataset.threadId = item.id;
-        button.textContent = item.title; button.title = item.title; button.setAttribute('aria-label', `${item.title} 대화 열기`);
+        const li = document.createElement('li');
+        li.className = 'conversation-history-item';
+        li.dataset.threadId = item.id;
+        li.dataset.pinned = String(item.pinned === true);
+
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'conversation-history-open'; button.dataset.threadId = item.id;
+        button.title = item.title;
+        button.setAttribute('aria-label', `${item.pinned === true ? '고정된 ' : ''}${item.title} 대화 열기`);
         if (item.id === state.activeThreadId) button.setAttribute('aria-current', 'true');
-        button.addEventListener('click', () => activateThread(item.id)); li.appendChild(button); fragment.appendChild(li);
+        const title = document.createElement('span');
+        title.dataset.conversationTitle = ''; title.textContent = item.title;
+        button.appendChild(title);
+        if (item.pinned === true) {
+          const badge = document.createElement('span');
+          badge.className = 'conversation-history-pin'; badge.textContent = '고정'; badge.setAttribute('aria-hidden', 'true');
+          button.appendChild(badge);
+        }
+        button.addEventListener('click', () => activateThread(item.id));
+
+        const actions = document.createElement('details');
+        actions.className = 'conversation-history-actions'; actions.dataset.conversationMenu = '';
+        const summary = document.createElement('summary');
+        summary.className = 'conversation-history-menu-trigger'; summary.dataset.conversationMenuTrigger = '';
+        summary.setAttribute('aria-label', `${item.title} 대화 메뉴`); summary.textContent = '⋯';
+        const menu = document.createElement('div');
+        menu.className = 'conversation-history-menu'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', `${item.title} 대화 관리`);
+
+        const action = (name, label, handler, className = '') => {
+          const control = document.createElement('button');
+          control.type = 'button'; control.dataset.conversationAction = name; control.setAttribute('role', 'menuitem');
+          control.className = className; control.textContent = label;
+          control.addEventListener('click', event => {
+            event.preventDefault(); event.stopPropagation(); actions.open = false; handler();
+          });
+          menu.appendChild(control);
+        };
+        action('pin', item.pinned === true ? '고정 해제' : '상단에 고정', () => toggleThreadPin(item.id));
+        action('rename', '이름 바꾸기', () => openRenameThread(item.id));
+        action('delete', '삭제', () => openDeleteThread(item.id), 'conversation-history-delete');
+        actions.addEventListener('toggle', () => { if (actions.open) closeConversationMenus(actions); });
+        actions.append(summary, menu);
+        li.append(button, actions); fragment.appendChild(li);
       }
       list.replaceChildren(fragment);
     }
@@ -395,7 +461,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const appendPersistedMessage = message => {
     const record = threadRecord(); if (!record) return;
     record.messages.push(message); record.messages = record.messages.slice(-MESSAGE_LIMIT); record.updatedAt = Date.now();
-    state.threads.sort((a, b) => b.updatedAt - a.updatedAt); saveState(); renderRecent();
+    sortThreads(); saveState(); renderRecent();
   };
   const lotbiBoxKey = () => storageKey(namespace || browserAnonymousNamespace(), 'lotbi-box');
   const loadLotbiBox = () => {
@@ -559,19 +625,30 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
   const activateThread = id => {
     if (!state.threads.some(item => item.id === id)) return;
+    closeConversationMenus();
     state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); prompt.focus();
   };
   const startNewConversation = () => {
+    closeConversationMenus();
     state.activeThreadId = null; state.draft = ''; prompt.value = '';
     prompt.dispatchEvent(new Event('input', {bubbles: true})); saveState(); showBlankHome(); renderRecent(); closeMobileDrawer(); prompt.focus();
   };
   const ensureThread = firstMessage => {
     let record = threadRecord(); if (record) return record;
-    record = {id: newId('thread'), title: titleFromMessage(firstMessage), createdAt: Date.now(), updatedAt: Date.now(), messages: []};
-    state.activeThreadId = record.id; state.threads.unshift(record); state.threads = state.threads.slice(0, THREAD_LIMIT);
+    record = {id: newId('thread'), title: titleFromMessage(firstMessage), pinned: false, pinnedAt: 0, createdAt: Date.now(), updatedAt: Date.now(), messages: []};
+    state.activeThreadId = record.id; state.threads.unshift(record); sortThreads(); state.threads = state.threads.slice(0, THREAD_LIMIT);
     saveState(); renderRecent(); return record;
   };
   const validThread = value => value && typeof value.id === 'string' && typeof value.title === 'string' && Array.isArray(value.messages);
+  const normalizeStoredThread = value => {
+    if (!validThread(value)) return null;
+    return {
+      ...value,
+      title: normalizedThreadTitle(value.title) || '새 대화',
+      pinned: value.pinned === true,
+      pinnedAt: value.pinned === true && Number.isFinite(Number(value.pinnedAt)) ? Number(value.pinnedAt) : 0,
+    };
+  };
   const switchNamespace = nextNamespace => {
     const normalized = normalizedNamespace(nextNamespace);
     if (!normalized || (normalized === namespace && stateReady)) return;
@@ -579,10 +656,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const loadedState = safeParse(storage?.getItem(storageKey(namespace, 'threads')), {});
     const loadedPreferences = safeParse(storage?.getItem(storageKey(namespace, 'preferences')), {});
     state = {
-      threads: Array.isArray(loadedState.threads) ? loadedState.threads.filter(validThread).slice(0, THREAD_LIMIT) : [],
+      threads: Array.isArray(loadedState.threads) ? loadedState.threads.map(normalizeStoredThread).filter(Boolean).slice(0, THREAD_LIMIT) : [],
       activeThreadId: typeof loadedState.activeThreadId === 'string' ? loadedState.activeThreadId : null,
       draft: typeof loadedState.draft === 'string' ? loadedState.draft.slice(0, 1000) : '',
     };
+    sortThreads();
     if (!state.threads.some(item => item.id === state.activeThreadId)) state.activeThreadId = state.threads[0]?.id || null;
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
@@ -690,6 +768,47 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (description) { const copy = document.createElement('p'); copy.className = 'site-modal-description'; copy.textContent = description; panel.appendChild(copy); }
     const content = document.createElement('div'); content.className = 'site-modal-content'; panel.appendChild(content); backdrop.appendChild(panel);
     return {backdrop, panel, content};
+  };
+  const openRenameThread = id => {
+    const record = state.threads.find(item => item.id === id); if (!record) return;
+    const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
+    const label = document.createElement('label'); label.className = 'site-field'; label.textContent = '대화 이름';
+    const input = document.createElement('input'); input.type = 'text'; input.maxLength = THREAD_TITLE_LIMIT; input.value = record.title; input.autocomplete = 'off'; label.appendChild(input);
+    const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
+    const actions = document.createElement('div'); actions.className = 'conversation-management-modal-actions';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'site-button site-button-secondary'; cancel.textContent = '취소'; cancel.addEventListener('click', closeSurface);
+    const save = document.createElement('button'); save.type = 'button'; save.className = 'site-button site-button-primary'; save.textContent = '저장';
+    const commit = () => {
+      const title = normalizedThreadTitle(input.value);
+      if (!title) { error.textContent = '대화 이름을 입력해 주세요.'; input.focus(); return; }
+      record.title = title; saveState(); closeSurface(); renderRecent(); setStatus('대화 이름을 바꿨습니다.');
+    };
+    save.addEventListener('click', commit);
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); commit(); }
+    });
+    actions.append(cancel, save); content.append(label, error, actions); installSurfaceBehavior(backdrop, panel, {modal: true});
+    queueMicrotask(() => { input.focus(); input.select(); });
+  };
+  const openDeleteThread = id => {
+    const record = state.threads.find(item => item.id === id); if (!record) return;
+    const {backdrop, panel, content} = modalShell('대화 삭제', `“${record.title}” 대화를 이 브라우저에서 삭제합니다. 이 작업은 되돌릴 수 없습니다.`);
+    const actions = document.createElement('div'); actions.className = 'conversation-management-modal-actions';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'site-button site-button-secondary'; cancel.textContent = '취소'; cancel.addEventListener('click', closeSurface);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'site-button conversation-delete-confirm'; remove.textContent = '삭제';
+    remove.addEventListener('click', () => {
+      const deletingActive = state.activeThreadId === id;
+      state.threads = state.threads.filter(item => item.id !== id);
+      if (deletingActive) {
+        state.activeThreadId = null; state.draft = ''; prompt.value = '';
+        prompt.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      saveState(); closeSurface();
+      if (deletingActive) showBlankHome();
+      renderRecent(); setStatus('대화를 삭제했습니다.');
+      if (deletingActive) prompt.focus();
+    });
+    actions.append(cancel, remove); content.appendChild(actions); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const colorPicker = () => {
     const fieldset = document.createElement('fieldset'); fieldset.className = 'color-picker';
@@ -1115,6 +1234,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   micButton.addEventListener('click', () => void startVoiceInput());
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
+    if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
     const calendarView = target?.closest('[data-calendar-view]');
     if (calendarView instanceof HTMLButtonElement) {
@@ -1135,6 +1255,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
     const trigger = target?.closest('[data-profile-menu-trigger]');
     if (trigger instanceof HTMLElement) { event.preventDefault(); openProfileMenu(trigger); }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeConversationMenus();
   });
   window.addEventListener(SESSION_STATE_EVENT, event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
