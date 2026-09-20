@@ -329,6 +329,118 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     } catch {}
     return issued.guestToken;
   };
+  const attachmentSizeLabel = size => {
+    const bytes = Math.max(0, Number(size || 0));
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
+    if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`;
+    return `${bytes}B`;
+  };
+  const closeAttachmentMenu = ({restoreFocus = false} = {}) => {
+    attachmentMenuOpen = false;
+    attachmentMenu.hidden = true;
+    attachmentTrigger.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) attachmentTrigger.focus();
+  };
+  const openAttachmentMenu = () => {
+    if (inFlight || attachmentUploadsInFlight) return;
+    attachmentMenuOpen = true;
+    attachmentMenu.hidden = false;
+    attachmentTrigger.setAttribute('aria-expanded', 'true');
+    queueMicrotask(() => attachmentMenu.querySelector('[role="menuitem"]')?.focus());
+  };
+  const renderAttachmentPreview = () => {
+    const fragment = document.createDocumentFragment();
+    for (const item of selectedAttachments) {
+      const chip = document.createElement('span'); chip.className = 'attachment-chip'; chip.dataset.attachmentId = item.id;
+      const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = safeAttachmentName(item.fileName); name.title = safeAttachmentName(item.fileName);
+      const meta = document.createElement('span'); meta.className = 'attachment-chip-meta'; meta.textContent = `${attachmentKindLabel(item.mimeType)} · ${attachmentSizeLabel(item.sizeBytes)}`;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'attachment-chip-remove'; remove.textContent = '×';
+      remove.setAttribute('aria-label', `${safeAttachmentName(item.fileName)} 첨부 제거`);
+      remove.addEventListener('click', async () => {
+        if (inFlight || remove.disabled) return;
+        remove.disabled = true;
+        try {
+          const guestToken = sessionToken ? '' : (readGuestSession() || '');
+          await deleteConversationAttachment({sessionToken: sessionToken || '', guestToken, attachmentId: item.id});
+          selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
+          renderAttachmentPreview();
+          setStatus('첨부 파일을 제거했습니다.');
+        } catch (error) {
+          if (error instanceof SiteCoreError && error.status === 404) {
+            selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
+            renderAttachmentPreview();
+          } else {
+            remove.disabled = false;
+            setStatus(error instanceof Error ? error.message : '첨부 파일을 제거하지 못했습니다.');
+          }
+        }
+      });
+      chip.append(name, meta, remove); fragment.appendChild(chip);
+    }
+    if (attachmentUploadsInFlight > 0) {
+      const uploading = document.createElement('span'); uploading.className = 'attachment-uploading';
+      uploading.textContent = attachmentUploadsInFlight === 1 ? '첨부 업로드 중…' : `첨부 ${attachmentUploadsInFlight}개 업로드 중…`;
+      fragment.appendChild(uploading);
+    }
+    attachmentPreview.replaceChildren(fragment);
+    attachmentPreview.hidden = selectedAttachments.length === 0 && attachmentUploadsInFlight === 0;
+    if (typeof updateSendState === 'function') updateSendState();
+  };
+  const uploadAttachmentFiles = async input => {
+    if (!(input instanceof HTMLInputElement) || inFlight || attachmentUploadsInFlight) return;
+    const files = Array.from(input.files || []);
+    input.value = '';
+    if (!files.length) return;
+    let validated;
+    try {
+      validated = await validateAttachmentFiles(files, selectedAttachments);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '첨부 파일을 확인하지 못했습니다.');
+      return;
+    }
+    let guestToken = '';
+    try {
+      if (!sessionToken) guestToken = await ensureGuestSession();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '첨부 파일 세션을 시작하지 못했습니다.');
+      return;
+    }
+    attachmentUploadsInFlight = validated.length;
+    closeAttachmentMenu();
+    renderAttachmentPreview();
+    for (const file of validated) {
+      try {
+        const uploaded = await uploadConversationAttachment({
+          sessionToken: sessionToken || '',
+          guestToken,
+          file,
+        });
+        selectedAttachments = [...selectedAttachments, uploaded];
+      } catch (error) {
+        if (isSessionError(error)) sessionToken = undefined;
+        if (isGuestSessionError(error)) clearGuestSession();
+        setStatus(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
+      } finally {
+        attachmentUploadsInFlight = Math.max(0, attachmentUploadsInFlight - 1);
+        renderAttachmentPreview();
+      }
+    }
+    if (selectedAttachments.length) setStatus(`첨부 ${selectedAttachments.length}개가 준비되었습니다.`);
+    prompt.focus();
+  };
+  const selectedAttachmentIds = () => selectedAttachments.map(item => item.id);
+  const sentAttachmentSummary = () => selectedAttachments.map(item => safeAttachmentName(item.fileName)).join(', ');
+  const clearSentAttachments = () => {
+    selectedAttachments = [];
+    renderAttachmentPreview();
+  };
+  const clearLocalAttachments = () => {
+    selectedAttachments = [];
+    attachmentUploadsInFlight = 0;
+    closeAttachmentMenu();
+    renderAttachmentPreview();
+  };
+
   const guestRecentContext = () => {
     const messages = threadRecord()?.messages;
     if (!Array.isArray(messages) || !messages.length) return [];
