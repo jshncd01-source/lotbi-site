@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
-import {once} from 'node:events';
 
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function chromePath(){
@@ -75,12 +74,11 @@ try{
 }finally{
   const stop = async child => {
     if (!child || child.exitCode !== null) return;
+    const exited = new Promise(resolve => child.once('exit', resolve));
     child.kill('SIGTERM');
-    await Promise.race([once(child, 'exit'), delay(2000)]);
-    if (child.exitCode === null) {
-      child.kill('SIGKILL');
-      await once(child, 'exit');
-    }
+    const graceful = await Promise.race([exited.then(() => true), delay(2000).then(() => false)]);
+    if (!graceful && child.exitCode === null) child.kill('SIGKILL');
+    await Promise.race([exited, delay(500)]);
   };
   await Promise.all([stop(chrome), stop(server)]);
   fs.rmSync(profile, {recursive:true, force:true, maxRetries:5, retryDelay:100});
