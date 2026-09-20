@@ -1,5 +1,5 @@
-import {beginSiteHandoff} from './site-auth.js';
-import {getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards2';
+import {beginSiteHandoff} from './site-auth.js?v=20260920-fallback4';
+import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards4';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 
@@ -20,6 +20,9 @@ const RESPONSE_GRADE_OPTIONS = Object.freeze([
   ['PREMIUM', '프리미엄'],
 ]);
 const DEFAULT_RESPONSE_GRADE = 'STANDARD';
+// Core Production currently has no authoritative response_grade request field.
+// Keep the selector unavailable until that contract is explicit and deployed.
+const RESPONSE_GRADE_BACKEND_ENABLED = false;
 const diagnostics = {
   deterministicReplies: 0, coreCalls: 0, providerCallsAvoided: 0,
   lastPath: 'idle', lastVisibleAnswerMs: null, lastCoreDurationMs: null,
@@ -30,7 +33,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-richcards1';
+  link.href = '/site-conversation.css?v=20260920-richcards4';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -42,7 +45,7 @@ function recordTiming(name, detail = {}) {
 function resourceCounts() {
   const resources = globalThis.performance?.getEntriesByType?.('resource') || [];
   return {
-    core: resources.filter(entry => String(entry.name || '').includes('/v2/conversation/messages')).length,
+    core: resources.filter(entry => String(entry.name || '').includes('/v2/conversation/')).length,
     externalAi: resources.filter(entry => /api\.openai\.com|anthropic\.com|generativelanguage\.googleapis\.com/iu.test(String(entry.name || ''))).length,
   };
 }
@@ -101,12 +104,21 @@ function createLoadingMessage() {
   article.dataset.transient = 'true'; article.setAttribute('role', 'status');
   return article;
 }
+function isGuestSessionError(error) {
+  return error instanceof SiteCoreError
+    && (error.code === 'GUEST_SESSION_INVALID' || error.code === 'GUEST_SESSION_EXPIRED');
+}
 function isSessionError(error) {
   return error instanceof SiteCoreError
+    && !isGuestSessionError(error)
     && (error.status === 401 || error.status === 403 || error.code === 'SITE_SESSION_REQUIRED' || error.code === 'SESSION_INVALID' || error.code === 'SESSION_EXPIRED');
 }
 function userFacingErrorMessage(error) {
+  if (isGuestSessionError(error)) return '익명 대화 세션이 만료되었습니다. 다시 시도하면 새 세션으로 이어집니다.';
   if (isSessionError(error)) return 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.';
+  if (error instanceof SiteCoreError && error.code === 'GUEST_RATE_LIMITED') return '익명 대화 요청이 잠시 많습니다. 잠시 후 다시 시도해 주세요.';
+  if (error instanceof SiteCoreError && error.code === 'GUEST_AI_REQUEST_IN_PROGRESS') return '같은 질문을 처리하고 있습니다. 잠시 후 다시 시도해 주세요.';
+  if (error instanceof SiteCoreError && (error.code === 'GUEST_AI_OUTCOME_UNCERTAIN' || error.code === 'GUEST_AI_RECONCILIATION_REQUIRED')) return '이 요청은 중복 실행을 막기 위해 자동으로 다시 보내지 않습니다. 새 메시지로 다시 질문해 주세요.';
   if (error instanceof SiteCoreError && (error.code === 'AI_PROVIDER_UNAVAILABLE' || error.code === 'AI_RESPONSE_UNAVAILABLE')) return 'LOTBI AI 응답을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof Error) return error.message;
   return 'LOTBI 대화를 완료하지 못했습니다.';
@@ -138,7 +150,6 @@ function logSafeConversationFailure(error) {
   console.error('[LOTBI conversation request failed]', {code: error.code, status: error.status, retryable: error.retryable, correlationId: error.correlationId});
 }
 
-
 const PRODUCT_MERCHANT_HINTS = Object.freeze([
   ['COUPANG_CONSUMER', /(?:쿠팡|coupang)/iu],
   ['RAD_GODOMALL', /(?:알에이디|\\brad\\b|carcare\\s*rad|carcarerad)/iu],
@@ -150,26 +161,13 @@ function productMerchantHint(text, intent = {}) {
   const source = String(text || '');
   const explicit = PRODUCT_MERCHANT_HINTS.find(([, pattern]) => pattern.test(source));
   if (explicit) return {merchantCode: explicit[0], merchantExplicit: true};
-  return {
-    merchantCode: typeof intent.merchant_code === 'string' ? intent.merchant_code : '',
-    merchantExplicit: false,
-  };
+  const intentMerchant = typeof intent.merchant_code === 'string' ? intent.merchant_code : '';
+  if (intent.merchant_explicit === true && intentMerchant) {
+    return {merchantCode: intentMerchant, merchantExplicit: true};
+  }
+  return {merchantCode: intentMerchant, merchantExplicit: false};
 }
 
-
-const ANONYMOUS_NON_PRODUCT_HINT = /(?:호텔|숙소|모텔|펜션|식당|음식점|카페|미용실|헤어|병원|의원|약국|예약|ktx|srt|기차|열차|항공|비행기|영화|공연|콘서트|길\s*안내|내비|네비)/iu;
-const ANONYMOUS_PRODUCT_SEARCH_VERB = /(?:찾아\s*줘|찾아주세요|검색해\s*줘|검색해주세요|보여\s*줘|보여주세요|상품\s*추천해\s*줘|제품\s*추천해\s*줘)/iu;
-
-function anonymousProductSearchQuery(text) {
-  const source = String(text || '').replace(/\s+/gu, ' ').trim();
-  if (!source || ANONYMOUS_NON_PRODUCT_HINT.test(source) || !ANONYMOUS_PRODUCT_SEARCH_VERB.test(source)) return '';
-  const cleaned = source
-    .replace(ANONYMOUS_PRODUCT_SEARCH_VERB, ' ')
-    .replace(/(?:좀|상품|제품)\s*$/u, ' ')
-    .replace(/\s+/gu, ' ')
-    .trim();
-  return cleaned || source;
-}
 
 function compactRichProductMeta(value) {
   if (!value || typeof value !== 'object') return null;
@@ -270,6 +268,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let richCardActionInFlight = false;
+  let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
   const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
   const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
@@ -279,12 +278,64 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
+  const guestSessionStorageKey = () => {
+    const owner = normalizedNamespace(namespace) || browserAnonymousNamespace();
+    return storageKey(owner, 'guest-session');
+  };
+  const clearGuestSession = () => {
+    guestSessionToken = undefined;
+    guestSessionExpiresAt = 0;
+    try { safeSessionStorage()?.removeItem(guestSessionStorageKey()); } catch {}
+  };
+  const readGuestSession = () => {
+    if (guestSessionToken && guestSessionExpiresAt > Date.now() + 5000) return guestSessionToken;
+    const stored = safeParse(safeSessionStorage()?.getItem(guestSessionStorageKey()), {});
+    const token = typeof stored.guestToken === 'string' ? stored.guestToken.trim() : '';
+    const expiresAt = typeof stored.expiresAt === 'string' ? Date.parse(stored.expiresAt) : NaN;
+    if (token.length >= 32 && token.length <= 256 && Number.isFinite(expiresAt) && expiresAt > Date.now() + 5000) {
+      guestSessionToken = token; guestSessionExpiresAt = expiresAt; return token;
+    }
+    clearGuestSession();
+    return undefined;
+  };
+  const ensureGuestSession = async () => {
+    const current = readGuestSession();
+    if (current) return current;
+    const issued = await createGuestConversationSession();
+    guestSessionToken = issued.guestToken;
+    guestSessionExpiresAt = Date.parse(issued.expiresAt);
+    try {
+      safeSessionStorage()?.setItem(guestSessionStorageKey(), JSON.stringify({
+        guestToken: issued.guestToken,
+        expiresAt: issued.expiresAt,
+      }));
+    } catch {}
+    return issued.guestToken;
+  };
+  const guestRecentContext = () => {
+    const messages = threadRecord()?.messages;
+    if (!Array.isArray(messages) || !messages.length) return [];
+    return messages.slice(0, -1).filter(item =>
+      item && (item.role === 'user' || item.role === 'assistant') && typeof item.text === 'string' && item.text.trim()
+    ).slice(-6).map(item => ({role: item.role, text: item.text.trim().slice(0, 500)}));
+  };
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
   const savePreferences = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences)); };
   const responseGradeLabel = grade => RESPONSE_GRADE_OPTIONS.find(([key]) => key === grade)?.[1] || '스탠다드';
+  const responseGradeAvailable = () => RESPONSE_GRADE_BACKEND_ENABLED && Boolean(sessionToken);
   const syncResponseGradeUi = () => {
-    const grade = RESPONSE_GRADE_OPTIONS.some(([key]) => key === preferences.responseGrade) ? preferences.responseGrade : DEFAULT_RESPONSE_GRADE;
+    const available = responseGradeAvailable();
+    const grade = available && RESPONSE_GRADE_OPTIONS.some(([key]) => key === preferences.responseGrade)
+      ? preferences.responseGrade
+      : DEFAULT_RESPONSE_GRADE;
     preferences.responseGrade = grade;
+    responseGradeControl.hidden = !available;
+    responseGradeControl.setAttribute('aria-hidden', String(!available));
+    responseGradeTrigger.disabled = !available;
+    if (!available) {
+      responseGradeMenu.hidden = true;
+      responseGradeTrigger.setAttribute('aria-expanded', 'false');
+    }
     const label = responseGradeLabel(grade);
     const labelNode = responseGradeTrigger.querySelector('[data-response-grade-label]');
     if (labelNode) labelNode.textContent = label;
@@ -292,7 +343,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     for (const option of responseGradeOptions) {
       const selected = option.dataset.responseGrade === grade;
       option.setAttribute('aria-checked', String(selected));
-      option.tabIndex = selected ? 0 : -1;
+      option.tabIndex = available && selected ? 0 : -1;
     }
   };
   const applyPreferences = () => {
@@ -306,15 +357,20 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const showBlankHome = () => {
     restoreAvatarHome(); thread.replaceChildren(); thread.hidden = true; document.body.classList.remove('conversation-active');
   };
+  const isThreadNearBottom = () => (
+    thread.scrollHeight - thread.scrollTop - thread.clientHeight <= 72
+  );
   const scrollThread = () => { thread.scrollTop = thread.scrollHeight; };
-  const appendNode = node => {
+  const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
+    const shouldStick = forceScroll || (!suppressScroll && isThreadNearBottom());
     showThread();
     if (node instanceof HTMLElement && node.dataset.role === 'assistant') {
       const row = document.createElement('div'); row.className = 'chat-assistant-row';
       const slot = document.createElement('div'); slot.className = 'assistant-avatar-slot'; slot.setAttribute('aria-hidden', 'true');
       slot.appendChild(avatar); row.append(slot, node); thread.appendChild(row);
     } else thread.appendChild(node);
-    scrollThread(); return node;
+    if (!suppressScroll && shouldStick) scrollThread();
+    return node;
   };
   const renderRecent = () => {
     for (const list of document.querySelectorAll('[data-recent-conversations]')) {
@@ -335,7 +391,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     record.messages.push(message); record.messages = record.messages.slice(-MESSAGE_LIMIT); record.updatedAt = Date.now();
     state.threads.sort((a, b) => b.updatedAt - a.updatedAt); saveState(); renderRecent();
   };
-
   const lotbiBoxKey = () => storageKey(namespace || browserAnonymousNamespace(), 'lotbi-box');
   const loadLotbiBox = () => {
     const parsed = safeParse(storage?.getItem(lotbiBoxKey()), []);
@@ -486,8 +541,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     restoreAvatarHome(); thread.replaceChildren();
     const record = threadRecord();
     if (!record || !record.messages.length) { showBlankHome(); return; }
-    for (const message of record.messages) appendNode(messageNode(message));
     showThread();
+    for (const message of record.messages) {
+      appendNode(messageNode(message), {suppressScroll: true});
+    }
+    scrollThread();
   };
   const closeMobileDrawer = () => {
     const close = document.querySelector('[data-mobile-nav-close]');
@@ -742,6 +800,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (restoreFocus) responseGradeTrigger.focus();
   };
   const openResponseGradeMenu = ({edge = ''} = {}) => {
+    if (!responseGradeAvailable()) return;
     responseGradeMenu.hidden = false;
     responseGradeTrigger.setAttribute('aria-expanded', 'true');
     responseGradeOpen = true;
@@ -754,6 +813,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     });
   };
   const selectResponseGrade = grade => {
+    if (!responseGradeAvailable()) return;
     if (!RESPONSE_GRADE_OPTIONS.some(([key]) => key === grade)) return;
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     preferences.responseGrade = grade;
@@ -817,12 +877,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
-    const retryable = isSessionError(error) || !(error instanceof SiteCoreError) || error.retryable;
+    const retryable = isSessionError(error) || isGuestSessionError(error) || !(error instanceof SiteCoreError) || error.retryable;
     if (retryable) {
       const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'chat-retry-button'; retry.textContent = isSessionError(error) ? '다시 연결' : '다시 시도';
       retry.addEventListener('click', async () => {
         retry.disabled = true;
-        if (isSessionError(error) || !sessionToken) {
+        if (isSessionError(error)) {
           try { await beginSiteHandoff(retryText); }
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
@@ -839,7 +899,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     ensureThread(message);
     if (appendUserMessage) {
-      appendNode(createMessage('user', message)); appendPersistedMessage({role: 'user', text: message, meta: {}});
+      appendNode(createMessage('user', message), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {}});
     }
     const local = deterministicReply(message);
     if (local) {
@@ -856,57 +916,69 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
-    if (!sessionToken) {
-      const publicProductQuery = anonymousProductSearchQuery(message);
-      if (publicProductQuery) {
-        const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
-        try {
-          const merchantHint = productMerchantHint(message);
-          const publicResult = await searchPublicProductCards({
-            query: publicProductQuery,
-            merchantCode: merchantHint.merchantCode,
-            merchantExplicit: merchantHint.merchantExplicit,
-            maxResults: 6,
-          });
-          loading.parentElement?.remove();
-          const richProduct = compactRichProductMeta({
-            displayId: publicResult.displayId,
-            query: publicResult.query,
-            originalText: message,
-            merchant: publicResult.merchant,
-            sourceMode: publicResult.sourceMode,
-            expired: false,
-            cards: publicResult.cards,
-          });
-          const assistantText = richProduct
-            ? '실제 판매처에서 지금 확인할 수 있는 상품이에요.'
-            : '현재 연결된 실제 판매처에서 조건에 맞는 상품을 찾지 못했습니다.';
-          const meta = {status: richProduct ? 'ANSWERED' : 'NO_MATCH', responseMode: 'PUBLIC_RICH_PRODUCT_DISCOVERY'};
-          if (richProduct) meta.richProduct = richProduct;
-          const node = createMessage('assistant', assistantText, meta);
-          if (richProduct) {
-            const rail = createProductCardRail(richProduct);
-            if (rail) node.appendChild(rail);
-          }
-          appendNode(node); appendPersistedMessage({role: 'assistant', text: assistantText, meta});
-          diagnostics.lastPath = 'PUBLIC_RICH_PRODUCT_DISCOVERY'; diagnostics.coreCalls += 1; diagnostics.providerCallsAvoided += 1;
-          diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt));
-          publishDiagnostics();
-          setStatus(richProduct ? '로그인 없이 실제 상품 카드를 확인했습니다.' : '실제 판매처에서 일치하는 상품을 찾지 못했습니다.');
-        } catch (caught) {
-          loading.parentElement?.remove();
-          const explicitUnavailable = caught instanceof SiteCoreError && caught.code === 'PRODUCT_DISPLAY_SOURCE_UNAVAILABLE_FOR_MERCHANT';
-          const assistantText = explicitUnavailable
-            ? '요청한 판매처는 현재 LOTBI가 실제 상품 카드 데이터를 읽을 수 있는 공식 경로가 없습니다.'
-            : '현재 로그인 없이 확인 가능한 실제 판매처 상품 검색을 완료하지 못했습니다. 없는 상품이나 가격을 만들지 않았습니다.';
-          const meta = {status: 'DISPLAY_UNAVAILABLE', responseMode: 'PUBLIC_RICH_PRODUCT_DISCOVERY'};
-          appendNode(createMessage('assistant', assistantText, meta));
-          appendPersistedMessage({role: 'assistant', text: assistantText, meta});
-          setStatus(assistantText);
-        } finally { inFlight = false; updateSendState(); prompt.focus(); }
-        return;
-      }
+    if (!sessionToken && isExplicitLifeCalendarCommand(message)) {
       try { await beginSiteHandoff(message); } catch (caught) { showError(caught, message, false); }
+      return;
+    }
+    if (!sessionToken) {
+      const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
+      const guestRequestId = logicalRequestId || newId('guest-ai');
+      diagnostics.lastPath = 'CORE_GUEST_CONVERSATION'; diagnostics.coreCalls += 1;
+      const coreStartedAt = performanceNow(); recordTiming('T1-core-guest-request', {coreCall: diagnostics.coreCalls});
+      try {
+        const token = await ensureGuestSession();
+        const response = await sendGuestConversationMessage({
+          guestToken: token,
+          text: message,
+          idempotencyKey: guestRequestId,
+          recentContext: guestRecentContext(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+        });
+        diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
+        recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
+        loading.parentElement?.remove();
+        const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        let richProduct = null;
+        const guestPurchase = response.intent?.action === 'PURCHASE' || response.followUp?.action === 'PURCHASE';
+        if (guestPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
+          try {
+            const merchantHint = productMerchantHint(message, response.intent);
+            const publicResult = await searchPublicProductCards({
+              query: response.intent.product_query,
+              merchantCode: merchantHint.merchantCode,
+              merchantExplicit: merchantHint.merchantExplicit,
+              maxResults: 6,
+            });
+            richProduct = compactRichProductMeta({
+              displayId: publicResult.displayId,
+              query: publicResult.query,
+              originalText: message,
+              merchant: publicResult.merchant,
+              sourceMode: publicResult.sourceMode,
+              expired: false,
+              cards: publicResult.cards,
+            });
+          } catch (cardError) {
+            console.info('[LOTBI public rich product cards unavailable]', {
+              code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN',
+            });
+          }
+        }
+        if (richProduct) meta.richProduct = richProduct;
+        const assistantNode = createMessage('assistant', response.assistantText, meta);
+        if (richProduct) {
+          const rail = createProductCardRail(richProduct);
+          if (rail) assistantNode.appendChild(rail);
+        }
+        appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+        diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
+        setStatus(richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
+      } catch (caught) {
+        loading.parentElement?.remove();
+        if (isGuestSessionError(caught)) clearGuestSession();
+        showError(caught, message, true, guestRequestId);
+        setStatus('LOTBI 대화를 완료하지 못했습니다.');
+      } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
     if (isExplicitLifeCalendarCommand(message)) {
@@ -940,27 +1012,43 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
       let richProduct = null;
-      if (response.followUp?.action === 'PURCHASE' && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
+      const authenticatedPurchase = response.intent?.action === 'PURCHASE' || response.followUp?.action === 'PURCHASE';
+      if (authenticatedPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
         try {
           const merchantHint = productMerchantHint(message, response.intent);
           const discovery = await searchProductCards(sessionToken, {
-            query: response.intent.product_query, originalText: message, merchantCode: merchantHint.merchantCode,
-            merchantExplicit: merchantHint.merchantExplicit, brand: typeof response.intent.brand === 'string' ? response.intent.brand : '',
+            query: response.intent.product_query,
+            originalText: message,
+            merchantCode: merchantHint.merchantCode,
+            merchantExplicit: merchantHint.merchantExplicit,
+            brand: typeof response.intent.brand === 'string' ? response.intent.brand : '',
             maxPrice: Number.isInteger(response.intent.max_price) ? response.intent.max_price : null,
-            preferences: Array.isArray(response.intent.preferences) ? response.intent.preferences : [], maxResults: 6,
+            preferences: Array.isArray(response.intent.preferences) ? response.intent.preferences : [],
+            maxResults: 6,
           });
           const cards = await getProductCards(sessionToken, discovery.resolutionId);
           richProduct = compactRichProductMeta({
-            resolutionId: cards.resolutionId, resolutionHash: cards.resolutionHash, merchant: discovery.merchant,
-            sourceMode: cards.sourceMode || discovery.sourceMode, expired: cards.expired, cards: cards.cards,
+            resolutionId: cards.resolutionId,
+            resolutionHash: cards.resolutionHash,
+            query: cards.query,
+            originalText: message,
+            merchant: discovery.merchant,
+            sourceMode: cards.sourceMode || discovery.sourceMode,
+            expired: cards.expired,
+            cards: cards.cards,
           });
         } catch (cardError) {
-          console.info('[LOTBI rich product cards unavailable]', {code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN'});
+          console.info('[LOTBI rich product cards unavailable]', {
+            code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN',
+          });
         }
       }
       if (richProduct) meta.richProduct = richProduct;
       const assistantNode = createMessage('assistant', response.assistantText, meta);
-      if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
+      if (richProduct) {
+        const rail = createProductCardRail(richProduct);
+        if (rail) assistantNode.appendChild(rail);
+      }
       appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
@@ -971,6 +1059,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       showError(caught, message, true); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
   };
+  window.addEventListener('lotbi:keyboard-viewport', () => {
+    if (!thread.hidden && isThreadNearBottom()) {
+      requestAnimationFrame(scrollThread);
+    }
+  });
+
   const submitCurrentPrompt = async () => {
     if (inFlight) return; const message = prompt.value.trim(); if (!message) return;
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
@@ -1037,7 +1131,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
   });
   syncResponseGradeUi();
-  updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '메시지를 보내면 안전한 LOTBI 계정 연결이 필요한 경우 로그인으로 이동합니다.');
+  updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '로그인 없이도 LOTBI와 바로 대화할 수 있습니다. 계정 기능이 필요할 때만 로그인합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
   if (sessionToken) void loadServerProfile();
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
