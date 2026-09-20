@@ -184,6 +184,29 @@ function koreanDateLabel(value) {
   }
 }
 
+export function loadGuestLifeCalendarManagerView({
+  view = 'all',
+  date = '',
+  timezone = resolvedTimezone(),
+  now = new Date(),
+} = {}) {
+  const key = normalizedManagerView(view);
+  const todayDate = localDateString(now, timezone);
+  const selectedDate = key === 'date' && validDateString(date) ? date : todayDate;
+  const labels = Object.fromEntries(LIFE_CALENDAR_MANAGER_VIEWS);
+  const descriptionDate = key === 'date' ? selectedDate : todayDate;
+
+  return Object.freeze({
+    key,
+    label: labels[key] || labels.all,
+    description: `${koreanDateLabel(descriptionDate)} · 로그인 없이 사용하는 캘린더`,
+    kind: key === 'attention' ? 'attention' : 'agenda',
+    items: Object.freeze([]),
+    date: selectedDate,
+    guest: true,
+  });
+}
+
 export async function loadLifeCalendarManagerView(
   sessionToken,
   {
@@ -343,10 +366,7 @@ export async function mountLifeCalendarManager({
   fetchImpl = globalThis.fetch,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
-  if (typeof sessionToken !== 'string' || !sessionToken.trim()) {
-    root.replaceChildren();
-    return false;
-  }
+  const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
 
   let activeView = normalizedManagerView(initialView);
   let selectedDate = localDateString(now, timezone);
@@ -394,13 +414,20 @@ export async function mountLifeCalendarManager({
     body.replaceChildren(loading);
 
     try {
-      const result = await loadLifeCalendarManagerView(sessionToken, {
-        view: activeView,
-        date: selectedDate,
-        timezone,
-        now,
-        fetchImpl,
-      });
+      const result = authenticated
+        ? await loadLifeCalendarManagerView(sessionToken, {
+            view: activeView,
+            date: selectedDate,
+            timezone,
+            now,
+            fetchImpl,
+          })
+        : loadGuestLifeCalendarManagerView({
+            view: activeView,
+            date: selectedDate,
+            timezone,
+            now,
+          });
       activeView = result.key;
       selectedDate = result.date || selectedDate;
       dateInput.value = selectedDate;
@@ -413,20 +440,23 @@ export async function mountLifeCalendarManager({
         button.tabIndex = selected ? 0 : -1;
       }
 
-      const context = {
-        sessionToken,
-        timezone,
-        refresh: async () => {
-          await refresh();
-          window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
-        },
-      };
+      const context = authenticated
+        ? {
+            sessionToken,
+            timezone,
+            refresh: async () => {
+              await refresh();
+              window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+            },
+          }
+        : undefined;
       body.replaceChildren(...(
         result.kind === 'attention'
           ? attentionNodes(result.items)
           : groupedAgendaNodes(result.items, context)
       ));
       root.dataset.calendarManagerView = activeView;
+      root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest';
     } catch (error) {
       body.replaceChildren();
       const message = document.createElement('p');

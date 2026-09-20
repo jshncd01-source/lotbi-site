@@ -5,8 +5,8 @@ import {
   SiteHandoffClientError,
 } from './site-auth.js?v=20260920-fallback4';
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260920-guest3';
-import {mountConversation} from './site-conversation.js?v=20260920-attachments1';
-import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-calnav9';
+import {mountConversation} from './site-conversation.js?v=20260920-attachments2';
+import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-guestcal1';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
