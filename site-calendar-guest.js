@@ -5,6 +5,8 @@ const SCHEMA_VERSION = 1;
 const DEFAULT_LIMIT = 500;
 const GUEST_ID_PATTERN = /^guest_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATETIME_PATTERN = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+const CALENDAR_ACTION_ID_PATTERN = /^calact_[0-9a-f]{24}$/;
+const CALENDAR_CANDIDATE_ID_PATTERN = /^calcand_[0-9a-f]{24}$/;
 
 class GuestCalendarError extends Error {
   constructor(message, code) {
@@ -38,7 +40,16 @@ function safeStoredEvent(value) {
   let normalized;
   try { normalized = normalizeEventInput(value); } catch { return null; }
   if (typeof value.created_at !== 'string' || typeof value.updated_at !== 'string') return null;
-  return Object.freeze({id: value.id, ...normalized, created_at: value.created_at, updated_at: value.updated_at});
+  const actionId = value.calendar_action_id == null ? '' : String(value.calendar_action_id);
+  const candidateId = value.calendar_candidate_id == null ? '' : String(value.calendar_candidate_id);
+  if ((actionId || candidateId) && (!CALENDAR_ACTION_ID_PATTERN.test(actionId) || !CALENDAR_CANDIDATE_ID_PATTERN.test(candidateId))) return null;
+  return Object.freeze({
+    id: value.id,
+    ...normalized,
+    ...(actionId ? {calendar_action_id: actionId, calendar_candidate_id: candidateId} : {}),
+    created_at: value.created_at,
+    updated_at: value.updated_at,
+  });
 }
 
 function readState(storage) {
@@ -71,8 +82,7 @@ export function createGuestCalendarRepository(
 
   const list = () => Object.freeze(sortCalendarEvents(readState(storage)).map(event => Object.freeze({...event})));
 
-  const create = input => {
-    const events = readState(storage);
+  const createEvent = (events, input, metadata = {}) => {
     if (events.length >= limit) {
       throw new GuestCalendarError('이 브라우저에 저장할 수 있는 일정 수에 도달했습니다.', 'GUEST_CALENDAR_LIMIT_REACHED');
     }
@@ -80,9 +90,40 @@ export function createGuestCalendarRepository(
     const stamp = now().toISOString();
     const id = `guest_${uuid()}`;
     if (!GUEST_ID_PATTERN.test(id)) throw new GuestCalendarError('일정 식별자가 올바르지 않습니다.', 'GUEST_CALENDAR_UUID_INVALID');
-    const event = Object.freeze({id, ...normalized, created_at: stamp, updated_at: stamp});
+    const event = Object.freeze({id, ...normalized, ...metadata, created_at: stamp, updated_at: stamp});
     writeState(storage, [...events, event]);
     return event;
+  };
+
+  const create = input => createEvent(readState(storage), input);
+
+  const createForAction = (actionId, candidateId, input) => {
+    const normalizedActionId = String(actionId || '').trim();
+    const normalizedCandidateId = String(candidateId || '').trim();
+    if (!CALENDAR_ACTION_ID_PATTERN.test(normalizedActionId) || !CALENDAR_CANDIDATE_ID_PATTERN.test(normalizedCandidateId)) {
+      throw new GuestCalendarError('일정 액션 식별자가 올바르지 않습니다.', 'GUEST_CALENDAR_ACTION_INVALID');
+    }
+    const events = readState(storage);
+    const previous = events.find(event => event.calendar_action_id === normalizedActionId);
+    if (previous) {
+      if (previous.calendar_candidate_id !== normalizedCandidateId) {
+        throw new GuestCalendarError('같은 일정 액션의 내용이 달라졌습니다.', 'GUEST_CALENDAR_ACTION_CONFLICT');
+      }
+      const normalized = normalizeEventInput(input);
+      if (
+        previous.title !== normalized.title
+        || previous.local_date !== normalized.local_date
+        || previous.local_datetime !== normalized.local_datetime
+        || previous.all_day !== normalized.all_day
+      ) {
+        throw new GuestCalendarError('같은 일정 액션의 저장 내용이 달라졌습니다.', 'GUEST_CALENDAR_ACTION_CONFLICT');
+      }
+      return previous;
+    }
+    return createEvent(events, input, {
+      calendar_action_id: normalizedActionId,
+      calendar_candidate_id: normalizedCandidateId,
+    });
   };
 
   const update = (id, input) => {
@@ -93,6 +134,10 @@ export function createGuestCalendarRepository(
     const event = Object.freeze({
       id: previous.id,
       ...normalizeEventInput(input),
+      ...(previous.calendar_action_id ? {
+        calendar_action_id: previous.calendar_action_id,
+        calendar_candidate_id: previous.calendar_candidate_id,
+      } : {}),
       created_at: previous.created_at,
       updated_at: now().toISOString(),
     });
@@ -109,5 +154,5 @@ export function createGuestCalendarRepository(
     return true;
   };
 
-  return Object.freeze({list, create, update, remove});
+  return Object.freeze({list, create, createForAction, update, remove});
 }
