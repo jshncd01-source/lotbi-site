@@ -36,6 +36,8 @@ const counts={me:0,subscription:0,logout:0,accountLogout:0,other:0};
 HTMLFormElement.prototype.requestSubmit=function(){
   const intent=this.querySelector('input[name="intent"]');
   if(this.method!=='post'||this.action!=='https://account.lotbiai.com/auth/site-logout'||intent?.value!=='logout')throw new Error('account logout handoff contract');
+  const suppression=sessionStorage.getItem('lotbi.site-logout-suppression.v1');
+  if(!suppression||!/^\\d+$/.test(suppression))throw new Error('logout suppression missing before account navigation');
   counts.accountLogout+=1;
 };
 let releaseSubscription;const subscriptionGate=new Promise(resolve=>{releaseSubscription=resolve});
