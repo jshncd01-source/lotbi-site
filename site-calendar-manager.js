@@ -309,11 +309,12 @@ function fitMonthEventDensity(layout) {
     for (const row of rows) row.hidden = false;
     const available = stack.clientHeight;
     const rowHeight = Math.max(24, Math.ceil(rows[0].getBoundingClientRect().height || 24));
-    const gap = 2;
-    const capacity = Math.max(1, Math.floor((available + gap) / (rowHeight + gap)));
-    if (rows.length <= capacity) continue;
+    const moreHeight = Math.max(22, Math.ceil(more?.getBoundingClientRect().height || 22));
+    const gap = 1;
+    const fullCapacity = Math.max(1, Math.floor((available + gap) / (rowHeight + gap)));
+    if (rows.length <= fullCapacity) continue;
 
-    const visible = Math.max(0, capacity - 1);
+    const visible = Math.max(0, Math.floor((available - moreHeight) / (rowHeight + gap)));
     rows.forEach((row, index) => { row.hidden = index >= visible; });
     if (more) {
       more.hidden = false;
