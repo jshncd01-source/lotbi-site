@@ -28,7 +28,9 @@ jobs:
       - name: PHASE 16 actual Production guest attachment E2E
         env:
           E2E_URL: https://lotbiai.com/?phase16-ci=${{ github.sha }}
-        run: python scripts/phase16_production_e2e_evidence.py | tee /tmp/phase16-evidence/run.log
+        run: |
+          mkdir -p /tmp/phase16-evidence
+          python scripts/phase16_production_e2e_evidence.py | tee /tmp/phase16-evidence/run.log
 
       - name: Upload PHASE 16 E2E evidence
         if: always()

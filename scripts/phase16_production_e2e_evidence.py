@@ -94,8 +94,6 @@ def viewport_probe(width: int, height: int) -> dict:
     assert value["horizontalOverflow"] is False, value
     assert value["composerVisible"] is True, value
     assert value["avatarVisible"] is True, value
-    assert value["transcriptOverflowY"] == "auto", value
-    assert value["mainOverflowY"] == "hidden", value
     return value
 
 def open_attachment_menu_and_get_items() -> list[str]:
@@ -207,6 +205,51 @@ try:
         "assistant_text": text_reply,
         "status": status_text(),
     }
+
+    # The transcript owns scrolling only after a real conversation becomes active.
+    active_layout = []
+    for width, height in [(390, 844), (412, 915), (768, 900), (1280, 900)]:
+        driver.execute_cdp_cmd(
+            "Emulation.setDeviceMetricsOverride",
+            {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False},
+        )
+        time.sleep(0.3)
+        probe = driver.execute_script("""
+            const thread = document.querySelector('.conversation-thread');
+            const main = document.querySelector('.chat-home-shell');
+            const composer = document.querySelector('.chat-composer-stack');
+            const avatar = document.querySelector('[data-lotbi-avatar-container]');
+            const cr = composer.getBoundingClientRect();
+            const ar = avatar.getBoundingClientRect();
+            return {
+              width: innerWidth,
+              height: innerHeight,
+              conversationActive: document.body.classList.contains('conversation-active'),
+              threadHidden: thread.hidden,
+              transcriptOverflowY: getComputedStyle(thread).overflowY,
+              mainOverflowY: getComputedStyle(main).overflowY,
+              horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+              composerVisible: cr.width > 0 && cr.height > 0 && cr.bottom <= innerHeight + 2 && cr.top < innerHeight,
+              avatarVisible: ar.width > 0 && ar.height > 0 && getComputedStyle(avatar).display !== 'none',
+            };
+        """)
+        assert probe["width"] == width, probe
+        assert probe["height"] == height, probe
+        assert probe["conversationActive"] is True, probe
+        assert probe["threadHidden"] is False, probe
+        assert probe["transcriptOverflowY"] == "auto", probe
+        assert probe["mainOverflowY"] == "hidden", probe
+        assert probe["horizontalOverflow"] is False, probe
+        assert probe["composerVisible"] is True, probe
+        assert probe["avatarVisible"] is True, probe
+        active_layout.append(probe)
+    result["active_conversation_layout"] = active_layout
+
+    driver.execute_cdp_cmd(
+        "Emulation.setDeviceMetricsOverride",
+        {"width": 1280, "height": 900, "deviceScaleFactor": 1, "mobile": False},
+    )
+    time.sleep(0.3)
 
     # C. Attachment only.
     upload(JSON_FILE, "phase16-only.json")
