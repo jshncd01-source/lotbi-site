@@ -1,4 +1,4 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260920-convcal1';
 import {isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-nav1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
