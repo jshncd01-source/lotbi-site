@@ -153,7 +153,9 @@ function assertViewport(label, result, width, height, mode) {
     throw new Error(`${label}: scrolling recent conversations moved fixed primary/secondary/account regions`);
   }
   if (result.calendar.viewCount !== 5) throw new Error(`${label}: Calendar submenu count changed (${result.calendar.viewCount})`);
-  if (result.calendar.top < 0 || result.calendar.bottom > result.recent.clientHeight + result.calendar.bottom + height) { /* geometry covered below */ }
+  if (result.calendar.top < 0 || result.calendar.bottom > height + tolerance) {
+    throw new Error(`${label}: expanded Calendar navigation left the viewport (${result.calendar.top}..${result.calendar.bottom})`);
+  }
   if (result.secondary.top < 0 || result.secondary.bottom > result.footer.top + tolerance) throw new Error(`${label}: secondary connected-services link left its intended slot`);
   if (result.footer.bottom > height + tolerance || result.footer.top < 0) throw new Error(`${label}: account footer left viewport (${result.footer.top}..${result.footer.bottom})`);
   if (result.title.webkitLineClamp !== '2') throw new Error(`${label}: recent title 2-line clamp missing (${result.title.webkitLineClamp})`);
