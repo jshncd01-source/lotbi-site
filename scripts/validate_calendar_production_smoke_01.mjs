@@ -166,7 +166,7 @@ try {
     'conversation mounted',
   );
 
-  const before = await cdp.evaluate(`s(() => {
+  const before = await cdp.evaluate(`(() => {
     const entry = document.querySelector('.chat-sidebar-desktop button[data-calendar-view="all"]');
     return {
       href: location.href,
@@ -182,7 +182,7 @@ try {
     throw new Error('Production Calendar entry not directly bound: ' + JSON.stringify(before));
   }
 
-  await cdp.evaluate(`document.querySelector('.chat-sidebar-desktop button[data-calendar-view="all"]').lick(); true`);
+  await cdp.evaluate(`document.querySelector('.chat-sidebar-desktop button[data-calendar-view="all"]').click(); true`);
   await waitFor(
     () => cdp.evaluate("Boolean(document.querySelector('.site-modal.site-calendar-modal'))"),
     'Calendar modal',
