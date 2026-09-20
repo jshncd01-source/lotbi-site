@@ -296,12 +296,21 @@ try {
     () => cdp.evaluate("Boolean(document.querySelector('.calendar-day-panel:not([hidden])'))"),
     'Enter selected-day detail',
   );
+  const enterFocus = await waitFor(
+    () => cdp.evaluate("document.activeElement?.dataset.calendarDateTrigger || null"),
+    'Enter date focus restore',
+  );
   await cdp.command('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Escape', code: 'Escape'});
   await cdp.command('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Escape', code: 'Escape'});
-  const keyboardEscape = await waitFor(
-    () => cdp.evaluate("(() => { const panel=document.querySelector('.calendar-day-panel'); const active=document.activeElement?.dataset.calendarDateTrigger||null; return panel?.hidden && active ? {active,hidden:panel.hidden} : null; })()"),
+  await waitFor(
+    () => cdp.evaluate("document.querySelector('.calendar-day-panel')?.hidden === true"),
     'Escape selected-day detail',
   );
+  const keyboardEscape = await waitFor(
+    () => cdp.evaluate("(() => { const active=document.activeElement?.dataset.calendarDateTrigger||null; return active ? {active} : null; })()"),
+    'Escape date focus restore',
+  );
+  keyboardEscape.enterFocus = enterFocus;
 
   const guestTitle = 'LOTBI Production E2E temporary';
   const guestDate = await cdp.evaluate("(() => { const cell=[...document.querySelectorAll('.calendar-date-cell[data-current-month=\"true\"]')].find(node=>node.dataset.calendarDate && !node.dataset.today); const trigger=cell?.querySelector('.calendar-date-trigger'); trigger?.click(); return cell?.dataset.calendarDate||null; })()");
