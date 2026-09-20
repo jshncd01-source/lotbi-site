@@ -262,7 +262,7 @@ function trapFocus(container, event) {
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 }
 
-export function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
+function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
@@ -1354,6 +1354,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
   return true;
 }
+
+export {mountConversation};
 
 function autoMount() { if (document.getElementById('lotbi-prompt')) mountConversation(); }
 ensureConversationStyles();
