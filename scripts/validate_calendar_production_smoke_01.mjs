@@ -254,7 +254,143 @@ try {
     throw new Error('Delegated Calendar fallback failed: ' + JSON.stringify(fallback));
   }
 
-  console.log('CALENDAR PRODUCTION SMOKE PASS', JSON.stringify({before, first, replacement, fallback}));
+
+  await cdp.evaluate("document.querySelector('.site-calendar-modal .site-modal-close').click(); true");
+  await waitFor(
+    () => cdp.evaluate("!document.querySelector('.site-modal.site-calendar-modal')"),
+    'Calendar close after fallback',
+  );
+
+  await cdp.command('Emulation.setDeviceMetricsOverride', {
+    width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
+  });
+  await cdp.command('Page.reload', {ignoreCache: true});
+  await waitFor(() => cdp.evaluate("document.readyState === 'complete'"), 'desktop reload');
+  await waitFor(
+    () => cdp.evaluate("document.querySelector('.send-button')?.dataset.conversationMounted === 'true'"),
+    'desktop conversation remount',
+  );
+  await cdp.evaluate("document.querySelector('.chat-sidebar-desktop button[data-calendar-view=\"all\"]').click(); true");
+  await waitFor(
+    () => cdp.evaluate("Boolean(document.querySelector('.site-modal.site-calendar-modal'))"),
+    'desktop Calendar reopen',
+    7000,
+  );
+
+  const keyboardStart = await cdp.evaluate("(() => { const buttons=[...document.querySelectorAll('.calendar-date-cell[data-current-month=\"true\"] .calendar-date-trigger')]; const target=buttons.find(button=>button.dataset.calendarDateTrigger!==document.querySelector('.calendar-date-cell[data-selected=\"true\"] .calendar-date-trigger')?.dataset.calendarDateTrigger) || buttons[0]; target.focus(); return {date:target.dataset.calendarDateTrigger,active:document.activeElement?.dataset.calendarDateTrigger||null}; })()");
+  if (!keyboardStart.date || keyboardStart.active !== keyboardStart.date) {
+    throw new Error('Calendar keyboard start focus failed: ' + JSON.stringify(keyboardStart));
+  }
+  await cdp.command('Input.dispatchKeyEvent', {type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight'});
+  await cdp.command('Input.dispatchKeyEvent', {type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight'});
+  const keyboardMoved = await waitFor(
+    () => cdp.evaluate("(() => { const active=document.activeElement?.dataset.calendarDateTrigger||null; const selected=document.querySelector('.calendar-date-cell[data-selected=\"true\"]')?.dataset.calendarDate||null; return active && active===selected ? {active,selected} : null; })()"),
+    'ArrowRight date focus',
+  );
+  if (keyboardMoved.active === keyboardStart.date) {
+    throw new Error('ArrowRight did not move Calendar date focus: ' + JSON.stringify({keyboardStart, keyboardMoved}));
+  }
+  await cdp.command('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Enter', code: 'Enter'});
+  await cdp.command('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Enter', code: 'Enter'});
+  await waitFor(
+    () => cdp.evaluate("Boolean(document.querySelector('.calendar-day-panel:not([hidden])'))"),
+    'Enter selected-day detail',
+  );
+  await cdp.command('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Escape', code: 'Escape'});
+  await cdp.command('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Escape', code: 'Escape'});
+  const keyboardEscape = await waitFor(
+    () => cdp.evaluate("(() => { const panel=document.querySelector('.calendar-day-panel'); const active=document.activeElement?.dataset.calendarDateTrigger||null; return panel?.hidden && active ? {active,hidden:panel.hidden} : null; })()"),
+    'Escape selected-day detail',
+  );
+
+  const guestTitle = 'LOTBI Production E2E temporary';
+  const guestDate = await cdp.evaluate("(() => { const cell=[...document.querySelectorAll('.calendar-date-cell[data-current-month=\"true\"]')].find(node=>node.dataset.calendarDate && !node.dataset.today); const trigger=cell?.querySelector('.calendar-date-trigger'); trigger?.click(); return cell?.dataset.calendarDate||null; })()");
+  if (!guestDate) throw new Error('Guest CRUD target date missing');
+  await waitFor(
+    () => cdp.evaluate("Boolean(document.querySelector('.calendar-day-panel:not([hidden]) .calendar-day-add'))"),
+    'Guest day add control',
+  );
+  await cdp.evaluate("document.querySelector('.calendar-day-panel:not([hidden]) .calendar-day-add').click(); true");
+  await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-editor-dialog'))"), 'Guest add editor');
+  await cdp.evaluate("(() => { const title=document.querySelector('.calendar-editor-title'); const date=document.querySelector('.calendar-editor-date'); const time=document.querySelector('.calendar-editor-time'); const allDay=document.querySelector('.calendar-editor-all-day input'); title.value='LOTBI Production E2E temporary'; title.dispatchEvent(new Event('input',{bubbles:true})); date.value=" + JSON.stringify("__GUEST_DATE__") + "; if(allDay?.checked){allDay.click();} time.value='15:30'; time.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('.calendar-editor-save').click(); return true; })()".replace('"__GUEST_DATE__"', JSON.stringify(guestDate)));
+  await waitFor(
+    () => cdp.evaluate("Boolean([...document.querySelectorAll('.calendar-event-chip')].find(node=>node.textContent.includes('LOTBI Production E2E temporary')))"),
+    'Guest event visible after save',
+  );
+  const guestStored = await cdp.evaluate("(() => { const raw=localStorage.getItem('lotbi.guest.calendar.v1'); const parsed=raw?JSON.parse(raw):null; const event=parsed?.events?.find(item=>item.title==='LOTBI Production E2E temporary'); return event ? {id:event.id,date:event.local_date,datetime:event.local_datetime} : null; })()");
+  if (!guestStored || guestStored.date !== guestDate) {
+    throw new Error('Guest event not stored locally: ' + JSON.stringify({guestDate, guestStored}));
+  }
+  await cdp.evaluate("([...document.querySelectorAll('.calendar-event-chip')].find(node=>node.textContent.includes('LOTBI Production E2E temporary'))).click(); true");
+  await waitFor(() => cdp.evaluate("document.querySelector('.calendar-editor-dialog h3')?.textContent==='일정 수정'"), 'Guest edit editor');
+  await cdp.evaluate("document.querySelector('.calendar-editor-cancel').click(); true");
+  await waitFor(() => cdp.evaluate("!document.querySelector('.calendar-editor-dialog')"), 'Guest edit cancel');
+
+  await cdp.evaluate("([...document.querySelectorAll('.calendar-event-chip')].find(node=>node.textContent.includes('LOTBI Production E2E temporary'))).click(); true");
+  await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-editor-delete'))"), 'Guest delete control');
+  await cdp.evaluate("document.querySelector('.calendar-editor-delete').click(); true");
+  await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-editor-confirm-delete-button'))"), 'Guest delete confirmation');
+  await cdp.evaluate("document.querySelector('.calendar-editor-confirm-delete-button').click(); true");
+  await waitFor(
+    () => cdp.evaluate("!localStorage.getItem('lotbi.guest.calendar.v1') || !JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')).events.some(item=>item.title==='LOTBI Production E2E temporary')"),
+    'Guest event deleted',
+  );
+  const guestCrud = {date: guestDate, stored: guestStored, deleted: true};
+
+  await cdp.evaluate("document.querySelector('.site-calendar-modal .site-modal-close').click(); true");
+  await waitFor(() => cdp.evaluate("!document.querySelector('.site-modal.site-calendar-modal')"), 'desktop Calendar close after CRUD');
+
+  const responsiveResults = [];
+  for (const [width, height] of [[768, 900], [390, 844], [340, 800]]) {
+    await cdp.command('Emulation.setDeviceMetricsOverride', {
+      width, height, deviceScaleFactor: 1, mobile: false,
+    });
+    await cdp.command('Page.reload', {ignoreCache: true});
+    await waitFor(() => cdp.evaluate("document.readyState === 'complete'"), width + ' document complete');
+    await waitFor(
+      () => cdp.evaluate("document.querySelector('.send-button')?.dataset.conversationMounted === 'true'"),
+      width + ' conversation mounted',
+    );
+    await cdp.evaluate("document.querySelector('[data-mobile-nav-open]').click(); true");
+    await waitFor(() => cdp.evaluate("document.body.classList.contains('nav-drawer-open')"), width + ' mobile drawer');
+    await cdp.evaluate("document.querySelector('#mobile-nav-drawer button[data-calendar-view=\"all\"]').click(); true");
+    await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.site-modal.site-calendar-modal'))"), width + ' Calendar modal', 7000);
+    const geometry = await cdp.evaluate("(() => { const modal=document.querySelector('.site-modal.site-calendar-modal'); const content=modal?.querySelector('.site-modal-content'); const grid=modal?.querySelector('.calendar-month-grid'); const detail=modal?.querySelector('.calendar-day-panel'); const toolbar=modal?.querySelector('.calendar-toolbar'); const mr=modal?.getBoundingClientRect(); const gr=grid?.getBoundingClientRect(); const dr=detail?.getBoundingClientRect(); return {width:innerWidth,height:innerHeight,view:content?.dataset.calendarManagerView||null,access:content?.dataset.calendarAccess||null,weekCount:Number(grid?.dataset.weekCount||0),cellCount:grid?.querySelectorAll('.calendar-date-cell').length||0,modalWidth:mr?.width||0,modalNoX:modal?modal.scrollWidth<=modal.clientWidth+1:false,toolbarNoX:toolbar?toolbar.scrollWidth<=toolbar.clientWidth+1:false,detailHidden:detail?.hidden===true,detailPosition:detail?getComputedStyle(detail).position:null,detailTop:dr?.top||0,gridBottom:gr?.bottom||0,eventStackDisplay:getComputedStyle(modal.querySelector('.calendar-event-stack')).display}; })()");
+    if (geometry.view !== 'month' || geometry.access !== 'guest') throw new Error(width + ' responsive Calendar state invalid: ' + JSON.stringify(geometry));
+    if (![4,5,6].includes(geometry.weekCount) || geometry.cellCount !== geometry.weekCount * 7) throw new Error(width + ' responsive Month geometry invalid: ' + JSON.stringify(geometry));
+    if (geometry.modalWidth > width + 1 || !geometry.modalNoX || !geometry.toolbarNoX) throw new Error(width + ' responsive horizontal overflow: ' + JSON.stringify(geometry));
+    if (geometry.detailHidden || geometry.detailPosition !== 'static' || geometry.detailTop < geometry.gridBottom - 2) throw new Error(width + ' selected-day flow invalid: ' + JSON.stringify(geometry));
+    if (geometry.eventStackDisplay !== 'none') throw new Error(width + ' Month event stack should collapse to overview: ' + JSON.stringify(geometry));
+    responsiveResults.push(geometry);
+    await cdp.evaluate("document.querySelector('.site-calendar-modal .site-modal-close').click(); true");
+    await waitFor(() => cdp.evaluate("!document.querySelector('.site-modal.site-calendar-modal')"), width + ' Calendar close');
+  }
+
+  await cdp.command('Emulation.setDeviceMetricsOverride', {
+    width: 720, height: 450, deviceScaleFactor: 1, mobile: false,
+  });
+  await cdp.command('Page.reload', {ignoreCache: true});
+  await waitFor(() => cdp.evaluate("document.readyState === 'complete'"), '200 percent equivalent reload');
+  await waitFor(
+    () => cdp.evaluate("document.querySelector('.send-button')?.dataset.conversationMounted === 'true'"),
+    '200 percent equivalent mount',
+  );
+  await cdp.evaluate("document.querySelector('[data-mobile-nav-open]').click(); true");
+  await waitFor(() => cdp.evaluate("document.body.classList.contains('nav-drawer-open')"), '200 percent equivalent drawer');
+  await cdp.evaluate("document.querySelector('#mobile-nav-drawer button[data-calendar-view=\"all\"]').click(); true");
+  await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.site-modal.site-calendar-modal'))"), '200 percent equivalent Calendar', 7000);
+  const zoomEquivalent = await cdp.evaluate("(() => { const modal=document.querySelector('.site-modal.site-calendar-modal'); const grid=modal.querySelector('.calendar-month-grid'); const toolbar=modal.querySelector('.calendar-toolbar'); return {width:innerWidth,height:innerHeight,modalNoX:modal.scrollWidth<=modal.clientWidth+1,gridNoX:grid.scrollWidth<=grid.clientWidth+1,toolbarNoX:toolbar.scrollWidth<=toolbar.clientWidth+1,weekCount:Number(grid.dataset.weekCount||0),cellCount:grid.querySelectorAll('.calendar-date-cell').length}; })()");
+  if (!zoomEquivalent.modalNoX || !zoomEquivalent.gridNoX || !zoomEquivalent.toolbarNoX) {
+    throw new Error('200 percent zoom-equivalent horizontal overflow: ' + JSON.stringify(zoomEquivalent));
+  }
+
+  console.log('CALENDAR PRODUCTION SMOKE PASS', JSON.stringify({
+    before, first, replacement, fallback,
+    keyboard: {start: keyboardStart, moved: keyboardMoved, escape: keyboardEscape},
+    guestCrud,
+    responsive: responsiveResults,
+    zoomEquivalent,
+  }));
 } catch (error) {
   const diagnostic = {
     error: String(error?.stack || error),
