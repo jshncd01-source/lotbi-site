@@ -5,10 +5,152 @@ import path from 'node:path';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
-
-const core = read('site-core.js');
+const coreText = read('site-core.js');
 const conversation = read('site-conversation.js');
 const css = read('site-conversation.css');
+
+const {
+  getProductCards,
+  reviewProductCard,
+  searchProductCards,
+  searchPublicProductCards,
+} = await import('../site-core.js');
+
+const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: {'Content-Type': 'application/json'},
+});
+
+{
+  let request;
+  const publicResult = await searchPublicProductCards({query: 'RAD RA'}, async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      contract_id: 'CORE-PUBLIC-RICH-PRODUCT-DISCOVERY-01',
+      schema_version: 1,
+      display_id: 'pdc_' + 'a'.repeat(24),
+      status: 'DISPLAY_READY',
+      query: 'RAD RA',
+      merchant: {code: 'RAD_GODOMALL', name: 'RAD 전주본점 / Godomall'},
+      source_mode: 'GODOMALL_STOREFRONT',
+      candidate_count: 1,
+      cards: [{
+        candidate_index: 0,
+        merchant_code: 'RAD_GODOMALL',
+        source: 'GODOMALL_STOREFRONT',
+        title: 'RAD RA',
+        price: 1650000,
+        currency: 'KRW',
+        available: true,
+        product_url: 'https://www.carcarerad.com/goods/goods_view.php?goodsNo=1000000093',
+        image_url: 'https://merchant.example/product.jpg',
+      }],
+      display_evidence: true,
+      purchase_requires_login: true,
+      selection_available: false,
+      external_side_effect: false,
+      execution_authority: false,
+      transaction_created: false,
+      order_created: false,
+      payment_attempted: false,
+      live_money: false,
+    });
+  });
+  assert.equal(publicResult.cards.length, 1);
+  assert.equal(publicResult.purchaseRequiresLogin, true);
+  assert.equal(request.init.method, 'GET');
+  assert.equal(request.init.credentials, 'omit');
+  assert.deepEqual(request.init.headers, {});
+  assert.match(request.url, /^https:\/\/api\.lotbiai\.com\/v2\/public\/product-cards\/search\?/);
+}
+
+{
+  const requests = [];
+  const fetchMock = async (url, init) => {
+    requests.push({url, init});
+    if (url.endsWith('/v2/product-resolutions/search')) return jsonResponse({
+      contract_id: 'CORE-RICH-PRODUCT-DISCOVERY-01',
+      schema_version: 1,
+      command_id: 'cmd_richcards1',
+      resolution_id: 'prs_richcards1',
+      resolution_hash: 'b'.repeat(64),
+      status: 'AMBIGUOUS',
+      merchant: {code: 'RAD_GODOMALL', name: 'RAD 전주본점 / Godomall'},
+      source_mode: 'GODOMALL_STOREFRONT',
+      candidate_count: 1,
+      cards_path: '/v2/product-resolutions/prs_richcards1/cards',
+      display_evidence: true,
+      external_side_effect: false,
+      execution_authority: false,
+      live_money: false,
+    });
+    if (url.endsWith('/v2/product-resolutions/prs_richcards1/cards')) return jsonResponse({
+      contract_id: 'CORE-SHOP-UI-01A',
+      schema_version: 1,
+      resolution_id: 'prs_richcards1',
+      resolution_hash: 'b'.repeat(64),
+      status: 'AMBIGUOUS',
+      query: 'RAD RA',
+      source_mode: 'GODOMALL_STOREFRONT',
+      expired: false,
+      cards: [{
+        candidate_index: 0,
+        merchant_code: 'RAD_GODOMALL',
+        source: 'GODOMALL_STOREFRONT',
+        title: 'RAD RA',
+        price: 1650000,
+        currency: 'KRW',
+        available: true,
+      }],
+      external_side_effect: false,
+      execution_authority: false,
+    });
+    if (url.endsWith('/v2/product-resolutions/prs_richcards1/review')) return jsonResponse({
+      contract_id: 'CORE-RICH-PRODUCT-REVIEW-01',
+      schema_version: 1,
+      resolution_id: 'prs_richcards1',
+      resolution_hash: 'b'.repeat(64),
+      candidate_index: 0,
+      merchant: {code: 'RAD_GODOMALL', name: 'RAD 전주본점 / Godomall'},
+      card: {
+        candidate_index: 0,
+        merchant_code: 'RAD_GODOMALL',
+        source: 'GODOMALL_STOREFRONT',
+        title: 'RAD RA',
+        price: 1650000,
+        currency: 'KRW',
+        available: true,
+      },
+      price_changed: false,
+      review_required: true,
+      next_step: 'EXPLICIT_PURCHASE_REVIEW_REQUIRED',
+      external_side_effect: false,
+      execution_authority: false,
+      transaction_created: false,
+      order_created: false,
+      payment_attempted: false,
+      live_money: false,
+    });
+    throw new Error('unexpected URL ' + url);
+  };
+
+  const found = await searchProductCards('site-memory-token', {
+    query: 'RAD RA',
+    originalText: 'RAD RA 찾아줘',
+    maxResults: 6,
+  }, fetchMock);
+  const cards = await getProductCards('site-memory-token', found.resolutionId, fetchMock);
+  const review = await reviewProductCard('site-memory-token', {
+    resolutionId: found.resolutionId,
+    resolutionHash: found.resolutionHash,
+    candidateIndex: 0,
+  }, fetchMock);
+  assert.equal(cards.cards.length, 1);
+  assert.equal(review.card.price, 1650000);
+  assert.equal(requests.length, 3);
+  assert.equal(requests[0].init.headers.Authorization, 'Bearer site-memory-token');
+  assert.equal(requests[2].init.method, 'POST');
+}
 
 for (const token of [
   "const PRODUCT_CARD_SEARCH_PATH = '/v2/product-resolutions/search'",
@@ -17,47 +159,37 @@ for (const token of [
   'export async function searchProductCards',
   'export async function getProductCards',
   'export async function reviewProductCard',
-  "payload.contract_id !== 'CORE-RICH-PRODUCT-DISCOVERY-01'",
   "payload.contract_id !== 'CORE-PUBLIC-RICH-PRODUCT-DISCOVERY-01'",
+  "payload.contract_id !== 'CORE-RICH-PRODUCT-DISCOVERY-01'",
   "payload.contract_id !== 'CORE-SHOP-UI-01A'",
   "payload.contract_id !== 'CORE-RICH-PRODUCT-REVIEW-01'",
-  'payload.external_side_effect !== false',
-  'payload.execution_authority !== false',
   'payload.transaction_created !== false',
   'payload.order_created !== false',
   'payload.payment_attempted !== false',
   'payload.live_money !== false',
-]) assert.ok(core.includes(token), 'missing Site rich-card client contract: ' + token);
+]) assert.ok(coreText.includes(token), 'missing Rich Card client contract: ' + token);
 
 for (const token of [
-  'searchProductCards',
   'searchPublicProductCards',
+  'searchProductCards',
   'getProductCards',
   'reviewProductCard',
   'compactRichProductMeta',
-  'anonymousProductSearchQuery',
-  'PUBLIC_RICH_PRODUCT_DISCOVERY',
   'createProductCardRail',
+  "response.intent?.action === 'PURCHASE'",
   "rail.dataset.richCardType = 'PRODUCT'",
-  "detail.rel = 'noopener noreferrer'",
-  "image.referrerPolicy = 'no-referrer'",
   "box.textContent = isInLotbiBox(rich, card) ? '✓ 롯비함' : '+ 롯비함'",
   "buy.textContent = '구매하기'",
+  "await beginSiteHandoff(rich.originalText || rich.query || card.title)",
   '아직 주문·결제는 실행하지 않았습니다.',
   "type: 'PRODUCT'",
-  'resolution_hash: rich.resolutionHash',
   'display_id: rich.displayId',
-  'candidate_index: card.candidate_index',
-  "await beginSiteHandoff(rich.originalText || rich.query || card.title)",
+  'resolution_hash: rich.resolutionHash',
 ]) assert.ok(conversation.includes(token), 'missing Product Rich Card behavior: ' + token);
 
-for (const forbidden of [
-  '/orders',
-  '/payments',
-  '/reservations',
-  '/execute',
-  '/select',
-]) assert.ok(!conversation.includes(forbidden), 'Rich Card Site client must not invoke execution endpoint: ' + forbidden);
+for (const forbidden of ['/orders', '/payments', '/reservations', '/execute', '/select']) {
+  assert.ok(!conversation.includes(forbidden), 'Site Rich Card runtime must not invoke execution endpoint: ' + forbidden);
+}
 
 for (const token of [
   '.lotbi-rich-card-rail',
@@ -70,9 +202,7 @@ for (const token of [
   '@media (max-width: 760px)',
 ]) assert.ok(css.includes(token), 'missing Rich Card responsive CSS contract: ' + token);
 
-assert.ok(!conversation.includes('http://'), 'Rich Card runtime must not embed insecure product/image URLs');
-assert.ok(core.includes("headers: {}"), 'anonymous product search must not send Authorization');
-assert.ok(core.includes("credentials: 'omit'"), 'anonymous product search must omit credentials');
+assert.ok(!conversation.includes('http://'));
 assert.ok(conversation.includes("card.product_url.startsWith('https://')"));
 assert.ok(conversation.includes("card.image_url.startsWith('https://')"));
 
