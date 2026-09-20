@@ -51,6 +51,15 @@ jobs:
       - name: Validate PHASE 10 conversation management
         run: node scripts/validate_conversation_management_10.mjs
 
+      - name: Validate PHASE 16 attachment file preflight
+        run: node scripts/validate_attachment_files_16.mjs
+
+      - name: Validate PHASE 16 attachment Core API contract
+        run: node scripts/validate_attachment_api_16.mjs
+
+      - name: Validate PHASE 16 attachment composer
+        run: node scripts/validate_attachment_composer_16.mjs
+
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 
