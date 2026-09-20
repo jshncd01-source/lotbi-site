@@ -2,7 +2,7 @@ import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression}
 import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-calnav9';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-guestcal1';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
@@ -886,19 +886,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const initialView = allowed.has(view) ? view : 'all';
     closeMobileDrawer();
 
-    if (!sessionToken) {
-      try {
-        clearSiteLogoutSuppression();
-        await beginSiteHandoff();
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : '캘린더를 열기 위한 로그인 연결을 시작하지 못했습니다.');
-      }
-      return;
-    }
-
     const {backdrop, panel, content} = modalShell(
       '캘린더',
-      'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.',
+      sessionToken
+        ? 'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.'
+        : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
     );
     panel.classList.add('site-calendar-modal');
     installSurfaceBehavior(backdrop, panel, {modal: true});
@@ -1091,6 +1083,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
     if (!sessionToken && isExplicitLifeCalendarCommand(message)) {
+      clearSiteLogoutSuppression();
       try { await beginSiteHandoff(message); } catch (caught) { showError(caught, message, false); }
       return;
     }

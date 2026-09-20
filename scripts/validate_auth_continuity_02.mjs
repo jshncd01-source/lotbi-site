@@ -128,7 +128,7 @@ assert.ok(staticAccountActions.includes('>회원가입<'), 'initial static heade
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
 assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-fallback4"'));
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-conv10"'));
+assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-guestcal1"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
