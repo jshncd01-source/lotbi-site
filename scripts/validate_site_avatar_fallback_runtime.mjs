@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
+import {once} from 'node:events';
 
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function chromePath(){
@@ -72,5 +73,15 @@ try{
   console.log('SITE-WEB-3D-AVATAR-FALLBACK-RETRY-02 BROWSER PASS',JSON.stringify({before,after,fallbackLogCount:fallbackLogs.length}));
   ws.close();
 }finally{
-  chrome?.kill('SIGTERM');server.kill('SIGTERM');await delay(200);fs.rmSync(profile,{recursive:true,force:true});
+  const stop = async child => {
+    if (!child || child.exitCode !== null) return;
+    child.kill('SIGTERM');
+    await Promise.race([once(child, 'exit'), delay(2000)]);
+    if (child.exitCode === null) {
+      child.kill('SIGKILL');
+      await once(child, 'exit');
+    }
+  };
+  await Promise.all([stop(chrome), stop(server)]);
+  fs.rmSync(profile, {recursive:true, force:true, maxRetries:5, retryDelay:100});
 }
