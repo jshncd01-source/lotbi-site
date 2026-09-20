@@ -208,7 +208,7 @@ for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
 }
 assert.ok(callback.includes('href="/site-calendar.css?v=20260920-calux1"'));
 const callbackJs = read('auth-callback.js');
-assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-calux1';"));
+assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-calfocus1';"));
 assert.ok(callbackJs.includes('await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});'));
 
 for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
@@ -217,7 +217,7 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("from './site-calendar-manager.js?v=20260920-calux1'"));
+assert.ok(ui.includes("from './site-calendar-manager.js?v=20260920-calfocus1'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes('mountLifeCalendarManager'));
