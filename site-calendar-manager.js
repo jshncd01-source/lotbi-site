@@ -593,7 +593,13 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
   };
   cancel.addEventListener('click', close);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
-  dialog.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }
+  });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
     const value = {title: titleInput.value, localDate: dateInput.value, time: timeInput.value, allDay: allDayInput.checked};
@@ -748,6 +754,19 @@ export async function mountLifeCalendarManager({
     onAdd: date => openEditor(null, date),
     onEvent: item => openEditor(item, item.local_date || item.due_date),
   };
+
+  root.addEventListener('keydown', event => {
+    if (
+      event.key === 'Escape'
+      && state.mode === 'month'
+      && state.detailOpen
+      && !root.querySelector('.calendar-editor-dialog')
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      actions.closeDay();
+    }
+  }, true);
 
   function render() {
     updateChrome();
