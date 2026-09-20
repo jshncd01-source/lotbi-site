@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 const {
   createLifeActivity,
   executeLifeCalendarCommand,
+  previewLifeCalendarCommand,
+  isExplicitLifeCalendarCommand,
+  getLifeActivity,
   getLifeAgenda,
   getLifeAttention,
   getLifeToday,
@@ -11,6 +14,20 @@ const {
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
 const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260920-guest3');
+
+assert.equal(isExplicitLifeCalendarCommand('9월 30일 오후 3시에 병원 가'), true);
+for (const value of [
+  '9월 30일 오후 3시에 병원 갈까?',
+  '9월 30일 오후 3시에 병원 안 가',
+  '9월 30일 오후 3시에 병원 가는 일정은 등록하지 마',
+  '9월 30일 오후 3시에 병원 일정 있어?',
+  '9월 30일 오후 3시에 병원 가면 좋을까?',
+  '9월 30일 오후 3시에 병원 갈 것 같아',
+  '9월 30일 오후 3시에 민수가 병원 간대',
+  '9월 30일 오후 3시에 병원 가라고 했어',
+]) {
+  assert.equal(isExplicitLifeCalendarCommand(value), false, value);
+}
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -60,7 +77,7 @@ const mutation = {
   let request;
   const result = await executeLifeCalendarCommand(
     'site-token',
-    {logicalRequestId: 'req.site.calendar.command01', text: '9월 30일 오후 3시에 병원 가.', timezone: 'Asia/Seoul'},
+    {logicalRequestId: 'req.site.calendar.command01', text: '9월 30일 오후 3시에 병원 가.', timezone: 'Asia/Seoul', turnCreatedAt: '2026-09-20T21:00:00+09:00'},
     async (url, init) => {
       request = {url, init};
       return jsonResponse({
@@ -78,10 +95,51 @@ const mutation = {
     logical_request_id: 'req.site.calendar.command01',
     text: '9월 30일 오후 3시에 병원 가.',
     timezone: 'Asia/Seoul',
+    turn_created_at: '2026-09-20T21:00:00+09:00',
   });
   assert.equal(result.assistantText, '9월 30일 오후 3시에 ‘병원 가’ 일정을 추가했어요.');
   assert.equal(result.aiCalls, 0);
   assert.equal(result.providerApiCalls, 0);
+}
+
+
+{
+  let request;
+  const preview = await previewLifeCalendarCommand(
+    {
+      logicalRequestId: 'req.site.calendar.preview01',
+      text: '10월 3일 오전 9시에 등산 가.',
+      timezone: 'Asia/Seoul',
+      turnCreatedAt: '2026-09-20T21:00:00+09:00',
+    },
+    async (url, init) => {
+      request = {url, init};
+      return jsonResponse({
+        title: '등산 가',
+        temporal: {
+          kind: 'LOCAL_DATE_TIME',
+          local_datetime: '2026-10-03T09:00:00',
+          timezone_name: 'Asia/Seoul',
+        },
+        temporal_semantics: 'USER_PLANNED_TIME',
+        parser_type: 'DETERMINISTIC_KO_EXPLICIT_ACTIVITY_V1',
+        ai_calls: 0,
+        provider_api_calls: 0,
+      });
+    },
+  );
+  assert.equal(request.url, `${CORE_ORIGIN}/v2/life/commands/preview`);
+  assert.equal(request.init.method, 'POST');
+  assert.deepEqual(request.init.headers, {'Content-Type': 'application/json'});
+  assert.deepEqual(JSON.parse(request.init.body), {
+    logical_request_id: 'req.site.calendar.preview01',
+    text: '10월 3일 오전 9시에 등산 가.',
+    timezone: 'Asia/Seoul',
+    turn_created_at: '2026-09-20T21:00:00+09:00',
+  });
+  assert.equal(preview.title, '등산 가');
+  assert.equal(preview.aiCalls, 0);
+  assert.equal(preview.providerApiCalls, 0);
 }
 
 {
@@ -207,6 +265,23 @@ const mutation = {
   assert.equal(attention.aiCalls, 0);
   assert.equal(attention.providerApiCalls, 0);
   assert.equal(attention.items[0].due_date, '2026-10-05');
+}
+
+
+{
+  let lookupUrl = '';
+  const found = await getLifeActivity(
+    'site-token',
+    'activity_0123456789abcdef0123456789abcdef',
+    async (url, init) => {
+      lookupUrl = url;
+      assert.equal(init.method, 'GET');
+      return jsonResponse(mutation);
+    },
+  );
+  assert.equal(lookupUrl, `${CORE_ORIGIN}/v2/life/activity-lookups/activity_0123456789abcdef0123456789abcdef`);
+  assert.equal(found.activityId, mutation.activity_id);
+  assert.equal(found.occurrenceId, mutation.occurrence_id);
 }
 
 {

@@ -1632,3 +1632,104 @@ body[data-site-theme="dark"] .attachment-menu button:focus-visible,
 body[data-site-theme="dark"] .attachment-chip-remove:hover,
 body[data-site-theme="dark"] .attachment-chip-remove:focus-visible { background: #2a3140; }
 body[data-site-theme="dark"] .attachment-chip-meta { color: #aeb6c3; }
+
+/* Conversation → Calendar action */
+.conversation-calendar-action {
+  margin-top: 10px;
+  padding: 10px 0 2px;
+  border-top: 1px solid #e6e9ef;
+  display: grid;
+  gap: 8px;
+}
+
+.conversation-calendar-action-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.conversation-calendar-action-icon {
+  flex: 0 0 auto;
+  line-height: 1.4;
+}
+
+.conversation-calendar-action-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  color: #4b5565;
+  font-size: 12px;
+}
+
+.conversation-calendar-action-copy strong {
+  overflow-wrap: anywhere;
+  color: #252b36;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.conversation-calendar-action-copy small {
+  color: #7a8392;
+  font-size: 11px;
+}
+
+.conversation-calendar-action-status {
+  min-height: 18px;
+  color: #5c6573;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.conversation-calendar-action-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.conversation-calendar-action-button {
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid #cfd6e1;
+  border-radius: 999px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conversation-calendar-action-button:hover:not(:disabled),
+.conversation-calendar-action-button:focus-visible {
+  border-color: #8a96a8;
+  background: #f7f8fa;
+}
+
+.conversation-calendar-action-button:focus-visible {
+  outline: 2px solid rgba(79, 120, 197, .30);
+  outline-offset: 2px;
+}
+
+.conversation-calendar-action-button:disabled {
+  cursor: wait;
+  opacity: .62;
+}
+
+body[data-site-theme="dark"] .conversation-calendar-action { border-top-color: #3d4654; }
+body[data-site-theme="dark"] .conversation-calendar-action-copy,
+body[data-site-theme="dark"] .conversation-calendar-action-status { color: #bec5d0; }
+body[data-site-theme="dark"] .conversation-calendar-action-copy strong { color: #f0f2f6; }
+body[data-site-theme="dark"] .conversation-calendar-action-copy small { color: #9da6b4; }
+body[data-site-theme="dark"] .conversation-calendar-action-button {
+  border-color: #536071;
+  color: #edf0f5;
+}
+body[data-site-theme="dark"] .conversation-calendar-action-button:hover:not(:disabled),
+body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible { background: #262d38; }
+
+@media (max-width: 520px) {
+  .conversation-calendar-action-controls { width: 100%; }
+  .conversation-calendar-action-button { min-width: 0; max-width: 100%; }
+}
+

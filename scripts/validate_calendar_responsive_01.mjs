@@ -11,8 +11,8 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarVersion = '20260920-calux1';
-const entryVersion = '20260920-calendarentry4';
+const calendarVersion = '20260920-convcal1';
+const entryVersion = '20260920-convcalentry1';
 assert.ok(index.includes(`site-calendar.css?v=${calendarVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));
@@ -52,7 +52,7 @@ assert.ok(!css.includes('overflow-x: scroll'));
 assert.ok(css.includes('.calendar-editor-backdrop { position: fixed;'), 'event editor must cover the viewport instead of anchoring to an unpositioned content box');
 for (const width of [340, 390, 412, 768, 1280, 1440]) assert.ok(width >= 340, `unsupported viewport ${width}`);
 
-const openStart = conversation.indexOf('const openCalendar = async view =>');
+const openStart = conversation.indexOf('const openCalendar = async (view,');
 const openEnd = conversation.indexOf('const openHelp = () =>', openStart);
 const openCalendar = conversation.slice(openStart, openEnd);
 assert.ok(openCalendar.includes("'month'"));

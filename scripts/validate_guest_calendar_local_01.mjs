@@ -51,6 +51,71 @@ assert.equal(reloaded.remove(created.id), true);
 assert.deepEqual(reloaded.list(), []);
 assert.equal(reloaded.remove(created.id), false);
 
+const actionCreated = reloaded.createForAction(
+  'calact_0123456789abcdef01234567',
+  'calcand_89abcdef0123456701234567',
+  {
+    title: '대화에서 등록한 치과',
+    local_date: '2026-09-26',
+    local_datetime: '2026-09-26T14:00:00',
+    all_day: false,
+  },
+);
+const actionReplay = reloaded.createForAction(
+  'calact_0123456789abcdef01234567',
+  'calcand_89abcdef0123456701234567',
+  {
+    title: '대화에서 등록한 치과',
+    local_date: '2026-09-26',
+    local_datetime: '2026-09-26T14:00:00',
+    all_day: false,
+  },
+);
+assert.equal(actionReplay.id, actionCreated.id);
+assert.equal(actionReplay.calendar_action_id, 'calact_0123456789abcdef01234567');
+assert.equal(actionReplay.calendar_candidate_id, 'calcand_89abcdef0123456701234567');
+assert.equal(reloaded.list().filter(item => item.calendar_action_id === 'calact_0123456789abcdef01234567').length, 1);
+assert.throws(
+  () => reloaded.createForAction(
+    'calact_0123456789abcdef01234567',
+    'calcand_ffffffffffffffffffffffff',
+    {title: '다른 payload', local_date: '2026-09-27', all_day: true},
+  ),
+  error => error?.code === 'GUEST_CALENDAR_ACTION_CONFLICT',
+);
+const actionUpdated = reloaded.update(actionCreated.id, {
+  title: '대화에서 등록한 치과 변경',
+  local_date: '2026-09-27',
+  local_datetime: '2026-09-27T14:00:00',
+  all_day: false,
+});
+assert.equal(actionUpdated.calendar_action_id, actionCreated.calendar_action_id);
+assert.equal(actionUpdated.calendar_candidate_id, actionCreated.calendar_candidate_id);
+
+const directCreated = reloaded.createForRequest('calendar-guest-direct-0123456789', {
+  title: '직접 명령 치과',
+  local_date: '2026-09-28',
+  local_datetime: '2026-09-28T11:00:00',
+  all_day: false,
+});
+const directReplay = reloaded.createForRequest('calendar-guest-direct-0123456789', {
+  title: '직접 명령 치과',
+  local_date: '2026-09-28',
+  local_datetime: '2026-09-28T11:00:00',
+  all_day: false,
+});
+assert.equal(directReplay.id, directCreated.id);
+assert.equal(directReplay.calendar_request_id, 'calendar-guest-direct-0123456789');
+assert.equal(reloaded.list().filter(item => item.calendar_request_id === 'calendar-guest-direct-0123456789').length, 1);
+assert.throws(
+  () => reloaded.createForRequest('calendar-guest-direct-0123456789', {
+    title: '변경된 직접 명령',
+    local_date: '2026-09-29',
+    all_day: true,
+  }),
+  error => error?.code === 'GUEST_CALENDAR_REQUEST_CONFLICT',
+);
+
 const corrupt = createGuestCalendarRepository(memoryStorage({[GUEST_CALENDAR_STORAGE_KEY]: '{broken'}));
 assert.deepEqual(corrupt.list(), []);
 const oldVersion = createGuestCalendarRepository(memoryStorage({
