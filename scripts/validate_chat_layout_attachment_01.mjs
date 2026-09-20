@@ -21,8 +21,11 @@ assert.match(html, /data-attachment-input="files"/);
 assert.match(html, /class="attachment-preview-strip"/);
 assert.ok(html.includes('LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.'));
 assert.match(styles, /\.chat-home-page\s*\{[^}]*height:\s*100dvh[^}]*overflow:\s*hidden/s);
-assert.match(styles, /\.chat-home-shell\s*\{[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
-assert.match(styles, /\.conversation-thread,[\s\S]*?width:\s*min\(760px,\s*100%\)[\s\S]*?overflow-y:\s*auto/);
+assert.match(html, /<main id="main-content" class="chat-home-shell" tabindex="0">/);
+assert.match(styles, /\.chat-home-shell\s*\{[^}]*min-height:\s*0[^}]*overflow-x:\s*hidden[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/s);
+assert.match(styles, /\.conversation-thread,[\s\S]*?width:\s*min\(760px,\s*100%\)[\s\S]*?overflow:\s*visible/);
+assert.doesNotMatch(styles, /\.conversation-thread[^}]*scrollbar-width:\s*none/s);
+assert.doesNotMatch(styles, /\.conversation-thread::\-webkit-scrollbar[\s\S]*?display:\s*none/s);
 assert.match(styles, /\.chat-composer-stack\s*\{[^}]*width:\s*min\(760px,\s*100%\)/s);
 assert.match(styles, /\.conversation-thread,[\s\S]*?align-content:\s*start[\s\S]*?grid-auto-rows:\s*max-content/);
 assert.match(styles, /body\[data-chat-color="default"\]\s*\{[^}]*--user-bubble:\s*#[0-9a-fA-F]{6}[^}]*--user-bubble-foreground:\s*#[0-9a-fA-F]{6}/s);
@@ -105,10 +108,17 @@ if (browser) try {
         bodyOverflow: getComputedStyle(document.body).overflowY,
         shellHeight: shell.getBoundingClientRect().height,
         mainOverflow: getComputedStyle(main).overflowY,
+        mainScrollHeight: main.scrollHeight,
+        mainClientHeight: main.clientHeight,
+        mainScrollTopBefore: main.scrollTop,
+        mainRight: main.getBoundingClientRect().right,
+        mainScrollbarThickness: main.offsetWidth - main.clientWidth,
+        mainTabIndex: main.tabIndex,
         heroOverflow: getComputedStyle(hero).overflowY,
         threadOverflow: getComputedStyle(thread).overflowY,
         threadHeight: thread.clientHeight,
         threadScrollHeight: thread.scrollHeight,
+        threadScrollTopBefore: thread.scrollTop,
         composerBottom: composer.getBoundingClientRect().bottom,
         mainBottom: main.getBoundingClientRect().bottom,
         recentOverflow: getComputedStyle(recent).overflowY,
@@ -118,6 +128,10 @@ if (browser) try {
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         initialGeometry,
       };
+      main.scrollTop = Math.min(240, main.scrollHeight - main.clientHeight);
+      result.mainScrollTopAfter = main.scrollTop;
+      result.threadScrollTopAfterMainScroll = thread.scrollTop;
+      result.composerBottomAfterScroll = composer.getBoundingClientRect().bottom;
       const output = document.createElement('pre');
       output.id = 'layout-result';
       output.textContent = JSON.stringify(result);
@@ -150,11 +164,20 @@ if (browser) try {
     assert.equal(value.initialGeometry.userFontSize, width <= 760 ? '16px' : '17px', `${width}px responsive body size`);
     assert.equal(value.initialGeometry.timestampWhiteSpace, 'nowrap', `${width}px timestamp must remain one line`);
     geometry.push({width, height, ...value.initialGeometry});
-    assert.equal(value.mainOverflow, 'hidden', `${width}px main must own no scroll`);
-    assert.equal(value.heroOverflow, 'hidden', `${width}px hero must own no scroll`);
-    assert.equal(value.threadOverflow, 'auto', `${width}px transcript must be the main scroll owner`);
-    assert.ok(value.threadScrollHeight > value.threadHeight, `${width}px transcript fixture must scroll`);
-    assert.ok(Math.abs(value.composerBottom - value.mainBottom) < 4, `${width}px composer must stay at main bottom`);
+    assert.equal(value.bodyOverflow, 'hidden', `${width}px body must not create a second vertical scroll authority`);
+    assert.equal(value.mainOverflow, 'auto', `${width}px full-width main pane must own vertical scrolling`);
+    assert.ok(value.mainScrollHeight > value.mainClientHeight, `${width}px main fixture must be vertically scrollable`);
+    assert.equal(value.mainTabIndex, 0, `${width}px main scroll pane must be keyboard focusable`);
+    assert.equal(value.heroOverflow, 'visible', `${width}px conversation hero must not become an inner scroller`);
+    assert.equal(value.threadOverflow, 'visible', `${width}px transcript must not own vertical scrolling`);
+    assert.equal(value.threadScrollHeight, value.threadHeight, `${width}px transcript must size to content instead of clipping into a scroll box`);
+    assert.ok(value.mainScrollTopAfter > value.mainScrollTopBefore, `${width}px main pane must accept scrolling`);
+    assert.equal(value.threadScrollTopAfterMainScroll, 0, `${width}px transcript scrollTop must remain zero while main scrolls`);
+    assert.ok(Math.abs(value.composerBottomAfterScroll - value.mainBottom) < 4, `${width}px sticky composer must remain at the main viewport bottom after scroll`);
+    if (width >= 1280) {
+      assert.ok(Math.abs(value.mainRight - width) < 2, `${width}px main scroll track must sit at the viewport right edge`);
+      assert.ok(value.mainScrollbarThickness > 0, `${width}px desktop main scrollbar must expose draggable native chrome`);
+    }
     assert.equal(value.recentOverflow, 'auto', `${width}px recent list must own sidebar scroll`);
     assert.equal(value.recentScrollable, true, `${width}px recent list fixture must scroll`);
     assert.ok(value.footerBottom <= value.sidebarBottom + 2, `${width}px account footer must stay visible`);
