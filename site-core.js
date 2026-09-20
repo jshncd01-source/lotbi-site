@@ -15,6 +15,8 @@ const CALENDAR_CANDIDATE_ID_RE = /^calcand_[0-9a-f]{24}$/;
 const CALENDAR_ACTION_ID_RE = /^calact_[0-9a-f]{24}$/;
 const CALENDAR_WRITE_REQUEST_RE = /^calendar-action:[0-9a-f]{24}$/;
 const LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
+const LOCAL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const LOCAL_TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
 const TIMEZONE_RE = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
@@ -169,6 +171,121 @@ function normalizeCalendarCandidate(value) {
     approvalState: value.approval_state,
     executionState: value.execution_state,
     writeLogicalRequestId: value.write_logical_request_id,
+  });
+}
+
+export function normalizeCalendarPartialCandidate(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== 'object') {
+    throw new SiteCoreError('LOTBI 불완전 일정 후보 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const temporal = value.temporal && typeof value.temporal === 'object' ? value.temporal : null;
+  const title = typeof value.title === 'string' ? value.title.trim() : '';
+  const sourceTurnRef = typeof value.source_turn_ref === 'string' ? value.source_turn_ref.trim() : '';
+  const sourceTurnCreatedAt = typeof value.source_turn_created_at === 'string' ? value.source_turn_created_at.trim() : '';
+  const localDate = typeof temporal?.local_date === 'string' ? temporal.local_date.trim() : '';
+  const localTime = typeof temporal?.local_time === 'string' ? temporal.local_time.trim() : '';
+  const timezoneName = typeof temporal?.timezone_name === 'string' ? temporal.timezone_name.trim() : '';
+  const missingFields = Array.isArray(value.missing_fields) ? value.missing_fields.map(item => String(item || '').trim()) : null;
+  const memberIndex = value.member_index == null ? null : Number(value.member_index);
+  const missingDate = missingFields?.length === 1 && missingFields[0] === 'date';
+  const missingTime = missingFields?.length === 1 && missingFields[0] === 'time';
+  if (
+    value.contract_id !== 'CORE-CALENDAR-PARTIAL-CANDIDATE-01'
+    || value.schema_version !== 1
+    || value.candidate_version !== 1
+    || !CALENDAR_CANDIDATE_ID_RE.test(String(value.candidate_id || ''))
+    || !GUEST_IDEMPOTENCY_RE.test(sourceTurnRef)
+    || !sourceTurnCreatedAt || !Number.isFinite(Date.parse(sourceTurnCreatedAt))
+    || !title || title.length > 240
+    || temporal?.kind !== 'PARTIAL_LOCAL_DATE_TIME'
+    || !TIMEZONE_RE.test(timezoneName) || timezoneName.length > 80
+    || (!missingDate && !missingTime)
+    || (missingDate && (localDate || !LOCAL_TIME_RE.test(localTime)))
+    || (missingTime && (!LOCAL_DATE_RE.test(localDate) || localTime))
+    || value.temporal_semantics !== 'USER_PLANNED_TIME'
+    || value.meaning !== 'PERSONAL_CALENDAR_ACTIVITY'
+    || value.approval_state !== 'NOT_APPROVED'
+    || value.execution_state !== 'NOT_EXECUTED'
+    || (memberIndex !== null && (!Number.isInteger(memberIndex) || memberIndex < 0 || memberIndex > 3))
+    || 'action_id' in value
+    || 'write_logical_request_id' in value
+    || 'activity_id' in value
+    || 'occurrence_id' in value
+  ) {
+    throw new SiteCoreError('LOTBI 불완전 일정 후보 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    contractId: value.contract_id,
+    schemaVersion: 1,
+    candidateId: value.candidate_id,
+    candidateVersion: 1,
+    sourceTurnRef,
+    sourceTurnCreatedAt,
+    memberIndex,
+    title,
+    temporal: Object.freeze({
+      kind: 'PARTIAL_LOCAL_DATE_TIME',
+      localDate: localDate || null,
+      localTime: localTime || null,
+      timezoneName,
+    }),
+    temporalSemantics: 'USER_PLANNED_TIME',
+    meaning: 'PERSONAL_CALENDAR_ACTIVITY',
+    missingFields: Object.freeze([...missingFields]),
+    approvalState: 'NOT_APPROVED',
+    executionState: 'NOT_EXECUTED',
+  });
+}
+
+export function normalizeCalendarCandidateSet(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== 'object') {
+    throw new SiteCoreError('LOTBI 일정 후보 묶음 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const sourceTurnRef = typeof value.source_turn_ref === 'string' ? value.source_turn_ref.trim() : '';
+  const sourceTurnCreatedAt = typeof value.source_turn_created_at === 'string' ? value.source_turn_created_at.trim() : '';
+  const rawCandidates = Array.isArray(value.candidates) ? value.candidates : null;
+  if (
+    value.contract_id !== 'CORE-CALENDAR-CANDIDATE-SET-01'
+    || value.schema_version !== 1
+    || !GUEST_IDEMPOTENCY_RE.test(sourceTurnRef)
+    || !sourceTurnCreatedAt || !Number.isFinite(Date.parse(sourceTurnCreatedAt))
+    || !rawCandidates || rawCandidates.length < 1 || rawCandidates.length > 4
+  ) {
+    throw new SiteCoreError('LOTBI 일정 후보 묶음 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+
+  const candidates = rawCandidates.map((raw, index) => {
+    let candidate;
+    let kind;
+    if (raw?.contract_id === 'CORE-CALENDAR-CANDIDATE-01') {
+      candidate = normalizeCalendarCandidate(raw);
+      kind = 'COMPLETE';
+    } else if (raw?.contract_id === 'CORE-CALENDAR-PARTIAL-CANDIDATE-01') {
+      candidate = normalizeCalendarPartialCandidate(raw);
+      kind = 'PARTIAL';
+    } else {
+      throw new SiteCoreError('LOTBI 일정 후보 종류가 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+    }
+    if (
+      candidate.sourceTurnRef !== sourceTurnRef
+      || candidate.sourceTurnCreatedAt !== sourceTurnCreatedAt
+      || (rawCandidates.length > 1 && raw.member_index !== index)
+    ) {
+      throw new SiteCoreError('LOTBI 일정 후보 출처가 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+    }
+    return Object.freeze({kind, candidate});
+  });
+  if (new Set(candidates.map(item => item.candidate.candidateId)).size !== candidates.length) {
+    throw new SiteCoreError('LOTBI 일정 후보 식별자가 중복되었습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    contractId: 'CORE-CALENDAR-CANDIDATE-SET-01',
+    schemaVersion: 1,
+    sourceTurnRef,
+    sourceTurnCreatedAt,
+    candidates: Object.freeze(candidates),
   });
 }
 
@@ -372,6 +489,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
+    calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
   });
 }
 
@@ -514,6 +632,7 @@ export async function sendGuestConversationMessage({
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
+    calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
   });
 }
 
