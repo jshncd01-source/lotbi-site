@@ -86,9 +86,15 @@ if (browser) try {
         sidebarBottom: sidebar.getBoundingClientRect().bottom,
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       };
-      document.body.textContent = JSON.stringify(result);
+      const output = document.createElement('pre');
+      output.id = 'layout-result';
+      output.textContent = JSON.stringify(result);
+      document.body.appendChild(output);
       } catch (error) {
-        document.body.textContent = JSON.stringify({probeError: String(error && (error.stack || error))});
+        const output = document.createElement('pre');
+        output.id = 'layout-result';
+        output.textContent = JSON.stringify({probeError: String(error && (error.stack || error))});
+        document.body.appendChild(output);
       }
     })();
     `;
@@ -101,7 +107,7 @@ if (browser) try {
     ], {encoding: 'utf8', timeout: 30000, maxBuffer: 8 * 1024 * 1024});
     fs.rmSync(probe, {force: true});
     if (measured.status !== 0) throw new Error(measured.stderr || `browser exited ${measured.status}`);
-    const match = measured.stdout.match(/<body[^>]*>(\{.*?\})<\/body>/s);
+    const match = measured.stdout.match(/<pre id="layout-result">(.*?)<\/pre>/s);
     if (!match) throw new Error(`${width}px layout result missing`);
     const value = JSON.parse(match[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'));
     if (value.probeError) throw new Error(`${width}px layout probe failed: ${value.probeError}`);
