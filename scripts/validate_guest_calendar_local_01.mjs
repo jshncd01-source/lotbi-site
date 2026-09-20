@@ -92,6 +92,30 @@ const actionUpdated = reloaded.update(actionCreated.id, {
 assert.equal(actionUpdated.calendar_action_id, actionCreated.calendar_action_id);
 assert.equal(actionUpdated.calendar_candidate_id, actionCreated.calendar_candidate_id);
 
+const directCreated = reloaded.createForRequest('calendar-guest-direct-0123456789', {
+  title: '직접 명령 치과',
+  local_date: '2026-09-28',
+  local_datetime: '2026-09-28T11:00:00',
+  all_day: false,
+});
+const directReplay = reloaded.createForRequest('calendar-guest-direct-0123456789', {
+  title: '직접 명령 치과',
+  local_date: '2026-09-28',
+  local_datetime: '2026-09-28T11:00:00',
+  all_day: false,
+});
+assert.equal(directReplay.id, directCreated.id);
+assert.equal(directReplay.calendar_request_id, 'calendar-guest-direct-0123456789');
+assert.equal(reloaded.list().filter(item => item.calendar_request_id === 'calendar-guest-direct-0123456789').length, 1);
+assert.throws(
+  () => reloaded.createForRequest('calendar-guest-direct-0123456789', {
+    title: '변경된 직접 명령',
+    local_date: '2026-09-29',
+    all_day: true,
+  }),
+  error => error?.code === 'GUEST_CALENDAR_REQUEST_CONFLICT',
+);
+
 const corrupt = createGuestCalendarRepository(memoryStorage({[GUEST_CALENDAR_STORAGE_KEY]: '{broken'}));
 assert.deepEqual(corrupt.list(), []);
 const oldVersion = createGuestCalendarRepository(memoryStorage({
