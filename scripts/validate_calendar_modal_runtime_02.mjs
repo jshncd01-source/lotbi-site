@@ -103,6 +103,7 @@ try{
   await wait(()=>content?.dataset.calendarManagerView==='month','month view');
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   const today=modal.querySelector('.calendar-today-button');
   const attention=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='확인 필요');
   const calendar=layout?.children?.[0], detail=layout?.children?.[1];
