@@ -1,5 +1,5 @@
-import {createLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260920-realcal1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-realcal1';
+import {createLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260920-calux1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-calux1';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -9,7 +9,7 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=20260920-realcal1';
+} from './site-calendar-model.js?v=20260920-calux1';
 import {SiteCoreError} from './site-core.js?v=20260920-guest3';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
