@@ -671,7 +671,7 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 
 .message-attachment-card { padding: 7px; }
 
-.chat-home-footer {
+.conversation-active .chat-home-footer {
   display: none;
 }
 
