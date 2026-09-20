@@ -429,10 +429,31 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     prompt.focus();
   };
   const selectedAttachmentIds = () => selectedAttachments.map(item => item.id);
-  const sentAttachmentSummary = () => selectedAttachments.map(item => safeAttachmentName(item.fileName)).join(', ');
-  const clearSentAttachments = () => {
+  const attachmentSummary = items => items.map(item => safeAttachmentName(item.fileName)).join(', ');
+  const clearSentAttachments = (items, {session = '', guest = ''} = {}) => {
+    const sent = Array.isArray(items) ? items : [];
+    const sentIds = new Set(sent.map(item => item.id));
+    selectedAttachments = selectedAttachments.filter(item => !sentIds.has(item.id));
+    renderAttachmentPreview();
+    if (!sent.length) return;
+    void Promise.allSettled(sent.map(item => deleteConversationAttachment({
+      sessionToken: session,
+      guestToken: guest,
+      attachmentId: item.id,
+    })));
+  };
+  const discardPendingAttachments = () => {
+    const pending = [...selectedAttachments];
+    const session = sessionToken || '';
+    const guest = session ? '' : (readGuestSession() || '');
     selectedAttachments = [];
     renderAttachmentPreview();
+    if (!pending.length || (!session && !guest)) return;
+    void Promise.allSettled(pending.map(item => deleteConversationAttachment({
+      sessionToken: session,
+      guestToken: guest,
+      attachmentId: item.id,
+    })));
   };
   const clearLocalAttachments = () => {
     selectedAttachments = [];
@@ -754,6 +775,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
   const startNewConversation = () => {
     closeConversationMenus();
+    discardPendingAttachments();
     state.activeThreadId = null; state.draft = ''; prompt.value = '';
     prompt.dispatchEvent(new Event('input', {bubbles: true})); saveState(); showBlankHome(); renderRecent(); closeMobileDrawer(); prompt.focus();
   };
@@ -1077,6 +1099,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       if (!sessionToken) return;
       logout.disabled = true; logout.textContent = '로그아웃 중…';
       try {
+        discardPendingAttachments();
         await logoutSiteSession(sessionToken); sessionToken = undefined; serverIdentity = undefined; serverSubscription = undefined; closeSurface();
         switchNamespace(browserAnonymousNamespace());
         window.dispatchEvent(new CustomEvent(SESSION_STATE_EVENT, {detail: {authenticated: false, reason: 'site-logout'}}));
@@ -1200,12 +1223,20 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const message = typeof text === 'string' ? text.trim() : '';
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
-    const displayMessage = message || `첨부 파일 확인: ${sentAttachmentSummary()}`;
+    const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     ensureThread(displayMessage);
     if (appendUserMessage) {
-      appendNode(createMessage('user', displayMessage), {forceScroll: true}); appendPersistedMessage({role: 'user', text: displayMessage, meta: {}});
+      const userNode = createMessage('user', displayMessage);
+      if (attachments.length) {
+        const attachmentNote = document.createElement('span');
+        attachmentNote.className = 'chat-message-meta chat-message-attachment-meta';
+        attachmentNote.textContent = `첨부: ${attachmentSummary(attachments)}`;
+        userNode.appendChild(attachmentNote);
+      }
+      appendNode(userNode, {forceScroll: true});
+      appendPersistedMessage({role: 'user', text: displayMessage, meta: {}});
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
@@ -1260,7 +1291,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         const assistantNode = createMessage('assistant', response.assistantText, meta);
         if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
         appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
-        if (attachments.length) clearSentAttachments();
+        if (attachments.length) clearSentAttachments(attachments, {guest: token});
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
         setStatus(richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
       } catch (caught) {
@@ -1292,12 +1323,20 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
+    const authenticatedRequestId = logicalRequestId || newId('auth-ai');
     const avatarRequestId = nextAvatarRequestId('turn'); driveAvatar('response-wait', avatarRequestId);
     const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
     try {
-      const response = await sendConversationMessage(sessionToken, message, globalThis.fetch, attachments.map(item => item.id));
+      const activeSessionToken = sessionToken;
+      const response = await sendConversationMessage(
+        activeSessionToken,
+        message,
+        globalThis.fetch,
+        attachments.map(item => item.id),
+        authenticatedRequestId,
+      );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
@@ -1317,14 +1356,14 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       const assistantNode = createMessage('assistant', response.assistantText, meta);
       if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
       appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
-      if (attachments.length) clearSentAttachments();
+      if (attachments.length) clearSentAttachments(attachments, {session: activeSessionToken});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
       driveAvatar('response-complete', avatarRequestId);
     } catch (caught) {
       driveAvatar('cancel', avatarRequestId);
       loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-      showError(caught, message, true); setStatus('LOTBI 대화를 완료하지 못했습니다.');
+      showError(caught, message, true, authenticatedRequestId); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
   };
   window.addEventListener('lotbi:keyboard-viewport', () => {
