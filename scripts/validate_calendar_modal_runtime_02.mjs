@@ -24,7 +24,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
-<link rel="stylesheet" href="/site-calendar.css?v=20260920-realcal2">
+<link rel="stylesheet" href="/site-calendar.css?v=20260920-calux1">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -72,7 +72,7 @@ const oneLine=node=>getComputedStyle(node).whiteSpace==='nowrap' && node.scrollH
 const noX=node=>node.scrollWidth<=node.clientWidth+1;
 try{
   localStorage.clear();
-  const conversation=await import('/site-conversation.js?v=20260920-calendarentry3');
+  const conversation=await import('/site-conversation.js?v=20260920-calux1');
   if(!conversation.mountConversation())throw new Error('conversation mount');
   const entry=document.querySelector('.chat-sidebar-desktop [data-calendar-view="all"]');
   if(!(entry instanceof HTMLButtonElement))throw new Error('calendar entry missing');
@@ -88,9 +88,12 @@ try{
   const attention=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='확인 필요');
   const calendar=layout?.children?.[0], detail=layout?.children?.[1];
   if(!grid||!layout||!today||!attention||!calendar||!detail)throw new Error('month chrome missing');
-  const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect();
+  const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
+  const toolbar=modal.querySelector('.calendar-toolbar');
   const desktop=innerWidth>900;
+  const cellHeights=[...grid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
+  const rowHeightSpread=cellHeights.length?Math.max(...cellHeights)-Math.min(...cellHeights):0;
   const result={
     ok:true,
     viewport:{width:innerWidth,height:innerHeight},
@@ -98,13 +101,29 @@ try{
     guest:content.dataset.calendarAccess,
     modal:{width:modalRect.width,height:modalRect.height,overflowY:getComputedStyle(modal).overflowY,noX:noX(modal)},
     content:{overflowY:getComputedStyle(content).overflowY,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,noX:noX(content)},
-    grid:{cells:grid.querySelectorAll('.calendar-date-cell').length,noX:noX(grid),bottom:gridRect.bottom,contentBottom:contentRect.bottom},
-    toolbar:{todayOneLine:oneLine(today),attentionOneLine:oneLine(attention),scrollWidth:modal.querySelector('.calendar-toolbar').scrollWidth,clientWidth:modal.querySelector('.calendar-toolbar').clientWidth},
-    ratio:detailRect.width>0?calRect.width/detailRect.width:0,
-    detail:{overflowY:getComputedStyle(detail).overflowY,scrollHeight:detail.scrollHeight,clientHeight:detail.clientHeight},
+    grid:{
+      cells:grid.querySelectorAll('.calendar-date-cell').length,
+      weekCount:Number(grid.dataset.weekCount||0),
+      noX:noX(grid),
+      bottom:gridRect.bottom,
+      contentBottom:contentRect.bottom,
+      rowHeightSpread
+    },
+    toolbar:{todayOneLine:oneLine(today),attentionOneLine:oneLine(attention),scrollWidth:toolbar.scrollWidth,clientWidth:toolbar.clientWidth,noX:noX(toolbar)},
+    calendar:{width:calRect.width,layoutWidth:layoutRect.width,widthRatio:layoutRect.width>0?calRect.width/layoutRect.width:0},
+    detail:{
+      position:getComputedStyle(detail).position,
+      overflowY:getComputedStyle(detail).overflowY,
+      scrollHeight:detail.scrollHeight,
+      clientHeight:detail.clientHeight,
+      top:detailRect.top,
+      gridBottom:gridRect.bottom
+    },
     desktop
   };
   if(![28,35,42].includes(result.grid.cells))throw new Error('month grid week count invalid '+result.grid.cells);
+  if(result.grid.weekCount!==result.grid.cells/7)throw new Error('week count metadata mismatch');
+  if(result.grid.rowHeightSpread>2)throw new Error('month row heights diverged '+result.grid.rowHeightSpread);
   if(!result.toolbar.todayOneLine||!result.toolbar.attentionOneLine)throw new Error('toolbar label wrapped');
   if(!result.modal.noX||!result.content.noX||!result.grid.noX)throw new Error('horizontal overflow');
   if(result.guest!=='guest')throw new Error('guest calendar contract');
@@ -113,12 +132,14 @@ try{
     if(modalRect.height<innerHeight-60)throw new Error('desktop modal too short '+modalRect.height);
     if(result.modal.overflowY!=='hidden')throw new Error('desktop modal must not scroll');
     if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
-    if(result.ratio<1.7||result.ratio>2.3)throw new Error('desktop calendar/detail ratio '+result.ratio);
-    if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop six rows not initially visible');
-    if(detail.scrollHeight>detail.clientHeight+1)throw new Error('empty detail unexpectedly scrolls');
+    if(result.calendar.widthRatio<0.97)throw new Error('desktop Month does not own available width '+result.calendar.widthRatio);
+    if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
+    if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
-    if(getComputedStyle(modal.querySelector('.calendar-toolbar')).whiteSpace==='normal')throw new Error('responsive toolbar wraps');
+    if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
+    if(result.detail.position!=='static')throw new Error('touch selected-day surface must flow below Month');
+    if(detailRect.top<gridRect.bottom-2)throw new Error('touch selected-day surface overlaps Month');
   }
 
   const mode=async name=>{const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);click(button);await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name)};
