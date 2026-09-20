@@ -1111,6 +1111,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
+  for (const calendarEntry of document.querySelectorAll('[data-calendar-view]')) {
+    if (!(calendarEntry instanceof HTMLButtonElement) || calendarEntry.dataset.calendarEntryBound === 'true') continue;
+    calendarEntry.dataset.calendarEntryBound = 'true';
+    calendarEntry.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openCalendar(calendarEntry.dataset.calendarView || 'all');
+    });
+  }
+
   const openLotbiBox = trigger => {
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
@@ -1744,12 +1754,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (lotbiBoxTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       openLotbiBox(lotbiBoxTrigger);
-      return;
-    }
-    const calendarView = target?.closest('[data-calendar-view]');
-    if (calendarView instanceof HTMLButtonElement) {
-      event.preventDefault();
-      void openCalendar(calendarView.dataset.calendarView || 'all');
       return;
     }
     const newChat = target?.closest('[data-new-conversation]');
