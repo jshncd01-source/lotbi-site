@@ -1,5 +1,5 @@
 import {beginSiteHandoff} from './site-auth.js?v=20260920-fallback4';
-import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards4';
+import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 
@@ -33,7 +33,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-richcards4';
+  link.href = '/site-conversation.css?v=20260920-richcards5';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -331,7 +331,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     preferences.responseGrade = grade;
     responseGradeControl.hidden = !available;
     responseGradeControl.setAttribute('aria-hidden', String(!available));
+    if (available) responseGradeControl.removeAttribute('inert');
+    else responseGradeControl.setAttribute('inert', '');
     responseGradeTrigger.disabled = !available;
+    for (const option of responseGradeOptions) {
+      if (option instanceof HTMLButtonElement) option.disabled = !available;
+    }
     if (!available) {
       responseGradeMenu.hidden = true;
       responseGradeTrigger.setAttribute('aria-expanded', 'false');
@@ -943,33 +948,15 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         if (guestPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
           try {
             const merchantHint = productMerchantHint(message, response.intent);
-            const publicResult = await searchPublicProductCards({
-              query: response.intent.product_query,
-              merchantCode: merchantHint.merchantCode,
-              merchantExplicit: merchantHint.merchantExplicit,
-              maxResults: 6,
-            });
-            richProduct = compactRichProductMeta({
-              displayId: publicResult.displayId,
-              query: publicResult.query,
-              originalText: message,
-              merchant: publicResult.merchant,
-              sourceMode: publicResult.sourceMode,
-              expired: false,
-              cards: publicResult.cards,
-            });
+            const publicResult = await searchPublicProductCards({query: response.intent.product_query, merchantCode: merchantHint.merchantCode, merchantExplicit: merchantHint.merchantExplicit, maxResults: 6});
+            richProduct = compactRichProductMeta({displayId: publicResult.displayId, query: publicResult.query, originalText: message, merchant: publicResult.merchant, sourceMode: publicResult.sourceMode, expired: false, cards: publicResult.cards});
           } catch (cardError) {
-            console.info('[LOTBI public rich product cards unavailable]', {
-              code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN',
-            });
+            console.info('[LOTBI public rich product cards unavailable]', {code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN'});
           }
         }
         if (richProduct) meta.richProduct = richProduct;
         const assistantNode = createMessage('assistant', response.assistantText, meta);
-        if (richProduct) {
-          const rail = createProductCardRail(richProduct);
-          if (rail) assistantNode.appendChild(rail);
-        }
+        if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
         appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
         setStatus(richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
@@ -1016,39 +1003,16 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       if (authenticatedPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
         try {
           const merchantHint = productMerchantHint(message, response.intent);
-          const discovery = await searchProductCards(sessionToken, {
-            query: response.intent.product_query,
-            originalText: message,
-            merchantCode: merchantHint.merchantCode,
-            merchantExplicit: merchantHint.merchantExplicit,
-            brand: typeof response.intent.brand === 'string' ? response.intent.brand : '',
-            maxPrice: Number.isInteger(response.intent.max_price) ? response.intent.max_price : null,
-            preferences: Array.isArray(response.intent.preferences) ? response.intent.preferences : [],
-            maxResults: 6,
-          });
+          const discovery = await searchProductCards(sessionToken, {query: response.intent.product_query, originalText: message, merchantCode: merchantHint.merchantCode, merchantExplicit: merchantHint.merchantExplicit, brand: typeof response.intent.brand === 'string' ? response.intent.brand : '', maxPrice: Number.isInteger(response.intent.max_price) ? response.intent.max_price : null, preferences: Array.isArray(response.intent.preferences) ? response.intent.preferences : [], maxResults: 6});
           const cards = await getProductCards(sessionToken, discovery.resolutionId);
-          richProduct = compactRichProductMeta({
-            resolutionId: cards.resolutionId,
-            resolutionHash: cards.resolutionHash,
-            query: cards.query,
-            originalText: message,
-            merchant: discovery.merchant,
-            sourceMode: cards.sourceMode || discovery.sourceMode,
-            expired: cards.expired,
-            cards: cards.cards,
-          });
+          richProduct = compactRichProductMeta({resolutionId: cards.resolutionId, resolutionHash: cards.resolutionHash, query: cards.query, originalText: message, merchant: discovery.merchant, sourceMode: cards.sourceMode || discovery.sourceMode, expired: cards.expired, cards: cards.cards});
         } catch (cardError) {
-          console.info('[LOTBI rich product cards unavailable]', {
-            code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN',
-          });
+          console.info('[LOTBI rich product cards unavailable]', {code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN'});
         }
       }
       if (richProduct) meta.richProduct = richProduct;
       const assistantNode = createMessage('assistant', response.assistantText, meta);
-      if (richProduct) {
-        const rail = createProductCardRail(richProduct);
-        if (rail) assistantNode.appendChild(rail);
-      }
+      if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
       appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
@@ -1072,28 +1036,30 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
 
   micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
-  responseGradeTrigger.addEventListener('click', () => {
-    if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
-    else openResponseGradeMenu();
-  });
-  responseGradeTrigger.addEventListener('keydown', event => {
-    if (event.key === 'ArrowDown') { event.preventDefault(); openResponseGradeMenu({edge: 'first'}); }
-    else if (event.key === 'ArrowUp') { event.preventDefault(); openResponseGradeMenu({edge: 'last'}); }
-  });
-  responseGradeMenu.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
-    else if (event.key === 'ArrowDown') { event.preventDefault(); moveResponseGradeFocus(1); }
-    else if (event.key === 'ArrowUp') { event.preventDefault(); moveResponseGradeFocus(-1); }
-    else if (event.key === 'Home') { event.preventDefault(); responseGradeOptions[0]?.focus(); }
-    else if (event.key === 'End') { event.preventDefault(); responseGradeOptions[responseGradeOptions.length - 1]?.focus(); }
-    else if (event.key === 'Tab') closeResponseGradeMenu();
-  });
-  for (const option of responseGradeOptions) {
-    option.addEventListener('click', () => selectResponseGrade(option.dataset.responseGrade || ''));
+  if (RESPONSE_GRADE_BACKEND_ENABLED) {
+    responseGradeTrigger.addEventListener('click', () => {
+      if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
+      else openResponseGradeMenu();
+    });
+    responseGradeTrigger.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown') { event.preventDefault(); openResponseGradeMenu({edge: 'first'}); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); openResponseGradeMenu({edge: 'last'}); }
+    });
+    responseGradeMenu.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
+      else if (event.key === 'ArrowDown') { event.preventDefault(); moveResponseGradeFocus(1); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); moveResponseGradeFocus(-1); }
+      else if (event.key === 'Home') { event.preventDefault(); responseGradeOptions[0]?.focus(); }
+      else if (event.key === 'End') { event.preventDefault(); responseGradeOptions[responseGradeOptions.length - 1]?.focus(); }
+      else if (event.key === 'Tab') closeResponseGradeMenu();
+    });
+    for (const option of responseGradeOptions) {
+      option.addEventListener('click', () => selectResponseGrade(option.dataset.responseGrade || ''));
+    }
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && responseGradeOpen) { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
+    });
   }
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && responseGradeOpen) { event.preventDefault(); closeResponseGradeMenu({restoreFocus: true}); }
-  });
   prompt.addEventListener('input', () => { updateSendState(); if (stateReady) { state.draft = prompt.value.slice(0, 1000); saveState(); } });
   prompt.addEventListener('compositionend', updateSendState);
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });

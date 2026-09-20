@@ -51,7 +51,7 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260920-homefirst1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260920-richcards4"></script>
+  <script type="module" src="site-conversation.js?v=20260920-richcards5"></script>
   <script type="module" src="site-continuity.js?v=20260920-fallback4"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
@@ -164,7 +164,7 @@
           ></textarea>
 
           <div class="composer-actions">
-            <div class="response-grade-control" data-response-grade-control hidden>
+            <div class="response-grade-control" data-response-grade-control hidden inert aria-hidden="true">
               <button
                 class="response-grade-trigger"
                 type="button"
@@ -173,6 +173,7 @@
                 aria-controls="response-grade-menu"
                 aria-label="응답 등급: 스탠다드"
                 data-response-grade-trigger
+                disabled
               >
                 <span data-response-grade-label>스탠다드</span>
                 <span class="response-grade-chevron" aria-hidden="true">▾</span>
@@ -186,15 +187,15 @@
                 data-response-grade-menu
                 hidden
               >
-                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" data-response-grade="LIGHT">
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="LIGHT">
                   <span class="response-grade-name">라이트</span>
                   <span class="response-grade-description">빠르고 간단한 답변</span>
                 </button>
-                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="true" data-response-grade="STANDARD">
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="true" disabled data-response-grade="STANDARD">
                   <span class="response-grade-name">스탠다드</span>
                   <span class="response-grade-description">균형 잡힌 기본 모드</span>
                 </button>
-                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" data-response-grade="PREMIUM">
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="PREMIUM">
                   <span class="response-grade-name">프리미엄</span>
                   <span class="response-grade-description">복잡한 질문 · 깊은 분석</span>
                 </button>

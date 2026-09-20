@@ -17,8 +17,9 @@ const gradeMarkup = index.slice(start, end);
 
 // PHASE 7: no selector flash for anonymous visitors. The control remains in the
 // document only as dormant future UX until Core owns an authoritative contract.
-assert.match(gradeMarkup, /class="response-grade-control"[^>]*data-response-grade-control[^>]*hidden/);
-assert.match(gradeMarkup, /data-response-grade-trigger/);
+assert.match(gradeMarkup, /class="response-grade-control"[^>]*data-response-grade-control[^>]*hidden[^>]*inert[^>]*aria-hidden="true"/);
+assert.match(gradeMarkup, /data-response-grade-trigger[\s\S]*disabled/);
+assert.equal((gradeMarkup.match(/role="menuitemradio"[^>]*disabled/g) || []).length, 3, 'all dormant grade options must be disabled from first paint');
 assert.match(gradeMarkup, /data-response-grade="LIGHT"/);
 assert.match(gradeMarkup, /data-response-grade="STANDARD"/);
 assert.match(gradeMarkup, /data-response-grade="PREMIUM"/);
@@ -34,6 +35,10 @@ assert.match(conversation, /preferences\.responseGrade = grade/);
 assert.match(conversation, /responseGradeControl\.hidden = !available/);
 assert.match(conversation, /responseGradeControl\.setAttribute\('aria-hidden', String\(!available\)\)/);
 assert.match(conversation, /responseGradeTrigger\.disabled = !available/);
+assert.match(conversation, /if \(available\) responseGradeControl\.removeAttribute\('inert'\)/);
+assert.match(conversation, /else responseGradeControl\.setAttribute\('inert', ''\)/);
+assert.match(conversation, /if \(option instanceof HTMLButtonElement\) option\.disabled = !available/);
+assert.match(conversation, /if \(RESPONSE_GRADE_BACKEND_ENABLED\) \{[\s\S]*responseGradeTrigger\.addEventListener\('click'/);
 assert.match(conversation, /if \(!available\) \{[\s\S]*responseGradeMenu\.hidden = true/);
 assert.match(conversation, /const openResponseGradeMenu = \(\{edge = ''\} = \{\}\) => \{[\s\S]*if \(!responseGradeAvailable\(\)\) return/);
 assert.match(conversation, /const selectResponseGrade = grade => \{[\s\S]*if \(!responseGradeAvailable\(\)\) return/);
