@@ -296,6 +296,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
+    placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
   });
 }
 
@@ -434,6 +435,7 @@ export async function sendGuestConversationMessage({
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
+    placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
   });
 }
 

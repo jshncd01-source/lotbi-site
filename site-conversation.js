@@ -1,9 +1,14 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
-import {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260920-attach16';
-import {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} from './site-attachments.js?v=20260920-attach16';
+import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
+import * as siteCore from './site-core.js?v=20260920-attach16prod';
+import {isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-nav1';
+import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-guestcal1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
+
+const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
@@ -36,7 +41,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-attach16';
+  link.href = '/site-conversation.css?v=20260920-conversationpolish1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -94,6 +99,21 @@ function createMessage(role, text, meta = {}) {
   const body = document.createElement('p');
   body.className = 'chat-message-body'; body.textContent = text;
   article.appendChild(body);
+  if (Array.isArray(meta.attachments) && meta.attachments.length) {
+    const list = document.createElement('div'); list.className = 'message-attachment-list'; list.setAttribute('aria-label', '첨부 파일');
+    for (const attachment of meta.attachments) {
+      const item = document.createElement('div'); item.className = 'message-attachment-card';
+      const name = safeAttachmentName(attachment && attachment.filename);
+      const mediaType = attachment && attachment.mediaType ? attachment.mediaType : '';
+      if (String(mediaType).startsWith('image/') && attachment && attachment.previewUrl) {
+        const image = document.createElement('img'); image.className = 'message-attachment-image'; image.src = attachment.previewUrl; image.alt = name; item.appendChild(image);
+      } else {
+        const icon = document.createElement('span'); icon.className = 'message-attachment-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = attachment && attachment.mediaType === 'application/pdf' ? 'PDF' : '파일'; item.appendChild(icon);
+      }
+      const label = document.createElement('span'); label.className = 'message-attachment-name'; label.textContent = name; item.appendChild(label); list.appendChild(item);
+    }
+    article.appendChild(list);
+  }
   if (meta.followUpRequired) {
     const note = document.createElement('span');
     note.className = 'chat-message-meta'; note.textContent = '추가 확인이 필요합니다.';
@@ -245,16 +265,16 @@ function trapFocus(container, event) {
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 }
 
-export function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
+function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
-  const micButton = document.querySelector('.mic-button');
   const attachmentControl = document.querySelector('[data-attachment-control]');
   const attachmentTrigger = document.querySelector('[data-attachment-trigger]');
   const attachmentMenu = document.querySelector('[data-attachment-menu]');
   const attachmentPreview = document.querySelector('[data-attachment-preview]');
   const attachmentInputs = [...document.querySelectorAll('[data-attachment-input]')];
+  const micButton = document.querySelector('.mic-button');
   const responseGradeControl = document.querySelector('[data-response-grade-control]');
   const responseGradeTrigger = document.querySelector('[data-response-grade-trigger]');
   const responseGradeMenu = document.querySelector('[data-response-grade-menu]');
@@ -264,13 +284,16 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const stateRegion = document.getElementById('chat-state-region');
   const homeAvatarAnchor = document.querySelector('[data-home-avatar-anchor]');
   const avatar = document.querySelector('[data-lotbi-avatar-container]');
-  if (!(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement) || !(micButton instanceof HTMLButtonElement)
-    || !(attachmentControl instanceof HTMLElement) || !(attachmentTrigger instanceof HTMLButtonElement)
-    || !(attachmentMenu instanceof HTMLElement) || !(attachmentPreview instanceof HTMLElement)
-    || attachmentInputs.length !== 3 || attachmentInputs.some(input => !(input instanceof HTMLInputElement))
+  if (
+    !(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement)
+    || !(micButton instanceof HTMLButtonElement) || !(attachmentControl instanceof HTMLElement)
+    || !(attachmentTrigger instanceof HTMLButtonElement) || !(attachmentMenu instanceof HTMLElement)
+    || !(attachmentPreview instanceof HTMLElement) || attachmentInputs.length !== 3
+    || attachmentInputs.some(input => !(input instanceof HTMLInputElement))
     || !(responseGradeControl instanceof HTMLElement) || !(responseGradeTrigger instanceof HTMLButtonElement)
     || !(responseGradeMenu instanceof HTMLElement) || responseGradeOptions.length !== RESPONSE_GRADE_OPTIONS.length
-    || !(thread instanceof HTMLElement) || !(homeAvatarAnchor instanceof HTMLElement) || !(avatar instanceof HTMLElement)) return false;
+    || !(thread instanceof HTMLElement) || !(homeAvatarAnchor instanceof HTMLElement) || !(avatar instanceof HTMLElement)
+  ) return false;
   if (sendButton.dataset.conversationMounted === 'true') return true;
   sendButton.dataset.conversationMounted = 'true';
 
@@ -281,10 +304,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
+  let lastRenderedCreatedAt;
+  let timestampRefreshTimer;
   let richCardActionInFlight = false;
-  let selectedAttachments = [];
-  let attachmentUploadsInFlight = 0;
-  let attachmentMenuOpen = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
   const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
@@ -329,139 +351,6 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     } catch {}
     return issued.guestToken;
   };
-  const attachmentSizeLabel = size => {
-    const bytes = Math.max(0, Number(size || 0));
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
-    if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`;
-    return `${bytes}B`;
-  };
-  const closeAttachmentMenu = ({restoreFocus = false} = {}) => {
-    attachmentMenuOpen = false;
-    attachmentMenu.hidden = true;
-    attachmentTrigger.setAttribute('aria-expanded', 'false');
-    if (restoreFocus) attachmentTrigger.focus();
-  };
-  const openAttachmentMenu = () => {
-    if (inFlight || attachmentUploadsInFlight) return;
-    attachmentMenuOpen = true;
-    attachmentMenu.hidden = false;
-    attachmentTrigger.setAttribute('aria-expanded', 'true');
-    queueMicrotask(() => attachmentMenu.querySelector('[role="menuitem"]')?.focus());
-  };
-  const renderAttachmentPreview = () => {
-    const fragment = document.createDocumentFragment();
-    for (const item of selectedAttachments) {
-      const chip = document.createElement('span'); chip.className = 'attachment-chip'; chip.dataset.attachmentId = item.id;
-      const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = safeAttachmentName(item.fileName); name.title = safeAttachmentName(item.fileName);
-      const meta = document.createElement('span'); meta.className = 'attachment-chip-meta'; meta.textContent = `${attachmentKindLabel(item.mimeType)} · ${attachmentSizeLabel(item.sizeBytes)}`;
-      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'attachment-chip-remove'; remove.textContent = '×';
-      remove.setAttribute('aria-label', `${safeAttachmentName(item.fileName)} 첨부 제거`);
-      remove.addEventListener('click', async () => {
-        if (inFlight || remove.disabled) return;
-        remove.disabled = true;
-        try {
-          const guestToken = sessionToken ? '' : (readGuestSession() || '');
-          await deleteConversationAttachment({sessionToken: sessionToken || '', guestToken, attachmentId: item.id});
-          selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
-          renderAttachmentPreview();
-          setStatus('첨부 파일을 제거했습니다.');
-        } catch (error) {
-          if (error instanceof SiteCoreError && error.status === 404) {
-            selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
-            renderAttachmentPreview();
-          } else {
-            remove.disabled = false;
-            setStatus(error instanceof Error ? error.message : '첨부 파일을 제거하지 못했습니다.');
-          }
-        }
-      });
-      chip.append(name, meta, remove); fragment.appendChild(chip);
-    }
-    if (attachmentUploadsInFlight > 0) {
-      const uploading = document.createElement('span'); uploading.className = 'attachment-uploading';
-      uploading.textContent = attachmentUploadsInFlight === 1 ? '첨부 업로드 중…' : `첨부 ${attachmentUploadsInFlight}개 업로드 중…`;
-      fragment.appendChild(uploading);
-    }
-    attachmentPreview.replaceChildren(fragment);
-    attachmentPreview.hidden = selectedAttachments.length === 0 && attachmentUploadsInFlight === 0;
-    if (typeof updateSendState === 'function') updateSendState();
-  };
-  const uploadAttachmentFiles = async input => {
-    if (!(input instanceof HTMLInputElement) || inFlight || attachmentUploadsInFlight) return;
-    const files = Array.from(input.files || []);
-    input.value = '';
-    if (!files.length) return;
-    let validated;
-    try {
-      validated = await validateAttachmentFiles(files, selectedAttachments);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : '첨부 파일을 확인하지 못했습니다.');
-      return;
-    }
-    let guestToken = '';
-    try {
-      if (!sessionToken) guestToken = await ensureGuestSession();
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : '첨부 파일 세션을 시작하지 못했습니다.');
-      return;
-    }
-    attachmentUploadsInFlight = validated.length;
-    closeAttachmentMenu();
-    renderAttachmentPreview();
-    for (const file of validated) {
-      try {
-        const uploaded = await uploadConversationAttachment({
-          sessionToken: sessionToken || '',
-          guestToken,
-          file,
-        });
-        selectedAttachments = [...selectedAttachments, uploaded];
-      } catch (error) {
-        if (isSessionError(error)) sessionToken = undefined;
-        if (isGuestSessionError(error)) clearGuestSession();
-        setStatus(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
-      } finally {
-        attachmentUploadsInFlight = Math.max(0, attachmentUploadsInFlight - 1);
-        renderAttachmentPreview();
-      }
-    }
-    if (selectedAttachments.length) setStatus(`첨부 ${selectedAttachments.length}개가 준비되었습니다.`);
-    prompt.focus();
-  };
-  const selectedAttachmentIds = () => selectedAttachments.map(item => item.id);
-  const attachmentSummary = items => items.map(item => safeAttachmentName(item.fileName)).join(', ');
-  const clearSentAttachments = (items, {session = '', guest = ''} = {}) => {
-    const sent = Array.isArray(items) ? items : [];
-    const sentIds = new Set(sent.map(item => item.id));
-    selectedAttachments = selectedAttachments.filter(item => !sentIds.has(item.id));
-    renderAttachmentPreview();
-    if (!sent.length) return;
-    void Promise.allSettled(sent.map(item => deleteConversationAttachment({
-      sessionToken: session,
-      guestToken: guest,
-      attachmentId: item.id,
-    })));
-  };
-  const discardPendingAttachments = () => {
-    const pending = [...selectedAttachments];
-    const session = sessionToken || '';
-    const guest = session ? '' : (readGuestSession() || '');
-    selectedAttachments = [];
-    renderAttachmentPreview();
-    if (!pending.length || (!session && !guest)) return;
-    void Promise.allSettled(pending.map(item => deleteConversationAttachment({
-      sessionToken: session,
-      guestToken: guest,
-      attachmentId: item.id,
-    })));
-  };
-  const clearLocalAttachments = () => {
-    selectedAttachments = [];
-    attachmentUploadsInFlight = 0;
-    closeAttachmentMenu();
-    renderAttachmentPreview();
-  };
-
   const guestRecentContext = () => {
     const messages = threadRecord()?.messages;
     if (!Array.isArray(messages) || !messages.length) return [];
@@ -510,12 +399,29 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const restoreAvatarHome = () => { if (avatar.parentElement !== homeAvatarAnchor) homeAvatarAnchor.appendChild(avatar); };
   const showThread = () => { thread.hidden = false; document.body.classList.add('conversation-active'); };
   const showBlankHome = () => {
-    restoreAvatarHome(); thread.replaceChildren(); thread.hidden = true; document.body.classList.remove('conversation-active');
+    restoreAvatarHome(); thread.replaceChildren(); lastRenderedCreatedAt = undefined; thread.hidden = true; document.body.classList.remove('conversation-active');
   };
   const isThreadNearBottom = () => (
     thread.scrollHeight - thread.scrollTop - thread.clientHeight <= 72
   );
   const scrollThread = () => { thread.scrollTop = thread.scrollHeight; };
+  const createConversationSeparator = createdAt => {
+    const label = formatConversationTimestamp(createdAt);
+    if (!label) return null;
+    const separator = document.createElement('time');
+    separator.className = 'conversation-time-separator';
+    separator.dateTime = new Date(createdAt).toISOString();
+    separator.textContent = label;
+    return separator;
+  };
+  const refreshConversationTimeLabels = () => {
+    for (const separator of thread.querySelectorAll('time.conversation-time-separator[datetime]')) {
+      const label = formatConversationTimestamp(separator.dateTime);
+      if (label) separator.textContent = label;
+    }
+    window.clearTimeout(timestampRefreshTimer);
+    timestampRefreshTimer = window.setTimeout(refreshConversationTimeLabels, millisecondsUntilNextLocalMidnight() + 50);
+  };
   const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
     const shouldStick = forceScroll || (!suppressScroll && isThreadNearBottom());
     showThread();
@@ -616,6 +522,21 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const saveLotbiBox = items => {
     if (storage) storage.setItem(lotbiBoxKey(), JSON.stringify(items.slice(0, 100)));
   };
+  const removeLotbiBoxItem = key => {
+    const normalizedKey = typeof key === 'string' ? key : '';
+    const items = loadLotbiBox().filter(item => item.key !== normalizedKey);
+    saveLotbiBox(items);
+    return items;
+  };
+  const refreshLotbiBoxControls = () => {
+    const keys = new Set(loadLotbiBox().map(item => item.key));
+    for (const control of document.querySelectorAll('[data-lotbi-box-toggle-key]')) {
+      if (!(control instanceof HTMLButtonElement)) continue;
+      const saved = keys.has(control.dataset.lotbiBoxToggleKey || '');
+      control.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+      control.setAttribute('aria-pressed', String(saved));
+    }
+  };
   const lotbiBoxItemKey = (rich, card) => [rich.resolutionId || rich.displayId, card.candidate_index, card.merchant_code || ''].join(':');
   const isInLotbiBox = (rich, card) => loadLotbiBox().some(item => item.key === lotbiBoxItemKey(rich, card));
   const toggleLotbiBox = (rich, card) => {
@@ -704,9 +625,18 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
       }
       const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
-      const syncBoxLabel = () => { box.textContent = isInLotbiBox(rich, card) ? '✓ 롯비함' : '+ 롯비함'; };
+      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
+      const syncBoxLabel = () => {
+        const saved = isInLotbiBox(rich, card);
+        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+        box.setAttribute('aria-pressed', String(saved));
+      };
       syncBoxLabel();
-      box.addEventListener('click', () => { const added = toggleLotbiBox(rich, card); syncBoxLabel(); setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.'); });
+      box.addEventListener('click', () => {
+        const added = toggleLotbiBox(rich, card);
+        refreshLotbiBoxControls();
+        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
+      });
       actions.appendChild(box);
       const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
       buy.disabled = rich.expired || card.available === false;
@@ -735,7 +665,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
             ? '판매처의 현재 가격이 바뀌어 ' + currentPrice + '으로 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.'
             : '판매처에서 현재 가격 ' + currentPrice + '과 상품 상태를 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.';
           const meta = {status: 'PURCHASE_REVIEW_REQUIRED', responseMode: 'RICH_PRODUCT_REVIEW'};
-          appendNode(createMessage('assistant', reviewText, meta)); appendPersistedMessage({role: 'assistant', text: reviewText, meta});
+          const reviewRecord = timestampedConversationMessage({role: 'assistant', text: reviewText, meta});
+          appendConversationRecord(reviewRecord); appendPersistedMessage(reviewRecord);
           buy.textContent = '구매 검토됨'; setStatus('구매 전 최신 상품 정보를 확인했습니다. 결제는 실행하지 않았습니다.');
         } catch (error) {
           buy.textContent = '다시 확인'; buy.disabled = false; setStatus(userFacingErrorMessage(error));
@@ -746,21 +677,145 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
     return rail;
   };
+  const compactPlaceResultMeta = (value, capturedAt = Date.now()) => {
+    const normalized = normalizePlaceResult(value, {capturedAt});
+    if (!normalized) return null;
+    return {
+      contract_id: normalized.contractId,
+      schema_version: normalized.schemaVersion,
+      result_set_id: normalized.resultSetId,
+      provider_code: normalized.providerCode,
+      source: normalized.source,
+      query: normalized.query,
+      captured_at: normalized.capturedAt,
+      results: normalized.results.map(place => ({
+        result_id: place.resultId,
+        place_id: place.placeId,
+        name: place.name,
+        category: place.category,
+        address: place.address,
+        road_address: place.address,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        coordinate_system: place.coordinateSystem,
+        coordinate_authority: place.coordinateAuthority,
+        source_url: place.sourceUrl,
+        navigation_capability: place.navigationCapable,
+      })),
+    };
+  };
+  const normalizedPersistedPlaceResult = value => {
+    if (!value || typeof value !== 'object') return null;
+    return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
+  };
+  const createPlaceCardRail = placeValue => {
+    const placeResult = normalizedPersistedPlaceResult(placeValue);
+    if (!placeResult) return null;
+    const fresh = isPlaceResultFresh(placeResult);
+    const rail = document.createElement('section');
+    rail.className = 'lotbi-rich-card-rail';
+    rail.dataset.richCardType = 'PLACE';
+    rail.dataset.placeResultSetId = placeResult.resultSetId;
+    rail.setAttribute('aria-label', '장소 검색 결과');
+    for (const place of placeResult.results) {
+      const item = document.createElement('article');
+      item.className = 'lotbi-rich-card lotbi-rich-card-place';
+      item.dataset.candidateIndex = String(place.candidateIndex);
+      const media = document.createElement('div');
+      media.className = 'lotbi-rich-card-media lotbi-rich-card-placeholder';
+      media.textContent = 'NAVER 지도';
+      const copy = document.createElement('div');
+      copy.className = 'lotbi-rich-card-copy';
+      const source = document.createElement('span');
+      source.className = 'lotbi-rich-card-source';
+      source.textContent = place.category || 'NAVER 장소';
+      const title = document.createElement('h3');
+      title.className = 'lotbi-rich-card-title';
+      title.textContent = place.name;
+      const address = document.createElement('span');
+      address.className = 'lotbi-rich-card-price';
+      address.textContent = place.address;
+      copy.append(source, title, address);
+      const evidence = document.createElement('div');
+      evidence.className = 'lotbi-rich-card-evidence';
+      const coordinate = document.createElement('span');
+      coordinate.textContent = place.navigationCapable ? 'NAVER Maps Geocoding · WGS84 확인' : '좌표 미확정 · 네이버지도 검색으로 연결';
+      evidence.appendChild(coordinate);
+      if (!fresh) {
+        const expired = document.createElement('span');
+        expired.textContent = '검색 결과 만료 · 다시 검색 필요';
+        evidence.appendChild(expired);
+      }
+      copy.appendChild(evidence);
+      const actions = document.createElement('div');
+      actions.className = 'lotbi-rich-card-actions';
+      if (place.sourceUrl) {
+        const detail = document.createElement('a');
+        detail.className = 'lotbi-rich-card-action';
+        detail.href = place.sourceUrl;
+        detail.target = '_blank';
+        detail.rel = 'noopener noreferrer';
+        detail.referrerPolicy = 'no-referrer';
+        detail.textContent = '네이버에서 보기';
+        actions.appendChild(detail);
+      }
+      const navigate = document.createElement('button');
+      navigate.type = 'button';
+      navigate.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary';
+      navigate.textContent = place.navigationCapable ? '길안내' : '네이버지도에서 찾기';
+      navigate.disabled = !fresh;
+      if (!fresh) navigate.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
+      navigate.addEventListener('click', () => {
+        if (!isPlaceResultFresh(placeResult)) {
+          navigate.disabled = true;
+          navigate.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
+          setStatus('장소 검색 결과가 만료되었습니다. 다시 검색해 주세요.');
+          return;
+        }
+        const opened = openNaverMapsPlace(place);
+        if (!opened.opened) {
+          setStatus('네이버지도 연결을 안전하게 시작하지 못했습니다.');
+          return;
+        }
+        setStatus(place.navigationCapable ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도 검색으로 연결합니다.');
+      });
+      actions.appendChild(navigate);
+      item.append(media, copy, actions);
+      rail.appendChild(item);
+    }
+    return rail;
+  };
+
   const messageNode = message => {
     const node = createMessage(message.role, message.text, message.meta || {});
     const rich = compactRichProductMeta(message.meta?.richProduct);
+    const place = normalizedPersistedPlaceResult(message.meta?.placeResult);
     if (message.role === 'assistant' && rich) {
       const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
     }
+    if (message.role === 'assistant' && place) {
+      const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
+    }
     return node;
+  };
+  const appendConversationRecord = (message, options = {}) => {
+    if (shouldShowConversationSeparator(lastRenderedCreatedAt, message?.createdAt)) {
+      const separator = createConversationSeparator(message.createdAt);
+      if (separator) appendNode(separator, {suppressScroll: true});
+    }
+    if (Number.isFinite(Number(message?.createdAt)) && Number(message.createdAt) > 0) {
+      lastRenderedCreatedAt = Number(message.createdAt);
+    }
+    return appendNode(messageNode(message), options);
   };
   const renderActiveThread = () => {
     restoreAvatarHome(); thread.replaceChildren();
+    lastRenderedCreatedAt = undefined;
     const record = threadRecord();
     if (!record || !record.messages.length) { showBlankHome(); return; }
     showThread();
     for (const message of record.messages) {
-      appendNode(messageNode(message), {suppressScroll: true});
+      appendConversationRecord(message, {suppressScroll: true});
     }
     scrollThread();
   };
@@ -1028,8 +1083,8 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const openCalendar = async view => {
-    const allowed = new Set(['all', 'today', 'upcoming', 'attention', 'date']);
-    const initialView = allowed.has(view) ? view : 'all';
+    const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
+    const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
 
     const {backdrop, panel, content} = modalShell(
@@ -1051,6 +1106,88 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       message.textContent = '캘린더를 열지 못했습니다.';
       content.replaceChildren(message);
     }
+  };
+
+  const openLotbiBox = trigger => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
+    panel.classList.add('site-lotbi-box-modal');
+    const list = document.createElement('div');
+    list.className = 'lotbi-box-list';
+    list.setAttribute('aria-live', 'polite');
+
+    const render = () => {
+      const items = loadLotbiBox();
+      if (!items.length) {
+        const empty = document.createElement('div'); empty.className = 'lotbi-box-empty';
+        const title = document.createElement('strong'); title.textContent = '아직 롯비함에 담은 항목이 없어요.';
+        const copy = document.createElement('p'); copy.textContent = '검색 결과에서 “+ 롯비함”을 눌러 저장할 수 있어요.';
+        empty.append(title, copy);
+        list.replaceChildren(empty);
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      for (const item of items) {
+        const card = document.createElement('article');
+        card.className = 'lotbi-box-card';
+        card.dataset.lotbiBoxKey = item.key;
+
+        const media = document.createElement('div'); media.className = 'lotbi-box-card-media';
+        const imageUrl = typeof item.image_reference === 'string' && item.image_reference.startsWith('https://') ? item.image_reference : '';
+        if (imageUrl) {
+          const image = document.createElement('img');
+          image.src = imageUrl; image.alt = typeof item.display_title === 'string' ? item.display_title : '저장 상품';
+          image.loading = 'lazy'; image.decoding = 'async'; image.referrerPolicy = 'no-referrer';
+          image.addEventListener('error', () => { image.remove(); media.textContent = '이미지 없음'; media.classList.add('lotbi-box-card-placeholder'); }, {once: true});
+          media.appendChild(image);
+        } else {
+          media.textContent = '이미지 없음'; media.classList.add('lotbi-box-card-placeholder');
+        }
+
+        const body = document.createElement('div'); body.className = 'lotbi-box-card-body';
+        const source = document.createElement('span'); source.className = 'lotbi-box-card-source';
+        source.textContent = typeof item.source === 'string' && item.source.trim() ? item.source.trim() : '판매처';
+        const title = document.createElement('h3'); title.className = 'lotbi-box-card-title';
+        title.textContent = typeof item.display_title === 'string' && item.display_title.trim() ? item.display_title.trim() : '저장 상품';
+        body.append(source, title);
+        const priceSnapshot = item.display_price_snapshot;
+        if (priceSnapshot && Number.isInteger(priceSnapshot.amount)) {
+          const price = document.createElement('strong'); price.className = 'lotbi-box-card-price';
+          price.textContent = formatCardMoney(priceSnapshot.amount, priceSnapshot.currency || 'KRW');
+          body.appendChild(price);
+        }
+
+        const actions = document.createElement('div'); actions.className = 'lotbi-box-card-actions';
+        const detailUrl = [item.source_url, item.external_reference].find(value => typeof value === 'string' && value.startsWith('https://')) || '';
+        if (detailUrl) {
+          const detail = document.createElement('a');
+          detail.className = 'lotbi-box-card-action'; detail.href = detailUrl; detail.target = '_blank';
+          detail.rel = 'noopener noreferrer'; detail.referrerPolicy = 'no-referrer'; detail.textContent = '상세보기';
+          actions.appendChild(detail);
+        } else {
+          const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-box-card-action';
+          detail.textContent = '상세보기'; detail.disabled = true; detail.title = '공식 상세 링크를 확인할 수 없습니다.';
+          actions.appendChild(detail);
+        }
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'lotbi-box-card-action lotbi-box-card-remove';
+        remove.textContent = '롯비함에서 제거'; remove.setAttribute('aria-label', `${title.textContent} 롯비함에서 제거`);
+        remove.addEventListener('click', () => {
+          removeLotbiBoxItem(item.key);
+          refreshLotbiBoxControls();
+          render();
+          setStatus('롯비함에서 제거했습니다.');
+        });
+        actions.appendChild(remove);
+        card.append(media, body, actions);
+        fragment.appendChild(card);
+      }
+      list.replaceChildren(fragment);
+    };
+
+    content.appendChild(list);
+    render();
+    installSurfaceBehavior(backdrop, panel, {modal: true, trigger});
   };
 
   const openHelp = () => {
@@ -1106,6 +1243,147 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
 
   let responseGradeOpen = false;
+  let selectedAttachments = [];
+  let attachmentUploadsInFlight = 0;
+  let attachmentMenuOpen = false;
+  const attachmentSizeLabel = size => {
+    const bytes = Math.max(0, Number(size || 0));
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
+    if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`;
+    return `${bytes}B`;
+  };
+  const closeAttachmentMenu = ({restoreFocus = false} = {}) => {
+    attachmentMenuOpen = false;
+    attachmentMenu.hidden = true;
+    attachmentTrigger.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) attachmentTrigger.focus();
+  };
+  const openAttachmentMenu = () => {
+    if (inFlight || attachmentUploadsInFlight) return;
+    attachmentMenuOpen = true;
+    attachmentMenu.hidden = false;
+    attachmentTrigger.setAttribute('aria-expanded', 'true');
+    queueMicrotask(() => attachmentMenu.querySelector('[role="menuitem"]')?.focus());
+  };
+  const renderAttachmentPreview = () => {
+    const fragment = document.createDocumentFragment();
+    for (const item of selectedAttachments) {
+      const chip = document.createElement('span'); chip.className = 'attachment-chip'; chip.dataset.attachmentId = item.id;
+      const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = safeAttachmentName(item.fileName); name.title = safeAttachmentName(item.fileName);
+      const meta = document.createElement('span'); meta.className = 'attachment-chip-meta'; meta.textContent = `${attachmentKindLabel(item.mimeType)} · ${attachmentSizeLabel(item.sizeBytes)}`;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'attachment-chip-remove'; remove.textContent = '×';
+      remove.setAttribute('aria-label', `${safeAttachmentName(item.fileName)} 첨부 제거`);
+      remove.addEventListener('click', async () => {
+        if (inFlight || remove.disabled) return;
+        remove.disabled = true;
+        try {
+          const guestToken = sessionToken ? '' : (readGuestSession() || '');
+          await deleteConversationAttachment({sessionToken: sessionToken || '', guestToken, attachmentId: item.id});
+          selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
+          renderAttachmentPreview();
+          setStatus('첨부 파일을 제거했습니다.');
+        } catch (error) {
+          if (error instanceof SiteCoreError && error.status === 404) {
+            selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
+            renderAttachmentPreview();
+          } else {
+            remove.disabled = false;
+            setStatus(error instanceof Error ? error.message : '첨부 파일을 제거하지 못했습니다.');
+          }
+        }
+      });
+      chip.append(name, meta, remove); fragment.appendChild(chip);
+    }
+    if (attachmentUploadsInFlight > 0) {
+      const uploading = document.createElement('span'); uploading.className = 'attachment-uploading';
+      uploading.textContent = attachmentUploadsInFlight === 1 ? '첨부 업로드 중…' : `첨부 ${attachmentUploadsInFlight}개 업로드 중…`;
+      fragment.appendChild(uploading);
+    }
+    attachmentPreview.replaceChildren(fragment);
+    attachmentPreview.hidden = selectedAttachments.length === 0 && attachmentUploadsInFlight === 0;
+    if (typeof updateSendState === 'function') updateSendState();
+  };
+  const uploadAttachmentSelection = async fileList => {
+    if (inFlight || attachmentUploadsInFlight) return;
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    let validated;
+    try {
+      validated = await validateAttachmentFiles(files, selectedAttachments);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '첨부 파일을 확인하지 못했습니다.');
+      return;
+    }
+    let guestToken = '';
+    try {
+      if (!sessionToken) guestToken = await ensureGuestSession();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '첨부 파일 세션을 시작하지 못했습니다.');
+      return;
+    }
+    attachmentUploadsInFlight = validated.length;
+    closeAttachmentMenu();
+    renderAttachmentPreview();
+    for (const file of validated) {
+      try {
+        const uploaded = await uploadConversationAttachment({
+          sessionToken: sessionToken || '',
+          guestToken,
+          file,
+        });
+        selectedAttachments = [...selectedAttachments, uploaded];
+      } catch (error) {
+        if (isSessionError(error)) sessionToken = undefined;
+        if (isGuestSessionError(error)) clearGuestSession();
+        setStatus(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
+      } finally {
+        attachmentUploadsInFlight = Math.max(0, attachmentUploadsInFlight - 1);
+        renderAttachmentPreview();
+      }
+    }
+    if (selectedAttachments.length) setStatus(`첨부 ${selectedAttachments.length}개가 준비되었습니다.`);
+    prompt.focus();
+  };
+  const uploadAttachmentFiles = async input => {
+    if (!(input instanceof HTMLInputElement)) return;
+    const files = Array.from(input.files || []);
+    input.value = '';
+    await uploadAttachmentSelection(files);
+  };
+  const selectedAttachmentIds = () => selectedAttachments.map(item => item.id);
+  const attachmentSummary = items => items.map(item => safeAttachmentName(item.fileName)).join(', ');
+  const clearSentAttachments = (items, {session = '', guest = ''} = {}) => {
+    const sent = Array.isArray(items) ? items : [];
+    const sentIds = new Set(sent.map(item => item.id));
+    selectedAttachments = selectedAttachments.filter(item => !sentIds.has(item.id));
+    renderAttachmentPreview();
+    if (!sent.length) return;
+    void Promise.allSettled(sent.map(item => deleteConversationAttachment({
+      sessionToken: session,
+      guestToken: guest,
+      attachmentId: item.id,
+    })));
+  };
+  const discardPendingAttachments = () => {
+    const pending = [...selectedAttachments];
+    const session = sessionToken || '';
+    const guest = session ? '' : (readGuestSession() || '');
+    selectedAttachments = [];
+    renderAttachmentPreview();
+    if (!pending.length || (!session && !guest)) return;
+    void Promise.allSettled(pending.map(item => deleteConversationAttachment({
+      sessionToken: session,
+      guestToken: guest,
+      attachmentId: item.id,
+    })));
+  };
+  const clearLocalAttachments = () => {
+    selectedAttachments = [];
+    attachmentUploadsInFlight = 0;
+    closeAttachmentMenu();
+    renderAttachmentPreview();
+  };
+
   const closeResponseGradeMenu = ({restoreFocus = false} = {}) => {
     responseGradeMenu.hidden = true;
     responseGradeTrigger.setAttribute('aria-expanded', 'false');
@@ -1155,8 +1433,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const attachmentBusy = attachmentUploadsInFlight > 0;
     const hasContent = prompt.value.trim().length > 0 || selectedAttachments.length > 0;
     sendButton.disabled = inFlight || attachmentBusy || !hasContent;
-    sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송'); sendButton.title = inFlight ? '전송 중' : '전송';
-    micButton.disabled = inFlight || voiceRequesting || attachmentBusy;
+    sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송');
+    sendButton.title = inFlight ? '전송 중' : '전송';
+    micButton.disabled = inFlight || attachmentBusy || voiceRequesting;
     attachmentTrigger.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
     if (attachmentTrigger.disabled && attachmentMenuOpen) closeAttachmentMenu();
     for (const input of attachmentInputs) input.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
@@ -1215,27 +1494,22 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const message = typeof text === 'string' ? text.trim() : '';
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
-    const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
-    ensureThread(displayMessage);
+    const threadSeed = message ? message : ((attachments[0] && attachments[0].fileName) ? attachments[0].fileName : '첨부 파일');
+    ensureThread(threadSeed);
     if (appendUserMessage) {
-      const userNode = createMessage('user', displayMessage);
-      if (attachments.length) {
-        const attachmentNote = document.createElement('span');
-        attachmentNote.className = 'chat-message-meta chat-message-attachment-meta';
-        attachmentNote.textContent = `첨부: ${attachmentSummary(attachments)}`;
-        userNode.appendChild(attachmentNote);
-      }
-      appendNode(userNode, {forceScroll: true});
-      appendPersistedMessage({role: 'user', text: displayMessage, meta: {}});
+      const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
+      const persistedAttachments = attachmentMeta.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes}));
+      const userRecord = timestampedConversationMessage({role: 'user', text: message, meta: {attachments: persistedAttachments}});
+      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true}); appendPersistedMessage(userRecord);
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
-      const record = {role: 'assistant', text: local, meta: {status: 'ANSWERED', responseMode: 'LOCAL_DETERMINISTIC'}};
-      appendNode(createMessage('assistant', local, record.meta)); appendPersistedMessage(record);
+      const record = timestampedConversationMessage({role: 'assistant', text: local, meta: {status: 'ANSWERED', responseMode: 'LOCAL_DETERMINISTIC'}});
+      appendConversationRecord(record); appendPersistedMessage(record);
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt));
       const requestsAfter = resourceCounts();
       diagnostics.lastCoreRequestDelta = requestsAfter.core - requestsBefore.core;
@@ -1281,12 +1555,13 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
           }
         }
         if (richProduct) meta.richProduct = richProduct;
-        const assistantNode = createMessage('assistant', response.assistantText, meta);
-        if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
-        appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+        const placeResult = compactPlaceResultMeta(response.placeResult);
+        if (placeResult) meta.placeResult = placeResult;
+        const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
+        appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
         if (attachments.length) clearSentAttachments(attachments, {guest: token});
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
-        setStatus(richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
+        setStatus(placeResult ? '로그인 없이 실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
       } catch (caught) {
         loading.parentElement?.remove();
         if (isGuestSessionError(caught)) clearGuestSession();
@@ -1305,8 +1580,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         });
         loading.parentElement?.remove();
         const meta = {status: 'ANSWERED', responseMode: calendar.parserType};
-        appendNode(createMessage('assistant', calendar.assistantText, meta));
-        appendPersistedMessage({role: 'assistant', text: calendar.assistantText, meta});
+        const calendarRecord = timestampedConversationMessage({role: 'assistant', text: calendar.assistantText, meta});
+        appendConversationRecord(calendarRecord);
+        appendPersistedMessage(calendarRecord);
         diagnostics.lastPath = 'CORE_CALENDAR_DETERMINISTIC'; diagnostics.coreCalls += 1; diagnostics.providerCallsAvoided += 1;
         window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
@@ -1346,12 +1622,13 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         }
       }
       if (richProduct) meta.richProduct = richProduct;
-      const assistantNode = createMessage('assistant', response.assistantText, meta);
-      if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
-      appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+      const placeResult = compactPlaceResultMeta(response.placeResult);
+      if (placeResult) meta.placeResult = placeResult;
+      const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
+      appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
       if (attachments.length) clearSentAttachments(attachments, {session: activeSessionToken});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
-      setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
+      setStatus(placeResult ? '실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
       driveAvatar('response-complete', avatarRequestId);
     } catch (caught) {
       driveAvatar('cancel', avatarRequestId);
@@ -1370,45 +1647,12 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const message = prompt.value.trim();
     if (!message && !selectedAttachments.length) return;
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
-    prompt.value = ''; state.draft = ''; saveState(); prompt.dispatchEvent(new Event('input', {bubbles: true})); await requestAssistant(message, true);
+    prompt.value = ''; state.draft = ''; saveState();
+    prompt.dispatchEvent(new Event('input', {bubbles: true}));
+    await requestAssistant(message, true);
   };
 
   micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
-  attachmentTrigger.addEventListener('click', () => {
-    if (attachmentMenuOpen) closeAttachmentMenu({restoreFocus: true});
-    else openAttachmentMenu();
-  });
-  attachmentTrigger.addEventListener('keydown', event => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      openAttachmentMenu();
-    }
-  });
-  attachmentMenu.addEventListener('keydown', event => {
-    const items = [...attachmentMenu.querySelectorAll('[role="menuitem"]')].filter(item => item instanceof HTMLButtonElement);
-    const current = items.indexOf(document.activeElement);
-    if (event.key === 'Escape') { event.preventDefault(); closeAttachmentMenu({restoreFocus: true}); return; }
-    if (event.key === 'Tab') { closeAttachmentMenu(); return; }
-    if (!items.length || current < 0) return;
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      const offset = event.key === 'ArrowDown' ? 1 : -1;
-      items[(current + offset + items.length) % items.length].focus();
-    } else if (event.key === 'Home') { event.preventDefault(); items[0].focus(); }
-    else if (event.key === 'End') { event.preventDefault(); items[items.length - 1].focus(); }
-  });
-  for (const action of attachmentMenu.querySelectorAll('[data-attachment-action]')) {
-    if (!(action instanceof HTMLButtonElement)) continue;
-    action.addEventListener('click', () => {
-      const mode = action.dataset.attachmentAction || '';
-      const input = attachmentInputs.find(candidate => candidate.dataset.attachmentInput === mode);
-      closeAttachmentMenu();
-      if (input instanceof HTMLInputElement) input.click();
-    });
-  }
-  for (const input of attachmentInputs) {
-    input.addEventListener('change', () => void uploadAttachmentFiles(input));
-  }
   if (RESPONSE_GRADE_BACKEND_ENABLED) {
     responseGradeTrigger.addEventListener('click', () => {
       if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
@@ -1437,12 +1681,68 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   prompt.addEventListener('compositionend', updateSendState);
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });
   sendButton.addEventListener('click', () => void submitCurrentPrompt());
+  attachmentTrigger.addEventListener('click', () => {
+    if (attachmentMenuOpen) closeAttachmentMenu({restoreFocus: true});
+    else openAttachmentMenu();
+  });
+  attachmentTrigger.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault(); openAttachmentMenu();
+    }
+  });
+  attachmentMenu.addEventListener('keydown', event => {
+    const items = [...attachmentMenu.querySelectorAll('[role="menuitem"]')].filter(item => item instanceof HTMLButtonElement);
+    const current = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') { event.preventDefault(); closeAttachmentMenu({restoreFocus: true}); return; }
+    if (event.key === 'Tab') { closeAttachmentMenu(); return; }
+    if (!items.length || current < 0) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const offset = event.key === 'ArrowDown' ? 1 : -1;
+      items[(current + offset + items.length) % items.length].focus();
+    } else if (event.key === 'Home') { event.preventDefault(); items[0].focus(); }
+    else if (event.key === 'End') { event.preventDefault(); items[items.length - 1].focus(); }
+  });
+  for (const action of attachmentMenu.querySelectorAll('[data-attachment-action]')) {
+    if (!(action instanceof HTMLButtonElement)) continue;
+    action.addEventListener('click', () => {
+      const mode = action.dataset.attachmentAction || '';
+      const input = attachmentInputs.find(candidate => candidate.dataset.attachmentInput === mode);
+      closeAttachmentMenu();
+      if (input instanceof HTMLInputElement) input.click();
+    });
+  }
+  for (const input of attachmentInputs) {
+    input.addEventListener('change', () => void uploadAttachmentFiles(input));
+  }
+  const composerStack = attachmentTrigger.closest('.chat-composer-stack');
+  if (composerStack) composerStack.addEventListener('dragover', event => {
+    if (event.dataTransfer && event.dataTransfer.types && event.dataTransfer.types.includes('Files')) {
+      event.preventDefault(); event.dataTransfer.dropEffect = 'copy';
+    }
+  });
+  if (composerStack) composerStack.addEventListener('drop', event => {
+    if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) {
+      event.preventDefault(); void uploadAttachmentSelection(event.dataTransfer.files);
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && attachmentMenuOpen) {
+      event.preventDefault(); closeAttachmentMenu({restoreFocus: true});
+    }
+  });
   micButton.addEventListener('click', () => void startVoiceInput());
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
     if (attachmentMenuOpen && !target?.closest('[data-attachment-control]')) closeAttachmentMenu();
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
+    const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
+    if (lotbiBoxTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openLotbiBox(lotbiBoxTrigger);
+      return;
+    }
     const calendarView = target?.closest('[data-calendar-view]');
     if (calendarView instanceof HTMLButtonElement) {
       event.preventDefault();
@@ -1464,15 +1764,13 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (trigger instanceof HTMLElement) { event.preventDefault(); openProfileMenu(trigger); }
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') {
-      closeConversationMenus();
-      if (attachmentMenuOpen) closeAttachmentMenu({restoreFocus: true});
-    }
+    if (event.key === 'Escape') closeConversationMenus();
   });
   window.addEventListener(SESSION_STATE_EVENT, event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (!detail || typeof detail.authenticated !== 'boolean') return;
     if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
+    if (openSurface?.querySelector('.lotbi-box-list')) closeSurface();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
@@ -1485,13 +1783,15 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
   });
   syncResponseGradeUi();
-  renderAttachmentPreview();
+  refreshConversationTimeLabels();
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '로그인 없이도 LOTBI와 바로 대화할 수 있습니다. 계정 기능이 필요할 때만 로그인합니다.');
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
   if (sessionToken) void loadServerProfile();
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
   return true;
 }
+
+export {mountConversation};
 
 function autoMount() { if (document.getElementById('lotbi-prompt')) mountConversation(); }
 ensureConversationStyles();
