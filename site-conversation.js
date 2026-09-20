@@ -3,7 +3,7 @@ import * as siteCore from './site-core.js?v=20260920-attachments1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attachments1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-authux1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-realcal1';
 
 const {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -908,8 +908,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const openCalendar = async view => {
-    const allowed = new Set(['all', 'today', 'upcoming', 'attention', 'date']);
-    const initialView = allowed.has(view) ? view : 'all';
+    const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
+    const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
 
     const {backdrop, panel, content} = modalShell(

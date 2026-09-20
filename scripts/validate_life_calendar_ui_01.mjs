@@ -118,32 +118,32 @@ const responses = {
   };
 
   calls.length = 0;
-  const all = await loadLifeCalendarManagerView('site-token', {...base, view: 'all'});
-  assert.equal(all.label, '전체 일정');
-  assert.equal(all.kind, 'agenda');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=0001-01-01&end=9999-12-31'));
+  const month = await loadLifeCalendarManagerView('site-token', {...base, view: 'month'});
+  assert.equal(month.key, 'month');
+  assert.equal(month.kind, 'agenda');
+  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-10'));
 
   calls.length = 0;
   const today = await loadLifeCalendarManagerView('site-token', {...base, view: 'today'});
-  assert.equal(today.label, '오늘');
-  assert.ok(calls[0].url.includes('/v2/life/today?timezone=Asia%2FSeoul'));
+  assert.equal(today.key, 'month');
+  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-10'));
 
   calls.length = 0;
-  const upcoming = await loadLifeCalendarManagerView('site-token', {...base, view: 'upcoming'});
-  assert.equal(upcoming.label, '예정된 일정');
-  assert.ok(calls[0].url.includes('/v2/life/upcoming?timezone=Asia%2FSeoul&through=9999-12-31'));
+  const year = await loadLifeCalendarManagerView('site-token', {...base, view: 'year'});
+  assert.equal(year.key, 'year');
+  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-01-01&end=2026-12-31'));
 
   calls.length = 0;
   const attention = await loadLifeCalendarManagerView('site-token', {...base, view: 'attention'});
-  assert.equal(attention.label, '확인 필요');
+  assert.equal(attention.key, 'attention');
   assert.equal(attention.kind, 'attention');
   assert.ok(calls[0].url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365'));
 
   calls.length = 0;
-  const byDate = await loadLifeCalendarManagerView('site-token', {...base, view: 'date', date: '2026-10-02'});
-  assert.equal(byDate.label, '날짜별 보기');
-  assert.equal(byDate.date, '2026-10-02');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-10-02&end=2026-10-02'));
+  const agenda = await loadLifeCalendarManagerView('site-token', {...base, view: 'agenda', date: '2026-10-02'});
+  assert.equal(agenda.key, 'agenda');
+  assert.equal(agenda.date, '2026-10-02');
+  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-11-07'));
 
   for (const call of calls) {
     assert.equal(call.init.headers.Authorization, 'Bearer site-token');
@@ -175,6 +175,7 @@ const responses = {
 const index = read('index.html');
 const callback = read('auth/callback/index.html');
 const ui = read('site-calendar-ui.js');
+const manager = read('site-calendar-manager.js');
 const css = read('site-calendar.css');
 const conversation = read('site-conversation.js');
 const openCalendarStart = conversation.indexOf('const openCalendar = async view =>');
@@ -187,7 +188,7 @@ assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry m
 assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish authenticated and guest entry without gating');
 
 
-assert.ok(index.includes('href="site-calendar.css?v=20260920-calnav9"'));
+assert.ok(index.includes('href="site-calendar.css?v=20260920-realcal1"'));
 assert.ok(index.includes('data-life-calendar-panel'));
 assert.ok(index.includes('data-calendar-enabled="true"'));
 assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
@@ -201,9 +202,9 @@ for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 �
 for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
   assert.ok(!index.includes(forbidden), `internal Calendar term leaked into user UI: ${forbidden}`);
 }
-assert.ok(callback.includes('href="/site-calendar.css?v=20260920-calnav9"'));
+assert.ok(callback.includes('href="/site-calendar.css?v=20260920-realcal1"'));
 const callbackJs = read('auth-callback.js');
-assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-authux1';"));
+assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-realcal1';"));
 assert.ok(callbackJs.includes('await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});'));
 
 for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
@@ -212,15 +213,10 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("export async function loadLifeCalendarManagerView"));
+assert.ok(ui.includes("from './site-calendar-manager.js?v=20260920-realcal1'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
-assert.ok(ui.includes("export async function mountLifeCalendarManager"));
-assert.ok(ui.includes("['all', '전체 일정']"));
-assert.ok(ui.includes("['today', '오늘']"));
-assert.ok(ui.includes("['upcoming', '예정된 일정']"));
-assert.ok(ui.includes("['attention', '확인 필요']"));
-assert.ok(ui.includes("['date', '날짜별 보기']"));
+assert.ok(ui.includes('mountLifeCalendarManager'));
 assert.ok(ui.includes("horizonDays: CALENDAR_ATTENTION_HORIZON_DAYS"));
 assert.ok(ui.includes("getLifeUpcoming(sessionToken, {timezone, through}, fetchImpl)"));
 assert.ok(ui.includes("getLifeAttention(sessionToken, {timezone, horizonDays: 14}, fetchImpl)"));
@@ -234,8 +230,8 @@ assert.ok(ui.includes('root.hidden = false'));
 assert.ok(ui.includes('const onRefresh = () => { void refresh(); }'));
 assert.ok(ui.includes('const requestGeneration = ++generation'));
 assert.ok(ui.includes("root.dataset.calendarEnabled !== 'true'"));
-assert.ok(ui.includes("removeLifeActivity(context.sessionToken"));
-assert.ok(ui.includes("rescheduleLifeActivity(context.sessionToken"));
+assert.ok(manager.includes("removeLifeActivity(sessionToken"));
+assert.ok(manager.includes("rescheduleLifeActivity(sessionToken"));
 assert.ok(ui.includes('return mountLifeCalendar({...options, root});'));
 assert.ok(css.includes('[data-life-calendar-panel][hidden]'));
 assert.ok(css.includes('.life-calendar-panel'));

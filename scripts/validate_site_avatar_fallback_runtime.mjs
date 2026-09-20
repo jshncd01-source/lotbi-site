@@ -78,8 +78,14 @@ try{
     child.kill('SIGTERM');
     const graceful = await Promise.race([exited.then(() => true), delay(2000).then(() => false)]);
     if (!graceful && child.exitCode === null) child.kill('SIGKILL');
-    await Promise.race([exited, delay(500)]);
+    await Promise.race([exited, delay(5000)]);
   };
   await Promise.all([stop(chrome), stop(server)]);
-  fs.rmSync(profile, {recursive:true, force:true, maxRetries:5, retryDelay:100});
+  for(let attempt=0;attempt<20;attempt+=1){
+    try{fs.rmSync(profile,{recursive:true,force:true});break;}
+    catch(error){
+      if(!['EBUSY','ENOTEMPTY','EPERM'].includes(error?.code)||attempt===19)throw error;
+      await delay(250);
+    }
+  }
 }

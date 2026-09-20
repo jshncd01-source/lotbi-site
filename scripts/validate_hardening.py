@@ -84,7 +84,7 @@ def main() -> int:
         '<script type="importmap">',
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-attachments2"></script>',
+        '<script type="module" src="site-conversation.js?v=20260920-realcal3"></script>',
         '<script type="module" src="site-continuity.js?v=20260920-authux1"></script>',
         '<script type="module" src="site-avatar.js"></script>',
     )
@@ -162,7 +162,7 @@ def main() -> int:
         errors.append("authenticated continuity stylesheet missing from home")
     if 'href="mobile-entry.css"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
-    if 'src="site-conversation.js?v=20260920-attachments2"' not in index:
+    if 'src="site-conversation.js?v=20260920-realcal3"' not in index:
         errors.append("approved conversation module missing from home")
     if 'src="site-continuity.js?v=20260920-authux1"' not in index:
         errors.append("approved authenticated continuity module missing from home")
