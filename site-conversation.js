@@ -1124,7 +1124,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     ensureThread(threadSeed);
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes, previewUrl: item.previewUrl ? item.previewUrl : ''}));
-      appendNode(createMessage('user', message, {attachments: attachmentMeta}), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {attachments: attachmentMeta.map(({previewUrl, ...item}) => item)}});
+      const persistedAttachments = attachmentMeta.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes}));
+      appendNode(createMessage('user', message, {attachments: attachmentMeta}), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {attachments: persistedAttachments}});
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
