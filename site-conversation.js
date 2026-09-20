@@ -980,14 +980,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const latestSinglePartialCalendarCandidate = () => {
     const messages = threadRecord()?.messages;
     if (!Array.isArray(messages) || !messages.length) return null;
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (message?.role !== 'assistant') continue;
-      if (!Array.isArray(message.meta?.calendarItems) || message.meta.calendarItems.length !== 1) return null;
-      const item = normalizeConversationCalendarItem(message.meta.calendarItems[0]);
-      return item?.kind === 'PARTIAL' ? item.candidate : null;
-    }
-    return null;
+    const message = messages[messages.length - 1];
+    if (message?.role !== 'assistant') return null;
+    if (!Array.isArray(message.meta?.calendarItems) || message.meta.calendarItems.length !== 1) return null;
+    const item = normalizeConversationCalendarItem(message.meta.calendarItems[0]);
+    return item?.kind === 'PARTIAL' ? item.candidate : null;
   };
 
   const clearResolvedPartialCandidate = candidateId => {
