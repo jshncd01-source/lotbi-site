@@ -779,9 +779,10 @@ export async function mountLifeCalendarManager({
   const focusCalendarContext = (origin, item) => {
     queueMicrotask(() => {
       const eventId = item?.id || item?.activity_id || '';
-      const eventTarget = origin.mode === 'agenda' && eventId
+      const eventCandidate = eventId
         ? root.querySelector(`[data-calendar-event-id="${eventId}"]`)
         : null;
+      const eventTarget = eventCandidate?.getClientRects?.().length ? eventCandidate : null;
       const dateTarget = origin.mode === 'month'
         ? root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`)
         : null;
