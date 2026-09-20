@@ -22,11 +22,11 @@ for (const general of ['대통령이 누구야', '전주 혁신도시 삼겹살�
   assert.equal(deterministicReply(general), undefined, `${general} must remain on authoritative Core/search routing`);
 }
 
-const localBranch = conversation.indexOf('const local = deterministicReply(message)');
+const localBranch = conversation.indexOf('const local = attachments.length ? null : deterministicReply(message)');
 const calendarAuthBranch = conversation.indexOf('if (!sessionToken && isExplicitLifeCalendarCommand(message))', localBranch);
 const guestBranch = conversation.indexOf('if (!sessionToken) {', calendarAuthBranch);
 const guestCall = conversation.indexOf('sendGuestConversationMessage({', guestBranch);
-const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message)', guestCall);
+const coreCall = conversation.indexOf('sendConversationMessage(sessionToken, message, globalThis.fetch, attachments.map(item => item.id))', guestCall);
 assert.ok(
   localBranch > 0
     && calendarAuthBranch > localBranch

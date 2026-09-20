@@ -72,5 +72,14 @@ try{
   console.log('SITE-WEB-3D-AVATAR-FALLBACK-RETRY-02 BROWSER PASS',JSON.stringify({before,after,fallbackLogCount:fallbackLogs.length}));
   ws.close();
 }finally{
-  chrome?.kill('SIGTERM');server.kill('SIGTERM');await delay(200);fs.rmSync(profile,{recursive:true,force:true});
+  const stop = async child => {
+    if (!child || child.exitCode !== null) return;
+    const exited = new Promise(resolve => child.once('exit', resolve));
+    child.kill('SIGTERM');
+    const graceful = await Promise.race([exited.then(() => true), delay(2000).then(() => false)]);
+    if (!graceful && child.exitCode === null) child.kill('SIGKILL');
+    await Promise.race([exited, delay(500)]);
+  };
+  await Promise.all([stop(chrome), stop(server)]);
+  fs.rmSync(profile, {recursive:true, force:true, maxRetries:5, retryDelay:100});
 }

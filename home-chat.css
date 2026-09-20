@@ -35,7 +35,7 @@
   align-self: start;
   height: 100vh;
   padding: 18px 12px;
-  overflow-y: auto;
+  overflow: hidden;
   border-right: 1px solid #e2e6ee;
 }
 
