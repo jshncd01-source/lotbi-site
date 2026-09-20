@@ -1,11 +1,12 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
-import {createGuestConversationSession, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260920-attachments1';
-import {getCurrentSiteUser, getCurrentSubscription, logoutSiteSession} from './site-core.js?v=20260920-attachments1';
-import {getProductCards, reviewProductCard, searchProductCards, searchPublicProductCards} from './site-core.js?v=20260920-attachments1';
-import {safeAttachmentName, validateAttachmentFiles} from './site-attachments.js?v=20260920-attachments1';
+import * as siteCore from './site-core.js?v=20260920-attachments1';
+import * as siteAttachments from './site-attachments.js?v=20260920-attachments1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-calnav9';
+
+const {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
