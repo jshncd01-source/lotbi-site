@@ -1,5 +1,6 @@
 const NAVER_MAPS_WEB_APPNAME = 'https://lotbiai.com';
 const NAVER_MAPS_ANDROID_PACKAGE = 'com.nhn.android.nmap';
+const NAVER_MAPS_ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.nhn.android.nmap';
 const NAVER_MAPS_IOS_STORE_URL = 'https://itunes.apple.com/app/id311867728?mt=8';
 const NAVER_MAPS_WEB_SEARCH_BASE = 'https://map.naver.com/p/search/';
 const NAVIGATION_TTL_MS = 10 * 60 * 1000;
@@ -111,7 +112,8 @@ export function buildNaverMapsAndroidIntentUri(place, {appname = NAVER_MAPS_WEB_
   if (!place || typeof place !== 'object') throw new TypeError('place is required');
   const action = place.navigationCapable === true ? 'navigation' : 'search';
   const params = action === 'navigation' ? navigationParams(place, appname) : searchParams(place, appname);
-  return `intent://${action}?${params}#Intent;scheme=nmap;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=${NAVER_MAPS_ANDROID_PACKAGE};end`;
+  const fallbackUrl = encodeURIComponent(NAVER_MAPS_ANDROID_STORE_URL);
+  return `intent://${action}?${params}#Intent;scheme=nmap;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=${NAVER_MAPS_ANDROID_PACKAGE};S.browser_fallback_url=${fallbackUrl};end`;
 }
 
 export function buildNaverMapsWebSearchUrl(place) {

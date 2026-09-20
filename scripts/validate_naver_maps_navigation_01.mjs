@@ -49,6 +49,7 @@ const intent = nav.buildNaverMapsAndroidIntentUri(normalized.results[0]);
 assert.match(intent, /^intent:\/\/navigation\?/u);
 assert.match(intent, /package=com\.nhn\.android\.nmap/u);
 assert.match(intent, /scheme=nmap/u);
+assert.match(intent, /S\.browser_fallback_url=https%3A%2F%2Fplay\.google\.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom\.nhn\.android\.nmap/u);
 
 const desktop = nav.buildNaverMapsWebSearchUrl(normalized.results[0]);
 assert.match(desktop, /^https:\/\/map\.naver\.com\/p\/search\//u);
