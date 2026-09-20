@@ -36,6 +36,8 @@ assert.ok(source.includes("from './site-calendar-manager.js?v=20260920-realcal1'
 for (const required of ['calendarMonthGrid', 'calendarYearOverview', "case 'ArrowLeft'", "case 'ArrowRight'", "case 'ArrowUp'", "case 'ArrowDown'", 'date.dataset.calendarDate', "grid.setAttribute('role', 'grid')", 'buildCalendarAriaLabel(cell, events.length)', 'events.slice(0, chipCount)', 'calendar-event-overflow']) {
   assert.ok(manager.includes(required), `missing Calendar UI contract: ${required}`);
 }
+assert.ok(manager.includes('if (!root.isConnected)'), 'detached Calendar mounts must dispose their global refresh listener');
+assert.ok(manager.includes('event.detail?.source === root'), 'a Calendar mount must ignore its own refresh broadcast');
 for (const selector of ['.calendar-month-grid', '.calendar-year-grid', '.calendar-day-panel', '[data-selected="true"]', '[data-today="true"]', 'grid-template-columns: repeat(7', 'grid-template-columns: repeat(3']) assert.ok(css.includes(selector), `missing Calendar CSS contract: ${selector}`);
 
 console.log('LOTBI real Calendar month/year/day UI: PASS');

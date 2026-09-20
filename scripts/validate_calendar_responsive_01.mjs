@@ -33,6 +33,7 @@ assert.ok(css.includes('@media (max-width: 520px)'));
 assert.ok(css.includes('width: min(1180px, calc(100vw - 36px))'));
 assert.ok(css.includes('min-width: 0'));
 assert.ok(!css.includes('overflow-x: scroll'));
+assert.ok(css.includes('.calendar-editor-backdrop { position: fixed;'), 'event editor must cover the viewport instead of anchoring to an unpositioned content box');
 for (const width of [340, 390, 412, 768, 1280, 1440]) assert.ok(width >= 340, `unsupported viewport ${width}`);
 
 const openStart = conversation.indexOf('const openCalendar = async view =>');

@@ -477,7 +477,7 @@ export async function mountLifeCalendarManager({
         const parts = civilDateParts(nextDate); state.selectedDate = nextDate; state.year = parts.year; state.month = parts.month; state.mode = 'month';
       }
       await refresh();
-      window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+      window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
     },
     onStale: refresh,
   });
@@ -498,7 +498,14 @@ export async function mountLifeCalendarManager({
   title.addEventListener('click', async () => { state.mode = state.mode === 'year' ? 'month' : 'year'; await refresh(); });
   for (const [mode, control] of modeButtons) control.addEventListener('click', async () => { if (state.mode !== mode) { state.mode = mode; await refresh(); } });
 
-  const onRefresh = () => { void refresh(); };
+  const onRefresh = event => {
+    if (!root.isConnected) {
+      window.removeEventListener('lotbi:life-calendar-refresh', onRefresh);
+      return;
+    }
+    if (event.detail?.source === root) return;
+    void refresh();
+  };
   window.addEventListener('lotbi:life-calendar-refresh', onRefresh);
   await refresh();
   return true;
