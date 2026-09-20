@@ -50,8 +50,11 @@ export function calendarMonthGrid(year, month) {
   assertYear(year);
   assertMonth(month);
   const first = utcCivilDate(year, month, 1);
-  const gridStart = utcCivilDate(year, month, 1 - first.getUTCDay());
-  return Object.freeze(Array.from({length: 42}, (_, index) => {
+  const leadingDays = first.getUTCDay();
+  const last = utcCivilDate(year, month + 1, 0);
+  const weekCount = Math.max(4, Math.ceil((leadingDays + last.getUTCDate()) / 7));
+  const gridStart = utcCivilDate(year, month, 1 - leadingDays);
+  return Object.freeze(Array.from({length: weekCount * 7}, (_, index) => {
     const date = new Date(gridStart.getTime());
     date.setUTCDate(gridStart.getUTCDate() + index);
     const cellYear = date.getUTCFullYear();

@@ -1,5 +1,5 @@
-import {createLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260920-realcal1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-realcal1';
+import {createLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260920-calux1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-calux1';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -9,7 +9,7 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=20260920-realcal1';
+} from './site-calendar-model.js?v=20260920-calux1';
 import {SiteCoreError} from './site-core.js?v=20260920-guest3';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
@@ -49,12 +49,33 @@ function koreanDate(value) {
   return `${year}년 ${month}월 ${day}일 ${WEEKDAYS[weekday]}`;
 }
 
+function shiftCivilMonth(value, delta) {
+  const {year, month, day} = civilDateParts(value);
+  const target = new Date(Date.UTC(year, month - 1 + delta, 1, 12));
+  const targetYear = target.getUTCFullYear();
+  const targetMonth = target.getUTCMonth() + 1;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0, 12)).getUTCDate();
+  return `${String(targetYear).padStart(4, "0")}-${String(targetMonth).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+}
+
 function eventTime(item) {
   return typeof item?.local_datetime === 'string' ? item.local_datetime.slice(11, 16) : '종일';
 }
 
 function isAllDay(item) {
   return item?.all_day === true || !item?.local_datetime;
+}
+
+function usesFlowingDayDetail() {
+  if (typeof globalThis.matchMedia === 'function') return globalThis.matchMedia('(max-width: 900px)').matches;
+  return globalThis.innerWidth <= 900;
+}
+
+function weekBounds(value) {
+  const {year, month, day} = civilDateParts(value);
+  const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+  const start = addCivilDays(value, -weekday);
+  return Object.freeze({start, end: addCivilDays(start, 6)});
 }
 
 export function buildCalendarTemporal({localDate, time = '', allDay = false, timezone = DEFAULT_TIMEZONE}) {
@@ -116,9 +137,13 @@ function withCalendarShape(item) {
   return Object.freeze({...item, all_day: isAllDay(item)});
 }
 
-export function buildCalendarAriaLabel(cell, count) {
+export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false} = {}) {
   const {year, month, day} = civilDateParts(cell.date);
-  return `${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`;
+  const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`];
+  if (today) parts.push('오늘');
+  if (selected) parts.push('선택됨');
+  if (attention) parts.push('확인 필요 일정 있음');
+  return parts.join(', ');
 }
 
 export function countCalendarEventsByMonth(items, year) {
@@ -142,7 +167,12 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const response = await getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl);
+  const [response, monthAttention] = await Promise.all([
+    getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
+    key === 'month'
+      ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
+      : Promise.resolve(null),
+  ]);
   return Object.freeze({
     key,
     date: selectedDate,
@@ -151,6 +181,7 @@ export async function loadLifeCalendarManagerView(
     range: Object.freeze({start: range.start, end: range.end}),
     kind: 'agenda',
     items: Object.freeze(response.items.map(withCalendarShape)),
+    attention: Object.freeze(monthAttention?.items || []),
   });
 }
 
@@ -169,6 +200,23 @@ function emptyMessage(text) {
   return value;
 }
 
+function attentionStateLabel(value) {
+  if (value === 'UPCOMING') return '기한 예정';
+  if (value === 'DUE_TODAY') return '오늘 기한';
+  if (value === 'OVERDUE') return '기한 지남';
+  return '';
+}
+
+function eventMetaText(item) {
+  const parts = [];
+  const attention = attentionStateLabel(item?.calendar_attention_state || item?.state);
+  if (attention) parts.push(attention);
+  if (String(item?.id || '').startsWith('guest_')) parts.push('이 기기에 저장');
+  else if (item?.provider_verified === true && item?.confirmation_level === 'PROVIDER_VERIFIED') parts.push('외부 확인됨');
+  else if (item?.source_kind === 'USER_INPUT' || item?.confirmation_level === 'USER_ATTESTED') parts.push('직접 입력');
+  return parts.join(' · ');
+}
+
 function eventList(items, {onSelect} = {}) {
   const list = document.createElement('ul');
   list.className = 'calendar-day-list';
@@ -182,12 +230,14 @@ function eventList(items, {onSelect} = {}) {
     const title = document.createElement('strong');
     title.textContent = item.title;
     const meta = document.createElement('small');
-    meta.textContent = item.confirmation_level === 'PROVIDER_VERIFIED' ? '확인된 일정' : '직접 입력한 일정';
-    copy.append(title, meta);
+    meta.textContent = eventMetaText(item);
+    copy.append(title);
+    if (meta.textContent) copy.append(meta);
     li.append(time, copy);
     if (onSelect) {
       li.tabIndex = 0;
       li.setAttribute('role', 'button');
+      li.setAttribute('aria-label', `${eventTime(item)} ${item.title}${meta.textContent ? `, ${meta.textContent}` : ""}`);
       li.addEventListener('click', () => onSelect(item));
       li.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item); }
@@ -201,22 +251,126 @@ function eventList(items, {onSelect} = {}) {
 function dayPanel(state, groups, actions) {
   const panel = document.createElement('aside');
   panel.className = 'calendar-day-panel';
+  panel.dataset.selectedDate = state.selectedDate;
+  panel.dataset.collapsed = String(state.dayCollapsed);
+  panel.hidden = !state.detailOpen;
+
+  const head = document.createElement('div');
+  head.className = 'calendar-day-panel-head';
   const heading = document.createElement('h3');
   heading.className = 'calendar-day-heading';
   heading.textContent = koreanDate(state.selectedDate);
+  const controls = document.createElement('div');
+  controls.className = 'calendar-day-panel-actions';
+  const toggle = button(state.dayCollapsed ? '펼치기' : '접기', 'calendar-day-toggle');
+  toggle.setAttribute('aria-expanded', String(!state.dayCollapsed));
+  toggle.addEventListener('click', () => actions.toggleDay());
+  const close = button('닫기', 'calendar-day-close');
+  close.addEventListener('click', () => actions.closeDay());
+  controls.append(toggle, close);
+  head.append(heading, controls);
+
+  const body = document.createElement('div');
+  body.className = 'calendar-day-body';
+  body.hidden = state.dayCollapsed;
   const items = groups.get(state.selectedDate) || [];
-  panel.appendChild(heading);
-  panel.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('이날은 일정이 없어요.'));
+  body.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('등록된 일정이 없어요.'));
   const add = button(`${civilDateParts(state.selectedDate).month}월 ${civilDateParts(state.selectedDate).day}일에 일정 추가`, 'calendar-add-button');
   add.dataset.calendarAdd = '';
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
-  panel.appendChild(add);
+  body.appendChild(add);
+  panel.append(head, body);
   return panel;
+}
+
+function monthEventRow(item, onSelect) {
+  const row = button('', 'calendar-event-chip');
+  row.dataset.eventChip = '';
+  row.dataset.calendarEventId = item.id || item.activity_id || '';
+  if (!isAllDay(item)) {
+    const time = document.createElement('span');
+    time.className = 'calendar-event-time';
+    time.textContent = eventTime(item);
+    row.appendChild(time);
+  }
+  const title = document.createElement('span');
+  title.className = 'calendar-event-title';
+  title.textContent = item.title;
+  row.appendChild(title);
+  row.setAttribute('aria-label', `${isAllDay(item) ? "" : `${eventTime(item)} `}${item.title}`);
+  row.addEventListener('click', event => {
+    event.stopPropagation();
+    onSelect(item);
+  });
+  return row;
+}
+
+function fitMonthEventDensity(layout) {
+  const desktop = typeof globalThis.matchMedia === 'function'
+    ? globalThis.matchMedia('(min-width: 901px)').matches
+    : globalThis.innerWidth > 900;
+  for (const cell of layout.querySelectorAll('.calendar-date-cell')) {
+    const stack = cell.querySelector('.calendar-event-stack');
+    if (!stack) continue;
+    const rows = [...stack.querySelectorAll('.calendar-event-chip')];
+    const more = stack.querySelector('.calendar-event-overflow');
+    for (const row of rows) row.hidden = !desktop;
+    if (more) more.hidden = true;
+    if (!desktop || !rows.length) continue;
+
+    for (const row of rows) row.hidden = false;
+    const available = stack.clientHeight;
+    const rowHeight = Math.max(24, Math.ceil(rows[0].getBoundingClientRect().height || 24));
+    const moreHeight = Math.max(22, Math.ceil(more?.getBoundingClientRect().height || 22));
+    const gap = 1;
+    const fullCapacity = Math.max(1, Math.floor((available + gap) / (rowHeight + gap)));
+    if (rows.length <= fullCapacity) continue;
+
+    const visible = Math.max(0, Math.floor((available - moreHeight) / (rowHeight + gap)));
+    rows.forEach((row, index) => { row.hidden = index >= visible; });
+    if (more) {
+      more.hidden = false;
+      more.textContent = `${rows.length - visible}개 더 보기`;
+      more.dataset.hiddenCount = String(rows.length - visible);
+    }
+  }
+}
+
+function positionDayPopover(layout) {
+  const panel = layout.querySelector('.calendar-day-panel');
+  if (!panel || panel.hidden) return;
+  const desktop = typeof globalThis.matchMedia === 'function'
+    ? globalThis.matchMedia('(min-width: 901px)').matches
+    : globalThis.innerWidth > 900;
+  if (!desktop) {
+    panel.style.removeProperty('left');
+    panel.style.removeProperty('top');
+    return;
+  }
+  const date = panel.dataset.selectedDate;
+  const anchor = layout.querySelector(`.calendar-date-cell[data-calendar-date="${date}"]`);
+  if (!anchor) return;
+  const bounds = (layout.closest('.site-calendar-modal') || document.documentElement).getBoundingClientRect();
+  const anchorRect = anchor.getBoundingClientRect();
+  const width = Math.min(panel.offsetWidth || 400, Math.max(320, bounds.width - 24));
+  const height = panel.offsetHeight || 320;
+  let left = anchorRect.right + 10;
+  if (left + width > bounds.right - 12) left = anchorRect.left - width - 10;
+  left = Math.max(bounds.left + 12, Math.min(left, bounds.right - width - 12));
+  const top = Math.max(bounds.top + 12, Math.min(anchorRect.top, bounds.bottom - height - 12));
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(top)}px`;
+}
+
+function syncMonthLayout(layout) {
+  fitMonthEventDensity(layout);
+  positionDayPopover(layout);
 }
 
 function renderMonth(state, actions) {
   const layout = document.createElement('div');
   layout.className = 'calendar-month-layout';
+  layout.dataset.detailOpen = String(state.detailOpen);
   const calendar = document.createElement('section');
   calendar.className = 'calendar-month';
   const weekdays = document.createElement('div');
@@ -230,41 +384,82 @@ function renderMonth(state, actions) {
   grid.setAttribute('role', 'grid');
   grid.setAttribute('aria-label', `${state.year}년 ${state.month}월`);
   const groups = groupCalendarEvents(state.items);
-  for (const cell of calendarMonthGrid(state.year, state.month)) {
+  const attentionDates = new Set(state.attention.map(item => item?.due_date).filter(validCivilDate));
+  const cells = calendarMonthGrid(state.year, state.month);
+  grid.dataset.weekCount = String(cells.length / 7);
+
+  for (const cell of cells) {
     const events = groups.get(cell.date) || [];
-    const date = button(String(cell.day), 'calendar-date-cell');
-    date.dataset.calendarDate = cell.date;
-    date.dataset.currentMonth = String(cell.inCurrentMonth);
-    date.dataset.selected = String(cell.date === state.selectedDate);
-    date.dataset.today = String(cell.date === state.todayDate);
-    date.setAttribute('role', 'gridcell');
-    date.setAttribute('aria-selected', String(cell.date === state.selectedDate));
-    date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length));
-    date.tabIndex = cell.date === state.selectedDate ? 0 : -1;
-    const number = document.createElement('span'); number.className = 'calendar-date-number'; number.textContent = String(cell.day);
-    date.textContent = ''; date.appendChild(number);
-    const chipCount = Math.min(events.length, 2);
-    for (const event of events.slice(0, chipCount)) {
-      const chip = document.createElement('span');
-      chip.className = 'calendar-event-chip';
-      chip.dataset.eventChip = '';
-      chip.textContent = event.title;
-      chip.setAttribute('aria-label', `${eventTime(event)} ${event.title}`);
-      date.appendChild(chip);
-    }
-    if (events.length > chipCount) {
-      const more = document.createElement('span');
-      more.className = 'calendar-event-overflow';
-      more.dataset.eventOverflow = '';
-      more.textContent = `+${events.length - chipCount}`;
-      date.appendChild(more);
-    }
-    date.addEventListener('click', () => actions.selectDate(cell.date));
+    const selected = cell.date === state.selectedDate;
+    const today = cell.date === state.todayDate;
+    const hasAttention = attentionDates.has(cell.date);
+
+    const cellNode = document.createElement('div');
+    cellNode.className = 'calendar-date-cell';
+    cellNode.dataset.calendarDate = cell.date;
+    cellNode.dataset.currentMonth = String(cell.inCurrentMonth);
+    cellNode.dataset.selected = String(selected);
+    cellNode.dataset.today = String(today);
+    cellNode.dataset.attention = String(hasAttention);
+    cellNode.setAttribute('role', 'gridcell');
+    cellNode.setAttribute('aria-selected', String(selected));
+
+    const header = document.createElement('div');
+    header.className = 'calendar-date-header';
+    const date = button(String(cell.day), 'calendar-date-trigger');
+    date.dataset.calendarDateTrigger = cell.date;
+    date.dataset.selected = String(selected);
+    date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention}));
+    if (today) date.setAttribute('aria-current', 'date');
+    date.tabIndex = selected ? 0 : -1;
+    const number = document.createElement('span');
+    number.className = 'calendar-date-number';
+    number.textContent = String(cell.day);
+    date.textContent = '';
+    date.appendChild(number);
+    date.addEventListener('click', event => {
+      event.stopPropagation();
+      void actions.selectDate(cell.date, {openDetail: true});
+    });
     date.addEventListener('keydown', event => actions.onDateKey(event, cell.date));
-    grid.appendChild(date);
+
+    const count = document.createElement('span');
+    count.className = 'calendar-mobile-event-count';
+    count.textContent = events.length ? `${events.length}개` : '';
+    count.setAttribute('aria-hidden', 'true');
+    header.append(date, count);
+    if (hasAttention) {
+      const marker = document.createElement('span');
+      marker.className = 'calendar-attention-marker';
+      marker.textContent = '확인 필요';
+      marker.setAttribute('aria-hidden', 'true');
+      header.appendChild(marker);
+    }
+
+    const stack = document.createElement('div');
+    stack.className = 'calendar-event-stack';
+    for (const item of events) stack.appendChild(monthEventRow(item, actions.onEvent));
+    const more = button('', 'calendar-event-overflow');
+    more.dataset.eventOverflow = '';
+    more.hidden = true;
+    more.addEventListener('click', event => {
+      event.stopPropagation();
+      void actions.selectDate(cell.date, {openDetail: true});
+    });
+    stack.appendChild(more);
+
+    cellNode.addEventListener('click', event => {
+      if (event.target.closest('button')) return;
+      void actions.selectDate(cell.date, {openDetail: true});
+    });
+    cellNode.append(header, stack);
+    grid.appendChild(cellNode);
   }
+
   calendar.append(weekdays, grid);
   layout.append(calendar, dayPanel(state, groups, actions));
+  const schedule = globalThis.requestAnimationFrame || (callback => globalThis.setTimeout(callback, 0));
+  schedule(() => { if (layout.isConnected) syncMonthLayout(layout); });
   return layout;
 }
 
@@ -295,12 +490,42 @@ function renderYear(state, actions) {
 function renderAgenda(state, actions) {
   const section = document.createElement('section');
   section.className = 'calendar-agenda-view';
-  const items = sortCalendarEvents(state.items);
-  if (!items.length) return emptyMessage('이 달에는 일정이 없어요.');
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'calendar-agenda-toolbar';
+  toolbar.setAttribute('aria-label', '일정 범위');
+  for (const [scope, label] of [['month', '이번 달'], ['today', '오늘'], ['week', '이번 주']]) {
+    const control = button(label, 'calendar-agenda-range');
+    control.dataset.agendaScope = scope;
+    control.setAttribute('aria-pressed', String(state.agendaScope === scope));
+    control.addEventListener('click', () => actions.setAgendaScope(scope));
+    toolbar.appendChild(control);
+  }
+  section.appendChild(toolbar);
+
+  let items = sortCalendarEvents(state.items);
+  if (state.agendaScope === 'today') {
+    items = items.filter(item => item.local_date === state.todayDate);
+  } else if (state.agendaScope === 'week') {
+    const range = weekBounds(state.todayDate);
+    items = items.filter(item => item.local_date >= range.start && item.local_date <= range.end);
+  }
+
+  if (!items.length) {
+    section.appendChild(emptyMessage(
+      state.agendaScope === 'today' ? '오늘 등록된 일정이 없어요.'
+        : state.agendaScope === 'week' ? '이번 주에 등록된 일정이 없어요.'
+          : '이 달에는 일정이 없어요.',
+    ));
+    return section;
+  }
+
   const groups = groupCalendarEvents(items);
   for (const [date, values] of groups) {
     const group = document.createElement('section');
-    const heading = document.createElement('h3'); heading.textContent = koreanDate(date); group.append(heading, eventList(values, {onSelect: actions.onEvent}));
+    const heading = document.createElement('h3');
+    heading.textContent = koreanDate(date);
+    group.append(heading, eventList(values, {onSelect: actions.onEvent}));
     section.appendChild(group);
   }
   return section;
@@ -308,10 +533,15 @@ function renderAgenda(state, actions) {
 
 function renderAttention(state) {
   if (!state.attention.length) return emptyMessage('확인이 필요한 일정이 없어요.');
-  return eventList(state.attention.map(item => ({...item, local_date: item.due_date, local_datetime: null})));
+  return eventList(state.attention.map(item => ({
+    ...item,
+    local_date: item.due_date,
+    local_datetime: null,
+    calendar_attention_state: item.state,
+  })));
 }
 
-function calendarEditorDialog({root, item, selectedDate, authenticated, controller, onSaved, onStale}) {
+function calendarEditorDialog({root, item, selectedDate, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
   const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
@@ -357,7 +587,10 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
   }
   form.append(titleLabel, titleNote, dateLabel, allDayLabel, timeLabel, error, actions);
   dialog.append(heading, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
-  const close = () => backdrop.remove();
+  const close = () => {
+    backdrop.remove();
+    onClose();
+  };
   cancel.addEventListener('click', close);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
   dialog.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
@@ -382,13 +615,22 @@ export async function mountLifeCalendarManager({
   root,
   initialView = 'month',
   timezone = resolvedTimezone(),
-  now = new Date(),
+  now,
   fetchImpl = globalThis.fetch,
   guestRepository,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
-  const todayDate = dateInTimezone(now, timezone);
+  const clock = typeof now === 'function'
+    ? now
+    : now instanceof Date
+      ? () => now
+      : () => new Date();
+  const currentNow = () => {
+    const value = clock();
+    return value instanceof Date ? value : new Date(value);
+  };
+  const todayDate = dateInTimezone(currentNow(), timezone);
   const initialDate = todayDate;
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
@@ -396,6 +638,7 @@ export async function mountLifeCalendarManager({
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
     year: initialParts.year, month: initialParts.month, items: [], attention: [], loading: false,
+    detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
   };
 
   const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
@@ -426,27 +669,84 @@ export async function mountLifeCalendarManager({
 
   let openEditor = () => {};
   const actions = {
-    selectDate: async date => {
+    selectDate: async (date, {openDetail = false} = {}) => {
       const parts = civilDateParts(date);
       const monthChanged = parts.year !== state.year || parts.month !== state.month;
-      state.selectedDate = date; state.year = parts.year; state.month = parts.month;
+      state.selectedDate = date;
+      state.year = parts.year;
+      state.month = parts.month;
+      state.detailOpen = openDetail;
+      state.dayCollapsed = false;
       if (monthChanged && authenticated) await refresh(); else render();
-      queueMicrotask(() => root.querySelector(`[data-calendar-date="${date}"]`)?.focus());
+      queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
     },
     selectMonth: async month => {
-      state.month = month; state.selectedDate = `${state.year}-${String(month).padStart(2, '0')}-01`; state.mode = 'month'; await refresh();
+      state.month = month;
+      state.selectedDate = `${state.year}-${String(month).padStart(2, "0")}-01`;
+      state.mode = 'month';
+      state.detailOpen = usesFlowingDayDetail();
+      await refresh();
     },
     onDateKey: (event, date) => {
       const offsets = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7};
       switch (event.key) {
         case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown':
           event.preventDefault(); void actions.selectDate(addCivilDays(date, offsets[event.key])); break;
-        case 'Enter': case ' ': event.preventDefault(); void actions.selectDate(date); break;
+        case 'Home': {
+          event.preventDefault();
+          const {year, month, day} = civilDateParts(date);
+          const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+          void actions.selectDate(addCivilDays(date, -weekday));
+          break;
+        }
+        case 'End': {
+          event.preventDefault();
+          const {year, month, day} = civilDateParts(date);
+          const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+          void actions.selectDate(addCivilDays(date, 6 - weekday));
+          break;
+        }
+        case 'PageUp':
+          event.preventDefault(); void actions.selectDate(shiftCivilMonth(date, -1)); break;
+        case 'PageDown':
+          event.preventDefault(); void actions.selectDate(shiftCivilMonth(date, 1)); break;
+        case 'Enter': case ' ':
+          event.preventDefault(); void actions.selectDate(date, {openDetail: true}); break;
+        case 'Escape':
+          if (state.detailOpen) { event.preventDefault(); actions.closeDay(); }
+          break;
         default: break;
       }
     },
+    closeDay: () => {
+      const date = state.selectedDate;
+      state.detailOpen = false;
+      state.dayCollapsed = false;
+      render();
+      queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
+    },
+    toggleDay: () => {
+      state.dayCollapsed = !state.dayCollapsed;
+      render();
+      queueMicrotask(() => root.querySelector('.calendar-day-toggle')?.focus());
+    },
+    setAgendaScope: async scope => {
+      state.agendaScope = ['month', 'today', 'week'].includes(scope) ? scope : 'month';
+      if (state.agendaScope === 'today' || state.agendaScope === 'week') {
+        const parts = civilDateParts(state.todayDate);
+        const monthChanged = parts.year !== state.year || parts.month !== state.month;
+        state.selectedDate = state.todayDate;
+        state.year = parts.year;
+        state.month = parts.month;
+        if (monthChanged && authenticated) await refresh();
+        else render();
+      } else {
+        render();
+      }
+      queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
+    },
     onAdd: date => openEditor(null, date),
-    onEvent: item => openEditor(item, item.local_date),
+    onEvent: item => openEditor(item, item.local_date || item.due_date),
   };
 
   function render() {
@@ -465,9 +765,12 @@ export async function mountLifeCalendarManager({
     state.loading = true; render(); root.setAttribute('aria-busy', 'true');
     try {
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now, fetchImpl});
+        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl});
         if (result.kind === 'attention') state.attention = result.items;
-        else state.items = result.items;
+        else {
+          state.items = result.items;
+          if (result.key === 'month') state.attention = result.attention || [];
+        }
       } else {
         state.items = repository.list(); state.attention = [];
       }
@@ -482,37 +785,145 @@ export async function mountLifeCalendarManager({
     } finally { root.removeAttribute('aria-busy'); }
   }
 
-  openEditor = (item, date) => calendarEditorDialog({
-    root, item, selectedDate: date, authenticated, controller: mutationController,
-    onSaved: async nextDate => {
-      if (validCivilDate(nextDate)) {
-        const parts = civilDateParts(nextDate); state.selectedDate = nextDate; state.year = parts.year; state.month = parts.month; state.mode = 'month';
-      }
-      await refresh();
-      window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
-    },
-    onStale: refresh,
-  });
+  const focusCalendarContext = (origin, item) => {
+    queueMicrotask(() => {
+      const eventId = item?.id || item?.activity_id || '';
+      const eventCandidate = eventId
+        ? root.querySelector(`[data-calendar-event-id="${eventId}"]`)
+        : null;
+      const eventTarget = eventCandidate?.getClientRects?.().length ? eventCandidate : null;
+      const dateTarget = origin.mode === 'month'
+        ? root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`)
+        : null;
+      const agendaTarget = origin.mode === 'agenda'
+        ? root.querySelector(`[data-agenda-scope="${origin.agendaScope}"]`)
+        : null;
+      const modeTarget = modeButtons.get(origin.mode);
+      (eventTarget || dateTarget || agendaTarget || modeTarget)?.focus();
+    });
+  };
+
+  openEditor = (item, date) => {
+    const origin = Object.freeze({
+      mode: state.mode,
+      selectedDate: state.selectedDate,
+      year: state.year,
+      month: state.month,
+      agendaScope: state.agendaScope,
+      detailOpen: state.detailOpen,
+      dayCollapsed: state.dayCollapsed,
+    });
+    return calendarEditorDialog({
+      root, item, selectedDate: date, authenticated, controller: mutationController,
+      onSaved: async () => {
+        state.mode = origin.mode;
+        state.selectedDate = origin.selectedDate;
+        state.year = origin.year;
+        state.month = origin.month;
+        state.agendaScope = origin.agendaScope;
+        state.detailOpen = origin.detailOpen;
+        state.dayCollapsed = origin.dayCollapsed;
+        await refresh();
+        focusCalendarContext(origin, item);
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
+      },
+      onStale: refresh,
+      onClose: () => focusCalendarContext(origin, item),
+    });
+  };
 
   previous.addEventListener('click', async () => {
     if (state.mode === 'year') state.year -= 1;
     else { state.month -= 1; if (state.month < 1) { state.month = 12; state.year -= 1; } }
-    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`; await refresh();
+    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
+    state.detailOpen = false;
+    if (state.mode === 'agenda') state.agendaScope = 'month';
+    await refresh();
   });
   next.addEventListener('click', async () => {
     if (state.mode === 'year') state.year += 1;
     else { state.month += 1; if (state.month > 12) { state.month = 1; state.year += 1; } }
-    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`; await refresh();
+    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
+    state.detailOpen = false;
+    if (state.mode === 'agenda') state.agendaScope = 'month';
+    await refresh();
   });
   today.addEventListener('click', async () => {
-    const parts = civilDateParts(todayDate); state.year = parts.year; state.month = parts.month; state.selectedDate = todayDate; state.mode = 'month'; await refresh();
+    const parts = civilDateParts(state.todayDate);
+    state.year = parts.year;
+    state.month = parts.month;
+    state.selectedDate = state.todayDate;
+    state.mode = 'month';
+    state.detailOpen = true;
+    state.dayCollapsed = false;
+    await refresh();
   });
-  title.addEventListener('click', async () => { state.mode = state.mode === 'year' ? 'month' : 'year'; await refresh(); });
-  for (const [mode, control] of modeButtons) control.addEventListener('click', async () => { if (state.mode !== mode) { state.mode = mode; await refresh(); } });
+  title.addEventListener('click', async () => {
+    state.mode = state.mode === 'year' ? 'month' : 'year';
+    state.detailOpen = state.mode === 'month' && usesFlowingDayDetail();
+    state.agendaScope = 'month';
+    await refresh();
+  });
+  for (const [mode, control] of modeButtons) control.addEventListener('click', async () => {
+    if (state.mode !== mode) {
+      state.mode = mode;
+      state.detailOpen = mode === 'month' && usesFlowingDayDetail();
+      state.dayCollapsed = false;
+      if (mode !== 'agenda') state.agendaScope = 'month';
+      await refresh();
+    }
+  });
+
+  const onResize = () => {
+    const layout = viewport.querySelector('.calendar-month-layout');
+    if (layout) syncMonthLayout(layout);
+  };
+  window.addEventListener('resize', onResize);
+
+  const refreshTodayIfNeeded = async () => {
+    const nextToday = dateInTimezone(currentNow(), timezone);
+    if (nextToday === state.todayDate) return;
+    const followedToday = state.selectedDate === state.todayDate;
+    state.todayDate = nextToday;
+    if (followedToday) {
+      const parts = civilDateParts(nextToday);
+      const monthChanged = parts.year !== state.year || parts.month !== state.month;
+      state.selectedDate = nextToday;
+      state.year = parts.year;
+      state.month = parts.month;
+      if (monthChanged && authenticated) await refresh();
+      else render();
+      return;
+    }
+    render();
+  };
+
+  const cleanupLifecycle = () => {
+    window.removeEventListener('resize', onResize);
+    window.removeEventListener('focus', onResume);
+    window.removeEventListener('pageshow', onResume);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.clearInterval(todayTimer);
+    window.removeEventListener('lotbi:life-calendar-refresh', onRefresh);
+  };
+  const onResume = () => {
+    if (!root.isConnected) { cleanupLifecycle(); return; }
+    void refreshTodayIfNeeded();
+  };
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') onResume();
+  };
+  window.addEventListener('focus', onResume);
+  window.addEventListener('pageshow', onResume);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  const todayTimer = window.setInterval(() => {
+    if (!root.isConnected) { cleanupLifecycle(); return; }
+    void refreshTodayIfNeeded();
+  }, 60_000);
 
   const onRefresh = event => {
     if (!root.isConnected) {
-      window.removeEventListener('lotbi:life-calendar-refresh', onRefresh);
+      cleanupLifecycle();
       return;
     }
     if (event.detail?.source === root) return;
