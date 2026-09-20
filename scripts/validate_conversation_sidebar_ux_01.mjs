@@ -78,6 +78,9 @@ for (const imageContract of ["image/jpeg", "image/png", "image/webp", 'PHOTO_BYT
 }
 assert.ok(conversation.includes('logoutSiteSession(sessionToken)'), 'logout must use the authoritative Site child-session contract');
 assert.ok(conversation.includes("form.action = 'https://account.lotbiai.com/auth/site-logout'"), 'logout must continue through the fixed Account-origin handoff');
+assert.ok(conversation.includes('markSiteLogoutSuppression();'), 'logout must persist tab-scoped suppression before Account navigation');
+assert.ok(conversation.indexOf('markSiteLogoutSuppression();') < conversation.indexOf("form.action = 'https://account.lotbiai.com/auth/site-logout'"), 'suppression marker must exist before cross-origin logout navigation');
+assert.ok(conversation.includes('clearSiteLogoutSuppression();'), 'explicit account-required actions must be able to clear logout suppression');
 assert.ok(conversation.includes("input.name = 'intent'"), 'logout handoff must carry only the bounded intent field');
 assert.ok(conversation.includes("input.value = 'logout'"), 'logout handoff must declare the fixed logout intent');
 assert.ok(conversation.indexOf('await logoutSiteSession(sessionToken)') < conversation.indexOf('beginAccountLogoutHandoff()'), 'Account logout handoff must start only after Site child revocation succeeds');

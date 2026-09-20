@@ -9,7 +9,12 @@ const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 const {
   ACCOUNT_SITE_FALLBACK_URL,
   ACCOUNT_SITE_SESSION_STATUS_URL,
+  SITE_LOGOUT_SUPPRESSION_KEY,
+  SITE_LOGOUT_SUPPRESSION_TTL_MS,
   SiteHandoffClientError,
+  clearSiteLogoutSuppression,
+  hasSiteLogoutSuppression,
+  markSiteLogoutSuppression,
   readAccountSessionStatus,
   shouldUseAccountSiteFallback,
 } = await import('../site-auth.js?v=20260920-fallback4');
@@ -29,6 +34,26 @@ assert.equal(new URL(ACCOUNT_SITE_FALLBACK_URL).searchParams.has('code_challenge
 assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE')), true);
 assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_STORAGE_UNAVAILABLE')), true);
 assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_STATE_MISMATCH')), false);
+
+assert.equal(SITE_LOGOUT_SUPPRESSION_KEY, 'lotbi.site-logout-suppression.v1');
+assert.equal(SITE_LOGOUT_SUPPRESSION_TTL_MS, 10 * 60 * 1000);
+{
+  const data = new Map();
+  const storage = {
+    getItem: key => data.get(key) ?? null,
+    setItem: (key, value) => data.set(key, String(value)),
+    removeItem: key => data.delete(key),
+  };
+  assert.equal(hasSiteLogoutSuppression(1_000, storage), false);
+  assert.equal(markSiteLogoutSuppression(1_000, storage), true);
+  assert.equal(hasSiteLogoutSuppression(1_001, storage), true);
+  assert.equal(hasSiteLogoutSuppression(1_000 + SITE_LOGOUT_SUPPRESSION_TTL_MS, storage), true);
+  assert.equal(hasSiteLogoutSuppression(1_001 + SITE_LOGOUT_SUPPRESSION_TTL_MS, storage), false);
+  assert.equal(data.has(SITE_LOGOUT_SUPPRESSION_KEY), false);
+  markSiteLogoutSuppression(2_000, storage);
+  clearSiteLogoutSuppression(storage);
+  assert.equal(hasSiteLogoutSuppression(2_001, storage), false);
+}
 
 {
   let request;
@@ -118,6 +143,8 @@ assert.ok(!authStartHtml.includes('LOTBI 연결 중'), 'fallback normal path mus
 assert.ok(!authStartHtml.includes('안전한 계정 연결을 시작하고 있습니다.'), 'removed interstitial copy must not remain in fallback markup');
 assert.ok(!authStartHtml.includes('rel="stylesheet"'), 'fallback redirect must not block on Site stylesheets');
 assert.ok(!authStartHtml.includes('<img'), 'fallback redirect must not fetch render-only logo imagery');
+assert.ok(authStart.includes('clearSiteLogoutSuppression();'));
+assert.ok(authStart.indexOf('clearSiteLogoutSuppression();') < authStart.indexOf('void beginSiteHandoff().catch(setError);'), 'explicit /auth/start fallback must clear logout suppression first');
 assert.ok(authStart.includes('void beginSiteHandoff().catch(setError);'));
 assert.ok(authStart.includes('errorShell.hidden = false'));
 assert.ok(authStart.includes('retryLink.hidden = false'));
@@ -177,6 +204,9 @@ for (const token of [
   'scheduleExpiry',
   'if (!authenticated)',
   'await beginSiteHandoff()',
+  'hasSiteLogoutSuppression',
+  'clearSiteLogoutSuppression',
+  'markSiteLogoutSuppression',
 ]) {
   assert.ok(continuity.includes(token), `missing continuity contract: ${token}`);
 }
@@ -189,6 +219,7 @@ const directEnd = continuity.indexOf('\nfunction rootLocation()', directStart);
 const directBody = continuity.slice(directStart, directEnd);
 assert.ok(directBody.indexOf('event.preventDefault();') < directBody.indexOf('if (redirecting) return;'), 'normal direct click must cancel /auth/start/ navigation before duplicate guard');
 assert.ok(directBody.indexOf('redirecting = true;') < directBody.indexOf('void beginSiteHandoff()'), 'duplicate guard must engage before handoff creation');
+assert.ok(directBody.indexOf('clearSiteLogoutSuppression();') < directBody.indexOf('void beginSiteHandoff()'), 'explicit login must clear logout suppression before starting handoff');
 assert.ok(directBody.includes('document.body.dataset.siteAuthState === AUTH_STATE_AUTHENTICATED'), 'authenticated stale sidebar recovery must remain available');
 assert.ok(conversation.includes('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]'), 'authenticated stale sidebar login self-heal selector must remain intact');
 assert.ok(auth.includes("recordTiming('account-navigation-start')"), 'normal handoff must mark cross-origin Account navigation start');
@@ -202,6 +233,9 @@ const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStar
 const syncBody = continuity.slice(syncStart, syncEnd);
 assert.ok(syncBody.indexOf('if (!hasLiveSiteSession()) markAnonymousAccountUi();') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must keep login/signup visible until authenticated=true is confirmed');
 assert.ok(syncBody.includes('redirecting = false;') && syncBody.includes('markAnonymousAccountUi();'), '503/network or handoff failures must keep the anonymous login CTA usable');
+assert.ok(syncBody.includes('siteLogoutSuppressed || hasSiteLogoutSuppression()'), 'fresh Home must honor the tab-scoped logout suppression marker');
+assert.ok(syncBody.indexOf('siteLogoutSuppressed || hasSiteLogoutSuppression()') < syncBody.indexOf('await beginSiteHandoff()'), 'logout suppression must stop automatic handoff before it starts');
+assert.ok(syncBody.includes('clearSiteLogoutSuppression();'), 'confirmed anonymous Account state must clear logout suppression');
 assert.equal((continuity.match(/setTimeout\(/g) || []).length, 1, 'only the real Site-session expiry timer is allowed');
 assert.ok(continuity.includes('Math.min(delay, 2_147_000_000)'), 'the sole timer must remain bound to the actual session expiry');
 for (const forbiddenDelay of ['sleep(', 'retryDelay', 'AUTH_DELAY', '5000)', '5_000']) {

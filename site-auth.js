@@ -6,6 +6,53 @@ export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
 
+export const SITE_LOGOUT_SUPPRESSION_KEY = 'lotbi.site-logout-suppression.v1';
+export const SITE_LOGOUT_SUPPRESSION_TTL_MS = 10 * 60 * 1000;
+
+function optionalSessionStorage() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+export function markSiteLogoutSuppression(now = Date.now(), storage = optionalSessionStorage()) {
+  try {
+    storage?.setItem(SITE_LOGOUT_SUPPRESSION_KEY, String(now));
+    return Boolean(storage);
+  } catch {
+    return false;
+  }
+}
+
+export function clearSiteLogoutSuppression(storage = optionalSessionStorage()) {
+  try {
+    storage?.removeItem(SITE_LOGOUT_SUPPRESSION_KEY);
+  } catch {
+    // This marker is UX-only. Storage failure must never block logout/login.
+  }
+}
+
+export function hasSiteLogoutSuppression(now = Date.now(), storage = optionalSessionStorage()) {
+  let raw;
+  try {
+    raw = storage?.getItem(SITE_LOGOUT_SUPPRESSION_KEY);
+  } catch {
+    return false;
+  }
+  if (!raw || !/^\d+$/.test(raw)) {
+    if (raw) clearSiteLogoutSuppression(storage);
+    return false;
+  }
+  const startedAt = Number(raw);
+  if (!Number.isFinite(startedAt) || now < startedAt || now - startedAt > SITE_LOGOUT_SUPPRESSION_TTL_MS) {
+    clearSiteLogoutSuppression(storage);
+    return false;
+  }
+  return true;
+}
+
 const STATE_PATTERN = /^[\x21-\x7e]{16,256}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 
