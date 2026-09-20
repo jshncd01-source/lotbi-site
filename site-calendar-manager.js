@@ -319,7 +319,11 @@ function fitMonthEventDensity(layout) {
     if (!desktop || !rows.length) continue;
 
     for (const row of rows) row.hidden = false;
-    const available = stack.clientHeight;
+    const cellStyle = getComputedStyle(cell);
+    const paddingY = (parseFloat(cellStyle.paddingTop) || 0) + (parseFloat(cellStyle.paddingBottom) || 0);
+    const cellGap = parseFloat(cellStyle.rowGap || cellStyle.gap) || 0;
+    const headerHeight = Math.ceil(cell.querySelector('.calendar-date-header')?.getBoundingClientRect().height || 0);
+    const available = Math.max(0, Math.floor(cell.getBoundingClientRect().height - paddingY - headerHeight - cellGap));
     const rowHeight = Math.max(24, Math.ceil(rows[0].getBoundingClientRect().height || 24));
     const moreHeight = Math.max(22, Math.ceil(more?.getBoundingClientRect().height || 22));
     const gap = 1;
