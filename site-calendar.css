@@ -226,9 +226,6 @@
   color: #3d4653;
   font-size: 13px;
   font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .life-calendar-manager-date[hidden] {
@@ -367,6 +364,9 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   font: inherit;
   font-size: 13px;
   font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .calendar-nav-button { min-width: 54px; }
