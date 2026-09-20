@@ -151,6 +151,58 @@ assert.equal(guest2.state, 'SUCCESS');
 assert.equal(guest1.result.guestEventId, guest2.result.guestEventId);
 assert.equal(lockCalls, 2);
 
+
+const raceStorage = memoryStorage();
+let serialized = Promise.resolve();
+let raceUuid = 0;
+const serializedLockManager = {
+  request(_name, options, callback) {
+    assert.equal(options.mode, 'exclusive');
+    const run = serialized.then(callback, callback);
+    serialized = run.then(() => undefined, () => undefined);
+    return run;
+  },
+};
+const [raceFirst, raceSecond] = await Promise.all([
+  runCalendarAction(guestAction, {
+    currentNamespace: 'anonymous-a',
+    storage: raceStorage,
+    lockManager: serializedLockManager,
+    guestRepositoryOptions: {
+      uuid: () => `00000000-0000-4000-8000-${String(++raceUuid).padStart(12, '0')}`,
+      now: () => new Date('2026-09-20T12:00:00.000Z'),
+    },
+  }),
+  runCalendarAction(guestAction, {
+    currentNamespace: 'anonymous-a',
+    storage: raceStorage,
+    lockManager: serializedLockManager,
+    guestRepositoryOptions: {
+      uuid: () => `00000000-0000-4000-8000-${String(++raceUuid).padStart(12, '0')}`,
+      now: () => new Date('2026-09-20T12:00:00.000Z'),
+    },
+  }),
+]);
+assert.equal(raceFirst.state, 'SUCCESS');
+assert.equal(raceSecond.state, 'SUCCESS');
+assert.equal(raceFirst.result.guestEventId, raceSecond.result.guestEventId);
+
+const blockedStorage = {
+  getItem() { return null; },
+  setItem() { throw new Error('storage blocked'); },
+};
+const blocked = await runCalendarAction(guestAction, {
+  currentNamespace: 'anonymous-a',
+  storage: blockedStorage,
+  lockManager,
+  guestRepositoryOptions: {
+    uuid: () => '00000000-0000-4000-8000-000000000009',
+    now: () => new Date('2026-09-20T12:00:00.000Z'),
+  },
+});
+assert.equal(blocked.state, 'DEFINITE_FAILURE');
+assert.equal(blocked.result, null);
+
 const inFlightLive = normalizePersistedCalendarAction({...authAction, state: 'IN_FLIGHT'});
 assert.equal(inFlightLive.state, 'IN_FLIGHT');
 const inFlightReload = recoverCalendarActionAfterReload(inFlightLive);
