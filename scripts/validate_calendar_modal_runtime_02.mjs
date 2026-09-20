@@ -103,6 +103,7 @@ try{
   await wait(()=>content?.dataset.calendarManagerView==='month','month view');
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   const today=modal.querySelector('.calendar-today-button');
   const attention=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='확인 필요');
   const calendar=layout?.children?.[0], detail=layout?.children?.[1];
@@ -242,6 +243,62 @@ try{
   click(replacement);
   await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),'delegated fallback calendar modal');
   result.replacedEntryFallback=true;
+
+  window.dispatchEvent(new CustomEvent('lotbi:site-session-state',{detail:{authenticated:true,identityKey:'auth-A'}}));
+  await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'identity change closes Calendar');
+  result.identitySurfaceClose=true;
+
+  const raceRoot=document.createElement('div');
+  raceRoot.id='calendar-race-root';
+  document.body.appendChild(raceRoot);
+  const pending=[];
+  const raceFetch=url=>new Promise(resolve=>pending.push({url:String(url),resolve}));
+  const attentionPayload=title=>({
+    view:'ATTENTION',
+    as_of:'2026-09-20T00:00:00Z',
+    timezone:'Asia/Seoul',
+    coverage:'PERSONAL_ACTIVITY_ONLY',
+    items:[{
+      projection_id:'projection_'+title.toLowerCase(),
+      activity_id:'activity_0123456789abcdef0123456789abcdef',
+      occurrence_id:'occurrence_0123456789abcdef0123456789abcdef',
+      title,
+      due_date:'2026-09-24',
+      state:'UPCOMING',
+      days_until_due:4,
+      confirmation_level:'USER_ATTESTED',
+      provider_verified:false,
+      source_kind:'USER_INPUT',
+      allowed_actions:['UPDATE','REMOVE']
+    }],
+    ai_calls:0,
+    provider_api_calls:0
+  });
+  const responseFor=title=>new Response(JSON.stringify(attentionPayload(title)),{status:200,headers:{'Content-Type':'application/json'}});
+  const managerModule=await import('/site-calendar-manager.js?v=20260921-convcal2');
+  const raceMount=managerModule.mountLifeCalendarManager({
+    sessionToken:'site-token',
+    root:raceRoot,
+    initialView:'attention',
+    timezone:'Asia/Seoul',
+    now:new Date('2026-09-20T00:00:00Z'),
+    fetchImpl:raceFetch
+  });
+  await wait(()=>pending.length===1,'first delayed authenticated request');
+  const raceNext=raceRoot.querySelectorAll('.calendar-nav-button')[1];
+  if(!(raceNext instanceof HTMLButtonElement))throw new Error('race next control missing');
+  click(raceNext);
+  await wait(()=>pending.length===2,'second authenticated request');
+  pending[1].resolve(responseFor('LATEST'));
+  await wait(()=>raceRoot.textContent.includes('LATEST'),'latest authenticated response');
+  pending[0].resolve(responseFor('STALE'));
+  await raceMount;
+  await sleep(80);
+  if(raceRoot.textContent.includes('STALE')||!raceRoot.textContent.includes('LATEST'))throw new Error('stale authenticated response overwrote latest Calendar state');
+  if(raceRoot.getAttribute('aria-busy')==='true')throw new Error('latest Calendar request left aria-busy set');
+  result.staleResponseGuard=true;
+  raceRoot.remove();
+
   out.textContent=JSON.stringify(result);
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),viewport:{width:innerWidth,height:innerHeight}})}
 </script></body></html>`;
