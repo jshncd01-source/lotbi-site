@@ -73,7 +73,7 @@ def main() -> int:
         "approved conversation module": 'src="site-conversation.js?v=20260920-richcards5"',
         "approved continuity module": 'src="site-continuity.js?v=20260920-fallback4"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260919-homewordmark5"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-sidebar8"',
         "anonymous initial auth state": 'data-auth-state="unauthenticated"',
         "anonymous login CTA": '>로그인<',
         "anonymous signup CTA": '>회원가입<',
@@ -84,8 +84,6 @@ def main() -> int:
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "+ 새 대화",
-        "work menu": "내 작업",
-        "library menu": "라이브러리",
         "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
         "connected services URL": CONNECTED_SERVICES_URL,
@@ -101,6 +99,10 @@ def main() -> int:
     for label, token in requirements.items():
         if token not in text:
             errors.append(f"index.html: missing {label}")
+
+    for removed_sidebar_item in ("내 작업", "라이브러리"):
+        if removed_sidebar_item in text:
+            errors.append(f"index.html: disabled Sidebar placeholder must be removed: {removed_sidebar_item}")
 
     if text.count('src="/assets/lotbi-logo-header.png"') != 3:
         errors.append("index.html: desktop sidebar, mobile topbar and mobile drawer must share the official logo asset")
@@ -159,9 +161,12 @@ def main() -> int:
             if forbidden in block:
                 errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
 
-        for required in ("+ 새 대화", "내 작업", "라이브러리", "연결 서비스", "최근 대화"):
+        for required in ("+ 새 대화", "연결 서비스", "최근 대화"):
             if required not in block:
                 errors.append(f"index.html: {label} missing approved IA item: {required}")
+        for removed in ("내 작업", "라이브러리"):
+            if removed in block:
+                errors.append(f"index.html: {label} must remove disabled placeholder: {removed}")
 
         if CONNECTED_SERVICES_URL not in block:
             errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
@@ -175,9 +180,24 @@ def main() -> int:
             errors.append(f"index.html: {label} must not hardcode user identity")
 
         for destination in ("work", "library"):
-            pattern = rf'<button[^>]*data-sidebar-destination="{destination}"[^>]*disabled'
-            if not re.search(pattern, block):
-                errors.append(f"index.html: {label} {destination} must remain fail-closed until authoritative route exists")
+            if f'data-sidebar-destination="{destination}"' in block:
+                errors.append(f"index.html: {label} must not keep disabled {destination} destination in the DOM")
+
+        primary_match = re.search(
+            r'<div class="sidebar-primary-nav">[\s\S]*?</div>',
+            block,
+        )
+        if not primary_match or "data-new-conversation" not in primary_match.group(0):
+            errors.append(f"index.html: {label} primary navigation must contain new conversation")
+        elif "connected-services" in primary_match.group(0):
+            errors.append(f"index.html: {label} connected services must be secondary, not primary")
+
+        secondary_match = re.search(
+            r'<div class="sidebar-secondary-nav"[^>]*>[\s\S]*?</div>',
+            block,
+        )
+        if not secondary_match or "connected-services" not in secondary_match.group(0):
+            errors.append(f"index.html: {label} must keep connected services in the secondary region")
 
         recent_match = re.search(
             r'<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?</ul>',
@@ -197,6 +217,7 @@ def main() -> int:
         'class="sidebar-primary-nav"',
         'class="nav-section sidebar-history-section"',
         'class="sidebar-history-scroll"',
+        'class="sidebar-secondary-nav"',
         'class="sidebar-account-footer"',
     ):
         if required not in desktop_sidebar:

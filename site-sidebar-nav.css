@@ -110,11 +110,22 @@
   flex: 0 0 auto;
 }
 
-.sidebar-primary-nav .nav-item:disabled {
-  opacity: .58;
+.sidebar-secondary-nav {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 4px;
+  padding: 2px 4px 0;
 }
 
-.sidebar-primary-nav .nav-link:focus-visible,
+.sidebar-secondary-nav .nav-item {
+  min-height: 38px;
+  padding: 7px 10px;
+  color: #606978;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sidebar-secondary-nav .nav-link:focus-visible,
 .sidebar-account-entry:focus-visible {
   outline: 2px solid var(--brand-violet, #7b62bb);
   outline-offset: 2px;

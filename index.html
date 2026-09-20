@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="home-chat.css" />
   <link rel="stylesheet" href="site-hardening.css?v=20260920-composer6" />
   <link rel="stylesheet" href="site-avatar.css" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260919-homewordmark5" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260920-sidebar8" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
   <link rel="stylesheet" href="site-calendar.css" />
   <link rel="stylesheet" href="footer-business-info.css" />
@@ -73,15 +73,6 @@
           <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
             <span>+ 새 대화</span>
           </button>
-          <button class="nav-item" type="button" data-sidebar-destination="work" disabled aria-disabled="true">
-            <span>내 작업</span>
-          </button>
-          <button class="nav-item" type="button" data-sidebar-destination="library" disabled aria-disabled="true">
-            <span>라이브러리</span>
-          </button>
-          <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
-            <span>연결 서비스</span>
-          </a>
         </div>
 
         <section class="nav-section sidebar-history-section" aria-labelledby="desktop-recent-title">
@@ -90,6 +81,12 @@
             <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
           </div>
         </section>
+
+        <div class="sidebar-secondary-nav" aria-label="보조 메뉴">
+          <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
+            <span>연결 서비스</span>
+          </a>
+        </div>
 
         <div class="sidebar-account-footer">
           <div class="sidebar-account-slot" data-sidebar-account data-auth-state="unauthenticated">
@@ -285,15 +282,6 @@
         <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
           <span>+ 새 대화</span>
         </button>
-        <button class="nav-item" type="button" data-sidebar-destination="work" disabled aria-disabled="true">
-          <span>내 작업</span>
-        </button>
-        <button class="nav-item" type="button" data-sidebar-destination="library" disabled aria-disabled="true">
-          <span>라이브러리</span>
-        </button>
-        <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
-          <span>연결 서비스</span>
-        </a>
       </div>
 
       <section class="nav-section sidebar-history-section" aria-labelledby="mobile-recent-title">
@@ -302,6 +290,12 @@
           <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
         </div>
       </section>
+
+      <div class="sidebar-secondary-nav" aria-label="보조 메뉴">
+        <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
+          <span>연결 서비스</span>
+        </a>
+      </div>
 
       <div class="sidebar-account-footer">
         <div class="sidebar-account-slot" data-sidebar-account data-auth-state="unauthenticated">
