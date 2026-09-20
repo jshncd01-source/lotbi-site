@@ -1,0 +1,39 @@
+name: SITE-PHASE16-PRODUCTION-E2E-01
+
+on:
+  push:
+    branches:
+      - site-phase16-production-e2e-01-work
+    paths:
+      - 'scripts/validate_phase16_production_e2e_01.mjs'
+      - '.github/workflows/site-phase16-production-e2e-01.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  production-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser driver only
+        run: npm install --no-save --no-package-lock playwright-core@1.55.0
+      - name: Run PHASE 16 Production browser E2E
+        run: node scripts/validate_phase16_production_e2e_01.mjs
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase16-production-e2e
+          path: phase16-e2e-artifacts/
+          if-no-files-found: error
+          retention-days: 7
