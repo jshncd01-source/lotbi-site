@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 const {
   createLifeActivity,
   executeLifeCalendarCommand,
+  previewLifeCalendarCommand,
   isExplicitLifeCalendarCommand,
   getLifeActivity,
   getLifeAgenda,
