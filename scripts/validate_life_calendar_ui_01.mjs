@@ -182,7 +182,7 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const css = read('site-calendar.css');
 const conversation = read('site-conversation.js');
-const openCalendarStart = conversation.indexOf('const openCalendar = async view =>');
+const openCalendarStart = conversation.indexOf('const openCalendar = async (view,');
 const openCalendarEnd = conversation.indexOf('const openHelp = () =>', openCalendarStart);
 assert.ok(openCalendarStart >= 0 && openCalendarEnd > openCalendarStart, 'Calendar open handler missing');
 const openCalendar = conversation.slice(openCalendarStart, openCalendarEnd);
