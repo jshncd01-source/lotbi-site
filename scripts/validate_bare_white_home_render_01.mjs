@@ -38,7 +38,10 @@ function browserPath() {
 
 const bodyMatch = index.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
 if (!bodyMatch) throw new Error('index.html body markup not found');
-const bodyMarkup = bodyMatch[1];
+// The review fixture is rendered from a local file. Convert root-relative
+// image sources to repo-relative sources so the official logo/mascot pixels
+// load exactly as they do from the Site origin.
+const bodyMarkup = bodyMatch[1].replaceAll('src="/', 'src="');
 const escapedCss = css.replaceAll('</style>', '<\\/style>');
 const baseHref = pathToFileURL(path.resolve('.') + path.sep).href;
 const evidenceDir = process.env.BARE_WHITE_EVIDENCE_DIR
