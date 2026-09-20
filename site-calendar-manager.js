@@ -488,14 +488,14 @@ function renderAgenda(state, actions) {
   return section;
 }
 
-function renderAttention(state, actions) {
+function renderAttention(state) {
   if (!state.attention.length) return emptyMessage('확인이 필요한 일정이 없어요.');
   return eventList(state.attention.map(item => ({
     ...item,
     local_date: item.due_date,
     local_datetime: null,
     calendar_attention_state: item.state,
-  })), {onSelect: actions.onEvent});
+  })));
 }
 
 function calendarEditorDialog({root, item, selectedDate, authenticated, controller, onSaved, onStale}) {
@@ -695,7 +695,7 @@ export async function mountLifeCalendarManager({
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
-    else if (state.mode === 'attention') viewport.replaceChildren(renderAttention(state, actions));
+    else if (state.mode === 'attention') viewport.replaceChildren(renderAttention(state));
     else viewport.replaceChildren(renderMonth(state, actions));
   }
 
