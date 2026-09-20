@@ -1806,7 +1806,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (!detail || typeof detail.authenticated !== 'boolean') return;
     if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
-    if (openSurface?.querySelector('.lotbi-box-list')) closeSurface();
+    if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')) closeSurface();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
