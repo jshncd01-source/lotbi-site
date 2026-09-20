@@ -202,6 +202,9 @@ for (const token of [
   '@media (max-width: 760px)',
 ]) assert.ok(css.includes(token), 'missing Rich Card responsive CSS contract: ' + token);
 
+const foldPeekRule = css.match(/@media \(max-width: 360px\) \{[\s\S]*?\.lotbi-rich-card-rail \{[\s\S]*?grid-auto-columns:\s*minmax\(196px, 62vw\);[\s\S]*?\}[\s\S]*?\}/)?.[0] || '';
+assert.ok(foldPeekRule, 'Fold cover must narrow cards enough to keep the next candidate visibly peeking');
+
 assert.ok(!conversation.includes('http://'));
 assert.ok(conversation.includes("card.product_url.startsWith('https://')"));
 assert.ok(conversation.includes("card.image_url.startsWith('https://')"));
