@@ -529,6 +529,10 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   overflow: hidden;
 }
 
+.conversation-active .chat-hero {
+  padding-bottom: 0;
+}
+
 .conversation-thread,
 .conversation-active .conversation-thread {
   width: min(960px, 100%);
