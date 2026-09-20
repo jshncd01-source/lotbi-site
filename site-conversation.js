@@ -790,6 +790,168 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return rail;
   };
 
+  const persistConversationCalendarAction = actionValue => {
+    const action = normalizePersistedCalendarAction(actionValue);
+    if (!action) return null;
+    let changed = false;
+    for (const record of state.threads) {
+      if (!Array.isArray(record.messages)) continue;
+      record.messages = record.messages.map(message => {
+        if (message?.meta?.calendarAction?.actionId !== action.actionId) return message;
+        changed = true;
+        return {...message, meta: {...message.meta, calendarAction: action}};
+      });
+      if (changed) record.updatedAt = Date.now();
+    }
+    if (changed) {
+      sortThreads();
+      saveState();
+      renderRecent();
+    }
+    return action;
+  };
+
+  const calendarCandidateSummary = candidate => {
+    const value = candidate?.temporal?.localDatetime || '';
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d{2}$/.exec(value);
+    if (!match) return value;
+    const hour = Number(match[4]);
+    const period = hour < 12 ? '오전' : '오후';
+    const displayHour = hour % 12 || 12;
+    const minute = Number(match[5]);
+    const minuteText = minute ? ` ${minute}분` : '';
+    return `${Number(match[1])}년 ${Number(match[2])}월 ${Number(match[3])}일 ${period} ${displayHour}시${minuteText}`;
+  };
+
+  const viewConversationCalendarAction = actionValue => {
+    const action = normalizePersistedCalendarAction(actionValue);
+    if (!action || (action.state !== 'SUCCESS' && action.state !== 'DELETED') || !action.result) return;
+    if (action.state === 'DELETED') {
+      setStatus('삭제된 일정입니다.');
+      return;
+    }
+    void openCalendar('month', {
+      deepOpen: Object.freeze({
+        scope: action.scope,
+        activityId: action.result.activityId || '',
+        occurrenceId: action.result.occurrenceId || '',
+        guestEventId: action.result.guestEventId || '',
+        dateHint: action.result.dateHint,
+        timezone: action.result.timezone,
+      }),
+      restoreConversation: true,
+    });
+  };
+
+  const executeConversationCalendarAction = async (actionValue, row, render) => {
+    const current = normalizePersistedCalendarAction(actionValue);
+    if (!current || current.state === 'SUCCESS' || current.state === 'DELETED' || current.state === 'IN_FLIGHT') return;
+    const inFlightAction = calendarActionInFlight(current);
+    if (!inFlightAction) return;
+    persistConversationCalendarAction(inFlightAction);
+    render(inFlightAction);
+    setStatus(current.state === 'UNKNOWN_RESULT' ? '일정 등록 결과를 확인하고 있습니다.' : '일정을 등록하고 있습니다.');
+    const result = await runCalendarAction(inFlightAction, {
+      sessionToken,
+      currentNamespace: namespace,
+      storage,
+    });
+    if (!row.isConnected || !result) return;
+    const persisted = persistConversationCalendarAction(result) || result;
+    render(persisted);
+    if (persisted.state === 'SUCCESS') {
+      window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+      setStatus('캘린더에 등록했습니다.');
+    } else if (persisted.state === 'UNKNOWN_RESULT') {
+      setStatus('등록 결과를 아직 확인하지 못했습니다. 같은 요청으로 결과를 확인할 수 있습니다.');
+    } else {
+      setStatus(persisted.lastError?.message || '일정을 등록하지 못했습니다.');
+    }
+  };
+
+  const createConversationCalendarAction = actionValue => {
+    const initial = normalizePersistedCalendarAction(actionValue);
+    if (!initial) return null;
+    const row = document.createElement('section');
+    row.className = 'conversation-calendar-action';
+    row.dataset.calendarActionId = initial.actionId;
+    row.setAttribute('aria-label', '캘린더 일정 작업');
+
+    const render = nextValue => {
+      const action = normalizePersistedCalendarAction(nextValue);
+      if (!action) {
+        row.remove();
+        return;
+      }
+      row.dataset.calendarActionState = action.state;
+      const summary = document.createElement('div');
+      summary.className = 'conversation-calendar-action-summary';
+      const icon = document.createElement('span');
+      icon.className = 'conversation-calendar-action-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = '📅';
+      const copy = document.createElement('div');
+      copy.className = 'conversation-calendar-action-copy';
+      const title = document.createElement('strong');
+      title.textContent = action.candidate.title;
+      const when = document.createElement('span');
+      when.textContent = calendarCandidateSummary(action.candidate);
+      const zone = document.createElement('small');
+      zone.textContent = action.candidate.temporal.timezoneName;
+      copy.append(title, when, zone);
+      summary.append(icon, copy);
+
+      const status = document.createElement('div');
+      status.className = 'conversation-calendar-action-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      const controls = document.createElement('div');
+      controls.className = 'conversation-calendar-action-controls';
+
+      if (action.state === 'AVAILABLE') {
+        const add = document.createElement('button');
+        add.type = 'button'; add.className = 'conversation-calendar-action-button';
+        add.textContent = '캘린더에 등록';
+        add.setAttribute('aria-label', `${action.candidate.title} 일정을 캘린더에 등록`);
+        add.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
+        controls.appendChild(add);
+      } else if (action.state === 'IN_FLIGHT') {
+        status.textContent = '등록 중…';
+        row.setAttribute('aria-busy', 'true');
+        const pending = document.createElement('button');
+        pending.type = 'button'; pending.className = 'conversation-calendar-action-button'; pending.disabled = true; pending.textContent = '등록 중…';
+        controls.appendChild(pending);
+      } else if (action.state === 'SUCCESS') {
+        status.textContent = '✓ 등록됨';
+        const view = document.createElement('button');
+        view.type = 'button'; view.className = 'conversation-calendar-action-button';
+        view.textContent = '캘린더에서 보기';
+        view.addEventListener('click', () => viewConversationCalendarAction(action));
+        controls.appendChild(view);
+      } else if (action.state === 'UNKNOWN_RESULT') {
+        status.textContent = '등록 결과를 확인하고 있어요';
+        const verify = document.createElement('button');
+        verify.type = 'button'; verify.className = 'conversation-calendar-action-button';
+        verify.textContent = '결과 확인';
+        verify.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
+        controls.appendChild(verify);
+      } else if (action.state === 'DEFINITE_FAILURE') {
+        status.textContent = action.lastError?.message || '일정을 등록하지 못했습니다.';
+        const retry = document.createElement('button');
+        retry.type = 'button'; retry.className = 'conversation-calendar-action-button';
+        retry.textContent = '다시 시도';
+        retry.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
+        controls.appendChild(retry);
+      } else if (action.state === 'DELETED') {
+        status.textContent = '삭제된 일정입니다';
+      }
+      if (action.state !== 'IN_FLIGHT') row.removeAttribute('aria-busy');
+      row.replaceChildren(summary, status, controls);
+    };
+    render(initial);
+    return row;
+  };
+
   const messageNode = message => {
     const node = createMessage(message.role, message.text, message.meta || {});
     const rich = compactRichProductMeta(message.meta?.richProduct);
@@ -799,6 +961,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     if (message.role === 'assistant' && place) {
       const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
+    }
+    if (message.role === 'assistant' && message.meta?.calendarAction) {
+      const calendarAction = createConversationCalendarAction(message.meta.calendarAction);
+      if (calendarAction) node.appendChild(calendarAction);
     }
     return node;
   };
