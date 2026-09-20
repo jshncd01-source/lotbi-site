@@ -4,7 +4,7 @@ import {
   readAndClearSiteHandoffContext,
   SiteHandoffClientError,
 } from './site-auth.js?v=20260920-fallback4';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260920-guest3';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260920-attach16';
 import {mountConversation} from './site-conversation.js?v=20260920-attach16';
 import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-calnav9';
 
