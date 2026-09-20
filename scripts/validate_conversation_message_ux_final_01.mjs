@@ -108,6 +108,7 @@ const codeBlock = code.querySelector('.chat-code-block');
 const collapsedHeight = long.getBoundingClientRect().height;
 const collapsedBodyHeight = longBody.getBoundingClientRect().height;
 const collapsedScrollHeight = longBody.scrollHeight;
+const collapsedOverflow = win.getComputedStyle(longBody).overflowY;
 long.classList.add('is-expanded');
 longButton.setAttribute('aria-expanded', 'true');
 longButton.textContent = '접기';
@@ -122,7 +123,7 @@ const result = {
   collapsedHeight,
   collapsedBodyHeight,
   collapsedScrollHeight,
-  collapsedOverflow: win.getComputedStyle(longBody).overflowY,
+  collapsedOverflow,
   expandedHeight,
   expandedOverflow: win.getComputedStyle(longBody).overflowY,
   expandedLabel: longButton.textContent,
