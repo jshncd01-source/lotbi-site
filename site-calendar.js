@@ -6,6 +6,19 @@ const ACTIVITY_ID_PATTERN = /^activity_[0-9a-f]{32}$/;
 const OCCURRENCE_ID_PATTERN = /^occurrence_[0-9a-f]{32}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
+const EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN = /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/u;
+const NON_WRITE_LIFE_CALENDAR_PATTERNS = Object.freeze([
+  /[?？]/u,
+  /(?:^|\s)(?:안|못)\s+\S+/u,
+  /(?:가지|오지|먹지|하지|등록하지|추가하지|저장하지)\s*마(?:\s|$)/u,
+  /(?:등록|추가|저장)(?:은|는|을|를)?\s*(?:하지\s*마|말아|말자|원하지\s*않)/u,
+  /(?:일정|스케줄)(?:이|가|은|는)?\s*(?:있|없)(?:어|나|니|나요|습니까)?(?:\s|$)/u,
+  /(?:갈|할|올|먹을|만날|볼|받을|쓸)\s*(?:것|거)\s*같/u,
+  /(?:가|하|오|먹|만나|보|받)면(?:\s|$)/u,
+  /(?:갈까|할까|올까|먹을까|만날까|볼까|받을까|좋을까|어떨까)(?:\s|$)/u,
+  /(?:라고|다고|라며|다며)\s*(?:했|말했|전했|들었)/u,
+  /(?:간대|한대|온대|먹는대|만난대|봤대|받는대|했대)(?:요)?(?:\s|$)/u,
+]);
 
 function assertFetch(fetchImpl) {
   if (typeof fetchImpl !== 'function') {
@@ -245,7 +258,9 @@ function assertCommandResponse(payload) {
 }
 
 export function isExplicitLifeCalendarCommand(text) {
-  return /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/.test(String(text || ''));
+  const source = String(text || '').trim();
+  if (!EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN.test(source)) return false;
+  return !NON_WRITE_LIFE_CALENDAR_PATTERNS.some(pattern => pattern.test(source));
 }
 
 export async function executeLifeCalendarCommand(sessionToken, {logicalRequestId: requestId, text, timezone}, fetchImpl = globalThis.fetch) {
