@@ -535,28 +535,45 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 
 .conversation-thread,
 .conversation-active .conversation-thread {
-  width: min(960px, 100%);
+  width: min(760px, 100%);
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
   margin: 0 0 8px;
   padding: 10px 6px 18px;
+  gap: 12px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .chat-message-assistant {
-  width: min(100%, 900px);
-  max-width: 900px;
+  width: 100%;
+  max-width: 704px;
 }
 
 .chat-assistant-row {
-  width: min(100%, 952px);
-  max-width: 952px;
+  width: 100%;
+  max-width: 760px;
+}
+
+.chat-message-user + .chat-assistant-row {
+  margin-top: -4px;
+}
+
+.conversation-time-separator {
+  width: 100%;
+  margin: 4px 0 2px;
+  justify-self: center;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 400;
+  color: #8a919e;
+  white-space: nowrap;
 }
 
 .chat-composer-stack {
-  width: min(960px, 100%);
+  width: min(760px, 100%);
   margin-top: auto;
   flex: 0 0 auto;
 }
