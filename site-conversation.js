@@ -1,13 +1,13 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260920-convcal1';
+import * as siteCore from './site-core.js?v=20260921-convcal2';
 import {buildNaverStaticMapThumbnailUrl, isPlaceResultFresh, naverMapsPlaceActionLabel, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-placecardhotfix1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260920-convcal1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-convcal1';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260920-convcal1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-convcal1';
+import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-convcal2';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal2';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-convcal2';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-convcal2';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
@@ -44,7 +44,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-convcalentry1';
+  link.href = '/site-conversation.css?v=20260921-convcalentry2';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
