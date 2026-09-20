@@ -28,7 +28,7 @@ for (const token of [
   '롯비함에서 제거',
   "item.image_reference.startsWith('https://')",
   "value.startsWith('https://')",
-  "openSurface?.querySelector('.lotbi-box-list')",
+  "openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')",
   "new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date'])",
 ]) assert.ok(conversation.includes(token), 'missing LOTBI Box/Calendar preservation behavior: ' + token);
 
