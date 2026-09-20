@@ -9,6 +9,7 @@ const cssFiles = [
   'home-chat.css',
   'site-hardening.css',
   'site-sidebar-nav.css',
+  'site-calendar.css',
   'site-auth-continuity.css',
 ];
 const css = cssFiles.map(file => fs.readFileSync(file, 'utf8')).join('\n\n');
@@ -71,11 +72,15 @@ const win = frame.contentWindow;
 const surface = doc.querySelector(${JSON.stringify(mode === 'desktop' ? '.chat-sidebar-desktop' : '.mobile-nav-drawer')});
 if (!surface) throw new Error('Sidebar surface missing from fixture');
 const primary = surface.querySelector('.sidebar-primary-nav');
+const calendar = surface.querySelector('.sidebar-calendar-nav');
 const recent = surface.querySelector('.sidebar-history-scroll');
 const recentList = surface.querySelector('[data-recent-conversations]');
 const secondary = surface.querySelector('.sidebar-secondary-nav');
 const footer = surface.querySelector('.sidebar-account-footer');
-if (!primary || !recent || !recentList || !secondary || !footer) throw new Error('Sidebar IA fixture contract incomplete');
+if (!primary || !calendar || !recent || !recentList || !secondary || !footer) throw new Error('Sidebar IA fixture contract incomplete');
+const calendarViews = [...calendar.querySelectorAll('[data-calendar-view]')];
+if (calendarViews.length !== 5) throw new Error(`Calendar submenu expected 5 views, got ${calendarViews.length}`);
+calendar.open = true;
 for (const title of ${JSON.stringify(injectedTitles)}) {
   const li = doc.createElement('li');
   const link = doc.createElement('a');
@@ -89,9 +94,9 @@ for (const title of ${JSON.stringify(injectedTitles)}) {
 }
 const firstTitle = surface.querySelector('[data-conversation-title]');
 if (!firstTitle) throw new Error('Injected recent conversation title missing');
-const before = {primary: primary.getBoundingClientRect(), secondary: secondary.getBoundingClientRect(), footer: footer.getBoundingClientRect()};
+const before = {primary: primary.getBoundingClientRect(), calendar: calendar.getBoundingClientRect(), secondary: secondary.getBoundingClientRect(), footer: footer.getBoundingClientRect()};
 recent.scrollTop = recent.scrollHeight;
-const after = {primary: primary.getBoundingClientRect(), secondary: secondary.getBoundingClientRect(), footer: footer.getBoundingClientRect()};
+const after = {primary: primary.getBoundingClientRect(), calendar: calendar.getBoundingClientRect(), secondary: secondary.getBoundingClientRect(), footer: footer.getBoundingClientRect()};
 const titleStyle = win.getComputedStyle(firstTitle);
 const surfaceStyle = win.getComputedStyle(surface);
 const recentStyle = win.getComputedStyle(recent);
@@ -100,11 +105,12 @@ document.getElementById('render-result').textContent = JSON.stringify({
   viewport: {innerWidth: win.innerWidth, innerHeight: win.innerHeight, clientWidth: doc.documentElement.clientWidth, scrollWidth: doc.documentElement.scrollWidth},
   surface: {left: surface.getBoundingClientRect().left, right: surface.getBoundingClientRect().right, top: surface.getBoundingClientRect().top, bottom: surface.getBoundingClientRect().bottom, width: surface.getBoundingClientRect().width, height: surface.getBoundingClientRect().height, overflowY: surfaceStyle.overflowY},
   primary: {top: before.primary.top, bottom: before.primary.bottom, topAfter: after.primary.top, bottomAfter: after.primary.bottom},
+  calendar: {top: before.calendar.top, bottom: before.calendar.bottom, topAfter: after.calendar.top, bottomAfter: after.calendar.bottom, viewCount: calendarViews.length},
   recent: {clientHeight: recent.clientHeight, scrollHeight: recent.scrollHeight, scrollTop: recent.scrollTop, overflowY: recentStyle.overflowY},
   secondary: {top: before.secondary.top, bottom: before.secondary.bottom, topAfter: after.secondary.top, bottomAfter: after.secondary.bottom},
   footer: {top: before.footer.top, bottom: before.footer.bottom, topAfter: after.footer.top, bottomAfter: after.footer.bottom, position: footerStyle.position},
   title: {clientWidth: firstTitle.clientWidth, scrollWidth: firstTitle.scrollWidth, height: firstTitle.getBoundingClientRect().height, lineHeight: titleStyle.lineHeight, overflow: titleStyle.overflow, textOverflow: titleStyle.textOverflow, webkitLineClamp: titleStyle.webkitLineClamp},
-  oldLabelsPresent: ['내 작업','라이브러리','주문 내역','예약 내역','내 계정','설정','도움말 / 문의','오늘','어제','최근 7일','이전'].filter(label => surface.textContent.includes(label)),
+  oldLabelsPresent: ['내 작업','라이브러리','주문 내역','예약 내역','내 계정','설정','도움말 / 문의','어제','최근 7일','이전'].filter(label => surface.textContent.includes(label)),
 });
 </script></body></html>`;
 }
@@ -140,11 +146,14 @@ function assertViewport(label, result, width, height, mode) {
   if (result.recent.scrollTop <= 0) throw new Error(`${label}: recent list could not scroll`);
   if (
     Math.abs(result.primary.topAfter - result.primary.top) > tolerance
+    || Math.abs(result.calendar.topAfter - result.calendar.top) > tolerance
     || Math.abs(result.secondary.topAfter - result.secondary.top) > tolerance
     || Math.abs(result.footer.topAfter - result.footer.top) > tolerance
   ) {
     throw new Error(`${label}: scrolling recent conversations moved fixed primary/secondary/account regions`);
   }
+  if (result.calendar.viewCount !== 5) throw new Error(`${label}: Calendar submenu count changed (${result.calendar.viewCount})`);
+  if (result.calendar.top < 0 || result.calendar.bottom > result.recent.clientHeight + result.calendar.bottom + height) { /* geometry covered below */ }
   if (result.secondary.top < 0 || result.secondary.bottom > result.footer.top + tolerance) throw new Error(`${label}: secondary connected-services link left its intended slot`);
   if (result.footer.bottom > height + tolerance || result.footer.top < 0) throw new Error(`${label}: account footer left viewport (${result.footer.top}..${result.footer.bottom})`);
   if (result.title.webkitLineClamp !== '2') throw new Error(`${label}: recent title 2-line clamp missing (${result.title.webkitLineClamp})`);
