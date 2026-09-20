@@ -28,9 +28,9 @@
   <title>LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="home-chat.css" />
-  <link rel="stylesheet" href="site-hardening.css?v=20260920-composer6" />
+  <link rel="stylesheet" href="site-hardening.css?v=20260920-attachments1" />
   <link rel="stylesheet" href="site-avatar.css" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260920-conv10" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260920-attachments1" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
   <link rel="stylesheet" href="site-calendar.css?v=20260920-calnav9" />
   <link rel="stylesheet" href="footer-business-info.css" />
@@ -51,7 +51,7 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260920-homefirst1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260920-conv10"></script>
+  <script type="module" src="site-conversation.js?v=20260920-attachments1"></script>
   <script type="module" src="site-continuity.js?v=20260920-fallback4"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
@@ -155,7 +155,10 @@
 
         <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
 
-        <div class="chat-composer" aria-labelledby="composer-label" aria-describedby="chat-status">
+        <div class="chat-composer-stack">
+          <div id="attachment-preview-strip" class="attachment-preview-strip" aria-live="polite" hidden></div>
+          <p class="chat-safety-copy">LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.</p>
+          <div class="chat-composer" aria-labelledby="composer-label" aria-describedby="chat-status chat-attachment-help">
           <label id="composer-label" class="sr-only" for="lotbi-prompt">LOTBI에게 요청할 내용</label>
           <textarea
             id="lotbi-prompt"
@@ -169,6 +172,12 @@
           ></textarea>
 
           <div class="composer-actions">
+            <button class="composer-button attachment-button" type="button" aria-label="파일 첨부" title="파일 첨부" data-attachment-button>
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z" />
+              </svg>
+            </button>
+            <input id="lotbi-attachment-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple data-attachment-input />
             <div class="response-grade-control" data-response-grade-control hidden inert aria-hidden="true">
               <button
                 class="response-grade-trigger"
@@ -219,6 +228,8 @@
               </svg>
             </button>
           </div>
+          </div>
+          <p id="chat-attachment-help" class="sr-only">JPEG, PNG, WebP 이미지와 PDF 파일을 첨부할 수 있습니다.</p>
         </div>
 
         <p id="chat-status" class="sr-only" role="status">

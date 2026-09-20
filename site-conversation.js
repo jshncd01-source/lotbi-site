@@ -1,5 +1,6 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
-import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
+import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260920-attachments1';
+import {safeAttachmentName, validateAttachmentFiles} from './site-attachments.js?v=20260920-attachments1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-calnav9';
@@ -35,7 +36,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-richcards5';
+  link.href = '/site-conversation.css?v=20260920-attachments1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -93,6 +94,20 @@ function createMessage(role, text, meta = {}) {
   const body = document.createElement('p');
   body.className = 'chat-message-body'; body.textContent = text;
   article.appendChild(body);
+  if (Array.isArray(meta.attachments) && meta.attachments.length) {
+    const list = document.createElement('div'); list.className = 'message-attachment-list'; list.setAttribute('aria-label', '첨부 파일');
+    for (const attachment of meta.attachments) {
+      const item = document.createElement('div'); item.className = 'message-attachment-card';
+      const name = safeAttachmentName(attachment?.filename);
+      if (String(attachment?.mediaType || '').startsWith('image/') && attachment?.previewUrl) {
+        const image = document.createElement('img'); image.className = 'message-attachment-image'; image.src = attachment.previewUrl; image.alt = name; item.appendChild(image);
+      } else {
+        const icon = document.createElement('span'); icon.className = 'message-attachment-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = attachment?.mediaType === 'application/pdf' ? 'PDF' : '파일'; item.appendChild(icon);
+      }
+      const label = document.createElement('span'); label.className = 'message-attachment-name'; label.textContent = name; item.appendChild(label); list.appendChild(item);
+    }
+    article.appendChild(list);
+  }
   if (meta.followUpRequired) {
     const note = document.createElement('span');
     note.className = 'chat-message-meta'; note.textContent = '추가 확인이 필요합니다.';
@@ -248,6 +263,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
+  const attachmentButton = document.querySelector('[data-attachment-button]');
+  const attachmentInput = document.querySelector('[data-attachment-input]');
+  const attachmentPreview = document.getElementById('attachment-preview-strip');
   const micButton = document.querySelector('.mic-button');
   const responseGradeControl = document.querySelector('[data-response-grade-control]');
   const responseGradeTrigger = document.querySelector('[data-response-grade-trigger]');
@@ -258,7 +276,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const stateRegion = document.getElementById('chat-state-region');
   const homeAvatarAnchor = document.querySelector('[data-home-avatar-anchor]');
   const avatar = document.querySelector('[data-lotbi-avatar-container]');
-  if (!(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement) || !(micButton instanceof HTMLButtonElement)
+  if (!(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement) || !(micButton instanceof HTMLButtonElement) || !(attachmentButton instanceof HTMLButtonElement) || !(attachmentInput instanceof HTMLInputElement) || !(attachmentPreview instanceof HTMLElement))
     || !(responseGradeControl instanceof HTMLElement) || !(responseGradeTrigger instanceof HTMLButtonElement)
     || !(responseGradeMenu instanceof HTMLElement) || responseGradeOptions.length !== RESPONSE_GRADE_OPTIONS.length
     || !(thread instanceof HTMLElement) || !(homeAvatarAnchor instanceof HTMLElement) || !(avatar instanceof HTMLElement)) return false;
@@ -967,6 +985,33 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   };
 
   let responseGradeOpen = false;
+  let selectedAttachments = [];
+  let attachmentUploading = false;
+  const releaseAttachmentPreview = item => { if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl); };
+  const renderAttachmentPreview = () => {
+    const fragment = document.createDocumentFragment();
+    selectedAttachments.forEach((item, index) => {
+      const card = document.createElement('div'); card.className = 'attachment-preview-card';
+      if (item.file.type.startsWith('image/')) {
+        const image = document.createElement('img'); image.className = 'attachment-preview-image'; image.src = item.previewUrl; image.alt = ''; card.appendChild(image);
+      } else {
+        const icon = document.createElement('span'); icon.className = 'attachment-preview-icon'; icon.textContent = 'PDF'; icon.setAttribute('aria-hidden', 'true'); card.appendChild(icon);
+      }
+      const name = document.createElement('span'); name.className = 'attachment-preview-name'; name.textContent = safeAttachmentName(item.file.name);
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'attachment-preview-remove'; remove.setAttribute('aria-label', `${safeAttachmentName(item.file.name)} 첨부 제거`); remove.textContent = '×';
+      remove.addEventListener('click', () => { const [removed] = selectedAttachments.splice(index, 1); releaseAttachmentPreview(removed); renderAttachmentPreview(); updateSendState(); });
+      card.append(name, remove); fragment.appendChild(card);
+    });
+    attachmentPreview.replaceChildren(fragment); attachmentPreview.hidden = selectedAttachments.length === 0;
+  };
+  const addAttachmentFiles = async files => {
+    try {
+      const validated = await validateAttachmentFiles(files, selectedAttachments.length);
+      selectedAttachments.push(...validated.map(file => ({file, previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : ''})));
+      renderAttachmentPreview(); updateSendState(); setStatus(`${validated.length}개 파일을 첨부했습니다.`);
+    } catch (error) { setStatus(error instanceof Error ? error.message : '파일을 첨부하지 못했습니다.'); }
+    finally { attachmentInput.value = ''; }
+  };
   const closeResponseGradeMenu = ({restoreFocus = false} = {}) => {
     responseGradeMenu.hidden = true;
     responseGradeTrigger.setAttribute('aria-expanded', 'false');
@@ -1013,9 +1058,10 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     stateRegion.dataset.composerVoice = 'true'; stateRegion.textContent = message; stateRegion.hidden = false;
   };
   const updateSendState = () => {
-    sendButton.disabled = inFlight || prompt.value.trim().length === 0;
+    sendButton.disabled = inFlight || attachmentUploading || (prompt.value.trim().length === 0 && selectedAttachments.length === 0);
     sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송'); sendButton.title = inFlight ? '전송 중' : '전송';
-    micButton.disabled = inFlight || voiceRequesting;
+    micButton.disabled = inFlight || attachmentUploading || voiceRequesting;
+    attachmentButton.disabled = inFlight || attachmentUploading;
   };
   const setListeningState = listening => {
     voiceListening = listening; micButton.setAttribute('aria-pressed', String(listening));
@@ -1067,15 +1113,16 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '') => {
-    const message = typeof text === 'string' ? text.trim() : ''; if (!message || inFlight) return;
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', attachments = []) => {
+    const message = typeof text === 'string' ? text.trim() : ''; if ((!message && !attachments.length) || inFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
-    ensureThread(message);
+    ensureThread(message || attachments[0]?.filename || '첨부 파일');
     if (appendUserMessage) {
-      appendNode(createMessage('user', message), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {}});
+      const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes, previewUrl: item.previewUrl || ''}));
+      appendNode(createMessage('user', message, {attachments: attachmentMeta}), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {attachments: attachmentMeta.map(({previewUrl, ...item}) => item)}});
     }
-    const local = deterministicReply(message);
+    const local = attachments.length ? null : deterministicReply(message);
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
@@ -1107,6 +1154,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
           idempotencyKey: guestRequestId,
           recentContext: guestRecentContext(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+          attachmentIds: attachments.map(item => item.id),
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
@@ -1163,7 +1211,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
     try {
-      const response = await sendConversationMessage(sessionToken, message);
+      const response = await sendConversationMessage(sessionToken, message, globalThis.fetch, attachments.map(item => item.id));
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
@@ -1199,9 +1247,24 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   });
 
   const submitCurrentPrompt = async () => {
-    if (inFlight) return; const message = prompt.value.trim(); if (!message) return;
+    if (inFlight || attachmentUploading) return; const message = prompt.value.trim(); if (!message && !selectedAttachments.length) return;
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
-    prompt.value = ''; state.draft = ''; saveState(); prompt.dispatchEvent(new Event('input', {bubbles: true})); await requestAssistant(message, true);
+    attachmentUploading = true; updateSendState(); setStatus('첨부 파일을 안전하게 업로드하고 있습니다.');
+    try {
+      let guestToken = '';
+      if (!sessionToken && selectedAttachments.length) guestToken = await ensureGuestSession();
+      const uploaded = [];
+      for (const item of selectedAttachments) {
+        const result = await uploadConversationAttachment({sessionToken, guestToken, file: item.file});
+        uploaded.push({id: result.id, filename: result.filename, mediaType: result.media_type, sizeBytes: result.size_bytes, previewUrl: item.previewUrl});
+      }
+      selectedAttachments = [];
+      renderAttachmentPreview();
+      prompt.value = ''; state.draft = ''; saveState(); prompt.dispatchEvent(new Event('input', {bubbles: true}));
+      attachmentUploading = false; updateSendState(); await requestAssistant(message, true, '', uploaded);
+    } catch (error) {
+      attachmentUploading = false; updateSendState(); setStatus(userFacingErrorMessage(error));
+    }
   };
 
   micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
@@ -1233,6 +1296,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   prompt.addEventListener('compositionend', updateSendState);
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });
   sendButton.addEventListener('click', () => void submitCurrentPrompt());
+  attachmentButton.addEventListener('click', () => attachmentInput.click());
+  attachmentInput.addEventListener('change', () => void addAttachmentFiles(attachmentInput.files));
+  const composerStack = attachmentButton.closest('.chat-composer-stack');
+  composerStack?.addEventListener('dragover', event => { if (event.dataTransfer?.types?.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } });
+  composerStack?.addEventListener('drop', event => { if (event.dataTransfer?.files?.length) { event.preventDefault(); void addAttachmentFiles(event.dataTransfer.files); } });
   micButton.addEventListener('click', () => void startVoiceInput());
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;

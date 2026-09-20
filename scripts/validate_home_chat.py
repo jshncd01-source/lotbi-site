@@ -70,10 +70,10 @@ def main() -> int:
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
-        "approved conversation module": 'src="site-conversation.js?v=20260920-conv10"',
+        "approved conversation module": 'src="site-conversation.js?v=20260920-attachments1"',
         "approved continuity module": 'src="site-continuity.js?v=20260920-fallback4"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-conv10"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-attachments1"',
         "anonymous initial auth state": 'data-auth-state="unauthenticated"',
         "anonymous login CTA": '>로그인<',
         "anonymous signup CTA": '>회원가입<',
@@ -247,7 +247,7 @@ def main() -> int:
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-conv10"></script>',
+        '<script type="module" src="site-conversation.js?v=20260920-attachments1"></script>',
         '<script type="module" src="site-continuity.js?v=20260920-fallback4"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
