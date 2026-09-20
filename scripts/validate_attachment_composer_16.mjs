@@ -25,7 +25,7 @@ for (const token of [
   'attachments.map(item => item.id)',
   'clearSentAttachments(attachments, {guest: token})',
   'clearSentAttachments(attachments, {session: activeSessionToken})',
-  'const local = attachments.length ? null : deterministicReply(message)',
+  'const local = attachments.length || calendarCandidateContext ? null : deterministicReply(message)',
   'if (!attachments.length && isExplicitLifeCalendarCommand(message))',
 ]) {
   assert.ok(runtime.includes(token), `missing attachment runtime contract: ${token}`);
