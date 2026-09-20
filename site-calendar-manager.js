@@ -849,7 +849,14 @@ export async function mountLifeCalendarManager({
     await refresh();
   });
   today.addEventListener('click', async () => {
-    const parts = civilDateParts(todayDate); state.year = parts.year; state.month = parts.month; state.selectedDate = todayDate; state.mode = 'month'; state.detailOpen = true; state.dayCollapsed = false; await refresh();
+    const parts = civilDateParts(state.todayDate);
+    state.year = parts.year;
+    state.month = parts.month;
+    state.selectedDate = state.todayDate;
+    state.mode = 'month';
+    state.detailOpen = true;
+    state.dayCollapsed = false;
+    await refresh();
   });
   title.addEventListener('click', async () => {
     state.mode = state.mode === 'year' ? 'month' : 'year';
