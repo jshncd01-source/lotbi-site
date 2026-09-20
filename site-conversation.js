@@ -1137,9 +1137,14 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     stateRegion.dataset.composerVoice = 'true'; stateRegion.textContent = message; stateRegion.hidden = false;
   };
   const updateSendState = () => {
-    sendButton.disabled = inFlight || prompt.value.trim().length === 0;
+    const attachmentBusy = attachmentUploadsInFlight > 0;
+    const hasContent = prompt.value.trim().length > 0 || selectedAttachments.length > 0;
+    sendButton.disabled = inFlight || attachmentBusy || !hasContent;
     sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송'); sendButton.title = inFlight ? '전송 중' : '전송';
-    micButton.disabled = inFlight || voiceRequesting;
+    micButton.disabled = inFlight || voiceRequesting || attachmentBusy;
+    attachmentTrigger.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
+    if (attachmentTrigger.disabled && attachmentMenuOpen) closeAttachmentMenu();
+    for (const input of attachmentInputs) input.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
   };
   const setListeningState = listening => {
     voiceListening = listening; micButton.setAttribute('aria-pressed', String(listening));
@@ -1192,14 +1197,17 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     appendNode(wrapper);
   };
   const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '') => {
-    const message = typeof text === 'string' ? text.trim() : ''; if (!message || inFlight) return;
-    const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length});
+    const message = typeof text === 'string' ? text.trim() : '';
+    const attachments = [...selectedAttachments];
+    if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
+    const displayMessage = message || `첨부 파일 확인: ${sentAttachmentSummary()}`;
+    const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
-    ensureThread(message);
+    ensureThread(displayMessage);
     if (appendUserMessage) {
-      appendNode(createMessage('user', message), {forceScroll: true}); appendPersistedMessage({role: 'user', text: message, meta: {}});
+      appendNode(createMessage('user', displayMessage), {forceScroll: true}); appendPersistedMessage({role: 'user', text: displayMessage, meta: {}});
     }
-    const local = deterministicReply(message);
+    const local = attachments.length ? null : deterministicReply(message);
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
@@ -1214,7 +1222,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
-    if (!sessionToken && isExplicitLifeCalendarCommand(message)) {
+    if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       try { await beginSiteHandoff(message); } catch (caught) { showError(caught, message, false); }
       return;
     }
@@ -1231,6 +1239,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
           idempotencyKey: guestRequestId,
           recentContext: guestRecentContext(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+          attachmentIds: attachments.map(item => item.id),
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
@@ -1251,6 +1260,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
         const assistantNode = createMessage('assistant', response.assistantText, meta);
         if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
         appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+        if (attachments.length) clearSentAttachments();
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
         setStatus(richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
       } catch (caught) {
@@ -1261,7 +1271,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
-    if (isExplicitLifeCalendarCommand(message)) {
+    if (!attachments.length && isExplicitLifeCalendarCommand(message)) {
       const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
       const calendarRequestId = logicalRequestId || newId('calendar');
       try {
@@ -1287,7 +1297,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
     try {
-      const response = await sendConversationMessage(sessionToken, message);
+      const response = await sendConversationMessage(sessionToken, message, globalThis.fetch, attachments.map(item => item.id));
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
@@ -1307,6 +1317,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
       const assistantNode = createMessage('assistant', response.assistantText, meta);
       if (richProduct) { const rail = createProductCardRail(richProduct); if (rail) assistantNode.appendChild(rail); }
       appendNode(assistantNode); appendPersistedMessage({role: 'assistant', text: response.assistantText, meta});
+      if (attachments.length) clearSentAttachments();
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.'));
       driveAvatar('response-complete', avatarRequestId);
@@ -1323,7 +1334,9 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   });
 
   const submitCurrentPrompt = async () => {
-    if (inFlight) return; const message = prompt.value.trim(); if (!message) return;
+    if (inFlight || attachmentUploadsInFlight) return;
+    const message = prompt.value.trim();
+    if (!message && !selectedAttachments.length) return;
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
     prompt.value = ''; state.draft = ''; saveState(); prompt.dispatchEvent(new Event('input', {bubbles: true})); await requestAssistant(message, true);
   };
