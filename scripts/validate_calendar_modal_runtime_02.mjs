@@ -190,10 +190,14 @@ try{
     click(eventButton);
     await wait(()=>modal.querySelector('.calendar-editor-dialog'),'event editor');
     if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 수정')throw new Error('event click opened wrong surface');
-    click(modal.querySelector('.calendar-editor-cancel'));
-    await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'event editor close');
+    const editorTitle=modal.querySelector('.calendar-editor-title');
+    editorTitle.focus();
+    editorTitle.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'event editor Escape close');
+    if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('editor Escape closed the Calendar modal');
     await wait(()=>document.activeElement?.dataset.calendarEventId===eventButton.dataset.calendarEventId,'event focus restore');
     result.eventSelection=true;
+    result.editorEscapeContained=true;
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
@@ -217,7 +221,16 @@ try{
   click(modal.querySelectorAll('.calendar-nav-button')[1]); await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
   const ordinary=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
   const selectedDate=ordinary?.dataset.calendarDate;
-  click(ordinary); await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
+  click(ordinary);
+  await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
+  await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'selected-day detail open');
+  const selectedTrigger=modal.querySelector('[data-calendar-date-trigger="'+selectedDate+'"]');
+  selectedTrigger.focus();
+  selectedTrigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'selected-day Escape close');
+  if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
+  await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
+  result.escapeContained=true;
   click(modal.querySelector('.calendar-today-button')); await wait(()=>content.dataset.calendarManagerView==='month','today');
   result.controls=true;result.dateSelection=true;
 
@@ -270,7 +283,8 @@ try{
   const cases=[[1280,900],[1440,900],[1440,1200],[768,900],[340,800],[390,844],[412,915],[320,800]];
   const results=cases.map(([w,h])=>run(browser,w,h));
   const desktops=results.filter(value=>value.desktop);
-  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.agendaRanges))throw new Error('desktop controls/date/event/Agenda selection');
+  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.editorEscapeContained&&value.agendaRanges))throw new Error('desktop controls/date/event/Escape/Agenda selection');
+  if(!results.every(value=>value.escapeContained))throw new Error('Calendar detail Escape containment');
   for(const value of results){
     if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
     if(value.density.map(entry=>entry.expected).join(',')!=='0,1,2,3,5,8')throw new Error('fixture matrix incomplete');
