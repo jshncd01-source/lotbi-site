@@ -70,7 +70,7 @@ def main() -> int:
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
-        "approved conversation module": 'src="site-conversation.js?v=20260920-convcalentry1"',
+        "approved conversation module": 'src="site-conversation.js?v=20260921-convcalentry2"',
         "approved continuity module": 'src="site-continuity.js?v=20260920-authux1"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-attachments1"',
@@ -86,7 +86,7 @@ def main() -> int:
         "calendar menu": "캘린더",
         "calendar today": "오늘",
         "calendar attention": "확인 필요",
-        "calendar stylesheet": 'href="site-calendar.css?v=20260920-convcal1"',
+        "calendar stylesheet": 'href="site-calendar.css?v=20260921-convcal2"',
         "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
         "connected services URL": CONNECTED_SERVICES_URL,
@@ -247,7 +247,7 @@ def main() -> int:
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-convcalentry1"></script>',
+        '<script type="module" src="site-conversation.js?v=20260921-convcalentry2"></script>',
         '<script type="module" src="site-continuity.js?v=20260920-authux1"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
