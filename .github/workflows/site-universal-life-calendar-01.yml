@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'site-calendar.js'
+      - 'site-calendar-actions.js'
+      - 'site-conversation.js'
+      - 'site-conversation.css'
       - 'site-calendar-ui.js'
       - 'site-calendar-manager.js'
       - 'site-calendar-model.js'
@@ -16,6 +19,7 @@ on:
       - 'auth/callback/index.html'
       - 'auth-callback.js'
       - 'scripts/validate_life_calendar_client_01.mjs'
+      - 'scripts/validate_conversation_calendar_actions_01.mjs'
       - 'scripts/validate_life_calendar_ui_01.mjs'
       - 'scripts/validate_calendar_month_grid_01.mjs'
       - 'scripts/validate_calendar_year_view_01.mjs'
@@ -50,6 +54,12 @@ jobs:
         run: node scripts/validate_auth_continuity_02.mjs
       - name: Life Calendar client contract
         run: node scripts/validate_life_calendar_client_01.mjs
+      - name: Conversation Calendar action state and idempotency
+        run: |
+          node --check site-calendar-actions.js
+          node --check site-calendar.js
+          node --check site-conversation.js
+          node scripts/validate_conversation_calendar_actions_01.mjs
       - name: Life Calendar UI prep contract
         run: node scripts/validate_life_calendar_ui_01.mjs
       - name: Real Calendar month and year model
