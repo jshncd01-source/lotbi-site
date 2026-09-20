@@ -20,6 +20,9 @@ const RESPONSE_GRADE_OPTIONS = Object.freeze([
   ['PREMIUM', '프리미엄'],
 ]);
 const DEFAULT_RESPONSE_GRADE = 'STANDARD';
+// Core Production currently has no authoritative response_grade request field.
+// Keep the selector unavailable until that contract is explicit and deployed.
+const RESPONSE_GRADE_BACKEND_ENABLED = false;
 const diagnostics = {
   deterministicReplies: 0, coreCalls: 0, providerCallsAvoided: 0,
   lastPath: 'idle', lastVisibleAnswerMs: null, lastCoreDurationMs: null,
@@ -252,9 +255,20 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
   const savePreferences = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences)); };
   const responseGradeLabel = grade => RESPONSE_GRADE_OPTIONS.find(([key]) => key === grade)?.[1] || '스탠다드';
+  const responseGradeAvailable = () => RESPONSE_GRADE_BACKEND_ENABLED && Boolean(sessionToken);
   const syncResponseGradeUi = () => {
-    const grade = RESPONSE_GRADE_OPTIONS.some(([key]) => key === preferences.responseGrade) ? preferences.responseGrade : DEFAULT_RESPONSE_GRADE;
+    const available = responseGradeAvailable();
+    const grade = available && RESPONSE_GRADE_OPTIONS.some(([key]) => key === preferences.responseGrade)
+      ? preferences.responseGrade
+      : DEFAULT_RESPONSE_GRADE;
     preferences.responseGrade = grade;
+    responseGradeControl.hidden = !available;
+    responseGradeControl.setAttribute('aria-hidden', String(!available));
+    responseGradeTrigger.disabled = !available;
+    if (!available) {
+      responseGradeMenu.hidden = true;
+      responseGradeTrigger.setAttribute('aria-expanded', 'false');
+    }
     const label = responseGradeLabel(grade);
     const labelNode = responseGradeTrigger.querySelector('[data-response-grade-label]');
     if (labelNode) labelNode.textContent = label;
@@ -262,7 +276,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     for (const option of responseGradeOptions) {
       const selected = option.dataset.responseGrade === grade;
       option.setAttribute('aria-checked', String(selected));
-      option.tabIndex = selected ? 0 : -1;
+      option.tabIndex = available && selected ? 0 : -1;
     }
   };
   const applyPreferences = () => {
@@ -573,6 +587,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     if (restoreFocus) responseGradeTrigger.focus();
   };
   const openResponseGradeMenu = ({edge = ''} = {}) => {
+    if (!responseGradeAvailable()) return;
     responseGradeMenu.hidden = false;
     responseGradeTrigger.setAttribute('aria-expanded', 'true');
     responseGradeOpen = true;
@@ -585,6 +600,7 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     });
   };
   const selectResponseGrade = grade => {
+    if (!responseGradeAvailable()) return;
     if (!RESPONSE_GRADE_OPTIONS.some(([key]) => key === grade)) return;
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     preferences.responseGrade = grade;
