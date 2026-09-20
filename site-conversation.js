@@ -1661,7 +1661,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
-  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '') => {
+  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
@@ -1675,14 +1675,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId);
+        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt);
       });
       wrapper.appendChild(retry);
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '') => {
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0) => {
     const message = typeof text === 'string' ? text.trim() : '';
+    const sourceTurnCreatedAt = Number.isFinite(Number(turnCreatedAt)) && Number(turnCreatedAt) > 0 ? Number(turnCreatedAt) : Date.now();
+    const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
@@ -1691,7 +1693,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     ensureThread(displayMessage);
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
-      const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}});
+      const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
       appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
       appendPersistedMessage(userRecord);
     }
@@ -1728,12 +1730,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           idempotencyKey: guestRequestId,
           recentContext: guestRecentContext(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+          turnCreatedAt: sourceTurnCreatedAtIso,
           attachmentIds: attachments.map(item => item.id),
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
         loading.parentElement?.remove();
         const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        if (response.calendarCandidate) {
+          const calendarAction = createAvailableCalendarAction(response.calendarCandidate, {scope: 'GUEST', ownerNamespace: namespace});
+          if (calendarAction) meta.calendarAction = calendarAction;
+        }
         let richProduct = null;
         const guestPurchase = response.intent?.action === 'PURCHASE' || response.followUp?.action === 'PURCHASE';
         if (guestPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
@@ -1756,7 +1763,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       } catch (caught) {
         loading.parentElement?.remove();
         if (isGuestSessionError(caught)) clearGuestSession();
-        showError(caught, message, true, guestRequestId);
+        showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
@@ -1779,7 +1786,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
       } catch (caught) {
         loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-        showError(caught, message, true, calendarRequestId);
+        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
@@ -1796,10 +1803,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         globalThis.fetch,
         attachments.map(item => item.id),
         authenticatedRequestId,
+        Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+        sourceTurnCreatedAtIso,
       );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      if (response.calendarCandidate) {
+        const calendarAction = createAvailableCalendarAction(response.calendarCandidate, {scope: 'AUTH', ownerNamespace: namespace});
+        if (calendarAction) meta.calendarAction = calendarAction;
+      }
       let richProduct = null;
       const authenticatedPurchase = response.intent?.action === 'PURCHASE' || response.followUp?.action === 'PURCHASE';
       if (authenticatedPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
@@ -1824,7 +1837,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch (caught) {
       driveAvatar('cancel', avatarRequestId);
       loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-      showError(caught, message, true, authenticatedRequestId); setStatus('LOTBI 대화를 완료하지 못했습니다.');
+      showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
   };
   window.addEventListener('lotbi:keyboard-viewport', () => {
