@@ -768,6 +768,8 @@ export async function mountLifeCalendarManager({
     }
   }, true);
 
+  let refreshGeneration = 0;
+
   function render() {
     updateChrome();
     status.replaceChildren();
@@ -781,27 +783,33 @@ export async function mountLifeCalendarManager({
   }
 
   async function refresh() {
+    const requestGeneration = ++refreshGeneration;
     state.loading = true; render(); root.setAttribute('aria-busy', 'true');
     try {
       if (authenticated) {
         const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl});
+        if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         if (result.kind === 'attention') state.attention = result.items;
         else {
           state.items = result.items;
           if (result.key === 'month') state.attention = result.attention || [];
         }
       } else {
+        if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         state.items = repository.list(); state.attention = [];
       }
       state.loading = false; render();
     } catch (error) {
+      if (!root.isConnected || requestGeneration !== refreshGeneration) return;
       state.loading = false; render();
       const message = document.createElement('p'); message.className = 'life-calendar-error';
       message.textContent = error instanceof SiteCoreError && (error.status === 401 || error.status === 403)
         ? '일정을 보려면 LOTBI에 다시 로그인해 주세요.' : '일정을 불러오지 못했습니다.';
       const retry = button('다시 시도', 'calendar-retry-button'); retry.addEventListener('click', () => { void refresh(); });
       status.replaceChildren(message, retry);
-    } finally { root.removeAttribute('aria-busy'); }
+    } finally {
+      if (requestGeneration === refreshGeneration) root.removeAttribute('aria-busy');
+    }
   }
 
   const focusCalendarContext = (origin, item) => {
