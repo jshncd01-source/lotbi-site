@@ -1,5 +1,7 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
-import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260920-attachments1';
+import {createGuestConversationSession, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260920-attachments1';
+import {getCurrentSiteUser, getCurrentSubscription, logoutSiteSession} from './site-core.js?v=20260920-attachments1';
+import {getProductCards, reviewProductCard, searchProductCards, searchPublicProductCards} from './site-core.js?v=20260920-attachments1';
 import {safeAttachmentName, validateAttachmentFiles} from './site-attachments.js?v=20260920-attachments1';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
