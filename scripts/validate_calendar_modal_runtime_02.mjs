@@ -157,15 +157,18 @@ try{
     const more=cell.querySelector('.calendar-event-overflow');
     const visible=rows.filter(row=>!row.hidden&&getComputedStyle(row).display!=='none').length;
     const hiddenCount=more&&!more.hidden&&getComputedStyle(more).display!=='none'?Number(more.dataset.hiddenCount||0):0;
+    const cellHeight=cell.getBoundingClientRect().height;
     if(desktop){
       if(visible+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]+' visible '+visible+' hidden '+hiddenCount+' expected '+expected);
       if(hiddenCount>0&&more.textContent!==hiddenCount+'개 더 보기')throw new Error('overflow copy mismatch '+fixtureDates[index]);
       const stack=cell.querySelector('.calendar-event-stack');
       if(getComputedStyle(stack).overflowY==='auto'||getComputedStyle(stack).overflowY==='scroll')throw new Error('cell inner scrollbar '+fixtureDates[index]);
+      if(expected===5&&cellHeight>=130&&visible<3)throw new Error('130px density budget too sparse '+cellHeight+'px visible '+visible);
+      if(expected===5&&cellHeight>=156&&visible<5)throw new Error('156px density budget should show all five '+cellHeight+'px visible '+visible);
     }else if(countText!==(expected?expected+'개':'')){
       throw new Error('mobile event count mismatch '+fixtureDates[index]+' '+countText+' expected '+expected);
     }
-    density.push({date:fixtureDates[index],expected,visible,hiddenCount});
+    density.push({date:fixtureDates[index],expected,visible,hiddenCount,cellHeight});
   });
   result.density=density;
 
