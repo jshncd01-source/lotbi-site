@@ -7,6 +7,7 @@ const PRODUCT_CARD_SEARCH_PATH = '/v2/product-resolutions/search';
 const PUBLIC_PRODUCT_CARD_SEARCH_PATH = '/v2/public/product-cards/search';
 const GUEST_SESSION_PATH = '/v2/conversation/guest/sessions';
 const GUEST_CONVERSATION_PATH = '/v2/conversation/guest/messages';
+const CONVERSATION_ATTACHMENT_PATH = '/v2/conversation/attachments';
 const GUEST_IDEMPOTENCY_RE = /^[A-Za-z0-9._:-]{8,160}$/;
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
@@ -113,14 +114,55 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
   });
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch) {
+function normalizeAttachmentIds(attachmentIds) {
+  if (!Array.isArray(attachmentIds)) return [];
+  const normalized = attachmentIds.map(value => typeof value === 'string' ? value.trim() : '');
+  if (normalized.length > 4 || normalized.some(value => !/^att_[A-Za-z0-9]{8,56}$/.test(value))) {
+    throw new SiteCoreError('첨부 파일 참조가 올바르지 않습니다.', {code: 'CONVERSATION_ATTACHMENT_REFERENCE_INVALID', status: 422});
+  }
+  return normalized;
+}
+
+export async function uploadConversationAttachment({sessionToken = '', guestToken = '', file}, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  if (!(file instanceof Blob) || typeof file.name !== 'string') {
+    throw new SiteCoreError('첨부할 파일을 선택해 주세요.', {code: 'CONVERSATION_ATTACHMENT_FILE_REQUIRED', status: 422});
+  }
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
+  const guest = typeof guestToken === 'string' ? guestToken.trim() : '';
+  if (!token && (guest.length < 32 || guest.length > 256)) {
+    throw new SiteCoreError('첨부 파일을 위한 LOTBI 세션이 필요합니다.', {code: 'CONVERSATION_ATTACHMENT_SESSION_REQUIRED', status: 401});
+  }
+  const form = new FormData();
+  form.append('file', file, file.name);
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${CONVERSATION_ATTACHMENT_PATH}`, {
+      method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+      headers: token ? {Authorization: `Bearer ${token}`} : {'X-LOTBI-Guest-Token': guest},
+      body: form,
+    });
+  } catch {
+    throw new SiteCoreError('첨부 파일 서버에 접속하지 못했습니다.', {code: 'CONVERSATION_ATTACHMENT_NETWORK_ERROR', retryable: true});
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) throw errorFromResponse(response, payload, '첨부 파일을 업로드하지 못했습니다.');
+  const attachment = payload && payload.attachment;
+  if (payload.contract_id !== 'CORE-CONVERSATION-ATTACHMENT-01' || payload.schema_version !== 1 || !attachment || !/^att_[A-Za-z0-9]{8,56}$/.test(String(attachment.id || '')) || attachment.status !== 'READY') {
+    throw new SiteCoreError('첨부 파일 응답 형식이 올바르지 않습니다.', {code: 'CONVERSATION_ATTACHMENT_CONTRACT_INVALID'});
+  }
+  return Object.freeze({...attachment});
+}
+
+export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = []) {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
   if (!token) {
     throw new SiteCoreError('LOTBI Site 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
   }
-  if (!message || message.length > 1000) {
+  const attachments = normalizeAttachmentIds(attachmentIds);
+  if ((!message && !attachments.length) || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
   }
 
@@ -136,7 +178,9 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({text: message}),
+      body: JSON.stringify(attachments.length
+        ? {text: message || '첨부 파일을 확인해 주세요.', attachment_ids: attachments}
+        : {text: message}),
     });
   } catch {
     throw new SiteCoreError('LOTBI 대화 서버에 접속하지 못했습니다.', {
@@ -235,6 +279,7 @@ export async function sendGuestConversationMessage({
   idempotencyKey,
   recentContext = [],
   timezone = '',
+  attachmentIds = [],
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof guestToken === 'string' ? guestToken.trim() : '';
@@ -244,17 +289,16 @@ export async function sendGuestConversationMessage({
   if (token.length < 32 || token.length > 256) {
     throw new SiteCoreError('LOTBI 익명 대화 세션이 필요합니다.', {code: 'GUEST_SESSION_INVALID', status: 401});
   }
-  if (!message || message.length > 1000) {
+  const attachments = normalizeAttachmentIds(attachmentIds);
+  if ((!message && !attachments.length) || message.length > 1000) {
     throw new SiteCoreError('메시지는 1자 이상 1000자 이하로 입력해 주세요.', {code: 'WEB_CONVERSATION_INVALID_INPUT', status: 422});
   }
   if (!GUEST_IDEMPOTENCY_RE.test(logicalKey)) {
     throw new SiteCoreError('익명 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_GUEST_IDEMPOTENCY_KEY', status: 422});
   }
 
-  const body = {
-    text: message,
-    recent_context: normalizeGuestRecentContext(recentContext),
-  };
+  const body = {text: message || '첨부 파일을 확인해 주세요.', recent_context: normalizeGuestRecentContext(recentContext)};
+  if (attachments.length) body.attachment_ids = attachments;
   if (timezoneName && timezoneName.length <= 64) body.client_context = {timezone: timezoneName};
 
   let response;
