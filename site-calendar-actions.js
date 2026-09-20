@@ -122,9 +122,6 @@ export function normalizePersistedCalendarAction(value) {
     || value.candidateVersion !== candidate.candidateVersion
   ) return null;
 
-  // A page reload cannot prove whether an in-flight write reached persistence.
-  // Treat it as unknown and reconcile through the same logical request identity.
-  if (state === 'IN_FLIGHT') state = 'UNKNOWN_RESULT';
   const result = value.result == null ? null : normalizeResult(scope, value.result);
   if ((state === 'SUCCESS' || state === 'DELETED') && !result) return null;
   if (state !== 'SUCCESS' && state !== 'DELETED' && value.result != null && !result) return null;
@@ -142,6 +139,12 @@ export function normalizePersistedCalendarAction(value) {
     result,
     lastError,
   });
+}
+
+export function recoverCalendarActionAfterReload(actionValue) {
+  const action = normalizePersistedCalendarAction(actionValue);
+  if (!action || action.state !== 'IN_FLIGHT') return action;
+  return Object.freeze({...action, state: 'UNKNOWN_RESULT', lastError: safeError('CALENDAR_ACTION_RESULT_UNKNOWN', '등록 결과를 확인하고 있어요.')});
 }
 
 export function calendarActionInFlight(actionValue) {
