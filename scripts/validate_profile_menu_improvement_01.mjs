@@ -69,7 +69,7 @@ try{new Function(conversationSource.replace(/^import[^\\n]*\\n/gm,'').replace('e
 const moduleProbe=conversationSource.replace(/^import[^\\n]*\\n/gm,'');
 const moduleProbeUrl=URL.createObjectURL(new Blob([moduleProbe],{type:'text/javascript'}));
 try{await import(moduleProbeUrl)}catch(parseError){throw new Error('conversation module detail: '+parseError.stack)}finally{URL.revokeObjectURL(moduleProbeUrl)}
-const conversation=await import('/site-conversation.js?profile-test=1');
+const conversation=await import('/site-conversation.js?v=20260920-attachments1');
 continuity.markAnonymousAccountUi();
 const anon=document.querySelector('[data-sidebar-account] a.sidebar-account-entry');
 if(!(anon instanceof HTMLAnchorElement)||anon.getAttribute('href')!=='/auth/start/'||document.querySelector('[data-profile-menu-trigger]'))throw new Error('anonymous contract');
