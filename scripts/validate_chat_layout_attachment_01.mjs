@@ -13,8 +13,11 @@ const styles = [
   fs.readFileSync(path.join(ROOT, 'site-sidebar-nav.css'), 'utf8'),
 ].join('\n');
 
-assert.match(html, /class="composer-button attachment-button"[^>]*aria-label="파일 첨부"/);
-assert.match(html, /type="file"[^>]*accept="image\/jpeg,image\/png,image\/webp,application\/pdf"/);
+assert.match(html, /class="composer-button attachment-button"[\s\S]*aria-label="첨부 추가"/);
+assert.match(html, /data-attachment-action="camera">카메라<\/button>/);
+assert.match(html, /data-attachment-action="photos">사진·스크린샷<\/button>/);
+assert.match(html, /data-attachment-action="files">파일<\/button>/);
+assert.match(html, /data-attachment-input="files"/);
 assert.match(html, /class="attachment-preview-strip"/);
 assert.ok(html.includes('LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.'));
 assert.match(styles, /\.chat-home-page\s*\{[^}]*height:\s*100dvh[^}]*overflow:\s*hidden/s);

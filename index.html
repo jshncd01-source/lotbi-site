@@ -51,7 +51,7 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260920-homefirst1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260920-conversationpolish1"></script>
+  <script type="module" src="site-conversation.js?v=20260920-attach16prod"></script>
   <script type="module" src="site-continuity.js?v=20260920-authux1"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
@@ -157,7 +157,7 @@
         <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
 
         <div class="chat-composer-stack">
-          <div id="attachment-preview-strip" class="attachment-preview-strip" aria-live="polite" hidden></div>
+          <div id="attachment-preview-strip" class="attachment-preview-strip" data-attachment-preview aria-live="polite" hidden></div>
           <p class="chat-safety-copy">LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.</p>
           <div class="chat-composer" aria-labelledby="composer-label" aria-describedby="chat-status chat-attachment-help">
           <label id="composer-label" class="sr-only" for="lotbi-prompt">LOTBI에게 요청할 내용</label>
@@ -173,12 +173,29 @@
           ></textarea>
 
           <div class="composer-actions">
-            <button class="composer-button attachment-button" type="button" aria-label="파일 첨부" title="파일 첨부" data-attachment-button>
-              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                <path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z" />
-              </svg>
-            </button>
-            <input id="lotbi-attachment-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple data-attachment-input />
+            <div class="attachment-control" data-attachment-control>
+              <button
+                class="composer-button attachment-button"
+                type="button"
+                aria-label="첨부 추가"
+                title="첨부 추가"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                data-attachment-trigger
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z" />
+                </svg>
+              </button>
+              <div class="attachment-menu" role="menu" aria-label="첨부 추가" data-attachment-menu hidden>
+                <button type="button" role="menuitem" data-attachment-action="camera">카메라</button>
+                <button type="button" role="menuitem" data-attachment-action="photos">사진·스크린샷</button>
+                <button type="button" role="menuitem" data-attachment-action="files">파일</button>
+              </div>
+              <input class="sr-only" type="file" accept="image/jpeg,image/png" capture="environment" data-attachment-input="camera" />
+              <input class="sr-only" type="file" accept="image/jpeg,image/png" multiple data-attachment-input="photos" />
+              <input class="sr-only" type="file" accept=".pdf,.docx,.txt,.csv,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv,application/json" multiple data-attachment-input="files" />
+            </div>
             <div class="response-grade-control" data-response-grade-control hidden inert aria-hidden="true">
               <button
                 class="response-grade-trigger"
@@ -230,7 +247,7 @@
             </button>
           </div>
           </div>
-          <p id="chat-attachment-help" class="sr-only">JPEG, PNG, WebP 이미지와 PDF 파일을 첨부할 수 있습니다.</p>
+          <p id="chat-attachment-help" class="sr-only">이미지는 JPEG·PNG, 파일은 PDF·DOCX·TXT·CSV·JSON을 지원하며 메시지당 최대 3개까지 첨부할 수 있습니다.</p>
         </div>
 
         <p id="chat-status" class="sr-only" role="status">
