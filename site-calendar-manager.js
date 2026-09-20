@@ -66,6 +66,18 @@ function isAllDay(item) {
   return item?.all_day === true || !item?.local_datetime;
 }
 
+function usesFlowingDayDetail() {
+  if (typeof globalThis.matchMedia === 'function') return globalThis.matchMedia('(max-width: 900px)').matches;
+  return globalThis.innerWidth <= 900;
+}
+
+function weekBounds(value) {
+  const {year, month, day} = civilDateParts(value);
+  const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+  const start = addCivilDays(value, -weekday);
+  return Object.freeze({start, end: addCivilDays(start, 6)});
+}
+
 export function buildCalendarTemporal({localDate, time = '', allDay = false, timezone = DEFAULT_TIMEZONE}) {
   if (!validCivilDate(localDate)) throw new SiteCoreError('날짜가 올바르지 않습니다.', {code: 'LIFE_DATE_INVALID', status: 422});
   if (allDay) return Object.freeze({kind: 'DATE_ONLY', local_date: localDate});
@@ -478,12 +490,42 @@ function renderYear(state, actions) {
 function renderAgenda(state, actions) {
   const section = document.createElement('section');
   section.className = 'calendar-agenda-view';
-  const items = sortCalendarEvents(state.items);
-  if (!items.length) return emptyMessage('이 달에는 일정이 없어요.');
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'calendar-agenda-toolbar';
+  toolbar.setAttribute('aria-label', '일정 범위');
+  for (const [scope, label] of [['month', '이번 달'], ['today', '오늘'], ['week', '이번 주']]) {
+    const control = button(label, 'calendar-agenda-range');
+    control.dataset.agendaScope = scope;
+    control.setAttribute('aria-pressed', String(state.agendaScope === scope));
+    control.addEventListener('click', () => actions.setAgendaScope(scope));
+    toolbar.appendChild(control);
+  }
+  section.appendChild(toolbar);
+
+  let items = sortCalendarEvents(state.items);
+  if (state.agendaScope === 'today') {
+    items = items.filter(item => item.local_date === state.todayDate);
+  } else if (state.agendaScope === 'week') {
+    const range = weekBounds(state.todayDate);
+    items = items.filter(item => item.local_date >= range.start && item.local_date <= range.end);
+  }
+
+  if (!items.length) {
+    section.appendChild(emptyMessage(
+      state.agendaScope === 'today' ? '오늘 등록된 일정이 없어요.'
+        : state.agendaScope === 'week' ? '이번 주에 등록된 일정이 없어요.'
+          : '이 달에는 일정이 없어요.',
+    ));
+    return section;
+  }
+
   const groups = groupCalendarEvents(items);
   for (const [date, values] of groups) {
     const group = document.createElement('section');
-    const heading = document.createElement('h3'); heading.textContent = koreanDate(date); group.append(heading, eventList(values, {onSelect: actions.onEvent}));
+    const heading = document.createElement('h3');
+    heading.textContent = koreanDate(date);
+    group.append(heading, eventList(values, {onSelect: actions.onEvent}));
     section.appendChild(group);
   }
   return section;
@@ -584,7 +626,7 @@ export async function mountLifeCalendarManager({
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
     year: initialParts.year, month: initialParts.month, items: [], attention: [], loading: false,
-    detailOpen: true, dayCollapsed: false,
+    detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
   };
 
   const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
@@ -630,7 +672,7 @@ export async function mountLifeCalendarManager({
       state.month = month;
       state.selectedDate = `${state.year}-${String(month).padStart(2, "0")}-01`;
       state.mode = 'month';
-      state.detailOpen = false;
+      state.detailOpen = usesFlowingDayDetail();
       await refresh();
     },
     onDateKey: (event, date) => {
@@ -675,6 +717,21 @@ export async function mountLifeCalendarManager({
       state.dayCollapsed = !state.dayCollapsed;
       render();
       queueMicrotask(() => root.querySelector('.calendar-day-toggle')?.focus());
+    },
+    setAgendaScope: async scope => {
+      state.agendaScope = ['month', 'today', 'week'].includes(scope) ? scope : 'month';
+      if (state.agendaScope === 'today' || state.agendaScope === 'week') {
+        const parts = civilDateParts(state.todayDate);
+        const monthChanged = parts.year !== state.year || parts.month !== state.month;
+        state.selectedDate = state.todayDate;
+        state.year = parts.year;
+        state.month = parts.month;
+        if (monthChanged && authenticated) await refresh();
+        else render();
+      } else {
+        render();
+      }
+      queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
     onAdd: date => {
       state.detailOpen = false;
@@ -750,12 +807,18 @@ export async function mountLifeCalendarManager({
   today.addEventListener('click', async () => {
     const parts = civilDateParts(todayDate); state.year = parts.year; state.month = parts.month; state.selectedDate = todayDate; state.mode = 'month'; state.detailOpen = true; state.dayCollapsed = false; await refresh();
   });
-  title.addEventListener('click', async () => { state.mode = state.mode === 'year' ? 'month' : 'year'; state.detailOpen = state.mode === 'month'; await refresh(); });
+  title.addEventListener('click', async () => {
+    state.mode = state.mode === 'year' ? 'month' : 'year';
+    state.detailOpen = state.mode === 'month' && usesFlowingDayDetail();
+    state.agendaScope = 'month';
+    await refresh();
+  });
   for (const [mode, control] of modeButtons) control.addEventListener('click', async () => {
     if (state.mode !== mode) {
       state.mode = mode;
-      state.detailOpen = mode === 'month';
+      state.detailOpen = mode === 'month' && usesFlowingDayDetail();
       state.dayCollapsed = false;
+      if (mode !== 'agenda') state.agendaScope = 'month';
       await refresh();
     }
   });
