@@ -56,6 +56,8 @@ await import('/site-attachments.js?profile-test=1');
 importPhase='core';
 await import('/site-core.js?profile-test=1');
 importPhase='conversation';
+const conversationSource=await fetch('/site-conversation.js?profile-parse=1').then(response=>response.text());
+try{new Function(conversationSource.replace(/^import[^\\n]*\\n/gm,'').replace('export function mountConversation','function mountConversation'))}catch(parseError){throw new Error('conversation parse detail: '+parseError.stack)}
 const conversation=await import('/site-conversation.js?profile-test=1');
 continuity.markAnonymousAccountUi();
 const anon=document.querySelector('[data-sidebar-account] a.sidebar-account-entry');
