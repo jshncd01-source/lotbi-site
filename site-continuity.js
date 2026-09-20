@@ -1,4 +1,4 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=20260920-fallback4';
+import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=20260920-authux1';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -263,7 +263,7 @@ function hasLiveSiteSession() {
 export async function synchronizeAccountContinuity() {
   if (!rootLocation() || checking || redirecting) return;
   checking = true;
-  if (!hasLiveSiteSession()) markAnonymousAccountUi();
+  if (!hasLiveSiteSession()) markCheckingAccountUi();
   const statusStartedAt = performanceNow();
   try {
     const authenticated = await readAccountSessionStatus();

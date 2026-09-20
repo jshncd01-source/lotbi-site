@@ -73,19 +73,19 @@ def main() -> int:
     if not initial_account:
         errors.append("initial account-actions markup missing")
     else:
-        for required in (">로그인<", ">회원가입<", 'data-auth-state="unauthenticated"', 'href="/auth/start/"', 'href="https://account.lotbiai.com/signup"'):
+        for required in ('data-auth-state="checking"', 'aria-busy="true"', 'account-auth-placeholder'):
             if required not in initial_account:
-                errors.append(f"anonymous-first initial account state missing: {required}")
-        for forbidden in (">내 계정<", ">프로필<", 'data-auth-state="checking"', 'aria-busy="true"', 'account-auth-placeholder'):
+                errors.append(f"neutral initial account state missing: {required}")
+        for forbidden in (">로그인<", ">회원가입<", ">내 계정<", ">프로필<"):
             if forbidden in initial_account:
-                errors.append(f"initial anonymous account state exposes blocked/authenticated UI: {forbidden}")
+                errors.append(f"initial checking account state exposes premature account UI: {forbidden}")
 
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-guestcal1"></script>',
-        '<script type="module" src="site-continuity.js?v=20260920-fallback4"></script>',
+        '<script type="module" src="site-conversation.js?v=20260920-authux1"></script>',
+        '<script type="module" src="site-continuity.js?v=20260920-authux1"></script>',
         '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
@@ -162,9 +162,9 @@ def main() -> int:
         errors.append("authenticated continuity stylesheet missing from home")
     if 'href="mobile-entry.css"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
-    if 'src="site-conversation.js?v=20260920-guestcal1"' not in index:
+    if 'src="site-conversation.js?v=20260920-authux1"' not in index:
         errors.append("approved conversation module missing from home")
-    if 'src="site-continuity.js?v=20260920-fallback4"' not in index:
+    if 'src="site-continuity.js?v=20260920-authux1"' not in index:
         errors.append("approved authenticated continuity module missing from home")
 
     for token in (
@@ -210,7 +210,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("PUBLIC HARDENING VALIDATION PASS — locked content, anonymous-first initial auth state, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
+    print("PUBLIC HARDENING VALIDATION PASS — locked content, neutral initial auth state, Site-origin auth start, isolated home shell, chooser boundaries, approved conversation/continuity modules, responsive/a11y compatibility and performance contracts verified.")
     return 0
 
 

@@ -1,8 +1,8 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
+import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import {createGuestConversationSession, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, SiteCoreError} from './site-core.js?v=20260920-richcards5';
 import {deterministicReply} from './site-deterministic.js';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-guestcal1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-authux1';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
