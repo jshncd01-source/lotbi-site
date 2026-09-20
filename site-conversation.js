@@ -1496,13 +1496,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
-    const threadSeed = message ? message : ((attachments[0] && attachments[0].fileName) ? attachments[0].fileName : '첨부 파일');
-    ensureThread(threadSeed);
+    const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
+    ensureThread(displayMessage);
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
-      const persistedAttachments = attachmentMeta.map(item => ({id: item.id, filename: item.filename, mediaType: item.mediaType, sizeBytes: item.sizeBytes}));
-      const userRecord = timestampedConversationMessage({role: 'user', text: message, meta: {attachments: persistedAttachments}});
-      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true}); appendPersistedMessage(userRecord);
+      const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}});
+      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
+      appendPersistedMessage(userRecord);
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {

@@ -30,8 +30,11 @@ for (const token of [
 ]) {
   assert.ok(runtime.includes(token), `missing attachment runtime contract: ${token}`);
 }
-assert.ok(runtime.includes("appendPersistedMessage({role: 'user', text: displayMessage, meta: {}})"));
-assert.ok(runtime.includes("attachmentNote.textContent = `첨부: ${attachmentSummary(attachments)}`"));
+assert.ok(runtime.includes("timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}})"));
+assert.ok(runtime.includes("appendPersistedMessage(userRecord)"));
+assert.ok(runtime.includes("meta: {attachments: attachmentMeta}"), 'attachment details may exist only in the live DOM record');
+assert.ok(!runtime.includes('persistedAttachments'), 'attachment IDs and filenames must not be persisted in Site state');
+assert.doesNotMatch(runtime, /ensureThread\([^\n]*fileName/);
 assert.ok(runtime.includes("const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`"));
 assert.doesNotMatch(runtime, /첨부 파일 확인:/);
 assert.doesNotMatch(runtime, /localStorage[^\n]*attachment|attachment[^\n]*localStorage/i);
