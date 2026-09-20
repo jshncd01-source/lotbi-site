@@ -9,6 +9,8 @@ const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 const {
   ACCOUNT_SITE_FALLBACK_URL,
   ACCOUNT_SITE_SESSION_STATUS_URL,
+  HANDOFF_RECOVERY_KEY,
+  HANDOFF_RECOVERY_TTL_MS,
   SITE_LOGOUT_SUPPRESSION_KEY,
   SITE_LOGOUT_SUPPRESSION_TTL_MS,
   SiteHandoffClientError,
@@ -16,8 +18,9 @@ const {
   hasSiteLogoutSuppression,
   markSiteLogoutSuppression,
   readAccountSessionStatus,
+  recoverMissingSiteHandoffContext,
   shouldUseAccountSiteFallback,
-} = await import('../site-auth.js?v=20260920-fallback4');
+} = await import('../site-auth.js?v=20260920-authux1');
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -34,6 +37,79 @@ assert.equal(new URL(ACCOUNT_SITE_FALLBACK_URL).searchParams.has('code_challenge
 assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE')), true);
 assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_STORAGE_UNAVAILABLE')), true);
 assert.equal(shouldUseAccountSiteFallback(new SiteHandoffClientError('x', 'SITE_HANDOFF_STATE_MISMATCH')), false);
+
+assert.equal(HANDOFF_RECOVERY_KEY, 'lotbi.site-handoff-recovery.v1');
+assert.equal(HANDOFF_RECOVERY_TTL_MS, 2 * 60 * 1000);
+{
+  const data = new Map();
+  const storage = {
+    getItem: key => data.get(key) ?? null,
+    setItem: (key, value) => data.set(key, String(value)),
+    removeItem: key => data.delete(key),
+  };
+  let statusChecks = 0;
+  let handoffs = 0;
+  const recovered = await recoverMissingSiteHandoffContext(
+    new SiteHandoffClientError('missing', 'SITE_HANDOFF_CONTEXT_MISSING'),
+    {
+      storage,
+      now: 10_000,
+      readStatus: async () => { statusChecks += 1; return true; },
+      beginHandoff: async () => { handoffs += 1; },
+    },
+  );
+  assert.equal(recovered, true);
+  assert.equal(statusChecks, 1);
+  assert.equal(handoffs, 1);
+  assert.deepEqual(JSON.parse(data.get(HANDOFF_RECOVERY_KEY)), {
+    version: 1,
+    startedAt: 10_000,
+    attemptCount: 1,
+  });
+
+  const second = await recoverMissingSiteHandoffContext(
+    new SiteHandoffClientError('missing', 'SITE_HANDOFF_CONTEXT_MISSING'),
+    {
+      storage,
+      now: 10_001,
+      readStatus: async () => { statusChecks += 1; return true; },
+      beginHandoff: async () => { handoffs += 1; },
+    },
+  );
+  assert.equal(second, false, 'one callback cycle may recover at most once');
+  assert.equal(statusChecks, 1);
+  assert.equal(handoffs, 1);
+}
+
+for (const code of ['SITE_HANDOFF_STATE_MISMATCH', 'SITE_HANDOFF_CONTEXT_INVALID', 'SITE_HANDOFF_CALLBACK_INVALID', 'SITE_HANDOFF_REPLAY_OR_INVALID']) {
+  let statusChecks = 0;
+  let handoffs = 0;
+  const recovered = await recoverMissingSiteHandoffContext(
+    new SiteHandoffClientError('fail closed', code),
+    {
+      storage: {getItem: () => null, setItem() {}, removeItem() {}},
+      readStatus: async () => { statusChecks += 1; return true; },
+      beginHandoff: async () => { handoffs += 1; },
+    },
+  );
+  assert.equal(recovered, false, `${code} must not auto-recover`);
+  assert.equal(statusChecks, 0);
+  assert.equal(handoffs, 0);
+}
+
+{
+  let handoffs = 0;
+  const recovered = await recoverMissingSiteHandoffContext(
+    new SiteHandoffClientError('missing', 'SITE_HANDOFF_CONTEXT_MISSING'),
+    {
+      storage: {getItem: () => null, setItem() {}, removeItem() {}},
+      readStatus: async () => false,
+      beginHandoff: async () => { handoffs += 1; },
+    },
+  );
+  assert.equal(recovered, false);
+  assert.equal(handoffs, 0, 'anonymous Account must render the safe callback error instead of redirecting');
+}
 
 assert.equal(SITE_LOGOUT_SUPPRESSION_KEY, 'lotbi.site-logout-suppression.v1');
 assert.equal(SITE_LOGOUT_SUPPRESSION_TTL_MS, 10 * 60 * 1000);
@@ -112,29 +188,27 @@ const continuityCss = read('site-auth-continuity.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js?v=20260920-fallback4"'));
+assert.ok(index.includes('type="module" src="site-continuity.js?v=20260920-authux1"'));
 assert.ok(index.includes('href="site-auth-continuity.css"'));
-assert.ok(index.includes('data-auth-state="unauthenticated"'));
-assert.ok(index.includes('class="account-action account-login" href="/auth/start/">로그인</a>'));
-assert.ok(index.includes('class="account-action account-signup" href="https://account.lotbiai.com/signup">회원가입</a>'));
-assert.ok(!index.includes('data-auth-state="checking" aria-busy="true"'), 'initial Home must not block account actions behind checking state');
-assert.equal((index.match(/data-sidebar-account data-auth-state="unauthenticated"/g) || []).length, 2, 'desktop/mobile Sidebar must expose anonymous login immediately');
-assert.ok(index.includes('<span class="sidebar-account-handle">LOTBI 계정 연결</span>'));
+assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
+assert.equal((index.match(/data-sidebar-account data-auth-state="checking" aria-busy="true"/g) || []).length, 2, 'desktop/mobile Sidebar must reserve neutral checking slots');
+assert.equal((index.match(/class="sidebar-account-placeholder"/g) || []).length, 2);
 
 const staticAccountActions = index.match(/<nav class="account-actions"[\s\S]*?<\/nav>/)?.[0] || '';
 assert.ok(staticAccountActions, 'initial account-actions markup must exist');
-assert.ok(staticAccountActions.includes('>로그인<'), 'initial static header must expose login immediately');
-assert.ok(staticAccountActions.includes('>회원가입<'), 'initial static header must expose signup immediately');
+assert.ok(staticAccountActions.includes('class="account-auth-placeholder"'), 'initial static header must reserve neutral checking space');
+assert.ok(!staticAccountActions.includes('>로그인<'), 'initial static header must not flash login');
+assert.ok(!staticAccountActions.includes('>회원가입<'), 'initial static header must not flash signup');
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
-assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-fallback4"'));
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-realcal2"'));
+assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-authux1"'));
+assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-realcal3"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
 
 assert.ok(authStartHtml.includes('id="auth-start-error-shell"'));
-assert.ok(authStartHtml.includes('src="/auth-start.js?v=20260920-fallback4"'));
+assert.ok(authStartHtml.includes('src="/auth-start.js?v=20260920-authux1"'));
 assert.ok(authStartHtml.includes('href="https://account.lotbiai.com/?site_fallback=1"'));
 assert.ok(authStartHtml.includes('>계정 로그인으로 이동</a>'));
 assert.ok(!authStartHtml.includes('href="/auth/start/" hidden>다시 시도</a>'), 'fallback error recovery must not recurse into /auth/start/');
@@ -176,6 +250,9 @@ assert.ok(callback.includes("new CustomEvent('lotbi:site-session-state'"));
 assert.ok(callback.includes('authenticated: true'));
 assert.ok(callback.includes('expiresAt: session.expiresAt'));
 assert.ok(callback.includes('showCallbackError'));
+assert.ok(callback.includes('recoverMissingSiteHandoffContext'));
+assert.ok(callback.includes("error.code === 'SITE_HANDOFF_CONTEXT_MISSING'"));
+assert.ok(callback.includes('if (await recoverMissingSiteHandoffContext(error)) return;'));
 assert.ok(callback.includes("document.body.classList.add('auth-callback-error-page')"));
 assert.ok(callback.includes('callbackShell.hidden = false'));
 assert.ok(callback.includes('retryLink.hidden = false'));
@@ -231,7 +308,8 @@ assert.ok(auth.includes("error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE'"));
 const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity()');
 const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStart);
 const syncBody = continuity.slice(syncStart, syncEnd);
-assert.ok(syncBody.indexOf('if (!hasLiveSiteSession()) markAnonymousAccountUi();') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must keep login/signup visible until authenticated=true is confirmed');
+assert.ok(syncBody.indexOf('if (!hasLiveSiteSession()) markCheckingAccountUi();') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must remain neutral until Account status resolves');
+assert.ok(!syncBody.includes('if (!hasLiveSiteSession()) markAnonymousAccountUi();'), 'normal boot must not paint anonymous actions before authoritative status');
 assert.ok(syncBody.includes('redirecting = false;') && syncBody.includes('markAnonymousAccountUi();'), '503/network or handoff failures must keep the anonymous login CTA usable');
 assert.ok(syncBody.includes('siteLogoutSuppressed || hasSiteLogoutSuppression()'), 'fresh Home must honor the tab-scoped logout suppression marker');
 assert.ok(syncBody.indexOf('siteLogoutSuppressed || hasSiteLogoutSuppression()') < syncBody.indexOf('await beginSiteHandoff()'), 'logout suppression must stop automatic handoff before it starts');

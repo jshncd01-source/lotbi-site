@@ -51,8 +51,8 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260920-homefirst1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260920-realcal2"></script>
-  <script type="module" src="site-continuity.js?v=20260920-fallback4"></script>
+  <script type="module" src="site-conversation.js?v=20260920-realcal3"></script>
+  <script type="module" src="site-continuity.js?v=20260920-authux1"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
@@ -97,11 +97,9 @@
         </div>
 
         <div class="sidebar-account-footer">
-          <div class="sidebar-account-slot" data-sidebar-account data-auth-state="unauthenticated">
-            <a class="sidebar-account-entry" href="/auth/start/" aria-label="LOTBI 로그인">
-              <span class="sidebar-account-name">로그인</span>
-              <span class="sidebar-account-handle">LOTBI 계정 연결</span>
-            </a>
+          <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
           </div>
         </div>
       </nav>
@@ -128,9 +126,9 @@
           </a>
         </div>
 
-        <nav class="account-actions" aria-label="계정 메뉴" data-auth-state="unauthenticated">
-          <a class="account-action account-login" href="/auth/start/">로그인</a>
-          <a class="account-action account-signup" href="https://account.lotbiai.com/signup">회원가입</a>
+        <nav class="account-actions" aria-label="계정 메뉴" data-auth-state="checking" aria-busy="true">
+          <span class="account-auth-placeholder" aria-hidden="true"></span>
+          <span class="sr-only" role="status">계정 상태 확인 중</span>
         </nav>
       </header>
 
@@ -325,11 +323,9 @@
       </div>
 
       <div class="sidebar-account-footer">
-        <div class="sidebar-account-slot" data-sidebar-account data-auth-state="unauthenticated">
-            <a class="sidebar-account-entry" href="/auth/start/" aria-label="LOTBI 로그인">
-              <span class="sidebar-account-name">로그인</span>
-              <span class="sidebar-account-handle">LOTBI 계정 연결</span>
-            </a>
+        <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
           </div>
       </div>
     </nav>

@@ -5,6 +5,8 @@ export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fall
 export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/auth/site-session-status';
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
+export const HANDOFF_RECOVERY_KEY = 'lotbi.site-handoff-recovery.v1';
+export const HANDOFF_RECOVERY_TTL_MS = 2 * 60 * 1000;
 
 export const SITE_LOGOUT_SUPPRESSION_KEY = 'lotbi.site-logout-suppression.v1';
 export const SITE_LOGOUT_SUPPRESSION_TTL_MS = 10 * 60 * 1000;
@@ -95,6 +97,56 @@ function browserStorage() {
   } catch {
     throw new SiteHandoffClientError('브라우저의 임시 로그인 연결 저장소를 사용할 수 없습니다.', 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
   }
+}
+
+export function clearSiteHandoffRecovery(storage = optionalSessionStorage()) {
+  try {
+    storage?.removeItem(HANDOFF_RECOVERY_KEY);
+  } catch {
+    // This marker is UX-only and must never weaken the PKCE boundary.
+  }
+}
+
+function hasCurrentSiteHandoffRecovery(now, storage) {
+  let raw;
+  try {
+    raw = storage?.getItem(HANDOFF_RECOVERY_KEY);
+  } catch {
+    return true;
+  }
+  if (!raw) return false;
+  try {
+    const marker = JSON.parse(raw);
+    const current = marker?.version === 1
+      && marker?.attemptCount === 1
+      && typeof marker?.startedAt === 'number'
+      && now >= marker.startedAt
+      && now - marker.startedAt <= HANDOFF_RECOVERY_TTL_MS;
+    if (current) return true;
+  } catch {
+    // Malformed UX-only markers are cleared and never treated as auth proof.
+  }
+  clearSiteHandoffRecovery(storage);
+  return false;
+}
+
+export async function recoverMissingSiteHandoffContext(error, {
+  storage = optionalSessionStorage(),
+  now = Date.now(),
+  readStatus = readAccountSessionStatus,
+  beginHandoff = pendingText => beginSiteHandoff(pendingText, {recoveryAttempt: true}),
+} = {}) {
+  if (!(error instanceof SiteHandoffClientError) || error.code !== 'SITE_HANDOFF_CONTEXT_MISSING') return false;
+  if (!storage || hasCurrentSiteHandoffRecovery(now, storage)) return false;
+  if (!await readStatus()) return false;
+
+  storage.setItem(HANDOFF_RECOVERY_KEY, JSON.stringify({
+    version: 1,
+    startedAt: now,
+    attemptCount: 1,
+  }));
+  await beginHandoff('');
+  return true;
 }
 
 export async function createSiteHandoffContext(pendingText = '', now = Date.now()) {
@@ -239,7 +291,8 @@ export function shouldUseAccountSiteFallback(error) {
     && (error.code === 'SITE_HANDOFF_CRYPTO_UNAVAILABLE' || error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
 }
 
-export async function beginSiteHandoff(pendingText = '') {
+export async function beginSiteHandoff(pendingText = '', {recoveryAttempt = false} = {}) {
+  if (!recoveryAttempt) clearSiteHandoffRecovery();
   let context;
   try {
     context = await createSiteHandoffContext(pendingText);

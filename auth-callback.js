@@ -1,11 +1,13 @@
 import {
   callbackPathWithoutQuery,
+  clearSiteHandoffRecovery,
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
+  recoverMissingSiteHandoffContext,
   SiteHandoffClientError,
-} from './site-auth.js?v=20260920-fallback4';
+} from './site-auth.js?v=20260920-authux1';
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260920-guest3';
-import {mountConversation} from './site-conversation.js?v=20260920-realcal2';
+import {mountConversation} from './site-conversation.js?v=20260920-realcal3';
 import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260920-realcal1';
 
 const callbackShell = document.getElementById('auth-callback-shell');
@@ -147,6 +149,7 @@ async function completeSiteHandoff() {
   });
   if (!mounted) throw new Error('LOTBI 대화 화면을 시작하지 못했습니다.');
   await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});
+  clearSiteHandoffRecovery();
 
   window.dispatchEvent(new CustomEvent('lotbi:site-session-state', {
     detail: {
@@ -162,9 +165,16 @@ async function completeSiteHandoff() {
   });
 }
 
-void completeSiteHandoff().catch((error) => {
+void completeSiteHandoff().catch(async error => {
   recordTiming('callback-error', {
     durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
   });
+  if (error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_MISSING') {
+    try {
+      if (await recoverMissingSiteHandoffContext(error)) return;
+    } catch (recoveryError) {
+      error = recoveryError;
+    }
+  }
   showCallbackError(callbackErrorMessage(error));
 });

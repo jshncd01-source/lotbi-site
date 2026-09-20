@@ -70,13 +70,12 @@ def main() -> int:
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
-        "approved conversation module": 'src="site-conversation.js?v=20260920-realcal2"',
-        "approved continuity module": 'src="site-continuity.js?v=20260920-fallback4"',
+        "approved conversation module": 'src="site-conversation.js?v=20260920-realcal3"',
+        "approved continuity module": 'src="site-continuity.js?v=20260920-authux1"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-attachments1"',
-        "anonymous initial auth state": 'data-auth-state="unauthenticated"',
-        "anonymous login CTA": '>로그인<',
-        "anonymous signup CTA": '>회원가입<',
+        "neutral initial auth state": 'data-auth-state="checking"',
+        "neutral auth placeholder": 'account-auth-placeholder',
         "desktop sidebar": "chat-sidebar-desktop",
         "desktop sidebar nav": "sidebar-nav-desktop",
         "desktop recent scroll": "sidebar-history-scroll",
@@ -126,11 +125,12 @@ def main() -> int:
     if not initial_account:
         errors.append("index.html: initial account-actions markup not found")
     else:
-        for required in (">로그인<", ">회원가입<"):
+        for required in ('data-auth-state="checking"', 'aria-busy="true"', 'account-auth-placeholder'):
             if required not in initial_account:
-                errors.append(f"index.html: initial anonymous auth state missing CTA ({required})")
-        if ">내 계정<" in initial_account or ">프로필<" in initial_account:
-            errors.append("index.html: initial anonymous auth state must not claim authentication")
+                errors.append(f"index.html: initial checking auth state missing neutral marker ({required})")
+        for forbidden in (">로그인<", ">회원가입<", ">내 계정<", ">프로필<"):
+            if forbidden in initial_account:
+                errors.append(f"index.html: initial checking auth state exposes premature account UI ({forbidden})")
 
     desktop_sidebar = slice_between(
         text,
@@ -178,10 +178,10 @@ def main() -> int:
             errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
         if 'data-sidebar-account' not in block:
             errors.append(f"index.html: {label} missing auth-driven account identity slot")
-        if 'data-auth-state="unauthenticated"' not in block:
-            errors.append(f"index.html: {label} account slot must initialize anonymous-first")
-        if ">로그인<" not in block or "LOTBI 계정 연결" not in block:
-            errors.append(f"index.html: {label} must expose the anonymous login CTA immediately")
+        if 'data-auth-state="checking"' not in block or 'sidebar-account-placeholder' not in block:
+            errors.append(f"index.html: {label} account slot must initialize with a neutral checking placeholder")
+        if ">로그인<" in block or "LOTBI 계정 연결" in block:
+            errors.append(f"index.html: {label} must not flash anonymous account copy before status resolves")
         if "조승환" in block or "@jshncd01" in block:
             errors.append(f"index.html: {label} must not hardcode user identity")
 
@@ -247,8 +247,8 @@ def main() -> int:
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260920-realcal2"></script>',
-        '<script type="module" src="site-continuity.js?v=20260920-fallback4"></script>',
+        '<script type="module" src="site-conversation.js?v=20260920-realcal3"></script>',
+        '<script type="module" src="site-continuity.js?v=20260920-authux1"></script>',
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
         errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
@@ -364,7 +364,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, anonymous-first auth CTA continuity, recent-scroll/fixed-account layout and composer contracts verified.")
+    print("HOME CHAT VALIDATION PASS — approved Avatar integration, approved logo fit, neutral auth first-paint, recent-scroll/fixed-account layout and composer contracts verified.")
     return 0
 
 

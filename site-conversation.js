@@ -1,4 +1,4 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
+import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260920-attachments1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attachments1';
 import {deterministicReply} from './site-deterministic.js';
