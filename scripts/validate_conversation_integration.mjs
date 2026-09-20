@@ -15,12 +15,13 @@ const {
   SITE_AUDIENCE,
   SITE_CALLBACK_URI,
   SiteCoreError,
+  createGuestConversationSession,
   getCurrentSiteUser,
-  searchPublicProductCards,
   logoutSiteSession,
   redeemSiteHandoff,
   sendConversationMessage,
-} = await import('../site-core.js');
+  sendGuestConversationMessage,
+} = await import('../site-core.js?v=20260920-richcards4');
 const {
   ACCOUNT_SITE_HANDOFF_URL,
   HANDOFF_CONTEXT_KEY,
@@ -29,7 +30,7 @@ const {
   createSiteHandoffContext,
   readAndClearSiteHandoffContext,
   storeSiteHandoffContext,
-} = await import('../site-auth.js');
+} = await import('../site-auth.js?v=20260920-fallback4');
 
 class MemoryStorage {
   constructor() { this.map = new Map(); }
@@ -198,57 +199,78 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   assert.deepEqual(JSON.parse(request.init.body), {text: '안녕하세요'});
 }
 
-{
-  let request;
-  const publicReply = await searchPublicProductCards({
-    query: 'RAD RA',
-    maxResults: 6,
-  }, async (url, init) => {
-    request = {url, init};
-    return jsonResponse({
-      contract_id: 'CORE-PUBLIC-RICH-PRODUCT-DISCOVERY-01',
-      schema_version: 1,
-      display_id: 'pdc_' + 'a'.repeat(24),
-      status: 'DISPLAY_READY',
-      query: 'RAD RA',
-      merchant: {code: 'RAD_GODOMALL', name: 'RAD Mall'},
-      source_mode: 'GODOMALL_STOREFRONT',
-      candidate_count: 1,
-      cards: [{
-        candidate_index: 0,
-        merchant_code: 'RAD_GODOMALL',
-        source: 'GODOMALL_STOREFRONT',
-        title: 'RAD RA',
-        price: 12000,
-        currency: 'KRW',
-        available: true,
-        product_url: 'https://merchant.example/product/1',
-        image_url: 'https://merchant.example/image/1.jpg',
-      }],
-      display_evidence: true,
-      purchase_requires_login: true,
-      selection_available: false,
-      external_side_effect: false,
-      execution_authority: false,
-      transaction_created: false,
-      order_created: false,
-      payment_attempted: false,
-      live_money: false,
-    });
-  });
-  assert.equal(publicReply.cards.length, 1);
-  assert.equal(publicReply.purchaseRequiresLogin, true);
-  assert.match(request.url, /^https:\/\/api\.lotbiai\.com\/v2\/public\/product-cards\/search\?/);
-  assert.equal(request.init.method, 'GET');
-  assert.equal(request.init.credentials, 'omit');
-  assert.deepEqual(request.init.headers, {});
-}
-
 await expectReject(
   sendConversationMessage('site-memory-token', '안녕하세요', async () => jsonResponse({
     detail: {code: 'SESSION_EXPIRED', message: 'expired'},
   }, 401)),
   'SESSION_EXPIRED',
+);
+
+{
+  let request;
+  const issued = await createGuestConversationSession(async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      contract_id: 'CORE-GUEST-SESSION-01',
+      schema_version: 1,
+      guest_token: 'g'.repeat(43),
+      expires_at: '2030-01-01T00:00:00Z',
+    }, 201);
+  });
+  assert.equal(issued.guestToken, 'g'.repeat(43));
+  assert.equal(request.url, 'https://api.lotbiai.com/v2/conversation/guest/sessions');
+  assert.equal(request.init.method, 'POST');
+  assert.equal(request.init.credentials, 'omit');
+  assert.ok(!request.init.headers?.Authorization);
+}
+
+{
+  let request;
+  const reply = await sendGuestConversationMessage({
+    guestToken: 'g'.repeat(43),
+    text: '양자컴퓨터가 뭐야?',
+    idempotencyKey: 'guest-request-0001',
+    recentContext: [{role: 'user', text: '아까 과학 이야기했지?'}],
+    timezone: 'Asia/Seoul',
+  }, async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      contract_id: 'CORE-WEB-CHAT-01',
+      schema_version: 1,
+      correlation_id: 'req_guest_unit',
+      status: 'ANSWERED',
+      assistant_text: '양자컴퓨터는 양자 상태를 이용해 계산하는 컴퓨터예요.',
+      intent: {action: 'UNKNOWN'},
+      response_mode: 'AI_GENERATED_NON_AUTHORITATIVE',
+      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+      retry_safe: true,
+      safety: {execution_authority: false, external_side_effect: false},
+    });
+  });
+  assert.equal(reply.status, 'ANSWERED');
+  assert.equal(reply.intent.action, 'UNKNOWN');
+  assert.equal(request.url, 'https://api.lotbiai.com/v2/conversation/guest/messages');
+  assert.equal(request.init.method, 'POST');
+  assert.equal(request.init.credentials, 'omit');
+  assert.equal(request.init.headers['X-LOTBI-Guest-Token'], 'g'.repeat(43));
+  assert.equal(request.init.headers['Idempotency-Key'], 'guest-request-0001');
+  assert.ok(!request.init.headers.Authorization);
+  assert.deepEqual(JSON.parse(request.init.body), {
+    text: '양자컴퓨터가 뭐야?',
+    recent_context: [{role: 'user', text: '아까 과학 이야기했지?'}],
+    client_context: {timezone: 'Asia/Seoul'},
+  });
+}
+
+await expectReject(
+  sendGuestConversationMessage({
+    guestToken: 'g'.repeat(43),
+    text: '질문',
+    idempotencyKey: 'guest-request-0002',
+  }, async () => jsonResponse({
+    detail: {code: 'GUEST_SESSION_EXPIRED', message: 'expired'},
+  }, 401)),
+  'GUEST_SESSION_EXPIRED',
 );
 
 const index = read('index.html');
@@ -261,7 +283,7 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260920-richcards2"',
+  'type="module" src="site-conversation.js?v=20260920-richcards4"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',
@@ -282,10 +304,17 @@ assert.ok(conversation.includes("event.key === 'Enter'"));
 assert.ok(conversation.includes('!event.shiftKey'));
 assert.ok(conversation.includes('beginSiteHandoff'));
 assert.ok(conversation.includes('sendConversationMessage'));
+assert.ok(conversation.includes('sendGuestConversationMessage'));
+assert.ok(conversation.includes('createGuestConversationSession'));
+assert.ok(conversation.includes("lastPath = 'CORE_GUEST_CONVERSATION'"));
 assert.ok(conversation.includes('getCurrentSiteUser'));
 assert.ok(conversation.includes('logoutSiteSession'));
 assert.ok(core.includes("Authorization: `Bearer ${token}`"));
 assert.ok(core.includes("payload.contract_id !== 'CORE-WEB-CHAT-01'"));
+assert.ok(core.includes("const GUEST_SESSION_PATH = '/v2/conversation/guest/sessions'"));
+assert.ok(core.includes("const GUEST_CONVERSATION_PATH = '/v2/conversation/guest/messages'"));
+assert.ok(core.includes("'Idempotency-Key': logicalKey"));
+assert.ok(core.includes("'X-LOTBI-Guest-Token': token"));
 
 const credentialRuntime = `${auth}\n${core}\n${callback}`.toLowerCase();
 for (const forbidden of ['localstorage', 'document.cookie', 'client_secret', 'api_key', 'openai_api_key']) {
