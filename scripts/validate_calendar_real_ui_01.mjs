@@ -73,6 +73,9 @@ assert.ok(!manager.includes('Math.min(events.length, 2)'), 'fixed two-event limi
 assert.ok(manager.includes('calendar-year-event-count'), 'year overview must render monthly event counts');
 assert.ok(manager.includes('if (!root.isConnected)'), 'detached Calendar mounts must dispose their global refresh listener');
 assert.ok(manager.includes('event.detail?.source === root'), 'a Calendar mount must ignore its own refresh broadcast');
+for (const lifecycleToken of ["visibilitychange", "pageshow", "window.addEventListener('focus'", 'refreshTodayIfNeeded', '60_000']) {
+  assert.ok(manager.includes(lifecycleToken), `missing Calendar Today lifecycle contract: ${lifecycleToken}`);
+}
 for (const selector of [
   '.calendar-month-grid',
   '.calendar-year-grid',
