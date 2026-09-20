@@ -9,7 +9,7 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=20260920-calux1';
+} from './site-calendar-model.js?v=20260920-convcal1';
 import {SiteCoreError} from './site-core.js?v=20260920-convcal1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';

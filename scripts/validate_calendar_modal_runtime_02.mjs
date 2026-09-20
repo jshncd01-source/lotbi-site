@@ -91,7 +91,7 @@ try{
       });
     }
   });
-  const conversation=await import('/site-conversation.js?v=20260920-convcal1');
+  const conversation=await import('/site-conversation.js?v=20260920-convcalentry1');
   if(!conversation.mountConversation())throw new Error('conversation mount');
   const entry=document.querySelector('.chat-sidebar-desktop [data-calendar-view="all"]');
   if(!(entry instanceof HTMLButtonElement))throw new Error('calendar entry missing');
@@ -220,6 +220,15 @@ try{
   click(ordinary); await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
   click(modal.querySelector('.calendar-today-button')); await wait(()=>content.dataset.calendarManagerView==='month','today');
   result.controls=true;result.dateSelection=true;
+
+  click(modal.querySelector('.site-modal-close'));
+  await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar close before fallback');
+  const replacement=entry.cloneNode(true);
+  entry.replaceWith(replacement);
+  if(replacement.dataset.calendarEntryBound!=='true')throw new Error('replacement must preserve stale bound marker');
+  click(replacement);
+  await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),'delegated fallback calendar modal');
+  result.replacedEntryFallback=true;
   out.textContent=JSON.stringify(result);
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),viewport:{width:innerWidth,height:innerHeight}})}
 </script></body></html>`;
