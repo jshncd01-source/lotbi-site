@@ -422,3 +422,5 @@ try {
   await sleep(200);
   fs.rmSync(profile, {recursive: true, force: true});
 }
+
+// rerun-main: ac7948c9dee39c4c5d2ce577cd5e2992ab5bb6c8
