@@ -32,22 +32,6 @@ const browser = browserCandidates.map(candidate => {
 const fixture = path.join(os.tmpdir(), `lotbi-chat-layout-${process.pid}.html`);
 const source = html
   .replace(/<script[\s\S]*?<\/script>/gi, '')
-  .replace('</body>', `<script>(() => {
-    const thread = document.getElementById('conversation-thread');
-    thread.hidden = false;
-    document.body.classList.add('conversation-active');
-    for (let index = 0; index < 80; index += 1) {
-      const message = document.createElement('article');
-      message.className = 'chat-message ' + (index % 2 ? 'chat-message-assistant' : 'chat-message-user');
-      message.textContent = '메시지 ' + index + ' ' + '긴 답변 '.repeat(18);
-      thread.appendChild(message);
-    }
-    for (const list of document.querySelectorAll('[data-recent-conversations]')) {
-      for (let index = 0; index < 100; index += 1) {
-        const item = document.createElement('li'); item.textContent = '최근 대화 ' + index; list.appendChild(item);
-      }
-    }
-  })();<\/script></body>`)
   .replaceAll('href="styles.css"', `href="file://${path.join(ROOT, 'styles.css')}"`)
   .replaceAll('href="home-chat.css"', `href="file://${path.join(ROOT, 'home-chat.css')}"`)
   .replace(/href="site-hardening\.css[^\"]*"/, `href="file://${path.join(ROOT, 'site-hardening.css')}"`)
@@ -62,10 +46,24 @@ fs.writeFileSync(fixture, source);
 if (browser) try {
   for (const [width, height] of [[390, 844], [412, 915], [768, 900], [1280, 900], [1440, 900]]) {
     const script = `(() => {
+      try {
+      const thread = document.querySelector('.conversation-thread');
+      thread.hidden = false;
+      document.body.classList.add('conversation-active');
+      for (let index = 0; index < 80; index += 1) {
+        const message = document.createElement('article');
+        message.className = 'chat-message ' + (index % 2 ? 'chat-message-assistant' : 'chat-message-user');
+        message.textContent = '메시지 ' + index + ' ' + '긴 답변 '.repeat(18);
+        thread.appendChild(message);
+      }
+      for (const list of document.querySelectorAll('[data-recent-conversations]')) {
+        for (let index = 0; index < 100; index += 1) {
+          const item = document.createElement('li'); item.textContent = '최근 대화 ' + index; list.appendChild(item);
+        }
+      }
       const shell = document.querySelector('.chat-app-shell');
       const main = document.querySelector('.chat-home-shell');
       const hero = document.querySelector('.chat-hero');
-      const thread = document.querySelector('.conversation-thread');
       const composer = document.querySelector('.chat-composer-stack');
       const desktopSidebar = document.querySelector('.chat-sidebar-desktop');
       const sidebar = innerWidth > 900 ? desktopSidebar : document.querySelector('.mobile-nav-drawer');
@@ -89,6 +87,9 @@ if (browser) try {
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       };
       document.body.textContent = JSON.stringify(result);
+      } catch (error) {
+        document.body.textContent = JSON.stringify({probeError: String(error && (error.stack || error))});
+      }
     })();
     `;
     const probe = fixture.replace('.html', `-${width}.html`);
@@ -103,6 +104,7 @@ if (browser) try {
     const match = measured.stdout.match(/<body[^>]*>(\{.*?\})<\/body>/s);
     if (!match) throw new Error(`${width}px layout result missing`);
     const value = JSON.parse(match[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'));
+    if (value.probeError) throw new Error(`${width}px layout probe failed: ${value.probeError}`);
     assert.equal(value.horizontalOverflow, false, `${width}px horizontal overflow`);
     assert.equal(value.mainOverflow, 'hidden', `${width}px main must own no scroll`);
     assert.equal(value.heroOverflow, 'hidden', `${width}px hero must own no scroll`);
