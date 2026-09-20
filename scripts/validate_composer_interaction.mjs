@@ -20,12 +20,12 @@ assert.match(index, /id="lotbi-prompt"/);
 // Send owns a click path, input-driven enablement, Korean IME completion refresh,
 // Enter submit, Shift+Enter newline, and in-flight duplicate protection.
 assert.match(conversation, /sendButton\.addEventListener\('click'/);
-assert.match(conversation, /sendButton\.disabled\s*=\s*inFlight\s*\|\|\s*prompt\.value\.trim\(\)\.length\s*===\s*0/);
+assert.match(conversation, /sendButton\.disabled\s*=\s*inFlight\s*\?\s*true\s*:\s*\(attachmentUploading\s*\?\s*true/);
 assert.match(conversation, /prompt\.addEventListener\('input'/);
 assert.match(conversation, /prompt\.addEventListener\('compositionend'/);
 assert.match(conversation, /event\.key\s*===\s*'Enter'/);
 assert.match(conversation, /!event\.shiftKey/);
-assert.match(conversation, /if \(inFlight\) return/);
+assert.match(conversation, /if \(inFlight \? true : attachmentUploading\) return/);
 
 // Voice input is progressive enhancement: the mounted runtime unlocks the mic,
 // supported browsers request permission and start recognition, unsupported/denied

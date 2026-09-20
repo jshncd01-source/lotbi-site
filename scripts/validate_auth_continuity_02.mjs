@@ -128,7 +128,7 @@ assert.ok(staticAccountActions.includes('>회원가입<'), 'initial static heade
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
 assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-fallback4"'));
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-realcal1"'));
+assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260920-realcal2"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
@@ -161,10 +161,10 @@ const callbackStylesheets = stylesheetHrefs(callbackHtml);
 for (const href of homeStylesheets) {
   assert.ok(callbackStylesheets.includes(href), `callback hydration missing home stylesheet: ${href}`);
 }
-assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260920-conv10"'));
+assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260920-attachments1"'));
 assert.ok(
-  callbackStylesheets.indexOf('site-hardening.css?v=20260920-composer6') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260920-conv10')
-    && callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260920-conv10') < callbackStylesheets.indexOf('site-auth-continuity.css'),
+  callbackStylesheets.indexOf('site-hardening.css?v=20260920-attachments1') < callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260920-attachments1')
+    && callbackStylesheets.indexOf('site-sidebar-nav.css?v=20260920-attachments1') < callbackStylesheets.indexOf('site-auth-continuity.css'),
   'callback must preserve the home cascade order around Sidebar and auth styles',
 );
 assert.ok(sidebarCss.includes('.sidebar-brand-logo'));
