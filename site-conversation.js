@@ -43,7 +43,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-scrollfix2';
+  link.href = '/site-conversation.css?v=20260920-convcal1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -823,14 +823,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return `${Number(match[1])}년 ${Number(match[2])}월 ${Number(match[3])}일 ${period} ${displayHour}시${minuteText}`;
   };
 
-  const viewConversationCalendarAction = actionValue => {
+  const viewConversationCalendarAction = async (actionValue, row, render) => {
     const action = normalizePersistedCalendarAction(actionValue);
     if (!action || (action.state !== 'SUCCESS' && action.state !== 'DELETED') || !action.result) return;
     if (action.state === 'DELETED') {
       setStatus('삭제된 일정입니다.');
       return;
     }
-    void openCalendar('month', {
+    const opened = await openCalendar('month', {
       deepOpen: Object.freeze({
         scope: action.scope,
         activityId: action.result.activityId || '',
@@ -841,6 +841,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       }),
       restoreConversation: true,
     });
+    if (opened?.deepOpenState === 'deleted') {
+      const deleted = Object.freeze({...action, state: 'DELETED'});
+      persistConversationCalendarAction(deleted);
+      if (row.isConnected) render(deleted);
+      setStatus('삭제된 일정입니다.');
+    }
   };
 
   const executeConversationCalendarAction = async (actionValue, row, render) => {
@@ -926,7 +932,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const view = document.createElement('button');
         view.type = 'button'; view.className = 'conversation-calendar-action-button';
         view.textContent = '캘린더에서 보기';
-        view.addEventListener('click', () => viewConversationCalendarAction(action));
+        view.addEventListener('click', () => void viewConversationCalendarAction(action, row, render));
         controls.appendChild(view);
       } else if (action.state === 'UNKNOWN_RESULT') {
         status.textContent = '등록 결과를 확인하고 있어요';
@@ -1313,6 +1319,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       message.textContent = '캘린더를 열지 못했습니다.';
       content.replaceChildren(message);
     }
+    return Object.freeze({
+      mounted: Boolean(mounted),
+      deepOpenState: content.dataset.calendarDeepOpen || '',
+    });
   };
 
   for (const calendarEntry of document.querySelectorAll('[data-calendar-view]')) {
