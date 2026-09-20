@@ -136,29 +136,13 @@
 }
 
 
-/* SITE-PUBLIC-UX-CALENDAR-NAV-09 — shared Desktop/Mobile Calendar navigation. */
+/* HOTFIX / PHASE 9A — Calendar root + two quick views; full views remain inside the manager. */
 .sidebar-calendar-nav {
   flex: 0 0 auto;
 }
 
 .sidebar-calendar-summary {
-  list-style: none;
   cursor: pointer;
-}
-
-.sidebar-calendar-summary::-webkit-details-marker {
-  display: none;
-}
-
-.sidebar-calendar-summary::after {
-  content: '▾';
-  margin-left: auto;
-  font-size: 11px;
-  transition: transform 140ms ease;
-}
-
-.sidebar-calendar-nav[open] .sidebar-calendar-summary::after {
-  transform: rotate(180deg);
 }
 
 .sidebar-calendar-subnav {
@@ -297,8 +281,3 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sidebar-calendar-summary::after {
-    transition: none;
-  }
-}
