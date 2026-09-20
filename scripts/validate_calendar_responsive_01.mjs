@@ -13,7 +13,7 @@ const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarVersion = '20260920-realcal1';
 const calendarStyleVersion = '20260920-realcal2';
-const entryVersion = '20260920-scrollfix1';
+const entryVersion = '20260920-scrollfix2';
 assert.ok(index.includes(`site-calendar.css?v=${calendarStyleVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarStyleVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));
