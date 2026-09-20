@@ -48,6 +48,9 @@ jobs:
       - name: Validate conversation, profile and thread UX contracts
         run: node scripts/validate_conversation_sidebar_ux_01.mjs
 
+      - name: Validate PHASE 10 conversation management
+        run: node scripts/validate_conversation_management_10.mjs
+
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 
