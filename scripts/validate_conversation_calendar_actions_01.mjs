@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const {
@@ -155,5 +156,31 @@ assert.equal(inFlightLive.state, 'IN_FLIGHT');
 const inFlightReload = recoverCalendarActionAfterReload(inFlightLive);
 assert.equal(inFlightReload.state, 'UNKNOWN_RESULT');
 assert.equal(normalizePersistedCalendarAction({...authAction, state: 'SUCCESS', result: null}), null);
+
+
+const conversationSource = fs.readFileSync('site-conversation.js', 'utf8');
+const managerSource = fs.readFileSync('site-calendar-manager.js', 'utf8');
+const calendarClientSource = fs.readFileSync('site-calendar.js', 'utf8');
+for (const token of [
+  "previewLifeCalendarCommand",
+  "CORE_CALENDAR_GUEST_DETERMINISTIC",
+  "createForRequest(calendarRequestId",
+  "turnCreatedAt: sourceTurnCreatedAtIso",
+  "calendarResult",
+  "calendarAction",
+  "restoreConversation: true",
+]) assert.ok(conversationSource.includes(token), `missing conversation Calendar token: ${token}`);
+for (const token of [
+  "getLifeActivity",
+  "normalizedDeepOpen",
+  "activity-lookups",
+  "calendarDeepOpen",
+  "occurrence-changed",
+]) {
+  const source = token === 'activity-lookups' ? calendarClientSource : managerSource;
+  assert.ok(source.includes(token), `missing deep-open token: ${token}`);
+}
+assert.ok(!conversationSource.includes("assistantText.match("), 'assistant free text must not become Calendar authority');
+assert.ok(!conversationSource.includes("beginSiteHandoff(message); } catch (caught) { showError(caught, message, false);"), 'Guest direct Calendar command must not force login handoff');
 
 console.log('LOTBI Conversation Calendar action state/idempotency: PASS');
