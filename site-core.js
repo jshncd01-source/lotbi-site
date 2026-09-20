@@ -133,6 +133,7 @@ function normalizeCalendarCandidate(value) {
   const localDatetime = typeof temporal?.local_datetime === 'string' ? temporal.local_datetime.trim() : '';
   const timezoneName = typeof temporal?.timezone_name === 'string' ? temporal.timezone_name.trim() : '';
   const missingFields = Array.isArray(value.missing_fields) ? value.missing_fields : null;
+  const parentCandidateId = value.parent_candidate_id == null ? '' : String(value.parent_candidate_id).trim();
   if (
     value.contract_id !== 'CORE-CALENDAR-CANDIDATE-01'
     || value.schema_version !== 1
@@ -151,6 +152,7 @@ function normalizeCalendarCandidate(value) {
     || value.approval_state !== 'NOT_APPROVED'
     || value.execution_state !== 'NOT_EXECUTED'
     || !CALENDAR_WRITE_REQUEST_RE.test(String(value.write_logical_request_id || ''))
+    || (parentCandidateId && !CALENDAR_CANDIDATE_ID_RE.test(parentCandidateId))
     || 'activity_id' in value || 'occurrence_id' in value
   ) {
     throw new SiteCoreError('LOTBI 일정 후보 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
@@ -171,6 +173,7 @@ function normalizeCalendarCandidate(value) {
     approvalState: value.approval_state,
     executionState: value.execution_state,
     writeLogicalRequestId: value.write_logical_request_id,
+    parentCandidateId: parentCandidateId || null,
   });
 }
 
@@ -235,6 +238,55 @@ export function normalizeCalendarPartialCandidate(value) {
     missingFields: Object.freeze([...missingFields]),
     approvalState: 'NOT_APPROVED',
     executionState: 'NOT_EXECUTED',
+  });
+}
+
+export function serializeCalendarPartialCandidateContext(value) {
+  const source = value?.contractId === 'CORE-CALENDAR-PARTIAL-CANDIDATE-01'
+    ? {
+        contract_id: value.contractId,
+        schema_version: value.schemaVersion,
+        candidate_id: value.candidateId,
+        candidate_version: value.candidateVersion,
+        source_turn_ref: value.sourceTurnRef,
+        source_turn_created_at: value.sourceTurnCreatedAt,
+        title: value.title,
+        temporal: {
+          kind: value.temporal?.kind,
+          local_date: value.temporal?.localDate,
+          local_time: value.temporal?.localTime,
+          timezone_name: value.temporal?.timezoneName,
+        },
+        temporal_semantics: value.temporalSemantics,
+        meaning: value.meaning,
+        missing_fields: Array.isArray(value.missingFields) ? [...value.missingFields] : value.missingFields,
+        approval_state: value.approvalState,
+        execution_state: value.executionState,
+        ...(value.memberIndex == null ? {} : {member_index: value.memberIndex}),
+      }
+    : value;
+  const candidate = normalizeCalendarPartialCandidate(source);
+  if (!candidate) return null;
+  return Object.freeze({
+    contract_id: candidate.contractId,
+    schema_version: 1,
+    candidate_id: candidate.candidateId,
+    candidate_version: 1,
+    source_turn_ref: candidate.sourceTurnRef,
+    source_turn_created_at: candidate.sourceTurnCreatedAt,
+    title: candidate.title,
+    temporal: Object.freeze({
+      kind: 'PARTIAL_LOCAL_DATE_TIME',
+      local_date: candidate.temporal.localDate,
+      local_time: candidate.temporal.localTime,
+      timezone_name: candidate.temporal.timezoneName,
+    }),
+    temporal_semantics: candidate.temporalSemantics,
+    meaning: candidate.meaning,
+    missing_fields: Object.freeze([...candidate.missingFields]),
+    approval_state: candidate.approvalState,
+    execution_state: candidate.executionState,
+    ...(candidate.memberIndex === null ? {} : {member_index: candidate.memberIndex}),
   });
 }
 
@@ -415,7 +467,7 @@ export async function deleteConversationAttachment({sessionToken = '', guestToke
   throw error;
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '') {
+export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '', calendarCandidateContext = null) {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -434,6 +486,12 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
   const clientContext = conversationClientContext(timezone, turnCreatedAt);
   if (clientContext) body.client_context = clientContext;
   if (attachments.length) body.attachment_ids = attachments;
+  if (calendarCandidateContext != null) {
+    if (attachments.length) {
+      throw new SiteCoreError('첨부 대화에서는 일정 후보 보완을 사용할 수 없습니다.', {code: 'CALENDAR_CANDIDATE_CONTEXT_WITH_ATTACHMENT', status: 422});
+    }
+    body.calendar_candidate_context = serializeCalendarPartialCandidateContext(calendarCandidateContext);
+  }
 
   let response;
   try {
@@ -552,6 +610,7 @@ export async function sendGuestConversationMessage({
   timezone = '',
   turnCreatedAt = '',
   attachmentIds = [],
+  calendarCandidateContext = null,
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof guestToken === 'string' ? guestToken.trim() : '';
@@ -576,6 +635,12 @@ export async function sendGuestConversationMessage({
   };
   if (attachments.length) body.attachment_ids = attachments;
   if (clientContext) body.client_context = clientContext;
+  if (calendarCandidateContext != null) {
+    if (attachments.length) {
+      throw new SiteCoreError('첨부 대화에서는 일정 후보 보완을 사용할 수 없습니다.', {code: 'CALENDAR_CANDIDATE_CONTEXT_WITH_ATTACHMENT', status: 422});
+    }
+    body.calendar_candidate_context = serializeCalendarPartialCandidateContext(calendarCandidateContext);
+  }
 
   let response;
   try {

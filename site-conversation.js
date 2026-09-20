@@ -1,13 +1,13 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260921-convcal2';
+import * as siteCore from './site-core.js?v=20260921-convcal3';
 import {buildNaverStaticMapThumbnailUrl, isPlaceResultFresh, naverMapsPlaceActionLabel, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-placecardhotfix1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-convcal2';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal2';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-convcal2';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-convcal2';
+import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-convcal3';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal3';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-convcal3';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-convcal3';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
@@ -44,7 +44,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260921-convcalentry2';
+  link.href = '/site-conversation.css?v=20260921-convcalentry3';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -854,6 +854,104 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return result;
   };
 
+  const normalizeConversationCalendarDirectUnknown = value => {
+    if (!value || typeof value !== 'object') return null;
+    const logicalRequestId = typeof value.logicalRequestId === 'string' ? value.logicalRequestId.trim() : '';
+    const text = typeof value.text === 'string' ? value.text.trim() : '';
+    const turnCreatedAt = typeof value.turnCreatedAt === 'string' ? value.turnCreatedAt.trim() : '';
+    const timezone = typeof value.timezone === 'string' ? value.timezone.trim() : '';
+    if (
+      value.scope !== 'AUTH'
+      || value.state !== 'UNKNOWN_RESULT'
+      || !/^[A-Za-z0-9._:-]{8,80}$/.test(logicalRequestId)
+      || !text || text.length > 1000
+      || !turnCreatedAt || !Number.isFinite(Date.parse(turnCreatedAt))
+      || !/^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/.test(timezone)
+    ) return null;
+    return Object.freeze({scope: 'AUTH', state: 'UNKNOWN_RESULT', logicalRequestId, text, turnCreatedAt, timezone});
+  };
+
+  const isUnknownDirectCalendarWriteError = error => {
+    const status = Number(error?.status || 0);
+    return error instanceof SiteCoreError && (
+      error.code === 'LIFE_CALENDAR_NETWORK_ERROR'
+      || status >= 500
+      || (status === 0 && error.retryable === true)
+    );
+  };
+
+  const removeConversationCalendarDirectUnknown = (logicalRequestId, row = null) => {
+    const id = String(logicalRequestId || '').trim();
+    if (!/^[A-Za-z0-9._:-]{8,80}$/.test(id)) return;
+    let changed = false;
+    for (const record of state.threads) {
+      if (!Array.isArray(record.messages)) continue;
+      const next = record.messages.filter(message => {
+        const pending = normalizeConversationCalendarDirectUnknown(message?.meta?.calendarDirectUnknown);
+        return !(pending && pending.logicalRequestId === id);
+      });
+      if (next.length === record.messages.length) continue;
+      record.messages = next;
+      record.updatedAt = Date.now();
+      changed = true;
+    }
+    if (row instanceof HTMLElement) {
+      const message = row.closest('.chat-message');
+      const wrapper = message?.parentElement?.classList.contains('chat-assistant-row') ? message.parentElement : message;
+      wrapper?.remove();
+    } else {
+      for (const pendingRow of thread.querySelectorAll('[data-calendar-direct-request-id]')) {
+        if (pendingRow instanceof HTMLElement && pendingRow.dataset.calendarDirectRequestId === id) {
+          const message = pendingRow.closest('.chat-message');
+          const wrapper = message?.parentElement?.classList.contains('chat-assistant-row') ? message.parentElement : message;
+          wrapper?.remove();
+        }
+      }
+    }
+    if (changed) {
+      sortThreads();
+      saveState();
+      renderRecent();
+    }
+  };
+
+  const createConversationCalendarDirectUnknown = value => {
+    const pending = normalizeConversationCalendarDirectUnknown(value);
+    if (!pending) return null;
+    const row = document.createElement('section');
+    row.className = 'conversation-calendar-action';
+    row.dataset.calendarDirectState = 'UNKNOWN_RESULT';
+    row.dataset.calendarDirectRequestId = pending.logicalRequestId;
+    row.setAttribute('aria-label', '캘린더 직접 등록 결과 확인');
+
+    const status = document.createElement('div');
+    status.className = 'conversation-calendar-action-status';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.textContent = '등록 결과를 아직 확인하지 못했습니다.';
+
+    const controls = document.createElement('div');
+    controls.className = 'conversation-calendar-action-controls';
+    const verify = document.createElement('button');
+    verify.type = 'button';
+    verify.className = 'conversation-calendar-action-button';
+    verify.textContent = '결과 확인';
+    verify.addEventListener('click', async () => {
+      verify.disabled = true;
+      removeConversationCalendarDirectUnknown(pending.logicalRequestId, row);
+      await requestAssistant(
+        pending.text,
+        false,
+        pending.logicalRequestId,
+        Date.parse(pending.turnCreatedAt),
+        pending.timezone,
+      );
+    });
+    controls.appendChild(verify);
+    row.replaceChildren(status, controls);
+    return row;
+  };
+
   const normalizeConversationCalendarItem = value => {
     if (!value || typeof value !== 'object') return null;
     if (value.kind === 'ACTION') {
@@ -879,11 +977,53 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return action ? Object.freeze({kind: 'ACTION', action}) : null;
   };
 
+  const latestSinglePartialCalendarCandidate = () => {
+    const messages = threadRecord()?.messages;
+    if (!Array.isArray(messages) || !messages.length) return null;
+    const message = messages[messages.length - 1];
+    if (message?.role !== 'assistant') return null;
+    if (!Array.isArray(message.meta?.calendarItems) || message.meta.calendarItems.length !== 1) return null;
+    const item = normalizeConversationCalendarItem(message.meta.calendarItems[0]);
+    return item?.kind === 'PARTIAL' ? item.candidate : null;
+  };
+
+  const clearResolvedPartialCandidate = candidateId => {
+    const id = String(candidateId || '').trim();
+    if (!/^calcand_[0-9a-f]{24}$/.test(id)) return;
+    let changed = false;
+    for (const record of state.threads) {
+      if (!Array.isArray(record.messages)) continue;
+      let recordChanged = false;
+      record.messages = record.messages.map(message => {
+        if (!Array.isArray(message?.meta?.calendarItems)) return message;
+        const remaining = message.meta.calendarItems.filter(rawItem => {
+          const item = normalizeConversationCalendarItem(rawItem);
+          return !(item?.kind === 'PARTIAL' && item.candidate.candidateId === id);
+        });
+        if (remaining.length === message.meta.calendarItems.length) return message;
+        const meta = {...message.meta};
+        if (remaining.length) meta.calendarItems = remaining;
+        else delete meta.calendarItems;
+        changed = true;
+        recordChanged = true;
+        return {...message, meta};
+      });
+      if (recordChanged) record.updatedAt = Date.now();
+    }
+    thread.querySelector('[data-calendar-candidate-id="' + id + '"]')?.remove();
+    if (changed) {
+      sortThreads();
+      saveState();
+      renderRecent();
+    }
+  };
+
   const conversationCalendarItemsFromResponse = (response, scope) => {
     const set = response?.calendarCandidateSet;
     if (!set || !Array.isArray(set.candidates)) return [];
     return set.candidates.map(member => {
       if (member?.kind === 'COMPLETE') {
+        if (member.candidate?.parentCandidateId) clearResolvedPartialCandidate(member.candidate.parentCandidateId);
         const action = createAvailableCalendarAction(member.candidate, {scope, ownerNamespace: namespace});
         return action ? Object.freeze({kind: 'ACTION', action}) : null;
       }
@@ -1252,6 +1392,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const calendarResult = createConversationCalendarResult(message.meta.calendarResult);
       if (calendarResult) node.appendChild(calendarResult);
     }
+    if (message.role === 'assistant' && message.meta?.calendarDirectUnknown) {
+      const directUnknown = createConversationCalendarDirectUnknown(message.meta.calendarDirectUnknown);
+      if (directUnknown) node.appendChild(directUnknown);
+    }
     return node;
   };
   const appendConversationRecord = (message, options = {}) => {
@@ -1316,6 +1460,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const result = normalizeConversationCalendarResult(meta.calendarResult);
       if (result) meta.calendarResult = result;
       else delete meta.calendarResult;
+    }
+    if ('calendarDirectUnknown' in meta) {
+      const pending = normalizeConversationCalendarDirectUnknown(meta.calendarDirectUnknown);
+      if (pending) meta.calendarDirectUnknown = pending;
+      else delete meta.calendarDirectUnknown;
     }
     return {...value, meta};
   };
@@ -1999,7 +2148,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
-  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
+  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0, directCalendarTimezone = '') => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
@@ -2013,29 +2162,33 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt);
+        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt, directCalendarTimezone);
       });
       wrapper.appendChild(retry);
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0) => {
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0, directCalendarTimezone = '') => {
     const message = typeof text === 'string' ? text.trim() : '';
     const sourceTurnCreatedAt = Number.isFinite(Number(turnCreatedAt)) && Number(turnCreatedAt) > 0 ? Number(turnCreatedAt) : Date.now();
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
+    const directTimezoneName = typeof directCalendarTimezone === 'string' && directCalendarTimezone.trim()
+      ? directCalendarTimezone.trim()
+      : (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul');
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
     const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
     ensureThread(displayMessage);
+    const calendarCandidateContext = attachments.length ? null : latestSinglePartialCalendarCandidate();
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
       appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
       appendPersistedMessage(userRecord);
     }
-    const local = attachments.length ? null : deterministicReply(message);
+    const local = attachments.length || calendarCandidateContext ? null : deterministicReply(message);
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
@@ -2053,7 +2206,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
-      const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
+      const timezoneName = directTimezoneName;
       try {
         if (!storage || !globalThis.navigator?.locks?.request) {
           throw new Error('이 브라우저에서 안전한 일정 중복 방지 기능을 사용할 수 없습니다.');
@@ -2101,7 +2254,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('이 브라우저 캘린더에 일정을 등록했습니다.');
       } catch (caught) {
         loading.parentElement?.remove();
-        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt, timezoneName);
       } finally {
         inFlight = false;
         updateSendState();
@@ -2124,6 +2277,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
           turnCreatedAt: sourceTurnCreatedAtIso,
           attachmentIds: attachments.map(item => item.id),
+          calendarCandidateContext,
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
@@ -2166,13 +2320,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!attachments.length && isExplicitLifeCalendarCommand(message)) {
       const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
       const calendarRequestId = logicalRequestId || newId('calendar');
+      const timezoneName = directTimezoneName;
       try {
         const calendar = await executeLifeCalendarCommand(sessionToken, {
           logicalRequestId: calendarRequestId, text: message,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+          timezone: timezoneName,
           turnCreatedAt: sourceTurnCreatedAtIso,
         });
         loading.parentElement?.remove();
+        removeConversationCalendarDirectUnknown(calendarRequestId);
         const meta = {
           status: 'ANSWERED',
           responseMode: calendar.parserType,
@@ -2193,8 +2349,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
       } catch (caught) {
-        loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        loading.parentElement?.remove();
+        if (isSessionError(caught)) sessionToken = undefined;
+        if (isUnknownDirectCalendarWriteError(caught) && sessionToken) {
+          const pending = Object.freeze({
+            scope: 'AUTH',
+            state: 'UNKNOWN_RESULT',
+            logicalRequestId: calendarRequestId,
+            text: message,
+            turnCreatedAt: sourceTurnCreatedAtIso,
+            timezone: timezoneName,
+          });
+          const pendingRecord = timestampedConversationMessage({
+            role: 'assistant',
+            text: '일정 등록 요청은 전송됐지만 결과를 아직 확인하지 못했습니다.',
+            meta: {status: 'UNKNOWN_RESULT', responseMode: 'CORE_CALENDAR_DETERMINISTIC', calendarDirectUnknown: pending},
+          });
+          appendConversationRecord(pendingRecord);
+          appendPersistedMessage(pendingRecord);
+          setStatus('일정 등록 결과를 확인해야 합니다.');
+        } else {
+          showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt, timezoneName);
+        }
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
@@ -2213,6 +2389,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         authenticatedRequestId,
         Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
         sourceTurnCreatedAtIso,
+        calendarCandidateContext,
       );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();

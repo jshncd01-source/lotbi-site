@@ -253,6 +253,89 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   assert.equal(reply.calendarCandidateSet.candidates.length, 1);
   assert.equal(reply.calendarCandidateSet.candidates[0].kind, 'PARTIAL');
   assert.deepEqual(reply.calendarCandidateSet.candidates[0].candidate.missingFields, ['time']);
+
+  let continuationRequest;
+  const completed = await sendConversationMessage(
+    'site-memory-token',
+    '오전 9시',
+    async (url, init) => {
+      continuationRequest = {url, init};
+      return jsonResponse({
+        contract_id: 'CORE-WEB-CHAT-01',
+        schema_version: 1,
+        correlation_id: 'req_calendar_candidate_followup',
+        status: 'ANSWERED',
+        assistant_text: '시간을 반영했어요.',
+        intent: {action: 'UNKNOWN'},
+        response_mode: 'MODEL',
+        follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+        retry_safe: true,
+        safety: {execution_authority: false, external_side_effect: false},
+        calendar_candidate: {
+          contract_id: 'CORE-CALENDAR-CANDIDATE-01',
+          schema_version: 1,
+          candidate_id: 'calcand_444444444444444444444444',
+          action_id: 'calact_444444444444444444444444',
+          candidate_version: 1,
+          source_turn_ref: 'auth-ai-follow0001',
+          source_turn_created_at: '2026-09-21T00:00:00+00:00',
+          parent_candidate_id: 'calcand_333333333333333333333333',
+          title: '등산',
+          temporal: {
+            kind: 'LOCAL_DATE_TIME',
+            local_datetime: '2026-10-03T09:00:00',
+            timezone_name: 'Asia/Seoul',
+          },
+          temporal_semantics: 'USER_PLANNED_TIME',
+          meaning: 'PERSONAL_CALENDAR_ACTIVITY',
+          missing_fields: [],
+          approval_state: 'NOT_APPROVED',
+          execution_state: 'NOT_EXECUTED',
+          write_logical_request_id: 'calendar-action:444444444444444444444444',
+        },
+        calendar_candidate_set: {
+          contract_id: 'CORE-CALENDAR-CANDIDATE-SET-01',
+          schema_version: 1,
+          source_turn_ref: 'auth-ai-follow0001',
+          source_turn_created_at: '2026-09-21T00:00:00+00:00',
+          candidates: [{
+            contract_id: 'CORE-CALENDAR-CANDIDATE-01',
+            schema_version: 1,
+            candidate_id: 'calcand_444444444444444444444444',
+            action_id: 'calact_444444444444444444444444',
+            candidate_version: 1,
+            source_turn_ref: 'auth-ai-follow0001',
+            source_turn_created_at: '2026-09-21T00:00:00+00:00',
+            parent_candidate_id: 'calcand_333333333333333333333333',
+            title: '등산',
+            temporal: {
+              kind: 'LOCAL_DATE_TIME',
+              local_datetime: '2026-10-03T09:00:00',
+              timezone_name: 'Asia/Seoul',
+            },
+            temporal_semantics: 'USER_PLANNED_TIME',
+            meaning: 'PERSONAL_CALENDAR_ACTIVITY',
+            missing_fields: [],
+            approval_state: 'NOT_APPROVED',
+            execution_state: 'NOT_EXECUTED',
+            write_logical_request_id: 'calendar-action:444444444444444444444444',
+          }],
+        },
+      });
+    },
+    [],
+    'auth-ai-follow0001',
+    'Asia/Seoul',
+    '2026-09-21T00:00:00+00:00',
+    reply.calendarCandidateSet.candidates[0].candidate,
+  );
+  const continuationBody = JSON.parse(continuationRequest.init.body);
+  assert.equal(continuationBody.text, '오전 9시');
+  assert.equal(continuationBody.calendar_candidate_context.candidate_id, 'calcand_333333333333333333333333');
+  assert.equal(continuationBody.calendar_candidate_context.missing_fields[0], 'time');
+  assert.equal('action_id' in continuationBody.calendar_candidate_context, false);
+  assert.equal('write_logical_request_id' in continuationBody.calendar_candidate_context, false);
+  assert.equal(completed.calendarCandidate.parentCandidateId, 'calcand_333333333333333333333333');
 }
 
 await expectReject(
@@ -318,6 +401,59 @@ await expectReject(
   });
 }
 
+{
+  let request;
+  const partialContext = {
+    contractId: 'CORE-CALENDAR-PARTIAL-CANDIDATE-01',
+    schemaVersion: 1,
+    candidateId: 'calcand_555555555555555555555555',
+    candidateVersion: 1,
+    sourceTurnRef: 'guest-ai-partial0001',
+    sourceTurnCreatedAt: '2026-09-20T12:00:00+00:00',
+    memberIndex: null,
+    title: '병원',
+    temporal: {
+      kind: 'PARTIAL_LOCAL_DATE_TIME',
+      localDate: null,
+      localTime: '14:00:00',
+      timezoneName: 'Asia/Seoul',
+    },
+    temporalSemantics: 'USER_PLANNED_TIME',
+    meaning: 'PERSONAL_CALENDAR_ACTIVITY',
+    missingFields: ['date'],
+    approvalState: 'NOT_APPROVED',
+    executionState: 'NOT_EXECUTED',
+  };
+  await sendGuestConversationMessage({
+    guestToken: 'g'.repeat(43),
+    text: '10월 9일',
+    idempotencyKey: 'guest-request-calendar-followup',
+    recentContext: [],
+    timezone: 'Asia/Seoul',
+    turnCreatedAt: '2026-09-21T00:00:00+00:00',
+    calendarCandidateContext: partialContext,
+  }, async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      contract_id: 'CORE-WEB-CHAT-01',
+      schema_version: 1,
+      correlation_id: 'req_guest_calendar_followup',
+      status: 'ANSWERED',
+      assistant_text: '날짜를 반영했어요.',
+      intent: {action: 'UNKNOWN'},
+      response_mode: 'MODEL',
+      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+      retry_safe: true,
+      safety: {execution_authority: false, external_side_effect: false},
+    });
+  });
+  const body = JSON.parse(request.init.body);
+  assert.equal(body.calendar_candidate_context.candidate_id, partialContext.candidateId);
+  assert.equal(body.calendar_candidate_context.temporal.local_time, '14:00:00');
+  assert.equal(body.calendar_candidate_context.temporal.local_date, null);
+  assert.equal('action_id' in body.calendar_candidate_context, false);
+}
+
 await expectReject(
   sendGuestConversationMessage({
     guestToken: 'g'.repeat(43),
@@ -339,7 +475,7 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260921-convcalentry2"',
+  'type="module" src="site-conversation.js?v=20260921-convcalentry3"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',

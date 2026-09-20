@@ -13,7 +13,7 @@ const {
   removeLifeActivity,
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
-const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260921-convcal2');
+const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260921-convcal3');
 
 assert.equal(isExplicitLifeCalendarCommand('9월 30일 오후 3시에 병원 가'), true);
 for (const value of [
@@ -105,6 +105,40 @@ const mutation = {
   assert.equal(result.providerApiCalls, 0);
 }
 
+
+{
+  await assert.rejects(
+    () => executeLifeCalendarCommand(
+      'site-token',
+      {
+        logicalRequestId: 'req.site.calendar.networkunknown',
+        text: '9월 30일 오후 3시에 병원 가.',
+        timezone: 'Asia/Seoul',
+        turnCreatedAt: '2026-09-20T21:00:00+09:00',
+      },
+      async () => { throw new TypeError('network lost after send'); },
+    ),
+    error => error instanceof SiteCoreError
+      && error.code === 'LIFE_CALENDAR_NETWORK_ERROR'
+      && error.retryable === true,
+  );
+
+  await assert.rejects(
+    () => executeLifeCalendarCommand(
+      'site-token',
+      {
+        logicalRequestId: 'req.site.calendar.serverunknown',
+        text: '9월 30일 오후 3시에 병원 가.',
+        timezone: 'Asia/Seoul',
+        turnCreatedAt: '2026-09-20T21:00:00+09:00',
+      },
+      async () => jsonResponse({detail: {code: 'UPSTREAM_UNAVAILABLE', message: 'temporary'}}, 503),
+    ),
+    error => error instanceof SiteCoreError
+      && error.status === 503
+      && error.code === 'UPSTREAM_UNAVAILABLE',
+  );
+}
 
 {
   let request;
