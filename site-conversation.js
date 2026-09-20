@@ -1,11 +1,13 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260920-attach16prod';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
+import * as siteCore from './site-core.js?v=20260920-convcal1';
 import {buildNaverStaticMapThumbnailUrl, isPlaceResultFresh, naverMapsPlaceActionLabel, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-placecardhotfix1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand} from './site-calendar.js';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-calux1';
+import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260920-convcal1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-convcal1';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260920-convcal1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-convcal1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
@@ -42,7 +44,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-scrollfix2';
+  link.href = '/site-conversation.css?v=20260920-convcalentry1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -316,7 +318,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
     detail: Object.freeze({phase, requestId}),
   }));
-  let openSurface, openSurfaceTrigger, surfaceRestoreFocus;
+  let openSurface, openSurfaceTrigger, surfaceRestoreFocus, surfaceCloseCallback;
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
@@ -808,6 +810,292 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return rail;
   };
 
+  const normalizeConversationCalendarResult = value => {
+    if (!value || typeof value !== 'object') return null;
+    const scope = String(value.scope || '').trim().toUpperCase();
+    const stateName = String(value.state || 'REGISTERED').trim().toUpperCase();
+    const title = typeof value.title === 'string' ? value.title.trim() : '';
+    const dateHint = typeof value.dateHint === 'string' ? value.dateHint.trim() : '';
+    const timezoneName = typeof value.timezone === 'string' ? value.timezone.trim() : '';
+    if (!['AUTH', 'GUEST'].includes(scope) || !['REGISTERED', 'DELETED'].includes(stateName) || !title || !/^\d{4}-\d{2}-\d{2}$/.test(dateHint) || !timezoneName) return null;
+    if (scope === 'AUTH') {
+      const activityId = typeof value.activityId === 'string' ? value.activityId.trim() : '';
+      const occurrenceId = typeof value.occurrenceId === 'string' ? value.occurrenceId.trim() : '';
+      if (!/^activity_[0-9a-f]{32}$/.test(activityId) || !/^occurrence_[0-9a-f]{32}$/.test(occurrenceId)) return null;
+      return Object.freeze({scope, state: stateName, title, dateHint, timezone: timezoneName, activityId, occurrenceId});
+    }
+    const guestEventId = typeof value.guestEventId === 'string' ? value.guestEventId.trim() : '';
+    if (!/^guest_[0-9a-f-]{36}$/i.test(guestEventId)) return null;
+    return Object.freeze({scope, state: stateName, title, dateHint, timezone: timezoneName, guestEventId});
+  };
+
+  const calendarResultKey = result => result?.scope === 'AUTH' ? `AUTH:${result.activityId}` : `GUEST:${result?.guestEventId || ''}`;
+
+  const persistConversationCalendarResult = value => {
+    const result = normalizeConversationCalendarResult(value);
+    if (!result) return null;
+    const key = calendarResultKey(result);
+    let changed = false;
+    for (const record of state.threads) {
+      if (!Array.isArray(record.messages)) continue;
+      record.messages = record.messages.map(message => {
+        const current = normalizeConversationCalendarResult(message?.meta?.calendarResult);
+        if (!current || calendarResultKey(current) !== key) return message;
+        changed = true;
+        return {...message, meta: {...message.meta, calendarResult: result}};
+      });
+      if (changed) record.updatedAt = Date.now();
+    }
+    if (changed) {
+      sortThreads();
+      saveState();
+      renderRecent();
+    }
+    return result;
+  };
+
+  const persistConversationCalendarAction = actionValue => {
+    const action = normalizePersistedCalendarAction(actionValue);
+    if (!action) return null;
+    let changed = false;
+    for (const record of state.threads) {
+      if (!Array.isArray(record.messages)) continue;
+      record.messages = record.messages.map(message => {
+        if (message?.meta?.calendarAction?.actionId !== action.actionId) return message;
+        changed = true;
+        return {...message, meta: {...message.meta, calendarAction: action}};
+      });
+      if (changed) record.updatedAt = Date.now();
+    }
+    if (changed) {
+      sortThreads();
+      saveState();
+      renderRecent();
+    }
+    return action;
+  };
+
+  const calendarCandidateSummary = candidate => {
+    const value = candidate?.temporal?.localDatetime || '';
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d{2}$/.exec(value);
+    if (!match) return value;
+    const hour = Number(match[4]);
+    const period = hour < 12 ? '오전' : '오후';
+    const displayHour = hour % 12 || 12;
+    const minute = Number(match[5]);
+    const minuteText = minute ? ` ${minute}분` : '';
+    return `${Number(match[1])}년 ${Number(match[2])}월 ${Number(match[3])}일 ${period} ${displayHour}시${minuteText}`;
+  };
+
+  const viewConversationCalendarAction = async (actionValue, row, render) => {
+    const action = normalizePersistedCalendarAction(actionValue);
+    if (!action || (action.state !== 'SUCCESS' && action.state !== 'DELETED') || !action.result) return;
+    if (action.state === 'DELETED') {
+      setStatus('삭제된 일정입니다.');
+      return;
+    }
+    const opened = await openCalendar('month', {
+      deepOpen: Object.freeze({
+        scope: action.scope,
+        activityId: action.result.activityId || '',
+        occurrenceId: action.result.occurrenceId || '',
+        guestEventId: action.result.guestEventId || '',
+        dateHint: action.result.dateHint,
+        timezone: action.result.timezone,
+      }),
+      restoreConversation: true,
+    });
+    if (opened?.deepOpenState === 'deleted') {
+      const deleted = Object.freeze({...action, state: 'DELETED'});
+      persistConversationCalendarAction(deleted);
+      if (row.isConnected) render(deleted);
+      setStatus('삭제된 일정입니다.');
+    }
+  };
+
+  const executeConversationCalendarAction = async (actionValue, row, render) => {
+    const current = normalizePersistedCalendarAction(actionValue);
+    if (!current || current.state === 'SUCCESS' || current.state === 'DELETED' || current.state === 'IN_FLIGHT') return;
+    const inFlightAction = calendarActionInFlight(current);
+    if (!inFlightAction) return;
+    persistConversationCalendarAction(inFlightAction);
+    render(inFlightAction);
+    setStatus(current.state === 'UNKNOWN_RESULT' ? '일정 등록 결과를 확인하고 있습니다.' : '일정을 등록하고 있습니다.');
+    const result = await runCalendarAction(inFlightAction, {
+      sessionToken,
+      currentNamespace: namespace,
+      storage,
+    });
+    if (!row.isConnected || !result) return;
+    const persisted = persistConversationCalendarAction(result) || result;
+    render(persisted);
+    if (persisted.state === 'SUCCESS') {
+      window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+      setStatus('캘린더에 등록했습니다.');
+    } else if (persisted.state === 'UNKNOWN_RESULT') {
+      setStatus('등록 결과를 아직 확인하지 못했습니다. 같은 요청으로 결과를 확인할 수 있습니다.');
+    } else {
+      setStatus(persisted.lastError?.message || '일정을 등록하지 못했습니다.');
+    }
+  };
+
+  const viewConversationCalendarResult = async (resultValue, row, render) => {
+    const result = normalizeConversationCalendarResult(resultValue);
+    if (!result) return;
+    if (result.state === 'DELETED') {
+      setStatus('삭제된 일정입니다.');
+      return;
+    }
+    const opened = await openCalendar('month', {
+      deepOpen: Object.freeze({
+        scope: result.scope,
+        activityId: result.activityId || '',
+        occurrenceId: result.occurrenceId || '',
+        guestEventId: result.guestEventId || '',
+        dateHint: result.dateHint,
+        timezone: result.timezone,
+      }),
+      restoreConversation: true,
+    });
+    if (opened?.deepOpenState === 'deleted') {
+      const deleted = Object.freeze({...result, state: 'DELETED'});
+      persistConversationCalendarResult(deleted);
+      if (row.isConnected) render(deleted);
+      setStatus('삭제된 일정입니다.');
+    }
+  };
+
+  const createConversationCalendarResult = resultValue => {
+    const initial = normalizeConversationCalendarResult(resultValue);
+    if (!initial) return null;
+    const row = document.createElement('section');
+    row.className = 'conversation-calendar-action';
+    row.dataset.calendarResult = calendarResultKey(initial);
+    row.setAttribute('aria-label', '등록된 캘린더 일정');
+
+    const render = nextValue => {
+      const result = normalizeConversationCalendarResult(nextValue);
+      if (!result) { row.remove(); return; }
+      const summary = document.createElement('div');
+      summary.className = 'conversation-calendar-action-summary';
+      const icon = document.createElement('span');
+      icon.className = 'conversation-calendar-action-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = '📅';
+      const copy = document.createElement('div');
+      copy.className = 'conversation-calendar-action-copy';
+      const title = document.createElement('strong'); title.textContent = result.title;
+      const when = document.createElement('span'); when.textContent = result.dateHint;
+      const zone = document.createElement('small'); zone.textContent = result.timezone;
+      copy.append(title, when, zone);
+      summary.append(icon, copy);
+
+      const status = document.createElement('div');
+      status.className = 'conversation-calendar-action-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      const controls = document.createElement('div');
+      controls.className = 'conversation-calendar-action-controls';
+      if (result.state === 'DELETED') {
+        status.textContent = '삭제된 일정입니다';
+      } else {
+        status.textContent = '✓ 등록됨';
+        const view = document.createElement('button');
+        view.type = 'button';
+        view.className = 'conversation-calendar-action-button';
+        view.textContent = '캘린더에서 보기';
+        view.addEventListener('click', () => void viewConversationCalendarResult(result, row, render));
+        controls.appendChild(view);
+      }
+      row.replaceChildren(summary, status, controls);
+    };
+    render(initial);
+    return row;
+  };
+
+  const createConversationCalendarAction = actionValue => {
+    const initial = normalizePersistedCalendarAction(actionValue);
+    if (!initial) return null;
+    const row = document.createElement('section');
+    row.className = 'conversation-calendar-action';
+    row.dataset.calendarActionId = initial.actionId;
+    row.setAttribute('aria-label', '캘린더 일정 작업');
+
+    const render = nextValue => {
+      const action = normalizePersistedCalendarAction(nextValue);
+      if (!action) {
+        row.remove();
+        return;
+      }
+      row.dataset.calendarActionState = action.state;
+      const summary = document.createElement('div');
+      summary.className = 'conversation-calendar-action-summary';
+      const icon = document.createElement('span');
+      icon.className = 'conversation-calendar-action-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = '📅';
+      const copy = document.createElement('div');
+      copy.className = 'conversation-calendar-action-copy';
+      const title = document.createElement('strong');
+      title.textContent = action.candidate.title;
+      const when = document.createElement('span');
+      when.textContent = calendarCandidateSummary(action.candidate);
+      const zone = document.createElement('small');
+      zone.textContent = action.candidate.temporal.timezoneName;
+      copy.append(title, when, zone);
+      summary.append(icon, copy);
+
+      const status = document.createElement('div');
+      status.className = 'conversation-calendar-action-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      const controls = document.createElement('div');
+      controls.className = 'conversation-calendar-action-controls';
+
+      if (action.state === 'AVAILABLE') {
+        const add = document.createElement('button');
+        add.type = 'button'; add.className = 'conversation-calendar-action-button';
+        add.textContent = '캘린더에 등록';
+        add.setAttribute('aria-label', `${action.candidate.title} 일정을 캘린더에 등록`);
+        add.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
+        controls.appendChild(add);
+      } else if (action.state === 'IN_FLIGHT') {
+        status.textContent = '등록 중…';
+        row.setAttribute('aria-busy', 'true');
+        const pending = document.createElement('button');
+        pending.type = 'button'; pending.className = 'conversation-calendar-action-button'; pending.disabled = true; pending.textContent = '등록 중…';
+        controls.appendChild(pending);
+      } else if (action.state === 'SUCCESS') {
+        status.textContent = '✓ 등록됨';
+        const view = document.createElement('button');
+        view.type = 'button'; view.className = 'conversation-calendar-action-button';
+        view.textContent = '캘린더에서 보기';
+        view.addEventListener('click', () => void viewConversationCalendarAction(action, row, render));
+        controls.appendChild(view);
+      } else if (action.state === 'UNKNOWN_RESULT') {
+        status.textContent = '등록 결과를 확인하고 있어요';
+        const verify = document.createElement('button');
+        verify.type = 'button'; verify.className = 'conversation-calendar-action-button';
+        verify.textContent = '결과 확인';
+        verify.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
+        controls.appendChild(verify);
+      } else if (action.state === 'DEFINITE_FAILURE') {
+        status.textContent = action.lastError?.message || '일정을 등록하지 못했습니다.';
+        const retry = document.createElement('button');
+        retry.type = 'button'; retry.className = 'conversation-calendar-action-button';
+        retry.textContent = '다시 시도';
+        retry.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
+        controls.appendChild(retry);
+      } else if (action.state === 'DELETED') {
+        status.textContent = '삭제된 일정입니다';
+      }
+      if (action.state !== 'IN_FLIGHT') row.removeAttribute('aria-busy');
+      row.replaceChildren(summary, status, controls);
+    };
+    render(initial);
+    return row;
+  };
+
   const messageNode = message => {
     const node = createMessage(message.role, message.text, message.meta || {});
     const rich = compactRichProductMeta(message.meta?.richProduct);
@@ -817,6 +1105,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     if (message.role === 'assistant' && place) {
       const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
+    }
+    if (message.role === 'assistant' && message.meta?.calendarAction) {
+      const calendarAction = createConversationCalendarAction(message.meta.calendarAction);
+      if (calendarAction) node.appendChild(calendarAction);
+    }
+    if (message.role === 'assistant' && message.meta?.calendarResult) {
+      const calendarResult = createConversationCalendarResult(message.meta.calendarResult);
+      if (calendarResult) node.appendChild(calendarResult);
     }
     return node;
   };
@@ -863,6 +1159,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     saveState(); renderRecent(); return record;
   };
   const validThread = value => value && typeof value.id === 'string' && typeof value.title === 'string' && Array.isArray(value.messages);
+  const normalizeStoredMessage = value => {
+    if (!value || typeof value !== 'object' || !['user', 'assistant'].includes(value.role) || typeof value.text !== 'string') return null;
+    const meta = value.meta && typeof value.meta === 'object' ? {...value.meta} : {};
+    if ('calendarAction' in meta) {
+      const recovered = recoverCalendarActionAfterReload(meta.calendarAction);
+      if (recovered) meta.calendarAction = recovered;
+      else delete meta.calendarAction;
+    }
+    if ('calendarResult' in meta) {
+      const result = normalizeConversationCalendarResult(meta.calendarResult);
+      if (result) meta.calendarResult = result;
+      else delete meta.calendarResult;
+    }
+    return {...value, meta};
+  };
   const normalizeStoredThread = value => {
     if (!validThread(value)) return null;
     return {
@@ -870,6 +1181,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       title: normalizedThreadTitle(value.title) || '새 대화',
       pinned: value.pinned === true,
       pinnedAt: value.pinned === true && Number.isFinite(Number(value.pinnedAt)) ? Number(value.pinnedAt) : 0,
+      messages: value.messages.map(normalizeStoredMessage).filter(Boolean).slice(-MESSAGE_LIMIT),
     };
   };
   const switchNamespace = nextNamespace => {
@@ -966,12 +1278,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const closeSurface = () => {
     if (!openSurface) return;
     for (const trigger of document.querySelectorAll('[data-profile-menu-trigger]')) trigger.setAttribute('aria-expanded', 'false');
-    openSurface.remove(); openSurface = undefined; openSurfaceTrigger = undefined; document.body.classList.remove('site-overlay-open');
+    const onClose = surfaceCloseCallback;
+    openSurface.remove(); openSurface = undefined; openSurfaceTrigger = undefined; surfaceCloseCallback = undefined; document.body.classList.remove('site-overlay-open');
+    if (typeof onClose === 'function') {
+      try { onClose(); } catch {}
+    }
     if (surfaceRestoreFocus instanceof HTMLElement && surfaceRestoreFocus.isConnected) surfaceRestoreFocus.focus();
     surfaceRestoreFocus = undefined;
   };
-  const installSurfaceBehavior = (surface, panel, {modal = false, trigger} = {}) => {
-    closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const installSurfaceBehavior = (surface, panel, {modal = false, trigger, onClose} = {}) => {
+    closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; surfaceCloseCallback = typeof onClose === 'function' ? onClose : undefined;
     document.body.appendChild(surface); document.body.classList.add('site-overlay-open');
     surface.addEventListener('click', event => { if (event.target === surface) closeSurface(); });
     surface.addEventListener('keydown', event => {
@@ -1104,10 +1420,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
     themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const openCalendar = async view => {
+  const openCalendar = async (view, {deepOpen, restoreConversation = false} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
+
+    const returnState = restoreConversation ? Object.freeze({
+      namespace,
+      threadId: state.activeThreadId,
+      scrollTop: mainScrollHost.scrollTop,
+      draft: prompt.value,
+    }) : null;
 
     const {backdrop, panel, content} = modalShell(
       '캘린더',
@@ -1116,11 +1439,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
     );
     panel.classList.add('site-calendar-modal');
-    installSurfaceBehavior(backdrop, panel, {modal: true});
+    installSurfaceBehavior(backdrop, panel, {
+      modal: true,
+      onClose: returnState ? () => {
+        if (namespace !== returnState.namespace) return;
+        if (returnState.threadId && state.threads.some(item => item.id === returnState.threadId)) {
+          state.activeThreadId = returnState.threadId;
+          state.draft = returnState.draft.slice(0, 1000);
+          prompt.value = state.draft;
+          prompt.dispatchEvent(new Event('input', {bubbles: true}));
+          saveState();
+          renderActiveThread();
+          requestAnimationFrame(() => { mainScrollHost.scrollTop = returnState.scrollTop; });
+        }
+      } : undefined,
+    });
     const mounted = await mountLifeCalendarManager({
       sessionToken,
       root: content,
       initialView,
+      deepOpen,
     });
     if (!mounted) {
       const message = document.createElement('p');
@@ -1128,6 +1466,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       message.textContent = '캘린더를 열지 못했습니다.';
       content.replaceChildren(message);
     }
+    return Object.freeze({
+      mounted: Boolean(mounted),
+      deepOpenState: content.dataset.calendarDeepOpen || '',
+    });
   };
 
   const bindCalendarEntries = () => {
@@ -1512,7 +1854,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
-  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '') => {
+  const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
@@ -1526,14 +1868,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId);
+        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt);
       });
       wrapper.appendChild(retry);
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '') => {
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0) => {
     const message = typeof text === 'string' ? text.trim() : '';
+    const sourceTurnCreatedAt = Number.isFinite(Number(turnCreatedAt)) && Number(turnCreatedAt) > 0 ? Number(turnCreatedAt) : Date.now();
+    const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
@@ -1542,7 +1886,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     ensureThread(displayMessage);
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
-      const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}});
+      const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
       appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
       appendPersistedMessage(userRecord);
     }
@@ -1562,8 +1906,62 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
-      clearSiteLogoutSuppression();
-      try { await beginSiteHandoff(message); } catch (caught) { showError(caught, message, false); }
+      const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
+      const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
+      const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
+      try {
+        if (!storage || !globalThis.navigator?.locks?.request) {
+          throw new Error('이 브라우저에서 안전한 일정 중복 방지 기능을 사용할 수 없습니다.');
+        }
+        const preview = await previewLifeCalendarCommand({
+          logicalRequestId: calendarRequestId,
+          text: message,
+          timezone: timezoneName,
+          turnCreatedAt: sourceTurnCreatedAtIso,
+        });
+        const event = await globalThis.navigator.locks.request(
+          `lotbi-calendar-direct:${calendarRequestId}`,
+          {mode: 'exclusive'},
+          async () => createGuestCalendarRepository(storage).createForRequest(calendarRequestId, {
+            title: preview.title,
+            local_date: preview.temporal.local_datetime.slice(0, 10),
+            local_datetime: preview.temporal.local_datetime,
+            all_day: false,
+          }),
+        );
+        loading.parentElement?.remove();
+        const meta = {
+          status: 'ANSWERED',
+          responseMode: preview.parserType,
+          calendarResult: {
+            scope: 'GUEST',
+            state: 'REGISTERED',
+            guestEventId: event.id,
+            title: event.title,
+            dateHint: event.local_date,
+            timezone: preview.temporal.timezone_name,
+          },
+        };
+        const calendarRecord = timestampedConversationMessage({
+          role: 'assistant',
+          text: `${event.local_date} ‘${event.title}’ 일정을 이 브라우저 캘린더에 등록했어요.`,
+          meta,
+        });
+        appendConversationRecord(calendarRecord);
+        appendPersistedMessage(calendarRecord);
+        diagnostics.lastPath = 'CORE_CALENDAR_GUEST_DETERMINISTIC';
+        diagnostics.coreCalls += 1;
+        diagnostics.providerCallsAvoided += 1;
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+        setStatus('이 브라우저 캘린더에 일정을 등록했습니다.');
+      } catch (caught) {
+        loading.parentElement?.remove();
+        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+      } finally {
+        inFlight = false;
+        updateSendState();
+        prompt.focus();
+      }
       return;
     }
     if (!sessionToken) {
@@ -1579,12 +1977,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           idempotencyKey: guestRequestId,
           recentContext: guestRecentContext(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+          turnCreatedAt: sourceTurnCreatedAtIso,
           attachmentIds: attachments.map(item => item.id),
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
         loading.parentElement?.remove();
         const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        if (response.calendarCandidate) {
+          const calendarAction = createAvailableCalendarAction(response.calendarCandidate, {scope: 'GUEST', ownerNamespace: namespace});
+          if (calendarAction) meta.calendarAction = calendarAction;
+        }
         let richProduct = null;
         const guestPurchase = response.intent?.action === 'PURCHASE' || response.followUp?.action === 'PURCHASE';
         if (guestPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
@@ -1607,7 +2010,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       } catch (caught) {
         loading.parentElement?.remove();
         if (isGuestSessionError(caught)) clearGuestSession();
-        showError(caught, message, true, guestRequestId);
+        showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
@@ -1619,9 +2022,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const calendar = await executeLifeCalendarCommand(sessionToken, {
           logicalRequestId: calendarRequestId, text: message,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+          turnCreatedAt: sourceTurnCreatedAtIso,
         });
         loading.parentElement?.remove();
-        const meta = {status: 'ANSWERED', responseMode: calendar.parserType};
+        const meta = {
+          status: 'ANSWERED',
+          responseMode: calendar.parserType,
+          calendarResult: {
+            scope: 'AUTH',
+            state: 'REGISTERED',
+            activityId: calendar.activity.activityId,
+            occurrenceId: calendar.activity.occurrenceId,
+            title: calendar.activity.title,
+            dateHint: String(calendar.activity.temporal.local_datetime || calendar.activity.temporal.local_date || '').slice(0, 10),
+            timezone: calendar.activity.temporal.timezone_name || (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul'),
+          },
+        };
         const calendarRecord = timestampedConversationMessage({role: 'assistant', text: calendar.assistantText, meta});
         appendConversationRecord(calendarRecord);
         appendPersistedMessage(calendarRecord);
@@ -1630,7 +2046,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
       } catch (caught) {
         loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-        showError(caught, message, true, calendarRequestId);
+        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally { inFlight = false; updateSendState(); prompt.focus(); }
       return;
     }
@@ -1647,10 +2063,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         globalThis.fetch,
         attachments.map(item => item.id),
         authenticatedRequestId,
+        Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+        sourceTurnCreatedAtIso,
       );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      if (response.calendarCandidate) {
+        const calendarAction = createAvailableCalendarAction(response.calendarCandidate, {scope: 'AUTH', ownerNamespace: namespace});
+        if (calendarAction) meta.calendarAction = calendarAction;
+      }
       let richProduct = null;
       const authenticatedPurchase = response.intent?.action === 'PURCHASE' || response.followUp?.action === 'PURCHASE';
       if (authenticatedPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {
@@ -1675,7 +2097,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch (caught) {
       driveAvatar('cancel', avatarRequestId);
       loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
-      showError(caught, message, true, authenticatedRequestId); setStatus('LOTBI 대화를 완료하지 못했습니다.');
+      showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally { inFlight = false; updateSendState(); prompt.focus(); }
   };
   window.addEventListener('lotbi:keyboard-viewport', () => {

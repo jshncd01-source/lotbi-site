@@ -30,7 +30,7 @@ for (const token of [
 ]) {
   assert.ok(runtime.includes(token), `missing attachment runtime contract: ${token}`);
 }
-assert.ok(runtime.includes("timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}})"));
+assert.ok(runtime.includes("timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt)"), 'user message timestamp must preserve the original turn time without persisting attachment metadata');
 assert.ok(runtime.includes("appendPersistedMessage(userRecord)"));
 assert.ok(runtime.includes("meta: {attachments: attachmentMeta}"), 'attachment details may exist only in the live DOM record');
 assert.ok(!runtime.includes('persistedAttachments'), 'attachment IDs and filenames must not be persisted in Site state');
