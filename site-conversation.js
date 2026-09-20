@@ -1,16 +1,16 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260920-convcal1';
+import * as siteCore from './site-core.js?v=20260921-convcal2';
 import {buildNaverStaticMapThumbnailUrl, isPlaceResultFresh, naverMapsPlaceActionLabel, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-placecardhotfix1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260920-convcal1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260920-convcal1';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260920-convcal1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260920-convcal1';
+import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-convcal2';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal2';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-convcal2';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-convcal2';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
-const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -44,7 +44,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260920-convcalentry1';
+  link.href = '/site-conversation.css?v=20260921-convcalentry2';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -854,18 +854,80 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return result;
   };
 
+  const normalizeConversationCalendarItem = value => {
+    if (!value || typeof value !== 'object') return null;
+    if (value.kind === 'ACTION') {
+      const action = normalizePersistedCalendarAction(value.action);
+      return action ? Object.freeze({kind: 'ACTION', action}) : null;
+    }
+    if (value.kind === 'PARTIAL') {
+      try {
+        const candidate = normalizeCalendarPartialCandidate(value.candidate);
+        return candidate ? Object.freeze({kind: 'PARTIAL', candidate}) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const recoverConversationCalendarItemAfterReload = value => {
+    const item = normalizeConversationCalendarItem(value);
+    if (!item) return null;
+    if (item.kind === 'PARTIAL') return item;
+    const action = recoverCalendarActionAfterReload(item.action);
+    return action ? Object.freeze({kind: 'ACTION', action}) : null;
+  };
+
+  const conversationCalendarItemsFromResponse = (response, scope) => {
+    const set = response?.calendarCandidateSet;
+    if (!set || !Array.isArray(set.candidates)) return [];
+    return set.candidates.map(member => {
+      if (member?.kind === 'COMPLETE') {
+        const action = createAvailableCalendarAction(member.candidate, {scope, ownerNamespace: namespace});
+        return action ? Object.freeze({kind: 'ACTION', action}) : null;
+      }
+      if (member?.kind === 'PARTIAL') {
+        try {
+          const candidate = normalizeCalendarPartialCandidate(member.candidate);
+          return candidate ? Object.freeze({kind: 'PARTIAL', candidate}) : null;
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }).filter(Boolean).slice(0, 4);
+  };
+
   const persistConversationCalendarAction = actionValue => {
     const action = normalizePersistedCalendarAction(actionValue);
     if (!action) return null;
     let changed = false;
     for (const record of state.threads) {
       if (!Array.isArray(record.messages)) continue;
+      let recordChanged = false;
       record.messages = record.messages.map(message => {
-        if (message?.meta?.calendarAction?.actionId !== action.actionId) return message;
+        if (!message?.meta || typeof message.meta !== 'object') return message;
+        let messageChanged = false;
+        const nextMeta = {...message.meta};
+        if (nextMeta.calendarAction?.actionId === action.actionId) {
+          nextMeta.calendarAction = action;
+          messageChanged = true;
+        }
+        if (Array.isArray(nextMeta.calendarItems)) {
+          const nextItems = nextMeta.calendarItems.map(item => {
+            if (item?.kind !== 'ACTION' || item?.action?.actionId !== action.actionId) return item;
+            messageChanged = true;
+            return Object.freeze({kind: 'ACTION', action});
+          });
+          if (messageChanged) nextMeta.calendarItems = nextItems;
+        }
+        if (!messageChanged) return message;
         changed = true;
-        return {...message, meta: {...message.meta, calendarAction: action}};
+        recordChanged = true;
+        return {...message, meta: nextMeta};
       });
-      if (changed) record.updatedAt = Date.now();
+      if (recordChanged) record.updatedAt = Date.now();
     }
     if (changed) {
       sortThreads();
@@ -873,6 +935,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       renderRecent();
     }
     return action;
+  };
+
+  const calendarPartialCandidateSummary = candidate => {
+    const localDate = candidate?.temporal?.localDate || '';
+    const localTime = candidate?.temporal?.localTime || '';
+    if (localDate) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
+      if (match) return `${Number(match[1])}년 ${Number(match[2])}월 ${Number(match[3])}일 · 시간 필요`;
+      return `${localDate} · 시간 필요`;
+    }
+    if (localTime) {
+      const match = /^(\d{2}):(\d{2}):\d{2}$/.exec(localTime);
+      if (match) {
+        const hour = Number(match[1]);
+        const period = hour < 12 ? '오전' : '오후';
+        const displayHour = hour % 12 || 12;
+        const minute = Number(match[2]);
+        return `${period} ${displayHour}시${minute ? ` ${minute}분` : ''} · 날짜 필요`;
+      }
+      return `${localTime} · 날짜 필요`;
+    }
+    return '날짜와 시간을 확인해 주세요';
   };
 
   const calendarCandidateSummary = candidate => {
@@ -1013,6 +1097,51 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return row;
   };
 
+  const createConversationCalendarPartial = candidateValue => {
+    let candidate;
+    try {
+      candidate = normalizeCalendarPartialCandidate(candidateValue);
+    } catch {
+      return null;
+    }
+    if (!candidate) return null;
+    const row = document.createElement('section');
+    row.className = 'conversation-calendar-action conversation-calendar-partial';
+    row.dataset.calendarCandidateId = candidate.candidateId;
+    row.setAttribute('aria-label', '추가 정보가 필요한 캘린더 일정 후보');
+
+    const summary = document.createElement('div');
+    summary.className = 'conversation-calendar-action-summary';
+    const icon = document.createElement('span');
+    icon.className = 'conversation-calendar-action-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '📅';
+    const copy = document.createElement('div');
+    copy.className = 'conversation-calendar-action-copy';
+    const title = document.createElement('strong');
+    title.textContent = candidate.title;
+    const when = document.createElement('span');
+    when.textContent = calendarPartialCandidateSummary(candidate);
+    const zone = document.createElement('small');
+    zone.textContent = candidate.temporal.timezoneName;
+    copy.append(title, when, zone);
+    summary.append(icon, copy);
+
+    const status = document.createElement('div');
+    status.className = 'conversation-calendar-action-status';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.textContent = candidate.missingFields.includes('time')
+      ? '등록하려면 시간을 알려주세요.'
+      : '등록하려면 날짜를 알려주세요.';
+
+    const guide = document.createElement('div');
+    guide.className = 'conversation-calendar-partial-guide';
+    guide.textContent = '빠진 정보를 대화에서 알려주면 일정 후보를 다시 확인할 수 있어요.';
+    row.replaceChildren(summary, status, guide);
+    return row;
+  };
+
   const createConversationCalendarAction = actionValue => {
     const initial = normalizePersistedCalendarAction(actionValue);
     if (!initial) return null;
@@ -1106,7 +1235,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (message.role === 'assistant' && place) {
       const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
     }
-    if (message.role === 'assistant' && message.meta?.calendarAction) {
+    if (message.role === 'assistant' && Array.isArray(message.meta?.calendarItems)) {
+      for (const rawItem of message.meta.calendarItems) {
+        const item = normalizeConversationCalendarItem(rawItem);
+        if (!item) continue;
+        const calendarNode = item.kind === 'ACTION'
+          ? createConversationCalendarAction(item.action)
+          : createConversationCalendarPartial(item.candidate);
+        if (calendarNode) node.appendChild(calendarNode);
+      }
+    } else if (message.role === 'assistant' && message.meta?.calendarAction) {
       const calendarAction = createConversationCalendarAction(message.meta.calendarAction);
       if (calendarAction) node.appendChild(calendarAction);
     }
@@ -1166,6 +1304,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const recovered = recoverCalendarActionAfterReload(meta.calendarAction);
       if (recovered) meta.calendarAction = recovered;
       else delete meta.calendarAction;
+    }
+    if ('calendarItems' in meta) {
+      const items = Array.isArray(meta.calendarItems)
+        ? meta.calendarItems.map(recoverConversationCalendarItemAfterReload).filter(Boolean).slice(0, 4)
+        : [];
+      if (items.length) meta.calendarItems = items;
+      else delete meta.calendarItems;
     }
     if ('calendarResult' in meta) {
       const result = normalizeConversationCalendarResult(meta.calendarResult);
@@ -1984,7 +2129,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
         loading.parentElement?.remove();
         const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
-        if (response.calendarCandidate) {
+        const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
+        if (calendarItems.length) {
+          meta.calendarItems = calendarItems;
+        } else if (response.calendarCandidate) {
           const calendarAction = createAvailableCalendarAction(response.calendarCandidate, {scope: 'GUEST', ownerNamespace: namespace});
           if (calendarAction) meta.calendarAction = calendarAction;
         }
@@ -2069,7 +2217,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
-      if (response.calendarCandidate) {
+      const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
+      if (calendarItems.length) {
+        meta.calendarItems = calendarItems;
+      } else if (response.calendarCandidate) {
         const calendarAction = createAvailableCalendarAction(response.calendarCandidate, {scope: 'AUTH', ownerNamespace: namespace});
         if (calendarAction) meta.calendarAction = calendarAction;
       }

@@ -1687,6 +1687,12 @@ body[data-site-theme="dark"] .attachment-chip-meta { color: #aeb6c3; }
   gap: 7px;
 }
 
+.conversation-calendar-partial-guide {
+  color: #7a8392;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .conversation-calendar-action-button {
   min-height: 44px;
   padding: 9px 13px;

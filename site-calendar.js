@@ -1,4 +1,4 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260920-guest3';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260921-convcal2';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -6,6 +6,7 @@ const ACTIVITY_ID_PATTERN = /^activity_[0-9a-f]{32}$/;
 const OCCURRENCE_ID_PATTERN = /^occurrence_[0-9a-f]{32}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
+const EXPLICIT_LIFE_CALENDAR_MARKER_PATTERN = /(?:(?:\d{4})년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시/gu;
 const EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN = /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/u;
 const NON_WRITE_LIFE_CALENDAR_PATTERNS = Object.freeze([
   /[?？]/u,
@@ -18,6 +19,8 @@ const NON_WRITE_LIFE_CALENDAR_PATTERNS = Object.freeze([
   /(?:갈까|할까|올까|먹을까|만날까|볼까|받을까|좋을까|어떨까)(?:\s|$)/u,
   /(?:라고|다고|라며|다며)\s*(?:했|말했|전했|들었)/u,
   /(?:간대|한대|온대|먹는대|만난대|봤대|받는대|했대)(?:요)?(?:\s|$)/u,
+  /(?:민수|친구|엄마|아빠|남편|아내|동생|형|누나|언니|오빠|직원|팀원)(?:이|가|은|는)\s+/u,
+  /["“”‘’「」『』]/u,
 ]);
 
 function assertFetch(fetchImpl) {
@@ -316,7 +319,8 @@ function assertCommandResponse(payload) {
 
 export function isExplicitLifeCalendarCommand(text) {
   const source = String(text || '').trim();
-  if (!EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN.test(source)) return false;
+  const markers = source.match(EXPLICIT_LIFE_CALENDAR_MARKER_PATTERN) || [];
+  if (markers.length !== 1 || !EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN.test(source)) return false;
   return !NON_WRITE_LIFE_CALENDAR_PATTERNS.some(pattern => pattern.test(source));
 }
 

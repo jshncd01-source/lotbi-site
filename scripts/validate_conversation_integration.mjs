@@ -199,6 +199,62 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
   assert.deepEqual(JSON.parse(request.init.body), {text: '안녕하세요'});
 }
 
+{
+  const sourceTurnRef = 'auth-ai-candidate0001';
+  const sourceTurnCreatedAt = '2026-09-20T12:00:00+00:00';
+  const reply = await sendConversationMessage(
+    'site-memory-token',
+    '10월 3일에 등산할 계획이야',
+    async () => jsonResponse({
+      contract_id: 'CORE-WEB-CHAT-01',
+      schema_version: 1,
+      correlation_id: 'req_calendar_candidate_set',
+      status: 'ANSWERED',
+      assistant_text: '일정 후보를 확인했어요.',
+      intent: {action: 'UNKNOWN'},
+      response_mode: 'MODEL',
+      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+      retry_safe: true,
+      safety: {execution_authority: false, external_side_effect: false},
+      calendar_candidate_set: {
+        contract_id: 'CORE-CALENDAR-CANDIDATE-SET-01',
+        schema_version: 1,
+        source_turn_ref: sourceTurnRef,
+        source_turn_created_at: sourceTurnCreatedAt,
+        candidates: [{
+          contract_id: 'CORE-CALENDAR-PARTIAL-CANDIDATE-01',
+          schema_version: 1,
+          candidate_id: 'calcand_333333333333333333333333',
+          candidate_version: 1,
+          source_turn_ref: sourceTurnRef,
+          source_turn_created_at: sourceTurnCreatedAt,
+          title: '등산',
+          temporal: {
+            kind: 'PARTIAL_LOCAL_DATE_TIME',
+            local_date: '2026-10-03',
+            local_time: null,
+            timezone_name: 'Asia/Seoul',
+          },
+          temporal_semantics: 'USER_PLANNED_TIME',
+          meaning: 'PERSONAL_CALENDAR_ACTIVITY',
+          missing_fields: ['time'],
+          approval_state: 'NOT_APPROVED',
+          execution_state: 'NOT_EXECUTED',
+        }],
+      },
+    }),
+    [],
+    sourceTurnRef,
+    'Asia/Seoul',
+    sourceTurnCreatedAt,
+  );
+  assert.equal(reply.calendarCandidate, null);
+  assert.equal(reply.calendarCandidateSet.contractId, 'CORE-CALENDAR-CANDIDATE-SET-01');
+  assert.equal(reply.calendarCandidateSet.candidates.length, 1);
+  assert.equal(reply.calendarCandidateSet.candidates[0].kind, 'PARTIAL');
+  assert.deepEqual(reply.calendarCandidateSet.candidates[0].candidate.missingFields, ['time']);
+}
+
 await expectReject(
   sendConversationMessage('site-memory-token', '안녕하세요', async () => jsonResponse({
     detail: {code: 'SESSION_EXPIRED', message: 'expired'},
@@ -283,7 +339,7 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260920-convcalentry1"',
+  'type="module" src="site-conversation.js?v=20260921-convcalentry2"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',

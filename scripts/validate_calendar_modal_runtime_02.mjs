@@ -24,7 +24,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
-<link rel="stylesheet" href="/site-calendar.css?v=20260920-convcal1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260921-convcal2">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -72,7 +72,7 @@ const oneLine=node=>getComputedStyle(node).whiteSpace==='nowrap' && node.scrollH
 const noX=node=>node.scrollWidth<=node.clientWidth+1;
 try{
   localStorage.clear();
-  const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260920-convcal1');
+  const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260921-convcal2');
   const guestRepo=createGuestCalendarRepository(localStorage);
   const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());
   const part=Object.fromEntries(parts.map(value=>[value.type,value.value]));
@@ -91,7 +91,7 @@ try{
       });
     }
   });
-  const conversation=await import('/site-conversation.js?v=20260920-convcalentry1');
+  const conversation=await import('/site-conversation.js?v=20260921-convcalentry2');
   if(!conversation.mountConversation())throw new Error('conversation mount');
   const entry=document.querySelector('.chat-sidebar-desktop [data-calendar-view="all"]');
   if(!(entry instanceof HTMLButtonElement))throw new Error('calendar entry missing');
@@ -275,7 +275,7 @@ try{
     provider_api_calls:0
   });
   const responseFor=title=>new Response(JSON.stringify(attentionPayload(title)),{status:200,headers:{'Content-Type':'application/json'}});
-  const managerModule=await import('/site-calendar-manager.js?v=20260920-convcal1');
+  const managerModule=await import('/site-calendar-manager.js?v=20260921-convcal2');
   const raceMount=managerModule.mountLifeCalendarManager({
     sessionToken:'site-token',
     root:raceRoot,

@@ -13,7 +13,7 @@ const {
   removeLifeActivity,
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
-const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260920-guest3');
+const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260921-convcal2');
 
 assert.equal(isExplicitLifeCalendarCommand('9월 30일 오후 3시에 병원 가'), true);
 for (const value of [
@@ -25,6 +25,9 @@ for (const value of [
   '9월 30일 오후 3시에 병원 갈 것 같아',
   '9월 30일 오후 3시에 민수가 병원 간대',
   '9월 30일 오후 3시에 병원 가라고 했어',
+  '9월 30일 오후 3시에 친구가 병원 가기로 했어',
+  '9월 30일 오후 3시에 "병원 가"라고 적혀 있어',
+  '9월 30일 오후 3시에 병원 가. 그리고 10월 1일 오전 9시에 치과 가.',
 ]) {
   assert.equal(isExplicitLifeCalendarCommand(value), false, value);
 }

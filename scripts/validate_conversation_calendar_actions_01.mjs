@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
+const {normalizeCalendarCandidateSet, normalizeCalendarPartialCandidate, SiteCoreError} = await import('../site-core.js');
 const {
   createAvailableCalendarAction,
   normalizePersistedCalendarAction,
@@ -210,6 +211,64 @@ assert.equal(inFlightReload.state, 'UNKNOWN_RESULT');
 assert.equal(normalizePersistedCalendarAction({...authAction, state: 'SUCCESS', result: null}), null);
 
 
+const rawCandidateSet = {
+  contract_id: 'CORE-CALENDAR-CANDIDATE-SET-01',
+  schema_version: 1,
+  source_turn_ref: 'guest-ai-candidates01',
+  source_turn_created_at: '2026-09-20T12:00:00+00:00',
+  candidates: [
+    {
+      contract_id: 'CORE-CALENDAR-CANDIDATE-01',
+      schema_version: 1,
+      candidate_id: 'calcand_111111111111111111111111',
+      action_id: 'calact_111111111111111111111111',
+      candidate_version: 1,
+      source_turn_ref: 'guest-ai-candidates01',
+      source_turn_created_at: '2026-09-20T12:00:00+00:00',
+      member_index: 0,
+      title: '등산',
+      temporal: {kind: 'LOCAL_DATE_TIME', local_datetime: '2026-10-03T09:00:00', timezone_name: 'Asia/Seoul'},
+      temporal_semantics: 'USER_PLANNED_TIME',
+      meaning: 'PERSONAL_CALENDAR_ACTIVITY',
+      missing_fields: [],
+      approval_state: 'NOT_APPROVED',
+      execution_state: 'NOT_EXECUTED',
+      write_logical_request_id: 'calendar-action:111111111111111111111111',
+    },
+    {
+      contract_id: 'CORE-CALENDAR-PARTIAL-CANDIDATE-01',
+      schema_version: 1,
+      candidate_id: 'calcand_222222222222222222222222',
+      candidate_version: 1,
+      source_turn_ref: 'guest-ai-candidates01',
+      source_turn_created_at: '2026-09-20T12:00:00+00:00',
+      member_index: 1,
+      title: '병원',
+      temporal: {kind: 'PARTIAL_LOCAL_DATE_TIME', local_date: '2026-10-04', local_time: null, timezone_name: 'Asia/Seoul'},
+      temporal_semantics: 'USER_PLANNED_TIME',
+      meaning: 'PERSONAL_CALENDAR_ACTIVITY',
+      missing_fields: ['time'],
+      approval_state: 'NOT_APPROVED',
+      execution_state: 'NOT_EXECUTED',
+    },
+  ],
+};
+const normalizedSet = normalizeCalendarCandidateSet(rawCandidateSet);
+assert.equal(normalizedSet.candidates.length, 2);
+assert.equal(normalizedSet.candidates[0].kind, 'COMPLETE');
+assert.equal(normalizedSet.candidates[1].kind, 'PARTIAL');
+assert.deepEqual(normalizedSet.candidates[1].candidate.missingFields, ['time']);
+assert.equal('actionId' in normalizedSet.candidates[1].candidate, false);
+assert.equal('writeLogicalRequestId' in normalizedSet.candidates[1].candidate, false);
+
+assert.throws(
+  () => normalizeCalendarPartialCandidate({
+    ...rawCandidateSet.candidates[1],
+    action_id: 'calact_222222222222222222222222',
+  }),
+  error => error instanceof SiteCoreError && error.code === 'WEB_CONVERSATION_CONTRACT_INVALID',
+);
+
 const conversationSource = fs.readFileSync('site-conversation.js', 'utf8');
 const managerSource = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const calendarClientSource = fs.readFileSync('site-calendar.js', 'utf8');
@@ -220,6 +279,12 @@ for (const token of [
   "turnCreatedAt: sourceTurnCreatedAtIso",
   "calendarResult",
   "calendarAction",
+  "calendarItems",
+  "createConversationCalendarPartial",
+  "conversationCalendarItemsFromResponse",
+  "recoverConversationCalendarItemAfterReload",
+  "등록하려면 시간을 알려주세요.",
+  "등록하려면 날짜를 알려주세요.",
   "restoreConversation: true",
 ]) assert.ok(conversationSource.includes(token), `missing conversation Calendar token: ${token}`);
 for (const token of [
@@ -232,6 +297,11 @@ for (const token of [
   const source = token === 'activity-lookups' ? calendarClientSource : managerSource;
   assert.ok(source.includes(token), `missing deep-open token: ${token}`);
 }
+const partialStart = conversationSource.indexOf('const createConversationCalendarPartial = candidateValue =>');
+const partialEnd = conversationSource.indexOf('const createConversationCalendarAction = actionValue =>', partialStart);
+assert.ok(partialStart >= 0 && partialEnd > partialStart, 'partial Calendar candidate renderer missing');
+const partialRenderer = conversationSource.slice(partialStart, partialEnd);
+assert.ok(!partialRenderer.includes('캘린더에 등록'), 'partial candidates must never render a register button');
 assert.ok(!conversationSource.includes("assistantText.match("), 'assistant free text must not become Calendar authority');
 assert.ok(!conversationSource.includes("beginSiteHandoff(message); } catch (caught) { showError(caught, message, false);"), 'Guest direct Calendar command must not force login handoff');
 
