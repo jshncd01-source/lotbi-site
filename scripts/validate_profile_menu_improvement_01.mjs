@@ -49,7 +49,7 @@ counts.other+=1;return new Response('{}',{status:500})};
 try{
 localStorage.clear();
 const continuity=await import('/site-continuity.js?profile-test=1');
-const conversation=await import('/site-conversation.js?v=20260920-calendarentry4');
+const conversation=await import('/site-conversation.js?v=20260920-calendarentry5');
 continuity.markAnonymousAccountUi();
 const anon=document.querySelector('[data-sidebar-account] a.sidebar-account-entry');
 if(!(anon instanceof HTMLAnchorElement)||anon.getAttribute('href')!=='/auth/start/'||document.querySelector('[data-profile-menu-trigger]'))throw new Error('anonymous contract');
