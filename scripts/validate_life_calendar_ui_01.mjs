@@ -184,7 +184,7 @@ const openCalendar = conversation.slice(openCalendarStart, openCalendarEnd);
 assert.ok(!openCalendar.includes('beginSiteHandoff('), 'anonymous Calendar entry must not start Account handoff');
 assert.ok(!openCalendar.includes('clearSiteLogoutSuppression('), 'anonymous Calendar entry must not alter logout suppression');
 assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry must mount the manager for guest and authenticated users');
-assert.ok(openCalendar.includes('sessionToken ?'), 'Calendar copy must distinguish authenticated and guest entry without gating');
+assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish authenticated and guest entry without gating');
 
 
 assert.ok(index.includes('href="site-calendar.css?v=20260920-calnav9"'));
