@@ -886,19 +886,11 @@ export function mountConversation({sessionToken: initialSessionToken, initialTex
     const initialView = allowed.has(view) ? view : 'all';
     closeMobileDrawer();
 
-    if (!sessionToken) {
-      try {
-        clearSiteLogoutSuppression();
-        await beginSiteHandoff();
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : '캘린더를 열기 위한 로그인 연결을 시작하지 못했습니다.');
-      }
-      return;
-    }
-
     const {backdrop, panel, content} = modalShell(
       '캘린더',
-      'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.',
+      sessionToken
+        ? 'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.'
+        : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
     );
     panel.classList.add('site-calendar-modal');
     installSurfaceBehavior(backdrop, panel, {modal: true});
