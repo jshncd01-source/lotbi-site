@@ -1,4 +1,4 @@
-import {beginSiteHandoff} from './site-auth.js?v=20260920-fallback4';
+import {beginSiteHandoff, clearSiteLogoutSuppression} from './site-auth.js?v=20260920-fallback4';
 
 const errorShell = document.getElementById('auth-start-error-shell');
 const statusNode = document.getElementById('auth-start-status');
@@ -14,4 +14,5 @@ function setError() {
 
 // Fallback-only route. Normal Home login starts the same PKCE S256 handoff
 // directly from the Home document and never loads this page.
+clearSiteLogoutSuppression();
 void beginSiteHandoff().catch(setError);
