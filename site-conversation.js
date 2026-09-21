@@ -10,7 +10,7 @@ import {calendarActionInFlight, createAvailableCalendarAction, normalizePersiste
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-convcal2';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
-const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -1711,16 +1711,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
     const photo = document.createElement('input'); photo.type = 'file'; photo.accept = 'image/jpeg,image/png,image/webp'; photo.className = 'sr-only'; photoLabel.appendChild(photo);
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
-    const identityField = (label, value) => {
-      const field = document.createElement('div'); field.className = 'site-readonly-field';
-      const title = document.createElement('strong'); title.textContent = label;
-      const text = document.createElement('span'); text.textContent = value || '설정 필요';
-      field.append(title, text); return field;
-    };
-    const nameField = identityField('표시 이름', canonicalProfileName());
-    const handleField = identityField('공개 아이디', serverIdentity?.accountHandle ? `@${serverIdentity.accountHandle}` : '설정 필요');
-    const emailField = identityField('이메일', serverIdentity?.email || '등록된 이메일 없음');
-    const manage = document.createElement('a'); manage.className = 'site-button site-button-primary'; manage.href = 'https://account.lotbiai.com/account'; manage.textContent = '계정 프로필 관리';
+
+    const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
+    const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
+    const handleLabel = document.createElement('label'); handleLabel.className = 'site-field'; handleLabel.textContent = '공개 아이디';
+    const handle = document.createElement('input'); handle.type = 'text'; handle.minLength = 8; handle.maxLength = 64; handle.value = serverIdentity?.accountHandle || ''; handle.autocomplete = 'off'; handle.autocapitalize = 'none'; handle.spellcheck = false;
+    handle.addEventListener('input', () => { handle.value = handle.value.replace(/[^A-Za-z0-9]/g, ''); });
+    handleLabel.appendChild(handle);
+    const handleHelp = document.createElement('p'); handleHelp.className = 'site-field-help'; handleHelp.textContent = '영문·숫자 8~64자이며 각각 최소 1자를 포함해야 합니다. 이미 사용 중이면 다른 아이디를 선택해야 합니다.';
+    const emailField = document.createElement('div'); emailField.className = 'site-readonly-field';
+    const emailTitle = document.createElement('strong'); emailTitle.textContent = '이메일';
+    const emailValue = document.createElement('span'); emailValue.textContent = serverIdentity?.email || '등록된 이메일 없음'; emailField.append(emailTitle, emailValue);
+    const save = document.createElement('button'); save.type = 'button'; save.className = 'site-button site-button-primary'; save.textContent = '프로필 저장';
+    save.disabled = !sessionToken;
+
     photo.addEventListener('change', async () => {
       const file = photo.files?.[0]; if (!file) return; error.textContent = '';
       try {
@@ -1730,7 +1734,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         refreshAuthenticatedProfileSlots();
       } catch (caught) { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; }
     });
-    content.append(preview, photoLabel, error, nameField, handleField, emailField, manage); installSurfaceBehavior(backdrop, panel, {modal: true});
+    save.addEventListener('click', async () => {
+      if (!sessionToken || save.disabled) return;
+      error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
+      try {
+        const updated = await updateCurrentSiteProfile(sessionToken, {
+          displayName: name.value,
+          publicHandle: handle.value,
+        });
+        serverIdentity = Object.freeze({...serverIdentity, ...updated});
+        name.value = serverIdentity.name || canonicalProfileName();
+        handle.value = serverIdentity.accountHandle || '';
+        emailValue.textContent = serverIdentity.email || '등록된 이메일 없음';
+        preview.textContent = initials(canonicalProfileName());
+        refreshAuthenticatedProfileSlots();
+        save.textContent = '저장됨';
+      } catch (caught) {
+        if (caught?.code === 'PUBLIC_HANDLE_TAKEN') error.textContent = '이미 사용 중인 공개 아이디입니다. 다른 아이디를 입력해주세요.';
+        else if (caught?.code === 'PUBLIC_HANDLE_RESERVED') error.textContent = '사용할 수 없는 공개 아이디입니다. 다른 아이디를 입력해주세요.';
+        else error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
+        save.textContent = '프로필 저장';
+      } finally {
+        save.disabled = false;
+      }
+    });
+    const manage = document.createElement('a'); manage.className = 'site-button site-button-secondary'; manage.href = 'https://account.lotbiai.com/account'; manage.textContent = '계정 페이지에서 관리';
+    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save, manage); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const openPersonalization = () => {
     const {backdrop, panel, content} = modalShell('개인 맞춤 설정', '선택한 대화 색상은 현재 사용자 설치의 이 브라우저에 저장됩니다.');
