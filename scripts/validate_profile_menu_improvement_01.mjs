@@ -12,7 +12,7 @@ if (!conversationSource.includes('https://account.lotbiai.com/account')) throw n
 if (!coreSource.includes('SYNTHETIC_EMAIL_FIRST_HANDLE_RE')) throw new Error('synthetic handle filter missing');
 if (!coreSource.includes('email,')) throw new Error('canonical email mapping missing');
 
-const {getCurrentSiteUser} = await import('../site-core.js?identity-profile-hotfix=1');
+const {getCurrentSiteUser, updateCurrentSiteProfile} = await import('../site-core.js?identity-profile-hotfix=1');
 const syntheticIdentity = await getCurrentSiteUser('site-token', async () => new Response(JSON.stringify({
   user: {id: 'usr-email-first', name: null, account_handle: 'e1' + 'a'.repeat(20), email: 'jshncd02@naver.com'},
   session: {id: 'ses-email-first', assurance_level: 'FULL', expires_at: '2099-01-01T00:00:00Z'},
@@ -32,6 +32,34 @@ try {
   invalidIdentityRejected = error?.code === 'SITE_IDENTITY_CONTRACT_INVALID';
 }
 if (!invalidIdentityRejected) throw new Error('invalid non-null identity type must fail closed');
+
+let profileUpdateRequest;
+const updatedIdentity = await updateCurrentSiteProfile('site-token', {
+  displayName: 'jshncd02',
+  publicHandle: 'jshncd02',
+}, async (url, init) => {
+  profileUpdateRequest = {url: String(url), init};
+  return new Response(JSON.stringify({
+    user: {
+      id: 'usr-email-first',
+      name: 'jshncd02',
+      account_handle: 'jshncd02',
+      public_handle: 'jshncd02',
+      email: 'jshncd02@naver.com',
+      account_handle_is_synthetic: true,
+    },
+  }), {status: 200, headers: {'Content-Type': 'application/json'}});
+});
+if (profileUpdateRequest.url !== 'https://api.lotbiai.com/v2/account/profile') throw new Error('profile update URL mismatch');
+if (profileUpdateRequest.init.method !== 'PUT') throw new Error('profile update method mismatch');
+if (profileUpdateRequest.init.headers.Authorization !== 'Bearer site-token') throw new Error('profile update bearer mismatch');
+if (profileUpdateRequest.init.headers['Content-Type'] !== 'application/json') throw new Error('profile update content type mismatch');
+if (profileUpdateRequest.init.credentials !== 'omit') throw new Error('profile update must not use browser credentials');
+const profileUpdateBody = JSON.parse(profileUpdateRequest.init.body);
+if (profileUpdateBody.display_name !== 'jshncd02' || profileUpdateBody.public_handle !== 'jshncd02') throw new Error('profile update body mismatch');
+if (updatedIdentity.name !== 'jshncd02' || updatedIdentity.accountHandle !== 'jshncd02' || updatedIdentity.email !== 'jshncd02@naver.com') {
+  throw new Error('profile update canonical response mismatch');
+}
 const INNER_REL = 'scripts/.profile-menu-runtime-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
 const WRAPPER_REL = 'scripts/.profile-menu-runtime-fixture.html';
