@@ -1,9 +1,10 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260921-smartcaldraftidentity1';
+import * as siteCore from './site-core.js?v=20260921-guestclaim1';
 import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-trueorbitphoto1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260921-guestclaim1';
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-smartcaldraft1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
@@ -80,16 +81,7 @@ function normalizedNamespace(value) {
   const namespace = typeof value === 'string' ? value.trim() : '';
   return /^[A-Za-z0-9._:-]{1,128}$/.test(namespace) ? namespace : '';
 }
-function browserAnonymousNamespace() {
-  const session = safeSessionStorage();
-  const key = `${STORAGE_PREFIX}.anonymous-namespace`;
-  let value = normalizedNamespace(session?.getItem(key));
-  if (!value) {
-    value = `anonymous-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
-    session?.setItem(key, value);
-  }
-  return value;
-}
+const anonymousConversationNamespace = () => ensureDurableAnonymousConversationNamespace();
 const storageKey = (namespace, kind) => `${STORAGE_PREFIX}.${kind}.${namespace}`;
 
 function createMessage(role, text, meta = {}) {
@@ -323,7 +315,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
   const guestSessionStorageKey = () => {
-    const owner = normalizedNamespace(namespace) || browserAnonymousNamespace();
+    const owner = normalizedNamespace(namespace) || anonymousConversationNamespace();
     return storageKey(owner, 'guest-session');
   };
   const clearGuestSession = () => {
@@ -356,12 +348,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch {}
     return issued.guestToken;
   };
-  const guestRecentContext = () => {
+  const recentConversationContext = () => {
     const messages = threadRecord()?.messages;
     if (!Array.isArray(messages) || !messages.length) return [];
     return messages.slice(0, -1).filter(item =>
       item && (item.role === 'user' || item.role === 'assistant') && typeof item.text === 'string' && item.text.trim()
     ).slice(-6).map(item => ({role: item.role, text: item.text.trim().slice(0, 500)}));
+  };
+  const beginGuestClaimingSiteHandoff = async pendingText => {
+    // Claim intent creation is explicit-user-action only. Automatic Account
+    // continuity restoration must never import old guest history.
+    try { await prepareGuestConversationClaimIntent(); } catch {}
+    return beginSiteHandoff(pendingText);
   };
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
   const savePreferences = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences)); };
@@ -519,7 +517,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     record.messages.push(message); record.messages = record.messages.slice(-MESSAGE_LIMIT); record.updatedAt = Date.now();
     sortThreads(); saveState(); renderRecent();
   };
-  const lotbiBoxKey = () => storageKey(namespace || browserAnonymousNamespace(), 'lotbi-box');
+  const lotbiBoxKey = () => storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box');
   const loadLotbiBox = () => {
     const parsed = safeParse(storage?.getItem(lotbiBoxKey()), []);
     return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.key === 'string').slice(0, 100) : [];
@@ -652,7 +650,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (!sessionToken) {
           richCardActionInFlight = true; buy.disabled = true; buy.textContent = '로그인 연결…';
           try {
-            await beginSiteHandoff(rich.originalText || rich.query || card.title);
+            await beginGuestClaimingSiteHandoff(rich.originalText || rich.query || card.title);
           } catch (error) {
             buy.disabled = false; buy.textContent = '구매하기'; setStatus(userFacingErrorMessage(error));
           } finally { richCardActionInFlight = false; }
@@ -1116,7 +1114,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     review.addEventListener('click', async () => {
       if (!sessionToken) {
         try {
-          await beginSiteHandoff('캘린더 초안 확인');
+          await beginGuestClaimingSiteHandoff('캘린더 초안 확인');
         } catch (error) {
           setStatus(error instanceof Error ? error.message : '로그인 연결을 시작하지 못했습니다.');
         }
@@ -1646,8 +1644,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     namespace = normalized;
     const loadedState = safeParse(storage?.getItem(storageKey(namespace, 'threads')), {});
     const loadedPreferences = safeParse(storage?.getItem(storageKey(namespace, 'preferences')), {});
+    const restoredThreads = Array.isArray(loadedState.threads)
+      ? loadedState.threads.map(normalizeStoredThread).filter(Boolean).slice(0, THREAD_LIMIT)
+      : [];
+    const visibleThreads = normalized === anonymousConversationNamespace()
+      ? restoredThreads.filter(item => (
+        item.guestClaimConsumed !== true
+        && !guestConversationThreadClaimed({
+          anonymousNamespace: normalized,
+          threadId: item.id,
+          durableStorage: storage,
+        })
+      ))
+      : restoredThreads;
     state = {
-      threads: Array.isArray(loadedState.threads) ? loadedState.threads.map(normalizeStoredThread).filter(Boolean).slice(0, THREAD_LIMIT) : [],
+      threads: visibleThreads,
       activeThreadId: typeof loadedState.activeThreadId === 'string' ? loadedState.activeThreadId : null,
       draft: typeof loadedState.draft === 'string' ? loadedState.draft.slice(0, 1000) : '',
     };
@@ -2119,7 +2130,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       try {
         discardPendingAttachments();
         await logoutSiteSession(sessionToken); sessionToken = undefined; serverIdentity = undefined; serverSubscription = undefined; closeSurface();
-        switchNamespace(browserAnonymousNamespace());
+        switchNamespace(anonymousConversationNamespace());
         window.dispatchEvent(new CustomEvent(SESSION_STATE_EVENT, {detail: {authenticated: false, reason: 'site-logout'}}));
         setStatus('LOTBI 계정 로그아웃을 마무리하고 있습니다.');
         beginAccountLogoutHandoff();
@@ -2295,7 +2306,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const selectResponseGrade = grade => {
     if (!responseGradeAvailable()) return;
     if (!RESPONSE_GRADE_OPTIONS.some(([key]) => key === grade)) return;
-    if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
+    if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || anonymousConversationNamespace());
     preferences.responseGrade = grade;
     applyPreferences();
     savePreferences();
@@ -2369,7 +2380,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       retry.addEventListener('click', async () => {
         retry.disabled = true;
         if (isSessionError(error)) {
-          try { await beginSiteHandoff(retryText); }
+          try { await beginGuestClaimingSiteHandoff(retryText); }
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
@@ -2386,7 +2397,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
-    if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || browserAnonymousNamespace());
+    if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || anonymousConversationNamespace());
     const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
     ensureThread(displayMessage);
     if (appendUserMessage) {
@@ -2480,7 +2491,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           guestToken: token,
           text: message,
           idempotencyKey: guestRequestId,
-          recentContext: guestRecentContext(),
+          recentContext: recentConversationContext(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
           turnCreatedAt: sourceTurnCreatedAtIso,
           attachmentIds: attachments.map(item => item.id),
@@ -2573,6 +2584,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         authenticatedRequestId,
         Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
         sourceTurnCreatedAtIso,
+        recentConversationContext(),
       );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
@@ -2744,19 +2756,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
-    } else if (!sessionToken) switchNamespace(browserAnonymousNamespace());
+    } else if (!sessionToken) switchNamespace(anonymousConversationNamespace());
   });
   window.addEventListener(SIDEBAR_RENDERED_EVENT, () => {
     bindCalendarEntries();
     refreshAuthenticatedProfileSlots();
     if (!stateReady && document.body.dataset.siteAuthState === 'unauthenticated') {
-      switchNamespace(browserAnonymousNamespace());
+      switchNamespace(anonymousConversationNamespace());
     }
   });
   syncResponseGradeUi();
   refreshConversationTimeLabels();
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '로그인 없이도 LOTBI와 바로 대화할 수 있습니다. 계정 기능이 필요할 때만 로그인합니다.');
-  if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(browserAnonymousNamespace());
+  if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(anonymousConversationNamespace());
   if (sessionToken) void loadServerProfile();
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
   return true;

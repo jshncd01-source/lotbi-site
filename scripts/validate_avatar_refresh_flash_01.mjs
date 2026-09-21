@@ -47,7 +47,7 @@ assert.match(
 assert.match(conversation, /const showBlankHome = \(\) => \{[\s\S]*?restoreAvatarHome\(\);[\s\S]*?thread\.hidden = true;/);
 assert.match(conversation, /const startNewConversation = \(\) => \{[\s\S]*?showBlankHome\(\);/);
 assert.match(conversation, /slot\.appendChild\(avatar\)/, 'existing assistant Avatar reparent behavior must remain intact');
-assert.match(conversation, /switchNamespace\(browserAnonymousNamespace\(\)\)/, 'anonymous restore path must remain intact');
+assert.match(conversation, /switchNamespace\(anonymousConversationNamespace\(\)\)/, 'anonymous restore path must remain intact through the canonical durable namespace helper');
 assert.match(conversation, /normalizedNamespace\(detail\.identityKey \|\| detail\.installationId\)/, 'authenticated namespace restore path must remain intact');
 
 console.log('SITE AVATAR REFRESH FLASH 01 CONTRACT PASS');

@@ -491,7 +491,7 @@ export async function deleteConversationAttachment({sessionToken = '', guestToke
   throw error;
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '') {
+export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '', recentContext = []) {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -508,7 +508,9 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
   }
   const body = {text: message || '첨부 파일을 확인해 주세요.'};
   const clientContext = conversationClientContext(timezone, turnCreatedAt);
+  const boundedRecentContext = normalizeConversationRecentContext(recentContext);
   if (clientContext) body.client_context = clientContext;
+  if (boundedRecentContext.length) body.recent_context = boundedRecentContext;
   if (attachments.length) body.attachment_ids = attachments;
 
   let response;
@@ -611,7 +613,7 @@ export async function createGuestConversationSession(fetchImpl = globalThis.fetc
   return Object.freeze({guestToken, expiresAt});
 }
 
-function normalizeGuestRecentContext(recentContext) {
+function normalizeConversationRecentContext(recentContext) {
   if (!Array.isArray(recentContext)) return [];
   return recentContext.slice(-6).flatMap(item => {
     const role = typeof item?.role === 'string' ? item.role.trim().toLowerCase() : '';
@@ -649,7 +651,7 @@ export async function sendGuestConversationMessage({
   const clientContext = conversationClientContext(timezoneName, turnCreatedAt);
   const body = {
     text: message || '첨부 파일을 확인해 주세요.',
-    recent_context: normalizeGuestRecentContext(recentContext),
+    recent_context: normalizeConversationRecentContext(recentContext),
   };
   if (attachments.length) body.attachment_ids = attachments;
   if (clientContext) body.client_context = clientContext;
