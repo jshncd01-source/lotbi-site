@@ -418,7 +418,7 @@ assert.match(conversationSource, /for \(const \[placeIndex, place\] of placeResu
 assert.match(conversationSource, /image\.loading = placeIndex === 0 \? 'eager' : 'lazy'/u);
 assert.match(conversationSource, /typeof image\.decode === 'function'/u);
 assert.match(conversationSource, /image\.classList\.add\('is-ready'\)/u);
-assert.match(conversationSource, /site-conversation\.css\?v=20260921-placeenrichphone1/u);
+assert.match(conversationSource, /site-conversation\.css\?v=20260921-placecompactactions1/u);
 assert.match(conversationSource, /로그인 없이 실제 장소 카드/u);
 assert.doesNotMatch(conversationSource, /openNaverMapsPlace\([^)]*response\.placeResult/u);
 
