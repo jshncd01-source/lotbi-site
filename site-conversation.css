@@ -1348,6 +1348,7 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
 }
 
 .lotbi-rich-card-place-media {
+  aspect-ratio: 16 / 9;
   background: #fff;
 }
 
