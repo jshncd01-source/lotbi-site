@@ -24,7 +24,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
-<link rel="stylesheet" href="/site-calendar.css?v=20260921-convcal2">
+<link rel="stylesheet" href="/site-calendar.css?v=20260921-calgeom1">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -110,6 +110,20 @@ try{
   if(!grid||!layout||!today||!attention||!calendar||!detail)throw new Error('month chrome missing');
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
+  const contentStyle=getComputedStyle(content);
+  const contentInnerBottom=contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
+  const unusedBottom=Math.max(0,Math.round(contentInnerBottom-gridRect.bottom));
+  const shell=modal.querySelector('.calendar-product-shell');
+  const viewport=modal.querySelector('.calendar-viewport');
+  const weekdays=modal.querySelector('.calendar-weekdays');
+  const geometryDebug=Object.fromEntries([
+    ['content',content],['shell',shell],['viewport',viewport],['layout',layout],
+    ['calendar',calendar],['weekdays',weekdays],['grid',grid],
+  ].map(([name,node])=>{
+    const rect=node?.getBoundingClientRect();
+    const style=node?getComputedStyle(node):null;
+    return [name,{top:rect?.top||0,bottom:rect?.bottom||0,height:rect?.height||0,display:style?.display||'',cssHeight:style?.height||'',minHeight:style?.minHeight||'',flex:style?.flex||'',gridRows:style?.gridTemplateRows||''}];
+  }));
   const toolbar=modal.querySelector('.calendar-toolbar');
   const desktop=innerWidth>900;
   const cellHeights=[...grid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
@@ -120,7 +134,7 @@ try{
     bound:true,
     guest:content.dataset.calendarAccess,
     modal:{width:modalRect.width,height:modalRect.height,overflowY:getComputedStyle(modal).overflowY,noX:noX(modal)},
-    content:{overflowY:getComputedStyle(content).overflowY,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,noX:noX(content)},
+    content:{overflowY:getComputedStyle(content).overflowY,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,noX:noX(content),unusedBottom},
     grid:{
       cells:grid.querySelectorAll('.calendar-date-cell').length,
       weekCount:Number(grid.dataset.weekCount||0),
@@ -183,6 +197,7 @@ try{
     if(!result.detail.hidden)throw new Error('desktop Calendar must start with an unobstructed Month');
     if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
+    if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
 
     const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const eventButton=eventCell?.querySelector('.calendar-event-chip');
@@ -199,6 +214,7 @@ try{
     await wait(()=>document.activeElement?.dataset.calendarEventId===eventButton.dataset.calendarEventId,'event focus restore');
     result.eventSelection=true;
     result.editorEscapeContained=true;
+
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
