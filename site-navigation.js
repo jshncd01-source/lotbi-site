@@ -45,6 +45,20 @@ export function buildVerifiedPhoneHref(place) {
   return normalizeVerifiedPhone({phone: number, phone_verified: true}).href;
 }
 
+function normalizePhoneEvidence(place, phoneVerified) {
+  const evidence = place?.phone_evidence;
+  if (!phoneVerified || !evidence || typeof evidence !== 'object') return null;
+  if (text(evidence.verification_state).toUpperCase() !== 'VERIFIED') return null;
+  const sourceName = text(evidence.source_name).slice(0, 80);
+  const sourceUrl = safeHttpsImageUrl(evidence.source_url);
+  if (!sourceName) return null;
+  return Object.freeze({
+    sourceName,
+    sourceUrl,
+    verificationState: 'VERIFIED',
+  });
+}
+
 function coordinateReady(place) {
   const latitude = finiteCoordinate(place?.latitude);
   const longitude = finiteCoordinate(place?.longitude);
@@ -68,6 +82,7 @@ function normalizePlace(place, index) {
   const longitude = finiteCoordinate(place.longitude);
   const sourceUrl = text(place.source_url);
   const verifiedPhone = normalizeVerifiedPhone(place);
+  const phoneEvidence = normalizePhoneEvidence(place, Boolean(verifiedPhone.href));
   return Object.freeze({
     candidateIndex: index,
     resultId: text(place.result_id) || `place-${index + 1}`,
@@ -84,6 +99,7 @@ function normalizePlace(place, index) {
     phone: verifiedPhone.number,
     phoneHref: verifiedPhone.href,
     phoneVerified: Boolean(verifiedPhone.href),
+    phoneEvidence,
     navigationCapable: coordinateReady(place),
   });
 }
