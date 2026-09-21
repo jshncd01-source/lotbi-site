@@ -84,6 +84,12 @@ function normalizedNamespace(value) {
 const anonymousConversationNamespace = () => ensureDurableAnonymousConversationNamespace();
 const storageKey = (namespace, kind) => `${STORAGE_PREFIX}.${kind}.${namespace}`;
 
+function resolveRestoredActiveThreadId(storedActiveThreadId, threads) {
+  if (storedActiveThreadId === null) return null;
+  if (typeof storedActiveThreadId === 'string' && threads.some(item => item.id === storedActiveThreadId)) return storedActiveThreadId;
+  return threads[0]?.id || null;
+}
+
 function createMessage(role, text, meta = {}) {
   const article = document.createElement('article');
   article.className = `chat-message chat-message-${role}`;
@@ -1689,13 +1695,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         })
       ))
       : restoredThreads;
+    const restoredActiveThreadId = Object.prototype.hasOwnProperty.call(loadedState, 'activeThreadId')
+      ? loadedState.activeThreadId
+      : undefined;
     state = {
       threads: visibleThreads,
-      activeThreadId: typeof loadedState.activeThreadId === 'string' ? loadedState.activeThreadId : null,
+      activeThreadId: null,
       draft: typeof loadedState.draft === 'string' ? loadedState.draft.slice(0, 1000) : '',
     };
     sortThreads();
-    if (!state.threads.some(item => item.id === state.activeThreadId)) state.activeThreadId = state.threads[0]?.id || null;
+    state.activeThreadId = resolveRestoredActiveThreadId(restoredActiveThreadId, state.threads);
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
       theme: ['system', 'light', 'dark'].includes(loadedPreferences.theme) ? loadedPreferences.theme : 'system',

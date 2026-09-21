@@ -327,6 +327,11 @@ assert.match(conversationStyles, /\.lotbi-place-photo-placeholder\s*\{/u);
 assert.match(conversationStyles, /\.lotbi-place-location-thumbnail\s*\{/u);
 assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.lotbi-place-orbit-card[\s\S]*transition:\s*none/u);
 
-assert.match(indexSource, /site-conversation\.js\?v=20260921-placecompactactions1/u, 'Home Place Card runtime must use the compact-actions cache key');
+assert.match(indexSource, /site-conversation\.js\?v=[A-Za-z0-9._-]+/u, 'Home conversation runtime must remain cache-busted');
+assert.match(
+  conversationSource,
+  /\.\/site-navigation\.js\?v=20260921-placecompactactions1/u,
+  'Home Place Card runtime must keep the compact-actions navigation module',
+);
 
 console.log('NAVER Place Card COMPACT TRUE ORBIT + click/drag + NAVER fallback + phone fail-safe contract: PASS');
