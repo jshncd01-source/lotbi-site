@@ -193,7 +193,14 @@ assert.match(placeRendererSource, /setActiveIndex\(activeIndex \+ 1\)/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('wheel'/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointerdown'/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointermove'/u);
+assert.match(placeRendererSource, /rail\.addEventListener\('pointerup', finishDrag\)/u);
+assert.match(placeRendererSource, /rail\.addEventListener\('pointercancel', finishDrag\)/u);
+assert.match(placeRendererSource, /rail\.setPointerCapture\?\.\(event\.pointerId\)/u);
+assert.match(placeRendererSource, /rail\.releasePointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /Math\.abs\(delta\) >= 44/u);
+assert.match(placeRendererSource, /setActiveIndex\(activeIndex \+ \(delta < 0 \? 1 : -1\)\)/u);
+assert.match(placeRendererSource, /else \{\s*applyOrbitState\(\);\s*\}/u);
+assert.match(placeRendererSource, /--lotbi-orbit-drag-x/u);
 assert.match(placeRendererSource, /card\.querySelectorAll\('a, button'\)/u);
 assert.doesNotMatch(placeRendererSource, /scrollLeft|scrollTo\(|nearestCardIndex|scroll-snap/u);
 
