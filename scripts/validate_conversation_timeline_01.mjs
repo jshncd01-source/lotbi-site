@@ -63,8 +63,10 @@ assert.match(css, /\.chat-composer-stack\s*\{[^}]*width:\s*min\(760px,\s*100%\)/
 assert.match(css, /\.conversation-time-separator\s*\{[^}]*text-align:\s*center[^}]*font-weight:\s*400[^}]*color:\s*#[0-9a-fA-F]{6}/s);
 assert.doesNotMatch(css, /\.conversation-time-separator\s*\{[^}]*(?:background|border|box-shadow):/s);
 assert.match(css, /@media\s*\(max-width:\s*390px\)/);
-assert.ok(html.includes('site-conversation.js?v=20260921-smartcaltrueorbit1'));
-assert.ok(callback.includes("./site-conversation.js?v=20260921-smartcaltrueorbit1"));
+const homeConversationVersion = html.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
+const callbackConversationVersion = callback.match(/\.\/site-conversation\.js\?v=([^']+)/)?.[1] || '';
+assert.ok(homeConversationVersion, 'Home conversation runtime must be cache-busted');
+assert.equal(callbackConversationVersion, homeConversationVersion, 'auth callback must import the current Home conversation runtime');
 assert.ok(reviewWorkflow.includes('node scripts/validate_conversation_timeline_01.mjs'), 'required Site CI must run the timeline regression');
 assert.ok(reviewWorkflow.includes('REQUIRE_BROWSER: 1'), 'required Site CI must fail instead of silently skipping browser geometry');
 assert.ok(reviewWorkflow.includes('/site-conversation-timeline.js'), 'static serving smoke must include the timeline module');
