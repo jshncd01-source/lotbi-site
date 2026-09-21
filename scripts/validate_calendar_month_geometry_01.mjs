@@ -163,7 +163,7 @@ function wrapperMarkup(w,h){
     'out.textContent=failed?JSON.stringify({ok:false,error:failed.error}):JSON.stringify({ok:true,viewport:{width:'+w+',height:'+h+'},results:values.map(value=>value.result)});clearInterval(timer)}}'+
     'catch(error){out.textContent=JSON.stringify({ok:false,error:String(error)});clearInterval(timer)}},25);'+
     'setTimeout(()=>{if(out.textContent==="pending"){out.textContent=JSON.stringify({ok:false,error:"wrapper timeout"});clearInterval(timer)}},9000);'+
-    '<\\/script></body></html>';
+    '</script></body></html>';
 }
 
 function run(browser,w,h){
