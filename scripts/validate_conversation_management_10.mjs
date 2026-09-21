@@ -80,7 +80,7 @@ for (const cssToken of [
 }
 
 assert.ok(index.includes('href="site-sidebar-nav.css?v=20260920-attachments1"'), 'Home must cache-bust PHASE 10 Sidebar CSS');
-assert.match(index, /src="site-conversation\.js\?v=[^"]+"/, 'Home must cache-bust the combined conversation runtime');
+assert.ok(index.includes('src="site-conversation.js?v=20260921-trueorbitphoto1"'), 'Home must cache-bust the combined conversation runtime');
 assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260920-attachments1"'), 'auth callback must share PHASE 10 Sidebar CSS');
 assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260921-convcalentry2"'), 'auth callback entry must use the combined conversation cache key');
 assert.ok(callbackJs.includes("from './site-conversation.js?v=20260921-convcalentry2'"), 'auth callback must import the combined conversation runtime');
