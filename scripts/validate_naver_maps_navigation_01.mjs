@@ -260,6 +260,6 @@ assert.match(conversationStyles, /\.lotbi-place-photo-placeholder\s*\{/u);
 assert.match(conversationStyles, /\.lotbi-place-location-thumbnail\s*\{/u);
 assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.lotbi-place-orbit-card[\s\S]*transition:\s*none/u);
 
-assert.match(indexSource, /site-conversation\.js\?v=20260921-smartcaltrueorbit1/u);
+assert.match(indexSource, /site-conversation\.js\?v=[A-Za-z0-9._-]+/u, 'Home conversation runtime must be cache-busted');
 
 console.log('NAVER Place Card TRUE ORBIT + photo/placeholder + navigation + secondary static map contract: PASS');
