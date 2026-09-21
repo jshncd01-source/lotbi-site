@@ -43,6 +43,12 @@ const responses = {
     ai_calls: 0,
     provider_api_calls: 0,
   },
+  '/v2/life/unscheduled': {
+    view: 'UNSCHEDULED',
+    items: [],
+    ai_calls: 0,
+    provider_api_calls: 0,
+  },
   '/v2/life/attention': {
     view: 'ATTENTION',
     as_of: '2026-09-30T00:00:00Z',
@@ -147,7 +153,10 @@ const responses = {
   const agenda = await loadLifeCalendarManagerView('site-token', {...base, view: 'agenda', date: '2026-10-02'});
   assert.equal(agenda.key, 'agenda');
   assert.equal(agenda.date, '2026-10-02');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-10-31'));
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-10-31')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/unscheduled')));
+  assert.deepEqual(agenda.unscheduled, []);
 
   for (const call of calls) {
     assert.equal(call.init.headers.Authorization, 'Bearer site-token');
@@ -235,7 +244,9 @@ assert.ok(ui.includes('const onRefresh = () => { void refresh(); }'));
 assert.ok(ui.includes('const requestGeneration = ++generation'));
 assert.ok(ui.includes("root.dataset.calendarEnabled !== 'true'"));
 assert.ok(manager.includes("removeLifeActivity(sessionToken"));
-assert.ok(manager.includes("rescheduleLifeActivity(sessionToken"));
+assert.ok(manager.includes("editLifeActivity(sessionToken"));
+assert.ok(manager.includes("'날짜 미정'"));
+assert.ok(manager.includes('state.unscheduled'));
 assert.ok(ui.includes('return mountLifeCalendar({...options, root});'));
 assert.ok(css.includes('[data-life-calendar-panel][hidden]'));
 assert.ok(css.includes('.life-calendar-panel'));
