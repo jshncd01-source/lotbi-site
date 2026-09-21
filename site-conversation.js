@@ -744,6 +744,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         image_url: place.imageUrl,
         phone: place.phone,
         phone_verified: place.phoneVerified,
+        phone_evidence: place.phoneEvidence ? {
+          source_name: place.phoneEvidence.sourceName,
+          source_url: place.phoneEvidence.sourceUrl,
+          verification_state: place.phoneEvidence.verificationState,
+        } : null,
         navigation_capability: place.navigationCapable,
       })),
     };
@@ -849,6 +854,33 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.className = 'lotbi-rich-card-price';
       address.textContent = place.address;
       copy.append(source, title, address);
+
+      if (place.phoneVerified && place.phone) {
+        const evidence = document.createElement('div');
+        evidence.className = 'lotbi-rich-card-evidence lotbi-place-card-evidence';
+        const phoneFact = document.createElement('span');
+        phoneFact.textContent = `전화 ${place.phone}`;
+        evidence.appendChild(phoneFact);
+        if (place.phoneEvidence?.sourceName) {
+          const sourceName = place.phoneEvidence.sourceName === 'KAKAO_LOCAL'
+            ? 'Kakao Local 확인'
+            : `${place.phoneEvidence.sourceName} 확인`;
+          if (place.phoneEvidence.sourceUrl) {
+            const sourceLink = document.createElement('a');
+            sourceLink.href = place.phoneEvidence.sourceUrl;
+            sourceLink.target = '_blank';
+            sourceLink.rel = 'noopener noreferrer';
+            sourceLink.textContent = sourceName;
+            sourceLink.setAttribute('aria-label', `${place.name} 전화번호 출처 ${sourceName}`);
+            evidence.appendChild(sourceLink);
+          } else {
+            const sourceText = document.createElement('span');
+            sourceText.textContent = sourceName;
+            evidence.appendChild(sourceText);
+          }
+        }
+        copy.appendChild(evidence);
+      }
 
       const staticMapUrl = buildNaverStaticMapThumbnailUrl(place);
       if (staticMapUrl) {
