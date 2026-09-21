@@ -212,6 +212,6 @@ assert.match(conversationStyles, /--lotbi-place-card-width:\s*min\(82vw, 320px\)
 assert.match(conversationStyles, /--lotbi-place-card-width:\s*min\(84vw, 320px\)/u);
 assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.lotbi-place-orbit-card\s*\{[\s\S]*transition:\s*none/u);
 
-assert.match(indexSource, /site-conversation\.js\?v=20260921-placecardorbit1/u);
+assert.match(indexSource, /site-conversation\.js\?v=20260921-smartcaldraft1/u);
 
 console.log('NAVER Place Card orbit + navigation + stale + phone + static map contract: PASS');
