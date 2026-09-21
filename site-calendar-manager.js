@@ -800,7 +800,7 @@ export async function mountLifeCalendarManager({
   };
   const todayDate = dateInTimezone(currentNow(), timezone);
   const deepOpenTarget = normalizedDeepOpen(deepOpen);
-  const initialDate = deepOpenTarget?.dateHint || todayDate;
+  const initialDate = deepOpenTarget?.dateHint || initialDraft?.localDate || todayDate;
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
