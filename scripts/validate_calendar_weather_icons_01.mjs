@@ -63,6 +63,27 @@ const fixture = {
 }
 
 {
+  let request;
+  await getCalendarWeather(
+    'site-token',
+    {
+      start: '2026-09-22',
+      end: '2026-09-22',
+      timezone: 'Asia/Seoul',
+    },
+    async (url, init) => {
+      request = {url, init};
+      return jsonResponse({provider_ready: true, items: [], ai_calls: 0});
+    },
+  );
+  const parsed = new URL(request.url);
+  assert.equal(parsed.pathname, '/v2/life/weather');
+  assert.equal(parsed.searchParams.get('latitude'), null);
+  assert.equal(parsed.searchParams.get('longitude'), null);
+  assert.equal(parsed.searchParams.get('timezone'), 'Asia/Seoul');
+}
+
+{
   const calls = [];
   const result = await loadLifeCalendarManagerView('site-token', {
     view: 'month',
