@@ -328,7 +328,20 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 }
 
 .site-modal.site-calendar-modal > .site-modal-content[data-calendar-manager-view="month"] {
+  display: flex;
+  flex-direction: column;
   overflow-y: hidden;
+}
+
+.site-modal.site-calendar-modal > .site-modal-content[data-calendar-manager-view="month"] > .calendar-product-shell {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}
+
+.site-modal.site-calendar-modal > .site-modal-content[data-calendar-manager-view="month"] .calendar-viewport {
+  height: 100%;
 }
 
 .calendar-product-shell {
