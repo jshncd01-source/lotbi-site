@@ -4,7 +4,7 @@ const NAVER_MAPS_ANDROID_STORE_URL = 'https://play.google.com/store/apps/details
 const NAVER_MAPS_IOS_STORE_URL = 'https://itunes.apple.com/app/id311867728?mt=8';
 const NAVER_MAPS_WEB_SEARCH_BASE = 'https://map.naver.com/p/search/';
 const NAVER_STATIC_MAP_THUMBNAIL_BASE = 'https://api.lotbiai.com/v2/maps/static-place-thumbnail';
-const NAVIGATION_TTL_MS = 10 * 60 * 1000;
+const NAVIGATION_TTL_MS = 60 * 60 * 1000;
 
 function text(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -12,6 +12,27 @@ function text(value) {
 
 function finiteCoordinate(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function normalizeVerifiedPhone(place) {
+  if (place?.phone_verified !== true) return Object.freeze({number: '', href: ''});
+  const number = text(place?.phone);
+  if (!number || number.length > 32 || !/^[+()0-9][+()0-9 .-]{6,31}$/u.test(number)) {
+    return Object.freeze({number: '', href: ''});
+  }
+  const compact = number.replace(/[^\d+]/gu, '');
+  if (!/^\+?\d{7,15}$/u.test(compact) || (compact.match(/\+/gu) || []).length > 1) {
+    return Object.freeze({number: '', href: ''});
+  }
+  return Object.freeze({number, href: `tel:${compact}`});
+}
+
+export function buildVerifiedPhoneHref(place) {
+  if (!place || typeof place !== 'object') return '';
+  const number = text(place.phone);
+  const verified = place.phoneVerified === true || place.phone_verified === true;
+  if (!verified) return '';
+  return normalizeVerifiedPhone({phone: number, phone_verified: true}).href;
 }
 
 function coordinateReady(place) {
@@ -36,6 +57,7 @@ function normalizePlace(place, index) {
   const latitude = finiteCoordinate(place.latitude);
   const longitude = finiteCoordinate(place.longitude);
   const sourceUrl = text(place.source_url);
+  const verifiedPhone = normalizeVerifiedPhone(place);
   return Object.freeze({
     candidateIndex: index,
     resultId: text(place.result_id) || `place-${index + 1}`,
@@ -48,6 +70,9 @@ function normalizePlace(place, index) {
     coordinateSystem: text(place.coordinate_system).toUpperCase(),
     coordinateAuthority: text(place.coordinate_authority),
     sourceUrl: sourceUrl.startsWith('https://') ? sourceUrl : '',
+    phone: verifiedPhone.number,
+    phoneHref: verifiedPhone.href,
+    phoneVerified: Boolean(verifiedPhone.href),
     navigationCapable: coordinateReady(place),
   });
 }
