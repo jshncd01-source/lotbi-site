@@ -59,6 +59,37 @@ function normalizePhoneEvidence(place, phoneVerified) {
   });
 }
 
+const PLACE_EVIDENCE_STATUSES = new Set(['VERIFIED', 'SUPPORTED', 'UNCONFIRMED', 'CONFLICTING']);
+
+function normalizeConstraintEvidence(place) {
+  const raw = place?.constraint_evidence;
+  if (!Array.isArray(raw)) return Object.freeze([]);
+  const items = [];
+  for (const evidence of raw.slice(0, 12)) {
+    if (!evidence || typeof evidence !== 'object') continue;
+    const type = text(evidence.type).slice(0, 80);
+    const status = text(evidence.status).toUpperCase();
+    const value = evidence.value;
+    if (!type || !PLACE_EVIDENCE_STATUSES.has(status)) continue;
+    if (!(value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) continue;
+    const sourceName = status === 'UNCONFIRMED' ? '' : text(evidence.source).slice(0, 120);
+    const sourceUrl = status === 'UNCONFIRMED' ? '' : safeHttpsImageUrl(evidence.source_url);
+    items.push(Object.freeze({
+      type,
+      value,
+      status,
+      sourceName,
+      sourceUrl,
+    }));
+  }
+  return Object.freeze(items);
+}
+
+function normalizeConstraintMatch(place) {
+  const value = text(place?.constraint_match).toUpperCase();
+  return value === 'NOT_APPLICABLE' || PLACE_EVIDENCE_STATUSES.has(value) ? value : '';
+}
+
 function coordinateReady(place) {
   const latitude = finiteCoordinate(place?.latitude);
   const longitude = finiteCoordinate(place?.longitude);
@@ -83,6 +114,8 @@ function normalizePlace(place, index) {
   const sourceUrl = text(place.source_url);
   const verifiedPhone = normalizeVerifiedPhone(place);
   const phoneEvidence = normalizePhoneEvidence(place, Boolean(verifiedPhone.href));
+  const constraintEvidence = normalizeConstraintEvidence(place);
+  const constraintMatch = normalizeConstraintMatch(place);
   return Object.freeze({
     candidateIndex: index,
     resultId: text(place.result_id) || `place-${index + 1}`,
@@ -100,6 +133,8 @@ function normalizePlace(place, index) {
     phoneHref: verifiedPhone.href,
     phoneVerified: Boolean(verifiedPhone.href),
     phoneEvidence,
+    constraintMatch,
+    constraintEvidence,
     navigationCapable: coordinateReady(place),
   });
 }
