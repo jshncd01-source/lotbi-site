@@ -782,6 +782,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       media.append(mark, label);
     };
 
+    const openPlaceInNaverMap = place => {
+      const fallbackHref = buildNaverMapsWebSearchUrl(place);
+      if (!isPlaceResultFresh(placeResult)) {
+        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
+        return;
+      }
+      const opened = openNaverMapsPlace(place);
+      if (!opened.opened) {
+        globalThis.location.href = fallbackHref;
+        setStatus('네이버지도 웹 검색으로 연결합니다.');
+        return;
+      }
+      const navigationMode = opened.mode === 'NAVER_NAVIGATION_INTENT' || opened.mode === 'NAVER_NAVIGATION_URL_SCHEME';
+      setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
+    };
+
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
       const item = document.createElement('article');
@@ -912,18 +928,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       navigate.appendChild(mapLabel);
       navigate.addEventListener('click', event => {
         event.preventDefault();
-        if (!isPlaceResultFresh(placeResult)) {
-          setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-          return;
-        }
-        const opened = openNaverMapsPlace(place);
-        if (!opened.opened) {
-          globalThis.location.href = navigate.href;
-          setStatus('네이버지도 웹 검색으로 연결합니다.');
-          return;
-        }
-        const navigationMode = opened.mode === 'NAVER_NAVIGATION_INTENT' || opened.mode === 'NAVER_NAVIGATION_URL_SCHEME';
-        setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
+        openPlaceInNaverMap(place);
       });
       actions.appendChild(navigate);
 
@@ -1009,7 +1014,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     cards.forEach((card, index) => {
       card.addEventListener('click', event => {
         if (suppressClick || event.target?.closest?.('a, button')) return;
-        if (index !== activeIndex) setActiveIndex(index);
+        if (index !== activeIndex) {
+          setActiveIndex(index);
+          return;
+        }
+        openPlaceInNaverMap(placeResult.results[index]);
       });
     });
 
@@ -1087,6 +1096,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const crossedDragThreshold = Math.abs(delta) >= 44;
       rail.style.removeProperty('--lotbi-orbit-drag-x');
 
+      const selectedDifferentCard = !cancelled
+        && !crossedDragThreshold
+        && Number.isInteger(pointerOriginIndex)
+        && pointerOriginIndex !== activeIndex;
+
       if (cancelled) {
         applyOrbitState();
       } else if (crossedDragThreshold) {
@@ -1097,7 +1111,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         applyOrbitState();
       }
 
-      if (!cancelled && dragMoved) {
+      if (!cancelled && (dragMoved || selectedDifferentCard)) {
         suppressClick = true;
         globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
       }
