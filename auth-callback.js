@@ -162,7 +162,7 @@ async function completeSiteHandoff() {
   });
   if (!mounted) throw new Error('LOTBI 대화 화면을 시작하지 못했습니다.');
   document.body.dataset.guestConversationClaimStatus = guestClaimResult.status;
-  if (!['NO_INTENT', 'APPLIED', 'ALREADY_APPLIED', 'RECEIPT_PENDING'].includes(guestClaimResult.status)) {
+  if (!['NO_INTENT', 'APPLIED', 'ALREADY_APPLIED', 'SOURCE_MARKER_PENDING', 'RECEIPT_PENDING'].includes(guestClaimResult.status)) {
     const chatStatus = document.getElementById('chat-status');
     if (chatStatus) chatStatus.textContent = '로그인은 완료됐지만 이전 대화를 가져오지 못했습니다.';
   }
