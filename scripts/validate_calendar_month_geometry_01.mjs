@@ -6,8 +6,6 @@ import {fileURLToPath} from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INNER_REL = 'scripts/.calendar-month-geometry-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
-const WRAPPER_REL = 'scripts/.calendar-month-geometry-wrapper.html';
-const WRAPPER = path.join(ROOT, WRAPPER_REL);
 const PORT = 4193;
 const ORIGIN = 'http://127.0.0.1:' + PORT;
 
@@ -149,24 +147,15 @@ function waitServer(){
   throw new Error('server start');
 }
 
-function wrapperMarkup(w,h){
-  return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
-  const frame=document.getElementById('case-frame'),out=document.getElementById('result');
-  const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('geometry-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
-  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},8000);
-  <\/script></body></html>`;
-}
-
 function run(browser,w,h){
-  fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
   const proc=spawnSync(browser,[
     '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-    '--window-size=1600,1300','--force-device-scale-factor=1','--virtual-time-budget=9000',
-    '--dump-dom',ORIGIN+'/'+WRAPPER_REL
+    '--window-size='+w+','+h,'--force-device-scale-factor=1','--virtual-time-budget=9000',
+    '--dump-dom',ORIGIN+'/'+INNER_REL
   ],{encoding:'utf8',timeout:30000,maxBuffer:12*1024*1024});
   if(proc.error)throw proc.error;
   if(proc.status!==0)throw new Error('browser '+proc.status+' '+proc.stderr);
-  const a='<pre id="result">',b='</pre>',i=proc.stdout.indexOf(a),j=proc.stdout.indexOf(b,i);
+  const a='<pre id="geometry-result">',b='</pre>',i=proc.stdout.indexOf(a),j=proc.stdout.indexOf(b,i);
   if(i<0||j<0)throw new Error('result missing');
   const raw=proc.stdout.slice(i+a.length,j).replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>');
   const value=JSON.parse(raw);
@@ -185,5 +174,5 @@ try{
   console.log('CALENDAR MONTH GEOMETRY PASS',JSON.stringify(results));
 }finally{
   server.kill('SIGTERM');
-  for(const file of [INNER,WRAPPER]){try{fs.rmSync(file)}catch{}}
+  fs.rmSync(INNER,{force:true});
 }
