@@ -374,7 +374,7 @@ assert.ok(storageRuntime.includes('localStorage'));
 assert.ok(conversation.includes('const THREAD_LIMIT = 50;'));
 assert.ok(conversation.includes('const MESSAGE_LIMIT = 120;'));
 assert.ok(conversation.includes("storageKey(namespace, 'threads')"));
-assert.ok(conversation.includes('threads: Array.isArray(loadedState.threads)'));
+assert.ok(conversation.includes('const restoredThreads = Array.isArray(loadedState.threads)'), 'thread restore must remain bounded and namespace-scoped');
 assert.ok(conversation.includes("activeThreadId: typeof loadedState.activeThreadId === 'string'"));
 assert.ok(conversation.includes("draft: typeof loadedState.draft === 'string'"));
 assert.ok(conversation.includes('record.messages.push(message)'));
