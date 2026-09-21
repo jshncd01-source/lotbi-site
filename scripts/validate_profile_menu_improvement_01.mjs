@@ -11,6 +11,27 @@ if (conversationSource.includes("serverIdentity?.name || preferences.displayName
 if (!conversationSource.includes('https://account.lotbiai.com/account')) throw new Error('canonical profile management handoff missing');
 if (!coreSource.includes('SYNTHETIC_EMAIL_FIRST_HANDLE_RE')) throw new Error('synthetic handle filter missing');
 if (!coreSource.includes('email,')) throw new Error('canonical email mapping missing');
+
+const {getCurrentSiteUser} = await import('../site-core.js?identity-profile-hotfix=1');
+const syntheticIdentity = await getCurrentSiteUser('site-token', async () => new Response(JSON.stringify({
+  user: {id: 'usr-email-first', name: null, account_handle: 'e1' + 'a'.repeat(20), email: 'jshncd02@naver.com'},
+  session: {id: 'ses-email-first', assurance_level: 'FULL', expires_at: '2099-01-01T00:00:00Z'},
+  installation: {id: 'install-profile-test'},
+}), {status: 200, headers: {'Content-Type': 'application/json'}}));
+if (syntheticIdentity.name !== '' || syntheticIdentity.accountHandle !== '' || syntheticIdentity.email !== 'jshncd02@naver.com') {
+  throw new Error('synthetic email-first identity must normalize to canonical public fields');
+}
+let invalidIdentityRejected = false;
+try {
+  await getCurrentSiteUser('site-token', async () => new Response(JSON.stringify({
+    user: {id: 'usr-invalid', name: 123, account_handle: null, email: 'invalid@example.com'},
+    session: {id: 'ses-invalid', assurance_level: 'FULL', expires_at: '2099-01-01T00:00:00Z'},
+    installation: {id: 'install-profile-test'},
+  }), {status: 200, headers: {'Content-Type': 'application/json'}}));
+} catch (error) {
+  invalidIdentityRejected = error?.code === 'SITE_IDENTITY_CONTRACT_INVALID';
+}
+if (!invalidIdentityRejected) throw new Error('invalid non-null identity type must fail closed');
 const INNER_REL = 'scripts/.profile-menu-runtime-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
 const WRAPPER_REL = 'scripts/.profile-menu-runtime-fixture.html';
