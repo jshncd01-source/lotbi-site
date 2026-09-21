@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+// Reconciled Smart Calendar head validation marker.
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
