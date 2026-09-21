@@ -44,7 +44,7 @@ class MemoryStorage {
   const fetchMock = async (url, init) => {
     requests.push({url, init});
     if (url.endsWith('/v2/me')) return jsonResponse({
-      user: {id: 'user-1', name: '전선혜', account_handle: 'lotbi_user.01'},
+      user: {id: 'user-1', name: '전선혜', account_handle: 'lotbi_user.01', email: 'user@example.com'},
       session: {id: 'site-session-1', assurance_level: 'FULL', expires_at: '2030-01-01T00:00:00Z'},
       installation: {id: 'installation-1'},
     });
@@ -52,7 +52,7 @@ class MemoryStorage {
   };
   const identity = await getCurrentSiteUser('site-memory-token', fetchMock);
   assert.deepEqual(identity, {
-    userId: 'user-1', name: '전선혜', accountHandle: 'lotbi_user.01',
+    userId: 'user-1', name: '전선혜', accountHandle: 'lotbi_user.01', email: 'user@example.com',
     sessionId: 'site-session-1', installationId: 'installation-1', expiresAt: '2030-01-01T00:00:00Z',
   });
   const logout = await logoutSiteSession('site-memory-token', fetchMock);

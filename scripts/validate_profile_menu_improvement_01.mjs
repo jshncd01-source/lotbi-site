@@ -4,6 +4,62 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const conversationSource = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
+const coreSource = fs.readFileSync(path.join(ROOT, 'site-core.js'), 'utf8');
+if (!conversationSource.includes('canonicalProfileName')) throw new Error('canonical profile name helper missing');
+if (conversationSource.includes("serverIdentity?.name || preferences.displayName")) throw new Error('local displayName must not override canonical identity');
+if (!conversationSource.includes('https://account.lotbiai.com/account')) throw new Error('canonical profile management handoff missing');
+if (!coreSource.includes('SYNTHETIC_EMAIL_FIRST_HANDLE_RE')) throw new Error('synthetic handle filter missing');
+if (!coreSource.includes('email,')) throw new Error('canonical email mapping missing');
+
+const {getCurrentSiteUser, updateCurrentSiteProfile} = await import('../site-core.js?identity-profile-hotfix=1');
+const syntheticIdentity = await getCurrentSiteUser('site-token', async () => new Response(JSON.stringify({
+  user: {id: 'usr-email-first', name: null, account_handle: 'e1' + 'a'.repeat(20), email: 'jshncd02@naver.com'},
+  session: {id: 'ses-email-first', assurance_level: 'FULL', expires_at: '2099-01-01T00:00:00Z'},
+  installation: {id: 'install-profile-test'},
+}), {status: 200, headers: {'Content-Type': 'application/json'}}));
+if (syntheticIdentity.name !== '' || syntheticIdentity.accountHandle !== '' || syntheticIdentity.email !== 'jshncd02@naver.com') {
+  throw new Error('synthetic email-first identity must normalize to canonical public fields');
+}
+let invalidIdentityRejected = false;
+try {
+  await getCurrentSiteUser('site-token', async () => new Response(JSON.stringify({
+    user: {id: 'usr-invalid', name: 123, account_handle: null, email: 'invalid@example.com'},
+    session: {id: 'ses-invalid', assurance_level: 'FULL', expires_at: '2099-01-01T00:00:00Z'},
+    installation: {id: 'install-profile-test'},
+  }), {status: 200, headers: {'Content-Type': 'application/json'}}));
+} catch (error) {
+  invalidIdentityRejected = error?.code === 'SITE_IDENTITY_CONTRACT_INVALID';
+}
+if (!invalidIdentityRejected) throw new Error('invalid non-null identity type must fail closed');
+
+let profileUpdateRequest;
+const updatedIdentity = await updateCurrentSiteProfile('site-token', {
+  displayName: 'jshncd02',
+  publicHandle: 'jshncd02',
+}, async (url, init) => {
+  profileUpdateRequest = {url: String(url), init};
+  return new Response(JSON.stringify({
+    user: {
+      id: 'usr-email-first',
+      name: 'jshncd02',
+      account_handle: 'jshncd02',
+      public_handle: 'jshncd02',
+      email: 'jshncd02@naver.com',
+      account_handle_is_synthetic: true,
+    },
+  }), {status: 200, headers: {'Content-Type': 'application/json'}});
+});
+if (profileUpdateRequest.url !== 'https://api.lotbiai.com/v2/account/profile') throw new Error('profile update URL mismatch');
+if (profileUpdateRequest.init.method !== 'PUT') throw new Error('profile update method mismatch');
+if (profileUpdateRequest.init.headers.Authorization !== 'Bearer site-token') throw new Error('profile update bearer mismatch');
+if (profileUpdateRequest.init.headers['Content-Type'] !== 'application/json') throw new Error('profile update content type mismatch');
+if (profileUpdateRequest.init.credentials !== 'omit') throw new Error('profile update must not use browser credentials');
+const profileUpdateBody = JSON.parse(profileUpdateRequest.init.body);
+if (profileUpdateBody.display_name !== 'jshncd02' || profileUpdateBody.public_handle !== 'jshncd02') throw new Error('profile update body mismatch');
+if (updatedIdentity.name !== 'jshncd02' || updatedIdentity.accountHandle !== 'jshncd02' || updatedIdentity.email !== 'jshncd02@naver.com') {
+  throw new Error('profile update canonical response mismatch');
+}
 const INNER_REL = 'scripts/.profile-menu-runtime-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
 const WRAPPER_REL = 'scripts/.profile-menu-runtime-fixture.html';
@@ -42,7 +98,7 @@ HTMLFormElement.prototype.requestSubmit=function(){
 };
 let releaseSubscription;const subscriptionGate=new Promise(resolve=>{releaseSubscription=resolve});
 window.fetch=async input=>{const u=String(typeof input==='string'?input:input?.url||'');
-if(u.endsWith('/v2/me')){counts.me+=1;return new Response(JSON.stringify({user:{id:'usr',name:'홍길동',account_handle:'hong'},session:{id:'ses',assurance_level:'FULL',expires_at:'2099-01-01T00:00:00Z'},installation:{id:'install-profile-test'}}),{status:200,headers:{'Content-Type':'application/json'}})}
+if(u.endsWith('/v2/me')){counts.me+=1;return new Response(JSON.stringify({user:{id:'usr',name:'홍길동',account_handle:'hong',email:'hong@example.com'},session:{id:'ses',assurance_level:'FULL',expires_at:'2099-01-01T00:00:00Z'},installation:{id:'install-profile-test'}}),{status:200,headers:{'Content-Type':'application/json'}})}
 if(u.endsWith('/v2/subscription')){counts.subscription+=1;await subscriptionGate;return new Response(JSON.stringify({plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,free_units:3,used_free_units:1,remaining_free_units:2}),{status:200,headers:{'Content-Type':'application/json'}})}
 if(u.endsWith('/v2/sessions/logout')){counts.logout+=1;return new Response(JSON.stringify({session_id:'ses',status:'REVOKED'}),{status:200,headers:{'Content-Type':'application/json'}})}
 counts.other+=1;return new Response('{}',{status:500})};
@@ -69,7 +125,7 @@ if(!(trigger instanceof HTMLButtonElement)||trigger.hasAttribute('href'))throw n
 click(trigger);await wait(()=>document.querySelector('.profile-popover'),'open');
 if(document.querySelector('.profile-popover-summary-plan'))throw new Error('plan must not be fabricated before subscription response');
 releaseSubscription();await wait(()=>document.querySelector('.profile-popover-summary-plan')?.textContent==='현재 이용 등급 · LOTBI Plus','late plan hydration');
-if(location.href!==url||document.querySelector('.profile-popover-summary-name')?.textContent!=='홍길동'||document.querySelector('.profile-popover-summary-handle')?.textContent!=='@hong'||document.querySelector('.profile-popover-summary-plan')?.textContent!=='현재 이용 등급 · LOTBI Plus')throw new Error('profile summary/url');
+if(location.href!==url||document.querySelector('.profile-popover-summary-name')?.textContent!=='홍길동'||document.querySelector('.profile-popover-summary-handle')?.textContent!=='@hong'||document.querySelector('.profile-popover-summary-email')?.textContent!=='hong@example.com'||document.querySelector('.profile-popover-summary-plan')?.textContent!=='현재 이용 등급 · LOTBI Plus')throw new Error('profile summary/url');
 const labels=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].map(n=>n.textContent).join('|');
 if(labels!=='프로필|개인 맞춤 설정|설정|도움말|로그아웃'||counts.logout!==0)throw new Error('menu/logout-before-click');
 let after=state();if(after.activeThreadId!==id||after.draft!=='작성 중인 초안'||prompt.value!=='작성 중인 초안'||JSON.stringify(after.threads[0].messages)!==msgs)throw new Error('continuity open');
@@ -81,7 +137,7 @@ await wait(()=>slot.querySelector('[data-profile-menu-trigger]')&&document.query
 after=state();if(!ev.defaultPrevented||location.href!==url||after.activeThreadId!==id||after.draft!=='작성 중인 초안'||JSON.stringify(after.threads[0].messages)!==msgs||counts.logout!==0)throw new Error('stale self-heal continuity');
 const measured=document.querySelector('.profile-popover').getBoundingClientRect(),layoutWidth=document.documentElement.clientWidth,layoutHeight=document.documentElement.clientHeight,mobile=innerWidth<=900,rect={width:measured.width,left:measured.left,right:measured.right,top:measured.top,bottom:measured.bottom},expectedWidth=mobile?Math.max(0,layoutWidth-20):264;if(rect.left<-1||rect.right>layoutWidth+1||rect.top<-1||rect.bottom>layoutHeight+1||Math.abs(rect.width-expectedWidth)>3)throw new Error('popover viewport/layout '+JSON.stringify({rect,expectedWidth,innerWidth,innerHeight,layoutWidth,layoutHeight,mobile}));
 const logout=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].find(n=>n.textContent==='로그아웃');click(logout);await wait(()=>counts.logout===1,'logout');await wait(()=>counts.accountLogout===1,'account logout handoff');await wait(()=>document.querySelector('[data-sidebar-account] a[href="/auth/start/"]'),'logout UI');
-out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile},profile:{name:'홍길동',handle:'@hong',plan:'현재 이용 등급 · LOTBI Plus'},continuity:{urlUnchanged:location.href===url,threadId:id,draft:after.draft,messageCount:after.threads[0].messages.length},close:{toggle:true,outside:true,escape:true},selfHeal:true,counts,popover:{width:rect.width,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}})
+out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile},profile:{name:'홍길동',handle:'@hong',email:'hong@example.com',plan:'현재 이용 등급 · LOTBI Plus'},continuity:{urlUnchanged:location.href===url,threadId:id,draft:after.draft,messageCount:after.threads[0].messages.length},close:{toggle:true,outside:true,escape:true},selfHeal:true,counts,popover:{width:rect.width,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}})
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),counts})}
 </script></body></html>`;
 
