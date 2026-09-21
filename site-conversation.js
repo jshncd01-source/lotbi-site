@@ -2510,7 +2510,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || anonymousConversationNamespace());
     const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
-    ensureThread(displayMessage);
+    const activeConversation = ensureThread(displayMessage);
+    const activeConversationId = activeConversation?.id || state.activeThreadId || '';
     if (appendUserMessage) {
       const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
@@ -2606,6 +2607,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
           turnCreatedAt: sourceTurnCreatedAtIso,
           attachmentIds: attachments.map(item => item.id),
+          conversationId: activeConversationId,
+          turnId: guestRequestId,
+          logicalRequestId: guestRequestId,
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
@@ -2696,6 +2700,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
         sourceTurnCreatedAtIso,
         recentConversationContext(),
+        {
+          conversationId: activeConversationId,
+          turnId: authenticatedRequestId,
+          logicalRequestId: authenticatedRequestId,
+        },
       );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
