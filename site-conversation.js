@@ -90,6 +90,38 @@ function resolveRestoredActiveThreadId(storedActiveThreadId, threads) {
   return threads[0]?.id || null;
 }
 
+function resolvePlaceOrbitPointerIndex({
+  targetIndex = null,
+  activeIndex = 0,
+  cardCount = 0,
+  clientX = Number.NaN,
+  clientY = Number.NaN,
+  centerRect = null,
+} = {}) {
+  const count = Number.isInteger(cardCount) && cardCount > 0 ? cardCount : 0;
+  if (!count) return null;
+  const active = Number.isInteger(activeIndex) ? ((activeIndex % count) + count) % count : 0;
+  const target = Number.isInteger(targetIndex) && targetIndex >= 0 && targetIndex < count ? targetIndex : null;
+  if (target !== null && target !== active) return target;
+
+  const left = Number(centerRect?.left);
+  const right = Number(centerRect?.right);
+  const top = Number(centerRect?.top);
+  const bottom = Number(centerRect?.bottom);
+  const pointX = Number(clientX);
+  const pointY = Number(clientY);
+  const usableRect = count > 1
+    && [left, right, top, bottom, pointX, pointY].every(Number.isFinite)
+    && left <= right
+    && top <= bottom
+    && pointY >= top
+    && pointY <= bottom;
+
+  if (usableRect && pointX < left) return (active - 1 + count) % count;
+  if (usableRect && pointX > right) return (active + 1) % count;
+  return target;
+}
+
 function createMessage(role, text, meta = {}) {
   const article = document.createElement('article');
   article.className = `chat-message chat-message-${role}`;
@@ -1005,7 +1037,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (cards.length < 2 || (event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
       const originCard = event.target?.closest?.('.lotbi-place-orbit-card');
       const originIndex = Number(originCard?.dataset?.orbitIndex);
-      pointerOriginIndex = Number.isInteger(originIndex) ? originIndex : null;
+      const centerRect = cards[activeIndex]?.getBoundingClientRect?.() || null;
+      pointerOriginIndex = resolvePlaceOrbitPointerIndex({
+        targetIndex: Number.isInteger(originIndex) ? originIndex : null,
+        activeIndex,
+        cardCount: cards.length,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        centerRect,
+      });
       dragPointerId = event.pointerId;
       dragStartX = event.clientX;
       dragLastX = event.clientX;
