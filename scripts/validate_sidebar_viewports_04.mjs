@@ -79,7 +79,7 @@ const secondary = surface.querySelector('.sidebar-secondary-nav');
 const footer = surface.querySelector('.sidebar-account-footer');
 if (!primary || !calendar || !recent || !recentList || !secondary || !footer) throw new Error('Sidebar IA fixture contract incomplete');
 const calendarViews = [...calendar.querySelectorAll('[data-calendar-view]')];
-if (calendarViews.length !== 3) throw new Error('Calendar navigation expected root + 2 quick views, got ' + calendarViews.length);
+if (calendarViews.length !== 1) throw new Error('Calendar navigation expected root-only navigation, got ' + calendarViews.length);
 for (const [index, title] of ${JSON.stringify(injectedTitles)}.entries()) {
   const li = doc.createElement('li');
   li.className = 'conversation-history-item';
@@ -139,7 +139,7 @@ document.getElementById('render-result').textContent = JSON.stringify({
   recent: {clientHeight: recent.clientHeight, scrollHeight: recent.scrollHeight, scrollTop: recent.scrollTop, overflowY: recentStyle.overflowY},
   secondary: {top: before.secondary.top, bottom: before.secondary.bottom, topAfter: after.secondary.top, bottomAfter: after.secondary.bottom},
   footer: {top: before.footer.top, bottom: before.footer.bottom, topAfter: after.footer.top, bottomAfter: after.footer.bottom, position: footerStyle.position},
-  title: {clientWidth: firstTitle.clientWidth, scrollWidth: firstTitle.scrollWidth, height: firstTitle.getBoundingClientRect().height, lineHeight: titleStyle.lineHeight, overflow: titleStyle.overflow, textOverflow: titleStyle.textOverflow, webkitLineClamp: titleStyle.webkitLineClamp},
+  title: {clientWidth: firstTitle.clientWidth, scrollWidth: firstTitle.scrollWidth, height: firstTitle.getBoundingClientRect().height, lineHeight: titleStyle.lineHeight, overflow: titleStyle.overflow, textOverflow: titleStyle.textOverflow, whiteSpace: titleStyle.whiteSpace, webkitLineClamp: titleStyle.webkitLineClamp},
   oldLabelsPresent: ['내 작업','라이브러리','주문 내역','예약 내역','내 계정','설정','도움말 / 문의','어제','최근 7일','이전'].filter(label => surface.textContent.includes(label)),
 });
 </script></body></html>`;
@@ -182,13 +182,14 @@ function assertViewport(label, result, width, height, mode) {
   ) {
     throw new Error(`${label}: scrolling recent conversations moved fixed primary/secondary/account regions`);
   }
-  if (result.calendar.viewCount !== 3) throw new Error(`${label}: Calendar navigation count changed (${result.calendar.viewCount})`);
+  if (result.calendar.viewCount !== 1) throw new Error(`${label}: Calendar navigation must expose only the root action (${result.calendar.viewCount})`);
   if (result.calendar.top < 0 || result.calendar.bottom > height + tolerance) {
     throw new Error(`${label}: expanded Calendar navigation left the viewport (${result.calendar.top}..${result.calendar.bottom})`);
   }
   if (result.secondary.top < 0 || result.secondary.bottom > result.footer.top + tolerance) throw new Error(`${label}: secondary connected-services link left its intended slot`);
   if (result.footer.bottom > height + tolerance || result.footer.top < 0) throw new Error(`${label}: account footer left viewport (${result.footer.top}..${result.footer.bottom})`);
-  if (result.title.webkitLineClamp !== '2') throw new Error(`${label}: recent title 2-line clamp missing (${result.title.webkitLineClamp})`);
+  if (result.title.whiteSpace !== 'nowrap') throw new Error(`${label}: recent title must remain exactly one line (${result.title.whiteSpace})`);
+  if (result.title.textOverflow !== 'ellipsis') throw new Error(`${label}: recent title overflow must use ellipsis (${result.title.textOverflow})`);
   if (mode === 'desktop') {
     if (Math.abs(result.surface.width - 220) > tolerance) throw new Error(`${label}: desktop sidebar width changed from 220px (${result.surface.width}px)`);
     if (result.surface.height > height + tolerance) throw new Error(`${label}: desktop sidebar exceeds viewport height`);
