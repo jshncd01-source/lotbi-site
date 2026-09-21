@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 
 // TRUE ORBIT contract is validated against the latest merged Site main.
 
@@ -200,6 +201,46 @@ const placeRendererEnd = conversationSource.indexOf("const normalizeConversation
 assert.ok(placeRendererStart >= 0 && placeRendererEnd > placeRendererStart);
 const placeRendererSource = conversationSource.slice(placeRendererStart, placeRendererEnd);
 
+const placePointerResolverStart = conversationSource.indexOf('function resolvePlaceOrbitPointerIndex(');
+const placePointerResolverEnd = conversationSource.indexOf('\nfunction createMessage(', placePointerResolverStart);
+assert.ok(
+  placePointerResolverStart >= 0 && placePointerResolverEnd > placePointerResolverStart,
+  'Place orbit pointer resolver must remain independently testable',
+);
+const placePointerResolverSource = conversationSource.slice(placePointerResolverStart, placePointerResolverEnd);
+const placePointerResolverContext = {};
+vm.runInNewContext(
+  placePointerResolverSource + '\nthis.resolvePlaceOrbitPointerIndex = resolvePlaceOrbitPointerIndex;',
+  placePointerResolverContext,
+);
+const resolvePlaceOrbitPointerIndex = placePointerResolverContext.resolvePlaceOrbitPointerIndex;
+const centerRectFixture = {left: 100, right: 300, top: 50, bottom: 350};
+
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: 1, activeIndex: 0, cardCount: 5, clientX: 180, clientY: 200, centerRect: centerRectFixture,
+}), 1, 'RIGHT_FRONT DOM target must resolve exactly');
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: 4, activeIndex: 0, cardCount: 5, clientX: 220, clientY: 200, centerRect: centerRectFixture,
+}), 4, 'LEFT_FRONT DOM target must resolve exactly');
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: 3, activeIndex: 0, cardCount: 5, clientX: 90, clientY: 200, centerRect: centerRectFixture,
+}), 3, 'visible BACK DOM target must resolve exactly');
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: 0, activeIndex: 0, cardCount: 5, clientX: 80, clientY: 200, centerRect: centerRectFixture,
+}), 4, 'left visible side zone must resolve LEFT_FRONT even if the DOM target falls back to CENTER');
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: null, activeIndex: 0, cardCount: 5, clientX: 320, clientY: 200, centerRect: centerRectFixture,
+}), 1, 'right visible side zone must resolve RIGHT_FRONT when the DOM target falls back to the rail');
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: 0, activeIndex: 0, cardCount: 5, clientX: 180, clientY: 200, centerRect: centerRectFixture,
+}), 0, 'CENTER body tap must remain CENTER');
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: null, activeIndex: 0, cardCount: 5, clientX: 80, clientY: 20, centerRect: centerRectFixture,
+}), null, 'coordinate fallback must stay within the vertical card hit band');
+assert.equal(resolvePlaceOrbitPointerIndex({
+  targetIndex: null, activeIndex: 4, cardCount: 5, clientX: 320, clientY: 200, centerRect: centerRectFixture,
+}), 0, 'right side coordinate fallback must wrap circularly');
+
 const cardClickStart = placeRendererSource.indexOf("cards.forEach((card, index) => {");
 const cardClickEnd = placeRendererSource.indexOf("rail.addEventListener('keydown'", cardClickStart);
 const pointerDownStart = placeRendererSource.indexOf("rail.addEventListener('pointerdown'");
@@ -300,7 +341,12 @@ assert.match(placeRendererSource, /rail\.setPointerCapture\(event\.pointerId\)/u
 assert.match(placeRendererSource, /rail\.releasePointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /Math\.abs\(delta\) >= 44/u);
 assert.match(placeRendererSource, /setActiveIndex\(activeIndex \+ \(delta < 0 \? 1 : -1\)\)/u);
-assert.match(placeRendererSource, /pointerOriginIndex = Number\.isInteger\(originIndex\) \? originIndex : null/u);
+assert.match(pointerDownSource, /const centerRect = cards\[activeIndex\]\?\.getBoundingClientRect\?\.\(\) \|\| null/u);
+assert.match(pointerDownSource, /pointerOriginIndex = resolvePlaceOrbitPointerIndex\(\{/u);
+assert.match(pointerDownSource, /targetIndex: Number\.isInteger\(originIndex\) \? originIndex : null/u);
+assert.match(pointerDownSource, /cardCount: cards\.length/u);
+assert.match(pointerDownSource, /clientX: event\.clientX/u);
+assert.match(pointerDownSource, /clientY: event\.clientY/u);
 assert.match(placeRendererSource, /else if \(Number\.isInteger\(pointerOriginIndex\)\) \{\s*setActiveIndex\(pointerOriginIndex\);/u);
 assert.match(placeRendererSource, /if \(cancelled\) \{\s*applyOrbitState\(\);/u);
 assert.match(placeRendererSource, /suppressClick = true;\s*globalThis\.setTimeout\?\.\(\(\) => \{ suppressClick = false; \}, 0\)/u);
@@ -407,4 +453,4 @@ assert.match(
   'Home Place Card runtime must keep the compact-actions navigation module',
 );
 
-console.log('NAVER Place Card COMPACT TRUE ORBIT + CAPTURED SIDE TAP/drag + NAVER fallback + phone fail-safe contract: PASS');
+console.log('NAVER Place Card COMPACT TRUE ORBIT + COORDINATE SIDE HIT + drag + NAVER fallback + phone fail-safe contract: PASS');
