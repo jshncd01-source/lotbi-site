@@ -241,11 +241,11 @@ def main() -> int:
             errors.append("index.html: composer must preserve one-row initial contract")
 
     conversation_script = re.search(
-        r'<script type="module" src="site-conversation\\.js\\?v=[^"]+"></script>',
+        r'<script type="module" src="site-conversation\.js\?v=[^"]+"></script>',
         text,
     )
     continuity_script = re.search(
-        r'<script type="module" src="site-continuity\\.js\\?v=[^"]+"></script>',
+        r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         text,
     )
     if not conversation_script:
