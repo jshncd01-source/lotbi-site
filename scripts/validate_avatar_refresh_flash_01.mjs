@@ -39,10 +39,13 @@ assert.ok(storageRead >= 0, 'persisted thread state must be read before restore 
 assert.ok(render > storageRead, 'persisted state must render after storage restore');
 assert.ok(ready > render, 'restore may become READY only after the initial visual state is rendered');
 
-assert.match(
-  restoreBlock,
-  /if \(!state\.threads\.some\(item => item\.id === state\.activeThreadId\)\) state\.activeThreadId = state\.threads\[0\]\?\.id \|\| null;/,
-  'stale or missing active thread must resolve before READY',
+assert.ok(
+  restoreBlock.includes("Object.prototype.hasOwnProperty.call(loadedState, 'activeThreadId')"),
+  'restore must distinguish an explicit blank Home from a legacy missing active selection before READY',
+);
+assert.ok(
+  restoreBlock.includes('state.activeThreadId = resolveRestoredActiveThreadId(restoredActiveThreadId, state.threads);'),
+  'active selection, stale fallback, or explicit blank Home must resolve before READY',
 );
 assert.match(conversation, /const showBlankHome = \(\) => \{[\s\S]*?restoreAvatarHome\(\);[\s\S]*?thread\.hidden = true;/);
 assert.match(conversation, /const startNewConversation = \(\) => \{[\s\S]*?showBlankHome\(\);/);
