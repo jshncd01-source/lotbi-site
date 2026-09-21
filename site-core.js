@@ -896,6 +896,18 @@ export async function reviewProductCard(sessionToken, {
   });
 }
 
+const SYNTHETIC_EMAIL_FIRST_HANDLE_RE = /^e1[0-9a-f]{20}$/;
+
+function optionalIdentityText(value, field) {
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {
+      code: 'SITE_IDENTITY_CONTRACT_INVALID',
+    });
+  }
+  return value.trim();
+}
+
 export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fetch) {
   const payload = await siteSessionRequest(CURRENT_USER_PATH, sessionToken, {}, fetchImpl);
   const user = payload && typeof payload.user === 'object' ? payload.user : {};
@@ -907,10 +919,15 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
   if (!userId || !sessionId || !installationId || session.assurance_level !== 'FULL') {
     throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
   }
+  const name = optionalIdentityText(user.name, 'user.name');
+  const rawAccountHandle = optionalIdentityText(user.account_handle, 'user.account_handle');
+  const email = optionalIdentityText(user.email, 'user.email');
+  const accountHandle = SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle) ? '' : rawAccountHandle;
   return Object.freeze({
     userId,
-    name: typeof user.name === 'string' ? user.name.trim() : '',
-    accountHandle: typeof user.account_handle === 'string' ? user.account_handle.trim() : '',
+    name,
+    accountHandle,
+    email,
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
