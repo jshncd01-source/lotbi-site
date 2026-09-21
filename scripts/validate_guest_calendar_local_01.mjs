@@ -123,6 +123,31 @@ const oldVersion = createGuestCalendarRepository(memoryStorage({
 }));
 assert.deepEqual(oldVersion.list(), []);
 
+const v1Compatible = createGuestCalendarRepository(memoryStorage({
+  [GUEST_CALENDAR_STORAGE_KEY]: JSON.stringify({
+    version: 1,
+    events: [{
+      id: 'guest_00000000-0000-4000-8000-000000000777',
+      title: '기존 v1 일정',
+      local_date: '2026-09-23',
+      local_datetime: null,
+      all_day: true,
+      created_at: '2026-09-19T00:00:00.000Z',
+      updated_at: '2026-09-19T00:00:00.000Z',
+    }],
+  }),
+}));
+assert.equal(v1Compatible.list().length, 1);
+assert.equal(v1Compatible.list()[0].title, '기존 v1 일정');
+assert.deepEqual(v1Compatible.list()[0].entry, {
+  amount_minor: null,
+  currency: 'KRW',
+  expense_category: null,
+  memo: null,
+  place: null,
+  merchant: null,
+});
+
 const limited = createGuestCalendarRepository(memoryStorage(), {
   limit: 2,
   uuid: () => crypto.randomUUID(),
@@ -135,7 +160,7 @@ assert.throws(
 );
 
 const persisted = JSON.parse(storage.getItem(GUEST_CALENDAR_STORAGE_KEY));
-assert.equal(persisted.version, 1);
+assert.equal(persisted.version, 2);
 assert.ok(!JSON.stringify(persisted).match(/bearer|session|token|credential|password/i));
 assert.deepEqual(Object.keys(storage.dump()).sort(), [GUEST_CALENDAR_STORAGE_KEY, 'lotbi.session.token']);
 

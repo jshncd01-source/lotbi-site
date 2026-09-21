@@ -289,6 +289,82 @@ export function normalizeCalendarCandidateSet(value) {
   });
 }
 
+function validCalendarDraftDate(value) {
+  if (!LOCAL_DATE_RE.test(String(value || ''))) return false;
+  const [year, month, day] = String(value).split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() + 1 === month
+    && date.getUTCDate() === day;
+}
+
+function normalizeCalendarDraftText(value, maxLength) {
+  if (value == null) return null;
+  if (typeof value !== 'string') throw new SiteCoreError('LOTBI 캘린더 초안 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  const text = value.trim();
+  if (!text) return null;
+  if (text.length > maxLength) throw new SiteCoreError('LOTBI 캘린더 초안 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  return text;
+}
+
+export function normalizeSmartCalendarDraft(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== 'object') {
+    throw new SiteCoreError('LOTBI 캘린더 초안 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const title = normalizeCalendarDraftText(value.title, 240);
+  const localDate = normalizeCalendarDraftText(value.local_date, 10);
+  const localTime = normalizeCalendarDraftText(value.local_time, 5);
+  const entry = value.entry && typeof value.entry === 'object' ? value.entry : null;
+  const sourceIds = Array.isArray(value.source_attachment_ids) ? value.source_attachment_ids.map(item => String(item || '').trim()) : null;
+  const amountMinor = entry?.amount_minor == null ? null : Number(entry.amount_minor);
+  const currency = normalizeCalendarDraftText(entry?.currency, 3);
+  const expenseCategory = normalizeCalendarDraftText(entry?.expense_category, 20);
+  const memo = normalizeCalendarDraftText(entry?.memo, 2000);
+  const place = normalizeCalendarDraftText(entry?.place, 240);
+  const merchant = normalizeCalendarDraftText(entry?.merchant, 240);
+  const allowedCategories = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'UNCLASSIFIED']);
+  if (
+    value.contract_id !== 'CORE-SMART-CALENDAR-DRAFT-01'
+    || value.schema_version !== 1
+    || value.source_kind !== 'ATTACHMENT_AI_DRAFT'
+    || value.requires_user_confirmation !== true
+    || value.automatic_write !== false
+    || (localDate !== null && !validCalendarDraftDate(localDate))
+    || (localTime !== null && (localDate === null || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(localTime)))
+    || !entry
+    || (amountMinor !== null && (!Number.isSafeInteger(amountMinor) || amountMinor < 0 || amountMinor > 1_000_000_000_000))
+    || (currency !== null && currency !== 'KRW')
+    || ((amountMinor === null) !== (currency === null))
+    || (expenseCategory !== null && !allowedCategories.has(expenseCategory))
+    || (amountMinor !== null && expenseCategory === null)
+    || !sourceIds || sourceIds.length < 1 || sourceIds.length > 3
+    || sourceIds.length !== new Set(sourceIds).size
+    || sourceIds.some(id => !ATTACHMENT_ID_RE.test(id))
+  ) {
+    throw new SiteCoreError('LOTBI 캘린더 초안 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    contractId: 'CORE-SMART-CALENDAR-DRAFT-01',
+    schemaVersion: 1,
+    sourceKind: 'ATTACHMENT_AI_DRAFT',
+    requiresUserConfirmation: true,
+    automaticWrite: false,
+    title,
+    localDate,
+    localTime,
+    entry: Object.freeze({
+      amountMinor,
+      currency,
+      expenseCategory,
+      memo,
+      place,
+      merchant,
+    }),
+    sourceAttachmentIds: Object.freeze([...sourceIds]),
+  });
+}
+
 function conversationClientContext(timezone, turnCreatedAt) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
@@ -490,6 +566,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
+    calendarDraft: normalizeSmartCalendarDraft(payload.calendar_draft),
   });
 }
 
@@ -923,8 +1000,6 @@ function userFacingIdentity(user) {
     name,
     email,
     publicHandle,
-    // Compatibility alias is user-facing only. Internal AccountIdentity is
-    // intentionally never exposed through this Site model.
     accountHandle: publicHandle,
   });
 }

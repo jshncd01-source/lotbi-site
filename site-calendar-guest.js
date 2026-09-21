@@ -1,7 +1,7 @@
-import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=20260921-convcal2';
+import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=20260921-smartcaldraft1';
 
 export const GUEST_CALENDAR_STORAGE_KEY = 'lotbi.guest.calendar.v1';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const DEFAULT_LIMIT = 500;
 const GUEST_ID_PATTERN = /^guest_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATETIME_PATTERN = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
@@ -21,19 +21,56 @@ function invalidInput() {
   return new GuestCalendarError('일정 입력값이 올바르지 않습니다.', 'GUEST_CALENDAR_INPUT_INVALID');
 }
 
+const EXPENSE_CATEGORIES = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'UNCLASSIFIED']);
+
+function optionalText(value, maxLength) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  if (!normalized) return null;
+  if (normalized.length > maxLength) throw invalidInput();
+  return normalized;
+}
+
+function normalizeEntry(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const rawAmount = source.amount_minor;
+  const amount = rawAmount === '' || rawAmount == null ? null : Number(rawAmount);
+  if (amount !== null && (!Number.isSafeInteger(amount) || amount < 0 || amount > 1_000_000_000_000)) throw invalidInput();
+  let category = typeof source.expense_category === 'string' && source.expense_category ? source.expense_category : null;
+  if (category !== null && !EXPENSE_CATEGORIES.has(category)) throw invalidInput();
+  if (amount !== null && category === null) category = 'UNCLASSIFIED';
+  const currency = typeof source.currency === 'string' && source.currency.trim() ? source.currency.trim().toUpperCase() : 'KRW';
+  if (!/^[A-Z]{3}$/.test(currency)) throw invalidInput();
+  return Object.freeze({
+    amount_minor: amount,
+    currency,
+    expense_category: category,
+    memo: optionalText(source.memo, 2000),
+    place: optionalText(source.place, 240),
+    merchant: optionalText(source.merchant, 240),
+  });
+}
+
 function normalizeEventInput(input) {
   const title = typeof input?.title === 'string' ? input.title.trim() : '';
-  const localDate = typeof input?.local_date === 'string' ? input.local_date : '';
-  const allDay = input?.all_day === true;
+  const rawDate = typeof input?.local_date === 'string' ? input.local_date.trim() : '';
+  const localDate = rawDate || null;
+  const allDay = localDate !== null && input?.all_day === true;
   const localDatetime = allDay || input?.local_datetime == null ? null : String(input.local_datetime);
   const match = localDatetime === null ? null : LOCAL_DATETIME_PATTERN.exec(localDatetime);
   if (
     !title
     || title.length > 240
-    || !validCivilDate(localDate)
-    || (!allDay && (!match || match[1] !== localDate))
+    || (localDate !== null && !validCivilDate(localDate))
+    || (localDate === null && localDatetime !== null)
+    || (localDatetime !== null && (!match || match[1] !== localDate))
   ) throw invalidInput();
-  return {title, local_date: localDate, local_datetime: localDatetime, all_day: allDay};
+  return {
+    title,
+    local_date: localDate,
+    local_datetime: localDatetime,
+    all_day: allDay,
+    entry: normalizeEntry(input?.entry),
+  };
 }
 
 function safeStoredEvent(value) {
@@ -59,7 +96,7 @@ function safeStoredEvent(value) {
 function readState(storage) {
   try {
     const parsed = JSON.parse(storage.getItem(GUEST_CALENDAR_STORAGE_KEY) || 'null');
-    if (!parsed || parsed.version !== SCHEMA_VERSION || !Array.isArray(parsed.events)) return [];
+    if (!parsed || ![1, SCHEMA_VERSION].includes(parsed.version) || !Array.isArray(parsed.events)) return [];
     return parsed.events.map(safeStoredEvent).filter(Boolean);
   } catch {
     return [];
@@ -119,6 +156,7 @@ export function createGuestCalendarRepository(
         || previous.local_date !== normalized.local_date
         || previous.local_datetime !== normalized.local_datetime
         || previous.all_day !== normalized.all_day
+        || JSON.stringify(previous.entry || {}) !== JSON.stringify(normalized.entry)
       ) {
         throw new GuestCalendarError('같은 일정 액션의 저장 내용이 달라졌습니다.', 'GUEST_CALENDAR_ACTION_CONFLICT');
       }
@@ -144,6 +182,7 @@ export function createGuestCalendarRepository(
         || previous.local_date !== normalized.local_date
         || previous.local_datetime !== normalized.local_datetime
         || previous.all_day !== normalized.all_day
+        || JSON.stringify(previous.entry || {}) !== JSON.stringify(normalized.entry)
       ) {
         throw new GuestCalendarError('같은 일정 요청의 저장 내용이 달라졌습니다.', 'GUEST_CALENDAR_REQUEST_CONFLICT');
       }

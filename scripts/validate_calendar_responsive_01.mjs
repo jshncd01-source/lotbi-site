@@ -11,8 +11,8 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarVersion = '20260921-convcal2';
-const calendarCssVersion = '20260921-calgeom1';
+const calendarVersion = '20260921-smartcaldraft1';
+const calendarCssVersion = '20260921-smartcaldraft1';
 const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
 const callbackEntryVersion = callback.match(/\/auth-callback\.js\?v=([^"]+)/)?.[1] || '';
 const callbackConversationVersion = callbackJs.match(/\.\/site-conversation\.js\?v=([^']+)/)?.[1] || '';

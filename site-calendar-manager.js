@@ -1,5 +1,5 @@
-import {createLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260921-convcal2';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal2';
+import {createLifeActivity, editLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260921-smartcaldraft1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -9,8 +9,8 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=20260921-convcal2';
-import {SiteCoreError} from './site-core.js?v=20260921-convcal2';
+} from './site-calendar-model.js?v=20260921-smartcaldraft1';
+import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
@@ -59,6 +59,7 @@ function shiftCivilMonth(value, delta) {
 }
 
 function eventTime(item) {
+  if (!validCivilDate(item?.local_date)) return '미정';
   return typeof item?.local_datetime === 'string' ? item.local_datetime.slice(11, 16) : '종일';
 }
 
@@ -107,10 +108,16 @@ function weekBounds(value) {
 }
 
 export function buildCalendarTemporal({localDate, time = '', allDay = false, timezone = DEFAULT_TIMEZONE}) {
-  if (!validCivilDate(localDate)) throw new SiteCoreError('날짜가 올바르지 않습니다.', {code: 'LIFE_DATE_INVALID', status: 422});
-  if (allDay) return Object.freeze({kind: 'DATE_ONLY', local_date: localDate});
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new SiteCoreError('시간이 올바르지 않습니다.', {code: 'LIFE_TIME_INVALID', status: 422});
-  return Object.freeze({kind: 'LOCAL_DATE_TIME', local_datetime: `${localDate}T${time}:00`, timezone_name: timezone});
+  const date = typeof localDate === 'string' ? localDate.trim() : '';
+  const clock = typeof time === 'string' ? time.trim() : '';
+  if (!date) {
+    if (clock) throw new SiteCoreError('날짜 없이 시간만 저장할 수 없습니다.', {code: 'LIFE_DATE_REQUIRED_FOR_TIME', status: 422});
+    return Object.freeze({kind: 'UNSCHEDULED'});
+  }
+  if (!validCivilDate(date)) throw new SiteCoreError('날짜가 올바르지 않습니다.', {code: 'LIFE_DATE_INVALID', status: 422});
+  if (allDay || !clock) return Object.freeze({kind: 'DATE_ONLY', local_date: date});
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(clock)) throw new SiteCoreError('시간이 올바르지 않습니다.', {code: 'LIFE_TIME_INVALID', status: 422});
+  return Object.freeze({kind: 'LOCAL_DATE_TIME', local_datetime: `${date}T${clock}:00`, timezone_name: timezone});
 }
 
 function defaultRequestId(kind) {
@@ -122,40 +129,60 @@ export function createCalendarMutationController({
 } = {}) {
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
   if (!authenticated && !guestRepository) throw new TypeError('guestRepository is required for Guest Calendar mutations');
-  const normalized = input => ({
-    title: typeof input?.title === 'string' ? input.title.trim() : '',
-    localDate: input?.localDate,
-    time: input?.time || '',
-    allDay: input?.allDay === true,
+  const normalized = input => {
+    const rawAmount = input?.amountMinor;
+    const amountMinor = rawAmount === '' || rawAmount == null ? null : Number(rawAmount);
+    return {
+      title: typeof input?.title === 'string' ? input.title.trim() : '',
+      localDate: typeof input?.localDate === 'string' ? input.localDate.trim() : '',
+      time: typeof input?.time === 'string' ? input.time.trim() : '',
+      allDay: input?.allDay === true,
+      entry: {
+        amount_minor: amountMinor,
+        currency: 'KRW',
+        expense_category: input?.expenseCategory || null,
+        memo: typeof input?.memo === 'string' ? input.memo : '',
+        place: typeof input?.place === 'string' ? input.place : '',
+        merchant: typeof input?.merchant === 'string' ? input.merchant : '',
+      },
+    };
+  };
+  const guestPayload = (value, temporal) => ({
+    title: value.title,
+    local_date: value.localDate || null,
+    local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : null,
+    all_day: temporal.kind === 'DATE_ONLY',
+    entry: value.entry,
   });
   return Object.freeze({
     async create(input) {
       const value = normalized(input);
       const temporal = buildCalendarTemporal({...value, timezone});
-      if (!authenticated) return guestRepository.create({
-        title: value.title, local_date: value.localDate,
-        local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : null, all_day: value.allDay,
-      });
+      if (!authenticated) return guestRepository.create(guestPayload(value, temporal));
       return createLifeActivity(sessionToken, {
         logicalRequestId: requestId('create'), title: value.title, temporal,
-        temporalSemantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN',
+        temporalSemantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', entry: value.entry,
       }, fetchImpl);
     },
     async update(item, input) {
       const value = normalized(input);
       const temporal = buildCalendarTemporal({...value, timezone});
-      if (!authenticated) return guestRepository.update(item.id, {
-        title: value.title, local_date: value.localDate,
-        local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : null, all_day: value.allDay,
-      });
-      return rescheduleLifeActivity(sessionToken, item.activity_id, {
-        logicalRequestId: requestId('reschedule'), expectedRevision: item.occurrence_revision, temporal,
+      if (!authenticated) return guestRepository.update(item.id, guestPayload(value, temporal));
+      return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
+        logicalRequestId: requestId('edit'),
+        expectedActivityRevision: item.activity_revision ?? item.activityRevision,
+        expectedOccurrenceRevision: item.occurrence_revision ?? item.occurrenceRevision,
+        title: value.title,
+        temporal,
+        temporalSemantics: 'USER_PLANNED_TIME',
+        busy: 'UNKNOWN',
+        entry: value.entry,
       }, fetchImpl);
     },
     async remove(item) {
       if (!authenticated) return guestRepository.remove(item.id);
-      return removeLifeActivity(sessionToken, item.activity_id, {
-        logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision,
+      return removeLifeActivity(sessionToken, item.activity_id || item.activityId, {
+        logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision ?? item.activityRevision,
       }, fetchImpl);
     },
   });
@@ -163,6 +190,27 @@ export function createCalendarMutationController({
 
 function withCalendarShape(item) {
   return Object.freeze({...item, all_day: isAllDay(item)});
+}
+
+function withUnscheduledShape(item) {
+  return Object.freeze({
+    activity_id: item.activityId,
+    occurrence_id: item.occurrenceId,
+    title: item.title,
+    activity_revision: item.activityRevision,
+    occurrence_revision: item.occurrenceRevision,
+    temporal: item.temporal,
+    temporal_kind: item.temporal?.kind || 'UNSCHEDULED',
+    temporal_semantics: item.temporalSemantics,
+    busy: item.busy,
+    confirmation_level: item.confirmationLevel,
+    provider_verified: item.providerVerified === true,
+    source_kind: 'USER_INPUT',
+    entry: item.entry || {},
+    local_date: null,
+    local_datetime: null,
+    all_day: false,
+  });
 }
 
 export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false} = {}) {
@@ -195,10 +243,13 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const [response, monthAttention] = await Promise.all([
+  const [response, monthAttention, unscheduled] = await Promise.all([
     getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
     key === 'month'
       ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
+      : Promise.resolve(null),
+    key === 'agenda'
+      ? getLifeUnscheduled(sessionToken, fetchImpl)
       : Promise.resolve(null),
   ]);
   return Object.freeze({
@@ -210,6 +261,7 @@ export async function loadLifeCalendarManagerView(
     kind: 'agenda',
     items: Object.freeze(response.items.map(withCalendarShape)),
     attention: Object.freeze(monthAttention?.items || []),
+    unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
   });
 }
 
@@ -543,7 +595,8 @@ function renderAgenda(state, actions) {
     items = items.filter(item => item.local_date >= range.start && item.local_date <= range.end);
   }
 
-  if (!items.length) {
+  const showUnscheduled = state.agendaScope === 'month' && state.unscheduled.length > 0;
+  if (!items.length && !showUnscheduled) {
     section.appendChild(emptyMessage(
       state.agendaScope === 'today' ? '오늘 등록된 일정이 없어요.'
         : state.agendaScope === 'week' ? '이번 주에 등록된 일정이 없어요.'
@@ -560,6 +613,17 @@ function renderAgenda(state, actions) {
     group.append(heading, eventList(values, {onSelect: actions.onEvent}));
     section.appendChild(group);
   }
+  if (showUnscheduled) {
+    const group = document.createElement('section');
+    group.className = 'calendar-unscheduled-group';
+    const heading = document.createElement('h3');
+    heading.textContent = '날짜 미정';
+    const note = document.createElement('p');
+    note.className = 'calendar-unscheduled-note';
+    note.textContent = '날짜를 정하지 않은 일정입니다. 열어서 날짜를 추가하거나 그대로 둘 수 있어요.';
+    group.append(heading, note, eventList(state.unscheduled, {onSelect: actions.onEvent}));
+    section.appendChild(group);
+  }
   return section;
 }
 
@@ -573,30 +637,78 @@ function renderAttention(state) {
   })));
 }
 
-function calendarEditorDialog({root, item, selectedDate, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
+function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
   const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
-  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : '일정 추가';
+  const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
+  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 추가');
   const form = document.createElement('form'); form.className = 'calendar-editor-form';
-  const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목';
-  const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || '';
-  if (authenticated && item) { titleInput.readOnly = true; titleInput.setAttribute('aria-describedby', 'calendar-editor-title-note'); }
+
+  const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목 *';
+  const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || draft?.title || '';
   titleLabel.appendChild(titleInput);
-  const titleNote = document.createElement('small'); titleNote.id = 'calendar-editor-title-note'; titleNote.textContent = authenticated && item ? '회원 일정의 제목은 유지되고 날짜와 시간을 변경할 수 있어요.' : '';
+  const titleNote = document.createElement('small'); titleNote.id = 'calendar-editor-title-note'; titleNote.textContent = '제목만 있으면 저장할 수 있어요. 나머지는 선택 사항입니다.';
+
   const dateLabel = document.createElement('label'); dateLabel.textContent = '날짜';
-  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.required = true; dateInput.value = item?.local_date || selectedDate; dateLabel.appendChild(dateInput);
+  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.value = item?.local_date || canonicalActivityLocalDate(item) || (draft ? (draft.localDate || '') : (selectedDate || '')); dateLabel.appendChild(dateInput);
+
   const allDayLabel = document.createElement('label'); allDayLabel.className = 'calendar-editor-all-day';
-  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = isAllDay(item || {}); allDayLabel.append(allDayInput, document.createTextNode('종일'));
+  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = item ? isAllDay(item) : !draft?.localTime; allDayLabel.append(allDayInput, document.createTextNode('종일'));
+
   const timeLabel = document.createElement('label'); timeLabel.textContent = '시간';
-  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'time'; timeInput.value = item?.local_datetime?.slice(11, 16) || '09:00'; timeInput.disabled = allDayInput.checked; timeLabel.appendChild(timeInput);
-  allDayInput.addEventListener('change', () => { timeInput.disabled = allDayInput.checked; });
+  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'time'; timeInput.value = item?.local_datetime?.slice(11, 16) || draft?.localTime || '';
+
+  const syncTemporalControls = () => {
+    const hasDate = Boolean(dateInput.value);
+    allDayInput.disabled = !hasDate;
+    timeInput.disabled = !hasDate || allDayInput.checked;
+    if (!hasDate) timeInput.value = '';
+  };
+  dateInput.addEventListener('change', syncTemporalControls);
+  allDayInput.addEventListener('change', syncTemporalControls);
+  syncTemporalControls();
+  timeLabel.appendChild(timeInput);
+
+  const entry = item?.entry && typeof item.entry === 'object'
+    ? item.entry
+    : draft?.entry && typeof draft.entry === 'object'
+      ? {
+          amount_minor: draft.entry.amountMinor,
+          currency: draft.entry.currency,
+          expense_category: draft.entry.expenseCategory,
+          memo: draft.entry.memo,
+          place: draft.entry.place,
+          merchant: draft.entry.merchant,
+        }
+      : {};
+  const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
+  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.placeholder = '0'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
+
+  const categoryLabel = document.createElement('label'); categoryLabel.textContent = '비용 종류';
+  const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';
+  for (const [value, label] of [['', '미분류'], ['FOOD', '음식'], ['TRAVEL', '여행'], ['SHOPPING', '쇼핑'], ['LIVING', '기타 / 생활비']]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; categoryInput.appendChild(option);
+  }
+  categoryInput.value = entry.expense_category === 'UNCLASSIFIED' ? '' : (entry.expense_category || '');
+  categoryLabel.appendChild(categoryInput);
+
+  const memoLabel = document.createElement('label'); memoLabel.className = 'calendar-editor-wide'; memoLabel.textContent = '메모';
+  const memoInput = document.createElement('textarea'); memoInput.className = 'calendar-editor-memo'; memoInput.maxLength = 2000; memoInput.rows = 3; memoInput.value = entry.memo || ''; memoLabel.appendChild(memoInput);
+
+  const placeLabel = document.createElement('label'); placeLabel.className = 'calendar-editor-wide'; placeLabel.textContent = '장소';
+  const placeInput = document.createElement('input'); placeInput.className = 'calendar-editor-place'; placeInput.maxLength = 240; placeInput.value = entry.place || ''; placeLabel.appendChild(placeInput);
+
+  const merchantLabel = document.createElement('label'); merchantLabel.className = 'calendar-editor-wide'; merchantLabel.textContent = '상점 · 예약처';
+  const merchantInput = document.createElement('input'); merchantInput.className = 'calendar-editor-merchant'; merchantInput.maxLength = 240; merchantInput.value = entry.merchant || ''; merchantLabel.appendChild(merchantInput);
+
   const error = document.createElement('p'); error.className = 'calendar-editor-error'; error.setAttribute('role', 'alert');
   const actions = document.createElement('div'); actions.className = 'calendar-editor-actions';
   const cancel = button('취소', 'calendar-editor-cancel');
   const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
   actions.append(cancel, save);
+
   if (item) {
     const remove = button('삭제', 'calendar-editor-delete'); actions.prepend(remove);
     remove.addEventListener('click', () => {
@@ -607,7 +719,7 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
       keep.addEventListener('click', () => confirmation.remove());
       confirm.addEventListener('click', async () => {
         confirm.disabled = true;
-        try { await controller.remove(item); backdrop.remove(); await onSaved(item.local_date); }
+        try { await controller.remove(item); backdrop.remove(); await onSaved(); }
         catch (caught) {
           if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
           else error.textContent = caught instanceof Error ? caught.message : '일정을 삭제하지 못했습니다.';
@@ -617,8 +729,14 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
       confirmation.append(copy, keep, confirm); form.appendChild(confirmation); confirm.focus();
     });
   }
-  form.append(titleLabel, titleNote, dateLabel, allDayLabel, timeLabel, error, actions);
+
+  form.append(
+    titleLabel, titleNote, dateLabel, allDayLabel, timeLabel,
+    amountLabel, categoryLabel, memoLabel, placeLabel, merchantLabel,
+    error, actions,
+  );
   dialog.append(heading, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
+
   const close = () => {
     backdrop.remove();
     onClose();
@@ -634,11 +752,21 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
   });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
-    const value = {title: titleInput.value, localDate: dateInput.value, time: timeInput.value, allDay: allDayInput.checked};
+    const value = {
+      title: titleInput.value,
+      localDate: dateInput.value,
+      time: timeInput.value,
+      allDay: allDayInput.checked,
+      amountMinor: amountInput.value,
+      expenseCategory: categoryInput.value || null,
+      memo: memoInput.value,
+      place: placeInput.value,
+      merchant: merchantInput.value,
+    };
     save.disabled = true;
     try {
       if (item) await controller.update(item, value); else await controller.create(value);
-      backdrop.remove(); await onSaved(value.localDate);
+      backdrop.remove(); await onSaved();
     } catch (caught) {
       if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
       else error.textContent = caught instanceof Error ? caught.message : '일정을 저장하지 못했습니다.';
@@ -657,6 +785,7 @@ export async function mountLifeCalendarManager({
   fetchImpl = globalThis.fetch,
   guestRepository,
   deepOpen,
+  initialDraft = null,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
@@ -671,13 +800,13 @@ export async function mountLifeCalendarManager({
   };
   const todayDate = dateInTimezone(currentNow(), timezone);
   const deepOpenTarget = normalizedDeepOpen(deepOpen);
-  const initialDate = deepOpenTarget?.dateHint || todayDate;
+  const initialDate = deepOpenTarget?.dateHint || initialDraft?.localDate || todayDate;
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
-    year: initialParts.year, month: initialParts.month, items: [], attention: [], loading: false,
+    year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], loading: false,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
   };
 
@@ -786,7 +915,7 @@ export async function mountLifeCalendarManager({
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
     onAdd: date => openEditor(null, date),
-    onEvent: item => openEditor(item, item.local_date || item.due_date),
+    onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
   };
 
   root.addEventListener('keydown', event => {
@@ -826,11 +955,15 @@ export async function mountLifeCalendarManager({
         if (result.kind === 'attention') state.attention = result.items;
         else {
           state.items = result.items;
+          state.unscheduled = result.unscheduled || [];
           if (result.key === 'month') state.attention = result.attention || [];
         }
       } else {
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
-        state.items = repository.list(); state.attention = [];
+        const guestItems = repository.list();
+        state.items = guestItems.filter(item => validCivilDate(item.local_date));
+        state.unscheduled = guestItems.filter(item => !validCivilDate(item.local_date));
+        state.attention = [];
       }
       state.loading = false; render();
     } catch (error) {
@@ -864,7 +997,7 @@ export async function mountLifeCalendarManager({
     });
   };
 
-  openEditor = (item, date) => {
+  openEditor = (item, date, draft = null) => {
     const origin = Object.freeze({
       mode: state.mode,
       selectedDate: state.selectedDate,
@@ -875,7 +1008,7 @@ export async function mountLifeCalendarManager({
       dayCollapsed: state.dayCollapsed,
     });
     return calendarEditorDialog({
-      root, item, selectedDate: date, authenticated, controller: mutationController,
+      root, item, selectedDate: date, initialDraft: draft, authenticated, controller: mutationController,
       onSaved: async () => {
         state.mode = origin.mode;
         state.selectedDate = origin.selectedDate;
@@ -1007,6 +1140,10 @@ export async function mountLifeCalendarManager({
   const openDeepTarget = async () => {
     if (!deepOpenTarget) {
       await refresh();
+      if (initialDraft && typeof initialDraft === 'object') {
+        root.dataset.calendarDraftOpen = 'opened';
+        openEditor(null, initialDraft.localDate || '', initialDraft);
+      }
       return;
     }
     if ((authenticated && deepOpenTarget.scope !== 'AUTH') || (!authenticated && deepOpenTarget.scope !== 'GUEST')) {
@@ -1030,7 +1167,8 @@ export async function mountLifeCalendarManager({
         return;
       }
       latestDate = canonicalActivityLocalDate(canonical);
-      if (!latestDate) {
+      const isUnscheduled = !latestDate && canonical.temporal?.kind === 'UNSCHEDULED';
+      if (!latestDate && !isUnscheduled) {
         showDeepOpenTerminal('일정 날짜를 확인하지 못했습니다.', 'invalid-date');
         return;
       }
@@ -1042,19 +1180,31 @@ export async function mountLifeCalendarManager({
         showDeepOpenTerminal('일정의 발생 항목이 변경되어 기존 링크로 열 수 없습니다.', 'occurrence-changed');
         return;
       }
-      moved = Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
-      const parts = civilDateParts(latestDate);
-      state.mode = 'month';
-      state.selectedDate = latestDate;
-      state.year = parts.year;
-      state.month = parts.month;
-      state.detailOpen = true;
-      state.dayCollapsed = false;
-      await refresh();
-      targetItem = state.items.find(item => (
-        item.activity_id === deepOpenTarget.activityId
-        && (!deepOpenTarget.occurrenceId || item.occurrence_id === deepOpenTarget.occurrenceId)
-      ));
+      moved = !isUnscheduled && Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
+      if (isUnscheduled) {
+        state.mode = 'agenda';
+        state.agendaScope = 'month';
+        state.detailOpen = false;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.unscheduled.find(item => (
+          item.activity_id === deepOpenTarget.activityId
+          && (!deepOpenTarget.occurrenceId || item.occurrence_id === deepOpenTarget.occurrenceId)
+        ));
+      } else {
+        const parts = civilDateParts(latestDate);
+        state.mode = 'month';
+        state.selectedDate = latestDate;
+        state.year = parts.year;
+        state.month = parts.month;
+        state.detailOpen = true;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.items.find(item => (
+          item.activity_id === deepOpenTarget.activityId
+          && (!deepOpenTarget.occurrenceId || item.occurrence_id === deepOpenTarget.occurrenceId)
+        ));
+      }
     } else {
       targetItem = repository.list().find(item => item.id === deepOpenTarget.guestEventId);
       if (!targetItem) {
@@ -1062,16 +1212,26 @@ export async function mountLifeCalendarManager({
         return;
       }
       latestDate = targetItem.local_date;
-      moved = Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
-      const parts = civilDateParts(latestDate);
-      state.mode = 'month';
-      state.selectedDate = latestDate;
-      state.year = parts.year;
-      state.month = parts.month;
-      state.detailOpen = true;
-      state.dayCollapsed = false;
-      await refresh();
-      targetItem = state.items.find(item => item.id === deepOpenTarget.guestEventId);
+      const isUnscheduled = !validCivilDate(latestDate);
+      moved = !isUnscheduled && Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
+      if (isUnscheduled) {
+        state.mode = 'agenda';
+        state.agendaScope = 'month';
+        state.detailOpen = false;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.unscheduled.find(item => item.id === deepOpenTarget.guestEventId);
+      } else {
+        const parts = civilDateParts(latestDate);
+        state.mode = 'month';
+        state.selectedDate = latestDate;
+        state.year = parts.year;
+        state.month = parts.month;
+        state.detailOpen = true;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.items.find(item => item.id === deepOpenTarget.guestEventId);
+      }
     }
 
     if (!targetItem) {

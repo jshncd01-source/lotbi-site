@@ -1,16 +1,16 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260921-identity3';
+import * as siteCore from './site-core.js?v=20260921-smartcaldraftidentity1';
 import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-trueorbitphoto1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-convcal2';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal2';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-convcal2';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-convcal2';
+import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-smartcaldraft1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-smartcaldraft1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
-const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -1042,6 +1042,96 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
 
   const calendarResultKey = result => result?.scope === 'AUTH' ? `AUTH:${result.activityId}` : `GUEST:${result?.guestEventId || ''}`;
+  const normalizeConversationCalendarDraft = value => {
+    if (!value || typeof value !== 'object') return null;
+    try {
+      return normalizeSmartCalendarDraft({
+        contract_id: value.contractId,
+        schema_version: value.schemaVersion,
+        source_kind: value.sourceKind,
+        requires_user_confirmation: value.requiresUserConfirmation,
+        automatic_write: value.automaticWrite,
+        title: value.title,
+        local_date: value.localDate,
+        local_time: value.localTime,
+        entry: value.entry && typeof value.entry === 'object' ? {
+          amount_minor: value.entry.amountMinor,
+          currency: value.entry.currency,
+          expense_category: value.entry.expenseCategory,
+          memo: value.entry.memo,
+          place: value.entry.place,
+          merchant: value.entry.merchant,
+        } : null,
+        source_attachment_ids: value.sourceAttachmentIds,
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const calendarDraftWhen = draft => {
+    if (!draft?.localDate) return '날짜 미정';
+    return draft.localTime ? `${draft.localDate} · ${draft.localTime}` : draft.localDate;
+  };
+
+  const createConversationCalendarDraft = draftValue => {
+    const draft = normalizeConversationCalendarDraft(draftValue);
+    if (!draft) return null;
+    const row = document.createElement('section');
+    row.className = 'conversation-calendar-action conversation-calendar-draft';
+    row.dataset.calendarDraft = 'review-required';
+    row.setAttribute('aria-label', '저장 전 확인이 필요한 캘린더 초안');
+
+    const summary = document.createElement('div');
+    summary.className = 'conversation-calendar-action-summary';
+    const icon = document.createElement('span');
+    icon.className = 'conversation-calendar-action-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '📅';
+    const copy = document.createElement('div');
+    copy.className = 'conversation-calendar-action-copy';
+    const title = document.createElement('strong');
+    title.textContent = draft.title || '제목 확인 필요';
+    const when = document.createElement('span');
+    when.textContent = calendarDraftWhen(draft);
+    const details = [];
+    if (Number.isInteger(draft.entry?.amountMinor)) details.push(new Intl.NumberFormat('ko-KR').format(draft.entry.amountMinor) + '원');
+    if (draft.entry?.place) details.push(draft.entry.place);
+    if (draft.entry?.merchant) details.push(draft.entry.merchant);
+    const note = document.createElement('small');
+    note.textContent = details.length ? details.join(' · ') : '이미지에서 추출한 편집 가능한 초안';
+    copy.append(title, when, note);
+    summary.append(icon, copy);
+
+    const status = document.createElement('div');
+    status.className = 'conversation-calendar-action-status';
+    status.textContent = '저장 전 확인 필요';
+
+    const controls = document.createElement('div');
+    controls.className = 'conversation-calendar-action-controls';
+    const review = document.createElement('button');
+    review.type = 'button';
+    review.className = 'conversation-calendar-action-button';
+    review.textContent = '초안 확인 · 편집';
+    review.addEventListener('click', async () => {
+      if (!sessionToken) {
+        try {
+          await beginSiteHandoff('캘린더 초안 확인');
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : '로그인 연결을 시작하지 못했습니다.');
+        }
+        return;
+      }
+      await openCalendar(draft.localDate ? 'month' : 'agenda', {
+        initialDraft: draft,
+        restoreConversation: true,
+      });
+    });
+    controls.appendChild(review);
+    row.append(summary, status, controls);
+    return row;
+  };
+
 
   const persistConversationCalendarResult = value => {
     const result = normalizeConversationCalendarResult(value);
@@ -1464,6 +1554,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const calendarResult = createConversationCalendarResult(message.meta.calendarResult);
       if (calendarResult) node.appendChild(calendarResult);
     }
+    if (message.role === 'assistant' && message.meta?.calendarDraft) {
+      const calendarDraft = createConversationCalendarDraft(message.meta.calendarDraft);
+      if (calendarDraft) node.appendChild(calendarDraft);
+    }
     return node;
   };
   const appendConversationRecord = (message, options = {}) => {
@@ -1528,6 +1622,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const result = normalizeConversationCalendarResult(meta.calendarResult);
       if (result) meta.calendarResult = result;
       else delete meta.calendarResult;
+    }
+    if ('calendarDraft' in meta) {
+      const draft = normalizeConversationCalendarDraft(meta.calendarDraft);
+      if (draft) meta.calendarDraft = draft;
+      else delete meta.calendarDraft;
     }
     return {...value, meta};
   };
@@ -1825,7 +1924,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
     themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const openCalendar = async (view, {deepOpen, restoreConversation = false} = {}) => {
+  const openCalendar = async (view, {deepOpen, initialDraft = null, restoreConversation = false} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
@@ -1864,6 +1963,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       root: content,
       initialView,
       deepOpen,
+      initialDraft,
     });
     if (!mounted) {
       const message = document.createElement('p');
@@ -2484,6 +2584,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const calendarAction = createAvailableCalendarAction(response.calendarCandidate, {scope: 'AUTH', ownerNamespace: namespace});
         if (calendarAction) meta.calendarAction = calendarAction;
       }
+      if (response.calendarDraft) meta.calendarDraft = response.calendarDraft;
       let richProduct = null;
       const authenticatedPurchase = response.intent?.action === 'PURCHASE' || response.followUp?.action === 'PURCHASE';
       if (authenticatedPurchase && typeof response.intent?.product_query === 'string' && response.intent.product_query.trim()) {

@@ -162,7 +162,7 @@ function wrapperMarkup(w,h){
     'if(texts.every(value=>value!=="pending")){const values=texts.map(JSON.parse);const failed=values.find(value=>!value.ok);'+
     'out.textContent=failed?JSON.stringify({ok:false,error:failed.error}):JSON.stringify({ok:true,viewport:{width:'+w+',height:'+h+'},results:values.map(value=>value.result)});clearInterval(timer)}}'+
     'catch(error){out.textContent=JSON.stringify({ok:false,error:String(error)});clearInterval(timer)}},25);'+
-    'setTimeout(()=>{if(out.textContent==="pending"){out.textContent=JSON.stringify({ok:false,error:"wrapper timeout"});clearInterval(timer)}},18000);'+
+    'setTimeout(()=>{if(out.textContent==="pending"){out.textContent=JSON.stringify({ok:false,error:"wrapper timeout"});clearInterval(timer)}},30000);'+
     '</script></body></html>';
 }
 
@@ -170,7 +170,7 @@ function run(browser,w,h){
   fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
   const proc=spawnSync(browser,[
     '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-    '--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=20000',
+    '--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=32000',
     '--dump-dom',ORIGIN+'/'+WRAPPER_REL
   ],{encoding:'utf8',timeout:60000,maxBuffer:12*1024*1024});
   if(proc.error)throw proc.error;

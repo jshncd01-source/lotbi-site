@@ -286,6 +286,11 @@ for (const token of [
   "등록하려면 시간을 알려주세요.",
   "등록하려면 날짜를 알려주세요.",
   "restoreConversation: true",
+  "calendarDraft",
+  "createConversationCalendarDraft",
+  "초안 확인 · 편집",
+  "저장 전 확인 필요",
+  "initialDraft: draft",
 ]) assert.ok(conversationSource.includes(token), `missing conversation Calendar token: ${token}`);
 for (const token of [
   "getLifeActivity",
@@ -302,6 +307,12 @@ const partialEnd = conversationSource.indexOf('const createConversationCalendarA
 assert.ok(partialStart >= 0 && partialEnd > partialStart, 'partial Calendar candidate renderer missing');
 const partialRenderer = conversationSource.slice(partialStart, partialEnd);
 assert.ok(!partialRenderer.includes('캘린더에 등록'), 'partial candidates must never render a register button');
+const draftStart = conversationSource.indexOf('const createConversationCalendarDraft = draftValue =>');
+const draftEnd = conversationSource.indexOf('const persistConversationCalendarResult', draftStart);
+assert.ok(draftStart >= 0, 'Calendar draft renderer missing');
+const draftRenderer = conversationSource.slice(draftStart, draftEnd > draftStart ? draftEnd : draftStart + 8000);
+assert.ok(!draftRenderer.includes('runCalendarAction('), 'attachment draft must not execute Calendar write directly');
+assert.ok(!draftRenderer.includes('createLifeActivity('), 'attachment draft must not create Calendar activity directly');
 assert.ok(!conversationSource.includes("assistantText.match("), 'assistant free text must not become Calendar authority');
 assert.ok(!conversationSource.includes("beginSiteHandoff(message); } catch (caught) { showError(caught, message, false);"), 'Guest direct Calendar command must not force login handoff');
 
