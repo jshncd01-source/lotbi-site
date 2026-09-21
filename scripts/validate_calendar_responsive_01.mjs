@@ -13,8 +13,8 @@ const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarVersion = '20260921-smartcaldraft1';
 const calendarCssVersion = '20260921-smartcaldraft1';
-const homeEntryVersion = '20260921-smartcaldraft1';
-const callbackEntryVersion = '20260921-smartcaldraft1';
+const homeEntryVersion = '20260921-smartcaltrueorbit1';
+const callbackEntryVersion = '20260921-smartcaltrueorbit1';
 assert.ok(index.includes(`site-calendar.css?v=${calendarCssVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarCssVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${homeEntryVersion}`));
