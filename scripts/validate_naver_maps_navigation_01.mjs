@@ -196,7 +196,7 @@ assert.match(orbitStyle, /--lotbi-place-card-width:\s*clamp\(280px, 44%, 312px\)
 assert.match(orbitStyle, /scroll-snap-type:\s*inline mandatory/u);
 assert.match(orbitStyle, /scrollbar-width:\s*none/u);
 assert.match(orbitStyle, /touch-action:\s*pan-y/u);
-assert.match(conversationStyles, /\.lotbi-place-orbit::\-webkit-scrollbar\s*\{[^}]*display:\s*none/su);
+assert.match(conversationStyles, /\.lotbi-place-orbit::-webkit-scrollbar\s*\{[^}]*display:\s*none/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\s*\{[^}]*scroll-snap-align:\s*center/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\.is-primary\s*\{[^}]*transform:\s*scale\(1\)/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\.is-before\s*\{[^}]*rotateY\(2\.5deg\)[^}]*scale\(\.92\)/su);
