@@ -95,6 +95,9 @@ jobs:
       - name: Validate Sidebar information architecture
         run: node scripts/validate_sidebar_information_architecture_04.mjs
 
+      - name: Validate blank Home refresh persistence
+        run: node scripts/validate_home_refresh_persistence_01.mjs
+
       - name: Validate Sidebar desktop/mobile viewport rendering
         run: node scripts/validate_sidebar_viewports_04.mjs
 
