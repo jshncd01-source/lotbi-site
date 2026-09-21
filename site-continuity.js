@@ -56,16 +56,14 @@ function installDirectLoginHandoff(link) {
       // Only an explicit guest-auth action is allowed to create a claim intent.
       // Automatic Account continuity restoration below must never do this.
       try { await prepareGuestConversationClaimIntent(); } catch {}
-      try {
-        await beginSiteHandoff();
-      } catch {
+      void beginSiteHandoff().catch(() => {
         recordTiming('auth-start-error', {elapsedMs: Math.round(performanceNow())});
         try {
           window.location.assign(LOGIN_URL);
         } catch {
           redirecting = false;
         }
-      }
+      });
     })();
   });
   return link;
