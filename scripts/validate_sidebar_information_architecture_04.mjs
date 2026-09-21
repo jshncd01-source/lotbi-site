@@ -28,11 +28,11 @@ const mobile = extractAside(
 );
 
 for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
-  for (const required of ['+ 새 대화', '캘린더', '오늘', '확인 필요', '연결 서비스', '최근 대화']) {
+  for (const required of ['+ 새 대화', '캘린더', '연결 서비스', '최근 대화']) {
     assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
   }
 
-  for (const removed of ['내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '>설정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
+  for (const removed of ['오늘', '확인 필요', '내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '>설정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
     assert.ok(!block.includes(removed), `${label} sidebar must remove ${removed}`);
   }
 
@@ -51,10 +51,8 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   assert.match(secondary, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must remain available only as a secondary Account Web link`);
   const calendar = block.match(/<div class="sidebar-calendar-nav"[^>]*>[\s\S]*?(?=<section class="nav-section sidebar-history-section")/)?.[0] || '';
   assert.match(calendar, /<button[^>]*data-calendar-view="all"[^>]*>캘린더<\/button>/, `${label} Calendar root action missing`);
-  assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 3, `${label} must expose Calendar root plus two quick views`);
-  for (const calendarLabel of ['오늘', '확인 필요']) {
-    assert.ok(calendar.includes(calendarLabel), `${label} Calendar quick view missing ${calendarLabel}`);
-  }
+  assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 1, `${label} must expose only the Calendar root action`);
+  assert.ok(!calendar.includes('sidebar-calendar-subnav'), `${label} sidebar must not duplicate Calendar quick views`);
   for (const removedCalendarLabel of ['전체 일정', '예정된 일정', '날짜별 보기']) {
     assert.ok(!calendar.includes(`>${removedCalendarLabel}<`), `${label} Calendar navigation must hide ${removedCalendarLabel}`);
   }
@@ -86,11 +84,13 @@ assert.ok(sidebarCss.includes('.sidebar-history-scroll'));
 assert.ok(sidebarCss.includes('overflow-y: auto'));
 assert.ok(sidebarCss.includes('.sidebar-secondary-nav'));
 assert.ok(calendarCss.includes('.sidebar-calendar-nav'));
-assert.ok(calendarCss.includes('.sidebar-calendar-subnav'));
 assert.ok(sidebarCss.includes('.sidebar-account-footer'));
 assert.ok(sidebarCss.includes('margin-top: auto'));
 assert.ok(sidebarCss.includes('.sidebar-account-entry'));
 assert.ok(sidebarCss.includes('text-overflow: ellipsis'));
+assert.ok(sidebarCss.includes('white-space: nowrap'), 'recent conversation titles must stay on one line');
+assert.ok(!sidebarCss.includes('-webkit-line-clamp: 2'), 'recent conversation titles must not use the old two-line clamp');
+assert.ok(!sidebarCss.includes('animation: sidebar-account-pulse'), 'sidebar account placeholder must remain visually stable during auth hydration');
 
 for (const required of [
   'function sidebarAccountSlots()',

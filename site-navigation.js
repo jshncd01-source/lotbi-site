@@ -14,6 +14,18 @@ function finiteCoordinate(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function safeHttpsImageUrl(value) {
+  const candidate = text(value);
+  if (!candidate || candidate.length > 2048) return '';
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== 'https:' || url.username || url.password) return '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
 function normalizeVerifiedPhone(place) {
   if (place?.phone_verified !== true) return Object.freeze({number: '', href: ''});
   const number = text(place?.phone);
@@ -70,6 +82,7 @@ function normalizePlace(place, index) {
     coordinateSystem: text(place.coordinate_system).toUpperCase(),
     coordinateAuthority: text(place.coordinate_authority),
     sourceUrl: sourceUrl.startsWith('https://') ? sourceUrl : '',
+    imageUrl: safeHttpsImageUrl(place.image_url),
     phone: verifiedPhone.number,
     phoneHref: verifiedPhone.href,
     phoneVerified: Boolean(verifiedPhone.href),
