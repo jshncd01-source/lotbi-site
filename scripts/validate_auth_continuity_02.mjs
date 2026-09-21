@@ -201,7 +201,10 @@ assert.ok(!staticAccountActions.includes('>로그인<'), 'initial static header 
 assert.ok(!staticAccountActions.includes('>회원가입<'), 'initial static header must not flash signup');
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
-assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-authux1"'));
+const homeContinuityVersion = index.match(/type="module" src="site-continuity\.js\?v=([^"]+)"/)?.[1] || '';
+const callbackContinuityVersion = callbackHtml.match(/type="module" src="\/site-continuity\.js\?v=([^"]+)"/)?.[1] || '';
+assert.ok(homeContinuityVersion, 'Home continuity runtime must be cache-busted');
+assert.equal(callbackContinuityVersion, homeContinuityVersion, 'callback must load the same current continuity runtime');
 assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260921-convcalentry2"'));
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
