@@ -73,7 +73,7 @@ def main() -> int:
         "approved conversation module": 'src="site-conversation.js?v=20260921-smartcaltrueorbit1"',
         "approved continuity module": 'src="site-continuity.js?v=20260920-authux1"',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260920-attachments1"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260921-sidebarux2"',
         "neutral initial auth state": 'data-auth-state="checking"',
         "neutral auth placeholder": 'account-auth-placeholder',
         "desktop sidebar": "chat-sidebar-desktop",
@@ -84,8 +84,6 @@ def main() -> int:
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "+ 새 대화",
         "calendar menu": "캘린더",
-        "calendar today": "오늘",
-        "calendar attention": "확인 필요",
         "calendar stylesheet": 'href="site-calendar.css?v=20260921-smartcaldraft1"',
         "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
@@ -167,12 +165,12 @@ def main() -> int:
             if forbidden in block:
                 errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
 
-        for required in ("+ 새 대화", "캘린더", "오늘", "확인 필요", "연결 서비스", "최근 대화"):
+        for required in ("+ 새 대화", "캘린더", "연결 서비스", "최근 대화"):
             if required not in block:
                 errors.append(f"index.html: {label} missing approved IA item: {required}")
-        for removed in ("내 작업", "라이브러리"):
+        for removed in ("오늘", "확인 필요", "내 작업", "라이브러리"):
             if removed in block:
-                errors.append(f"index.html: {label} must remove disabled placeholder: {removed}")
+                errors.append(f"index.html: {label} must remove duplicated or disabled navigation item: {removed}")
 
         if CONNECTED_SERVICES_URL not in block:
             errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
@@ -222,7 +220,6 @@ def main() -> int:
         'class="sidebar-nav sidebar-nav-desktop"',
         'class="sidebar-primary-nav"',
         'class="sidebar-calendar-nav"',
-        'class="sidebar-calendar-subnav"',
         'class="nav-section sidebar-history-section"',
         'class="sidebar-history-scroll"',
         'class="sidebar-secondary-nav"',
