@@ -9,6 +9,7 @@ const {
   getLifeAgenda,
   getLifeAttention,
   getLifeToday,
+  getLifeUnscheduled,
   getLifeUpcoming,
   removeLifeActivity,
   rescheduleLifeActivity,
@@ -270,6 +271,33 @@ const mutation = {
   assert.equal(attention.items[0].due_date, '2026-10-05');
 }
 
+
+{
+  let unscheduledUrl = '';
+  const unscheduled = await getLifeUnscheduled(
+    'site-token',
+    async (url, init) => {
+      unscheduledUrl = url;
+      assert.equal(init.method, 'GET');
+      return jsonResponse({
+        view: 'UNSCHEDULED',
+        items: [{
+          ...mutation,
+          title: '보험 서류 확인',
+          temporal: {kind: 'UNSCHEDULED'},
+        }],
+        ai_calls: 0,
+        provider_api_calls: 0,
+      });
+    },
+  );
+  assert.equal(unscheduledUrl, `${CORE_ORIGIN}/v2/life/unscheduled`);
+  assert.equal(unscheduled.items.length, 1);
+  assert.equal(unscheduled.items[0].title, '보험 서류 확인');
+  assert.equal(unscheduled.items[0].temporal.kind, 'UNSCHEDULED');
+  assert.equal(unscheduled.aiCalls, 0);
+  assert.equal(unscheduled.providerApiCalls, 0);
+}
 
 {
   let lookupUrl = '';
