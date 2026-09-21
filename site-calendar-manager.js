@@ -245,19 +245,14 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const weatherRequest = (
-    key === 'month'
-    && weatherLocation
-    && Number.isFinite(Number(weatherLocation.latitude))
-    && Number.isFinite(Number(weatherLocation.longitude))
-  )
+  const weatherRequest = key === 'month'
     ? getCalendarWeather(sessionToken, {
         start: range.start,
         end: range.end,
         timezone,
-        latitude: Number(weatherLocation.latitude),
-        longitude: Number(weatherLocation.longitude),
-        midRegionCode: weatherLocation.midRegionCode || '',
+        latitude: weatherLocation?.latitude,
+        longitude: weatherLocation?.longitude,
+        midRegionCode: weatherLocation?.midRegionCode || '',
       }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
   const [response, monthAttention, unscheduled, weather] = await Promise.all([
