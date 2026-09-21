@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity} from './site-calendar.js?v=20260921-convcal2';
+import {createLifeActivity, editLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260921-convcal2';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal2';
 import {
   addCivilDays,
@@ -59,6 +59,7 @@ function shiftCivilMonth(value, delta) {
 }
 
 function eventTime(item) {
+  if (!validCivilDate(item?.local_date)) return '미정';
   return typeof item?.local_datetime === 'string' ? item.local_datetime.slice(11, 16) : '종일';
 }
 
@@ -180,8 +181,8 @@ export function createCalendarMutationController({
     },
     async remove(item) {
       if (!authenticated) return guestRepository.remove(item.id);
-      return removeLifeActivity(sessionToken, item.activity_id, {
-        logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision,
+      return removeLifeActivity(sessionToken, item.activity_id || item.activityId, {
+        logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision ?? item.activityRevision,
       }, fetchImpl);
     },
   });
@@ -189,6 +190,27 @@ export function createCalendarMutationController({
 
 function withCalendarShape(item) {
   return Object.freeze({...item, all_day: isAllDay(item)});
+}
+
+function withUnscheduledShape(item) {
+  return Object.freeze({
+    activity_id: item.activityId,
+    occurrence_id: item.occurrenceId,
+    title: item.title,
+    activity_revision: item.activityRevision,
+    occurrence_revision: item.occurrenceRevision,
+    temporal: item.temporal,
+    temporal_kind: item.temporal?.kind || 'UNSCHEDULED',
+    temporal_semantics: item.temporalSemantics,
+    busy: item.busy,
+    confirmation_level: item.confirmationLevel,
+    provider_verified: item.providerVerified === true,
+    source_kind: 'USER_INPUT',
+    entry: item.entry || {},
+    local_date: null,
+    local_datetime: null,
+    all_day: false,
+  });
 }
 
 export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false} = {}) {
@@ -221,10 +243,13 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const [response, monthAttention] = await Promise.all([
+  const [response, monthAttention, unscheduled] = await Promise.all([
     getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
     key === 'month'
       ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
+      : Promise.resolve(null),
+    key === 'agenda'
+      ? getLifeUnscheduled(sessionToken, fetchImpl)
       : Promise.resolve(null),
   ]);
   return Object.freeze({
@@ -236,6 +261,7 @@ export async function loadLifeCalendarManagerView(
     kind: 'agenda',
     items: Object.freeze(response.items.map(withCalendarShape)),
     attention: Object.freeze(monthAttention?.items || []),
+    unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
   });
 }
 
@@ -755,7 +781,7 @@ export async function mountLifeCalendarManager({
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
-    year: initialParts.year, month: initialParts.month, items: [], attention: [], loading: false,
+    year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], loading: false,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
   };
 
@@ -904,11 +930,15 @@ export async function mountLifeCalendarManager({
         if (result.kind === 'attention') state.attention = result.items;
         else {
           state.items = result.items;
+          state.unscheduled = result.unscheduled || [];
           if (result.key === 'month') state.attention = result.attention || [];
         }
       } else {
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
-        state.items = repository.list(); state.attention = [];
+        const guestItems = repository.list();
+        state.items = guestItems.filter(item => validCivilDate(item.local_date));
+        state.unscheduled = guestItems.filter(item => !validCivilDate(item.local_date));
+        state.attention = [];
       }
       state.loading = false; render();
     } catch (error) {
