@@ -201,7 +201,7 @@ assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry m
 assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish authenticated and guest entry without gating');
 
 
-assert.ok(index.includes('href="site-calendar.css?v=20260921-calgeom1"'));
+assert.ok(index.includes('href="site-calendar.css?v=20260921-smartcaldraft1"'));
 assert.ok(index.includes('data-life-calendar-panel'));
 assert.ok(index.includes('data-calendar-enabled="true"'));
 assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
