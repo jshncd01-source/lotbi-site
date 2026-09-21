@@ -1,4 +1,5 @@
 import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=20260920-authux1';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -51,14 +52,50 @@ function installDirectLoginHandoff(link) {
       elapsedMs: Math.round(performanceNow()),
       source: 'direct-login',
     });
-    void beginSiteHandoff().catch(() => {
-      recordTiming('auth-start-error', {elapsedMs: Math.round(performanceNow())});
+    void (async () => {
+      // Only an explicit guest-auth action is allowed to create a claim intent.
+      // Automatic Account continuity restoration below must never do this.
+      try { await prepareGuestConversationClaimIntent(); } catch {}
       try {
-        window.location.assign(LOGIN_URL);
+        await beginSiteHandoff();
+      } catch {
+        recordTiming('auth-start-error', {elapsedMs: Math.round(performanceNow())});
+        try {
+          window.location.assign(LOGIN_URL);
+        } catch {
+          redirecting = false;
+        }
+      }
+    })();
+  });
+  return link;
+}
+
+function installDirectSignupClaim(link) {
+  link.addEventListener('click', event => {
+    if (
+      event.defaultPrevented
+      || event.button !== 0
+      || event.metaKey
+      || event.ctrlKey
+      || event.shiftKey
+      || event.altKey
+      || document.body.dataset.siteAuthState === AUTH_STATE_AUTHENTICATED
+    ) return;
+
+    event.preventDefault();
+    if (redirecting) return;
+    redirecting = true;
+    const target = link.href;
+    recordTiming('signup-click', {elapsedMs: Math.round(performanceNow())});
+    void (async () => {
+      try { await prepareGuestConversationClaimIntent(); } catch {}
+      try {
+        window.location.assign(target);
       } catch {
         redirecting = false;
       }
-    });
+    })();
   });
   return link;
 }
@@ -219,6 +256,7 @@ export function markAnonymousAccountUi() {
     signup.className = 'account-action account-signup';
     signup.href = SIGNUP_URL;
     signup.textContent = '회원가입';
+    installDirectSignupClaim(signup);
 
     actions.replaceChildren(login, signup);
     setAuthState(actions, AUTH_STATE_UNAUTHENTICATED, false);
