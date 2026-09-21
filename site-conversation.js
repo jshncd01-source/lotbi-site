@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260921-convcal2';
-import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-placecardorbit1';
+import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-trueorbitphoto1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -44,7 +44,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260921-placecardorbit1';
+  link.href = '/site-conversation.css?v=20260921-trueorbitphoto1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -705,6 +705,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         coordinate_system: place.coordinateSystem,
         coordinate_authority: place.coordinateAuthority,
         source_url: place.sourceUrl,
+        image_url: place.imageUrl,
         phone: place.phone,
         phone_verified: place.phoneVerified,
         navigation_capability: place.navigationCapable,
@@ -729,27 +730,40 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     rail.setAttribute('aria-roledescription', 'carousel');
     rail.tabIndex = 0;
 
+    const setNeutralPlaceholder = media => {
+      media.replaceChildren();
+      media.classList.remove('lotbi-rich-card-media-loading');
+      media.classList.add('lotbi-rich-card-placeholder', 'lotbi-place-photo-placeholder');
+      media.dataset.mediaState = 'placeholder';
+      media.dataset.mediaSource = 'NEUTRAL_PLACE_PLACEHOLDER';
+      const mark = document.createElement('span');
+      mark.className = 'lotbi-place-placeholder-mark';
+      mark.textContent = 'LOTBI';
+      mark.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.className = 'lotbi-place-placeholder-label';
+      label.textContent = '사진 정보 없음';
+      media.append(mark, label);
+    };
+
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
       const item = document.createElement('article');
       item.className = 'lotbi-rich-card lotbi-rich-card-place lotbi-place-orbit-card';
-      item.classList.add(placeIndex === 0 ? 'is-primary' : 'is-after');
       item.dataset.candidateIndex = String(place.candidateIndex);
       item.dataset.orbitIndex = String(placeIndex);
       item.setAttribute('role', 'group');
       item.setAttribute('aria-roledescription', 'slide');
       item.setAttribute('aria-label', `${placeIndex + 1} / ${placeResult.results.length} · ${place.name}`);
-      item.setAttribute('aria-current', placeIndex === 0 ? 'true' : 'false');
       item.tabIndex = placeIndex === 0 ? 0 : -1;
 
       const media = document.createElement('div');
       media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
       media.dataset.mediaState = 'loading';
-      const thumbnailUrl = buildNaverStaticMapThumbnailUrl(place);
-      if (thumbnailUrl) {
+      if (place.imageUrl) {
         const image = document.createElement('img');
-        image.className = 'lotbi-rich-card-image';
-        image.alt = `${place.name} 위치 NAVER 지도`;
+        image.className = 'lotbi-rich-card-image lotbi-place-photo';
+        image.alt = `${place.name} 대표 사진`;
         image.loading = placeIndex === 0 ? 'eager' : 'lazy';
         image.decoding = 'async';
         image.referrerPolicy = 'no-referrer';
@@ -761,22 +775,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           image.classList.add('is-ready');
           media.classList.remove('lotbi-rich-card-media-loading');
           media.dataset.mediaState = 'loaded';
+          media.dataset.mediaSource = 'VERIFIED_PLACE_PHOTO';
         };
         image.addEventListener('load', () => { void revealImage(); }, {once: true});
-        image.addEventListener('error', () => {
-          image.remove();
-          media.classList.remove('lotbi-rich-card-media-loading');
-          media.classList.add('lotbi-rich-card-placeholder');
-          media.dataset.mediaState = 'error';
-          media.textContent = 'NAVER 지도';
-        }, {once: true});
-        image.src = thumbnailUrl;
+        image.addEventListener('error', () => setNeutralPlaceholder(media), {once: true});
+        image.src = place.imageUrl;
         media.appendChild(image);
       } else {
-        media.classList.remove('lotbi-rich-card-media-loading');
-        media.classList.add('lotbi-rich-card-placeholder');
-        media.dataset.mediaState = 'error';
-        media.textContent = 'NAVER 지도';
+        setNeutralPlaceholder(media);
       }
 
       const copy = document.createElement('div');
@@ -791,6 +797,25 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.className = 'lotbi-rich-card-price';
       address.textContent = place.address;
       copy.append(source, title, address);
+
+      const staticMapUrl = buildNaverStaticMapThumbnailUrl(place);
+      if (staticMapUrl) {
+        const locationSupport = document.createElement('div');
+        locationSupport.className = 'lotbi-place-location-support';
+        locationSupport.setAttribute('aria-label', `${place.name} 위치 미리보기`);
+        const locationImage = document.createElement('img');
+        locationImage.className = 'lotbi-place-location-thumbnail';
+        locationImage.src = staticMapUrl;
+        locationImage.alt = '';
+        locationImage.loading = 'lazy';
+        locationImage.decoding = 'async';
+        locationImage.referrerPolicy = 'no-referrer';
+        locationImage.addEventListener('error', () => locationSupport.remove(), {once: true});
+        const locationLabel = document.createElement('span');
+        locationLabel.textContent = '위치';
+        locationSupport.append(locationImage, locationLabel);
+        copy.appendChild(locationSupport);
+      }
 
       const actions = document.createElement('div');
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
@@ -852,126 +877,148 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       rail.appendChild(item);
     }
 
+    const status = document.createElement('span');
+    status.className = 'lotbi-place-orbit-status';
+    status.setAttribute('aria-live', 'polite');
+    status.setAttribute('aria-atomic', 'true');
+
+    const previous = document.createElement('button');
+    previous.type = 'button';
+    previous.className = 'lotbi-place-orbit-control lotbi-place-orbit-control-prev';
+    previous.setAttribute('aria-label', '이전 장소');
+    previous.textContent = '‹';
+
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'lotbi-place-orbit-control lotbi-place-orbit-control-next';
+    next.setAttribute('aria-label', '다음 장소');
+    next.textContent = '›';
+
+    rail.append(previous, next, status);
+
     const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
     let activeIndex = 0;
-    let updateFrame = 0;
+    let suppressClick = false;
+    let dragPointerId = null;
+    let dragStartX = 0;
+    let dragLastX = 0;
+    let dragMoved = false;
+    let wheelLocked = false;
 
-    const targetScrollLeft = index => {
-      const card = cards[index];
-      if (!card) return rail.scrollLeft;
-      return Math.max(0, card.offsetLeft - ((rail.clientWidth - card.offsetWidth) / 2));
+    const wrapIndex = index => {
+      const count = cards.length;
+      return count ? ((index % count) + count) % count : 0;
     };
-    const nearestCardIndex = () => {
-      if (!cards.length) return 0;
-      const center = rail.scrollLeft + (rail.clientWidth / 2);
-      let nearest = 0;
-      let distance = Number.POSITIVE_INFINITY;
-      for (const [index, card] of cards.entries()) {
-        const cardCenter = card.offsetLeft + (card.offsetWidth / 2);
-        const nextDistance = Math.abs(cardCenter - center);
-        if (nextDistance < distance) {
-          nearest = index;
-          distance = nextDistance;
-        }
-      }
-      return nearest;
+
+    const orbitSlotFor = (index, centerIndex) => {
+      const count = cards.length;
+      if (!count || index === centerIndex) return 'CENTER';
+      const forward = (index - centerIndex + count) % count;
+      const backward = (centerIndex - index + count) % count;
+      if (forward < backward) return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
+      if (backward < forward) return backward === 1 ? 'LEFT_FRONT' : 'LEFT_BACK';
+      return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
     };
-    const updateOrbitState = () => {
-      updateFrame = 0;
-      activeIndex = nearestCardIndex();
+
+    const applyOrbitState = ({announce = false} = {}) => {
       cards.forEach((card, index) => {
         const current = index === activeIndex;
+        const slot = orbitSlotFor(index, activeIndex);
+        card.dataset.orbitSlot = slot;
         card.classList.toggle('is-primary', current);
-        card.classList.toggle('is-before', index < activeIndex);
-        card.classList.toggle('is-after', index > activeIndex);
         card.setAttribute('aria-current', current ? 'true' : 'false');
         card.tabIndex = current ? 0 : -1;
         for (const control of card.querySelectorAll('a, button')) {
           control.tabIndex = current ? 0 : -1;
         }
       });
+      previous.disabled = cards.length < 2;
+      next.disabled = cards.length < 2;
+      if (announce && cards[activeIndex]) {
+        status.textContent = `${activeIndex + 1} / ${cards.length} · ${placeResult.results[activeIndex].name}`;
+      }
     };
-    const scheduleOrbitState = () => {
-      if (updateFrame) return;
-      updateFrame = globalThis.requestAnimationFrame?.(updateOrbitState) || 0;
-      if (!updateFrame) updateOrbitState();
+
+    const setActiveIndex = (index, {focus = false, announce = true} = {}) => {
+      activeIndex = wrapIndex(index);
+      rail.style.removeProperty('--lotbi-orbit-drag-x');
+      applyOrbitState({announce});
+      if (focus) cards[activeIndex]?.focus({preventScroll: true});
     };
-    const scrollToCard = (index, behavior = reducedMotion ? 'auto' : 'smooth') => {
-      const bounded = Math.max(0, Math.min(cards.length - 1, index));
-      rail.scrollTo({left: targetScrollLeft(bounded), behavior});
-      activeIndex = bounded;
-      scheduleOrbitState();
-    };
+
+    previous.addEventListener('click', () => setActiveIndex(activeIndex - 1));
+    next.addEventListener('click', () => setActiveIndex(activeIndex + 1));
 
     cards.forEach((card, index) => {
       card.addEventListener('click', event => {
-        if (event.target?.closest?.('a, button')) return;
-        if (index !== activeIndex) scrollToCard(index);
+        if (suppressClick || event.target?.closest?.('a, button')) return;
+        if (index !== activeIndex) setActiveIndex(index);
       });
     });
 
     rail.addEventListener('keydown', event => {
       let nextIndex = null;
-      if (event.key === 'ArrowRight') nextIndex = Math.min(cards.length - 1, activeIndex + 1);
-      else if (event.key === 'ArrowLeft') nextIndex = Math.max(0, activeIndex - 1);
+      if (event.key === 'ArrowRight') nextIndex = activeIndex + 1;
+      else if (event.key === 'ArrowLeft') nextIndex = activeIndex - 1;
       else if (event.key === 'Home') nextIndex = 0;
       else if (event.key === 'End') nextIndex = cards.length - 1;
       if (nextIndex === null) return;
       event.preventDefault();
-      scrollToCard(nextIndex);
-      cards[nextIndex]?.focus({preventScroll: true});
+      setActiveIndex(nextIndex, {focus: true});
     });
-    rail.addEventListener('scroll', scheduleOrbitState, {passive: true});
 
-    let dragPointerId = null;
-    let dragStartX = 0;
-    let dragStartScrollLeft = 0;
-    let dragStartIndex = 0;
-    let dragMoved = false;
-    let suppressClick = false;
+    rail.addEventListener('wheel', event => {
+      if (cards.length < 2 || wheelLocked) return;
+      if (Math.abs(event.deltaX) < 24 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      wheelLocked = true;
+      setActiveIndex(activeIndex + (event.deltaX > 0 ? 1 : -1));
+      globalThis.setTimeout?.(() => { wheelLocked = false; }, reducedMotion ? 0 : 180);
+    }, {passive: false});
+
     rail.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || event.target?.closest?.('a, button')) return;
+      if (cards.length < 2 || event.button !== 0 || event.target?.closest?.('a, button')) return;
       dragPointerId = event.pointerId;
       dragStartX = event.clientX;
-      dragStartScrollLeft = rail.scrollLeft;
-      dragStartIndex = activeIndex;
+      dragLastX = event.clientX;
       dragMoved = false;
       rail.classList.add('is-dragging');
       rail.setPointerCapture?.(event.pointerId);
     });
+
     rail.addEventListener('pointermove', event => {
       if (event.pointerId !== dragPointerId) return;
-      const delta = event.clientX - dragStartX;
+      dragLastX = event.clientX;
+      const delta = dragLastX - dragStartX;
       if (Math.abs(delta) > 4) dragMoved = true;
       if (!dragMoved) return;
       event.preventDefault();
-      rail.scrollLeft = dragStartScrollLeft - delta;
-      scheduleOrbitState();
+      const visualDelta = Math.max(-72, Math.min(72, delta * 0.45));
+      rail.style.setProperty('--lotbi-orbit-drag-x', `${visualDelta}px`);
     });
+
     const finishDrag = event => {
       if (event.pointerId !== dragPointerId) return;
       rail.releasePointerCapture?.(event.pointerId);
       rail.classList.remove('is-dragging');
-      const nearest = nearestCardIndex();
-      const limited = Math.max(dragStartIndex - 2, Math.min(dragStartIndex + 2, nearest));
+      const delta = dragLastX - dragStartX;
+      rail.style.removeProperty('--lotbi-orbit-drag-x');
       if (dragMoved) {
         suppressClick = true;
-        scrollToCard(limited);
         globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
+      }
+      if (Math.abs(delta) >= 44) {
+        setActiveIndex(activeIndex + (delta < 0 ? 1 : -1));
       } else {
-        scheduleOrbitState();
+        applyOrbitState();
       }
       dragPointerId = null;
     };
+
     rail.addEventListener('pointerup', finishDrag);
     rail.addEventListener('pointercancel', finishDrag);
-    rail.addEventListener('click', event => {
-      if (!suppressClick) return;
-      event.preventDefault();
-      event.stopPropagation();
-    }, true);
 
-    scheduleOrbitState();
+    applyOrbitState();
     return rail;
   };
 
