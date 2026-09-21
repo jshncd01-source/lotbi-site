@@ -12,9 +12,10 @@ const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarVersion = '20260921-convcal2';
+const calendarCssVersion = '20260921-calgeom1';
 const entryVersion = '20260921-convcalentry2';
-assert.ok(index.includes(`site-calendar.css?v=${calendarVersion}`));
-assert.ok(callback.includes(`/site-calendar.css?v=${calendarVersion}`));
+assert.ok(index.includes(`site-calendar.css?v=${calendarCssVersion}`));
+assert.ok(callback.includes(`/site-calendar.css?v=${calendarCssVersion}`));
 assert.ok(index.includes(`site-conversation.js?v=${entryVersion}`));
 assert.ok(callback.includes(`/auth-callback.js?v=${entryVersion}`));
 assert.ok(conversation.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
@@ -35,6 +36,9 @@ assert.ok(css.includes('@media (max-width: 520px)'));
 assert.ok(css.includes('.site-modal.site-calendar-modal {'), 'Calendar must outrank the later generic site-modal rule');
 assert.ok(css.includes('width: min(1180px, calc(100vw - 40px))'));
 assert.ok(css.includes('height: calc(100dvh - 40px)'));
+assert.ok(css.includes('.site-modal.site-calendar-modal > .site-modal-content[data-calendar-manager-view="month"] {\n  display: flex;\n  flex-direction: column;'), 'Desktop Month content must pass the modal body height down deterministically');
+assert.ok(css.includes('.site-modal.site-calendar-modal > .site-modal-content[data-calendar-manager-view="month"] > .calendar-product-shell {\n  flex: 1 1 auto;'), 'Desktop Month shell must consume the remaining modal body height');
+assert.ok(css.includes('.site-modal.site-calendar-modal > .site-modal-content[data-calendar-manager-view="month"] .calendar-viewport {\n  height: 100%;'), 'Desktop Month viewport must expose a definite height to the Month grid');
 assert.ok(css.includes('.calendar-month-layout { position: relative; display: block;'), 'desktop Month must own the primary width');
 for (const weeks of [4, 5, 6]) {
   assert.ok(css.includes(`.calendar-month-grid[data-week-count="${weeks}"]`), `missing ${weeks}-week geometry`);
