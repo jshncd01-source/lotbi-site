@@ -430,7 +430,7 @@ export async function previewLifeCalendarCommand({logicalRequestId: requestId, t
 
 export async function getCalendarWeather(
   sessionToken,
-  {start, end, latitude, longitude, midRegionCode = ''},
+  {start, end, timezone = 'Asia/Seoul', latitude, longitude, midRegionCode = ''},
   fetchImpl = globalThis.fetch,
 ) {
   const startDate = isoDate(start, '시작');
@@ -455,6 +455,7 @@ export async function getCalendarWeather(
   const params = new URLSearchParams({
     start: startDate,
     end: endDate,
+    timezone: String(timezone || 'Asia/Seoul'),
     latitude: String(lat),
     longitude: String(lon),
   });
