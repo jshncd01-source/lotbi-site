@@ -39,6 +39,7 @@ const fixture = {
     {
       start: '2026-09-22',
       end: '2026-09-25',
+      timezone: 'Asia/Seoul',
       latitude: 35.8242,
       longitude: 127.148,
       midRegionCode: '11F20000',
@@ -52,6 +53,7 @@ const fixture = {
   assert.equal(parsed.pathname, '/v2/life/weather');
   assert.equal(parsed.searchParams.get('start'), '2026-09-22');
   assert.equal(parsed.searchParams.get('end'), '2026-09-25');
+  assert.equal(parsed.searchParams.get('timezone'), 'Asia/Seoul');
   assert.equal(parsed.searchParams.get('latitude'), '35.8242');
   assert.equal(parsed.searchParams.get('longitude'), '127.148');
   assert.equal(parsed.searchParams.get('mid_region_code'), '11F20000');
