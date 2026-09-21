@@ -803,6 +803,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
         phone.title = '전화 걸기';
         phone.dataset.action = 'phone';
+        phone.tabIndex = placeIndex === 0 ? 0 : -1;
+        phone.addEventListener('click', () => {
+          phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
+          setStatus('전화 앱 연결을 시작합니다.');
+        });
         actions.appendChild(phone);
       }
 
@@ -812,6 +817,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       navigate.setAttribute('aria-label', '네이버지도에서 열기');
       navigate.title = '네이버지도에서 열기';
       navigate.dataset.action = 'naver-map';
+      navigate.tabIndex = placeIndex === 0 ? 0 : -1;
       const naverIcon = document.createElement('img');
       naverIcon.className = 'lotbi-naver-map-icon';
       naverIcon.src = 'https://navercorp.com/img/pc/service-map-app-4.jpg';
@@ -880,6 +886,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         card.classList.toggle('is-after', index > activeIndex);
         card.setAttribute('aria-current', current ? 'true' : 'false');
         card.tabIndex = current ? 0 : -1;
+        for (const control of card.querySelectorAll('a, button')) {
+          control.tabIndex = current ? 0 : -1;
+        }
       });
     };
     const scheduleOrbitState = () => {
