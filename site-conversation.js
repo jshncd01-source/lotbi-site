@@ -44,7 +44,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260921-convcalentry2';
+  link.href = '/site-conversation.css?v=20260921-placecardflash1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -722,30 +722,45 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
     rail.setAttribute('aria-label', '장소 검색 결과');
-    for (const place of placeResult.results) {
+    for (const [placeIndex, place] of placeResult.results.entries()) {
       const item = document.createElement('article');
       item.className = 'lotbi-rich-card lotbi-rich-card-place';
       item.dataset.candidateIndex = String(place.candidateIndex);
       const media = document.createElement('div');
-      media.className = 'lotbi-rich-card-media lotbi-rich-card-placeholder';
-      media.textContent = 'NAVER 지도';
+      media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
+      media.dataset.mediaState = 'loading';
       const thumbnailUrl = buildNaverStaticMapThumbnailUrl(place);
       if (thumbnailUrl) {
         const image = document.createElement('img');
         image.className = 'lotbi-rich-card-image';
-        image.src = thumbnailUrl;
         image.alt = `${place.name} 위치 NAVER 지도`;
-        image.loading = 'lazy';
+        image.loading = placeIndex === 0 ? 'eager' : 'lazy';
         image.decoding = 'async';
         image.referrerPolicy = 'no-referrer';
+        const revealImage = async () => {
+          try {
+            if (typeof image.decode === 'function') await image.decode();
+          } catch {}
+          if (!image.isConnected) return;
+          image.classList.add('is-ready');
+          media.classList.remove('lotbi-rich-card-media-loading');
+          media.dataset.mediaState = 'loaded';
+        };
+        image.addEventListener('load', () => { void revealImage(); }, {once: true});
         image.addEventListener('error', () => {
           image.remove();
+          media.classList.remove('lotbi-rich-card-media-loading');
           media.classList.add('lotbi-rich-card-placeholder');
+          media.dataset.mediaState = 'error';
           media.textContent = 'NAVER 지도';
         }, {once: true});
-        media.classList.remove('lotbi-rich-card-placeholder');
-        media.textContent = '';
+        image.src = thumbnailUrl;
         media.appendChild(image);
+      } else {
+        media.classList.remove('lotbi-rich-card-media-loading');
+        media.classList.add('lotbi-rich-card-placeholder');
+        media.dataset.mediaState = 'error';
+        media.textContent = 'NAVER 지도';
       }
       const copy = document.createElement('div');
       copy.className = 'lotbi-rich-card-copy';
