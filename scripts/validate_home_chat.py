@@ -70,8 +70,8 @@ def main() -> int:
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
-        "approved conversation module": 'src="site-conversation.js?v=20260921-smartcaltrueorbit1"',
-        "approved continuity module": 'src="site-continuity.js?v=20260920-authux1"',
+        "approved conversation module": 'src="site-conversation.js?v=',
+        "approved continuity module": 'src="site-continuity.js?v=',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
         "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260921-sidebarux2"',
         "neutral initial auth state": 'data-auth-state="checking"',
@@ -240,12 +240,25 @@ def main() -> int:
         if 'rows="1"' not in textarea:
             errors.append("index.html: composer must preserve one-row initial contract")
 
+    conversation_script = re.search(
+        r'<script type="module" src="site-conversation\.js\?v=[^"]+"></script>',
+        text,
+    )
+    continuity_script = re.search(
+        r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
+        text,
+    )
+    if not conversation_script:
+        errors.append("index.html: current conversation module must be cache-busted")
+    if not continuity_script:
+        errors.append("index.html: current continuity module must be cache-busted")
+
     approved_scripts = (
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
-        '<script type="module" src="site-conversation.js?v=20260921-smartcaltrueorbit1"></script>',
-        '<script type="module" src="site-continuity.js?v=20260920-authux1"></script>',
+        conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
+        continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
     )
     if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
         errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")

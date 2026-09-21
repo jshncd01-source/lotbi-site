@@ -1,5 +1,5 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260921-smartcaldraft1';
+import * as siteCore from './site-core.js?v=20260921-smartcaldraftidentity1';
 import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-trueorbitphoto1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
@@ -1667,6 +1667,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const canonicalProfileName = () => {
     if (serverIdentity?.name) return serverIdentity.name;
+    if (serverIdentity?.publicHandle) return serverIdentity.publicHandle;
     const emailLocalPart = serverIdentity?.email?.split('@', 1)[0]?.trim();
     return emailLocalPart || 'LOTBI 사용자';
   };
@@ -1684,19 +1685,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     button.setAttribute('aria-label', '프로필 메뉴 열기');
     const copy = document.createElement('span'); copy.className = 'sidebar-profile-copy';
     const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = canonicalProfileName();
-    const handle = document.createElement('span'); handle.className = 'sidebar-account-handle';
-    handle.textContent = serverIdentity?.accountHandle
-      ? `@${serverIdentity.accountHandle}`
-      : (serverIdentity?.email || '프로필 메뉴');
-    copy.append(name, handle); button.append(profileVisual(), copy); return button;
+    copy.appendChild(name);
+    if (serverIdentity?.publicHandle) {
+      const handle = document.createElement('span'); handle.className = 'sidebar-account-handle'; handle.textContent = `@${serverIdentity.publicHandle}`; copy.appendChild(handle);
+    }
+    button.append(profileVisual(), copy); return button;
   };
   const profileSummary = () => {
     const summary = document.createElement('div'); summary.className = 'profile-popover-summary'; summary.setAttribute('role', 'presentation');
     const copy = document.createElement('div'); copy.className = 'profile-popover-summary-copy';
     const name = document.createElement('strong'); name.className = 'profile-popover-summary-name'; name.textContent = canonicalProfileName();
     copy.appendChild(name);
-    if (serverIdentity?.accountHandle) {
-      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.accountHandle}`; copy.appendChild(handle);
+    if (serverIdentity?.publicHandle) {
+      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.publicHandle}`; copy.appendChild(handle);
     }
     if (serverIdentity?.email) {
       const email = document.createElement('span'); email.className = 'profile-popover-summary-email'; email.textContent = serverIdentity.email; copy.appendChild(email);
@@ -1861,7 +1862,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
     const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
     const handleLabel = document.createElement('label'); handleLabel.className = 'site-field'; handleLabel.textContent = '공개 아이디';
-    const handle = document.createElement('input'); handle.type = 'text'; handle.minLength = 8; handle.maxLength = 64; handle.value = serverIdentity?.accountHandle || ''; handle.autocomplete = 'off'; handle.autocapitalize = 'none'; handle.spellcheck = false;
+    const handle = document.createElement('input'); handle.type = 'text'; handle.minLength = 8; handle.maxLength = 64; handle.value = serverIdentity?.publicHandle || ''; handle.autocomplete = 'off'; handle.autocapitalize = 'none'; handle.spellcheck = false;
     handle.addEventListener('input', () => { handle.value = handle.value.replace(/[^A-Za-z0-9]/g, ''); });
     handleLabel.appendChild(handle);
     const handleHelp = document.createElement('p'); handleHelp.className = 'site-field-help'; handleHelp.textContent = '영문·숫자 8~64자이며 각각 최소 1자를 포함해야 합니다. 이미 사용 중이면 다른 아이디를 선택해야 합니다.';
@@ -1885,14 +1886,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
       try {
         const normalizedHandle = handle.value.trim().toLowerCase();
-        const currentHandle = serverIdentity?.accountHandle || '';
+        const currentHandle = serverIdentity?.publicHandle || '';
         const updated = await updateCurrentSiteProfile(sessionToken, {
           displayName: name.value,
           ...(normalizedHandle && normalizedHandle !== currentHandle ? {publicHandle: normalizedHandle} : {}),
         });
         serverIdentity = Object.freeze({...serverIdentity, ...updated});
         name.value = serverIdentity.name || canonicalProfileName();
-        handle.value = serverIdentity.accountHandle || '';
+        handle.value = serverIdentity.publicHandle || '';
         emailValue.textContent = serverIdentity.email || '등록된 이메일 없음';
         preview.textContent = initials(canonicalProfileName());
         refreshAuthenticatedProfileSlots();

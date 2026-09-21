@@ -13,15 +13,16 @@ const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarVersion = '20260921-smartcaldraft1';
 const calendarCssVersion = '20260921-smartcaldraft1';
-const homeEntryVersion = '20260921-smartcaltrueorbit1';
-const callbackEntryVersion = '20260921-smartcaltrueorbit1';
+const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
+const callbackEntryVersion = callback.match(/\/auth-callback\.js\?v=([^"]+)/)?.[1] || '';
+const callbackConversationVersion = callbackJs.match(/\.\/site-conversation\.js\?v=([^']+)/)?.[1] || '';
 assert.ok(index.includes(`site-calendar.css?v=${calendarCssVersion}`));
 assert.ok(callback.includes(`/site-calendar.css?v=${calendarCssVersion}`));
-assert.ok(index.includes(`site-conversation.js?v=${homeEntryVersion}`));
-assert.ok(callback.includes(`/auth-callback.js?v=${callbackEntryVersion}`));
+assert.ok(homeEntryVersion, 'Home conversation entry must be cache-busted');
+assert.ok(callbackEntryVersion, 'auth callback entry must be cache-busted');
 assert.ok(conversation.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
 assert.ok(callbackJs.includes(`./site-calendar-ui.js?v=${calendarVersion}`));
-assert.ok(callbackJs.includes(`./site-conversation.js?v=${callbackEntryVersion}`));
+assert.equal(callbackConversationVersion, homeEntryVersion, 'auth callback must import the current Home conversation runtime');
 assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarVersion}`));
 assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarVersion}`));
 for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js']) {

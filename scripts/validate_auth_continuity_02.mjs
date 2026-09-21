@@ -188,7 +188,10 @@ const continuityCss = read('site-auth-continuity.css');
 const sidebarCss = read('site-sidebar-nav.css');
 const footer = read('footer-business-info.css');
 
-assert.ok(index.includes('type="module" src="site-continuity.js?v=20260920-authux1"'));
+const homeContinuityVersion = index.match(/type="module" src="site-continuity\.js\?v=([^"]+)"/)?.[1] || '';
+const callbackContinuityVersion = callbackHtml.match(/type="module" src="\/site-continuity\.js\?v=([^"]+)"/)?.[1] || '';
+assert.ok(homeContinuityVersion, 'Home continuity runtime must be cache-busted');
+assert.equal(callbackContinuityVersion, homeContinuityVersion, 'callback must load the same current continuity runtime');
 assert.ok(index.includes('href="site-auth-continuity.css"'));
 assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
 assert.equal((index.match(/data-sidebar-account data-auth-state="checking" aria-busy="true"/g) || []).length, 2, 'desktop/mobile Sidebar must reserve neutral checking slots');
@@ -201,8 +204,7 @@ assert.ok(!staticAccountActions.includes('>로그인<'), 'initial static header 
 assert.ok(!staticAccountActions.includes('>회원가입<'), 'initial static header must not flash signup');
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
 
-assert.ok(callbackHtml.includes('type="module" src="/site-continuity.js?v=20260920-authux1"'));
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260921-smartcaltrueorbit1"'));
+assert.match(callbackHtml, /src="\/auth-callback\.js\?v=[^"]+"/, 'callback entry runtime must be cache-busted');
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));

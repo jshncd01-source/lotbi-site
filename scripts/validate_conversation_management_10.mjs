@@ -80,9 +80,12 @@ for (const cssToken of [
 }
 
 assert.ok(index.includes('href="site-sidebar-nav.css?v=20260921-sidebarux2"'), 'Home must cache-bust PHASE 10 Sidebar CSS');
-assert.ok(index.includes('src="site-conversation.js?v=20260921-smartcaltrueorbit1"'), 'Home must cache-bust the combined conversation runtime');
+const homeConversationVersion = index.match(/src="site-conversation\.js\?v=([^"]+)"/)?.[1] || '';
+const callbackEntryVersion = callbackHtml.match(/src="\/auth-callback\.js\?v=([^"]+)"/)?.[1] || '';
+const callbackConversationVersion = callbackJs.match(/from '\.\/site-conversation\.js\?v=([^']+)'/)?.[1] || '';
+assert.ok(homeConversationVersion, 'Home must cache-bust the combined conversation runtime');
 assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260921-sidebarux2"'), 'auth callback must share PHASE 10 Sidebar CSS');
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260921-smartcaltrueorbit1"'), 'auth callback entry must use the combined conversation cache key');
-assert.ok(callbackJs.includes("from './site-conversation.js?v=20260921-smartcaltrueorbit1'"), 'auth callback must import the combined conversation runtime');
+assert.ok(callbackEntryVersion, 'auth callback entry must be cache-busted');
+assert.equal(callbackConversationVersion, homeConversationVersion, 'auth callback must import the current Home conversation runtime');
 
 console.log('SITE-PUBLIC-UX-CONVERSATION-MANAGEMENT-10 CONTRACT PASS');

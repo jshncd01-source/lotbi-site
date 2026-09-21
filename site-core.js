@@ -988,6 +988,22 @@ function optionalIdentityText(value, field) {
   return value.trim();
 }
 
+function userFacingIdentity(user) {
+  const name = optionalIdentityText(user?.name, 'user.name');
+  const email = optionalIdentityText(user?.email, 'user.email');
+  const rawAccountHandle = optionalIdentityText(user?.account_handle, 'user.account_handle');
+  const canonicalPublicHandle = optionalIdentityText(user?.public_handle, 'user.public_handle');
+  const synthetic = user?.account_handle_is_synthetic === true
+    || Boolean(rawAccountHandle && email && SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle));
+  const publicHandle = canonicalPublicHandle || (!synthetic ? rawAccountHandle : '');
+  return Object.freeze({
+    name,
+    email,
+    publicHandle,
+    accountHandle: publicHandle,
+  });
+}
+
 export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fetch) {
   const payload = await siteSessionRequest(CURRENT_USER_PATH, sessionToken, {}, fetchImpl);
   const user = payload && typeof payload.user === 'object' ? payload.user : {};
@@ -999,23 +1015,9 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
   if (!userId || !sessionId || !installationId || session.assurance_level !== 'FULL') {
     throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
   }
-  const name = optionalIdentityText(user.name, 'user.name');
-  const canonicalPublicHandle = optionalIdentityText(user.public_handle, 'user.public_handle');
-  const rawAccountHandle = optionalIdentityText(user.account_handle, 'user.account_handle');
-  const email = optionalIdentityText(user.email, 'user.email');
-  if (canonicalPublicHandle && rawAccountHandle && canonicalPublicHandle !== rawAccountHandle) {
-    throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
-  }
-  const accountHandle = canonicalPublicHandle || (
-    rawAccountHandle && email && SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle)
-      ? ''
-      : rawAccountHandle
-  );
   return Object.freeze({
     userId,
-    name,
-    accountHandle,
-    email,
+    ...userFacingIdentity(user),
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
@@ -1043,18 +1045,9 @@ export async function updateCurrentSiteProfile(sessionToken, {
   if (!userId) {
     throw new SiteCoreError('LOTBI 프로필 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
   }
-  const name = optionalIdentityText(user.name, 'user.name');
-  const canonicalPublicHandle = optionalIdentityText(user.public_handle, 'user.public_handle');
-  const compatibilityHandle = optionalIdentityText(user.account_handle, 'user.account_handle');
-  const email = optionalIdentityText(user.email, 'user.email');
-  if (canonicalPublicHandle && compatibilityHandle && canonicalPublicHandle !== compatibilityHandle) {
-    throw new SiteCoreError('LOTBI 프로필 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
-  }
   return Object.freeze({
     userId,
-    name,
-    accountHandle: canonicalPublicHandle || compatibilityHandle,
-    email,
+    ...userFacingIdentity(user),
   });
 }
 

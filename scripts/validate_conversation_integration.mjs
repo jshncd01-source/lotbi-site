@@ -52,7 +52,7 @@ class MemoryStorage {
   };
   const identity = await getCurrentSiteUser('site-memory-token', fetchMock);
   assert.deepEqual(identity, {
-    userId: 'user-1', name: '전선혜', accountHandle: 'lotbi_user.01', email: 'user@example.com',
+    userId: 'user-1', name: '전선혜', publicHandle: 'lotbi_user.01', accountHandle: 'lotbi_user.01', email: 'user@example.com',
     sessionId: 'site-session-1', installationId: 'installation-1', expiresAt: '2030-01-01T00:00:00Z',
   });
   const logout = await logoutSiteSession('site-memory-token', fetchMock);
@@ -339,7 +339,6 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260921-smartcaltrueorbit1"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',
@@ -348,6 +347,11 @@ for (const token of [
   '통신판매업신고번호: 2026-전주덕진-0798',
   '사업자정보확인',
 ]) assert.ok(index.includes(token), `missing index contract: ${token}`);
+assert.match(
+  index,
+  /type="module" src="site-conversation\.js\?v=[^"]+"/,
+  'Home conversation runtime must be cache-busted',
+);
 
 assert.ok(auth.includes('sessionStorage'));
 assert.ok(auth.includes('code_challenge'));
