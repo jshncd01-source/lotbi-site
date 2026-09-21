@@ -1797,6 +1797,7 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   margin: 0;
   opacity: .46;
   z-index: 1;
+  pointer-events: auto;
   transform-origin: center center;
   transition:
     transform 220ms cubic-bezier(.2, .78, .2, 1),
@@ -1850,10 +1851,6 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 
 .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
   cursor: pointer;
-}
-
-.lotbi-place-orbit-card {
-  pointer-events: auto;
 }
 
 .lotbi-place-orbit.is-dragging .lotbi-place-orbit-card {
