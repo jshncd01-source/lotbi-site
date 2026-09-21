@@ -9,6 +9,7 @@ import {
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260921-smartcaldraftidentity1';
 import {mountConversation} from './site-conversation.js?v=20260921-smartcaltrueorbitidentity1';
 import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260921-smartcaldraft1';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -134,6 +135,18 @@ async function completeSiteHandoff() {
     durationMs: Math.round(Math.max(0, performanceNow() - redeemStartedAt)),
   });
 
+  // Authentication is authoritative first. Conversation continuity is a
+  // best-effort local history claim and must never turn a successful login
+  // into an auth failure.
+  let guestClaimResult = Object.freeze({status: 'NO_INTENT'});
+  try {
+    guestClaimResult = await claimGuestConversationToAccount({
+      accountNamespace: session.installationId,
+    });
+  } catch {
+    guestClaimResult = Object.freeze({status: 'CLAIM_ERROR'});
+  }
+
   const hydrateStartedAt = performanceNow();
   await hydrateHomeShell();
   recordTiming('callback-hydrate', {
@@ -148,6 +161,11 @@ async function completeSiteHandoff() {
     autoSend: Boolean(context.pendingText),
   });
   if (!mounted) throw new Error('LOTBI 대화 화면을 시작하지 못했습니다.');
+  document.body.dataset.guestConversationClaimStatus = guestClaimResult.status;
+  if (!['NO_INTENT', 'APPLIED', 'ALREADY_APPLIED', 'RECEIPT_PENDING'].includes(guestClaimResult.status)) {
+    const chatStatus = document.getElementById('chat-status');
+    if (chatStatus) chatStatus.textContent = '로그인은 완료됐지만 이전 대화를 가져오지 못했습니다.';
+  }
   await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});
   clearSiteHandoffRecovery();
 
