@@ -357,8 +357,8 @@ assert.match(placeRendererSource, /placeConstraintLabel\(evidence\)/u);
 assert.match(placeRendererSource, /placeConstraintStatusText\(evidence\.status\)/u);
 assert.match(placeRendererSource, /publicConstraintSource\(evidence\.sourceName\)/u);
 assert.match(placeRendererSource, /lotbi-place-condition-evidence/u);
-assert.match(placeRendererSource, /현재 확인되지 않음/u);
-assert.match(placeRendererSource, /정보가 서로 다름/u);
+assert.match(conversationSource, /UNCONFIRMED: '현재 확인되지 않음'/u);
+assert.match(conversationSource, /CONFLICTING: '정보가 서로 다름'/u);
 assert.match(placeRendererSource, /sourceLink\.rel = 'noopener noreferrer'/u);
 
 assert.match(conversationSource, /lotbi-place-orbit/u);
