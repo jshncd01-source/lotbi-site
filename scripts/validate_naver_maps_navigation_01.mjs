@@ -200,7 +200,7 @@ assert.match(conversationStyles, /\.lotbi-place-orbit::-webkit-scrollbar\s*\{[^}
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\s*\{[^}]*scroll-snap-align:\s*center/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\.is-primary\s*\{[^}]*transform:\s*scale\(1\)/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\.is-before\s*\{[^}]*rotateY\(2\.5deg\)[^}]*scale\(\.92\)/su);
-assert.match(conversationStyles, /\.lotbi-place-orbit-card\.is-after\s*\{[^}]*rotateY\(\-2\.5deg\)[^}]*scale\(\.92\)/su);
+assert.match(conversationStyles, /\.lotbi-place-orbit-card\.is-after\s*\{[^}]*rotateY\(-2\.5deg\)[^}]*scale\(\.92\)/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card:not\(\.is-primary\) \.lotbi-place-card-actions\s*\{[^}]*pointer-events:\s*none/su);
 assert.match(conversationStyles, /\.lotbi-rich-card-icon-action\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/su);
 assert.match(conversationStyles, /--lotbi-place-card-width:\s*min\(82vw, 320px\)/u);
