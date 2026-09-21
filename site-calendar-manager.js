@@ -254,6 +254,7 @@ export async function loadLifeCalendarManagerView(
     ? getCalendarWeather(sessionToken, {
         start: range.start,
         end: range.end,
+        timezone,
         latitude: Number(weatherLocation.latitude),
         longitude: Number(weatherLocation.longitude),
         midRegionCode: weatherLocation.midRegionCode || '',
