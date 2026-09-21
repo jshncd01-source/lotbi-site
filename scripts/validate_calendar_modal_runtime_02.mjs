@@ -91,6 +91,12 @@ try{
       });
     }
   });
+  guestRepo.create({
+    title:'날짜 미정 할 일',
+    local_date:null,
+    local_datetime:null,
+    all_day:false,
+  });
   const conversation=await import('/site-conversation.js?v=20260921-convcalentry2');
   if(!conversation.mountConversation())throw new Error('conversation mount');
   const entry=document.querySelector('.chat-sidebar-desktop [data-calendar-view="all"]');
@@ -226,6 +232,17 @@ try{
   const mode=async name=>{const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);click(button);await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name)};
   await mode('연도');
   await mode('일정');
+  await wait(()=>modal.querySelector('.calendar-unscheduled-group'),'Agenda unscheduled group');
+  const unscheduledGroup=modal.querySelector('.calendar-unscheduled-group');
+  if(unscheduledGroup?.querySelector('h3')?.textContent!=='날짜 미정')throw new Error('unscheduled heading missing');
+  const unscheduledEvent=[...unscheduledGroup.querySelectorAll('.calendar-day-event')].find(node=>node.textContent.includes('날짜 미정 할 일'));
+  if(!(unscheduledEvent instanceof HTMLElement))throw new Error('unscheduled event missing');
+  click(unscheduledEvent);
+  await wait(()=>modal.querySelector('.calendar-editor-dialog'),'unscheduled editor');
+  if(modal.querySelector('.calendar-editor-date')?.value!=='')throw new Error('unscheduled editor invented a date');
+  modal.querySelector('.calendar-editor-title')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'unscheduled editor Escape close');
+  result.unscheduledReachable=true;
   const weekRange=modal.querySelector('[data-agenda-scope="week"]');
   if(!(weekRange instanceof HTMLButtonElement))throw new Error('Agenda this-week control missing');
   click(weekRange);
@@ -263,6 +280,42 @@ try{
   window.dispatchEvent(new CustomEvent('lotbi:site-session-state',{detail:{authenticated:true,identityKey:'auth-A'}}));
   await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'identity change closes Calendar');
   result.identitySurfaceClose=true;
+
+  const draftRoot=document.createElement('div');
+  draftRoot.id='calendar-draft-root';
+  document.body.appendChild(draftRoot);
+  const draftManagerModule=await import('/site-calendar-manager.js?v=20260921-convcal2');
+  const draftMount=await draftManagerModule.mountLifeCalendarManager({
+    sessionToken:'',
+    root:draftRoot,
+    initialView:'agenda',
+    timezone:'Asia/Seoul',
+    guestRepository:createGuestCalendarRepository(localStorage),
+    initialDraft:{
+      title:'보험 서류 확인',
+      localDate:null,
+      localTime:null,
+      entry:{
+        amountMinor:12000,
+        currency:'KRW',
+        expenseCategory:'LIVING',
+        memo:'사진에서 확인한 메모',
+        place:'전주',
+        merchant:'예약처'
+      }
+    }
+  });
+  if(!draftMount)throw new Error('draft manager mount failed');
+  await wait(()=>draftRoot.querySelector('.calendar-editor-dialog'),'draft editor');
+  if(draftRoot.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 초안 확인')throw new Error('draft editor heading');
+  if(draftRoot.querySelector('.calendar-editor-title')?.value!=='보험 서류 확인')throw new Error('draft title not prefilled');
+  if(draftRoot.querySelector('.calendar-editor-date')?.value!=='')throw new Error('draft editor invented a date');
+  if(draftRoot.querySelector('.calendar-editor-amount')?.value!=='12000')throw new Error('draft amount not prefilled');
+  if(draftRoot.querySelector('.calendar-editor-memo')?.value!=='사진에서 확인한 메모')throw new Error('draft memo not prefilled');
+  draftRoot.querySelector('.calendar-editor-title')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!draftRoot.querySelector('.calendar-editor-dialog'),'draft editor Escape close');
+  result.calendarDraftEditable=true;
+  draftRoot.remove();
 
   const raceRoot=document.createElement('div');
   raceRoot.id='calendar-race-root';
@@ -356,8 +409,8 @@ try{
   const cases=[[1280,900],[1440,900],[1440,1200],[768,900],[340,800],[390,844],[412,915],[320,800]];
   const results=cases.map(([w,h])=>run(browser,w,h));
   const desktops=results.filter(value=>value.desktop);
-  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.editorEscapeContained&&value.agendaRanges))throw new Error('desktop controls/date/event/Escape/Agenda selection');
-  if(!results.every(value=>value.escapeContained))throw new Error('Calendar detail Escape containment');
+  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.editorEscapeContained&&value.agendaRanges&&value.unscheduledReachable))throw new Error('desktop controls/date/event/Escape/Agenda/unscheduled selection');
+  if(!results.every(value=>value.escapeContained&&value.calendarDraftEditable))throw new Error('Calendar detail Escape/draft editor containment');
   for(const value of results){
     if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
     if(value.density.map(entry=>entry.expected).join(',')!=='0,1,2,3,5,8')throw new Error('fixture matrix incomplete');

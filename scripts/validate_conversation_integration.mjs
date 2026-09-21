@@ -339,7 +339,7 @@ const footerCss = read('footer-business-info.css');
 
 for (const token of [
   'id="conversation-thread"',
-  'type="module" src="site-conversation.js?v=20260921-trueorbitphoto1"',
+  'type="module" src="site-conversation.js?v=20260921-smartcaltrueorbit1"',
   'maxlength="1000"',
   'aria-label="전송"',
   '유한회사 알에이디홀딩스',

@@ -9,11 +9,12 @@ const {
   getLifeAgenda,
   getLifeAttention,
   getLifeToday,
+  getLifeUnscheduled,
   getLifeUpcoming,
   removeLifeActivity,
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
-const {CORE_ORIGIN, SiteCoreError} = await import('../site-core.js?v=20260921-convcal2');
+const {CORE_ORIGIN, SiteCoreError, normalizeSmartCalendarDraft, sendConversationMessage} = await import('../site-core.js?v=20260921-smartcaldraft1');
 
 assert.equal(isExplicitLifeCalendarCommand('9월 30일 오후 3시에 병원 가'), true);
 for (const value of [
@@ -272,6 +273,33 @@ const mutation = {
 
 
 {
+  let unscheduledUrl = '';
+  const unscheduled = await getLifeUnscheduled(
+    'site-token',
+    async (url, init) => {
+      unscheduledUrl = url;
+      assert.equal(init.method, 'GET');
+      return jsonResponse({
+        view: 'UNSCHEDULED',
+        items: [{
+          ...mutation,
+          title: '보험 서류 확인',
+          temporal: {kind: 'UNSCHEDULED'},
+        }],
+        ai_calls: 0,
+        provider_api_calls: 0,
+      });
+    },
+  );
+  assert.equal(unscheduledUrl, `${CORE_ORIGIN}/v2/life/unscheduled`);
+  assert.equal(unscheduled.items.length, 1);
+  assert.equal(unscheduled.items[0].title, '보험 서류 확인');
+  assert.equal(unscheduled.items[0].temporal.kind, 'UNSCHEDULED');
+  assert.equal(unscheduled.aiCalls, 0);
+  assert.equal(unscheduled.providerApiCalls, 0);
+}
+
+{
   let lookupUrl = '';
   const found = await getLifeActivity(
     'site-token',
@@ -453,6 +481,111 @@ await assert.rejects(
     },
   ),
   error => error instanceof SiteCoreError && error.code === 'LIFE_TIMEZONE_INVALID',
+);
+
+
+{
+  const normalized = normalizeSmartCalendarDraft({
+    contract_id: 'CORE-SMART-CALENDAR-DRAFT-01',
+    schema_version: 1,
+    source_kind: 'ATTACHMENT_AI_DRAFT',
+    requires_user_confirmation: true,
+    automatic_write: false,
+    title: '치과 예약',
+    local_date: null,
+    local_time: null,
+    entry: {
+      amount_minor: 12000,
+      currency: 'KRW',
+      expense_category: 'LIVING',
+      memo: '정기 검진',
+      place: '전주 치과',
+      merchant: '예약처',
+    },
+    source_attachment_ids: ['att_0123456789abcdef0123'],
+  });
+  assert.equal(normalized.title, '치과 예약');
+  assert.equal(normalized.localDate, null);
+  assert.equal(normalized.localTime, null);
+  assert.equal(normalized.automaticWrite, false);
+  assert.equal(normalized.requiresUserConfirmation, true);
+  assert.equal(normalized.entry.amountMinor, 12000);
+  assert.equal(normalized.entry.currency, 'KRW');
+}
+
+{
+  let request;
+  const response = await sendConversationMessage(
+    'site-token',
+    '이 스크린샷 일정을 캘린더에 추가해줘',
+    async (url, init) => {
+      request = {url, init};
+      return jsonResponse({
+        contract_id: 'CORE-WEB-CHAT-01',
+        schema_version: 1,
+        status: 'ANSWERED',
+        assistant_text: '이미지에서 편집 가능한 일정 초안을 만들었어요. 저장 전에 확인해 주세요.',
+        response_mode: 'AI_CALENDAR_DRAFT_NON_AUTHORITATIVE',
+        correlation_id: 'corr_calendar_draft_1',
+        retry_safe: true,
+        follow_up: {required: false},
+        intent: {action: 'UNKNOWN'},
+        calendar_draft: {
+          contract_id: 'CORE-SMART-CALENDAR-DRAFT-01',
+          schema_version: 1,
+          source_kind: 'ATTACHMENT_AI_DRAFT',
+          requires_user_confirmation: true,
+          automatic_write: false,
+          title: '보험 서류 확인',
+          local_date: null,
+          local_time: null,
+          entry: {
+            amount_minor: null,
+            currency: null,
+            expense_category: null,
+            memo: '사진에서 확인한 메모',
+            place: null,
+            merchant: null,
+          },
+          source_attachment_ids: ['att_0123456789abcdef0123'],
+        },
+      });
+    },
+    ['att_0123456789abcdef0123'],
+    'calendar-draft-site-0001',
+    'Asia/Seoul',
+    '2026-09-21T08:00:00+09:00',
+  );
+  assert.equal(request.url, `${CORE_ORIGIN}/v2/conversation/messages`);
+  assert.equal(request.init.headers['Idempotency-Key'], 'calendar-draft-site-0001');
+  assert.deepEqual(JSON.parse(request.init.body).attachment_ids, ['att_0123456789abcdef0123']);
+  assert.equal(response.responseMode, 'AI_CALENDAR_DRAFT_NON_AUTHORITATIVE');
+  assert.equal(response.calendarDraft.title, '보험 서류 확인');
+  assert.equal(response.calendarDraft.localDate, null);
+  assert.equal(response.calendarDraft.entry.memo, '사진에서 확인한 메모');
+}
+
+await assert.rejects(
+  () => Promise.resolve().then(() => normalizeSmartCalendarDraft({
+    contract_id: 'CORE-SMART-CALENDAR-DRAFT-01',
+    schema_version: 1,
+    source_kind: 'ATTACHMENT_AI_DRAFT',
+    requires_user_confirmation: true,
+    automatic_write: false,
+    title: '잘못된 날짜',
+    local_date: '2026-02-30',
+    local_time: null,
+    entry: {
+      amount_minor: null,
+      currency: null,
+      expense_category: null,
+      memo: null,
+      place: null,
+      merchant: null,
+    },
+    source_attachment_ids: ['att_0123456789abcdef0123'],
+  })),
+  error => error instanceof SiteCoreError && error.code === 'WEB_CONVERSATION_CONTRACT_INVALID',
 );
 
 console.log('LOTBI Site Life Calendar client contract: PASS');
