@@ -1,4 +1,4 @@
-import {createLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260921-convcal2';
+import {createLifeActivity, editLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, removeLifeActivity} from './site-calendar.js?v=20260921-convcal2';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-convcal2';
 import {
   addCivilDays,
@@ -107,10 +107,16 @@ function weekBounds(value) {
 }
 
 export function buildCalendarTemporal({localDate, time = '', allDay = false, timezone = DEFAULT_TIMEZONE}) {
-  if (!validCivilDate(localDate)) throw new SiteCoreError('날짜가 올바르지 않습니다.', {code: 'LIFE_DATE_INVALID', status: 422});
-  if (allDay) return Object.freeze({kind: 'DATE_ONLY', local_date: localDate});
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new SiteCoreError('시간이 올바르지 않습니다.', {code: 'LIFE_TIME_INVALID', status: 422});
-  return Object.freeze({kind: 'LOCAL_DATE_TIME', local_datetime: `${localDate}T${time}:00`, timezone_name: timezone});
+  const date = typeof localDate === 'string' ? localDate.trim() : '';
+  const clock = typeof time === 'string' ? time.trim() : '';
+  if (!date) {
+    if (clock) throw new SiteCoreError('날짜 없이 시간만 저장할 수 없습니다.', {code: 'LIFE_DATE_REQUIRED_FOR_TIME', status: 422});
+    return Object.freeze({kind: 'UNSCHEDULED'});
+  }
+  if (!validCivilDate(date)) throw new SiteCoreError('날짜가 올바르지 않습니다.', {code: 'LIFE_DATE_INVALID', status: 422});
+  if (allDay || !clock) return Object.freeze({kind: 'DATE_ONLY', local_date: date});
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(clock)) throw new SiteCoreError('시간이 올바르지 않습니다.', {code: 'LIFE_TIME_INVALID', status: 422});
+  return Object.freeze({kind: 'LOCAL_DATE_TIME', local_datetime: `${date}T${clock}:00`, timezone_name: timezone});
 }
 
 function defaultRequestId(kind) {
@@ -122,34 +128,54 @@ export function createCalendarMutationController({
 } = {}) {
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
   if (!authenticated && !guestRepository) throw new TypeError('guestRepository is required for Guest Calendar mutations');
-  const normalized = input => ({
-    title: typeof input?.title === 'string' ? input.title.trim() : '',
-    localDate: input?.localDate,
-    time: input?.time || '',
-    allDay: input?.allDay === true,
+  const normalized = input => {
+    const rawAmount = input?.amountMinor;
+    const amountMinor = rawAmount === '' || rawAmount == null ? null : Number(rawAmount);
+    return {
+      title: typeof input?.title === 'string' ? input.title.trim() : '',
+      localDate: typeof input?.localDate === 'string' ? input.localDate.trim() : '',
+      time: typeof input?.time === 'string' ? input.time.trim() : '',
+      allDay: input?.allDay === true,
+      entry: {
+        amount_minor: amountMinor,
+        currency: 'KRW',
+        expense_category: input?.expenseCategory || null,
+        memo: typeof input?.memo === 'string' ? input.memo : '',
+        place: typeof input?.place === 'string' ? input.place : '',
+        merchant: typeof input?.merchant === 'string' ? input.merchant : '',
+      },
+    };
+  };
+  const guestPayload = (value, temporal) => ({
+    title: value.title,
+    local_date: value.localDate || null,
+    local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : null,
+    all_day: temporal.kind === 'DATE_ONLY',
+    entry: value.entry,
   });
   return Object.freeze({
     async create(input) {
       const value = normalized(input);
       const temporal = buildCalendarTemporal({...value, timezone});
-      if (!authenticated) return guestRepository.create({
-        title: value.title, local_date: value.localDate,
-        local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : null, all_day: value.allDay,
-      });
+      if (!authenticated) return guestRepository.create(guestPayload(value, temporal));
       return createLifeActivity(sessionToken, {
         logicalRequestId: requestId('create'), title: value.title, temporal,
-        temporalSemantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN',
+        temporalSemantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', entry: value.entry,
       }, fetchImpl);
     },
     async update(item, input) {
       const value = normalized(input);
       const temporal = buildCalendarTemporal({...value, timezone});
-      if (!authenticated) return guestRepository.update(item.id, {
-        title: value.title, local_date: value.localDate,
-        local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : null, all_day: value.allDay,
-      });
-      return rescheduleLifeActivity(sessionToken, item.activity_id, {
-        logicalRequestId: requestId('reschedule'), expectedRevision: item.occurrence_revision, temporal,
+      if (!authenticated) return guestRepository.update(item.id, guestPayload(value, temporal));
+      return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
+        logicalRequestId: requestId('edit'),
+        expectedActivityRevision: item.activity_revision ?? item.activityRevision,
+        expectedOccurrenceRevision: item.occurrence_revision ?? item.occurrenceRevision,
+        title: value.title,
+        temporal,
+        temporalSemantics: 'USER_PLANNED_TIME',
+        busy: 'UNKNOWN',
+        entry: value.entry,
       }, fetchImpl);
     },
     async remove(item) {
