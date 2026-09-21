@@ -12,6 +12,7 @@ on:
       - 'site-calendar-model.js'
       - 'site-calendar-guest.js'
       - 'site-calendar.css'
+      - 'site-calendar-weather.js'
       - 'site-core.js'
       - 'site-auth.js'
       - 'site-continuity.js'
@@ -25,6 +26,7 @@ on:
       - 'scripts/validate_calendar_year_view_01.mjs'
       - 'scripts/validate_guest_calendar_local_01.mjs'
       - 'scripts/validate_calendar_real_ui_01.mjs'
+      - 'scripts/validate_calendar_weather_icons_01.mjs'
       - 'scripts/validate_calendar_event_editor_01.mjs'
       - 'scripts/validate_calendar_responsive_01.mjs'
       - 'scripts/validate_calendar_modal_runtime_02.mjs'
@@ -72,6 +74,7 @@ jobs:
       - name: Real Calendar UI and editor
         run: |
           node scripts/validate_calendar_real_ui_01.mjs
+          node scripts/validate_calendar_weather_icons_01.mjs
           node scripts/validate_calendar_event_editor_01.mjs
           node scripts/validate_calendar_responsive_01.mjs
           node scripts/validate_calendar_modal_runtime_02.mjs
