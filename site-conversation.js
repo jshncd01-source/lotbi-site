@@ -1,5 +1,5 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260921-convcal2';
+import * as siteCore from './site-core.js?v=20260921-identity1';
 import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-placecardorbit1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
@@ -10,7 +10,7 @@ import {calendarActionInFlight, createAvailableCalendarAction, normalizePersiste
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-convcal2';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
-const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -1519,11 +1519,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     document.body.dataset.conversationRestore = 'ready';
     refreshAuthenticatedProfileSlots();
   };
+  const identityEmailLocalPart = identity => {
+    const email = typeof identity?.email === 'string' ? identity.email.trim() : '';
+    const at = email.indexOf('@');
+    return at > 0 ? email.slice(0, at) : '';
+  };
+  const suggestedPublicHandle = identity => {
+    const candidate = identityEmailLocalPart(identity);
+    return /^[A-Za-z0-9]{8,64}$/.test(candidate) && /[A-Za-z]/.test(candidate) && /[0-9]/.test(candidate)
+      ? candidate.toLowerCase()
+      : '';
+  };
+  const canonicalDisplayName = identity => identity?.name || identity?.publicHandle || identityEmailLocalPart(identity) || 'LOTBI 사용자';
   const profileVisual = () => {
     const visual = document.createElement(preferences.photo ? 'img' : 'span');
     visual.className = 'sidebar-profile-avatar';
     if (visual instanceof HTMLImageElement) { visual.src = preferences.photo; visual.alt = ''; }
-    else { visual.textContent = initials(serverIdentity?.name || preferences.displayName || 'LOTBI'); visual.setAttribute('aria-hidden', 'true'); }
+    else { visual.textContent = initials(canonicalDisplayName(serverIdentity)); visual.setAttribute('aria-hidden', 'true'); }
     return visual;
   };
   const profileButton = () => {
@@ -1532,17 +1544,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     button.dataset.profileMenuTrigger = ''; button.setAttribute('aria-haspopup', 'menu'); button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-label', '프로필 메뉴 열기');
     const copy = document.createElement('span'); copy.className = 'sidebar-profile-copy';
-    const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = serverIdentity?.name || preferences.displayName || '로그인된 사용자';
-    const handle = document.createElement('span'); handle.className = 'sidebar-account-handle'; handle.textContent = serverIdentity?.accountHandle ? `@${serverIdentity.accountHandle}` : '프로필 메뉴';
-    copy.append(name, handle); button.append(profileVisual(), copy); return button;
+    const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = canonicalDisplayName(serverIdentity);
+    copy.appendChild(name);
+    if (serverIdentity?.publicHandle) {
+      const handle = document.createElement('span'); handle.className = 'sidebar-account-handle'; handle.textContent = `@${serverIdentity.publicHandle}`; copy.appendChild(handle);
+    }
+    button.append(profileVisual(), copy); return button;
   };
   const profileSummary = () => {
     const summary = document.createElement('div'); summary.className = 'profile-popover-summary'; summary.setAttribute('role', 'presentation');
     const copy = document.createElement('div'); copy.className = 'profile-popover-summary-copy';
-    const name = document.createElement('strong'); name.className = 'profile-popover-summary-name'; name.textContent = serverIdentity?.name || preferences.displayName || '로그인된 사용자';
+    const name = document.createElement('strong'); name.className = 'profile-popover-summary-name'; name.textContent = canonicalDisplayName(serverIdentity);
     copy.appendChild(name);
-    if (serverIdentity?.accountHandle) {
-      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.accountHandle}`; copy.appendChild(handle);
+    if (serverIdentity?.publicHandle) {
+      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.publicHandle}`; copy.appendChild(handle);
     }
     if (serverSubscription?.plan) {
       const planLabels = {FREE: 'LOTBI Free', LOTBI_PLUS: 'LOTBI Plus'};
@@ -1694,27 +1709,44 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     image.src = objectUrl;
   });
   const openProfile = () => {
-    const {backdrop, panel, content} = modalShell('프로필', '계정 이름과 handle은 Core /v2/me에서 읽고, 사진과 로컬 표시 이름은 이 브라우저에만 저장됩니다.');
-    const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(preferences.displayName || 'LOTBI');
+    const {backdrop, panel, content} = modalShell('프로필', '표시 이름과 public handle은 LOTBI 계정에 저장되어 다른 브라우저와 기기에서도 동일하게 사용됩니다. 프로필 사진만 이 브라우저에 저장됩니다.');
+    const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalDisplayName(serverIdentity));
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
     const photo = document.createElement('input'); photo.type = 'file'; photo.accept = 'image/jpeg,image/png,image/webp'; photo.className = 'sr-only'; photoLabel.appendChild(photo);
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
     const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
-    const name = document.createElement('input'); name.type = 'text'; name.maxLength = 40; name.value = preferences.displayName; name.autocomplete = 'off'; nameLabel.appendChild(name);
-    const handle = document.createElement('div'); handle.className = 'site-readonly-field';
-    const handleTitle = document.createElement('strong'); handleTitle.textContent = '@handle';
-    const handleValue = document.createElement('span'); handleValue.textContent = serverIdentity?.accountHandle ? `@${serverIdentity.accountHandle}` : '등록된 handle 없음'; handle.append(handleTitle, handleValue);
+    const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || identityEmailLocalPart(serverIdentity); name.autocomplete = 'name'; nameLabel.appendChild(name);
+    const email = document.createElement('div'); email.className = 'site-readonly-field';
+    const emailTitle = document.createElement('strong'); emailTitle.textContent = '이메일';
+    const emailValue = document.createElement('span'); emailValue.textContent = serverIdentity?.email || '등록된 이메일 없음'; email.append(emailTitle, emailValue);
+    const handleLabel = document.createElement('label'); handleLabel.className = 'site-field'; handleLabel.textContent = 'public handle';
+    const handle = document.createElement('input'); handle.type = 'text'; handle.maxLength = 64; handle.value = serverIdentity?.publicHandle || suggestedPublicHandle(serverIdentity); handle.autocomplete = 'username'; handle.placeholder = '영문·숫자 8자리 이상'; handleLabel.appendChild(handle);
     const save = document.createElement('button'); save.type = 'button'; save.className = 'site-button site-button-primary'; save.textContent = '저장';
     photo.addEventListener('change', async () => {
       const file = photo.files?.[0]; if (!file) return; error.textContent = '';
       try { preferences.photo = await readProfilePhoto(file); preview.style.backgroundImage = `url(${preferences.photo})`; }
       catch (caught) { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; }
     });
-    save.addEventListener('click', () => {
-      preferences.displayName = name.value.trim().slice(0, 40); savePreferences(); refreshAuthenticatedProfileSlots(); closeSurface();
+    save.addEventListener('click', async () => {
+      if (!sessionToken || save.disabled) return;
+      const displayName = name.value.trim();
+      const publicHandle = handle.value.trim();
+      if (!displayName && !publicHandle) { error.textContent = '표시 이름 또는 public handle을 입력해 주세요.'; return; }
+      error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
+      try {
+        const updated = await updateCurrentSiteProfile({sessionToken, displayName, publicHandle});
+        serverIdentity = {...serverIdentity, ...updated};
+        preferences.displayName = '';
+        savePreferences();
+        refreshAuthenticatedProfileSlots();
+        closeSurface();
+      } catch (caught) {
+        error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
+        save.disabled = false; save.textContent = '저장';
+      }
     });
-    content.append(preview, photoLabel, error, nameLabel, handle, save); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoLabel, error, nameLabel, email, handleLabel, save); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const openPersonalization = () => {
     const {backdrop, panel, content} = modalShell('개인 맞춤 설정', '선택한 대화 색상은 현재 사용자 설치의 이 브라우저에 저장됩니다.');
