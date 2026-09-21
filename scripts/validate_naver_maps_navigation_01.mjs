@@ -255,7 +255,6 @@ assert.match(placeRendererSource, /rail\.addEventListener\('pointermove'/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointerup', event => finishDrag\(event\)\)/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointercancel', event => finishDrag\(event, \{cancelled: true\}\)\)/u);
 
-assert.doesNotMatch(pointerDownSource, /setPointerCapture/u, 'Clean tap must not capture the pointer on pointerdown');
 assert.match(
   pointerDownSource,
   /\(event\.pointerType === 'mouse' && event\.button !== 0\)/u,
@@ -266,13 +265,18 @@ assert.equal(
   1,
   'Touch/pen pointerdown must not gain a generic event.button gate',
 );
-assert.match(pointerMoveSource, /if \(Math\.abs\(delta\) > 4 && !dragMoved\) \{/u);
-assert.match(pointerMoveSource, /rail\.setPointerCapture\?\.\(event\.pointerId\)/u);
 assert.ok(
-  pointerMoveSource.indexOf("if (Math.abs(delta) > 4 && !dragMoved)") <
-    pointerMoveSource.indexOf("rail.setPointerCapture?.(event.pointerId)"),
-  'Pointer capture must be delayed until horizontal movement exceeds 4px',
+  pointerDownSource.indexOf("event.target?.closest?.('a, button')") <
+    pointerDownSource.indexOf("rail.setPointerCapture(event.pointerId)"),
+  'NAVER Map/phone actions must be excluded before Place Card pointer capture',
 );
+assert.match(pointerDownSource, /if \(typeof rail\.setPointerCapture === 'function'\) \{/u);
+assert.match(pointerDownSource, /rail\.setPointerCapture\(event\.pointerId\)/u);
+assert.match(pointerDownSource, /dragCaptured = true/u);
+assert.doesNotMatch(pointerDownSource, /classList\.add\('is-dragging'\)/u, 'Clean tap capture must not enter drag visuals');
+assert.match(pointerMoveSource, /if \(Math\.abs\(delta\) > 4 && !dragMoved\) \{/u);
+assert.match(pointerMoveSource, /rail\.classList\.add\('is-dragging'\)/u);
+assert.doesNotMatch(pointerMoveSource, /setPointerCapture/u, 'Pointer capture must already be held from pointerdown');
 assert.doesNotMatch(pointerDownSource, /suppressClick/u);
 assert.doesNotMatch(pointerMoveSource, /suppressClick/u);
 assert.match(
@@ -292,7 +296,7 @@ assert.match(
 );
 assert.match(cardClickSource, /if \(suppressClick \|\| event\.target\?\.closest\?\.\('a, button'\)\) return;/u);
 assert.match(cardClickSource, /if \(index !== activeIndex\) setActiveIndex\(index\);/u);
-assert.match(placeRendererSource, /rail\.setPointerCapture\?\.\(event\.pointerId\)/u);
+assert.match(placeRendererSource, /rail\.setPointerCapture\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /rail\.releasePointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /Math\.abs\(delta\) >= 44/u);
 assert.match(placeRendererSource, /setActiveIndex\(activeIndex \+ \(delta < 0 \? 1 : -1\)\)/u);
@@ -403,4 +407,4 @@ assert.match(
   'Home Place Card runtime must keep the compact-actions navigation module',
 );
 
-console.log('NAVER Place Card COMPACT TRUE ORBIT + MOBILE TAP/drag + NAVER fallback + phone fail-safe contract: PASS');
+console.log('NAVER Place Card COMPACT TRUE ORBIT + CAPTURED SIDE TAP/drag + NAVER fallback + phone fail-safe contract: PASS');
