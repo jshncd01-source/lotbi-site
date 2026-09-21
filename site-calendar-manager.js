@@ -1150,7 +1150,8 @@ export async function mountLifeCalendarManager({
         return;
       }
       latestDate = canonicalActivityLocalDate(canonical);
-      if (!latestDate) {
+      const isUnscheduled = !latestDate && canonical.temporal?.kind === 'UNSCHEDULED';
+      if (!latestDate && !isUnscheduled) {
         showDeepOpenTerminal('일정 날짜를 확인하지 못했습니다.', 'invalid-date');
         return;
       }
@@ -1162,19 +1163,31 @@ export async function mountLifeCalendarManager({
         showDeepOpenTerminal('일정의 발생 항목이 변경되어 기존 링크로 열 수 없습니다.', 'occurrence-changed');
         return;
       }
-      moved = Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
-      const parts = civilDateParts(latestDate);
-      state.mode = 'month';
-      state.selectedDate = latestDate;
-      state.year = parts.year;
-      state.month = parts.month;
-      state.detailOpen = true;
-      state.dayCollapsed = false;
-      await refresh();
-      targetItem = state.items.find(item => (
-        item.activity_id === deepOpenTarget.activityId
-        && (!deepOpenTarget.occurrenceId || item.occurrence_id === deepOpenTarget.occurrenceId)
-      ));
+      moved = !isUnscheduled && Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
+      if (isUnscheduled) {
+        state.mode = 'agenda';
+        state.agendaScope = 'month';
+        state.detailOpen = false;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.unscheduled.find(item => (
+          item.activity_id === deepOpenTarget.activityId
+          && (!deepOpenTarget.occurrenceId || item.occurrence_id === deepOpenTarget.occurrenceId)
+        ));
+      } else {
+        const parts = civilDateParts(latestDate);
+        state.mode = 'month';
+        state.selectedDate = latestDate;
+        state.year = parts.year;
+        state.month = parts.month;
+        state.detailOpen = true;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.items.find(item => (
+          item.activity_id === deepOpenTarget.activityId
+          && (!deepOpenTarget.occurrenceId || item.occurrence_id === deepOpenTarget.occurrenceId)
+        ));
+      }
     } else {
       targetItem = repository.list().find(item => item.id === deepOpenTarget.guestEventId);
       if (!targetItem) {
@@ -1182,16 +1195,26 @@ export async function mountLifeCalendarManager({
         return;
       }
       latestDate = targetItem.local_date;
-      moved = Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
-      const parts = civilDateParts(latestDate);
-      state.mode = 'month';
-      state.selectedDate = latestDate;
-      state.year = parts.year;
-      state.month = parts.month;
-      state.detailOpen = true;
-      state.dayCollapsed = false;
-      await refresh();
-      targetItem = state.items.find(item => item.id === deepOpenTarget.guestEventId);
+      const isUnscheduled = !validCivilDate(latestDate);
+      moved = !isUnscheduled && Boolean(deepOpenTarget.dateHint && deepOpenTarget.dateHint !== latestDate);
+      if (isUnscheduled) {
+        state.mode = 'agenda';
+        state.agendaScope = 'month';
+        state.detailOpen = false;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.unscheduled.find(item => item.id === deepOpenTarget.guestEventId);
+      } else {
+        const parts = civilDateParts(latestDate);
+        state.mode = 'month';
+        state.selectedDate = latestDate;
+        state.year = parts.year;
+        state.month = parts.month;
+        state.detailOpen = true;
+        state.dayCollapsed = false;
+        await refresh();
+        targetItem = state.items.find(item => item.id === deepOpenTarget.guestEventId);
+      }
     }
 
     if (!targetItem) {
