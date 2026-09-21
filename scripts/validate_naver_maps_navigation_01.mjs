@@ -322,13 +322,18 @@ assert.doesNotMatch(pointerDownSource, /suppressClick/u);
 assert.doesNotMatch(pointerMoveSource, /suppressClick/u);
 assert.match(
   finishDragSource,
-  /if \(!cancelled && dragMoved\) \{\s*suppressClick = true;/u,
-  'Synthetic click suppression must only arm after a real drag',
+  /const selectedDifferentCard = !cancelled[\s\S]*pointerOriginIndex !== activeIndex;/u,
+  'Clean side-card selection must be distinguished from a CENTER body tap',
+);
+assert.match(
+  finishDragSource,
+  /if \(!cancelled && \(dragMoved \|\| selectedDifferentCard\)\) \{\s*suppressClick = true;/u,
+  'Synthetic click suppression must cover drags and the click immediately following side-card selection',
 );
 assert.equal(
   (finishDragSource.match(/suppressClick = true;/g) || []).length,
   1,
-  'Place orbit must have one drag-only suppressClick activation',
+  'Place orbit must keep one bounded suppressClick activation',
 );
 assert.match(
   finishDragSource,
@@ -336,7 +341,11 @@ assert.match(
   'Sub-threshold tap/movement must select the exact origin card',
 );
 assert.match(cardClickSource, /if \(suppressClick \|\| event\.target\?\.closest\?\.\('a, button'\)\) return;/u);
-assert.match(cardClickSource, /if \(index !== activeIndex\) setActiveIndex\(index\);/u);
+assert.match(
+  cardClickSource,
+  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*openPlaceInNaverMap\(placeResult\.results\[index\]\);/u,
+  'Side card body click must only select CENTER; already-active CENTER body click must open that place in NAVER Maps',
+);
 assert.match(placeRendererSource, /rail\.setPointerCapture\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /rail\.releasePointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /Math\.abs\(delta\) >= 44/u);
@@ -354,6 +363,15 @@ assert.match(placeRendererSource, /--lotbi-orbit-drag-x/u);
 assert.match(placeRendererSource, /card\.querySelectorAll\('a, button'\)/u);
 assert.doesNotMatch(placeRendererSource, /scrollLeft|scrollTo\(|nearestCardIndex|scroll-snap/u);
 
+assert.match(placeRendererSource, /const openPlaceInNaverMap = place => \{/u);
+assert.match(placeRendererSource, /const fallbackHref = buildNaverMapsWebSearchUrl\(place\)/u);
+assert.match(placeRendererSource, /const opened = openNaverMapsPlace\(place\)/u);
+assert.match(placeRendererSource, /globalThis\.location\.href = fallbackHref/u);
+assert.match(
+  placeRendererSource,
+  /navigate\.addEventListener\('click', event => \{\s*event\.preventDefault\(\);\s*openPlaceInNaverMap\(place\);\s*\}\);/u,
+  'NAVER Map button and CENTER card body must share one navigation helper',
+);
 assert.match(conversationSource, /navigate\.setAttribute\('aria-label', `\$\{place\.name\} 네이버지도에서 열기`\)/u);
 assert.match(placeRendererSource, /const navigate = document\.createElement\('a'\)/u);
 assert.match(placeRendererSource, /navigate\.href = buildNaverMapsWebSearchUrl\(place\)/u);
@@ -453,4 +471,4 @@ assert.match(
   'Home Place Card runtime must keep the compact-actions navigation module',
 );
 
-console.log('NAVER Place Card COMPACT TRUE ORBIT + COORDINATE SIDE HIT + drag + NAVER fallback + phone fail-safe contract: PASS');
+console.log('NAVER Place Card CENTER BODY -> NAVER MAP + side select + drag + fallback + phone fail-safe contract: PASS');
