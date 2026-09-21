@@ -595,7 +595,8 @@ function renderAgenda(state, actions) {
     items = items.filter(item => item.local_date >= range.start && item.local_date <= range.end);
   }
 
-  if (!items.length) {
+  const showUnscheduled = state.agendaScope === 'month' && state.unscheduled.length > 0;
+  if (!items.length && !showUnscheduled) {
     section.appendChild(emptyMessage(
       state.agendaScope === 'today' ? '오늘 등록된 일정이 없어요.'
         : state.agendaScope === 'week' ? '이번 주에 등록된 일정이 없어요.'
@@ -610,6 +611,17 @@ function renderAgenda(state, actions) {
     const heading = document.createElement('h3');
     heading.textContent = koreanDate(date);
     group.append(heading, eventList(values, {onSelect: actions.onEvent}));
+    section.appendChild(group);
+  }
+  if (showUnscheduled) {
+    const group = document.createElement('section');
+    group.className = 'calendar-unscheduled-group';
+    const heading = document.createElement('h3');
+    heading.textContent = '날짜 미정';
+    const note = document.createElement('p');
+    note.className = 'calendar-unscheduled-note';
+    note.textContent = '날짜를 정하지 않은 일정입니다. 열어서 날짜를 추가하거나 그대로 둘 수 있어요.';
+    group.append(heading, note, eventList(state.unscheduled, {onSelect: actions.onEvent}));
     section.appendChild(group);
   }
   return section;
@@ -890,7 +902,7 @@ export async function mountLifeCalendarManager({
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
     onAdd: date => openEditor(null, date),
-    onEvent: item => openEditor(item, item.local_date || item.due_date),
+    onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
   };
 
   root.addEventListener('keydown', event => {
