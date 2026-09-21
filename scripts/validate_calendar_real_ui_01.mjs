@@ -48,7 +48,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const source = fs.readFileSync(path.join(ROOT, 'site-calendar-ui.js'), 'utf8');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
-assert.ok(source.includes("from './site-calendar-manager.js?v=20260921-smartcaldraft1'"));
+assert.ok(source.includes("from './site-calendar-manager.js?v=20260922-weather1'"));
 for (const required of [
   'calendarMonthGrid',
   'calendarYearOverview',
@@ -82,6 +82,7 @@ for (const selector of [
   '.calendar-day-panel',
   '.calendar-event-stack',
   '.calendar-mobile-event-count',
+  '.calendar-weather-icon',
   '[data-selected="true"]',
   '[data-today="true"]',
   'grid-template-columns: repeat(7',
