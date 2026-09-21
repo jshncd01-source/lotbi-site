@@ -282,7 +282,7 @@ assert.match(placeRendererSource, /phone\.disabled = true/u);
 assert.match(placeRendererSource, /phone\.setAttribute\('aria-label', `\$\{place\.name\} 전화번호 정보 없음`\)/u);
 assert.match(placeRendererSource, /phoneLabel\.textContent = '전화'/u);
 assert.match(conversationSource, /phone_evidence: place\.phoneEvidence \?/u);
-assert.match(placeRendererSource, /phoneFact\.textContent = \`전화 \$\{place\.phone\}\`/u);
+assert.ok(placeRendererSource.includes('phoneFact.textContent = `전화 ${place.phone}`;'));
 assert.match(placeRendererSource, /'Kakao Local 확인'/u);
 assert.match(placeRendererSource, /sourceLink\.rel = 'noopener noreferrer'/u);
 
