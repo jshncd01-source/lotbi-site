@@ -98,6 +98,73 @@ assert.equal(verifiedPhoneResult.results[0].phoneEvidence.sourceName, 'KAKAO_LOC
 assert.equal(verifiedPhoneResult.results[0].phoneEvidence.sourceUrl, 'https://place.map.kakao.com/1');
 assert.equal(verifiedPhoneResult.results[0].phoneEvidence.verificationState, 'VERIFIED');
 
+const conditionRaw = structuredClone(raw);
+conditionRaw.results[0].constraint_match = 'UNCONFIRMED';
+conditionRaw.results[0].constraint_evidence = [
+  {
+    type: 'PAYMENT_ACCEPTED',
+    value: 'ONNURI',
+    status: 'VERIFIED',
+    source: '온누리 공식 자료',
+    source_url: 'https://www.data.go.kr/data/3060079/fileData.do',
+  },
+  {
+    type: 'PARKING',
+    value: true,
+    status: 'UNCONFIRMED',
+    source: null,
+    source_url: null,
+  },
+  {
+    type: 'PET_FRIENDLY',
+    value: true,
+    status: 'SUPPORTED',
+    source: 'BUSINESS_OFFICIAL',
+    source_url: 'http://unsafe.example.test',
+  },
+  {
+    type: 'PARKING',
+    value: true,
+    status: 'PROBABLY',
+    source: '가짜 출처',
+  },
+];
+const conditionResult = nav.normalizePlaceResult(conditionRaw, {capturedAt: 1000});
+assert.equal(conditionResult.results[0].constraintMatch, 'UNCONFIRMED');
+assert.deepEqual(
+  conditionResult.results[0].constraintEvidence.map(item => ({
+    type: item.type,
+    value: item.value,
+    status: item.status,
+    sourceName: item.sourceName,
+    sourceUrl: item.sourceUrl,
+  })),
+  [
+    {
+      type: 'PAYMENT_ACCEPTED',
+      value: 'ONNURI',
+      status: 'VERIFIED',
+      sourceName: '온누리 공식 자료',
+      sourceUrl: 'https://www.data.go.kr/data/3060079/fileData.do',
+    },
+    {
+      type: 'PARKING',
+      value: true,
+      status: 'UNCONFIRMED',
+      sourceName: '',
+      sourceUrl: '',
+    },
+    {
+      type: 'PET_FRIENDLY',
+      value: true,
+      status: 'SUPPORTED',
+      sourceName: 'BUSINESS_OFFICIAL',
+      sourceUrl: '',
+    },
+  ],
+);
+assert.equal(conditionResult.results[0].constraintEvidence.length, 3);
+
 const missingPhoneResult = nav.normalizePlaceResult(raw, {capturedAt: 1000});
 assert.equal(missingPhoneResult.results[0].phoneVerified, false);
 assert.equal(nav.buildVerifiedPhoneHref(missingPhoneResult.results[0]), '');
@@ -284,6 +351,14 @@ assert.match(placeRendererSource, /phoneLabel\.textContent = '전화'/u);
 assert.match(conversationSource, /phone_evidence: place\.phoneEvidence \?/u);
 assert.ok(placeRendererSource.includes('phoneFact.textContent = `전화 ${place.phone}`;'));
 assert.match(placeRendererSource, /'Kakao Local 확인'/u);
+assert.match(placeRendererSource, /sourceLink\.rel = 'noopener noreferrer'/u);
+assert.match(conversationSource, /constraint_evidence: place\.constraintEvidence\.map/u);
+assert.match(placeRendererSource, /placeConstraintLabel\(evidence\)/u);
+assert.match(placeRendererSource, /placeConstraintStatusText\(evidence\.status\)/u);
+assert.match(placeRendererSource, /publicConstraintSource\(evidence\.sourceName\)/u);
+assert.match(placeRendererSource, /lotbi-place-condition-evidence/u);
+assert.match(placeRendererSource, /현재 확인되지 않음/u);
+assert.match(placeRendererSource, /정보가 서로 다름/u);
 assert.match(placeRendererSource, /sourceLink\.rel = 'noopener noreferrer'/u);
 
 assert.match(conversationSource, /lotbi-place-orbit/u);

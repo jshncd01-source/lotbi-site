@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260921-guestclaim1';
-import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-placeenrichphone1';
+import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-placecondition1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -749,6 +749,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           source_url: place.phoneEvidence.sourceUrl,
           verification_state: place.phoneEvidence.verificationState,
         } : null,
+        constraint_match: place.constraintMatch,
+        constraint_evidence: place.constraintEvidence.map(evidence => ({
+          type: evidence.type,
+          value: evidence.value,
+          status: evidence.status,
+          source: evidence.sourceName,
+          source_url: evidence.sourceUrl,
+        })),
         navigation_capability: place.navigationCapable,
       })),
     };
@@ -757,6 +765,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!value || typeof value !== 'object') return null;
     return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
   };
+  const placeConstraintLabel = evidence => {
+    if (evidence.type === 'PAYMENT_ACCEPTED' && String(evidence.value).toUpperCase() === 'ONNURI') return '온누리상품권';
+    if (evidence.type === 'PARKING') return '주차';
+    if (evidence.type === 'PET_FRIENDLY') return '애견동반';
+    if (evidence.type === 'OPEN_AT') return `영업시간 ${String(evidence.value)}`;
+    if (evidence.type === 'OPEN_NOW') return '현재 영업';
+    if (evidence.type === 'RESERVATION') return '예약';
+    if (evidence.type === 'TAKEOUT') return '포장';
+    if (evidence.type === 'DELIVERY') return '배달';
+    return '요청 조건';
+  };
+  const placeConstraintStatusText = status => ({
+    VERIFIED: '확인됨',
+    SUPPORTED: '근거 있음',
+    UNCONFIRMED: '현재 확인되지 않음',
+    CONFLICTING: '정보가 서로 다름',
+  }[status] || '현재 확인되지 않음');
+  const publicConstraintSource = value => {
+    const source = String(value || '').trim().slice(0, 120);
+    return source && !/^[A-Z0-9_:-]+$/u.test(source) ? source : '';
+  };
+
   const createPlaceCardRail = placeValue => {
     const placeResult = normalizedPersistedPlaceResult(placeValue);
     if (!placeResult) return null;
@@ -880,6 +910,35 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         copy.appendChild(evidence);
+      }
+
+      if (Array.isArray(place.constraintEvidence) && place.constraintEvidence.length) {
+        const conditionEvidence = document.createElement('div');
+        conditionEvidence.className = 'lotbi-rich-card-evidence lotbi-place-card-evidence lotbi-place-condition-evidence';
+        conditionEvidence.setAttribute('aria-label', `${place.name} 요청 조건 확인`);
+        for (const evidence of place.constraintEvidence) {
+          const row = document.createElement('div');
+          row.className = 'lotbi-place-condition-evidence-row';
+          const fact = document.createElement('span');
+          fact.textContent = `${placeConstraintLabel(evidence)} · ${placeConstraintStatusText(evidence.status)}`;
+          row.appendChild(fact);
+          const sourceName = publicConstraintSource(evidence.sourceName);
+          if (sourceName && evidence.sourceUrl) {
+            const sourceLink = document.createElement('a');
+            sourceLink.href = evidence.sourceUrl;
+            sourceLink.target = '_blank';
+            sourceLink.rel = 'noopener noreferrer';
+            sourceLink.textContent = sourceName;
+            sourceLink.setAttribute('aria-label', `${place.name} ${placeConstraintLabel(evidence)} 출처 ${sourceName}`);
+            row.appendChild(sourceLink);
+          } else if (sourceName) {
+            const sourceText = document.createElement('span');
+            sourceText.textContent = sourceName;
+            row.appendChild(sourceText);
+          }
+          conditionEvidence.appendChild(row);
+        }
+        copy.appendChild(conditionEvidence);
       }
 
       const staticMapUrl = buildNaverStaticMapThumbnailUrl(place);
