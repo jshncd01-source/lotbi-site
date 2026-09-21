@@ -6,6 +6,8 @@ import {fileURLToPath} from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INNER_REL = 'scripts/.calendar-month-geometry-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
+const WRAPPER_REL = 'scripts/.calendar-month-geometry-wrapper.html';
+const WRAPPER = path.join(ROOT, WRAPPER_REL);
 const PORT = 4193;
 const ORIGIN = 'http://127.0.0.1:' + PORT;
 
@@ -28,7 +30,6 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <pre id="geometry-result">pending</pre>
 <script type="module">
 const out=document.getElementById('geometry-result');
-out.textContent=JSON.stringify({ok:false,error:'stage:module-start'});
 window.addEventListener('error',event=>{if(out.textContent==='pending')out.textContent=JSON.stringify({ok:false,error:'window '+event.message})});
 window.addEventListener('unhandledrejection',event=>{if(out.textContent==='pending')out.textContent=JSON.stringify({ok:false,error:'rejection '+String(event.reason?.stack||event.reason)})});
 const wait=async(fn,label)=>{for(let i=0;i<120;i+=1){if(fn())return;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
@@ -75,8 +76,12 @@ function addFive(repo,date){
 }
 
 async function measure({nowIso,date,label,weeks}){
-  localStorage.clear();
-  const repo=createGuestCalendarRepository(localStorage);
+  const values=new Map();
+  const storage={
+    getItem:key=>values.has(key)?values.get(key):null,
+    setItem:(key,value)=>values.set(key,String(value)),
+  };
+  const repo=createGuestCalendarRepository(storage);
   addFive(repo,date);
   const {backdrop,modal,root}=makeModal();
   await mountLifeCalendarManager({
@@ -125,20 +130,16 @@ async function measure({nowIso,date,label,weeks}){
 
 try{
   ({createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260921-convcal2'));
-  out.textContent=JSON.stringify({ok:false,error:'stage:guest-imported'});
   ({mountLifeCalendarManager}=await import('/site-calendar-manager.js?v=20260921-convcal2'));
-  out.textContent=JSON.stringify({ok:false,error:'stage:manager-imported'});
-  const months=[
-    {nowIso:'2026-02-15T12:00:00+09:00',date:'2026-02-15',label:'2026-02 4-week',weeks:4},
-    {nowIso:'2026-09-15T12:00:00+09:00',date:'2026-09-15',label:'2026-09 5-week',weeks:5},
-    {nowIso:'2026-05-15T12:00:00+09:00',date:'2026-05-15',label:'2026-05 6-week',weeks:6},
-  ];
-  const results=[];
-  for(const month of months){
-    out.textContent=JSON.stringify({ok:false,error:'stage:measure-'+month.label});
-    results.push(await measure(month));
-  }
-  out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight},results});
+  const cases={
+    feb:{nowIso:'2026-02-15T12:00:00+09:00',date:'2026-02-15',label:'2026-02 4-week',weeks:4},
+    sep:{nowIso:'2026-09-15T12:00:00+09:00',date:'2026-09-15',label:'2026-09 5-week',weeks:5},
+    may:{nowIso:'2026-05-15T12:00:00+09:00',date:'2026-05-15',label:'2026-05 6-week',weeks:6},
+  };
+  const key=new URLSearchParams(location.search).get('case')||'sep';
+  if(!cases[key])throw new Error('unknown geometry case '+key);
+  const result=await measure(cases[key]);
+  out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight},result});
 }catch(error){
   out.textContent=JSON.stringify({ok:false,error:String(error?.stack||error),viewport:{width:innerWidth,height:innerHeight}});
 }
@@ -153,15 +154,28 @@ function waitServer(){
   throw new Error('server start');
 }
 
+function wrapperMarkup(w,h){
+  const frame=(id)=>'<iframe data-case="'+id+'" src="/'+INNER_REL+'?case='+id+'" width="'+w+'" height="'+h+'" style="display:block;border:0"></iframe>';
+  return '<!doctype html><html><body style="margin:0">'+['feb','sep','may'].map(frame).join('')+'<pre id="result">pending</pre><script>'+
+    'const out=document.getElementById("result"),frames=[...document.querySelectorAll("iframe[data-case]")];'+
+    'const timer=setInterval(()=>{try{const texts=frames.map(frame=>frame.contentDocument?.getElementById("geometry-result")?.textContent||"pending");'+
+    'if(texts.every(value=>value!=="pending")){const values=texts.map(JSON.parse);const failed=values.find(value=>!value.ok);'+
+    'out.textContent=failed?JSON.stringify({ok:false,error:failed.error}):JSON.stringify({ok:true,viewport:{width:'+w+',height:'+h+'},results:values.map(value=>value.result)});clearInterval(timer)}}'+
+    'catch(error){out.textContent=JSON.stringify({ok:false,error:String(error)});clearInterval(timer)}},25);'+
+    'setTimeout(()=>{if(out.textContent==="pending"){out.textContent=JSON.stringify({ok:false,error:"wrapper timeout"});clearInterval(timer)}},9000);'+
+    '<\\/script></body></html>';
+}
+
 function run(browser,w,h){
+  fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
   const proc=spawnSync(browser,[
     '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-    '--window-size='+w+','+h,'--force-device-scale-factor=1','--virtual-time-budget=9000',
-    '--dump-dom',ORIGIN+'/'+INNER_REL
-  ],{encoding:'utf8',timeout:30000,maxBuffer:12*1024*1024});
+    '--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=10000',
+    '--dump-dom',ORIGIN+'/'+WRAPPER_REL
+  ],{encoding:'utf8',timeout:35000,maxBuffer:12*1024*1024});
   if(proc.error)throw proc.error;
   if(proc.status!==0)throw new Error('browser '+proc.status+' '+proc.stderr);
-  const a='<pre id="geometry-result">',b='</pre>',i=proc.stdout.indexOf(a),j=proc.stdout.indexOf(b,i);
+  const a='<pre id="result">',b='</pre>',i=proc.stdout.indexOf(a),j=proc.stdout.indexOf(b,i);
   if(i<0||j<0)throw new Error('result missing');
   const raw=proc.stdout.slice(i+a.length,j).replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>');
   const value=JSON.parse(raw);
@@ -181,4 +195,5 @@ try{
 }finally{
   server.kill('SIGTERM');
   fs.rmSync(INNER,{force:true});
+  fs.rmSync(WRAPPER,{force:true});
 }
