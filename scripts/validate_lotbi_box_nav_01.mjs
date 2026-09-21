@@ -18,7 +18,7 @@ assert.ok(html.indexOf('data-new-conversation') < html.indexOf('data-lotbi-box-o
 assert.ok(html.indexOf('data-lotbi-box-open') < html.indexOf('data-calendar-view="all"'), 'LOTBI Box precedes Calendar');
 
 for (const token of [
-  "storageKey(namespace || browserAnonymousNamespace(), 'lotbi-box')",
+  "storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box')",
   'const openLotbiBox = trigger =>',
   "modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.')",
   '아직 롯비함에 담은 항목이 없어요.',
