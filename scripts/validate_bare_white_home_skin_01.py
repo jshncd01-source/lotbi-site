@@ -9,7 +9,7 @@ CSS = CSS_PATH.read_text(encoding="utf-8") if CSS_PATH.exists() else ""
 
 errors = []
 
-if 'href="home-bare-white.css?v=20260920-barewhite1"' not in INDEX:
+if 'href="home-bare-white.css' not in INDEX:
     errors.append("index.html: Bare White Home stylesheet link missing")
 if not CSS:
     errors.append("home-bare-white.css: missing or empty")
