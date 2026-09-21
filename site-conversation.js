@@ -928,6 +928,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     let dragMoved = false;
     let wheelLocked = false;
     let pointerOriginIndex = null;
+    let dragCaptured = false;
 
     const wrapIndex = index => {
       const count = cards.length;
@@ -1001,7 +1002,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }, {passive: false});
 
     rail.addEventListener('pointerdown', event => {
-      if (cards.length < 2 || event.button !== 0 || event.target?.closest?.('a, button')) return;
+      if (cards.length < 2 || (event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
       const originCard = event.target?.closest?.('.lotbi-place-orbit-card');
       const originIndex = Number(originCard?.dataset?.orbitIndex);
       pointerOriginIndex = Number.isInteger(originIndex) ? originIndex : null;
@@ -1009,15 +1010,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       dragStartX = event.clientX;
       dragLastX = event.clientX;
       dragMoved = false;
-      rail.classList.add('is-dragging');
-      rail.setPointerCapture?.(event.pointerId);
+      dragCaptured = false;
     });
 
     rail.addEventListener('pointermove', event => {
       if (event.pointerId !== dragPointerId) return;
       dragLastX = event.clientX;
       const delta = dragLastX - dragStartX;
-      if (Math.abs(delta) > 4) dragMoved = true;
+      if (Math.abs(delta) > 4 && !dragMoved) {
+        dragMoved = true;
+        rail.classList.add('is-dragging');
+        try {
+          rail.setPointerCapture?.(event.pointerId);
+          dragCaptured = rail.hasPointerCapture?.(event.pointerId) === true;
+        } catch {
+          dragCaptured = false;
+        }
+      }
       if (!dragMoved) return;
       event.preventDefault();
       const visualDelta = Math.max(-72, Math.min(72, delta * 0.45));
@@ -1026,7 +1035,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     const finishDrag = (event, {cancelled = false} = {}) => {
       if (event.pointerId !== dragPointerId) return;
-      rail.releasePointerCapture?.(event.pointerId);
+      if (dragCaptured) {
+        try {
+          rail.releasePointerCapture?.(event.pointerId);
+        } catch {}
+      }
       rail.classList.remove('is-dragging');
       const delta = dragLastX - dragStartX;
       const crossedDragThreshold = Math.abs(delta) >= 44;
@@ -1042,13 +1055,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         applyOrbitState();
       }
 
-      if (!cancelled && Number.isInteger(pointerOriginIndex)) {
+      if (!cancelled && dragMoved) {
         suppressClick = true;
         globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
       }
       dragPointerId = null;
       pointerOriginIndex = null;
       dragMoved = false;
+      dragCaptured = false;
     };
 
     rail.addEventListener('pointerup', event => finishDrag(event));
