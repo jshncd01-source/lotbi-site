@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,7 +9,7 @@ CSS = CSS_PATH.read_text(encoding="utf-8") if CSS_PATH.exists() else ""
 
 errors = []
 
-if not re.search(r'href=["\\\']/?home-bare-white\\.css(?:\\?[^"\\\']*)?["\\\']', INDEX):
+if 'href="home-bare-white.css' not in INDEX:
     errors.append("index.html: Bare White Home stylesheet link missing")
 if not CSS:
     errors.append("home-bare-white.css: missing or empty")
