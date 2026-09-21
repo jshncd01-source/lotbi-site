@@ -150,11 +150,8 @@ function markAuthenticatedSidebarAccountUi() {
     button.setAttribute('aria-label', '프로필 메뉴 열기');
     const primary = document.createElement('span');
     primary.className = 'sidebar-account-name';
-    primary.textContent = '로그인된 사용자';
-    const secondary = document.createElement('span');
-    secondary.className = 'sidebar-account-handle';
-    secondary.textContent = '프로필 메뉴';
-    button.append(primary, secondary);
+    primary.textContent = 'LOTBI 사용자';
+    button.append(primary);
     slot.replaceChildren(button);
     setSidebarAuthState(slot, AUTH_STATE_AUTHENTICATED, false);
   }
