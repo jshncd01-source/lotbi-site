@@ -200,6 +200,26 @@ const placeRendererEnd = conversationSource.indexOf("const normalizeConversation
 assert.ok(placeRendererStart >= 0 && placeRendererEnd > placeRendererStart);
 const placeRendererSource = conversationSource.slice(placeRendererStart, placeRendererEnd);
 
+const cardClickStart = placeRendererSource.indexOf("cards.forEach((card, index) => {");
+const cardClickEnd = placeRendererSource.indexOf("rail.addEventListener('keydown'", cardClickStart);
+const pointerDownStart = placeRendererSource.indexOf("rail.addEventListener('pointerdown'");
+const pointerMoveStart = placeRendererSource.indexOf("rail.addEventListener('pointermove'", pointerDownStart);
+const finishDragStart = placeRendererSource.indexOf("const finishDrag = (event, {cancelled = false} = {}) => {", pointerMoveStart);
+const pointerUpStart = placeRendererSource.indexOf("rail.addEventListener('pointerup'", finishDragStart);
+assert.ok(
+  cardClickStart >= 0
+    && cardClickEnd > cardClickStart
+    && pointerDownStart >= 0
+    && pointerMoveStart > pointerDownStart
+    && finishDragStart > pointerMoveStart
+    && pointerUpStart > finishDragStart,
+  'Place orbit click/drag handler boundaries must remain discoverable',
+);
+const cardClickSource = placeRendererSource.slice(cardClickStart, cardClickEnd);
+const pointerDownSource = placeRendererSource.slice(pointerDownStart, pointerMoveStart);
+const pointerMoveSource = placeRendererSource.slice(pointerMoveStart, finishDragStart);
+const finishDragSource = placeRendererSource.slice(finishDragStart, pointerUpStart);
+
 assert.match(coreSource, /placeResult: payload\.place_result/u);
 assert.match(conversationSource, /openNaverMapsPlace\(place\)/u);
 assert.match(conversationSource, /buildNaverStaticMapThumbnailUrl\(place\)/u);
@@ -234,6 +254,44 @@ assert.match(placeRendererSource, /rail\.addEventListener\('pointerdown'/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointermove'/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointerup', event => finishDrag\(event\)\)/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointercancel', event => finishDrag\(event, \{cancelled: true\}\)\)/u);
+
+assert.doesNotMatch(pointerDownSource, /setPointerCapture/u, 'Clean tap must not capture the pointer on pointerdown');
+assert.match(
+  pointerDownSource,
+  /\(event\.pointerType === 'mouse' && event\.button !== 0\)/u,
+  'Only non-primary mouse pointerdown may be rejected by button state',
+);
+assert.equal(
+  (pointerDownSource.match(/event\.button/g) || []).length,
+  1,
+  'Touch/pen pointerdown must not gain a generic event.button gate',
+);
+assert.match(pointerMoveSource, /if \(Math\.abs\(delta\) > 4 && !dragMoved\) \{/u);
+assert.match(pointerMoveSource, /rail\.setPointerCapture\?\.\(event\.pointerId\)/u);
+assert.ok(
+  pointerMoveSource.indexOf("if (Math.abs(delta) > 4 && !dragMoved)") <
+    pointerMoveSource.indexOf("rail.setPointerCapture?.(event.pointerId)"),
+  'Pointer capture must be delayed until horizontal movement exceeds 4px',
+);
+assert.doesNotMatch(pointerDownSource, /suppressClick/u);
+assert.doesNotMatch(pointerMoveSource, /suppressClick/u);
+assert.match(
+  finishDragSource,
+  /if \(!cancelled && dragMoved\) \{\s*suppressClick = true;/u,
+  'Synthetic click suppression must only arm after a real drag',
+);
+assert.equal(
+  (finishDragSource.match(/suppressClick = true;/g) || []).length,
+  1,
+  'Place orbit must have one drag-only suppressClick activation',
+);
+assert.match(
+  finishDragSource,
+  /else if \(Number\.isInteger\(pointerOriginIndex\)\) \{\s*setActiveIndex\(pointerOriginIndex\);/u,
+  'Sub-threshold tap/movement must select the exact origin card',
+);
+assert.match(cardClickSource, /if \(suppressClick \|\| event\.target\?\.closest\?\.\('a, button'\)\) return;/u);
+assert.match(cardClickSource, /if \(index !== activeIndex\) setActiveIndex\(index\);/u);
 assert.match(placeRendererSource, /rail\.setPointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /rail\.releasePointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /Math\.abs\(delta\) >= 44/u);
@@ -322,6 +380,17 @@ assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="LEF
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="RIGHT_FRONT"\]\s*\{[^}]*scale\(\.84\)/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="LEFT_BACK"\]\s*\{[^}]*scale\(\.68\)/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="RIGHT_BACK"\]\s*\{[^}]*scale\(\.68\)/su);
+assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="LEFT_FRONT"\]\s*\{[^}]*z-index:\s*4/su);
+assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="RIGHT_FRONT"\]\s*\{[^}]*z-index:\s*4/su);
+assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="LEFT_BACK"\]\s*\{[^}]*z-index:\s*2/su);
+assert.match(conversationStyles, /\.lotbi-place-orbit-card\[data-orbit-slot="RIGHT_BACK"\]\s*\{[^}]*z-index:\s*2/su);
+assert.doesNotMatch(
+  conversationStyles,
+  /\.lotbi-place-orbit[^,{]*::(?:before|after)\s*\{/su,
+  'Orbit must not add a pseudo-element overlay across side-card hit areas',
+);
+assert.match(conversationStyles, /\.lotbi-place-orbit-control-prev\s*\{[^}]*left:\s*8px/su);
+assert.match(conversationStyles, /\.lotbi-place-orbit-control-next\s*\{[^}]*right:\s*8px/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-control\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/su);
 assert.match(conversationStyles, /\.lotbi-place-photo-placeholder\s*\{/u);
 assert.match(conversationStyles, /\.lotbi-place-location-thumbnail\s*\{/u);
@@ -334,4 +403,4 @@ assert.match(
   'Home Place Card runtime must keep the compact-actions navigation module',
 );
 
-console.log('NAVER Place Card COMPACT TRUE ORBIT + click/drag + NAVER fallback + phone fail-safe contract: PASS');
+console.log('NAVER Place Card COMPACT TRUE ORBIT + MOBILE TAP/drag + NAVER fallback + phone fail-safe contract: PASS');
