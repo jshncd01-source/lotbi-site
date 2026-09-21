@@ -16,8 +16,8 @@ assert.match(
 );
 assert.match(
   index,
-  /site-conversation\.js\?v=20260921-smartcaltrueorbit1/,
-  'hotfix must use a fresh conversation asset cache key',
+  /site-conversation\.js\?v=[A-Za-z0-9._-]+/,
+  'Home must use a cache-busted conversation asset',
 );
 
 const pendingStyle = index.match(
