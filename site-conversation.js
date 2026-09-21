@@ -770,6 +770,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (evidence.type === 'PARKING') return '주차';
     if (evidence.type === 'PET_FRIENDLY') return '애견동반';
     if (evidence.type === 'OPEN_AT') return `영업시간 ${String(evidence.value)}`;
+    if (evidence.type === 'BUSINESS_HOURS') return '영업시간';
     if (evidence.type === 'OPEN_NOW') return '현재 영업';
     if (evidence.type === 'RESERVATION') return '예약';
     if (evidence.type === 'TAKEOUT') return '포장';
