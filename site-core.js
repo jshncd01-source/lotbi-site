@@ -20,7 +20,6 @@ const LOCAL_TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
 const TIMEZONE_RE = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
-const PROFILE_PATH = '/v2/account/profile';
 const SUBSCRIPTION_PATH = '/v2/subscription';
 const LOGOUT_PATH = '/v2/sessions/logout';
 
@@ -645,10 +644,10 @@ function bearerToken(sessionToken) {
   return token;
 }
 
-async function siteSessionRequest(path, sessionToken, {method = 'GET', announceSessionFailure = true, json} = {}, fetchImpl = globalThis.fetch) {
+async function siteSessionRequest(path, sessionToken, {method = 'GET', announceSessionFailure = true, body = undefined} = {}, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const headers = {Authorization: `Bearer ${bearerToken(sessionToken)}`};
-  if (json !== undefined) headers['Content-Type'] = 'application/json';
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   let response;
   try {
     response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
@@ -658,7 +657,7 @@ async function siteSessionRequest(path, sessionToken, {method = 'GET', announceS
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
       headers,
-      ...(json !== undefined ? {body: JSON.stringify(json)} : {}),
+      ...(body === undefined ? {} : {body: JSON.stringify(body)}),
     });
   } catch {
     throw new SiteCoreError('LOTBI 계정 서버에 접속하지 못했습니다.', {
@@ -900,17 +899,32 @@ export async function reviewProductCard(sessionToken, {
   });
 }
 
+const SYNTHETIC_EMAIL_FIRST_HANDLE_RE = /^e1[0-9a-f]{20}$/;
+
+function optionalIdentityText(value, field) {
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {
+      code: 'SITE_IDENTITY_CONTRACT_INVALID',
+    });
+  }
+  return value.trim();
+}
+
 function userFacingIdentity(user) {
-  const email = typeof user?.email === 'string' ? user.email.trim() : '';
-  const rawAccountHandle = typeof user?.account_handle === 'string' ? user.account_handle.trim() : '';
-  const explicitPublicHandle = typeof user?.public_handle === 'string' ? user.public_handle.trim() : '';
-  const generatorShape = /^e1[0-9a-f]{20}$/.test(rawAccountHandle);
-  const synthetic = user?.account_handle_is_synthetic === true || (generatorShape && Boolean(email));
-  const publicHandle = explicitPublicHandle || (!synthetic ? rawAccountHandle : '');
+  const name = optionalIdentityText(user?.name, 'user.name');
+  const email = optionalIdentityText(user?.email, 'user.email');
+  const rawAccountHandle = optionalIdentityText(user?.account_handle, 'user.account_handle');
+  const canonicalPublicHandle = optionalIdentityText(user?.public_handle, 'user.public_handle');
+  const synthetic = user?.account_handle_is_synthetic === true
+    || Boolean(rawAccountHandle && email && SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle));
+  const publicHandle = canonicalPublicHandle || (!synthetic ? rawAccountHandle : '');
   return Object.freeze({
-    name: typeof user?.name === 'string' ? user.name.trim() : '',
+    name,
     email,
     publicHandle,
+    // Compatibility alias is user-facing only. Internal AccountIdentity is
+    // intentionally never exposed through this Site model.
     accountHandle: publicHandle,
   });
 }
@@ -935,25 +949,31 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
   });
 }
 
-export async function updateCurrentSiteProfile({sessionToken, displayName, publicHandle}, fetchImpl = globalThis.fetch) {
-  const normalizedName = typeof displayName === 'string' ? displayName.trim() : '';
-  const normalizedHandle = typeof publicHandle === 'string' ? publicHandle.trim() : '';
-  if (!normalizedName && !normalizedHandle) {
-    throw new SiteCoreError('표시 이름 또는 public handle을 입력해 주세요.', {code: 'SITE_PROFILE_INPUT_REQUIRED'});
+export async function updateCurrentSiteProfile(sessionToken, {
+  displayName = '',
+  publicHandle = '',
+} = {}, fetchImpl = globalThis.fetch) {
+  const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+  const normalizedPublicHandle = typeof publicHandle === 'string' ? publicHandle.trim().toLowerCase() : '';
+  if (!normalizedDisplayName && !normalizedPublicHandle) {
+    throw new SiteCoreError('표시 이름 또는 공개 아이디를 입력해 주세요.', {code: 'SITE_PROFILE_UPDATE_REQUIRED'});
   }
-  const payload = await siteSessionRequest(PROFILE_PATH, sessionToken, {
+  const payload = await siteSessionRequest('/v2/account/profile', sessionToken, {
     method: 'PUT',
-    json: {
-      ...(normalizedName ? {display_name: normalizedName} : {}),
-      ...(normalizedHandle ? {public_handle: normalizedHandle} : {}),
+    body: {
+      ...(normalizedDisplayName ? {display_name: normalizedDisplayName} : {}),
+      ...(normalizedPublicHandle ? {public_handle: normalizedPublicHandle} : {}),
     },
   }, fetchImpl);
   const user = payload && typeof payload.user === 'object' ? payload.user : {};
   const userId = typeof user.id === 'string' ? user.id.trim() : '';
   if (!userId) {
-    throw new SiteCoreError('LOTBI 프로필 응답이 올바르지 않습니다.', {code: 'SITE_PROFILE_CONTRACT_INVALID'});
+    throw new SiteCoreError('LOTBI 프로필 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
   }
-  return Object.freeze({userId, ...userFacingIdentity(user)});
+  return Object.freeze({
+    userId,
+    ...userFacingIdentity(user),
+  });
 }
 
 export async function getCurrentSubscription(sessionToken, fetchImpl = globalThis.fetch) {

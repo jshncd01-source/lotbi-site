@@ -54,8 +54,8 @@ jobs:
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 
-      - name: Validate email-first identity profile contract
-        run: node scripts/validate_identity_profile_hotfix_01.mjs
+      - name: Validate canonical email-first identity profile
+        run: node scripts/validate_identity_profile_hotfix_02.mjs
 
       # Run the feature-owned profile regression before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
