@@ -1865,6 +1865,11 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   padding: 9px 10px 10px;
 }
 
+.lotbi-rich-card-place .lotbi-rich-card-copy {
+  gap: 4px;
+  padding: 10px 11px 8px;
+}
+
 .lotbi-rich-card-place-media {
   aspect-ratio: 16 / 9;
   background: #f5f6f8;
