@@ -42,7 +42,7 @@ assert.doesNotMatch(hardeningCss, /white-space:\s*nowrap/);
 
 // Desktop brand belongs to the sidebar hierarchy and uses the approved logo asset.
 const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-desktop"[\s\S]*?<\/aside>/)?.[0] || '';
-assert.match(desktopAside, /<a class="sidebar-brand" href="index\.html" aria-label="LOTBI 홈">/);
+assert.match(desktopAside, /<a class="sidebar-brand" href="index\.html" aria-label="LOTBI 홈" data-new-conversation>/);
 assert.ok(desktopAside.includes('<img class="sidebar-brand-logo" src="/assets/lotbi-logo-header.png" alt="LOTBI 캐릭터"'));
 assert.match(desktopAside, /<span class="sidebar-brand-mascot-crop"/);
 assert.match(desktopAside, /<span class="sidebar-brand-wordmark"/);
@@ -52,7 +52,7 @@ assert.ok(
 );
 
 // The main topbar brand remains available for tablet/mobile only; desktop must not duplicate it.
-assert.ok(index.includes('<a class="chat-brand mobile-header-brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈">'));
+assert.ok(index.includes('<a class="chat-brand mobile-header-brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈" data-new-conversation>'));
 assert.match(
   sidebarCss,
   /@media\s*\(min-width:\s*901px\)[\s\S]*?\.topbar-left,[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/,

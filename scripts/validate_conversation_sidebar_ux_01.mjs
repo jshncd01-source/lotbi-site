@@ -54,8 +54,25 @@ assert.ok(conversation.includes('slot.appendChild(avatar)'), 'the sealed Avatar 
 assert.ok(conversation.includes('homeAvatarAnchor.appendChild(avatar)'), 'new chat must return the same Avatar DOM home');
 assert.ok(conversationCss.includes('grid-template-columns: 48px minmax(0, 1fr)'));
 
-assert.equal((index.match(/data-new-conversation/g) || []).length, 2, 'desktop and mobile new-chat controls required');
-assert.ok(!index.match(/data-new-conversation[^>]*disabled/), 'new-chat controls must be active');
+assert.equal((index.match(/data-new-conversation/g) || []).length, 4, 'desktop/mobile new-chat controls and desktop/mobile LOTBI logos must share the Home reset contract');
+assert.ok(
+  /<a class="sidebar-brand"[^>]*data-new-conversation/.test(index),
+  'desktop LOTBI logo must reuse the existing new-conversation reset path',
+);
+assert.ok(
+  /<a class="chat-brand mobile-header-brand lotbi-official-brand"[^>]*data-new-conversation/.test(index),
+  'mobile LOTBI logo must reuse the existing new-conversation reset path',
+);
+assert.ok(!index.match(/data-new-conversation[^>]*disabled/), 'Home reset controls must be active');
+const startNewConversationStart = conversation.indexOf('const startNewConversation = () => {');
+const startNewConversationEnd = conversation.indexOf('const ensureThread = firstMessage => {', startNewConversationStart);
+assert.ok(startNewConversationStart > 0 && startNewConversationEnd > startNewConversationStart, 'startNewConversation source must remain bounded');
+const startNewConversationSource = conversation.slice(startNewConversationStart, startNewConversationEnd);
+assert.ok(startNewConversationSource.includes('state.activeThreadId = null'), 'Home reset must deselect the active conversation');
+assert.ok(startNewConversationSource.includes("state.draft = ''") && startNewConversationSource.includes("prompt.value = ''"), 'Home reset must clear composer draft and visible prompt');
+assert.ok(startNewConversationSource.includes('saveState()') && startNewConversationSource.includes('showBlankHome()') && startNewConversationSource.includes('renderRecent()'), 'Home reset must persist blank Home and re-render preserved recents');
+assert.ok(startNewConversationSource.includes('closeMobileDrawer()'), 'Home reset must close the mobile drawer');
+assert.ok(!startNewConversationSource.includes('state.threads ='), 'Home reset must not delete or replace conversation history');
 for (const token of ['THREAD_LIMIT', 'activeThreadId', 'titleFromMessage', 'renderRecent', 'activateThread', 'startNewConversation']) {
   assert.ok(conversation.includes(token), `thread persistence contract missing: ${token}`);
 }
