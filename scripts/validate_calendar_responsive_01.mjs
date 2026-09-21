@@ -27,7 +27,7 @@ assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarVersion}`));
 for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js']) {
   assert.ok(workflow.includes(`'${module}'`), `focused workflow missing ${module}`);
 }
-for (const test of ['validate_calendar_month_grid_01.mjs', 'validate_calendar_year_view_01.mjs', 'validate_guest_calendar_local_01.mjs', 'validate_calendar_real_ui_01.mjs', 'validate_calendar_event_editor_01.mjs', 'validate_calendar_responsive_01.mjs', 'validate_calendar_modal_runtime_02.mjs']) {
+for (const test of ['validate_calendar_month_grid_01.mjs', 'validate_calendar_year_view_01.mjs', 'validate_guest_calendar_local_01.mjs', 'validate_calendar_real_ui_01.mjs', 'validate_calendar_event_editor_01.mjs', 'validate_calendar_responsive_01.mjs', 'validate_calendar_modal_runtime_02.mjs', 'validate_calendar_month_geometry_01.mjs']) {
   assert.ok(workflow.includes(test), `focused workflow missing ${test}`);
 }
 
