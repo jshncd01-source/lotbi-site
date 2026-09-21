@@ -606,23 +606,59 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : '일정 추가';
   const form = document.createElement('form'); form.className = 'calendar-editor-form';
-  const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목';
+
+  const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목 *';
   const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || '';
-  if (authenticated && item) { titleInput.readOnly = true; titleInput.setAttribute('aria-describedby', 'calendar-editor-title-note'); }
   titleLabel.appendChild(titleInput);
-  const titleNote = document.createElement('small'); titleNote.id = 'calendar-editor-title-note'; titleNote.textContent = authenticated && item ? '회원 일정의 제목은 유지되고 날짜와 시간을 변경할 수 있어요.' : '';
+  const titleNote = document.createElement('small'); titleNote.id = 'calendar-editor-title-note'; titleNote.textContent = '제목만 있으면 저장할 수 있어요. 나머지는 선택 사항입니다.';
+
   const dateLabel = document.createElement('label'); dateLabel.textContent = '날짜';
-  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.required = true; dateInput.value = item?.local_date || selectedDate; dateLabel.appendChild(dateInput);
+  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.value = item?.local_date || canonicalActivityLocalDate(item) || selectedDate || ''; dateLabel.appendChild(dateInput);
+
   const allDayLabel = document.createElement('label'); allDayLabel.className = 'calendar-editor-all-day';
-  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = isAllDay(item || {}); allDayLabel.append(allDayInput, document.createTextNode('종일'));
+  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = item ? isAllDay(item) : true; allDayLabel.append(allDayInput, document.createTextNode('종일'));
+
   const timeLabel = document.createElement('label'); timeLabel.textContent = '시간';
-  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'time'; timeInput.value = item?.local_datetime?.slice(11, 16) || '09:00'; timeInput.disabled = allDayInput.checked; timeLabel.appendChild(timeInput);
-  allDayInput.addEventListener('change', () => { timeInput.disabled = allDayInput.checked; });
+  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'time'; timeInput.value = item?.local_datetime?.slice(11, 16) || '';
+
+  const syncTemporalControls = () => {
+    const hasDate = Boolean(dateInput.value);
+    allDayInput.disabled = !hasDate;
+    timeInput.disabled = !hasDate || allDayInput.checked;
+    if (!hasDate) timeInput.value = '';
+  };
+  dateInput.addEventListener('change', syncTemporalControls);
+  allDayInput.addEventListener('change', syncTemporalControls);
+  syncTemporalControls();
+  timeLabel.appendChild(timeInput);
+
+  const entry = item?.entry && typeof item.entry === 'object' ? item.entry : {};
+  const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
+  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.placeholder = '0'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
+
+  const categoryLabel = document.createElement('label'); categoryLabel.textContent = '비용 종류';
+  const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';
+  for (const [value, label] of [['', '미분류'], ['FOOD', '음식'], ['TRAVEL', '여행'], ['SHOPPING', '쇼핑'], ['LIVING', '기타 / 생활비']]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; categoryInput.appendChild(option);
+  }
+  categoryInput.value = entry.expense_category === 'UNCLASSIFIED' ? '' : (entry.expense_category || '');
+  categoryLabel.appendChild(categoryInput);
+
+  const memoLabel = document.createElement('label'); memoLabel.className = 'calendar-editor-wide'; memoLabel.textContent = '메모';
+  const memoInput = document.createElement('textarea'); memoInput.className = 'calendar-editor-memo'; memoInput.maxLength = 2000; memoInput.rows = 3; memoInput.value = entry.memo || ''; memoLabel.appendChild(memoInput);
+
+  const placeLabel = document.createElement('label'); placeLabel.className = 'calendar-editor-wide'; placeLabel.textContent = '장소';
+  const placeInput = document.createElement('input'); placeInput.className = 'calendar-editor-place'; placeInput.maxLength = 240; placeInput.value = entry.place || ''; placeLabel.appendChild(placeInput);
+
+  const merchantLabel = document.createElement('label'); merchantLabel.className = 'calendar-editor-wide'; merchantLabel.textContent = '상점 · 예약처';
+  const merchantInput = document.createElement('input'); merchantInput.className = 'calendar-editor-merchant'; merchantInput.maxLength = 240; merchantInput.value = entry.merchant || ''; merchantLabel.appendChild(merchantInput);
+
   const error = document.createElement('p'); error.className = 'calendar-editor-error'; error.setAttribute('role', 'alert');
   const actions = document.createElement('div'); actions.className = 'calendar-editor-actions';
   const cancel = button('취소', 'calendar-editor-cancel');
   const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
   actions.append(cancel, save);
+
   if (item) {
     const remove = button('삭제', 'calendar-editor-delete'); actions.prepend(remove);
     remove.addEventListener('click', () => {
@@ -633,7 +669,7 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
       keep.addEventListener('click', () => confirmation.remove());
       confirm.addEventListener('click', async () => {
         confirm.disabled = true;
-        try { await controller.remove(item); backdrop.remove(); await onSaved(item.local_date); }
+        try { await controller.remove(item); backdrop.remove(); await onSaved(); }
         catch (caught) {
           if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
           else error.textContent = caught instanceof Error ? caught.message : '일정을 삭제하지 못했습니다.';
@@ -643,8 +679,14 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
       confirmation.append(copy, keep, confirm); form.appendChild(confirmation); confirm.focus();
     });
   }
-  form.append(titleLabel, titleNote, dateLabel, allDayLabel, timeLabel, error, actions);
+
+  form.append(
+    titleLabel, titleNote, dateLabel, allDayLabel, timeLabel,
+    amountLabel, categoryLabel, memoLabel, placeLabel, merchantLabel,
+    error, actions,
+  );
   dialog.append(heading, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
+
   const close = () => {
     backdrop.remove();
     onClose();
@@ -660,11 +702,21 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
   });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
-    const value = {title: titleInput.value, localDate: dateInput.value, time: timeInput.value, allDay: allDayInput.checked};
+    const value = {
+      title: titleInput.value,
+      localDate: dateInput.value,
+      time: timeInput.value,
+      allDay: allDayInput.checked,
+      amountMinor: amountInput.value,
+      expenseCategory: categoryInput.value || null,
+      memo: memoInput.value,
+      place: placeInput.value,
+      merchant: merchantInput.value,
+    };
     save.disabled = true;
     try {
       if (item) await controller.update(item, value); else await controller.create(value);
-      backdrop.remove(); await onSaved(value.localDate);
+      backdrop.remove(); await onSaved();
     } catch (caught) {
       if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
       else error.textContent = caught instanceof Error ? caught.message : '일정을 저장하지 못했습니다.';
