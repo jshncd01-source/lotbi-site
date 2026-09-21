@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260921-convcal2';
-import {buildNaverStaticMapThumbnailUrl, isPlaceResultFresh, naverMapsPlaceActionLabel, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260920-placecardhotfix1';
+import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-placecardorbit1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -705,6 +705,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         coordinate_system: place.coordinateSystem,
         coordinate_authority: place.coordinateAuthority,
         source_url: place.sourceUrl,
+        phone: place.phone,
+        phone_verified: place.phoneVerified,
         navigation_capability: place.navigationCapable,
       })),
     };
@@ -718,14 +720,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!placeResult) return null;
     const fresh = isPlaceResultFresh(placeResult);
     const rail = document.createElement('section');
-    rail.className = 'lotbi-rich-card-rail';
+    rail.className = 'lotbi-rich-card-rail lotbi-place-orbit';
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
+    rail.dataset.cardCount = String(placeResult.results.length);
+    rail.dataset.freshness = fresh ? 'fresh' : 'stale';
     rail.setAttribute('aria-label', '장소 검색 결과');
+    rail.setAttribute('aria-roledescription', 'carousel');
+    rail.tabIndex = 0;
+
+    const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
       const item = document.createElement('article');
-      item.className = 'lotbi-rich-card lotbi-rich-card-place';
+      item.className = 'lotbi-rich-card lotbi-rich-card-place lotbi-place-orbit-card';
+      item.classList.add(placeIndex === 0 ? 'is-primary' : 'is-after');
       item.dataset.candidateIndex = String(place.candidateIndex);
+      item.dataset.orbitIndex = String(placeIndex);
+      item.setAttribute('role', 'group');
+      item.setAttribute('aria-roledescription', 'slide');
+      item.setAttribute('aria-label', `${placeIndex + 1} / ${placeResult.results.length} · ${place.name}`);
+      item.setAttribute('aria-current', placeIndex === 0 ? 'true' : 'false');
+      item.tabIndex = placeIndex === 0 ? 0 : -1;
+
       const media = document.createElement('div');
       media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
       media.dataset.mediaState = 'loading';
@@ -762,11 +778,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         media.dataset.mediaState = 'error';
         media.textContent = 'NAVER 지도';
       }
+
       const copy = document.createElement('div');
       copy.className = 'lotbi-rich-card-copy';
       const source = document.createElement('span');
       source.className = 'lotbi-rich-card-source';
-      source.textContent = place.category || 'NAVER 장소';
+      source.textContent = place.category || '장소';
       const title = document.createElement('h3');
       title.className = 'lotbi-rich-card-title';
       title.textContent = place.name;
@@ -774,40 +791,50 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.className = 'lotbi-rich-card-price';
       address.textContent = place.address;
       copy.append(source, title, address);
-      const evidence = document.createElement('div');
-      evidence.className = 'lotbi-rich-card-evidence';
-      const coordinate = document.createElement('span');
-      coordinate.textContent = place.navigationCapable ? 'NAVER Maps Geocoding · WGS84 확인' : '좌표 미확정 · 네이버지도 검색으로 연결';
-      evidence.appendChild(coordinate);
-      if (!fresh) {
-        const expired = document.createElement('span');
-        expired.textContent = '검색 결과 만료 · 다시 검색 필요';
-        evidence.appendChild(expired);
-      }
-      copy.appendChild(evidence);
+
       const actions = document.createElement('div');
-      actions.className = 'lotbi-rich-card-actions';
-      if (place.sourceUrl) {
-        const detail = document.createElement('a');
-        detail.className = 'lotbi-rich-card-action';
-        detail.href = place.sourceUrl;
-        detail.target = '_blank';
-        detail.rel = 'noopener noreferrer';
-        detail.referrerPolicy = 'no-referrer';
-        detail.textContent = '상세보기';
-        actions.appendChild(detail);
+      actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
+
+      const phoneHref = buildVerifiedPhoneHref(place);
+      if (phoneHref) {
+        const phone = document.createElement('a');
+        phone.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-phone-action';
+        phone.href = phoneHref;
+        phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
+        phone.title = '전화 걸기';
+        phone.dataset.action = 'phone';
+        phone.tabIndex = placeIndex === 0 ? 0 : -1;
+        phone.addEventListener('click', () => {
+          phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
+          setStatus('전화 앱 연결을 시작합니다.');
+        });
+        actions.appendChild(phone);
       }
+
       const navigate = document.createElement('button');
       navigate.type = 'button';
-      navigate.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary';
-      navigate.textContent = naverMapsPlaceActionLabel(place);
-      navigate.disabled = !fresh;
-      if (!fresh) navigate.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
+      navigate.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-naver-map-action';
+      navigate.setAttribute('aria-label', '네이버지도에서 열기');
+      navigate.title = '네이버지도에서 열기';
+      navigate.dataset.action = 'naver-map';
+      navigate.tabIndex = placeIndex === 0 ? 0 : -1;
+      const naverIcon = document.createElement('img');
+      naverIcon.className = 'lotbi-naver-map-icon';
+      naverIcon.src = 'https://navercorp.com/img/pc/service-map-app-4.jpg';
+      naverIcon.alt = '';
+      naverIcon.width = 28;
+      naverIcon.height = 28;
+      naverIcon.loading = 'eager';
+      naverIcon.decoding = 'async';
+      naverIcon.referrerPolicy = 'no-referrer';
+      naverIcon.addEventListener('error', () => {
+        naverIcon.remove();
+        navigate.classList.add('is-icon-fallback');
+      }, {once: true});
+      navigate.appendChild(naverIcon);
       navigate.addEventListener('click', () => {
         if (!isPlaceResultFresh(placeResult)) {
-          navigate.disabled = true;
-          navigate.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
-          setStatus('장소 검색 결과가 만료되었습니다. 다시 검색해 주세요.');
+          setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
           return;
         }
         const opened = openNaverMapsPlace(place);
@@ -819,9 +846,132 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
       });
       actions.appendChild(navigate);
+
       item.append(media, copy, actions);
+      cards.push(item);
       rail.appendChild(item);
     }
+
+    const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+    let activeIndex = 0;
+    let updateFrame = 0;
+
+    const targetScrollLeft = index => {
+      const card = cards[index];
+      if (!card) return rail.scrollLeft;
+      return Math.max(0, card.offsetLeft - ((rail.clientWidth - card.offsetWidth) / 2));
+    };
+    const nearestCardIndex = () => {
+      if (!cards.length) return 0;
+      const center = rail.scrollLeft + (rail.clientWidth / 2);
+      let nearest = 0;
+      let distance = Number.POSITIVE_INFINITY;
+      for (const [index, card] of cards.entries()) {
+        const cardCenter = card.offsetLeft + (card.offsetWidth / 2);
+        const nextDistance = Math.abs(cardCenter - center);
+        if (nextDistance < distance) {
+          nearest = index;
+          distance = nextDistance;
+        }
+      }
+      return nearest;
+    };
+    const updateOrbitState = () => {
+      updateFrame = 0;
+      activeIndex = nearestCardIndex();
+      cards.forEach((card, index) => {
+        const current = index === activeIndex;
+        card.classList.toggle('is-primary', current);
+        card.classList.toggle('is-before', index < activeIndex);
+        card.classList.toggle('is-after', index > activeIndex);
+        card.setAttribute('aria-current', current ? 'true' : 'false');
+        card.tabIndex = current ? 0 : -1;
+        for (const control of card.querySelectorAll('a, button')) {
+          control.tabIndex = current ? 0 : -1;
+        }
+      });
+    };
+    const scheduleOrbitState = () => {
+      if (updateFrame) return;
+      updateFrame = globalThis.requestAnimationFrame?.(updateOrbitState) || 0;
+      if (!updateFrame) updateOrbitState();
+    };
+    const scrollToCard = (index, behavior = reducedMotion ? 'auto' : 'smooth') => {
+      const bounded = Math.max(0, Math.min(cards.length - 1, index));
+      rail.scrollTo({left: targetScrollLeft(bounded), behavior});
+      activeIndex = bounded;
+      scheduleOrbitState();
+    };
+
+    cards.forEach((card, index) => {
+      card.addEventListener('click', event => {
+        if (event.target?.closest?.('a, button')) return;
+        if (index !== activeIndex) scrollToCard(index);
+      });
+    });
+
+    rail.addEventListener('keydown', event => {
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = Math.min(cards.length - 1, activeIndex + 1);
+      else if (event.key === 'ArrowLeft') nextIndex = Math.max(0, activeIndex - 1);
+      else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = cards.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      scrollToCard(nextIndex);
+      cards[nextIndex]?.focus({preventScroll: true});
+    });
+    rail.addEventListener('scroll', scheduleOrbitState, {passive: true});
+
+    let dragPointerId = null;
+    let dragStartX = 0;
+    let dragStartScrollLeft = 0;
+    let dragStartIndex = 0;
+    let dragMoved = false;
+    let suppressClick = false;
+    rail.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || event.target?.closest?.('a, button')) return;
+      dragPointerId = event.pointerId;
+      dragStartX = event.clientX;
+      dragStartScrollLeft = rail.scrollLeft;
+      dragStartIndex = activeIndex;
+      dragMoved = false;
+      rail.classList.add('is-dragging');
+      rail.setPointerCapture?.(event.pointerId);
+    });
+    rail.addEventListener('pointermove', event => {
+      if (event.pointerId !== dragPointerId) return;
+      const delta = event.clientX - dragStartX;
+      if (Math.abs(delta) > 4) dragMoved = true;
+      if (!dragMoved) return;
+      event.preventDefault();
+      rail.scrollLeft = dragStartScrollLeft - delta;
+      scheduleOrbitState();
+    });
+    const finishDrag = event => {
+      if (event.pointerId !== dragPointerId) return;
+      rail.releasePointerCapture?.(event.pointerId);
+      rail.classList.remove('is-dragging');
+      const nearest = nearestCardIndex();
+      const limited = Math.max(dragStartIndex - 2, Math.min(dragStartIndex + 2, nearest));
+      if (dragMoved) {
+        suppressClick = true;
+        scrollToCard(limited);
+        globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
+      } else {
+        scheduleOrbitState();
+      }
+      dragPointerId = null;
+    };
+    rail.addEventListener('pointerup', finishDrag);
+    rail.addEventListener('pointercancel', finishDrag);
+    rail.addEventListener('click', event => {
+      if (!suppressClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
+
+    scheduleOrbitState();
     return rail;
   };
 

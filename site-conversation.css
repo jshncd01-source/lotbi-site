@@ -1763,3 +1763,194 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
     transition: none;
   }
 }
+
+
+/* LOTBI PLACE CARD ORBIT FINAL — place-only overrides */
+.lotbi-place-orbit {
+  --lotbi-place-card-width: clamp(280px, 44%, 312px);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  grid-auto-columns: var(--lotbi-place-card-width);
+  gap: 14px;
+  margin-top: 14px;
+  padding: 10px max(18px, calc((100% - var(--lotbi-place-card-width)) / 2)) 18px;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline mandatory;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  cursor: grab;
+  perspective: 900px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lotbi-place-orbit::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.lotbi-place-orbit.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+  user-select: none;
+}
+
+.lotbi-place-orbit-card {
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  transform-origin: center center;
+  opacity: .76;
+  transform: scale(.92);
+  transition: transform 170ms ease, opacity 170ms ease, box-shadow 170ms ease;
+  will-change: transform;
+}
+
+.lotbi-place-orbit-card.is-before {
+  transform: perspective(900px) rotateY(2.5deg) scale(.92);
+}
+
+.lotbi-place-orbit-card.is-after {
+  transform: perspective(900px) rotateY(-2.5deg) scale(.92);
+}
+
+.lotbi-place-orbit-card.is-primary {
+  z-index: 3;
+  opacity: 1;
+  transform: scale(1);
+  box-shadow: 0 14px 34px rgba(18, 28, 45, .12);
+}
+
+.lotbi-place-orbit-card:not(.is-primary) .lotbi-place-card-actions {
+  pointer-events: none;
+  opacity: .48;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-title {
+  min-height: 0;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-price {
+  color: #5f6978;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 620;
+}
+
+.lotbi-place-card-actions {
+  display: flex;
+  grid-template-columns: none;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 58px;
+  padding: 7px 10px 10px;
+}
+
+.lotbi-rich-card-icon-action {
+  box-sizing: border-box;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  flex: 0 0 44px;
+  border-radius: 50%;
+  background: #fff;
+  color: #202632;
+}
+
+.lotbi-rich-card-icon-action:hover {
+  background: #f7f8fa;
+}
+
+.lotbi-phone-action::before {
+  content: "☎";
+  font-size: 23px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.lotbi-naver-map-action {
+  overflow: hidden;
+}
+
+.lotbi-naver-map-icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.lotbi-naver-map-action.is-icon-fallback::before {
+  content: "↗";
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 760;
+}
+
+.lotbi-place-orbit:focus-visible,
+.lotbi-place-orbit-card:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 3px;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price {
+  color: #c2c9d4;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-icon-action {
+  background: #171c25;
+  color: #edf0f5;
+  border-color: #515b69;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-icon-action:hover {
+  background: #262d38;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    --lotbi-place-card-width: min(82vw, 320px);
+    width: 100%;
+    max-width: 100%;
+    margin-right: 0;
+    padding: 8px max(16px, calc((100% - var(--lotbi-place-card-width)) / 2)) 16px;
+    gap: 12px;
+  }
+
+  .lotbi-place-card-actions {
+    gap: 8px;
+  }
+
+  .lotbi-rich-card-icon-action {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    font-size: inherit;
+  }
+}
+
+@media (max-width: 390px) {
+  .lotbi-place-orbit {
+    --lotbi-place-card-width: min(84vw, 320px);
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-place-orbit {
+    --lotbi-place-card-width: min(82vw, 296px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card {
+    transition: none;
+  }
+}
