@@ -5,6 +5,7 @@ import {
   GUEST_CONVERSATION_CLAIM_INTENT_KEY,
   claimGuestConversationToAccount,
   ensureDurableAnonymousConversationNamespace,
+  guestConversationThreadClaimed,
   prepareGuestConversationClaimIntent,
 } from '../site-conversation-storage.js';
 
@@ -20,6 +21,21 @@ class MemoryStorage {
   }
   removeItem(key) {
     this.values.delete(key);
+  }
+}
+
+class FailOnceStorage extends MemoryStorage {
+  constructor(entries, failKey) {
+    super(entries);
+    this.failKey = failKey;
+    this.failed = false;
+  }
+  setItem(key, value) {
+    if (!this.failed && key === this.failKey) {
+      this.failed = true;
+      throw new Error('intentional one-shot storage failure');
+    }
+    super.setItem(key, value);
   }
 }
 
@@ -192,6 +208,15 @@ const claimedAccountThread = accountAfter.threads.find(item => item.id === 'g3')
 assert.equal(claimedAccountThread.messages[1].meta.placeResult.result_set_id, 'plrs_test');
 assert.equal(claimedAccountThread.messages[1].meta.calendarAction, undefined);
 assert.equal(claimedAccountThread.claimedFromGuest.claimId, 'claim-test-0001');
+assert.equal(
+  guestConversationThreadClaimed({
+    anonymousNamespace: guestNamespace,
+    threadId: 'g3',
+    durableStorage: claimDurable,
+  }),
+  true,
+  'successful account copy must persist an independent source-claim guard',
+);
 
 const guestAfter = JSON.parse(claimDurable.getItem(threadsKey(guestNamespace)));
 assert.equal(guestAfter.threads.find(item => item.id === 'g3').guestClaimConsumed, true, 'successful claim must mark only the claimed guest thread consumed');
@@ -311,6 +336,62 @@ const changedResult = await claimGuestConversationToAccount({
 assert.equal(changedResult.status, 'SOURCE_CHANGED', 'claim must fail closed if the guest source changed after login start');
 assert.equal(JSON.parse(changedDurable.getItem(threadsKey(changedAccount))).threads.length, 0);
 assert.equal(JSON.parse(changedDurable.getItem(threadsKey(changedGuest))).threads[0].guestClaimConsumed, undefined);
+
+const guardedGuest = 'anonymous-guarded-partial';
+const guardedAccount = 'account-guarded-partial';
+const guardedSourceKey = threadsKey(guardedGuest);
+const guardedDurable = new FailOnceStorage([
+  [ANONYMOUS_CONVERSATION_NAMESPACE_KEY, guardedGuest],
+  [guardedSourceKey, JSON.stringify({
+    threads: [thread('guarded-g', 'Guarded', 700, [message('user', '승계해줘', 700)])],
+    activeThreadId: 'guarded-g',
+    draft: '',
+  })],
+  [threadsKey(guardedAccount), JSON.stringify({threads: [], activeThreadId: null, draft: ''})],
+], guardedSourceKey);
+const guardedSession = new MemoryStorage();
+await prepareGuestConversationClaimIntent({
+  durableStorage: guardedDurable,
+  sessionStorage: guardedSession,
+  now: 4_500,
+  createClaimId: () => 'claim-guarded-partial',
+  digestText,
+});
+// The first source-thread write after the account copy is intentionally failed.
+guardedDurable.failed = false;
+const guardedResult = await claimGuestConversationToAccount({
+  accountNamespace: guardedAccount,
+  durableStorage: guardedDurable,
+  sessionStorage: guardedSession,
+  now: 4_600,
+  digestText,
+});
+assert.equal(guardedResult.status, 'SOURCE_MARKER_PENDING');
+assert.equal(
+  guestConversationThreadClaimed({
+    anonymousNamespace: guardedGuest,
+    threadId: 'guarded-g',
+    durableStorage: guardedDurable,
+  }),
+  true,
+  'source guard must block cross-account reclamation even when the source-thread marker write fails',
+);
+assert.equal(await prepareGuestConversationClaimIntent({
+  durableStorage: guardedDurable,
+  sessionStorage: new MemoryStorage(),
+  now: 4_700,
+  createClaimId: () => 'must-not-cross-account',
+  digestText,
+}), null, 'guarded source must not produce a second account claim intent');
+const guardedRetry = await claimGuestConversationToAccount({
+  accountNamespace: guardedAccount,
+  durableStorage: guardedDurable,
+  sessionStorage: guardedSession,
+  now: 4_800,
+  digestText,
+});
+assert.equal(guardedRetry.status, 'ALREADY_APPLIED', 'same-account retry must repair the pending source marker idempotently');
+assert.equal(JSON.parse(guardedDurable.getItem(guardedSourceKey)).threads[0].guestClaimConsumed, true);
 
 const blankDurable = new MemoryStorage([
   [ANONYMOUS_CONVERSATION_NAMESPACE_KEY, 'anonymous-blank'],
