@@ -1347,6 +1347,23 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
   object-fit: cover;
 }
 
+.lotbi-rich-card-place-media {
+  background: #fff;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image {
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image.is-ready {
+  opacity: 1;
+}
+
+.lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
+  background: #fff;
+}
+
 .lotbi-rich-card-placeholder {
   color: #7d8796;
   font-size: 13px;
@@ -1739,3 +1756,10 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   .conversation-calendar-action-button { min-width: 0; max-width: 100%; }
 }
 
+
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-rich-card-place-media .lotbi-rich-card-image {
+    transition: none;
+  }
+}
