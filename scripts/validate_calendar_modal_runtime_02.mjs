@@ -218,17 +218,11 @@ try{
     result.eventSelection=true;
     result.editorEscapeContained=true;
 
-    const measureMonthGeometry=async (targetLabel,expectedWeeks)=>{
+    const measureMonthGeometry=async (backClicks,targetLabel,expectedWeeks)=>{
       const titleNode=modal.querySelector('.calendar-title-button');
       const previousButton=modal.querySelector('.calendar-nav-button');
-      let guard=12;
-      while(titleNode?.textContent!==targetLabel&&guard>0){
-        const before=titleNode?.textContent;
-        click(previousButton);
-        await wait(()=>titleNode?.textContent!==before,'navigate '+targetLabel);
-        guard-=1;
-      }
-      if(titleNode?.textContent!==targetLabel)throw new Error('could not reach '+targetLabel);
+      for(let i=0;i<backClicks;i+=1)click(previousButton);
+      await wait(()=>titleNode?.textContent===targetLabel,'navigate '+targetLabel);
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
       const monthGrid=modal.querySelector('.calendar-month-grid');
       const heights=[...monthGrid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
@@ -244,8 +238,8 @@ try{
       if(lowerGap>4)throw new Error(targetLabel+' unused lower space '+lowerGap+'px');
       return {label:targetLabel,weekCount,cellHeight:heights[0]||0,unusedBottom:lowerGap};
     };
-    result.monthGeometry.push(await measureMonthGeometry('2026년 5월',6));
-    result.monthGeometry.push(await measureMonthGeometry('2026년 2월',4));
+    result.monthGeometry.push(await measureMonthGeometry(4,'2026년 5월',6));
+    result.monthGeometry.push(await measureMonthGeometry(3,'2026년 2월',4));
     if(result.monthGeometry.map(value=>value.weekCount).sort().join(',')!=='4,5,6')throw new Error('desktop 4/5/6-week geometry matrix incomplete');
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
