@@ -435,18 +435,10 @@ export async function getCalendarWeather(
 ) {
   const startDate = isoDate(start, '시작');
   const endDate = isoDate(end, '종료');
-  const lat = Number(latitude);
-  const lon = Number(longitude);
+  const hasLatitude = latitude !== undefined && latitude !== null && latitude !== '';
+  const hasLongitude = longitude !== undefined && longitude !== null && longitude !== '';
   const region = typeof midRegionCode === 'string' ? midRegionCode.trim() : '';
-  if (
-    !Number.isFinite(lat)
-    || !Number.isFinite(lon)
-    || lat < 31
-    || lat > 44.5
-    || lon < 122
-    || lon > 132.5
-    || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))
-  ) {
+  if (hasLatitude !== hasLongitude || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))) {
     throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
       code: 'CALENDAR_WEATHER_LOCATION_INVALID',
       status: 422,
@@ -456,10 +448,20 @@ export async function getCalendarWeather(
     start: startDate,
     end: endDate,
     timezone: String(timezone || 'Asia/Seoul'),
-    latitude: String(lat),
-    longitude: String(lon),
   });
-  if (region) params.set('mid_region_code', region);
+  if (hasLatitude && hasLongitude) {
+    const lat = Number(latitude);
+    const lon = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 31 || lat > 44.5 || lon < 122 || lon > 132.5) {
+      throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
+        code: 'CALENDAR_WEATHER_LOCATION_INVALID',
+        status: 422,
+      });
+    }
+    params.set('latitude', String(lat));
+    params.set('longitude', String(lon));
+    if (region) params.set('mid_region_code', region);
+  }
   const payload = await calendarRequest(
     `/v2/life/weather?${params.toString()}`,
     sessionToken,
