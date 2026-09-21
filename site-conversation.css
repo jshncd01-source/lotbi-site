@@ -1765,67 +1765,140 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 }
 
 
-/* LOTBI PLACE CARD ORBIT FINAL — place-only overrides */
+/* LOTBI PLACE CARD TRUE ORBIT + PLACE PHOTO — place-only overrides */
 .lotbi-place-orbit {
-  --lotbi-place-card-width: clamp(280px, 44%, 312px);
+  --lotbi-orbit-drag-x: 0px;
+  position: relative;
+  display: block;
   box-sizing: border-box;
-  width: 100%;
+  width: min(100%, 960px);
   max-width: 100%;
-  grid-auto-columns: var(--lotbi-place-card-width);
-  gap: 14px;
+  height: 448px;
   margin-top: 14px;
-  padding: 10px max(18px, calc((100% - var(--lotbi-place-card-width)) / 2)) 18px;
-  overflow-x: auto;
-  overflow-y: visible;
-  overscroll-behavior-inline: contain;
-  scroll-snap-type: inline mandatory;
-  scrollbar-width: none;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
   touch-action: pan-y;
   cursor: grab;
-  perspective: 900px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.lotbi-place-orbit::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  isolation: isolate;
 }
 
 .lotbi-place-orbit.is-dragging {
   cursor: grabbing;
-  scroll-snap-type: none;
   user-select: none;
 }
 
 .lotbi-place-orbit-card {
-  scroll-snap-align: center;
-  scroll-snap-stop: always;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(42%, 320px);
+  min-width: 252px;
+  margin: 0;
+  opacity: .46;
+  z-index: 1;
   transform-origin: center center;
-  opacity: .76;
-  transform: scale(.92);
-  transition: transform 170ms ease, opacity 170ms ease, box-shadow 170ms ease;
-  will-change: transform;
+  transition:
+    transform 220ms cubic-bezier(.2, .78, .2, 1),
+    opacity 180ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+  will-change: transform, opacity;
 }
 
-.lotbi-place-orbit-card.is-before {
-  transform: perspective(900px) rotateY(2.5deg) scale(.92);
-}
-
-.lotbi-place-orbit-card.is-after {
-  transform: perspective(900px) rotateY(-2.5deg) scale(.92);
-}
-
-.lotbi-place-orbit-card.is-primary {
-  z-index: 3;
+.lotbi-place-orbit-card[data-orbit-slot="CENTER"] {
+  z-index: 5;
   opacity: 1;
-  transform: scale(1);
-  box-shadow: 0 14px 34px rgba(18, 28, 45, .12);
+  filter: none;
+  transform: translate(calc(-50% + var(--lotbi-orbit-drag-x)), -50%) scale(1);
+  box-shadow: 0 18px 42px rgba(18, 28, 45, .14);
 }
 
-.lotbi-place-orbit-card:not(.is-primary) .lotbi-place-card-actions {
-  pointer-events: none;
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"] {
+  z-index: 4;
+  opacity: .84;
+  filter: saturate(.94);
+  transform: translate(calc(-108% + var(--lotbi-orbit-drag-x)), -46%) scale(.84);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  z-index: 4;
+  opacity: .84;
+  filter: saturate(.94);
+  transform: translate(calc(8% + var(--lotbi-orbit-drag-x)), -46%) scale(.84);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+  z-index: 2;
   opacity: .48;
+  filter: saturate(.82);
+  transform: translate(calc(-158% + var(--lotbi-orbit-drag-x)), -63%) scale(.68);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+  z-index: 2;
+  opacity: .48;
+  filter: saturate(.82);
+  transform: translate(calc(58% + var(--lotbi-orbit-drag-x)), -63%) scale(.68);
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-price,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-location-support,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+  display: none;
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-copy {
+  gap: 4px;
+  padding: 11px 12px 12px;
+}
+
+.lotbi-rich-card-place-media {
+  background: #f5f6f8;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image {
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image.is-ready {
+  opacity: 1;
+}
+
+.lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(89, 109, 138, .10), transparent 31%),
+    linear-gradient(155deg, #f7f8fa 0%, #eef1f5 100%);
+}
+
+.lotbi-place-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  color: #7b8491;
+  letter-spacing: 0;
+}
+
+.lotbi-place-placeholder-mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(79, 93, 113, .18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .76);
+  color: #3f4a5a;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.lotbi-place-placeholder-label {
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .lotbi-rich-card-place .lotbi-rich-card-title {
@@ -1839,6 +1912,29 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   font-size: 13px;
   line-height: 1.45;
   font-weight: 620;
+}
+
+.lotbi-place-location-support {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  color: #6f7886;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.lotbi-place-location-thumbnail {
+  display: block;
+  width: 72px;
+  height: 48px;
+  flex: 0 0 72px;
+  border: 1px solid rgba(116, 126, 145, .18);
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f2f4f7;
 }
 
 .lotbi-place-card-actions {
@@ -1893,64 +1989,165 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   font-weight: 760;
 }
 
+.lotbi-place-orbit-control {
+  position: absolute;
+  z-index: 8;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: 1px solid rgba(77, 89, 107, .22);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .92);
+  color: #202632;
+  box-shadow: 0 8px 22px rgba(18, 28, 45, .10);
+  font: inherit;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.lotbi-place-orbit-control-prev {
+  left: 8px;
+}
+
+.lotbi-place-orbit-control-next {
+  right: 8px;
+}
+
+.lotbi-place-orbit-control:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
 .lotbi-place-orbit:focus-visible,
-.lotbi-place-orbit-card:focus-visible {
+.lotbi-place-orbit-card:focus-visible,
+.lotbi-place-orbit-control:focus-visible {
   outline: 3px solid rgba(64, 116, 255, .35);
   outline-offset: 3px;
 }
 
-body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price {
+.lotbi-place-orbit-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price,
+body[data-site-theme="dark"] .lotbi-place-location-support {
   color: #c2c9d4;
 }
 
-body[data-site-theme="dark"] .lotbi-rich-card-icon-action {
-  background: #171c25;
+body[data-site-theme="dark"] .lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(176, 188, 207, .10), transparent 31%),
+    linear-gradient(155deg, #242b36 0%, #1b212b 100%);
+}
+
+body[data-site-theme="dark"] .lotbi-place-placeholder-mark {
+  border-color: rgba(198, 207, 221, .18);
+  background: rgba(20, 25, 34, .68);
+  color: #d7dde7;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-icon-action,
+body[data-site-theme="dark"] .lotbi-place-orbit-control {
+  background: rgba(23, 28, 37, .94);
   color: #edf0f5;
   border-color: #515b69;
 }
 
-body[data-site-theme="dark"] .lotbi-rich-card-icon-action:hover {
+body[data-site-theme="dark"] .lotbi-rich-card-icon-action:hover,
+body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   background: #262d38;
 }
 
 @media (max-width: 760px) {
   .lotbi-place-orbit {
-    --lotbi-place-card-width: min(82vw, 320px);
     width: 100%;
     max-width: 100%;
+    height: 426px;
     margin-right: 0;
-    padding: 8px max(16px, calc((100% - var(--lotbi-place-card-width)) / 2)) 16px;
-    gap: 12px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(76vw, 304px);
+    min-width: min(68vw, 236px);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"] {
+    transform: translate(calc(-112% + var(--lotbi-orbit-drag-x)), -47%) scale(.74);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+    transform: translate(calc(12% + var(--lotbi-orbit-drag-x)), -47%) scale(.74);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform: translate(calc(-162% + var(--lotbi-orbit-drag-x)), -61%) scale(.56);
+    opacity: .26;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform: translate(calc(62% + var(--lotbi-orbit-drag-x)), -61%) scale(.56);
+    opacity: .26;
+  }
+
+  .lotbi-place-orbit-control {
+    width: 40px;
+    height: 40px;
+    margin-top: -20px;
+    font-size: 27px;
+  }
+
+  .lotbi-place-orbit-control-prev {
+    left: 4px;
+  }
+
+  .lotbi-place-orbit-control-next {
+    right: 4px;
   }
 
   .lotbi-place-card-actions {
     gap: 8px;
   }
-
-  .lotbi-rich-card-icon-action {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
-    padding: 0;
-    font-size: inherit;
-  }
 }
 
 @media (max-width: 390px) {
   .lotbi-place-orbit {
-    --lotbi-place-card-width: min(84vw, 320px);
+    height: 412px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(80vw, 292px);
+    min-width: min(72vw, 226px);
   }
 }
 
 @media (max-width: 360px) {
   .lotbi-place-orbit {
-    --lotbi-place-card-width: min(82vw, 296px);
+    height: 396px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(78vw, 276px);
+    min-width: min(70vw, 214px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lotbi-place-orbit-card {
+  .lotbi-place-orbit-card,
+  .lotbi-rich-card-place-media .lotbi-rich-card-image {
     transition: none;
   }
 }
