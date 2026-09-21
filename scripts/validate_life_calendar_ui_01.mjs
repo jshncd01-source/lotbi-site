@@ -196,10 +196,10 @@ assert.ok(index.includes('href="site-calendar.css?v=20260921-calgeom1"'));
 assert.ok(index.includes('data-life-calendar-panel'));
 assert.ok(index.includes('data-calendar-enabled="true"'));
 assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
-assert.equal((index.match(/data-calendar-view="/g) || []).length, 6, 'Desktop + Mobile must each expose Calendar root, Today and Needs Attention');
-for (const label of ['캘린더', '오늘', '확인 필요']) {
-  assert.ok(index.includes(label), `missing Korean Calendar navigation label: ${label}`);
-}
+assert.equal((index.match(/data-calendar-view="/g) || []).length, 2, 'Desktop + Mobile must each expose only the Calendar root action');
+assert.ok(index.includes('>캘린더</button>'), 'missing Korean Calendar root navigation label');
+assert.equal((index.match(/data-calendar-view="today"/g) || []).length, 0, 'Sidebar must not duplicate the Calendar Today quick view');
+assert.equal((index.match(/data-calendar-view="attention"/g) || []).length, 0, 'Sidebar must not duplicate the Calendar Needs Attention quick view');
 for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 보기']) {
   assert.ok(!index.includes(`>${hiddenNavLabel}<`), `Calendar navigation must not expose ${hiddenNavLabel}`);
 }
@@ -240,7 +240,6 @@ assert.ok(ui.includes('return mountLifeCalendar({...options, root});'));
 assert.ok(css.includes('[data-life-calendar-panel][hidden]'));
 assert.ok(css.includes('.life-calendar-panel'));
 assert.ok(css.includes('.sidebar-calendar-nav'));
-assert.ok(css.includes('.sidebar-calendar-subnav'));
 assert.ok(css.includes('.site-calendar-modal'));
 assert.ok(css.includes('.life-calendar-manager-tabs'));
 assert.ok(css.includes('.life-calendar-manager-date'));

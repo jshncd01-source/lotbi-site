@@ -169,21 +169,16 @@
 }
 
 .nav-history-list [data-conversation-title] {
-  display: -webkit-box;
+  display: block;
   min-width: 0;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .nav-history-list .conversation-history-item {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px;
-  align-items: center;
-  gap: 4px;
+  display: block;
   min-width: 0;
 }
 
@@ -207,8 +202,22 @@
 }
 
 .conversation-history-actions {
-  position: relative;
+  position: absolute;
+  z-index: 30;
+  top: 50%;
+  right: 2px;
   min-width: 0;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+
+.nav-history-list .conversation-history-item:hover .conversation-history-actions,
+.nav-history-list .conversation-history-item:focus-within .conversation-history-actions,
+.conversation-history-actions[open] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .conversation-history-menu-trigger {
@@ -378,18 +387,10 @@ body[data-site-theme="dark"] .conversation-history-menu button:focus-visible {
 
 .sidebar-account-placeholder {
   display: block;
-  width: 74%;
-  height: 32px;
-  margin-inline: 10px;
-  border-radius: 10px;
-  background: linear-gradient(90deg, #e9edf4 20%, #f4f6fa 50%, #e9edf4 80%);
-  background-size: 200% 100%;
-  animation: sidebar-account-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes sidebar-account-pulse {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  inline-size: 100%;
+  height: 54px;
+  border-radius: 12px;
+  background: transparent;
 }
 
 @media (min-width: 901px) {
@@ -424,10 +425,21 @@ body[data-site-theme="dark"] .conversation-history-menu button:focus-visible {
     gap: 14px;
     overflow: hidden;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .sidebar-account-placeholder {
-    animation: none;
+  .nav-history-list .conversation-history-open {
+    min-height: 44px;
+    padding-right: 44px;
+  }
+
+  .conversation-history-actions {
+    right: 0;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .conversation-history-menu-trigger {
+    width: 44px;
+    height: 44px;
   }
 }
+

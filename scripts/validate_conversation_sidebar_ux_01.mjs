@@ -113,6 +113,14 @@ assert.ok(conversation.includes("openSummary.replaceWith(profileSummary())"), 'a
 assert.ok(conversation.includes('profile-popover-summary'), 'profile popover must include server-backed identity summary');
 assert.ok(conversationCss.includes('.profile-popover-summary-plan'), 'profile popover plan summary styling missing');
 assert.ok(sidebarCss.includes('.sidebar-profile-trigger'));
+assert.ok(sidebarCss.includes('white-space: nowrap'), 'recent conversation titles must render on exactly one line');
+assert.ok(sidebarCss.includes('.conversation-history-item:hover .conversation-history-actions'), 'desktop conversation actions must reveal on row hover');
+assert.ok(sidebarCss.includes('.conversation-history-item:focus-within .conversation-history-actions'), 'conversation actions must remain keyboard accessible');
+assert.ok(sidebarCss.includes('position: absolute'), 'conversation actions must overlay instead of reserving a permanent title column');
+assert.ok(!sidebarCss.includes('-webkit-line-clamp: 2'), 'old two-line recent-title clamp must be removed');
+assert.ok(!sidebarCss.includes('animation: sidebar-account-pulse'), 'auth hydration must not animate the sidebar account placeholder');
+assert.equal((index.match(/data-calendar-view="today"/g) || []).length, 0, 'Today quick links must be removed from desktop and mobile sidebars');
+assert.equal((index.match(/data-calendar-view="attention"/g) || []).length, 0, 'Needs Attention quick links must be removed from desktop and mobile sidebars');
 assert.ok(conversationCss.includes('@media (max-width: 760px)'));
 assert.ok(conversationCss.includes('max-height: 88svh'));
 
