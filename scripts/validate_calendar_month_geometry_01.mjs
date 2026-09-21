@@ -28,6 +28,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <pre id="geometry-result">pending</pre>
 <script type="module">
 const out=document.getElementById('geometry-result');
+out.textContent=JSON.stringify({ok:false,error:'stage:module-start'});
 window.addEventListener('error',event=>{if(out.textContent==='pending')out.textContent=JSON.stringify({ok:false,error:'window '+event.message})});
 window.addEventListener('unhandledrejection',event=>{if(out.textContent==='pending')out.textContent=JSON.stringify({ok:false,error:'rejection '+String(event.reason?.stack||event.reason)})});
 const wait=async(fn,label)=>{for(let i=0;i<120;i+=1){if(fn())return;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
@@ -124,14 +125,19 @@ async function measure({nowIso,date,label,weeks}){
 
 try{
   ({createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260921-convcal2'));
+  out.textContent=JSON.stringify({ok:false,error:'stage:guest-imported'});
   ({mountLifeCalendarManager}=await import('/site-calendar-manager.js?v=20260921-convcal2'));
+  out.textContent=JSON.stringify({ok:false,error:'stage:manager-imported'});
   const months=[
     {nowIso:'2026-02-15T12:00:00+09:00',date:'2026-02-15',label:'2026-02 4-week',weeks:4},
     {nowIso:'2026-09-15T12:00:00+09:00',date:'2026-09-15',label:'2026-09 5-week',weeks:5},
     {nowIso:'2026-05-15T12:00:00+09:00',date:'2026-05-15',label:'2026-05 6-week',weeks:6},
   ];
   const results=[];
-  for(const month of months)results.push(await measure(month));
+  for(const month of months){
+    out.textContent=JSON.stringify({ok:false,error:'stage:measure-'+month.label});
+    results.push(await measure(month));
+  }
   out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight},results});
 }catch(error){
   out.textContent=JSON.stringify({ok:false,error:String(error?.stack||error),viewport:{width:innerWidth,height:innerHeight}});
