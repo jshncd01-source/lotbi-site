@@ -365,19 +365,36 @@ export function normalizeSmartCalendarDraft(value) {
   });
 }
 
-function conversationClientContext(timezone, turnCreatedAt) {
+function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
-  if (!timezoneName && !createdAt) return null;
+  const conversationId = typeof identity?.conversationId === 'string' ? identity.conversationId.trim() : '';
+  const turnId = typeof identity?.turnId === 'string' ? identity.turnId.trim() : '';
+  const logicalRequestId = typeof identity?.logicalRequestId === 'string' ? identity.logicalRequestId.trim() : '';
+  const stateVersion = Number.isInteger(identity?.stateVersion) && identity.stateVersion >= 0
+    ? identity.stateVersion
+    : null;
+  const safeIdentity = value => !value || /^[A-Za-z0-9._:-]{1,160}$/.test(value);
+  if (!timezoneName && !createdAt && !conversationId && !turnId && !logicalRequestId && stateVersion === null) return null;
   if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64) {
     throw new SiteCoreError('대화 시간대가 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
   }
   if (createdAt && !Number.isFinite(Date.parse(createdAt))) {
     throw new SiteCoreError('대화 시각 기준값이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
   }
+  if (![conversationId, turnId, logicalRequestId].every(safeIdentity)) {
+    throw new SiteCoreError('대화 요청 식별값이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
+  }
+  if (identity?.stateVersion != null && stateVersion === null) {
+    throw new SiteCoreError('대화 상태 버전이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
+  }
   return Object.freeze({
     timezone: timezoneName,
     ...(createdAt ? {turn_created_at: createdAt} : {}),
+    ...(conversationId ? {conversation_id: conversationId} : {}),
+    ...(turnId ? {turn_id: turnId} : {}),
+    ...(logicalRequestId ? {logical_request_id: logicalRequestId} : {}),
+    ...(stateVersion !== null ? {state_version: stateVersion} : {}),
   });
 }
 
@@ -491,7 +508,7 @@ export async function deleteConversationAttachment({sessionToken = '', guestToke
   throw error;
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '', recentContext = []) {
+export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '', recentContext = [], turnIdentity = {}) {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -507,7 +524,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     throw new SiteCoreError('첨부 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_ATTACHMENT_IDEMPOTENCY_KEY', status: 422});
   }
   const body = {text: message || '첨부 파일을 확인해 주세요.'};
-  const clientContext = conversationClientContext(timezone, turnCreatedAt);
+  const clientContext = conversationClientContext(timezone, turnCreatedAt, turnIdentity);
   const boundedRecentContext = normalizeConversationRecentContext(recentContext);
   if (clientContext) body.client_context = clientContext;
   if (boundedRecentContext.length) body.recent_context = boundedRecentContext;
@@ -631,6 +648,10 @@ export async function sendGuestConversationMessage({
   timezone = '',
   turnCreatedAt = '',
   attachmentIds = [],
+  conversationId = '',
+  turnId = '',
+  logicalRequestId = '',
+  stateVersion = null,
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof guestToken === 'string' ? guestToken.trim() : '';
@@ -648,7 +669,12 @@ export async function sendGuestConversationMessage({
     throw new SiteCoreError('익명 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_GUEST_IDEMPOTENCY_KEY', status: 422});
   }
 
-  const clientContext = conversationClientContext(timezoneName, turnCreatedAt);
+  const clientContext = conversationClientContext(timezoneName, turnCreatedAt, {
+    conversationId,
+    turnId,
+    logicalRequestId,
+    stateVersion,
+  });
   const body = {
     text: message || '첨부 파일을 확인해 주세요.',
     recent_context: normalizeConversationRecentContext(recentContext),
