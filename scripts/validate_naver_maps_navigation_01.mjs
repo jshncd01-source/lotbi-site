@@ -5,6 +5,7 @@ const navSource = await fs.readFile(new URL('../site-navigation.js', import.meta
 const coreSource = await fs.readFile(new URL('../site-core.js', import.meta.url), 'utf8');
 const conversationSource = await fs.readFile(new URL('../site-conversation.js', import.meta.url), 'utf8');
 const indexSource = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+const conversationStyles = await fs.readFile(new URL('../site-conversation.css', import.meta.url), 'utf8');
 
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(navSource).toString('base64');
 const nav = await import(moduleUrl);
@@ -106,10 +107,22 @@ assert.match(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
 assert.match(conversationSource, /detail\.textContent = '상세보기'/u);
 assert.doesNotMatch(conversationSource, /detail\.textContent = '네이버에서 보기'/u);
 assert.match(conversationSource, /buildNaverStaticMapThumbnailUrl\(place\)/u);
-assert.match(conversationSource, /image\.loading = 'lazy'/u);
+assert.match(conversationSource, /for \(const \[placeIndex, place\] of placeResult\.results\.entries\(\)\)/u);
+assert.match(conversationSource, /image\.loading = placeIndex === 0 \? 'eager' : 'lazy'/u);
+assert.match(conversationSource, /typeof image\.decode === 'function'/u);
+assert.match(conversationSource, /image\.classList\.add\('is-ready'\)/u);
+assert.match(conversationSource, /media\.dataset\.mediaState = 'loaded'/u);
+assert.match(conversationSource, /media\.dataset\.mediaState = 'error'/u);
+assert.match(conversationSource, /site-conversation\.css\?v=20260921-placecardflash1/u);
 assert.match(conversationSource, /media\.textContent = 'NAVER 지도'/u);
 assert.match(conversationSource, /로그인 없이 실제 장소 카드/u);
 assert.doesNotMatch(conversationSource, /openNaverMapsPlace\([^)]*response\.placeResult/u);
-assert.match(indexSource, /site-conversation\.js\?v=20260921-convcalentry2/u);
+const placeMediaStyle = conversationStyles.match(/\\.lotbi-rich-card-place-media \\{[^}]*\\}/s)?.[0] || '';
+assert.match(placeMediaStyle, /background:\\s*#fff\\s*;/u);
+const pendingImageStyle = conversationStyles.match(/\\.lotbi-rich-card-place-media \\.lotbi-rich-card-image \\{[^}]*\\}/s)?.[0] || '';
+assert.match(pendingImageStyle, /opacity:\\s*0\\s*;/u);
+const readyImageStyle = conversationStyles.match(/\\.lotbi-rich-card-place-media \\.lotbi-rich-card-image\\.is-ready \\{[^}]*\\}/s)?.[0] || '';
+assert.match(readyImageStyle, /opacity:\\s*1\\s*;/u);
+assert.match(indexSource, /site-conversation\\.js\\?v=20260921-placecardflash1/u);
 
 console.log('NAVER Maps place navigation + static thumbnail contract: PASS');
