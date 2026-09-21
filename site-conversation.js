@@ -1003,10 +1003,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       rail.classList.remove('is-dragging');
       const delta = dragLastX - dragStartX;
       rail.style.removeProperty('--lotbi-orbit-drag-x');
-      if (Math.abs(delta) >= 44) {
+      if (dragMoved) {
         suppressClick = true;
-        setActiveIndex(activeIndex + (delta < 0 ? 1 : -1));
         globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
+      }
+      if (Math.abs(delta) >= 44) {
+        setActiveIndex(activeIndex + (delta < 0 ? 1 : -1));
       } else {
         applyOrbitState();
       }
