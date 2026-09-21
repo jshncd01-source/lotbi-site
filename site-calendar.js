@@ -98,6 +98,14 @@ function calendarEntryDetails(value = {}) {
   });
 }
 
+function hasCalendarEntryDetails(entry) {
+  return entry.amount_minor !== null
+    || entry.expense_category !== null
+    || entry.memo !== null
+    || entry.place !== null
+    || entry.merchant !== null;
+}
+
 async function readPayload(response) {
   try {
     return await response.json();
@@ -478,6 +486,7 @@ export async function createLifeActivity(
   if (!normalizedTitle || normalizedTitle.length > 240 || !temporal || typeof temporal !== 'object') {
     throw new SiteCoreError('일정 입력값이 올바르지 않습니다.', {code: 'LIFE_ACTIVITY_INPUT_INVALID', status: 422});
   }
+  const details = calendarEntryDetails(entry);
   const payload = await calendarRequest(
     '/v2/life/activities',
     sessionToken,
@@ -489,7 +498,7 @@ export async function createLifeActivity(
         temporal,
         temporal_semantics: temporalSemantics,
         busy,
-        entry: calendarEntryDetails(entry),
+        ...(hasCalendarEntryDetails(details) ? {entry: details} : {}),
       },
     },
     fetchImpl,
