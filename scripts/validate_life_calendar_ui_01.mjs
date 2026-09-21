@@ -215,7 +215,7 @@ for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 �
 for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
   assert.ok(!index.includes(forbidden), `internal Calendar term leaked into user UI: ${forbidden}`);
 }
-assert.ok(callback.includes('href="/site-calendar.css?v=20260921-calgeom1"'));
+assert.ok(callback.includes('href="/site-calendar.css?v=20260921-smartcaldraft1"'));
 const callbackJs = read('auth-callback.js');
 assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260921-convcal2';"));
 assert.ok(callbackJs.includes('await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});'));
