@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
+// TRUE ORBIT contract is validated against the latest merged Site main.
+
 const navSource = await fs.readFile(new URL('../site-navigation.js', import.meta.url), 'utf8');
 const coreSource = await fs.readFile(new URL('../site-core.js', import.meta.url), 'utf8');
 const conversationSource = await fs.readFile(new URL('../site-conversation.js', import.meta.url), 'utf8');
