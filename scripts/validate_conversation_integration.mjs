@@ -200,6 +200,54 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
 }
 
 {
+  let request;
+  const logicalId = 'auth-ai-v31-request-0001';
+  const reply = await sendConversationMessage(
+    'site-memory-token',
+    '전주 썬팅 찾아줘',
+    async (url, init) => {
+      request = {url, init};
+      return jsonResponse({
+        contract_id: 'CORE-WEB-CHAT-01',
+        schema_version: 1,
+        correlation_id: 'req_v31_identity',
+        status: 'ANSWERED',
+        assistant_text: 'V3.1 identity accepted',
+        intent: {action: 'PLACE'},
+        response_mode: 'PLACE_READONLY',
+        follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+        retry_safe: true,
+        safety: {execution_authority: false, external_side_effect: false},
+      });
+    },
+    [],
+    logicalId,
+    'Asia/Seoul',
+    '2026-09-22T10:00:00+09:00',
+    [],
+    {
+      conversationId: 'thread-v31-0001',
+      turnId: logicalId,
+      logicalRequestId: logicalId,
+      stateVersion: 3,
+    },
+  );
+  assert.equal(reply.status, 'ANSWERED');
+  assert.equal(request.init.headers['Idempotency-Key'], logicalId);
+  assert.deepEqual(JSON.parse(request.init.body), {
+    text: '전주 썬팅 찾아줘',
+    client_context: {
+      timezone: 'Asia/Seoul',
+      turn_created_at: '2026-09-22T10:00:00+09:00',
+      conversation_id: 'thread-v31-0001',
+      turn_id: logicalId,
+      logical_request_id: logicalId,
+      state_version: 3,
+    },
+  });
+}
+
+{
   const sourceTurnRef = 'auth-ai-candidate0001';
   const sourceTurnCreatedAt = '2026-09-20T12:00:00+00:00';
   const reply = await sendConversationMessage(
