@@ -1704,7 +1704,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const ensureThread = firstMessage => {
     let record = threadRecord(); if (record) return record;
-    record = {id: newId('thread'), title: titleFromMessage(firstMessage), pinned: false, pinnedAt: 0, createdAt: Date.now(), updatedAt: Date.now(), messages: []};
+    record = {id: newId('thread'), title: titleFromMessage(firstMessage), pinned: false, pinnedAt: 0, stateVersion: 0, createdAt: Date.now(), updatedAt: Date.now(), messages: []};
     state.activeThreadId = record.id; state.threads.unshift(record); sortThreads(); state.threads = state.threads.slice(0, THREAD_LIMIT);
     saveState(); renderRecent(); return record;
   };
@@ -1743,6 +1743,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       title: normalizedThreadTitle(value.title) || '새 대화',
       pinned: value.pinned === true,
       pinnedAt: value.pinned === true && Number.isFinite(Number(value.pinnedAt)) ? Number(value.pinnedAt) : 0,
+      stateVersion: Number.isInteger(value.stateVersion) && value.stateVersion >= 0 ? value.stateVersion : 0,
       messages: value.messages.map(normalizeStoredMessage).filter(Boolean).slice(-MESSAGE_LIMIT),
     };
   };
@@ -2610,10 +2611,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           conversationId: activeConversationId,
           turnId: guestRequestId,
           logicalRequestId: guestRequestId,
+          stateVersion: Number.isInteger(activeConversation?.stateVersion) ? activeConversation.stateVersion : 0,
         });
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
         loading.parentElement?.remove();
+        if (Number.isInteger(response.stateVersion) && response.stateVersion >= 0) {
+          const currentThread = state.threads.find(item => item.id === activeConversationId);
+          if (currentThread && response.stateVersion >= Number(currentThread.stateVersion || 0)) {
+            currentThread.stateVersion = response.stateVersion;
+            saveState();
+          }
+        }
         const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
         const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
         if (calendarItems.length) {
@@ -2704,10 +2713,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           conversationId: activeConversationId,
           turnId: authenticatedRequestId,
           logicalRequestId: authenticatedRequestId,
+          stateVersion: Number.isInteger(activeConversation?.stateVersion) ? activeConversation.stateVersion : 0,
         },
       );
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
       loading.parentElement?.remove();
+      if (Number.isInteger(response.stateVersion) && response.stateVersion >= 0) {
+        const currentThread = state.threads.find(item => item.id === activeConversationId);
+        if (currentThread && response.stateVersion >= Number(currentThread.stateVersion || 0)) {
+          currentThread.stateVersion = response.stateVersion;
+          saveState();
+        }
+      }
       const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
