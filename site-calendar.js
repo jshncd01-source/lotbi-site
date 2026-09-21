@@ -6,6 +6,7 @@ const ACTIVITY_ID_PATTERN = /^activity_[0-9a-f]{32}$/;
 const OCCURRENCE_ID_PATTERN = /^occurrence_[0-9a-f]{32}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
+const EXPENSE_CATEGORIES = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'UNCLASSIFIED']);
 const EXPLICIT_LIFE_CALENDAR_MARKER_PATTERN = /(?:(?:\d{4})년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시/gu;
 const EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN = /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/u;
 const NON_WRITE_LIFE_CALENDAR_PATTERNS = Object.freeze([
@@ -59,6 +60,42 @@ function timezoneName(value) {
     throw new SiteCoreError('시간대가 올바르지 않습니다.', {code: 'LIFE_TIMEZONE_INVALID', status: 422});
   }
   return normalized;
+}
+
+function optionalText(value, maxLength) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  if (!normalized) return null;
+  if (normalized.length > maxLength) {
+    throw new SiteCoreError('일정 입력값이 너무 깁니다.', {code: 'LIFE_ENTRY_INPUT_INVALID', status: 422});
+  }
+  return normalized;
+}
+
+function calendarEntryDetails(value = {}) {
+  const rawAmount = value?.amount_minor ?? value?.amountMinor ?? null;
+  const amount = rawAmount === '' || rawAmount == null ? null : Number(rawAmount);
+  if (amount !== null && (!Number.isSafeInteger(amount) || amount < 0 || amount > 1_000_000_000_000)) {
+    throw new SiteCoreError('비용이 올바르지 않습니다.', {code: 'LIFE_ENTRY_AMOUNT_INVALID', status: 422});
+  }
+  const categoryRaw = value?.expense_category ?? value?.expenseCategory ?? null;
+  const category = typeof categoryRaw === 'string' && categoryRaw ? categoryRaw : null;
+  if (category !== null && !EXPENSE_CATEGORIES.has(category)) {
+    throw new SiteCoreError('비용 종류가 올바르지 않습니다.', {code: 'LIFE_ENTRY_CATEGORY_INVALID', status: 422});
+  }
+  const currency = typeof value?.currency === 'string' && value.currency.trim()
+    ? value.currency.trim().toUpperCase()
+    : 'KRW';
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new SiteCoreError('통화가 올바르지 않습니다.', {code: 'LIFE_ENTRY_CURRENCY_INVALID', status: 422});
+  }
+  return Object.freeze({
+    amount_minor: amount,
+    currency,
+    expense_category: category,
+    memo: optionalText(value?.memo, 2000),
+    place: optionalText(value?.place, 240),
+    merchant: optionalText(value?.merchant, 240),
+  });
 }
 
 async function readPayload(response) {
@@ -196,7 +233,10 @@ function assertReadResponse(payload, expectedView) {
     asOf: payload.as_of,
     timezone: payload.timezone,
     coverage: payload.coverage,
-    items: Object.freeze(payload.items.map(item => Object.freeze({...item}))),
+    items: Object.freeze(payload.items.map(item => Object.freeze({
+      ...item,
+      entry: calendarEntryDetails(item.entry || {}),
+    }))),
     aiCalls: 0,
     providerApiCalls: 0,
   });
@@ -264,6 +304,7 @@ function assertMutationResponse(payload) {
     activityId: payload.activity_id,
     occurrenceId: payload.occurrence_id,
     title: payload.title,
+    entry: calendarEntryDetails(payload.entry || {}),
     activityState: payload.activity_state,
     activityRevision: payload.activity_revision,
     occurrenceRevision: payload.occurrence_revision,
@@ -430,7 +471,7 @@ export async function getLifeActivity(sessionToken, activityId, fetchImpl = glob
 
 export async function createLifeActivity(
   sessionToken,
-  {logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN'},
+  {logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN', entry = {}},
   fetchImpl = globalThis.fetch,
 ) {
   const normalizedTitle = typeof title === 'string' ? title.trim() : '';
@@ -448,6 +489,58 @@ export async function createLifeActivity(
         temporal,
         temporal_semantics: temporalSemantics,
         busy,
+        entry: calendarEntryDetails(entry),
+      },
+    },
+    fetchImpl,
+  );
+  return assertMutationResponse(payload);
+}
+
+export async function editLifeActivity(
+  sessionToken,
+  activityId,
+  {
+    logicalRequestId: requestId,
+    expectedActivityRevision,
+    expectedOccurrenceRevision,
+    title,
+    temporal,
+    temporalSemantics = 'USER_PLANNED_TIME',
+    busy = 'UNKNOWN',
+    entry = {},
+  },
+  fetchImpl = globalThis.fetch,
+) {
+  const id = typeof activityId === 'string' ? activityId.trim() : '';
+  const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+  if (
+    !ACTIVITY_ID_PATTERN.test(id)
+    || !Number.isInteger(expectedActivityRevision)
+    || expectedActivityRevision < 1
+    || !Number.isInteger(expectedOccurrenceRevision)
+    || expectedOccurrenceRevision < 1
+    || !normalizedTitle
+    || normalizedTitle.length > 240
+    || !temporal
+    || typeof temporal !== 'object'
+  ) {
+    throw new SiteCoreError('일정 변경값이 올바르지 않습니다.', {code: 'LIFE_ACTIVITY_EDIT_INPUT_INVALID', status: 422});
+  }
+  const payload = await calendarRequest(
+    `/v2/life/activities/${encodeURIComponent(id)}/entry`,
+    sessionToken,
+    {
+      method: 'PATCH',
+      body: {
+        logical_request_id: logicalRequestId(requestId),
+        expected_activity_revision: expectedActivityRevision,
+        expected_occurrence_revision: expectedOccurrenceRevision,
+        title: normalizedTitle,
+        temporal,
+        temporal_semantics: temporalSemantics,
+        busy,
+        entry: calendarEntryDetails(entry),
       },
     },
     fetchImpl,
