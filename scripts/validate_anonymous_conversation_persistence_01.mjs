@@ -369,7 +369,7 @@ const callback = readFileSync('auth-callback.js', 'utf8');
 const continuity = readFileSync('site-continuity.js', 'utf8');
 const coreClient = readFileSync('site-core.js', 'utf8');
 
-assert.ok(deterministic.includes("import './site-conversation-storage.js';"));
+assert.ok(!deterministic.includes("site-conversation-storage.js"), 'anonymous namespace must not depend on deterministic side effects');
 assert.ok(storageRuntime.includes('localStorage'));
 assert.ok(conversation.includes('const THREAD_LIMIT = 50;'));
 assert.ok(conversation.includes('const MESSAGE_LIMIT = 120;'));
