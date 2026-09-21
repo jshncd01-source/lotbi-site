@@ -118,7 +118,8 @@ assert.match(intent, /^intent:\/\/navigation\?/u);
 assert.match(intent, /package=com\.nhn\.android\.nmap/u);
 assert.match(intent, /scheme=nmap/u);
 assert.doesNotMatch(intent, /atg\.life/u);
-assert.match(intent, /S\.browser_fallback_url=https%3A%2F%2Fplay\.google\.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom\.nhn\.android\.nmap/u);
+assert.match(intent, /S\.browser_fallback_url=https%3A%2F%2Fmap\.naver\.com%2Fp%2Fsearch%2F/u);
+assert.doesNotMatch(intent, /play\.google\.com|itunes\.apple\.com|apps\.apple\.com/u);
 
 const desktop = nav.buildNaverMapsWebSearchUrl(place);
 assert.match(desktop, /^https:\/\/map\.naver\.com\/p\/search\//u);
@@ -139,10 +140,43 @@ const desktopResult = nav.openNaverMapsPlace(place, {
   windowRef: desktopWindow,
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
 });
-assert.equal(desktopResult.mode, 'NAVER_WEB_SEARCH');
+assert.equal(desktopResult.mode, 'NAVER_WEB_SEARCH_NEW_TAB');
 assert.equal(desktopResult.uri, desktop);
 assert.equal(opened.length, 1);
 assert.equal(opened[0].url, desktop);
+
+const blockedDesktopWindow = {
+  open() { return null; },
+  location: {href: ''},
+};
+const blockedDesktopResult = nav.openNaverMapsPlace(place, {
+  windowRef: blockedDesktopWindow,
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+});
+assert.equal(blockedDesktopResult.mode, 'NAVER_WEB_SEARCH_SAME_TAB');
+assert.equal(blockedDesktopWindow.location.href, desktop);
+
+let iosFallback = null;
+const iosWindow = {
+  location: {href: ''},
+  setTimeout(callback) { iosFallback = callback; return 1; },
+  clearTimeout() {},
+  addEventListener() {},
+};
+const iosDocument = {
+  visibilityState: 'visible',
+  addEventListener() {},
+};
+const iosResult = nav.openNaverMapsPlace(place, {
+  windowRef: iosWindow,
+  documentRef: iosDocument,
+  userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+});
+assert.match(iosWindow.location.href, /^nmap:\/\/navigation\?/u);
+assert.equal(iosResult.fallbackUri, desktop);
+assert.equal(typeof iosFallback, 'function');
+iosFallback();
+assert.equal(iosWindow.location.href, desktop);
 
 const thumbnail = nav.buildNaverStaticMapThumbnailUrl(place);
 const thumbnailUrl = new URL(thumbnail);
@@ -173,6 +207,11 @@ assert.match(conversationSource, /buildVerifiedPhoneHref\(place\)/u);
 assert.match(conversationSource, /phone\.href = phoneHref/u);
 assert.match(conversationSource, /CALL_HANDOFF_STARTED/u);
 assert.match(conversationSource, /phone\.setAttribute\('aria-label', `\$\{place\.name\} 전화 걸기`\)/u);
+assert.match(placeRendererSource, /document\.createElement\(phoneHref \? 'a' : 'button'\)/u);
+assert.match(placeRendererSource, /phone\.dataset\.phoneState = phoneHref \? 'VERIFIED' : 'UNAVAILABLE'/u);
+assert.match(placeRendererSource, /phone\.disabled = true/u);
+assert.match(placeRendererSource, /phone\.setAttribute\('aria-label', `\$\{place\.name\} 전화번호 정보 없음`\)/u);
+assert.match(placeRendererSource, /phoneLabel\.textContent = '전화'/u);
 
 assert.match(conversationSource, /lotbi-place-orbit/u);
 assert.match(conversationSource, /aria-roledescription', 'carousel'/u);
@@ -193,21 +232,30 @@ assert.match(placeRendererSource, /setActiveIndex\(activeIndex \+ 1\)/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('wheel'/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointerdown'/u);
 assert.match(placeRendererSource, /rail\.addEventListener\('pointermove'/u);
-assert.match(placeRendererSource, /rail\.addEventListener\('pointerup', finishDrag\)/u);
-assert.match(placeRendererSource, /rail\.addEventListener\('pointercancel', finishDrag\)/u);
+assert.match(placeRendererSource, /rail\.addEventListener\('pointerup', event => finishDrag\(event\)\)/u);
+assert.match(placeRendererSource, /rail\.addEventListener\('pointercancel', event => finishDrag\(event, \{cancelled: true\}\)\)/u);
 assert.match(placeRendererSource, /rail\.setPointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /rail\.releasePointerCapture\?\.\(event\.pointerId\)/u);
 assert.match(placeRendererSource, /Math\.abs\(delta\) >= 44/u);
 assert.match(placeRendererSource, /setActiveIndex\(activeIndex \+ \(delta < 0 \? 1 : -1\)\)/u);
-assert.match(placeRendererSource, /else \{\s*applyOrbitState\(\);\s*\}/u);
+assert.match(placeRendererSource, /pointerOriginIndex = Number\.isInteger\(originIndex\) \? originIndex : null/u);
+assert.match(placeRendererSource, /else if \(Number\.isInteger\(pointerOriginIndex\)\) \{\s*setActiveIndex\(pointerOriginIndex\);/u);
+assert.match(placeRendererSource, /if \(cancelled\) \{\s*applyOrbitState\(\);/u);
+assert.match(placeRendererSource, /suppressClick = true;\s*globalThis\.setTimeout\?\.\(\(\) => \{ suppressClick = false; \}, 0\)/u);
 assert.match(placeRendererSource, /--lotbi-orbit-drag-x/u);
 assert.match(placeRendererSource, /card\.querySelectorAll\('a, button'\)/u);
 assert.doesNotMatch(placeRendererSource, /scrollLeft|scrollTo\(|nearestCardIndex|scroll-snap/u);
 
-assert.match(conversationSource, /navigate\.setAttribute\('aria-label', '네이버지도에서 열기'\)/u);
+assert.match(conversationSource, /navigate\.setAttribute\('aria-label', `\$\{place\.name\} 네이버지도에서 열기`\)/u);
+assert.match(placeRendererSource, /const navigate = document\.createElement\('a'\)/u);
+assert.match(placeRendererSource, /navigate\.href = buildNaverMapsWebSearchUrl\(place\)/u);
+assert.match(placeRendererSource, /navigate\.target = '_blank'/u);
+assert.match(placeRendererSource, /navigate\.rel = 'noopener noreferrer'/u);
+assert.match(placeRendererSource, /event\.preventDefault\(\)/u);
+assert.match(placeRendererSource, /mapLabel\.textContent = '네이버지도'/u);
 assert.match(conversationSource, /navigate\.title = '네이버지도에서 열기'/u);
 assert.match(conversationSource, /https:\/\/navercorp\.com\/img\/pc\/service-map-app-4\.jpg/u);
-assert.match(conversationSource, /site-navigation\.js\?v=20260921-trueorbitphoto1/u);
+assert.match(conversationSource, /site-navigation\.js\?v=20260921-placecompactactions1/u);
 assert.doesNotMatch(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
 assert.doesNotMatch(placeRendererSource, /detail\.textContent = '상세보기'/u);
 assert.doesNotMatch(placeRendererSource, /navigate\.disabled = !fresh/u);
@@ -232,7 +280,7 @@ assert.match(conversationSource, /for \(const \[placeIndex, place\] of placeResu
 assert.match(conversationSource, /image\.loading = placeIndex === 0 \? 'eager' : 'lazy'/u);
 assert.match(conversationSource, /typeof image\.decode === 'function'/u);
 assert.match(conversationSource, /image\.classList\.add\('is-ready'\)/u);
-assert.match(conversationSource, /site-conversation\.css\?v=20260921-trueorbitphoto1/u);
+assert.match(conversationSource, /site-conversation\.css\?v=20260921-placecompactactions1/u);
 assert.match(conversationSource, /로그인 없이 실제 장소 카드/u);
 assert.doesNotMatch(conversationSource, /openNaverMapsPlace\([^)]*response\.placeResult/u);
 
@@ -244,6 +292,7 @@ assert.match(readyImageStyle, /opacity:\s*1\s*;/u);
 const orbitStyle = conversationStyles.match(/\.lotbi-place-orbit \{[^}]*\}/s)?.[0] || '';
 assert.match(orbitStyle, /position:\s*relative/u);
 assert.match(orbitStyle, /display:\s*block/u);
+assert.match(orbitStyle, /height:\s*352px/u);
 assert.match(orbitStyle, /overflow:\s*hidden/u);
 assert.match(orbitStyle, /touch-action:\s*pan-y/u);
 assert.doesNotMatch(orbitStyle, /overflow-x:\s*auto|scroll-snap-type|scrollbar-width/u);
@@ -251,7 +300,18 @@ assert.doesNotMatch(orbitStyle, /overflow-x:\s*auto|scroll-snap-type|scrollbar-w
 const orbitCardStyle = conversationStyles.match(/\.lotbi-place-orbit-card \{[^}]*\}/s)?.[0] || '';
 assert.match(orbitCardStyle, /position:\s*absolute/u);
 assert.match(orbitCardStyle, /left:\s*50%/u);
+assert.match(orbitCardStyle, /width:\s*min\(38%, 276px\)/u);
+assert.match(orbitCardStyle, /min-width:\s*216px/u);
+assert.match(orbitCardStyle, /pointer-events:\s*auto/u);
 assert.match(orbitCardStyle, /transition:/u);
+
+const placeMediaStyle = conversationStyles.match(/\.lotbi-rich-card-place-media \{[^}]*\}/s)?.[0] || '';
+assert.match(placeMediaStyle, /aspect-ratio:\s*16 \/ 9/u);
+assert.match(conversationStyles, /@media \(max-width: 760px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*348px/u);
+assert.match(conversationStyles, /@media \(max-width: 390px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*342px/u);
+assert.match(conversationStyles, /@media \(max-width: 360px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*334px/u);
+assert.match(conversationStyles, /\.lotbi-rich-card-icon-action\s*\{[^}]*min-width:\s*72px[^}]*height:\s*44px/su);
+assert.match(conversationStyles, /\.lotbi-phone-action\[data-phone-state="UNAVAILABLE"\]\s*\{[^}]*opacity:/su);
 
 for (const slot of ['CENTER', 'LEFT_FRONT', 'RIGHT_FRONT', 'LEFT_BACK', 'RIGHT_BACK']) {
   const slotStyle = conversationStyles.match(new RegExp('\\.lotbi-place-orbit-card\\[data-orbit-slot="' + slot + '"\\] \\{[^}]*\\}', 's'))?.[0] || '';
@@ -267,6 +327,6 @@ assert.match(conversationStyles, /\.lotbi-place-photo-placeholder\s*\{/u);
 assert.match(conversationStyles, /\.lotbi-place-location-thumbnail\s*\{/u);
 assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.lotbi-place-orbit-card[\s\S]*transition:\s*none/u);
 
-assert.match(indexSource, /site-conversation\.js\?v=[A-Za-z0-9._-]+/u, 'Home conversation runtime must be cache-busted');
+assert.match(indexSource, /site-conversation\.js\?v=20260921-placecompactactions1/u, 'Home Place Card runtime must use the compact-actions cache key');
 
-console.log('NAVER Place Card TRUE ORBIT + photo/placeholder + navigation + secondary static map contract: PASS');
+console.log('NAVER Place Card COMPACT TRUE ORBIT + click/drag + NAVER fallback + phone fail-safe contract: PASS');

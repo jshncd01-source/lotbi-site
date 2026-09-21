@@ -1,7 +1,5 @@
 const NAVER_MAPS_WEB_APPNAME = 'https://lotbiai.com';
 const NAVER_MAPS_ANDROID_PACKAGE = 'com.nhn.android.nmap';
-const NAVER_MAPS_ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.nhn.android.nmap';
-const NAVER_MAPS_IOS_STORE_URL = 'https://itunes.apple.com/app/id311867728?mt=8';
 const NAVER_MAPS_WEB_SEARCH_BASE = 'https://map.naver.com/p/search/';
 const NAVER_STATIC_MAP_THUMBNAIL_BASE = 'https://api.lotbiai.com/v2/maps/static-place-thumbnail';
 const NAVIGATION_TTL_MS = 60 * 60 * 1000;
@@ -157,7 +155,7 @@ export function buildNaverMapsAndroidIntentUri(place, {appname = NAVER_MAPS_WEB_
   if (!place || typeof place !== 'object') throw new TypeError('place is required');
   const action = place.navigationCapable === true ? 'navigation' : 'search';
   const params = action === 'navigation' ? navigationParams(place, appname) : searchParams(place, appname);
-  const fallbackUrl = encodeURIComponent(NAVER_MAPS_ANDROID_STORE_URL);
+  const fallbackUrl = encodeURIComponent(buildNaverMapsWebSearchUrl(place));
   return `intent://${action}?${params}#Intent;scheme=nmap;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=${NAVER_MAPS_ANDROID_PACKAGE};S.browser_fallback_url=${fallbackUrl};end`;
 }
 
@@ -203,34 +201,50 @@ export function naverMapsPlaceActionLabel(place, {userAgent = globalThis.navigat
 
 export function openNaverMapsPlace(place, {
   windowRef = globalThis.window,
+  documentRef = globalThis.document,
   userAgent = globalThis.navigator?.userAgent || '',
-  now = () => Date.now(),
 } = {}) {
   if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   const {android, ios} = mobilePlatform(userAgent);
+  const webUrl = buildNaverMapsWebSearchUrl(place);
 
   if (android) {
     const uri = buildNaverMapsAndroidIntentUri(place);
     windowRef.location.href = uri;
-    return Object.freeze({opened: true, mode: place.navigationCapable ? 'NAVER_NAVIGATION_INTENT' : 'NAVER_SEARCH_INTENT', uri});
+    return Object.freeze({opened: true, mode: place.navigationCapable ? 'NAVER_NAVIGATION_INTENT' : 'NAVER_SEARCH_INTENT', uri, fallbackUri: webUrl});
   }
 
   if (ios) {
     const uri = buildNaverMapsMobileUri(place);
-    const clickedAt = now();
+    let fallbackTimer = null;
+    let fallbackCancelled = false;
+    const cancelFallback = () => {
+      fallbackCancelled = true;
+      if (fallbackTimer !== null) windowRef.clearTimeout?.(fallbackTimer);
+    };
+    documentRef?.addEventListener?.('visibilitychange', () => {
+      if (documentRef.visibilityState === 'hidden') cancelFallback();
+    }, {once: true});
+    windowRef.addEventListener?.('pagehide', cancelFallback, {once: true});
+    fallbackTimer = windowRef.setTimeout?.(() => {
+      if (!fallbackCancelled) windowRef.location.href = webUrl;
+    }, 1400) ?? null;
     windowRef.location.href = uri;
-    windowRef.setTimeout?.(() => {
-      if (now() - clickedAt < 2000) windowRef.location.href = NAVER_MAPS_IOS_STORE_URL;
-    }, 1500);
-    return Object.freeze({opened: true, mode: place.navigationCapable ? 'NAVER_NAVIGATION_URL_SCHEME' : 'NAVER_SEARCH_URL_SCHEME', uri});
+    return Object.freeze({opened: true, mode: place.navigationCapable ? 'NAVER_NAVIGATION_URL_SCHEME' : 'NAVER_SEARCH_URL_SCHEME', uri, fallbackUri: webUrl});
   }
 
-  const url = buildNaverMapsWebSearchUrl(place);
-  if (typeof windowRef.open === 'function') {
-    const child = windowRef.open(url, '_blank', 'noopener,noreferrer');
-    if (child) child.opener = null;
-  } else {
-    windowRef.location.href = url;
+  let child = null;
+  try {
+    child = typeof windowRef.open === 'function'
+      ? windowRef.open(webUrl, '_blank', 'noopener,noreferrer')
+      : null;
+  } catch {
+    child = null;
   }
-  return Object.freeze({opened: true, mode: 'NAVER_WEB_SEARCH', uri: url});
+  if (child) {
+    child.opener = null;
+    return Object.freeze({opened: true, mode: 'NAVER_WEB_SEARCH_NEW_TAB', uri: webUrl});
+  }
+  windowRef.location.href = webUrl;
+  return Object.freeze({opened: true, mode: 'NAVER_WEB_SEARCH_SAME_TAB', uri: webUrl});
 }

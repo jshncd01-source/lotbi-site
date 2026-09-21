@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260921-guestclaim1';
-import {buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-trueorbitphoto1';
+import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-placecompactactions1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -45,7 +45,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260921-trueorbitphoto1';
+  link.href = '/site-conversation.css?v=20260921-placecompactactions1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -819,25 +819,38 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
 
       const phoneHref = buildVerifiedPhoneHref(place);
+      const phone = document.createElement(phoneHref ? 'a' : 'button');
+      phone.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-phone-action';
+      phone.dataset.action = 'phone';
+      phone.dataset.phoneState = phoneHref ? 'VERIFIED' : 'UNAVAILABLE';
+      phone.tabIndex = placeIndex === 0 ? 0 : -1;
       if (phoneHref) {
-        const phone = document.createElement('a');
-        phone.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-phone-action';
         phone.href = phoneHref;
         phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
         phone.title = '전화 걸기';
-        phone.dataset.action = 'phone';
-        phone.tabIndex = placeIndex === 0 ? 0 : -1;
         phone.addEventListener('click', () => {
           phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
           setStatus('전화 앱 연결을 시작합니다.');
         });
-        actions.appendChild(phone);
+      } else {
+        phone.type = 'button';
+        phone.disabled = true;
+        phone.setAttribute('aria-disabled', 'true');
+        phone.setAttribute('aria-label', `${place.name} 전화번호 정보 없음`);
+        phone.title = '전화번호 정보 없음';
       }
+      const phoneLabel = document.createElement('span');
+      phoneLabel.className = 'lotbi-place-action-label';
+      phoneLabel.textContent = '전화';
+      phone.appendChild(phoneLabel);
+      actions.appendChild(phone);
 
-      const navigate = document.createElement('button');
-      navigate.type = 'button';
+      const navigate = document.createElement('a');
       navigate.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-naver-map-action';
-      navigate.setAttribute('aria-label', '네이버지도에서 열기');
+      navigate.href = buildNaverMapsWebSearchUrl(place);
+      navigate.target = '_blank';
+      navigate.rel = 'noopener noreferrer';
+      navigate.setAttribute('aria-label', `${place.name} 네이버지도에서 열기`);
       navigate.title = '네이버지도에서 열기';
       navigate.dataset.action = 'naver-map';
       navigate.tabIndex = placeIndex === 0 ? 0 : -1;
@@ -855,14 +868,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         navigate.classList.add('is-icon-fallback');
       }, {once: true});
       navigate.appendChild(naverIcon);
-      navigate.addEventListener('click', () => {
+      const mapLabel = document.createElement('span');
+      mapLabel.className = 'lotbi-place-action-label';
+      mapLabel.textContent = '네이버지도';
+      navigate.appendChild(mapLabel);
+      navigate.addEventListener('click', event => {
+        event.preventDefault();
         if (!isPlaceResultFresh(placeResult)) {
           setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
           return;
         }
         const opened = openNaverMapsPlace(place);
         if (!opened.opened) {
-          setStatus('네이버지도 연결을 안전하게 시작하지 못했습니다.');
+          globalThis.location.href = navigate.href;
+          setStatus('네이버지도 웹 검색으로 연결합니다.');
           return;
         }
         const navigationMode = opened.mode === 'NAVER_NAVIGATION_INTENT' || opened.mode === 'NAVER_NAVIGATION_URL_SCHEME';
@@ -902,6 +921,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     let dragLastX = 0;
     let dragMoved = false;
     let wheelLocked = false;
+    let pointerOriginIndex = null;
 
     const wrapIndex = index => {
       const count = cards.length;
@@ -976,6 +996,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     rail.addEventListener('pointerdown', event => {
       if (cards.length < 2 || event.button !== 0 || event.target?.closest?.('a, button')) return;
+      const originCard = event.target?.closest?.('.lotbi-place-orbit-card');
+      const originIndex = Number(originCard?.dataset?.orbitIndex);
+      pointerOriginIndex = Number.isInteger(originIndex) ? originIndex : null;
       dragPointerId = event.pointerId;
       dragStartX = event.clientX;
       dragLastX = event.clientX;
@@ -995,26 +1018,35 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       rail.style.setProperty('--lotbi-orbit-drag-x', `${visualDelta}px`);
     });
 
-    const finishDrag = event => {
+    const finishDrag = (event, {cancelled = false} = {}) => {
       if (event.pointerId !== dragPointerId) return;
       rail.releasePointerCapture?.(event.pointerId);
       rail.classList.remove('is-dragging');
       const delta = dragLastX - dragStartX;
+      const crossedDragThreshold = Math.abs(delta) >= 44;
       rail.style.removeProperty('--lotbi-orbit-drag-x');
-      if (dragMoved) {
-        suppressClick = true;
-        globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
-      }
-      if (Math.abs(delta) >= 44) {
+
+      if (cancelled) {
+        applyOrbitState();
+      } else if (crossedDragThreshold) {
         setActiveIndex(activeIndex + (delta < 0 ? 1 : -1));
+      } else if (Number.isInteger(pointerOriginIndex)) {
+        setActiveIndex(pointerOriginIndex);
       } else {
         applyOrbitState();
       }
+
+      if (!cancelled && Number.isInteger(pointerOriginIndex)) {
+        suppressClick = true;
+        globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
+      }
       dragPointerId = null;
+      pointerOriginIndex = null;
+      dragMoved = false;
     };
 
-    rail.addEventListener('pointerup', finishDrag);
-    rail.addEventListener('pointercancel', finishDrag);
+    rail.addEventListener('pointerup', event => finishDrag(event));
+    rail.addEventListener('pointercancel', event => finishDrag(event, {cancelled: true}));
 
     applyOrbitState();
     return rail;
