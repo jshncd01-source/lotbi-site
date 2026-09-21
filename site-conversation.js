@@ -1738,9 +1738,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!sessionToken || save.disabled) return;
       error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
       try {
+        const normalizedHandle = handle.value.trim().toLowerCase();
+        const currentHandle = serverIdentity?.accountHandle || '';
         const updated = await updateCurrentSiteProfile(sessionToken, {
           displayName: name.value,
-          publicHandle: handle.value,
+          ...(normalizedHandle && normalizedHandle !== currentHandle ? {publicHandle: normalizedHandle} : {}),
         });
         serverIdentity = Object.freeze({...serverIdentity, ...updated});
         name.value = serverIdentity.name || canonicalProfileName();
