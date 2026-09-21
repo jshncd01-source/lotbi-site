@@ -628,7 +628,7 @@ body[data-site-theme="dark"] .calendar-editor-title[readonly] { background: #242
   .calendar-month-grid[data-week-count="5"] { grid-template-rows: repeat(5, minmax(0, 1fr)); }
   .calendar-month-grid[data-week-count="6"] { grid-template-rows: repeat(6, minmax(0, 1fr)); }
 
-  .calendar-date-cell { min-height: 0; }
+  .calendar-date-cell { min-height: 0; gap: 1px; }
 
   .calendar-day-panel {
     position: fixed;
