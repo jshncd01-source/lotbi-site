@@ -35,6 +35,10 @@ function claimReceiptKey(claimId) {
   return `${STORAGE_PREFIX}.guest-claim-receipt.${claimId}`;
 }
 
+function sourceClaimGuardKey(anonymousNamespace, threadId) {
+  return `${STORAGE_PREFIX}.guest-claim-source.${anonymousNamespace}.${encodeURIComponent(threadId)}`;
+}
+
 function safeParse(raw, fallback = null) {
   if (typeof raw !== 'string' || !raw) return fallback;
   try {
@@ -242,6 +246,24 @@ function accountClaimThread(accountState, claimId) {
   ));
 }
 
+export function guestConversationThreadClaimed({
+  anonymousNamespace,
+  threadId,
+  durableStorage = optionalBrowserStorage('localStorage'),
+} = {}) {
+  const namespace = normalizedAnonymousNamespace(anonymousNamespace);
+  const id = typeof threadId === 'string' ? threadId.trim() : '';
+  if (!namespace || !id || !durableStorage) return false;
+  const guard = safeParse(safeGet(durableStorage, sourceClaimGuardKey(namespace, id)), null);
+  return Boolean(
+    guard
+    && guard.version === 1
+    && guard.anonymousNamespace === namespace
+    && guard.sourceThreadId === id
+    && CLAIM_ID_PATTERN.test(String(guard.claimId || ''))
+  );
+}
+
 function markSourceConsumed(sourceState, intent, accountThreadId, now) {
   let found = false;
   const threads = sourceState.threads.map(item => {
@@ -328,6 +350,11 @@ export async function prepareGuestConversationClaimIntent({
   if (
     !isThread(activeThread)
     || activeThread.guestClaimConsumed === true
+    || guestConversationThreadClaimed({
+      anonymousNamespace,
+      threadId: activeThread?.id,
+      durableStorage,
+    })
     || !activeThread.messages.some(isMessage)
   ) {
     clearClaimIntent(sessionStorage);
@@ -395,7 +422,8 @@ export async function claimGuestConversationToAccount({
 
   const receipt = safeParse(safeGet(durableStorage, claimReceiptKey(intent.claimId)), null);
   const accountStorageKey = storageKey(accountKey, 'threads');
-  const accountState = normalizedThreadState(safeParse(safeGet(durableStorage, accountStorageKey), {}));
+  const accountStateRaw = safeGet(durableStorage, accountStorageKey);
+  const accountState = normalizedThreadState(safeParse(accountStateRaw, {}));
 
   if (receipt && receipt.version === 1 && receipt.claimId === intent.claimId) {
     if (receipt.accountNamespace && receipt.accountNamespace !== accountKey) {
@@ -451,6 +479,15 @@ export async function claimGuestConversationToAccount({
   // was interrupted before the receipt/source marker could be persisted.
   const alreadyImported = accountClaimThread(accountState, intent.claimId);
   if (alreadyImported) {
+    safeSet(durableStorage, sourceClaimGuardKey(intent.anonymousNamespace, intent.threadId), JSON.stringify({
+      version: 1,
+      claimId: intent.claimId,
+      anonymousNamespace: intent.anonymousNamespace,
+      sourceThreadId: intent.threadId,
+      accountNamespace: accountKey,
+      accountThreadId: alreadyImported.id,
+      claimedAt: Number(now),
+    }));
     const consumed = markSourceConsumed(sourceState, intent, alreadyImported.id, now);
     if (consumed.found) safeSet(durableStorage, sourceStorageKey, JSON.stringify(consumed.state));
     safeSet(durableStorage, claimReceiptKey(intent.claimId), JSON.stringify({
@@ -498,6 +535,25 @@ export async function claimGuestConversationToAccount({
   accountState.activeThreadId = accountThreadId;
   // Account draft is intentionally preserved; only the visible conversation is claimed.
   if (!safeSet(durableStorage, accountStorageKey, JSON.stringify(accountState))) {
+    return Object.freeze({status: 'STORAGE_ERROR'});
+  }
+
+  const sourceGuard = {
+    version: 1,
+    claimId: intent.claimId,
+    anonymousNamespace: intent.anonymousNamespace,
+    sourceThreadId: intent.threadId,
+    accountNamespace: accountKey,
+    accountThreadId,
+    claimedAt: Number(now),
+  };
+  if (!safeSet(
+    durableStorage,
+    sourceClaimGuardKey(intent.anonymousNamespace, intent.threadId),
+    JSON.stringify(sourceGuard),
+  )) {
+    if (accountStateRaw === null) safeRemove(durableStorage, accountStorageKey);
+    else safeSet(durableStorage, accountStorageKey, accountStateRaw);
     return Object.freeze({status: 'STORAGE_ERROR'});
   }
 
