@@ -281,6 +281,42 @@ try{
   await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'identity change closes Calendar');
   result.identitySurfaceClose=true;
 
+  const draftRoot=document.createElement('div');
+  draftRoot.id='calendar-draft-root';
+  document.body.appendChild(draftRoot);
+  const draftManagerModule=await import('/site-calendar-manager.js?v=20260921-convcal2');
+  const draftMount=await draftManagerModule.mountLifeCalendarManager({
+    sessionToken:'',
+    root:draftRoot,
+    initialView:'agenda',
+    timezone:'Asia/Seoul',
+    guestRepository:createGuestCalendarRepository(localStorage),
+    initialDraft:{
+      title:'보험 서류 확인',
+      localDate:null,
+      localTime:null,
+      entry:{
+        amountMinor:12000,
+        currency:'KRW',
+        expenseCategory:'LIVING',
+        memo:'사진에서 확인한 메모',
+        place:'전주',
+        merchant:'예약처'
+      }
+    }
+  });
+  if(!draftMount)throw new Error('draft manager mount failed');
+  await wait(()=>draftRoot.querySelector('.calendar-editor-dialog'),'draft editor');
+  if(draftRoot.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 초안 확인')throw new Error('draft editor heading');
+  if(draftRoot.querySelector('.calendar-editor-title')?.value!=='보험 서류 확인')throw new Error('draft title not prefilled');
+  if(draftRoot.querySelector('.calendar-editor-date')?.value!=='')throw new Error('draft editor invented a date');
+  if(draftRoot.querySelector('.calendar-editor-amount')?.value!=='12000')throw new Error('draft amount not prefilled');
+  if(draftRoot.querySelector('.calendar-editor-memo')?.value!=='사진에서 확인한 메모')throw new Error('draft memo not prefilled');
+  draftRoot.querySelector('.calendar-editor-title')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!draftRoot.querySelector('.calendar-editor-dialog'),'draft editor Escape close');
+  result.calendarDraftEditable=true;
+  draftRoot.remove();
+
   const raceRoot=document.createElement('div');
   raceRoot.id='calendar-race-root';
   document.body.appendChild(raceRoot);
@@ -374,7 +410,7 @@ try{
   const results=cases.map(([w,h])=>run(browser,w,h));
   const desktops=results.filter(value=>value.desktop);
   if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.editorEscapeContained&&value.agendaRanges&&value.unscheduledReachable))throw new Error('desktop controls/date/event/Escape/Agenda/unscheduled selection');
-  if(!results.every(value=>value.escapeContained))throw new Error('Calendar detail Escape containment');
+  if(!results.every(value=>value.escapeContained&&value.calendarDraftEditable))throw new Error('Calendar detail Escape/draft editor containment');
   for(const value of results){
     if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
     if(value.density.map(entry=>entry.expected).join(',')!=='0,1,2,3,5,8')throw new Error('fixture matrix incomplete');
