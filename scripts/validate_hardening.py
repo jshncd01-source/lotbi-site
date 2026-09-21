@@ -10,6 +10,7 @@ conversation/handoff and authenticated continuity runtimes.
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 from pathlib import Path
 
@@ -80,12 +81,20 @@ def main() -> int:
             if forbidden in initial_account:
                 errors.append(f"initial checking account state exposes premature account UI: {forbidden}")
 
+    conversation_script = re.search(
+        r'<script type="module" src="site-conversation\.js\?v=[^"]+"></script>',
+        index,
+    )
+    continuity_script = re.search(
+        r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
+        index,
+    )
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
         '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
-        '<script type="module" src="site-conversation.js?v=20260921-smartcaltrueorbit1"></script>',
-        '<script type="module" src="site-continuity.js?v=20260920-authux1"></script>',
+        conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
+        continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         '<script type="module" src="site-avatar.js"></script>',
     )
     if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
@@ -162,10 +171,10 @@ def main() -> int:
         errors.append("authenticated continuity stylesheet missing from home")
     if 'href="mobile-entry.css"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
-    if 'src="site-conversation.js?v=20260921-smartcaltrueorbit1"' not in index:
-        errors.append("approved conversation module missing from home")
-    if 'src="site-continuity.js?v=20260920-authux1"' not in index:
-        errors.append("approved authenticated continuity module missing from home")
+    if not conversation_script:
+        errors.append("approved cache-busted conversation module missing from home")
+    if not continuity_script:
+        errors.append("approved cache-busted authenticated continuity module missing from home")
 
     for token in (
         ".account-auth-placeholder",
