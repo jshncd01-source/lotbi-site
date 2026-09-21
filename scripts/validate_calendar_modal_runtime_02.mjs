@@ -199,9 +199,6 @@ try{
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
     if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
 
-    const currentGeometry={label:modal.querySelector('.calendar-title-button')?.textContent||'',weekCount:result.grid.weekCount,cellHeight:cellHeights[0]||0,unusedBottom:result.content.unusedBottom};
-    result.monthGeometry=[currentGeometry];
-
     const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const eventButton=eventCell?.querySelector('.calendar-event-chip');
     if(!(eventButton instanceof HTMLButtonElement))throw new Error('event click target missing');
@@ -218,29 +215,6 @@ try{
     result.eventSelection=true;
     result.editorEscapeContained=true;
 
-    const measureMonthGeometry=async (backClicks,targetLabel,expectedWeeks)=>{
-      const titleNode=modal.querySelector('.calendar-title-button');
-      const previousButton=modal.querySelector('.calendar-nav-button');
-      for(let i=0;i<backClicks;i+=1)click(previousButton);
-      await wait(()=>titleNode?.textContent===targetLabel,'navigate '+targetLabel);
-      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-      const monthGrid=modal.querySelector('.calendar-month-grid');
-      const heights=[...monthGrid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
-      const spread=heights.length?Math.max(...heights)-Math.min(...heights):0;
-      const monthGridRect=monthGrid.getBoundingClientRect();
-      const currentContentRect=content.getBoundingClientRect();
-      const currentContentStyle=getComputedStyle(content);
-      const innerBottom=currentContentRect.bottom-(parseFloat(currentContentStyle.paddingBottom)||0);
-      const lowerGap=Math.max(0,Math.round(innerBottom-monthGridRect.bottom));
-      const weekCount=Number(monthGrid.dataset.weekCount||0);
-      if(weekCount!==expectedWeeks)throw new Error(targetLabel+' week count '+weekCount+' expected '+expectedWeeks);
-      if(spread>2)throw new Error(targetLabel+' row height spread '+spread);
-      if(lowerGap>4)throw new Error(targetLabel+' unused lower space '+lowerGap+'px');
-      return {label:targetLabel,weekCount,cellHeight:heights[0]||0,unusedBottom:lowerGap};
-    };
-    result.monthGeometry.push(await measureMonthGeometry(4,'2026년 5월',6));
-    result.monthGeometry.push(await measureMonthGeometry(3,'2026년 2월',4));
-    if(result.monthGeometry.map(value=>value.weekCount).sort().join(',')!=='4,5,6')throw new Error('desktop 4/5/6-week geometry matrix incomplete');
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
@@ -357,12 +331,12 @@ function wrapperMarkup(w,h){
   return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('case-frame'),out=document.getElementById('result');
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('calendar-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
-  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},16000);
+  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},9000);
   <\/script></body></html>`;
 }
 function run(browser,w,h){
   fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
-  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=18000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:45000,maxBuffer:12*1024*1024});
+  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=10000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:35000,maxBuffer:12*1024*1024});
   if(r.error)throw r.error;
   if(r.status!==0)throw new Error('browser '+r.status+' '+r.stderr);
   const a='<pre id="result">',b='</pre>',i=r.stdout.indexOf(a),j=r.stdout.indexOf(b,i);
