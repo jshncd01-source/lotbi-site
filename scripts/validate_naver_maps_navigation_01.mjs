@@ -117,12 +117,12 @@ assert.match(conversationSource, /site-conversation\.css\?v=20260921-placecardfl
 assert.match(conversationSource, /media\.textContent = 'NAVER 지도'/u);
 assert.match(conversationSource, /로그인 없이 실제 장소 카드/u);
 assert.doesNotMatch(conversationSource, /openNaverMapsPlace\([^)]*response\.placeResult/u);
-const placeMediaStyle = conversationStyles.match(/\\.lotbi-rich-card-place-media \\{[^}]*\\}/s)?.[0] || '';
+const placeMediaStyle = conversationStyles.match(/\.lotbi-rich-card-place-media \{[^}]*\}/s)?.[0] || '';
 assert.match(placeMediaStyle, /background:\\s*#fff\\s*;/u);
-const pendingImageStyle = conversationStyles.match(/\\.lotbi-rich-card-place-media \\.lotbi-rich-card-image \\{[^}]*\\}/s)?.[0] || '';
+const pendingImageStyle = conversationStyles.match(/\.lotbi-rich-card-place-media \.lotbi-rich-card-image \{[^}]*\}/s)?.[0] || '';
 assert.match(pendingImageStyle, /opacity:\\s*0\\s*;/u);
-const readyImageStyle = conversationStyles.match(/\\.lotbi-rich-card-place-media \\.lotbi-rich-card-image\\.is-ready \\{[^}]*\\}/s)?.[0] || '';
+const readyImageStyle = conversationStyles.match(/\.lotbi-rich-card-place-media \.lotbi-rich-card-image\.is-ready \{[^}]*\}/s)?.[0] || '';
 assert.match(readyImageStyle, /opacity:\\s*1\\s*;/u);
-assert.match(indexSource, /site-conversation\\.js\\?v=20260921-placecardflash1/u);
+assert.match(indexSource, /site-conversation\.js\?v=20260921-placecardflash1/u);
 
 console.log('NAVER Maps place navigation + static thumbnail contract: PASS');
