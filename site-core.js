@@ -644,8 +644,10 @@ function bearerToken(sessionToken) {
   return token;
 }
 
-async function siteSessionRequest(path, sessionToken, {method = 'GET', announceSessionFailure = true} = {}, fetchImpl = globalThis.fetch) {
+async function siteSessionRequest(path, sessionToken, {method = 'GET', announceSessionFailure = true, body = undefined} = {}, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
+  const headers = {Authorization: `Bearer ${bearerToken(sessionToken)}`};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   let response;
   try {
     response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
@@ -654,7 +656,8 @@ async function siteSessionRequest(path, sessionToken, {method = 'GET', announceS
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
-      headers: {Authorization: `Bearer ${bearerToken(sessionToken)}`},
+      headers,
+      ...(body === undefined ? {} : {body: JSON.stringify(body)}),
     });
   } catch {
     throw new SiteCoreError('LOTBI 계정 서버에 접속하지 못했습니다.', {
@@ -896,6 +899,18 @@ export async function reviewProductCard(sessionToken, {
   });
 }
 
+const SYNTHETIC_EMAIL_FIRST_HANDLE_RE = /^e1[0-9a-f]{20}$/;
+
+function optionalIdentityText(value, field) {
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {
+      code: 'SITE_IDENTITY_CONTRACT_INVALID',
+    });
+  }
+  return value.trim();
+}
+
 export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fetch) {
   const payload = await siteSessionRequest(CURRENT_USER_PATH, sessionToken, {}, fetchImpl);
   const user = payload && typeof payload.user === 'object' ? payload.user : {};
@@ -907,13 +922,62 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
   if (!userId || !sessionId || !installationId || session.assurance_level !== 'FULL') {
     throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
   }
+  const name = optionalIdentityText(user.name, 'user.name');
+  const canonicalPublicHandle = optionalIdentityText(user.public_handle, 'user.public_handle');
+  const rawAccountHandle = optionalIdentityText(user.account_handle, 'user.account_handle');
+  const email = optionalIdentityText(user.email, 'user.email');
+  if (canonicalPublicHandle && rawAccountHandle && canonicalPublicHandle !== rawAccountHandle) {
+    throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
+  }
+  const accountHandle = canonicalPublicHandle || (
+    rawAccountHandle && email && SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle)
+      ? ''
+      : rawAccountHandle
+  );
   return Object.freeze({
     userId,
-    name: typeof user.name === 'string' ? user.name.trim() : '',
-    accountHandle: typeof user.account_handle === 'string' ? user.account_handle.trim() : '',
+    name,
+    accountHandle,
+    email,
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+  });
+}
+
+export async function updateCurrentSiteProfile(sessionToken, {
+  displayName = '',
+  publicHandle = '',
+} = {}, fetchImpl = globalThis.fetch) {
+  const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+  const normalizedPublicHandle = typeof publicHandle === 'string' ? publicHandle.trim().toLowerCase() : '';
+  if (!normalizedDisplayName && !normalizedPublicHandle) {
+    throw new SiteCoreError('표시 이름 또는 공개 아이디를 입력해 주세요.', {code: 'SITE_PROFILE_UPDATE_REQUIRED'});
+  }
+  const payload = await siteSessionRequest('/v2/account/profile', sessionToken, {
+    method: 'PUT',
+    body: {
+      ...(normalizedDisplayName ? {display_name: normalizedDisplayName} : {}),
+      ...(normalizedPublicHandle ? {public_handle: normalizedPublicHandle} : {}),
+    },
+  }, fetchImpl);
+  const user = payload && typeof payload.user === 'object' ? payload.user : {};
+  const userId = typeof user.id === 'string' ? user.id.trim() : '';
+  if (!userId) {
+    throw new SiteCoreError('LOTBI 프로필 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
+  }
+  const name = optionalIdentityText(user.name, 'user.name');
+  const canonicalPublicHandle = optionalIdentityText(user.public_handle, 'user.public_handle');
+  const compatibilityHandle = optionalIdentityText(user.account_handle, 'user.account_handle');
+  const email = optionalIdentityText(user.email, 'user.email');
+  if (canonicalPublicHandle && compatibilityHandle && canonicalPublicHandle !== compatibilityHandle) {
+    throw new SiteCoreError('LOTBI 프로필 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    userId,
+    name,
+    accountHandle: canonicalPublicHandle || compatibilityHandle,
+    email,
   });
 }
 
