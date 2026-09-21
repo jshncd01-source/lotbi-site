@@ -637,27 +637,28 @@ function renderAttention(state) {
   })));
 }
 
-function calendarEditorDialog({root, item, selectedDate, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
+function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
   const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
-  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : '일정 추가';
+  const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
+  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 추가');
   const form = document.createElement('form'); form.className = 'calendar-editor-form';
 
   const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목 *';
-  const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || '';
+  const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || draft?.title || '';
   titleLabel.appendChild(titleInput);
   const titleNote = document.createElement('small'); titleNote.id = 'calendar-editor-title-note'; titleNote.textContent = '제목만 있으면 저장할 수 있어요. 나머지는 선택 사항입니다.';
 
   const dateLabel = document.createElement('label'); dateLabel.textContent = '날짜';
-  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.value = item?.local_date || canonicalActivityLocalDate(item) || selectedDate || ''; dateLabel.appendChild(dateInput);
+  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.value = item?.local_date || canonicalActivityLocalDate(item) || (draft ? (draft.localDate || '') : (selectedDate || '')); dateLabel.appendChild(dateInput);
 
   const allDayLabel = document.createElement('label'); allDayLabel.className = 'calendar-editor-all-day';
-  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = item ? isAllDay(item) : true; allDayLabel.append(allDayInput, document.createTextNode('종일'));
+  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = item ? isAllDay(item) : !draft?.localTime; allDayLabel.append(allDayInput, document.createTextNode('종일'));
 
   const timeLabel = document.createElement('label'); timeLabel.textContent = '시간';
-  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'time'; timeInput.value = item?.local_datetime?.slice(11, 16) || '';
+  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'time'; timeInput.value = item?.local_datetime?.slice(11, 16) || draft?.localTime || '';
 
   const syncTemporalControls = () => {
     const hasDate = Boolean(dateInput.value);
@@ -670,7 +671,18 @@ function calendarEditorDialog({root, item, selectedDate, authenticated, controll
   syncTemporalControls();
   timeLabel.appendChild(timeInput);
 
-  const entry = item?.entry && typeof item.entry === 'object' ? item.entry : {};
+  const entry = item?.entry && typeof item.entry === 'object'
+    ? item.entry
+    : draft?.entry && typeof draft.entry === 'object'
+      ? {
+          amount_minor: draft.entry.amountMinor,
+          currency: draft.entry.currency,
+          expense_category: draft.entry.expenseCategory,
+          memo: draft.entry.memo,
+          place: draft.entry.place,
+          merchant: draft.entry.merchant,
+        }
+      : {};
   const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
   const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.placeholder = '0'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
 
@@ -773,6 +785,7 @@ export async function mountLifeCalendarManager({
   fetchImpl = globalThis.fetch,
   guestRepository,
   deepOpen,
+  initialDraft = null,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
@@ -984,7 +997,7 @@ export async function mountLifeCalendarManager({
     });
   };
 
-  openEditor = (item, date) => {
+  openEditor = (item, date, draft = null) => {
     const origin = Object.freeze({
       mode: state.mode,
       selectedDate: state.selectedDate,
@@ -995,7 +1008,7 @@ export async function mountLifeCalendarManager({
       dayCollapsed: state.dayCollapsed,
     });
     return calendarEditorDialog({
-      root, item, selectedDate: date, authenticated, controller: mutationController,
+      root, item, selectedDate: date, initialDraft: draft, authenticated, controller: mutationController,
       onSaved: async () => {
         state.mode = origin.mode;
         state.selectedDate = origin.selectedDate;
@@ -1127,6 +1140,10 @@ export async function mountLifeCalendarManager({
   const openDeepTarget = async () => {
     if (!deepOpenTarget) {
       await refresh();
+      if (initialDraft && typeof initialDraft === 'object') {
+        root.dataset.calendarDraftOpen = 'opened';
+        openEditor(null, initialDraft.localDate || '', initialDraft);
+      }
       return;
     }
     if ((authenticated && deepOpenTarget.scope !== 'AUTH') || (!authenticated && deepOpenTarget.scope !== 'GUEST')) {
