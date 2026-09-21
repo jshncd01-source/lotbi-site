@@ -24,7 +24,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
-<link rel="stylesheet" href="/site-calendar.css?v=20260921-convcal2">
+<link rel="stylesheet" href="/site-calendar.css?v=20260921-calgeom1">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -110,6 +110,9 @@ try{
   if(!grid||!layout||!today||!attention||!calendar||!detail)throw new Error('month chrome missing');
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
+  const contentStyle=getComputedStyle(content);
+  const contentInnerBottom=contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
+  const unusedBottom=Math.max(0,Math.round(contentInnerBottom-gridRect.bottom));
   const toolbar=modal.querySelector('.calendar-toolbar');
   const desktop=innerWidth>900;
   const cellHeights=[...grid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
@@ -120,7 +123,7 @@ try{
     bound:true,
     guest:content.dataset.calendarAccess,
     modal:{width:modalRect.width,height:modalRect.height,overflowY:getComputedStyle(modal).overflowY,noX:noX(modal)},
-    content:{overflowY:getComputedStyle(content).overflowY,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,noX:noX(content)},
+    content:{overflowY:getComputedStyle(content).overflowY,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,noX:noX(content),unusedBottom},
     grid:{
       cells:grid.querySelectorAll('.calendar-date-cell').length,
       weekCount:Number(grid.dataset.weekCount||0),
@@ -183,6 +186,10 @@ try{
     if(!result.detail.hidden)throw new Error('desktop Calendar must start with an unobstructed Month');
     if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
+    if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px');
+
+    const currentGeometry={label:modal.querySelector('.calendar-title-button')?.textContent||'',weekCount:result.grid.weekCount,cellHeight:cellHeights[0]||0,unusedBottom:result.content.unusedBottom};
+    result.monthGeometry=[currentGeometry];
 
     const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const eventButton=eventCell?.querySelector('.calendar-event-chip');
@@ -199,6 +206,36 @@ try{
     await wait(()=>document.activeElement?.dataset.calendarEventId===eventButton.dataset.calendarEventId,'event focus restore');
     result.eventSelection=true;
     result.editorEscapeContained=true;
+
+    const measureMonthGeometry=async (targetLabel,expectedWeeks)=>{
+      const titleNode=modal.querySelector('.calendar-title-button');
+      const previousButton=modal.querySelector('.calendar-nav-button');
+      let guard=12;
+      while(titleNode?.textContent!==targetLabel&&guard>0){
+        const before=titleNode?.textContent;
+        click(previousButton);
+        await wait(()=>titleNode?.textContent!==before,'navigate '+targetLabel);
+        guard-=1;
+      }
+      if(titleNode?.textContent!==targetLabel)throw new Error('could not reach '+targetLabel);
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const monthGrid=modal.querySelector('.calendar-month-grid');
+      const heights=[...monthGrid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
+      const spread=heights.length?Math.max(...heights)-Math.min(...heights):0;
+      const monthGridRect=monthGrid.getBoundingClientRect();
+      const currentContentRect=content.getBoundingClientRect();
+      const currentContentStyle=getComputedStyle(content);
+      const innerBottom=currentContentRect.bottom-(parseFloat(currentContentStyle.paddingBottom)||0);
+      const lowerGap=Math.max(0,Math.round(innerBottom-monthGridRect.bottom));
+      const weekCount=Number(monthGrid.dataset.weekCount||0);
+      if(weekCount!==expectedWeeks)throw new Error(targetLabel+' week count '+weekCount+' expected '+expectedWeeks);
+      if(spread>2)throw new Error(targetLabel+' row height spread '+spread);
+      if(lowerGap>4)throw new Error(targetLabel+' unused lower space '+lowerGap+'px');
+      return {label:targetLabel,weekCount,cellHeight:heights[0]||0,unusedBottom:lowerGap};
+    };
+    result.monthGeometry.push(await measureMonthGeometry('2026년 5월',6));
+    result.monthGeometry.push(await measureMonthGeometry('2026년 2월',4));
+    if(result.monthGeometry.map(value=>value.weekCount).sort().join(',')!=='4,5,6')throw new Error('desktop 4/5/6-week geometry matrix incomplete');
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
