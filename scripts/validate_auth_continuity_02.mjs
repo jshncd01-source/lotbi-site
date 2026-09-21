@@ -205,7 +205,7 @@ const homeContinuityVersion = index.match(/type="module" src="site-continuity\.j
 const callbackContinuityVersion = callbackHtml.match(/type="module" src="\/site-continuity\.js\?v=([^"]+)"/)?.[1] || '';
 assert.ok(homeContinuityVersion, 'Home continuity runtime must be cache-busted');
 assert.equal(callbackContinuityVersion, homeContinuityVersion, 'callback must load the same current continuity runtime');
-assert.ok(callbackHtml.includes('src="/auth-callback.js?v=20260921-convcalentry2"'));
+assert.match(callbackHtml, /src="\/auth-callback\.js\?v=[^"]+"/, 'callback entry runtime must be cache-busted');
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
