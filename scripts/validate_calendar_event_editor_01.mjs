@@ -22,8 +22,9 @@ assert.deepEqual(buildCalendarTemporal({localDate: '2026-09-24', time: '15:30', 
   kind: 'LOCAL_DATE_TIME', local_datetime: '2026-09-24T15:30:00', timezone_name: 'Asia/Seoul',
 });
 
+let guestUuidIndex = 0;
 const guestRepository = createGuestCalendarRepository(memoryStorage(), {
-  uuid: () => '00000000-0000-4000-8000-000000000001',
+  uuid: () => `00000000-0000-4000-8000-${String(++guestUuidIndex).padStart(12, '0')}`,
   now: () => new Date('2026-09-20T04:00:00.000Z'),
 });
 const guest = createCalendarMutationController({guestRepository, timezone: 'Asia/Seoul'});
