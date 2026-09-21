@@ -468,7 +468,7 @@ assert.match(placeRendererSource, /event\.preventDefault\(\)/u);
 assert.match(placeRendererSource, /mapLabel\.textContent = '네이버지도'/u);
 assert.match(conversationSource, /navigate\.title = '네이버지도에서 열기'/u);
 assert.match(conversationSource, /https:\/\/navercorp\.com\/img\/pc\/service-map-app-4\.jpg/u);
-assert.match(conversationSource, /site-navigation\.js\?v=20260921-placeenrichphone1/u);
+assert.match(conversationSource, /site-navigation\.js\?v=20260921-placecondition1/u);
 assert.doesNotMatch(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
 assert.doesNotMatch(placeRendererSource, /detail\.textContent = '상세보기'/u);
 assert.doesNotMatch(placeRendererSource, /navigate\.disabled = !fresh/u);
@@ -554,7 +554,7 @@ assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S
 assert.match(indexSource, /site-conversation\.js\?v=[A-Za-z0-9._-]+/u, 'Home conversation runtime must remain cache-busted');
 assert.match(
   conversationSource,
-  /\.\/site-navigation\.js\?v=20260921-placeenrichphone1/u,
+  /\.\/site-navigation\.js\?v=20260921-placecondition1/u,
   'Home Place Card runtime must keep the compact-actions navigation module',
 );
 
