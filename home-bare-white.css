@@ -239,3 +239,65 @@ body.chat-home-page:not(.conversation-active) .chat-home-footer a:focus-visible 
     height: 190px;
   }
 }
+
+/* SITE-BARE-WHITE-SIDEBAR-01 — Desktop navigation remains a restrained white
+   surface even when conversation mode is active. Mobile drawer styling stays
+   untouched. */
+body.chat-home-page {
+  --home-sidebar-bg: #ffffff;
+  --home-sidebar-text: #20242a;
+  --home-sidebar-line: #e7e9ed;
+  --home-sidebar-hover: #f6f7f8;
+  --home-sidebar-selected: #f1f3f5;
+}
+
+body.chat-home-page[data-site-theme="dark"] {
+  --home-sidebar-bg: #151922;
+  --home-sidebar-text: #edf0f5;
+  --home-sidebar-line: #343b47;
+  --home-sidebar-hover: #202631;
+  --home-sidebar-selected: #262e3a;
+}
+
+@media (prefers-color-scheme: dark) {
+  body.chat-home-page[data-site-theme="system"] {
+    --home-sidebar-bg: #151922;
+    --home-sidebar-text: #edf0f5;
+    --home-sidebar-line: #343b47;
+    --home-sidebar-hover: #202631;
+    --home-sidebar-selected: #262e3a;
+  }
+}
+
+@media (min-width: 901px) {
+  body.chat-home-page .chat-sidebar-desktop,
+  body.chat-home-page .chat-sidebar-desktop .sidebar-account-footer {
+    background: var(--home-sidebar-bg);
+    color: var(--home-sidebar-text);
+  }
+
+  body.chat-home-page .chat-sidebar-desktop {
+    border-right-color: var(--home-sidebar-line);
+    box-shadow: none;
+  }
+
+  body.chat-home-page .chat-sidebar-desktop .sidebar-account-footer {
+    border-top-color: var(--home-sidebar-line);
+  }
+
+  body.chat-home-page .chat-sidebar-desktop .nav-link:hover,
+  body.chat-home-page .chat-sidebar-desktop .nav-link:focus-visible,
+  body.chat-home-page .chat-sidebar-desktop .nav-item-primary:hover,
+  body.chat-home-page .chat-sidebar-desktop .nav-item-primary:focus-visible,
+  body.chat-home-page .chat-sidebar-desktop .sidebar-account-entry:hover,
+  body.chat-home-page .chat-sidebar-desktop .conversation-history-menu-trigger:hover,
+  body.chat-home-page .chat-sidebar-desktop .conversation-history-menu-trigger:focus-visible {
+    background: var(--home-sidebar-hover);
+  }
+
+  body.chat-home-page .chat-sidebar-desktop .nav-history-list button[aria-current="true"],
+  body.chat-home-page .chat-sidebar-desktop .nav-item[aria-current="page"] {
+    background: var(--home-sidebar-selected);
+  }
+}
+
