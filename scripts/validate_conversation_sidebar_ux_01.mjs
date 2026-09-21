@@ -90,7 +90,7 @@ assert.ok(conversation.includes("input.name = 'intent'"), 'logout handoff must c
 assert.ok(conversation.includes("input.value = 'logout'"), 'logout handoff must declare the fixed logout intent');
 assert.ok(conversation.indexOf('await logoutSiteSession(sessionToken)') < conversation.indexOf('beginAccountLogoutHandoff()'), 'Account logout handoff must start only after Site child revocation succeeds');
 assert.ok(conversation.includes("reason: 'site-logout'"), 'successful logout must transition Site UI to unauthenticated');
-assert.ok(conversation.includes('serverIdentity?.accountHandle'), 'profile row must use the server handle when available');
+assert.ok(conversation.includes('serverIdentity?.publicHandle'), 'profile row must use the canonical public handle when available');
 assert.ok(conversation.includes('getCurrentSiteUser(sessionToken)'), 'profile identity must come from Core /v2/me');
 assert.ok(conversation.includes('getCurrentSubscription(sessionToken)'), 'profile plan must come from the canonical Core subscription read');
 assert.ok(core.includes("const GUEST_SESSION_PATH = '/v2/conversation/guest/sessions'"), 'Site must use the isolated guest session endpoint');
