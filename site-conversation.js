@@ -1011,6 +1011,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       dragLastX = event.clientX;
       dragMoved = false;
       dragCaptured = false;
+      try {
+        if (typeof rail.setPointerCapture === 'function') {
+          rail.setPointerCapture(event.pointerId);
+          dragCaptured = true;
+        }
+      } catch {
+        dragCaptured = false;
+      }
     });
 
     rail.addEventListener('pointermove', event => {
@@ -1020,12 +1028,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (Math.abs(delta) > 4 && !dragMoved) {
         dragMoved = true;
         rail.classList.add('is-dragging');
-        try {
-          rail.setPointerCapture?.(event.pointerId);
-          dragCaptured = rail.hasPointerCapture?.(event.pointerId) === true;
-        } catch {
-          dragCaptured = false;
-        }
       }
       if (!dragMoved) return;
       event.preventDefault();
