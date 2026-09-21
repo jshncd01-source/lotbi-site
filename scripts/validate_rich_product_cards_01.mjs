@@ -182,7 +182,7 @@ for (const token of [
   "box.setAttribute('aria-pressed', String(saved))",
   "refreshLotbiBoxControls()",
   "buy.textContent = '구매하기'",
-  "await beginSiteHandoff(rich.originalText || rich.query || card.title)",
+  "await beginGuestClaimingSiteHandoff(rich.originalText || rich.query || card.title)",
   '아직 주문·결제는 실행하지 않았습니다.',
   "type: 'PRODUCT'",
   'display_id: rich.displayId',
