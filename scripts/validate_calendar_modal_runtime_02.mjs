@@ -113,6 +113,17 @@ try{
   const contentStyle=getComputedStyle(content);
   const contentInnerBottom=contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
   const unusedBottom=Math.max(0,Math.round(contentInnerBottom-gridRect.bottom));
+  const shell=modal.querySelector('.calendar-product-shell');
+  const viewport=modal.querySelector('.calendar-viewport');
+  const weekdays=modal.querySelector('.calendar-weekdays');
+  const geometryDebug=Object.fromEntries([
+    ['content',content],['shell',shell],['viewport',viewport],['layout',layout],
+    ['calendar',calendar],['weekdays',weekdays],['grid',grid],
+  ].map(([name,node])=>{
+    const rect=node?.getBoundingClientRect();
+    const style=node?getComputedStyle(node):null;
+    return [name,{top:rect?.top||0,bottom:rect?.bottom||0,height:rect?.height||0,display:style?.display||'',cssHeight:style?.height||'',minHeight:style?.minHeight||'',flex:style?.flex||'',gridRows:style?.gridTemplateRows||''}];
+  }));
   const toolbar=modal.querySelector('.calendar-toolbar');
   const desktop=innerWidth>900;
   const cellHeights=[...grid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
@@ -186,7 +197,7 @@ try{
     if(!result.detail.hidden)throw new Error('desktop Calendar must start with an unobstructed Month');
     if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
-    if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px');
+    if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
 
     const currentGeometry={label:modal.querySelector('.calendar-title-button')?.textContent||'',weekCount:result.grid.weekCount,cellHeight:cellHeights[0]||0,unusedBottom:result.content.unusedBottom};
     result.monthGeometry=[currentGeometry];
