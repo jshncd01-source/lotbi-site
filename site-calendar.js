@@ -250,6 +250,24 @@ function assertReadResponse(payload, expectedView) {
   });
 }
 
+function assertUnscheduledResponse(payload) {
+  if (
+    !payload
+    || payload.view !== 'UNSCHEDULED'
+    || !Array.isArray(payload.items)
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+  ) {
+    throw new SiteCoreError('LOTBI 날짜 미정 일정 응답 형식이 올바르지 않습니다.', {code: 'LIFE_UNSCHEDULED_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    view: 'UNSCHEDULED',
+    items: Object.freeze(payload.items.map(item => assertMutationResponse(item))),
+    aiCalls: 0,
+    providerApiCalls: 0,
+  });
+}
+
 function assertAttentionResponse(payload) {
   if (
     !payload
@@ -443,6 +461,16 @@ export async function getLifeAgenda(sessionToken, {timezone, start, end}, fetchI
     fetchImpl,
   );
   return assertReadResponse(payload, 'AGENDA');
+}
+
+export async function getLifeUnscheduled(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await calendarRequest(
+    '/v2/life/unscheduled',
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertUnscheduledResponse(payload);
 }
 
 export async function getLifeAttention(
