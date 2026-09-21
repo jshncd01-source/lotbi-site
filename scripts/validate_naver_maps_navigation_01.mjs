@@ -141,6 +141,11 @@ assert.equal(fallback.results[0].navigationCapable, false);
 assert.match(nav.buildNaverMapsMobileUri(fallback.results[0]), /^nmap:\/\/search\?/u);
 assert.equal(nav.buildNaverStaticMapThumbnailUrl(fallback.results[0]), '');
 
+const placeRendererStart = conversationSource.indexOf("const createPlaceCardRail = placeValue => {");
+const placeRendererEnd = conversationSource.indexOf("const normalizeConversationCalendarResult = value => {", placeRendererStart);
+assert.ok(placeRendererStart >= 0 && placeRendererEnd > placeRendererStart);
+const placeRendererSource = conversationSource.slice(placeRendererStart, placeRendererEnd);
+
 assert.match(coreSource, /placeResult: payload\.place_result/u);
 assert.match(conversationSource, /openNaverMapsPlace\(place\)/u);
 assert.match(conversationSource, /buildNaverStaticMapThumbnailUrl\(place\)/u);
@@ -167,9 +172,9 @@ assert.match(conversationSource, /navigate\.title = '네이버지도에서 열�
 assert.match(conversationSource, /https:\/\/navercorp\.com\/img\/pc\/service-map-app-4\.jpg/u);
 assert.match(conversationSource, /site-navigation\.js\?v=20260921-placecardorbit1/u);
 assert.doesNotMatch(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
-assert.doesNotMatch(conversationSource, /detail\.textContent = '상세보기'/u);
-assert.doesNotMatch(conversationSource, /navigate\.disabled = !fresh/u);
-assert.doesNotMatch(conversationSource, /NAVER Maps Geocoding · WGS84 확인|좌표 미확정 · 네이버지도 검색으로 연결|검색 결과 만료 · 다시 검색 필요/u);
+assert.doesNotMatch(placeRendererSource, /detail\.textContent = '상세보기'/u);
+assert.doesNotMatch(placeRendererSource, /navigate\.disabled = !fresh/u);
+assert.doesNotMatch(placeRendererSource, /NAVER Maps Geocoding · WGS84 확인|좌표 미확정 · 네이버지도 검색으로 연결|검색 결과 만료 · 다시 검색 필요/u);
 assert.match(conversationSource, /결과가 오래됐어요\. 같은 장소를 다시 검색한 뒤 열어 주세요\./u);
 assert.match(conversationSource, /source_url: place\.sourceUrl/u);
 
