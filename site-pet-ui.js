@@ -196,7 +196,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
     addFact('색상', pet.color);
     addFact('특징', pet.distinctiveMarks);
     const filled = photoCounts.get(pet.petId);
-    addFact('사진', Number.isInteger(filled) ? photoProgressLabel(filled) : '확인 실패');
+    addFact('사진', Number.isInteger(filled) ? `${filled}/${PET_PHOTO_SLOT_CODES.length}` : '확인 실패');
     detailSection.appendChild(facts);
 
     if (pet.officialRegistrationNumber) {

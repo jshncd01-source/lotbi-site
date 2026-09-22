@@ -269,6 +269,15 @@ function innerFixtureHtml() {
   detail.querySelector('.pet-registration-reveal').click();
   const revealedRegistration = detail.querySelector('.pet-registration-value').textContent;
 
+  // Delete is a two-step confirm. Both classes set display, which beats the
+  // UA [hidden] rule, so measure real boxes rather than trusting .hidden.
+  const box = node => (node ? node.getBoundingClientRect().height : -1);
+  const deleteTrigger = detail.querySelector('[data-pet-delete]');
+  const confirmLine = detail.querySelector('.pet-delete-confirm');
+  const deleteBefore = {trigger: box(deleteTrigger), confirm: box(confirmLine)};
+  deleteTrigger.click();
+  const deleteAfter = {trigger: box(deleteTrigger), confirm: box(confirmLine)};
+
   // Register form: species must offer exactly DOG and CAT.
   document.querySelector('.pet-add-button').click();
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
@@ -286,6 +295,8 @@ function innerFixtureHtml() {
     maskedRegistration,
     revealedRegistration,
     consentChecked,
+    deleteBefore,
+    deleteAfter,
     speciesChoices,
     hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
     hasNotice: surface.textContent.includes('공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다'),
@@ -391,6 +402,11 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.consentChecked, false, `${label}: NOT_GRANTED must render as an unchecked opt-in`);
   assert.ok(result.hasConsentCopy, `${label}: the consent toggle must explain what it covers`);
   assert.ok(result.hasNotice, `${label}: non-assertion notice must render`);
+
+  assert.equal(result.deleteBefore.confirm, 0, `${label}: delete confirmation must be hidden until asked for`);
+  assert.ok(result.deleteBefore.trigger > 0, `${label}: delete trigger must be visible`);
+  assert.ok(result.deleteAfter.confirm > 0, `${label}: delete confirmation must appear after the first click`);
+  assert.equal(result.deleteAfter.trigger, 0, `${label}: delete trigger must be replaced by its confirmation`);
   assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: species choices must be DOG and CAT only`);
 }
 

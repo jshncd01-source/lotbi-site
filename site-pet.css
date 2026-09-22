@@ -45,9 +45,12 @@
   font-weight: 900;
 }
 
+/* The surface lives inside .site-pet-modal, so the card grid must follow the
+   container it actually gets, not the viewport width. */
 .pet-card-grid {
   display: grid;
   gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 }
 
 .pet-card {
@@ -288,6 +291,16 @@
   color: #a02645;
 }
 
+/* .site-button and the layout classes below all set display, which beats the
+   UA [hidden] rule, so every element this surface toggles with .hidden needs
+   its hidden state spelled out. */
+.pet-delete-confirm[hidden],
+.pet-delete-button[hidden],
+.pet-detail-section[hidden],
+.pet-error[hidden] {
+  display: none;
+}
+
 .pet-delete-confirm {
   display: flex;
   align-items: center;
@@ -312,13 +325,21 @@
   cursor: progress;
 }
 
-/* Desktop gets a two-column card grid; the detail panel stays full width so
-   long 특징 text and the photo progress never wrap into a narrow column. */
-@media (min-width: 901px) {
-  .pet-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* The panel is wider than the default modal so two cards fit side by side on
+   Desktop; on Mobile Web it takes the full sheet like the Calendar does. */
+.site-pet-modal {
+  width: min(100%, 720px);
+  max-height: min(88vh, 820px);
+}
 
+@media (max-width: 760px) {
+  .site-pet-modal {
+    width: 100%;
+    max-height: 92svh;
+  }
+}
+
+@media (min-width: 901px) {
   .pet-facts {
     grid-template-columns: 110px minmax(0, 1fr);
   }
