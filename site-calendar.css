@@ -560,8 +560,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-editor-form > label:first-child,
 .calendar-editor-form > small,
 .calendar-editor-error,
-.calendar-editor-actions,
-.calendar-editor-confirm-delete { grid-column: 1 / -1; }
+.calendar-editor-actions { grid-column: 1 / -1; }
 .calendar-editor-title,
 .calendar-editor-date,
 .calendar-editor-time,
@@ -577,13 +576,19 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-editor-form > small { margin-top: -8px; color: #747e8d; font-size: 11px; }
 .calendar-editor-error { min-height: 18px; margin: 0; color: #a13232; font-size: 12px; }
 .calendar-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.calendar-editor-actions button,
-.calendar-editor-confirm-delete button { min-height: 42px; padding: 8px 14px; border: 1px solid #cfd6e2; border-radius: 10px; background: #fff; color: #303642; cursor: pointer; font: inherit; font-weight: 800; }
+.calendar-editor-actions button { min-height: 42px; padding: 8px 14px; border: 1px solid #cfd6e2; border-radius: 10px; background: #fff; color: #303642; cursor: pointer; font: inherit; font-weight: 800; }
 .calendar-editor-save { border-color: var(--brand-navy, #182a46) !important; background: var(--brand-navy, #182a46) !important; color: #fff !important; }
-.calendar-editor-delete,
-.calendar-editor-confirm-delete-button { border-color: #c95555 !important; color: #a13232 !important; }
-.calendar-editor-confirm-delete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; background: #fff2f2; }
-.calendar-editor-confirm-delete p { flex: 1 1 180px; margin: 0; color: #7d2828; font-size: 13px; font-weight: 800; }
+.calendar-editor-delete { border-color: #c95555 !important; color: #a13232 !important; }
+
+.calendar-delete-confirm-backdrop { position: fixed; inset: 0; z-index: 110; display: grid; place-items: center; overflow: auto; overscroll-behavior: contain; padding: 16px; background: rgba(15, 23, 42, .56); }
+.calendar-delete-confirm-dialog { box-sizing: border-box; width: min(100%, 420px); max-height: calc(100svh - 32px); overflow: auto; padding: 22px; border: 1px solid #e4e8ee; border-radius: 18px; background: #fff; box-shadow: 0 16px 44px rgba(15, 23, 42, .22); }
+.calendar-delete-confirm-dialog h4 { margin: 0; color: #202734; font-size: 18px; line-height: 1.45; }
+.calendar-delete-confirm-dialog > p { margin: 10px 0 0; color: #596273; font-size: 14px; line-height: 1.55; }
+.calendar-delete-confirm-error { min-height: 20px; color: #a13232 !important; font-size: 12px !important; }
+.calendar-delete-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.calendar-delete-confirm-actions button { min-width: 84px; min-height: 44px; padding: 9px 15px; border: 1px solid #cfd6e2; border-radius: 10px; background: #fff; color: #303642; cursor: pointer; font: inherit; font-weight: 800; }
+.calendar-delete-confirm-submit { border-color: #c95555 !important; color: #a13232 !important; }
+.calendar-delete-confirm-actions button:disabled { cursor: wait; opacity: .58; }
 
 .calendar-date-trigger:focus-visible,
 .calendar-event-chip:focus-visible,
@@ -627,6 +632,11 @@ body[data-site-theme="dark"] .calendar-editor-category,
 body[data-site-theme="dark"] .calendar-editor-memo,
 body[data-site-theme="dark"] .calendar-editor-place,
 body[data-site-theme="dark"] .calendar-editor-merchant { border-color: #515b69; background: #121720; color: #edf0f5; }
+body[data-site-theme="dark"] .calendar-delete-confirm-dialog { border-color: #39424f; background: #171c25; }
+body[data-site-theme="dark"] .calendar-delete-confirm-dialog h4 { color: #edf0f5; }
+body[data-site-theme="dark"] .calendar-delete-confirm-dialog > p { color: #c4ccd8; }
+body[data-site-theme="dark"] .calendar-delete-confirm-actions button { border-color: #515b69; background: #121720; color: #edf0f5; }
+body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d36b6b !important; color: #f2a1a1 !important; }
 
 @media (min-width: 901px) {
   .calendar-month-layout,
