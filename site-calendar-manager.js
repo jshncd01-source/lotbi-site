@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getCalendarWeatherRegions, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-weatherreal3';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getCalendarWeatherRegions, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-weatherfinal1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,8 +11,8 @@ import {
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherByDate, weatherTemperatureLabel} from './site-calendar-weather.js?v=20260922-weatherreal3';
-import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=20260922-guestweather1';
+import {calendarWeatherByDate, weatherTemperatureLabel} from './site-calendar-weather.js?v=20260922-weatherfinal1';
+import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=20260922-weatherfinal1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
