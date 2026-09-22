@@ -438,11 +438,60 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-date-cell[data-today="true"]:nth-child(7n) .calendar-date-number { color: #fff; }
 .calendar-date-number { font-size: 14px; font-weight: 850; font-variant-numeric: tabular-nums; }
 .calendar-mobile-event-count { display: none; color: #687180; font-size: 11px; font-weight: 800; }
-.calendar-weather-icon {
-  flex: 0 0 auto;
-  display: inline-block;
+.calendar-weather-compact {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #4d5868;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.calendar-weather-symbol {
+  color: currentColor;
+  font-family: Arial, "Noto Sans Symbols 2", sans-serif;
   font-size: 13px;
   line-height: 1;
+}
+.calendar-weather-temperature,
+.calendar-weather-precipitation { font-variant-numeric: tabular-nums; }
+.calendar-weather-precipitation { color: #687180; font-size: 9px; }
+.calendar-weather-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+}
+.calendar-weather-toggle,
+.calendar-weather-region {
+  min-height: 32px;
+  border: 1px solid #d5dbe6;
+  border-radius: 9px;
+  background: #fff;
+  color: #303642;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+.calendar-weather-toggle { padding: 6px 9px; cursor: pointer; }
+.calendar-weather-region { max-width: 150px; padding: 5px 28px 5px 8px; }
+body[data-site-theme="dark"] .calendar-weather-compact,
+body[data-site-theme="dark"] .calendar-location-status { color: #cbd2dc; }
+body[data-site-theme="dark"] .calendar-weather-toggle,
+body[data-site-theme="dark"] .calendar-weather-region {
+  border-color: #515b69;
+  background: #171c25;
+  color: #edf0f5;
+}
+body[data-site-theme="dark"] .calendar-weather-precipitation { color: #aeb6c3; }
+@media (max-width: 900px) {
+  .calendar-weather-controls { max-width: 100%; gap: 4px; margin-right: 4px; }
+  .calendar-weather-region { max-width: 118px; }
+  .calendar-weather-compact { gap: 1px; font-size: 9px; }
+  .calendar-weather-symbol { font-size: 12px; }
 }
 .calendar-holiday-label {
   min-width: 0;
