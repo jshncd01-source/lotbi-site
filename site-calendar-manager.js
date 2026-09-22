@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260921-smartcaldraft1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-weather1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,6 +11,7 @@ import {
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
+import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
@@ -213,12 +214,13 @@ function withUnscheduledShape(item) {
   });
 }
 
-export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false} = {}) {
+export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false, weather = null} = {}) {
   const {year, month, day} = civilDateParts(cell.date);
   const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`];
   if (today) parts.push('오늘');
   if (selected) parts.push('선택됨');
   if (attention) parts.push('확인 필요 일정 있음');
+  if (weather?.label) parts.push(`날씨 ${weather.label}`);
   return parts.join(', ');
 }
 
@@ -234,7 +236,7 @@ export function countCalendarEventsByMonth(items, year) {
 
 export async function loadLifeCalendarManagerView(
   sessionToken,
-  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch} = {},
+  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null} = {},
 ) {
   const selectedDate = validCivilDate(date) ? date : dateInTimezone(now, timezone);
   const key = normalizeMode(view);
@@ -243,7 +245,17 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const [response, monthAttention, unscheduled] = await Promise.all([
+  const weatherRequest = key === 'month'
+    ? getCalendarWeather(sessionToken, {
+        start: range.start,
+        end: range.end,
+        timezone,
+        latitude: weatherLocation?.latitude,
+        longitude: weatherLocation?.longitude,
+        midRegionCode: weatherLocation?.midRegionCode || '',
+      }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
+    : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
+  const [response, monthAttention, unscheduled, weather] = await Promise.all([
     getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
     key === 'month'
       ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
@@ -251,6 +263,7 @@ export async function loadLifeCalendarManagerView(
     key === 'agenda'
       ? getLifeUnscheduled(sessionToken, fetchImpl)
       : Promise.resolve(null),
+    weatherRequest,
   ]);
   return Object.freeze({
     key,
@@ -262,6 +275,8 @@ export async function loadLifeCalendarManagerView(
     items: Object.freeze(response.items.map(withCalendarShape)),
     attention: Object.freeze(monthAttention?.items || []),
     unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
+    weather: Object.freeze(weather?.items || []),
+    weatherProviderReady: weather?.providerReady === true,
   });
 }
 
@@ -469,6 +484,7 @@ function renderMonth(state, actions) {
   grid.setAttribute('aria-label', `${state.year}년 ${state.month}월`);
   const groups = groupCalendarEvents(state.items);
   const attentionDates = new Set(state.attention.map(item => item?.due_date).filter(validCivilDate));
+  const weatherByDate = calendarWeatherByDate(state.weather);
   const cells = calendarMonthGrid(state.year, state.month);
   grid.dataset.weekCount = String(cells.length / 7);
 
@@ -477,6 +493,7 @@ function renderMonth(state, actions) {
     const selected = cell.date === state.selectedDate;
     const today = cell.date === state.todayDate;
     const hasAttention = attentionDates.has(cell.date);
+    const weather = weatherByDate.get(cell.date) || null;
 
     const cellNode = document.createElement('div');
     cellNode.className = 'calendar-date-cell';
@@ -493,7 +510,7 @@ function renderMonth(state, actions) {
     const date = button(String(cell.day), 'calendar-date-trigger');
     date.dataset.calendarDateTrigger = cell.date;
     date.dataset.selected = String(selected);
-    date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention}));
+    date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention, weather}));
     if (today) date.setAttribute('aria-current', 'date');
     date.tabIndex = selected ? 0 : -1;
     const number = document.createElement('span');
@@ -512,6 +529,15 @@ function renderMonth(state, actions) {
     count.textContent = events.length ? `${events.length}개` : '';
     count.setAttribute('aria-hidden', 'true');
     header.append(date, count);
+    if (weather) {
+      const weatherIcon = document.createElement('span');
+      weatherIcon.className = 'calendar-weather-icon';
+      weatherIcon.dataset.weatherKind = weather.weatherKind;
+      weatherIcon.textContent = weather.weatherIcon;
+      weatherIcon.title = weather.label;
+      weatherIcon.setAttribute('aria-hidden', 'true');
+      header.appendChild(weatherIcon);
+    }
     if (hasAttention) {
       const marker = document.createElement('span');
       marker.className = 'calendar-attention-marker';
@@ -786,6 +812,7 @@ export async function mountLifeCalendarManager({
   guestRepository,
   deepOpen,
   initialDraft = null,
+  weatherLocation = null,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
@@ -806,7 +833,7 @@ export async function mountLifeCalendarManager({
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
-    year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], loading: false,
+    year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], loading: false,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
   };
 
@@ -950,13 +977,18 @@ export async function mountLifeCalendarManager({
     state.loading = true; render(); root.setAttribute('aria-busy', 'true');
     try {
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl});
+        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation});
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         if (result.kind === 'attention') state.attention = result.items;
         else {
           state.items = result.items;
           state.unscheduled = result.unscheduled || [];
-          if (result.key === 'month') state.attention = result.attention || [];
+          if (result.key === 'month') {
+            state.attention = result.attention || [];
+            state.weather = result.weather || [];
+          } else {
+            state.weather = [];
+          }
         }
       } else {
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
@@ -964,6 +996,7 @@ export async function mountLifeCalendarManager({
         state.items = guestItems.filter(item => validCivilDate(item.local_date));
         state.unscheduled = guestItems.filter(item => !validCivilDate(item.local_date));
         state.attention = [];
+        state.weather = [];
       }
       state.loading = false; render();
     } catch (error) {

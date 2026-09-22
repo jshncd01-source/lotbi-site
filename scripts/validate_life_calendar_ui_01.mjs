@@ -59,6 +59,11 @@ const responses = {
     ai_calls: 0,
     provider_api_calls: 0,
   },
+  '/v2/life/weather': {
+    provider_ready: false,
+    items: [],
+    ai_calls: 0,
+  },
 };
 
 {
@@ -128,16 +133,18 @@ const responses = {
   const month = await loadLifeCalendarManagerView('site-token', {...base, view: 'month'});
   assert.equal(month.key, 'month');
   assert.equal(month.kind, 'agenda');
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-08-30&end=2026-10-03&timezone=Asia%2FSeoul')));
 
   calls.length = 0;
   const today = await loadLifeCalendarManagerView('site-token', {...base, view: 'today'});
   assert.equal(today.key, 'month');
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-08-30&end=2026-10-03&timezone=Asia%2FSeoul')));
 
   calls.length = 0;
   const year = await loadLifeCalendarManagerView('site-token', {...base, view: 'year'});
@@ -227,7 +234,7 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("from './site-calendar-manager.js?v=20260921-smartcaldraft1'"));
+assert.ok(ui.includes("from './site-calendar-manager.js?v=20260922-weather1'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes('mountLifeCalendarManager'));
