@@ -13,6 +13,7 @@ on:
       - 'site-calendar-guest.js'
       - 'site-calendar.css'
       - 'site-calendar-weather.js'
+      - 'site-calendar-public-weather.js'
       - 'site-current-location.js'
       - 'site-core.js'
       - 'site-auth.js'
@@ -28,6 +29,7 @@ on:
       - 'scripts/validate_guest_calendar_local_01.mjs'
       - 'scripts/validate_calendar_real_ui_01.mjs'
       - 'scripts/validate_calendar_weather_icons_01.mjs'
+      - 'scripts/validate_calendar_guest_weather_client_01.mjs'
       - 'scripts/validate_calendar_korea_holidays_01.mjs'
       - 'scripts/validate_calendar_event_editor_01.mjs'
       - 'scripts/validate_calendar_responsive_01.mjs'
@@ -78,6 +80,7 @@ jobs:
         run: |
           node scripts/validate_calendar_real_ui_01.mjs
           node scripts/validate_calendar_weather_icons_01.mjs
+          node scripts/validate_calendar_guest_weather_client_01.mjs
           node scripts/validate_calendar_korea_holidays_01.mjs
           node scripts/validate_calendar_event_editor_01.mjs
           node scripts/validate_calendar_responsive_01.mjs
