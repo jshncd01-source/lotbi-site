@@ -617,6 +617,80 @@ export async function getLifeAgenda(sessionToken, {timezone, start, end}, fetchI
   return assertReadResponse(payload, 'AGENDA');
 }
 
+function assertExpenseSummaryResponse(payload) {
+  if (
+    !payload
+    || payload.view !== 'EXPENSE_SUMMARY'
+    || typeof payload.as_of !== 'string'
+    || typeof payload.timezone !== 'string'
+    || typeof payload.start_date !== 'string'
+    || typeof payload.end_date !== 'string'
+    || payload.coverage !== 'RECORDED_CALENDAR_ENTRIES_ONLY'
+    || !Array.isArray(payload.currencies)
+    || !Number.isInteger(payload.entries_without_amount)
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+  ) {
+    throw new SiteCoreError('LOTBI 지출 합계 응답 형식이 올바르지 않습니다.', {code: 'LIFE_EXPENSE_SUMMARY_CONTRACT_INVALID'});
+  }
+
+  const currencies = payload.currencies.map(row => {
+    if (
+      !row
+      || typeof row !== 'object'
+      || typeof row.currency !== 'string'
+      || !/^[A-Z]{3}$/.test(row.currency)
+      || !Array.isArray(row.categories)
+      || !Number.isInteger(row.total_amount_minor)
+      || !Number.isInteger(row.entry_count)
+    ) {
+      throw new SiteCoreError('LOTBI 지출 합계 응답 형식이 올바르지 않습니다.', {code: 'LIFE_EXPENSE_SUMMARY_CONTRACT_INVALID'});
+    }
+    const categories = row.categories.map(category => {
+      if (
+        !category
+        || typeof category !== 'object'
+        || !EXPENSE_CATEGORIES.has(category.expense_category)
+        || !Number.isInteger(category.amount_minor)
+        || !Number.isInteger(category.entry_count)
+      ) {
+        throw new SiteCoreError('LOTBI 지출 합계 응답 형식이 올바르지 않습니다.', {code: 'LIFE_EXPENSE_SUMMARY_CONTRACT_INVALID'});
+      }
+      return {
+        expenseCategory: category.expense_category,
+        amountMinor: category.amount_minor,
+        entryCount: category.entry_count,
+      };
+    });
+    return {
+      currency: row.currency,
+      categories,
+      totalAmountMinor: row.total_amount_minor,
+      entryCount: row.entry_count,
+    };
+  });
+
+  return {
+    startDate: payload.start_date,
+    endDate: payload.end_date,
+    currencies,
+    entriesWithoutAmount: payload.entries_without_amount,
+  };
+}
+
+export async function getLifeExpenseSummary(sessionToken, {timezone, start, end}, fetchImpl = globalThis.fetch) {
+  const zone = timezoneName(timezone);
+  const startDate = isoDate(start, '시작');
+  const endDate = isoDate(end, '종료');
+  const payload = await calendarRequest(
+    `/v2/life/expense-summary?timezone=${encodeURIComponent(zone)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  return assertExpenseSummaryResponse(payload);
+}
+
 export async function getLifeUnscheduled(sessionToken, fetchImpl = globalThis.fetch) {
   const payload = await calendarRequest(
     '/v2/life/unscheduled',
