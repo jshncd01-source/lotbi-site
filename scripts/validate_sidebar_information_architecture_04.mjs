@@ -28,11 +28,11 @@ const mobile = extractAside(
 );
 
 for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
-  for (const required of ['+ 새 대화', '캘린더', '연결 서비스', '최근 대화']) {
+  for (const required of ['새 대화', '캘린더', '연결 서비스', '최근 대화', '프로필', '설정', '도움말']) {
     assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
   }
 
-  for (const removed of ['오늘', '확인 필요', '내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '>설정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
+  for (const removed of ['오늘', '확인 필요', '내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
     assert.ok(!block.includes(removed), `${label} sidebar must remove ${removed}`);
   }
 
@@ -50,7 +50,7 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   const secondary = block.match(/<div class="sidebar-secondary-nav"[^>]*>[\s\S]*?<\/div>/)?.[0] || '';
   assert.match(secondary, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must remain available only as a secondary Account Web link`);
   const calendar = block.match(/<div class="sidebar-calendar-nav"[^>]*>[\s\S]*?(?=<section class="nav-section sidebar-history-section")/)?.[0] || '';
-  assert.match(calendar, /<button[^>]*data-calendar-view="all"[^>]*>캘린더<\/button>/, `${label} Calendar root action missing`);
+  assert.match(calendar, /<button[^>]*data-calendar-view="all"[^>]*>[\s\S]*?<span class="nav-item-label">캘린더<\/span>[\s\S]*?<\/button>/, `${label} Calendar root action missing`);
   assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 1, `${label} must expose only the Calendar root action`);
   assert.ok(!calendar.includes('sidebar-calendar-subnav'), `${label} sidebar must not duplicate Calendar quick views`);
   for (const removedCalendarLabel of ['전체 일정', '예정된 일정', '날짜별 보기']) {
@@ -67,7 +67,7 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   const accountPos = block.indexOf('sidebar-account-footer');
   assert.ok(
     primaryPos >= 0 && calendarPos > primaryPos && recentPos > calendarPos && secondaryPos > recentPos && accountPos > secondaryPos,
-    `${label} order must be new chat → Calendar → recent conversations → connected services → account CTA`,
+    `${label} order must be new chat → Calendar → recent conversations → secondary actions → account CTA`,
   );
 
   const recent = block.match(/<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?<\/ul>/)?.[0] || '';
