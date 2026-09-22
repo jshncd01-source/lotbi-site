@@ -6,6 +6,16 @@
   <meta name="robots" content="noindex,nofollow,noarchive" />
   <meta name="referrer" content="no-referrer" />
   <title>LOTBI | 로그인 연결</title>
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+        if (saved === 'light' || saved === 'dark' || saved === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = saved;
+        }
+      } catch {}
+    })();
+  </script>
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/home-chat.css" />
   <link rel="stylesheet" href="/site-hardening.css?v=20260920-attachments1" />
@@ -16,7 +26,8 @@
   <link rel="stylesheet" href="/footer-business-info.css" />
   <link rel="stylesheet" href="/mobile-entry.css" />
   <link rel="stylesheet" href="/home-bare-white.css?v=20260921-sidebarwhite1" />
-  <link rel="stylesheet" href="/site-conversation.css?v=20260921-trueorbitphoto1" />
+  <link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast1" />
+  <link rel="stylesheet" href="/site-conversation.css?v=20260922-darkcontrast1" />
   <script type="importmap">
   {
     "imports": {
@@ -26,7 +37,7 @@
   }
   </script>
   <script type="module" src="/site-avatar.js"></script>
-  <script type="module" src="/auth-callback.js?v=20260922-calendarusage1"></script>
+  <script type="module" src="/auth-callback.js?v=20260922-darkcontrast1"></script>
   <script type="module" src="/site-continuity.js?v=20260921-guestclaim1"></script>
 </head>
 <body class="auth-callback-page">
