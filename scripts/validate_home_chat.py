@@ -164,15 +164,24 @@ def main() -> int:
             if forbidden in block:
                 errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
 
-        for required in ("새 대화", "캘린더", "연결 서비스", "최근 대화", "프로필", "설정", "도움말"):
+        for required in ("새 대화", "캘린더", "최근 대화"):
             if required not in block:
                 errors.append(f"index.html: {label} missing approved IA item: {required}")
+        if label == "desktop sidebar":
+            for required in ("연결 서비스", "프로필", "설정", "도움말"):
+                if required not in block:
+                    errors.append(f"index.html: {label} missing desktop account navigation item: {required}")
+            if CONNECTED_SERVICES_URL not in block:
+                errors.append(f"index.html: {label} must keep authoritative Account Web connected-services route")
+        else:
+            for moved in ("연결 서비스", "프로필", "설정", "도움말"):
+                if moved in block:
+                    errors.append(f"index.html: {label} must move account navigation out of the main drawer: {moved}")
+            if CONNECTED_SERVICES_URL in block:
+                errors.append(f"index.html: {label} must not duplicate connected-services in the main drawer")
         for removed in ("오늘", "확인 필요", "내 작업", "라이브러리"):
             if removed in block:
                 errors.append(f"index.html: {label} must remove duplicated or disabled navigation item: {removed}")
-
-        if CONNECTED_SERVICES_URL not in block:
-            errors.append(f"index.html: {label} must use authoritative Account Web connected-services route")
         if 'data-sidebar-account' not in block:
             errors.append(f"index.html: {label} missing auth-driven account identity slot")
         if 'data-auth-state="checking"' not in block or 'sidebar-account-placeholder' not in block:
@@ -196,11 +205,14 @@ def main() -> int:
             errors.append(f"index.html: {label} connected services must be secondary, not primary")
 
         secondary_match = re.search(
-            r'<div class="sidebar-secondary-nav"[^>]*>[\s\S]*?</div>',
+            r'<div class="sidebar-secondary-nav[^"]*"[^>]*>[\s\S]*?</div>',
             block,
         )
-        if not secondary_match or "connected-services" not in secondary_match.group(0):
-            errors.append(f"index.html: {label} must keep connected services in the secondary region")
+        if label == "desktop sidebar":
+            if not secondary_match or "connected-services" not in secondary_match.group(0):
+                errors.append(f"index.html: {label} must keep connected services in the secondary region")
+        elif not secondary_match or "connected-services" in secondary_match.group(0):
+            errors.append(f"index.html: {label} secondary region must stay empty because account items live in the account menu")
 
         recent_match = re.search(
             r'<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?</ul>',
