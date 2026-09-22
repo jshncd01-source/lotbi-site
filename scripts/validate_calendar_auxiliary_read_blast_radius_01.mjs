@@ -1,16 +1,17 @@
 // Locks which Calendar reads may declare the Site session dead.
 //
-// A 401/403 answered by announceInvalidSiteSession dispatches the global
-// session-state event. site-calendar-ui.js tears the Calendar down on that
-// event and site-conversation.js closes the surface, so the user is thrown
-// back to Home. That is correct when the session really is gone, and wrong
-// when a side panel simply could not load: it made the Calendar unusable in
-// production once /v2/life/expense-summary started answering 403 for Site
-// child sessions.
+// announceInvalidSiteSession dispatches the global session-state event.
+// site-calendar-ui.js tears the Calendar down on it and site-conversation.js
+// closes the surface, so the user is thrown back to Home. That is right when
+// the session really is gone and wrong when one request was simply refused:
+// it made the Calendar unusable in production once /v2/life/expense-summary
+// began answering 403 for Site child sessions.
 //
-// So: the reads the Calendar cannot exist without may announce. The auxiliary
-// reads — the expense totals, the weather — must not, no matter what they are
-// answered with.
+// Two rules keep that from recurring, and both are checked here:
+//   - announcing is opt-in. A new Calendar call cannot bring the Calendar down
+//     by forgetting to opt out. Only the reads that gate the Calendar opt in.
+//   - a 403 never announces, whoever asked. It means the server refused that
+//     route, which is not evidence the session died.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
@@ -28,9 +29,12 @@ const {
   getCalendarWeather,
   getLifeAgenda,
   getLifeAttention,
+  getLifeActivity,
   getLifeExpenseSummary,
   getLifeToday,
+  getLifeUnscheduled,
   getLifeUpcoming,
+  editLifeActivity,
 } = await import('../site-calendar.js');
 
 function refusingFetch(status) {
@@ -58,9 +62,21 @@ async function announcesOn(status, run) {
 
 const MONTH = {timezone: 'Asia/Seoul', start: '2026-09-01', end: '2026-09-30'};
 
+const A = 'activity_' + '0'.repeat(32);
+
+// Every call the Calendar makes that is not one of the four gating reads. All
+// of them stay silent, including the routes Core refuses for a Site session:
+// /v2/life/unscheduled and PATCH /v2/life/activities/{id}/entry.
 const AUXILIARY = [
   ['expense summary', fetchImpl => getLifeExpenseSummary('tok', MONTH, fetchImpl)],
   ['weather', fetchImpl => getCalendarWeather('tok', {start: MONTH.start, end: MONTH.end, timezone: MONTH.timezone}, fetchImpl)],
+  ['unscheduled', fetchImpl => getLifeUnscheduled('tok', fetchImpl)],
+  ['activity lookup', fetchImpl => getLifeActivity('tok', A, fetchImpl)],
+  ['entry edit', fetchImpl => editLifeActivity('tok', A, {
+    logicalRequestId: 'req.blast.radius.0001',
+    expectedRevision: 1,
+    entry: {amountMinor: 1000, expenseCategory: 'FOOD'},
+  }, fetchImpl)],
 ];
 
 const PRIMARY = [
@@ -70,35 +86,48 @@ const PRIMARY = [
   ['upcoming', fetchImpl => getLifeUpcoming('tok', {timezone: MONTH.timezone, through: MONTH.end}, fetchImpl)],
 ];
 
-for (const status of [401, 403]) {
-  for (const [label, run] of AUXILIARY) {
-    const announced = await announcesOn(status, run);
+for (const [label, run] of AUXILIARY) {
+  for (const status of [401, 403]) {
     assert.equal(
-      announced,
+      await announcesOn(status, run),
       false,
       `${label} answered ${status} must not declare the Site session dead — that tears the Calendar down`,
     );
   }
-
-  for (const [label, run] of PRIMARY) {
-    const announced = await announcesOn(status, run);
-    assert.equal(
-      announced,
-      true,
-      `${label} answered ${status} must still surface the dead session`,
-    );
-  }
 }
 
-// The opt-out has to be spelled at the call site, not left to the default.
+for (const [label, run] of PRIMARY) {
+  assert.equal(
+    await announcesOn(401, run),
+    true,
+    `${label} answered 401 must still surface the dead session`,
+  );
+  // A refused route is not a dead session, even on a gating read.
+  assert.equal(
+    await announcesOn(403, run),
+    false,
+    `${label} answered 403 must not be treated as a dead session`,
+  );
+}
+
 const source = fs.readFileSync('site-calendar.js', 'utf8');
-for (const path of ['/v2/life/expense-summary', '/v2/life/weather']) {
+
+// Announcing must stay opt-in, so that a Calendar call added later cannot take
+// the Calendar down by saying nothing.
+assert.ok(
+  /announceSessionFailure = false\b/.test(source),
+  'announceSessionFailure must default to false',
+);
+
+// And only the four gating reads may opt in.
+const optIns = [...source.matchAll(/announceSessionFailure: true/g)].length;
+assert.equal(optIns, PRIMARY.length, `exactly ${PRIMARY.length} calls may opt in, found ${optIns}`);
+for (const path of ['/v2/life/today', '/v2/life/upcoming', '/v2/life/agenda', '/v2/life/attention']) {
   const index = source.indexOf(path);
   assert.ok(index > 0, `${path} call site missing`);
-  const window = source.slice(index, index + 400);
   assert.ok(
-    window.includes('announceSessionFailure: false'),
-    `${path} must pass announceSessionFailure: false`,
+    source.slice(index, index + 400).includes('announceSessionFailure: true'),
+    `${path} must keep announcing a dead session`,
   );
 }
 

@@ -107,7 +107,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260922-expensefix1');
+  const manager=await import('/site-calendar-manager.js?v=20260922-sessionfix1');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
