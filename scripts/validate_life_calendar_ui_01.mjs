@@ -214,7 +214,7 @@ assert.ok(!index.includes('data-life-calendar-panel'), 'Chat Home must not auto-
 assert.ok(!index.includes('data-calendar-enabled="true"'), 'Chat Home must not opt into the legacy Calendar summary');
 assert.ok(!index.includes('aria-label="오늘과 예정" hidden'), 'Chat Home must not carry the Today/Upcoming summary surface');
 assert.equal((index.match(/data-calendar-view="/g) || []).length, 2, 'Desktop + Mobile must each expose only the Calendar root action');
-assert.ok(index.includes('>캘린더</button>'), 'missing Korean Calendar root navigation label');
+assert.match(index, /data-calendar-view="all"[\s\S]*?<span class="nav-item-label">캘린더<\/span>/, 'missing Korean Calendar root navigation label');
 assert.equal((index.match(/data-calendar-view="today"/g) || []).length, 0, 'Sidebar must not duplicate the Calendar Today quick view');
 assert.equal((index.match(/data-calendar-view="attention"/g) || []).length, 0, 'Sidebar must not duplicate the Calendar Needs Attention quick view');
 for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 보기']) {
