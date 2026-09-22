@@ -27,6 +27,65 @@ function keyToBase64Url(key) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+export async function getCalendarPushConfig(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== 'function') {
+    throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
+  }
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}/app/config.json`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {'Accept': 'application/json'},
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 알림 준비 상태를 확인하지 못했습니다.', {
+      code: 'SITE_PUSH_CONFIG_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+
+  let payload = {};
+  try { payload = await response.json(); } catch {}
+  if (!response.ok) {
+    throw new SiteCoreError('LOTBI 알림 준비 상태를 확인하지 못했습니다.', {
+      code: `HTTP_${response.status}`,
+      status: response.status,
+      retryable: response.status >= 500,
+    });
+  }
+  const config = payload?.web_push;
+  if (
+    !config
+    || typeof config !== 'object'
+    || typeof config.enabled !== 'boolean'
+    || typeof config.ready !== 'boolean'
+    || typeof config.dispatch_ready !== 'boolean'
+    || config.user_visible_only !== true
+  ) {
+    throw new SiteCoreError('LOTBI 알림 설정 응답이 올바르지 않습니다.', {
+      code: 'SITE_PUSH_CONFIG_CONTRACT_INVALID',
+    });
+  }
+  const vapidPublicKey = typeof config.vapid_public_key === 'string'
+    ? config.vapid_public_key.trim()
+    : '';
+  if (config.ready && !vapidPublicKey) {
+    throw new SiteCoreError('LOTBI 알림 서버 키가 올바르지 않습니다.', {
+      code: 'SITE_PUSH_CONFIG_CONTRACT_INVALID',
+    });
+  }
+  return Object.freeze({
+    enabled: config.enabled,
+    ready: config.ready,
+    dispatchReady: config.dispatch_ready,
+    vapidPublicKey,
+  });
+}
+
 export async function registerCalendarPushWorker({
   navigatorImpl = globalThis.navigator,
   workerUrl = '/lotbi-calendar-push-worker.js',
