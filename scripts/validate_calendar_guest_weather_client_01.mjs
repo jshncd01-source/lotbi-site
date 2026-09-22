@@ -18,8 +18,9 @@ const {getPublicCalendarWeather} = await import('../site-calendar-public-weather
       json: async () => ({
         provider_ready: true,
         items: [{
-          forecast_date: '2026-09-22',
-          kind: 'CLEAR',
+          date: '2026-09-22',
+          weather_kind: 'CLEAR',
+          weather_icon: '☀️',
           source: 'KMA_SHORT',
           issued_at: '2026-09-21T23:00:00Z',
         }],
