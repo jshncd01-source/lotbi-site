@@ -83,18 +83,27 @@ function errorFromResponse(response, payload, fallback) {
   );
 }
 
+// Declaring the session invalid tears down the whole site, so only 401 counts:
+// a 403 here means this one action is not permitted for this session — a pet
+// somebody else owns, or 발견 신고 asking for an assurance level the session
+// does not hold — and the session itself is still perfectly good.
 function announceInvalidSiteSession(error) {
-  if (!(error instanceof SiteCoreError) || (error.status !== 401 && error.status !== 403)) return;
+  if (!(error instanceof SiteCoreError) || error.status !== 401) return;
   if (typeof globalThis.dispatchEvent !== 'function' || typeof globalThis.CustomEvent !== 'function') return;
   globalThis.dispatchEvent(new CustomEvent('lotbi:site-session-state', {detail: {authenticated: false}}));
 }
 
+// announceSessionFailure defaults to false, the opposite of site-core.js: one
+// failing sub-request of this surface — a photo whose bytes 401 while the token
+// is being rotated, a single SOS row — must leave the rest of the site standing.
+// Only the read that opens the surface opts in.
 async function petRequest(path, sessionToken, {
   method = 'GET',
   body = undefined,
   formData = undefined,
   requestId = '',
   raw = false,
+  announceSessionFailure = false,
 } = {}, fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
@@ -126,7 +135,7 @@ async function petRequest(path, sessionToken, {
   if (raw) {
     if (!response.ok) {
       const error = errorFromResponse(response, await readPayload(response), '반려동물 사진을 불러오지 못했습니다.');
-      announceInvalidSiteSession(error);
+      if (announceSessionFailure) announceInvalidSiteSession(error);
       throw error;
     }
     return response;
@@ -135,7 +144,7 @@ async function petRequest(path, sessionToken, {
   const payload = await readPayload(response);
   if (!response.ok) {
     const error = errorFromResponse(response, payload, '반려동물 요청을 완료하지 못했습니다.');
-    announceInvalidSiteSession(error);
+    if (announceSessionFailure) announceInvalidSiteSession(error);
     throw error;
   }
   return payload;
@@ -181,8 +190,10 @@ function normalizePhotoManifest(value) {
   });
 }
 
+// The read that opens the surface, and the only one allowed to conclude the
+// session is gone.
 export async function listPets(sessionToken, fetchImpl = globalThis.fetch) {
-  const payload = await petRequest('/v2/pets', sessionToken, {}, fetchImpl);
+  const payload = await petRequest('/v2/pets', sessionToken, {announceSessionFailure: true}, fetchImpl);
   const rows = Array.isArray(payload?.pets) ? payload.pets : [];
   return Object.freeze(rows.map(normalizePet).filter(Boolean));
 }
