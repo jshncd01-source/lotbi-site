@@ -277,10 +277,12 @@ try{
     if(innerWidth<=520&&mobileEditorRect.height<innerHeight-2)throw new Error('phone editor must use the visual viewport');
     const merchant=modal.querySelector('.calendar-editor-merchant');
     if(!(merchant instanceof HTMLInputElement))throw new Error('mobile lower field missing');
-    mobileEditorBody.scrollTop=mobileEditorBody.scrollHeight;
-    await new Promise(resolve=>setTimeout(resolve,20));
+    merchant.focus();
+    await new Promise(resolve=>setTimeout(resolve,40));
     const merchantRect=merchant.getBoundingClientRect();
-    if(merchantRect.bottom>mobileActionsRect.top+2)throw new Error('mobile lower field not reachable before fixed actions');
+    const mobileBodyRect=mobileEditorBody.getBoundingClientRect();
+    if(merchantRect.top<mobileBodyRect.top-2||merchantRect.bottom>mobileBodyRect.bottom+2)throw new Error('mobile lower field focus did not scroll into the editor body');
+    if(mobileBodyRect.bottom>mobileActionsRect.top+2)throw new Error('mobile editor body overlaps fixed actions');
     const mobileClose=modal.querySelector('.calendar-editor-close');
     if(!(mobileClose instanceof HTMLButtonElement))throw new Error('mobile editor close control missing');
     click(mobileClose);
