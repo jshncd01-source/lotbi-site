@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-holiday1');
 const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-holiday1');
-const {normalizeCalendarWeatherResponse, calendarWeatherByDate} = await import('../site-calendar-weather.js?v=20260922-weather1');
+const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260922-weather1');
 const {
   BrowserLocationError,
   BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
@@ -292,5 +292,76 @@ assert.ok(manager.includes("locationButton.textContent = '변경'"), 'resolved c
 assert.ok(manager.includes("locationButton.textContent = '다시 시도'"), 'location failure must expose an explicit retry action');
 assert.ok(locationSource.includes('getBrowserLocationPermissionState'), 'browser permission state must be queried when supported');
 
+
+// Core #287 added the normalized measurements to the Calendar weather reads.
+// Site owns parsing them; where they are shown is the Calendar design owner's
+// call, so these regressions cover the data contract only.
+{
+  const base = {
+    date: '2026-09-23',
+    weather_kind: 'CLEAR',
+    weather_icon: '\u2600\ufe0f',
+    source: 'KMA_SHORT',
+    issued_at: '2026-09-23T02:00:00+00:00',
+  };
+
+  const full = normalizeCalendarWeatherResponse({
+    provider_ready: true,
+    ai_calls: 0,
+    items: [{
+      ...base,
+      temperature_c: 23.4,
+      min_temperature_c: 17,
+      max_temperature_c: 27.2,
+      precipitation_probability: 20,
+      freshness: 'CACHE_VALID',
+    }],
+  });
+  const [item] = full.items;
+  assert.equal(item.temperature, 23.4, 'temperature_c must be parsed');
+  assert.equal(item.minTemperature, 17, 'min_temperature_c must be parsed');
+  assert.equal(item.maxTemperature, 27.2, 'max_temperature_c must be parsed');
+  assert.equal(item.precipitationProbability, 20, 'precipitation_probability must be parsed');
+  assert.equal(item.freshness, 'CACHE_VALID', 'freshness must be parsed');
+  assert.equal(weatherTemperatureLabel(item), '23\u00b0', 'a current temperature reads as one rounded value');
+
+  // An older Core, or a date the provider did not cover, simply omits them.
+  const bare = normalizeCalendarWeatherResponse({provider_ready: true, ai_calls: 0, items: [{...base}]});
+  const [legacy] = bare.items;
+  for (const field of ['temperature', 'minTemperature', 'maxTemperature', 'precipitationProbability']) {
+    assert.equal(legacy[field], null, `absent ${field} must normalize to null, never 0`);
+  }
+  assert.equal(legacy.freshness, 'CACHE_VALID', 'absent freshness must default, not throw');
+  assert.equal(weatherTemperatureLabel(legacy), '', 'no measurement must render no temperature text');
+
+  // Min/max without a current reading is a real KMA mid-term shape.
+  const midTerm = normalizeCalendarWeatherResponse({
+    provider_ready: true,
+    ai_calls: 0,
+    items: [{...base, source: 'KMA_MID', min_temperature_c: 17, max_temperature_c: 27}],
+  });
+  assert.equal(weatherTemperatureLabel(midTerm.items[0]), '17\u00b0 / 27\u00b0', 'mid-term must read as a range');
+
+  // Garbage is a contract violation, not a silent zero.
+  for (const bad of [
+    {...base, temperature_c: 'warm'},
+    {...base, max_temperature_c: Number.NaN},
+    {...base, precipitation_probability: 120},
+    {...base, precipitation_probability: 12.5},
+    {...base, freshness: 'MADE_UP'},
+  ]) {
+    assert.throws(
+      () => normalizeCalendarWeatherResponse({provider_ready: true, ai_calls: 0, items: [bad]}),
+      TypeError,
+      'invalid measurements must be rejected',
+    );
+  }
+
+  // Provider readiness stays environment-driven and never fabricates a reading.
+  const notReady = normalizeCalendarWeatherResponse({provider_ready: false, ai_calls: 0, items: []});
+  assert.equal(notReady.providerReady, false, 'provider_ready must pass through');
+  assert.equal(notReady.items.length, 0, 'a provider that is not ready must yield no days');
+  assert.equal(calendarWeatherByDate(notReady.items).size, 0, 'no day may be invented when the provider is not ready');
+}
 
 console.log('LOTBI Calendar KMA weather icon + browser location contract: PASS');
