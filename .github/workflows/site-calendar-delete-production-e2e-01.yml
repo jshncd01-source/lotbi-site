@@ -20,5 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Syntax check Production Calendar delete E2E
+        run: node --check scripts/validate_calendar_delete_production_e2e_01.mjs
       - name: Validate Production Calendar delete confirmation in Chromium
         run: node scripts/validate_calendar_delete_production_e2e_01.mjs
