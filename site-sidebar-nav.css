@@ -15,19 +15,13 @@
   text-decoration: none;
 }
 
-/* Keep the approved mascot pixels exactly; hide only the raster wordmark. */
-.sidebar-brand-mascot-crop {
-  width: 32px;
-  height: 48px;
-  overflow: hidden;
-  flex: 0 0 32px;
-}
-
+/* Official LOTBI lockup. No cropping and no retyped wordmark: the asset is
+   the approved artwork, including the red-to-blue gradient O. */
 .sidebar-brand-logo {
   display: block;
   width: auto;
-  max-width: none;
-  height: 48px;
+  max-width: 100%;
+  height: 44px;
   min-width: 0;
   object-fit: contain;
   object-position: left center;
@@ -35,38 +29,6 @@
   border: 0;
   box-shadow: none;
   filter: none;
-}
-
-/* Home Desktop wordmark follows the Admin visual: bold, tight, real text. */
-.sidebar-brand-wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  flex: 0 0 auto;
-  white-space: nowrap;
-  font-family: "Arial Black", "Segoe UI Black", "Malgun Gothic", "Segoe UI", sans-serif;
-  font-size: 30px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -1.6px;
-  font-kerning: normal;
-  font-synthesis: weight;
-  text-rendering: geometricPrecision;
-  text-decoration: none;
-}
-
-.sidebar-brand-wordmark > span + span {
-  margin-left: -1.2px;
-}
-
-.sidebar-brand-wordmark-navy {
-  color: var(--brand-navy, #182a46);
-  -webkit-text-stroke: .3px currentColor;
-}
-
-.sidebar-brand-wordmark-o {
-  color: var(--brand-violet, #7b62bb);
-  -webkit-text-stroke: .3px currentColor;
 }
 
 .mobile-header-brand {

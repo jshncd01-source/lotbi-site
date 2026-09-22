@@ -7,7 +7,7 @@
   const WEB_BYPASS_PARAM = '__lotbi_web';
   const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
   const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
-  const OFFICIAL_LOGO_SRC = '/assets/lotbi-logo-header.png';
+  const OFFICIAL_LOGO_SRC = '/assets/brand/lotbi-lockup-160w.png';
 
   // The chooser CTA is safe to enable because /app/open always retains a web
   // fallback. Android native takeover is backed by the approved LOTBI release
