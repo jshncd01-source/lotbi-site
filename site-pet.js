@@ -275,6 +275,41 @@ export async function getPetPhotoManifest(sessionToken, petId, fetchImpl = globa
   });
 }
 
+// Checked before the request so an obviously wrong file fails immediately with
+// a readable message instead of a 413/415 round trip. Core re-checks the bytes.
+export function petPhotoRejection(file) {
+  if (!file) return '사진 파일을 선택해 주세요.';
+  if (!PET_PHOTO_MIME_TYPES.includes(file.type)) return 'JPG 또는 PNG 사진만 올릴 수 있습니다.';
+  if (file.size > PET_PHOTO_MAX_BYTES) return '사진 용량은 10MB까지 올릴 수 있습니다.';
+  return '';
+}
+
+export async function uploadPetPhoto(sessionToken, petId, slotCode, file, fetchImpl = globalThis.fetch) {
+  const rejection = petPhotoRejection(file);
+  if (rejection) {
+    throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
+  }
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'pet-photo');
+  const payload = await petRequest(
+    `/v2/pets/${encodeURIComponent(petId)}/photos/${encodeURIComponent(slotCode)}`,
+    sessionToken,
+    {method: 'PUT', formData},
+    fetchImpl,
+  );
+  return Object.freeze({manifest: normalizePhotoManifest(payload?.manifest)});
+}
+
+export async function deletePetPhoto(sessionToken, petId, slotCode, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(
+    `/v2/pets/${encodeURIComponent(petId)}/photos/${encodeURIComponent(slotCode)}`,
+    sessionToken,
+    {method: 'DELETE'},
+    fetchImpl,
+  );
+  return Object.freeze({manifest: normalizePhotoManifest(payload?.manifest)});
+}
+
 // Private bytes: fetched with the session bearer and handed back as an object
 // URL the caller must revoke. Never rendered from a public link or CDN.
 export async function fetchPetPhotoObjectUrl(sessionToken, petId, slotCode, fetchImpl = globalThis.fetch) {

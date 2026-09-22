@@ -2000,9 +2000,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         : '반려동물 등록은 로그인 후 사용할 수 있습니다.',
     );
     panel.classList.add('site-pet-modal');
-    installSurfaceBehavior(backdrop, panel, {modal: true});
+    // Pet photos are held as object URLs while the panel is open; closing it
+    // must release them rather than leak the private bytes into the page.
+    let releasePetSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      modal: true,
+      onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
+    });
     try {
-      await mountPetFamilyManager({sessionToken, root: content});
+      const mounted = await mountPetFamilyManager({sessionToken, root: content});
+      releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
       content.replaceChildren(Object.assign(document.createElement('p'), {
         className: 'pet-error',
