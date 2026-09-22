@@ -107,6 +107,10 @@ try{
   const modal=document.querySelector('.site-modal.site-calendar-modal');
   const content=modal.querySelector('.site-modal-content');
   await wait(()=>content?.dataset.calendarManagerView==='month','month view');
+  await wait(
+    ()=>content?.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]')?.querySelectorAll('.calendar-event-chip').length===1,
+    'guest Calendar holiday-aware initial refresh',
+  );
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
