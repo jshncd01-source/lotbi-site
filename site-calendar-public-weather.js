@@ -1,5 +1,5 @@
 import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260922-weather1';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260922-weatherfinal1';
 
 function isoDate(value, label) {
   const text = typeof value === 'string' ? value.trim() : '';
@@ -13,7 +13,7 @@ function isoDate(value, label) {
 }
 
 export async function getPublicCalendarWeather(
-  {start, end, timezone = 'Asia/Seoul', latitude, longitude},
+  {start, end, timezone = 'Asia/Seoul', latitude, longitude, manualRegionCode = ''},
   fetchImpl = globalThis.fetch,
 ) {
   if (typeof fetchImpl !== 'function') {
@@ -21,26 +21,36 @@ export async function getPublicCalendarWeather(
   }
   const startDate = isoDate(start, '시작');
   const endDate = isoDate(end, '종료');
-  const lat = Number(latitude);
-  const lon = Number(longitude);
+  const manualRegion = typeof manualRegionCode === 'string' ? manualRegionCode.trim().toUpperCase() : '';
+  const hasLatitude = latitude !== undefined && latitude !== null && latitude !== '';
+  const hasLongitude = longitude !== undefined && longitude !== null && longitude !== '';
   if (
-    !Number.isFinite(lat) || !Number.isFinite(lon)
-    || lat < 31 || lat > 44.5
-    || lon < 122 || lon > 132.5
+    hasLatitude !== hasLongitude
+    || (manualRegion && !/^KR_[A-Z0-9_]{2,24}$/.test(manualRegion))
   ) {
     throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
       code: 'CALENDAR_WEATHER_LOCATION_INVALID',
       status: 422,
     });
   }
-
   const params = new URLSearchParams({
     start: startDate,
     end: endDate,
     timezone: String(timezone || 'Asia/Seoul'),
-    latitude: String(lat),
-    longitude: String(lon),
   });
+  if (hasLatitude && hasLongitude) {
+    const lat = Number(latitude);
+    const lon = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 31 || lat > 44.5 || lon < 122 || lon > 132.5) {
+      throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
+        code: 'CALENDAR_WEATHER_LOCATION_INVALID',
+        status: 422,
+      });
+    }
+    params.set('latitude', String(lat));
+    params.set('longitude', String(lon));
+  }
+  if (manualRegion) params.set('manual_region_code', manualRegion);
 
   let response;
   try {

@@ -1,5 +1,5 @@
 import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260922-weather1';
+import {normalizeCalendarWeatherRegions, normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260922-weatherfinal1';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -538,9 +538,14 @@ export async function getKoreaHolidays(year, fetchImpl = globalThis.fetch) {
   return normalizeKoreaHolidayResponse(payload);
 }
 
+export async function getCalendarWeatherRegions(fetchImpl = globalThis.fetch) {
+  const payload = await publicCalendarRequest('/v2/life/weather/regions', {}, fetchImpl);
+  return normalizeCalendarWeatherRegions(payload);
+}
+
 export async function getCalendarWeather(
   sessionToken,
-  {start, end, timezone = 'Asia/Seoul', latitude, longitude, midRegionCode = ''},
+  {start, end, timezone = 'Asia/Seoul', latitude, longitude, midRegionCode = '', manualRegionCode = ''},
   fetchImpl = globalThis.fetch,
 ) {
   const startDate = isoDate(start, '시작');
@@ -548,7 +553,12 @@ export async function getCalendarWeather(
   const hasLatitude = latitude !== undefined && latitude !== null && latitude !== '';
   const hasLongitude = longitude !== undefined && longitude !== null && longitude !== '';
   const region = typeof midRegionCode === 'string' ? midRegionCode.trim() : '';
-  if (hasLatitude !== hasLongitude || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))) {
+  const manualRegion = typeof manualRegionCode === 'string' ? manualRegionCode.trim().toUpperCase() : '';
+  if (
+    hasLatitude !== hasLongitude
+    || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))
+    || (manualRegion && !/^KR_[A-Z0-9_]{2,24}$/.test(manualRegion))
+  ) {
     throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
       code: 'CALENDAR_WEATHER_LOCATION_INVALID',
       status: 422,
@@ -572,6 +582,7 @@ export async function getCalendarWeather(
     params.set('longitude', String(lon));
     if (region) params.set('mid_region_code', region);
   }
+  if (manualRegion) params.set('manual_region_code', manualRegion);
   const payload = await calendarRequest(
     `/v2/life/weather?${params.toString()}`,
     sessionToken,
