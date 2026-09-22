@@ -12,7 +12,8 @@ import {
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
-import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=20260922-guestweather1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260922-region1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260922-region1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -734,7 +735,7 @@ function renderAttention(state) {
   })));
 }
 
-function calendarSettingsDialog({root, state, storage, onChange, authenticated, sessionToken, fetchImpl}) {
+function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegionChange, authenticated, sessionToken, fetchImpl}) {
   root.querySelector('.calendar-settings-backdrop')?.remove();
   const backdrop = document.createElement('div');
   backdrop.className = 'calendar-settings-backdrop';
@@ -773,6 +774,74 @@ function calendarSettingsDialog({root, state, storage, onChange, authenticated, 
   row.append(copy, toggle);
   section.append(sectionTitle, row);
   body.appendChild(section);
+
+  const weatherSection = document.createElement('section');
+  weatherSection.className = 'calendar-settings-section';
+  const weatherTitle = document.createElement('h4');
+  weatherTitle.textContent = '날씨 지역';
+  const weatherRow = document.createElement('div');
+  weatherRow.className = 'calendar-settings-region-row';
+  const weatherInput = document.createElement('input');
+  weatherInput.type = 'text';
+  weatherInput.maxLength = 60;
+  weatherInput.autocomplete = 'off';
+  weatherInput.placeholder = '예: 전주시 만성동';
+  weatherInput.setAttribute('aria-label', '날씨 지역 입력');
+  weatherInput.value = state.manualWeatherRegion?.label || '';
+  const weatherApply = button('지역 적용', 'calendar-settings-action-button');
+  const weatherClear = button('수동 지역 해제', 'calendar-settings-action-button');
+  weatherClear.hidden = !state.manualWeatherRegion;
+  const weatherStatus = document.createElement('small');
+  weatherStatus.className = 'calendar-settings-status';
+  weatherStatus.textContent = state.manualWeatherRegion
+    ? `현재 날씨 지역: ${state.manualWeatherRegion.label}`
+    : '현재 위치를 사용할 수 없을 때 시·군·구 또는 동 이름을 직접 지정할 수 있어요.';
+  weatherRow.append(weatherInput, weatherApply, weatherClear);
+  weatherSection.append(weatherTitle, weatherRow, weatherStatus);
+  body.appendChild(weatherSection);
+
+  weatherApply.addEventListener('click', async () => {
+    const query = weatherInput.value.trim().replace(/\s+/g, ' ');
+    weatherApply.disabled = true;
+    weatherInput.disabled = true;
+    weatherStatus.textContent = '지역을 확인하는 중…';
+    try {
+      const result = await resolvePublicWeatherRegion(query, fetchImpl);
+      if (!result.providerReady) {
+        weatherStatus.textContent = '현재 지역 검색 기능을 준비 중이에요.';
+        return;
+      }
+      if (!result.found || !result.region) {
+        weatherStatus.textContent = '해당 지역을 찾지 못했어요. 시·군·구 또는 동 이름으로 다시 입력해 주세요.';
+        return;
+      }
+      if (!writeCalendarManualWeatherRegion(result.region, storage)) {
+        weatherStatus.textContent = '이 브라우저에 지역 설정을 저장하지 못했어요.';
+        return;
+      }
+      state.manualWeatherRegion = result.region;
+      weatherInput.value = result.region.label;
+      weatherClear.hidden = false;
+      weatherStatus.textContent = `현재 날씨 지역: ${result.region.label}`;
+      await onWeatherRegionChange(result.region);
+    } catch (error) {
+      weatherStatus.textContent = error instanceof SiteCoreError
+        ? error.message
+        : '날씨 지역을 확인하지 못했어요.';
+    } finally {
+      weatherApply.disabled = false;
+      weatherInput.disabled = false;
+    }
+  });
+
+  weatherClear.addEventListener('click', async () => {
+    clearCalendarManualWeatherRegion(storage);
+    state.manualWeatherRegion = null;
+    weatherInput.value = '';
+    weatherClear.hidden = true;
+    weatherStatus.textContent = '수동 지역을 해제했습니다. 현재 위치를 다시 사용할 수 있어요.';
+    await onWeatherRegionChange(null);
+  });
 
   const notificationSection = document.createElement('section');
   notificationSection.className = 'calendar-settings-section';
@@ -1202,12 +1271,19 @@ export async function mountLifeCalendarManager({
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
-  let currentWeatherLocation = weatherLocation;
+  const storedManualWeatherRegion = readCalendarManualWeatherRegion(settingsStorage);
+  let currentWeatherLocation = weatherLocation || (storedManualWeatherRegion
+    ? {
+        ...storedManualWeatherRegion,
+        source: 'MANUAL_REGION',
+      }
+    : null);
   const displaySettings = readCalendarDisplaySettings(settingsStorage);
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
     year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], holidays: [], loading: false,
     showKoreaHolidays: displaySettings.showKoreaHolidays,
+    manualWeatherRegion: storedManualWeatherRegion,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
     locationInFlight: false,
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
@@ -1334,6 +1410,15 @@ export async function mountLifeCalendarManager({
       authenticated,
       sessionToken,
       fetchImpl,
+      onWeatherRegionChange: async region => {
+        currentWeatherLocation = region
+          ? {...region, source: 'MANUAL_REGION'}
+          : null;
+        if (region) {
+          state.locationMessage = '';
+        }
+        await refresh();
+      },
       onChange: async enabled => {
         if (enabled) await refresh();
         else render();
@@ -1365,15 +1450,19 @@ export async function mountLifeCalendarManager({
     if (!root.isConnected) return;
     state.locationPermission = permission;
     if (permission === LOCATION_PERMISSION.DENIED) {
-      currentWeatherLocation = null;
-      clearBrowserLocationProvenance();
+      if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
+        currentWeatherLocation = null;
+        clearBrowserLocationProvenance();
+      }
       state.locationResolution = LOCATION_RESOLUTION.IDLE;
-      state.locationMessage = '위치 권한이 꺼져 있어요.';
+      state.locationMessage = state.manualWeatherRegion ? '' : '위치 권한이 꺼져 있어요.';
     } else if (permission === LOCATION_PERMISSION.UNAVAILABLE) {
-      currentWeatherLocation = null;
-      clearBrowserLocationProvenance();
-      state.locationResolution = LOCATION_RESOLUTION.ERROR;
-      state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+      if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
+        currentWeatherLocation = null;
+        clearBrowserLocationProvenance();
+      }
+      state.locationResolution = state.manualWeatherRegion ? LOCATION_RESOLUTION.IDLE : LOCATION_RESOLUTION.ERROR;
+      state.locationMessage = state.manualWeatherRegion ? '' : '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
     } else if (
       state.locationMessage === '위치 권한이 꺼져 있어요.'
       || state.locationMessage === '이 브라우저에서는 현재 위치를 사용할 수 없어요.'
@@ -1409,13 +1498,17 @@ export async function mountLifeCalendarManager({
     } else {
       const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
         && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
+      const usingManualRegion = currentWeatherLocation?.source === 'MANUAL_REGION'
+        && Boolean(state.manualWeatherRegion);
       root.dataset.locationPermission = state.locationPermission;
       root.dataset.locationResolution = state.locationResolution;
 
-      if (usingBrowserLocation) {
+      if (usingBrowserLocation || usingManualRegion) {
         const locationLabel = document.createElement('span');
         locationLabel.className = 'calendar-location-status';
-        locationLabel.textContent = '📍 현재 위치';
+        locationLabel.textContent = usingManualRegion
+          ? `📍 ${state.manualWeatherRegion.label}`
+          : '📍 현재 위치';
         status.appendChild(locationLabel);
       }
 
@@ -1612,6 +1705,8 @@ export async function mountLifeCalendarManager({
       });
       if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
       currentWeatherLocation = location;
+      clearCalendarManualWeatherRegion(settingsStorage);
+      state.manualWeatherRegion = null;
       state.locationPermission = LOCATION_PERMISSION.GRANTED;
       state.locationResolution = LOCATION_RESOLUTION.RESOLVED;
       root.dataset.locationSource = location.source;
@@ -1732,11 +1827,9 @@ export async function mountLifeCalendarManager({
   const onResume = () => {
     if (!root.isConnected) { cleanupLifecycle(); return; }
     void refreshTodayIfNeeded();
-    if (authenticated) {
-      void syncLocationPermission().then(() => {
-        if (root.isConnected) render();
-      });
-    }
+    void syncLocationPermission().then(() => {
+      if (root.isConnected) render();
+    });
   };
   const onVisibilityChange = () => {
     if (document.visibilityState === 'visible') onResume();
