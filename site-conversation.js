@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260921-guestclaim1';
-import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260921-placecompactactions1';
+import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260922-mois1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -744,6 +744,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         image_url: place.imageUrl,
         phone: place.phone,
         phone_verified: place.phoneVerified,
+        food_license_verification: place.foodLicenseVerification ? {
+          state: place.foodLicenseVerification.state,
+          source: 'MOIS_FOOD_LICENSE',
+          ai_calls: 0,
+          ...(place.foodLicenseVerification.administrativeStatus
+            ? {administrative_status: place.foodLicenseVerification.administrativeStatus}
+            : {}),
+        } : undefined,
         navigation_capability: place.navigationCapable,
       })),
     };
@@ -849,6 +857,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.className = 'lotbi-rich-card-price';
       address.textContent = place.address;
       copy.append(source, title, address);
+
+      if (place.foodLicenseVerification) {
+        const foodLicense = document.createElement('span');
+        foodLicense.className = 'lotbi-place-license-evidence';
+        const state = place.foodLicenseVerification.state;
+        if (state === 'VERIFIED') {
+          foodLicense.textContent = place.foodLicenseVerification.administrativeStatus
+            ? `행정 인허가 데이터상 확인 · 행정상 상태: ${place.foodLicenseVerification.administrativeStatus}`
+            : '행정 인허가 데이터상 확인';
+        } else if (state === 'AMBIGUOUS') {
+          foodLicense.textContent = '공공 인허가 데이터 일치 후보가 여러 개예요';
+        } else if (state === 'CONFLICTING') {
+          foodLicense.textContent = '공공 인허가 데이터와 업체 식별 정보가 일치하지 않아요';
+        } else if (state === 'NOT_FOUND') {
+          foodLicense.textContent = '공공 인허가 데이터에서 일치 기록 미확인';
+        } else {
+          foodLicense.textContent = '행정 인허가 데이터 확인 불가';
+        }
+        copy.appendChild(foodLicense);
+      }
 
       const staticMapUrl = buildNaverStaticMapThumbnailUrl(place);
       if (staticMapUrl) {
