@@ -284,6 +284,9 @@ assert.ok(!locationSource.includes('sessionStorage'), 'current location must not
 assert.ok(manager.includes('locationPermission: LOCATION_PERMISSION.UNKNOWN'), 'permission state must remain independent from resolution');
 assert.ok(manager.includes('locationResolution: currentWeatherLocation'), 'resolution state must remain explicit');
 assert.ok(manager.includes("state.locationResolution = LOCATION_RESOLUTION.TIMEOUT"), 'timeout must remain a location-resolution state');
+assert.ok(manager.includes('const afterPermission = await getBrowserLocationPermissionState'), 'post-prompt timeout must re-read browser permission');
+assert.ok(manager.includes('afterPermission === LOCATION_PERMISSION.GRANTED'), 'post-prompt grant must remain GRANTED when coordinates time out');
+assert.ok(manager.includes('void syncLocationPermission().then'), 'browser return/focus must re-sync permission state');
 assert.ok(manager.includes("state.locationPermission = LOCATION_PERMISSION.DENIED"), 'only explicit permission denial may become DENIED');
 assert.ok(manager.includes("locationButton.textContent = '변경'"), 'resolved current location must remove the current-location CTA label');
 assert.ok(manager.includes("locationButton.textContent = '다시 시도'"), 'location failure must expose an explicit retry action');
