@@ -1,5 +1,21 @@
 export const BROWSER_CURRENT_LOCATION_MAX_AGE_MS = 120_000;
 
+export const LOCATION_PERMISSION = Object.freeze({
+  UNKNOWN: 'UNKNOWN',
+  PROMPT_REQUIRED: 'PROMPT_REQUIRED',
+  GRANTED: 'GRANTED',
+  DENIED: 'DENIED',
+  UNAVAILABLE: 'UNAVAILABLE',
+});
+
+export const LOCATION_RESOLUTION = Object.freeze({
+  IDLE: 'IDLE',
+  REQUESTING: 'REQUESTING',
+  RESOLVED: 'RESOLVED',
+  TIMEOUT: 'TIMEOUT',
+  ERROR: 'ERROR',
+});
+
 export class BrowserLocationError extends Error {
   constructor(code, message) {
     super(message);
@@ -11,6 +27,29 @@ export class BrowserLocationError extends Error {
 function nowMillis(now) {
   const value = typeof now === 'function' ? Number(now()) : Number(now);
   return Number.isFinite(value) ? value : Date.now();
+}
+
+export async function getBrowserLocationPermissionState({
+  permissions = globalThis.navigator?.permissions,
+  geolocation = globalThis.navigator?.geolocation,
+} = {}) {
+  if (!geolocation || typeof geolocation.getCurrentPosition !== 'function') {
+    return LOCATION_PERMISSION.UNAVAILABLE;
+  }
+  if (!permissions || typeof permissions.query !== 'function') {
+    return LOCATION_PERMISSION.UNKNOWN;
+  }
+  try {
+    const result = await permissions.query({name: 'geolocation'});
+    if (result?.state === 'granted') return LOCATION_PERMISSION.GRANTED;
+    if (result?.state === 'denied') return LOCATION_PERMISSION.DENIED;
+    if (result?.state === 'prompt') return LOCATION_PERMISSION.PROMPT_REQUIRED;
+    return LOCATION_PERMISSION.UNKNOWN;
+  } catch {
+    // Safari and older browsers may expose Permissions API without supporting
+    // geolocation queries. Geolocation itself remains the fallback authority.
+    return LOCATION_PERMISSION.UNKNOWN;
+  }
 }
 
 export function isFreshBrowserCurrentLocation(
@@ -78,6 +117,10 @@ export function requestBrowserCurrentLocation({
       '이 브라우저에서는 현재 위치를 사용할 수 없습니다.',
     ));
   }
+  const usableMaxAgeMs = Math.max(0, Math.min(
+    BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
+    Number(maxAgeMs) || BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
+  ));
   return new Promise((resolve, reject) => {
     geolocation.getCurrentPosition(
       position => {
@@ -91,7 +134,7 @@ export function requestBrowserCurrentLocation({
       {
         enableHighAccuracy: false,
         timeout: Math.max(1_000, Math.min(20_000, Number(timeoutMs) || 8_000)),
-        maximumAge: 0,
+        maximumAge: usableMaxAgeMs,
       },
     );
   });
