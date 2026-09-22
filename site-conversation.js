@@ -389,9 +389,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const recentConversationContext = () => {
     const messages = threadRecord()?.messages;
     if (!Array.isArray(messages) || !messages.length) return [];
-    return messages.slice(0, -1).filter(item =>
-      item && (item.role === 'user' || item.role === 'assistant') && typeof item.text === 'string' && item.text.trim()
-    ).slice(-6).map(item => ({role: item.role, text: item.text.trim().slice(0, 500)}));
+    const normalized = messages.slice(0, -1).flatMap(item => {
+      const text = typeof item?.text === 'string' ? item.text.trim() : '';
+      if (
+        !item
+        || (item.role !== 'user' && item.role !== 'assistant')
+        || !text
+        || text.length > 4000
+      ) return [];
+      return [{role: item.role, text}];
+    });
+    const selected = [];
+    let usedChars = 0;
+    for (let index = normalized.length - 1; index >= 0; index -= 1) {
+      const item = normalized[index];
+      if (selected.length >= 24) break;
+      if (usedChars + item.text.length > 16000) break;
+      selected.push(item);
+      usedChars += item.text.length;
+    }
+    return selected.reverse();
   };
   const beginGuestClaimingSiteHandoff = async pendingText => {
     // Claim intent creation is explicit-user-action only. Automatic Account

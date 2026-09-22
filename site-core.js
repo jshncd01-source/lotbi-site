@@ -703,14 +703,32 @@ export async function createGuestConversationSession(fetchImpl = globalThis.fetc
   return Object.freeze({guestToken, expiresAt});
 }
 
+const CONVERSATION_RECENT_CONTEXT_MAX_ITEMS = 24;
+const CONVERSATION_RECENT_CONTEXT_MAX_ITEM_CHARS = 4000;
+const CONVERSATION_RECENT_CONTEXT_MAX_CHARS = 16000;
+
 function normalizeConversationRecentContext(recentContext) {
   if (!Array.isArray(recentContext)) return [];
-  return recentContext.slice(-6).flatMap(item => {
+  const normalized = recentContext.flatMap(item => {
     const role = typeof item?.role === 'string' ? item.role.trim().toLowerCase() : '';
     const text = typeof item?.text === 'string' ? item.text.trim() : '';
-    if (!['user', 'assistant'].includes(role) || !text || text.length > 500) return [];
+    if (
+      !['user', 'assistant'].includes(role)
+      || !text
+      || text.length > CONVERSATION_RECENT_CONTEXT_MAX_ITEM_CHARS
+    ) return [];
     return [{role, text}];
   });
+  const selected = [];
+  let usedChars = 0;
+  for (let index = normalized.length - 1; index >= 0; index -= 1) {
+    const item = normalized[index];
+    if (selected.length >= CONVERSATION_RECENT_CONTEXT_MAX_ITEMS) break;
+    if (usedChars + item.text.length > CONVERSATION_RECENT_CONTEXT_MAX_CHARS) break;
+    selected.push(item);
+    usedChars += item.text.length;
+  }
+  return selected.reverse();
 }
 
 export async function sendGuestConversationMessage({
