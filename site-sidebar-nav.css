@@ -311,6 +311,17 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   color: #edf0f5;
 }
 
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .sidebar-guest-actions .sidebar-account-entry {
+    background: var(--lotbi-surface-elevated, #202631);
+    border-color: var(--lotbi-border-default, #424b59);
+    color: var(--lotbi-text-primary, #edf0f5);
+  }
+  body[data-site-theme="system"] .mobile-nav-drawer .sidebar-profile-trigger::after {
+    color: var(--lotbi-text-muted, #aeb6c3);
+  }
+}
+
 .sidebar-account-footer {
   flex: 0 0 auto;
   margin-top: auto;
