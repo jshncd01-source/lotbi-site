@@ -910,7 +910,8 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   letter-spacing: .02em;
 }
 
-.profile-popover button {
+.profile-popover button,
+.profile-popover a[role="menuitem"] {
   min-height: 42px;
   padding: 9px 11px;
   border: 0;
@@ -920,18 +921,28 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   font: inherit;
   font-size: 14px;
   font-weight: 700;
+  line-height: 1.45;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
 .profile-popover button:not(:disabled):hover,
-.profile-popover button:not(:disabled):focus-visible {
+.profile-popover button:not(:disabled):focus-visible,
+.profile-popover a[role="menuitem"]:hover,
+.profile-popover a[role="menuitem"]:focus-visible {
   background: #f0f2f7;
 }
 
 .profile-popover button:disabled {
   cursor: not-allowed;
   opacity: .55;
+}
+
+.profile-popover .profile-menu-logout {
+  margin-top: 4px;
+  box-shadow: inset 0 1px #e6e9ef;
+  color: #9b2f49;
 }
 
 .profile-contract-note {
@@ -1232,6 +1243,7 @@ body[data-site-theme="dark"] .response-grade-option:focus-visible,
 body[data-site-theme="dark"] .response-grade-option[aria-checked="true"] { background: #2a3140; }
 body[data-site-theme="dark"] .chat-input,
 body[data-site-theme="dark"] .profile-popover button,
+body[data-site-theme="dark"] .profile-popover a[role="menuitem"],
 body[data-site-theme="dark"] .profile-popover-summary-name { color: #edf0f5; }
 body[data-site-theme="dark"] .profile-popover-summary { border-color: #424b59; }
 body[data-site-theme="dark"] .profile-popover-summary-handle,
