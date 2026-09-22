@@ -129,6 +129,16 @@ try{
     ()=>content?.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]')?.querySelectorAll('.calendar-event-chip').length===1,
     'guest Calendar holiday-aware initial refresh',
   );
+  await wait(()=>{
+    const candidate=modal.querySelector('.calendar-month-layout');
+    const candidateCalendar=candidate?.children?.[0];
+    return Boolean(
+      candidate?.isConnected
+      && candidateCalendar
+      && candidate.getBoundingClientRect().width>0
+      && candidateCalendar.getBoundingClientRect().width>0
+    );
+  },'month geometry');
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
