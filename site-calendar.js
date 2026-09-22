@@ -532,7 +532,7 @@ export async function getKoreaHolidays(year, fetchImpl = globalThis.fetch) {
   }
   const payload = await publicCalendarRequest(
     `/v2/life/holidays?year=${year}&country=KR`,
-    {cache: 'default'},
+    {cache: 'no-store'},
     fetchImpl,
   );
   return normalizeKoreaHolidayResponse(payload);
