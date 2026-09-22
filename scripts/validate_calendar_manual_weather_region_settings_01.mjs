@@ -36,7 +36,7 @@ assert.equal(
 );
 
 assert.match(publicWeather, /\/v2\/life\/weather\/region\/resolve/);
-assert.match(publicWeather, /\/\d\/\.test\(q\)/);
+assert.match(publicWeather, /\/\\d\/\.test\(q\)/);
 assert.match(publicWeather, /coordinate_authority !== 'NAVER_MAPS_GEOCODING'/);
 assert.match(preference, /lotbi\.calendar\.weather-region\.v1/);
 assert.match(preference, /latitude < 31/);
