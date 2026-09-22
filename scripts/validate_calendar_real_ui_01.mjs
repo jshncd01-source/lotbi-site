@@ -22,6 +22,9 @@ const month = await loadLifeCalendarManagerView('site-token', {
         coverage: 'PERSONAL_ACTIVITY_ONLY', items: [], ai_calls: 0, provider_api_calls: 0,
       });
     }
+    if (String(url).includes('/weather')) {
+      return jsonResponse({provider_ready: false, items: [], ai_calls: 0});
+    }
     return jsonResponse({
       view: 'AGENDA', as_of: '2026-09-20T00:00:00Z', timezone: 'Asia/Seoul',
       coverage: 'PERSONAL_ACTIVITY_ONLY', items: [], ai_calls: 0, provider_api_calls: 0,
@@ -29,11 +32,14 @@ const month = await loadLifeCalendarManagerView('site-token', {
   },
 });
 assert.equal(month.key, 'month');
-assert.equal(calls.length, 2);
+assert.equal(calls.length, 3);
 const agendaCall = calls.find(url => String(url).includes('/agenda'));
+const weatherCall = calls.find(url => String(url).includes('/weather'));
 assert.ok(agendaCall, 'month view must load agenda');
 assert.match(agendaCall, /start=2026-08-30&end=2026-10-03/);
 assert.doesNotMatch(agendaCall, /0001|9999/);
+assert.ok(weatherCall, 'month view must load weather fail-soft context');
+assert.match(weatherCall, /start=2026-08-30&end=2026-10-03/);
 assert.deepEqual(month.attention, []);
 assert.equal(buildCalendarAriaLabel({date: '2026-09-20', weekday: 0}, 2), '2026년 9월 20일 일요일, 일정 2개');
 assert.equal(
