@@ -139,6 +139,7 @@ try{
       && candidateCalendar.getBoundingClientRect().width>0
     );
   },'month geometry');
+  await wait(()=>content?.getAttribute('aria-busy')!=='true','guest Calendar async decoration idle');
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
