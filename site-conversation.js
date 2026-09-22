@@ -1845,7 +1845,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     else { visual.textContent = initials(canonicalProfileName()); visual.setAttribute('aria-hidden', 'true'); }
     return visual;
   };
-  const profileButton = () => {
+  const profileButton = ({includePlan = false} = {}) => {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'sidebar-account-entry sidebar-profile-trigger';
     button.dataset.profileMenuTrigger = ''; button.setAttribute('aria-haspopup', 'menu'); button.setAttribute('aria-expanded', 'false');
@@ -1855,7 +1855,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     copy.appendChild(name);
     const detailParts = [];
     if (serverIdentity?.publicHandle) detailParts.push(`@${serverIdentity.publicHandle}`);
-    if (serverSubscription?.plan) {
+    if (includePlan && serverSubscription?.plan) {
       const planLabels = {FREE: 'LOTBI Free', LOTBI_PLUS: 'LOTBI Plus'};
       detailParts.push(planLabels[serverSubscription.plan] || serverSubscription.plan);
     }
@@ -1887,7 +1887,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     for (const slot of document.querySelectorAll('[data-sidebar-account]')) {
       if (!(slot instanceof HTMLElement)) continue;
       const existingTrigger = slot.querySelector('[data-profile-menu-trigger]');
-      const button = profileButton();
+      const button = profileButton({includePlan: Boolean(slot.closest('#mobile-nav-drawer'))});
       if (openSurface?.classList?.contains('profile-popover-layer') && openSurfaceTrigger === existingTrigger) {
         button.setAttribute('aria-expanded', 'true');
         openSurfaceTrigger = button;
