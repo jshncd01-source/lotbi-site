@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getCalendarWeatherRegions, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-weatherreal2';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-holiday1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,13 +11,47 @@ import {
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherByDate, weatherTemperatureLabel} from './site-calendar-weather.js?v=20260922-weatherreal1';
-import {readCalendarWeatherPreference, writeCalendarWeatherPreference} from './site-calendar-weather-preference.js?v=20260922-weatherreal1';
+import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
+import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=20260922-guestweather1';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
 const MODES = Object.freeze([['month', '월'], ['year', '연도'], ['agenda', '일정'], ['attention', '확인 필요']]);
+const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
+
+export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
+  const fallback = Object.freeze({showKoreaHolidays: true});
+  if (!storage || typeof storage.getItem !== 'function') return fallback;
+  try {
+    const raw = storage.getItem(CALENDAR_SETTINGS_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Object.freeze({showKoreaHolidays: parsed?.showKoreaHolidays !== false});
+  } catch {
+    return fallback;
+  }
+}
+
+function writeCalendarDisplaySettings(storage, settings) {
+  if (!storage || typeof storage.setItem !== 'function') return;
+  try {
+    storage.setItem(CALENDAR_SETTINGS_STORAGE_KEY, JSON.stringify({
+      showKoreaHolidays: settings.showKoreaHolidays !== false,
+    }));
+  } catch {
+    // Device/browser storage failure must not block Calendar.
+  }
+}
+
+function holidaysByDate(items) {
+  const out = new Map();
+  for (const item of Array.isArray(items) ? items : []) {
+    if (!validCivilDate(item?.date) || typeof item?.name !== 'string') continue;
+    out.set(item.date, item);
+  }
+  return out;
+}
 
 function resolvedTimezone() {
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE; }
@@ -216,16 +250,14 @@ function withUnscheduledShape(item) {
   });
 }
 
-export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false, weather = null} = {}) {
+export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false, weather = null, holiday = null} = {}) {
   const {year, month, day} = civilDateParts(cell.date);
   const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`];
   if (today) parts.push('오늘');
   if (selected) parts.push('선택됨');
   if (attention) parts.push('확인 필요 일정 있음');
-  if (weather?.label) {
-    const temperature = weatherTemperatureLabel(weather);
-    parts.push(`날씨 ${weather.label}${temperature ? `, ${temperature.replace('°', '도')}` : ''}`);
-  }
+  if (holiday?.name) parts.push(`대한민국 공휴일 ${holiday.name}`);
+  if (weather?.label) parts.push(`날씨 ${weather.label}`);
   return parts.join(', ');
 }
 
@@ -241,16 +273,7 @@ export function countCalendarEventsByMonth(items, year) {
 
 export async function loadLifeCalendarManagerView(
   sessionToken,
-  {
-    view = 'month',
-    date,
-    timezone = resolvedTimezone(),
-    now = new Date(),
-    fetchImpl = globalThis.fetch,
-    weatherLocation = null,
-    weatherEnabled = true,
-    manualRegionCode = '',
-  } = {},
+  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null} = {},
 ) {
   const selectedDate = validCivilDate(date) ? date : dateInTimezone(now, timezone);
   const key = normalizeMode(view);
@@ -259,8 +282,7 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const normalizedManualRegion = typeof manualRegionCode === 'string' ? manualRegionCode.trim().toUpperCase() : '';
-  const weatherRequest = key === 'month' && weatherEnabled
+  const weatherRequest = key === 'month'
     ? getCalendarWeather(sessionToken, {
         start: range.start,
         end: range.end,
@@ -268,10 +290,12 @@ export async function loadLifeCalendarManagerView(
         latitude: weatherLocation?.latitude,
         longitude: weatherLocation?.longitude,
         midRegionCode: weatherLocation?.midRegionCode || '',
-        manualRegionCode: normalizedManualRegion,
       }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
-  const [response, monthAttention, unscheduled, weather] = await Promise.all([
+  const holidayRequest = (key === 'month' || key === 'year')
+    ? getKoreaHolidays(range.year, fetchImpl).catch(() => ({coverageStatus: 'UNAVAILABLE', items: []}))
+    : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
+  const [response, monthAttention, unscheduled, weather, holidays] = await Promise.all([
     getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
     key === 'month'
       ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
@@ -280,6 +304,7 @@ export async function loadLifeCalendarManagerView(
       ? getLifeUnscheduled(sessionToken, fetchImpl)
       : Promise.resolve(null),
     weatherRequest,
+    holidayRequest,
   ]);
   return Object.freeze({
     key,
@@ -293,6 +318,8 @@ export async function loadLifeCalendarManagerView(
     unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
     weather: Object.freeze(weather?.items || []),
     weatherProviderReady: weather?.providerReady === true,
+    holidays: Object.freeze(holidays?.items || []),
+    holidayCoverageStatus: holidays?.coverageStatus || 'UNAVAILABLE',
   });
 }
 
@@ -384,6 +411,16 @@ function dayPanel(state, groups, actions) {
   const body = document.createElement('div');
   body.className = 'calendar-day-body';
   body.hidden = state.dayCollapsed;
+  const selectedHoliday = state.showKoreaHolidays
+    ? holidaysByDate(state.holidays).get(state.selectedDate)
+    : null;
+  if (selectedHoliday) {
+    const holiday = document.createElement('div');
+    holiday.className = 'calendar-day-holiday';
+    holiday.setAttribute('role', 'note');
+    holiday.textContent = `${selectedHoliday.name} · 대한민국 공휴일`;
+    body.appendChild(holiday);
+  }
   const items = groups.get(state.selectedDate) || [];
   body.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('등록된 일정이 없어요.'));
   const add = button(`${civilDateParts(state.selectedDate).month}월 ${civilDateParts(state.selectedDate).day}일에 일정 추가`, 'calendar-add-button');
@@ -501,6 +538,7 @@ function renderMonth(state, actions) {
   const groups = groupCalendarEvents(state.items);
   const attentionDates = new Set(state.attention.map(item => item?.due_date).filter(validCivilDate));
   const weatherByDate = calendarWeatherByDate(state.weather);
+  const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
   const cells = calendarMonthGrid(state.year, state.month);
   grid.dataset.weekCount = String(cells.length / 7);
 
@@ -510,6 +548,7 @@ function renderMonth(state, actions) {
     const today = cell.date === state.todayDate;
     const hasAttention = attentionDates.has(cell.date);
     const weather = weatherByDate.get(cell.date) || null;
+    const holiday = holidayMap.get(cell.date) || null;
 
     const cellNode = document.createElement('div');
     cellNode.className = 'calendar-date-cell';
@@ -518,6 +557,7 @@ function renderMonth(state, actions) {
     cellNode.dataset.selected = String(selected);
     cellNode.dataset.today = String(today);
     cellNode.dataset.attention = String(hasAttention);
+    cellNode.dataset.holiday = String(Boolean(holiday));
     cellNode.setAttribute('role', 'gridcell');
     cellNode.setAttribute('aria-selected', String(selected));
 
@@ -526,7 +566,7 @@ function renderMonth(state, actions) {
     const date = button(String(cell.day), 'calendar-date-trigger');
     date.dataset.calendarDateTrigger = cell.date;
     date.dataset.selected = String(selected);
-    date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention, weather}));
+    date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention, weather, holiday}));
     if (today) date.setAttribute('aria-current', 'date');
     date.tabIndex = selected ? 0 : -1;
     const number = document.createElement('span');
@@ -546,20 +586,13 @@ function renderMonth(state, actions) {
     count.setAttribute('aria-hidden', 'true');
     header.append(date, count);
     if (weather) {
-      const weatherCompact = document.createElement('span');
-      weatherCompact.className = 'calendar-weather-compact';
-      weatherCompact.dataset.weatherKind = weather.weatherKind;
-      weatherCompact.title = weather.label;
-      weatherCompact.setAttribute('aria-hidden', 'true');
-      const symbol = document.createElement('span');
-      symbol.className = 'calendar-weather-symbol';
-      symbol.textContent = ({CLEAR: '☼', CLOUDY: '☁︎', RAIN: '☂︎', SNOW: '✻'})[weather.weatherKind] || '';
-      const temperature = document.createElement('span');
-      temperature.className = 'calendar-weather-temperature';
-      temperature.textContent = weatherTemperatureLabel(weather);
-      weatherCompact.append(symbol);
-      if (temperature.textContent) weatherCompact.append(temperature);
-      header.appendChild(weatherCompact);
+      const weatherIcon = document.createElement('span');
+      weatherIcon.className = 'calendar-weather-icon';
+      weatherIcon.dataset.weatherKind = weather.weatherKind;
+      weatherIcon.textContent = weather.weatherIcon;
+      weatherIcon.title = weather.label;
+      weatherIcon.setAttribute('aria-hidden', 'true');
+      header.appendChild(weatherIcon);
     }
     if (hasAttention) {
       const marker = document.createElement('span');
@@ -567,6 +600,16 @@ function renderMonth(state, actions) {
       marker.textContent = '확인 필요';
       marker.setAttribute('aria-hidden', 'true');
       header.appendChild(marker);
+    }
+
+    let holidayLabel = null;
+    if (holiday) {
+      holidayLabel = document.createElement('div');
+      holidayLabel.className = 'calendar-holiday-label';
+      holidayLabel.dataset.calendarHoliday = holiday.date;
+      holidayLabel.textContent = holiday.name;
+      holidayLabel.title = `${holiday.name} · 대한민국 공휴일`;
+      holidayLabel.setAttribute('aria-hidden', 'true');
     }
 
     const stack = document.createElement('div');
@@ -585,7 +628,9 @@ function renderMonth(state, actions) {
       if (event.target.closest('button')) return;
       void actions.selectDate(cell.date, {openDetail: true});
     });
-    cellNode.append(header, stack);
+    cellNode.appendChild(header);
+    if (holidayLabel) cellNode.appendChild(holidayLabel);
+    cellNode.appendChild(stack);
     grid.appendChild(cellNode);
   }
 
@@ -684,6 +729,67 @@ function renderAttention(state) {
     local_datetime: null,
     calendar_attention_state: item.state,
   })));
+}
+
+function calendarSettingsDialog({root, state, storage, onChange}) {
+  root.querySelector('.calendar-settings-backdrop')?.remove();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-settings-backdrop';
+  const dialog = document.createElement('section');
+  dialog.className = 'calendar-settings-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'calendar-settings-heading');
+
+  const header = document.createElement('div');
+  header.className = 'calendar-settings-header';
+  const heading = document.createElement('h3');
+  heading.id = 'calendar-settings-heading';
+  heading.textContent = '캘린더 설정';
+  const close = button('×', 'calendar-settings-close');
+  close.setAttribute('aria-label', '캘린더 설정 닫기');
+  header.append(heading, close);
+
+  const body = document.createElement('div');
+  body.className = 'calendar-settings-body';
+  const section = document.createElement('section');
+  const sectionTitle = document.createElement('h4');
+  sectionTitle.textContent = '표시';
+  const row = document.createElement('label');
+  row.className = 'calendar-settings-toggle-row';
+  const copy = document.createElement('span');
+  const label = document.createElement('strong');
+  label.textContent = '대한민국 공휴일 표시';
+  const description = document.createElement('small');
+  description.textContent = '대한민국 공휴일을 개인 일정과 구분해 표시합니다.';
+  copy.append(label, description);
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.checked = state.showKoreaHolidays;
+  toggle.setAttribute('aria-label', '대한민국 공휴일 표시');
+  row.append(copy, toggle);
+  section.append(sectionTitle, row);
+  body.appendChild(section);
+  dialog.append(header, body);
+  backdrop.appendChild(dialog);
+
+  const dismiss = () => backdrop.remove();
+  close.addEventListener('click', dismiss);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      dismiss();
+    }
+  });
+  toggle.addEventListener('change', () => {
+    state.showKoreaHolidays = toggle.checked;
+    writeCalendarDisplaySettings(storage, state);
+    void onChange(toggle.checked);
+  });
+
+  root.appendChild(backdrop);
+  queueMicrotask(() => toggle.focus());
 }
 
 function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
@@ -974,11 +1080,10 @@ export async function mountLifeCalendarManager({
   deepOpen,
   initialDraft = null,
   weatherLocation = null,
-  weatherPreference = null,
-  weatherPreferenceStorage = globalThis.localStorage,
   locationProvider = globalThis.navigator?.geolocation,
   locationPermissions = globalThis.navigator?.permissions,
   locationNow = Date.now,
+  settingsStorage = globalThis.localStorage,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
@@ -997,21 +1102,13 @@ export async function mountLifeCalendarManager({
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
-  const persistedWeatherPreference = authenticated
-    ? (weatherPreference && typeof weatherPreference === 'object' ? weatherPreference : {enabled: true, manualRegionCode: ''})
-    : readCalendarWeatherPreference(weatherPreferenceStorage);
-  const initialManualRegionCode = typeof persistedWeatherPreference.manualRegionCode === 'string'
-    ? persistedWeatherPreference.manualRegionCode.trim().toUpperCase()
-    : '';
-  let currentWeatherLocation = initialManualRegionCode ? null : weatherLocation;
+  let currentWeatherLocation = weatherLocation;
+  const displaySettings = readCalendarDisplaySettings(settingsStorage);
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
-    year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], loading: false,
+    year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], holidays: [], loading: false,
+    showKoreaHolidays: displaySettings.showKoreaHolidays,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
-    weatherEnabled: persistedWeatherPreference.enabled !== false,
-    manualRegionCode: initialManualRegionCode,
-    weatherRegions: [],
-    weatherProviderReady: false,
     locationInFlight: false,
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
@@ -1024,22 +1121,19 @@ export async function mountLifeCalendarManager({
   const title = button('', 'calendar-title-button');
   const next = button('다음', 'calendar-nav-button'); next.setAttribute('aria-label', '다음 달');
   const today = button('오늘', 'calendar-today-button');
+  const settingsButton = button('⚙️', 'calendar-settings-button');
+  settingsButton.setAttribute('aria-label', '캘린더 설정');
+  settingsButton.title = '캘린더 설정';
   const modes = document.createElement('div'); modes.className = 'calendar-mode-tabs'; modes.setAttribute('role', 'tablist'); modes.setAttribute('aria-label', '캘린더 보기');
   const modeButtons = new Map();
   for (const [mode, label] of MODES) {
     const control = button(label, 'calendar-mode-tab'); control.dataset.calendarMode = mode; control.setAttribute('role', 'tab'); modeButtons.set(mode, control); modes.appendChild(control);
   }
-  toolbar.append(previous, title, next, today, modes);
+  toolbar.append(previous, title, next, today, settingsButton, modes);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
   locationButton.dataset.calendarCurrentLocation = 'true';
   locationButton.setAttribute('aria-label', '현재 위치를 캘린더 날씨에 사용');
-  const weatherToggle = button('', 'calendar-weather-toggle');
-  weatherToggle.dataset.calendarWeatherToggle = 'true';
-  const regionSelect = document.createElement('select');
-  regionSelect.className = 'calendar-weather-region';
-  regionSelect.dataset.calendarWeatherRegion = 'true';
-  regionSelect.setAttribute('aria-label', '날씨 지역 직접 선택');
   const viewport = document.createElement('div'); viewport.className = 'calendar-viewport';
   shell.append(toolbar, status, viewport); root.replaceChildren(shell);
 
@@ -1133,6 +1227,15 @@ export async function mountLifeCalendarManager({
     },
     onAdd: date => openEditor(null, date),
     onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
+    openSettings: () => calendarSettingsDialog({
+      root,
+      state,
+      storage: settingsStorage,
+      onChange: async enabled => {
+        if (enabled) await refresh();
+        else render();
+      },
+    }),
   };
 
   root.addEventListener('keydown', event => {
@@ -1195,86 +1298,41 @@ export async function mountLifeCalendarManager({
     return '현재 위치를 확인할 수 없어요.';
   }
 
-  function persistWeatherPreference() {
-    if (authenticated) return;
-    writeCalendarWeatherPreference({
-      enabled: state.weatherEnabled,
-      manualRegionCode: state.manualRegionCode,
-    }, weatherPreferenceStorage);
-  }
-
-  function renderWeatherControls() {
-    const controls = document.createElement('div');
-    controls.className = 'calendar-weather-controls';
-    weatherToggle.textContent = state.weatherEnabled ? '날씨 켬' : '날씨 끔';
-    weatherToggle.setAttribute('aria-pressed', String(state.weatherEnabled));
-    weatherToggle.setAttribute('aria-label', state.weatherEnabled ? '날씨 표시 끄기' : '날씨 표시 켜기');
-    controls.appendChild(weatherToggle);
-
-    if (state.weatherEnabled) {
-      const previousValue = state.manualRegionCode;
-      regionSelect.replaceChildren();
-      const option = document.createElement('option');
-      option.value = '';
-      option.textContent = '지역 직접 선택';
-      regionSelect.appendChild(option);
-      for (const region of state.weatherRegions) {
-        const item = document.createElement('option');
-        item.value = region.code;
-        item.textContent = region.label;
-        regionSelect.appendChild(item);
-      }
-      regionSelect.value = previousValue;
-      controls.appendChild(regionSelect);
-    }
-    return controls;
-  }
-
   function render() {
     updateChrome();
     status.replaceChildren();
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
     } else {
-      status.appendChild(renderWeatherControls());
-      root.dataset.calendarWeatherEnabled = String(state.weatherEnabled);
-      if (state.weatherEnabled) {
-        const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
-          && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
-        root.dataset.locationPermission = state.locationPermission;
-        root.dataset.locationResolution = state.locationResolution;
+      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
+      root.dataset.locationPermission = state.locationPermission;
+      root.dataset.locationResolution = state.locationResolution;
 
-        if (state.manualRegionCode) {
-          const selected = state.weatherRegions.find(region => region.code === state.manualRegionCode);
-          const regionLabel = document.createElement('span');
-          regionLabel.className = 'calendar-location-status';
-          regionLabel.textContent = selected?.label || state.manualRegionCode;
-          status.appendChild(regionLabel);
-        } else if (usingBrowserLocation) {
-          const locationLabel = document.createElement('span');
-          locationLabel.className = 'calendar-location-status';
-          locationLabel.textContent = '현재 위치';
-          status.appendChild(locationLabel);
-        }
+      if (usingBrowserLocation) {
+        const locationLabel = document.createElement('span');
+        locationLabel.className = 'calendar-location-status';
+        locationLabel.textContent = '📍 현재 위치';
+        status.appendChild(locationLabel);
+      }
 
-        const canRequestLocation = state.locationPermission !== LOCATION_PERMISSION.DENIED
-          && state.locationPermission !== LOCATION_PERMISSION.UNAVAILABLE;
-        if (state.locationInFlight || canRequestLocation) {
-          locationButton.disabled = state.locationInFlight;
-          if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
-          else if (usingBrowserLocation) locationButton.textContent = '변경';
-          else if (state.locationResolution === LOCATION_RESOLUTION.TIMEOUT || state.locationResolution === LOCATION_RESOLUTION.ERROR) locationButton.textContent = '다시 시도';
-          else locationButton.textContent = '현재 위치 사용';
-          locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
-          status.appendChild(locationButton);
-        }
+      const canRequestLocation = state.locationPermission !== LOCATION_PERMISSION.DENIED
+        && state.locationPermission !== LOCATION_PERMISSION.UNAVAILABLE;
+      if (state.locationInFlight || canRequestLocation) {
+        locationButton.disabled = state.locationInFlight;
+        if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
+        else if (usingBrowserLocation) locationButton.textContent = '변경';
+        else if (state.locationResolution === LOCATION_RESOLUTION.TIMEOUT || state.locationResolution === LOCATION_RESOLUTION.ERROR) locationButton.textContent = '다시 시도';
+        else locationButton.textContent = '현재 위치 사용';
+        locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
+        status.appendChild(locationButton);
+      }
 
-        if (state.locationMessage) {
-          const locationMessage = document.createElement('span');
-          locationMessage.className = 'calendar-location-status';
-          locationMessage.textContent = state.locationMessage;
-          status.appendChild(locationMessage);
-        }
+      if (state.locationMessage) {
+        const locationMessage = document.createElement('span');
+        locationMessage.className = 'calendar-location-status';
+        locationMessage.textContent = state.locationMessage;
+        status.appendChild(locationMessage);
       }
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
@@ -1297,16 +1355,7 @@ export async function mountLifeCalendarManager({
         state.locationMessage = '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {
-          view: state.mode,
-          date: state.selectedDate,
-          timezone,
-          now: currentNow(),
-          fetchImpl,
-          weatherLocation: currentWeatherLocation,
-          weatherEnabled: state.weatherEnabled,
-          manualRegionCode: state.manualRegionCode,
-        });
+        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation: currentWeatherLocation});
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         if (result.kind === 'attention') state.attention = result.items;
         else {
@@ -1314,11 +1363,12 @@ export async function mountLifeCalendarManager({
           state.unscheduled = result.unscheduled || [];
           if (result.key === 'month') {
             state.attention = result.attention || [];
-            state.weather = state.weatherEnabled ? (result.weather || []) : [];
-            state.weatherProviderReady = state.weatherEnabled && result.weatherProviderReady === true;
+            state.weather = result.weather || [];
           } else {
             state.weather = [];
-            state.weatherProviderReady = false;
+          }
+          if (result.key === 'month' || result.key === 'year') {
+            state.holidays = result.holidays || [];
           }
         }
       } else {
@@ -1328,20 +1378,38 @@ export async function mountLifeCalendarManager({
         state.unscheduled = guestItems.filter(item => !validCivilDate(item.local_date));
         state.attention = [];
         state.weather = [];
-        state.weatherProviderReady = false;
-        if (state.mode === 'month' && state.weatherEnabled && (state.manualRegionCode || currentWeatherLocation)) {
-          const range = monthBounds(state.selectedDate);
-          const weather = await getCalendarWeather('', {
-            start: range.start,
-            end: range.end,
-            timezone,
-            latitude: currentWeatherLocation?.latitude,
-            longitude: currentWeatherLocation?.longitude,
-            manualRegionCode: state.manualRegionCode,
-          }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}));
-          if (!root.isConnected || requestGeneration !== refreshGeneration) return;
-          state.weather = weather.items || [];
-          state.weatherProviderReady = weather.providerReady === true;
+
+        // Guest Calendar is device-local and must remain immediately usable even
+        // when public enrichment is slow or unavailable. Render local data first,
+        // then decorate it with weather/holiday data fail-soft.
+        state.loading = false;
+        render();
+
+        const todayParts = civilDateParts(state.todayDate);
+        const currentMonthVisible = state.mode === 'month'
+          && state.year === todayParts.year
+          && state.month === todayParts.month;
+        const monthRange = currentMonthVisible ? monthBounds(state.selectedDate) : null;
+        const guestWeatherEnd = monthRange
+          ? [monthRange.end, addCivilDays(state.todayDate, 14)].sort()[0]
+          : null;
+        const weatherRequest = currentMonthVisible && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
+          ? getPublicCalendarWeather({
+              start: state.todayDate,
+              end: guestWeatherEnd,
+              timezone,
+              latitude: currentWeatherLocation.latitude,
+              longitude: currentWeatherLocation.longitude,
+            }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
+          : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
+        const holidayRequest = (state.mode === 'month' || state.mode === 'year') && state.showKoreaHolidays
+          ? getKoreaHolidays(state.year, fetchImpl).catch(() => ({items: []}))
+          : Promise.resolve({items: []});
+        const [guestWeather, holidayResult] = await Promise.all([weatherRequest, holidayRequest]);
+        if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+        state.weather = guestWeather.items || [];
+        if (state.mode === 'month' || state.mode === 'year') {
+          state.holidays = holidayResult.items || [];
         }
       }
       state.loading = false; render();
@@ -1405,30 +1473,10 @@ export async function mountLifeCalendarManager({
     });
   };
 
-  weatherToggle.addEventListener('click', async () => {
-    state.weatherEnabled = !state.weatherEnabled;
-    if (!state.weatherEnabled) {
-      state.weather = [];
-      state.weatherProviderReady = false;
-      state.locationMessage = '';
-    }
-    persistWeatherPreference();
-    await refresh();
-  });
-
-  regionSelect.addEventListener('change', async () => {
-    const value = String(regionSelect.value || '').trim().toUpperCase();
-    state.manualRegionCode = /^KR_[A-Z0-9_]{2,24}$/.test(value) ? value : '';
-    if (state.manualRegionCode) {
-      state.locationMessage = '';
-      state.weatherEnabled = true;
-    }
-    persistWeatherPreference();
-    await refresh();
-  });
+  settingsButton.addEventListener('click', () => actions.openSettings());
 
   locationButton.addEventListener('click', async () => {
-    if (!state.weatherEnabled || state.locationInFlight) return;
+    if (state.locationInFlight) return;
     const requestGeneration = ++locationRequestGeneration;
     const previousPermission = await getBrowserLocationPermissionState({
       permissions: locationPermissions,
@@ -1581,7 +1629,7 @@ export async function mountLifeCalendarManager({
   const onResume = () => {
     if (!root.isConnected) { cleanupLifecycle(); return; }
     void refreshTodayIfNeeded();
-    if (state.weatherEnabled) {
+    if (authenticated) {
       void syncLocationPermission().then(() => {
         if (root.isConnected) render();
       });
@@ -1732,20 +1780,8 @@ export async function mountLifeCalendarManager({
     openEditor(targetItem, latestDate);
   };
 
-  if (state.weatherEnabled) {
-    try {
-      const regions = await getCalendarWeatherRegions(fetchImpl);
-      state.weatherRegions = regions.items || [];
-      if (state.manualRegionCode && !state.weatherRegions.some(region => region.code === state.manualRegionCode)) {
-        state.manualRegionCode = '';
-        persistWeatherPreference();
-      }
-    } catch {
-      state.weatherRegions = [];
-    }
-  }
   await openDeepTarget();
-  if (state.weatherEnabled) {
+  if (authenticated) {
     void syncLocationPermission().then(() => {
       if (root.isConnected) render();
     });

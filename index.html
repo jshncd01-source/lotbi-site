@@ -30,9 +30,9 @@
   <link rel="stylesheet" href="home-chat.css" />
   <link rel="stylesheet" href="site-hardening.css?v=20260920-attachments1" />
   <link rel="stylesheet" href="site-avatar.css" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260922-globalnav1" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260922-mobileaccount3" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
-  <link rel="stylesheet" href="site-calendar.css?v=20260922-weatherreal2" />
+  <link rel="stylesheet" href="site-calendar.css?v=20260922-calholidayloc1" />
   <link rel="stylesheet" href="footer-business-info.css" />
   <link rel="stylesheet" href="mobile-entry.css" />
   <link rel="stylesheet" href="home-bare-white.css?v=20260921-sidebarwhite1" />
@@ -53,11 +53,13 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260920-homefirst1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260922-darkcontrast2"></script>
+  <script type="module" src="site-conversation.js?v=20260922-mobileaccount3"></script>
   <script type="module" src="site-continuity.js?v=20260921-guestclaim1"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
-  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>\n\n  <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+
+  <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
     <symbol id="lotbi-icon-message" viewBox="0 0 24 24"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M14.5 8.5 17 11l-4.8 4.8-3 .5.5-3 4.8-4.8Z"/></symbol>
     <symbol id="lotbi-icon-inbox" viewBox="0 0 24 24"><path d="M4.5 6.5h15l1.5 8.5v2.5h-18V15l1.5-8.5Z"/><path d="M3.5 14.5h5l1.5 2h4l1.5-2h5"/></symbol>
     <symbol id="lotbi-icon-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></symbol>
@@ -378,24 +380,7 @@
         </div>
       </section>
 
-      <div class="sidebar-secondary-nav" aria-label="보조 메뉴">
-        <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
-          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-link"></use></svg>
-          <span class="nav-item-label">연결 서비스</span>
-        </a>
-        <button class="nav-item nav-link" type="button" data-global-nav-action="profile">
-          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
-          <span class="nav-item-label">프로필</span>
-        </button>
-        <button class="nav-item nav-link" type="button" data-global-nav-action="settings">
-          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-settings"></use></svg>
-          <span class="nav-item-label">설정</span>
-        </button>
-        <button class="nav-item nav-link" type="button" data-global-nav-action="help">
-          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-help"></use></svg>
-          <span class="nav-item-label">도움말</span>
-        </button>
-      </div>
+      <div class="sidebar-secondary-nav sidebar-secondary-nav-mobile-empty" aria-hidden="true"></div>
 
       <div class="sidebar-account-footer">
         <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">

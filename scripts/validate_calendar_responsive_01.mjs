@@ -11,10 +11,10 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarEntryVersion = '20260922-weatherreal2';
-const calendarManagerVersion = '20260922-weatherreal2';
+const calendarEntryVersion = '20260922-holiday1';
+const calendarManagerVersion = '20260922-holiday1';
 const calendarModelVersion = '20260921-smartcaldraft1';
-const calendarCssVersion = '20260922-weatherreal2';
+const calendarCssVersion = '20260922-calholidayloc1';
 const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
 const callbackEntryVersion = callback.match(/\/auth-callback\.js\?v=([^"]+)/)?.[1] || '';
 const callbackConversationVersion = callbackJs.match(/\.\/site-conversation\.js\?v=([^']+)/)?.[1] || '';
@@ -27,10 +27,10 @@ assert.ok(!callbackJs.includes('./site-calendar-ui.js'), 'auth callback must not
 assert.equal(callbackConversationVersion, homeEntryVersion, 'auth callback must import the current Home conversation runtime');
 assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarManagerVersion}`));
 assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarModelVersion}`));
-for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js', 'site-current-location.js']) {
+for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js', 'site-current-location.js', 'site-calendar-public-weather.js']) {
   assert.ok(workflow.includes(`'${module}'`), `focused workflow missing ${module}`);
 }
-for (const test of ['validate_calendar_month_grid_01.mjs', 'validate_calendar_year_view_01.mjs', 'validate_guest_calendar_local_01.mjs', 'validate_calendar_real_ui_01.mjs', 'validate_calendar_event_editor_01.mjs', 'validate_calendar_responsive_01.mjs', 'validate_calendar_modal_runtime_02.mjs', 'validate_calendar_month_geometry_01.mjs']) {
+for (const test of ['validate_calendar_month_grid_01.mjs', 'validate_calendar_year_view_01.mjs', 'validate_guest_calendar_local_01.mjs', 'validate_calendar_real_ui_01.mjs', 'validate_calendar_guest_weather_client_01.mjs', 'validate_calendar_korea_holidays_01.mjs', 'validate_calendar_event_editor_01.mjs', 'validate_calendar_responsive_01.mjs', 'validate_calendar_modal_runtime_02.mjs', 'validate_calendar_month_geometry_01.mjs']) {
   assert.ok(workflow.includes(test), `focused workflow missing ${test}`);
 }
 
@@ -49,7 +49,8 @@ for (const weeks of [4, 5, 6]) {
   assert.ok(css.includes(`.calendar-month-grid[data-week-count="${weeks}"]`), `missing ${weeks}-week geometry`);
 }
 assert.ok(css.includes('position: fixed;'), 'desktop selected-day detail must overlay instead of consuming a permanent column');
-assert.ok(css.includes('grid-template-columns: 42px minmax(120px, 1fr) 42px auto'), 'mobile toolbar first row contract missing');
+assert.ok(css.includes('grid-template-columns: 42px minmax(80px, 1fr) 42px 52px 42px'), 'mobile toolbar first row contract missing');
+assert.ok(css.includes('grid-template-columns: 38px minmax(0, 1fr) 38px 44px 38px'), 'narrow mobile toolbar must fit without horizontal scrolling');
 assert.ok(css.includes('grid-template-columns: repeat(4, minmax(0, 1fr))'), 'mobile view controls must be discoverable without horizontal scrolling');
 assert.ok(css.includes('.calendar-event-stack { display: none; }'), 'touch Month should prefer overview plus selected-day list');
 assert.ok(css.includes('.calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'mobile Year must use readable two-column summaries');

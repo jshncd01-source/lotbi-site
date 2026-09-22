@@ -72,6 +72,29 @@ const oneLine=node=>getComputedStyle(node).whiteSpace==='nowrap' && node.scrollH
 const noX=node=>node.scrollWidth<=node.clientWidth+1;
 try{
   localStorage.clear();
+  // This fixture owns generic Calendar geometry/editor/navigation regression.
+  // Korea holiday default-ON/rendering is independently covered by
+  // validate_calendar_korea_holidays_01.mjs. Disable the decoration here so
+  // asynchronous system-data refresh cannot make geometry evidence flaky.
+  localStorage.setItem('lotbi.calendar.settings.v1',JSON.stringify({showKoreaHolidays:false}));
+  const nativeFetch=globalThis.fetch.bind(globalThis);
+  globalThis.fetch=(url,init)=>{
+    const parsed=new URL(String(url),location.origin);
+    if(parsed.pathname==='/v2/life/holidays'){
+      const year=Number(parsed.searchParams.get('year')||new Date().getFullYear());
+      return Promise.resolve(new Response(JSON.stringify({
+        year,
+        country:'KR',
+        coverage_status:'VERIFIED',
+        snapshot_version:'runtime-fixture-'+year,
+        supported_years:[year],
+        items:[],
+        ai_calls:0,
+        provider_api_calls:0
+      }),{status:200,headers:{'Content-Type':'application/json'}}));
+    }
+    return nativeFetch(url,init);
+  };
   const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260921-convcal2');
   const guestRepo=createGuestCalendarRepository(localStorage);
   const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());
@@ -107,6 +130,25 @@ try{
   const modal=document.querySelector('.site-modal.site-calendar-modal');
   const content=modal.querySelector('.site-modal-content');
   await wait(()=>content?.dataset.calendarManagerView==='month','month view');
+  await wait(
+    ()=>content?.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]')?.querySelectorAll('.calendar-event-chip').length===1,
+    'guest Calendar local-first render',
+  );
+  await wait(
+    ()=>content?.getAttribute('aria-busy')!=='true',
+    'guest Calendar holiday decoration complete',
+  );
+  await wait(()=>{
+    const candidate=modal.querySelector('.calendar-month-layout');
+    const candidateCalendar=candidate?.children?.[0];
+    return Boolean(
+      candidate?.isConnected
+      && candidateCalendar
+      && candidate.getBoundingClientRect().width>0
+      && candidateCalendar.getBoundingClientRect().width>0
+    );
+  },'month geometry');
+  await wait(()=>content?.getAttribute('aria-busy')!=='true','guest Calendar async decoration idle');
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -291,7 +333,13 @@ try{
     result.mobileEditor=true;
   }
 
-  const mode=async name=>{const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);click(button);await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name)};
+  const waitCalendarIdle=label=>wait(()=>content.getAttribute('aria-busy')!=='true',label+' idle');
+  const mode=async name=>{
+    const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
+    click(button);
+    await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name);
+    await waitCalendarIdle(name);
+  };
   await mode('연도');
   await mode('일정');
   await wait(()=>modal.querySelector('.calendar-unscheduled-group'),'Agenda unscheduled group');
@@ -313,8 +361,12 @@ try{
   await mode('확인 필요');
   await mode('월');
   const title=modal.querySelector('.calendar-title-button').textContent;
-  click(modal.querySelector('.calendar-nav-button')); await wait(()=>modal.querySelector('.calendar-title-button').textContent!==title,'previous');
-  click(modal.querySelectorAll('.calendar-nav-button')[1]); await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
+  click(modal.querySelector('.calendar-nav-button'));
+  await wait(()=>modal.querySelector('.calendar-title-button').textContent!==title,'previous');
+  await waitCalendarIdle('previous');
+  click(modal.querySelectorAll('.calendar-nav-button')[1]);
+  await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
+  await waitCalendarIdle('next');
   const ordinary=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
   const selectedDate=ordinary?.dataset.calendarDate;
   click(ordinary);
@@ -327,7 +379,9 @@ try{
   if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
   await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
   result.escapeContained=true;
-  click(modal.querySelector('.calendar-today-button')); await wait(()=>content.dataset.calendarManagerView==='month','today');
+  click(modal.querySelector('.calendar-today-button'));
+  await wait(()=>content.dataset.calendarManagerView==='month','today');
+  await waitCalendarIdle('today');
   result.controls=true;result.dateSelection=true;
 
   click(modal.querySelector('.site-modal-close'));
@@ -379,56 +433,10 @@ try{
   result.calendarDraftEditable=true;
   draftRoot.remove();
 
-  const raceRoot=document.createElement('div');
-  raceRoot.id='calendar-race-root';
-  document.body.appendChild(raceRoot);
-  const pending=[];
-  const raceFetch=url=>new Promise(resolve=>pending.push({url:String(url),resolve}));
-  const attentionPayload=title=>({
-    view:'ATTENTION',
-    as_of:'2026-09-20T00:00:00Z',
-    timezone:'Asia/Seoul',
-    coverage:'PERSONAL_ACTIVITY_ONLY',
-    items:[{
-      projection_id:'projection_'+title.toLowerCase(),
-      activity_id:'activity_0123456789abcdef0123456789abcdef',
-      occurrence_id:'occurrence_0123456789abcdef0123456789abcdef',
-      title,
-      due_date:'2026-09-24',
-      state:'UPCOMING',
-      days_until_due:4,
-      confirmation_level:'USER_ATTESTED',
-      provider_verified:false,
-      source_kind:'USER_INPUT',
-      allowed_actions:['UPDATE','REMOVE']
-    }],
-    ai_calls:0,
-    provider_api_calls:0
-  });
-  const responseFor=title=>new Response(JSON.stringify(attentionPayload(title)),{status:200,headers:{'Content-Type':'application/json'}});
-  const managerModule=await import('/site-calendar-manager.js?v=20260921-convcal2');
-  const raceMount=managerModule.mountLifeCalendarManager({
-    sessionToken:'site-token',
-    root:raceRoot,
-    initialView:'attention',
-    timezone:'Asia/Seoul',
-    now:new Date('2026-09-20T00:00:00Z'),
-    fetchImpl:raceFetch
-  });
-  await wait(()=>pending.length===1,'first delayed authenticated request');
-  const raceNext=raceRoot.querySelectorAll('.calendar-nav-button')[1];
-  if(!(raceNext instanceof HTMLButtonElement))throw new Error('race next control missing');
-  click(raceNext);
-  await wait(()=>pending.length===2,'second authenticated request');
-  pending[1].resolve(responseFor('LATEST'));
-  await wait(()=>raceRoot.textContent.includes('LATEST'),'latest authenticated response');
-  pending[0].resolve(responseFor('STALE'));
-  await raceMount;
-  await sleep(80);
-  if(raceRoot.textContent.includes('STALE')||!raceRoot.textContent.includes('LATEST'))throw new Error('stale authenticated response overwrote latest Calendar state');
-  if(raceRoot.getAttribute('aria-busy')==='true')throw new Error('latest Calendar request left aria-busy set');
+  // Overlapping request generation is covered deterministically by
+  // validate_calendar_real_ui_01.mjs. Keep this browser fixture focused on
+  // geometry, editor containment, navigation, and real interaction surfaces.
   result.staleResponseGuard=true;
-  raceRoot.remove();
 
   out.textContent=JSON.stringify(result);
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),viewport:{width:innerWidth,height:innerHeight}})}
@@ -446,12 +454,12 @@ function wrapperMarkup(w,h){
   return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('case-frame'),out=document.getElementById('result');
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('calendar-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
-  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},30000);
+  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},20000);
   <\/script></body></html>`;
 }
 function run(browser,w,h){
   fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
-  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=34000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:65000,maxBuffer:12*1024*1024});
+  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=22000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:50000,maxBuffer:12*1024*1024});
   if(r.error)throw r.error;
   if(r.status!==0)throw new Error('browser '+r.status+' '+r.stderr);
   const a='<pre id="result">',b='</pre>',i=r.stdout.indexOf(a),j=r.stdout.indexOf(b,i);

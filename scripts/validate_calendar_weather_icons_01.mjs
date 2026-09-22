@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const {getCalendarWeather, getCalendarWeatherRegions} = await import('../site-calendar.js?v=20260922-weatherreal2');
-const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-weatherreal2');
-const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260922-weatherreal1');
-const {readCalendarWeatherPreference, writeCalendarWeatherPreference} = await import('../site-calendar-weather-preference.js?v=20260922-weatherreal1');
+const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-holiday1');
+const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-holiday1');
+const {normalizeCalendarWeatherResponse, calendarWeatherByDate} = await import('../site-calendar-weather.js?v=20260922-weather1');
 const {
   BrowserLocationError,
   BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
@@ -121,10 +120,10 @@ await assert.rejects(
 const fixture = {
   provider_ready: true,
   items: [
-    {date: '2026-09-22', weather_icon: '☀️', weather_kind: 'CLEAR', source: 'KMA_SHORT', issued_at: '2026-09-22T00:00:00Z', temperature_c: 26, min_temperature_c: 16, max_temperature_c: 28, precipitation_probability: 10, freshness: 'CACHE_VALID'},
-    {date: '2026-09-23', weather_icon: '🌧️', weather_kind: 'RAIN', source: 'KMA_SHORT', issued_at: '2026-09-22T00:00:00Z', temperature_c: 22, min_temperature_c: 18, max_temperature_c: 24, precipitation_probability: 80, freshness: 'CACHE_VALID'},
-    {date: '2026-09-24', weather_icon: '☁️', weather_kind: 'CLOUDY', source: 'KMA_MID', issued_at: '2026-09-22T09:00:00Z', temperature_c: null, min_temperature_c: null, max_temperature_c: null, precipitation_probability: 30, freshness: 'CACHE_VALID'},
-    {date: '2026-09-25', weather_icon: '❄️', weather_kind: 'SNOW', source: 'KMA_MID', issued_at: '2026-09-22T09:00:00Z', temperature_c: null, min_temperature_c: null, max_temperature_c: null, precipitation_probability: 70, freshness: 'CACHE_VALID'},
+    {date: '2026-09-22', weather_icon: '☀️', weather_kind: 'CLEAR', source: 'KMA_SHORT', issued_at: '2026-09-22T00:00:00Z'},
+    {date: '2026-09-23', weather_icon: '🌧️', weather_kind: 'RAIN', source: 'KMA_SHORT', issued_at: '2026-09-22T00:00:00Z'},
+    {date: '2026-09-24', weather_icon: '☁️', weather_kind: 'CLOUDY', source: 'KMA_MID', issued_at: '2026-09-22T09:00:00Z'},
+    {date: '2026-09-25', weather_icon: '❄️', weather_kind: 'SNOW', source: 'KMA_MID', issued_at: '2026-09-22T09:00:00Z'},
   ],
   ai_calls: 0,
 };
@@ -134,87 +133,10 @@ const fixture = {
   assert.equal(normalized.items.length, 4);
   assert.deepEqual(normalized.items.map(item => item.weatherIcon), ['☀️', '🌧️', '☁️', '❄️']);
   assert.equal(calendarWeatherByDate(normalized.items).get('2026-09-23')?.label, '비');
-  assert.equal(normalized.items[0].temperature, 26);
-  assert.equal(normalized.items[0].minTemperature, 16);
-  assert.equal(normalized.items[0].maxTemperature, 28);
-  assert.equal(normalized.items[0].precipitationProbability, 10);
-  assert.equal(normalized.items[0].freshness, 'CACHE_VALID');
-  assert.equal(weatherTemperatureLabel(normalized.items[0]), '26°');
   assert.throws(() => normalizeCalendarWeatherResponse({
     ...fixture,
     items: [{...fixture.items[0], weather_icon: '25℃'}],
   }), /invalid Calendar weather item/);
-}
-
-{
-  let request;
-  const regions = await getCalendarWeatherRegions(async (url, init) => {
-    request = {url, init};
-    return jsonResponse({items: [{code: 'KR_JEONJU', label: '전주시'}], ai_calls: 0});
-  });
-  assert.equal(new URL(request.url).pathname, '/v2/life/weather/regions');
-  assert.equal(request.init.credentials, 'omit');
-  assert.deepEqual(regions.items, [{code: 'KR_JEONJU', label: '전주시'}]);
-}
-
-{
-  let request;
-  const result = await getCalendarWeather(
-    '',
-    {
-      start: '2026-09-22',
-      end: '2026-09-22',
-      timezone: 'Asia/Seoul',
-      manualRegionCode: 'KR_JEONJU',
-    },
-    async (url, init) => {
-      request = {url, init};
-      return jsonResponse(fixture);
-    },
-  );
-  const parsed = new URL(request.url);
-  assert.equal(parsed.pathname, '/v2/life/weather/public');
-  assert.equal(parsed.searchParams.get('manual_region_code'), 'KR_JEONJU');
-  assert.equal(request.init.headers.Authorization, undefined);
-  assert.equal(result.items[0].temperature, 26);
-}
-
-{
-  const calls = [];
-  await loadLifeCalendarManagerView('site-token', {
-    view: 'month',
-    date: '2026-09-22',
-    timezone: 'Asia/Seoul',
-    now: new Date('2026-09-22T00:00:00Z'),
-    weatherEnabled: false,
-    fetchImpl: async url => {
-      calls.push(url);
-      const parsed = new URL(url);
-      if (parsed.pathname === '/v2/life/attention') return jsonResponse({
-        view: 'ATTENTION', as_of: '2026-09-22T00:00:00Z', timezone: 'Asia/Seoul',
-        coverage: 'PERSONAL_ACTIVITY_ONLY', items: [], ai_calls: 0, provider_api_calls: 0,
-      });
-      if (parsed.pathname === '/v2/life/agenda') return jsonResponse({
-        view: 'AGENDA', as_of: '2026-09-22T00:00:00Z', timezone: 'Asia/Seoul',
-        coverage: 'PERSONAL_ACTIVITY_ONLY', items: [], ai_calls: 0, provider_api_calls: 0,
-      });
-      throw new Error(`unexpected Weather OFF request ${parsed.pathname}`);
-    },
-  });
-  assert.equal(calls.length, 2);
-  assert.ok(calls.every(url => new URL(url).pathname !== '/v2/life/weather'));
-}
-
-{
-  const memory = new Map();
-  const storage = {
-    getItem(key) { return memory.get(key) ?? null; },
-    setItem(key, value) { memory.set(key, String(value)); },
-  };
-  assert.deepEqual(readCalendarWeatherPreference(storage), {enabled: true, manualRegionCode: ''});
-  writeCalendarWeatherPreference({enabled: false, manualRegionCode: 'KR_JEONJU'}, storage);
-  assert.deepEqual(readCalendarWeatherPreference(storage), {enabled: false, manualRegionCode: 'KR_JEONJU'});
-  assert.ok(!String(memory.values().next().value).match(/latitude|longitude|accuracy|token/i));
 }
 
 {
@@ -295,7 +217,7 @@ const fixture = {
       throw new Error(`unexpected request ${parsed.pathname}`);
     },
   });
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.ok(calls.some(call => new URL(call.url).pathname === '/v2/life/weather'));
   assert.deepEqual(result.weather.map(item => item.weatherIcon), ['☀️', '🌧️', '☁️', '❄️']);
   assert.equal(result.weatherProviderReady, true);
@@ -332,9 +254,9 @@ assert.equal(
   buildCalendarAriaLabel(
     {date: '2026-09-22', weekday: 2},
     1,
-    {weather: {label: '맑음', temperature: 26}},
+    {weather: {label: '맑음'}},
   ),
-  '2026년 9월 22일 화요일, 일정 1개, 날씨 맑음, 26도',
+  '2026년 9월 22일 화요일, 일정 1개, 날씨 맑음',
 );
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -342,22 +264,16 @@ const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'ut
 const locationSource = fs.readFileSync(path.join(ROOT, 'site-current-location.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
 for (const token of [
-  "weatherCompact.className = 'calendar-weather-compact'",
-  "symbol.className = 'calendar-weather-symbol'",
-  "temperature.className = 'calendar-weather-temperature'",
-  'weatherTemperatureLabel(weather)',
-  'state.weatherEnabled',
-  'state.manualRegionCode',
-  "weatherToggle.addEventListener('click'",
-  "regionSelect.addEventListener('change'",
-]) assert.ok(manager.includes(token), `missing weather UI contract: ${token}`);
-assert.ok(css.includes('.calendar-weather-compact'), 'compact weather CSS missing');
-assert.ok(css.includes('.calendar-weather-controls'), 'weather control CSS missing');
-assert.ok(css.includes('body[data-site-theme="dark"] .calendar-weather-compact'), 'dark weather contrast CSS missing');
-assert.ok(!manager.includes('weatherIcon.textContent = weather.weatherIcon'), 'OS color emoji must not be the rendered Calendar weather symbol');
+  "weatherIcon.className = 'calendar-weather-icon'",
+  'weatherIcon.textContent = weather.weatherIcon',
+  "weatherIcon.setAttribute('aria-hidden', 'true')",
+  'state.weather = result.weather || []',
+]) assert.ok(manager.includes(token), `missing weather icon UI contract: ${token}`);
+assert.ok(css.includes('.calendar-weather-icon'), 'weather icon CSS missing');
+assert.ok(!manager.includes('temperature'), 'Calendar manager must not render temperature');
 assert.ok(manager.includes("locationButton.addEventListener('click'"), 'current location must be a user action');
 assert.ok(manager.includes('requestBrowserCurrentLocation({'), 'Calendar must request location only from the explicit button path');
-assert.ok(manager.includes('weatherLocation: state.manualRegionCode ? null : currentWeatherLocation'), 'manual region must outrank browser current-location fallback');
+assert.ok(manager.includes('weatherLocation: currentWeatherLocation'), 'fresh browser location must feed only the Core weather fallback');
 assert.ok(manager.includes("currentWeatherLocation?.source === 'BROWSER_CURRENT'"), 'browser provenance must be explicit');
 assert.ok(manager.includes('isFreshBrowserCurrentLocation'), 'stale current location must be rejected before reuse');
 assert.ok(locationSource.includes('maximumAge: usableMaxAgeMs'), 'browser current location may reuse only the bounded recent fix');
@@ -375,9 +291,6 @@ assert.ok(manager.includes("state.locationPermission = LOCATION_PERMISSION.DENIE
 assert.ok(manager.includes("locationButton.textContent = '변경'"), 'resolved current location must remove the current-location CTA label');
 assert.ok(manager.includes("locationButton.textContent = '다시 시도'"), 'location failure must expose an explicit retry action');
 assert.ok(locationSource.includes('getBrowserLocationPermissionState'), 'browser permission state must be queried when supported');
-assert.ok(manager.includes("getCalendarWeather('', {"), 'Guest Calendar must use public Core weather when location/manual region is available');
-assert.ok(manager.includes("if (!state.weatherEnabled || state.manualRegionCode || state.locationInFlight) return;"), 'Weather OFF/manual region must block unnecessary current-location requests');
-assert.ok(manager.includes("regionSelect.setAttribute('aria-label', '날씨 지역 직접 선택')"), 'manual region selector must be accessible');
 
 
 console.log('LOTBI Calendar KMA weather icon + browser location contract: PASS');
