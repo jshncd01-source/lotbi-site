@@ -1,15 +1,17 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-holidaylive2';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-expense1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
   calendarMonthGrid,
   calendarYearOverview,
   civilDateParts,
+  formatCivilDate,
   groupCalendarEvents,
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
+import {calendarExpenseSummaryNode} from './site-calendar-expense.js?v=20260922-expense1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
 import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260922-region1';
@@ -17,6 +19,16 @@ import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, write
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
+
+// The expense summary covers the calendar month itself, not the 42-cell grid:
+// the grid spills into the neighbouring months and those amounts do not belong
+// in this month's total.
+function civilMonthRange(year, month) {
+  const start = formatCivilDate(year, month, 1);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  return {start, end: addCivilDays(formatCivilDate(nextYear, nextMonth, 1), -1)};
+}
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
@@ -1426,6 +1438,12 @@ export async function mountLifeCalendarManager({
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
     locationMessage: '',
+    expense: {
+      status: authenticated ? 'loading' : 'guest',
+      summary: null,
+      message: '',
+      monthKey: '',
+    },
   };
 
   const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
@@ -1677,7 +1695,53 @@ export async function mountLifeCalendarManager({
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else if (state.mode === 'attention') viewport.replaceChildren(renderAttention(state));
-    else viewport.replaceChildren(renderMonth(state, actions));
+    else {
+      // The strip is a sibling of the month layout, never a child of it: the
+      // month layout's first two children are a runtime contract.
+      const monthKey = `${state.year}-${state.month}`;
+      // Totals belonging to another month are never shown under this month's
+      // heading: until the strip catches up it reads as loading.
+      const settled = state.expense.status === 'guest' || state.expense.monthKey === monthKey;
+      viewport.replaceChildren(
+        renderMonth(state, actions),
+        calendarExpenseSummaryNode({
+          state: settled ? state.expense.status : 'loading',
+          summary: settled ? state.expense.summary : null,
+          monthLabel: `${state.year}년 ${state.month}월`,
+          errorMessage: settled ? state.expense.message : '',
+        }),
+      );
+    }
+  }
+
+  let expenseGeneration = 0;
+
+  async function refreshExpenseSummary() {
+    if (!authenticated) {
+      state.expense = {status: 'guest', summary: null, message: '', monthKey: ''};
+      return;
+    }
+    const generation = ++expenseGeneration;
+    const monthKey = `${state.year}-${state.month}`;
+    const {start, end} = civilMonthRange(state.year, state.month);
+    state.expense = {...state.expense, status: 'loading', message: '', monthKey: ''};
+    render();
+    try {
+      const summary = await getLifeExpenseSummary(sessionToken, {timezone, start, end}, fetchImpl);
+      if (!root.isConnected || generation !== expenseGeneration) return;
+      state.expense = {status: 'ready', summary, message: '', monthKey};
+    } catch (error) {
+      if (!root.isConnected || generation !== expenseGeneration) return;
+      state.expense = {
+        status: 'error',
+        summary: null,
+        monthKey,
+        message: error instanceof SiteCoreError && (error.status === 401 || error.status === 403)
+          ? '지출 합계를 보려면 LOTBI에 다시 로그인해 주세요.'
+          : '지출 합계를 불러오지 못했습니다.',
+      };
+    }
+    render();
   }
 
   async function refresh() {
@@ -1752,6 +1816,7 @@ export async function mountLifeCalendarManager({
         }
       }
       state.loading = false; render();
+      if (state.mode === 'month') void refreshExpenseSummary();
     } catch (error) {
       if (!root.isConnected || requestGeneration !== refreshGeneration) return;
       state.loading = false; render();
