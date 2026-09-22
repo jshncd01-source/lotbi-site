@@ -1119,11 +1119,23 @@ export async function mountLifeCalendarManager({
     if (!root.isConnected) return;
     state.locationPermission = permission;
     if (permission === LOCATION_PERMISSION.DENIED) {
+      currentWeatherLocation = null;
+      clearBrowserLocationProvenance();
       state.locationResolution = LOCATION_RESOLUTION.IDLE;
       state.locationMessage = '위치 권한이 꺼져 있어요.';
     } else if (permission === LOCATION_PERMISSION.UNAVAILABLE) {
+      currentWeatherLocation = null;
+      clearBrowserLocationProvenance();
       state.locationResolution = LOCATION_RESOLUTION.ERROR;
       state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+    } else if (
+      state.locationMessage === '위치 권한이 꺼져 있어요.'
+      || state.locationMessage === '이 브라우저에서는 현재 위치를 사용할 수 없어요.'
+    ) {
+      state.locationMessage = '';
+      if (state.locationResolution === LOCATION_RESOLUTION.ERROR) {
+        state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      }
     }
   }
 
@@ -1332,10 +1344,18 @@ export async function mountLifeCalendarManager({
         state.locationPermission = LOCATION_PERMISSION.DENIED;
         state.locationResolution = LOCATION_RESOLUTION.IDLE;
       } else if (error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_TIMEOUT') {
-        // A timeout is a resolution failure, never a permission denial.
-        state.locationPermission = previousPermission === LOCATION_PERMISSION.GRANTED
+        // A browser may grant the prompt and still fail to resolve coordinates.
+        // Re-read permission after the request so PROMPT_REQUIRED + timeout becomes
+        // GRANTED + TIMEOUT when the browser can report the new permission state.
+        const afterPermission = await getBrowserLocationPermissionState({
+          permissions: locationPermissions,
+          geolocation: locationProvider,
+        });
+        if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
+        state.locationPermission = afterPermission === LOCATION_PERMISSION.GRANTED
+          || previousPermission === LOCATION_PERMISSION.GRANTED
           ? LOCATION_PERMISSION.GRANTED
-          : state.locationPermission;
+          : afterPermission;
         state.locationResolution = LOCATION_RESOLUTION.TIMEOUT;
       } else {
         state.locationResolution = LOCATION_RESOLUTION.ERROR;
@@ -1428,6 +1448,11 @@ export async function mountLifeCalendarManager({
   const onResume = () => {
     if (!root.isConnected) { cleanupLifecycle(); return; }
     void refreshTodayIfNeeded();
+    if (authenticated) {
+      void syncLocationPermission().then(() => {
+        if (root.isConnected) render();
+      });
+    }
   };
   const onVisibilityChange = () => {
     if (document.visibilityState === 'visible') onResume();
