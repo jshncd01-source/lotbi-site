@@ -73,7 +73,7 @@ def main() -> int:
         "approved conversation module": 'src="site-conversation.js?v=',
         "approved continuity module": 'src="site-continuity.js?v=',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260922-globalnav1"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260922-mobileaccount2"',
         "neutral initial auth state": 'data-auth-state="checking"',
         "neutral auth placeholder": 'account-auth-placeholder',
         "desktop sidebar": "chat-sidebar-desktop",
