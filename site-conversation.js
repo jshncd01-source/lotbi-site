@@ -192,6 +192,7 @@ function isSessionError(error) {
 function userFacingErrorMessage(error) {
   if (isGuestSessionError(error)) return '익명 대화 세션이 만료되었습니다. 다시 시도하면 새 세션으로 이어집니다.';
   if (isSessionError(error)) return 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.';
+  if (error instanceof SiteCoreError && error.code === 'FREE_LIMIT_REACHED') return '이번 달 무료 AI 사용 횟수를 모두 사용했어요. 다음 무료 사용 횟수는 다음 달에 다시 제공됩니다.';
   if (error instanceof SiteCoreError && error.code === 'GUEST_RATE_LIMITED') return '익명 대화 요청이 잠시 많습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof SiteCoreError && error.code === 'GUEST_AI_REQUEST_IN_PROGRESS') return '같은 질문을 처리하고 있습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof SiteCoreError && (error.code === 'GUEST_AI_OUTCOME_UNCERTAIN' || error.code === 'GUEST_AI_RECONCILIATION_REQUIRED')) return '이 요청은 중복 실행을 막기 위해 자동으로 다시 보내지 않습니다. 새 메시지로 다시 질문해 주세요.';
@@ -213,8 +214,6 @@ function appendSafeErrorEvidence(wrapper, error) {
   if (error.status) wrapper.dataset.httpStatus = String(error.status);
   if (error.correlationId) wrapper.dataset.correlationId = error.correlationId;
   const evidence = [];
-  if (error.code) evidence.push(`오류 코드 ${error.code}`);
-  if (error.status) evidence.push(`HTTP ${error.status}`);
   if (error.correlationId) evidence.push(`확인 ID ${error.correlationId}`);
   if (!evidence.length) return;
   const meta = document.createElement('span');
@@ -2689,7 +2688,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
-      if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
         const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
         if (calendarItems.length) {

@@ -210,9 +210,9 @@ assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish 
 
 
 assert.ok(index.includes('href="site-calendar.css?v=20260922-deleteconfirm1"'));
-assert.ok(index.includes('data-life-calendar-panel'));
-assert.ok(index.includes('data-calendar-enabled="true"'));
-assert.ok(index.includes('aria-label="오늘과 예정" hidden'));
+assert.ok(!index.includes('data-life-calendar-panel'), 'Chat Home must not auto-mount a Calendar summary panel');
+assert.ok(!index.includes('data-calendar-enabled="true"'), 'Chat Home must not opt into the legacy Calendar summary');
+assert.ok(!index.includes('aria-label="오늘과 예정" hidden'), 'Chat Home must not carry the Today/Upcoming summary surface');
 assert.equal((index.match(/data-calendar-view="/g) || []).length, 2, 'Desktop + Mobile must each expose only the Calendar root action');
 assert.ok(index.includes('>캘린더</button>'), 'missing Korean Calendar root navigation label');
 assert.equal((index.match(/data-calendar-view="today"/g) || []).length, 0, 'Sidebar must not duplicate the Calendar Today quick view');
@@ -225,8 +225,7 @@ for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
 }
 assert.ok(callback.includes('href="/site-calendar.css?v=20260922-deleteconfirm1"'));
 const callbackJs = read('auth-callback.js');
-assert.ok(callbackJs.includes("import {mountLifeCalendarIfEnabled} from './site-calendar-ui.js?v=20260922-locationperm2';"));
-assert.ok(callbackJs.includes('await mountLifeCalendarIfEnabled({sessionToken: session.sessionToken});'));
+assert.ok(!callbackJs.includes('mountLifeCalendarIfEnabled'), 'Auth callback must not auto-mount Calendar summary into Chat Home');
 
 for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
   assert.ok(!ui.includes(forbidden), `calendar UI must not persist bearer state via ${forbidden}`);
