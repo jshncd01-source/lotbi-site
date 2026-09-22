@@ -84,7 +84,7 @@ def main() -> int:
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "새 대화",
         "calendar menu": "캘린더",
-        "calendar stylesheet": 'href="site-calendar.css?v=20260922-deleteconfirm1"',
+        "calendar stylesheet": 'href="site-calendar.css?v=20260922-calholidayloc1"',
         "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
         "connected services URL": CONNECTED_SERVICES_URL,

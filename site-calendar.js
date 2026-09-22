@@ -140,7 +140,7 @@ function announceInvalidSiteSession(error) {
 
 async function publicCalendarRequest(
   path,
-  {method = 'GET', body} = {},
+  {method = 'GET', body, cache = 'no-store'} = {},
   fetchImpl = globalThis.fetch,
 ) {
   assertFetch(fetchImpl);
@@ -152,7 +152,7 @@ async function publicCalendarRequest(
       method,
       mode: 'cors',
       credentials: 'omit',
-      cache: 'no-store',
+      cache,
       referrerPolicy: 'no-referrer',
       headers,
       ...(body === undefined ? {} : {body: JSON.stringify(body)}),
@@ -426,6 +426,81 @@ export async function previewLifeCalendarCommand({logicalRequestId: requestId, t
     },
   }, fetchImpl);
   return assertCommandPreviewResponse(payload);
+}
+
+function normalizeKoreaHolidayResponse(payload) {
+  if (
+    !payload
+    || !Number.isInteger(payload.year)
+    || payload.country !== 'KR'
+    || !['VERIFIED', 'UNAVAILABLE'].includes(payload.coverage_status)
+    || !Array.isArray(payload.supported_years)
+    || !Array.isArray(payload.items)
+    || payload.ai_calls !== 0
+    || payload.provider_api_calls !== 0
+    || payload.items.some(item => (
+      !item
+      || typeof item !== 'object'
+      || !DATE_PATTERN.test(item.date)
+      || typeof item.name !== 'string'
+      || !item.name.trim()
+      || item.country !== 'KR'
+      || typeof item.holiday_type !== 'string'
+      || typeof item.is_substitute !== 'boolean'
+      || typeof item.source !== 'string'
+      || !DATE_PATTERN.test(item.source_date)
+      || typeof item.verified_at !== 'string'
+      || !Number.isFinite(Date.parse(item.verified_at))
+    ))
+  ) {
+    throw new SiteCoreError('대한민국 공휴일 응답 형식이 올바르지 않습니다.', {
+      code: 'CALENDAR_HOLIDAY_CONTRACT_INVALID',
+    });
+  }
+  if (payload.coverage_status === 'VERIFIED' && typeof payload.snapshot_version !== 'string') {
+    throw new SiteCoreError('대한민국 공휴일 버전 정보가 올바르지 않습니다.', {
+      code: 'CALENDAR_HOLIDAY_CONTRACT_INVALID',
+    });
+  }
+  if (payload.coverage_status === 'UNAVAILABLE' && payload.items.length) {
+    throw new SiteCoreError('검증되지 않은 공휴일 데이터가 포함되어 있습니다.', {
+      code: 'CALENDAR_HOLIDAY_CONTRACT_INVALID',
+    });
+  }
+  return Object.freeze({
+    year: payload.year,
+    country: payload.country,
+    coverageStatus: payload.coverage_status,
+    snapshotVersion: payload.snapshot_version || null,
+    supportedYears: Object.freeze([...payload.supported_years]),
+    items: Object.freeze(payload.items.map(item => Object.freeze({
+      date: item.date,
+      name: item.name.trim(),
+      country: item.country,
+      holidayType: item.holiday_type,
+      isSubstitute: item.is_substitute,
+      source: item.source,
+      sourceDate: item.source_date,
+      verifiedAt: item.verified_at,
+    }))),
+    aiCalls: 0,
+    providerApiCalls: 0,
+  });
+}
+
+export async function getKoreaHolidays(year, fetchImpl = globalThis.fetch) {
+  if (!Number.isInteger(year) || year < 2004 || year > 2100) {
+    throw new SiteCoreError('공휴일 조회 연도가 올바르지 않습니다.', {
+      code: 'CALENDAR_HOLIDAY_YEAR_INVALID',
+      status: 422,
+    });
+  }
+  const payload = await publicCalendarRequest(
+    `/v2/life/holidays?year=${year}&country=KR`,
+    {cache: 'default'},
+    fetchImpl,
+  );
+  return normalizeKoreaHolidayResponse(payload);
 }
 
 export async function getCalendarWeather(

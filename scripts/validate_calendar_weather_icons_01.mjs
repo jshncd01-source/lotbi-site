@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-weather1');
-const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-weather1');
+const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-holiday1');
+const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-holiday1');
 const {normalizeCalendarWeatherResponse, calendarWeatherByDate} = await import('../site-calendar-weather.js?v=20260922-weather1');
 const {
   BrowserLocationError,
@@ -217,7 +217,7 @@ const fixture = {
       throw new Error(`unexpected request ${parsed.pathname}`);
     },
   });
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.ok(calls.some(call => new URL(call.url).pathname === '/v2/life/weather'));
   assert.deepEqual(result.weather.map(item => item.weatherIcon), ['☀️', '🌧️', '☁️', '❄️']);
   assert.equal(result.weatherProviderReady, true);
