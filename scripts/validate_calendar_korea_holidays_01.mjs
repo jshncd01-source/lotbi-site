@@ -29,7 +29,7 @@ assert.match(css, /\.calendar-settings-dialog/);
 assert.match(css, /\.calendar-date-cell\[data-holiday="true"\]/);
 assert.match(css, /@media \(max-width: 520px\)/);
 
-assert.match(ui, /site-calendar-manager\.js\?v=20260922-holidaylive1/);
-assert.match(index, /site-calendar\.css\?v=20260922-calholidayloc1/);
+assert.match(ui, /site-calendar-manager\.js\?v=20260922-region2/);
+assert.match(index, /site-calendar\.css\?v=20260922-region2/);
 
 console.log('Calendar Korea holiday UI contract: PASS');
