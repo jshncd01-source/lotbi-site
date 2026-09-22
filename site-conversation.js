@@ -9,7 +9,6 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260922-daysheet1';
-import {mountPetFamilyManager} from './site-pet-ui.js?v=20260922-petweb1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
@@ -2023,6 +2022,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
     });
     try {
+      // Loaded on demand: the PET FAMILY surface pulls in its Core client and
+      // ten slot schematics, which no visit needs until this panel is opened.
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260922-petweb1');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
