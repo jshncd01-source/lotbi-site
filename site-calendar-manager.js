@@ -1377,6 +1377,13 @@ export async function mountLifeCalendarManager({
         state.unscheduled = guestItems.filter(item => !validCivilDate(item.local_date));
         state.attention = [];
         state.weather = [];
+
+        // Guest Calendar is device-local and must remain immediately usable even
+        // when the public holiday read is slow or unavailable. Render local data
+        // first, then decorate it with holiday data fail-soft.
+        state.loading = false;
+        render();
+
         if ((state.mode === 'month' || state.mode === 'year') && state.showKoreaHolidays) {
           const holidayResult = await getKoreaHolidays(state.year, fetchImpl).catch(() => ({items: []}));
           if (!root.isConnected || requestGeneration !== refreshGeneration) return;
