@@ -234,7 +234,7 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("from './site-calendar-manager.js?v=20260921-smartcaldraft1'"));
+assert.ok(ui.includes("from './site-calendar-manager.js?v=20260922-weather1'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes('mountLifeCalendarManager'));
