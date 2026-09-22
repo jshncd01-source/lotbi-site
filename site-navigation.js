@@ -45,6 +45,20 @@ export function buildVerifiedPhoneHref(place) {
   return normalizeVerifiedPhone({phone: number, phone_verified: true}).href;
 }
 
+const FOOD_LICENSE_STATES = new Set(['VERIFIED', 'AMBIGUOUS', 'NOT_FOUND', 'CONFLICTING', 'UNAVAILABLE']);
+
+function normalizeFoodLicenseVerification(value) {
+  if (!value || typeof value !== 'object') return null;
+  const state = text(value.state).toUpperCase();
+  if (!FOOD_LICENSE_STATES.has(state)) return null;
+  if (text(value.source) !== 'MOIS_FOOD_LICENSE' || value.ai_calls !== 0) return null;
+  return Object.freeze({
+    state,
+    source: 'MOIS_FOOD_LICENSE',
+    administrativeStatus: state === 'VERIFIED' ? text(value.administrative_status) : '',
+  });
+}
+
 function coordinateReady(place) {
   const latitude = finiteCoordinate(place?.latitude);
   const longitude = finiteCoordinate(place?.longitude);
@@ -68,6 +82,7 @@ function normalizePlace(place, index) {
   const longitude = finiteCoordinate(place.longitude);
   const sourceUrl = text(place.source_url);
   const verifiedPhone = normalizeVerifiedPhone(place);
+  const foodLicenseVerification = normalizeFoodLicenseVerification(place.food_license_verification);
   return Object.freeze({
     candidateIndex: index,
     resultId: text(place.result_id) || `place-${index + 1}`,
@@ -84,6 +99,7 @@ function normalizePlace(place, index) {
     phone: verifiedPhone.number,
     phoneHref: verifiedPhone.href,
     phoneVerified: Boolean(verifiedPhone.href),
+    foodLicenseVerification,
     navigationCapable: coordinateReady(place),
   });
 }
