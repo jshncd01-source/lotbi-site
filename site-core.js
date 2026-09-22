@@ -1190,3 +1190,202 @@ export async function logoutSiteSession(sessionToken, fetchImpl = globalThis.fet
   }
   return Object.freeze({sessionId: payload.session_id, status: payload.status});
 }
+
+
+async function sitePetRequest(path, sessionToken, {
+  method = 'GET',
+  body = undefined,
+  requestId = '',
+  file = undefined,
+} = {}, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const headers = {
+    Accept: 'application/json',
+    Authorization: 'Bearer ' + bearerToken(sessionToken),
+  };
+  let requestBody;
+  if (file instanceof File) {
+    const form = new FormData();
+    form.append('file', file, file.name || 'pet-photo');
+    requestBody = form;
+  } else if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    requestBody = JSON.stringify(body);
+  }
+  if (requestId) headers['X-Request-ID'] = String(requestId);
+  let response;
+  try {
+    response = await fetchImpl(CORE_ORIGIN + path, {
+      method,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers,
+      ...(requestBody === undefined ? {} : {body: requestBody}),
+    });
+  } catch {
+    throw new SiteCoreError('LOTBI 반려동물 서버에 접속하지 못했습니다.', {
+      code: 'PET_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = errorFromResponse(response, payload, '반려동물 요청을 완료하지 못했습니다.');
+    announceInvalidSiteSession(error);
+    throw error;
+  }
+  return payload;
+}
+
+export async function listSitePets(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await sitePetRequest('/v2/pets', sessionToken, {}, fetchImpl);
+  if (!Array.isArray(payload?.pets)) {
+    throw new SiteCoreError('반려동물 목록 응답이 올바르지 않습니다.', {code: 'PET_RESPONSE_INVALID'});
+  }
+  return Object.freeze(payload.pets.map(item => Object.freeze({...item})));
+}
+
+export async function createSitePet(sessionToken, {requestId, name, species}, fetchImpl = globalThis.fetch) {
+  const normalizedName = typeof name === 'string' ? name.trim() : '';
+  if (!normalizedName || !['DOG', 'CAT'].includes(species)) {
+    throw new SiteCoreError('반려동물 이름과 종류를 확인해 주세요.', {code: 'PET_INPUT_INVALID', status: 422});
+  }
+  const payload = await sitePetRequest('/v2/pets', sessionToken, {
+    method: 'POST',
+    requestId,
+    body: {
+      name: normalizedName,
+      species,
+      sex: null,
+      breed: null,
+      birth_date: null,
+      approximate_age_months: null,
+      color: null,
+      distinctive_marks: null,
+      official_registration_number: null,
+    },
+  }, fetchImpl);
+  if (!payload?.pet || typeof payload.pet.pet_id !== 'string') {
+    throw new SiteCoreError('반려동물 등록 응답이 올바르지 않습니다.', {code: 'PET_RESPONSE_INVALID'});
+  }
+  return Object.freeze({...payload.pet});
+}
+
+export async function renameSitePet(sessionToken, petId, name, fetchImpl = globalThis.fetch) {
+  const normalized = typeof name === 'string' ? name.trim() : '';
+  if (!petId || !normalized) throw new SiteCoreError('반려동물 이름을 확인해 주세요.', {code: 'PET_INPUT_INVALID', status: 422});
+  const payload = await sitePetRequest('/v2/pets/' + encodeURIComponent(petId) + '/nickname', sessionToken, {
+    method: 'PUT',
+    body: {name: normalized},
+  }, fetchImpl);
+  return Object.freeze({...payload.pet});
+}
+
+export async function listSitePetPhotos(sessionToken, petId, fetchImpl = globalThis.fetch) {
+  const payload = await sitePetRequest('/v2/pets/' + encodeURIComponent(petId) + '/photos', sessionToken, {}, fetchImpl);
+  if (!Array.isArray(payload?.photos) || !payload?.manifest) {
+    throw new SiteCoreError('반려동물 사진 응답이 올바르지 않습니다.', {code: 'PET_PHOTO_RESPONSE_INVALID'});
+  }
+  return Object.freeze({
+    photos: Object.freeze(payload.photos.map(item => Object.freeze({...item}))),
+    manifest: Object.freeze({...payload.manifest}),
+  });
+}
+
+export async function uploadSitePetPhoto(sessionToken, petId, slotCode, file, fetchImpl = globalThis.fetch) {
+  if (!(file instanceof File) || !['image/jpeg', 'image/png'].includes(file.type)) {
+    throw new SiteCoreError('JPEG 또는 PNG 사진을 선택해 주세요.', {code: 'PET_PHOTO_TYPE_INVALID', status: 422});
+  }
+  const payload = await sitePetRequest(
+    '/v2/pets/' + encodeURIComponent(petId) + '/photos/' + encodeURIComponent(slotCode),
+    sessionToken,
+    {method: 'PUT', file},
+    fetchImpl,
+  );
+  return Object.freeze({
+    photo: Object.freeze({...payload.photo}),
+    manifest: Object.freeze({...payload.manifest}),
+  });
+}
+
+export async function deleteSitePetPhoto(sessionToken, petId, slotCode, fetchImpl = globalThis.fetch) {
+  const payload = await sitePetRequest(
+    '/v2/pets/' + encodeURIComponent(petId) + '/photos/' + encodeURIComponent(slotCode),
+    sessionToken,
+    {method: 'DELETE'},
+    fetchImpl,
+  );
+  return Object.freeze({...payload.manifest});
+}
+
+export async function createSitePetSos(sessionToken, {
+  requestId,
+  petId,
+  locationLabel,
+  lastSeenAt,
+  note = '',
+}, fetchImpl = globalThis.fetch) {
+  const payload = await sitePetRequest('/v2/pets/sos', sessionToken, {
+    method: 'POST',
+    requestId,
+    body: {
+      pet_id: petId,
+      last_seen_location: {label: String(locationLabel || '').trim()},
+      location_source: 'USER_ENTERED',
+      location_accuracy_m: null,
+      last_seen_at: lastSeenAt,
+      note: String(note || '').trim() || null,
+    },
+  }, fetchImpl);
+  return Object.freeze({...payload.sos});
+}
+
+export async function listSitePetSos(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await sitePetRequest('/v2/pets/sos', sessionToken, {}, fetchImpl);
+  return Object.freeze((Array.isArray(payload?.cases) ? payload.cases : []).map(item => Object.freeze({...item})));
+}
+
+export async function createSiteFoundPet(sessionToken, {
+  requestId,
+  species,
+  locationLabel,
+  foundAt,
+  description = '',
+}, fetchImpl = globalThis.fetch) {
+  const payload = await sitePetRequest('/v2/pets/found', sessionToken, {
+    method: 'POST',
+    requestId,
+    body: {
+      species,
+      found_location: {label: String(locationLabel || '').trim()},
+      location_source: 'USER_ENTERED',
+      location_accuracy_m: null,
+      found_at: foundAt,
+      description: String(description || '').trim() || null,
+    },
+  }, fetchImpl);
+  return Object.freeze({...payload.found_case});
+}
+
+export async function listSiteFoundPets(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await sitePetRequest('/v2/pets/found', sessionToken, {}, fetchImpl);
+  return Object.freeze((Array.isArray(payload?.cases) ? payload.cases : []).map(item => Object.freeze({...item})));
+}
+
+export async function uploadSiteFoundPetPhoto(sessionToken, caseId, slotIndex, file, fetchImpl = globalThis.fetch) {
+  if (!(file instanceof File) || !['image/jpeg', 'image/png'].includes(file.type)) {
+    throw new SiteCoreError('JPEG 또는 PNG 사진을 선택해 주세요.', {code: 'FOUND_PET_PHOTO_TYPE_INVALID', status: 422});
+  }
+  const payload = await sitePetRequest(
+    '/v2/pets/found/' + encodeURIComponent(caseId) + '/photos/' + Number(slotIndex),
+    sessionToken,
+    {method: 'PUT', file},
+    fetchImpl,
+  );
+  return Object.freeze({
+    photo: Object.freeze({...payload.photo}),
+    photoCount: Number(payload.photo_count || 0),
+  });
+}
