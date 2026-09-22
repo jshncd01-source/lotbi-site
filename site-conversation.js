@@ -1849,12 +1849,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'sidebar-account-entry sidebar-profile-trigger';
     button.dataset.profileMenuTrigger = ''; button.setAttribute('aria-haspopup', 'menu'); button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', '프로필 메뉴 열기');
+    button.setAttribute('aria-label', `${canonicalProfileName()} 계정 메뉴 열기`);
     const copy = document.createElement('span'); copy.className = 'sidebar-profile-copy';
     const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = canonicalProfileName();
     copy.appendChild(name);
-    if (serverIdentity?.publicHandle) {
-      const handle = document.createElement('span'); handle.className = 'sidebar-account-handle'; handle.textContent = `@${serverIdentity.publicHandle}`; copy.appendChild(handle);
+    const detailParts = [];
+    if (serverIdentity?.publicHandle) detailParts.push(`@${serverIdentity.publicHandle}`);
+    if (serverSubscription?.plan) {
+      const planLabels = {FREE: 'LOTBI Free', LOTBI_PLUS: 'LOTBI Plus'};
+      detailParts.push(planLabels[serverSubscription.plan] || serverSubscription.plan);
+    }
+    if (detailParts.length) {
+      const detail = document.createElement('span'); detail.className = 'sidebar-account-handle'; detail.textContent = detailParts.join(' · '); copy.appendChild(detail);
     }
     button.append(profileVisual(), copy); return button;
   };
@@ -2371,10 +2377,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
     const menu = document.createElement('div'); menu.className = 'profile-popover'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '프로필 메뉴');
     menu.appendChild(profileSummary());
-    for (const [label, action] of [['프로필', openProfile], ['개인 맞춤 설정', openPersonalization], ['설정', openSettings], ['도움말', openHelp]]) {
+    for (const [label, action] of [['프로필', openProfile], ['개인 맞춤 설정', openPersonalization], ['설정', openSettings]]) {
       const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); button.textContent = label;
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
     }
+    const connectedServices = document.createElement('a');
+    connectedServices.href = 'https://account.lotbiai.com/connected-services';
+    connectedServices.setAttribute('role', 'menuitem');
+    connectedServices.textContent = '연결 서비스';
+    connectedServices.addEventListener('click', () => closeSurface());
+    menu.appendChild(connectedServices);
+    const help = document.createElement('button'); help.type = 'button'; help.setAttribute('role', 'menuitem'); help.textContent = '도움말';
+    help.addEventListener('click', () => { closeSurface(); openHelp(); }); menu.appendChild(help);
     const logout = document.createElement('button'); logout.type = 'button'; logout.setAttribute('role', 'menuitem');
     logout.className = 'profile-menu-logout'; logout.textContent = '로그아웃'; logout.disabled = !sessionToken;
     if (!sessionToken) logout.title = 'Site child session 연결 후 사용할 수 있습니다.';
