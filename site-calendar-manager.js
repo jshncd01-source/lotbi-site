@@ -141,6 +141,124 @@ function usesFlowingDayDetail() {
   return globalThis.innerWidth <= 900;
 }
 
+export const DAY_DETAIL_PRESENTATION = Object.freeze({POPOVER: 'POPOVER', SHEET: 'SHEET', FLOW: 'FLOW'});
+
+// usesFlowingDayDetail() keeps deciding "is this a touch layout"; this is the single
+// place that decides HOW the selected-day detail is presented. Desktop keeps the
+// anchored popover. Touch defaults to the bottom sheet, and FLOW remains reachable
+// so the previous below-the-month panel can be restored without touching call sites.
+let dayDetailPresentationOverride = null;
+
+export function setDayDetailPresentation(value) {
+  dayDetailPresentationOverride = DAY_DETAIL_PRESENTATION[value] || null;
+  return dayDetailPresentation();
+}
+
+export function dayDetailPresentation() {
+  if (!usesFlowingDayDetail()) return DAY_DETAIL_PRESENTATION.POPOVER;
+  return dayDetailPresentationOverride || DAY_DETAIL_PRESENTATION.SHEET;
+}
+
+function usesSheetDayDetail() {
+  return dayDetailPresentation() === DAY_DETAIL_PRESENTATION.SHEET;
+}
+
+function prefersReducedMotion() {
+  if (typeof globalThis.matchMedia !== 'function') return false;
+  return globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// Shared by the event editor and the day sheet so a raised software keyboard never
+// covers their controls. Returns a cleanup function.
+function bindVisualViewport(node, {heightVar, topVar, bottomGapVar = ''}) {
+  const viewport = globalThis.visualViewport;
+  if (!viewport || !node) return () => {};
+  const sync = () => {
+    const height = Math.max(1, Math.round(viewport.height));
+    const top = Math.max(0, Math.round(viewport.offsetTop || 0));
+    node.style.setProperty(heightVar, `${height}px`);
+    node.style.setProperty(topVar, `${top}px`);
+    if (bottomGapVar) {
+      // How much of the layout viewport the keyboard (or browser chrome) covers.
+      const gap = Math.max(0, Math.round((globalThis.innerHeight || height) - (top + height)));
+      node.style.setProperty(bottomGapVar, `${gap}px`);
+    }
+  };
+  sync();
+  viewport.addEventListener('resize', sync);
+  viewport.addEventListener('scroll', sync);
+  return () => {
+    viewport.removeEventListener('resize', sync);
+    viewport.removeEventListener('scroll', sync);
+  };
+}
+
+// Horizontal swipe -> month navigation, touch layouts only.
+// Deliberately conservative: the axis is decided once per gesture, and a gesture that
+// reads as vertical is left completely alone so the month keeps scrolling normally.
+const SWIPE_AXIS_LOCK_PX = 12;   // movement needed before we commit to an axis
+const SWIPE_COMMIT_PX = 56;      // horizontal distance needed to change month
+const SWIPE_AXIS_RATIO = 1.4;    // horizontal must clearly dominate vertical
+const SWIPE_MAX_DURATION_MS = 900;
+
+export function bindMonthSwipe(node, {onPrevious, onNext, isBusy = () => false} = {}) {
+  if (!node || typeof node.addEventListener !== 'function') return () => {};
+  let startX = 0, startY = 0, startedAt = 0;
+  let tracking = false, axis = '';
+
+  const reset = () => { tracking = false; axis = ''; };
+
+  const onTouchStart = event => {
+    // Ignore multi-touch (pinch zoom) entirely.
+    if (!event.touches || event.touches.length !== 1) { reset(); return; }
+    const touch = event.touches[0];
+    startX = touch.clientX; startY = touch.clientY; startedAt = Date.now();
+    tracking = true; axis = '';
+  };
+
+  const onTouchMove = event => {
+    if (!tracking) return;
+    if (!event.touches || event.touches.length !== 1) { reset(); return; }
+    const touch = event.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    if (!axis) {
+      if (Math.abs(dx) < SWIPE_AXIS_LOCK_PX && Math.abs(dy) < SWIPE_AXIS_LOCK_PX) return;
+      axis = Math.abs(dx) > Math.abs(dy) * SWIPE_AXIS_RATIO ? 'x' : 'y';
+    }
+    // Only a committed horizontal gesture suppresses the default; vertical intent
+    // keeps native scrolling untouched.
+    if (axis === 'x' && event.cancelable) event.preventDefault();
+  };
+
+  const onTouchEnd = event => {
+    if (!tracking) return;
+    const wasHorizontal = axis === 'x';
+    const touch = event.changedTouches && event.changedTouches[0];
+    const dx = touch ? touch.clientX - startX : 0;
+    const duration = Date.now() - startedAt;
+    reset();
+    if (!wasHorizontal || !touch) return;
+    if (Math.abs(dx) < SWIPE_COMMIT_PX) return;
+    if (duration > SWIPE_MAX_DURATION_MS) return;
+    // One month per gesture, and never while a month load is still in flight, so
+    // fast repeated swipes cannot skip a month.
+    if (isBusy()) return;
+    if (dx < 0) onNext?.(); else onPrevious?.();
+  };
+
+  node.addEventListener('touchstart', onTouchStart, {passive: true});
+  node.addEventListener('touchmove', onTouchMove, {passive: false});
+  node.addEventListener('touchend', onTouchEnd, {passive: true});
+  node.addEventListener('touchcancel', reset, {passive: true});
+  return () => {
+    node.removeEventListener('touchstart', onTouchStart);
+    node.removeEventListener('touchmove', onTouchMove);
+    node.removeEventListener('touchend', onTouchEnd);
+    node.removeEventListener('touchcancel', reset);
+  };
+}
+
 function weekBounds(value) {
   const {year, month, day} = civilDateParts(value);
   const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
@@ -395,6 +513,8 @@ function dayPanel(state, groups, actions) {
   panel.className = 'calendar-day-panel';
   panel.dataset.selectedDate = state.selectedDate;
   panel.dataset.collapsed = String(state.dayCollapsed);
+  panel.dataset.presentation = dayDetailPresentation();
+  panel.dataset.reducedMotion = String(prefersReducedMotion());
   panel.hidden = !state.detailOpen;
 
   const head = document.createElement('div');
@@ -495,10 +615,8 @@ function fitMonthEventDensity(layout) {
 function positionDayPopover(layout) {
   const panel = layout.querySelector('.calendar-day-panel');
   if (!panel || panel.hidden) return;
-  const desktop = typeof globalThis.matchMedia === 'function'
-    ? globalThis.matchMedia('(min-width: 901px)').matches
-    : globalThis.innerWidth > 900;
-  if (!desktop) {
+  if (dayDetailPresentation() !== DAY_DETAIL_PRESENTATION.POPOVER) {
+    // Sheet and flow presentations are positioned by CSS, not anchored to a cell.
     panel.style.removeProperty('left');
     panel.style.removeProperty('top');
     return;
@@ -639,7 +757,34 @@ function renderMonth(state, actions) {
   }
 
   calendar.append(weekdays, grid);
-  layout.append(calendar, dayPanel(state, groups, actions));
+  const panel = dayPanel(state, groups, actions);
+  // Order matters: existing runtime checks read layout.children[0] as the month and
+  // layout.children[1] as the selected-day surface. The sheet backdrop is appended
+  // after both so that contract is preserved.
+  layout.append(calendar, panel);
+  if (usesSheetDayDetail() && state.detailOpen) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'calendar-day-sheet-backdrop';
+    backdrop.dataset.calendarDaySheetBackdrop = '';
+    backdrop.dataset.reducedMotion = String(prefersReducedMotion());
+    backdrop.addEventListener('click', () => actions.closeDay());
+    layout.appendChild(backdrop);
+    const releaseViewport = bindVisualViewport(panel, {
+      heightVar: '--calendar-day-sheet-visual-height',
+      topVar: '--calendar-day-sheet-visual-top',
+      bottomGapVar: '--calendar-day-sheet-bottom-gap',
+    });
+    if (globalThis.visualViewport) panel.dataset.visualViewportBound = 'true';
+    // Each render rebuilds the layout, so release with the node it belongs to.
+    panel.addEventListener('lotbi:day-sheet-release', releaseViewport, {once: true});
+  }
+  if (usesFlowingDayDetail()) {
+    bindMonthSwipe(calendar, {
+      onPrevious: () => void actions.shiftMonth?.(-1),
+      onNext: () => void actions.shiftMonth?.(1),
+      isBusy: () => Boolean(state.loading),
+    });
+  }
   const schedule = globalThis.requestAnimationFrame || (callback => globalThis.setTimeout(callback, 0));
   schedule(() => { if (layout.isConnected) syncMonthLayout(layout); });
   return layout;
@@ -978,19 +1123,11 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
 
   document.body.classList.add('calendar-editor-open');
   let viewportCleanup = () => {};
-  if (usesFlowingDayDetail() && globalThis.visualViewport) {
-    const viewport = globalThis.visualViewport;
-    const syncEditorViewport = () => {
-      backdrop.style.setProperty('--calendar-editor-visual-height', `${Math.max(1, Math.round(viewport.height))}px`);
-      backdrop.style.setProperty('--calendar-editor-visual-top', `${Math.max(0, Math.round(viewport.offsetTop || 0))}px`);
-    };
-    syncEditorViewport();
-    viewport.addEventListener('resize', syncEditorViewport);
-    viewport.addEventListener('scroll', syncEditorViewport);
-    viewportCleanup = () => {
-      viewport.removeEventListener('resize', syncEditorViewport);
-      viewport.removeEventListener('scroll', syncEditorViewport);
-    };
+  if (usesFlowingDayDetail()) {
+    viewportCleanup = bindVisualViewport(backdrop, {
+      heightVar: '--calendar-editor-visual-height',
+      topVar: '--calendar-editor-visual-top',
+    });
   }
   let editorEnvironmentReleased = false;
   const releaseEditorEnvironment = () => {
@@ -1324,6 +1461,8 @@ export async function mountLifeCalendarManager({
   };
 
   let openEditor = () => {};
+  // Guards month navigation so a burst of fast swipes cannot skip months.
+  let monthShiftInFlight = false;
   const actions = {
     selectDate: async (date, {openDetail = false} = {}) => {
       const parts = civilDateParts(date);
@@ -1492,6 +1631,10 @@ export async function mountLifeCalendarManager({
 
   function render() {
     updateChrome();
+    // Release the previous day-sheet visualViewport listeners before the node is
+    // replaced, so repeated renders cannot accumulate them.
+    const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"]');
+    if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
@@ -1749,22 +1892,31 @@ export async function mountLifeCalendarManager({
     }
   });
 
-  previous.addEventListener('click', async () => {
-    if (state.mode === 'year') state.year -= 1;
-    else { state.month -= 1; if (state.month < 1) { state.month = 12; state.year -= 1; } }
-    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
-    state.detailOpen = false;
-    if (state.mode === 'agenda') state.agendaScope = 'month';
-    await refresh();
-  });
-  next.addEventListener('click', async () => {
-    if (state.mode === 'year') state.year += 1;
-    else { state.month += 1; if (state.month > 12) { state.month = 1; state.year += 1; } }
-    state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
-    state.detailOpen = false;
-    if (state.mode === 'agenda') state.agendaScope = 'month';
-    await refresh();
-  });
+  // Single month-navigation path. The '이전'/'다음' buttons and the touch swipe both
+  // go through here so the two can never drift apart.
+  async function shiftMonth(delta) {
+    if (!Number.isInteger(delta) || delta === 0) return;
+    if (monthShiftInFlight) return;
+    monthShiftInFlight = true;
+    try {
+      if (state.mode === 'year') state.year += delta;
+      else {
+        state.month += delta;
+        while (state.month < 1) { state.month += 12; state.year -= 1; }
+        while (state.month > 12) { state.month -= 12; state.year += 1; }
+      }
+      state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
+      state.detailOpen = false;
+      if (state.mode === 'agenda') state.agendaScope = 'month';
+      await refresh();
+    } finally {
+      monthShiftInFlight = false;
+    }
+  }
+  actions.shiftMonth = shiftMonth;
+
+  previous.addEventListener('click', () => { void shiftMonth(-1); });
+  next.addEventListener('click', () => { void shiftMonth(1); });
   today.addEventListener('click', async () => {
     const parts = civilDateParts(state.todayDate);
     state.year = parts.year;

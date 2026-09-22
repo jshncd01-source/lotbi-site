@@ -200,7 +200,14 @@ try{
       scrollHeight:detail.scrollHeight,
       clientHeight:detail.clientHeight,
       top:detailRect.top,
-      gridBottom:gridRect.bottom
+      bottom:detailRect.bottom,
+      left:detailRect.left,
+      right:detailRect.right,
+      presentation:detail.dataset.presentation||'',
+      gridBottom:gridRect.bottom,
+      backdrop:Boolean(layout.querySelector('[data-calendar-day-sheet-backdrop]')),
+      viewportHeight:innerHeight,
+      viewportWidth:innerWidth
     },
     desktop
   };
@@ -296,8 +303,16 @@ try{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
     if(result.detail.hidden)throw new Error('touch Calendar must show the selected-day surface on entry');
-    if(result.detail.position!=='static')throw new Error('touch selected-day surface must flow below Month');
-    if(detailRect.top<gridRect.bottom-2)throw new Error('touch selected-day surface overlaps Month');
+    // Contract changed from the below-the-month flow panel to an in-place bottom sheet.
+    // The replacement assertions are stricter: the surface must be reachable without
+    // any scrolling, which the flow panel never guaranteed.
+    if(result.detail.presentation!=='SHEET')throw new Error('touch selected-day surface must use the sheet presentation');
+    if(result.detail.position!=='fixed')throw new Error('touch selected-day sheet must be viewport-fixed');
+    if(!result.detail.backdrop)throw new Error('touch selected-day sheet must render a dismiss backdrop');
+    if(result.detail.top<-1)throw new Error('touch selected-day sheet escapes the top of the viewport');
+    if(result.detail.bottom>innerHeight+1)throw new Error('touch selected-day sheet escapes the bottom of the viewport');
+    if(result.detail.left<-1||result.detail.right>innerWidth+1)throw new Error('touch selected-day sheet horizontal overflow');
+    if(innerHeight-result.detail.bottom>2)throw new Error('touch selected-day sheet must be anchored to the bottom edge');
 
     const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const mobileEventButton=mobileEventCell?.querySelector('.calendar-event-chip');
