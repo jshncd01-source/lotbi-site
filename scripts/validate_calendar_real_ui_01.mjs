@@ -105,6 +105,9 @@ for (const required of [
   assert.ok(manager.includes(required), `missing Calendar UI contract: ${required}`);
 }
 assert.ok(!manager.includes('Math.min(events.length, 2)'), 'fixed two-event limit must not return');
+assert.ok(manager.includes('const requestGeneration = ++refreshGeneration'), 'manager must version overlapping refresh requests');
+assert.ok(manager.includes('requestGeneration !== refreshGeneration'), 'stale manager responses must be ignored');
+assert.ok(manager.includes('if (requestGeneration === refreshGeneration) root.removeAttribute'), 'only latest manager request may clear busy state');
 assert.ok(manager.includes('calendar-year-event-count'), 'year overview must render monthly event counts');
 for (const token of [
   'calendar-delete-confirm-backdrop',
