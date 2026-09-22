@@ -15,6 +15,12 @@ on:
       - 'site-calendar-weather.js'
       - 'site-calendar-public-weather.js'
       - 'site-current-location.js'
+      - 'scripts/validate_calendar_notification_settings_01.mjs'
+      - 'scripts/validate_calendar_push_foundation_01.mjs'
+      - 'scripts/validate_calendar_notification_permission_01.mjs'
+      - 'lotbi-calendar-push-worker.js'
+      - 'site-calendar-push.js'
+      - 'site-calendar-notifications.js'
       - 'site-core.js'
       - 'site-auth.js'
       - 'site-continuity.js'
@@ -66,6 +72,9 @@ jobs:
           node --check site-calendar-actions.js
           node --check site-calendar.js
           node --check site-current-location.js
+          node --check site-calendar-notifications.js
+          node --check site-calendar-push.js
+          node --check lotbi-calendar-push-worker.js
           node --check site-conversation.js
           node scripts/validate_conversation_calendar_actions_01.mjs
       - name: Life Calendar UI prep contract
@@ -82,6 +91,9 @@ jobs:
           node scripts/validate_calendar_weather_icons_01.mjs
           node scripts/validate_calendar_guest_weather_client_01.mjs
           node scripts/validate_calendar_korea_holidays_01.mjs
+          node scripts/validate_calendar_notification_permission_01.mjs
+          node scripts/validate_calendar_push_foundation_01.mjs
+          node scripts/validate_calendar_notification_settings_01.mjs
           node scripts/validate_calendar_event_editor_01.mjs
           node scripts/validate_calendar_responsive_01.mjs
           node scripts/validate_calendar_modal_runtime_02.mjs
