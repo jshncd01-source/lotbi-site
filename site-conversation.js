@@ -2234,6 +2234,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }, millisecondsUntilNextLocalMidnight() + 100);
   };
   const refreshNavigationCalendarStatus = async () => {
+    if (navigationCalendarEntries().length === 0) return;
     const generation = ++navigationCalendarStatusGeneration;
     const tokenAtStart = sessionToken;
     const namespaceAtStart = namespace;
