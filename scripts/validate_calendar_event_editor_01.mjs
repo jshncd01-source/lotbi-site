@@ -86,10 +86,38 @@ assert.equal(requests[2].body.expected_revision, 3);
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const legacy = fs.readFileSync('site-calendar-ui.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
-for (const token of ['calendar-editor-dialog', "setAttribute('role', 'dialog')", 'calendar-editor-title', 'calendar-editor-date', 'calendar-editor-time', 'calendar-editor-all-day', 'calendar-editor-amount', 'calendar-editor-category', 'calendar-editor-memo', 'calendar-editor-place', 'calendar-editor-merchant', 'calendar-editor-confirm-delete', 'STALE_REVISION']) assert.ok(manager.includes(token), `missing editor contract: ${token}`);
+for (const token of [
+  'calendar-editor-dialog',
+  "setAttribute('role', 'dialog')",
+  'calendar-editor-title',
+  'calendar-editor-date',
+  'calendar-editor-time',
+  'calendar-editor-all-day',
+  'calendar-editor-amount',
+  'calendar-editor-category',
+  'calendar-editor-memo',
+  'calendar-editor-place',
+  'calendar-editor-merchant',
+  'calendar-delete-confirm-backdrop',
+  'calendar-delete-confirm-dialog',
+  "confirmationDialog.setAttribute('aria-modal', 'true')",
+  "confirmationDialog.setAttribute('aria-labelledby', 'calendar-delete-confirm-title')",
+  "confirmationDialog.setAttribute('aria-describedby', 'calendar-delete-confirm-description')",
+  '이 일정을 삭제하시겠습니까?',
+  '삭제한 일정은 복구할 수 없습니다.',
+  'if (deleteRequestInFlight) return',
+  'dialog.inert = true',
+  'STALE_REVISION',
+]) assert.ok(manager.includes(token), `missing editor contract: ${token}`);
+for (const removed of ['calendar-editor-confirm-delete', '이 일정을 삭제할까요?', "button('유지'", "button('삭제 확인'"]) {
+  assert.ok(!manager.includes(removed), `legacy inline delete confirmation must be removed: ${removed}`);
+}
 assert.ok(!manager.includes('prompt('));
 assert.ok(!legacy.includes('prompt('));
 assert.ok(css.includes('.calendar-editor-dialog'));
-assert.ok(css.includes('.calendar-editor-confirm-delete'));
+assert.ok(css.includes('.calendar-delete-confirm-backdrop'));
+assert.ok(css.includes('.calendar-delete-confirm-dialog'));
+assert.ok(css.includes('.calendar-delete-confirm-actions button { min-width: 84px; min-height: 44px;'));
+assert.ok(!css.includes('.calendar-editor-confirm-delete'));
 
 console.log('LOTBI Calendar event editor and mutation contract: PASS');
