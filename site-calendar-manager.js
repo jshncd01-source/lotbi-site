@@ -265,9 +265,9 @@ export async function loadLifeCalendarManagerView(
         start: range.start,
         end: range.end,
         timezone,
-        latitude: normalizedManualRegion ? undefined : weatherLocation?.latitude,
-        longitude: normalizedManualRegion ? undefined : weatherLocation?.longitude,
-        midRegionCode: normalizedManualRegion ? '' : (weatherLocation?.midRegionCode || ''),
+        latitude: weatherLocation?.latitude,
+        longitude: weatherLocation?.longitude,
+        midRegionCode: weatherLocation?.midRegionCode || '',
         manualRegionCode: normalizedManualRegion,
       }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
@@ -1239,8 +1239,7 @@ export async function mountLifeCalendarManager({
       status.appendChild(renderWeatherControls());
       root.dataset.calendarWeatherEnabled = String(state.weatherEnabled);
       if (state.weatherEnabled) {
-        const usingBrowserLocation = !state.manualRegionCode
-          && currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
           && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
         root.dataset.locationPermission = state.locationPermission;
         root.dataset.locationResolution = state.locationResolution;
@@ -1258,10 +1257,9 @@ export async function mountLifeCalendarManager({
           status.appendChild(locationLabel);
         }
 
-        const canRequestLocation = !state.manualRegionCode
-          && state.locationPermission !== LOCATION_PERMISSION.DENIED
+        const canRequestLocation = state.locationPermission !== LOCATION_PERMISSION.DENIED
           && state.locationPermission !== LOCATION_PERMISSION.UNAVAILABLE;
-        if (!state.manualRegionCode && (state.locationInFlight || canRequestLocation)) {
+        if (state.locationInFlight || canRequestLocation) {
           locationButton.disabled = state.locationInFlight;
           if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
           else if (usingBrowserLocation) locationButton.textContent = '변경';
@@ -1271,7 +1269,7 @@ export async function mountLifeCalendarManager({
           status.appendChild(locationButton);
         }
 
-        if (state.locationMessage && !state.manualRegionCode) {
+        if (state.locationMessage) {
           const locationMessage = document.createElement('span');
           locationMessage.className = 'calendar-location-status';
           locationMessage.textContent = state.locationMessage;
@@ -1305,7 +1303,7 @@ export async function mountLifeCalendarManager({
           timezone,
           now: currentNow(),
           fetchImpl,
-          weatherLocation: state.manualRegionCode ? null : currentWeatherLocation,
+          weatherLocation: currentWeatherLocation,
           weatherEnabled: state.weatherEnabled,
           manualRegionCode: state.manualRegionCode,
         });
@@ -1337,8 +1335,8 @@ export async function mountLifeCalendarManager({
             start: range.start,
             end: range.end,
             timezone,
-            latitude: state.manualRegionCode ? undefined : currentWeatherLocation?.latitude,
-            longitude: state.manualRegionCode ? undefined : currentWeatherLocation?.longitude,
+            latitude: currentWeatherLocation?.latitude,
+            longitude: currentWeatherLocation?.longitude,
             manualRegionCode: state.manualRegionCode,
           }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}));
           if (!root.isConnected || requestGeneration !== refreshGeneration) return;
@@ -1422,9 +1420,6 @@ export async function mountLifeCalendarManager({
     const value = String(regionSelect.value || '').trim().toUpperCase();
     state.manualRegionCode = /^KR_[A-Z0-9_]{2,24}$/.test(value) ? value : '';
     if (state.manualRegionCode) {
-      currentWeatherLocation = null;
-      clearBrowserLocationProvenance();
-      state.locationResolution = LOCATION_RESOLUTION.IDLE;
       state.locationMessage = '';
       state.weatherEnabled = true;
     }
@@ -1433,7 +1428,7 @@ export async function mountLifeCalendarManager({
   });
 
   locationButton.addEventListener('click', async () => {
-    if (!state.weatherEnabled || state.manualRegionCode || state.locationInFlight) return;
+    if (!state.weatherEnabled || state.locationInFlight) return;
     const requestGeneration = ++locationRequestGeneration;
     const previousPermission = await getBrowserLocationPermissionState({
       permissions: locationPermissions,
@@ -1586,7 +1581,7 @@ export async function mountLifeCalendarManager({
   const onResume = () => {
     if (!root.isConnected) { cleanupLifecycle(); return; }
     void refreshTodayIfNeeded();
-    if (state.weatherEnabled && !state.manualRegionCode) {
+    if (state.weatherEnabled) {
       void syncLocationPermission().then(() => {
         if (root.isConnected) render();
       });
@@ -1750,7 +1745,7 @@ export async function mountLifeCalendarManager({
     }
   }
   await openDeepTarget();
-  if (state.weatherEnabled && !state.manualRegionCode) {
+  if (state.weatherEnabled) {
     void syncLocationPermission().then(() => {
       if (root.isConnected) render();
     });
