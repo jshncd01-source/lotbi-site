@@ -217,7 +217,7 @@ const fixture = {
       throw new Error(`unexpected request ${parsed.pathname}`);
     },
   });
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.ok(calls.some(call => new URL(call.url).pathname === '/v2/life/weather'));
   assert.deepEqual(result.weather.map(item => item.weatherIcon), ['☀️', '🌧️', '☁️', '❄️']);
   assert.equal(result.weatherProviderReady, true);
