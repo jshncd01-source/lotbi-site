@@ -461,26 +461,24 @@ await expectReject(
   }, async () => jsonResponse({
     contract_id: 'CORE-WEB-CHAT-01',
     schema_version: 1,
-    correlation_id: 'req_guest_v31_read_plan',
+    correlation_id: 'req_guest_v31_read',
     status: 'ANSWERED',
-    assistant_text: '최신 자료 확인이 필요한 질문이에요.',
-    intent: {
-      action: 'UNKNOWN',
-      response_plan: 'READ_PLAN',
-      read_plan: {
-        freshness: 'CURRENT',
-        required_capability: 'FRESH_SOURCE_READ',
-        coverage_required: 'FULL_OR_EXPLICIT_PARTIAL',
-        allow_model_only: false,
-      },
-    },
-    response_mode: 'READ_PLAN_REQUIRED',
+    assistant_text: '현재 확인된 최신 날씨 정보입니다.',
+    intent: {action: 'UNKNOWN'},
+    response_mode: 'PUBLIC_READ_GROUNDED',
+    sources: [
+      {title: '기상청', url: 'https://www.weather.go.kr/example'},
+      {title: '보조 출처', url: 'https://example.com/weather'},
+    ],
     follow_up: {required: false, action: null, reason: null, automatic_execution: false},
     retry_safe: true,
     safety: {execution_authority: false, external_side_effect: false},
   }));
-  assert.equal(reply.responseMode, 'READ_PLAN_REQUIRED');
-  assert.equal(reply.readPlan.requiredCapability, 'FRESH_SOURCE_READ');
+  assert.equal(reply.responseMode, 'PUBLIC_READ_GROUNDED');
+  assert.equal(reply.readPlan, null);
+  assert.equal(reply.sources.length, 2);
+  assert.equal(reply.sources[0].title, '기상청');
+  assert.equal(reply.sources[0].url, 'https://www.weather.go.kr/example');
   assert.equal(reply.evidenceCoverage, null);
 }
 
