@@ -466,6 +466,7 @@ await expectReject(
     assistant_text: '현재 확인된 최신 날씨 정보입니다.',
     intent: {action: 'UNKNOWN'},
     response_mode: 'PUBLIC_READ_GROUNDED',
+    completion: 'FULL',
     sources: [
       {title: '기상청', url: 'https://www.weather.go.kr/example'},
       {title: '보조 출처', url: 'https://example.com/weather'},
@@ -475,6 +476,7 @@ await expectReject(
     safety: {execution_authority: false, external_side_effect: false},
   }));
   assert.equal(reply.responseMode, 'PUBLIC_READ_GROUNDED');
+  assert.equal(reply.completion, 'FULL');
   assert.equal(reply.readPlan, null);
   assert.equal(reply.sources.length, 2);
   assert.equal(reply.sources[0].title, '기상청');
