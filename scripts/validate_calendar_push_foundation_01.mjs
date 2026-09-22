@@ -4,10 +4,59 @@ globalThis.atob ??= value => Buffer.from(value, 'base64').toString('binary');
 globalThis.btoa ??= value => Buffer.from(value, 'binary').toString('base64');
 
 const {
+  getCalendarPushConfig,
   registerCalendarPushWorker,
   subscribeCalendarPush,
   registerCalendarPushSubscriptionWithCore,
 } = await import('../site-calendar-push.js?v=20260922-notificationperm1');
+
+{
+  const config = await getCalendarPushConfig(async (url, options) => {
+    assert.match(String(url), /\/app\/config\.json$/);
+    assert.equal(options.credentials, 'omit');
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        web_push: {
+          enabled: true,
+          ready: true,
+          dispatch_ready: true,
+          vapid_public_key: 'AQID',
+          user_visible_only: true,
+        },
+      }),
+    };
+  });
+  assert.deepEqual(config, {
+    enabled: true,
+    ready: true,
+    dispatchReady: true,
+    vapidPublicKey: 'AQID',
+  });
+}
+
+{
+  let thrown = null;
+  try {
+    await getCalendarPushConfig(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        web_push: {
+          enabled: true,
+          ready: true,
+          dispatch_ready: true,
+          vapid_public_key: null,
+          user_visible_only: true,
+        },
+      }),
+    }));
+  } catch (error) {
+    thrown = error;
+  }
+  assert.equal(thrown?.code, 'SITE_PUSH_CONFIG_CONTRACT_INVALID');
+}
 
 {
   let registered = null;
@@ -69,12 +118,12 @@ const {
         status: 201,
         json: async () => ({
           status: 'PUSH_SUBSCRIPTION_ACTIVE',
-          push_subscription: {id: 'push_fixture_01', status: 'ACTIVE'},
+          push_subscription: {push_subscription_id: 'push_fixture_01', status: 'ACTIVE'},
         }),
       };
     },
   });
-  assert.equal(result.id, 'push_fixture_01');
+  assert.equal(result.push_subscription_id, 'push_fixture_01');
   assert.equal(request.options.method, 'POST');
   assert.equal(request.options.headers.Authorization, 'Bearer session-fixture');
   const body = JSON.parse(request.options.body);
