@@ -9,7 +9,7 @@ export function deterministicReply(text, now = new Date()) {
   if (/^(도움말|도와줘|뭘할수있어|무엇을할수있어|사용법)$/u.test(exact)) return '질문 답변과 쇼핑·예약·이동 같은 요청 정리를 도와드릴 수 있어요. 필요한 일을 한 문장으로 말씀해 주세요.';
   if (/^(지금)?(몇시|몇시야|몇시예요|현재시간|지금시간)$/u.test(exact)) {
     const value = new Intl.DateTimeFormat('ko-KR', {hour: 'numeric', minute: '2-digit', second: '2-digit'}).format(now);
-    return `현재 시간은 ${value}입니다. (${timeZone})`;
+    return `현재 시간은 ${value}입니다.`;
   }
   if (/^(오늘)?(날짜|며칠|몇일|오늘날짜|오늘며칠)$/u.test(exact)) {
     const value = new Intl.DateTimeFormat('ko-KR', {year: 'numeric', month: 'long', day: 'numeric'}).format(now);
