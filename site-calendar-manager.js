@@ -13,6 +13,8 @@ import {
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate, weatherTemperatureLabel} from './site-calendar-weather.js?v=20260922-weatherreal3';
 import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=20260922-guestweather1';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
@@ -20,6 +22,7 @@ const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요�
 const MODES = Object.freeze([['month', '월'], ['year', '연도'], ['agenda', '일정'], ['attention', '확인 필요']]);
 const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
 const CALENDAR_WEATHER_PREFERENCE_KEY = 'lotbi.calendar.weather.preference.v1';
+const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription.v1';
 
 function normalizedWeatherPreference(value) {
   if (!value || typeof value !== 'object') return Object.freeze({enabled: true, manualRegionCode: ''});
@@ -798,7 +801,7 @@ function renderAttention(state) {
   })));
 }
 
-function calendarSettingsDialog({root, state, storage, onChange}) {
+function calendarSettingsDialog({root, state, storage, onChange, authenticated, sessionToken, fetchImpl}) {
   root.querySelector('.calendar-settings-backdrop')?.remove();
   const backdrop = document.createElement('div');
   backdrop.className = 'calendar-settings-backdrop';
@@ -837,6 +840,103 @@ function calendarSettingsDialog({root, state, storage, onChange}) {
   row.append(copy, toggle);
   section.append(sectionTitle, row);
   body.appendChild(section);
+
+  const notificationSection = document.createElement('section');
+  notificationSection.className = 'calendar-settings-section';
+  const notificationTitle = document.createElement('h4');
+  notificationTitle.textContent = '알림';
+  const notificationRow = document.createElement('div');
+  notificationRow.className = 'calendar-settings-action-row';
+  const notificationCopy = document.createElement('span');
+  const notificationLabel = document.createElement('strong');
+  notificationLabel.textContent = '일정 알림';
+  const notificationStatus = document.createElement('small');
+  notificationStatus.className = 'calendar-settings-status';
+  const notificationButton = button('알림 사용', 'calendar-settings-action-button');
+  notificationButton.setAttribute('aria-label', '일정 알림 사용');
+  notificationCopy.append(notificationLabel, notificationStatus);
+  notificationRow.append(notificationCopy, notificationButton);
+  notificationSection.append(notificationTitle, notificationRow);
+  body.appendChild(notificationSection);
+
+  const currentNotificationPermission = () => getBrowserNotificationPermissionState();
+  const renderNotificationState = (message = '') => {
+    const permission = currentNotificationPermission();
+    notificationButton.disabled = !authenticated
+      || permission === BROWSER_NOTIFICATION_PERMISSION.DENIED
+      || permission === BROWSER_NOTIFICATION_PERMISSION.UNAVAILABLE;
+    if (!authenticated) {
+      notificationButton.textContent = '로그인 후 사용';
+      notificationStatus.textContent = '로그인된 계정에서 일정 알림을 연결할 수 있어요.';
+      return;
+    }
+    if (message) {
+      notificationStatus.textContent = message;
+    } else if (permission === BROWSER_NOTIFICATION_PERMISSION.GRANTED) {
+      notificationStatus.textContent = '브라우저 알림 권한이 허용되어 있어요.';
+    } else if (permission === BROWSER_NOTIFICATION_PERMISSION.DENIED) {
+      notificationStatus.textContent = '브라우저 사이트 설정에서 알림을 허용해 주세요.';
+    } else if (permission === BROWSER_NOTIFICATION_PERMISSION.UNAVAILABLE) {
+      notificationStatus.textContent = '이 브라우저에서는 알림 기능을 사용할 수 없어요.';
+    } else {
+      notificationStatus.textContent = '버튼을 누를 때만 브라우저가 알림 권한을 요청합니다.';
+    }
+    notificationButton.textContent = permission === BROWSER_NOTIFICATION_PERMISSION.GRANTED
+      ? '알림 연결'
+      : '알림 사용';
+  };
+  renderNotificationState();
+
+  notificationButton.addEventListener('click', async () => {
+    if (!authenticated || notificationButton.disabled) return;
+    notificationButton.disabled = true;
+    notificationStatus.textContent = '알림 준비 상태를 확인하는 중…';
+    try {
+      const config = await getCalendarPushConfig(fetchImpl);
+      if (!config.ready || !config.dispatchReady) {
+        renderNotificationState('현재 알림 전송 기능을 준비 중이에요.');
+        return;
+      }
+      const permission = await requestBrowserNotificationPermissionForFeature();
+      if (permission !== BROWSER_NOTIFICATION_PERMISSION.GRANTED) {
+        renderNotificationState(
+          permission === BROWSER_NOTIFICATION_PERMISSION.DENIED
+            ? '브라우저 사이트 설정에서 알림을 허용해 주세요.'
+            : '알림 권한을 사용할 수 없어요.',
+        );
+        return;
+      }
+      const registration = await registerCalendarPushWorker();
+      const subscription = await subscribeCalendarPush({
+        registration,
+        vapidPublicKey: config.vapidPublicKey,
+      });
+      const coreSubscription = await registerCalendarPushSubscriptionWithCore({
+        sessionToken,
+        subscription,
+        fetchImpl,
+      });
+      try {
+        storage?.setItem?.(CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY, JSON.stringify({
+          pushSubscriptionId: coreSubscription.push_subscription_id,
+          updatedAt: new Date().toISOString(),
+        }));
+      } catch {
+        // Push registration remains authoritative even when local metadata cannot be persisted.
+      }
+      renderNotificationState('일정 알림을 사용할 준비가 됐어요.');
+    } catch (error) {
+      const copy = error instanceof SiteCoreError && error.retryable
+        ? '알림 연결을 완료하지 못했어요. 다시 시도해 주세요.'
+        : '알림 연결을 완료하지 못했어요.';
+      renderNotificationState(copy);
+    } finally {
+      if (backdrop.isConnected && currentNotificationPermission() !== BROWSER_NOTIFICATION_PERMISSION.DENIED) {
+        notificationButton.disabled = false;
+      }
+    }
+  });
+
   dialog.append(header, body);
   backdrop.appendChild(dialog);
 
@@ -1313,6 +1413,9 @@ export async function mountLifeCalendarManager({
       root,
       state,
       storage: settingsStorage,
+      authenticated,
+      sessionToken,
+      fetchImpl,
       onChange: async enabled => {
         if (enabled) await refresh();
         else render();
