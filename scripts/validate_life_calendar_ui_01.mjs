@@ -64,6 +64,25 @@ const responses = {
     items: [],
     ai_calls: 0,
   },
+  '/v2/life/holidays': {
+    year: 2026,
+    country: 'KR',
+    coverage_status: 'VERIFIED',
+    snapshot_version: 'KR-2026-20260922-v1',
+    supported_years: [2026],
+    items: [{
+      date: '2026-09-25',
+      name: '추석',
+      country: 'KR',
+      holiday_type: 'CHUSEOK',
+      is_substitute: false,
+      source: 'KASI_2026_ALMANAC',
+      source_date: '2026-09-22',
+      verified_at: '2026-09-22T06:30:00Z',
+    }],
+    ai_calls: 0,
+    provider_api_calls: 0,
+  },
 };
 
 {
@@ -133,23 +152,31 @@ const responses = {
   const month = await loadLifeCalendarManagerView('site-token', {...base, view: 'month'});
   assert.equal(month.key, 'month');
   assert.equal(month.kind, 'agenda');
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-08-30&end=2026-10-03&timezone=Asia%2FSeoul')));
+  const monthHolidayCall = calls.find(call => call.url.includes('/v2/life/holidays?year=2026&country=KR'));
+  assert.ok(monthHolidayCall, 'month view must load Korea public holidays');
+  assert.equal(monthHolidayCall.init.headers.Authorization, undefined);
+  assert.equal(month.holidays[0].name, '추석');
 
   calls.length = 0;
   const today = await loadLifeCalendarManagerView('site-token', {...base, view: 'today'});
   assert.equal(today.key, 'month');
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-08-30&end=2026-10-03&timezone=Asia%2FSeoul')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/holidays?year=2026&country=KR')));
 
   calls.length = 0;
   const year = await loadLifeCalendarManagerView('site-token', {...base, view: 'year'});
   assert.equal(year.key, 'year');
-  assert.ok(calls[0].url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-01-01&end=2026-12-31'));
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-01-01&end=2026-12-31')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/holidays?year=2026&country=KR')));
+  assert.equal(year.holidayCoverageStatus, 'VERIFIED');
 
   calls.length = 0;
   const attention = await loadLifeCalendarManagerView('site-token', {...base, view: 'attention'});
