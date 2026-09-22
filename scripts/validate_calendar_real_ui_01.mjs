@@ -54,7 +54,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const source = fs.readFileSync(path.join(ROOT, 'site-calendar-ui.js'), 'utf8');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
-assert.ok(source.includes("from './site-calendar-manager.js?v=20260922-locationperm2'"));
+assert.ok(source.includes("from './site-calendar-manager.js?v=20260922-weatherreal2'"));
 for (const required of [
   'calendarMonthGrid',
   'calendarYearOverview',
@@ -99,7 +99,7 @@ for (const selector of [
   '.calendar-day-panel',
   '.calendar-event-stack',
   '.calendar-mobile-event-count',
-  '.calendar-weather-icon',
+  '.calendar-weather-compact',
   '.calendar-delete-confirm-backdrop',
   '.calendar-delete-confirm-dialog',
   '.calendar-delete-confirm-actions',
