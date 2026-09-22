@@ -12,6 +12,7 @@ import {
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
+import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=20260922-guestweather1';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
@@ -1302,7 +1303,7 @@ export async function mountLifeCalendarManager({
     status.replaceChildren();
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
-    } else if (authenticated) {
+    } else {
       const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
         && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
       root.dataset.locationPermission = state.locationPermission;
@@ -1379,14 +1380,35 @@ export async function mountLifeCalendarManager({
         state.weather = [];
 
         // Guest Calendar is device-local and must remain immediately usable even
-        // when the public holiday read is slow or unavailable. Render local data
-        // first, then decorate it with holiday data fail-soft.
+        // when public enrichment is slow or unavailable. Render local data first,
+        // then decorate it with weather/holiday data fail-soft.
         state.loading = false;
         render();
 
-        if ((state.mode === 'month' || state.mode === 'year') && state.showKoreaHolidays) {
-          const holidayResult = await getKoreaHolidays(state.year, fetchImpl).catch(() => ({items: []}));
-          if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+        const todayParts = civilDateParts(state.todayDate);
+        const currentMonthVisible = state.mode === 'month'
+          && state.year === todayParts.year
+          && state.month === todayParts.month;
+        const monthRange = currentMonthVisible ? monthBounds(state.selectedDate) : null;
+        const guestWeatherEnd = monthRange
+          ? [monthRange.end, addCivilDays(state.todayDate, 14)].sort()[0]
+          : null;
+        const weatherRequest = currentMonthVisible && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
+          ? getPublicCalendarWeather({
+              start: state.todayDate,
+              end: guestWeatherEnd,
+              timezone,
+              latitude: currentWeatherLocation.latitude,
+              longitude: currentWeatherLocation.longitude,
+            }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
+          : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
+        const holidayRequest = (state.mode === 'month' || state.mode === 'year') && state.showKoreaHolidays
+          ? getKoreaHolidays(state.year, fetchImpl).catch(() => ({items: []}))
+          : Promise.resolve({items: []});
+        const [guestWeather, holidayResult] = await Promise.all([weatherRequest, holidayRequest]);
+        if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+        state.weather = guestWeather.items || [];
+        if (state.mode === 'month' || state.mode === 'year') {
           state.holidays = holidayResult.items || [];
         }
       }
@@ -1454,7 +1476,7 @@ export async function mountLifeCalendarManager({
   settingsButton.addEventListener('click', () => actions.openSettings());
 
   locationButton.addEventListener('click', async () => {
-    if (!authenticated || state.locationInFlight) return;
+    if (state.locationInFlight) return;
     const requestGeneration = ++locationRequestGeneration;
     const previousPermission = await getBrowserLocationPermissionState({
       permissions: locationPermissions,
