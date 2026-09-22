@@ -11,10 +11,10 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarEntryVersion = '20260922-locationperm2';
-const calendarManagerVersion = '20260922-locationperm2';
+const calendarEntryVersion = '20260922-weatherreal2';
+const calendarManagerVersion = '20260922-weatherreal2';
 const calendarModelVersion = '20260921-smartcaldraft1';
-const calendarCssVersion = '20260922-deleteconfirm1';
+const calendarCssVersion = '20260922-weatherreal2';
 const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
 const callbackEntryVersion = callback.match(/\/auth-callback\.js\?v=([^"]+)/)?.[1] || '';
 const callbackConversationVersion = callbackJs.match(/\.\/site-conversation\.js\?v=([^']+)/)?.[1] || '';
