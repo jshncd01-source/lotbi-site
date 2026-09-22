@@ -49,7 +49,7 @@ for (const weeks of [4, 5, 6]) {
   assert.ok(css.includes(`.calendar-month-grid[data-week-count="${weeks}"]`), `missing ${weeks}-week geometry`);
 }
 assert.ok(css.includes('position: fixed;'), 'desktop selected-day detail must overlay instead of consuming a permanent column');
-assert.ok(css.includes('grid-template-columns: 42px minmax(120px, 1fr) 42px auto 42px'), 'mobile toolbar first row contract missing');
+assert.ok(css.includes('grid-template-columns: 42px minmax(80px, 1fr) 42px 52px 42px'), 'mobile toolbar first row contract missing');
 assert.ok(css.includes('grid-template-columns: 38px minmax(0, 1fr) 38px 44px 38px'), 'narrow mobile toolbar must fit without horizontal scrolling');
 assert.ok(css.includes('grid-template-columns: repeat(4, minmax(0, 1fr))'), 'mobile view controls must be discoverable without horizontal scrolling');
 assert.ok(css.includes('.calendar-event-stack { display: none; }'), 'touch Month should prefer overview plus selected-day list');
