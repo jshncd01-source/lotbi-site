@@ -131,7 +131,11 @@ function responseError(response, payload) {
 }
 
 function announceInvalidSiteSession(error) {
-  if (!(error instanceof SiteCoreError) || (error.status !== 401 && error.status !== 403)) return;
+  // 401 only. A 403 means the server refused this particular route — a scope or
+  // permission decision — and that is never evidence the session died. Treating
+  // one as the other is what let a single refused Calendar route log the user
+  // out of the Calendar.
+  if (!(error instanceof SiteCoreError) || error.status !== 401) return;
   if (typeof globalThis.dispatchEvent !== 'function' || typeof globalThis.CustomEvent !== 'function') return;
   globalThis.dispatchEvent(new CustomEvent(SESSION_STATE_EVENT, {
     detail: {authenticated: false},
@@ -168,10 +172,17 @@ async function publicCalendarRequest(
   return payload;
 }
 
+// announceSessionFailure decides whether this request may declare the whole Site
+// session dead. That announcement tears the Calendar down and returns the user
+// Home, so it defaults to off: a request has to know the session really died
+// before it may claim so, and most do not. Only the reads that gate the Calendar
+// opt in, right below. Adding a Calendar call therefore cannot bring the
+// Calendar down by forgetting to opt out — a refused side request now costs that
+// strip its contents and nothing else.
 async function calendarRequest(
   path,
   sessionToken,
-  {method = 'GET', body, announceSessionFailure = true} = {},
+  {method = 'GET', body, announceSessionFailure = false} = {},
   fetchImpl = globalThis.fetch,
 ) {
   assertFetch(fetchImpl);
@@ -586,7 +597,7 @@ export async function getLifeToday(sessionToken, timezone, fetchImpl = globalThi
   const payload = await calendarRequest(
     `/v2/life/today?timezone=${encodeURIComponent(zone)}`,
     sessionToken,
-    {},
+    {announceSessionFailure: true},
     fetchImpl,
   );
   return assertReadResponse(payload, 'TODAY');
@@ -598,7 +609,7 @@ export async function getLifeUpcoming(sessionToken, {timezone, through}, fetchIm
   const payload = await calendarRequest(
     `/v2/life/upcoming?timezone=${encodeURIComponent(zone)}&through=${encodeURIComponent(throughDate)}`,
     sessionToken,
-    {},
+    {announceSessionFailure: true},
     fetchImpl,
   );
   return assertReadResponse(payload, 'UPCOMING');
@@ -611,7 +622,7 @@ export async function getLifeAgenda(sessionToken, {timezone, start, end}, fetchI
   const payload = await calendarRequest(
     `/v2/life/agenda?timezone=${encodeURIComponent(zone)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
     sessionToken,
-    {},
+    {announceSessionFailure: true},
     fetchImpl,
   );
   return assertReadResponse(payload, 'AGENDA');
@@ -713,7 +724,7 @@ export async function getLifeAttention(
   const payload = await calendarRequest(
     `/v2/life/attention?timezone=${encodeURIComponent(zone)}&horizon_days=${horizonDays}`,
     sessionToken,
-    {},
+    {announceSessionFailure: true},
     fetchImpl,
   );
   return assertAttentionResponse(payload);
