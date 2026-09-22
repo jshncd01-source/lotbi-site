@@ -736,24 +736,117 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
   actions.append(cancel, save);
 
+  let cleanupDeleteConfirmation = () => {};
+  let deleteRequestInFlight = false;
+
   if (item) {
-    const remove = button('삭제', 'calendar-editor-delete'); actions.prepend(remove);
+    const remove = button('삭제', 'calendar-editor-delete');
+    actions.prepend(remove);
     remove.addEventListener('click', () => {
-      const confirmation = document.createElement('div'); confirmation.className = 'calendar-editor-confirm-delete';
-      const copy = document.createElement('p'); copy.textContent = '이 일정을 삭제할까요?';
-      const keep = button('유지', 'calendar-editor-cancel-delete');
-      const confirm = button('삭제 확인', 'calendar-editor-confirm-delete-button');
-      keep.addEventListener('click', () => confirmation.remove());
-      confirm.addEventListener('click', async () => {
-        confirm.disabled = true;
-        try { await controller.remove(item); backdrop.remove(); await onSaved(); }
-        catch (caught) {
-          if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
-          else error.textContent = caught instanceof Error ? caught.message : '일정을 삭제하지 못했습니다.';
-          confirm.disabled = false;
+      const existing = root.querySelector('.calendar-delete-confirm-backdrop');
+      if (existing) {
+        existing.querySelector('.calendar-delete-confirm-cancel')?.focus();
+        return;
+      }
+
+      const confirmationBackdrop = document.createElement('div');
+      confirmationBackdrop.className = 'calendar-delete-confirm-backdrop';
+      const confirmationDialog = document.createElement('section');
+      confirmationDialog.className = 'calendar-delete-confirm-dialog';
+      confirmationDialog.setAttribute('role', 'dialog');
+      confirmationDialog.setAttribute('aria-modal', 'true');
+      confirmationDialog.setAttribute('aria-labelledby', 'calendar-delete-confirm-title');
+      confirmationDialog.setAttribute('aria-describedby', 'calendar-delete-confirm-description');
+
+      const confirmationTitle = document.createElement('h4');
+      confirmationTitle.id = 'calendar-delete-confirm-title';
+      confirmationTitle.textContent = '이 일정을 삭제하시겠습니까?';
+      const confirmationDescription = document.createElement('p');
+      confirmationDescription.id = 'calendar-delete-confirm-description';
+      confirmationDescription.textContent = '삭제한 일정은 복구할 수 없습니다.';
+      const confirmationError = document.createElement('p');
+      confirmationError.className = 'calendar-delete-confirm-error';
+      confirmationError.setAttribute('role', 'alert');
+
+      const confirmationActions = document.createElement('div');
+      confirmationActions.className = 'calendar-delete-confirm-actions';
+      const cancelDelete = button('취소', 'calendar-delete-confirm-cancel');
+      const confirmDelete = button('삭제', 'calendar-delete-confirm-submit');
+      confirmationActions.append(cancelDelete, confirmDelete);
+      confirmationDialog.append(confirmationTitle, confirmationDescription, confirmationError, confirmationActions);
+      confirmationBackdrop.appendChild(confirmationDialog);
+
+      dialog.inert = true;
+      dialog.setAttribute('aria-hidden', 'true');
+
+      cleanupDeleteConfirmation = ({restoreFocus = true} = {}) => {
+        confirmationBackdrop.remove();
+        dialog.inert = false;
+        dialog.removeAttribute('aria-hidden');
+        deleteRequestInFlight = false;
+        cleanupDeleteConfirmation = () => {};
+        if (restoreFocus && remove.isConnected) remove.focus();
+      };
+
+      const cancelConfirmation = () => {
+        if (deleteRequestInFlight) return;
+        cleanupDeleteConfirmation();
+      };
+
+      cancelDelete.addEventListener('click', cancelConfirmation);
+      confirmationBackdrop.addEventListener('click', event => {
+        if (event.target === confirmationBackdrop) cancelConfirmation();
+      });
+      confirmationDialog.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelConfirmation();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = [cancelDelete, confirmDelete].filter(control => !control.disabled);
+        if (!focusable.length) {
+          event.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
         }
       });
-      confirmation.append(copy, keep, confirm); form.appendChild(confirmation); confirm.focus();
+
+      confirmDelete.addEventListener('click', async () => {
+        if (deleteRequestInFlight) return;
+        deleteRequestInFlight = true;
+        confirmationError.textContent = '';
+        remove.disabled = true;
+        cancelDelete.disabled = true;
+        confirmDelete.disabled = true;
+        try {
+          await controller.remove(item);
+          cleanupDeleteConfirmation({restoreFocus: false});
+          backdrop.remove();
+          await onSaved();
+        } catch (caught) {
+          deleteRequestInFlight = false;
+          remove.disabled = false;
+          cancelDelete.disabled = false;
+          confirmDelete.disabled = false;
+          confirmationError.textContent = caught?.code === 'STALE_REVISION'
+            ? '일정이 변경되었습니다. 저장 상태를 확인한 뒤 다시 시도해주세요.'
+            : '일정을 삭제하지 못했습니다. 다시 시도해주세요.';
+          confirmDelete.focus();
+        }
+      });
+
+      root.appendChild(confirmationBackdrop);
+      queueMicrotask(() => cancelDelete.focus());
     });
   }
 
@@ -765,6 +858,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   dialog.append(heading, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
 
   const close = () => {
+    cleanupDeleteConfirmation({restoreFocus: false});
     backdrop.remove();
     onClose();
   };
@@ -793,6 +887,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     save.disabled = true;
     try {
       if (item) await controller.update(item, value); else await controller.create(value);
+      cleanupDeleteConfirmation({restoreFocus: false});
       backdrop.remove(); await onSaved();
     } catch (caught) {
       if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
