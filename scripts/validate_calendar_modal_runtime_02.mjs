@@ -149,9 +149,9 @@ try{
     );
   },'month geometry');
   await wait(()=>content?.getAttribute('aria-busy')!=='true','guest Calendar async decoration idle');
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   const today=modal.querySelector('.calendar-today-button');
   const attention=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='확인 필요');
   const calendar=layout?.children?.[0], detail=layout?.children?.[1];
