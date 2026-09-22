@@ -14,6 +14,13 @@ import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-messag
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
+try {
+  const savedTheme = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
+    document.documentElement.dataset.siteThemeBootstrap = savedTheme;
+  }
+} catch {}
+
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';
@@ -45,7 +52,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260921-placecompactactions1';
+  link.href = '/site-conversation.css?v=20260922-darkcontrast2';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -442,7 +449,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return beginSiteHandoff(pendingText);
   };
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
-  const savePreferences = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences)); };
+  const savePreferences = () => {
+    if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences));
+    try { globalThis.localStorage?.setItem?.('lotbi.site.theme.bootstrap.v1', preferences.theme); } catch {}
+  };
   const responseGradeLabel = grade => RESPONSE_GRADE_OPTIONS.find(([key]) => key === grade)?.[1] || '스탠다드';
   const responseGradeAvailable = () => RESPONSE_GRADE_BACKEND_ENABLED && Boolean(sessionToken);
   const syncResponseGradeUi = () => {
@@ -475,7 +485,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const applyPreferences = () => {
     document.body.dataset.chatColor = COLOR_OPTIONS.some(([key]) => key === preferences.color) ? preferences.color : 'default';
-    document.body.dataset.siteTheme = ['system', 'light', 'dark'].includes(preferences.theme) ? preferences.theme : 'system';
+    const resolvedTheme = ['system', 'light', 'dark'].includes(preferences.theme) ? preferences.theme : 'system';
+    document.body.dataset.siteTheme = resolvedTheme;
+    document.documentElement.dataset.siteThemeBootstrap = resolvedTheme;
+    const systemDark = resolvedTheme === 'system' && globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches === true;
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.setAttribute('content', resolvedTheme === 'dark' || systemDark ? '#151922' : '#ffffff');
     syncResponseGradeUi();
     document.body.dataset.responseGrade = preferences.responseGrade;
   };
@@ -2894,7 +2909,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           saveState();
         }
       }
-      const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
         meta.calendarItems = calendarItems;

@@ -128,11 +128,11 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: #303642;
+  color: var(--lotbi-text-primary, #303642);
 }
 
 .chat-message-loading {
-  color: #687180;
+  color: var(--lotbi-text-muted, #687180);
 }
 
 .chat-message-error {
@@ -157,7 +157,7 @@
 .chat-message-meta {
   display: block;
   margin-top: 8px;
-  color: #667085;
+  color: var(--lotbi-text-muted, #667085);
   font-size: 12px;
   line-height: 1.5;
   font-weight: 700;
@@ -174,12 +174,12 @@
 }
 
 .chat-message-sources-label {
-  color: #667085;
+  color: var(--lotbi-text-muted, #667085);
   font-weight: 700;
 }
 
 .chat-message-source-link {
-  color: inherit;
+  color: var(--lotbi-text-secondary, #4b5870);
   text-decoration: underline;
   text-underline-offset: 2px;
   overflow-wrap: anywhere;
@@ -187,6 +187,7 @@
 
 .chat-message-source-link:hover,
 .chat-message-source-link:focus-visible {
+  color: var(--lotbi-text-primary, #303642);
   text-decoration-thickness: 2px;
 }
 
@@ -979,10 +980,10 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   width: min(100%, 520px);
   max-height: min(84vh, 720px);
   overflow-y: auto;
-  border: 1px solid #d9dee8;
+  border: 1px solid var(--lotbi-border-default, #d9dee8);
   border-radius: 22px;
-  background: #fff;
-  color: #303642;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #303642);
   box-shadow: 0 24px 70px rgba(20, 28, 40, .24);
   text-align: left;
 }
@@ -1000,34 +1001,34 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   width: 40px; height: 40px; border: 0; border-radius: 10px;
   background: transparent; color: inherit; font-size: 28px; cursor: pointer;
 }
-.site-modal-close:hover, .site-modal-close:focus-visible { background: #f0f2f7; }
-.site-modal-description { margin: 0; padding: 0 20px 10px; color: #626b78; font-size: 14px; line-height: 1.55; }
+.site-modal-close:hover, .site-modal-close:focus-visible { background: var(--lotbi-surface-hover, #f0f2f7); }
+.site-modal-description { margin: 0; padding: 0 20px 10px; color: var(--lotbi-text-muted, #626b78); font-size: 14px; line-height: 1.55; }
 .site-modal-content { padding: 12px 20px 22px; display: grid; gap: 16px; }
 
-.site-field { display: grid; gap: 7px; color: #3d4653; font-size: 14px; font-weight: 750; }
+.site-field { display: grid; gap: 7px; color: var(--lotbi-text-secondary, #3d4653); font-size: 14px; font-weight: 750; }
 .site-field input, .site-field select {
-  min-height: 44px; padding: 9px 11px; border: 1px solid #cfd6e2; border-radius: 11px;
-  background: #fff; color: #303642; font: inherit;
+  min-height: 44px; padding: 9px 11px; border: 1px solid var(--lotbi-border-strong, #cfd6e2); border-radius: 11px;
+  background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); font: inherit;
 }
-.site-readonly-field { padding: 11px 12px; display: grid; gap: 3px; border-radius: 11px; background: #f5f7fa; }
+.site-readonly-field { padding: 11px 12px; display: grid; gap: 3px; border-radius: 11px; background: var(--lotbi-surface-subtle, #f5f7fa); }
 .site-readonly-field strong { font-size: 13px; }
-.site-readonly-field span { color: #737b88; font-size: 13px; }
-.site-field-error { min-height: 18px; margin: -8px 0 0; color: #a02645; font-size: 13px; }
+.site-readonly-field span { color: var(--lotbi-text-muted, #737b88); font-size: 13px; }
+.site-field-error { min-height: 18px; margin: -8px 0 0; color: var(--lotbi-error-text, #a02645); font-size: 13px; }
 .site-button {
   min-height: 42px; padding: 9px 14px; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 11px; font-size: 14px; font-weight: 800; cursor: pointer;
 }
 .site-button-primary { border: 1px solid #18345f; background: #18345f; color: #fff; }
-.site-button-secondary { width: fit-content; border: 1px solid #cfd6e2; background: #fff; color: #303642; }
+.site-button-secondary { width: fit-content; border: 1px solid var(--lotbi-border-strong, #cfd6e2); background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); }
 .profile-photo-preview {
   width: 88px; height: 88px; display: grid; place-items: center; border-radius: 50%;
   background: #e7ebf3 center / cover no-repeat; color: #18345f; font-size: 24px; font-weight: 850;
 }
 .color-picker { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border: 0; }
-.color-picker legend { grid-column: 1 / -1; margin-bottom: 4px; color: #3d4653; font-size: 14px; font-weight: 800; }
+.color-picker legend { grid-column: 1 / -1; margin-bottom: 4px; color: var(--lotbi-text-secondary, #3d4653); font-size: 14px; font-weight: 800; }
 .color-option {
   min-height: 44px; padding: 8px 10px; display: flex; align-items: center; gap: 9px;
-  border: 1px solid #d5dbe6; border-radius: 11px; background: #fff; color: #303642; font: inherit; cursor: pointer;
+  border: 1px solid var(--lotbi-border-default, #d5dbe6); border-radius: 11px; background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); font: inherit; cursor: pointer;
 }
 .color-option[aria-pressed="true"] { border-color: #18345f; box-shadow: 0 0 0 2px rgba(24, 52, 95, .12); }
 .color-swatch { width: 22px; height: 22px; border-radius: 50%; background: var(--swatch, #18345f); }
@@ -1038,8 +1039,8 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 .color-option[data-color="pink"] .color-swatch { --swatch: #be185d; }
 .color-option[data-color="gray"] .color-swatch { --swatch: #374151; }
 .help-links { display: grid; gap: 6px; }
-.help-links a { min-height: 44px; padding: 10px 12px; border-radius: 10px; color: #18345f; font-weight: 750; text-decoration: none; }
-.help-links a:hover, .help-links a:focus-visible { background: #f0f2f7; }
+.help-links a { min-height: 44px; padding: 10px 12px; border-radius: 10px; color: var(--lotbi-link-primary, #18345f); font-weight: 750; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.help-links a:hover, .help-links a:focus-visible { background: var(--lotbi-surface-hover, #f0f2f7); color: var(--lotbi-link-hover, #4f78c5); }
 
 
 /* LOTBI Box — existing namespace-local saved Product surface. */
