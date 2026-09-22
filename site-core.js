@@ -386,6 +386,20 @@ function normalizeConversationReadPlan(intent) {
   });
 }
 
+function normalizeConversationCompletion(value, status, responseMode) {
+  const allowed = new Set(['FULL', 'PARTIAL', 'CLARIFICATION', 'FAILED']);
+  if (typeof value === 'string' && allowed.has(value)) return value;
+  if (
+    responseMode === 'PUBLIC_READ_GROUNDED'
+    || responseMode === 'PUBLIC_READ_GROUNDED_PARTIAL'
+    || responseMode === 'READ_CAPABILITY_UNAVAILABLE'
+  ) {
+    throw new SiteCoreError('LOTBI 완료 상태 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return status === 'FOLLOW_UP_REQUIRED' ? 'CLARIFICATION' : 'FULL';
+}
+
+
 function normalizeConversationSources(value) {
   if (value == null) return Object.freeze([]);
   if (!Array.isArray(value) || value.length > 12) {
@@ -673,6 +687,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     status,
     assistantText,
     responseMode: payload.response_mode,
+    completion: normalizeConversationCompletion(payload.completion, status, payload.response_mode),
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
@@ -849,6 +864,7 @@ export async function sendGuestConversationMessage({
     status,
     assistantText,
     responseMode: payload.response_mode,
+    completion: normalizeConversationCompletion(payload.completion, status, payload.response_mode),
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
