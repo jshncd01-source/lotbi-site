@@ -5,7 +5,7 @@ import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod'
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
 import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260921-guestclaim1';
-import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260922-holiday1';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260922-holiday1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260922-holiday1';
@@ -2164,6 +2164,104 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     void openCalendar(target.dataset.calendarView || 'all');
   });
 
+  let navigationCalendarStatusTimer;
+  let navigationCalendarStatusGeneration = 0;
+  const navigationCalendarEntries = () => [...document.querySelectorAll('[data-calendar-view="all"]')]
+    .filter(entry => entry instanceof HTMLButtonElement);
+  const navigationCalendarTimezone = () => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
+    } catch {
+      return 'Asia/Seoul';
+    }
+  };
+  const navigationCalendarLocalDate = (now = new Date(), timezone = navigationCalendarTimezone()) => {
+    const parts = new Intl.DateTimeFormat('en', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+  const hasConfiguredReminder = item => (
+    item?.reminder_configured === true
+    || item?.has_reminder === true
+  );
+  const navigationCalendarStatus = async () => {
+    const timezone = navigationCalendarTimezone();
+    const todayDate = navigationCalendarLocalDate(new Date(), timezone);
+    if (sessionToken) {
+      const today = await getLifeToday(sessionToken, timezone, globalThis.fetch);
+      const items = Array.isArray(today?.items) ? today.items : [];
+      return Object.freeze({
+        count: items.length,
+        hasReminder: items.some(hasConfiguredReminder),
+      });
+    }
+    if (!storage) return Object.freeze({count: 0, hasReminder: false});
+    const items = createGuestCalendarRepository(storage).list()
+      .filter(item => item.local_date === todayDate);
+    return Object.freeze({
+      count: items.length,
+      hasReminder: items.some(hasConfiguredReminder),
+    });
+  };
+  const renderNavigationCalendarStatus = ({count = 0, hasReminder = false} = {}) => {
+    const safeCount = Number.isInteger(count) && count > 0 ? count : 0;
+    const reminder = safeCount > 0 && hasReminder === true;
+    for (const entry of navigationCalendarEntries()) {
+      const badge = entry.querySelector('[data-calendar-count]');
+      const bell = entry.querySelector('[data-calendar-reminder]');
+      if (badge instanceof HTMLElement) {
+        badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+        badge.hidden = safeCount === 0;
+      }
+      if (bell instanceof SVGElement) bell.hidden = !reminder;
+      const parts = ['캘린더'];
+      if (safeCount > 0) parts.push(`오늘 일정 ${safeCount}개`);
+      if (reminder) parts.push('알림 설정 일정 있음');
+      entry.setAttribute('aria-label', parts.join(', '));
+      entry.dataset.todayEventCount = String(safeCount);
+      entry.dataset.hasTodayReminder = String(reminder);
+    }
+  };
+  const scheduleNavigationCalendarMidnightRefresh = () => {
+    window.clearTimeout(navigationCalendarStatusTimer);
+    navigationCalendarStatusTimer = window.setTimeout(() => {
+      void refreshNavigationCalendarStatus();
+    }, millisecondsUntilNextLocalMidnight() + 100);
+  };
+  const refreshNavigationCalendarStatus = async () => {
+    if (navigationCalendarEntries().length === 0) return;
+    const generation = ++navigationCalendarStatusGeneration;
+    const tokenAtStart = sessionToken;
+    const namespaceAtStart = namespace;
+    try {
+      const status = await navigationCalendarStatus();
+      if (
+        generation !== navigationCalendarStatusGeneration
+        || tokenAtStart !== sessionToken
+        || namespaceAtStart !== namespace
+      ) return;
+      renderNavigationCalendarStatus(status);
+    } catch (error) {
+      if (generation === navigationCalendarStatusGeneration) {
+        renderNavigationCalendarStatus({count: 0, hasReminder: false});
+        if (error instanceof SiteCoreError && isSessionError(error)) sessionToken = undefined;
+      }
+    } finally {
+      if (generation === navigationCalendarStatusGeneration) scheduleNavigationCalendarMidnightRefresh();
+    }
+  };
+  const onNavigationCalendarRefresh = () => void refreshNavigationCalendarStatus();
+  window.addEventListener('lotbi:life-calendar-refresh', onNavigationCalendarRefresh);
+  window.addEventListener('pageshow', onNavigationCalendarRefresh);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void refreshNavigationCalendarStatus();
+  });
+
   const openLotbiBox = trigger => {
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
@@ -2906,6 +3004,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
     if (attachmentMenuOpen && !target?.closest('[data-attachment-control]')) closeAttachmentMenu();
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
+    const globalNavAction = target?.closest('[data-global-nav-action]');
+    if (globalNavAction instanceof HTMLButtonElement) {
+      event.preventDefault();
+      closeMobileDrawer();
+      const action = globalNavAction.dataset.globalNavAction;
+      if (action === 'profile') openProfile();
+      else if (action === 'settings') openSettings();
+      else if (action === 'help') openHelp();
+      return;
+    }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
     if (lotbiBoxTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
@@ -2938,6 +3046,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
     } else if (!sessionToken) switchNamespace(anonymousConversationNamespace());
+    renderNavigationCalendarStatus({count: 0, hasReminder: false});
+    void refreshNavigationCalendarStatus();
   });
   window.addEventListener(SIDEBAR_RENDERED_EVENT, () => {
     bindCalendarEntries();
@@ -2945,7 +3055,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!stateReady && document.body.dataset.siteAuthState === 'unauthenticated') {
       switchNamespace(anonymousConversationNamespace());
     }
+    void refreshNavigationCalendarStatus();
   });
+  void refreshNavigationCalendarStatus();
   syncResponseGradeUi();
   refreshConversationTimeLabels();
   updateSendState(); setStatus(sessionToken ? 'LOTBI와 대화할 준비가 되었습니다.' : '로그인 없이도 LOTBI와 바로 대화할 수 있습니다. 계정 기능이 필요할 때만 로그인합니다.');
