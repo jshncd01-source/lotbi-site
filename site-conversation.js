@@ -14,6 +14,13 @@ import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-messag
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
+try {
+  const savedTheme = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
+    document.documentElement.dataset.siteThemeBootstrap = savedTheme;
+  }
+} catch {}
+
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';
