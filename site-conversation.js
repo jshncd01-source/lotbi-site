@@ -2038,6 +2038,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const species = speciesSelect();
       const error = document.createElement('p');
       error.className = 'site-field-error';
+      const requestId = newPetRequestId('site.pet.create');
       const actions = document.createElement('div');
       actions.className = 'pet-family-form-actions';
       const save = button('Pet ID 발급하고 등록', async () => {
@@ -2046,7 +2047,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         save.disabled = true;
         try {
           const created = await createSitePet(sessionToken, {
-            requestId: newPetRequestId('site.pet.create'),
+            requestId,
             name: value,
             species: species.value,
           });
@@ -2179,12 +2180,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       note.maxLength = 2000;
       const error = document.createElement('p');
       error.className = 'site-field-error';
+      const requestId = newPetRequestId('site.pet.sos');
       const save = button('SOS 생성', async () => {
         if (!location.value.trim() || !time.value) { error.textContent = '마지막 목격 위치와 시간을 입력해 주세요.'; return; }
         save.disabled = true;
         try {
           const created = await createSitePetSos(sessionToken, {
-            requestId: newPetRequestId('site.pet.sos'),
+            requestId,
             petId: pet.pet_id,
             locationLabel: location.value,
             lastSeenAt: new Date(time.value).toISOString(),
@@ -2217,6 +2219,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       safety.textContent = '발견 제보에는 사진 1장 이상이 필요합니다. 위험하게 가까이 접근하거나 붙잡아 사진을 찍지 마세요.';
       const error = document.createElement('p');
       error.className = 'site-field-error';
+      const requestId = newPetRequestId('site.pet.found');
       const save = button('발견 제보 저장', async () => {
         const file = photo.files?.[0];
         if (!location.value.trim() || !(file instanceof File)) {
@@ -2227,7 +2230,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         let created;
         try {
           created = await createSiteFoundPet(sessionToken, {
-            requestId: newPetRequestId('site.pet.found'),
+            requestId,
             species: species.value,
             locationLabel: location.value,
             foundAt: new Date().toISOString(),
