@@ -236,7 +236,7 @@ assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry m
 assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish authenticated and guest entry without gating');
 
 
-assert.ok(index.includes('href="site-calendar.css?v=20260922-holiday1"'));
+assert.ok(index.includes('href="site-calendar.css?v=20260922-calholidayloc1"'));
 assert.ok(!index.includes('data-life-calendar-panel'), 'Chat Home must not auto-mount a Calendar summary panel');
 assert.ok(!index.includes('data-calendar-enabled="true"'), 'Chat Home must not opt into the legacy Calendar summary');
 assert.ok(!index.includes('aria-label="오늘과 예정" hidden'), 'Chat Home must not carry the Today/Upcoming summary surface');
@@ -250,7 +250,7 @@ for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 �
 for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
   assert.ok(!index.includes(forbidden), `internal Calendar term leaked into user UI: ${forbidden}`);
 }
-assert.ok(callback.includes('href="/site-calendar.css?v=20260922-holiday1"'));
+assert.ok(callback.includes('href="/site-calendar.css?v=20260922-calholidayloc1"'));
 const callbackJs = read('auth-callback.js');
 assert.ok(!callbackJs.includes('mountLifeCalendarIfEnabled'), 'Auth callback must not auto-mount Calendar summary into Chat Home');
 
