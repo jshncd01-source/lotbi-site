@@ -43,6 +43,7 @@ on:
       - 'scripts/validate_calendar_event_editor_01.mjs'
       - 'scripts/validate_calendar_responsive_01.mjs'
       - 'scripts/validate_calendar_modal_runtime_02.mjs'
+      - 'scripts/validate_calendar_touch_monthnav_daysheet_01.mjs'
       - 'scripts/validate_calendar_month_geometry_01.mjs'
       - 'scripts/validate_auth_continuity_02.mjs'
       - 'scripts/validate_site.py'
@@ -101,5 +102,7 @@ jobs:
           node scripts/validate_calendar_event_editor_01.mjs
           node scripts/validate_calendar_responsive_01.mjs
           node scripts/validate_calendar_modal_runtime_02.mjs
+      - name: Calendar touch month navigation and selected-day sheet
+        run: node scripts/validate_calendar_touch_monthnav_daysheet_01.mjs
       - name: Calendar Month desktop geometry and density
         run: node scripts/validate_calendar_month_geometry_01.mjs

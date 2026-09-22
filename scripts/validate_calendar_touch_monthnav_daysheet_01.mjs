@@ -77,7 +77,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <script type="module">
 const out=document.getElementById('calendar-result');
 let stage='init';
-setTimeout(()=>{if(out.textContent==='pending')out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage,viewport:{width:innerWidth,height:innerHeight}})},35000);
+setTimeout(()=>{if(out.textContent==='pending'){const m=document.querySelector('.site-modal.site-calendar-modal');const c=m&&m.querySelector('.site-modal-content');out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage,diag:{modal:Boolean(m),view:c&&c.dataset.calendarManagerView,busy:c&&c.getAttribute('aria-busy'),grid:Boolean(m&&m.querySelector('.calendar-month-grid')),status:(m&&m.querySelector('.life-calendar-error')||{}).textContent||''},viewport:{width:innerWidth,height:innerHeight}})}},35000);
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<200;i+=1){if(fn())return true;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
 const click=node=>node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
 
@@ -111,19 +111,28 @@ try{
   // Korea holiday decoration is covered by validate_calendar_korea_holidays_01.mjs.
   // Disable it here so its asynchronous refresh cannot make gesture timing flaky.
   localStorage.setItem('lotbi.calendar.settings.v1',JSON.stringify({showKoreaHolidays:false}));
+  // Hermetic by design: this fixture measures gesture and sheet behaviour only, so
+  // every off-origin call is answered locally. Nothing here depends on the network,
+  // which keeps the gesture timing deterministic.
   const nativeFetch=globalThis.fetch.bind(globalThis);
+  const json=body=>Promise.resolve(new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}}));
   globalThis.fetch=(url,init)=>{
     const parsed=new URL(String(url),location.origin);
     if(parsed.pathname==='/v2/life/holidays'){
       const year=Number(parsed.searchParams.get('year')||new Date().getFullYear());
-      return Promise.resolve(new Response(JSON.stringify({
-        year,country:'KR',coverage_status:'VERIFIED',
+      return json({year,country:'KR',coverage_status:'VERIFIED',
         snapshot_version:'touch-fixture-'+year,supported_years:[year],
-        items:[],ai_calls:0,provider_api_calls:0
-      }),{status:200,headers:{'Content-Type':'application/json'}}));
+        items:[],ai_calls:0,provider_api_calls:0});
     }
+    if(parsed.origin!==location.origin)return json({items:[]});
     return nativeFetch(url,init);
   };
+  // Geolocation never resolves in headless; answer immediately so the manager can
+  // settle instead of staying aria-busy.
+  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{
+    getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
+    watchPosition:()=>0,clearWatch:()=>{},
+  }});
   const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260922-daysheet1');
   const guestRepo=createGuestCalendarRepository(localStorage);
   const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());
@@ -139,14 +148,30 @@ try{
   const content=modal.querySelector('.site-modal-content');
   await wait(()=>content?.dataset.calendarManagerView==='month','month view');
   await wait(()=>content?.getAttribute('aria-busy')!=='true','calendar idle');
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  // setTimeout rather than requestAnimationFrame: under --virtual-time-budget an
+  // idle page may never produce another animation frame.
+  stage='layout settle';
+  await new Promise(r=>setTimeout(r,50));
+  await wait(()=>modal.querySelector('.calendar-month')?.getBoundingClientRect().width>0,'month geometry');
 
+  // validate_calendar_modal_runtime_02 reads layout.children[0] as the month and
+  // layout.children[1] as the selected-day surface. Lock that ordering here so the
+  // sheet backdrop can never be inserted ahead of them.
+  const layoutNode=()=>modal.querySelector('.calendar-month-layout');
+  const childOrderOk=()=>{
+    const layout=layoutNode();
+    if(!layout)return false;
+    return layout.children[0]?.classList.contains('calendar-month')
+      && layout.children[1]?.classList.contains('calendar-day-panel');
+  };
   const titleOf=()=>modal.querySelector('.calendar-title-button')?.textContent||'';
   const monthNode=()=>modal.querySelector('.calendar-month');
   const idle=async label=>{await wait(()=>content?.getAttribute('aria-busy')!=='true',label)};
   const desktop=innerWidth>900;
-  const result={ok:true,viewport:{width:innerWidth,height:innerHeight},desktop};
+  const result={ok:true,viewport:{width:innerWidth,height:innerHeight},desktop,
+    reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches};
 
+  result.childOrder=childOrderOk();
   const baseTitle=titleOf();
   const rect=monthNode().getBoundingClientRect();
   const midY=Math.round(rect.top+rect.height/2);
@@ -218,6 +243,19 @@ try{
     await wait(()=>modal.querySelector('[data-calendar-date="'+cellDate+'"]')?.dataset.selected==='true','date selection');
     await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'sheet open');
     const sheet=modal.querySelector('.calendar-day-panel');
+    // The sheet rises from below the fold, so geometry is only meaningful once the
+    // entry animation has settled.
+    stage='sheet animation settle';
+    let previousBottom=null,stableTicks=0;
+    for(let i=0;i<120;i+=1){
+      const current=sheet.getBoundingClientRect().bottom;
+      if(previousBottom!==null&&Math.abs(current-previousBottom)<0.5){
+        stableTicks+=1;
+        if(stableTicks>=3)break;
+      }else stableTicks=0;
+      previousBottom=current;
+      await new Promise(r=>setTimeout(r,20));
+    }
     const sheetRect=sheet.getBoundingClientRect();
     const sheetStyle=getComputedStyle(sheet);
     result.sheet={
@@ -228,6 +266,9 @@ try{
       left:sheetRect.left,
       right:sheetRect.right,
       backdrop:Boolean(modal.querySelector('[data-calendar-day-sheet-backdrop]')),
+      bottomOffset:getComputedStyle(sheet).bottom,
+      viewportBound:sheet.dataset.visualViewportBound||'',
+      reducedMotion:sheet.dataset.reducedMotion||'',
       heading:Boolean(sheet.querySelector('.calendar-day-heading')?.textContent?.trim()),
       addButton:Boolean(sheet.querySelector('[data-calendar-add]')),
       addLabel:sheet.querySelector('[data-calendar-add]')?.textContent||'',
@@ -280,9 +321,10 @@ function wrapperMarkup(w, h) {
   <\/script></body></html>`;
 }
 
-function run(browser, w, h) {
+function run(browser, w, h, {reducedMotion = true} = {}) {
   fs.writeFileSync(WRAPPER, wrapperMarkup(w, h), 'utf8');
-  const r = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--virtual-time-budget=60000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
+  const motionFlags = reducedMotion ? ['--force-prefers-reduced-motion=reduce'] : [];
+  const r = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', ...motionFlags, '--virtual-time-budget=60000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
   if (r.error) throw r.error;
   if (r.status !== 0) throw new Error('browser ' + r.status + ' ' + r.stderr);
   const a = '<pre id="result">', b = '</pre>';
@@ -290,7 +332,7 @@ function run(browser, w, h) {
   if (i < 0 || j < 0) throw new Error('result missing');
   const raw = r.stdout.slice(i + a.length, j).replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
   const v = JSON.parse(raw);
-  if (!v.ok) throw new Error(`${w}x${h}: ${v.error}`);
+  if (!v.ok) throw new Error(`${w}x${h}: ${v.error}${v.diag ? ' ' + JSON.stringify(v.diag) : ''}`);
   return v;
 }
 
@@ -299,13 +341,18 @@ fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
+  // Geometry cases run with reduced motion forced so the sheet's resting position is
+  // measured rather than a frame of its entry animation.
   const cases = [[1280, 900], [1440, 900], [768, 900], [340, 800], [390, 844], [412, 915], [320, 800]];
   const results = cases.map(([w, h]) => run(browser, w, h));
+  // One motion-enabled pass proves the animated path still produces a working sheet.
+  const animated = run(browser, 390, 844, {reducedMotion: false});
 
   for (const value of results) {
     const label = `${value.viewport.width}x${value.viewport.height}`;
     if (!value.tapPreserved) throw new Error(`${label}: tap-sized movement must not navigate months`);
     if (!value.verticalScrollSafe) throw new Error(`${label}: vertical drag must not navigate or block scrolling`);
+    if (!value.childOrder) throw new Error(`${label}: month layout child order changed (children[0]=.calendar-month, children[1]=.calendar-day-panel)`);
   }
 
   const desktops = results.filter(value => value.desktop);
@@ -331,7 +378,7 @@ try {
     if (sheet.position !== 'fixed') throw new Error(`${label}: sheet must be viewport-fixed`);
     if (!sheet.backdrop) throw new Error(`${label}: sheet must render a dismiss backdrop`);
     if (sheet.top < -1) throw new Error(`${label}: sheet escapes the top of the viewport`);
-    if (sheet.bottom > value.viewport.height + 1) throw new Error(`${label}: sheet escapes the bottom of the viewport`);
+    if (sheet.bottom > value.viewport.height + 1) throw new Error(`${label}: sheet escapes the bottom of the viewport ${JSON.stringify(sheet)}`);
     if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: sheet horizontal overflow`);
     if (!sheet.heading) throw new Error(`${label}: sheet must show the date heading`);
     if (!sheet.listOrEmpty) throw new Error(`${label}: sheet must show the event list or the empty message`);
@@ -346,7 +393,20 @@ try {
     if (!value.flowSwitchable) throw new Error(`${label}: FLOW presentation must stay switchable`);
   }
 
-  console.log('CALENDAR TOUCH MONTHNAV + DAY SHEET PASS', JSON.stringify(results));
+  for (const value of results) {
+    if (!value.reducedMotion) throw new Error(`${value.viewport.width}x${value.viewport.height}: reduced-motion case did not report reduced motion`);
+    if (value.sheet && value.sheet.reducedMotion !== 'true') throw new Error(`${value.viewport.width}x${value.viewport.height}: sheet must record prefers-reduced-motion`);
+  }
+  if (animated.reducedMotion) throw new Error('motion-enabled case unexpectedly reported reduced motion');
+  if (animated.sheet.reducedMotion !== 'false') throw new Error('motion-enabled sheet must record prefers-reduced-motion=false');
+  if (animated.sheet.presentation !== 'SHEET' || animated.sheet.position !== 'fixed' || !animated.sheet.backdrop) {
+    throw new Error('motion-enabled sheet must still render as a fixed sheet with a backdrop');
+  }
+  if (!animated.swipeNext || !animated.swipePrevious || !animated.burstNoSkip) {
+    throw new Error('motion-enabled swipe navigation regressed');
+  }
+
+  console.log('CALENDAR TOUCH MONTHNAV + DAY SHEET PASS', JSON.stringify({results, animated}));
 } finally {
   server.kill('SIGTERM');
   fs.rmSync(INNER, {force: true});
