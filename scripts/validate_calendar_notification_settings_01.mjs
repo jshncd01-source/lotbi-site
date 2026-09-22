@@ -46,8 +46,8 @@ assert.match(css, /\.calendar-settings-action-row/);
 assert.match(css, /\.calendar-settings-action-button/);
 assert.match(ui, /site-calendar-manager\.js\?v=20260922-holidaylive1/);
 assert.match(conversation, /site-calendar-ui\.js\?v=20260922-holidaylive1/);
-assert.match(index, /site-conversation\.js\?v=20260922-reminderbell2/);
-assert.match(callback, /site-conversation\.js\?v=20260922-reminderbell2/);
-assert.match(callbackHtml, /auth-callback\.js\?v=20260922-reminderbell2/);
+assert.match(index, /site-conversation\.js\?v=20260922-holidaylive1/);
+assert.match(callback, /site-conversation\.js\?v=20260922-holidaylive1/);
+assert.match(callbackHtml, /auth-callback\.js\?v=20260922-holidaylive1/);
 
 console.log('LOTBI Calendar notification Settings opt-in contract: PASS');
