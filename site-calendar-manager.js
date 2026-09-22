@@ -666,12 +666,42 @@ function renderAttention(state) {
 
 function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
+  document.body.classList.remove('calendar-editor-open');
+
   const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
   const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 추가');
+  const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
+  const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
+  editorHeader.append(heading, closeButton);
   const form = document.createElement('form'); form.className = 'calendar-editor-form';
+  const editorBody = document.createElement('div'); editorBody.className = 'calendar-editor-body';
+
+  document.body.classList.add('calendar-editor-open');
+  let viewportCleanup = () => {};
+  if (usesFlowingDayDetail() && globalThis.visualViewport) {
+    const viewport = globalThis.visualViewport;
+    const syncEditorViewport = () => {
+      backdrop.style.setProperty('--calendar-editor-visual-height', `${Math.max(1, Math.round(viewport.height))}px`);
+      backdrop.style.setProperty('--calendar-editor-visual-top', `${Math.max(0, Math.round(viewport.offsetTop || 0))}px`);
+    };
+    syncEditorViewport();
+    viewport.addEventListener('resize', syncEditorViewport);
+    viewport.addEventListener('scroll', syncEditorViewport);
+    viewportCleanup = () => {
+      viewport.removeEventListener('resize', syncEditorViewport);
+      viewport.removeEventListener('scroll', syncEditorViewport);
+    };
+  }
+  let editorEnvironmentReleased = false;
+  const releaseEditorEnvironment = () => {
+    if (editorEnvironmentReleased) return;
+    editorEnvironmentReleased = true;
+    viewportCleanup();
+    document.body.classList.remove('calendar-editor-open');
+  };
 
   const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목 *';
   const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || draft?.title || '';
@@ -831,6 +861,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
         try {
           await controller.remove(item);
           cleanupDeleteConfirmation({restoreFocus: false});
+          releaseEditorEnvironment();
           backdrop.remove();
           await onSaved();
         } catch (caught) {
@@ -850,18 +881,21 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     });
   }
 
-  form.append(
+  editorBody.append(
     titleLabel, titleNote, dateLabel, allDayLabel, timeLabel,
     amountLabel, categoryLabel, memoLabel, placeLabel, merchantLabel,
-    error, actions,
+    error,
   );
-  dialog.append(heading, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
+  form.append(editorBody, actions);
+  dialog.append(editorHeader, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
 
   const close = () => {
     cleanupDeleteConfirmation({restoreFocus: false});
+    releaseEditorEnvironment();
     backdrop.remove();
     onClose();
   };
+  closeButton.addEventListener('click', close);
   cancel.addEventListener('click', close);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
   dialog.addEventListener('keydown', event => {
@@ -870,6 +904,14 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
       event.stopPropagation();
       close();
     }
+  });
+  form.addEventListener('focusin', event => {
+    if (!usesFlowingDayDetail()) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || typeof target.scrollIntoView !== 'function') return;
+    const reveal = () => target.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(reveal);
+    else setTimeout(reveal, 0);
   });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
@@ -888,6 +930,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     try {
       if (item) await controller.update(item, value); else await controller.create(value);
       cleanupDeleteConfirmation({restoreFocus: false});
+      releaseEditorEnvironment();
       backdrop.remove(); await onSaved();
     } catch (caught) {
       if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
