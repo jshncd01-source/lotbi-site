@@ -1,5 +1,5 @@
 import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260922-weather1';
+import {normalizeCalendarWeatherRegions, normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260922-weatherreal1';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -428,17 +428,29 @@ export async function previewLifeCalendarCommand({logicalRequestId: requestId, t
   return assertCommandPreviewResponse(payload);
 }
 
+export async function getCalendarWeatherRegions(fetchImpl = globalThis.fetch) {
+  const payload = await publicCalendarRequest('/v2/life/weather/regions', {}, fetchImpl);
+  return normalizeCalendarWeatherRegions(payload);
+}
+
 export async function getCalendarWeather(
   sessionToken,
-  {start, end, timezone = 'Asia/Seoul', latitude, longitude, midRegionCode = ''},
+  {start, end, timezone = 'Asia/Seoul', latitude, longitude, midRegionCode = '', manualRegionCode = ''},
   fetchImpl = globalThis.fetch,
 ) {
   const startDate = isoDate(start, '시작');
   const endDate = isoDate(end, '종료');
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const hasLatitude = latitude !== undefined && latitude !== null && latitude !== '';
   const hasLongitude = longitude !== undefined && longitude !== null && longitude !== '';
   const region = typeof midRegionCode === 'string' ? midRegionCode.trim() : '';
-  if (hasLatitude !== hasLongitude || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))) {
+  const manualRegion = typeof manualRegionCode === 'string' ? manualRegionCode.trim().toUpperCase() : '';
+  if (
+    hasLatitude !== hasLongitude
+    || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))
+    || (manualRegion && !/^KR_[A-Z0-9_]{2,24}$/.test(manualRegion))
+    || (manualRegion && (hasLatitude || hasLongitude || region))
+  ) {
     throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
       code: 'CALENDAR_WEATHER_LOCATION_INVALID',
       status: 422,
@@ -449,7 +461,9 @@ export async function getCalendarWeather(
     end: endDate,
     timezone: String(timezone || 'Asia/Seoul'),
   });
-  if (hasLatitude && hasLongitude) {
+  if (manualRegion) {
+    params.set('manual_region_code', manualRegion);
+  } else if (hasLatitude && hasLongitude) {
     const lat = Number(latitude);
     const lon = Number(longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 31 || lat > 44.5 || lon < 122 || lon > 132.5) {
@@ -462,12 +476,10 @@ export async function getCalendarWeather(
     params.set('longitude', String(lon));
     if (region) params.set('mid_region_code', region);
   }
-  const payload = await calendarRequest(
-    `/v2/life/weather?${params.toString()}`,
-    sessionToken,
-    {},
-    fetchImpl,
-  );
+  const path = `/v2/life/weather${token ? '' : '/public'}?${params.toString()}`;
+  const payload = token
+    ? await calendarRequest(path, token, {}, fetchImpl)
+    : await publicCalendarRequest(path, {}, fetchImpl);
   return normalizeCalendarWeatherResponse(payload);
 }
 
