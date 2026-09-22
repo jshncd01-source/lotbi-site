@@ -17,9 +17,9 @@ for (const token of [
 }
 if (!theme.includes('body[data-site-theme="dark"]')) throw new Error('explicit dark mapping missing');
 if (!theme.includes('@media (prefers-color-scheme: dark)')) throw new Error('system dark mapping missing');
-if (!entry.includes('site-theme-tokens.css?v=20260922-darkcontrast1')) throw new Error('theme stylesheet cache key missing');
-if (!entry.includes('lotbi.site.theme.bootstrap.v1')) throw new Error('pre-paint theme bootstrap missing');
-if (!runtime.includes("localStorage.setItem('lotbi.site.theme.bootstrap.v1', preferences.theme)")) throw new Error('theme bootstrap persistence missing');
+if (!entry.includes('site-theme-tokens.css?v=20260922-darkcontrast2')) throw new Error('theme stylesheet cache key missing');
+if (!runtime.includes("getItem?.('lotbi.site.theme.bootstrap.v1')")) throw new Error('pre-paint theme bootstrap read missing');
+if (!runtime.includes("setItem?.('lotbi.site.theme.bootstrap.v1', preferences.theme)")) throw new Error('theme bootstrap persistence missing');
 if (!conversation.includes('color: var(--lotbi-link-primary, #18345f)')) throw new Error('Help links are not routed through semantic link token');
 if (/\.help-links a\s*\{[^}]*color:\s*#18345f/u.test(conversation)) throw new Error('hardcoded Help link color remains');
 

@@ -140,7 +140,7 @@ document.getElementById('render-result').textContent = JSON.stringify({
   secondary: {top: before.secondary.top, bottom: before.secondary.bottom, topAfter: after.secondary.top, bottomAfter: after.secondary.bottom},
   footer: {top: before.footer.top, bottom: before.footer.bottom, topAfter: after.footer.top, bottomAfter: after.footer.bottom, position: footerStyle.position},
   title: {clientWidth: firstTitle.clientWidth, scrollWidth: firstTitle.scrollWidth, height: firstTitle.getBoundingClientRect().height, lineHeight: titleStyle.lineHeight, overflow: titleStyle.overflow, textOverflow: titleStyle.textOverflow, whiteSpace: titleStyle.whiteSpace, webkitLineClamp: titleStyle.webkitLineClamp},
-  oldLabelsPresent: ['내 작업','라이브러리','주문 내역','예약 내역','내 계정','설정','도움말 / 문의','어제','최근 7일','이전'].filter(label => surface.textContent.includes(label)),
+  oldLabelsPresent: ['내 작업','라이브러리','주문 내역','예약 내역','내 계정','도움말 / 문의','어제','최근 7일','이전'].filter(label => surface.textContent.includes(label)),
 });
 </script></body></html>`;
 }
