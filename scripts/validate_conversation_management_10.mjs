@@ -79,12 +79,14 @@ for (const cssToken of [
   assert.ok(sidebarCss.includes(cssToken), `PHASE 10 Sidebar CSS missing: ${cssToken}`);
 }
 
-assert.ok(index.includes('href="site-sidebar-nav.css?v=20260922-globalnav1"'), 'Home must cache-bust PHASE 10 Sidebar CSS');
+const homeSidebarVersion = index.match(/href="site-sidebar-nav\.css\?v=([^"]+)"/)?.[1] || '';
+const callbackSidebarVersion = callbackHtml.match(/href="\/site-sidebar-nav\.css\?v=([^"]+)"/)?.[1] || '';
+assert.ok(homeSidebarVersion, 'Home must cache-bust Sidebar CSS');
+assert.equal(callbackSidebarVersion, homeSidebarVersion, 'auth callback must share the current Home Sidebar CSS');
 const homeConversationVersion = index.match(/src="site-conversation\.js\?v=([^"]+)"/)?.[1] || '';
 const callbackEntryVersion = callbackHtml.match(/src="\/auth-callback\.js\?v=([^"]+)"/)?.[1] || '';
 const callbackConversationVersion = callbackJs.match(/from '\.\/site-conversation\.js\?v=([^']+)'/)?.[1] || '';
 assert.ok(homeConversationVersion, 'Home must cache-bust the combined conversation runtime');
-assert.ok(callbackHtml.includes('href="/site-sidebar-nav.css?v=20260922-globalnav1"'), 'auth callback must share PHASE 10 Sidebar CSS');
 assert.ok(callbackEntryVersion, 'auth callback entry must be cache-busted');
 assert.equal(callbackConversationVersion, homeConversationVersion, 'auth callback must import the current Home conversation runtime');
 

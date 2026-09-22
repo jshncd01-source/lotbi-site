@@ -73,6 +73,7 @@ assert.match(index, /<a class="sidebar-brand"[^>]*data-new-conversation/, 'deskt
 assert.match(index, /<a class="chat-brand mobile-header-brand lotbi-official-brand"[^>]*data-new-conversation/, 'mobile LOTBI logo must reset to Home');
 assert.ok(conversation.includes("const newChat = target?.closest('[data-new-conversation]');"), 'delegated reset handler must remain active');
 assert.ok(conversation.includes('if (newChat) { event.preventDefault(); startNewConversation(); return; }'), 'logo/new-chat clicks must use startNewConversation');
-assert.ok(index.includes('site-conversation.js?v=20260922-calholidayloc1'), 'Production HTML must cache-bust the current conversation runtime');
+const conversationRuntimeVersion = index.match(/src="site-conversation\.js\?v=([^"]+)"/)?.[1] || '';
+assert.ok(conversationRuntimeVersion, 'Production HTML must cache-bust the current conversation runtime');
 
 console.log('LOTBI blank Home refresh persistence regression: PASS');

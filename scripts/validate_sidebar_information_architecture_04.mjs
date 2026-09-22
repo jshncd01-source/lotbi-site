@@ -28,8 +28,17 @@ const mobile = extractAside(
 );
 
 for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
-  for (const required of ['새 대화', '캘린더', '연결 서비스', '최근 대화', '프로필', '설정', '도움말']) {
+  for (const required of ['새 대화', '캘린더', '최근 대화']) {
     assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
+  }
+  if (label === 'desktop') {
+    for (const required of ['연결 서비스', '프로필', '설정', '도움말']) {
+      assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
+    }
+  } else {
+    for (const moved of ['연결 서비스', '프로필', '설정', '도움말']) {
+      assert.ok(!block.includes(moved), `mobile drawer must move ${moved} into the account menu`);
+    }
   }
 
   for (const removed of ['오늘', '확인 필요', '내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
@@ -47,8 +56,13 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   const primary = block.match(/<div class="sidebar-primary-nav">[\s\S]*?<\/div>/)?.[0] || '';
   assert.ok(primary.includes('data-new-conversation'), `${label} primary navigation must keep new conversation`);
   assert.ok(!primary.includes('connected-services'), `${label} connected services must not remain a primary action`);
-  const secondary = block.match(/<div class="sidebar-secondary-nav"[^>]*>[\s\S]*?<\/div>/)?.[0] || '';
-  assert.match(secondary, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, `${label} 연결 서비스 must remain available only as a secondary Account Web link`);
+  const secondary = block.match(/<div class="sidebar-secondary-nav[^"]*"[^>]*>[\s\S]*?<\/div>/)?.[0] || '';
+  assert.ok(secondary, `${label} secondary navigation slot missing`);
+  if (label === 'desktop') {
+    assert.match(secondary, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, 'desktop 연결 서비스 must keep the Account Web route');
+  } else {
+    assert.ok(!secondary.includes('connected-services') && !secondary.includes('data-global-nav-action'), 'mobile secondary slot must remain empty because account actions moved to the account menu');
+  }
   const calendar = block.match(/<div class="sidebar-calendar-nav"[^>]*>[\s\S]*?(?=<section class="nav-section sidebar-history-section")/)?.[0] || '';
   assert.match(calendar, /<button[^>]*data-calendar-view="all"[^>]*>[\s\S]*?<span class="nav-item-label">캘린더<\/span>[\s\S]*?<\/button>/, `${label} Calendar root action missing`);
   assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 1, `${label} must expose only the Calendar root action`);
@@ -67,7 +81,7 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   const accountPos = block.indexOf('sidebar-account-footer');
   assert.ok(
     primaryPos >= 0 && calendarPos > primaryPos && recentPos > calendarPos && secondaryPos > recentPos && accountPos > secondaryPos,
-    `${label} order must be new chat → Calendar → recent conversations → secondary actions → account CTA`,
+    `${label} order must be new chat → Calendar → recent conversations → account area`,
   );
 
   const recent = block.match(/<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?<\/ul>/)?.[0] || '';
@@ -76,6 +90,10 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
 }
 
 assert.ok(index.includes('class="account-actions"'), 'mobile/topbar auth continuity DOM must remain present');
+assert.ok(!mobile.includes('data-sidebar-destination="connected-services"'), 'mobile drawer must not duplicate connected services');
+for (const action of ['profile', 'settings', 'help']) {
+  assert.ok(!mobile.includes(`data-global-nav-action="${action}"`), `mobile drawer must not duplicate ${action}`);
+}
 assert.ok(index.includes('data-lotbi-avatar-stage'), 'sealed Avatar stage must remain present');
 assert.ok(index.includes('data-lotbi-avatar-fallback'), 'sealed Avatar fallback must remain present');
 assert.ok(sidebarCss.includes('@media (min-width: 901px)'));
