@@ -365,6 +365,75 @@ export function normalizeSmartCalendarDraft(value) {
   });
 }
 
+function normalizeConversationReadPlan(intent) {
+  if (!intent || typeof intent !== 'object' || intent.read_plan == null) return null;
+  const plan = intent.read_plan;
+  if (
+    intent.response_plan !== 'READ_PLAN'
+    || !plan || typeof plan !== 'object'
+    || plan.freshness !== 'CURRENT'
+    || plan.required_capability !== 'FRESH_SOURCE_READ'
+    || plan.coverage_required !== 'FULL_OR_EXPLICIT_PARTIAL'
+    || plan.allow_model_only !== false
+  ) {
+    throw new SiteCoreError('LOTBI 최신정보 조회 계획 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    freshness: plan.freshness,
+    requiredCapability: plan.required_capability,
+    coverageRequired: plan.coverage_required,
+    allowModelOnly: false,
+  });
+}
+
+function normalizeEvidenceCoverage(placeResult) {
+  if (!placeResult || typeof placeResult !== 'object' || placeResult.evidence_coverage == null) return null;
+  const value = placeResult.evidence_coverage;
+  const allowedStatus = new Set(['NOT_REQUIRED', 'FULL', 'PARTIAL', 'NONE', 'CONFLICTING']);
+  const allowedVerification = new Set(['NOT_REQUIRED', 'VERIFIED', 'SUPPORTED', 'MIXED', 'UNCONFIRMED', 'CONFLICTING']);
+  const allowedFreshness = new Set(['NOT_REQUIRED', 'FRESH', 'PARTIAL', 'UNKNOWN']);
+  const allowedLookup = new Set(['NOT_REQUIRED', 'OK', 'DEGRADED', 'UNAVAILABLE', 'NOT_AVAILABLE']);
+  const countKeys = [
+    'requested_constraint_count',
+    'candidate_count',
+    'verified_candidate_count',
+    'supported_candidate_count',
+    'conflicting_candidate_count',
+    'unconfirmed_candidate_count',
+  ];
+  if (
+    !value || typeof value !== 'object'
+    || !allowedStatus.has(value.status)
+    || !allowedVerification.has(value.verification_level)
+    || !allowedFreshness.has(value.freshness)
+    || !allowedLookup.has(value.lookup_status)
+    || countKeys.some(key => !Number.isInteger(value[key]) || value[key] < 0)
+  ) {
+    throw new SiteCoreError('LOTBI 장소 근거 범위 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const classifiedCandidates = (
+    value.verified_candidate_count
+    + value.supported_candidate_count
+    + value.conflicting_candidate_count
+    + value.unconfirmed_candidate_count
+  );
+  if (value.status !== 'NOT_REQUIRED' && classifiedCandidates !== value.candidate_count) {
+    throw new SiteCoreError('LOTBI 장소 근거 범위 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    status: value.status,
+    verificationLevel: value.verification_level,
+    freshness: value.freshness,
+    lookupStatus: value.lookup_status,
+    requestedConstraintCount: value.requested_constraint_count,
+    candidateCount: value.candidate_count,
+    verifiedCandidateCount: value.verified_candidate_count,
+    supportedCandidateCount: value.supported_candidate_count,
+    conflictingCandidateCount: value.conflicting_candidate_count,
+    unconfirmedCandidateCount: value.unconfirmed_candidate_count,
+  });
+}
+
 function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
@@ -583,7 +652,9 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
+    readPlan: normalizeConversationReadPlan(payload.intent),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
+    evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
@@ -738,7 +809,9 @@ export async function sendGuestConversationMessage({
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
+    readPlan: normalizeConversationReadPlan(payload.intent),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
+    evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),

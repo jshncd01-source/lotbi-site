@@ -213,8 +213,23 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
         correlation_id: 'req_v31_identity',
         status: 'ANSWERED',
         assistant_text: 'V3.1 identity accepted',
-        intent: {action: 'PLACE'},
+        intent: {action: 'PLACE_SEARCH'},
         response_mode: 'PLACE_READONLY',
+        state_version: 4,
+        place_result: {
+          evidence_coverage: {
+            status: 'FULL',
+            verification_level: 'VERIFIED',
+            freshness: 'FRESH',
+            lookup_status: 'OK',
+            requested_constraint_count: 1,
+            candidate_count: 2,
+            verified_candidate_count: 2,
+            supported_candidate_count: 0,
+            conflicting_candidate_count: 0,
+            unconfirmed_candidate_count: 0,
+          },
+        },
         follow_up: {required: false, action: null, reason: null, automatic_execution: false},
         retry_safe: true,
         safety: {execution_authority: false, external_side_effect: false},
@@ -233,6 +248,20 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
     },
   );
   assert.equal(reply.status, 'ANSWERED');
+  assert.equal(reply.stateVersion, 4);
+  assert.equal(reply.intent.action, 'PLACE_SEARCH');
+  assert.deepEqual(reply.evidenceCoverage, {
+    status: 'FULL',
+    verificationLevel: 'VERIFIED',
+    freshness: 'FRESH',
+    lookupStatus: 'OK',
+    requestedConstraintCount: 1,
+    candidateCount: 2,
+    verifiedCandidateCount: 2,
+    supportedCandidateCount: 0,
+    conflictingCandidateCount: 0,
+    unconfirmedCandidateCount: 0,
+  });
   assert.equal(request.init.headers['Idempotency-Key'], logicalId);
   assert.deepEqual(JSON.parse(request.init.body), {
     text: '전주 썬팅 찾아줘',
@@ -245,6 +274,45 @@ for (const code of ['SITE_HANDOFF_REPLAY_OR_INVALID', 'SITE_HANDOFF_EXPIRED']) {
       state_version: 3,
     },
   });
+}
+
+{
+  const reply = await sendConversationMessage(
+    'site-memory-token',
+    '지금 환율 알려줘',
+    async () => jsonResponse({
+      contract_id: 'CORE-WEB-CHAT-01',
+      schema_version: 1,
+      correlation_id: 'req_v31_read_plan',
+      status: 'ANSWERED',
+      assistant_text: '최신 자료 확인이 필요한 질문이에요.',
+      intent: {
+        action: 'UNKNOWN',
+        response_plan: 'READ_PLAN',
+        read_plan: {
+          freshness: 'CURRENT',
+          required_capability: 'FRESH_SOURCE_READ',
+          coverage_required: 'FULL_OR_EXPLICIT_PARTIAL',
+          allow_model_only: false,
+        },
+      },
+      response_mode: 'READ_PLAN_REQUIRED',
+      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+      retry_safe: true,
+      safety: {execution_authority: false, external_side_effect: false},
+    }),
+    [],
+    'auth-ai-v31-read-plan-0001',
+    'Asia/Seoul',
+  );
+  assert.equal(reply.responseMode, 'READ_PLAN_REQUIRED');
+  assert.deepEqual(reply.readPlan, {
+    freshness: 'CURRENT',
+    requiredCapability: 'FRESH_SOURCE_READ',
+    coverageRequired: 'FULL_OR_EXPLICIT_PARTIAL',
+    allowModelOnly: false,
+  });
+  assert.equal(reply.evidenceCoverage, null);
 }
 
 {
@@ -364,6 +432,38 @@ await expectReject(
     recent_context: [{role: 'user', text: '아까 과학 이야기했지?'}],
     client_context: {timezone: 'Asia/Seoul'},
   });
+}
+
+{
+  const reply = await sendGuestConversationMessage({
+    guestToken: 'g'.repeat(43),
+    text: '서울 날씨 어때?',
+    idempotencyKey: 'guest-request-v31-read-0001',
+    timezone: 'Asia/Seoul',
+  }, async () => jsonResponse({
+    contract_id: 'CORE-WEB-CHAT-01',
+    schema_version: 1,
+    correlation_id: 'req_guest_v31_read_plan',
+    status: 'ANSWERED',
+    assistant_text: '최신 자료 확인이 필요한 질문이에요.',
+    intent: {
+      action: 'UNKNOWN',
+      response_plan: 'READ_PLAN',
+      read_plan: {
+        freshness: 'CURRENT',
+        required_capability: 'FRESH_SOURCE_READ',
+        coverage_required: 'FULL_OR_EXPLICIT_PARTIAL',
+        allow_model_only: false,
+      },
+    },
+    response_mode: 'READ_PLAN_REQUIRED',
+    follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+    retry_safe: true,
+    safety: {execution_authority: false, external_side_effect: false},
+  }));
+  assert.equal(reply.responseMode, 'READ_PLAN_REQUIRED');
+  assert.equal(reply.readPlan.requiredCapability, 'FRESH_SOURCE_READ');
+  assert.equal(reply.evidenceCoverage, null);
 }
 
 await expectReject(
