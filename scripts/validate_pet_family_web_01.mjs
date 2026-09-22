@@ -89,6 +89,35 @@ assert.ok(
 
 assert.ok(petClient.includes("cache: 'no-store'"), 'pet requests must not be cached');
 assert.ok(petClient.includes("credentials: 'omit'"), 'pet requests must not send ambient credentials');
+
+// A failing sub-request of this surface must never take the whole site down with
+// it, the way one 401 on a Calendar sub-request once collapsed the calendar. So
+// the invalid-session announcement is opt-in here, reserved for the read that
+// opens the surface, and never fires on 403 — a 403 means this one action is not
+// permitted (somebody else's pet, an assurance level 발견 신고 wants), not that
+// the session is gone.
+assert.ok(
+  petClient.includes('announceSessionFailure = false'),
+  'pet requests must not announce session failure by default',
+);
+assert.ok(
+  petClient.includes("petRequest('/v2/pets', sessionToken, {announceSessionFailure: true}"),
+  'only the surface entry read may announce an invalid session',
+);
+assert.ok(
+  petClient.includes('if (!(error instanceof SiteCoreError) || error.status !== 401) return;'),
+  'a 403 must not be treated as an invalid session',
+);
+assert.strictEqual(
+  (petClient.match(/if \(announceSessionFailure\) announceInvalidSiteSession\(error\);/g) || []).length,
+  2,
+  'every announce site must be gated on the opt-in flag',
+);
+assert.strictEqual(
+  (petClient.match(/announceSessionFailure: true/g) || []).length,
+  1,
+  'exactly one pet request may announce an invalid session',
+);
 assert.ok(
   petClient.includes('URL.createObjectURL'),
   'private photo bytes must be read through an object URL, not a public link',
