@@ -443,3 +443,107 @@ body[data-site-theme="dark"] .conversation-history-menu button:focus-visible {
   }
 }
 
+
+
+/* LOTBI-GLOBAL-NAV-MONOCHROME-CALENDAR-BADGE-01 */
+.lotbi-nav-icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nav-item {
+  cursor: pointer;
+}
+
+.nav-item .nav-icon,
+.nav-section-title-icon .nav-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-item-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-section-title-icon {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-section-title-icon .nav-icon {
+  width: 17px;
+  height: 17px;
+  flex-basis: 17px;
+}
+
+.nav-calendar-status {
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.nav-item-status {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.calendar-status-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: #697384;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-status-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: #697384;
+}
+
+.calendar-status-badge[hidden],
+.calendar-reminder-icon[hidden] {
+  display: none;
+}
+
+.sidebar-secondary-nav button.nav-item {
+  font-family: inherit;
+}
+
+body[data-site-theme="dark"] .calendar-status-badge,
+body[data-site-theme="dark"] .nav-status-icon {
+  color: #aeb6c2;
+}
