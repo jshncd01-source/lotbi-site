@@ -168,6 +168,12 @@ async function publicCalendarRequest(
   return payload;
 }
 
+// announceSessionFailure decides whether a 401/403 from this request is allowed
+// to declare the whole Site session dead. That announcement tears the Calendar
+// down and returns the user Home, so only the reads the Calendar cannot exist
+// without may make it. An auxiliary read — the expense totals, the weather —
+// failing means that strip has nothing to show, not that the user is logged out,
+// and it must pass false.
 async function calendarRequest(
   path,
   sessionToken,
@@ -575,7 +581,7 @@ export async function getCalendarWeather(
   const payload = await calendarRequest(
     `/v2/life/weather?${params.toString()}`,
     sessionToken,
-    {},
+    {announceSessionFailure: false},
     fetchImpl,
   );
   return normalizeCalendarWeatherResponse(payload);
@@ -685,7 +691,7 @@ export async function getLifeExpenseSummary(sessionToken, {timezone, start, end}
   const payload = await calendarRequest(
     `/v2/life/expense-summary?timezone=${encodeURIComponent(zone)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
     sessionToken,
-    {},
+    {announceSessionFailure: false},
     fetchImpl,
   );
   return assertExpenseSummaryResponse(payload);

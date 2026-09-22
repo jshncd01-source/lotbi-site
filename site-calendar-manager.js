@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-expense1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-expensefix1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -1736,7 +1736,10 @@ export async function mountLifeCalendarManager({
         status: 'error',
         summary: null,
         monthKey,
-        message: error instanceof SiteCoreError && (error.status === 401 || error.status === 403)
+        // Only an expired session is worth sending the user back to sign in.
+        // A 403 here is the server refusing this route, which signing in again
+        // does not fix, so it gets the plain failure line.
+        message: error instanceof SiteCoreError && error.status === 401
           ? '지출 합계를 보려면 LOTBI에 다시 로그인해 주세요.'
           : '지출 합계를 불러오지 못했습니다.',
       };

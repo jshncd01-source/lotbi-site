@@ -107,7 +107,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260922-expense1');
+  const manager=await import('/site-calendar-manager.js?v=20260922-expensefix1');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -183,13 +183,22 @@ try{
   result.emptyText=empty.querySelector('.calendar-expense-notice')?.textContent||'';
   result.emptyHasNoTable=!empty.querySelector('table');
 
-  // --- Core failure ----------------------------------------------------
-  root=await mountCase(manager,{sessionToken:'tok_expense_fixture',
-    fetchImpl:stubFetch({expense:null,expenseStatus:500})});
-  await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='error','error strip');
-  const failed=strip(root);
-  result.errorPresent=Boolean(failed);
-  result.errorText=failed.querySelector('.calendar-expense-notice')?.textContent||'';
+  // --- Core refuses the read (the 403 that caused the outage) ----------
+  for(const status of [401,403]){
+    root=await mountCase(manager,{sessionToken:'tok_expense_fixture',
+      fetchImpl:stubFetch({expense:null,expenseStatus:status})});
+    await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='error','error strip '+status);
+    const failed=strip(root);
+    result['error'+status]={
+      present:Boolean(failed),
+      text:failed.querySelector('.calendar-expense-notice')?.textContent||'',
+      // The refusal must not have taken the Calendar with it.
+      monthStillRendered:Boolean(root.querySelector('.calendar-month-grid')),
+      rootVisible:root.hidden!==true&&root.childElementCount>0,
+    };
+  }
+  result.errorPresent=result.error403.present;
+  result.errorText=result.error403.text;
 
   // --- guest -----------------------------------------------------------
   root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY})});
@@ -281,9 +290,19 @@ try {
     if (value.emptyText !== '이번 달 기록 없음') throw new Error(`${label}: empty month must read "이번 달 기록 없음", got "${value.emptyText}"`);
     if (!value.emptyHasNoTable) throw new Error(`${label}: an empty month must not render a zero-filled table`);
 
-    if (!value.errorPresent) throw new Error(`${label}: a Core failure must keep the strip visible`);
-    if (!value.errorText.includes('불러오지 못했습니다')) throw new Error(`${label}: a Core failure must say so, got "${value.errorText}"`);
-    if (value.errorText === value.emptyText) throw new Error(`${label}: failure and empty must not read the same`);
+    for (const status of [401, 403]) {
+      const state = value['error' + status];
+      if (!state.present) throw new Error(`${label}: a ${status} must keep the strip visible`);
+      // The regression this locks: a refused auxiliary read used to tear the
+      // Calendar down and drop the user back on Home.
+      if (!state.monthStillRendered) throw new Error(`${label}: a ${status} on the expense read must leave the month grid standing`);
+      if (!state.rootVisible) throw new Error(`${label}: a ${status} on the expense read must not empty the Calendar root`);
+      if (state.text === value.emptyText) throw new Error(`${label}: a ${status} must not read like an empty month`);
+    }
+    // 401 means the session really expired; 403 means the server refused the
+    // route, which signing in again does not fix.
+    if (!value.error401.text.includes('다시 로그인')) throw new Error(`${label}: a 401 must offer signing in again, got "${value.error401.text}"`);
+    if (!value.error403.text.includes('불러오지 못했습니다')) throw new Error(`${label}: a 403 must not tell the user to sign in again, got "${value.error403.text}"`);
 
     if (!value.guestPresent) throw new Error(`${label}: guests must still see the strip`);
     if (!value.guestText.includes('로그인')) throw new Error(`${label}: guests must be told to sign in, got "${value.guestText}"`);
