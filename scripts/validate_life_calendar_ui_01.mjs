@@ -232,6 +232,13 @@ for (const forbidden of ['localStorage', 'sessionStorage', 'document.cookie']) {
 }
 
 assert.ok(ui.includes("getLifeToday(sessionToken, timezone, fetchImpl)"));
+assert.ok(conversation.includes('getLifeToday(sessionToken, timezone, globalThis.fetch)'), 'Navigation Calendar count must reuse authoritative Today data');
+assert.ok(conversation.includes('createGuestCalendarRepository(storage).list()'), 'Guest Navigation Calendar count must reuse local Calendar repository');
+assert.ok(conversation.includes('badge.textContent = safeCount > 99 ? \'99+\' : String(safeCount)'), 'Calendar badge must display exact 1..99 and 99+');
+assert.ok(conversation.includes("parts.push(\`오늘 일정 \${safeCount}개\`)"), 'Calendar navigation accessibility label must include today count');
+assert.ok(conversation.includes("parts.push('알림 설정 일정 있음')"), 'Calendar navigation accessibility label must distinguish configured Reminder state');
+assert.ok(conversation.includes("item?.reminder_configured === true"), 'Reminder Bell must be driven only by an explicit authoritative reminder field');
+assert.ok(conversation.includes("window.addEventListener('pageshow', onNavigationCalendarRefresh)"), 'Calendar navigation status must refresh on foreground/page resume');
 assert.ok(ui.includes("getLifeAgenda("));
 assert.ok(ui.includes("from './site-calendar-manager.js?v=20260922-locationperm2'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
