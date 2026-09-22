@@ -855,6 +855,7 @@ export async function sendGuestConversationMessage({
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
+    sources: normalizeConversationSources(payload.sources),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
