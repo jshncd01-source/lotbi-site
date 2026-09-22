@@ -12,7 +12,7 @@ import {
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
-import {BrowserLocationError, isFreshBrowserCurrentLocation, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-location1';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
@@ -26,9 +26,7 @@ export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
     const raw = storage.getItem(CALENDAR_SETTINGS_STORAGE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
-    return Object.freeze({
-      showKoreaHolidays: parsed?.showKoreaHolidays !== false,
-    });
+    return Object.freeze({showKoreaHolidays: parsed?.showKoreaHolidays !== false});
   } catch {
     return fallback;
   }
@@ -41,7 +39,7 @@ function writeCalendarDisplaySettings(storage, settings) {
       showKoreaHolidays: settings.showKoreaHolidays !== false,
     }));
   } catch {
-    // A blocked/private storage surface must never make Calendar unusable.
+    // Device/browser storage failure must not block Calendar.
   }
 }
 
@@ -762,7 +760,7 @@ function calendarSettingsDialog({root, state, storage, onChange}) {
   const label = document.createElement('strong');
   label.textContent = '대한민국 공휴일 표시';
   const description = document.createElement('small');
-  description.textContent = '대한민국 법정 공휴일을 일정과 구분해 표시합니다.';
+  description.textContent = '대한민국 공휴일을 개인 일정과 구분해 표시합니다.';
   copy.append(label, description);
   const toggle = document.createElement('input');
   toggle.type = 'checkbox';
@@ -1082,6 +1080,7 @@ export async function mountLifeCalendarManager({
   initialDraft = null,
   weatherLocation = null,
   locationProvider = globalThis.navigator?.geolocation,
+  locationPermissions = globalThis.navigator?.permissions,
   locationNow = Date.now,
   settingsStorage = globalThis.localStorage,
 } = {}) {
@@ -1109,7 +1108,10 @@ export async function mountLifeCalendarManager({
     year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], holidays: [], loading: false,
     showKoreaHolidays: displaySettings.showKoreaHolidays,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
-    locationInFlight: false, locationMessage: '',
+    locationInFlight: false,
+    locationPermission: LOCATION_PERMISSION.UNKNOWN,
+    locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
+    locationMessage: '',
   };
 
   const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
@@ -1249,6 +1251,35 @@ export async function mountLifeCalendarManager({
   }, true);
 
   let refreshGeneration = 0;
+  let locationRequestGeneration = 0;
+
+  async function syncLocationPermission() {
+    const permission = await getBrowserLocationPermissionState({
+      permissions: locationPermissions,
+      geolocation: locationProvider,
+    });
+    if (!root.isConnected) return;
+    state.locationPermission = permission;
+    if (permission === LOCATION_PERMISSION.DENIED) {
+      currentWeatherLocation = null;
+      clearBrowserLocationProvenance();
+      state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      state.locationMessage = '위치 권한이 꺼져 있어요.';
+    } else if (permission === LOCATION_PERMISSION.UNAVAILABLE) {
+      currentWeatherLocation = null;
+      clearBrowserLocationProvenance();
+      state.locationResolution = LOCATION_RESOLUTION.ERROR;
+      state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+    } else if (
+      state.locationMessage === '위치 권한이 꺼져 있어요.'
+      || state.locationMessage === '이 브라우저에서는 현재 위치를 사용할 수 없어요.'
+    ) {
+      state.locationMessage = '';
+      if (state.locationResolution === LOCATION_RESOLUTION.ERROR) {
+        state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      }
+    }
+  }
 
   function clearBrowserLocationProvenance() {
     delete root.dataset.locationSource;
@@ -1258,12 +1289,12 @@ export async function mountLifeCalendarManager({
   }
 
   function locationErrorCopy(error) {
-    if (!(error instanceof BrowserLocationError)) return '현재 위치를 확인하지 못했습니다. 일정은 계속 사용할 수 있어요.';
-    if (error.code === 'BROWSER_LOCATION_DENIED') return '위치 권한이 거부됐어요. 일정은 계속 사용할 수 있어요.';
-    if (error.code === 'BROWSER_LOCATION_TIMEOUT') return '현재 위치 확인 시간이 초과됐어요. 일정은 계속 사용할 수 있어요.';
-    if (error.code === 'BROWSER_LOCATION_UNSUPPORTED') return '이 브라우저에서는 현재 위치를 사용할 수 없어요. 일정은 계속 사용할 수 있어요.';
+    if (!(error instanceof BrowserLocationError)) return '현재 위치를 확인하지 못했어요.';
+    if (error.code === 'BROWSER_LOCATION_DENIED') return '위치 권한이 꺼져 있어요.';
+    if (error.code === 'BROWSER_LOCATION_TIMEOUT') return '현재 위치를 확인하지 못했어요.';
+    if (error.code === 'BROWSER_LOCATION_UNSUPPORTED') return '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
     if (error.code === 'BROWSER_LOCATION_STALE') return '현재 위치가 오래되어 다시 확인이 필요해요.';
-    return '현재 위치를 확인할 수 없어요. 일정은 계속 사용할 수 있어요.';
+    return '현재 위치를 확인할 수 없어요.';
   }
 
   function render() {
@@ -1272,13 +1303,30 @@ export async function mountLifeCalendarManager({
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
     } else if (authenticated) {
-      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT';
-      locationButton.disabled = state.locationInFlight;
-      locationButton.textContent = state.locationInFlight
-        ? '위치 확인 중…'
-        : (usingBrowserLocation ? '현재 위치 다시 확인' : '현재 위치 사용');
-      locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
-      status.appendChild(locationButton);
+      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
+      root.dataset.locationPermission = state.locationPermission;
+      root.dataset.locationResolution = state.locationResolution;
+
+      if (usingBrowserLocation) {
+        const locationLabel = document.createElement('span');
+        locationLabel.className = 'calendar-location-status';
+        locationLabel.textContent = '📍 현재 위치';
+        status.appendChild(locationLabel);
+      }
+
+      const canRequestLocation = state.locationPermission !== LOCATION_PERMISSION.DENIED
+        && state.locationPermission !== LOCATION_PERMISSION.UNAVAILABLE;
+      if (state.locationInFlight || canRequestLocation) {
+        locationButton.disabled = state.locationInFlight;
+        if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
+        else if (usingBrowserLocation) locationButton.textContent = '변경';
+        else if (state.locationResolution === LOCATION_RESOLUTION.TIMEOUT || state.locationResolution === LOCATION_RESOLUTION.ERROR) locationButton.textContent = '다시 시도';
+        else locationButton.textContent = '현재 위치 사용';
+        locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
+        status.appendChild(locationButton);
+      }
+
       if (state.locationMessage) {
         const locationMessage = document.createElement('span');
         locationMessage.className = 'calendar-location-status';
@@ -1302,6 +1350,7 @@ export async function mountLifeCalendarManager({
       ) {
         currentWeatherLocation = null;
         clearBrowserLocationProvenance();
+        state.locationResolution = LOCATION_RESOLUTION.IDLE;
         state.locationMessage = '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
@@ -1399,7 +1448,29 @@ export async function mountLifeCalendarManager({
 
   locationButton.addEventListener('click', async () => {
     if (!authenticated || state.locationInFlight) return;
+    const requestGeneration = ++locationRequestGeneration;
+    const previousPermission = await getBrowserLocationPermissionState({
+      permissions: locationPermissions,
+      geolocation: locationProvider,
+    });
+    if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
+
+    state.locationPermission = previousPermission;
+    if (previousPermission === LOCATION_PERMISSION.DENIED) {
+      state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      state.locationMessage = '위치 권한이 꺼져 있어요.';
+      render();
+      return;
+    }
+    if (previousPermission === LOCATION_PERMISSION.UNAVAILABLE) {
+      state.locationResolution = LOCATION_RESOLUTION.ERROR;
+      state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+      render();
+      return;
+    }
+
     state.locationInFlight = true;
+    state.locationResolution = LOCATION_RESOLUTION.REQUESTING;
     state.locationMessage = '';
     render();
     try {
@@ -1407,21 +1478,47 @@ export async function mountLifeCalendarManager({
         geolocation: locationProvider,
         now: locationNow,
       });
+      if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
       currentWeatherLocation = location;
+      state.locationPermission = LOCATION_PERMISSION.GRANTED;
+      state.locationResolution = LOCATION_RESOLUTION.RESOLVED;
       root.dataset.locationSource = location.source;
       root.dataset.locationAccuracyMeters = String(location.accuracyMeters);
       root.dataset.locationApproximation = location.approximationState;
       root.dataset.locationTimestamp = location.timestamp;
-      state.locationMessage = '현재 위치를 캘린더 날씨 기준으로 사용합니다.';
+      state.locationMessage = '';
       await refresh();
     } catch (error) {
+      if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
       currentWeatherLocation = null;
       clearBrowserLocationProvenance();
+      if (error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_DENIED') {
+        state.locationPermission = LOCATION_PERMISSION.DENIED;
+        state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      } else if (error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_TIMEOUT') {
+        // A browser may grant the prompt and still fail to resolve coordinates.
+        // Re-read permission after the request so PROMPT_REQUIRED + timeout becomes
+        // GRANTED + TIMEOUT when the browser can report the new permission state.
+        const afterPermission = await getBrowserLocationPermissionState({
+          permissions: locationPermissions,
+          geolocation: locationProvider,
+        });
+        if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
+        state.locationPermission = afterPermission === LOCATION_PERMISSION.GRANTED
+          || previousPermission === LOCATION_PERMISSION.GRANTED
+          ? LOCATION_PERMISSION.GRANTED
+          : afterPermission;
+        state.locationResolution = LOCATION_RESOLUTION.TIMEOUT;
+      } else {
+        state.locationResolution = LOCATION_RESOLUTION.ERROR;
+      }
       state.locationMessage = locationErrorCopy(error);
       await refresh();
     } finally {
-      state.locationInFlight = false;
-      render();
+      if (requestGeneration === locationRequestGeneration) {
+        state.locationInFlight = false;
+        render();
+      }
     }
   });
 
@@ -1492,6 +1589,7 @@ export async function mountLifeCalendarManager({
   };
 
   const cleanupLifecycle = () => {
+    locationRequestGeneration += 1;
     window.removeEventListener('resize', onResize);
     window.removeEventListener('focus', onResume);
     window.removeEventListener('pageshow', onResume);
@@ -1502,6 +1600,11 @@ export async function mountLifeCalendarManager({
   const onResume = () => {
     if (!root.isConnected) { cleanupLifecycle(); return; }
     void refreshTodayIfNeeded();
+    if (authenticated) {
+      void syncLocationPermission().then(() => {
+        if (root.isConnected) render();
+      });
+    }
   };
   const onVisibilityChange = () => {
     if (document.visibilityState === 'visible') onResume();
@@ -1649,5 +1752,10 @@ export async function mountLifeCalendarManager({
   };
 
   await openDeepTarget();
+  if (authenticated) {
+    void syncLocationPermission().then(() => {
+      if (root.isConnected) render();
+    });
+  }
   return true;
 }
