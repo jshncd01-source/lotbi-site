@@ -54,6 +54,7 @@ const readItem = {
   busy: 'UNKNOWN',
   confirmation_level: 'USER_ATTESTED',
   provider_verified: false,
+  reminder_configured: false,
   source_kind: 'USER_INPUT',
   allowed_actions: ['UPDATE', 'REMOVE'],
 };
@@ -183,6 +184,33 @@ const mutation = {
     });
   });
   assert.equal(utcValue.timezone, 'UTC');
+}
+
+{
+  const value = await getLifeToday('site-token', 'Asia/Seoul', async () => jsonResponse({
+    view: 'TODAY',
+    as_of: '2026-09-30T00:00:00Z',
+    timezone: 'Asia/Seoul',
+    coverage: 'PERSONAL_ACTIVITY_AND_LIFE_RESULT',
+    items: [{
+      ...readItem,
+      projection_id: 'projection_life_result_1',
+      confirmation_level: 'PROVIDER_VERIFIED',
+      provider_verified: true,
+      reminder_configured: true,
+      source_kind: 'LIFE_RESULT',
+      allowed_actions: ['HIDE', 'REMINDER_SETTINGS', 'VIEW_SOURCE'],
+    }],
+    ai_calls: 0,
+    provider_api_calls: 0,
+  }));
+
+  assert.equal(value.coverage, 'PERSONAL_ACTIVITY_AND_LIFE_RESULT');
+  assert.equal(value.items[0].source_kind, 'LIFE_RESULT');
+  assert.equal(value.items[0].reminder_configured, true);
+  assert.deepEqual(value.items[0].allowed_actions, ['HIDE', 'REMINDER_SETTINGS', 'VIEW_SOURCE']);
+  assert.equal(value.aiCalls, 0);
+  assert.equal(value.providerApiCalls, 0);
 }
 
 {

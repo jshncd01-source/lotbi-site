@@ -211,11 +211,16 @@ function assertReadResponse(payload, expectedView) {
     || payload.view !== expectedView
     || typeof payload.as_of !== 'string'
     || typeof payload.timezone !== 'string'
-    || payload.coverage !== 'PERSONAL_ACTIVITY_ONLY'
+    || !['PERSONAL_ACTIVITY_ONLY', 'PERSONAL_ACTIVITY_AND_LIFE_RESULT'].includes(payload.coverage)
     || !Array.isArray(payload.items)
     || payload.ai_calls !== 0
     || payload.provider_api_calls !== 0
-    || payload.items.some(item => (
+  ) {
+    throw new SiteCoreError('LOTBI 일정 조회 응답 형식이 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
+  }
+
+  const items = payload.items.map(item => {
+    if (
       !item
       || typeof item !== 'object'
       || typeof item.projection_id !== 'string'
@@ -228,24 +233,54 @@ function assertReadResponse(payload, expectedView) {
       || !Number.isInteger(item.occurrence_revision)
       || typeof item.local_date !== 'string'
       || (item.local_datetime !== null && typeof item.local_datetime !== 'string')
-      || item.confirmation_level !== 'USER_ATTESTED'
-      || item.provider_verified !== false
-      || item.source_kind !== 'USER_INPUT'
+      || !['UNKNOWN', 'USER_ATTESTED', 'PROVIDER_VERIFIED'].includes(item.confirmation_level)
+      || typeof item.provider_verified !== 'boolean'
+      || (item.reminder_configured !== undefined && typeof item.reminder_configured !== 'boolean')
+      || !['USER_INPUT', 'LIFE_RESULT'].includes(item.source_kind)
       || !Array.isArray(item.allowed_actions)
-      || item.allowed_actions.some(action => action !== 'UPDATE' && action !== 'REMOVE')
-    ))
-  ) {
-    throw new SiteCoreError('LOTBI 일정 조회 응답 형식이 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
+    ) {
+      throw new SiteCoreError('LOTBI 일정 조회 응답 형식이 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
+    }
+
+    const reminderConfigured = item.reminder_configured === true;
+    if (
+      item.source_kind === 'USER_INPUT'
+      && (
+        item.confirmation_level !== 'USER_ATTESTED'
+        || item.provider_verified !== false
+        || reminderConfigured
+        || item.allowed_actions.some(action => action !== 'UPDATE' && action !== 'REMOVE')
+      )
+    ) {
+      throw new SiteCoreError('LOTBI 개인 일정 권한 정보가 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
+    }
+    if (
+      item.source_kind === 'LIFE_RESULT'
+      && item.allowed_actions.some(action => !['HIDE', 'REMINDER_SETTINGS', 'VIEW_SOURCE'].includes(action))
+    ) {
+      throw new SiteCoreError('LOTBI 결과 일정 권한 정보가 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
+    }
+
+    return Object.freeze({
+      ...item,
+      reminder_configured: reminderConfigured,
+      entry: calendarEntryDetails(item.entry || {}),
+    });
+  });
+
+  const expectedCoverage = items.some(item => item.source_kind === 'LIFE_RESULT')
+    ? 'PERSONAL_ACTIVITY_AND_LIFE_RESULT'
+    : 'PERSONAL_ACTIVITY_ONLY';
+  if (payload.coverage !== expectedCoverage) {
+    throw new SiteCoreError('LOTBI 일정 조회 범위 정보가 올바르지 않습니다.', {code: 'LIFE_READ_CONTRACT_INVALID'});
   }
+
   return Object.freeze({
     view: payload.view,
     asOf: payload.as_of,
     timezone: payload.timezone,
-    coverage: payload.coverage,
-    items: Object.freeze(payload.items.map(item => Object.freeze({
-      ...item,
-      entry: calendarEntryDetails(item.entry || {}),
-    }))),
+    coverage: expectedCoverage,
+    items: Object.freeze(items),
     aiCalls: 0,
     providerApiCalls: 0,
   });
