@@ -72,6 +72,24 @@ const oneLine=node=>getComputedStyle(node).whiteSpace==='nowrap' && node.scrollH
 const noX=node=>node.scrollWidth<=node.clientWidth+1;
 try{
   localStorage.clear();
+  const nativeFetch=globalThis.fetch.bind(globalThis);
+  globalThis.fetch=(url,init)=>{
+    const parsed=new URL(String(url),location.origin);
+    if(parsed.pathname==='/v2/life/holidays'){
+      const year=Number(parsed.searchParams.get('year')||new Date().getFullYear());
+      return Promise.resolve(new Response(JSON.stringify({
+        year,
+        country:'KR',
+        coverage_status:'VERIFIED',
+        snapshot_version:'runtime-fixture-'+year,
+        supported_years:[year],
+        items:[],
+        ai_calls:0,
+        provider_api_calls:0
+      }),{status:200,headers:{'Content-Type':'application/json'}}));
+    }
+    return nativeFetch(url,init);
+  };
   const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260921-convcal2');
   const guestRepo=createGuestCalendarRepository(localStorage);
   const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());
