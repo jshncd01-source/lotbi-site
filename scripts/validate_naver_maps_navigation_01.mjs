@@ -55,6 +55,25 @@ assert.equal(normalized.results.length, 1);
 assert.equal(normalized.results[0].navigationCapable, true);
 assert.equal(normalized.results[0].imageUrl, '');
 
+const foodLicenseRaw = structuredClone(raw);
+foodLicenseRaw.results[0].food_license_verification = {
+  state: 'VERIFIED',
+  source: 'MOIS_FOOD_LICENSE',
+  ai_calls: 0,
+  administrative_status: '영업/정상',
+};
+const foodLicenseResult = nav.normalizePlaceResult(foodLicenseRaw, {capturedAt: 1000});
+assert.deepEqual(foodLicenseResult.results[0].foodLicenseVerification, {
+  state: 'VERIFIED',
+  source: 'MOIS_FOOD_LICENSE',
+  administrativeStatus: '영업/정상',
+});
+
+const spoofedFoodLicenseRaw = structuredClone(foodLicenseRaw);
+spoofedFoodLicenseRaw.results[0].food_license_verification.source = 'OTHER';
+const spoofedFoodLicenseResult = nav.normalizePlaceResult(spoofedFoodLicenseRaw, {capturedAt: 1000});
+assert.equal(spoofedFoodLicenseResult.results[0].foodLicenseVerification, null);
+
 const photoRaw = structuredClone(raw);
 photoRaw.results[0].image_url = 'https://images.example.com/verified-place.jpg';
 const photoResult = nav.normalizePlaceResult(photoRaw, {capturedAt: 1000});
@@ -200,6 +219,11 @@ const placeRendererStart = conversationSource.indexOf("const createPlaceCardRail
 const placeRendererEnd = conversationSource.indexOf("const normalizeConversationCalendarResult = value => {", placeRendererStart);
 assert.ok(placeRendererStart >= 0 && placeRendererEnd > placeRendererStart);
 const placeRendererSource = conversationSource.slice(placeRendererStart, placeRendererEnd);
+assert.match(placeRendererSource, /행정 인허가 데이터상 확인/u);
+assert.match(placeRendererSource, /공공 인허가 데이터에서 일치 기록 미확인/u);
+assert.match(placeRendererSource, /행정 인허가 데이터 확인 불가/u);
+assert.doesNotMatch(placeRendererSource, /정부 인증 맛집|현재 영업 중|안전한 식당|믿을 수 있는 식당/u);
+assert.match(conversationSource, /food_license_verification/u);
 
 const placePointerResolverStart = conversationSource.indexOf('function resolvePlaceOrbitPointerIndex(');
 const placePointerResolverEnd = conversationSource.indexOf('\nfunction createMessage(', placePointerResolverStart);
