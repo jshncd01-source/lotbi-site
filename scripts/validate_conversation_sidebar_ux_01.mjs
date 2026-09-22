@@ -64,6 +64,29 @@ assert.ok(
   'mobile LOTBI logo must reuse the existing new-conversation reset path',
 );
 assert.ok(!index.match(/data-new-conversation[^>]*disabled/), 'Home reset controls must be active');
+const desktopNavBlock = index.match(/<aside class="chat-sidebar chat-sidebar-desktop"[\s\S]*?<\/aside>/)?.[0] || '';
+const mobileNavBlock = index.match(/<aside(?=[^>]*id="mobile-nav-drawer")[\s\S]*?<\/aside>/)?.[0] || '';
+for (const [label, block] of [['desktop', desktopNavBlock], ['mobile', mobileNavBlock]]) {
+  assert.ok(block, `${label} global navigation block missing`);
+  assert.ok(!/[💬📥📅🐾👤⚙️❓🔔]/u.test(block), `${label} navigation must not render Unicode color emoji`);
+  for (const iconId of ['lotbi-icon-message', 'lotbi-icon-inbox', 'lotbi-icon-calendar', 'lotbi-icon-history', 'lotbi-icon-user', 'lotbi-icon-settings', 'lotbi-icon-help']) {
+    assert.ok(block.includes(`#${iconId}`), `${label} navigation missing monochrome vector icon ${iconId}`);
+  }
+  for (const action of ['profile', 'settings', 'help']) {
+    assert.ok(block.includes(`data-global-nav-action="${action}"`), `${label} navigation missing existing ${action} destination`);
+  }
+  assert.ok(block.includes('data-calendar-count'), `${label} Calendar count badge slot missing`);
+  assert.ok(block.includes('data-calendar-reminder'), `${label} Calendar reminder Bell slot missing`);
+}
+assert.ok(sidebarCss.includes('.nav-item .nav-icon'), 'global navigation vector icon styling missing');
+assert.ok(sidebarCss.includes('.calendar-status-badge'), 'Calendar badge styling missing');
+assert.ok(sidebarCss.includes('.calendar-reminder-icon'), 'Calendar Bell styling missing');
+assert.ok(conversation.includes('const refreshNavigationCalendarStatus = async () => {'), 'Calendar navigation status refresher missing');
+assert.ok(conversation.includes('getLifeToday(sessionToken, timezone, globalThis.fetch)'), 'authenticated Calendar badge must use authoritative Today read');
+assert.ok(conversation.includes('createGuestCalendarRepository(storage).list()'), 'guest Calendar badge must use guest Calendar repository');
+assert.ok(conversation.includes("window.addEventListener('lotbi:life-calendar-refresh', onNavigationCalendarRefresh)"), 'Calendar mutation refresh event must update navigation status');
+assert.ok(conversation.includes('millisecondsUntilNextLocalMidnight() + 100'), 'Calendar status must refresh at local day rollover');
+assert.ok(!conversation.includes('setInterval(refreshNavigationCalendarStatus'), 'Calendar status must not use a polling storm');
 const startNewConversationStart = conversation.indexOf('const startNewConversation = () => {');
 const startNewConversationEnd = conversation.indexOf('const ensureThread = firstMessage => {', startNewConversationStart);
 assert.ok(startNewConversationStart > 0 && startNewConversationEnd > startNewConversationStart, 'startNewConversation source must remain bounded');
