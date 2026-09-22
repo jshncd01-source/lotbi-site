@@ -495,6 +495,40 @@ await expectReject(
   'GUEST_SESSION_EXPIRED',
 );
 
+{
+  let request;
+  const longDraft = '초안-' + '가'.repeat(796);
+  const recentContext = Array.from({length: 10}, (_, index) => ({
+    role: index % 2 === 0 ? 'user' : 'assistant',
+    text: index === 1 ? longDraft : `대화-${index}`,
+  }));
+  await sendGuestConversationMessage({
+    guestToken: 'g'.repeat(43),
+    text: '아까 최종본 다시',
+    idempotencyKey: 'guest-request-v31-context-0001',
+    recentContext,
+    timezone: 'Asia/Seoul',
+  }, async (url, init) => {
+    request = {url, init};
+    return jsonResponse({
+      contract_id: 'CORE-WEB-CHAT-01',
+      schema_version: 1,
+      correlation_id: 'req_guest_v31_context',
+      status: 'ANSWERED',
+      assistant_text: '이전 문맥을 이어서 답했어요.',
+      intent: {action: 'UNKNOWN'},
+      response_mode: 'AI_GENERATED_NON_AUTHORITATIVE',
+      follow_up: {required: false, action: null, reason: null, automatic_execution: false},
+      retry_safe: true,
+      safety: {execution_authority: false, external_side_effect: false},
+    });
+  });
+  const sent = JSON.parse(request.init.body).recent_context;
+  assert.equal(sent.length, 10);
+  assert.equal(sent[1].text, longDraft);
+  assert.ok(sent[1].text.length > 500);
+}
+
 const index = read('index.html');
 const auth = read('site-auth.js');
 const core = read('site-core.js');
