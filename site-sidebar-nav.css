@@ -305,11 +305,6 @@ body[data-site-theme="dark"] .conversation-history-menu button:hover,
 body[data-site-theme="dark"] .conversation-history-menu button:focus-visible {
   background: #2a3140;
 }
-
-body[data-site-theme="dark"] .sidebar-profile-trigger::after {
-  color: #aeb6c3;
-}
-
 body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   background: #202631;
   border-color: #424b59;
@@ -359,14 +354,6 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   gap: 9px;
 }
 
-.sidebar-profile-trigger::after {
-  content: '›';
-  color: #8a93a1;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-  transform: translateY(-1px);
-}
 
 .sidebar-profile-avatar {
   width: 36px;
@@ -471,6 +458,19 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   .mobile-nav-drawer .sidebar-primary-nav,
   .mobile-nav-drawer .sidebar-calendar-nav {
     gap: 2px;
+  }
+
+  .mobile-nav-drawer .sidebar-profile-trigger::after {
+    content: '›';
+    color: #8a93a1;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    transform: translateY(-1px);
+  }
+
+  body[data-site-theme="dark"] .mobile-nav-drawer .sidebar-profile-trigger::after {
+    color: #aeb6c3;
   }
 
   .nav-history-list .conversation-history-open {
