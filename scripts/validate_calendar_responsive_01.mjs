@@ -11,8 +11,8 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarEntryVersion = '20260921-smartcaldraft1';
-const calendarManagerVersion = '20260922-weather1';
+const calendarEntryVersion = '20260922-location1';
+const calendarManagerVersion = '20260922-location1';
 const calendarModelVersion = '20260921-smartcaldraft1';
 const calendarCssVersion = '20260921-smartcaldraft1';
 const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
@@ -27,7 +27,7 @@ assert.ok(callbackJs.includes(`./site-calendar-ui.js?v=${calendarEntryVersion}`)
 assert.equal(callbackConversationVersion, homeEntryVersion, 'auth callback must import the current Home conversation runtime');
 assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarManagerVersion}`));
 assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarModelVersion}`));
-for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js']) {
+for (const module of ['site-calendar-model.js', 'site-calendar-guest.js', 'site-calendar-manager.js', 'site-current-location.js']) {
   assert.ok(workflow.includes(`'${module}'`), `focused workflow missing ${module}`);
 }
 for (const test of ['validate_calendar_month_grid_01.mjs', 'validate_calendar_year_view_01.mjs', 'validate_guest_calendar_local_01.mjs', 'validate_calendar_real_ui_01.mjs', 'validate_calendar_event_editor_01.mjs', 'validate_calendar_responsive_01.mjs', 'validate_calendar_modal_runtime_02.mjs', 'validate_calendar_month_geometry_01.mjs']) {
@@ -93,3 +93,5 @@ assert.ok(manager.includes('requestGeneration !== refreshGeneration'), 'Calendar
 assert.ok(conversation.includes("openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')"), 'Calendar surface must close across Site identity changes');
 
 console.log('LOTBI Calendar responsive, navigation and cache contract: PASS');
+
+assert.ok(manager.includes("locationButton.dataset.calendarCurrentLocation = 'true'"), 'Calendar current-location action must remain explicit');
