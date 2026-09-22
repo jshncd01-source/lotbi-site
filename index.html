@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="home-chat.css" />
   <link rel="stylesheet" href="site-hardening.css?v=20260920-attachments1" />
   <link rel="stylesheet" href="site-avatar.css" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260921-sidebarux2" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=20260922-globalnav1" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
   <link rel="stylesheet" href="site-calendar.css?v=20260922-holiday1" />
   <link rel="stylesheet" href="footer-business-info.css" />
@@ -56,7 +56,17 @@
   <script type="module" src="site-continuity.js?v=20260921-guestclaim1"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
-  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>\n\n  <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="lotbi-icon-message" viewBox="0 0 24 24"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M14.5 8.5 17 11l-4.8 4.8-3 .5.5-3 4.8-4.8Z"/></symbol>
+    <symbol id="lotbi-icon-inbox" viewBox="0 0 24 24"><path d="M4.5 6.5h15l1.5 8.5v2.5h-18V15l1.5-8.5Z"/><path d="M3.5 14.5h5l1.5 2h4l1.5-2h5"/></symbol>
+    <symbol id="lotbi-icon-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></symbol>
+    <symbol id="lotbi-icon-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4.5v4h4M12 8v4.5l3 1.5"/></symbol>
+    <symbol id="lotbi-icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.8-4 3-6 6.5-6s5.7 2 6.5 6"/></symbol>
+    <symbol id="lotbi-icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.5 1.5M16.5 16.5 18 18M18 6l-1.5 1.5M7.5 16.5 6 18"/></symbol>
+    <symbol id="lotbi-icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 2-2.5 2.1-2.5 4M12 17.4h.01"/></symbol>
+    <symbol id="lotbi-icon-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9.5"/><path d="M7.5 16.5 6 18a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"/><path d="m16.5 7.5 1.5-1.5a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/></symbol>
+    <symbol id="lotbi-icon-bell" viewBox="0 0 24 24"><path d="M6.5 16.5h11l-1.5-2V10a4 4 0 1 0-8 0v4.5l-1.5 2Z"/><path d="M10 19h4"/></symbol>
+  </svg>
 
   <div class="chat-app-shell">
     <aside class="chat-sidebar chat-sidebar-desktop" aria-label="LOTBI 탐색 메뉴">
@@ -72,19 +82,31 @@
       <nav class="sidebar-nav sidebar-nav-desktop" aria-label="대화 및 서비스 탐색">
         <div class="sidebar-primary-nav">
           <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
-            <span>+ 새 대화</span>
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+            <span class="nav-item-label">새 대화</span>
           </button>
           <button class="nav-item nav-link" type="button" data-lotbi-box-open aria-label="롯비함 열기">
-            <span>롯비함</span>
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+            <span class="nav-item-label">롯비함</span>
           </button>
         </div>
 
         <div class="sidebar-calendar-nav" data-calendar-nav role="group" aria-label="캘린더">
-          <button class="nav-item nav-link" type="button" data-calendar-view="all">캘린더</button>
+          <button class="nav-item nav-link nav-calendar-status" type="button" data-calendar-view="all" aria-label="캘린더">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+            <span class="nav-item-label">캘린더</span>
+            <span class="nav-item-status" aria-hidden="true">
+              <span class="calendar-status-badge" data-calendar-count hidden></span>
+              <svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg>
+            </span>
+          </button>
         </div>
 
         <section class="nav-section sidebar-history-section" aria-labelledby="desktop-recent-title">
-          <h2 id="desktop-recent-title" class="nav-section-title">최근 대화</h2>
+          <h2 id="desktop-recent-title" class="nav-section-title nav-section-title-icon">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+            <span>최근 대화</span>
+          </h2>
           <div class="sidebar-history-scroll">
             <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
           </div>
@@ -92,8 +114,21 @@
 
         <div class="sidebar-secondary-nav" aria-label="보조 메뉴">
           <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
-            <span>연결 서비스</span>
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-link"></use></svg>
+            <span class="nav-item-label">연결 서비스</span>
           </a>
+          <button class="nav-item nav-link" type="button" data-global-nav-action="profile">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
+            <span class="nav-item-label">프로필</span>
+          </button>
+          <button class="nav-item nav-link" type="button" data-global-nav-action="settings">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-settings"></use></svg>
+            <span class="nav-item-label">설정</span>
+          </button>
+          <button class="nav-item nav-link" type="button" data-global-nav-action="help">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-help"></use></svg>
+            <span class="nav-item-label">도움말</span>
+          </button>
         </div>
 
         <div class="sidebar-account-footer">
@@ -312,19 +347,31 @@
     <nav class="sidebar-nav" aria-label="LOTBI 모바일 탐색 메뉴">
       <div class="sidebar-primary-nav">
         <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
-          <span>+ 새 대화</span>
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+          <span class="nav-item-label">새 대화</span>
         </button>
         <button class="nav-item nav-link" type="button" data-lotbi-box-open aria-label="롯비함 열기">
-          <span>롯비함</span>
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+          <span class="nav-item-label">롯비함</span>
         </button>
       </div>
 
       <div class="sidebar-calendar-nav" data-calendar-nav role="group" aria-label="캘린더">
-        <button class="nav-item nav-link" type="button" data-calendar-view="all">캘린더</button>
+        <button class="nav-item nav-link nav-calendar-status" type="button" data-calendar-view="all" aria-label="캘린더">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+          <span class="nav-item-label">캘린더</span>
+          <span class="nav-item-status" aria-hidden="true">
+            <span class="calendar-status-badge" data-calendar-count hidden></span>
+            <svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg>
+          </span>
+        </button>
       </div>
 
       <section class="nav-section sidebar-history-section" aria-labelledby="mobile-recent-title">
-        <h2 id="mobile-recent-title" class="nav-section-title">최근 대화</h2>
+        <h2 id="mobile-recent-title" class="nav-section-title nav-section-title-icon">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+          <span>최근 대화</span>
+        </h2>
         <div class="sidebar-history-scroll">
           <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
         </div>
@@ -332,8 +379,21 @@
 
       <div class="sidebar-secondary-nav" aria-label="보조 메뉴">
         <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
-          <span>연결 서비스</span>
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-link"></use></svg>
+          <span class="nav-item-label">연결 서비스</span>
         </a>
+        <button class="nav-item nav-link" type="button" data-global-nav-action="profile">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
+          <span class="nav-item-label">프로필</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-global-nav-action="settings">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-settings"></use></svg>
+          <span class="nav-item-label">설정</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-global-nav-action="help">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-help"></use></svg>
+          <span class="nav-item-label">도움말</span>
+        </button>
       </div>
 
       <div class="sidebar-account-footer">
