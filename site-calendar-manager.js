@@ -1574,7 +1574,11 @@ export async function mountLifeCalendarManager({
     openEditor(targetItem, latestDate);
   };
 
-  await syncLocationPermission();
   await openDeepTarget();
+  if (authenticated) {
+    void syncLocationPermission().then(() => {
+      if (root.isConnected) render();
+    });
+  }
   return true;
 }
