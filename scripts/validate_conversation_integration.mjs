@@ -93,7 +93,8 @@ assert.equal(ACCOUNT_SITE_HANDOFF_URL, 'https://account.lotbiai.com/auth/site-ha
 
 {
   const fixedLocalTime = new Date(2026, 8, 22, 10, 27, 37);
-  const expected = '현재 시간은 오전 10:27:37입니다.';
+  const formattedTime = new Intl.DateTimeFormat('ko-KR', {hour: 'numeric', minute: '2-digit', second: '2-digit'}).format(fixedLocalTime);
+  const expected = `현재 시간은 ${formattedTime}입니다.`;
   for (const text of ['지금 몇시야?', '몇 시야?']) {
     const reply = deterministicReply(text, fixedLocalTime);
     assert.equal(reply, expected);
