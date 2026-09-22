@@ -23,7 +23,7 @@ assert.ok(callback.includes(`/site-calendar.css?v=${calendarCssVersion}`));
 assert.ok(homeEntryVersion, 'Home conversation entry must be cache-busted');
 assert.ok(callbackEntryVersion, 'auth callback entry must be cache-busted');
 assert.ok(conversation.includes(`./site-calendar-ui.js?v=${calendarEntryVersion}`));
-assert.ok(callbackJs.includes(`./site-calendar-ui.js?v=${calendarEntryVersion}`));
+assert.ok(!callbackJs.includes('./site-calendar-ui.js'), 'auth callback must not auto-mount Calendar summary into Chat Home');
 assert.equal(callbackConversationVersion, homeEntryVersion, 'auth callback must import the current Home conversation runtime');
 assert.ok(ui.includes(`./site-calendar-manager.js?v=${calendarManagerVersion}`));
 assert.ok(manager.includes(`./site-calendar-model.js?v=${calendarModelVersion}`));
