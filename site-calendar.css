@@ -858,7 +858,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
 
   .calendar-toolbar {
     display: grid;
-    grid-template-columns: 42px minmax(120px, 1fr) 42px auto 42px;
+    grid-template-columns: 42px minmax(80px, 1fr) 42px 52px 42px;
     gap: 6px;
     overflow: visible;
     white-space: nowrap;
@@ -906,7 +906,10 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     max-height: 96svh;
   }
 
-  .calendar-toolbar { gap: 5px; }
+  .calendar-toolbar {
+    grid-template-columns: 40px minmax(0, 1fr) 40px 48px 40px;
+    gap: 4px;
+  }
   .calendar-nav-button { min-width: 40px; font-size: 0; }
   .calendar-nav-button::before { content: '‹'; font-size: 24px; }
   .calendar-nav-button[aria-label="다음 달"]::before { content: '›'; }
