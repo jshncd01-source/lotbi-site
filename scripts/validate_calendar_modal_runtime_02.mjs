@@ -213,13 +213,42 @@ try{
     await wait(()=>modal.querySelector('.calendar-editor-dialog'),'event editor');
     if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 수정')throw new Error('event click opened wrong surface');
     const editorTitle=modal.querySelector('.calendar-editor-title');
+    const deleteButton=modal.querySelector('.calendar-editor-delete');
+    if(!(editorTitle instanceof HTMLInputElement)||!(deleteButton instanceof HTMLButtonElement))throw new Error('event delete controls missing');
+    editorTitle.value='임시 수정값 보존';
+    for(let i=0;i<5;i+=1)click(deleteButton);
+    await wait(()=>modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation dialog');
+    if(modal.querySelectorAll('.calendar-delete-confirm-dialog').length!==1)throw new Error('duplicate delete confirmation dialog');
+    const deleteDialog=modal.querySelector('.calendar-delete-confirm-dialog');
+    if(deleteDialog.getAttribute('role')!=='dialog'||deleteDialog.getAttribute('aria-modal')!=='true')throw new Error('delete dialog semantics');
+    if(deleteDialog.querySelector('h4')?.textContent!=='이 일정을 삭제하시겠습니까?')throw new Error('delete dialog title');
+    if(deleteDialog.querySelector('#calendar-delete-confirm-description')?.textContent!=='삭제한 일정은 복구할 수 없습니다.')throw new Error('delete dialog description');
+    const cancelDelete=deleteDialog.querySelector('.calendar-delete-confirm-cancel');
+    if(!(cancelDelete instanceof HTMLButtonElement))throw new Error('delete cancel missing');
+    await wait(()=>document.activeElement===cancelDelete,'safe delete focus');
+    click(cancelDelete);
+    await wait(()=>!modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation cancel');
+    if(!modal.querySelector('.calendar-editor-dialog'))throw new Error('delete cancel closed editor');
+    if(editorTitle.value!=='임시 수정값 보존')throw new Error('delete cancel lost editor draft');
+    await wait(()=>document.activeElement===deleteButton,'delete focus restore');
+
+    click(deleteButton);
+    await wait(()=>modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation reopen');
+    const reopenedDelete=modal.querySelector('.calendar-delete-confirm-dialog');
+    reopenedDelete.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await wait(()=>!modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation Escape');
+    if(!modal.querySelector('.calendar-editor-dialog'))throw new Error('delete Escape closed editor');
+    if(editorTitle.value!=='임시 수정값 보존')throw new Error('delete Escape lost editor draft');
+
     editorTitle.focus();
     editorTitle.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
     await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'event editor Escape close');
     if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('editor Escape closed the Calendar modal');
     await wait(()=>document.activeElement?.dataset.calendarEventId===eventButton.dataset.calendarEventId,'event focus restore');
+    if(modal.querySelector('.calendar-delete-confirm-dialog'))throw new Error('delete state leaked after editor close');
     result.eventSelection=true;
     result.editorEscapeContained=true;
+    result.deleteConfirmation=true;
 
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
@@ -227,6 +256,39 @@ try{
     if(result.detail.hidden)throw new Error('touch Calendar must show the selected-day surface on entry');
     if(result.detail.position!=='static')throw new Error('touch selected-day surface must flow below Month');
     if(detailRect.top<gridRect.bottom-2)throw new Error('touch selected-day surface overlaps Month');
+
+    const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
+    const mobileEventButton=mobileEventCell?.querySelector('.calendar-event-chip');
+    if(!(mobileEventButton instanceof HTMLButtonElement))throw new Error('mobile event editor target missing');
+    click(mobileEventButton);
+    await wait(()=>modal.querySelector('.calendar-editor-dialog'),'mobile event editor');
+    const mobileEditor=modal.querySelector('.calendar-editor-dialog');
+    const mobileEditorBody=modal.querySelector('.calendar-editor-body');
+    const mobileEditorActions=modal.querySelector('.calendar-editor-actions');
+    if(!(mobileEditor instanceof HTMLElement)||!(mobileEditorBody instanceof HTMLElement)||!(mobileEditorActions instanceof HTMLElement))throw new Error('mobile event editor shell missing');
+    const mobileEditorRect=mobileEditor.getBoundingClientRect();
+    const mobileBodyStyle=getComputedStyle(mobileEditorBody);
+    const mobileActionsRect=mobileEditorActions.getBoundingClientRect();
+    if(mobileEditorRect.left<-1||mobileEditorRect.right>innerWidth+1)throw new Error('mobile editor horizontal overflow');
+    if(mobileEditorRect.top<-1||mobileEditorRect.bottom>innerHeight+1)throw new Error('mobile editor escapes viewport');
+    if(mobileBodyStyle.overflowY!=='auto')throw new Error('mobile editor body must own vertical scroll');
+    if(getComputedStyle(document.body).overflow!=='hidden')throw new Error('mobile editor must lock background scroll');
+    if(mobileActionsRect.bottom>mobileEditorRect.bottom+1)throw new Error('mobile editor action footer unreachable');
+    if(innerWidth<=520&&mobileEditorRect.height<innerHeight-2)throw new Error('phone editor must use the visual viewport');
+    const merchant=modal.querySelector('.calendar-editor-merchant');
+    if(!(merchant instanceof HTMLInputElement))throw new Error('mobile lower field missing');
+    merchant.focus();
+    await new Promise(resolve=>setTimeout(resolve,40));
+    const merchantRect=merchant.getBoundingClientRect();
+    const mobileBodyRect=mobileEditorBody.getBoundingClientRect();
+    if(merchantRect.top<mobileBodyRect.top-2||merchantRect.bottom>mobileBodyRect.bottom+2)throw new Error('mobile lower field focus did not scroll into the editor body');
+    if(mobileBodyRect.bottom>mobileActionsRect.top+2)throw new Error('mobile editor body overlaps fixed actions');
+    const mobileClose=modal.querySelector('.calendar-editor-close');
+    if(!(mobileClose instanceof HTMLButtonElement))throw new Error('mobile editor close control missing');
+    click(mobileClose);
+    await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'mobile editor close');
+    if(document.body.classList.contains('calendar-editor-open'))throw new Error('mobile editor background lock leaked');
+    result.mobileEditor=true;
   }
 
   const mode=async name=>{const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);click(button);await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name)};
@@ -409,7 +471,9 @@ try{
   const cases=[[1280,900],[1440,900],[1440,1200],[768,900],[340,800],[390,844],[412,915],[320,800]];
   const results=cases.map(([w,h])=>run(browser,w,h));
   const desktops=results.filter(value=>value.desktop);
-  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.editorEscapeContained&&value.agendaRanges&&value.unscheduledReachable))throw new Error('desktop controls/date/event/Escape/Agenda/unscheduled selection');
+  const mobiles=results.filter(value=>!value.desktop);
+  if(!desktops.every(value=>value.controls&&value.dateSelection&&value.eventSelection&&value.editorEscapeContained&&value.deleteConfirmation&&value.agendaRanges&&value.unscheduledReachable))throw new Error('desktop controls/date/event/delete-confirm/Escape/Agenda/unscheduled selection');
+  if(!mobiles.every(value=>value.mobileEditor))throw new Error('mobile editor viewport/scroll/background-lock contract');
   if(!results.every(value=>value.escapeContained&&value.calendarDraftEditable))throw new Error('Calendar detail Escape/draft editor containment');
   for(const value of results){
     if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');

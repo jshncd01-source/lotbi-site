@@ -12,7 +12,7 @@ import {
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
-import {BrowserLocationError, isFreshBrowserCurrentLocation, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-location1';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
@@ -666,12 +666,42 @@ function renderAttention(state) {
 
 function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
+  document.body.classList.remove('calendar-editor-open');
+
   const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
   const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 추가');
+  const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
+  const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
+  editorHeader.append(heading, closeButton);
   const form = document.createElement('form'); form.className = 'calendar-editor-form';
+  const editorBody = document.createElement('div'); editorBody.className = 'calendar-editor-body';
+
+  document.body.classList.add('calendar-editor-open');
+  let viewportCleanup = () => {};
+  if (usesFlowingDayDetail() && globalThis.visualViewport) {
+    const viewport = globalThis.visualViewport;
+    const syncEditorViewport = () => {
+      backdrop.style.setProperty('--calendar-editor-visual-height', `${Math.max(1, Math.round(viewport.height))}px`);
+      backdrop.style.setProperty('--calendar-editor-visual-top', `${Math.max(0, Math.round(viewport.offsetTop || 0))}px`);
+    };
+    syncEditorViewport();
+    viewport.addEventListener('resize', syncEditorViewport);
+    viewport.addEventListener('scroll', syncEditorViewport);
+    viewportCleanup = () => {
+      viewport.removeEventListener('resize', syncEditorViewport);
+      viewport.removeEventListener('scroll', syncEditorViewport);
+    };
+  }
+  let editorEnvironmentReleased = false;
+  const releaseEditorEnvironment = () => {
+    if (editorEnvironmentReleased) return;
+    editorEnvironmentReleased = true;
+    viewportCleanup();
+    document.body.classList.remove('calendar-editor-open');
+  };
 
   const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목 *';
   const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || draft?.title || '';
@@ -736,38 +766,136 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
   actions.append(cancel, save);
 
+  let cleanupDeleteConfirmation = () => {};
+  let deleteRequestInFlight = false;
+
   if (item) {
-    const remove = button('삭제', 'calendar-editor-delete'); actions.prepend(remove);
+    const remove = button('삭제', 'calendar-editor-delete');
+    actions.prepend(remove);
     remove.addEventListener('click', () => {
-      const confirmation = document.createElement('div'); confirmation.className = 'calendar-editor-confirm-delete';
-      const copy = document.createElement('p'); copy.textContent = '이 일정을 삭제할까요?';
-      const keep = button('유지', 'calendar-editor-cancel-delete');
-      const confirm = button('삭제 확인', 'calendar-editor-confirm-delete-button');
-      keep.addEventListener('click', () => confirmation.remove());
-      confirm.addEventListener('click', async () => {
-        confirm.disabled = true;
-        try { await controller.remove(item); backdrop.remove(); await onSaved(); }
-        catch (caught) {
-          if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
-          else error.textContent = caught instanceof Error ? caught.message : '일정을 삭제하지 못했습니다.';
-          confirm.disabled = false;
+      const existing = root.querySelector('.calendar-delete-confirm-backdrop');
+      if (existing) {
+        existing.querySelector('.calendar-delete-confirm-cancel')?.focus();
+        return;
+      }
+
+      const confirmationBackdrop = document.createElement('div');
+      confirmationBackdrop.className = 'calendar-delete-confirm-backdrop';
+      const confirmationDialog = document.createElement('section');
+      confirmationDialog.className = 'calendar-delete-confirm-dialog';
+      confirmationDialog.setAttribute('role', 'dialog');
+      confirmationDialog.setAttribute('aria-modal', 'true');
+      confirmationDialog.setAttribute('aria-labelledby', 'calendar-delete-confirm-title');
+      confirmationDialog.setAttribute('aria-describedby', 'calendar-delete-confirm-description');
+
+      const confirmationTitle = document.createElement('h4');
+      confirmationTitle.id = 'calendar-delete-confirm-title';
+      confirmationTitle.textContent = '이 일정을 삭제하시겠습니까?';
+      const confirmationDescription = document.createElement('p');
+      confirmationDescription.id = 'calendar-delete-confirm-description';
+      confirmationDescription.textContent = '삭제한 일정은 복구할 수 없습니다.';
+      const confirmationError = document.createElement('p');
+      confirmationError.className = 'calendar-delete-confirm-error';
+      confirmationError.setAttribute('role', 'alert');
+
+      const confirmationActions = document.createElement('div');
+      confirmationActions.className = 'calendar-delete-confirm-actions';
+      const cancelDelete = button('취소', 'calendar-delete-confirm-cancel');
+      const confirmDelete = button('삭제', 'calendar-delete-confirm-submit');
+      confirmationActions.append(cancelDelete, confirmDelete);
+      confirmationDialog.append(confirmationTitle, confirmationDescription, confirmationError, confirmationActions);
+      confirmationBackdrop.appendChild(confirmationDialog);
+
+      dialog.inert = true;
+      dialog.setAttribute('aria-hidden', 'true');
+
+      cleanupDeleteConfirmation = ({restoreFocus = true} = {}) => {
+        confirmationBackdrop.remove();
+        dialog.inert = false;
+        dialog.removeAttribute('aria-hidden');
+        deleteRequestInFlight = false;
+        cleanupDeleteConfirmation = () => {};
+        if (restoreFocus && remove.isConnected) remove.focus();
+      };
+
+      const cancelConfirmation = () => {
+        if (deleteRequestInFlight) return;
+        cleanupDeleteConfirmation();
+      };
+
+      cancelDelete.addEventListener('click', cancelConfirmation);
+      confirmationBackdrop.addEventListener('click', event => {
+        if (event.target === confirmationBackdrop) cancelConfirmation();
+      });
+      confirmationDialog.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelConfirmation();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = [cancelDelete, confirmDelete].filter(control => !control.disabled);
+        if (!focusable.length) {
+          event.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
         }
       });
-      confirmation.append(copy, keep, confirm); form.appendChild(confirmation); confirm.focus();
+
+      confirmDelete.addEventListener('click', async () => {
+        if (deleteRequestInFlight) return;
+        deleteRequestInFlight = true;
+        confirmationError.textContent = '';
+        remove.disabled = true;
+        cancelDelete.disabled = true;
+        confirmDelete.disabled = true;
+        try {
+          await controller.remove(item);
+          cleanupDeleteConfirmation({restoreFocus: false});
+          releaseEditorEnvironment();
+          backdrop.remove();
+          await onSaved();
+        } catch (caught) {
+          deleteRequestInFlight = false;
+          remove.disabled = false;
+          cancelDelete.disabled = false;
+          confirmDelete.disabled = false;
+          confirmationError.textContent = caught?.code === 'STALE_REVISION'
+            ? '일정이 변경되었습니다. 저장 상태를 확인한 뒤 다시 시도해주세요.'
+            : '일정을 삭제하지 못했습니다. 다시 시도해주세요.';
+          confirmDelete.focus();
+        }
+      });
+
+      root.appendChild(confirmationBackdrop);
+      queueMicrotask(() => cancelDelete.focus());
     });
   }
 
-  form.append(
+  editorBody.append(
     titleLabel, titleNote, dateLabel, allDayLabel, timeLabel,
     amountLabel, categoryLabel, memoLabel, placeLabel, merchantLabel,
-    error, actions,
+    error,
   );
-  dialog.append(heading, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
+  form.append(editorBody, actions);
+  dialog.append(editorHeader, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
 
   const close = () => {
+    cleanupDeleteConfirmation({restoreFocus: false});
+    releaseEditorEnvironment();
     backdrop.remove();
     onClose();
   };
+  closeButton.addEventListener('click', close);
   cancel.addEventListener('click', close);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
   dialog.addEventListener('keydown', event => {
@@ -776,6 +904,14 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
       event.stopPropagation();
       close();
     }
+  });
+  form.addEventListener('focusin', event => {
+    if (!usesFlowingDayDetail()) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || typeof target.scrollIntoView !== 'function') return;
+    const reveal = () => target.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(reveal);
+    else setTimeout(reveal, 0);
   });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
@@ -793,6 +929,8 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     save.disabled = true;
     try {
       if (item) await controller.update(item, value); else await controller.create(value);
+      cleanupDeleteConfirmation({restoreFocus: false});
+      releaseEditorEnvironment();
       backdrop.remove(); await onSaved();
     } catch (caught) {
       if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
@@ -815,6 +953,7 @@ export async function mountLifeCalendarManager({
   initialDraft = null,
   weatherLocation = null,
   locationProvider = globalThis.navigator?.geolocation,
+  locationPermissions = globalThis.navigator?.permissions,
   locationNow = Date.now,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
@@ -839,7 +978,10 @@ export async function mountLifeCalendarManager({
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
     year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], loading: false,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
-    locationInFlight: false, locationMessage: '',
+    locationInFlight: false,
+    locationPermission: LOCATION_PERMISSION.UNKNOWN,
+    locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
+    locationMessage: '',
   };
 
   const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
@@ -967,6 +1109,23 @@ export async function mountLifeCalendarManager({
   }, true);
 
   let refreshGeneration = 0;
+  let locationRequestGeneration = 0;
+
+  async function syncLocationPermission() {
+    const permission = await getBrowserLocationPermissionState({
+      permissions: locationPermissions,
+      geolocation: locationProvider,
+    });
+    if (!root.isConnected) return;
+    state.locationPermission = permission;
+    if (permission === LOCATION_PERMISSION.DENIED) {
+      state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      state.locationMessage = '위치 권한이 꺼져 있어요.';
+    } else if (permission === LOCATION_PERMISSION.UNAVAILABLE) {
+      state.locationResolution = LOCATION_RESOLUTION.ERROR;
+      state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+    }
+  }
 
   function clearBrowserLocationProvenance() {
     delete root.dataset.locationSource;
@@ -976,12 +1135,12 @@ export async function mountLifeCalendarManager({
   }
 
   function locationErrorCopy(error) {
-    if (!(error instanceof BrowserLocationError)) return '현재 위치를 확인하지 못했습니다. 일정은 계속 사용할 수 있어요.';
-    if (error.code === 'BROWSER_LOCATION_DENIED') return '위치 권한이 거부됐어요. 일정은 계속 사용할 수 있어요.';
-    if (error.code === 'BROWSER_LOCATION_TIMEOUT') return '현재 위치 확인 시간이 초과됐어요. 일정은 계속 사용할 수 있어요.';
-    if (error.code === 'BROWSER_LOCATION_UNSUPPORTED') return '이 브라우저에서는 현재 위치를 사용할 수 없어요. 일정은 계속 사용할 수 있어요.';
+    if (!(error instanceof BrowserLocationError)) return '현재 위치를 확인하지 못했어요.';
+    if (error.code === 'BROWSER_LOCATION_DENIED') return '위치 권한이 꺼져 있어요.';
+    if (error.code === 'BROWSER_LOCATION_TIMEOUT') return '현재 위치를 확인하지 못했어요.';
+    if (error.code === 'BROWSER_LOCATION_UNSUPPORTED') return '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
     if (error.code === 'BROWSER_LOCATION_STALE') return '현재 위치가 오래되어 다시 확인이 필요해요.';
-    return '현재 위치를 확인할 수 없어요. 일정은 계속 사용할 수 있어요.';
+    return '현재 위치를 확인할 수 없어요.';
   }
 
   function render() {
@@ -990,13 +1149,30 @@ export async function mountLifeCalendarManager({
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
     } else if (authenticated) {
-      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT';
-      locationButton.disabled = state.locationInFlight;
-      locationButton.textContent = state.locationInFlight
-        ? '위치 확인 중…'
-        : (usingBrowserLocation ? '현재 위치 다시 확인' : '현재 위치 사용');
-      locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
-      status.appendChild(locationButton);
+      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
+      root.dataset.locationPermission = state.locationPermission;
+      root.dataset.locationResolution = state.locationResolution;
+
+      if (usingBrowserLocation) {
+        const locationLabel = document.createElement('span');
+        locationLabel.className = 'calendar-location-status';
+        locationLabel.textContent = '📍 현재 위치';
+        status.appendChild(locationLabel);
+      }
+
+      const canRequestLocation = state.locationPermission !== LOCATION_PERMISSION.DENIED
+        && state.locationPermission !== LOCATION_PERMISSION.UNAVAILABLE;
+      if (state.locationInFlight || canRequestLocation) {
+        locationButton.disabled = state.locationInFlight;
+        if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
+        else if (usingBrowserLocation) locationButton.textContent = '변경';
+        else if (state.locationResolution === LOCATION_RESOLUTION.TIMEOUT || state.locationResolution === LOCATION_RESOLUTION.ERROR) locationButton.textContent = '다시 시도';
+        else locationButton.textContent = '현재 위치 사용';
+        locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
+        status.appendChild(locationButton);
+      }
+
       if (state.locationMessage) {
         const locationMessage = document.createElement('span');
         locationMessage.className = 'calendar-location-status';
@@ -1020,6 +1196,7 @@ export async function mountLifeCalendarManager({
       ) {
         currentWeatherLocation = null;
         clearBrowserLocationProvenance();
+        state.locationResolution = LOCATION_RESOLUTION.IDLE;
         state.locationMessage = '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
@@ -1107,7 +1284,29 @@ export async function mountLifeCalendarManager({
 
   locationButton.addEventListener('click', async () => {
     if (!authenticated || state.locationInFlight) return;
+    const requestGeneration = ++locationRequestGeneration;
+    const previousPermission = await getBrowserLocationPermissionState({
+      permissions: locationPermissions,
+      geolocation: locationProvider,
+    });
+    if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
+
+    state.locationPermission = previousPermission;
+    if (previousPermission === LOCATION_PERMISSION.DENIED) {
+      state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      state.locationMessage = '위치 권한이 꺼져 있어요.';
+      render();
+      return;
+    }
+    if (previousPermission === LOCATION_PERMISSION.UNAVAILABLE) {
+      state.locationResolution = LOCATION_RESOLUTION.ERROR;
+      state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+      render();
+      return;
+    }
+
     state.locationInFlight = true;
+    state.locationResolution = LOCATION_RESOLUTION.REQUESTING;
     state.locationMessage = '';
     render();
     try {
@@ -1115,21 +1314,39 @@ export async function mountLifeCalendarManager({
         geolocation: locationProvider,
         now: locationNow,
       });
+      if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
       currentWeatherLocation = location;
+      state.locationPermission = LOCATION_PERMISSION.GRANTED;
+      state.locationResolution = LOCATION_RESOLUTION.RESOLVED;
       root.dataset.locationSource = location.source;
       root.dataset.locationAccuracyMeters = String(location.accuracyMeters);
       root.dataset.locationApproximation = location.approximationState;
       root.dataset.locationTimestamp = location.timestamp;
-      state.locationMessage = '현재 위치를 캘린더 날씨 기준으로 사용합니다.';
+      state.locationMessage = '';
       await refresh();
     } catch (error) {
+      if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
       currentWeatherLocation = null;
       clearBrowserLocationProvenance();
+      if (error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_DENIED') {
+        state.locationPermission = LOCATION_PERMISSION.DENIED;
+        state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      } else if (error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_TIMEOUT') {
+        // A timeout is a resolution failure, never a permission denial.
+        state.locationPermission = previousPermission === LOCATION_PERMISSION.GRANTED
+          ? LOCATION_PERMISSION.GRANTED
+          : state.locationPermission;
+        state.locationResolution = LOCATION_RESOLUTION.TIMEOUT;
+      } else {
+        state.locationResolution = LOCATION_RESOLUTION.ERROR;
+      }
       state.locationMessage = locationErrorCopy(error);
       await refresh();
     } finally {
-      state.locationInFlight = false;
-      render();
+      if (requestGeneration === locationRequestGeneration) {
+        state.locationInFlight = false;
+        render();
+      }
     }
   });
 
@@ -1200,6 +1417,7 @@ export async function mountLifeCalendarManager({
   };
 
   const cleanupLifecycle = () => {
+    locationRequestGeneration += 1;
     window.removeEventListener('resize', onResize);
     window.removeEventListener('focus', onResume);
     window.removeEventListener('pageshow', onResume);
@@ -1357,5 +1575,10 @@ export async function mountLifeCalendarManager({
   };
 
   await openDeepTarget();
+  if (authenticated) {
+    void syncLocationPermission().then(() => {
+      if (root.isConnected) render();
+    });
+  }
   return true;
 }

@@ -8,9 +8,11 @@ const {normalizeCalendarWeatherResponse, calendarWeatherByDate} = await import('
 const {
   BrowserLocationError,
   BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
+  getBrowserLocationPermissionState,
   isFreshBrowserCurrentLocation,
+  LOCATION_PERMISSION,
   requestBrowserCurrentLocation,
-} = await import('../site-current-location.js?v=20260922-location1');
+} = await import('../site-current-location.js?v=20260922-locationperm1');
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
@@ -40,7 +42,7 @@ function jsonResponse(body, status = 200) {
   assert.equal(location.approximationState, 'UNKNOWN');
   assert.equal(location.timestamp, new Date(1_800_000_000_000).toISOString());
   assert.equal(requestedOptions.enableHighAccuracy, false);
-  assert.equal(requestedOptions.maximumAge, 0);
+  assert.equal(requestedOptions.maximumAge, BROWSER_CURRENT_LOCATION_MAX_AGE_MS);
   assert.ok(requestedOptions.timeout >= 1000 && requestedOptions.timeout <= 20000);
   assert.equal(isFreshBrowserCurrentLocation(location, {now: () => 1_800_000_010_000}), true);
   assert.equal(
@@ -69,6 +71,36 @@ await assert.rejects(
   requestBrowserCurrentLocation({geolocation: null}),
   error => error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_UNSUPPORTED',
 );
+
+{
+  const geolocation = {getCurrentPosition() {}};
+  for (const [browserState, expected] of [
+    ['granted', LOCATION_PERMISSION.GRANTED],
+    ['prompt', LOCATION_PERMISSION.PROMPT_REQUIRED],
+    ['denied', LOCATION_PERMISSION.DENIED],
+  ]) {
+    const permissions = {query: async () => ({state: browserState})};
+    assert.equal(
+      await getBrowserLocationPermissionState({permissions, geolocation}),
+      expected,
+    );
+  }
+  assert.equal(
+    await getBrowserLocationPermissionState({permissions: null, geolocation}),
+    LOCATION_PERMISSION.UNKNOWN,
+  );
+  assert.equal(
+    await getBrowserLocationPermissionState({
+      permissions: {query: async () => { throw new Error('unsupported query'); }},
+      geolocation,
+    }),
+    LOCATION_PERMISSION.UNKNOWN,
+  );
+  assert.equal(
+    await getBrowserLocationPermissionState({permissions: null, geolocation: null}),
+    LOCATION_PERMISSION.UNAVAILABLE,
+  );
+}
 
 await assert.rejects(
   requestBrowserCurrentLocation({
@@ -244,10 +276,18 @@ assert.ok(manager.includes('requestBrowserCurrentLocation({'), 'Calendar must re
 assert.ok(manager.includes('weatherLocation: currentWeatherLocation'), 'fresh browser location must feed only the Core weather fallback');
 assert.ok(manager.includes("currentWeatherLocation?.source === 'BROWSER_CURRENT'"), 'browser provenance must be explicit');
 assert.ok(manager.includes('isFreshBrowserCurrentLocation'), 'stale current location must be rejected before reuse');
-assert.ok(locationSource.includes('maximumAge: 0'), 'browser current location must not reuse cached positions');
+assert.ok(locationSource.includes('maximumAge: usableMaxAgeMs'), 'browser current location may reuse only the bounded recent fix');
 assert.ok(locationSource.includes('enableHighAccuracy: false'), 'weather must not force precise browser location');
 assert.ok(locationSource.includes("approximationState: 'UNKNOWN'"), 'browser approximation state must stay explicit and non-invented');
 assert.ok(!locationSource.includes('localStorage'), 'current location must not be persisted across reload');
 assert.ok(!locationSource.includes('sessionStorage'), 'current location must not be persisted across reload');
+assert.ok(manager.includes('locationPermission: LOCATION_PERMISSION.UNKNOWN'), 'permission state must remain independent from resolution');
+assert.ok(manager.includes('locationResolution: currentWeatherLocation'), 'resolution state must remain explicit');
+assert.ok(manager.includes("state.locationResolution = LOCATION_RESOLUTION.TIMEOUT"), 'timeout must remain a location-resolution state');
+assert.ok(manager.includes("state.locationPermission = LOCATION_PERMISSION.DENIED"), 'only explicit permission denial may become DENIED');
+assert.ok(manager.includes("locationButton.textContent = '변경'"), 'resolved current location must remove the current-location CTA label');
+assert.ok(manager.includes("locationButton.textContent = '다시 시도'"), 'location failure must expose an explicit retry action');
+assert.ok(locationSource.includes('getBrowserLocationPermissionState'), 'browser permission state must be queried when supported');
+
 
 console.log('LOTBI Calendar KMA weather icon + browser location contract: PASS');
