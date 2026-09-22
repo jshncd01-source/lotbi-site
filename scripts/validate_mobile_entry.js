@@ -66,7 +66,7 @@ function run() {
 
   for (const excluded of [
     '/assets/lotbi-main-logo.png',
-    '/assets/lotbi-logo-header.png',
+    '/assets/brand/lotbi-lockup-160w.png',
     '/home-chat.css',
     '/home-shell.js',
     '/font.woff2',
@@ -148,7 +148,7 @@ function run() {
   assert.equal(entry.LOTBI_IOS_APP_LINK_READY, false, 'iOS native takeover must remain pending until Production AASA/device verification');
   assert.equal(entry.LOTBI_ANDROID_STORE_URL, null, 'must not invent Play Store listing');
   assert.equal(entry.LOTBI_IOS_STORE_URL, null, 'must not invent App Store listing');
-  assert.equal(entry.OFFICIAL_LOGO_SRC, '/assets/lotbi-logo-header.png', 'chooser must use the authoritative LOTBI logo asset');
+  assert.equal(entry.OFFICIAL_LOGO_SRC, '/assets/brand/lotbi-lockup-160w.png', 'chooser must use the authoritative LOTBI logo asset');
   assert.ok(source.includes('class="lotbi-entry-logo"'), 'chooser must render the official logo as an image');
   assert.ok(!source.includes('brand-text-logo'), 'text-only LOTBI logo must not return to the chooser');
   assert.ok(!source.includes('brand-o'), 'CSS-recolored O must not return to the chooser');

@@ -19,10 +19,10 @@ LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
 LOCKED_SHA256 = {
-    'privacy.html': 'cf81c57db0d2cedc30e346bdb785795f3025952ad70dffa1bfb35ab902f3dcd9',
-    'terms.html': 'e2be394aed55fd177d20392b55d85686430e588e27515c6736de7363cb940b56',
-    'account-deletion.html': '1cd566f3aabf901c8f9a793877896944b50a7c1c4eda0314951f1b2e29095bef',
-    'contact.html': 'e752e8f43147540db4aede230a6bdd820f8d49774aac16ca09e728abef2280f5',
+    'privacy.html': 'aa8232983a1158bf5bce7f776adea5f4bcaddce9675ec74ea413935ef020ea28',
+    'terms.html': '4ab3d42468fa673da6546de89ef343330b8301500333d4499d869e3b3fc2eb04',
+    'account-deletion.html': 'ca43bc5541b309895468a766586d3252bc0174b058a300d3d91acc5cf8a8d525',
+    'contact.html': 'de05ad52868711e05ed8e6f234d08905c82a9ab4237c496c90b9cdd8fdc63dac',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': 'b35156b807d4bb18ba1cdc104371135f64f9a7bd0f15f9d8f2031a065e92888f',
