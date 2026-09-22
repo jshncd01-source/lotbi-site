@@ -603,14 +603,14 @@ function renderMonth(state, actions) {
       header.appendChild(marker);
     }
 
+    let holidayLabel = null;
     if (holiday) {
-      const holidayLabel = document.createElement('div');
+      holidayLabel = document.createElement('div');
       holidayLabel.className = 'calendar-holiday-label';
       holidayLabel.dataset.calendarHoliday = holiday.date;
       holidayLabel.textContent = holiday.name;
       holidayLabel.title = `${holiday.name} · 대한민국 공휴일`;
       holidayLabel.setAttribute('aria-hidden', 'true');
-      cellNode.appendChild(holidayLabel);
     }
 
     const stack = document.createElement('div');
@@ -629,7 +629,9 @@ function renderMonth(state, actions) {
       if (event.target.closest('button')) return;
       void actions.selectDate(cell.date, {openDetail: true});
     });
-    cellNode.append(header, stack);
+    cellNode.appendChild(header);
+    if (holidayLabel) cellNode.appendChild(holidayLabel);
+    cellNode.appendChild(stack);
     grid.appendChild(cellNode);
   }
 
