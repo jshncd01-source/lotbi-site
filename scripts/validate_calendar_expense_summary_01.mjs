@@ -1,0 +1,298 @@
+// Locks the Calendar expense summary strip.
+//
+// Covered contracts:
+//   - the strip renders under the month grid, as a sibling of the month layout
+//     (the layout's first two children stay the month and the day surface)
+//   - category rows carry Korean labels and the amounts Core returned
+//   - 총지출 is the bottom-right figure of the strip
+//   - a month with no recorded amount still shows the strip, reading
+//     "이번 달 기록 없음" — never a vanished table and never a stuck loader
+//   - loading, empty, error and guest are four distinguishable states
+//   - no amount is invented: entries without an amount are reported separately
+//   - the month window is the calendar month, not the 42-cell grid
+//   - no horizontal overflow at mobile and desktop widths
+import fs from 'node:fs';
+import path from 'node:path';
+import {spawn, spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const INNER_REL = 'scripts/.calendar-expense-inner.html';
+const INNER = path.join(ROOT, INNER_REL);
+const WRAPPER_REL = 'scripts/.calendar-expense-wrapper.html';
+const WRAPPER = path.join(ROOT, WRAPPER_REL);
+const PORT = 4198;
+const ORIGIN = 'http://127.0.0.1:' + PORT;
+
+function browserPath() {
+  for (const name of [process.env.CHROME_BIN, 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
+    if (name.includes('/') && fs.existsSync(name)) return name;
+    const found = spawnSync('which', [name], {encoding: 'utf8'});
+    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim();
+  }
+  throw new Error('Chrome/Chromium is required');
+}
+
+const fixture = `<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260922-daysheet1">
+<link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
+<link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast2">
+</head><body style="margin:0">
+<div id="calendar-root"></div>
+<pre id="expense-result">pending</pre>
+<script type="module">
+const out=document.getElementById('expense-result');
+let stage='init';
+setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},35000);
+const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
+
+// The fixture answers Core itself so the assertions measure rendering, not the
+// network. Only the routes the month view touches are served.
+function stubFetch({expense, expenseStatus=200, agendaItems=[]}){
+  const json=body=>Promise.resolve(new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}}));
+  const calls=[];
+  const impl=(url)=>{
+    const parsed=new URL(String(url),location.origin);
+    calls.push(parsed.pathname+parsed.search);
+    if(parsed.pathname==='/v2/life/expense-summary'){
+      if(expenseStatus!==200){
+        return Promise.resolve(new Response(JSON.stringify({code:'NOPE'}),{status:expenseStatus,headers:{'Content-Type':'application/json'}}));
+      }
+      const start=parsed.searchParams.get('start');
+      const body=typeof expense==='function'?expense(start):expense;
+      return json({view:'EXPENSE_SUMMARY',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',
+        start_date:start,end_date:parsed.searchParams.get('end'),
+        coverage:'RECORDED_CALENDAR_ENTRIES_ONLY',ai_calls:0,provider_api_calls:0,...body});
+    }
+    if(parsed.pathname==='/v2/life/agenda'){
+      return json({view:'AGENDA',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',
+        coverage:'PERSONAL_ACTIVITY_ONLY',items:agendaItems,ai_calls:0,provider_api_calls:0});
+    }
+    if(parsed.pathname==='/v2/life/attention'){
+      return json({view:'ATTENTION',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',
+        coverage:'PERSONAL_ACTIVITY_ONLY',items:[],ai_calls:0,provider_api_calls:0});
+    }
+    if(parsed.pathname==='/v2/life/holidays'){
+      return json({year:2026,country:'KR',coverage_status:'VERIFIED',snapshot_version:'x',supported_years:[2026],items:[],ai_calls:0,provider_api_calls:0});
+    }
+    return json({items:[]});
+  };
+  impl.calls=calls;
+  return impl;
+}
+
+const KRW_SUMMARY={currencies:[{currency:'KRW',categories:[
+  {expense_category:'FOOD',amount_minor:40500,entry_count:2},
+  {expense_category:'TRAVEL',amount_minor:180000,entry_count:1},
+  {expense_category:'LIVING',amount_minor:94000,entry_count:1}],
+  total_amount_minor:314500,entry_count:4}],entries_without_amount:2};
+
+function strip(root){return root.querySelector('.calendar-expense-summary')}
+
+async function mountCase(manager,{sessionToken,fetchImpl}){
+  const root=document.getElementById('calendar-root');
+  root.replaceChildren();
+  manager.mountLifeCalendarManager({
+    root,sessionToken,timezone:'Asia/Seoul',
+    now:()=>new Date('2026-09-22T03:00:00+09:00'),
+    fetchImpl,settingsStorage:{getItem:()=>JSON.stringify({showKoreaHolidays:false}),setItem(){}},
+  });
+  return root;
+}
+
+try{
+  localStorage.clear();
+  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{
+    getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
+    watchPosition:()=>0,clearWatch:()=>{},
+  }});
+  const manager=await import('/site-calendar-manager.js?v=20260922-expense1');
+  const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
+
+  // --- populated month -------------------------------------------------
+  const populatedFetch=stubFetch({expense:KRW_SUMMARY});
+  let root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:populatedFetch});
+  await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','ready strip');
+  const ready=strip(root);
+
+  // The strip must not be inside the month layout: its first two children are a
+  // runtime contract for the month grid and the selected-day surface.
+  const layout=root.querySelector('.calendar-month-layout');
+  result.stripOutsideLayout=Boolean(layout)&&!layout.contains(ready);
+  result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
+  result.layoutSecondIsDayPanel=Boolean(layout?.children[1]?.classList.contains('calendar-day-panel'));
+  result.stripFollowsMonth=layout?.compareDocumentPosition(ready)===Node.DOCUMENT_POSITION_FOLLOWING;
+
+  const rows=[...ready.querySelectorAll('tbody tr')].map(tr=>({
+    category:tr.dataset.expenseCategory,
+    label:tr.querySelector('.calendar-expense-category')?.textContent||'',
+    amount:tr.querySelector('.calendar-expense-amount')?.textContent||'',
+  }));
+  result.rows=rows;
+
+  const totalRow=ready.querySelector('tfoot tr[data-expense-total]');
+  const totalAmount=totalRow?.querySelector('.calendar-expense-total-amount');
+  result.totalLabel=totalRow?.querySelector('.calendar-expense-total-label')?.textContent||'';
+  result.totalText=totalAmount?.textContent||'';
+  result.coverageNote=ready.querySelector('.calendar-expense-coverage')?.textContent||'';
+
+  // 총지출 must sit at the bottom-right of the strip.
+  const stripBox=ready.getBoundingClientRect();
+  const totalBox=totalAmount?.getBoundingClientRect();
+  const lastRowAmount=[...ready.querySelectorAll('tbody .calendar-expense-amount')].pop();
+  result.totalBelowRows=Boolean(totalBox)&&totalBox.top>=lastRowAmount.getBoundingClientRect().top;
+  result.totalRightAligned=Boolean(totalBox)&&(stripBox.right-totalBox.right)<=Math.max(24,stripBox.width*0.12);
+  result.totalIsLowest=Boolean(totalBox)&&totalBox.bottom<=stripBox.bottom+1;
+
+  // The window Core was asked for is the calendar month, not the grid range.
+  result.expenseCalls=populatedFetch.calls.filter(value=>value.startsWith('/v2/life/expense-summary'));
+
+  result.noHorizontalOverflow=document.documentElement.scrollWidth<=document.documentElement.clientWidth+1;
+
+  // --- month change must never show another month's total --------------
+  const OCT_SUMMARY={currencies:[{currency:'KRW',categories:[
+    {expense_category:'FOOD',amount_minor:7000,entry_count:1}],
+    total_amount_minor:7000,entry_count:1}],entries_without_amount:0};
+  const monthlyFetch=stubFetch({expense:start=>start.startsWith('2026-10')?OCT_SUMMARY:KRW_SUMMARY});
+  root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:monthlyFetch});
+  await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','ready before month change');
+  const nextMonth=[...root.querySelectorAll('.calendar-nav-button')].find(node=>node.getAttribute('aria-label')==='다음 달');
+  nextMonth.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+  // Sampled synchronously: the heading has already moved to October, so the
+  // September total must be gone by this same frame.
+  const switching=strip(root);
+  result.switchHeading=switching?.querySelector('.calendar-expense-heading')?.textContent||'';
+  result.switchState=switching?.dataset.calendarExpenseSummary||'';
+  result.switchShowsOldTotal=(switching?.textContent||'').includes('314,500');
+  await wait(()=>{
+    const node=strip(root);
+    return node?.dataset.calendarExpenseSummary==='ready'
+      && (node.textContent||'').includes('7,000원');
+  },'october total');
+  const october=strip(root);
+  result.octoberHeading=october.querySelector('.calendar-expense-heading')?.textContent||'';
+  result.octoberTotal=october.querySelector('.calendar-expense-total-amount')?.textContent||'';
+
+  // --- empty month -----------------------------------------------------
+  root=await mountCase(manager,{sessionToken:'tok_expense_fixture',
+    fetchImpl:stubFetch({expense:{currencies:[],entries_without_amount:0}})});
+  await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','ready empty strip');
+  const empty=strip(root);
+  result.emptyPresent=Boolean(empty);
+  result.emptyText=empty.querySelector('.calendar-expense-notice')?.textContent||'';
+  result.emptyHasNoTable=!empty.querySelector('table');
+
+  // --- Core failure ----------------------------------------------------
+  root=await mountCase(manager,{sessionToken:'tok_expense_fixture',
+    fetchImpl:stubFetch({expense:null,expenseStatus:500})});
+  await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='error','error strip');
+  const failed=strip(root);
+  result.errorPresent=Boolean(failed);
+  result.errorText=failed.querySelector('.calendar-expense-notice')?.textContent||'';
+
+  // --- guest -----------------------------------------------------------
+  root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY})});
+  await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='guest','guest strip');
+  const guest=strip(root);
+  result.guestPresent=Boolean(guest);
+  result.guestText=guest.querySelector('.calendar-expense-notice')?.textContent||'';
+  result.guestAskedCore=stubFetch({expense:KRW_SUMMARY}).calls.length===0;
+
+  out.textContent=JSON.stringify(result);
+}catch(e){const r=document.getElementById('calendar-root');out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),diag:{strip:r?.querySelector('.calendar-expense-summary')?.dataset.calendarExpenseSummary||null,status:r?.querySelector('.calendar-status')?.textContent||''},viewport:{width:innerWidth,height:innerHeight}})}
+</script></body></html>`;
+
+function waitServer() {
+  for (let i = 0; i < 50; i += 1) {
+    const p = spawnSync('curl', ['--fail', '--silent', ORIGIN + '/'], {timeout: 1000});
+    if (p.status === 0) return;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+  throw new Error('server start');
+}
+
+function wrapperMarkup(w, h) {
+  return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
+  const frame=document.getElementById('case-frame'),out=document.getElementById('result');
+  const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('expense-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
+  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},55000);
+  <\/script></body></html>`;
+}
+
+function run(browser, w, h) {
+  fs.writeFileSync(WRAPPER, wrapperMarkup(w, h), 'utf8');
+  const r = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--force-prefers-reduced-motion=reduce', '--virtual-time-budget=60000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
+  if (r.error) throw r.error;
+  if (r.status !== 0) throw new Error('browser ' + r.status + ' ' + r.stderr);
+  const a = '<pre id="result">', b = '</pre>';
+  const i = r.stdout.indexOf(a), j = r.stdout.indexOf(b, i);
+  if (i < 0 || j < 0) throw new Error('result missing');
+  const raw = r.stdout.slice(i + a.length, j).replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
+  const v = JSON.parse(raw);
+  if (!v.ok) throw new Error(`${w}x${h}: ${v.error} ${JSON.stringify(v.diag||{})}`);
+  return v;
+}
+
+const browser = browserPath();
+fs.writeFileSync(INNER, fixture, 'utf8');
+const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+try {
+  waitServer();
+  for (const [w, h] of [[360, 780], [390, 844], [768, 1024], [1280, 900]]) {
+    const value = run(browser, w, h);
+    const label = `${w}x${h}`;
+
+    if (!value.stripOutsideLayout) throw new Error(`${label}: expense strip must not live inside the month layout`);
+    if (!value.layoutFirstIsMonth) throw new Error(`${label}: month layout child 0 must stay the month grid`);
+    if (!value.layoutSecondIsDayPanel) throw new Error(`${label}: month layout child 1 must stay the selected-day surface`);
+    if (!value.stripFollowsMonth) throw new Error(`${label}: expense strip must render below the month`);
+
+    const categories = value.rows.map(row => row.category);
+    if (categories.join(',') !== 'FOOD,TRAVEL,LIVING') throw new Error(`${label}: unexpected category rows ${categories.join(',')}`);
+    const labels = value.rows.map(row => row.label);
+    if (labels.join(',') !== '음식,여행,생활비') throw new Error(`${label}: Korean category labels missing, got ${labels.join(',')}`);
+    const amounts = value.rows.map(row => row.amount);
+    if (amounts.join(',') !== '40,500원,180,000원,94,000원') throw new Error(`${label}: category amounts must come from Core, got ${amounts.join(' | ')}`);
+
+    if (value.totalLabel !== '총지출') throw new Error(`${label}: total row must be labelled 총지출`);
+    if (value.totalText !== '314,500원') throw new Error(`${label}: total must be the sum Core returned, got ${value.totalText}`);
+    if (!value.totalBelowRows) throw new Error(`${label}: 총지출 must sit below the category rows`);
+    if (!value.totalRightAligned) throw new Error(`${label}: 총지출 must sit at the right edge of the strip`);
+    if (!value.totalIsLowest) throw new Error(`${label}: 총지출 must stay inside the bottom of the strip`);
+
+    if (!value.coverageNote.includes('2건')) throw new Error(`${label}: entries without an amount must be reported, got "${value.coverageNote}"`);
+    if (!value.noHorizontalOverflow) throw new Error(`${label}: expense strip must not cause horizontal overflow`);
+
+    // The calendar month, not the 42-cell grid window.
+    if (value.expenseCalls.length !== 1) throw new Error(`${label}: expected one expense read, got ${value.expenseCalls.length}`);
+    const call = value.expenseCalls[0];
+    if (!call.includes('start=2026-09-01') || !call.includes('end=2026-09-30')) {
+      throw new Error(`${label}: expense window must be the calendar month, got ${call}`);
+    }
+
+    if (value.switchShowsOldTotal) throw new Error(`${label}: the previous month's total must not survive a month change`);
+    if (!value.switchHeading.includes('10월')) throw new Error(`${label}: the strip heading must follow the displayed month, got "${value.switchHeading}"`);
+    if (value.switchState !== 'loading') throw new Error(`${label}: a month change must fall back to loading, got "${value.switchState}"`);
+    if (!value.octoberHeading.includes('10월')) throw new Error(`${label}: October heading missing, got "${value.octoberHeading}"`);
+    if (value.octoberTotal !== '7,000원') throw new Error(`${label}: October total must be October's, got ${value.octoberTotal}`);
+
+    if (!value.emptyPresent) throw new Error(`${label}: an empty month must keep the strip`);
+    if (value.emptyText !== '이번 달 기록 없음') throw new Error(`${label}: empty month must read "이번 달 기록 없음", got "${value.emptyText}"`);
+    if (!value.emptyHasNoTable) throw new Error(`${label}: an empty month must not render a zero-filled table`);
+
+    if (!value.errorPresent) throw new Error(`${label}: a Core failure must keep the strip visible`);
+    if (!value.errorText.includes('불러오지 못했습니다')) throw new Error(`${label}: a Core failure must say so, got "${value.errorText}"`);
+    if (value.errorText === value.emptyText) throw new Error(`${label}: failure and empty must not read the same`);
+
+    if (!value.guestPresent) throw new Error(`${label}: guests must still see the strip`);
+    if (!value.guestText.includes('로그인')) throw new Error(`${label}: guests must be told to sign in, got "${value.guestText}"`);
+    if (!value.guestAskedCore) throw new Error(`${label}: guest mode must not call Core for an expense summary`);
+  }
+  console.log('validate_calendar_expense_summary_01: PASS');
+} finally {
+  server.kill();
+  for (const file of [INNER, WRAPPER]) {
+    try { fs.unlinkSync(file); } catch {}
+  }
+}
