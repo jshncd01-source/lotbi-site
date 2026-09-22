@@ -69,15 +69,20 @@ const mobileNavBlock = index.match(/<aside(?=[^>]*id="mobile-nav-drawer")[\s\S]*
 for (const [label, block] of [['desktop', desktopNavBlock], ['mobile', mobileNavBlock]]) {
   assert.ok(block, `${label} global navigation block missing`);
   assert.ok(!/[💬📥📅🐾👤⚙️❓🔔]/u.test(block), `${label} navigation must not render Unicode color emoji`);
-  for (const iconId of ['lotbi-icon-message', 'lotbi-icon-inbox', 'lotbi-icon-calendar', 'lotbi-icon-history', 'lotbi-icon-user', 'lotbi-icon-settings', 'lotbi-icon-help']) {
+  for (const iconId of ['lotbi-icon-message', 'lotbi-icon-inbox', 'lotbi-icon-calendar', 'lotbi-icon-history']) {
     assert.ok(block.includes(`#${iconId}`), `${label} navigation missing monochrome vector icon ${iconId}`);
-  }
-  for (const action of ['profile', 'settings', 'help']) {
-    assert.ok(block.includes(`data-global-nav-action="${action}"`), `${label} navigation missing existing ${action} destination`);
   }
   assert.ok(block.includes('data-calendar-count'), `${label} Calendar count badge slot missing`);
   assert.ok(block.includes('data-calendar-reminder'), `${label} Calendar reminder Bell slot missing`);
 }
+for (const iconId of ['lotbi-icon-user', 'lotbi-icon-settings', 'lotbi-icon-help']) {
+  assert.ok(desktopNavBlock.includes(`#${iconId}`), `desktop navigation missing monochrome vector icon ${iconId}`);
+}
+for (const action of ['profile', 'settings', 'help']) {
+  assert.ok(desktopNavBlock.includes(`data-global-nav-action="${action}"`), `desktop navigation missing existing ${action} destination`);
+  assert.ok(!mobileNavBlock.includes(`data-global-nav-action="${action}"`), `mobile drawer must move ${action} into the account menu`);
+}
+assert.ok(!mobileNavBlock.includes('data-sidebar-destination="connected-services"'), 'mobile drawer must move connected services into the account menu');
 assert.ok(sidebarCss.includes('.nav-item .nav-icon'), 'global navigation vector icon styling missing');
 assert.ok(sidebarCss.includes('.calendar-status-badge'), 'Calendar badge styling missing');
 assert.ok(sidebarCss.includes('.calendar-reminder-icon'), 'Calendar Bell styling missing');
@@ -111,7 +116,7 @@ assert.ok(conversation.includes("storageKey(namespace, 'threads')"));
 assert.ok(continuity.includes("window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'))"), 'resolved anonymous auth state must notify the conversation mount after asynchronous boot');
 assert.ok(conversation.includes("!stateReady && document.body.dataset.siteAuthState === 'unauthenticated'"), 'guest namespace must hydrate after asynchronous unauthenticated state resolution');
 
-for (const label of ['개인 맞춤 설정', '프로필', '설정', '도움말', '로그아웃']) {
+for (const label of ['개인 맞춤 설정', '프로필', '설정', '연결 서비스', '도움말', '로그아웃']) {
   assert.ok(conversation.includes(label), `profile menu missing ${label}`);
 }
 for (const a11y of ["event.key === 'Escape'", "event.key !== 'Tab'", "setAttribute('aria-modal', 'true')", "surfaceRestoreFocus.focus()"] ) {
