@@ -328,7 +328,13 @@ try{
     result.mobileEditor=true;
   }
 
-  const mode=async name=>{const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);click(button);await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name)};
+  const waitCalendarIdle=label=>wait(()=>content.getAttribute('aria-busy')!=='true',label+' idle');
+  const mode=async name=>{
+    const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
+    click(button);
+    await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name);
+    await waitCalendarIdle(name);
+  };
   await mode('연도');
   await mode('일정');
   await wait(()=>modal.querySelector('.calendar-unscheduled-group'),'Agenda unscheduled group');
@@ -350,8 +356,12 @@ try{
   await mode('확인 필요');
   await mode('월');
   const title=modal.querySelector('.calendar-title-button').textContent;
-  click(modal.querySelector('.calendar-nav-button')); await wait(()=>modal.querySelector('.calendar-title-button').textContent!==title,'previous');
-  click(modal.querySelectorAll('.calendar-nav-button')[1]); await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
+  click(modal.querySelector('.calendar-nav-button'));
+  await wait(()=>modal.querySelector('.calendar-title-button').textContent!==title,'previous');
+  await waitCalendarIdle('previous');
+  click(modal.querySelectorAll('.calendar-nav-button')[1]);
+  await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
+  await waitCalendarIdle('next');
   const ordinary=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
   const selectedDate=ordinary?.dataset.calendarDate;
   click(ordinary);
@@ -364,7 +374,9 @@ try{
   if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
   await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
   result.escapeContained=true;
-  click(modal.querySelector('.calendar-today-button')); await wait(()=>content.dataset.calendarManagerView==='month','today');
+  click(modal.querySelector('.calendar-today-button'));
+  await wait(()=>content.dataset.calendarManagerView==='month','today');
+  await waitCalendarIdle('today');
   result.controls=true;result.dateSelection=true;
 
   click(modal.querySelector('.site-modal-close'));
