@@ -158,6 +158,32 @@ function createMessage(role, text, meta = {}) {
     note.className = 'chat-message-meta'; note.textContent = '추가 확인이 필요합니다.';
     article.appendChild(note);
   }
+  if (role === 'assistant' && meta.completion === 'PARTIAL') {
+    const note = document.createElement('span');
+    note.className = 'chat-message-meta';
+    note.textContent = '일부 최신 자료로 확인된 답변입니다.';
+    article.appendChild(note);
+  }
+  if (role === 'assistant' && Array.isArray(meta.sources) && meta.sources.length) {
+    const sources = document.createElement('div');
+    sources.className = 'chat-message-sources';
+    sources.setAttribute('aria-label', '출처');
+    const label = document.createElement('span');
+    label.className = 'chat-message-sources-label';
+    label.textContent = '출처';
+    sources.appendChild(label);
+    for (const source of meta.sources) {
+      if (!source || typeof source.title !== 'string' || typeof source.url !== 'string') continue;
+      const link = document.createElement('a');
+      link.className = 'chat-message-source-link';
+      link.href = source.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = source.title;
+      sources.appendChild(link);
+    }
+    if (sources.querySelector('a')) article.appendChild(sources);
+  }
   if (role === 'user') enhanceExpandableUserMessage(article, body, text);
   return article;
 }
@@ -2794,7 +2820,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
             saveState();
           }
         }
-        const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
         const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
         if (calendarItems.length) {
           meta.calendarItems = calendarItems;
@@ -2896,7 +2923,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           saveState();
         }
       }
-      const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
         meta.calendarItems = calendarItems;

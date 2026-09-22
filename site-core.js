@@ -386,6 +386,46 @@ function normalizeConversationReadPlan(intent) {
   });
 }
 
+function normalizeConversationCompletion(value, status, responseMode) {
+  const allowed = new Set(['FULL', 'PARTIAL', 'CLARIFICATION', 'FAILED']);
+  if (typeof value === 'string' && allowed.has(value)) return value;
+  if (
+    responseMode === 'PUBLIC_READ_GROUNDED'
+    || responseMode === 'PUBLIC_READ_GROUNDED_PARTIAL'
+    || responseMode === 'READ_CAPABILITY_UNAVAILABLE'
+  ) {
+    throw new SiteCoreError('LOTBI 완료 상태 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return status === 'FOLLOW_UP_REQUIRED' ? 'CLARIFICATION' : 'FULL';
+}
+
+
+function normalizeConversationSources(value) {
+  if (value == null) return Object.freeze([]);
+  if (!Array.isArray(value) || value.length > 12) {
+    throw new SiteCoreError('LOTBI 출처 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const seen = new Set();
+  const sources = value.map(item => {
+    const title = typeof item?.title === 'string' ? item.title.trim() : '';
+    const url = typeof item?.url === 'string' ? item.url.trim() : '';
+    let parsed;
+    try { parsed = new URL(url); } catch { parsed = null; }
+    if (
+      !title || title.length > 240
+      || !url || url.length > 2048
+      || !parsed || parsed.protocol !== 'https:' || !parsed.hostname
+      || seen.has(url)
+    ) {
+      throw new SiteCoreError('LOTBI 출처 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+    }
+    seen.add(url);
+    return Object.freeze({title, url});
+  });
+  return Object.freeze(sources);
+}
+
+
 function normalizeEvidenceCoverage(placeResult) {
   if (!placeResult || typeof placeResult !== 'object' || placeResult.evidence_coverage == null) return null;
   const value = placeResult.evidence_coverage;
@@ -647,12 +687,14 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     status,
     assistantText,
     responseMode: payload.response_mode,
+    completion: normalizeConversationCompletion(payload.completion, status, payload.response_mode),
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
+    sources: normalizeConversationSources(payload.sources),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
@@ -822,12 +864,14 @@ export async function sendGuestConversationMessage({
     status,
     assistantText,
     responseMode: payload.response_mode,
+    completion: normalizeConversationCompletion(payload.completion, status, payload.response_mode),
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
+    sources: normalizeConversationSources(payload.sources),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
