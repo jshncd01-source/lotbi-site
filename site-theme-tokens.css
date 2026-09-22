@@ -1,0 +1,236 @@
+/* LOTBI GLOBAL DARK THEME CONTRAST — semantic color tokens.
+   Light values preserve the existing visual system. Dark/System values are
+   intentionally neutral and high-contrast; components consume roles, not raw
+   per-screen dark colors. */
+:root,
+body[data-site-theme="light"] {
+  --lotbi-bg-primary: #f7f8fb;
+  --lotbi-surface-primary: #ffffff;
+  --lotbi-surface-elevated: #ffffff;
+  --lotbi-surface-subtle: #f5f7fa;
+  --lotbi-surface-hover: #f0f2f7;
+  --lotbi-text-primary: #303642;
+  --lotbi-text-secondary: #3d4653;
+  --lotbi-text-muted: #737b88;
+  --lotbi-text-disabled: #8a919d;
+  --lotbi-link-primary: #18345f;
+  --lotbi-link-hover: #4f78c5;
+  --lotbi-link-active: #182a46;
+  --lotbi-border-default: #d9dee8;
+  --lotbi-border-strong: #cfd6e2;
+  --lotbi-focus-ring: #4f78c5;
+  --lotbi-error-text: #a02645;
+  --lotbi-warning-text: #8a4b16;
+  --lotbi-success-text: #247647;
+  --lotbi-info-text: #3568a8;
+  --lotbi-selected-bg: #f1f3f5;
+  --lotbi-selected-text: #111827;
+}
+
+body[data-site-theme="light"] { color-scheme: light; }
+
+body[data-site-theme="dark"] {
+  color-scheme: dark;
+  --lotbi-bg-primary: #151922;
+  --lotbi-surface-primary: #171c25;
+  --lotbi-surface-elevated: #202631;
+  --lotbi-surface-subtle: #171c25;
+  --lotbi-surface-hover: #2a3140;
+  --lotbi-text-primary: #f8fafc;
+  --lotbi-text-secondary: #e5e7eb;
+  --lotbi-text-muted: #cbd5e1;
+  --lotbi-text-disabled: #94a3b8;
+  --lotbi-link-primary: #a7c7ff;
+  --lotbi-link-hover: #dde6ff;
+  --lotbi-link-active: #c7d8ff;
+  --lotbi-border-default: #424b59;
+  --lotbi-border-strong: #515b69;
+  --lotbi-focus-ring: #a7c7ff;
+  --lotbi-error-text: #fca5a5;
+  --lotbi-warning-text: #f2b774;
+  --lotbi-success-text: #86efac;
+  --lotbi-info-text: #a7c7ff;
+  --lotbi-selected-bg: #f3f4f6;
+  --lotbi-selected-text: #111827;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) {
+    color-scheme: dark;
+    --lotbi-bg-primary: #151922;
+    --lotbi-surface-primary: #171c25;
+    --lotbi-surface-elevated: #202631;
+    --lotbi-surface-subtle: #171c25;
+    --lotbi-surface-hover: #2a3140;
+    --lotbi-text-primary: #f8fafc;
+    --lotbi-text-secondary: #e5e7eb;
+    --lotbi-text-muted: #cbd5e1;
+    --lotbi-text-disabled: #94a3b8;
+    --lotbi-link-primary: #a7c7ff;
+    --lotbi-link-hover: #dde6ff;
+    --lotbi-link-active: #c7d8ff;
+    --lotbi-border-default: #424b59;
+    --lotbi-border-strong: #515b69;
+    --lotbi-focus-ring: #a7c7ff;
+    --lotbi-error-text: #fca5a5;
+    --lotbi-warning-text: #f2b774;
+    --lotbi-success-text: #86efac;
+    --lotbi-info-text: #a7c7ff;
+    --lotbi-selected-bg: #f3f4f6;
+    --lotbi-selected-text: #111827;
+  }
+}
+
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) {
+  color-scheme: dark;
+  background: #151922;
+  color: #f8fafc;
+  --lotbi-bg-primary: #151922;
+  --lotbi-surface-primary: #171c25;
+  --lotbi-surface-elevated: #202631;
+  --lotbi-surface-subtle: #171c25;
+  --lotbi-surface-hover: #2a3140;
+  --lotbi-text-primary: #f8fafc;
+  --lotbi-text-secondary: #e5e7eb;
+  --lotbi-text-muted: #cbd5e1;
+  --lotbi-text-disabled: #94a3b8;
+  --lotbi-link-primary: #a7c7ff;
+  --lotbi-link-hover: #dde6ff;
+  --lotbi-link-active: #c7d8ff;
+  --lotbi-border-default: #424b59;
+  --lotbi-border-strong: #515b69;
+  --lotbi-focus-ring: #a7c7ff;
+  --lotbi-error-text: #fca5a5;
+  --lotbi-warning-text: #f2b774;
+  --lotbi-success-text: #86efac;
+  --lotbi-info-text: #a7c7ff;
+  --lotbi-selected-bg: #f3f4f6;
+  --lotbi-selected-text: #111827;
+}
+
+/* Shared component role mapping for explicit Dark. */
+body[data-site-theme="dark"] {
+  background: var(--lotbi-bg-primary);
+  color: var(--lotbi-text-primary);
+}
+body[data-site-theme="dark"] :where(.site-modal-description, .profile-contract-note, .profile-popover-summary-handle, .profile-popover-summary-email, .profile-popover-summary-plan, .chat-message-meta, .chat-message-loading) {
+  color: var(--lotbi-text-muted);
+}
+body[data-site-theme="dark"] :where(.help-links a, .lotbi-box-card-source a, .lotbi-rich-card-source a, .chat-message-body a) {
+  color: var(--lotbi-link-primary);
+}
+body[data-site-theme="dark"] :where(.help-links a, .lotbi-box-card-source a, .lotbi-rich-card-source a, .chat-message-body a):hover,
+body[data-site-theme="dark"] :where(.help-links a, .lotbi-box-card-source a, .lotbi-rich-card-source a, .chat-message-body a):focus-visible {
+  color: var(--lotbi-link-hover);
+}
+body[data-site-theme="dark"] :where(.site-readonly-field, .site-field input, .site-field select, .color-option) {
+  border-color: var(--lotbi-border-strong);
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+}
+body[data-site-theme="dark"] .site-readonly-field span { color: var(--lotbi-text-muted); }
+body[data-site-theme="dark"] .site-field-error { color: var(--lotbi-error-text); }
+body[data-site-theme="dark"] .site-button-secondary {
+  border-color: var(--lotbi-border-strong);
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+}
+body[data-site-theme="dark"] .help-links a:hover,
+body[data-site-theme="dark"] .help-links a:focus-visible { background: var(--lotbi-surface-hover); }
+
+/* Navigation / history. */
+body[data-site-theme="dark"] :where(.chat-sidebar, .mobile-nav-drawer, .sidebar-account-footer) {
+  border-color: var(--lotbi-border-default);
+}
+body[data-site-theme="dark"] :where(.nav-item, .nav-section-title, .sidebar-account-name, .sidebar-account-handle) {
+  color: var(--lotbi-text-secondary);
+}
+body[data-site-theme="dark"] :where(.nav-item:hover, .nav-item:focus-visible, .conversation-history-menu button:hover, .conversation-history-menu button:focus-visible) {
+  background: var(--lotbi-surface-hover);
+}
+body[data-site-theme="dark"] .conversation-history-menu {
+  border-color: var(--lotbi-border-default);
+  background: var(--lotbi-surface-elevated);
+  color: var(--lotbi-text-primary);
+}
+
+/* Calendar semantic mapping. */
+body[data-site-theme="dark"] :where(.calendar-nav-button, .calendar-title-button, .calendar-today-button, .calendar-mode-tab, .calendar-year-month, .calendar-date-cell, .calendar-day-event, .calendar-day-toggle, .calendar-day-close) {
+  border-color: var(--lotbi-border-strong);
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+}
+body[data-site-theme="dark"] :where(.calendar-event-time, .calendar-event-overflow, .calendar-unscheduled-note, .calendar-day-event time, .calendar-day-event small, .calendar-mobile-event-count) {
+  color: var(--lotbi-text-muted);
+}
+body[data-site-theme="dark"] :where(.calendar-event-chip, .calendar-day-heading, .calendar-day-event strong) {
+  color: var(--lotbi-text-primary);
+}
+body[data-site-theme="dark"] .calendar-event-chip:hover { background: var(--lotbi-surface-hover); }
+body[data-site-theme="dark"] .calendar-attention-marker { color: var(--lotbi-warning-text); }
+body[data-site-theme="dark"] :where(.calendar-editor-dialog, .calendar-delete-confirm-dialog) {
+  border-color: var(--lotbi-border-default);
+  background: var(--lotbi-surface-elevated);
+  color: var(--lotbi-text-primary);
+}
+body[data-site-theme="dark"] :where(.calendar-editor-title, .calendar-editor-date, .calendar-editor-time, .calendar-editor-amount, .calendar-editor-category, .calendar-editor-memo, .calendar-editor-place, .calendar-editor-merchant) {
+  border-color: var(--lotbi-border-strong);
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+}
+
+/* Keyboard focus must remain visible against every dark surface. */
+body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--lotbi-focus-ring) !important;
+  outline-offset: 2px;
+}
+
+/* System mode receives the same semantic roles only while the OS is dark. */
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] {
+    background: var(--lotbi-bg-primary);
+    color: var(--lotbi-text-primary);
+  }
+  body[data-site-theme="system"] :where(.chat-home-shell, .chat-sidebar, .mobile-nav-drawer) {
+    background: var(--lotbi-bg-primary);
+    color: var(--lotbi-text-primary);
+  }
+  body[data-site-theme="system"] :where(.site-modal, .profile-popover, .response-grade-menu, .conversation-history-menu) {
+    border-color: var(--lotbi-border-default);
+    background: var(--lotbi-surface-elevated);
+    color: var(--lotbi-text-primary);
+  }
+  body[data-site-theme="system"] :where(.site-modal-description, .profile-contract-note, .profile-popover-summary-handle, .profile-popover-summary-email, .profile-popover-summary-plan, .chat-message-meta, .chat-message-loading) {
+    color: var(--lotbi-text-muted);
+  }
+  body[data-site-theme="system"] :where(.help-links a, .lotbi-box-card-source a, .lotbi-rich-card-source a, .chat-message-body a) {
+    color: var(--lotbi-link-primary);
+  }
+  body[data-site-theme="system"] :where(.help-links a, .lotbi-box-card-source a, .lotbi-rich-card-source a, .chat-message-body a):hover,
+  body[data-site-theme="system"] :where(.help-links a, .lotbi-box-card-source a, .lotbi-rich-card-source a, .chat-message-body a):focus-visible {
+    color: var(--lotbi-link-hover);
+  }
+  body[data-site-theme="system"] :where(.site-field input, .site-field select, .color-option, .site-readonly-field, .calendar-nav-button, .calendar-title-button, .calendar-today-button, .calendar-mode-tab, .calendar-year-month, .calendar-date-cell, .calendar-day-event, .calendar-day-toggle, .calendar-day-close, .calendar-editor-title, .calendar-editor-date, .calendar-editor-time, .calendar-editor-amount, .calendar-editor-category, .calendar-editor-memo, .calendar-editor-place, .calendar-editor-merchant) {
+    border-color: var(--lotbi-border-strong);
+    background: var(--lotbi-surface-primary);
+    color: var(--lotbi-text-primary);
+  }
+  body[data-site-theme="system"] :where(.calendar-event-time, .calendar-event-overflow, .calendar-unscheduled-note, .calendar-day-event time, .calendar-day-event small, .calendar-mobile-event-count, .site-readonly-field span) {
+    color: var(--lotbi-text-muted);
+  }
+  body[data-site-theme="system"] :where(.calendar-event-chip, .calendar-day-heading, .calendar-day-event strong) {
+    color: var(--lotbi-text-primary);
+  }
+  body[data-site-theme="system"] :where(.calendar-editor-dialog, .calendar-delete-confirm-dialog) {
+    border-color: var(--lotbi-border-default);
+    background: var(--lotbi-surface-elevated);
+    color: var(--lotbi-text-primary);
+  }
+  body[data-site-theme="system"] .calendar-attention-marker { color: var(--lotbi-warning-text); }
+  body[data-site-theme="system"] .site-field-error { color: var(--lotbi-error-text); }
+  body[data-site-theme="system"] :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--lotbi-focus-ring) !important;
+    outline-offset: 2px;
+  }
+}
