@@ -72,6 +72,11 @@ const oneLine=node=>getComputedStyle(node).whiteSpace==='nowrap' && node.scrollH
 const noX=node=>node.scrollWidth<=node.clientWidth+1;
 try{
   localStorage.clear();
+  // This fixture owns generic Calendar geometry/editor/navigation regression.
+  // Korea holiday default-ON/rendering is independently covered by
+  // validate_calendar_korea_holidays_01.mjs. Disable the decoration here so
+  // asynchronous system-data refresh cannot make geometry evidence flaky.
+  localStorage.setItem('lotbi.calendar.settings.v1',JSON.stringify({showKoreaHolidays:false}));
   const nativeFetch=globalThis.fetch.bind(globalThis);
   globalThis.fetch=(url,init)=>{
     const parsed=new URL(String(url),location.origin);
