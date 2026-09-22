@@ -540,15 +540,33 @@ export async function getKoreaHolidays(year, fetchImpl = globalThis.fetch) {
 
 export async function getCalendarWeather(
   sessionToken,
-  {start, end, timezone = 'Asia/Seoul', latitude, longitude, midRegionCode = ''},
+  {
+    start,
+    end,
+    timezone = 'Asia/Seoul',
+    latitude,
+    longitude,
+    midRegionCode = '',
+    manualLatitude,
+    manualLongitude,
+    manualMidRegionCode = '',
+  },
   fetchImpl = globalThis.fetch,
 ) {
   const startDate = isoDate(start, '시작');
   const endDate = isoDate(end, '종료');
   const hasLatitude = latitude !== undefined && latitude !== null && latitude !== '';
   const hasLongitude = longitude !== undefined && longitude !== null && longitude !== '';
+  const hasManualLatitude = manualLatitude !== undefined && manualLatitude !== null && manualLatitude !== '';
+  const hasManualLongitude = manualLongitude !== undefined && manualLongitude !== null && manualLongitude !== '';
   const region = typeof midRegionCode === 'string' ? midRegionCode.trim() : '';
-  if (hasLatitude !== hasLongitude || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))) {
+  const manualRegion = typeof manualMidRegionCode === 'string' ? manualMidRegionCode.trim() : '';
+  if (
+    hasLatitude !== hasLongitude
+    || hasManualLatitude !== hasManualLongitude
+    || (region && !/^[A-Za-z0-9]{1,16}$/.test(region))
+    || (manualRegion && !/^[A-Za-z0-9]{1,16}$/.test(manualRegion))
+  ) {
     throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
       code: 'CALENDAR_WEATHER_LOCATION_INVALID',
       status: 422,
@@ -559,18 +577,25 @@ export async function getCalendarWeather(
     end: endDate,
     timezone: String(timezone || 'Asia/Seoul'),
   });
-  if (hasLatitude && hasLongitude) {
-    const lat = Number(latitude);
-    const lon = Number(longitude);
+  const appendCoordinates = (latValue, lonValue, latKey, lonKey) => {
+    const lat = Number(latValue);
+    const lon = Number(lonValue);
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 31 || lat > 44.5 || lon < 122 || lon > 132.5) {
       throw new SiteCoreError('날씨 위치 정보가 올바르지 않습니다.', {
         code: 'CALENDAR_WEATHER_LOCATION_INVALID',
         status: 422,
       });
     }
-    params.set('latitude', String(lat));
-    params.set('longitude', String(lon));
+    params.set(latKey, String(lat));
+    params.set(lonKey, String(lon));
+  };
+  if (hasLatitude && hasLongitude) {
+    appendCoordinates(latitude, longitude, 'latitude', 'longitude');
     if (region) params.set('mid_region_code', region);
+  }
+  if (hasManualLatitude && hasManualLongitude) {
+    appendCoordinates(manualLatitude, manualLongitude, 'manual_latitude', 'manual_longitude');
+    if (manualRegion) params.set('manual_mid_region_code', manualRegion);
   }
   const payload = await calendarRequest(
     `/v2/life/weather?${params.toString()}`,

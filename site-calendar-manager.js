@@ -277,7 +277,15 @@ export function countCalendarEventsByMonth(items, year) {
 
 export async function loadLifeCalendarManagerView(
   sessionToken,
-  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null} = {},
+  {
+    view = 'month',
+    date,
+    timezone = resolvedTimezone(),
+    now = new Date(),
+    fetchImpl = globalThis.fetch,
+    weatherLocation = null,
+    manualWeatherRegion = null,
+  } = {},
 ) {
   const selectedDate = validCivilDate(date) ? date : dateInTimezone(now, timezone);
   const key = normalizeMode(view);
@@ -294,6 +302,9 @@ export async function loadLifeCalendarManagerView(
         latitude: weatherLocation?.latitude,
         longitude: weatherLocation?.longitude,
         midRegionCode: weatherLocation?.midRegionCode || '',
+        manualLatitude: manualWeatherRegion?.latitude,
+        manualLongitude: manualWeatherRegion?.longitude,
+        manualMidRegionCode: manualWeatherRegion?.midRegionCode || '',
       }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
   const holidayRequest = (key === 'month' || key === 'year')
@@ -1272,12 +1283,7 @@ export async function mountLifeCalendarManager({
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
   const storedManualWeatherRegion = readCalendarManualWeatherRegion(settingsStorage);
-  let currentWeatherLocation = weatherLocation || (storedManualWeatherRegion
-    ? {
-        ...storedManualWeatherRegion,
-        source: 'MANUAL_REGION',
-      }
-    : null);
+  let currentWeatherLocation = weatherLocation || null;
   const displaySettings = readCalendarDisplaySettings(settingsStorage);
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
@@ -1411,10 +1417,8 @@ export async function mountLifeCalendarManager({
       sessionToken,
       fetchImpl,
       onWeatherRegionChange: async region => {
-        currentWeatherLocation = region
-          ? {...region, source: 'MANUAL_REGION'}
-          : null;
-        if (region) {
+        state.manualWeatherRegion = region;
+        if (region && !currentWeatherLocation) {
           state.locationMessage = '';
         }
         await refresh();
@@ -1450,14 +1454,14 @@ export async function mountLifeCalendarManager({
     if (!root.isConnected) return;
     state.locationPermission = permission;
     if (permission === LOCATION_PERMISSION.DENIED) {
-      if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
+      if (currentWeatherLocation) {
         currentWeatherLocation = null;
         clearBrowserLocationProvenance();
       }
       state.locationResolution = LOCATION_RESOLUTION.IDLE;
       state.locationMessage = state.manualWeatherRegion ? '' : '위치 권한이 꺼져 있어요.';
     } else if (permission === LOCATION_PERMISSION.UNAVAILABLE) {
-      if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
+      if (currentWeatherLocation) {
         currentWeatherLocation = null;
         clearBrowserLocationProvenance();
       }
@@ -1496,10 +1500,10 @@ export async function mountLifeCalendarManager({
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
     } else {
-      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
+      const usingBrowserLocation = Boolean(currentWeatherLocation)
+        && currentWeatherLocation?.source === 'BROWSER_CURRENT'
         && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
-      const usingManualRegion = currentWeatherLocation?.source === 'MANUAL_REGION'
-        && Boolean(state.manualWeatherRegion);
+      const usingManualRegion = !usingBrowserLocation && Boolean(state.manualWeatherRegion);
       root.dataset.locationPermission = state.locationPermission;
       root.dataset.locationResolution = state.locationResolution;
 
@@ -1542,7 +1546,8 @@ export async function mountLifeCalendarManager({
     state.loading = true; render(); root.setAttribute('aria-busy', 'true');
     try {
       if (
-        currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        currentWeatherLocation
+        && currentWeatherLocation?.source === 'BROWSER_CURRENT'
         && !isFreshBrowserCurrentLocation(currentWeatherLocation, {now: locationNow})
       ) {
         currentWeatherLocation = null;
@@ -1551,7 +1556,15 @@ export async function mountLifeCalendarManager({
         state.locationMessage = '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation: currentWeatherLocation});
+        const result = await loadLifeCalendarManagerView(sessionToken, {
+          view: state.mode,
+          date: state.selectedDate,
+          timezone,
+          now: currentNow(),
+          fetchImpl,
+          weatherLocation: currentWeatherLocation,
+          manualWeatherRegion: state.manualWeatherRegion,
+        });
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         if (result.kind === 'attention') state.attention = result.items;
         else {
@@ -1589,13 +1602,19 @@ export async function mountLifeCalendarManager({
         const guestWeatherEnd = monthRange
           ? [monthRange.end, addCivilDays(state.todayDate, 14)].sort()[0]
           : null;
-        const weatherRequest = currentMonthVisible && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
+        const hasCurrentWeatherLocation = currentWeatherLocation?.latitude != null
+          && currentWeatherLocation?.longitude != null;
+        const hasManualWeatherRegion = state.manualWeatherRegion?.latitude != null
+          && state.manualWeatherRegion?.longitude != null;
+        const weatherRequest = currentMonthVisible && (hasCurrentWeatherLocation || hasManualWeatherRegion)
           ? getPublicCalendarWeather({
               start: state.todayDate,
               end: guestWeatherEnd,
               timezone,
-              latitude: currentWeatherLocation.latitude,
-              longitude: currentWeatherLocation.longitude,
+              latitude: currentWeatherLocation?.latitude,
+              longitude: currentWeatherLocation?.longitude,
+              manualLatitude: state.manualWeatherRegion?.latitude,
+              manualLongitude: state.manualWeatherRegion?.longitude,
             }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
           : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
         const holidayRequest = (state.mode === 'month' || state.mode === 'year') && state.showKoreaHolidays
@@ -1705,8 +1724,6 @@ export async function mountLifeCalendarManager({
       });
       if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
       currentWeatherLocation = location;
-      clearCalendarManualWeatherRegion(settingsStorage);
-      state.manualWeatherRegion = null;
       state.locationPermission = LOCATION_PERMISSION.GRANTED;
       state.locationResolution = LOCATION_RESOLUTION.RESOLVED;
       root.dataset.locationSource = location.source;

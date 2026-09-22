@@ -15,7 +15,6 @@ assert.match(manager, /resolvePublicWeatherRegion/);
 assert.match(manager, /readCalendarManualWeatherRegion/);
 assert.match(manager, /writeCalendarManualWeatherRegion/);
 assert.match(manager, /clearCalendarManualWeatherRegion/);
-assert.match(manager, /source: 'MANUAL_REGION'/);
 assert.match(manager, /예: 전주시 만성동/);
 assert.match(manager, /지역 적용/);
 assert.match(manager, /수동 지역 해제/);
@@ -23,7 +22,14 @@ assert.match(manager, /현재 날씨 지역:/);
 assert.match(manager, /state\.manualWeatherRegion/);
 assert.match(manager, /currentWeatherLocation\?\.source === 'BROWSER_CURRENT'/);
 assert.match(manager, /state\.manualWeatherRegion \? '' : '위치 권한이 꺼져 있어요.'/);
-assert.match(manager, /clearCalendarManualWeatherRegion\(settingsStorage\)/);
+assert.match(manager, /manualWeatherRegion: state\.manualWeatherRegion/);
+assert.match(manager, /manualLatitude: state\.manualWeatherRegion\?\.latitude/);
+assert.match(manager, /manualLongitude: state\.manualWeatherRegion\?\.longitude/);
+assert.doesNotMatch(
+  manager,
+  /clearCalendarManualWeatherRegion\(settingsStorage\)/,
+  'using current location must preserve the manual fallback region',
+);
 assert.match(manager, /void syncLocationPermission\(\)\.then/);
 
 const applyHandler = manager.indexOf("weatherApply.addEventListener('click'");
