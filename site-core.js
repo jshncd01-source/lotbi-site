@@ -365,19 +365,105 @@ export function normalizeSmartCalendarDraft(value) {
   });
 }
 
-function conversationClientContext(timezone, turnCreatedAt) {
+function normalizeConversationReadPlan(intent) {
+  if (!intent || typeof intent !== 'object' || intent.read_plan == null) return null;
+  const plan = intent.read_plan;
+  if (
+    intent.response_plan !== 'READ_PLAN'
+    || !plan || typeof plan !== 'object'
+    || plan.freshness !== 'CURRENT'
+    || plan.required_capability !== 'FRESH_SOURCE_READ'
+    || plan.coverage_required !== 'FULL_OR_EXPLICIT_PARTIAL'
+    || plan.allow_model_only !== false
+  ) {
+    throw new SiteCoreError('LOTBI 최신정보 조회 계획 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    freshness: plan.freshness,
+    requiredCapability: plan.required_capability,
+    coverageRequired: plan.coverage_required,
+    allowModelOnly: false,
+  });
+}
+
+function normalizeEvidenceCoverage(placeResult) {
+  if (!placeResult || typeof placeResult !== 'object' || placeResult.evidence_coverage == null) return null;
+  const value = placeResult.evidence_coverage;
+  const allowedStatus = new Set(['NOT_REQUIRED', 'FULL', 'PARTIAL', 'NONE', 'CONFLICTING']);
+  const allowedVerification = new Set(['NOT_REQUIRED', 'VERIFIED', 'SUPPORTED', 'MIXED', 'UNCONFIRMED', 'CONFLICTING']);
+  const allowedFreshness = new Set(['NOT_REQUIRED', 'FRESH', 'PARTIAL', 'UNKNOWN']);
+  const allowedLookup = new Set(['NOT_REQUIRED', 'OK', 'DEGRADED', 'UNAVAILABLE', 'NOT_AVAILABLE']);
+  const countKeys = [
+    'requested_constraint_count',
+    'candidate_count',
+    'verified_candidate_count',
+    'supported_candidate_count',
+    'conflicting_candidate_count',
+    'unconfirmed_candidate_count',
+  ];
+  if (
+    !value || typeof value !== 'object'
+    || !allowedStatus.has(value.status)
+    || !allowedVerification.has(value.verification_level)
+    || !allowedFreshness.has(value.freshness)
+    || !allowedLookup.has(value.lookup_status)
+    || countKeys.some(key => !Number.isInteger(value[key]) || value[key] < 0)
+  ) {
+    throw new SiteCoreError('LOTBI 장소 근거 범위 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const classifiedCandidates = (
+    value.verified_candidate_count
+    + value.supported_candidate_count
+    + value.conflicting_candidate_count
+    + value.unconfirmed_candidate_count
+  );
+  if (value.status !== 'NOT_REQUIRED' && classifiedCandidates !== value.candidate_count) {
+    throw new SiteCoreError('LOTBI 장소 근거 범위 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  return Object.freeze({
+    status: value.status,
+    verificationLevel: value.verification_level,
+    freshness: value.freshness,
+    lookupStatus: value.lookup_status,
+    requestedConstraintCount: value.requested_constraint_count,
+    candidateCount: value.candidate_count,
+    verifiedCandidateCount: value.verified_candidate_count,
+    supportedCandidateCount: value.supported_candidate_count,
+    conflictingCandidateCount: value.conflicting_candidate_count,
+    unconfirmedCandidateCount: value.unconfirmed_candidate_count,
+  });
+}
+
+function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
-  if (!timezoneName && !createdAt) return null;
+  const conversationId = typeof identity?.conversationId === 'string' ? identity.conversationId.trim() : '';
+  const turnId = typeof identity?.turnId === 'string' ? identity.turnId.trim() : '';
+  const logicalRequestId = typeof identity?.logicalRequestId === 'string' ? identity.logicalRequestId.trim() : '';
+  const stateVersion = Number.isInteger(identity?.stateVersion) && identity.stateVersion >= 0
+    ? identity.stateVersion
+    : null;
+  const safeIdentity = value => !value || /^[A-Za-z0-9._:-]{1,160}$/.test(value);
+  if (!timezoneName && !createdAt && !conversationId && !turnId && !logicalRequestId && stateVersion === null) return null;
   if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64) {
     throw new SiteCoreError('대화 시간대가 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
   }
   if (createdAt && !Number.isFinite(Date.parse(createdAt))) {
     throw new SiteCoreError('대화 시각 기준값이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
   }
+  if (![conversationId, turnId, logicalRequestId].every(safeIdentity)) {
+    throw new SiteCoreError('대화 요청 식별값이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
+  }
+  if (identity?.stateVersion != null && stateVersion === null) {
+    throw new SiteCoreError('대화 상태 버전이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CLIENT_CONTEXT_INVALID', status: 422});
+  }
   return Object.freeze({
     timezone: timezoneName,
     ...(createdAt ? {turn_created_at: createdAt} : {}),
+    ...(conversationId ? {conversation_id: conversationId} : {}),
+    ...(turnId ? {turn_id: turnId} : {}),
+    ...(logicalRequestId ? {logical_request_id: logicalRequestId} : {}),
+    ...(stateVersion !== null ? {state_version: stateVersion} : {}),
   });
 }
 
@@ -491,7 +577,7 @@ export async function deleteConversationAttachment({sessionToken = '', guestToke
   throw error;
 }
 
-export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '', recentContext = []) {
+export async function sendConversationMessage(sessionToken, text, fetchImpl = globalThis.fetch, attachmentIds = [], idempotencyKey = '', timezone = '', turnCreatedAt = '', recentContext = [], turnIdentity = {}) {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
   const message = typeof text === 'string' ? text.trim() : '';
@@ -507,7 +593,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     throw new SiteCoreError('첨부 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_ATTACHMENT_IDEMPOTENCY_KEY', status: 422});
   }
   const body = {text: message || '첨부 파일을 확인해 주세요.'};
-  const clientContext = conversationClientContext(timezone, turnCreatedAt);
+  const clientContext = conversationClientContext(timezone, turnCreatedAt, turnIdentity);
   const boundedRecentContext = normalizeConversationRecentContext(recentContext);
   if (clientContext) body.client_context = clientContext;
   if (boundedRecentContext.length) body.recent_context = boundedRecentContext;
@@ -564,8 +650,12 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
+    stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
+    readPlan: normalizeConversationReadPlan(payload.intent),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
+    evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
+    selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
     calendarDraft: normalizeSmartCalendarDraft(payload.calendar_draft),
@@ -631,6 +721,10 @@ export async function sendGuestConversationMessage({
   timezone = '',
   turnCreatedAt = '',
   attachmentIds = [],
+  conversationId = '',
+  turnId = '',
+  logicalRequestId = '',
+  stateVersion = null,
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof guestToken === 'string' ? guestToken.trim() : '';
@@ -648,7 +742,12 @@ export async function sendGuestConversationMessage({
     throw new SiteCoreError('익명 대화 요청 식별값이 올바르지 않습니다.', {code: 'INVALID_GUEST_IDEMPOTENCY_KEY', status: 422});
   }
 
-  const clientContext = conversationClientContext(timezoneName, turnCreatedAt);
+  const clientContext = conversationClientContext(timezoneName, turnCreatedAt, {
+    conversationId,
+    turnId,
+    logicalRequestId,
+    stateVersion,
+  });
   const body = {
     text: message || '첨부 파일을 확인해 주세요.',
     recent_context: normalizeConversationRecentContext(recentContext),
@@ -708,8 +807,12 @@ export async function sendGuestConversationMessage({
     followUp: payload.follow_up,
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
+    stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
+    readPlan: normalizeConversationReadPlan(payload.intent),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
+    evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
+    selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
   });
