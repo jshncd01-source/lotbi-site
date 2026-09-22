@@ -31,6 +31,7 @@ const {
   readAndClearSiteHandoffContext,
   storeSiteHandoffContext,
 } = await import('../site-auth.js?v=20260920-authux1');
+const {deterministicReply} = await import('../site-deterministic.js');
 
 class MemoryStorage {
   constructor() { this.map = new Map(); }
@@ -89,6 +90,22 @@ assert.equal(CORE_ORIGIN, 'https://api.lotbiai.com');
 assert.equal(SITE_AUDIENCE, 'lotbiai.com');
 assert.equal(SITE_CALLBACK_URI, 'https://lotbiai.com/auth/callback');
 assert.equal(ACCOUNT_SITE_HANDOFF_URL, 'https://account.lotbiai.com/auth/site-handoff');
+
+{
+  const fixedLocalTime = new Date(2026, 8, 22, 10, 27, 37);
+  const expected = '현재 시간은 오전 10:27:37입니다.';
+  for (const text of ['지금 몇시야?', '몇 시야?']) {
+    const reply = deterministicReply(text, fixedLocalTime);
+    assert.equal(reply, expected);
+    assert.ok(!reply.includes('(Asia/Seoul)'));
+    assert.ok(!/\([^)]*\/[^)]*\)/u.test(reply));
+  }
+  assert.equal(
+    deterministicReply('현재 시간 알려줘', fixedLocalTime),
+    undefined,
+    'broader current-time phrasing must continue to Core instead of gaining new Site routing authority',
+  );
+}
 
 const now = 1_800_000_000_000;
 const context = await createSiteHandoffContext('첫 실제 메시지', now);
