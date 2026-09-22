@@ -1248,6 +1248,11 @@ body[data-site-theme="dark"] .profile-popover button,
 body[data-site-theme="dark"] .profile-popover a[role="menuitem"],
 body[data-site-theme="dark"] .profile-popover-summary-name { color: #edf0f5; }
 body[data-site-theme="dark"] .profile-popover-summary { border-color: #424b59; }
+body[data-site-theme="dark"] .profile-popover button:not(:disabled):hover,
+body[data-site-theme="dark"] .profile-popover button:not(:disabled):focus-visible,
+body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:hover,
+body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
+body[data-site-theme="dark"] .profile-popover .profile-menu-logout { color: var(--lotbi-error-text, #ff8ba7); }
 body[data-site-theme="dark"] .profile-popover-summary-handle,
 body[data-site-theme="dark"] .profile-popover-summary-plan { color: #aeb6c3; }
 body[data-site-theme="dark"] .site-field input,
@@ -1261,6 +1266,14 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
   body[data-site-theme="system"] .chat-composer-stack { background: linear-gradient(to bottom, rgba(21, 25, 34, 0), #151922 18px, #151922 100%); }
   body[data-site-theme="system"] .chat-composer { background: #202631; }
   body[data-site-theme="system"] .chat-input { color: #edf0f5; }
+  body[data-site-theme="system"] .profile-popover button,
+  body[data-site-theme="system"] .profile-popover a[role="menuitem"],
+  body[data-site-theme="system"] .profile-popover-summary-name { color: var(--lotbi-text-primary, #edf0f5); }
+  body[data-site-theme="system"] .profile-popover button:not(:disabled):hover,
+  body[data-site-theme="system"] .profile-popover button:not(:disabled):focus-visible,
+  body[data-site-theme="system"] .profile-popover a[role="menuitem"]:hover,
+  body[data-site-theme="system"] .profile-popover a[role="menuitem"]:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
+  body[data-site-theme="system"] .profile-popover .profile-menu-logout { color: var(--lotbi-error-text, #ff8ba7); }
 }
 
 @media (max-width: 900px) {
