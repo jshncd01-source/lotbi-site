@@ -11,7 +11,7 @@ import {calendarActionInFlight, createAvailableCalendarAction, normalizePersiste
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-smartcaldraft1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
-const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {createGuestConversationSession, createSiteFoundPet, createSitePet, createSitePetSos, deleteConversationAttachment, deleteSitePetPhoto, getCurrentSiteUser, getCurrentSubscription, getProductCards, listSiteFoundPets, listSitePetPhotos, listSitePets, listSitePetSos, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, renameSitePet, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, uploadSiteFoundPetPhoto, uploadSitePetPhoto, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -31,6 +31,20 @@ const RESPONSE_GRADE_OPTIONS = Object.freeze([
   ['STANDARD', '스탠다드'],
   ['PREMIUM', '프리미엄'],
 ]);
+const PET_PHOTO_SLOTS = Object.freeze([
+  ['NOSE_FRONT', '1. 코 정면'],
+  ['NOSE_LEFT', '2. 코 약간 왼쪽'],
+  ['NOSE_RIGHT', '3. 코 약간 오른쪽'],
+  ['FACE_FRONT', '4. 얼굴 정면'],
+  ['FACE_LEFT', '5. 얼굴 좌측'],
+  ['FACE_RIGHT', '6. 얼굴 우측'],
+  ['BODY_LEFT', '7. 몸 전체 좌측'],
+  ['BODY_RIGHT', '8. 몸 전체 우측'],
+  ['BACK_REAR', '9. 등 / 후면'],
+  ['DISTINCTIVE', '10. 특징이 가장 잘 보이는 사진'],
+]);
+const newPetRequestId = prefix => `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
+
 const DEFAULT_RESPONSE_GRADE = 'STANDARD';
 // Core Production currently has no authoritative response_grade request field.
 // Keep the selector unavailable until that contract is explicit and deployed.
@@ -1899,6 +1913,366 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const content = document.createElement('div'); content.className = 'site-modal-content'; panel.appendChild(content); backdrop.appendChild(panel);
     return {backdrop, panel, content};
   };
+  const openPetFamily = async trigger => {
+    if (!sessionToken) {
+      setStatus('반려동물 기능을 사용하려면 LOTBI 로그인이 필요합니다.');
+      await beginSiteHandoff('');
+      return;
+    }
+    const mobileClose = document.querySelector('[data-mobile-nav-close]');
+    if (mobileClose instanceof HTMLButtonElement && document.body.classList.contains('nav-drawer-open')) mobileClose.click();
+
+    const {backdrop, panel, content} = modalShell(
+      '반려동물',
+      'LOTBI Pet ID · 사진 10장 · 분실 SOS · 발견동물 제보',
+    );
+    panel.classList.add('pet-family-modal');
+    content.classList.add('pet-family-content');
+    installSurfaceBehavior(backdrop, panel, {modal: true, trigger});
+
+    let pets = [];
+    let sosCases = [];
+    let foundCases = [];
+    const notice = document.createElement('div');
+    notice.className = 'pet-family-notice';
+    notice.textContent = '공개 자동 매칭과 보호자 자동 알림은 아직 활성화되지 않았습니다. LOTBI는 “100% 일치” 또는 “찾았다”라고 단정하지 않습니다.';
+
+    const setPetError = message => {
+      const node = content.querySelector('[data-pet-error]');
+      if (node instanceof HTMLElement) node.textContent = message || '';
+    };
+    const button = (label, onClick, className = 'site-button site-button-secondary') => {
+      const node = document.createElement('button');
+      node.type = 'button';
+      node.className = className;
+      node.textContent = label;
+      node.addEventListener('click', onClick);
+      return node;
+    };
+    const field = (labelText, input) => {
+      const label = document.createElement('label');
+      label.className = 'site-field pet-family-field';
+      const title = document.createElement('span');
+      title.textContent = labelText;
+      label.append(title, input);
+      return label;
+    };
+    const textInput = (placeholder = '') => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 500;
+      input.placeholder = placeholder;
+      input.autocomplete = 'off';
+      return input;
+    };
+    const speciesSelect = () => {
+      const select = document.createElement('select');
+      select.innerHTML = '<option value="DOG">강아지</option><option value="CAT">고양이</option>';
+      return select;
+    };
+    const renderHome = () => {
+      content.replaceChildren();
+      const error = document.createElement('p');
+      error.className = 'site-field-error pet-family-error';
+      error.dataset.petError = 'true';
+
+      const actions = document.createElement('div');
+      actions.className = 'pet-family-top-actions';
+      actions.append(
+        button('반려동물 추가', () => renderAddPet(), 'site-button site-button-primary'),
+        button('발견동물 제보', () => renderFoundPet()),
+      );
+
+      const list = document.createElement('div');
+      list.className = 'pet-family-list';
+      if (!pets.length) {
+        const empty = document.createElement('p');
+        empty.className = 'pet-family-empty';
+        empty.textContent = '등록된 반려동물이 없습니다.';
+        list.appendChild(empty);
+      }
+      for (const pet of pets) {
+        const card = document.createElement('article');
+        card.className = 'pet-family-card';
+        const head = document.createElement('div');
+        head.className = 'pet-family-card-head';
+        const title = document.createElement('strong');
+        title.textContent = String(pet.name || '이름 없음');
+        const badge = document.createElement('span');
+        badge.className = 'pet-family-badge';
+        badge.textContent = pet.species === 'CAT' ? '고양이' : '강아지';
+        head.append(title, badge);
+        const id = document.createElement('code');
+        id.className = 'pet-family-id';
+        id.textContent = String(pet.pet_id || '');
+        const meta = document.createElement('p');
+        meta.className = 'pet-family-meta';
+        const activeSos = sosCases.filter(item => item.pet_id === pet.pet_id && item.status === 'ACTIVE').length;
+        meta.textContent = `사진 ${pet.photo_completion_state === 'UPLOAD_COMPLETE' ? '10장 완료' : '미완료'} · 활성 SOS ${activeSos}건`;
+        const cardActions = document.createElement('div');
+        cardActions.className = 'pet-family-card-actions';
+        cardActions.append(
+          button('이름 수정', () => renderRename(pet)),
+          button('사진 10장', () => void renderPhotos(pet)),
+          button('분실 SOS', () => renderSos(pet), 'site-button site-button-danger'),
+        );
+        card.append(head, id, meta, cardActions);
+        list.appendChild(card);
+      }
+
+      const cases = document.createElement('section');
+      cases.className = 'pet-family-cases';
+      const casesTitle = document.createElement('h3');
+      casesTitle.textContent = '진행 중 사건';
+      const caseCopy = document.createElement('p');
+      caseCopy.textContent = `분실 SOS ${sosCases.filter(item => item.status === 'ACTIVE').length}건 · 발견 제보 ${foundCases.filter(item => item.status === 'ACTIVE').length}건`;
+      cases.append(casesTitle, caseCopy);
+
+      content.append(error, actions, list, cases, notice);
+    };
+
+    const renderAddPet = () => {
+      content.replaceChildren();
+      const name = textInput('반려동물 이름');
+      name.maxLength = 120;
+      const species = speciesSelect();
+      const error = document.createElement('p');
+      error.className = 'site-field-error';
+      const actions = document.createElement('div');
+      actions.className = 'pet-family-form-actions';
+      const save = button('Pet ID 발급하고 등록', async () => {
+        const value = name.value.trim();
+        if (!value) { error.textContent = '반려동물 이름을 입력해 주세요.'; return; }
+        save.disabled = true;
+        try {
+          const created = await createSitePet(sessionToken, {
+            requestId: newPetRequestId('site.pet.create'),
+            name: value,
+            species: species.value,
+          });
+          pets = [...pets, created];
+          renderHome();
+        } catch (caught) {
+          error.textContent = caught instanceof Error ? caught.message : '반려동물을 등록하지 못했습니다.';
+          save.disabled = false;
+        }
+      }, 'site-button site-button-primary');
+      actions.append(button('취소', renderHome), save);
+      content.append(field('이름', name), field('종류', species), error, actions);
+      queueMicrotask(() => name.focus());
+    };
+
+    const renderRename = pet => {
+      content.replaceChildren();
+      const name = textInput('새 이름');
+      name.maxLength = 120;
+      name.value = String(pet.name || '');
+      const error = document.createElement('p');
+      error.className = 'site-field-error';
+      const save = button('저장', async () => {
+        const value = name.value.trim();
+        if (!value) { error.textContent = '이름을 입력해 주세요.'; return; }
+        save.disabled = true;
+        try {
+          const updated = await renameSitePet(sessionToken, pet.pet_id, value);
+          pets = pets.map(item => item.pet_id === updated.pet_id ? updated : item);
+          renderHome();
+        } catch (caught) {
+          error.textContent = caught instanceof Error ? caught.message : '이름을 수정하지 못했습니다.';
+          save.disabled = false;
+        }
+      }, 'site-button site-button-primary');
+      const actions = document.createElement('div');
+      actions.className = 'pet-family-form-actions';
+      actions.append(button('취소', renderHome), save);
+      content.append(field('반려동물 이름', name), error, actions);
+      queueMicrotask(() => { name.focus(); name.select(); });
+    };
+
+    const renderPhotos = async pet => {
+      content.replaceChildren();
+      const loading = document.createElement('p');
+      loading.textContent = '사진 등록 상태를 확인하고 있습니다.';
+      content.appendChild(loading);
+      try {
+        let state = await listSitePetPhotos(sessionToken, pet.pet_id);
+        const draw = () => {
+          content.replaceChildren();
+          const summary = document.createElement('p');
+          summary.className = 'pet-family-meta';
+          summary.textContent = `등록 현황 ${state.manifest.slot_count || 0}/10 · ${state.manifest.state || 'UPLOAD_INCOMPLETE'}`;
+          const grid = document.createElement('div');
+          grid.className = 'pet-photo-grid';
+          for (const [slotCode, slotLabel] of PET_PHOTO_SLOTS) {
+            const current = state.photos.find(item => item.slot_code === slotCode);
+            const row = document.createElement('div');
+            row.className = 'pet-photo-slot';
+            const copy = document.createElement('div');
+            copy.className = 'pet-photo-slot-copy';
+            const strong = document.createElement('strong');
+            strong.textContent = slotLabel;
+            const sub = document.createElement('span');
+            sub.textContent = current ? `등록됨 · revision ${current.revision}` : '미등록';
+            copy.append(strong, sub);
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/jpeg,image/png';
+            input.hidden = true;
+            const choose = button(current ? '교체' : '선택', () => input.click());
+            input.addEventListener('change', async () => {
+              const file = input.files?.[0];
+              if (!(file instanceof File)) return;
+              choose.disabled = true;
+              const preview = document.createElement('img');
+              preview.className = 'pet-photo-preview';
+              const url = URL.createObjectURL(file);
+              preview.src = url;
+              row.prepend(preview);
+              try {
+                const uploaded = await uploadSitePetPhoto(sessionToken, pet.pet_id, slotCode, file);
+                state = {
+                  photos: [...state.photos.filter(item => item.slot_code !== slotCode), uploaded.photo].sort((a, b) => Number(a.slot_index) - Number(b.slot_index)),
+                  manifest: uploaded.manifest,
+                };
+                pets = pets.map(item => item.pet_id === pet.pet_id ? {...item, photo_completion_state: uploaded.manifest.state} : item);
+                draw();
+              } catch (caught) {
+                sub.textContent = caught instanceof Error ? caught.message : '사진 업로드 실패';
+                choose.disabled = false;
+              } finally {
+                URL.revokeObjectURL(url);
+              }
+            });
+            row.append(copy, choose, input);
+            if (current) row.append(button('삭제', async () => {
+              try {
+                const manifest = await deleteSitePetPhoto(sessionToken, pet.pet_id, slotCode);
+                state = {photos: state.photos.filter(item => item.slot_code !== slotCode), manifest};
+                pets = pets.map(item => item.pet_id === pet.pet_id ? {...item, photo_completion_state: manifest.state} : item);
+                draw();
+              } catch (caught) {
+                sub.textContent = caught instanceof Error ? caught.message : '사진 삭제 실패';
+              }
+            }));
+            grid.appendChild(row);
+          }
+          content.append(summary, grid, button('반려동물 목록으로', renderHome));
+        };
+        draw();
+      } catch (caught) {
+        content.replaceChildren();
+        const error = document.createElement('p');
+        error.className = 'site-field-error';
+        error.textContent = caught instanceof Error ? caught.message : '사진 정보를 불러오지 못했습니다.';
+        content.append(error, button('반려동물 목록으로', renderHome));
+      }
+    };
+
+    const renderSos = pet => {
+      content.replaceChildren();
+      const location = textInput('마지막으로 본 위치');
+      const time = document.createElement('input');
+      time.type = 'datetime-local';
+      const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      time.value = now;
+      const note = textInput('특이사항 (선택)');
+      note.maxLength = 2000;
+      const error = document.createElement('p');
+      error.className = 'site-field-error';
+      const save = button('SOS 생성', async () => {
+        if (!location.value.trim() || !time.value) { error.textContent = '마지막 목격 위치와 시간을 입력해 주세요.'; return; }
+        save.disabled = true;
+        try {
+          const created = await createSitePetSos(sessionToken, {
+            requestId: newPetRequestId('site.pet.sos'),
+            petId: pet.pet_id,
+            locationLabel: location.value,
+            lastSeenAt: new Date(time.value).toISOString(),
+            note: note.value,
+          });
+          sosCases = [created, ...sosCases];
+          renderHome();
+        } catch (caught) {
+          error.textContent = caught instanceof Error ? caught.message : 'SOS를 생성하지 못했습니다.';
+          save.disabled = false;
+        }
+      }, 'site-button site-button-danger');
+      const actions = document.createElement('div');
+      actions.className = 'pet-family-form-actions';
+      actions.append(button('취소', renderHome), save);
+      content.append(field('마지막으로 본 위치', location), field('마지막으로 본 시간', time), field('특이사항', note), error, actions);
+    };
+
+    const renderFoundPet = () => {
+      content.replaceChildren();
+      const species = speciesSelect();
+      const location = textInput('발견 위치');
+      const description = textInput('상태 / 옷 / 목줄 등 (선택)');
+      description.maxLength = 3000;
+      const photo = document.createElement('input');
+      photo.type = 'file';
+      photo.accept = 'image/jpeg,image/png';
+      const safety = document.createElement('p');
+      safety.className = 'pet-family-safety';
+      safety.textContent = '발견 제보에는 사진 1장 이상이 필요합니다. 위험하게 가까이 접근하거나 붙잡아 사진을 찍지 마세요.';
+      const error = document.createElement('p');
+      error.className = 'site-field-error';
+      const save = button('발견 제보 저장', async () => {
+        const file = photo.files?.[0];
+        if (!location.value.trim() || !(file instanceof File)) {
+          error.textContent = '발견 위치와 JPEG/PNG 사진을 선택해 주세요.';
+          return;
+        }
+        save.disabled = true;
+        let created;
+        try {
+          created = await createSiteFoundPet(sessionToken, {
+            requestId: newPetRequestId('site.pet.found'),
+            species: species.value,
+            locationLabel: location.value,
+            foundAt: new Date().toISOString(),
+            description: description.value,
+          });
+          foundCases = [created, ...foundCases];
+          const uploaded = await uploadSiteFoundPetPhoto(sessionToken, created.found_case_id, 1, file);
+          foundCases = foundCases.map(item => item.found_case_id === created.found_case_id ? {
+            ...item,
+            photo_manifest_state: uploaded.photoCount >= 10 ? 'COMPLETE' : 'PARTIAL',
+          } : item);
+          renderHome();
+        } catch (caught) {
+          error.textContent = created
+            ? '발견 제보는 저장됐지만 사진 업로드에 실패했습니다. 앱에서 같은 사건에 사진을 다시 추가해 주세요.'
+            : (caught instanceof Error ? caught.message : '발견 제보를 저장하지 못했습니다.');
+          save.disabled = false;
+        }
+      }, 'site-button site-button-primary');
+      const actions = document.createElement('div');
+      actions.className = 'pet-family-form-actions';
+      actions.append(button('취소', renderHome), save);
+      content.append(safety, field('종류', species), field('발견 위치', location), field('설명', description), field('사진', photo), error, actions);
+    };
+
+    content.replaceChildren();
+    const loading = document.createElement('p');
+    loading.textContent = '반려동물 정보를 확인하고 있습니다.';
+    content.appendChild(loading);
+    try {
+      [pets, sosCases, foundCases] = await Promise.all([
+        listSitePets(sessionToken),
+        listSitePetSos(sessionToken),
+        listSiteFoundPets(sessionToken),
+      ]);
+      renderHome();
+    } catch (caught) {
+      content.replaceChildren();
+      const error = document.createElement('p');
+      error.className = 'site-field-error';
+      error.textContent = caught instanceof Error ? caught.message : '반려동물 정보를 불러오지 못했습니다.';
+      content.append(error, button('닫기', closeSurface));
+    }
+  };
+
   const openRenameThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
     const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
@@ -2862,6 +3236,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
     if (attachmentMenuOpen && !target?.closest('[data-attachment-control]')) closeAttachmentMenu();
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
+    const petFamilyTrigger = target?.closest('[data-pet-family-open]');
+    if (petFamilyTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      void openPetFamily(petFamilyTrigger);
+      return;
+    }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
     if (lotbiBoxTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
