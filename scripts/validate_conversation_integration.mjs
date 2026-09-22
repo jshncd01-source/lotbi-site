@@ -587,6 +587,10 @@ assert.ok(!auth.includes('session_token'), 'handoff storage module must never pe
 assert.ok(!auth.includes('Authorization'), 'Account bearer must never be handled by Site handoff state module');
 assert.ok(!callback.includes('sessionStorage.setItem'), 'callback must not persist the Site bearer');
 assert.ok(!conversation.includes('sessionStorage.setItem'), 'conversation must not persist the Site bearer');
+assert.ok(conversation.includes("error.code === 'FREE_LIMIT_REACHED'"), 'FREE quota exhaustion must have dedicated user-facing copy');
+assert.ok(conversation.includes('이번 달 무료 AI 사용 횟수를 모두 사용했어요.'), 'FREE quota exhaustion must be rendered in Korean');
+assert.ok(!conversation.includes('evidence.push(`오류 코드 ${error.code}`)'), 'raw internal error code must not be visible in production Chat UI');
+assert.ok(!conversation.includes('evidence.push(`HTTP ${error.status}`)'), 'raw HTTP status must not be visible in production Chat UI');
 assert.ok(!footerCss.includes('conversation'), 'business footer stylesheet must remain unrelated to conversation integration');
 
 for (const forbiddenEffect of ['/orders', '/payments', '/reservations', '/execute', 'payment_attempted']) {
