@@ -353,7 +353,7 @@ try {
 
   await cdp.evaluate("document.querySelector('.calendar-delete-confirm-cancel').click(); true");
   await waitFor(() => cdp.evaluate("!document.querySelector('.calendar-delete-confirm-dialog')"), 'Desktop delete cancel');
-  const afterCancel = await cdp.evaluate("(() => ({editor:Boolean(document.querySelector('.calendar-editor-dialog')),title:document.querySelector('.calendar-editor-title')?.value||'',stored:JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{"events":[]}').events.some(item=>item.title==='LOTBI Delete Confirm Production E2E')}))()");
+  const afterCancel = await cdp.evaluate("(() => ({editor:Boolean(document.querySelector('.calendar-editor-dialog')),title:document.querySelector('.calendar-editor-title')?.value||'',stored:JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{\"events\":[]}').events.some(item=>item.title==='LOTBI Delete Confirm Production E2E')}))()");
   if (!afterCancel.editor || afterCancel.title !== 'LOTBI Delete Confirm Unsaved Draft' || !afterCancel.stored) throw new Error('Desktop cancel did not preserve editor draft/event: ' + JSON.stringify(afterCancel));
 
   await cdp.evaluate("document.querySelector('.calendar-editor-delete').click(); true");
@@ -397,13 +397,13 @@ try {
     if (geometry.eventStackDisplay !== 'none') throw new Error(width + ' Month event stack should collapse to overview: ' + JSON.stringify(geometry));
 
     if (width === 390) {
-      const mobileDate = await cdp.evaluate("(() => { const cell=[...document.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(node=>node.dataset.calendarDate); const trigger=cell?.querySelector('.calendar-date-trigger'); trigger?.click(); return cell?.dataset.calendarDate||null; })()");
+      const mobileDate = await cdp.evaluate("(() => { const cell=[...document.querySelectorAll('.calendar-date-cell[data-current-month=\"true\"]')].find(node=>node.dataset.calendarDate); const trigger=cell?.querySelector('.calendar-date-trigger'); trigger?.click(); return cell?.dataset.calendarDate||null; })()");
       if (!mobileDate) throw new Error('Mobile delete-confirm target date missing');
       await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-day-panel:not([hidden]) .calendar-add-button'))"), 'Mobile add control');
       await cdp.evaluate("document.querySelector('.calendar-day-panel:not([hidden]) .calendar-add-button').click(); true");
       await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-editor-dialog'))"), 'Mobile add editor');
       await cdp.evaluate("(() => { const title=document.querySelector('.calendar-editor-title'); title.value='LOTBI Delete Confirm Mobile E2E'; title.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('.calendar-editor-save').click(); return true; })()");
-      await waitFor(() => cdp.evaluate("JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{"events":[]}').events.some(item=>item.title==='LOTBI Delete Confirm Mobile E2E')"), 'Mobile event stored');
+      await waitFor(() => cdp.evaluate("JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{\"events\":[]}').events.some(item=>item.title==='LOTBI Delete Confirm Mobile E2E')"), 'Mobile event stored');
       const mobileOpened = await cdp.evaluate("(() => { const node=[...document.querySelectorAll('.calendar-day-event')].find(item=>item.textContent.includes('LOTBI Delete Confirm Mobile E2E')); node?.click(); return Boolean(node); })()");
       if (!mobileOpened) throw new Error('Mobile saved event was not reachable from selected-day list');
       await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-editor-delete'))"), 'Mobile delete control');
@@ -417,7 +417,7 @@ try {
       await cdp.evaluate("document.querySelector('.calendar-editor-delete').click(); true");
       await waitFor(() => cdp.evaluate("Boolean(document.querySelector('.calendar-delete-confirm-dialog'))"), 'Mobile delete confirmation reopen');
       await cdp.evaluate("document.querySelector('.calendar-delete-confirm-submit').click(); true");
-      await waitFor(() => cdp.evaluate("!JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{"events":[]}').events.some(item=>item.title==='LOTBI Delete Confirm Mobile E2E')"), 'Mobile event deleted');
+      await waitFor(() => cdp.evaluate("!JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{\"events\":[]}').events.some(item=>item.title==='LOTBI Delete Confirm Mobile E2E')"), 'Mobile event deleted');
       geometry.mobileDeleteConfirm = mobileDelete;
     }
     responsiveResults.push(geometry);
