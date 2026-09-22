@@ -151,6 +151,12 @@ function createMessage(role, text, meta = {}) {
     note.className = 'chat-message-meta'; note.textContent = '추가 확인이 필요합니다.';
     article.appendChild(note);
   }
+  if (role === 'assistant' && meta.completion === 'PARTIAL') {
+    const note = document.createElement('span');
+    note.className = 'chat-message-meta';
+    note.textContent = '일부 최신 자료로 확인된 답변입니다.';
+    article.appendChild(note);
+  }
   if (role === 'assistant' && Array.isArray(meta.sources) && meta.sources.length) {
     const sources = document.createElement('div');
     sources.className = 'chat-message-sources';
@@ -2785,7 +2791,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
             saveState();
           }
         }
-        const meta = {status: response.status, responseMode: response.responseMode, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
         const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
         if (calendarItems.length) {
