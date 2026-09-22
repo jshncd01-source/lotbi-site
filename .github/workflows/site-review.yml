@@ -63,6 +63,12 @@ jobs:
       - name: Validate conversational home shell
         run: python scripts/validate_home_chat.py
 
+      - name: Validate official LOTBI logo wiring
+        run: node scripts/validate_brand_official_logo_01.mjs
+
+      - name: Validate shared bottom sheet primitive
+        run: node scripts/validate_bottom_sheet_primitive_01.mjs
+
       - name: Validate Bare White Home skin scope
         run: python scripts/validate_bare_white_home_skin_01.py
 
