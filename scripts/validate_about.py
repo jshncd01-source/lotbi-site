@@ -47,7 +47,7 @@ def main() -> int:
     if (
         'class="brand lotbi-official-brand"' not in about
         or 'class="lotbi-official-brand-logo"' not in about
-        or 'src="/assets/lotbi-logo-header.png"' not in about
+        or 'src="/assets/brand/lotbi-lockup-160w.png"' not in about
     ):
         errors.append("about.html: official LOTBI brand asset must be reused")
     if 'href="about.html"' not in index:

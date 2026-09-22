@@ -57,7 +57,7 @@ def main() -> int:
 
     requirements = {
         "approved LOTBI character asset": 'src="assets/lotbi-main-logo.png"',
-        "approved LOTBI sidebar logo asset": 'src="/assets/lotbi-logo-header.png"',
+        "official LOTBI lockup asset": 'src="/assets/brand/lotbi-lockup-160w.png"',
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
         "prompt length boundary": 'maxlength="1000"',
@@ -105,8 +105,13 @@ def main() -> int:
         if removed_sidebar_item in text:
             errors.append(f"index.html: disabled Sidebar placeholder must be removed: {removed_sidebar_item}")
 
-    if text.count('src="/assets/lotbi-logo-header.png"') != 3:
+    if text.count('src="/assets/brand/lotbi-lockup-160w.png"') != 3:
         errors.append("index.html: desktop sidebar, mobile topbar and mobile drawer must share the official logo asset")
+    # The official lockup ships light and dark artwork; every use site must offer both.
+    if text.count('/assets/brand/lotbi-lockup-dark-160w.png') != 3:
+        errors.append("index.html: each logo use site must provide the dark-scheme lockup")
+    if text.count('media="(prefers-color-scheme: dark)"') < 3:
+        errors.append("index.html: logo light/dark switching must be declarative")
     for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-horizontal", "lotbi-logo-official-d3b499fe546c.jpg", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
         if forbidden in text:
             errors.append(f"index.html: legacy/text-only logo reference must not render: {forbidden}")
@@ -226,8 +231,6 @@ def main() -> int:
     for required in (
         'class="sidebar-brand"',
         'class="sidebar-brand-logo"',
-        'class="sidebar-brand-mascot-crop"',
-        'class="sidebar-brand-wordmark"',
         'class="sidebar-nav sidebar-nav-desktop"',
         'class="sidebar-primary-nav"',
         'class="sidebar-calendar-nav"',
@@ -308,18 +311,8 @@ def main() -> int:
         errors.append("index.html: live status boundary must remain available to assistive technology")
 
     sidebar_style_tokens = (
-        ".sidebar-brand-mascot-crop",
-        "width: 32px",
         ".sidebar-brand-logo",
         "width: auto",
-        "max-width: none",
-        "height: 48px",
-        ".sidebar-brand-wordmark",
-        "font-size: 30px",
-        "font-weight: 900",
-        "letter-spacing: -1.6px",
-        "margin-left: -1.2px",
-        "-webkit-text-stroke: .3px currentColor",
         "object-fit: contain",
         "object-position: left center",
         "border: 0",
@@ -352,14 +345,14 @@ def main() -> int:
     if "text-decoration: none" not in brand_rule:
         errors.append("site-sidebar-nav.css: desktop Home logo link underline must remain disabled")
 
-    mascot_crop_rule = slice_between(sidebar_css, ".sidebar-brand-mascot-crop {", "}")
-    for token in ("width: 32px", "flex: 0 0 32px", "overflow: hidden"):
-        if token not in mascot_crop_rule:
-            errors.append(f"site-sidebar-nav.css: mascot crop must exclude the legacy raster wordmark: {token}")
-
-    wordmark_rule = slice_between(sidebar_css, ".sidebar-brand-wordmark {", "}")
-    if "text-decoration: none" not in wordmark_rule:
-        errors.append("site-sidebar-nav.css: Home LOTBI wordmark underline must remain disabled")
+    # Regression guard: the site must render the approved artwork, never redraw it.
+    # A cropped mascot strip or a retyped Arial Black wordmark is what made the
+    # rendered logo differ from the official one, so neither may come back.
+    for forbidden in (".sidebar-brand-mascot-crop", ".sidebar-brand-wordmark"):
+        if forbidden in sidebar_css:
+            errors.append(f"site-sidebar-nav.css: mock logo CSS must not return: {forbidden}")
+    if "Arial Black" in sidebar_css:
+        errors.append("site-sidebar-nav.css: the wordmark must be the official asset, not retyped text")
 
     logo_rule = slice_between(sidebar_css, ".sidebar-brand-logo {", "}")
     for forbidden_logo_style in ("height: 64px", "width: calc(100% - 10px)", "transform:"):

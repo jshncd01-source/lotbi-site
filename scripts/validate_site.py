@@ -18,10 +18,10 @@ from urllib.parse import unquote, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://lotbiai.com"
 ACCOUNT_DELETION_URL = "https://account.lotbiai.com/account#deletion-title"
-OFFICIAL_LOGO_SRC = "/assets/lotbi-logo-header.png"
-OFFICIAL_LOGO_REL = "assets/lotbi-logo-header.png"
-OFFICIAL_LOGO_SHA256 = "fb4189aff6d00928b8c76eeafe951a2d8d83c52914c838a7e8d0bf4b05369ac7"
-OFFICIAL_LOGO_BYTES = 4751
+OFFICIAL_LOGO_SRC = "/assets/brand/lotbi-lockup-160w.png"
+OFFICIAL_LOGO_REL = "assets/brand/lotbi-lockup-160w.png"
+OFFICIAL_LOGO_SHA256 = "21865d33fd05c6c749bfa5511cfb5c08f4362405d2ac169cbcc4a3e812c82014"
+OFFICIAL_LOGO_BYTES = 12757
 REQUIRED_HTML = (
     "index.html",
     "about.html",
