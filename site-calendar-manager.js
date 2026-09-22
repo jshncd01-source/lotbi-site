@@ -12,6 +12,7 @@ import {
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
+import {BrowserLocationError, isFreshBrowserCurrentLocation, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-location1';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
@@ -813,6 +814,8 @@ export async function mountLifeCalendarManager({
   deepOpen,
   initialDraft = null,
   weatherLocation = null,
+  locationProvider = globalThis.navigator?.geolocation,
+  locationNow = Date.now,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
@@ -831,10 +834,12 @@ export async function mountLifeCalendarManager({
   const initialParts = civilDateParts(initialDate);
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
+  let currentWeatherLocation = weatherLocation;
   const state = {
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
     year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], loading: false,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
+    locationInFlight: false, locationMessage: '',
   };
 
   const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
@@ -850,6 +855,9 @@ export async function mountLifeCalendarManager({
   }
   toolbar.append(previous, title, next, today, modes);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
+  const locationButton = button('현재 위치 사용', 'calendar-today-button');
+  locationButton.dataset.calendarCurrentLocation = 'true';
+  locationButton.setAttribute('aria-label', '현재 위치를 캘린더 날씨에 사용');
   const viewport = document.createElement('div'); viewport.className = 'calendar-viewport';
   shell.append(toolbar, status, viewport); root.replaceChildren(shell);
 
@@ -960,11 +968,41 @@ export async function mountLifeCalendarManager({
 
   let refreshGeneration = 0;
 
+  function clearBrowserLocationProvenance() {
+    delete root.dataset.locationSource;
+    delete root.dataset.locationAccuracyMeters;
+    delete root.dataset.locationApproximation;
+    delete root.dataset.locationTimestamp;
+  }
+
+  function locationErrorCopy(error) {
+    if (!(error instanceof BrowserLocationError)) return '현재 위치를 확인하지 못했습니다. 일정은 계속 사용할 수 있어요.';
+    if (error.code === 'BROWSER_LOCATION_DENIED') return '위치 권한이 거부됐어요. 일정은 계속 사용할 수 있어요.';
+    if (error.code === 'BROWSER_LOCATION_TIMEOUT') return '현재 위치 확인 시간이 초과됐어요. 일정은 계속 사용할 수 있어요.';
+    if (error.code === 'BROWSER_LOCATION_UNSUPPORTED') return '이 브라우저에서는 현재 위치를 사용할 수 없어요. 일정은 계속 사용할 수 있어요.';
+    if (error.code === 'BROWSER_LOCATION_STALE') return '현재 위치가 오래되어 다시 확인이 필요해요.';
+    return '현재 위치를 확인할 수 없어요. 일정은 계속 사용할 수 있어요.';
+  }
+
   function render() {
     updateChrome();
     status.replaceChildren();
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
+    } else if (authenticated) {
+      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT';
+      locationButton.disabled = state.locationInFlight;
+      locationButton.textContent = state.locationInFlight
+        ? '위치 확인 중…'
+        : (usingBrowserLocation ? '현재 위치 다시 확인' : '현재 위치 사용');
+      locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
+      status.appendChild(locationButton);
+      if (state.locationMessage) {
+        const locationMessage = document.createElement('span');
+        locationMessage.className = 'calendar-location-status';
+        locationMessage.textContent = state.locationMessage;
+        status.appendChild(locationMessage);
+      }
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
@@ -976,8 +1014,16 @@ export async function mountLifeCalendarManager({
     const requestGeneration = ++refreshGeneration;
     state.loading = true; render(); root.setAttribute('aria-busy', 'true');
     try {
+      if (
+        currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        && !isFreshBrowserCurrentLocation(currentWeatherLocation, {now: locationNow})
+      ) {
+        currentWeatherLocation = null;
+        clearBrowserLocationProvenance();
+        state.locationMessage = '현재 위치가 오래되어 다시 확인이 필요해요.';
+      }
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation});
+        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation: currentWeatherLocation});
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         if (result.kind === 'attention') state.attention = result.items;
         else {
@@ -1058,6 +1104,34 @@ export async function mountLifeCalendarManager({
       onClose: () => focusCalendarContext(origin, item),
     });
   };
+
+  locationButton.addEventListener('click', async () => {
+    if (!authenticated || state.locationInFlight) return;
+    state.locationInFlight = true;
+    state.locationMessage = '';
+    render();
+    try {
+      const location = await requestBrowserCurrentLocation({
+        geolocation: locationProvider,
+        now: locationNow,
+      });
+      currentWeatherLocation = location;
+      root.dataset.locationSource = location.source;
+      root.dataset.locationAccuracyMeters = String(location.accuracyMeters);
+      root.dataset.locationApproximation = location.approximationState;
+      root.dataset.locationTimestamp = location.timestamp;
+      state.locationMessage = '현재 위치를 캘린더 날씨 기준으로 사용합니다.';
+      await refresh();
+    } catch (error) {
+      currentWeatherLocation = null;
+      clearBrowserLocationProvenance();
+      state.locationMessage = locationErrorCopy(error);
+      await refresh();
+    } finally {
+      state.locationInFlight = false;
+      render();
+    }
+  });
 
   previous.addEventListener('click', async () => {
     if (state.mode === 'year') state.year -= 1;

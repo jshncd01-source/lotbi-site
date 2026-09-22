@@ -13,6 +13,7 @@ on:
       - 'site-calendar-guest.js'
       - 'site-calendar.css'
       - 'site-calendar-weather.js'
+      - 'site-current-location.js'
       - 'site-core.js'
       - 'site-auth.js'
       - 'site-continuity.js'
@@ -61,6 +62,7 @@ jobs:
         run: |
           node --check site-calendar-actions.js
           node --check site-calendar.js
+          node --check site-current-location.js
           node --check site-conversation.js
           node scripts/validate_conversation_calendar_actions_01.mjs
       - name: Life Calendar UI prep contract

@@ -5,10 +5,85 @@ import path from 'node:path';
 const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-weather1');
 const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-weather1');
 const {normalizeCalendarWeatherResponse, calendarWeatherByDate} = await import('../site-calendar-weather.js?v=20260922-weather1');
+const {
+  BrowserLocationError,
+  BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
+  isFreshBrowserCurrentLocation,
+  requestBrowserCurrentLocation,
+} = await import('../site-current-location.js?v=20260922-location1');
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
 }
+
+{
+  let locationCalls = 0;
+  let requestedOptions;
+  const geolocation = {
+    getCurrentPosition(success, _failure, options) {
+      locationCalls += 1;
+      requestedOptions = options;
+      success({
+        coords: {latitude: 35.8242, longitude: 127.148, accuracy: 850},
+        timestamp: 1_800_000_000_000,
+      });
+    },
+  };
+  assert.equal(locationCalls, 0, 'browser location must not be requested eagerly');
+  const location = await requestBrowserCurrentLocation({
+    geolocation,
+    now: () => 1_800_000_010_000,
+  });
+  assert.equal(locationCalls, 1);
+  assert.equal(location.source, 'BROWSER_CURRENT');
+  assert.equal(location.accuracyMeters, 850);
+  assert.equal(location.approximationState, 'UNKNOWN');
+  assert.equal(location.timestamp, new Date(1_800_000_000_000).toISOString());
+  assert.equal(requestedOptions.enableHighAccuracy, false);
+  assert.equal(requestedOptions.maximumAge, 0);
+  assert.ok(requestedOptions.timeout >= 1000 && requestedOptions.timeout <= 20000);
+  assert.equal(isFreshBrowserCurrentLocation(location, {now: () => 1_800_000_010_000}), true);
+  assert.equal(
+    isFreshBrowserCurrentLocation(location, {
+      now: () => 1_800_000_000_000 + BROWSER_CURRENT_LOCATION_MAX_AGE_MS + 1,
+    }),
+    false,
+  );
+}
+
+for (const [browserCode, expectedCode] of [
+  [1, 'BROWSER_LOCATION_DENIED'],
+  [2, 'BROWSER_LOCATION_UNAVAILABLE'],
+  [3, 'BROWSER_LOCATION_TIMEOUT'],
+]) {
+  const geolocation = {
+    getCurrentPosition(_success, failure) { failure({code: browserCode}); },
+  };
+  await assert.rejects(
+    requestBrowserCurrentLocation({geolocation}),
+    error => error instanceof BrowserLocationError && error.code === expectedCode,
+  );
+}
+
+await assert.rejects(
+  requestBrowserCurrentLocation({geolocation: null}),
+  error => error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_UNSUPPORTED',
+);
+
+await assert.rejects(
+  requestBrowserCurrentLocation({
+    geolocation: {
+      getCurrentPosition(success) {
+        success({
+          coords: {latitude: 35.8242, longitude: 127.148, accuracy: 25},
+          timestamp: 1_800_000_000_000,
+        });
+      },
+    },
+    now: () => 1_800_000_000_000 + BROWSER_CURRENT_LOCATION_MAX_AGE_MS + 1,
+  }),
+  error => error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_STALE',
+);
 
 const fixture = {
   provider_ready: true,
@@ -154,6 +229,7 @@ assert.equal(
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
+const locationSource = fs.readFileSync(path.join(ROOT, 'site-current-location.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
 for (const token of [
   "weatherIcon.className = 'calendar-weather-icon'",
@@ -163,5 +239,15 @@ for (const token of [
 ]) assert.ok(manager.includes(token), `missing weather icon UI contract: ${token}`);
 assert.ok(css.includes('.calendar-weather-icon'), 'weather icon CSS missing');
 assert.ok(!manager.includes('temperature'), 'Calendar manager must not render temperature');
+assert.ok(manager.includes("locationButton.addEventListener('click'"), 'current location must be a user action');
+assert.ok(manager.includes('requestBrowserCurrentLocation({'), 'Calendar must request location only from the explicit button path');
+assert.ok(manager.includes('weatherLocation: currentWeatherLocation'), 'fresh browser location must feed only the Core weather fallback');
+assert.ok(manager.includes("currentWeatherLocation?.source === 'BROWSER_CURRENT'"), 'browser provenance must be explicit');
+assert.ok(manager.includes('isFreshBrowserCurrentLocation'), 'stale current location must be rejected before reuse');
+assert.ok(locationSource.includes('maximumAge: 0'), 'browser current location must not reuse cached positions');
+assert.ok(locationSource.includes('enableHighAccuracy: false'), 'weather must not force precise browser location');
+assert.ok(locationSource.includes("approximationState: 'UNKNOWN'"), 'browser approximation state must stay explicit and non-invented');
+assert.ok(!locationSource.includes('localStorage'), 'current location must not be persisted across reload');
+assert.ok(!locationSource.includes('sessionStorage'), 'current location must not be persisted across reload');
 
-console.log('LOTBI Calendar KMA weather icon contract: PASS');
+console.log('LOTBI Calendar KMA weather icon + browser location contract: PASS');

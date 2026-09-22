@@ -8,10 +8,10 @@ import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClai
 import {executeLifeCalendarCommand, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260921-smartcaldraft1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260921-smartcaldraft1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260922-location1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
-const {createGuestConversationSession, createSiteFoundPet, createSitePet, createSitePetSos, deleteConversationAttachment, deleteSitePetPhoto, getCurrentSiteUser, getCurrentSubscription, getProductCards, listSiteFoundPets, listSitePetPhotos, listSitePets, listSitePetSos, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, renameSitePet, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, uploadSiteFoundPetPhoto, uploadSitePetPhoto, SiteCoreError} = siteCore;
+const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError, createSiteFoundPet, createSitePet, createSitePetSos, deleteSitePetPhoto, listSiteFoundPets, listSitePetPhotos, listSitePets, listSitePetSos, renameSitePet, uploadSiteFoundPetPhoto, uploadSitePetPhoto} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
