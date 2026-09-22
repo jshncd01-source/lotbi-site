@@ -98,6 +98,12 @@ for (const token of [
   'calendar-editor-memo',
   'calendar-editor-place',
   'calendar-editor-merchant',
+  'calendar-editor-header',
+  'calendar-editor-body',
+  'calendar-editor-close',
+  "document.body.classList.add('calendar-editor-open')",
+  'globalThis.visualViewport',
+  'scrollIntoView',
   'calendar-delete-confirm-backdrop',
   'calendar-delete-confirm-dialog',
   "confirmationDialog.setAttribute('aria-modal', 'true')",
@@ -115,6 +121,12 @@ for (const removed of ['calendar-editor-confirm-delete', '이 일정을 삭제�
 assert.ok(!manager.includes('prompt('));
 assert.ok(!legacy.includes('prompt('));
 assert.ok(css.includes('.calendar-editor-dialog'));
+assert.ok(css.includes('.calendar-editor-body {'));
+assert.ok(css.includes('min-height: 0;'));
+assert.ok(css.includes('-webkit-overflow-scrolling: touch;'));
+assert.ok(css.includes('env(safe-area-inset-bottom)'));
+assert.ok(css.includes('font-size: 16px;'));
+assert.ok(css.includes('height: var(--calendar-editor-visual-height, 100dvh);'));
 assert.ok(css.includes('.calendar-delete-confirm-backdrop'));
 assert.ok(css.includes('.calendar-delete-confirm-dialog'));
 assert.ok(css.includes('.calendar-delete-confirm-actions button { min-width: 84px; min-height: 44px;'));
