@@ -14,6 +14,9 @@ on:
       - 'site-calendar.css'
       - 'site-calendar-weather.js'
       - 'site-calendar-public-weather.js'
+      - 'scripts/validate_calendar_manual_weather_region_settings_01.mjs'
+      - 'scripts/validate_calendar_weather_region_preference_01.mjs'
+      - 'site-calendar-weather-region.js'
       - 'site-current-location.js'
       - 'scripts/validate_calendar_notification_settings_01.mjs'
       - 'scripts/validate_calendar_push_foundation_01.mjs'
@@ -74,6 +77,7 @@ jobs:
           node --check site-current-location.js
           node --check site-calendar-notifications.js
           node --check site-calendar-push.js
+          node --check site-calendar-weather-region.js
           node --check lotbi-calendar-push-worker.js
           node --check site-conversation.js
           node scripts/validate_conversation_calendar_actions_01.mjs
@@ -94,6 +98,8 @@ jobs:
           node scripts/validate_calendar_notification_permission_01.mjs
           node scripts/validate_calendar_push_foundation_01.mjs
           node scripts/validate_calendar_notification_settings_01.mjs
+          node scripts/validate_calendar_weather_region_preference_01.mjs
+          node scripts/validate_calendar_manual_weather_region_settings_01.mjs
           node scripts/validate_calendar_event_editor_01.mjs
           node scripts/validate_calendar_responsive_01.mjs
           node scripts/validate_calendar_modal_runtime_02.mjs
