@@ -77,6 +77,7 @@ function addFive(repo,date){
 
 async function measure({nowIso,date,label,weeks}){
   const values=new Map();
+  values.set('lotbi.calendar.settings.v1',JSON.stringify({showKoreaHolidays:false}));
   const storage={
     getItem:key=>values.has(key)?values.get(key):null,
     setItem:(key,value)=>values.set(key,String(value)),
@@ -90,6 +91,7 @@ async function measure({nowIso,date,label,weeks}){
     timezone:'Asia/Seoul',
     now:new Date(nowIso),
     guestRepository:repo,
+    settingsStorage:storage,
   });
   await wait(()=>root.dataset.calendarManagerView==='month'&&root.querySelector('.calendar-month-grid'),'month '+label);
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
