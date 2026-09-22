@@ -59,6 +59,10 @@ assert.ok(css.includes('overflow-y: hidden'));
 assert.ok(css.includes('min-width: 0'));
 assert.ok(!css.includes('overflow-x: scroll'));
 assert.ok(css.includes('.calendar-editor-backdrop { position: fixed;'), 'event editor must cover the viewport instead of anchoring to an unpositioned content box');
+assert.ok(css.includes('.calendar-delete-confirm-backdrop { position: fixed;'), 'delete confirmation must cover the viewport');
+assert.ok(css.includes('place-items: center'), 'delete confirmation must remain centered on desktop and mobile');
+assert.ok(css.includes('max-height: calc(100svh - 32px)'), 'delete confirmation must fit small mobile viewports');
+assert.ok(css.includes('overscroll-behavior: contain'), 'delete confirmation backdrop must contain background scroll chaining');
 for (const width of [340, 390, 412, 768, 1280, 1440]) assert.ok(width >= 340, `unsupported viewport ${width}`);
 
 const openStart = conversation.indexOf('const openCalendar = async (view,');
