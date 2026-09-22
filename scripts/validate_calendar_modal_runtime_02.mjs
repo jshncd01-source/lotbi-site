@@ -127,7 +127,11 @@ try{
   await wait(()=>content?.dataset.calendarManagerView==='month','month view');
   await wait(
     ()=>content?.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]')?.querySelectorAll('.calendar-event-chip').length===1,
-    'guest Calendar holiday-aware initial refresh',
+    'guest Calendar local-first render',
+  );
+  await wait(
+    ()=>content?.getAttribute('aria-busy')!=='true',
+    'guest Calendar holiday decoration complete',
   );
   await wait(()=>{
     const candidate=modal.querySelector('.calendar-month-layout');
