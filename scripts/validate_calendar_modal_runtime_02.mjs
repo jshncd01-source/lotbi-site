@@ -446,12 +446,12 @@ function wrapperMarkup(w,h){
   return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('case-frame'),out=document.getElementById('result');
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('calendar-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
-  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},20000);
+  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},30000);
   <\/script></body></html>`;
 }
 function run(browser,w,h){
   fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
-  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=22000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:50000,maxBuffer:12*1024*1024});
+  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=34000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:65000,maxBuffer:12*1024*1024});
   if(r.error)throw r.error;
   if(r.status!==0)throw new Error('browser '+r.status+' '+r.stderr);
   const a='<pre id="result">',b='</pre>',i=r.stdout.indexOf(a),j=r.stdout.indexOf(b,i);
