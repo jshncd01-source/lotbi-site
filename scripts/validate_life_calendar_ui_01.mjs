@@ -267,7 +267,7 @@ assert.ok(conversation.includes("parts.push('알림 설정 일정 있음')"), 'C
 assert.ok(conversation.includes("item?.reminder_configured === true"), 'Reminder Bell must be driven only by an explicit authoritative reminder field');
 assert.ok(conversation.includes("window.addEventListener('pageshow', onNavigationCalendarRefresh)"), 'Calendar navigation status must refresh on foreground/page resume');
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("from './site-calendar-manager.js?v=20260922-daysheet1'"));
+assert.ok(ui.includes("from './site-calendar-manager.js?v=20260922-expense1'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes('mountLifeCalendarManager'));

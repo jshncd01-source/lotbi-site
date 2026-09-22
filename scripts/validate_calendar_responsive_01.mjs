@@ -11,8 +11,8 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarEntryVersion = '20260922-daysheet1';
-const calendarManagerVersion = '20260922-daysheet1';
+const calendarEntryVersion = '20260922-expense1';
+const calendarManagerVersion = '20260922-expense1';
 const calendarModelVersion = '20260921-smartcaldraft1';
 const calendarCssVersion = '20260922-daysheet1';
 const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
