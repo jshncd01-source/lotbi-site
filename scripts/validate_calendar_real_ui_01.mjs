@@ -54,7 +54,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const source = fs.readFileSync(path.join(ROOT, 'site-calendar-ui.js'), 'utf8');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
-assert.ok(source.includes("from './site-calendar-manager.js?v=20260922-location1'"));
+assert.ok(source.includes("from './site-calendar-manager.js?v=20260922-deleteconfirm1'"));
 for (const required of [
   'calendarMonthGrid',
   'calendarYearOverview',
@@ -77,6 +77,17 @@ for (const required of [
 }
 assert.ok(!manager.includes('Math.min(events.length, 2)'), 'fixed two-event limit must not return');
 assert.ok(manager.includes('calendar-year-event-count'), 'year overview must render monthly event counts');
+for (const token of [
+  'calendar-delete-confirm-backdrop',
+  'calendar-delete-confirm-dialog',
+  '이 일정을 삭제하시겠습니까?',
+  '삭제한 일정은 복구할 수 없습니다.',
+  "button('취소', 'calendar-delete-confirm-cancel')",
+  "button('삭제', 'calendar-delete-confirm-submit')",
+  'if (deleteRequestInFlight) return',
+]) assert.ok(manager.includes(token), `missing delete confirmation contract: ${token}`);
+assert.ok(!manager.includes('calendar-editor-confirm-delete'));
+assert.ok(!manager.includes('이 일정을 삭제할까요?'));
 assert.ok(manager.includes('if (!root.isConnected)'), 'detached Calendar mounts must dispose their global refresh listener');
 assert.ok(manager.includes('event.detail?.source === root'), 'a Calendar mount must ignore its own refresh broadcast');
 for (const lifecycleToken of ["visibilitychange", "pageshow", "window.addEventListener('focus'", 'refreshTodayIfNeeded', '60_000']) {
@@ -89,6 +100,9 @@ for (const selector of [
   '.calendar-event-stack',
   '.calendar-mobile-event-count',
   '.calendar-weather-icon',
+  '.calendar-delete-confirm-backdrop',
+  '.calendar-delete-confirm-dialog',
+  '.calendar-delete-confirm-actions',
   '[data-selected="true"]',
   '[data-today="true"]',
   'grid-template-columns: repeat(7',
