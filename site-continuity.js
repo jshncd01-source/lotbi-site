@@ -182,7 +182,7 @@ function markAuthenticatedSidebarAccountUi() {
     button.dataset.profileMenuTrigger = '';
     button.setAttribute('aria-haspopup', 'menu');
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', '프로필 메뉴 열기');
+    button.setAttribute('aria-label', '계정 메뉴 열기');
     const primary = document.createElement('span');
     primary.className = 'sidebar-account-name';
     primary.textContent = 'LOTBI 사용자';
@@ -195,13 +195,22 @@ function markAuthenticatedSidebarAccountUi() {
 
 function markAnonymousSidebarAccountUi() {
   for (const slot of sidebarAccountSlots()) {
+    const actions = document.createElement('div');
+    actions.className = 'sidebar-guest-actions';
     const login = installDirectLoginHandoff(sidebarAccountLink({
       href: LOGIN_URL,
       label: 'LOTBI 로그인',
       primary: '로그인',
-      secondary: 'LOTBI 계정 연결',
+      secondary: '',
     }));
-    slot.replaceChildren(login);
+    const signup = installDirectSignupClaim(sidebarAccountLink({
+      href: SIGNUP_URL,
+      label: 'LOTBI 회원가입',
+      primary: '회원가입',
+      secondary: '',
+    }));
+    actions.append(login, signup);
+    slot.replaceChildren(actions);
     setSidebarAuthState(slot, AUTH_STATE_UNAUTHENTICATED, false);
   }
   window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'));
