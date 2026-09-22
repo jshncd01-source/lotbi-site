@@ -912,6 +912,8 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 
 .profile-popover button,
 .profile-popover a[role="menuitem"] {
+  display: block;
+  width: 100%;
   min-height: 42px;
   padding: 9px 11px;
   border: 0;
