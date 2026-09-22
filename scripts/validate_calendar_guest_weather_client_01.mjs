@@ -38,6 +38,49 @@ const {getPublicCalendarWeather, resolvePublicWeatherRegion} = await import('../
 }
 
 {
+  let request = null;
+  await getPublicCalendarWeather({
+    start: '2026-09-22',
+    end: '2026-09-22',
+    timezone: 'Asia/Seoul',
+    latitude: 37.5665,
+    longitude: 126.978,
+    manualLatitude: 35.8242,
+    manualLongitude: 127.148,
+  }, async url => {
+    request = new URL(url);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({provider_ready: true, items: [], ai_calls: 0}),
+    };
+  });
+  assert.equal(request.searchParams.get('latitude'), '37.5665');
+  assert.equal(request.searchParams.get('longitude'), '126.978');
+  assert.equal(request.searchParams.get('manual_latitude'), '35.8242');
+  assert.equal(request.searchParams.get('manual_longitude'), '127.148');
+}
+
+{
+  let request = null;
+  await getPublicCalendarWeather({
+    start: '2026-09-22',
+    end: '2026-09-22',
+    manualLatitude: 35.8242,
+    manualLongitude: 127.148,
+  }, async url => {
+    request = new URL(url);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({provider_ready: true, items: [], ai_calls: 0}),
+    };
+  });
+  assert.equal(request.searchParams.has('latitude'), false);
+  assert.equal(request.searchParams.get('manual_latitude'), '35.8242');
+}
+
+{
   let thrown = null;
   try {
     await getPublicCalendarWeather({
