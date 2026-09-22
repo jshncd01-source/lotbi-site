@@ -807,6 +807,8 @@ body[data-site-theme="dark"] .calendar-day-toggle,
 body[data-site-theme="dark"] .calendar-day-close { border-color: #465162; background: #171c25; color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-date-cell[data-current-month="false"],
 body[data-site-theme="dark"] .calendar-day-panel { border-color: #465162; background: #121720; color: #cbd2dc; }
+body[data-site-theme="dark"] .calendar-day-panel[data-presentation="SHEET"] { background: #121720; border-color: #465162; }
+body[data-site-theme="dark"] .calendar-day-sheet-backdrop { background: rgba(2, 6, 16, .58); }
 body[data-site-theme="dark"] .calendar-day-heading,
 body[data-site-theme="dark"] .calendar-day-event strong { color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-event-chip { background: transparent; color: #dce8fb; }
@@ -938,14 +940,74 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-attention-marker { max-width: 56px; font-size: 9px; }
   .calendar-holiday-label { font-size: 9px; }
 
-  .calendar-day-panel {
+  /* Horizontal month swipe: tell the browser this surface scrolls vertically only,
+     so a sideways drag reaches our handler instead of becoming a page pan. */
+  .calendar-month { touch-action: pan-y; }
+
+  /* FLOW keeps the previous below-the-month panel, still reachable via
+     setDayDetailPresentation('FLOW'). */
+  .calendar-day-panel[data-presentation="FLOW"] {
     position: static;
     width: auto;
     max-height: none;
     margin-top: 12px;
     padding: 14px;
   }
-  .calendar-day-body { overflow: visible; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-body { overflow: visible; }
+
+  /* SHEET is the default touch presentation: it opens over the tapped month
+     instead of making the user scroll to the bottom of the page. */
+  .calendar-day-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 79;
+    background: rgba(15, 23, 42, .38);
+    animation: calendar-day-sheet-fade 160ms ease-out;
+  }
+  .calendar-day-sheet-backdrop[data-reduced-motion="true"] { animation: none; }
+
+  .calendar-day-panel[data-presentation="SHEET"] {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    width: auto;
+    margin-top: 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    border: 1px solid #dbe1ea;
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    background: #ffffff;
+    box-shadow: 0 -12px 40px rgba(15, 23, 42, .22);
+    /* svh/dvh ladder keeps Safari from clipping the sheet behind its chrome. */
+    max-height: 82vh;
+    max-height: 82svh;
+    max-height: 82dvh;
+    overflow: hidden;
+    animation: calendar-day-sheet-rise 200ms ease-out;
+  }
+  .calendar-day-panel[data-presentation="SHEET"][data-reduced-motion="true"] { animation: none; }
+  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* When the software keyboard is up, ride the visual viewport so the add button
+     and controls stay reachable. Mirrors the event editor's handling. */
+  .calendar-day-panel[data-presentation="SHEET"][data-visual-viewport-bound="true"] {
+    bottom: var(--calendar-day-sheet-bottom-gap, 0px);
+    max-height: calc(var(--calendar-day-sheet-visual-height, 82dvh) - 24px);
+  }
+
+  @keyframes calendar-day-sheet-rise {
+    from { transform: translateY(12%); opacity: .6; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes calendar-day-sheet-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
   .calendar-day-event { min-height: 54px; }
   .calendar-day-event strong { font-size: 15px; }
 
