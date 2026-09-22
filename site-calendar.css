@@ -907,15 +907,15 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   }
 
   .calendar-toolbar {
-    grid-template-columns: 40px minmax(0, 1fr) 40px 48px 40px;
+    grid-template-columns: 38px minmax(0, 1fr) 38px 44px 38px;
     gap: 4px;
   }
-  .calendar-nav-button { min-width: 40px; font-size: 0; }
+  .calendar-nav-button { min-width: 38px; font-size: 0; }
   .calendar-nav-button::before { content: '‹'; font-size: 24px; }
   .calendar-nav-button[aria-label="다음 달"]::before { content: '›'; }
   .calendar-title-button { padding-inline: 5px; font-size: 15px; }
-  .calendar-today-button { min-width: 48px; padding-inline: 7px; }
-  .calendar-settings-button { min-width: 40px; width: 40px; }
+  .calendar-today-button { min-width: 44px; padding-inline: 5px; }
+  .calendar-settings-button { min-width: 38px; width: 38px; }
   .calendar-mode-tab { min-height: 40px; padding-inline: 3px; font-size: 12px; }
   .calendar-weekdays span { padding-bottom: 6px; }
 
