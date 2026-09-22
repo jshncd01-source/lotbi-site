@@ -73,7 +73,7 @@ def main() -> int:
         "approved conversation module": 'src="site-conversation.js?v=',
         "approved continuity module": 'src="site-continuity.js?v=',
         "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260921-sidebarux2"',
+        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260922-globalnav1"',
         "neutral initial auth state": 'data-auth-state="checking"',
         "neutral auth placeholder": 'account-auth-placeholder',
         "desktop sidebar": "chat-sidebar-desktop",
@@ -82,7 +82,7 @@ def main() -> int:
         "account footer": "sidebar-account-footer",
         "mobile menu toggle": "data-mobile-nav-open",
         "mobile drawer": 'id="mobile-nav-drawer"',
-        "new chat menu": "+ 새 대화",
+        "new chat menu": "새 대화",
         "calendar menu": "캘린더",
         "calendar stylesheet": 'href="site-calendar.css?v=20260922-deleteconfirm1"',
         "connected services menu": "연결 서비스",
@@ -165,7 +165,7 @@ def main() -> int:
             if forbidden in block:
                 errors.append(f"index.html: {label} exposes removed or fake navigation copy: {forbidden}")
 
-        for required in ("+ 새 대화", "캘린더", "연결 서비스", "최근 대화"):
+        for required in ("새 대화", "캘린더", "연결 서비스", "최근 대화", "프로필", "설정", "도움말"):
             if required not in block:
                 errors.append(f"index.html: {label} missing approved IA item: {required}")
         for removed in ("오늘", "확인 필요", "내 작업", "라이브러리"):
