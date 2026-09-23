@@ -8,7 +8,7 @@ import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClai
 import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-daysheet3';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-quickadd1';
 import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-handle7';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 

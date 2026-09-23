@@ -579,7 +579,12 @@ export function setDayDetailPresentation(value) {
 
 export function dayDetailPresentation() {
   if (!usesFlowingDayDetail()) return DAY_DETAIL_PRESENTATION.POPOVER;
-  return dayDetailPresentationOverride || DAY_DETAIL_PRESENTATION.SHEET;
+  // Touch used to get a sheet welded to the bottom of the screen. Nothing else
+  // people use works that way -- the panel that answers a tap belongs next to
+  // the date that was tapped, so it reads as that date's, and so the rest of
+  // the month stays where the eye left it. SHEET and FLOW stay reachable
+  // through setDayDetailPresentation for a rollback.
+  return dayDetailPresentationOverride || DAY_DETAIL_PRESENTATION.POPOVER;
 }
 
 function usesSheetDayDetail() {
@@ -1049,17 +1054,53 @@ function dayPanel(state, groups, actions) {
     body.appendChild(holiday);
   }
   const items = groups.get(state.selectedDate) || [];
-  body.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('등록된 일정이 없어요.'));
-  // A day with nothing on it is one sentence and two buttons. Saying so here
-  // lets the touch sheet lay those out on a single line instead of a stack --
-  // the difference between the sheet covering two date rows and covering one.
-  // Anything else in the body (a holiday note, the picture flow's status) means
-  // there is more than one line to show, so the stack stays.
-  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage);
-  // Two ways in, and neither repeats the date: the selected day is already in
-  // the panel heading, the toolbar title and the highlighted cell. It stays in
-  // each button's accessible name so a screen reader still hears which day.
+  // Entries first when there are any: what is already on the day is what the
+  // owner opened it to see. The line that adds one sits under them either way.
+  if (items.length) body.appendChild(eventList(items, {onSelect: actions.onEvent}));
+  // Neither control repeats the date: the selected day is already in the panel
+  // heading, the toolbar title and the highlighted cell. It stays in each
+  // accessible name so a screen reader still hears which day.
   const {month: addMonth, day: addDay} = civilDateParts(state.selectedDate);
+
+  // Tapping a date puts the caret in this box. Every calendar people already
+  // use -- Google, Apple, Naver -- lets you write the title where you tapped.
+  // This panel used to answer a tap with a notice and a button that opened a
+  // form somewhere else: one press too many for the one thing it exists to do.
+  const quick = document.createElement('form');
+  quick.className = 'calendar-quick-add';
+  quick.dataset.calendarQuickAdd = '';
+  quick.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 등록`);
+  const quickTitle = document.createElement('input');
+  quickTitle.type = 'text';
+  quickTitle.className = 'calendar-quick-add-title';
+  quickTitle.dataset.calendarQuickAddTitle = '';
+  quickTitle.placeholder = '일정 제목';
+  quickTitle.autocomplete = 'off';
+  quickTitle.enterKeyHint = 'done';
+  quickTitle.maxLength = 200;
+  quickTitle.value = state.quickAddTitle || '';
+  quickTitle.disabled = state.quickAddBusy === true;
+  quickTitle.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정 제목`);
+  quickTitle.addEventListener('input', () => actions.onQuickAddInput?.(quickTitle.value));
+  const quickSave = button(state.quickAddBusy ? '저장 중' : '저장', 'calendar-quick-add-save');
+  quickSave.type = 'submit';
+  quickSave.dataset.calendarQuickAddSave = '';
+  quickSave.disabled = state.quickAddBusy === true;
+  quick.append(quickTitle, quickSave);
+  quick.addEventListener('submit', event => {
+    event.preventDefault();
+    void actions.onQuickAddSubmit?.();
+  });
+  body.appendChild(quick);
+
+  if (state.quickAddMessage) {
+    const note = document.createElement('p');
+    note.className = 'calendar-quick-add-message';
+    note.dataset.calendarQuickAddMessage = '';
+    note.setAttribute('role', 'status');
+    note.textContent = state.quickAddMessage;
+    body.appendChild(note);
+  }
   if (state.imageMessage) {
     const message = document.createElement('p');
     message.className = 'calendar-add-message';
@@ -1068,21 +1109,30 @@ function dayPanel(state, groups, actions) {
     message.textContent = state.imageMessage;
     body.appendChild(message);
   }
+
+  // Secondary, deliberately: the picture route and the full form are still one
+  // press away, but they no longer stand between the owner and a title. On an
+  // empty day the "nothing here" sentence shares their row rather than taking
+  // one of its own -- the panel is small enough that a spare line is felt.
   const addRow = document.createElement('div');
   addRow.className = 'calendar-add-actions';
+  if (!items.length) addRow.appendChild(emptyMessage('등록된 일정이 없어요.'));
 
   const addImage = button('이미지로 등록', 'calendar-add-button calendar-add-image-button');
   addImage.dataset.calendarAddImage = '';
   addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
   addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
 
-  const add = button('직접 등록', 'calendar-add-button');
+  const add = button('자세히', 'calendar-add-button calendar-add-detail-button');
   add.dataset.calendarAdd = '';
-  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 등록`);
+  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정을 자세히 입력해서 등록`);
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
 
   addRow.append(addImage, add);
   body.appendChild(addRow);
+  // What the compact one-row layout keys off: nothing in the body but the
+  // quick-add line and this row.
+  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage && !state.quickAddMessage);
   panel.append(head, body);
   return panel;
 }
@@ -1144,28 +1194,66 @@ function fitMonthEventDensity(layout) {
   }
 }
 
+// The box the panel is allowed to occupy: the Calendar's own surface, clipped
+// to whatever the software keyboard has left of the viewport. visualViewport is
+// what shrinks when the keyboard comes up; innerHeight does not.
+function dayPopoverBounds(layout) {
+  const frame = (layout.closest('.site-calendar-modal') || document.documentElement).getBoundingClientRect();
+  const visual = globalThis.visualViewport;
+  const viewTop = visual ? visual.offsetTop : 0;
+  const viewBottom = visual ? visual.offsetTop + visual.height : globalThis.innerHeight;
+  return {
+    left: Math.max(frame.left, 0),
+    right: Math.min(frame.right, globalThis.innerWidth),
+    top: Math.max(frame.top, viewTop),
+    bottom: Math.min(frame.bottom, viewBottom),
+  };
+}
+
 function positionDayPopover(layout) {
   const panel = layout.querySelector('.calendar-day-panel');
   if (!panel || panel.hidden) return;
   if (dayDetailPresentation() !== DAY_DETAIL_PRESENTATION.POPOVER) {
     // Sheet and flow presentations are positioned by CSS, not anchored to a cell.
-    panel.style.removeProperty('left');
-    panel.style.removeProperty('top');
+    for (const property of ['left', 'top', 'width', 'max-height']) panel.style.removeProperty(property);
+    panel.removeAttribute('data-arrow');
     return;
   }
   const date = panel.dataset.selectedDate;
   const anchor = layout.querySelector(`.calendar-date-cell[data-calendar-date="${date}"]`);
   if (!anchor) return;
-  const bounds = (layout.closest('.site-calendar-modal') || document.documentElement).getBoundingClientRect();
+  const bounds = dayPopoverBounds(layout);
+  const span = Math.max(0, bounds.right - bounds.left);
+  const available = Math.max(0, bounds.bottom - bounds.top);
+  if (span <= 0 || available <= 0) return;
+  const gutter = 8;
+  const gap = 8;
   const anchorRect = anchor.getBoundingClientRect();
-  const width = Math.min(panel.offsetWidth || 400, Math.max(320, bounds.width - 24));
-  const height = panel.offsetHeight || 320;
-  let left = anchorRect.right + 10;
-  if (left + width > bounds.right - 12) left = anchorRect.left - width - 10;
-  left = Math.max(bounds.left + 12, Math.min(left, bounds.right - width - 12));
-  const top = Math.max(bounds.top + 12, Math.min(anchorRect.top, bounds.bottom - height - 12));
+
+  const width = Math.round(Math.max(240, Math.min(380, span - gutter * 2)));
+  panel.style.width = `${width}px`;
+
+  // Prefer whichever side of the tapped cell has more room, and never let the
+  // panel take more than a bit over half of what is visible -- the month it
+  // belongs to has to stay readable behind it.
+  const roomBelow = bounds.bottom - anchorRect.bottom - gap - gutter;
+  const roomAbove = anchorRect.top - bounds.top - gap - gutter;
+  const ceiling = Math.max(140, Math.round(available * 0.55));
+  panel.style.maxHeight = `${Math.round(Math.max(140, Math.min(ceiling, Math.max(roomBelow, roomAbove))))}px`;
+
+  const height = panel.offsetHeight || 180;
+  const below = roomBelow >= height || roomBelow >= roomAbove;
+  panel.dataset.arrow = below ? 'up' : 'down';
+  const rawTop = below ? anchorRect.bottom + gap : anchorRect.top - gap - height;
+  const top = Math.max(bounds.top + gutter, Math.min(rawTop, bounds.bottom - gutter - height));
+  const centred = anchorRect.left + anchorRect.width / 2 - width / 2;
+  const left = Math.max(bounds.left + gutter, Math.min(centred, bounds.right - gutter - width));
   panel.style.left = `${Math.round(left)}px`;
   panel.style.top = `${Math.round(top)}px`;
+  // The pointer tracks the tapped cell even after the box was clamped sideways,
+  // which is the whole reason the panel reads as belonging to that date.
+  const pointer = anchorRect.left + anchorRect.width / 2 - left;
+  panel.style.setProperty('--calendar-day-arrow-left', `${Math.round(Math.max(14, Math.min(width - 14, pointer)))}px`);
 }
 
 // The sheet is fixed to the bottom of the viewport, so whatever it covers is
@@ -1367,6 +1455,32 @@ function renderMonth(state, actions, weatherCredit = null) {
     if (globalThis.visualViewport) panel.dataset.visualViewportBound = 'true';
     // Each render rebuilds the layout, so release with the node it belongs to.
     panel.addEventListener('lotbi:day-sheet-release', releaseViewport, {once: true});
+  } else if (state.detailOpen && dayDetailPresentation() === DAY_DETAIL_PRESENTATION.POPOVER) {
+    // An anchored panel is only anchored while its geometry is kept true. Two
+    // things move underneath it: the software keyboard, which shrinks the
+    // visual viewport, and the month scrolling inside the Calendar. Scroll does
+    // not bubble, so it is listened for in the capture phase.
+    const reposition = event => {
+      // Scrolling the entry list inside the panel is not the panel moving. It
+      // arrives here because the listener is on document in the capture phase,
+      // and acting on it re-ran the geometry under the owner's own finger --
+      // measured as the title box refusing the tap that had just focused it.
+      if (event?.target && panel.contains(event.target)) return;
+      if (layout.isConnected) positionDayPopover(layout);
+    };
+    const visual = globalThis.visualViewport;
+    visual?.addEventListener('resize', reposition);
+    visual?.addEventListener('scroll', reposition);
+    document.addEventListener('scroll', reposition, true);
+    if (visual) panel.dataset.visualViewportBound = 'true';
+    // Marked whether or not visualViewport exists: the scroll listener is on
+    // document either way, and an unreleased one outlives the node it moves.
+    panel.dataset.dayPanelBound = 'true';
+    panel.addEventListener('lotbi:day-sheet-release', () => {
+      visual?.removeEventListener('resize', reposition);
+      visual?.removeEventListener('scroll', reposition);
+      document.removeEventListener('scroll', reposition, true);
+    }, {once: true});
   }
   if (usesFlowingDayDetail()) {
     bindMonthSwipe(calendar, {
@@ -2270,6 +2384,16 @@ export async function mountLifeCalendarManager({
     // status strip because the location flow rewrites that strip on its own
     // schedule and swallowed this message a moment after it appeared.
     imageMessage: '',
+    // The quick-add line in the day panel. The typed title lives here rather
+    // than only in the input, because render() rebuilds the whole viewport and
+    // a value kept solely in the DOM would be lost to any refresh that lands
+    // mid-sentence -- the weather arriving, say. quickAddFocus is a one-shot
+    // request the next render honours: set when a date is opened, never on
+    // mount, so opening the Calendar cannot raise a keyboard nobody asked for.
+    quickAddTitle: '',
+    quickAddBusy: false,
+    quickAddMessage: '',
+    quickAddFocus: false,
     expense: {
       // Signed out there is nothing to wait for: the entries are already here,
       // so the first paint computes rather than showing a loader.
@@ -2330,8 +2454,20 @@ export async function mountLifeCalendarManager({
       state.month = parts.month;
       state.detailOpen = openDetail;
       state.dayCollapsed = false;
+      if (openDetail) {
+        // A new day starts a new blank line, and the caret belongs in it: that
+        // is what opening a date means here.
+        state.quickAddTitle = '';
+        state.quickAddMessage = '';
+        state.quickAddFocus = true;
+      }
       if (monthChanged) await afterMonthChange(); else render();
-      queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
+      // Arrow-key roaming keeps focus on the grid; opening a day hands it to
+      // the title box, which render() does once it has rebuilt the panel.
+      if (!openDetail) {
+        state.quickAddFocus = false;
+        queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
+      }
     },
     selectMonth: async month => {
       state.month = month;
@@ -2375,11 +2511,14 @@ export async function mountLifeCalendarManager({
       const date = state.selectedDate;
       state.detailOpen = false;
       state.dayCollapsed = false;
+      state.quickAddFocus = false;
+      state.quickAddMessage = '';
       render();
       queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
     },
     toggleDay: () => {
       state.dayCollapsed = !state.dayCollapsed;
+      state.quickAddFocus = false;
       render();
       queueMicrotask(() => root.querySelector('.calendar-day-toggle')?.focus());
     },
@@ -2398,9 +2537,50 @@ export async function mountLifeCalendarManager({
       }
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
-    onAdd: date => openEditor(null, date),
-    onAddFromImage: date => { void addFromImage(date); },
-    onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
+    // Typing does not re-render: the input already shows what was typed, and
+    // rebuilding the panel on every keystroke would drop the caret.
+    onQuickAddInput: value => { state.quickAddTitle = typeof value === 'string' ? value : ''; },
+    // A title and the day it was tapped on. Everything else the full form asks
+    // for is optional, so a title alone is a whole entry -- an all-day one,
+    // which is what "9월 15일에 치과" means when no time was given.
+    onQuickAddSubmit: async () => {
+      if (state.quickAddBusy) return;
+      const title = (state.quickAddTitle || '').trim();
+      if (!title) {
+        state.quickAddMessage = '일정 제목을 입력해 주세요.';
+        state.quickAddFocus = true;
+        render();
+        return;
+      }
+      state.quickAddBusy = true;
+      state.quickAddMessage = '';
+      render();
+      try {
+        await mutationController.create({title, localDate: state.selectedDate, allDay: true});
+        if (!root.isConnected) return;
+        state.quickAddBusy = false;
+        state.quickAddTitle = '';
+        state.quickAddMessage = '';
+        // The caret stays put: the next entry for the same day is the likeliest
+        // next thing, and it is now one line of typing away.
+        state.quickAddFocus = true;
+        await refresh();
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
+      } catch (caught) {
+        if (!root.isConnected) return;
+        state.quickAddBusy = false;
+        // What was typed is kept. Losing it to a failed save would be the
+        // second thing to go wrong, and the one the owner would feel.
+        state.quickAddMessage = caught instanceof Error ? caught.message : '일정을 저장하지 못했습니다.';
+        state.quickAddFocus = true;
+        render();
+      }
+    },
+    // The full form and the picture route take the caret with them; the panel
+    // must not pull it back on the next render underneath them.
+    onAdd: date => { state.quickAddFocus = false; return openEditor(null, date); },
+    onAddFromImage: date => { state.quickAddFocus = false; void addFromImage(date); },
+    onEvent: item => { state.quickAddFocus = false; return openEditor(item, item.local_date || item.due_date || ''); },
     openSettings: () => calendarSettingsDialog({
       root,
       state,
@@ -2653,7 +2833,7 @@ export async function mountLifeCalendarManager({
     updateChrome();
     // Release the previous day-sheet visualViewport listeners before the node is
     // replaced, so repeated renders cannot accumulate them.
-    const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"]');
+    const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"], .calendar-day-panel[data-day-panel-bound="true"]');
     if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
     if (state.loading) {
@@ -2671,7 +2851,39 @@ export async function mountLifeCalendarManager({
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
-    else viewport.replaceChildren(renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
+    else {
+      const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));
+      viewport.replaceChildren(layout);
+      // Synchronously, before this frame is painted. renderMonth also schedules
+      // the same sync on an animation frame -- that one is for metrics that
+      // settle later, such as a webfont swapping in -- but waiting for it here
+      // meant the panel drew once wherever the flow put it and then jumped to
+      // the date it belongs to. One frame on a phone; enough to be seen, and
+      // enough to make a geometry check land on the wrong box.
+      syncMonthLayout(layout);
+    }
+
+    // The panel is rebuilt from scratch on every render, so the caret has to be
+    // put back by hand -- and a save renders twice (the reload starts, then
+    // lands), so honouring the request only once would leave the caret on the
+    // floor of the first of them. The request therefore stands until something
+    // takes the panel away: closeDay, 접기, roaming the grid, or the full form
+    // opening. What keeps it from stealing focus in the meantime is the check
+    // below: a caret already somewhere in this panel is left where it is.
+    if (state.quickAddFocus) {
+      const titleInput = viewport.querySelector('[data-calendar-quick-add-title]');
+      const active = document.activeElement;
+      const alreadyInPanel = Boolean(active && active !== document.body && active.closest?.('.calendar-day-panel'));
+      if (!titleInput) state.quickAddFocus = false;
+      else if (!titleInput.disabled && !alreadyInPanel) {
+        queueMicrotask(() => {
+          if (!titleInput.isConnected) return;
+          titleInput.focus();
+          const end = titleInput.value.length;
+          try { titleInput.setSelectionRange(end, end); } catch { /* not every input allows it */ }
+        });
+      }
+    }
 
     if (state.mode === 'month') {
       const monthKey = `${state.year}-${state.month}`;
