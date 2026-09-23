@@ -754,8 +754,17 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   margin-inline: 0;
 }
 
+/* SITE-STICKY-TOPBAR-01 — the bar rides the main scroller instead of sliding
+   away with the thread. sticky, not fixed: the bar keeps the flow box it
+   already had, so a short screen (folded cover display, landscape, keyboard
+   open) loses no conversation height to it. The background is opaque because
+   messages now scroll underneath. */
 .chat-topbar {
   flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: #fff;
 }
 
 .chat-hero {
@@ -1379,6 +1388,7 @@ body[data-site-theme="dark"] { background: #151922; color: #eef1f6; }
 body[data-site-theme="dark"] .chat-home-shell { background: #151922; }
 body[data-site-theme="dark"] .chat-message-assistant { color: #edf0f5; }
 body[data-site-theme="dark"] .chat-composer-stack { background: linear-gradient(to bottom, rgba(21, 25, 34, 0), #151922 18px, #151922 100%); }
+body[data-site-theme="dark"] .chat-topbar { background: #151922; }
 body[data-site-theme="dark"] .chat-composer,
 body[data-site-theme="dark"] .site-modal,
 body[data-site-theme="dark"] .profile-popover,
@@ -1411,6 +1421,7 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
   body[data-site-theme="system"] .chat-home-shell { background: #151922; }
   body[data-site-theme="system"] .chat-message-assistant { color: #edf0f5; }
   body[data-site-theme="system"] .chat-composer-stack { background: linear-gradient(to bottom, rgba(21, 25, 34, 0), #151922 18px, #151922 100%); }
+  body[data-site-theme="system"] .chat-topbar { background: #151922; }
   body[data-site-theme="system"] .chat-composer { background: #202631; }
   body[data-site-theme="system"] .chat-input { color: #edf0f5; }
   body[data-site-theme="system"] .profile-popover button,

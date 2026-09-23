@@ -16,14 +16,42 @@ assert.match(manager, /readCalendarManualWeatherRegion/);
 assert.match(manager, /writeCalendarManualWeatherRegion/);
 assert.match(manager, /clearCalendarManualWeatherRegion/);
 assert.match(manager, /source: 'MANUAL_REGION'/);
-assert.match(manager, /예: 전주시 만성동/);
-assert.match(manager, /지역 적용/);
+// 자유 텍스트 입력은 없다. 자기 위치를 문장으로 적는 사람은 없고, 오타 하나가 날씨를
+// 통째로 사라지게 만들었다. 지역은 Core 목록 그대로 광역시·도 → 시·군·구 두 단계로만
+// 고른다.
+assert.doesNotMatch(manager, /예: 전주시 만성동/, '날씨 지역 자유 텍스트 입력은 되돌아오지 않는다');
+assert.doesNotMatch(manager, /지역 적용/, '자유 텍스트 적용 버튼은 되돌아오지 않는다');
+assert.doesNotMatch(manager, /상세 번지 없는 지역명을 입력/, '입력 안내문도 함께 사라진다');
+assert.doesNotMatch(manager, /weatherInput/, '입력칸을 가리키는 코드도 남지 않는다');
+assert.match(manager, /provinceSelect\.className = 'calendar-settings-select'/);
+assert.match(manager, /citySelect\.className = 'calendar-settings-select'/);
+assert.match(manager, /'날씨 지역 광역시·도'/);
+assert.match(manager, /'날씨 지역 시·군·구'/);
+// 2단계에는 1단계에 속한 것만 나온다.
+assert.match(manager, /items \|\| \[\]\)\.filter\(item => item\.province === province\)/);
+assert.match(manager, /\/v2\/life\/weather\/regions/);
 assert.match(manager, /수동 지역 해제/);
 assert.match(manager, /현재 날씨 지역:/);
 assert.match(manager, /state\.manualWeatherRegion/);
 assert.match(manager, /currentWeatherLocation\?\.source === 'BROWSER_CURRENT'/);
 assert.match(manager, /state\.manualWeatherRegion \? '' : '위치 권한이 꺼져 있어요.'/);
-assert.match(manager, /clearCalendarManualWeatherRegion\(settingsStorage\)/);
+// 현재 위치를 쓰는 것이 저장된 지역을 지우는 일이어서는 안 된다. 그것 때문에
+// 새로고침하면 돌아갈 자리가 없어져 날씨가 사라졌다. 해제는 설정창의 해제 버튼
+// (storage) 하나뿐이다.
+assert.doesNotMatch(
+  manager,
+  /clearCalendarManualWeatherRegion\(settingsStorage\)/,
+  '현재 위치 경로는 저장된 지역을 지우지 않는다',
+);
+assert.match(manager, /clearCalendarManualWeatherRegion\(storage\)/);
+// 새로고침 뒤에도 남는 것은 시·군·구이고, 정밀 좌표는 저장하지 않는다.
+assert.match(manager, /writeWeatherRegionOrigin\(settingsStorage, WEATHER_REGION_ORIGIN\.CURRENT_LOCATION\)/);
+assert.match(manager, /storeCurrentLocationRegion\(region\)/);
+assert.doesNotMatch(
+  manager,
+  /setItem\([^)]*capturedAtMs|accuracyMeters[^\n]*setItem/,
+  '브라우저가 준 정밀 좌표는 저장소에 남지 않는다',
+);
 assert.match(manager, /void syncLocationPermission\(\)\.then/);
 
 // The current-location control lives in Settings beside the manual region, and
@@ -52,11 +80,13 @@ assert.equal(
 assert.match(css, /\.calendar-toast-host/);
 assert.match(css, /\.calendar-toast-host:empty \{ display: none; \}/);
 
-const applyHandler = manager.indexOf("weatherApply.addEventListener('click'");
-const resolveCall = manager.lastIndexOf('resolvePublicWeatherRegion(query, fetchImpl)');
-assert.ok(applyHandler >= 0 && resolveCall > applyHandler, 'manual region lookup must run only after explicit Settings action');
+// 지오코딩은 사용자가 시·군·구를 고른 뒤에만 일어난다. 설정창을 여는 것만으로
+// 목록은 읽지만, 좌표를 묻는 요청은 고르기 전에는 없다.
+const cityHandler = manager.indexOf("citySelect.addEventListener('change'");
+const resolveCall = manager.indexOf('resolvePublicWeatherRegion(chosen.displayLabel, fetchImpl)');
+assert.ok(cityHandler >= 0 && resolveCall > cityHandler, 'manual region lookup must run only after an explicit Settings choice');
 assert.equal(
-  manager.slice(0, applyHandler).includes('resolvePublicWeatherRegion(query, fetchImpl)'),
+  manager.slice(0, cityHandler).includes('resolvePublicWeatherRegion(chosen.displayLabel'),
   false,
   'Calendar mount must never geocode a manual region automatically',
 );

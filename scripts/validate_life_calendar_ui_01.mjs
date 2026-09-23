@@ -187,19 +187,23 @@ const responses = {
   assert.ok(calls.some(call => call.url.includes('/v2/life/holidays?year=2026&country=KR')));
   assert.equal(year.holidayCoverageStatus, 'VERIFIED');
 
+  // 확인 필요 보기는 없어졌다. 그 이름으로 들어오는 옛 링크는 기한 지남을 이어받은
+  // 일정 보기로 간다 -- 지난 기한이 조용히 사라지는 대신 갈 곳이 있어야 한다.
   calls.length = 0;
   const attention = await loadLifeCalendarManagerView('site-token', {...base, view: 'attention'});
-  assert.equal(attention.key, 'attention');
-  assert.equal(attention.kind, 'attention');
-  assert.ok(calls[0].url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365'));
+  assert.equal(attention.key, 'agenda');
+  assert.equal(attention.kind, 'agenda');
+  assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
 
   calls.length = 0;
   const agenda = await loadLifeCalendarManagerView('site-token', {...base, view: 'agenda', date: '2026-10-02'});
   assert.equal(agenda.key, 'agenda');
   assert.equal(agenda.date, '2026-10-02');
-  assert.equal(calls.length, 2);
+  // 일정 보기도 주의 일정을 읽는다: 지금 달에 없는 지난 기한을 보여줄 유일한 자리다.
+  assert.equal(calls.length, 3);
   assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-11-01')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/unscheduled')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
   assert.deepEqual(agenda.unscheduled, []);
 
   for (const call of calls) {
