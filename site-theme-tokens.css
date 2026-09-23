@@ -25,6 +25,12 @@ body[data-site-theme="light"] {
   --lotbi-info-text: #3568a8;
   --lotbi-selected-bg: #f1f3f5;
   --lotbi-selected-text: #111827;
+  /* SITE-DARK-CONVERSATION-LIST-CONTRAST-01 — the recent-conversation list.
+     The selected row changes its background, so its text has to change with it
+     or the pair stops agreeing. Light values are the previous hardcoded ones,
+     unchanged: #555d69 on #fff is 6.65:1, #182a46 on #f1f3f5 is 12.94:1. */
+  --lotbi-nav-history-text: #555d69;
+  --lotbi-nav-history-text-active: #182a46;
 }
 
 body[data-site-theme="light"] { color-scheme: light; }
@@ -52,6 +58,11 @@ body[data-site-theme="dark"] {
   --lotbi-info-text: #a7c7ff;
   --lotbi-selected-bg: #f3f4f6;
   --lotbi-selected-text: #111827;
+  /* #aeb6c3 on #151922 is 8.61:1; #f8fafc on the #262e3a selected
+     row is 13.08:1. The selected row previously kept --brand-navy
+     and measured 1.05:1 — invisible. */
+  --lotbi-nav-history-text: #aeb6c3;
+  --lotbi-nav-history-text-active: #f8fafc;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -79,6 +90,11 @@ body[data-site-theme="dark"] {
     --lotbi-info-text: #a7c7ff;
     --lotbi-selected-bg: #f3f4f6;
     --lotbi-selected-text: #111827;
+    /* #aeb6c3 on #151922 is 8.61:1; #f8fafc on the #262e3a selected
+       row is 13.08:1. The selected row previously kept --brand-navy
+       and measured 1.05:1 — invisible. */
+    --lotbi-nav-history-text: #aeb6c3;
+    --lotbi-nav-history-text-active: #f8fafc;
   }
 }
 
@@ -107,6 +123,11 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) {
   --lotbi-info-text: #a7c7ff;
   --lotbi-selected-bg: #f3f4f6;
   --lotbi-selected-text: #111827;
+  /* #aeb6c3 on #151922 is 8.61:1; #f8fafc on the #262e3a selected
+     row is 13.08:1. The selected row previously kept --brand-navy
+     and measured 1.05:1 — invisible. */
+  --lotbi-nav-history-text: #aeb6c3;
+  --lotbi-nav-history-text-active: #f8fafc;
 }
 
 /* Shared component role mapping for explicit Dark. */

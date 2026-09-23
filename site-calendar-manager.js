@@ -1290,8 +1290,12 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
           merchant: draft.entry.merchant,
         }
       : {};
+  // Not placeholder="0": an empty box showing a grey 0 reads as "0원 recorded"
+  // when it actually means "no amount recorded", and the two are different
+  // things in the totals bar — one is a zero, the other is excluded and
+  // counted. The 대표 read a blank 여행 entry as a saved 0 because of it.
   const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
-  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.placeholder = '0'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
+  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
 
   const categoryLabel = document.createElement('label'); categoryLabel.textContent = '비용 종류';
   const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';

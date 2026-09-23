@@ -24,6 +24,11 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # prefers-color-scheme block), so the OS-driven source put the white wordmark on
 # #f7f8fb for every dark-OS visitor. One line changed per file, in the header
 # only; no legal text was touched. Verified with `git diff --unified=0`.
+# SITE-DARK-CONVERSATION-LIST-CONTRAST-01 — styles.css's hash moved for a
+# comment only: a note at the raw --brand-* definitions saying they have no Dark
+# form and that new screens should take a semantic token instead. Verified
+# comment-only by stripping /* */ from both revisions and comparing; no
+# declaration changed.
 LOCKED_SHA256 = {
     'privacy.html': '4c9276d5dd0c3f3d3ce6e8c9c3ec2b5907292f9d7416170af76f9f4516c3eaad',
     'terms.html': 'ed2b6852a836ab50a3f97ddd970501a763091c946f2c70b8bfb0b5f2c50a9abc',
@@ -31,7 +36,7 @@ LOCKED_SHA256 = {
     'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': 'b35156b807d4bb18ba1cdc104371135f64f9a7bd0f15f9d8f2031a065e92888f',
+    'styles.css': '5acc2ecda77a43ea16bb634a53c9633aae4d88435c2b2dd829eae220b3b53390',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
@@ -98,7 +103,7 @@ def main() -> int:
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
-        '<script src="mobile-entry.js?v=20260923-darklogo1" defer></script>',
+        '<script src="mobile-entry.js?v=20260923-kmaglyph1" defer></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         '<script type="module" src="site-avatar.js"></script>',
