@@ -26,6 +26,32 @@ assert.match(manager, /state\.manualWeatherRegion \? '' : '위치 권한이 꺼�
 assert.match(manager, /clearCalendarManualWeatherRegion\(settingsStorage\)/);
 assert.match(manager, /void syncLocationPermission\(\)\.then/);
 
+// The current-location control lives in Settings beside the manual region, and
+// the pre-grid status row never carries it again: weather location is an
+// accessory and must not outrank the user's own schedule. Behaviour is proven in
+// a real browser by validate_calendar_quiet_location_01.mjs; these are the cheap
+// static guards against a silent drift back.
+assert.match(manager, /buildLocationRow: buildLocationSettingsRow/);
+assert.match(manager, /row\.dataset\.calendarLocationRow = 'true'/);
+assert.match(manager, /row\.append\(copy, locationButton\)/);
+assert.match(manager, /announceLocation\('현재 위치로 날씨를 표시합니다\.'\)/);
+const renderStart = manager.indexOf('  function render() {');
+const renderEnd = manager.indexOf('  async function refresh() {');
+assert.ok(renderStart >= 0 && renderEnd > renderStart, 'render/refresh boundary not found');
+const renderBody = manager.slice(renderStart, renderEnd);
+assert.equal(
+  renderBody.includes('status.appendChild(locationButton)'),
+  false,
+  'the status row above the date grid must never host the location control again',
+);
+assert.equal(
+  /status\.appendChild\(location/.test(renderBody),
+  false,
+  'the status row above the date grid must never host a location label again',
+);
+assert.match(css, /\.calendar-toast-host/);
+assert.match(css, /\.calendar-toast-host:empty \{ display: none; \}/);
+
 const applyHandler = manager.indexOf("weatherApply.addEventListener('click'");
 const resolveCall = manager.lastIndexOf('resolvePublicWeatherRegion(query, fetchImpl)');
 assert.ok(applyHandler >= 0 && resolveCall > applyHandler, 'manual region lookup must run only after explicit Settings action');

@@ -127,6 +127,7 @@ jobs:
           node --check site-calendar-expense.js
           node scripts/validate_calendar_expense_summary_01.mjs
           node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
+          node scripts/validate_calendar_quiet_location_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
 
       - name: Validate Universal Rich Product Cards
