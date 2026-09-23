@@ -9,8 +9,8 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-wakelisten1';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-wakelisten1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-browsertts1';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -182,12 +182,55 @@ function resolvePlaceOrbitPointerIndex({
 // where KakaoTalk appears next to every other installed target, so it needs no
 // Kakao app key and no registered JavaScript SDK domain. Desktop browsers have
 // no share sheet, so they fall back to copying the answer plus the site link.
-// "소리내어 읽기" is deliberately absent until Core's /v2/live/tts is reachable
+// SITE-VOICE-BROWSER-TTS-01 — reading answers aloud, with the voice the
+// browser already has. Core's /v2/live/tts still is not reachable from a Site
+// session and its provider credentials are not configured, so waiting for it
+// means shipping nothing. speechSynthesis needs no key, no network call of our
+// own and no new environment variable, and where a browser does not have it the
+// control simply is not built — an answer that cannot be read aloud should not
+// grow a button that says it can.
+//
+// When the approved provider does arrive, this is the fallback it falls back
+// to, not code to delete.
+// (superseding) "소리내어 읽기" was absent while Core's /v2/live/tts was unreachable
 // from a Site session; a permanently dead button is worse than no button.
 const MESSAGE_ACTION_SHARE_URL = 'https://lotbiai.com/';
 const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16h-9V7h9v14Z';
 const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
+const MESSAGE_ACTION_ICON_SPEAK = 'M4 9v6h4l5 4V5L8 9H4Zm11.5 3a4 4 0 0 0-2-3.46v6.92A4 4 0 0 0 15.5 12Zm-2-7.77v2.06A6 6 0 0 1 13.5 18.3v2.06a8 8 0 0 0 0-15.6Z';
+const MESSAGE_ACTION_ICON_STOP = 'M6 6h12v12H6V6Z';
 const MESSAGE_ACTION_FEEDBACK_MS = 2600;
+// Chrome stops a long utterance partway through, so answers are read in
+// sentence-sized pieces queued back to back. cancel() still clears the whole
+// queue, which keeps the stop control honest.
+const SPEECH_CHUNK_LIMIT = 180;
+
+function speechSupported() {
+  return typeof globalThis.speechSynthesis !== 'undefined'
+    && typeof globalThis.SpeechSynthesisUtterance === 'function';
+}
+
+function splitForSpeech(value) {
+  const text = String(value ?? '').replace(/\s+/gu, ' ').trim();
+  if (!text) return [];
+  const chunks = [];
+  let current = '';
+  for (const piece of text.split(/(?<=[.!?。？！]|다\.|요\.)\s+/u)) {
+    if (!piece) continue;
+    if ((current + ' ' + piece).trim().length <= SPEECH_CHUNK_LIMIT) {
+      current = (current ? current + ' ' : '') + piece;
+      continue;
+    }
+    if (current) chunks.push(current);
+    // A single sentence longer than the limit still has to be broken, or the
+    // engine truncates it silently.
+    if (piece.length <= SPEECH_CHUNK_LIMIT) { current = piece; continue; }
+    for (let i = 0; i < piece.length; i += SPEECH_CHUNK_LIMIT) chunks.push(piece.slice(i, i + SPEECH_CHUNK_LIMIT));
+    current = '';
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
 
 async function writeMessageTextToClipboard(text) {
   if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -266,6 +309,49 @@ function createMessageActions(text, announce) {
         void shareByClipboard();
       });
   });
+
+  // Built only where the browser can actually speak. No dialog, no disabled
+  // button, no promise the page cannot keep — just the copy and share tools.
+  if (speechSupported()) {
+    const speak = createIconButton({className: 'chat-message-action', label: '읽어주기', iconPath: MESSAGE_ACTION_ICON_SPEAK, dataset: {messageAction: 'speak'}});
+    const speakIcon = speak.querySelector('path');
+    let speaking = false;
+    const setSpeakUi = active => {
+      speaking = active;
+      speak.setAttribute('aria-label', active ? '읽기 멈추기' : '읽어주기');
+      speak.title = active ? '읽기 멈추기' : '읽어주기';
+      speak.setAttribute('aria-pressed', String(active));
+      speakIcon?.setAttribute('d', active ? MESSAGE_ACTION_ICON_STOP : MESSAGE_ACTION_ICON_SPEAK);
+      if (active) speak.dataset.speaking = 'true'; else delete speak.dataset.speaking;
+    };
+    setSpeakUi(false);
+    speak.addEventListener('click', () => {
+      // The button is the stop control from the first click onward. Nobody has
+      // to sit through a long answer to get it back.
+      if (speaking) { globalThis.speechSynthesis.cancel(); setSpeakUi(false); report('읽기를 멈췄습니다.'); return; }
+      const chunks = splitForSpeech(value);
+      if (!chunks.length) { report('읽을 내용이 없습니다.', 'error'); return; }
+      // The API can be present on a device that has no installed voice at all —
+      // headless Linux is the obvious one, but it happens on stripped-down
+      // handsets too. Saying which thing is missing beats a bare failure.
+      let voices = [];
+      try { voices = globalThis.speechSynthesis.getVoices() || []; } catch { voices = []; }
+      if (!voices.length) { report('이 기기에 설치된 음성이 없어 읽어 드릴 수 없습니다.', 'error'); return; }
+      // Whatever else was being read stops first: two answers at once is noise.
+      globalThis.speechSynthesis.cancel();
+      setSpeakUi(true);
+      report('답변을 읽어 드립니다.');
+      chunks.forEach((chunk, index) => {
+        const utterance = new globalThis.SpeechSynthesisUtterance(chunk);
+        utterance.lang = 'ko-KR';
+        if (index === chunks.length - 1) utterance.onend = () => setSpeakUi(false);
+        utterance.onerror = () => { setSpeakUi(false); report('읽어 드리지 못했습니다.', 'error'); };
+        globalThis.speechSynthesis.speak(utterance);
+      });
+    });
+    actions.append(copy, share, speak, feedback);
+    return actions;
+  }
 
   actions.append(copy, share, feedback);
   return actions;
