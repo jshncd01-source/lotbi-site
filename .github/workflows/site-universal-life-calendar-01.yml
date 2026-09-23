@@ -50,6 +50,7 @@ on:
       - 'scripts/validate_calendar_expense_summary_01.mjs'
       - 'scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs'
       - 'scripts/validate_calendar_quiet_location_01.mjs'
+      - 'scripts/validate_calendar_holiday_surface_settings_icon_01.mjs'
       - 'scripts/validate_calendar_add_from_image_01.mjs'
       - 'scripts/validate_auth_continuity_02.mjs'
       - 'scripts/validate_site.py'
@@ -121,3 +122,5 @@ jobs:
         run: node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
       - name: Weather location stays quiet once it is settled
         run: node scripts/validate_calendar_quiet_location_01.mjs
+      - name: Public holidays read as a day off, and Settings looks like Settings
+        run: node scripts/validate_calendar_holiday_surface_settings_icon_01.mjs
