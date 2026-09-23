@@ -35,7 +35,7 @@ import {
   setPetMatchingConsent,
   uploadFoundPetPhoto,
   uploadPetPhoto,
-} from './site-pet.js?v=20260923-petnum1';
+} from './site-pet.js?v=20260923-petspecies1';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,

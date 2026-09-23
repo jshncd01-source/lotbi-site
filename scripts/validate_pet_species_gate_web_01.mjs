@@ -81,6 +81,18 @@ assert.match(petUi, /pet-slot-retry-action/, 'the refusal needs a clickable next
 assert.match(petUi, /UPLOAD_FACE_OR_BODY_FIRST/, 'the anchor refusal must lead somewhere');
 assert.match(petCss, /\.pet-slot-retry-action \{/, 'retry action has no style');
 
+// A browser that already holds the old modules must be made to fetch these.
+// The three cache-bust tokens move together or a returning owner keeps running
+// a build that has never heard of the species gate.
+const conversation = read('site-conversation.js');
+const indexHtml = read('index.html');
+const token = petUi.match(/site-pet\.js\?v=([\w-]+)/)?.[1];
+assert.ok(token, 'site-pet.js import carries no cache-bust token');
+assert.ok(
+  conversation.includes(`site-pet-ui.js?v=${token}`) && indexHtml.includes(`site-pet.css?v=${token}`),
+  `PET module and stylesheet cache-bust tokens disagree (site-pet.js is ${token})`,
+);
+
 // ------------------------------------------------------------------ browser
 
 function browserPath() {
