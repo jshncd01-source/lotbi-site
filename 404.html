@@ -16,6 +16,16 @@
   <script>
     try {
       var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+      if (lotbiSavedTheme === 'auto') {
+        // SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' is resolved here, with the same
+        // 18:00/07:00 boundaries index.html uses, rather than stored already
+        // resolved: a stored answer goes stale the moment the clock crosses one.
+        // Measured before this: with the key at 'auto' these pages set no
+        // attribute at all and fell back to the OS, so at 22:00 on a light OS
+        // Home went dark by the clock and a legal page stayed rgb(247,248,251).
+        var lotbiHour = new Date().getHours();
+        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+      }
       if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
         document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
       }

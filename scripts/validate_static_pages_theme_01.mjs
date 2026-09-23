@@ -49,6 +49,12 @@ const PAGES = [
 // there it has to be themed too, so the list above is checked against it.
 const index = read('index.html');
 const footer = index.slice(index.indexOf('<footer'), index.indexOf('</footer>'));
+
+// The '자동모드' boundaries are index.html's to own; this gate only checks that
+// the static pages agree with it, so moving them there moves them everywhere.
+const indexHours = index.match(/lotbiHour >= (\d+) \|\| lotbiHour < (\d+)/);
+assert.ok(indexHours, "index.html must carry the '자동모드' resolution this gate compares against");
+const [, AUTO_DARK_HOUR, AUTO_LIGHT_HOUR] = indexHours;
 for (const href of footer.match(/href="([a-z0-9-]+\.html)"/g) ?? []) {
   const page = href.slice(6, -1);
   if (page === 'index.html') continue;
@@ -90,8 +96,22 @@ for (const page of PAGES) {
   );
   assert.ok(body.includes('try') && body.includes('catch'), `${page}: a storage failure must not stop rendering`);
   assert.ok(body.includes("=== 'light'") && body.includes("=== 'dark'") && body.includes("=== 'system'"),
-    `${page}: the bootstrap must accept exactly the three theme values`);
+    `${page}: the bootstrap must accept the three attribute values the CSS keys on`);
   assert.ok(!body.includes('setItem'), `${page}: the pre-paint bootstrap must only read`);
+
+  // SITE-THEME-AUTO-SCHEDULE-02 — the durable key can also hold 'auto'. These
+  // pages must resolve it, on the same boundaries index.html uses. Measured
+  // before this was added: with the key at 'auto' they set no attribute at all
+  // and fell back to the OS, so at 22:00 on a light OS Home went dark by the
+  // clock and a legal page stayed rgb(247, 248, 251) — the defect, one click on.
+  assert.ok(body.includes("=== 'auto'"), `${page}: the bootstrap must resolve '자동모드'`);
+  const hours = body.match(/lotbiHour >= (\d+) \|\| lotbiHour < (\d+)/);
+  assert.ok(hours, `${page}: the '자동모드' boundaries must be readable`);
+  assert.deepEqual(
+    [hours[1], hours[2]], [String(AUTO_DARK_HOUR), String(AUTO_LIGHT_HOUR)],
+    `${page}: '자동모드' boundaries must match index.html (${AUTO_DARK_HOUR}:00 / ${AUTO_LIGHT_HOUR}:00) — `
+    + 'two different clocks would put Home and a legal page on different themes at the boundary',
+  );
 
   // The stylesheet that reads the attribute has to actually be on the page,
   // and after styles.css whose tokens it overrides.

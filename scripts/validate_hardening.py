@@ -54,11 +54,21 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # The bootstrap is the same read-only block index.html carries — it reads
 # localStorage and sets one attribute, writes nothing, and is wrapped in
 # try/catch so a storage failure cannot stop a legal page from rendering.
+# SITE-THEME-AUTO-SCHEDULE-02 카운터파트 — these hashes moved a second time, so
+# that '자동모드' reaches these pages too. SITE-THEME-AUTO-SCHEDULE-02 made the
+# durable key able to hold 'auto'; the bootstrap here accepted only
+# light/dark/system, so with 'auto' stored these pages set no attribute at all
+# and fell back to the OS. Measured at 22:00 on a light OS: Home went dark by
+# the clock, privacy.html stayed rgb(247,248,251). The bootstrap now resolves
+# 'auto' on index.html's own 18:00/07:00 boundaries, and the gate reads those
+# boundaries out of index.html rather than restating them.
+# Again: NO LEGAL TEXT CHANGED. Stripping the logo <img> from both revisions
+# makes the entire <body> byte-identical on all ten pages.
 LOCKED_SHA256 = {
-    'privacy.html': '4d1fb0cd266cde65a6e54dc3296602f6221634bd9adaa21c9a77be2e4bad9fa9',
-    'terms.html': 'fa6e5d54947ae2359efce6881b6b8f208488452a90a117a350722e8e3fc9953f',
-    'account-deletion.html': '3d05b47d96aa644e0189e9d764815c34bb9748f02d2aafef05d2c1097b1ab82d',
-    'contact.html': 'b977713c81f5520ee314a990a6eeef86cf625b46cfe75138e6666ce29b2a6dfb',
+    'privacy.html': 'a018d61f78412c4c902678eab79a0fe07530f56d477dedcc924848ac4125e71a',
+    'terms.html': '789942ecd3af935d2a6f5cb39c49ce6f89a3e3f9c82203637403d169497d6b68',
+    'account-deletion.html': 'c9eae387ea8652b81fcbac651cf18f36fa8c6ca0f86b92fd89b2df1d9d003012',
+    'contact.html': 'a94a8e94f472f3a4a451e9d7be0ca9c222e07be1f514212c11714d59c21318f0',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': 'e52fe30dbf6f3a55f24d69f692bf32a1ec57f9f20311eebf7b2e86464ce06b3c',
