@@ -120,6 +120,12 @@ jobs:
       - name: Validate answer scroll and markdown
         run: node scripts/validate_answer_scroll_markdown_01.mjs
 
+      # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
+      # conversation scroller AND cost the thread no height while doing it —
+      # `fixed` would pass the first half and eat the second on a short screen.
+      - name: Validate sticky Home top bar
+        run: node scripts/validate_sticky_topbar_01.mjs
+
       - name: Validate shared bottom sheet primitive
         run: node scripts/validate_bottom_sheet_primitive_01.mjs
 
