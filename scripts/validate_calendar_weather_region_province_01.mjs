@@ -37,14 +37,15 @@ function browserPath() {
 // Core 가 실제로 내려주는 모양 그대로. 임의 필드를 만들지 않는다.
 const REGIONS = {
   items: [
-    {code: 'KR_SEOUL', label: '서울특별시', province: '서울특별시'},
-    {code: 'KR_SUWON', label: '수원시', province: '경기도'},
-    {code: 'KR_JEONJU', label: '전주시', province: '전북특별자치도'},
-    {code: 'KR_BUSAN', label: '부산광역시', province: '부산광역시'},
+    {code: 'KR_SEOUL', label: '서울특별시', province: '서울특별시', latitude: 37.56661, longitude: 126.978388},
+    {code: 'KR_SUWON', label: '수원시', province: '경기도', latitude: 37.263476, longitude: 127.028646},
+    {code: 'KR_JEONJU', label: '전주시', province: '전북특별자치도', latitude: 35.824171, longitude: 127.14805},
+    {code: 'KR_BUSAN', label: '부산광역시', province: '부산광역시', latitude: 35.179816, longitude: 129.075022},
   ],
   provinces: ['서울특별시', '경기도', '전북특별자치도', '부산광역시'],
   ai_calls: 0,
 };
+
 const COORDINATES = {
   '서울특별시': [37.56661, 126.978388],
   '경기도 수원시': [37.263476, 127.028646],
@@ -72,6 +73,12 @@ const wait = async (fn, label) => { for (let i = 0; i < 250; i += 1) { if (fn())
 const click = node => node.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
 const change = node => node.dispatchEvent(new Event('change', {bubbles: true}));
 const REGIONS = ${JSON.stringify(REGIONS)};
+// 좌표를 안 싣던 예전 Core. 8단계가 이 모양으로 답한다.
+const REGIONS_WITHOUT_COORDINATES = {
+  items: REGIONS.items.map(({code, label, province}) => ({code, label, province})),
+  provinces: REGIONS.provinces,
+  ai_calls: 0,
+};
 const COORDINATES = ${JSON.stringify(COORDINATES)};
 const TODAY = '${TODAY}';
 const result = {phase, ok: true};
@@ -80,6 +87,7 @@ try {
   let notificationRequests = 0;
   let geolocationCalls = 0;
   let regionListRequests = 0;
+  let resolveCalls = 0;
   // 6·7 단계만 서버를 끈다. 나머지 단계의 동작은 그대로다.
   let regionsHealthy = !(phase === '6' || phase === '7');
   const weatherRequests = [];
@@ -126,9 +134,12 @@ try {
       // 서버가 200 이 아닌 답을 줄 때 화면이 무엇을 하는지 보는 자리다.
       if (!regionsHealthy) return Promise.resolve(new Response('{"detail":{"code":"UPSTREAM"}}', {status: 503, headers: {'Content-Type': 'application/json'}}));
       regionListRequests += 1;
-      return j(REGIONS);
+      return j(phase === '8' ? REGIONS_WITHOUT_COORDINATES : REGIONS);
     }
     if (u.pathname === '/v2/life/weather/region/resolve') {
+      // 목록이 좌표를 들고 오면 이 왕복은 한 번도 없어야 한다. 이 경로는 날씨
+      // 조회와 분당 한도를 나눠 쓰므로, 세는 것 자체가 이 변경의 핵심이다.
+      resolveCalls += 1;
       const q = u.searchParams.get('q') || '';
       const found = COORDINATES[q];
       if (!found) return j({provider_ready: true, found: false, ai_calls: 0});
@@ -164,7 +175,7 @@ try {
   };
 
   // 권한 상태는 단계마다 다르다. 'prompt' 는 미결정 -- 여기서 좌표를 물으면 팝업이 뜬다.
-  const permissionState = {1: 'granted', 2: 'prompt', 3: 'denied', 4: 'denied', 5: 'granted', 6: 'denied', 7: 'denied'}[phase];
+  const permissionState = {1: 'granted', 2: 'prompt', 3: 'denied', 4: 'denied', 5: 'granted', 6: 'denied', 7: 'denied', 8: 'denied'}[phase];
   const permissions = {query: async () => ({state: permissionState})};
   const geolocation = {
     getCurrentPosition(onOk, onErr) {
@@ -175,7 +186,7 @@ try {
     },
   };
 
-  if (phase === '1' || phase === '3' || phase === '6') {
+  if (phase === '1' || phase === '3' || phase === '6' || phase === '8') {
     // 1: 처음부터. 3: 저장된 지역 없이 권한이 거부된 상태.
     localStorage.clear();
     localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false}));
@@ -221,6 +232,7 @@ try {
     result.precisePositionLeaked = dump.includes('35.8345') || dump.includes('127.1057') || dump.includes('capturedAtMs');
     const dialog = await openSettings();
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+    result.resolveCalls = resolveCalls;
   }
 
   if (phase === '2') {
@@ -282,6 +294,7 @@ try {
     const help = dialog.querySelector('[data-calendar-location-row] .calendar-settings-location-help');
     result.locationHelpShown = Boolean(help) && !help.hidden;
     result.locationHelpText = help ? help.textContent : '';
+    result.resolveCalls = resolveCalls;
   }
 
   if (phase === '4') {
@@ -328,6 +341,23 @@ try {
     await wait(() => weatherCells() > 0, 'weather from the saved list');
     result.weatherCells = weatherCells();
     result.storedRegion = storedRegion();
+  }
+
+  if (phase === '8') {
+    // 좌표를 안 싣는 예전 Core. 예전 길(지오코더에게 묻기)이 그대로 살아 있어야 한다.
+    const dialog = await openSettings();
+    const province = [...dialog.querySelectorAll('.calendar-settings-select')].find(n => n.getAttribute('aria-label') === '날씨 지역 광역시·도');
+    const city = [...dialog.querySelectorAll('.calendar-settings-select')].find(n => n.getAttribute('aria-label') === '날씨 지역 시·군·구');
+    await wait(() => province.options.length > 1, 'province options');
+    province.value = '전북특별자치도';
+    change(province);
+    await wait(() => city.options.length > 1, 'city options');
+    city.value = 'KR_JEONJU';
+    change(city);
+    await wait(() => weatherCells() > 0, 'weather on a Core that sends no coordinates');
+    result.weatherCells = weatherCells();
+    result.storedRegion = storedRegion();
+    result.resolveCalls = resolveCalls;
   }
 
   if (phase === '5') {
@@ -394,6 +424,12 @@ try {
   if (results.granted.storedOrigin !== 'CURRENT_LOCATION') throw new Error('저장된 지역의 출처가 현재 위치로 기록되지 않았다');
   if (results.granted.precisePositionLeaked) throw new Error('브라우저가 준 정밀 좌표가 브라우저 저장소에 남았다');
   if (!results.granted.statusText.includes('현재 위치')) throw new Error(`설정 문구가 현재 위치를 말하지 않는다: ${results.granted.statusText}`);
+  // 목록이 좌표를 들고 오면 현재 위치를 시·군·구로 되돌리는 데 지오코더가 한 번도
+  // 필요 없다. 이 왕복은 날씨 조회와 분당 한도를 나눠 쓰고, 목록이 한도보다 길어지면
+  // 그 자리에서 날씨가 429 로 사라진다.
+  if (results.granted.resolveCalls !== 0) {
+    throw new Error(`목록이 좌표를 줬는데도 지오코더를 ${results.granted.resolveCalls}번 불렀다`);
+  }
 
   // 같은 프로필로 다시 띄운다 = 새로고침. 권한은 미결정, 누르는 사람은 없다.
   results.reloaded = run(browser, profile, 2, width, height);
@@ -426,6 +462,9 @@ try {
   if (!(results.denied.weatherCells > 0)) throw new Error('권한을 거부하면 지역을 골라도 날씨를 볼 수 없다');
   if (results.denied.storedRegion?.label !== '전북특별자치도 전주시') throw new Error('직접 고른 지역이 저장되지 않았다');
   if (results.denied.storedOrigin !== 'MANUAL') throw new Error('직접 고른 지역이 그렇게 기록되지 않았다');
+  if (results.denied.resolveCalls !== 0) {
+    throw new Error(`목록이 좌표를 줬는데도 지역을 고를 때 지오코더를 불렀다: ${results.denied.resolveCalls}`);
+  }
   if (!results.denied.locationHelpShown) throw new Error('권한이 거부됐는데 어디서 허용하는지 안내가 없다');
   for (const needle of ['삼성 인터넷', '자물쇠', '설정']) {
     if (!results.denied.locationHelpText.includes(needle)) {
@@ -469,6 +508,14 @@ try {
   if (results.listDownCached.storedRegion?.label !== '전북특별자치도 전주시') {
     throw new Error(`저장해 둔 목록으로 고른 지역이 저장되지 않았다: ${JSON.stringify(results.listDownCached.storedRegion)}`);
   }
+
+  // 좌표를 안 싣는 예전 Core 에서도 예전 길이 그대로 굴러가야 한다.
+  results.noCoordinates = run(browser, profile, 8, width, height);
+  if (!(results.noCoordinates.weatherCells > 0)) throw new Error('좌표를 안 싣는 서버에서 고른 지역의 날씨가 뜨지 않는다');
+  if (results.noCoordinates.storedRegion?.label !== '전북특별자치도 전주시') {
+    throw new Error(`좌표를 안 싣는 서버에서 지역이 저장되지 않았다: ${JSON.stringify(results.noCoordinates.storedRegion)}`);
+  }
+  if (!(results.noCoordinates.resolveCalls > 0)) throw new Error('좌표가 없는데도 지오코더에게 묻지 않았다 -- 좌표를 어디선가 지어냈다');
 
   console.log('CALENDAR WEATHER REGION PROVINCE PASS', JSON.stringify(results));
 } finally {
