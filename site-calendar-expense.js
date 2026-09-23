@@ -11,22 +11,38 @@
 // numbers do not move from month to month, and the total stays pinned to the
 // right edge so it is readable without scrolling the items.
 
+// The one place these labels live. The entry editor reads them from here too:
+// it used to call LIVING "기타 / 생활비" while the bar called it "생활비", so a
+// 기타 spend and a 생활비 spend were the same row under two different names.
 const CATEGORY_LABELS = {
   FOOD: '음식',
   TRAVEL: '여행',
   SHOPPING: '쇼핑',
   LIVING: '생활비',
+  OTHER: '기타',
   UNCLASSIFIED: '미분류',
 };
 
 // Fixed order and fixed membership. A category with nothing in it still holds
 // its slot, so a reader's eye lands on the same place every month.
+// 기타 is a kind of spending; 미분류 is the absence of a choice, so it sits last
+// and reads as something still to fill in.
 export const EXPENSE_CATEGORY_ORDER = Object.freeze([
   'FOOD',
   'TRAVEL',
   'SHOPPING',
   'LIVING',
+  'OTHER',
   'UNCLASSIFIED',
+]);
+
+// The editor's dropdown, in the same order and the same words. An empty value
+// means the owner has not chosen, which Core stores as UNCLASSIFIED.
+export const EXPENSE_CATEGORY_CHOICES = Object.freeze([
+  Object.freeze(['', CATEGORY_LABELS.UNCLASSIFIED]),
+  ...EXPENSE_CATEGORY_ORDER
+    .filter(value => value !== 'UNCLASSIFIED')
+    .map(value => Object.freeze([value, CATEGORY_LABELS[value]])),
 ]);
 
 export function expenseCategoryLabel(value) {
