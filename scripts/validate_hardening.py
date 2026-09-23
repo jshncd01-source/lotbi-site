@@ -41,11 +41,24 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # keyboard skip target was #182a46 on #151922, 1.22:1 — present but unseeable.
 # Verified with `git diff --unified=0` and again by stripping /* */ from both
 # revisions: no other declaration in the file moved.
+# SITE-STATIC-PAGES-THEME-01 — these four pages' hashes moved so that following
+# a footer link stops walking the reader out of Dark. Measured with the saved
+# theme at 'dark': index.html painted rgb(21,25,34) and every one of these
+# painted rgb(247,248,251), on a dark OS and a light one alike, because they
+# carried no theme code at all.
+# What moved, per file: the pre-paint theme bootstrap and one <link> in <head>,
+# and one line in the header where the logo <img> gained its light/dark pair.
+# NO LEGAL TEXT CHANGED. Verified two ways: `git diff --unified=0` shows only
+# those head lines and that single <img> line, and stripping the logo <img> from
+# both revisions makes the entire <body> byte-identical on all four files.
+# The bootstrap is the same read-only block index.html carries — it reads
+# localStorage and sets one attribute, writes nothing, and is wrapped in
+# try/catch so a storage failure cannot stop a legal page from rendering.
 LOCKED_SHA256 = {
-    'privacy.html': '29a376617f88e2609940691589ff8033810b75dc5cf0cd45a26f2fc4b13911db',
-    'terms.html': '252d2264ae4cf9465f6b523e7be6c3b2f55c81791f7b011ccced495c1ea3462b',
-    'account-deletion.html': 'c0b1710b47a8805063443fd286c9d903c90ede33a3f26073568e869a26a28706',
-    'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
+    'privacy.html': '4d1fb0cd266cde65a6e54dc3296602f6221634bd9adaa21c9a77be2e4bad9fa9',
+    'terms.html': 'fa6e5d54947ae2359efce6881b6b8f208488452a90a117a350722e8e3fc9953f',
+    'account-deletion.html': '3d05b47d96aa644e0189e9d764815c34bb9748f02d2aafef05d2c1097b1ab82d',
+    'contact.html': 'b977713c81f5520ee314a990a6eeef86cf625b46cfe75138e6666ce29b2a6dfb',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': 'e52fe30dbf6f3a55f24d69f692bf32a1ec57f9f20311eebf7b2e86464ce06b3c',

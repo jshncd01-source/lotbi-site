@@ -87,7 +87,15 @@ const PAGES_WITH_LOGO = [
 // media="(prefers-color-scheme: dark)"> they used to carry put the white
 // wordmark on #f7f8fb for every dark-OS visitor. The switching contract itself
 // is locked by scripts/validate_brand_logo_theme_aware_01.mjs.
-const THEMED_PAGES = new Set(['index.html']);
+// SITE-STATIC-PAGES-THEME-01 — the six footer-reachable pages gained a dark
+// surface through site-static-theme.css, so they carry the dark lockup too.
+// android-auth-test.html and auth/callback/index.html do not load that
+// stylesheet and stay on the always-light path.
+const THEMED_PAGES = new Set([
+  'index.html',
+  'about.html', 'contact.html', 'privacy.html', 'terms.html',
+  'account-deletion.html', '404.html',
+]);
 for (const rel of PAGES_WITH_LOGO) {
   const html = read(rel);
   assert.ok(!html.includes('lotbi-logo-header.png'),

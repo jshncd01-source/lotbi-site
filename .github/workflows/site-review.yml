@@ -110,6 +110,11 @@ jobs:
       - name: Validate theme bootstrap first paint
         run: node scripts/validate_theme_bootstrap_first_paint_01.mjs
 
+      # Following a footer link must not walk the reader out of Dark: the
+      # static pages carried no theme code at all.
+      - name: Validate static pages theme
+        run: node scripts/validate_static_pages_theme_01.mjs
+
       # A long answer keeps growing after it is appended; the thread has to
       # follow it without dragging a reader who scrolled up.
       - name: Validate answer scroll and markdown

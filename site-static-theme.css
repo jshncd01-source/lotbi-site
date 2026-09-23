@@ -1,0 +1,131 @@
+/* SITE-STATIC-PAGES-THEME-01 — the footer's pages follow the LOTBI theme.
+ *
+ * 대표: "LOTBI © 2026 / 회사 소개 / 개인정보처리방침 / 이용안내 / 계정 삭제 /
+ *        문의하기 — 이부분 클릭하면 왜 다크모드인핵 화이트모드로 바뀌는지"
+ *
+ * Measured before this file existed, with the saved theme at 'dark':
+ *
+ *   index.html            body rgb(21, 25, 34)     data-site-theme-bootstrap="dark"
+ *   about.html            body rgb(247, 248, 251)  (no attribute)
+ *   privacy.html          body rgb(247, 248, 251)  (no attribute)
+ *   terms.html            body rgb(247, 248, 251)  (no attribute)
+ *   account-deletion.html body rgb(247, 248, 251)  (no attribute)
+ *   contact.html          body rgb(247, 248, 251)  (no attribute)
+ *   404.html              body rgb(247, 248, 251)  (no attribute)
+ *
+ * Six of six, on a dark OS and on a light one alike. Not a theme that broke:
+ * a theme that was only ever wired to index.html. These pages carry no theme
+ * code at all, so they render styles.css as written — always light.
+ *
+ * No module runs here, so body[data-site-theme] never appears. Everything
+ * keys on the attribute the pre-paint bootstrap sets, which is why that
+ * bootstrap had to be added to each page in the same commit:
+ *
+ *   "dark"                      → dark
+ *   "system", or absent         → dark only while the OS is dark
+ *   "light"                     → matched by nothing here, stays light
+ *
+ * Contrast measured against #151922: text #f8fafc 16.81:1, body copy #e5e7eb
+ * 14.21:1, muted #cbd5e1 11.85:1, separators #8b93a1 5.68:1. --line keeps the
+ * app's own #424b59 so a legal page and the Home shell draw the same rule.
+ */
+
+/* The dark wordmark is opt-in, exactly as it is in site-theme-tokens.css. */
+.lotbi-brand-logo-dark {
+  display: none;
+}
+
+/* ── Explicit Dark ────────────────────────────────────────────────────── */
+html[data-site-theme-bootstrap="dark"] {
+  color-scheme: dark;
+  --bg: #151922;
+  --panel: #171c25;
+  --text: #f8fafc;
+  --muted: #cbd5e1;
+  --line: #424b59;
+  --accent: #edf0f5;
+  --soft: #202631;
+  --brand-navy: #edf0f5;
+  --brand-line: #424b59;
+  --brand-soft: #171c25;
+}
+
+html[data-site-theme-bootstrap="dark"] body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* styles.css writes these four literally rather than through a token. */
+html[data-site-theme-bootstrap="dark"] :where(.eyebrow, .kicker) { color: #cbd5e1; }
+html[data-site-theme-bootstrap="dark"] .legal p { color: #e5e7eb; }
+html[data-site-theme-bootstrap="dark"] .company-legal { color: #cbd5e1; }
+html[data-site-theme-bootstrap="dark"] .footer-service { color: #cbd5e1; }
+html[data-site-theme-bootstrap="dark"] .company-separator { color: #8b93a1; }
+
+/* about.css does the same. */
+html[data-site-theme-bootstrap="dark"] .about-core-message {
+  border-color: var(--line);
+  background:
+    linear-gradient(135deg, rgba(236, 102, 133, .10), rgba(123, 98, 187, .12) 48%, rgba(79, 120, 197, .12)),
+    var(--panel);
+}
+html[data-site-theme-bootstrap="dark"] :where(.about-core-message p, .about-section > p) { color: #e5e7eb; }
+html[data-site-theme-bootstrap="dark"] .about-principle { background: var(--panel); }
+html[data-site-theme-bootstrap="dark"] .about-principle p { color: #cbd5e1; }
+
+html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-light { display: none; }
+html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-dark { display: block; }
+
+/* ── Following the device, whether chosen or never chosen ─────────────── */
+@media (prefers-color-scheme: dark) {
+  html[data-site-theme-bootstrap="system"],
+  html:not([data-site-theme-bootstrap]) {
+    color-scheme: dark;
+    --bg: #151922;
+    --panel: #171c25;
+    --text: #f8fafc;
+    --muted: #cbd5e1;
+    --line: #424b59;
+    --accent: #edf0f5;
+    --soft: #202631;
+    --brand-navy: #edf0f5;
+    --brand-line: #424b59;
+    --brand-soft: #171c25;
+  }
+
+  html[data-site-theme-bootstrap="system"] body,
+  html:not([data-site-theme-bootstrap]) body {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  html[data-site-theme-bootstrap="system"] :where(.eyebrow, .kicker),
+  html:not([data-site-theme-bootstrap]) :where(.eyebrow, .kicker) { color: #cbd5e1; }
+  html[data-site-theme-bootstrap="system"] .legal p,
+  html:not([data-site-theme-bootstrap]) .legal p { color: #e5e7eb; }
+  html[data-site-theme-bootstrap="system"] .company-legal,
+  html:not([data-site-theme-bootstrap]) .company-legal { color: #cbd5e1; }
+  html[data-site-theme-bootstrap="system"] .footer-service,
+  html:not([data-site-theme-bootstrap]) .footer-service { color: #cbd5e1; }
+  html[data-site-theme-bootstrap="system"] .company-separator,
+  html:not([data-site-theme-bootstrap]) .company-separator { color: #8b93a1; }
+
+  html[data-site-theme-bootstrap="system"] .about-core-message,
+  html:not([data-site-theme-bootstrap]) .about-core-message {
+    border-color: var(--line);
+    background:
+      linear-gradient(135deg, rgba(236, 102, 133, .10), rgba(123, 98, 187, .12) 48%, rgba(79, 120, 197, .12)),
+      var(--panel);
+  }
+  html[data-site-theme-bootstrap="system"] :where(.about-core-message p, .about-section > p),
+  html:not([data-site-theme-bootstrap]) :where(.about-core-message p, .about-section > p) { color: #e5e7eb; }
+  html[data-site-theme-bootstrap="system"] .about-principle,
+  html:not([data-site-theme-bootstrap]) .about-principle { background: var(--panel); }
+  html[data-site-theme-bootstrap="system"] .about-principle p,
+  html:not([data-site-theme-bootstrap]) .about-principle p { color: #cbd5e1; }
+
+  html[data-site-theme-bootstrap="system"] .lotbi-brand-logo-light,
+  html:not([data-site-theme-bootstrap]) .lotbi-brand-logo-light { display: none; }
+  html[data-site-theme-bootstrap="system"] .lotbi-brand-logo-dark,
+  html:not([data-site-theme-bootstrap]) .lotbi-brand-logo-dark { display: block; }
+}
