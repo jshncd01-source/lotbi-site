@@ -208,6 +208,13 @@ jobs:
           node --check site-pet-guides.js
           node scripts/validate_pet_family_web_01.mjs
 
+      # 강아지·고양이가 아니면 등록되지 않는다. Core refuses the photo; this
+      # guards that the refusal reaches the owner with a next step attached,
+      # and that the screen's own quick look stays slacker than Core's so it
+      # never blocks a photo Core would have taken.
+      - name: Validate PET species gate web surface
+        run: node scripts/validate_pet_species_gate_web_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
