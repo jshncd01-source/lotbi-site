@@ -391,6 +391,9 @@ function withUnscheduledShape(item) {
 export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false, weather = null, holiday = null} = {}) {
   const {year, month, day} = civilDateParts(cell.date);
   const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`];
+  // Outside the month on screen the date recedes visually; a screen reader must
+  // be told the same thing rather than left to infer it from the spoken month.
+  if (cell.inCurrentMonth === false) parts.push('다른 달');
   if (today) parts.push('오늘');
   if (selected) parts.push('선택됨');
   if (attention) parts.push('확인 필요 일정 있음');
