@@ -237,14 +237,12 @@ export function markCheckingAccountUi(message = '계정 상태 확인 중') {
 export function markAuthenticatedAccountUi() {
   const actions = accountActions();
   if (actions) {
-    const account = document.createElement('button');
-    account.type = 'button';
-    account.className = 'account-action account-login';
-    account.dataset.profileMenuTrigger = '';
-    account.setAttribute('aria-haspopup', 'menu');
-    account.setAttribute('aria-expanded', 'false');
-    account.textContent = '프로필';
-    actions.replaceChildren(account);
+    // SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the Header no longer carries a second
+    // profile entry point. The sidebar/drawer account row is the only one, and
+    // it opens the same menu through the same [data-profile-menu-trigger]
+    // contract. The reserved Header slot collapses instead of rendering a
+    // duplicate control; anonymous 로그인/회원가입 is untouched below.
+    actions.replaceChildren();
     setAuthState(actions, AUTH_STATE_AUTHENTICATED, false);
     actions.dataset.siteAuthenticated = 'true';
   } else {

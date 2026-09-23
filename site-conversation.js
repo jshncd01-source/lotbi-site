@@ -1990,6 +1990,36 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const content = document.createElement('div'); content.className = 'site-modal-content'; panel.appendChild(content); backdrop.appendChild(panel);
     return {backdrop, panel, content};
   };
+  const openPetFamily = async () => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell(
+      '반려동물',
+      sessionToken
+        ? '등록한 반려동물 정보와 사진은 계정에 비공개로 저장됩니다.'
+        : '반려동물 등록은 로그인 후 사용할 수 있습니다.',
+    );
+    panel.classList.add('site-pet-modal');
+    // Pet photos are held as object URLs while the panel is open; closing it
+    // must release them rather than leak the private bytes into the page.
+    let releasePetSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      modal: true,
+      onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
+    });
+    try {
+      // Loaded on demand: the PET FAMILY surface pulls in its Core client and
+      // ten slot schematics, which no visit needs until this panel is opened.
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260922-petweb1');
+      const mounted = await mountPetFamilyManager({sessionToken, root: content});
+      releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'pet-error',
+        textContent: '반려동물 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
   const openRenameThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
     const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
@@ -3069,6 +3099,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (action === 'profile') openProfile();
       else if (action === 'settings') openSettings();
       else if (action === 'help') openHelp();
+      return;
+    }
+    const petFamilyTrigger = target?.closest('[data-pet-family-open]');
+    if (petFamilyTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      void openPetFamily();
       return;
     }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
