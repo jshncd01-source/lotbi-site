@@ -930,7 +930,7 @@ body.calendar-editor-open { overflow: hidden; }
 }
 .calendar-settings-body { max-height: calc(100dvh - 120px); overflow-y: auto; padding: 16px 18px 22px; }
 .calendar-settings-body section { display: grid; gap: 10px; }
-.calendar-settings-body h4 { margin: 0; color: #697382; font-size: 12px; letter-spacing: .02em; }
+.calendar-settings-body h4 { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 12px; letter-spacing: .02em; }
 .calendar-settings-toggle-row {
   min-height: 58px;
   display: flex;
