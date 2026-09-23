@@ -13,6 +13,14 @@
  *   contact.html          body rgb(247, 248, 251)  (no attribute)
  *   404.html              body rgb(247, 248, 251)  (no attribute)
  *
+ * The same thing happened again while this branch was open: PR #256 added
+ * subscribe.html and the 전자상거래법 pages refund/exchange/dispute, and the
+ * Home footer gained subscribe.html and refund.html. Both painted
+ * rgb(247, 248, 251) with no attribute — the identical defect, one hour old.
+ * validate_static_pages_theme_01 derives its page list from the Home footer
+ * precisely so a new link cannot land unthemed; it failed on subscribe.html
+ * and that is how these four were found.
+ *
  * Six of six, on a dark OS and on a light one alike. Not a theme that broke:
  * a theme that was only ever wired to index.html. These pages carry no theme
  * code at all, so they render styles.css as written — always light.
@@ -73,6 +81,16 @@ html[data-site-theme-bootstrap="dark"] :where(.about-core-message p, .about-sect
 html[data-site-theme-bootstrap="dark"] .about-principle { background: var(--panel); }
 html[data-site-theme-bootstrap="dark"] .about-principle p { color: #cbd5e1; }
 
+/* subscribe.css writes four colours literally. .plan-buy is the one that
+   cannot simply be re-pointed: it is a solid brand button, so in Dark the
+   surface inverts (--brand-navy resolves light) and white-on-white would
+   swallow the label. #17191d on #edf0f5 is 15.41:1, the same pair the Home
+   shell already uses for a solid control. */
+html[data-site-theme-bootstrap="dark"] .plan-picker > legend { color: #cbd5e1; }
+html[data-site-theme-bootstrap="dark"] .plan-status { color: #e5e7eb; }
+html[data-site-theme-bootstrap="dark"] .plan-buy { color: #17191d; }
+html[data-site-theme-bootstrap="dark"] :where(.plan-buy:hover, .plan-buy:focus-visible) { background: #ffffff; }
+
 html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-light { display: none; }
 html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-dark { display: block; }
 
@@ -123,6 +141,15 @@ html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-dark { display: block; 
   html:not([data-site-theme-bootstrap]) .about-principle { background: var(--panel); }
   html[data-site-theme-bootstrap="system"] .about-principle p,
   html:not([data-site-theme-bootstrap]) .about-principle p { color: #cbd5e1; }
+
+  html[data-site-theme-bootstrap="system"] .plan-picker > legend,
+  html:not([data-site-theme-bootstrap]) .plan-picker > legend { color: #cbd5e1; }
+  html[data-site-theme-bootstrap="system"] .plan-status,
+  html:not([data-site-theme-bootstrap]) .plan-status { color: #e5e7eb; }
+  html[data-site-theme-bootstrap="system"] .plan-buy,
+  html:not([data-site-theme-bootstrap]) .plan-buy { color: #17191d; }
+  html[data-site-theme-bootstrap="system"] :where(.plan-buy:hover, .plan-buy:focus-visible),
+  html:not([data-site-theme-bootstrap]) :where(.plan-buy:hover, .plan-buy:focus-visible) { background: #ffffff; }
 
   html[data-site-theme-bootstrap="system"] .lotbi-brand-logo-light,
   html:not([data-site-theme-bootstrap]) .lotbi-brand-logo-light { display: none; }

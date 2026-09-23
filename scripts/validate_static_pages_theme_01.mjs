@@ -36,10 +36,13 @@ const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 
 const MARKER = 'SITE-STATIC-PAGES-THEME-01';
 const KEY = 'lotbi.site.theme.bootstrap.v1';
-// Every page the footer links to, plus the 404 a mistyped link lands on.
+// Every page the footer links to, plus the 404 a mistyped link lands on, plus
+// the 전자상거래법 pages those footer pages link on to. The second group is not
+// footer-linked, but leaving them light only moves the defect one click deeper.
 const PAGES = [
   'about.html', 'privacy.html', 'terms.html',
   'account-deletion.html', 'contact.html', '404.html',
+  'subscribe.html', 'refund.html', 'exchange.html', 'dispute.html',
 ];
 
 // The footer on index.html is the list the 대표 read out. If a link is added
@@ -165,6 +168,9 @@ for (const [label, fg, bg, min] of [
   ['legal body copy', '#e5e7eb', BG, 4.5],
   // 11px business-info separators are small text, so they are held to the same bar.
   ['footer separator', '#8b93a1', BG, 4.5],
+  // subscribe.css: the solid plan button inverts in Dark, so its label flips too.
+  ['plan button label', '#17191d', '#edf0f5', 4.5],
+  ['plan button label, hover', '#17191d', '#ffffff', 4.5],
 ]) {
   const ratio = contrast(fg, bg);
   assert.ok(
@@ -176,7 +182,10 @@ for (const [label, fg, bg, min] of [
 
 // Every colour the static theme paints must be one of these measured values —
 // a new literal slipping in unmeasured is how the last contrast gap happened.
-const MEASURED = new Set(['#151922', '#171c25', '#f8fafc', '#cbd5e1', '#e5e7eb', '#edf0f5', '#424b59', '#202631', '#8b93a1']);
+const MEASURED = new Set([
+  '#151922', '#171c25', '#f8fafc', '#cbd5e1', '#e5e7eb', '#edf0f5', '#424b59', '#202631', '#8b93a1',
+  '#17191d', '#ffffff',
+]);
 for (const hex of css.match(/#[0-9a-f]{6}\b/gi) ?? []) {
   assert.ok(
     MEASURED.has(hex.toLowerCase()),

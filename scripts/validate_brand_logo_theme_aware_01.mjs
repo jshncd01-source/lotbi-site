@@ -29,6 +29,7 @@ const THEMED_PAGES = ['index.html'];
 const THEMED_STATIC_PAGES = [
   'about.html', 'contact.html', 'privacy.html', 'terms.html',
   'account-deletion.html', '404.html',
+  'subscribe.html', 'refund.html', 'exchange.html', 'dispute.html',
 ];
 // Still genuinely always-light: neither is reachable from the footer and
 // neither loads the static theme.

@@ -95,6 +95,7 @@ const THEMED_PAGES = new Set([
   'index.html',
   'about.html', 'contact.html', 'privacy.html', 'terms.html',
   'account-deletion.html', '404.html',
+  'subscribe.html', 'refund.html', 'exchange.html', 'dispute.html',
 ]);
 for (const rel of PAGES_WITH_LOGO) {
   const html = read(rel);
