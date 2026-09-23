@@ -38,7 +38,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-regionlist2">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-daypanel2btn1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 </head><body style="margin:0">
 <div id="calendar-root"></div>
@@ -116,7 +116,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-regionlist2');
+  const manager=await import('/site-calendar-manager.js?v=20260923-daypanel2btn1');
   const result={ok:true};
 
   // --- the happy path --------------------------------------------------
@@ -242,10 +242,13 @@ try {
     const v = run(browser, w, h);
     const label = `${w}x${h}`;
 
+    // 자세히 went back to 직접 등록 when the title box left the panel: with no
+    // box to type in, this button IS how an entry is written by hand. The
+    // picture route keeps its name and its place in front of it.
     if (v.buttonOrder.join('|') !== '이미지로 등록|직접 등록') {
       throw new Error(`${label}: the day panel must offer 이미지로 등록 then 직접 등록, got ${v.buttonOrder.join('|')}`);
     }
-    if (!v.plainButtonPresent) throw new Error(`${label}: 직접 등록 must keep its own data hook`);
+    if (!v.plainButtonPresent) throw new Error(`${label}: the full-form button must keep its own data hook`);
     if (!v.pickerHidden) throw new Error(`${label}: the file input must stay hidden`);
     if (!v.pickerAcceptsImages.includes('image/')) throw new Error(`${label}: the file input must ask for images, got "${v.pickerAcceptsImages}"`);
 
