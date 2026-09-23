@@ -24,13 +24,28 @@ const SUBSCRIPTION_PATH = '/v2/subscription';
 const LOGOUT_PATH = '/v2/sessions/logout';
 
 export class SiteCoreError extends Error {
-  constructor(message, {code = 'SITE_CORE_ERROR', status = 0, retryable = false, correlationId = ''} = {}) {
+  constructor(message, {
+    code = 'SITE_CORE_ERROR',
+    status = 0,
+    retryable = false,
+    correlationId = '',
+    upgradeAvailable = false,
+    upgradeAction = '',
+    freeUnits = 0,
+  } = {}) {
     super(message);
     this.name = 'SiteCoreError';
     this.code = code;
     this.status = status;
     this.retryable = retryable;
     this.correlationId = correlationId;
+    // Core does not only say no. When it refuses for want of allowance it also
+    // says what the owner can do next, and these carry that through instead of
+    // dropping it on the floor — a refusal the caller cannot act on is how the
+    // Calendar's own dead ends started.
+    this.upgradeAvailable = upgradeAvailable;
+    this.upgradeAction = upgradeAction;
+    this.freeUnits = freeUnits;
   }
 }
 
@@ -51,6 +66,9 @@ function errorFromResponse(response, payload, fallback) {
       status: response.status,
       retryable: detail.retryable === true,
       correlationId: typeof detail.correlation_id === 'string' ? detail.correlation_id : '',
+      upgradeAvailable: detail.upgrade_available === true,
+      upgradeAction: typeof detail.upgrade_action === 'string' ? detail.upgrade_action : '',
+      freeUnits: Number.isSafeInteger(detail.free_units) && detail.free_units >= 0 ? detail.free_units : 0,
     },
   );
 }

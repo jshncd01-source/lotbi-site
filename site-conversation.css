@@ -216,6 +216,13 @@
   opacity: .56;
 }
 
+/* The upgrade control is an anchor, not a button, so it needs the box the
+   shared pill styling assumes and none of the underline an anchor brings. */
+.chat-upgrade-link {
+  display: inline-block;
+  text-decoration: none;
+}
+
 /* SITE-COMPOSER-UX-CLICK-01 — premium LOTBI action states without moving the bottom slot. */
 .chat-composer {
   border-color: rgba(79, 120, 197, .28);
