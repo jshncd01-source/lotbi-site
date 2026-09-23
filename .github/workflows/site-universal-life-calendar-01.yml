@@ -46,7 +46,7 @@ on:
       - 'scripts/validate_calendar_responsive_01.mjs'
       - 'scripts/validate_calendar_modal_runtime_02.mjs'
       - 'scripts/validate_calendar_touch_monthnav_daysheet_01.mjs'
-      - 'scripts/validate_calendar_day_panel_quick_add_01.mjs'
+      - 'scripts/validate_calendar_day_panel_two_buttons_01.mjs'
       - 'scripts/validate_calendar_month_geometry_01.mjs'
       - 'scripts/validate_calendar_expense_summary_01.mjs'
       - 'scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs'
@@ -118,11 +118,11 @@ jobs:
           node scripts/validate_calendar_modal_runtime_02.mjs
       - name: Calendar touch month navigation and selected-day sheet
         run: node scripts/validate_calendar_touch_monthnav_daysheet_01.mjs
-      # 날짜를 누르면 곧바로 제목을 적을 수 있는지, 제목만으로 저장되는지,
-      # 그리고 그 사이에도 달력이 보이고 다른 날짜가 눌리는지를 실제로 재서
-      # 확인한다. 접은 폴드(344px)와 다크모드까지 같은 기준으로 본다.
-      - name: A tap on a date opens a title box, and the month stays usable
-        run: node scripts/validate_calendar_day_panel_quick_add_01.mjs
+      # 캘린더를 열었을 뿐인데 날짜 창이 저절로 떠 있지 않은지, 날짜를 누르면
+      # 입력칸 없이 버튼 둘만 나오는지, [직접 등록]이 그 날짜로 전체 폼을 여는지를
+      # 실제로 재서 확인한다. 접은 폴드(344px)와 다크모드까지 같은 기준으로 본다.
+      - name: The day panel opens only when a date is pressed, and offers two buttons
+        run: node scripts/validate_calendar_day_panel_two_buttons_01.mjs
       - name: Calendar Month desktop geometry and density
         run: node scripts/validate_calendar_month_geometry_01.mjs
       - name: Calendar expense summary strip

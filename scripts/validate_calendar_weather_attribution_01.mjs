@@ -47,7 +47,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-quickadd1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-daypanel2btn1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 <link rel="stylesheet" href="/site-calendar-weather.css?v=20260923-daysheet3">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast2">
@@ -135,7 +135,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-quickadd1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-daypanel2btn1');
   const weatherModule=await import('/site-calendar-weather.js?v=20260923-daysheet3');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 

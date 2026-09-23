@@ -326,14 +326,52 @@ try{
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
-    if(result.detail.hidden)throw new Error('touch Calendar must show the selected-day surface on entry');
-    // The contract moved twice: the below-the-month flow panel became a bottom
-    // sheet, and the sheet became a panel anchored to the tapped date. What has
-    // held throughout, and is what these assertions are really for, is that the
-    // surface is reachable without any scrolling -- the flow panel never was.
-    // It is no longer welded to the bottom edge, and it no longer lays a dismiss
-    // layer over the month, so those two assertions are inverted rather than
-    // dropped: either coming back is the regression.
+    // The contract moved three times: the below-the-month flow panel became a
+    // bottom sheet, the sheet became a panel anchored to the tapped date, and
+    // now the panel waits to be asked. It used to be open the moment the
+    // Calendar opened -- a window for a date nobody had pressed, which is what
+    // 대표 reported. So the entry assertion is inverted rather than dropped:
+    // showing it on entry again is the regression.
+    if(!result.detail.hidden)throw new Error('touch Calendar must not show a selected-day surface before a date is pressed');
+    // Everything below is about the panel a tap opens, so tap one first. Today
+    // is the date the panel used to raise itself on, so the geometry measured
+    // here is the same geometry this gate has always measured.
+    const entryCell=grid.querySelector('.calendar-date-cell[data-selected="true"]')
+      ||grid.querySelector('.calendar-date-cell[data-current-month="true"]');
+    click(entryCell);
+    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'touch selected-day panel opens on a tap');
+    {
+      const opened=modal.querySelector('.calendar-day-panel');
+      // The panel rises into place; geometry is only meaningful once it stops.
+      let previous=null,stable=0;
+      for(let i=0;i<120;i+=1){
+        const current=opened.getBoundingClientRect().bottom;
+        if(previous!==null&&Math.abs(current-previous)<0.5){stable+=1;if(stable>=3)break}else stable=0;
+        previous=current;
+        await new Promise(resolve=>setTimeout(resolve,20));
+      }
+      const openedRect=opened.getBoundingClientRect();
+      result.detail={
+        ...result.detail,
+        hidden:opened.hidden,
+        position:getComputedStyle(opened).position,
+        overflowY:getComputedStyle(opened).overflowY,
+        scrollHeight:opened.scrollHeight,
+        clientHeight:opened.clientHeight,
+        top:openedRect.top,
+        bottom:openedRect.bottom,
+        left:openedRect.left,
+        right:openedRect.right,
+        presentation:opened.dataset.presentation||'',
+        backdrop:Boolean(layout.querySelector('[data-calendar-day-sheet-backdrop]')),
+      };
+    }
+    // What has held throughout, and is what these assertions are really for, is
+    // that the surface is reachable without any scrolling -- the flow panel
+    // never was. It is no longer welded to the bottom edge, and it no longer
+    // lays a dismiss layer over the month, so those two assertions are inverted
+    // rather than dropped: either coming back is the regression.
+    if(result.detail.hidden)throw new Error('a tap on a date must open the selected-day surface');
     if(result.detail.presentation!=='POPOVER')throw new Error('touch selected-day surface must be the anchored panel');
     if(result.detail.position!=='fixed')throw new Error('touch selected-day panel must be viewport-fixed');
     if(result.detail.backdrop)throw new Error('touch selected-day panel must not lay a dismiss layer over the month');
