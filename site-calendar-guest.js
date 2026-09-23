@@ -3,6 +3,14 @@ import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=202
 export const GUEST_CALENDAR_STORAGE_KEY = 'lotbi.guest.calendar.v1';
 const SCHEMA_VERSION = 2;
 const DEFAULT_LIMIT = 500;
+
+// How many entries this browser may create without an account. Change this one
+// number and nothing else — it is the only place the figure lives.
+//
+// It counts creations, not entries held. Deleting an entry does not give the
+// count back, so a guest cannot recycle the same three slots forever. What they
+// already made stays fully theirs: reading, editing and deleting are untouched.
+export const GUEST_CREATE_QUOTA = 3;
 const GUEST_ID_PATTERN = /^guest_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATETIME_PATTERN = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 const CALENDAR_ACTION_ID_PATTERN = /^calact_[0-9a-f]{24}$/;
@@ -95,18 +103,42 @@ function safeStoredEvent(value) {
   });
 }
 
+// `created_count` is added to the stored shape without moving SCHEMA_VERSION.
+// That is deliberate. A browser still running the previous bundle checks the
+// version, finds 2, reads the events exactly as before and ignores the extra
+// key. Bumping to 3 would have made every stored entry unreadable to that
+// bundle — a guest would open the calendar and find their schedule gone, which
+// is the single worst thing this change could do.
+function storedCreatedCount(raw, eventCount) {
+  const value = typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 ? raw : eventCount;
+  // Storage written before the counter existed carries no count. The honest
+  // floor for it is what is sitting there now: you cannot be holding more
+  // entries than you ever created.
+  return Math.max(value, eventCount);
+}
+
+// Never throws. A storage that cannot be read reports an empty calendar with a
+// spent count of zero, so a broken read fails towards letting the guest work
+// rather than towards telling them they are out of entries.
 function readState(storage) {
   try {
     const parsed = JSON.parse(storage.getItem(GUEST_CALENDAR_STORAGE_KEY) || 'null');
-    if (!parsed || ![1, SCHEMA_VERSION].includes(parsed.version) || !Array.isArray(parsed.events)) return [];
-    return parsed.events.map(safeStoredEvent).filter(Boolean);
+    if (!parsed || ![1, SCHEMA_VERSION].includes(parsed.version) || !Array.isArray(parsed.events)) {
+      return {events: [], createdCount: 0};
+    }
+    const events = parsed.events.map(safeStoredEvent).filter(Boolean);
+    return {events, createdCount: storedCreatedCount(parsed.created_count, events.length)};
   } catch {
-    return [];
+    return {events: [], createdCount: 0};
   }
 }
 
-function writeState(storage, events) {
-  storage.setItem(GUEST_CALENDAR_STORAGE_KEY, JSON.stringify({version: SCHEMA_VERSION, events}));
+function writeState(storage, events, createdCount) {
+  storage.setItem(GUEST_CALENDAR_STORAGE_KEY, JSON.stringify({
+    version: SCHEMA_VERSION,
+    created_count: createdCount,
+    events,
+  }));
 }
 
 function defaultUuid() {
@@ -116,25 +148,61 @@ function defaultUuid() {
 
 export function createGuestCalendarRepository(
   storage,
-  {limit = DEFAULT_LIMIT, uuid = defaultUuid, now = () => new Date()} = {},
+  {limit = DEFAULT_LIMIT, createQuota = GUEST_CREATE_QUOTA, uuid = defaultUuid, now = () => new Date()} = {},
 ) {
   if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
     throw new TypeError('storage must implement getItem and setItem');
   }
   if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new RangeError('limit must be between 1 and 1000');
+  if (!Number.isInteger(createQuota) || createQuota < 1 || createQuota > 1000) {
+    throw new RangeError('createQuota must be between 1 and 1000');
+  }
 
-  const list = () => Object.freeze(sortCalendarEvents(readState(storage)).map(event => Object.freeze({...event})));
+  const list = () => Object.freeze(sortCalendarEvents(readState(storage).events).map(event => Object.freeze({...event})));
 
-  const createEvent = (events, input, metadata = {}) => {
-    if (events.length >= limit) {
+  // What the composer needs to decide whether to warn, and what to say once
+  // there is nothing left. Reading it costs nothing and never throws.
+  const quotaStatus = () => {
+    const {createdCount} = readState(storage);
+    return Object.freeze({
+      quota: createQuota,
+      createdCount,
+      remaining: Math.max(0, createQuota - createdCount),
+      exhausted: createdCount >= createQuota,
+    });
+  };
+
+  const createEvent = (state, input, metadata = {}) => {
+    // Validate first. A malformed entry is malformed whether or not there is
+    // room for it, and saying "you are out of entries" to someone whose title
+    // was blank sends them chasing the wrong problem. It also means garbage
+    // can never spend one of the three.
+    const normalized = normalizeEventInput(input);
+
+    // Two guards that are not the same thing, and neither replaces the other.
+    //
+    // createQuota is the product rule: how many entries this browser has EVER
+    // created. It only ever rises, so deleting does not buy another create.
+    if (state.createdCount >= createQuota) {
+      throw new GuestCalendarError(
+        `로그인 없이 등록할 수 있는 일정 ${createQuota}개를 모두 사용했어요. 로그인하면 계속 등록할 수 있습니다.`,
+        'GUEST_CALENDAR_CREATE_QUOTA_REACHED',
+      );
+    }
+    // limit is a storage safety valve: how many entries are HELD at once, so a
+    // runaway writer cannot fill the browser's storage. It is not a product
+    // rule and it is not the thing a guest normally meets.
+    if (state.events.length >= limit) {
       throw new GuestCalendarError('이 브라우저에 저장할 수 있는 일정 수에 도달했습니다.', 'GUEST_CALENDAR_LIMIT_REACHED');
     }
-    const normalized = normalizeEventInput(input);
+
     const stamp = now().toISOString();
     const id = `guest_${uuid()}`;
     if (!GUEST_ID_PATTERN.test(id)) throw new GuestCalendarError('일정 식별자가 올바르지 않습니다.', 'GUEST_CALENDAR_UUID_INVALID');
     const event = Object.freeze({id, ...normalized, ...metadata, created_at: stamp, updated_at: stamp});
-    writeState(storage, [...events, event]);
+    // The count rises in the same write that stores the event: a write that
+    // fails spends nothing, and one that succeeds cannot be replayed for free.
+    writeState(storage, [...state.events, event], state.createdCount + 1);
     return event;
   };
 
@@ -146,8 +214,11 @@ export function createGuestCalendarRepository(
     if (!CALENDAR_ACTION_ID_PATTERN.test(normalizedActionId) || !CALENDAR_CANDIDATE_ID_PATTERN.test(normalizedCandidateId)) {
       throw new GuestCalendarError('일정 액션 식별자가 올바르지 않습니다.', 'GUEST_CALENDAR_ACTION_INVALID');
     }
-    const events = readState(storage);
-    const previous = events.find(event => event.calendar_action_id === normalizedActionId);
+    const state = readState(storage);
+    const previous = state.events.find(event => event.calendar_action_id === normalizedActionId);
+    // A replay of the same action is the entry that already exists, not a new
+    // one. It returns before createEvent, so it neither spends a create nor
+    // fails once the three are gone — a reloaded page must still resolve it.
     if (previous) {
       if (previous.calendar_candidate_id !== normalizedCandidateId) {
         throw new GuestCalendarError('같은 일정 액션의 내용이 달라졌습니다.', 'GUEST_CALENDAR_ACTION_CONFLICT');
@@ -164,7 +235,7 @@ export function createGuestCalendarRepository(
       }
       return previous;
     }
-    return createEvent(events, input, {
+    return createEvent(state, input, {
       calendar_action_id: normalizedActionId,
       calendar_candidate_id: normalizedCandidateId,
     });
@@ -175,8 +246,11 @@ export function createGuestCalendarRepository(
     if (!CALENDAR_REQUEST_ID_PATTERN.test(normalizedRequestId)) {
       throw new GuestCalendarError('일정 요청 식별자가 올바르지 않습니다.', 'GUEST_CALENDAR_REQUEST_INVALID');
     }
-    const events = readState(storage);
-    const previous = events.find(event => event.calendar_request_id === normalizedRequestId);
+    const state = readState(storage);
+    const previous = state.events.find(event => event.calendar_request_id === normalizedRequestId);
+    // Same shape as createForAction: a repeat of the same request is the entry
+    // already stored, so it costs nothing and keeps working when the quota is
+    // spent.
     if (previous) {
       const normalized = normalizeEventInput(input);
       if (
@@ -190,11 +264,11 @@ export function createGuestCalendarRepository(
       }
       return previous;
     }
-    return createEvent(events, input, {calendar_request_id: normalizedRequestId});
+    return createEvent(state, input, {calendar_request_id: normalizedRequestId});
   };
 
   const update = (id, input) => {
-    const events = readState(storage);
+    const {events, createdCount} = readState(storage);
     const index = events.findIndex(event => event.id === id);
     if (index < 0) throw new GuestCalendarError('일정을 찾을 수 없습니다.', 'GUEST_CALENDAR_NOT_FOUND');
     const previous = events[index];
@@ -210,17 +284,22 @@ export function createGuestCalendarRepository(
       updated_at: now().toISOString(),
     });
     events[index] = event;
-    writeState(storage, events);
+    // Editing carries the count across unchanged. Rewriting an entry is not a
+    // new one, and it is not a refund either.
+    writeState(storage, events, createdCount);
     return event;
   };
 
   const remove = id => {
-    const events = readState(storage);
+    const {events, createdCount} = readState(storage);
     const next = events.filter(event => event.id !== id);
     if (next.length === events.length) return false;
-    writeState(storage, next);
+    // The count is carried over on purpose. Deleting frees the slot in storage
+    // but not the create that was spent to fill it — otherwise three entries
+    // could be recycled without end.
+    writeState(storage, next, createdCount);
     return true;
   };
 
-  return Object.freeze({list, create, createForAction, createForRequest, update, remove});
+  return Object.freeze({list, quotaStatus, create, createForAction, createForRequest, update, remove});
 }

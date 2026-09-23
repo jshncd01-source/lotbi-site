@@ -86,7 +86,10 @@ async function measure({nowIso,date,label,weeks}){
     getItem:key=>values.has(key)?values.get(key):null,
     setItem:(key,value)=>values.set(key,String(value)),
   };
-  const repo=createGuestCalendarRepository(storage);
+  // Five entries on one day is the point of the measurement, which is more than
+  // a guest may create. The quota itself is asserted in
+  // validate_guest_calendar_local_01.mjs, not here.
+  const repo=createGuestCalendarRepository(storage,{createQuota:200});
   addFive(repo,date);
   const {backdrop,modal,root}=makeModal();
   await mountLifeCalendarManager({
