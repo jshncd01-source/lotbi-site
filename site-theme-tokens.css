@@ -31,6 +31,15 @@ body[data-site-theme="light"] {
      unchanged: #555d69 on #fff is 6.65:1, #182a46 on #f1f3f5 is 12.94:1. */
   --lotbi-nav-history-text: #555d69;
   --lotbi-nav-history-text-active: #182a46;
+  /* SITE-DARK-BRAND-SURFACES-01 — the LOTBI navy, given a Dark form.
+     --brand-navy is brand artwork paint with no Dark counterpart, so every
+     control that reached for it dropped to 1.22:1 the moment the surface
+     flipped: the mobile menu button, the drawer close, the drawer header and
+     회원가입. Light values below are the previous hardcoded ones, unchanged. */
+  --lotbi-brand-ink: #182a46;
+  --lotbi-brand-solid-bg: #182a46;
+  --lotbi-brand-solid-bg-hover: #243b61;
+  --lotbi-brand-solid-text: #ffffff;
 }
 
 body[data-site-theme="light"] { color-scheme: light; }
@@ -63,6 +72,15 @@ body[data-site-theme="dark"] {
      and measured 1.05:1 — invisible. */
   --lotbi-nav-history-text: #aeb6c3;
   --lotbi-nav-history-text-active: #f8fafc;
+  /* SITE-DARK-BRAND-SURFACES-01 — #edf0f5 on #151922 is 15.40:1, and a solid
+     control inverts rather than staying navy: #17191d on #edf0f5 is 15.41:1.
+     These are the values home-bare-white.css already uses for the Dark Home
+     skin (--home-skin-strong / --home-skin-strong-text), so a control looks
+     the same whether or not that Home-only skin is applying. */
+  --lotbi-brand-ink: #edf0f5;
+  --lotbi-brand-solid-bg: #edf0f5;
+  --lotbi-brand-solid-bg-hover: #ffffff;
+  --lotbi-brand-solid-text: #17191d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -102,6 +120,15 @@ body[data-site-theme="dark"] {
        and measured 1.05:1 — invisible. */
     --lotbi-nav-history-text: #aeb6c3;
     --lotbi-nav-history-text-active: #f8fafc;
+    /* SITE-DARK-BRAND-SURFACES-01 — #edf0f5 on #151922 is 15.40:1, and a solid
+       control inverts rather than staying navy: #17191d on #edf0f5 is 15.41:1.
+       These are the values home-bare-white.css already uses for the Dark Home
+       skin (--home-skin-strong / --home-skin-strong-text), so a control looks
+       the same whether or not that Home-only skin is applying. */
+    --lotbi-brand-ink: #edf0f5;
+    --lotbi-brand-solid-bg: #edf0f5;
+    --lotbi-brand-solid-bg-hover: #ffffff;
+    --lotbi-brand-solid-text: #17191d;
   }
 }
 
@@ -135,6 +162,15 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) {
      and measured 1.05:1 — invisible. */
   --lotbi-nav-history-text: #aeb6c3;
   --lotbi-nav-history-text-active: #f8fafc;
+  /* SITE-DARK-BRAND-SURFACES-01 — #edf0f5 on #151922 is 15.40:1, and a solid
+     control inverts rather than staying navy: #17191d on #edf0f5 is 15.41:1.
+     These are the values home-bare-white.css already uses for the Dark Home
+     skin (--home-skin-strong / --home-skin-strong-text), so a control looks
+     the same whether or not that Home-only skin is applying. */
+  --lotbi-brand-ink: #edf0f5;
+  --lotbi-brand-solid-bg: #edf0f5;
+  --lotbi-brand-solid-bg-hover: #ffffff;
+  --lotbi-brand-solid-text: #17191d;
 }
 
 /* Shared component role mapping for explicit Dark. */

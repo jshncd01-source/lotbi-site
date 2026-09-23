@@ -89,6 +89,12 @@ jobs:
       - name: Validate dark conversation list contrast
         run: node scripts/validate_dark_conversation_list_contrast_01.mjs
 
+      # The controls that used to paint themselves with the raw brand navy must
+      # follow a token that has a Dark form, and every token must be declared on
+      # all four theme paths rather than just one.
+      - name: Validate dark brand surfaces
+        run: node scripts/validate_dark_brand_surfaces_01.mjs
+
       # Shared form controls must not trip iOS Safari's focus zoom, and the
       # viewport must stay pinch-zoomable.
       - name: Validate iOS input zoom

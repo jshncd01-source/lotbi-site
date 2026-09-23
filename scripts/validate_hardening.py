@@ -34,6 +34,13 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 제공자 상호가 빠져 있어 세 페이지에 같은 블록으로 추가했다. 본문 조항은 한 줄도
 # 바뀌지 않았고, 추가된 것은 푸터 사업자 정보 블록의 행 세 개뿐이다. 블록 자체는 이제
 # scripts/sync_footer_business_info.py 가 한 곳에서 소유하며 CI 가 드리프트를 잡는다.
+# SITE-DARK-BRAND-SURFACES-01 — styles.css's hash moved for exactly one rule,
+# .skip-link, and exactly two declarations inside it: background and color now
+# read semantic tokens with the old raw values kept as fallbacks, so the
+# always-light pages that never load site-theme-tokens.css are unchanged. The
+# keyboard skip target was #182a46 on #151922, 1.22:1 — present but unseeable.
+# Verified with `git diff --unified=0` and again by stripping /* */ from both
+# revisions: no other declaration in the file moved.
 LOCKED_SHA256 = {
     'privacy.html': '29a376617f88e2609940691589ff8033810b75dc5cf0cd45a26f2fc4b13911db',
     'terms.html': '252d2264ae4cf9465f6b523e7be6c3b2f55c81791f7b011ccced495c1ea3462b',
@@ -41,7 +48,7 @@ LOCKED_SHA256 = {
     'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': '5acc2ecda77a43ea16bb634a53c9633aae4d88435c2b2dd829eae220b3b53390',
+    'styles.css': 'e52fe30dbf6f3a55f24d69f692bf32a1ec57f9f20311eebf7b2e86464ce06b3c',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 

@@ -240,8 +240,13 @@
   z-index: 1000;
   padding: 10px 14px;
   border-radius: 10px;
-  background: var(--brand-navy);
-  color: #fff;
+  /* SITE-DARK-BRAND-SURFACES-01 — the keyboard skip target is the first thing
+     a keyboard user lands on, and a navy pill on #151922 is 1.22:1: it was
+     there but unseeable. The fallbacks matter here — this file is also served
+     to the always-light pages, which never load site-theme-tokens.css and must
+     keep the navy. */
+  background: var(--lotbi-brand-solid-bg, var(--brand-navy));
+  color: var(--lotbi-brand-solid-text, #fff);
   font-weight: 800;
   text-decoration: none;
   transform: translateY(-180%);
