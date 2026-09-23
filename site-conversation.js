@@ -9,8 +9,8 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-handle5';
-import {stripWakePrefix} from './site-voice-wake.js?v=20260923-wakematch1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-handle6';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-wakelisten1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -100,7 +100,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260923-stickytopbar1';
+  link.href = '/site-conversation.css?v=20260923-wakelisten1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -515,6 +515,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const attachmentPreview = document.querySelector('[data-attachment-preview]');
   const attachmentInputs = [...document.querySelectorAll('[data-attachment-input]')];
   const micButton = document.querySelector('.mic-button');
+  const wakeButton = document.querySelector('[data-wake-toggle]');
   const responseGradeControl = document.querySelector('[data-response-grade-control]');
   const responseGradeTrigger = document.querySelector('[data-response-grade-trigger]');
   const responseGradeMenu = document.querySelector('[data-response-grade-menu]');
@@ -3446,6 +3447,71 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   });
   micButton.addEventListener('click', () => void startVoiceInput());
+
+  // SITE-VOICE-WAKE-LISTENER-01 — hands-free calling, within what a browser
+  // actually allows. The control stays hidden where the engine cannot do this
+  // at all: a toggle that can never work is worse than no toggle.
+  if (wakeButton instanceof HTMLButtonElement && wakeListeningSupported()) {
+    const setWakeUi = (listening, message = '') => {
+      wakeButton.setAttribute('aria-pressed', String(listening));
+      wakeButton.setAttribute('aria-label', listening ? '롯비야 듣기 끄기' : '롯비야 듣기 켜기');
+      wakeButton.title = listening ? '듣는 중 — 「롯비야」 하고 불러 주세요' : '롯비야 듣기 켜기';
+      if (listening) wakeButton.dataset.listening = 'true'; else delete wakeButton.dataset.listening;
+      if (message) setVoiceFeedback(message);
+    };
+    const wakeListener = createWakeListener({
+      onCommand: command => {
+        // Only the words after the call reach here, and only when there were
+        // some. Straight into the composer and through the same auto-send
+        // window as the mic button, so a mishearing is still catchable.
+        const current = prompt.value.trimEnd();
+        prompt.value = current ? `${current} ${command}` : command;
+        prompt.dispatchEvent(new Event('input', {bubbles: true}));
+        setWakeUi(false);
+        beginVoiceAutoSend();
+      },
+      onState: (state, detail) => {
+        if (state === 'listening') { setWakeUi(true, '「롯비야」 하고 불러 주세요.'); return; }
+        if (state === 'unavailable') {
+          setWakeUi(false);
+          writeWakePreference(storage, false);
+          setVoiceFeedback(detail === 'permission'
+            ? '마이크 권한이 없어 롯비야 듣기를 껐습니다. 브라우저의 사이트 권한에서 마이크를 허용해 주세요.'
+            : '이 브라우저에서는 롯비야 듣기가 동작하지 않네요. 마이크 버튼이나 입력창을 써 주세요.');
+          return;
+        }
+        // 'idle' while the preference is still on means the tab went to the
+        // background. Say so rather than leaving the button looking broken —
+        // no browser keeps a microphone open behind another screen.
+        setWakeUi(false, detail === 'hidden' ? '화면이 가려져 있는 동안에는 듣지 못합니다. 돌아오면 다시 듣습니다.' : '');
+      },
+    });
+    wakeButton.hidden = false;
+    wakeButton.disabled = false;
+    // The markup ships disabled and labelled "준비 중" so it never looks live
+    // before this runs. It is live now, so say what it does.
+    setWakeUi(false);
+    wakeButton.addEventListener('click', async () => {
+      if (wakeListener.isEnabled()) {
+        wakeListener.disable(); writeWakePreference(storage, false);
+        setVoiceFeedback('롯비야 듣기를 껐습니다.');
+        return;
+      }
+      wakeButton.disabled = true;
+      try {
+        // The permission prompt has to come out of this click, never on its own.
+        await requestMicrophoneAccess();
+        if (wakeListener.enable()) writeWakePreference(storage, true);
+      } catch (error) { setVoiceFeedback(voiceErrorMessage(error)); }
+      finally { wakeButton.disabled = false; }
+    });
+    // A preference set on an earlier visit is remembered, but it does not start
+    // a microphone on its own: this page has had no user action yet, and the
+    // browser would refuse the permission anyway. The button shows it is armed.
+    if (readWakePreference(storage)) {
+      wakeButton.title = '롯비야 듣기 켜기 — 눌러서 다시 시작';
+    }
+  }
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
