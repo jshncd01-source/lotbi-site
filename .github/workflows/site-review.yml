@@ -59,6 +59,11 @@ jobs:
 
       # The account row is now the only profile entry point. Guard the removals
       # and, more importantly, that every item it absorbed is still reachable.
+      # 계정 전역 식별자는 계정 페이지가 주인입니다. 프로필 화면에서는 빼되,
+      # 가는 길('설정' → 계정 페이지)은 반드시 남아 있어야 합니다.
+      - name: Validate profile handle belongs to the account page
+        run: node scripts/validate_profile_handle_to_account_01.mjs
+
       - name: Validate single profile entry point
         run: node scripts/validate_single_profile_entry_01.mjs
 
@@ -212,6 +217,12 @@ jobs:
           node scripts/validate_calendar_settings_expansion_01.mjs
           node scripts/validate_calendar_system_dark_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
+
+      - name: Validate voice wake phrase matching
+        run: |
+          node --check site-voice-wake.js
+          node --check site-conversation.js
+          node scripts/validate_voice_wake_phrase_match_01.mjs
 
       - name: Validate Universal Rich Product Cards
         run: |
