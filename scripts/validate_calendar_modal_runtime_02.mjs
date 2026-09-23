@@ -153,7 +153,11 @@ try{
     );
   },'month geometry');
   await wait(()=>content?.getAttribute('aria-busy')!=='true','guest Calendar async decoration idle');
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  // setTimeout rather than requestAnimationFrame: under --virtual-time-budget an
+  // idle page may never produce another animation frame, and the double rAF then
+  // never settles — the run ends as a mute "wrapper timeout" with no stage named.
+  // validate_calendar_touch_monthnav_daysheet_01 already carries this fix.
+  await new Promise(resolve=>setTimeout(resolve,50));
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   const today=modal.querySelector('.calendar-today-button');

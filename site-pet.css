@@ -482,6 +482,146 @@
   line-height: 1.5;
 }
 
+/* 실종 SOS / 발견 신고 cases. */
+.pet-case-section {
+  padding-top: 10px;
+  border-top: 1px solid var(--lotbi-border-default, #e2e6ee);
+}
+
+.pet-case-safety {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--lotbi-warning-surface, #fff6e8);
+  color: var(--lotbi-warning-text, #8a5a14);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.pet-case-card {
+  display: grid;
+  gap: 7px;
+  padding: 13px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 13px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-case-card[data-pet-case-status="ACTIVE"] {
+  border-color: #a02645;
+}
+
+.pet-case-status {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eef1f6);
+  color: var(--lotbi-text-secondary, #4c5563);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pet-case-card[data-pet-case-status="ACTIVE"] .pet-case-status {
+  background: #fdeaef;
+  color: #a02645;
+}
+
+.pet-case-line {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.pet-case-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.pet-case-cancel {
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--lotbi-text-muted, #6a7280);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-case-photos {
+  display: grid;
+  gap: 7px;
+}
+
+.pet-case-photo-count {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pet-case-photo-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pet-case-photo {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+}
+
+.pet-case-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pet-case-photo-loading {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pet-case-photo-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(20, 24, 34, .72);
+  color: #fff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-case-photo-add {
+  justify-self: start;
+  min-height: 36px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.pet-case-form-host:empty {
+  display: none;
+}
+
 .pet-notice {
   margin: 0;
   padding-top: 4px;
@@ -538,4 +678,19 @@ body[data-site-theme="dark"] .pet-slot-index {
 body[data-site-theme="dark"] .pet-slot {
   background: var(--lotbi-surface-primary, #1f2632);
   border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-case-card {
+  background: var(--lotbi-surface-primary, #1f2632);
+  border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-case-status,
+body[data-site-theme="dark"] .pet-case-photo {
+  background: #2a3140;
+}
+
+body[data-site-theme="dark"] .pet-case-safety {
+  background: #3a2f1c;
+  color: #f0d8a8;
 }

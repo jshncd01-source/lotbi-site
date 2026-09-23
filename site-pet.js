@@ -333,3 +333,164 @@ export async function fetchPetPhotoObjectUrl(sessionToken, petId, slotCode, fetc
   const blob = await response.blob();
   return URL.createObjectURL(blob);
 }
+
+// ---------------------------------------------------------------- SOS cases
+//
+// A case records what the owner saw and when. Core does no public matching and
+// sends no owner alerts, so nothing here notifies anyone: it is the owner's own
+// record, which they close themselves.
+
+const CASE_STATUSES = Object.freeze(['ACTIVE', 'RESOLVED', 'CANCELLED', 'EXPIRED']);
+
+function normalizeCase(value, idKey) {
+  if (!value || typeof value !== 'object') return null;
+  const caseId = typeof value[idKey] === 'string' ? value[idKey] : '';
+  if (!caseId) return null;
+  const location = value.last_seen_location || value.found_location || {};
+  return Object.freeze({
+    caseId,
+    petId: typeof value.pet_id === 'string' ? value.pet_id : '',
+    species: PET_SPECIES.includes(value.species) ? value.species : '',
+    locationLabel: typeof location.label === 'string' ? location.label : '',
+    occurredAt: typeof value.last_seen_at === 'string'
+      ? value.last_seen_at
+      : (typeof value.found_at === 'string' ? value.found_at : ''),
+    note: typeof value.note === 'string' ? value.note : '',
+    description: typeof value.description === 'string' ? value.description : '',
+    photoCount: Number.isInteger(value.photo_count) ? value.photo_count : null,
+    status: CASE_STATUSES.includes(value.status) ? value.status : 'ACTIVE',
+    createdAt: typeof value.created_at === 'string' ? value.created_at : '',
+  });
+}
+
+export async function createPetSOS(sessionToken, input, fetchImpl = globalThis.fetch) {
+  const body = {
+    pet_id: String(input?.petId || ''),
+    location_source: 'USER_ENTERED',
+    last_seen_at: String(input?.lastSeenAt || ''),
+  };
+  const label = String(input?.locationLabel || '').trim();
+  if (label) body.last_seen_location = {label};
+  const note = String(input?.note || '').trim();
+  if (note) body.note = note;
+
+  const payload = await petRequest('/v2/pets/sos', sessionToken, {
+    method: 'POST',
+    body,
+    requestId: input?.requestId || petRequestId('sos'),
+  }, fetchImpl);
+  const record = normalizeCase(payload?.sos, 'sos_case_id');
+  if (!record) throw new SiteCoreError('실종 신고를 저장하지 못했습니다.', {code: 'PET_SOS_FAILED'});
+  return record;
+}
+
+export async function listPetSOS(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pets/sos', sessionToken, {}, fetchImpl);
+  const rows = Array.isArray(payload?.cases) ? payload.cases : [];
+  return Object.freeze(rows.map(row => normalizeCase(row, 'sos_case_id')).filter(Boolean));
+}
+
+export async function closePetSOS(sessionToken, caseId, resolved, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(`/v2/pets/sos/${encodeURIComponent(caseId)}/close`, sessionToken, {
+    method: 'PUT',
+    body: {resolved: resolved === true},
+  }, fetchImpl);
+  const record = normalizeCase(payload?.sos, 'sos_case_id');
+  if (!record) throw new SiteCoreError('실종 신고를 종료하지 못했습니다.', {code: 'PET_SOS_CLOSE_FAILED'});
+  return record;
+}
+
+// -------------------------------------------------------------- Found cases
+//
+// Reporting an animal someone else found needs no registered pet, but Core
+// still requires a signed-in session, so the surface asks for login first.
+
+export async function createFoundPet(sessionToken, input, fetchImpl = globalThis.fetch) {
+  const body = {
+    species: PET_SPECIES.includes(input?.species) ? input.species : 'DOG',
+    location_source: 'USER_ENTERED',
+    found_at: String(input?.foundAt || ''),
+  };
+  const label = String(input?.locationLabel || '').trim();
+  if (label) body.found_location = {label};
+  const description = String(input?.description || '').trim();
+  if (description) body.description = description;
+
+  const payload = await petRequest('/v2/pets/found', sessionToken, {
+    method: 'POST',
+    body,
+    requestId: input?.requestId || petRequestId('found'),
+  }, fetchImpl);
+  const record = normalizeCase(payload?.found, 'found_case_id');
+  if (!record) throw new SiteCoreError('발견 신고를 저장하지 못했습니다.', {code: 'PET_FOUND_FAILED'});
+  return record;
+}
+
+export async function listFoundPets(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pets/found', sessionToken, {}, fetchImpl);
+  const rows = Array.isArray(payload?.cases) ? payload.cases : [];
+  return Object.freeze(rows.map(row => normalizeCase(row, 'found_case_id')).filter(Boolean));
+}
+
+export async function closeFoundPet(sessionToken, caseId, resolved, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(`/v2/pets/found/${encodeURIComponent(caseId)}/close`, sessionToken, {
+    method: 'PUT',
+    body: {resolved: resolved === true},
+  }, fetchImpl);
+  const record = normalizeCase(payload?.found, 'found_case_id');
+  if (!record) throw new SiteCoreError('발견 신고를 종료하지 못했습니다.', {code: 'PET_FOUND_CLOSE_FAILED'});
+  return record;
+}
+
+export const FOUND_PHOTO_SLOT_MAX = 10;
+
+export async function listFoundPetPhotos(sessionToken, caseId, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(
+    `/v2/pets/found/${encodeURIComponent(caseId)}/photos`,
+    sessionToken,
+    {},
+    fetchImpl,
+  );
+  const rows = Array.isArray(payload?.photos) ? payload.photos : [];
+  return Object.freeze(
+    rows
+      .map(row => (Number.isInteger(row?.slot_index) ? row.slot_index : 0))
+      .filter(index => index >= 1 && index <= FOUND_PHOTO_SLOT_MAX)
+      .sort((a, b) => a - b),
+  );
+}
+
+export async function uploadFoundPetPhoto(sessionToken, caseId, slotIndex, file, fetchImpl = globalThis.fetch) {
+  const rejection = petPhotoRejection(file);
+  if (rejection) {
+    throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
+  }
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'found-photo');
+  const payload = await petRequest(
+    `/v2/pets/found/${encodeURIComponent(caseId)}/photos/${encodeURIComponent(slotIndex)}`,
+    sessionToken,
+    {method: 'PUT', formData},
+    fetchImpl,
+  );
+  return Number.isInteger(payload?.photo_count) ? payload.photo_count : 0;
+}
+
+export async function deleteFoundPetPhoto(sessionToken, caseId, slotIndex, fetchImpl = globalThis.fetch) {
+  await petRequest(
+    `/v2/pets/found/${encodeURIComponent(caseId)}/photos/${encodeURIComponent(slotIndex)}`,
+    sessionToken,
+    {method: 'DELETE'},
+    fetchImpl,
+  );
+}
+
+export async function fetchFoundPetPhotoObjectUrl(sessionToken, caseId, slotIndex, fetchImpl = globalThis.fetch) {
+  const response = await petRequest(
+    `/v2/pets/found/${encodeURIComponent(caseId)}/photos/${encodeURIComponent(slotIndex)}/content`,
+    sessionToken,
+    {raw: true},
+    fetchImpl,
+  );
+  return URL.createObjectURL(await response.blob());
+}
