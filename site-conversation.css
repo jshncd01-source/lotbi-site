@@ -1019,7 +1019,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 .site-modal-content { padding: 12px 20px 22px; display: grid; gap: 16px; }
 
 .site-field { display: grid; gap: 7px; color: var(--lotbi-text-secondary, #3d4653); font-size: 14px; font-weight: 750; }
-.site-field input, .site-field select {
+.site-field input, .site-field select, .site-field textarea {
   min-height: 44px; padding: 9px 11px; border: 1px solid var(--lotbi-border-strong, #cfd6e2); border-radius: 11px;
   background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); font: inherit;
 }
@@ -2233,5 +2233,30 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   .lotbi-place-orbit-card,
   .lotbi-rich-card-place-media .lotbi-rich-card-image {
     transition: none;
+  }
+}
+
+/* SITE-IOS-INPUT-ZOOM-01 — iOS Safari zooms the whole page in when a focused
+   field's text is under 16px, which scrolls the form sideways and cuts off its
+   right edge. .site-field's inputs inherited the label's 14px, and its
+   textareas were not in the rule at all, so they sat at the UA default
+   13.33px. The Calendar editor already carries this fix for its own fields;
+   this brings the shared form controls in line.
+
+   Only the controls move — the 14px label is left alone, and desktop keeps the
+   smaller text since Safari there does not do this.
+
+   Bounded at the site's own mobile breakpoint rather than the Calendar's
+   520px, because Safari zooms on every iOS viewport: an iPad in portrait is
+   768px and would otherwise still be missed.
+
+   Raising the font size is the fix. Do NOT reach for
+   `maximum-scale=1, user-scalable=no` on the viewport meta instead: it stops
+   the zoom by taking pinch-zoom away from everyone who needs it. */
+@media (max-width: 900px) {
+  .site-field input,
+  .site-field select,
+  .site-field textarea {
+    font-size: 16px;
   }
 }
