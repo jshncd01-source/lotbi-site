@@ -204,8 +204,11 @@ if (!css.includes('.calendar-month-grid .calendar-date-cell[data-current-month="
   throw new Error('the outside-month cell must hand one ink to every child, present and future');
 }
 for (const scoped of [
-  '.calendar-date-cell[data-current-month="true"]:nth-child(7n + 1) .calendar-date-number',
-  '.calendar-date-cell[data-current-month="true"]:nth-child(7n) .calendar-date-number',
+  // These were :nth-child(7n + 1) / :nth-child(7n) while the week could only
+  // start on Sunday. The 주 시작 요일 setting made position stop meaning weekday,
+  // so they key off data-weekday now; the scoping to this month is unchanged.
+  '.calendar-date-cell[data-current-month="true"][data-weekday="0"] .calendar-date-number',
+  '.calendar-date-cell[data-current-month="true"][data-weekday="6"] .calendar-date-number',
   '.calendar-date-cell[data-current-month="true"][data-holiday="true"]',
 ]) {
   if (!css.includes(scoped)) throw new Error(`the weekend/holiday hue must be scoped to this month: ${scoped}`);

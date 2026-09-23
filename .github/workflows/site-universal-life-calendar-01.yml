@@ -53,6 +53,9 @@ on:
       - 'scripts/validate_calendar_holiday_surface_settings_icon_01.mjs'
       - 'scripts/validate_calendar_outside_month_01.mjs'
       - 'scripts/validate_calendar_editor_field_height_01.mjs'
+      - 'scripts/validate_calendar_settings_expansion_01.mjs'
+      - 'scripts/validate_calendar_system_dark_01.mjs'
+      - 'scripts/generate_calendar_system_dark.mjs'
       - 'scripts/validate_calendar_add_from_image_01.mjs'
       - 'scripts/validate_auth_continuity_02.mjs'
       - 'scripts/validate_site.py'
@@ -130,3 +133,7 @@ jobs:
         run: node scripts/validate_calendar_outside_month_01.mjs
       - name: Editor fields agree on height, and one setting cannot erase another
         run: node scripts/validate_calendar_editor_field_height_01.mjs
+      - name: Grid lines and week start are settings, and the weekend stays on the weekend
+        run: node scripts/validate_calendar_settings_expansion_01.mjs
+      - name: The default theme preference follows a dark OS, measured not asserted
+        run: node scripts/validate_calendar_system_dark_01.mjs
