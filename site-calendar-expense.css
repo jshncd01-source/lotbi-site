@@ -5,6 +5,8 @@
    Kept in its own file so the Calendar surface stylesheet stays owned by the
    Calendar design work. Colors come from the shared semantic tokens, so light,
    dark and system themes follow the rest of the site without per-screen values.
+   The one exception is the six category colours below, which no semantic token
+   covers — they are named here, once, with a Dark value each.
 
    The bar must not push the month grid around: it is one line tall at every
    width, and it never wraps into a table again. */
@@ -19,7 +21,29 @@
   display: none;
 }
 
+/* One fixed colour per category, so the six names are told apart at a glance
+   instead of being read one by one. Fixed, never random: a reader who learns
+   that 음식 is red has to find it red next month too, and a colour that moves
+   is worse than no colour at all.
+
+   The colour is a second signal, never the only one — every item still says
+   음식 or 여행 in words, so nothing here is lost to a reader who cannot tell
+   the hues apart. Only the name is tinted; the amounts stay the neutral
+   --lotbi-text-secondary, because a coloured number reads as a status
+   (over budget, refunded) that this bar never means.
+
+   Measured against the bar's own background, not the page's: white in Light,
+   #202631 in Dark. Light 6.76:1–8.20:1, Dark 8.10:1–8.74:1, all past WCAG AA
+   4.5:1 and most past AAA 7:1. Yellow is deliberately absent — it cannot hold
+   4.5:1 on white at this size. 미분류 stays grey on purpose: it is the absence
+   of a choice, not a seventh kind of spending. */
 .calendar-expense-summary {
+  --calendar-expense-food: #b0201c;
+  --calendar-expense-travel: #00605a;
+  --calendar-expense-shopping: #7b1fa2;
+  --calendar-expense-living: #14508f;
+  --calendar-expense-other: #6d4c41;
+  --calendar-expense-unclassified: #545c68;
   box-sizing: border-box;
   width: 100%;
   margin-top: 4px;
@@ -101,6 +125,30 @@
   color: var(--lotbi-text-muted, #737b88);
 }
 
+.calendar-expense-item[data-expense-category="FOOD"] dt {
+  color: var(--calendar-expense-food);
+}
+
+.calendar-expense-item[data-expense-category="TRAVEL"] dt {
+  color: var(--calendar-expense-travel);
+}
+
+.calendar-expense-item[data-expense-category="SHOPPING"] dt {
+  color: var(--calendar-expense-shopping);
+}
+
+.calendar-expense-item[data-expense-category="LIVING"] dt {
+  color: var(--calendar-expense-living);
+}
+
+.calendar-expense-item[data-expense-category="OTHER"] dt {
+  color: var(--calendar-expense-other);
+}
+
+.calendar-expense-item[data-expense-category="UNCLASSIFIED"] dt {
+  color: var(--calendar-expense-unclassified);
+}
+
 .calendar-expense-item dd {
   margin: 0;
   color: var(--lotbi-text-secondary, #3d4653);
@@ -130,6 +178,35 @@
   font-size: 0.95rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+/* Dark needs its own values, not the Light ones dimmed: #b0201c on #202631 is
+   2.06:1, unreadable. These are the same six hues raised to hold the dark
+   surface, so 음식 is still the red one. Three selectors because that is how
+   many dark states site-theme-tokens.css has — the chosen theme, the paint
+   the bootstrap does before the body attribute lands, and "system", which is
+   the default nobody has touched. A rule written only for
+   body[data-site-theme="dark"] misses the OS-dark reader entirely. */
+body[data-site-theme="dark"] .calendar-expense-summary,
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-expense-summary {
+  --calendar-expense-food: #ffab91;
+  --calendar-expense-travel: #68d7c2;
+  --calendar-expense-shopping: #dbabff;
+  --calendar-expense-living: #9ec5ff;
+  --calendar-expense-other: #e2b98f;
+  --calendar-expense-unclassified: #b6bec9;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .calendar-expense-summary,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-expense-summary {
+    --calendar-expense-food: #ffab91;
+    --calendar-expense-travel: #68d7c2;
+    --calendar-expense-shopping: #dbabff;
+    --calendar-expense-living: #9ec5ff;
+    --calendar-expense-other: #e2b98f;
+    --calendar-expense-unclassified: #b6bec9;
+  }
 }
 
 @media (max-width: 520px) {
