@@ -9,10 +9,37 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-sysdark2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-profilemenu2';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-themeauto2';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
+
+// SITE-THEME-AUTO-SCHEDULE-02 — 대표: "시간이 18시 이후에는 다크로 가고 아침
+// 07시 되면 화이트로 가는 거"
+//
+// '자동' is a fourth *preference*, not a fourth theme. What reaches
+// body[data-site-theme] and html[data-site-theme-bootstrap] is always one of the
+// three states site-theme-tokens.css already paints, so the dark-theme
+// stylesheet needs nothing new and cannot be broken from here.
+//
+// It is deliberately not the same answer as '기기모드', which follows the OS.
+// This one follows the clock, which is what 대표 asked for. Both stay on offer.
+const AUTO_THEME_DARK_HOUR = 18;
+const AUTO_THEME_LIGHT_HOUR = 7;
+function resolveScheduledTheme(now = new Date()) {
+  const hour = now.getHours();
+  return hour >= AUTO_THEME_DARK_HOUR || hour < AUTO_THEME_LIGHT_HOUR ? 'dark' : 'light';
+}
+// When the next switch is due, so a tab left open overnight turns dark at 18:00
+// instead of waiting for a reload.
+function millisecondsUntilNextThemeBoundary(now = new Date()) {
+  const hour = now.getHours();
+  const next = new Date(now.getTime());
+  next.setMinutes(0, 0, 0);
+  next.setHours(hour < AUTO_THEME_LIGHT_HOUR || hour >= AUTO_THEME_DARK_HOUR ? AUTO_THEME_LIGHT_HOUR : AUTO_THEME_DARK_HOUR);
+  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
 
 // SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
 // inline in index.html's <head>, above the stylesheets. It has to: this file is
@@ -21,7 +48,8 @@ const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteA
 // module also runs on pages that do not carry the inline block, and re-running
 // it is harmless — it writes the same attribute from the same value.
 try {
-  const savedTheme = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const stored = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const savedTheme = stored === 'auto' ? resolveScheduledTheme() : stored;
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
     document.documentElement.dataset.siteThemeBootstrap = savedTheme;
   }
@@ -53,7 +81,16 @@ try {
 // first paint reads before any namespace is known — so honouring it here makes
 // the two stores agree rather than fight.
 const SITE_THEME_BOOTSTRAP_KEY = 'lotbi.site.theme.bootstrap.v1';
-const SITE_THEMES = ['system', 'light', 'dark'];
+
+// SITE-THEME-AUTO-SCHEDULE-02 landed '자동모드' while this fix was open, and the
+// durable key can now hold 'auto' as well. Rather than keep a second list that
+// has to be remembered, ask THEME_OPTIONS — the one the settings menu is built
+// from. A fifth theme added there is accepted here on the same commit.
+// Referenced inside the functions, not at module evaluation, because
+// THEME_OPTIONS is declared below this block.
+function isSiteTheme(value) {
+  return THEME_OPTIONS.some(([key]) => key === value);
+}
 
 function durableBootstrapTheme() {
   try {
@@ -64,8 +101,8 @@ function durableBootstrapTheme() {
 }
 
 function resolveNamespaceTheme(storedTheme, durableTheme) {
-  if (SITE_THEMES.includes(storedTheme)) return storedTheme;
-  if (SITE_THEMES.includes(durableTheme)) return durableTheme;
+  if (isSiteTheme(storedTheme)) return storedTheme;
+  if (isSiteTheme(durableTheme)) return durableTheme;
   return 'system';
 }
 
@@ -84,6 +121,15 @@ const PHOTO_DIMENSION_LIMIT = 4096;
 const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
   ['orange', '오렌지'], ['pink', '분홍'], ['gray', '회색'],
+]);
+// SITE-THEME-AUTO-SCHEDULE-02 — the 개인테마 window's offer, in 대표's wording.
+// '자동' rides beside '기기모드' rather than replacing it: 기기모드 follows the
+// device, 자동 follows the clock, and they are different answers.
+const THEME_OPTIONS = Object.freeze([
+  ['system', '기기모드'],
+  ['light', '라이트모드'],
+  ['dark', '다크모드'],
+  ['auto', '자동모드'],
 ]);
 const RESPONSE_GRADE_OPTIONS = Object.freeze([
   ['LIGHT', '라이트'],
@@ -522,6 +568,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let lastRenderedCreatedAt;
   let timestampRefreshTimer;
+  let themeBoundaryTimer;
   let richCardActionInFlight = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
@@ -632,11 +679,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       option.tabIndex = available && selected ? 0 : -1;
     }
   };
+  // SITE-THEME-AUTO-SCHEDULE-02 — only armed while '자동모드' is selected, and
+  // always re-armed from the clock rather than a fixed interval, so a machine
+  // that slept through 18:00 corrects itself on the next tick instead of drifting.
+  const scheduleThemeBoundary = storedTheme => {
+    if (themeBoundaryTimer) { clearTimeout(themeBoundaryTimer); themeBoundaryTimer = undefined; }
+    if (storedTheme !== 'auto' || typeof setTimeout !== 'function') return;
+    themeBoundaryTimer = setTimeout(() => { themeBoundaryTimer = undefined; applyPreferences(); }, millisecondsUntilNextThemeBoundary());
+  };
   const applyPreferences = () => {
     document.body.dataset.chatColor = COLOR_OPTIONS.some(([key]) => key === preferences.color) ? preferences.color : 'default';
-    const resolvedTheme = ['system', 'light', 'dark'].includes(preferences.theme) ? preferences.theme : 'system';
+    // The stored preference may be '자동'; what reaches the document is always
+    // one of the three states the theme tokens style.
+    const storedTheme = THEME_OPTIONS.some(([key]) => key === preferences.theme) ? preferences.theme : 'system';
+    const resolvedTheme = storedTheme === 'auto' ? resolveScheduledTheme() : storedTheme;
+    document.body.dataset.siteThemePreference = storedTheme;
     document.body.dataset.siteTheme = resolvedTheme;
     document.documentElement.dataset.siteThemeBootstrap = resolvedTheme;
+    scheduleThemeBoundary(storedTheme);
     const systemDark = resolvedTheme === 'system' && globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches === true;
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (themeColor) themeColor.setAttribute('content', resolvedTheme === 'dark' || systemDark ? '#151922' : '#ffffff');
@@ -2389,11 +2449,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const {backdrop, panel, content} = modalShell('개인테마', '선택한 테마는 현재 사용자 설치의 이 브라우저에 저장됩니다.');
     const themeLabel = document.createElement('label'); themeLabel.className = 'site-field'; themeLabel.textContent = '테마';
     const select = document.createElement('select');
-    for (const [value, label] of [['system', '기기모드'], ['light', '라이트모드'], ['dark', '다크모드']]) {
+    for (const [value, label] of THEME_OPTIONS) {
       const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = preferences.theme === value; select.appendChild(option);
     }
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
-    themeLabel.appendChild(select); content.append(themeLabel); installSurfaceBehavior(backdrop, panel, {modal: true});
+    themeLabel.appendChild(select);
+    // 기기모드 and 자동모드 are different answers, so the window says which is which.
+    const themeHelp = document.createElement('p'); themeHelp.className = 'site-field-help';
+    themeHelp.textContent = `'기기모드'는 기기의 다크 모드를 따라가고, '자동모드'는 시계를 따라갑니다 — 저녁 ${AUTO_THEME_DARK_HOUR}시부터 다크, 아침 ${AUTO_THEME_LIGHT_HOUR}시부터 라이트.`;
+    content.append(themeLabel, themeHelp); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   // 설정 — no intermediate modal. It leaves for the account page directly, the
   // same destination the profile modal's removed button used.

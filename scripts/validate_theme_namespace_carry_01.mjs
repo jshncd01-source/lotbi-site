@@ -39,19 +39,42 @@ import vm from 'node:vm';
 const conversation = readFileSync(new URL('../site-conversation.js', import.meta.url), 'utf8');
 
 // ── 1. The resolution is a named, independently testable function ────────
-const start = conversation.indexOf('function resolveNamespaceTheme(');
-assert.ok(start >= 0, 'resolveNamespaceTheme must stay a top-level function so this gate can exercise it');
-const end = conversation.indexOf('\n}', start) + 2;
-const themesAt = conversation.indexOf('const SITE_THEMES =');
-assert.ok(themesAt >= 0, 'SITE_THEMES must stay declared alongside the resolver');
-const themesSource = conversation.slice(themesAt, conversation.indexOf('\n', themesAt));
+const block = (needle, terminator = '\n}') => {
+  const at = conversation.indexOf(needle);
+  assert.ok(at >= 0, `${needle} must stay top-level so this gate can exercise it`);
+  return conversation.slice(at, conversation.indexOf(terminator, at) + terminator.length);
+};
 
+// SITE-THEME-AUTO-SCHEDULE-02 added '자동모드' and the durable key can now hold
+// 'auto'. The accepted set is therefore NOT a second hardcoded list here — the
+// resolver asks THEME_OPTIONS, the same list the settings menu is built from,
+// so a new theme is accepted on the commit that adds it. This gate pulls the
+// real THEME_OPTIONS out of the module rather than restating it, which is what
+// makes the 'auto' rows below a measurement instead of a restatement.
+const optionsSource = block('const THEME_OPTIONS = Object.freeze([', ']);');
 const context = {};
 vm.runInNewContext(
-  `${themesSource}\n${conversation.slice(start, end)}\nthis.resolveNamespaceTheme = resolveNamespaceTheme;`,
+  [
+    optionsSource,
+    block('function isSiteTheme('),
+    block('function resolveNamespaceTheme('),
+    'this.resolveNamespaceTheme = resolveNamespaceTheme;',
+    'this.THEME_OPTIONS = THEME_OPTIONS;',
+  ].join('\n'),
   context,
 );
 const resolve = context.resolveNamespaceTheme;
+
+// Every theme the menu offers must survive the carry-over, whatever it is now.
+const OFFERED = context.THEME_OPTIONS.map(([key]) => key);
+assert.ok(OFFERED.includes('system') && OFFERED.includes('light') && OFFERED.includes('dark'),
+  'THEME_OPTIONS must still offer the three base themes');
+for (const theme of OFFERED) {
+  assert.equal(resolve(undefined, theme), theme,
+    `an absent namespace theme must carry the durable '${theme}' forward — every theme the menu `
+    + 'offers is a real choice, and dropping one back to \'system\' is the defect this gate exists for');
+  assert.equal(resolve(theme, 'dark'), theme, `a stored '${theme}' must win over the durable key`);
+}
 
 // ── 2. The matrix the defect lives in ────────────────────────────────────
 // A stored namespace theme always wins — a user who set Light on this account
@@ -85,6 +108,15 @@ assert.ok(
 assert.ok(
   !/includes\(loadedPreferences\.theme\)\s*\?\s*loadedPreferences\.theme\s*:\s*'system'/.test(conversation),
   "the old 'system' fallback must not return",
+);
+assert.ok(
+  !/some\(\(\[key\]\) => key === loadedPreferences\.theme\)\s*\?[^:]*:\s*'system'/.test(conversation),
+  "switchNamespace must not go back to discarding the durable key, in any spelling",
+);
+assert.ok(
+  !/const SITE_THEMES\s*=\s*\[/.test(conversation),
+  'the accepted set must come from THEME_OPTIONS, not a second hardcoded list — that duplicate is '
+  + "exactly how '자동모드' would have been dropped",
 );
 
 // ── 4. Reading the durable key can never throw ───────────────────────────
