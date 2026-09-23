@@ -65,7 +65,7 @@ def main() -> int:
         "send control": "send-button",
         "conversation thread": 'id="conversation-thread"',
         "local navigation script": 'src="home-shell.js?v=20260920-fold5"',
-        "approved mobile entry runtime": 'src="mobile-entry.js?v=20260920-homefirst1"',
+        "approved mobile entry runtime": 'src="mobile-entry.js?v=20260923-darklogo1"',
         "approved 3D Avatar module": 'src="site-avatar.js"',
         "approved 3D Avatar stylesheet": 'href="site-avatar.css"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
@@ -105,11 +105,15 @@ def main() -> int:
 
     if text.count('src="/assets/brand/lotbi-lockup-160w.png"') != 3:
         errors.append("index.html: desktop sidebar, mobile topbar and mobile drawer must share the official logo asset")
-    # The official lockup ships light and dark artwork; every use site must offer both.
-    if text.count('/assets/brand/lotbi-lockup-dark-160w.png') != 3:
+    # SITE-BRAND-LOGO-THEME-AWARE-01 — every use site ships both variants and CSS
+    # picks, because <picture media> can only read the OS, never the LOTBI theme
+    # switch on body[data-site-theme].
+    if text.count('src="/assets/brand/lotbi-lockup-dark-160w.png"') != 3:
         errors.append("index.html: each logo use site must provide the dark-scheme lockup")
-    if text.count('media="(prefers-color-scheme: dark)"') < 3:
-        errors.append("index.html: logo light/dark switching must be declarative")
+    if 'media="(prefers-color-scheme: dark)"' in text:
+        errors.append("index.html: the wordmark must not be chosen by the OS setting alone")
+    if text.count('lotbi-brand-logo-light') != 3 or text.count('lotbi-brand-logo-dark') != 3:
+        errors.append("index.html: each logo use site must pair a light and a dark wordmark")
     for forbidden in ("brand-text-logo", "brand-o", "lotbi-logo-horizontal", "lotbi-logo-official-d3b499fe546c.jpg", "lotbi-logo-official-color.jpg", "lotbi-logo-official-color-d3b499fe546c.jpg", "lotbi-logo-official-color-727a1940b747.png"):
         if forbidden in text:
             errors.append(f"index.html: legacy/text-only logo reference must not render: {forbidden}")
@@ -219,7 +223,7 @@ def main() -> int:
 
     for required in (
         'class="sidebar-brand"',
-        'class="sidebar-brand-logo"',
+        'class="sidebar-brand-logo lotbi-brand-logo-light"',
         'class="sidebar-nav sidebar-nav-desktop"',
         'class="sidebar-primary-nav"',
         'class="sidebar-calendar-nav"',
@@ -257,7 +261,7 @@ def main() -> int:
 
     approved_scripts = (
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
-        '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
+        '<script src="mobile-entry.js?v=20260923-darklogo1" defer></script>',
         '<script type="module" src="site-avatar.js"></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",

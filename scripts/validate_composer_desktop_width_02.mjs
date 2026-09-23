@@ -43,11 +43,13 @@ assert.doesNotMatch(hardeningCss, /white-space:\s*nowrap/);
 // Desktop brand belongs to the sidebar hierarchy and uses the approved logo asset.
 const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-desktop"[\s\S]*?<\/aside>/)?.[0] || '';
 assert.match(desktopAside, /<a class="sidebar-brand" href="index\.html" aria-label="LOTBI 홈" data-new-conversation>/);
-assert.match(desktopAside, /<img class="sidebar-brand-logo" src="\/assets\/brand\/lotbi-lockup-160w\.png"[^>]*\salt="LOTBI"/);
+// SITE-BRAND-LOGO-THEME-AWARE-01 — the class now carries a theme variant, and
+// the dark twin sits beside the light one. Both keep the accessible name.
+assert.match(desktopAside, /<img class="sidebar-brand-logo lotbi-brand-logo-light" src="\/assets\/brand\/lotbi-lockup-160w\.png"[^>]*\salt="LOTBI"/);
+assert.match(desktopAside, /<img class="sidebar-brand-logo lotbi-brand-logo-dark" src="\/assets\/brand\/lotbi-lockup-dark-160w\.png"[^>]*\salt="LOTBI"/);
 // The approved artwork is rendered as-is: no cropped mascot strip, no retyped wordmark.
 assert.doesNotMatch(desktopAside, /sidebar-brand-mascot-crop/);
 assert.doesNotMatch(desktopAside, /sidebar-brand-wordmark/);
-assert.match(desktopAside, /<source media="\(prefers-color-scheme: dark\)"/);
 assert.ok(
   desktopAside.indexOf('sidebar-brand') < desktopAside.indexOf('<nav class="sidebar-nav sidebar-nav-desktop"'),
   'desktop sidebar brand must appear before navigation',
