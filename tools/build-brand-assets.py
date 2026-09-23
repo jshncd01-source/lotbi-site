@@ -37,6 +37,59 @@ GAP_A, GAP_B = 490, 528
 mark = lock.crop((0, 0, GAP_A, lock.height)); mark = mark.crop(mark.getbbox())
 word = lock.crop((GAP_B+1, 0, lock.width, lock.height)); word = word.crop(word.getbbox())
 
+def knock_out_counters(img, x_from=0, tol=18):
+    """Open the enclosed holes in O and B — the letter counters.
+
+    SITE-DARK-WORDMARK-COUNTERS-01. The background removal above floods inward
+    from the image border, so it can only clear white that is connected to the
+    outside. A counter is white fenced in by ink, so the flood never arrived and
+    those pixels stayed fully opaque. On a white page that is invisible, which
+    is why it shipped. On #151922 they light up with the rest of the wordmark:
+    the O turns into a filled disc and the B into a filled block. 대표님 read
+    that as "B자가 이상하다" — the glyph had stopped being a B.
+
+    This is scoped to the wordmark (x >= x_from) deliberately. Near-white in
+    there is always background: the letters are navy and the O is a pink/violet
+    gradient, nothing in the wordmark is white ink. The mascot IS white ink, and
+    that is exactly why the border flood above could not just be replaced with a
+    global white knockout — it would dissolve the robot.
+
+    The boundary is faded with the same ramp the outer edge uses above, so a
+    counter edge and an outer edge are softened identically.
+    """
+    im = img.copy()
+    p = im.load()
+    W, H = im.size
+    x_from = max(0, min(x_from, W))
+    white = bytearray(W * H)
+    for y in range(H):
+        for x in range(x_from, W):
+            r, g, b, a = p[x, y]
+            if a > 8 and nw((r, g, b, a), tol):
+                white[y * W + x] = 1
+    for y in range(H):
+        for x in range(x_from, W):
+            if white[y * W + x]:
+                p[x, y] = (255, 255, 255, 0)
+    for y in range(H):
+        for x in range(x_from, W):
+            if white[y * W + x]:
+                continue
+            r, g, b, a = p[x, y]
+            if a <= 8:
+                continue
+            if not any(
+                0 <= x + dx < W and 0 <= y + dy < H and x + dx >= x_from
+                and white[(y + dy) * W + (x + dx)]
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+            ):
+                continue
+            if nw((r, g, b, a), 30):
+                lum = (r + g + b) / 3
+                p[x, y] = (r, g, b, int(a * max(0.0, min(1.0, (255 - lum) / 12 + 0.35))))
+    return im
+
+
 def navy_to_light(img):
     im = img.copy(); p = im.load()
     for y in range(im.height):
@@ -62,12 +115,15 @@ save(lock, 'lotbi-lockup.png')
 for w in (480, 320, 160):
     save(lock, f'lotbi-lockup-{w}w.png', w)
 
-word_dark = navy_to_light(word)
+word_dark = navy_to_light(knock_out_counters(word))
 save(word, 'lotbi-wordmark.png')
 save(word_dark, 'lotbi-wordmark-dark.png')
 
 lock_dark = lock.copy()
-lock_dark.paste(navy_to_light(lock.crop((GAP_B+1,0,lock.width,lock.height))), (GAP_B+1,0))
+lock_dark.paste(
+    navy_to_light(knock_out_counters(lock.crop((GAP_B+1,0,lock.width,lock.height)))),
+    (GAP_B+1,0),
+)
 save(lock_dark, 'lotbi-lockup-dark.png')
 for w in (480, 320, 160):
     save(lock_dark, f'lotbi-lockup-dark-{w}w.png', w)
