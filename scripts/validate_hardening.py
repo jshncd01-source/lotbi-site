@@ -56,7 +56,7 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 가 내보내는 LOTBI_SOCIAL_PRIVACY_SHA256 도 함께 바뀐다. lotbi-core 에 등록된
 # 동의 증빙 SHA 를 배포 후 갱신해야 실제 문서와 맞는다.
 LOCKED_SHA256 = {
-    'privacy.html': '5b0b533c078c7d5fbcb47974df27355ee81edcc23b77b57461413c3777ee6e33',
+    'privacy.html': 'ee7413689b81033e7373bcc0044bf599df94e81e43076aa9d7c4b3290cf600f7',
     'terms.html': '252d2264ae4cf9465f6b523e7be6c3b2f55c81791f7b011ccced495c1ea3462b',
     'account-deletion.html': 'c0b1710b47a8805063443fd286c9d903c90ede33a3f26073568e869a26a28706',
     'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
