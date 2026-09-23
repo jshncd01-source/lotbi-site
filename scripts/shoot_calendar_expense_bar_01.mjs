@@ -90,7 +90,7 @@ try{
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{
     getCurrentPosition:(_o,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{}}});
-  const manager=await import('/site-calendar-manager.js?v=20260923-msgactions2');
+  const manager=await import('/site-calendar-manager.js?v=20260923-calsettings1');
   const root=document.querySelector('.site-modal-content');
   // Signed OUT on purpose: this is the picture the 대표 asked for — a guest who
   // recorded a few amounts, and the totals bar adding them up with no account.
