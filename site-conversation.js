@@ -9,7 +9,7 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-browsertts1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-handle7';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
@@ -2452,7 +2452,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     image.src = objectUrl;
   });
   const openProfile = () => {
-    const {backdrop, panel, content} = modalShell('프로필', '표시 이름·공개 아이디·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
+    // SITE-PROFILE-HANDLE-TO-ACCOUNT-01 — 계정 전역 식별자(핸들)를 이 화면에서
+    // 뺐습니다. 계정 페이지가 그 값의 주인이고, 여기서 고치면 두 곳이 같은 값을
+    // 두고 다투게 됩니다. 숨긴 것이 아니라 주인에게 돌려보낸 것이므로, 가는 길은
+    // 프로필 메뉴의 '설정'(계정 페이지 직행)으로 한 단계 위에 그대로 열려 있습니다.
+    const {backdrop, panel, content} = modalShell('프로필', '표시 이름·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
@@ -2461,11 +2465,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
     const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
-    const handleLabel = document.createElement('label'); handleLabel.className = 'site-field'; handleLabel.textContent = '공개 아이디';
-    const handle = document.createElement('input'); handle.type = 'text'; handle.minLength = 8; handle.maxLength = 64; handle.value = serverIdentity?.publicHandle || ''; handle.autocomplete = 'off'; handle.autocapitalize = 'none'; handle.spellcheck = false;
-    handle.addEventListener('input', () => { handle.value = handle.value.replace(/[^A-Za-z0-9]/g, ''); });
-    handleLabel.appendChild(handle);
-    const handleHelp = document.createElement('p'); handleHelp.className = 'site-field-help'; handleHelp.textContent = '영문·숫자 8~64자이며 각각 최소 1자를 포함해야 합니다. 이미 사용 중이면 다른 아이디를 선택해야 합니다.';
     const emailField = document.createElement('div'); emailField.className = 'site-readonly-field';
     const emailTitle = document.createElement('strong'); emailTitle.textContent = '이메일';
     const emailValue = document.createElement('span'); emailValue.textContent = serverIdentity?.email || '등록된 이메일 없음'; emailField.append(emailTitle, emailValue);
@@ -2485,29 +2484,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!sessionToken || save.disabled) return;
       error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
       try {
-        const normalizedHandle = handle.value.trim().toLowerCase();
-        const currentHandle = serverIdentity?.publicHandle || '';
-        const updated = await updateCurrentSiteProfile(sessionToken, {
-          displayName: name.value,
-          ...(normalizedHandle && normalizedHandle !== currentHandle ? {publicHandle: normalizedHandle} : {}),
-        });
+        // 표시 이름만 보냅니다. publicHandle 을 실어 보내지 않으므로 이 화면이
+        // 계정 쪽 핸들을 덮어쓸 길 자체가 없습니다.
+        const updated = await updateCurrentSiteProfile(sessionToken, {displayName: name.value});
         serverIdentity = Object.freeze({...serverIdentity, ...updated});
         name.value = serverIdentity.name || canonicalProfileName();
-        handle.value = serverIdentity.publicHandle || '';
         emailValue.textContent = serverIdentity.email || '등록된 이메일 없음';
         preview.textContent = initials(canonicalProfileName());
         refreshAuthenticatedProfileSlots();
         save.textContent = '저장됨';
       } catch (caught) {
-        if (caught?.code === 'PUBLIC_HANDLE_TAKEN') error.textContent = '이미 사용 중인 공개 아이디입니다. 다른 아이디를 입력해주세요.';
-        else if (caught?.code === 'PUBLIC_HANDLE_RESERVED') error.textContent = '사용할 수 없는 공개 아이디입니다. 다른 아이디를 입력해주세요.';
-        else error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
+        error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
         save.textContent = '프로필 저장';
       } finally {
         save.disabled = false;
       }
     });
-    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoLabel, error, nameLabel, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   // 개인테마 — the theme choice and nothing else. This surface only calls the
   // existing applyPreferences/savePreferences pair; the theme switching logic
