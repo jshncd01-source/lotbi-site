@@ -26,7 +26,12 @@ const conversation = read('site-conversation.js');
 const workflow = read('.github/workflows/site-review.yml');
 
 const MENU_LABELS = ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'];
-const THEME_OPTIONS = [['system', '기기모드'], ['light', '라이트모드'], ['dark', '다크모드']];
+// SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' joined this list as a fourth
+// *preference*. 대표's original four instructions named three, and the clock
+// schedule ("18시 이후 다크, 07시 화이트") was a separate instruction; this is
+// where the two meet. 기기모드 follows the device, 자동모드 follows the clock,
+// and neither replaces the other — so all four stay locked here.
+const THEME_OPTIONS = [['system', '기기모드'], ['light', '라이트모드'], ['dark', '다크모드'], ['auto', '자동모드']];
 const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
 
 // ── 소스 계약 ─────────────────────────────────────────────────────────────
@@ -202,7 +207,7 @@ try {
 
     // [1][2] 개인테마 창은 테마 선택만 가진다.
     assert.equal(v.theme.title, '개인테마', `${surface}: 창 제목은 개인테마 여야 합니다`);
-    assert.deepEqual(v.theme.choices, THEME_OPTIONS, `${surface}: 다크·라이트·기기 세 선택지여야 합니다`);
+    assert.deepEqual(v.theme.choices, THEME_OPTIONS, `${surface}: 다크·라이트·기기·자동 네 선택지여야 합니다`);
     assert.equal(v.theme.colorPickerPresent, false, `${surface}: 대화 색상 선택이 남아 있으면 안 됩니다`);
     assert.equal(v.theme.deadEnd, false, `${surface}: 개인테마 창에 '준비 중' 표시가 있으면 안 됩니다`);
     // 고른 테마가 실제로 문서와 저장소에 닿는지 — 창을 옮기면서 끊기지 않았는지.
