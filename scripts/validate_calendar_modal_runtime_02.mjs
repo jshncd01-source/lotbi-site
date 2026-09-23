@@ -100,7 +100,11 @@ try{
     return nativeFetch(url,init);
   };
   const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=20260921-convcal2');
-  const guestRepo=createGuestCalendarRepository(localStorage);
+  // This fixture measures how the month grid renders a crowded calendar, so it
+  // seeds well past the shipped guest create quota on purpose. The quota is
+  // covered by validate_guest_calendar_local_01.mjs; raising it here keeps that
+  // product rule from silently becoming a layout assertion.
+  const guestRepo=createGuestCalendarRepository(localStorage,{createQuota:200});
   const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());
   const part=Object.fromEntries(parts.map(value=>[value.type,value.value]));
   const fixtureCounts=[0,1,2,3,5,8];
@@ -438,7 +442,7 @@ try{
     root:draftRoot,
     initialView:'agenda',
     timezone:'Asia/Seoul',
-    guestRepository:createGuestCalendarRepository(localStorage),
+    guestRepository:createGuestCalendarRepository(localStorage,{createQuota:200}),
     initialDraft:{
       title:'보험 서류 확인',
       localDate:null,
