@@ -100,7 +100,7 @@ const menu = conversation.slice(
 // string, so a bare substring check would not notice the item disappearing.
 const boundItems = [
   ["['프로필', openProfile]", '프로필'],
-  ["['개인 맞춤 설정', openPersonalization]", '개인 맞춤 설정'],
+  ["['개인테마', openPersonalTheme]", '개인테마'],
   ["['설정', openSettings]", '설정'],
   ["connectedServices.textContent = '연결 서비스'", '연결 서비스'],
   ["help.textContent = '도움말'", '도움말'],
