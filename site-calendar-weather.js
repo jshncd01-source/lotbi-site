@@ -148,3 +148,68 @@ export function calendarWeatherAttribution(items, {timezone = 'Asia/Seoul'} = {}
       : `날씨 출처: ${WEATHER_PROVIDER_NAME} (${WEATHER_LICENSE_NAME})`,
   });
 }
+
+// 날씨 글리프. 이모지가 아니라 인라인 SVG 인 이유는 하나다: 이모지는 OS·브라우저가
+// 각자의 폰트로 그리므로 같은 코드가 안드로이드·아이폰·윈도우에서 서로 다른 모양,
+// 다른 색, 다른 굵기로 나온다. 4개 표면에서 같은 그림을 보장하려면 우리가 직접
+// 그려야 한다. Core 가 보내는 weather_icon 이모지는 전송 계약으로 그대로 검증하되
+// (normalizeCalendarWeatherResponse), 화면에는 이 글리프를 쓴다.
+//
+// 구름은 원 둘 + 둥근 사각형의 합집합이다. 한 덩어리 path 보다 작은 크기에서
+// 뭉개지지 않고, 각 조각이 독립적이라 비/눈을 붙일 때 구름을 다시 그리지 않는다.
+// 비는 기울어진 선, 눈은 점 — 14px 에서 둘을 구별하는 건 색이 아니라 모양이다.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+const CLOUD_LOW = Object.freeze([
+  ['circle', {cx: '8.4', cy: '12.9', r: '3.7', 'data-weather-part': 'body'}],
+  ['circle', {cx: '12.4', cy: '11.0', r: '4.9', 'data-weather-part': 'body'}],
+  ['circle', {cx: '16.2', cy: '13.0', r: '3.5', 'data-weather-part': 'body'}],
+  ['rect', {x: '4.4', y: '13.6', width: '15.4', height: '4.9', rx: '2.45', 'data-weather-part': 'body'}],
+]);
+
+const CLOUD_HIGH = Object.freeze([
+  ['circle', {cx: '8.4', cy: '10.7', r: '3.55', 'data-weather-part': 'body'}],
+  ['circle', {cx: '12.4', cy: '8.9', r: '4.7', 'data-weather-part': 'body'}],
+  ['circle', {cx: '16.2', cy: '10.8', r: '3.35', 'data-weather-part': 'body'}],
+  ['rect', {x: '4.4', y: '11.4', width: '15.4', height: '4.7', rx: '2.35', 'data-weather-part': 'body'}],
+]);
+
+const WEATHER_GLYPHS = Object.freeze({
+  CLEAR: Object.freeze([
+    ['circle', {cx: '12', cy: '12', r: '5', 'data-weather-part': 'body'}],
+    ['path', {
+      d: 'M12 1.4V4.2M12 19.8v2.8M1.4 12h2.8M19.8 12h2.8M4.5 4.5l2 2M17.5 17.5l2 2M19.5 4.5l-2 2M6.5 17.5l-2 2',
+      'data-weather-part': 'ray',
+    }],
+  ]),
+  CLOUDY: CLOUD_LOW,
+  RAIN: Object.freeze([
+    ...CLOUD_HIGH,
+    ['path', {d: 'M8.8 17.7 7.5 21.9M12.4 17.7l-1.3 4.2M16 17.7l-1.3 4.2', 'data-weather-part': 'rain'}],
+  ]),
+  SNOW: Object.freeze([
+    ...CLOUD_HIGH,
+    ['circle', {cx: '8.3', cy: '19.4', r: '1.4', 'data-weather-part': 'snow'}],
+    ['circle', {cx: '12', cy: '21.3', r: '1.4', 'data-weather-part': 'snow'}],
+    ['circle', {cx: '15.7', cy: '19.4', r: '1.4', 'data-weather-part': 'snow'}],
+  ]),
+});
+
+export function calendarWeatherIconNode(kind, doc = globalThis.document) {
+  const shapes = WEATHER_GLYPHS[String(kind || '')];
+  if (!shapes || !doc) return null;
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('focusable', 'false');
+  // 접근성 경로는 날짜 버튼의 aria-label(buildCalendarAriaLabel)이 이미 날씨를
+  // 읽는다. 글리프가 한 번 더 읽히면 같은 말이 두 번 나온다.
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'calendar-weather-icon');
+  svg.dataset.weatherKind = String(kind);
+  for (const [tag, attributes] of shapes) {
+    const node = doc.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+    svg.appendChild(node);
+  }
+  return svg;
+}

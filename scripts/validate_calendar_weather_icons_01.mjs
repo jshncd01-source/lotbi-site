@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-holiday1');
 const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-holiday1');
-const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260923-fieldheight1');
+const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260923-editorfields1');
 const {addCivilDays} = await import('../site-calendar-model.js');
 const {
   BrowserLocationError,
@@ -264,12 +264,22 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const locationSource = fs.readFileSync(path.join(ROOT, 'site-current-location.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
+const weatherModuleSource = fs.readFileSync(path.join(ROOT, 'site-calendar-weather.js'), 'utf8');
 for (const token of [
-  "weatherIcon.className = 'calendar-weather-icon'",
-  'weatherIcon.textContent = weather.weatherIcon',
-  "weatherIcon.setAttribute('aria-hidden', 'true')",
+  'const weatherIcon = calendarWeatherIconNode(weather.weatherKind)',
+  'calendarWeatherIconNode',
   'state.weather = result.weather || []',
 ]) assert.ok(manager.includes(token), `missing weather icon UI contract: ${token}`);
+// 이모지 회귀 방지. 같은 코드포인트가 OS 마다 다른 모양·색으로 렌더되는 것이
+// "날씨가 흐리게 보인다"의 근본 원인이었다.
+assert.ok(
+  !manager.includes('weatherIcon.textContent = weather.weatherIcon'),
+  'the date cell must draw the SVG glyph, not the provider emoji',
+);
+for (const token of [
+  "svg.setAttribute('aria-hidden', 'true')",
+  "doc.createElementNS(SVG_NS, 'svg')",
+]) assert.ok(weatherModuleSource.includes(token), `missing weather glyph contract: ${token}`);
 assert.ok(css.includes('.calendar-weather-icon'), 'weather icon CSS missing');
 assert.ok(!manager.includes('temperature'), 'Calendar manager must not render temperature');
 assert.ok(manager.includes("locationButton.addEventListener('click'"), 'current location must be a user action');

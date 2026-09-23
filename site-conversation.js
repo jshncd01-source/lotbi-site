@@ -5,15 +5,21 @@ import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod'
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
 import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260921-guestclaim1';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-fieldheight1';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-editorfields1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-fieldheight1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-editorfields1';
 import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
+// SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
+// inline in index.html's <head>, above the stylesheets. It has to: this file is
+// loaded as a module, so it defers past first paint and the pre-paint rules in
+// site-theme-tokens.css had already missed their chance. Kept here because this
+// module also runs on pages that do not carry the inline block, and re-running
+// it is harmless — it writes the same attribute from the same value.
 try {
   const savedTheme = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
@@ -205,7 +211,10 @@ function isSessionError(error) {
 function userFacingErrorMessage(error) {
   if (isGuestSessionError(error)) return '익명 대화 세션이 만료되었습니다. 다시 시도하면 새 세션으로 이어집니다.';
   if (isSessionError(error)) return 'LOTBI 로그인이 필요합니다. 다시 연결한 뒤 이 메시지를 보낼 수 있습니다.';
-  if (error instanceof SiteCoreError && error.code === 'FREE_LIMIT_REACHED') return '이번 달 무료 AI 사용 횟수를 모두 사용했어요. 다음 무료 사용 횟수는 다음 달에 다시 제공됩니다.';
+  // Never "come back next month". Telling someone to wait four weeks is the
+  // same as telling them to leave, and Core already says an upgrade is the way
+  // on — showError turns that into a link they can actually press.
+  if (error instanceof SiteCoreError && error.code === 'FREE_LIMIT_REACHED') return '이번 달 무료 AI 답변을 다 쓰셨어요. LOTBI Plus를 시작하면 이어서 물어보실 수 있습니다.';
   if (error instanceof SiteCoreError && error.code === 'GUEST_RATE_LIMITED') return '익명 대화 요청이 잠시 많습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof SiteCoreError && error.code === 'GUEST_AI_REQUEST_IN_PROGRESS') return '같은 질문을 처리하고 있습니다. 잠시 후 다시 시도해 주세요.';
   if (error instanceof SiteCoreError && (error.code === 'GUEST_AI_OUTCOME_UNCERTAIN' || error.code === 'GUEST_AI_RECONCILIATION_REQUIRED')) return '이 요청은 중복 실행을 막기 위해 자동으로 다시 보내지 않습니다. 새 메시지로 다시 질문해 주세요.';
@@ -2732,6 +2741,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
     appendSafeErrorEvidence(wrapper, error); logSafeConversationFailure(error);
+    // Core marks the refusals an owner can clear themselves. Those get the one
+    // control that clears them, so the message is a way forward rather than a
+    // dead end the owner has to guess their way out of.
+    if (error instanceof SiteCoreError && error.upgradeAvailable && error.upgradeAction === 'VIEW_SUBSCRIPTION_OPTIONS') {
+      const upgrade = document.createElement('a');
+      upgrade.className = 'chat-retry-button chat-upgrade-link';
+      upgrade.href = 'https://account.lotbiai.com/account';
+      upgrade.textContent = 'LOTBI Plus 살펴보기';
+      wrapper.appendChild(upgrade);
+    }
     const retryable = isSessionError(error) || isGuestSessionError(error) || !(error instanceof SiteCoreError) || error.retryable;
     if (retryable) {
       const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'chat-retry-button'; retry.textContent = isSessionError(error) ? '다시 연결' : '다시 시도';

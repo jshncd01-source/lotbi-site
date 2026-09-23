@@ -37,3 +37,63 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 날씨 글리프 색 — 역할로 정의하고 세 가지 테마 상태를 모두 덮습니다.
+   (명시 라이트 / 명시 다크 / 기본 "system" — data-site-theme 는 해석값이 아니라
+   원본 설정값을 담으므로 [data-site-theme="dark"] 만으로는 다크 OS + system 에서
+   적용되지 않습니다. 캘린더 색 역할이 쓰는 것과 같은 패턴입니다.)
+
+   이모지를 버린 이유가 이것입니다: 같은 코드포인트가 OS 마다 다른 모양·다른 색·
+   다른 굵기로 렌더돼서, 4개 표면에서 같은 그림을 보장할 수 없었습니다. */
+:root {
+  /* 3:1(WCAG 1.4.11 비텍스트 대비)을 날짜 칸 배경 위에서 넘깁니다. 선택된
+     날짜 칸은 순백이 아니라 #f6f8fb 이므로 그 쪽이 기준입니다. */
+  --lotbi-weather-sun: #c06a00;
+  --lotbi-weather-cloud: #5f6a7a;
+  --lotbi-weather-rain: #2f74c0;
+  --lotbi-weather-snow: #1f8aa8;
+}
+
+body[data-site-theme="dark"] {
+  --lotbi-weather-sun: #ffc247;
+  --lotbi-weather-cloud: #b6c1d1;
+  --lotbi-weather-rain: #7bc0ff;
+  --lotbi-weather-snow: #8fe0ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) {
+    --lotbi-weather-sun: #ffc247;
+    --lotbi-weather-cloud: #b6c1d1;
+    --lotbi-weather-rain: #7bc0ff;
+    --lotbi-weather-snow: #8fe0ff;
+  }
+}
+
+/* 날짜 숫자와 같은 14px 상자를 넘지 않습니다. 날씨는 보조 정보이고, 본체인
+   날짜보다 커지면 안 됩니다. 선명해진 것은 크기가 아니라 모양과 대비입니다. */
+svg.calendar-weather-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: block;
+  overflow: visible;
+}
+
+.calendar-weather-icon [data-weather-part="body"] { fill: var(--lotbi-weather-cloud); }
+.calendar-weather-icon [data-weather-part="ray"],
+.calendar-weather-icon [data-weather-part="rain"] {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.calendar-weather-icon[data-weather-kind="CLEAR"] [data-weather-part="body"] { fill: var(--lotbi-weather-sun); }
+.calendar-weather-icon[data-weather-kind="CLEAR"] [data-weather-part="ray"] { stroke: var(--lotbi-weather-sun); }
+
+/* 구름은 흐림·비·눈이 같은 회색입니다. 셋을 구별하는 것은 구름 색이 아니라
+   구름 아래 모양입니다 — 없음 / 기울어진 선 / 점. 14px 에서 색보다 모양이
+   먼저 읽힙니다. */
+.calendar-weather-icon[data-weather-kind="RAIN"] [data-weather-part="rain"] { stroke: var(--lotbi-weather-rain); }
+.calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="snow"] { fill: var(--lotbi-weather-snow); }

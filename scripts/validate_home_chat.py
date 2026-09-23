@@ -35,6 +35,16 @@ def slice_between(text: str, start_token: str, end_token: str) -> str:
     return text[start:end + len(end_token)]
 
 
+def extract_theme_bootstrap(index: str) -> str | None:
+    """Return the allowlisted pre-paint theme bootstrap block, or None."""
+    marker = "SITE-THEME-BOOTSTRAP-FIRST-PAINT-01"
+    if marker not in index:
+        return None
+    start = index.index("<script>", index.index(marker))
+    end = index.index("</script>", start) + len("</script>")
+    return index[start:end]
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -84,7 +94,7 @@ def main() -> int:
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "새 대화",
         "calendar menu": "캘린더",
-        "calendar stylesheet": 'href="site-calendar.css?v=20260923-fieldheight1"',
+        "calendar stylesheet": 'href="site-calendar.css?v=20260923-editorfields1"',
         "recent conversations": "최근 대화",
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
         "Company link": "about.html",
@@ -266,7 +276,9 @@ def main() -> int:
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
     )
-    if text.lower().count("<script") != len(approved_scripts) + 1 or any(approved not in text for approved in approved_scripts):
+    # +1 for the sealed Avatar import map, +1 for the allowlisted inline theme
+    # bootstrap.
+    if text.lower().count("<script") != len(approved_scripts) + 2 or any(approved not in text for approved in approved_scripts):
         errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
     if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
         errors.append("index.html: sealed Three.js import map missing or changed")
@@ -282,7 +294,16 @@ def main() -> int:
         "indexeddb",
         "document.cookie",
     )
-    combined = f"{text}\n{script}".lower()
+    # SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — one inline block in <head> reads
+    # localStorage so the theme is known before the first paint; nothing
+    # deferred can do that. Allowlisted rather than the rule relaxed: the block
+    # is pinned in scripts/validate_hardening.py and everything outside it is
+    # still scanned.
+    theme_bootstrap = extract_theme_bootstrap(text)
+    if theme_bootstrap is None:
+        errors.append("index.html: the pre-paint theme bootstrap block is missing")
+    scanned_text = text.replace(theme_bootstrap, "") if theme_bootstrap else text
+    combined = f"{scanned_text}\n{script}".lower()
     for token in forbidden_shell_runtime:
         if token in combined:
             errors.append(f"home shell must keep network/persistence isolated to approved modules: {token}")

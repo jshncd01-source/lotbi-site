@@ -28,15 +28,35 @@
   <meta name="twitter:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
   <meta name="twitter:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
   <title>LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI</title>
+  <!-- SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — this is the authoritative theme
+       bootstrap and it has to stay here: inline, blocking, and above every
+       stylesheet. site-theme-tokens.css keys its pre-paint rules on
+       html[data-site-theme-bootstrap], and the copy of this code inside
+       site-conversation.js could never satisfy them — that file loads as a
+       module, so it defers past first paint and the stylesheets below had
+       already painted a light page. That was the white flash on reload in
+       Dark.
+       The module still sets the same attribute; it is now a no-op on load and
+       the live writer when the user changes themes.
+       Wrapped in try/catch and deliberately does nothing on a bad or missing
+       value: a storage failure must not stop the page from rendering. -->
+  <script>
+    try {
+      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+      }
+    } catch (error) {}
+  </script>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="home-chat.css" />
   <link rel="stylesheet" href="site-hardening.css?v=20260920-attachments1" />
   <link rel="stylesheet" href="site-avatar.css" />
   <link rel="stylesheet" href="site-sidebar-nav.css?v=20260922-mobileaccount3" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
-  <link rel="stylesheet" href="site-calendar.css?v=20260923-fieldheight1" />
-  <link rel="stylesheet" href="site-calendar-expense.css?v=20260923-fieldheight1" />
-  <link rel="stylesheet" href="site-calendar-weather.css?v=20260923-fieldheight1" />
+  <link rel="stylesheet" href="site-calendar.css?v=20260923-editorfields1" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=20260923-editorfields1" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=20260923-editorfields1" />
   <link rel="stylesheet" href="site-pet.css?v=20260922-petweb1" />
   <link rel="stylesheet" href="footer-business-info.css" />
   <link rel="stylesheet" href="mobile-entry.css" />
@@ -58,7 +78,7 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260923-darklogo1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260923-fieldheight1"></script>
+  <script type="module" src="site-conversation.js?v=20260923-editorfields1"></script>
   <script type="module" src="site-continuity.js?v=20260921-guestclaim1"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
