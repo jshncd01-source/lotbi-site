@@ -194,6 +194,11 @@ jobs:
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
+      # 복사하기/공유하기 ride under every LOTBI answer. Guard that share stays
+      # on the OS share sheet — no Kakao SDK, no app key, no extra page script.
+      - name: Validate message copy and share actions
+        run: node scripts/validate_message_share_actions_01.mjs
+
       - name: Validate attachment API and file safety contracts
         run: |
           node scripts/validate_attachment_api_01.mjs
