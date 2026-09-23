@@ -29,6 +29,9 @@
   /* The 11px helper lines under each setting. var(--lotbi-calendar-muted-ink) measured 4.11:1 on white,
      under the 4.5:1 floor the rest of the Calendar holds itself to. */
   --lotbi-calendar-muted-ink: #687180;
+  /* The outline button (이미지로 등록). Brand navy is right on white and
+     measured 1.25:1 on the dark day panel -- the label was not there. */
+  --lotbi-calendar-outline-ink: var(--brand-navy, #182a46);
 }
 
 body[data-site-theme="dark"] {
@@ -42,6 +45,7 @@ body[data-site-theme="dark"] {
   --lotbi-calendar-grid-line: #465162;
   --lotbi-calendar-weekday-ink: #95a0b0;
   --lotbi-calendar-muted-ink: #a8b2c0;
+  --lotbi-calendar-outline-ink: #cdd6e4;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -57,6 +61,7 @@ body[data-site-theme="dark"] {
     --lotbi-calendar-grid-line: #465162;
     --lotbi-calendar-weekday-ink: #95a0b0;
     --lotbi-calendar-muted-ink: #a8b2c0;
+    --lotbi-calendar-outline-ink: #cdd6e4;
   }
 }
 
@@ -98,7 +103,7 @@ body[data-site-theme="dark"] {
 .life-calendar-loading,
 .life-calendar-error {
   margin: 0;
-  color: #6b7280;
+  color: var(--lotbi-calendar-muted-ink);
   font-size: 0.82rem;
   line-height: 1.5;
 }
@@ -715,7 +720,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 /* Two ways to add an entry, sharing the row the single button used to fill. */
 .calendar-add-actions { display: flex; gap: 8px; margin-top: auto; }
 .calendar-add-actions .calendar-add-button { margin-top: 0; flex: 1 1 0; min-width: 0; }
-.calendar-add-actions .calendar-add-image-button { border-color: var(--brand-navy, #182a46); background: transparent; color: var(--brand-navy, #182a46); }
+.calendar-add-actions .calendar-add-image-button { border-color: var(--lotbi-calendar-outline-ink); background: transparent; color: var(--lotbi-calendar-outline-ink); }
 /* What the picture path has to say, next to the buttons that started it —
    the .calendar-status strip is rewritten by the weather flow on its own
    schedule and swallowed this a moment after it appeared. */

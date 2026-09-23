@@ -89,23 +89,53 @@ try {
   await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings');
   await sleep(300);
 
-  const bgOf = n => { let e = n; while (e) { const c = getComputedStyle(e).backgroundColor; if (c && !/rgba\\(0, 0, 0, 0\\)|transparent/.test(c)) return c; e = e.parentElement; } return 'rgb(255, 255, 255)'; };
-  const spot = (label, sel) => { const n = document.querySelector(sel); return n ? {label, ink: getComputedStyle(n).color, bg: bgOf(n)} : {label, missing: true}; };
-  out.textContent = JSON.stringify({ok: true, theme: document.body.dataset.siteTheme, spots: [
-    spot('날짜 패널 제목', '.calendar-day-heading'),
-    spot('날짜 패널', '.calendar-day-panel'),
-    spot('설정 패널 제목', '#calendar-settings-heading'),
-    // Added after this very element shipped at 3.56:1: making the panel dark
-    // exposed a heading whose colour had no dark value. The lesson is that the
-    // spot list has to name every text element on the surface, not the ones the
-    // last bug happened to touch.
-    spot('설정 섹션 제목', '.calendar-settings-body h4'),
-    spot('설정 상태 문구', '.calendar-settings-status'),
-    spot('설정 항목 설명', '.calendar-settings-toggle-row small'),
-    spot('주 시작 요일 선택', '.calendar-settings-select'),
-    spot('요일 머리글', '.calendar-weekdays'),
-    spot('이번 달 날짜', '.calendar-date-cell[data-current-month="true"] .calendar-date-number'),
-  ]});
+  // NOT a spot list. Twice now a list I curated went green while the screen
+  // did not: #240 missed the section heading sitting right next to the rows it
+  // did check, and #241 was written only after production measured it. So this
+  // walks every element that paints its own text on these surfaces.
+  const chan = v => { const m = /rgba?\\(([^)]+)\\)/.exec(v); return m ? m[1].split(',').map(n => +n.trim()) : null; };
+  const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const lum = v => { const c = chan(v); return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); };
+  const ratio = (a, b) => { const [h, l] = [lum(a), lum(b)].sort((x, y) => y - x); return (h + 0.05) / (l + 0.05); };
+  // Walk up for the first surface that actually covers what is behind it: a
+  // translucent layer is not the background the eye compares the text against.
+  const bgOf = n => { let e = n; while (e) { const c = getComputedStyle(e).backgroundColor; const q = chan(c); if (q && (q[3] === undefined || q[3] > 0.85)) return c; e = e.parentElement; } return 'rgb(255, 255, 255)'; };
+  const rows = [];
+  const seen = new Set();
+  for (const root of document.querySelectorAll('.calendar-product-shell, .calendar-settings-dialog, .calendar-day-panel')) {
+    for (const el of root.querySelectorAll('*')) {
+      if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || cs.display === 'none' || +cs.opacity === 0) continue;
+      const box = el.getBoundingClientRect();
+      if (box.width < 2 || box.height < 2) continue;
+      const key = String(el.className) + '|' + el.tagName;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const size = parseFloat(cs.fontSize);
+      // The expense summary is ⑭ CALENDAR-LEDGER's file. Measured and reported,
+      // never asserted here: this room does not get to fail another room's CI,
+      // and it does not get to quietly fix their file either.
+      rows.push({
+        owner: el.closest('[class*="calendar-expense"]') ? 'ledger' : 'calendar',
+        what: String(el.className || el.tagName).split(' ')[0],
+        text: el.textContent.trim().slice(0, 16),
+        ink: cs.color, bg: bgOf(el),
+        ratio: Math.round(ratio(cs.color, bgOf(el)) * 100) / 100,
+        // WCAG's large-text allowance, and nothing looser than that.
+        floor: (size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700)) ? 3 : 4.5,
+      });
+    }
+  }
+  // "Did the theme apply" is a question about SURFACES, not about every element:
+  // a navy-filled primary button is dark on purpose in the light theme, and
+  // flagging it was a false alarm in the first draft of this check.
+  const surfaces = [];
+  for (const sel of ['.site-calendar-modal', '.calendar-day-panel', '.calendar-settings-dialog', '.calendar-date-cell[data-current-month="true"]']) {
+    const n = document.querySelector(sel);
+    if (n) surfaces.push({sel, bg: getComputedStyle(n).backgroundColor});
+  }
+  out.textContent = JSON.stringify({ok: true, theme: document.body.dataset.siteTheme, rows, surfaces});
 } catch (e) { out.textContent = JSON.stringify({ok: false, error: String(e?.stack || e)}); }
 </script></body></html>`;
 
@@ -202,23 +232,33 @@ try {
   for (const theme of ['system', 'dark']) {
     const v = await run(browser, 'dark', theme);
     assert.equal(v.osDark, true, 'the OS dark emulation did not apply -- every assertion below would pass for the wrong reason');
-    for (const s of v.spots) {
-      assert.ok(!s.missing, `${theme}: ${s.label} not rendered`);
-      const dark = lum(s.bg) < 0.25;
-      assert.ok(dark, `${theme} + OS 다크: ${s.label} 의 배경이 어둡지 않습니다 (${s.bg}) -- 이게 원래 결함입니다`);
-      const ratio = contrast(s.ink, s.bg);
-      assert.ok(ratio >= 4.5, `${theme} + OS 다크: ${s.label} 대비 ${ratio.toFixed(2)}:1 (${s.ink} on ${s.bg})`);
-      report.push(`${theme}/${s.label}=${ratio.toFixed(1)}:1`);
+    assert.ok(v.rows.length >= 12, `expected the sweep to reach the surface, saw ${v.rows.length} text elements`);
+    const mine = v.rows.filter(r => r.owner === 'calendar');
+    for (const r of v.rows.filter(r => r.owner === 'ledger' && r.ratio < r.floor)) {
+      console.warn(`  [⑭ 지출 영역 — 이 방이 고치지 않음] ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor})`);
     }
+    const misses = mine.filter(r => r.ratio < r.floor);
+    assert.deepEqual(misses, [], `${theme} + OS 다크 기준 미달:\n` + misses.map(r => `  ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor}) ink=${r.ink} bg=${r.bg}`).join('\n'));
+    // The surfaces must actually be dark, or every ratio above is measured
+    // against the wrong thing -- which is exactly how the original bug hid.
+    assert.ok(v.surfaces.length >= 3, 'the surfaces to check were not all rendered');
+    const stillLight = v.surfaces.filter(x => lum(x.bg) > 0.25);
+    assert.deepEqual(stillLight, [], `${theme} + OS 다크인데 밝은 면이 남아 있습니다:\n` + stillLight.map(x => `  ${x.sel} bg=${x.bg}`).join('\n'));
+    report.push(`${theme}:${mine.length}개 최저 ${Math.min(...mine.map(r => r.ratio))}:1`);
   }
+
   // And a light OS must be untouched by any of this.
   const light = await run(browser, 'light', 'system');
   assert.equal(light.osDark, false, 'the OS light emulation did not apply');
-  for (const s of light.spots) {
-    assert.ok(lum(s.bg) > 0.5, `system + OS 라이트: ${s.label} 이 어두워졌습니다 (${s.bg})`);
-    const ratio = contrast(s.ink, s.bg);
-    assert.ok(ratio >= 4.5, `system + OS 라이트: ${s.label} 대비 ${ratio.toFixed(2)}:1`);
+  const lightMine = light.rows.filter(r => r.owner === 'calendar');
+  for (const r of light.rows.filter(r => r.owner === 'ledger' && r.ratio < r.floor)) {
+    console.warn(`  [⑭ 지출 영역 — 이 방이 고치지 않음] ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor})`);
   }
+  const lightMisses = lightMine.filter(r => r.ratio < r.floor);
+  assert.deepEqual(lightMisses, [], 'system + OS 라이트 기준 미달:\n' + lightMisses.map(r => `  ${r.what} "${r.text}" ${r.ratio}:1`).join('\n'));
+  const darkened = light.surfaces.filter(x => lum(x.bg) < 0.5);
+  assert.deepEqual(darkened, [], 'OS 라이트인데 어두워진 면이 있습니다:\n' + darkened.map(x => `  ${x.sel} bg=${x.bg}`).join('\n'));
+  report.push(`light:${lightMine.length}개`);
   console.log('CALENDAR SYSTEM DARK PASS', report.join(' '));
 } finally {
   server.kill('SIGTERM');
