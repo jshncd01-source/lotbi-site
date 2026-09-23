@@ -9,7 +9,8 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-regionlist2';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-handle7';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -99,7 +100,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260923-stickytopbar1';
+  link.href = '/site-conversation.css?v=20260923-wakelisten1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -181,12 +182,55 @@ function resolvePlaceOrbitPointerIndex({
 // where KakaoTalk appears next to every other installed target, so it needs no
 // Kakao app key and no registered JavaScript SDK domain. Desktop browsers have
 // no share sheet, so they fall back to copying the answer plus the site link.
-// "소리내어 읽기" is deliberately absent until Core's /v2/live/tts is reachable
+// SITE-VOICE-BROWSER-TTS-01 — reading answers aloud, with the voice the
+// browser already has. Core's /v2/live/tts still is not reachable from a Site
+// session and its provider credentials are not configured, so waiting for it
+// means shipping nothing. speechSynthesis needs no key, no network call of our
+// own and no new environment variable, and where a browser does not have it the
+// control simply is not built — an answer that cannot be read aloud should not
+// grow a button that says it can.
+//
+// When the approved provider does arrive, this is the fallback it falls back
+// to, not code to delete.
+// (superseding) "소리내어 읽기" was absent while Core's /v2/live/tts was unreachable
 // from a Site session; a permanently dead button is worse than no button.
 const MESSAGE_ACTION_SHARE_URL = 'https://lotbiai.com/';
 const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16h-9V7h9v14Z';
 const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
+const MESSAGE_ACTION_ICON_SPEAK = 'M4 9v6h4l5 4V5L8 9H4Zm11.5 3a4 4 0 0 0-2-3.46v6.92A4 4 0 0 0 15.5 12Zm-2-7.77v2.06A6 6 0 0 1 13.5 18.3v2.06a8 8 0 0 0 0-15.6Z';
+const MESSAGE_ACTION_ICON_STOP = 'M6 6h12v12H6V6Z';
 const MESSAGE_ACTION_FEEDBACK_MS = 2600;
+// Chrome stops a long utterance partway through, so answers are read in
+// sentence-sized pieces queued back to back. cancel() still clears the whole
+// queue, which keeps the stop control honest.
+const SPEECH_CHUNK_LIMIT = 180;
+
+function speechSupported() {
+  return typeof globalThis.speechSynthesis !== 'undefined'
+    && typeof globalThis.SpeechSynthesisUtterance === 'function';
+}
+
+function splitForSpeech(value) {
+  const text = String(value ?? '').replace(/\s+/gu, ' ').trim();
+  if (!text) return [];
+  const chunks = [];
+  let current = '';
+  for (const piece of text.split(/(?<=[.!?。？！]|다\.|요\.)\s+/u)) {
+    if (!piece) continue;
+    if ((current + ' ' + piece).trim().length <= SPEECH_CHUNK_LIMIT) {
+      current = (current ? current + ' ' : '') + piece;
+      continue;
+    }
+    if (current) chunks.push(current);
+    // A single sentence longer than the limit still has to be broken, or the
+    // engine truncates it silently.
+    if (piece.length <= SPEECH_CHUNK_LIMIT) { current = piece; continue; }
+    for (let i = 0; i < piece.length; i += SPEECH_CHUNK_LIMIT) chunks.push(piece.slice(i, i + SPEECH_CHUNK_LIMIT));
+    current = '';
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
 
 async function writeMessageTextToClipboard(text) {
   if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -265,6 +309,49 @@ function createMessageActions(text, announce) {
         void shareByClipboard();
       });
   });
+
+  // Built only where the browser can actually speak. No dialog, no disabled
+  // button, no promise the page cannot keep — just the copy and share tools.
+  if (speechSupported()) {
+    const speak = createIconButton({className: 'chat-message-action', label: '읽어주기', iconPath: MESSAGE_ACTION_ICON_SPEAK, dataset: {messageAction: 'speak'}});
+    const speakIcon = speak.querySelector('path');
+    let speaking = false;
+    const setSpeakUi = active => {
+      speaking = active;
+      speak.setAttribute('aria-label', active ? '읽기 멈추기' : '읽어주기');
+      speak.title = active ? '읽기 멈추기' : '읽어주기';
+      speak.setAttribute('aria-pressed', String(active));
+      speakIcon?.setAttribute('d', active ? MESSAGE_ACTION_ICON_STOP : MESSAGE_ACTION_ICON_SPEAK);
+      if (active) speak.dataset.speaking = 'true'; else delete speak.dataset.speaking;
+    };
+    setSpeakUi(false);
+    speak.addEventListener('click', () => {
+      // The button is the stop control from the first click onward. Nobody has
+      // to sit through a long answer to get it back.
+      if (speaking) { globalThis.speechSynthesis.cancel(); setSpeakUi(false); report('읽기를 멈췄습니다.'); return; }
+      const chunks = splitForSpeech(value);
+      if (!chunks.length) { report('읽을 내용이 없습니다.', 'error'); return; }
+      // The API can be present on a device that has no installed voice at all —
+      // headless Linux is the obvious one, but it happens on stripped-down
+      // handsets too. Saying which thing is missing beats a bare failure.
+      let voices = [];
+      try { voices = globalThis.speechSynthesis.getVoices() || []; } catch { voices = []; }
+      if (!voices.length) { report('이 기기에 설치된 음성이 없어 읽어 드릴 수 없습니다.', 'error'); return; }
+      // Whatever else was being read stops first: two answers at once is noise.
+      globalThis.speechSynthesis.cancel();
+      setSpeakUi(true);
+      report('답변을 읽어 드립니다.');
+      chunks.forEach((chunk, index) => {
+        const utterance = new globalThis.SpeechSynthesisUtterance(chunk);
+        utterance.lang = 'ko-KR';
+        if (index === chunks.length - 1) utterance.onend = () => setSpeakUi(false);
+        utterance.onerror = () => { setSpeakUi(false); report('읽어 드리지 못했습니다.', 'error'); };
+        globalThis.speechSynthesis.speak(utterance);
+      });
+    });
+    actions.append(copy, share, speak, feedback);
+    return actions;
+  }
 
   actions.append(copy, share, feedback);
   return actions;
@@ -357,9 +444,39 @@ function userFacingErrorMessage(error) {
   if (error instanceof Error) return error.message;
   return 'LOTBI 대화를 완료하지 못했습니다.';
 }
+// SITE-VOICE-RECOGNITION-TIMEOUT-GUARD-01 — some browsers hand us a working
+// SpeechRecognition constructor that then never reports anything: start()
+// returns cleanly and no event ever arrives, not onstart, not onerror, not
+// onend. Measured here on a Chromium build with no speech backend, and the
+// same shape is what in-app WebViews show. The feature test above cannot see
+// it, so without a deadline the composer sits on "마이크 권한을 확인하고
+// 있습니다." forever. Both waits below are bounded, and every bounded path puts
+// the mic button back the way it was before the click.
+// SITE-VOICE-AUTOSEND-01 — speech that only lands in the textarea still needs a
+// second tap to send, which is most of the reason someone spoke instead of
+// typing. So send it — but not blind: the recogniser mishears often enough that
+// firing instantly would put the wrong question to LOTBI. A short window lets
+// the person stop it, and any move toward the textarea stops it too.
+const VOICE_AUTOSEND_DELAY_MS = 2500;
+const VOICE_AUTOSEND_PENDING_MESSAGE = '곧 보낼게요.';
+const VOICE_AUTOSEND_CANCELLED_MESSAGE = '보내지 않았습니다. 고친 뒤 전송을 눌러 주세요.';
+const VOICE_NOTHING_HEARD_MESSAGE = '잘 못 들었어요. 다시 말씀해 주시거나 입력해 주세요.';
+const VOICE_WAKE_ONLY_MESSAGE = '네, 듣고 있어요. 마이크를 다시 눌러 무엇을 도와드릴지 말씀해 주세요.';
+const VOICE_PERMISSION_TIMEOUT_MS = 10000;
+const VOICE_RECOGNITION_START_TIMEOUT_MS = 5000;
+const VOICE_ENGINE_SILENT_MESSAGE = '이 브라우저에서는 음성 인식이 동작하지 않네요. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
+const VOICE_PERMISSION_TIMEOUT_MESSAGE = '마이크 권한 확인이 끝나지 않았습니다. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
+
+// Carries a message already written for the person, so voiceErrorMessage can
+// hand it straight through instead of flattening it to the generic failure.
+class VoiceGuardError extends Error {
+  constructor(message) { super(message); this.name = 'VoiceGuardError'; }
+}
+
 function voiceErrorMessage(error) {
   const name = error && typeof error === 'object' && typeof error.name === 'string' ? error.name : '';
   const code = error && typeof error === 'object' && typeof error.error === 'string' ? error.error : '';
+  if (name === 'VoiceGuardError') return error.message;
   if (name === 'NotAllowedError' || name === 'SecurityError' || code === 'not-allowed' || code === 'service-not-allowed') return '마이크 권한이 필요합니다. 브라우저의 사이트 권한에서 마이크를 허용해 주세요.';
   if (name === 'NotFoundError' || code === 'audio-capture') return '사용 가능한 마이크를 찾지 못했습니다. 기기 마이크 연결을 확인해 주세요.';
   if (code === 'no-speech') return '음성이 들리지 않았습니다. 마이크 버튼을 눌러 다시 말씀해 주세요.';
@@ -484,6 +601,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const attachmentPreview = document.querySelector('[data-attachment-preview]');
   const attachmentInputs = [...document.querySelectorAll('[data-attachment-input]')];
   const micButton = document.querySelector('.mic-button');
+  const wakeButton = document.querySelector('[data-wake-toggle]');
   const responseGradeControl = document.querySelector('[data-response-grade-control]');
   const responseGradeTrigger = document.querySelector('[data-response-grade-trigger]');
   const responseGradeMenu = document.querySelector('[data-response-grade-menu]');
@@ -514,7 +632,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let state = {threads: [], activeThreadId: null, draft: ''};
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
-  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
+  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer;
   let lastRenderedCreatedAt;
   let timestampRefreshTimer;
   let themeBoundaryTimer;
@@ -2334,7 +2452,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     image.src = objectUrl;
   });
   const openProfile = () => {
-    const {backdrop, panel, content} = modalShell('프로필', '표시 이름·공개 아이디·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
+    // SITE-PROFILE-HANDLE-TO-ACCOUNT-01 — 계정 전역 식별자(핸들)를 이 화면에서
+    // 뺐습니다. 계정 페이지가 그 값의 주인이고, 여기서 고치면 두 곳이 같은 값을
+    // 두고 다투게 됩니다. 숨긴 것이 아니라 주인에게 돌려보낸 것이므로, 가는 길은
+    // 프로필 메뉴의 '설정'(계정 페이지 직행)으로 한 단계 위에 그대로 열려 있습니다.
+    const {backdrop, panel, content} = modalShell('프로필', '표시 이름·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
@@ -2343,11 +2465,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
     const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
-    const handleLabel = document.createElement('label'); handleLabel.className = 'site-field'; handleLabel.textContent = '공개 아이디';
-    const handle = document.createElement('input'); handle.type = 'text'; handle.minLength = 8; handle.maxLength = 64; handle.value = serverIdentity?.publicHandle || ''; handle.autocomplete = 'off'; handle.autocapitalize = 'none'; handle.spellcheck = false;
-    handle.addEventListener('input', () => { handle.value = handle.value.replace(/[^A-Za-z0-9]/g, ''); });
-    handleLabel.appendChild(handle);
-    const handleHelp = document.createElement('p'); handleHelp.className = 'site-field-help'; handleHelp.textContent = '영문·숫자 8~64자이며 각각 최소 1자를 포함해야 합니다. 이미 사용 중이면 다른 아이디를 선택해야 합니다.';
     const emailField = document.createElement('div'); emailField.className = 'site-readonly-field';
     const emailTitle = document.createElement('strong'); emailTitle.textContent = '이메일';
     const emailValue = document.createElement('span'); emailValue.textContent = serverIdentity?.email || '등록된 이메일 없음'; emailField.append(emailTitle, emailValue);
@@ -2367,29 +2484,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!sessionToken || save.disabled) return;
       error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
       try {
-        const normalizedHandle = handle.value.trim().toLowerCase();
-        const currentHandle = serverIdentity?.publicHandle || '';
-        const updated = await updateCurrentSiteProfile(sessionToken, {
-          displayName: name.value,
-          ...(normalizedHandle && normalizedHandle !== currentHandle ? {publicHandle: normalizedHandle} : {}),
-        });
+        // 표시 이름만 보냅니다. publicHandle 을 실어 보내지 않으므로 이 화면이
+        // 계정 쪽 핸들을 덮어쓸 길 자체가 없습니다.
+        const updated = await updateCurrentSiteProfile(sessionToken, {displayName: name.value});
         serverIdentity = Object.freeze({...serverIdentity, ...updated});
         name.value = serverIdentity.name || canonicalProfileName();
-        handle.value = serverIdentity.publicHandle || '';
         emailValue.textContent = serverIdentity.email || '등록된 이메일 없음';
         preview.textContent = initials(canonicalProfileName());
         refreshAuthenticatedProfileSlots();
         save.textContent = '저장됨';
       } catch (caught) {
-        if (caught?.code === 'PUBLIC_HANDLE_TAKEN') error.textContent = '이미 사용 중인 공개 아이디입니다. 다른 아이디를 입력해주세요.';
-        else if (caught?.code === 'PUBLIC_HANDLE_RESERVED') error.textContent = '사용할 수 없는 공개 아이디입니다. 다른 아이디를 입력해주세요.';
-        else error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
+        error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
         save.textContent = '프로필 저장';
       } finally {
         save.disabled = false;
       }
     });
-    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoLabel, error, nameLabel, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   // 개인테마 — the theme choice and nothing else. This surface only calls the
   // existing applyPreferences/savePreferences pair; the theme switching logic
@@ -2929,27 +3040,101 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const requestMicrophoneAccess = async () => {
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') throw new Error('음성 입력을 지원하지 않는 브라우저입니다.');
-    const stream = await navigator.mediaDevices.getUserMedia({audio: true}); for (const track of stream.getTracks()) track.stop();
+    const pending = navigator.mediaDevices.getUserMedia({audio: true});
+    let settled = false;
+    // A prompt that never resolves would strand the mic button disabled,
+    // because the finally below would never run. If the deadline wins the race
+    // the permission may still be granted later, so stop that late stream too —
+    // an open track leaves the tab's recording indicator lit.
+    pending.then(
+      late => { if (settled) for (const track of late.getTracks()) track.stop(); },
+      () => {},
+    );
+    let deadline;
+    try {
+      const stream = await Promise.race([
+        pending,
+        new Promise((_, reject) => { deadline = setTimeout(() => reject(new VoiceGuardError(VOICE_PERMISSION_TIMEOUT_MESSAGE)), VOICE_PERMISSION_TIMEOUT_MS); }),
+      ]);
+      for (const track of stream.getTracks()) track.stop();
+    } finally { settled = true; clearTimeout(deadline); }
+  };
+  const cancelVoiceAutoSend = () => {
+    if (voiceAutoSendTimer === undefined) return false;
+    clearTimeout(voiceAutoSendTimer); voiceAutoSendTimer = undefined; return true;
+  };
+  const beginVoiceAutoSend = () => {
+    cancelVoiceAutoSend();
+    setVoiceFeedback(VOICE_AUTOSEND_PENDING_MESSAGE);
+    // A real control, not just a hint. Someone who hears the banner read out
+    // has to be able to stop the send without racing to the textarea.
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.dataset.voiceAutoSendCancel = 'true'; cancel.textContent = '취소';
+    // Inherits the banner's own colour, so it follows light and dark without
+    // adding a rule to a stylesheet another change is already moving.
+    cancel.style.cssText = 'margin-inline-start:.4em;padding:0;border:0;background:none;font:inherit;color:inherit;text-decoration:underline;cursor:pointer';
+    cancel.addEventListener('click', () => {
+      cancelVoiceAutoSend(); setVoiceFeedback(VOICE_AUTOSEND_CANCELLED_MESSAGE); prompt.focus();
+    });
+    if (stateRegion instanceof HTMLElement) stateRegion.appendChild(cancel);
+    voiceAutoSendTimer = setTimeout(() => {
+      voiceAutoSendTimer = undefined;
+      // Nothing left to send: the text was cleared or a turn is already going.
+      if (inFlight || !prompt.value.trim()) { setVoiceFeedback(''); return; }
+      void submitCurrentPrompt();
+    }, VOICE_AUTOSEND_DELAY_MS);
+  };
+  const clearVoiceStartDeadline = () => {
+    if (voiceStartDeadline === undefined) return;
+    clearTimeout(voiceStartDeadline); voiceStartDeadline = undefined;
+  };
+  // The engine accepted start() and then reported nothing at all. Put the
+  // composer back exactly as it was before the click and say so in plain words.
+  // Never stand in a blank or invented transcript for speech we did not hear.
+  const abandonSilentVoiceEngine = recognition => {
+    voiceStartDeadline = undefined;
+    if (voiceRecognition !== recognition) return;
+    try { recognition.abort(); } catch { /* an engine that never started may refuse to stop */ }
+    voiceRecognition = undefined;
+    if (voiceAvatarRequestId) { driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; }
+    setListeningState(false);
+    voiceRequesting = false; delete micButton.dataset.requesting; updateSendState();
+    setVoiceFeedback(VOICE_ENGINE_SILENT_MESSAGE); prompt.focus();
   };
   const startVoiceInput = async () => {
+    cancelVoiceAutoSend();
     if (inFlight || voiceRequesting) return;
     if (voiceListening && voiceRecognition) { voiceRecognition.stop(); return; }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (typeof SpeechRecognition !== 'function') { setVoiceFeedback('음성 입력을 지원하지 않는 브라우저입니다. 텍스트로 입력해 주세요.'); prompt.focus(); return; }
+    // A recogniser left over from a silent engine is still holding the mic.
+    if (voiceRecognition) { const stale = voiceRecognition; voiceRecognition = undefined; clearVoiceStartDeadline(); try { stale.abort(); } catch { /* already gone */ } }
     voiceRequesting = true; micButton.disabled = true; micButton.dataset.requesting = 'true'; setVoiceFeedback('마이크 권한을 확인하고 있습니다.');
     try {
       await requestMicrophoneAccess(); const recognition = new SpeechRecognition(); voiceRecognition = recognition;
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
+      recognition.onstart = () => { clearVoiceStartDeadline(); voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
       recognition.onresult = event => {
-        const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || ''; if (!transcript) return;
+        const heard = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
+        // Nothing usable came back. Say so plainly; never send an empty turn and
+        // never stand in a guess for words we did not hear.
+        if (!heard) { setVoiceFeedback(VOICE_NOTHING_HEARD_MESSAGE); prompt.focus(); return; }
+        // "롯비야 내일 날씨" should ask about the weather, not about LOTBI's own
+        // name. Drops a leading wake call; text that does not open with one
+        // comes back untouched.
+        const transcript = stripWakePrefix(heard);
+        // A wake call with nothing after it is a call, not a question. Never
+        // send an empty turn, and never invent the part that was not said.
+        if (!transcript) { setVoiceFeedback(VOICE_WAKE_ONLY_MESSAGE); prompt.focus(); return; }
         const current = prompt.value.trimEnd(); prompt.value = current ? `${current} ${transcript}` : transcript;
-        prompt.dispatchEvent(new Event('input', {bubbles: true})); setVoiceFeedback('음성 입력이 텍스트로 변환되었습니다. 확인 후 전송해 주세요.'); prompt.focus();
+        prompt.dispatchEvent(new Event('input', {bubbles: true}));
+        beginVoiceAutoSend();
       };
-      recognition.onerror = event => setVoiceFeedback(voiceErrorMessage(event));
-      recognition.onend = () => { if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
+      recognition.onerror = event => { clearVoiceStartDeadline(); setVoiceFeedback(voiceErrorMessage(event)); };
+      recognition.onend = () => { clearVoiceStartDeadline(); if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
       recognition.start();
-    } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
+      voiceStartDeadline = setTimeout(() => abandonSilentVoiceEngine(recognition), VOICE_RECOGNITION_START_TIMEOUT_MS);
+    } catch (error) { clearVoiceStartDeadline(); voiceRecognition = undefined; setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
   const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
@@ -3250,6 +3435,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   });
 
   const submitCurrentPrompt = async () => {
+    cancelVoiceAutoSend();
     if (inFlight || attachmentUploadsInFlight) return;
     const message = prompt.value.trim();
     if (!message && !selectedAttachments.length) return;
@@ -3286,6 +3472,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   }
   prompt.addEventListener('input', () => { updateSendState(); if (stateReady) { state.draft = prompt.value.slice(0, 1000); saveState(); } });
   prompt.addEventListener('compositionend', updateSendState);
+  // Reaching for the textarea means they want to fix the transcript themselves.
+  // Bound to real interaction only — never to the synthetic 'input' event the
+  // transcript dispatches, which would cancel the send it just scheduled.
+  for (const interaction of ['beforeinput', 'keydown', 'pointerdown']) {
+    prompt.addEventListener(interaction, () => {
+      if (cancelVoiceAutoSend()) setVoiceFeedback(VOICE_AUTOSEND_CANCELLED_MESSAGE);
+    });
+  }
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });
   sendButton.addEventListener('click', () => void submitCurrentPrompt());
   attachmentTrigger.addEventListener('click', () => {
@@ -3339,6 +3533,71 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   });
   micButton.addEventListener('click', () => void startVoiceInput());
+
+  // SITE-VOICE-WAKE-LISTENER-01 — hands-free calling, within what a browser
+  // actually allows. The control stays hidden where the engine cannot do this
+  // at all: a toggle that can never work is worse than no toggle.
+  if (wakeButton instanceof HTMLButtonElement && wakeListeningSupported()) {
+    const setWakeUi = (listening, message = '') => {
+      wakeButton.setAttribute('aria-pressed', String(listening));
+      wakeButton.setAttribute('aria-label', listening ? '롯비야 듣기 끄기' : '롯비야 듣기 켜기');
+      wakeButton.title = listening ? '듣는 중 — 「롯비야」 하고 불러 주세요' : '롯비야 듣기 켜기';
+      if (listening) wakeButton.dataset.listening = 'true'; else delete wakeButton.dataset.listening;
+      if (message) setVoiceFeedback(message);
+    };
+    const wakeListener = createWakeListener({
+      onCommand: command => {
+        // Only the words after the call reach here, and only when there were
+        // some. Straight into the composer and through the same auto-send
+        // window as the mic button, so a mishearing is still catchable.
+        const current = prompt.value.trimEnd();
+        prompt.value = current ? `${current} ${command}` : command;
+        prompt.dispatchEvent(new Event('input', {bubbles: true}));
+        setWakeUi(false);
+        beginVoiceAutoSend();
+      },
+      onState: (state, detail) => {
+        if (state === 'listening') { setWakeUi(true, '「롯비야」 하고 불러 주세요.'); return; }
+        if (state === 'unavailable') {
+          setWakeUi(false);
+          writeWakePreference(storage, false);
+          setVoiceFeedback(detail === 'permission'
+            ? '마이크 권한이 없어 롯비야 듣기를 껐습니다. 브라우저의 사이트 권한에서 마이크를 허용해 주세요.'
+            : '이 브라우저에서는 롯비야 듣기가 동작하지 않네요. 마이크 버튼이나 입력창을 써 주세요.');
+          return;
+        }
+        // 'idle' while the preference is still on means the tab went to the
+        // background. Say so rather than leaving the button looking broken —
+        // no browser keeps a microphone open behind another screen.
+        setWakeUi(false, detail === 'hidden' ? '화면이 가려져 있는 동안에는 듣지 못합니다. 돌아오면 다시 듣습니다.' : '');
+      },
+    });
+    wakeButton.hidden = false;
+    wakeButton.disabled = false;
+    // The markup ships disabled and labelled "준비 중" so it never looks live
+    // before this runs. It is live now, so say what it does.
+    setWakeUi(false);
+    wakeButton.addEventListener('click', async () => {
+      if (wakeListener.isEnabled()) {
+        wakeListener.disable(); writeWakePreference(storage, false);
+        setVoiceFeedback('롯비야 듣기를 껐습니다.');
+        return;
+      }
+      wakeButton.disabled = true;
+      try {
+        // The permission prompt has to come out of this click, never on its own.
+        await requestMicrophoneAccess();
+        if (wakeListener.enable()) writeWakePreference(storage, true);
+      } catch (error) { setVoiceFeedback(voiceErrorMessage(error)); }
+      finally { wakeButton.disabled = false; }
+    });
+    // A preference set on an earlier visit is remembered, but it does not start
+    // a microphone on its own: this page has had no user action yet, and the
+    // browser would refuse the permission anyway. The button shows it is armed.
+    if (readWakePreference(storage)) {
+      wakeButton.title = '롯비야 듣기 켜기 — 눌러서 다시 시작';
+    }
+  }
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
