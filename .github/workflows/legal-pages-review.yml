@@ -8,6 +8,10 @@ on:
       - index.html
       - privacy.html
       - terms.html
+      - subscribe.html
+      - refund.html
+      - exchange.html
+      - dispute.html
       - scripts/sync_footer_business_info.py
       - scripts/validate_legal_pages.py
       - scripts/emit_social_signup_legal_manifest.py
