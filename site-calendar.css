@@ -674,6 +674,10 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 }
 
 .calendar-day-panel {
+  /* Named, because the sticky title-box strip has to repaint exactly this
+     colour as the entry list scrolls under it -- in both themes, and whether
+     the panel is anchored, a sheet, or in the page. */
+  --lotbi-calendar-panel-surface: #fafbfc;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -681,7 +685,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   padding: 14px;
   border: 1px solid #dbe1ea;
   border-radius: 14px;
-  background: #fafbfc;
+  background: var(--lotbi-calendar-panel-surface);
 }
 .calendar-day-panel[hidden],
 .calendar-day-body[hidden] { display: none !important; }
@@ -718,9 +722,23 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-day-event small { color: var(--lotbi-calendar-muted-ink); font-size: 11px; }
 .calendar-add-button { margin-top: auto; width: 100%; border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
 
-/* Two ways to add an entry, sharing the row the single button used to fill. */
-.calendar-add-actions { display: flex; gap: 8px; margin-top: auto; }
-.calendar-add-actions .calendar-add-button { margin-top: 0; flex: 1 1 0; min-width: 0; }
+/* The panel's only two controls. They pin to its floor so a day with a long
+   list never buries them: on eight entries the row used to be whatever sat
+   below the eighth inside the scroller, reachable only by scrolling to the end
+   -- on the one surface whose job is adding an entry. */
+.calendar-add-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+  background: var(--lotbi-calendar-panel-surface, #ffffff);
+}
+.calendar-add-actions .calendar-add-button { margin-top: 0; flex: 0 0 auto; width: auto; min-width: 0; }
+.calendar-add-actions .life-calendar-empty { flex: 0 1 auto; min-width: 0; overflow: hidden; margin-right: auto; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-add-actions .calendar-add-image-button { border-color: var(--brand-navy, #182a46); background: transparent; color: var(--brand-navy, #182a46); }
 /* What the picture path has to say, next to the buttons that started it —
    the .calendar-status strip is rewritten by the weather flow on its own
@@ -1043,8 +1061,17 @@ body[data-site-theme="dark"] .calendar-date-cell,
 body[data-site-theme="dark"] .calendar-day-event,
 body[data-site-theme="dark"] .calendar-day-toggle,
 body[data-site-theme="dark"] .calendar-day-close { border-color: #465162; background: #171c25; color: #edf0f5; }
-body[data-site-theme="dark"] .calendar-day-panel { border-color: #465162; background: #121720; color: #cbd2dc; }
+body[data-site-theme="dark"] .calendar-day-panel { --lotbi-calendar-panel-surface: #121720; border-color: #465162; color: #cbd2dc; }
 body[data-site-theme="dark"] .calendar-day-panel[data-presentation="SHEET"] { background: #121720; border-color: #465162; }
+/* 이미지로 등록 is an outline button carrying the brand navy as its ink. On the
+   dark panel that measured 1.25:1 -- not dim, unreadable -- and it stayed that
+   way through every earlier pass because nothing dark-themed it. */
+body[data-site-theme="dark"] .calendar-add-actions .calendar-add-image-button {
+  border-color: #6d7f9c;
+  color: #cdd8ea;
+}
+/* 3.72:1 before, under the 4.5:1 floor the rest of this file holds itself to. */
+body[data-site-theme="dark"] .life-calendar-empty { color: var(--lotbi-calendar-muted-ink); }
 body[data-site-theme="dark"] .calendar-day-sheet-backdrop { background: rgba(2, 6, 16, .58); }
 body[data-site-theme="dark"] .calendar-day-heading,
 body[data-site-theme="dark"] .calendar-day-event strong { color: #edf0f5; }
@@ -1115,17 +1142,54 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
 
   .calendar-date-cell { min-height: 0; gap: 1px; }
 
-  .calendar-day-panel {
-    position: fixed;
-    z-index: 80;
+  .calendar-day-panel[data-presentation="POPOVER"] {
     width: min(400px, calc(100vw - 32px));
     max-height: min(560px, calc(100dvh - 24px));
-    overflow: hidden;
-    box-shadow: 0 18px 54px rgba(15, 23, 42, .22);
   }
-
-  .calendar-day-body { overflow-y: auto; }
 }
+
+/* The anchored panel, at every width. It used to be a desktop-only shape, with
+   touch getting a sheet welded to the bottom of the screen; the panel that
+   answers a tap now sits beside the date that was tapped everywhere, so it
+   reads as that date's and the month stays where the eye left it. Its box and
+   its ceiling are written by positionDayPopover, which is the only thing that
+   can measure the cell, the Calendar's frame and the software keyboard. */
+.calendar-day-panel[data-presentation="POPOVER"] {
+  position: fixed;
+  z-index: 80;
+  /* Not overflow:hidden -- the pointer below sits outside this box and would be
+     clipped by it. The body does the scrolling, so nothing else needs to spill. */
+  box-shadow: 0 18px 54px rgba(15, 23, 42, .22);
+}
+.calendar-day-panel[data-presentation="POPOVER"] .calendar-day-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* The pointer is what makes it read as belonging to the tapped date rather
+   than floating over the month. It tracks the cell even when the box has been
+   clamped sideways, which is why its offset is a variable and not a corner. */
+.calendar-day-panel[data-presentation="POPOVER"][data-arrow]::before {
+  content: '';
+  position: absolute;
+  left: var(--calendar-day-arrow-left, 24px);
+  width: 12px;
+  height: 12px;
+  border: 1px solid #dbe1ea;
+  background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+  /* Decoration only. A pseudo-element hit-tests as its own element, so without
+     this the pointer lands on the panel instead of whatever it was aimed at --
+     measured as the title box refusing a tap on a 360px screen. */
+  pointer-events: none;
+}
+.calendar-day-panel[data-presentation="POPOVER"][data-arrow="up"]::before {
+  top: -7px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.calendar-day-panel[data-presentation="POPOVER"][data-arrow="down"]::before {
+  bottom: -7px;
+  border-top: 0;
+  border-left: 0;
+}
+body[data-site-theme="dark"] .calendar-day-panel[data-presentation="POPOVER"][data-arrow]::before { border-color: #465162; }
 
 @media (max-width: 900px) {
   .calendar-editor-backdrop { align-items: flex-end; padding: 0; }
@@ -1239,7 +1303,8 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     border: 1px solid #dbe1ea;
     border-bottom: 0;
     border-radius: 16px 16px 0 0;
-    background: var(--lotbi-calendar-sheet-surface, #ffffff);
+    --lotbi-calendar-panel-surface: var(--lotbi-calendar-sheet-surface, #ffffff);
+    background: var(--lotbi-calendar-panel-surface);
     box-shadow: 0 -12px 40px rgba(15, 23, 42, .22);
     /* svh/dvh ladder keeps Safari from clipping the sheet behind its chrome.
        42dvh, not 82: past this the month underneath stops being readable, and a
@@ -1257,74 +1322,72 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-panel-head {
+  /* The anchored panel gets the same compact box as the sheet did: on a phone
+     it is a couple of date rows' worth of chrome either way. Its position is
+     JS's, its size is here. */
+  .calendar-day-panel[data-presentation="POPOVER"] {
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    --lotbi-calendar-panel-surface: var(--lotbi-calendar-sheet-surface, #ffffff);
+    background: var(--lotbi-calendar-panel-surface);
+  }
+  .calendar-day-panel[data-presentation="POPOVER"] .calendar-day-body {
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Everything below is sizing, and both touch presentations want it. FLOW is
+     the in-page fallback and keeps the roomier original. */
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-panel-head {
     align-items: center;
     gap: 6px;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-heading {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-heading {
     overflow: hidden;
     font-size: 13px;
     line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-panel-actions { gap: 4px; }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-toggle,
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-close {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-panel-actions { gap: 4px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-toggle,
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-close {
     min-height: 28px;
     padding: 4px 8px;
     border-radius: 8px;
     font-size: 11px;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .life-calendar-empty {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .life-calendar-empty {
     padding: 2px 0;
     font-size: 12px;
     line-height: 1.25;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-holiday {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-holiday {
     padding: 4px 8px;
     font-size: 11px;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-add-message {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-message {
     margin: 0;
-    padding: 6px 8px;
+    padding: 4px 0;
     font-size: 11px;
     line-height: 1.35;
   }
-  /* Pinned to the sheet's floor. On a day with a full list these two used to
-     sit below eight events inside the scroller, so the only way to reach them
-     was to scroll the list to its end -- on the one surface whose whole job is
-     adding an entry. */
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-add-actions {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    gap: 6px;
-    padding-top: 5px;
-    background: var(--lotbi-calendar-sheet-surface, #ffffff);
-  }
-  /* The two ways in stay side by side and stay pressable: 32px is still above
-     the 24px pointer-target floor, and they no longer stack into a slab. */
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-add-button {
-    min-height: 32px;
-    padding: 6px 8px;
+  /* Still above the 24px pointer-target floor. */
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-actions { gap: 6px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-button {
+    min-height: 30px;
+    padding: 5px 9px;
     border-radius: 9px;
-    font-size: 12px;
+    font-size: 11px;
   }
-  /* Empty day, one line: "등록된 일정이 없어요." and the two small buttons
-     share a row rather than stacking into a block. wrap, so the narrowest
-     phones fall back to two lines instead of squeezing the sentence. */
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body[data-empty="true"] {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 8px;
-  }
-  /* The sentence yields the width, the buttons keep theirs. The other way round
-     -- buttons on flex: 1 1 0 next to a sentence that refuses to shrink --
-     squeezed both boxes narrower than their own labels, and "이미지로 등록"
-     spilled across "직접 등록". Measured on the deployed page at 390px. */
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body[data-empty="true"] .life-calendar-empty {
+  /* Empty day: "등록된 일정이 없어요." shares the secondary row rather than
+     taking a line of its own. The sentence yields the width and the buttons
+     keep theirs -- the other way round (buttons on flex: 1 1 0 beside a
+     sentence that refuses to shrink) squeezed both boxes narrower than their
+     own labels and "이미지로 등록" spilled across the next button. Measured on
+     the deployed page at 390px. */
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-actions .life-calendar-empty {
     flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
@@ -1332,31 +1395,24 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body[data-empty="true"] .calendar-add-actions {
-    position: static;
-    flex: 0 0 auto;
-    margin-top: 0;
-    margin-left: auto;
-    padding-top: 0;
-  }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body[data-empty="true"] .calendar-add-button {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-actions .calendar-add-button {
     /* width:100% comes from the stacked-panel rule and, with flex-basis auto,
-       it is what made both boxes resolve to the same 140px and outgrow their
+       it is what made both boxes resolve to the same width and outgrow their
        labels. On this row each button is exactly as wide as its own words. */
     flex: 0 0 auto;
     width: auto;
   }
 
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-list { gap: 5px; }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-event {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-list { gap: 5px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-event {
     min-height: 40px;
     grid-template-columns: 50px minmax(0, 1fr);
     gap: 7px;
     padding: 6px 7px;
   }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-event time { font-size: 11px; }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-event strong { font-size: 13px; }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-event small { font-size: 10px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-event time { font-size: 11px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-event strong { font-size: 13px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-event small { font-size: 10px; }
 
   /* When the software keyboard is up, ride the visual viewport so the add button
      and controls stay reachable. Mirrors the event editor's handling. */
@@ -1379,8 +1435,8 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     from { opacity: 0; }
     to { opacity: 1; }
   }
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-event { min-height: 54px; }
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-event strong { font-size: 15px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event { min-height: 54px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event strong { font-size: 15px; }
 
   .calendar-year-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -1414,17 +1470,18 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-attention-marker { max-width: 34px; font-size: 0; }
   .calendar-attention-marker::before { content: '확인'; font-size: 9px; }
 
-  .calendar-day-panel:not([data-presentation="SHEET"]) { padding: 13px; }
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-panel-head { align-items: flex-start; }
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-heading { font-size: 15px; }
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-toggle,
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-close { min-height: 36px; padding-inline: 8px; }
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-event { min-height: 56px; grid-template-columns: 62px minmax(0, 1fr); }
-  .calendar-day-panel:not([data-presentation="SHEET"]) .calendar-day-event strong { font-size: 15px; }
-  /* The narrowest phones give the sheet even less to spend. */
-  .calendar-day-panel[data-presentation="SHEET"] { padding-inline: 10px; }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-heading { font-size: 12px; }
-  .calendar-day-panel[data-presentation="SHEET"] .calendar-add-button { font-size: 11px; padding-inline: 4px; }
+  .calendar-day-panel[data-presentation="FLOW"] { padding: 13px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-panel-head { align-items: flex-start; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-heading { font-size: 15px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-toggle,
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-close { min-height: 36px; padding-inline: 8px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event { min-height: 56px; grid-template-columns: 62px minmax(0, 1fr); }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event strong { font-size: 15px; }
+  /* The narrowest phones -- a folded Fold is 344px -- give the panel even less
+     to spend. Both buttons stay above the pointer-target floor. */
+  .calendar-day-panel:not([data-presentation="FLOW"]) { padding-inline: 9px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-heading { font-size: 12px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-button { font-size: 11px; padding-inline: 6px; }
 
   .calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .calendar-year-month { min-height: 74px; padding: 10px; }
@@ -1546,9 +1603,14 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   body[data-site-theme="system"] .calendar-day-close,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-close { border-color: #465162; background: #171c25; color: #edf0f5; }
   body[data-site-theme="system"] .calendar-day-panel,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-panel { border-color: #465162; background: #121720; color: #cbd2dc; }
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-panel { --lotbi-calendar-panel-surface: #121720; border-color: #465162; color: #cbd2dc; }
   body[data-site-theme="system"] .calendar-day-panel[data-presentation="SHEET"],
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-panel[data-presentation="SHEET"] { background: #121720; border-color: #465162; }
+  body[data-site-theme="system"] .calendar-add-actions .calendar-add-image-button,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-add-actions .calendar-add-image-button { border-color: #6d7f9c;
+  color: #cdd8ea; }
+  body[data-site-theme="system"] .life-calendar-empty,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .life-calendar-empty { color: var(--lotbi-calendar-muted-ink); }
   body[data-site-theme="system"] .calendar-day-sheet-backdrop,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-sheet-backdrop { background: rgba(2, 6, 16, .58); }
   body[data-site-theme="system"] .calendar-day-heading,
@@ -1643,6 +1705,8 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-delete-confirm-actions button { border-color: #515b69; background: #121720; color: #edf0f5; }
   body[data-site-theme="system"] .calendar-delete-confirm-submit,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-delete-confirm-submit { border-color: #d36b6b !important; color: #f2a1a1 !important; }
+  body[data-site-theme="system"] .calendar-day-panel[data-presentation="POPOVER"][data-arrow]::before,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-panel[data-presentation="POPOVER"][data-arrow]::before { border-color: #465162; }
   body[data-site-theme="system"] .calendar-deep-open-notice,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-deep-open-notice { border-color: #46515f;
   background: #222936;
