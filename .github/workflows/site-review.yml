@@ -79,6 +79,12 @@ jobs:
       - name: Validate theme-aware brand logo
         run: node scripts/validate_brand_logo_theme_aware_01.mjs
 
+      # The dark wordmark's letter counters must stay open. The theme wiring
+      # above only decides which artwork is shown; this decides whether that
+      # artwork still reads as L-O-T-B-I once it is on #151922.
+      - name: Validate dark wordmark counters
+        run: node scripts/validate_dark_wordmark_counters_01.mjs
+
       # The recent-conversation list is read in Dark too, selected row included.
       - name: Validate dark conversation list contrast
         run: node scripts/validate_dark_conversation_list_contrast_01.mjs

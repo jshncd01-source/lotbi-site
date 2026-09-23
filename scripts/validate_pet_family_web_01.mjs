@@ -686,3 +686,40 @@ assert.ok(
 );
 
 console.log('SITE-PET-FAMILY-WEB-01 gate: switch OFF, fail-open, registration always allowed');
+
+// ------------------------------------------------- 번호 체계 (롯비 vs 국가)
+// 번호가 두 가지인데 화면에서 섞이면 사용자는 국가 등록을 마쳤다고 오해하고,
+// 그 상태로 동물병원이나 지자체에 가면 통하지 않습니다.
+assert.ok(
+  petClient.includes("export const LOTBI_PET_NUMBER_LABEL = '롯비 반려동물 번호';"),
+  'our own number must be named as ours',
+);
+assert.ok(
+  petClient.includes("export const OFFICIAL_REGISTRATION_LABEL = '국가 동물등록번호';"),
+  'the national number must be named as the national one',
+);
+assert.ok(
+  petUi.includes('${OFFICIAL_REGISTRATION_LABEL} (선택)'),
+  'the national registration field must be marked optional',
+);
+assert.ok(
+  /롯비가 발급하지 않습니다/.test(petUi),
+  'the form must say LOTBI does not issue the national number',
+);
+assert.ok(
+  /국가 동물등록번호를 대신하지 않습니다/.test(petUi),
+  'the LOTBI number must say it does not replace the national one',
+);
+
+const numbers = await import(`${pathToFileURL(path.join(ROOT, 'site-pet.js')).href}`);
+assert.strictEqual(
+  numbers.lotbiPetNumber('PET_KR_0123456789ABCDEF0123'),
+  'PET-KR 0123 4567 89AB CDEF 0123',
+  'the LOTBI number must be grouped so a person can read it aloud',
+);
+// 형식이 다르면 원문을 그대로 둡니다. 없는 번호를 지어내지 않습니다.
+assert.strictEqual(numbers.lotbiPetNumber('nonsense'), 'nonsense');
+assert.strictEqual(numbers.lotbiPetNumber(''), '');
+assert.strictEqual(numbers.lotbiPetNumber(undefined), '');
+
+console.log('SITE-PET-FAMILY-WEB-01 numbers: LOTBI number named and readable, national number optional');
