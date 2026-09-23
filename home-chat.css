@@ -159,7 +159,10 @@
 .mobile-drawer-close {
   border: 0;
   background: transparent;
-  color: var(--brand-navy);
+  /* SITE-DARK-BRAND-SURFACES-01 — this drew the hamburger and the drawer's
+     close control in raw --brand-navy. On #151922 that is 1.22:1: 대표님
+     could not see what to press to get out of the drawer. */
+  color: var(--lotbi-brand-ink, #182a46);
 }
 
 .mobile-menu-button {
@@ -214,14 +217,17 @@
 }
 
 .account-signup {
-  border: 1px solid var(--brand-navy);
-  background: var(--brand-navy);
-  color: #fff;
+  /* SITE-DARK-BRAND-SURFACES-01 — a navy pill on a navy-black page was
+     1.22:1, so 회원가입 dissolved into the background. In Dark the solid
+     control inverts instead of darkening. */
+  border: 1px solid var(--lotbi-brand-solid-bg, #182a46);
+  background: var(--lotbi-brand-solid-bg, #182a46);
+  color: var(--lotbi-brand-solid-text, #fff);
 }
 
 .account-signup:hover,
 .account-signup:focus-visible {
-  background: #243b61;
+  background: var(--lotbi-brand-solid-bg-hover, #243b61);
 }
 
 .chat-hero {
@@ -401,7 +407,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: var(--brand-navy);
+    /* SITE-DARK-BRAND-SURFACES-01 — PR #228 painted the drawer surface dark
+       from both theme paths, but this header kept raw --brand-navy and stayed
+       at 1.22:1 on it. The surface was fixed; the text on it was not. */
+    color: var(--lotbi-brand-ink, #182a46);
   }
 
   .mobile-drawer-header strong {

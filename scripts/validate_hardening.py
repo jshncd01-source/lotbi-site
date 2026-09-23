@@ -29,6 +29,13 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # form and that new screens should take a semantic token instead. Verified
 # comment-only by stripping /* */ from both revisions and comparing; no
 # declaration changed.
+# SITE-DARK-BRAND-SURFACES-01 — styles.css's hash moved for exactly one rule,
+# .skip-link, and exactly two declarations inside it: background and color now
+# read semantic tokens with the old raw values kept as fallbacks, so the
+# always-light pages that never load site-theme-tokens.css are unchanged. The
+# keyboard skip target was #182a46 on #151922, 1.22:1 — present but unseeable.
+# Verified with `git diff --unified=0` and again by stripping /* */ from both
+# revisions: no other declaration in the file moved.
 LOCKED_SHA256 = {
     'privacy.html': '4c9276d5dd0c3f3d3ce6e8c9c3ec2b5907292f9d7416170af76f9f4516c3eaad',
     'terms.html': 'ed2b6852a836ab50a3f97ddd970501a763091c946f2c70b8bfb0b5f2c50a9abc',
@@ -36,7 +43,7 @@ LOCKED_SHA256 = {
     'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': '5acc2ecda77a43ea16bb634a53c9633aae4d88435c2b2dd829eae220b3b53390',
+    'styles.css': 'e52fe30dbf6f3a55f24d69f692bf32a1ec57f9f20311eebf7b2e86464ce06b3c',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
