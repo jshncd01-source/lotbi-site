@@ -9,7 +9,7 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-kmaglyph1';
-import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260920-messageux1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-msgactions1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -141,24 +141,6 @@ const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 
 const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
 const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 
-function createMessageActionButton(action, label, iconPath) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'chat-message-action';
-  button.dataset.messageAction = action;
-  button.setAttribute('aria-label', label);
-  button.title = label;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', iconPath);
-  svg.appendChild(path);
-  button.appendChild(svg);
-  return button;
-}
-
 async function writeMessageTextToClipboard(text) {
   if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
     await navigator.clipboard.writeText(text);
@@ -214,7 +196,7 @@ function createMessageActions(text, announce) {
     }
   };
 
-  const copy = createMessageActionButton('copy', '복사하기', MESSAGE_ACTION_ICON_COPY);
+  const copy = createIconButton({className: 'chat-message-action', label: '복사하기', iconPath: MESSAGE_ACTION_ICON_COPY, dataset: {messageAction: 'copy'}});
   copy.addEventListener('click', async () => {
     try {
       await writeMessageTextToClipboard(value);
@@ -224,7 +206,7 @@ function createMessageActions(text, announce) {
     }
   });
 
-  const share = createMessageActionButton('share', '공유하기', MESSAGE_ACTION_ICON_SHARE);
+  const share = createIconButton({className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: {messageAction: 'share'}});
   share.addEventListener('click', () => {
     // navigator.share has to run inside the click itself — an await before it
     // spends the user gesture and the OS refuses to open the sheet.

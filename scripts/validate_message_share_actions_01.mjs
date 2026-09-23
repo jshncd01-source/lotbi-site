@@ -15,6 +15,7 @@ const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const index = read('index.html');
 const conversation = read('site-conversation.js');
+const messageBody = read('site-message-body.js');
 const css = read('site-conversation.css');
 
 // The row is built by the approved conversation module, not by a new page script.
@@ -34,13 +35,28 @@ assert.match(conversation, /const value = typeof text === 'string' \? text\.trim
 
 // Both controls are real buttons with a Korean accessible name and an icon —
 // drawn, not an emoji glyph, so they stay legible in Dark and forced-colors.
-assert.match(conversation, /createMessageActionButton\('copy', '복사하기', MESSAGE_ACTION_ICON_COPY\)/);
-assert.match(conversation, /createMessageActionButton\('share', '공유하기', MESSAGE_ACTION_ICON_SHARE\)/);
-assert.match(conversation, /button\.type = 'button'/);
-assert.match(conversation, /button\.setAttribute\('aria-label', label\)/);
-assert.match(conversation, /button\.title = label/);
-assert.match(conversation, /createElementNS\('http:\/\/www\.w3\.org\/2000\/svg', 'svg'\)/);
-assert.match(conversation, /svg\.setAttribute\('aria-hidden', 'true'\)/);
+assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '복사하기', iconPath: MESSAGE_ACTION_ICON_COPY, dataset: \{messageAction: 'copy'\}\}\)/);
+assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: \{messageAction: 'share'\}\}\)/);
+assert.match(conversation, /import \{createIconButton, createSafeMessageBody, enhanceExpandableUserMessage\} from '\.\/site-message-body\.js\?v=([^']+)';/);
+// The icon builder lives with the other message-node builders. The conversation
+// runtime must stay free of any http:// literal — validate_rich_product_cards_01
+// enforces that, and an SVG namespace URL there would silently weaken it.
+assert.ok(!conversation.includes('http://'), 'conversation runtime must carry no http:// literal');
+assert.match(messageBody, /export function createIconButton\(\{className, label, iconPath, dataset = \{\}\}\)/);
+assert.match(messageBody, /button\.type = 'button'/);
+assert.match(messageBody, /button\.setAttribute\('aria-label', label\)/);
+assert.match(messageBody, /button\.title = label/);
+assert.match(messageBody, /createElementNS\(SVG_NS, 'svg'\)/);
+assert.match(messageBody, /svg\.setAttribute\('aria-hidden', 'true'\)/);
+// Node by node, never a parsed markup string.
+assert.ok(!messageBody.includes('innerHTML'), 'message node builders must never inject HTML');
+
+// The import query and the page's module query move together, or a cached
+// site-message-body.js hands the new runtime a missing createIconButton.
+const bodyImportVersion = conversation.match(/site-message-body\.js\?v=([^']+)'/)?.[1] || '';
+const pageConversationVersion = index.match(/src="site-conversation\.js\?v=([^"]+)"/)?.[1] || '';
+assert.ok(bodyImportVersion, 'the message-body import must stay cache-busted');
+assert.equal(bodyImportVersion, pageConversationVersion, 'message-body and conversation cache-bust tokens must match');
 
 // Copy prefers the async clipboard and still works where it is missing.
 assert.match(conversation, /navigator\.clipboard\.writeText\(text\)/);

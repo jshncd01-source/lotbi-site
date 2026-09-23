@@ -20,6 +20,28 @@ function appendInlineCode(container, value) {
   if (cursor < text.length) container.appendChild(document.createTextNode(text.slice(cursor)));
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Icon-only control for a message's action row. Built node by node, like every
+// other message node here, so no markup string is ever parsed.
+export function createIconButton({className, label, iconPath, dataset = {}}) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  for (const [key, value] of Object.entries(dataset)) button.dataset[key] = value;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', iconPath);
+  svg.appendChild(path);
+  button.appendChild(svg);
+  return button;
+}
+
 export function createSafeMessageBody(value) {
   const text = String(value ?? '');
   const body = document.createElement('div');
