@@ -1,19 +1,19 @@
-// Screenshots the Calendar month view with the expense totals bar, inside the
-// real modal markup and stylesheets, at desktop and mobile sizes.
+// Screenshots the Calendar month view with the 기상청 attribution line, inside
+// the real modal markup and stylesheets, at desktop and mobile sizes.
 //
-// Not a gate — a look. It exists so the totals line can be judged as a picture
-// before it ships, and so "is it visible without scrolling" is answered by a
-// measurement rather than an opinion. It prints the bar's geometry alongside
-// each capture.
+// Not a gate — a look. 공공누리 제1유형 obliges the credit to be there; the
+// product obliges it not to outgrow the forecast it credits. Only a picture
+// settles the second one, so this prints the credit's geometry next to the
+// forecast icon's alongside each capture.
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const INNER_REL = 'scripts/.calendar-shot-inner.html';
+const INNER_REL = 'scripts/.calendar-weather-shot-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
-const PORT = 4199;
+const PORT = 4204;
 const ORIGIN = 'http://127.0.0.1:' + PORT;
 const OUT = process.env.SHOT_DIR || path.join(ROOT, '.calendar-shots');
 
@@ -26,27 +26,24 @@ function browserPath() {
   throw new Error('Chrome/Chromium is required');
 }
 
-// The example the 대표 sent: a NOL hotel booking, plus a few everyday entries,
-// so the bar is judged with realistic numbers rather than round ones.
-const SUMMARY = {
-  currencies: [{
-    currency: 'KRW',
-    categories: [
-      {expense_category: 'FOOD', amount_minor: 32000, entry_count: 2},
-      {expense_category: 'TRAVEL', amount_minor: 208320, entry_count: 1},
-      {expense_category: 'LIVING', amount_minor: 12500, entry_count: 1},
-    ],
-    total_amount_minor: 252820,
-    entry_count: 4,
-  }],
-  entries_without_amount: 1,
-};
+// The forecast Production actually returned for 전주 on this date: five days of
+// 단기예보. Round numbers would hide how the line behaves with real values.
+const ISSUED = '2026-09-22T23:00:00Z';
+const WEATHER = [
+  ['2026-09-22', 'CLEAR', '☀️'],
+  ['2026-09-23', 'CLOUDY', '☁️'],
+  ['2026-09-24', 'CLOUDY', '☁️'],
+  ['2026-09-25', 'RAIN', '🌧️'],
+  ['2026-09-26', 'RAIN', '🌧️'],
+].map(([date, weather_kind, weather_icon]) => ({
+  date, weather_kind, weather_icon, source: 'KMA_SHORT', issued_at: ISSUED,
+  temperature_c: null, min_temperature_c: null, max_temperature_c: null,
+  precipitation_probability: null, freshness: 'CACHE_VALID',
+}));
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- The same stylesheets index.html loads, in the same order: the modal's width
-     and the month grid's containment come from several of them, and leaving any
-     out produces a layout the product never shows. -->
+<!-- The same stylesheets index.html loads, in the same order. -->
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
 <link rel="stylesheet" href="/site-hardening.css">
@@ -55,11 +52,11 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <link rel="stylesheet" href="/site-auth-continuity.css">
 <link rel="stylesheet" href="/site-calendar.css">
 <link rel="stylesheet" href="/site-calendar-expense.css">
+<link rel="stylesheet" href="/site-calendar-weather.css">
 <link rel="stylesheet" href="/footer-business-info.css">
 <link rel="stylesheet" href="/mobile-entry.css">
 <link rel="stylesheet" href="/home-bare-white.css">
 <link rel="stylesheet" href="/site-theme-tokens.css">
-<!-- site-conversation.js injects this at runtime; the modal chrome lives here. -->
 <link rel="stylesheet" href="/site-conversation.css">
 </head><body class="chat-home-page" data-site-auth-state="authenticated" style="margin:0">
 <div class="site-modal-backdrop">
@@ -73,12 +70,14 @@ const fixture = `<!doctype html><html lang="ko"><head>
 const out=document.getElementById('shot-result');
 const wait=async(fn,label)=>{for(let i=0;i<300;i+=1){if(fn())return true;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
 const json=body=>Promise.resolve(new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}}));
-const SUMMARY=${JSON.stringify(SUMMARY)};
+const WEATHER=${JSON.stringify(WEATHER)};
 const stub=url=>{
   const p=new URL(String(url),location.origin);
+  if(p.pathname==='/v2/life/weather'||p.pathname==='/v2/life/weather/public')
+    return json({provider_ready:true,items:WEATHER,ai_calls:0});
   if(p.pathname==='/v2/life/expense-summary')return json({view:'EXPENSE_SUMMARY',as_of:'2026-09-22T00:00:00+00:00',
     timezone:'Asia/Seoul',start_date:p.searchParams.get('start'),end_date:p.searchParams.get('end'),
-    coverage:'RECORDED_CALENDAR_ENTRIES_ONLY',ai_calls:0,provider_api_calls:0,...SUMMARY});
+    coverage:'RECORDED_CALENDAR_ENTRIES_ONLY',currencies:[],entries_without_amount:0,ai_calls:0,provider_api_calls:0});
   if(p.pathname==='/v2/life/agenda')return json({view:'AGENDA',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',
     coverage:'PERSONAL_ACTIVITY_ONLY',items:[],ai_calls:0,provider_api_calls:0});
   if(p.pathname==='/v2/life/attention')return json({view:'ATTENTION',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',
@@ -94,26 +93,41 @@ try{
   const root=document.querySelector('.site-modal-content');
   manager.mountLifeCalendarManager({root,sessionToken:'tok_shot_fixture',timezone:'Asia/Seoul',
     now:()=>new Date('2026-09-22T03:00:00+09:00'),fetchImpl:stub,
+    weatherLocation:{latitude:35.8345,longitude:127.1057},
     settingsStorage:{getItem:()=>JSON.stringify({showKoreaHolidays:false}),setItem(){}}});
-  await wait(()=>root.querySelector('.calendar-expense-summary')?.dataset.calendarExpenseSummary==='ready','ready bar');
+  await wait(()=>root.querySelector('[data-calendar-weather-credit]'),'credit line');
   await new Promise(r=>setTimeout(r,120));
-  const bar=root.querySelector('.calendar-expense-summary');
-  const box=bar.getBoundingClientRect();
-  const line=bar.querySelector('.calendar-expense-line').getBoundingClientRect();
+  const credit=root.querySelector('[data-calendar-weather-credit]');
+  const box=credit.getBoundingClientRect();
+  const icon=root.querySelector('.calendar-weather-icon');
+  const iconBox=icon.getBoundingClientRect();
+  const cell=root.querySelector('.calendar-date-cell').getBoundingClientRect();
   out.textContent=JSON.stringify({ok:true,
     viewport:{width:innerWidth,height:innerHeight},
-    barTop:Math.round(box.top),barBottom:Math.round(box.bottom),barHeight:Math.round(box.height),
-    lineHeight:Math.round(line.height),
-    itemHeight:Math.round(bar.querySelector('.calendar-expense-item').getBoundingClientRect().height),
-    itemsWrapped:(()=>{const f=bar.querySelector('.calendar-expense-item').getBoundingClientRect();
-      return [...bar.querySelectorAll('.calendar-expense-item')].some(n=>Math.abs(n.getBoundingClientRect().top-f.top)>2)})(),
+    text:credit.textContent,
+    creditTop:Math.round(box.top),creditBottom:Math.round(box.bottom),creditHeight:Math.round(box.height),
+    creditFontSize:getComputedStyle(credit).fontSize,
+    creditColor:getComputedStyle(credit).color,
+    iconCount:root.querySelectorAll('.calendar-weather-icon').length,
+    iconFontSize:getComputedStyle(icon).fontSize,
+    iconHeight:Math.round(iconBox.height),
+    cellHeight:Math.round(cell.height),
     monthBottom:Math.round(document.querySelector('.calendar-month-layout').getBoundingClientRect().bottom),
+    belowMonthGrid:box.top>=document.querySelector('.calendar-month-grid').getBoundingClientRect().top,
     clippedByModal:(()=>{const c=document.querySelector('.site-modal-content').getBoundingClientRect();
-      return bar.getBoundingClientRect().bottom>c.bottom+1})(),
+      return box.bottom>c.bottom+1})(),
     visibleWithoutScrolling:box.bottom<=innerHeight&&box.top>=0,
-    total:bar.querySelector('.calendar-expense-total-amount')?.textContent||'',
-    items:[...bar.querySelectorAll('.calendar-expense-item')].map(n=>n.querySelector('dt').textContent+' '+n.querySelector('dd').textContent),
-    note:bar.querySelector('.calendar-expense-coverage')?.textContent||''});
+    horizontalOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,
+    sheetRect:(()=>{const n=document.querySelector('.calendar-day-panel');if(!n)return null;const r=n.getBoundingClientRect();
+      return {top:Math.round(r.top),bottom:Math.round(r.bottom),position:getComputedStyle(n).position}})(),
+    occludedBySheet:(()=>{const n=document.querySelector('.calendar-day-panel');if(!n)return false;
+      const r=n.getBoundingClientRect();return getComputedStyle(n).position==='fixed'&&r.top<box.bottom&&r.bottom>box.top})(),
+    expenseRect:(()=>{const n=document.querySelector('.calendar-expense-summary');if(!n)return null;const r=n.getBoundingClientRect();
+      return {top:Math.round(r.top),bottom:Math.round(r.bottom)}})(),
+    viewportRect:(()=>{const r=document.querySelector('.calendar-viewport').getBoundingClientRect();return {top:Math.round(r.top),bottom:Math.round(r.bottom)}})(),
+    shellRect:(()=>{const r=document.querySelector('.calendar-product-shell').getBoundingClientRect();return {top:Math.round(r.top),bottom:Math.round(r.bottom)}})(),
+    topmostAtCredit:(()=>{const el=document.elementFromPoint(Math.min(box.right-4,innerWidth-4),Math.round((box.top+box.bottom)/2));
+      return el?(el.className&&el.className.toString?el.className.toString():el.tagName):'none'})()});
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
 
@@ -130,11 +144,11 @@ const browser = browserPath();
 fs.mkdirSync(OUT, {recursive: true});
 fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
-const DEBUG_PORT = 9341;
+const DEBUG_PORT = 9342;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Device metrics over --window-size: headless Chrome clamps the window to a
-// minimum width, which silently turned a 390px capture into 500px.
+// minimum width, which silently turns a 390px capture into 500px.
 const chrome = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
   `--remote-debugging-port=${DEBUG_PORT}`, '--force-prefers-reduced-motion=reduce', '--hide-scrollbars',
   'about:blank'], {stdio: 'ignore'});
@@ -158,7 +172,7 @@ try {
   await send('Page.enable');
   await send('Runtime.enable');
 
-  for (const [label, width, height, mobile] of [['desktop-1440x900', 1440, 900, false], ['mobile-390x844', 390, 844, true]]) {
+  for (const [label, width, height, mobile] of [['desktop-1440x900', 1440, 900, false], ['mobile-390x844', 390, 844, true], ['mobile-360x780', 360, 780, true]]) {
     await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
     await send('Page.navigate', {url: ORIGIN + '/' + INNER_REL});
     await sleep(5000);
@@ -168,7 +182,7 @@ try {
     });
     console.log(label, probe.result.value);
     const shot = await send('Page.captureScreenshot', {format: 'png'});
-    const file = path.join(OUT, `calendar-expense-${label}.png`);
+    const file = path.join(OUT, `calendar-weather-credit-${label}.png`);
     fs.writeFileSync(file, Buffer.from(shot.data, 'base64'));
     console.log('  ->', file);
   }

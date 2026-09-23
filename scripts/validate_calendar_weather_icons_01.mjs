@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-holiday1');
 const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-holiday1');
-const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260922-weather1');
+const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260923-kmacredit1');
 const {addCivilDays} = await import('../site-calendar-model.js');
 const {
   BrowserLocationError,

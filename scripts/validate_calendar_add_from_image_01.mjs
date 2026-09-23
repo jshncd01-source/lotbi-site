@@ -38,7 +38,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-register1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-kmacredit1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 </head><body style="margin:0">
 <div id="calendar-root"></div>
@@ -116,7 +116,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-register1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-kmacredit1');
   const result={ok:true};
 
   // --- the happy path --------------------------------------------------
