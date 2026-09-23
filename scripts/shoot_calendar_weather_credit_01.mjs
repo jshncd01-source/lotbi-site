@@ -32,9 +32,9 @@ const ISSUED = '2026-09-22T23:00:00Z';
 const WEATHER = [
   ['2026-09-22', 'CLEAR', '☀️'],
   ['2026-09-23', 'CLOUDY', '☁️'],
-  ['2026-09-24', 'CLOUDY', '☁️'],
-  ['2026-09-25', 'RAIN', '🌧️'],
-  ['2026-09-26', 'RAIN', '🌧️'],
+  ['2026-09-24', 'RAIN', '🌧️'],
+  ['2026-09-25', 'SNOW', '❄️'],
+  ['2026-09-26', 'CLOUDY', '☁️'],
 ].map(([date, weather_kind, weather_icon]) => ({
   date, weather_kind, weather_icon, source: 'KMA_SHORT', issued_at: ISSUED,
   temperature_c: null, min_temperature_c: null, max_temperature_c: null,
@@ -89,7 +89,7 @@ try{
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{
     getCurrentPosition:(_o,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{}}});
-  const manager=await import('/site-calendar-manager.js?v=20260923-outsidemonth1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-kmaglyph1');
   const root=document.querySelector('.site-modal-content');
   manager.mountLifeCalendarManager({root,sessionToken:'tok_shot_fixture',timezone:'Asia/Seoul',
     now:()=>new Date('2026-09-22T03:00:00+09:00'),fetchImpl:stub,
@@ -173,7 +173,9 @@ try {
   await send('Runtime.enable');
 
   for (const [label, width, height, mobile] of [['desktop-1440x900', 1440, 900, false], ['mobile-390x844', 390, 844, true], ['mobile-360x780', 360, 780, true]]) {
-    await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
+    // SHOT_SCALE 로 확대 캡처. 14px 글리프는 1배 캡처에서 눈으로 판정할 수
+    // 없어서, 모양을 볼 때만 올려 찍습니다.
+    await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: Number(process.env.SHOT_SCALE) || 1, mobile});
     await send('Page.navigate', {url: ORIGIN + '/' + INNER_REL});
     await sleep(5000);
     const probe = await send('Runtime.evaluate', {

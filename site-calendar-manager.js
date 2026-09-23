@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-outsidemonth1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-kmaglyph1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,15 +11,15 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-outsidemonth1';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-kmaglyph1';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
 import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherAttribution, calendarWeatherByDate} from './site-calendar-weather.js?v=20260923-outsidemonth1';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-outsidemonth1';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-outsidemonth1';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-kmaglyph1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-kmaglyph1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-kmaglyph1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -806,13 +806,17 @@ function renderMonth(state, actions, weatherCredit = null) {
     count.setAttribute('aria-hidden', 'true');
     header.append(date, count);
     if (weather) {
-      const weatherIcon = document.createElement('span');
-      weatherIcon.className = 'calendar-weather-icon';
-      weatherIcon.dataset.weatherKind = weather.weatherKind;
-      weatherIcon.textContent = weather.weatherIcon;
-      weatherIcon.title = weather.label;
-      weatherIcon.setAttribute('aria-hidden', 'true');
-      header.appendChild(weatherIcon);
+      // 이모지 대신 인라인 SVG. 같은 이모지가 OS 마다 다른 모양·다른 색으로
+      // 나오는 것이 흐리게 보이던 근본 원인이었다. 글리프 자체는
+      // site-calendar-weather.js 가 그린다 — Core 가 보내는 weather_icon
+      // 이모지는 전송 계약으로 계속 검증된다.
+      const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
+      if (weatherIcon) {
+        const weatherTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        weatherTitle.textContent = weather.label;
+        weatherIcon.appendChild(weatherTitle);
+        header.appendChild(weatherIcon);
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');
