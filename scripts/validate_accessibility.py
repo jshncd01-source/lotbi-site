@@ -19,6 +19,10 @@ PAGES = (
     "account-deletion.html",
     "contact.html",
     "404.html",
+    "subscribe.html",
+    "refund.html",
+    "exchange.html",
+    "dispute.html",
 )
 
 
