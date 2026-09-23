@@ -58,7 +58,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260923-msgactions2';
+  link.href = '/site-conversation.css?v=20260923-stickytopbar1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
