@@ -4,12 +4,12 @@ import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifi
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260921-guestclaim1';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260923-freshentry1';
 import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-sysdark2';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-sysdark2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-profilemenu1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-profilemenu2';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -1998,6 +1998,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     };
     sortThreads();
     state.activeThreadId = resolveRestoredActiveThreadId(restoredActiveThreadId, state.threads);
+    // SITE-HOME-FRESH-ENTRY-01 — 대표: "자동 로그인으로 들어가면 첫화면이 기존에
+    // 대화창으로 뜨는데 새창으로 뜨도록 해"
+    //
+    // The obvious discriminator — "did we come back through the auth handoff?"
+    // — does not work, and that was measured rather than assumed. site-
+    // continuity.js holds the site session in a module variable, so every load
+    // of / while signed in finds no live session, runs beginSiteHandoff(), and
+    // returns through /auth/callback/. A mid-conversation refresh takes that
+    // same road, so the handoff separates nothing. The tab does: sessionStorage
+    // survives a reload and the redirect out to Account and back, but not a
+    // newly opened tab — which is what "들어가면" means.
+    //
+    // Narrow on purpose, as 총괄방 asked. The anonymous namespace keeps the
+    // behaviour it had, so nothing ⑱ GUEST-ACCESS owns changes shape, and an
+    // entry carrying text to send is the reader continuing, not arriving.
+    // Selection only: the threads themselves are never touched either way.
+    const freshTabEntry = !markConversationTabEntry({namespace})
+      && normalized !== anonymousConversationNamespace()
+      && !(autoSend && typeof initialText === 'string' && initialText.trim());
+    if (freshTabEntry) state.activeThreadId = null;
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
       theme: ['system', 'light', 'dark'].includes(loadedPreferences.theme) ? loadedPreferences.theme : 'system',

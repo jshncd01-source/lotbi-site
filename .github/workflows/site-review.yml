@@ -164,6 +164,11 @@ jobs:
       - name: Validate blank Home refresh persistence
         run: node scripts/validate_home_refresh_persistence_01.mjs
 
+      # Entering the site starts a new conversation; reloading the same tab
+      # still restores the one that was open.
+      - name: Validate fresh entry versus same-tab refresh
+        run: node scripts/validate_home_fresh_entry_01.mjs
+
       - name: Validate Sidebar desktop/mobile viewport rendering
         run: node scripts/validate_sidebar_viewports_04.mjs
 
