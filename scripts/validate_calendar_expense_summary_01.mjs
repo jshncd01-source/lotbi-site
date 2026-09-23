@@ -35,7 +35,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-guesttotals1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-legible1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast2">
 </head><body style="margin:0">
@@ -118,7 +118,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-guesttotals1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-legible1');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -233,7 +233,7 @@ try{
   }
   // The editor's dropdown and the bar must call every category the same thing.
   {
-    const expense=await import('/site-calendar-expense.js?v=20260923-guesttotals1');
+    const expense=await import('/site-calendar-expense.js?v=20260923-legible1');
     const barLabels=[...ready.querySelectorAll('.calendar-expense-item dt')].map(n=>n.textContent);
     const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
     result.labelParity={
@@ -276,10 +276,60 @@ try{
     category:n.dataset.expenseCategory,label:n.querySelector('dt')?.textContent||'',amount:n.querySelector('dd')?.textContent||''}));
   result.guestTotal=guest.querySelector('.calendar-expense-total-amount')?.textContent||'';
   result.guestNote=guest.querySelector('.calendar-expense-coverage')?.textContent||'';
+  // Legibility: the exclusion line must not be the faint grey it was.
+  {
+    const note=guest.querySelector('.calendar-expense-coverage');
+    const amount=guest.querySelector('.calendar-expense-item dd');
+    const rgb=value=>(String(value).match(/[0-9]+/g)||[]).slice(0,3).map(Number);
+    const lum=c=>{const [r,g,b]=c.map(v=>{const x=v/255;return x<=0.03928?x/12.92:((x+0.055)/1.055)**2.4});
+      return 0.2126*r+0.7152*g+0.0722*b};
+    const contrast=(a,b)=>{const l1=lum(a),l2=lum(b);return (Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05)};
+    // The strip's own background can be transparent; the contrast that matters
+    // is against whatever actually paints behind the text.
+    const paintedBg=node=>{for(let n=node;n;n=n.parentElement){
+      const c=getComputedStyle(n).backgroundColor;const parts=(String(c).match(/[0-9.]+/g)||[]).map(Number);
+      if(parts.length>=3&&(parts.length<4||parts[3]>0))return parts.slice(0,3)}
+      return [255,255,255]};
+    const bg=paintedBg(note);
+    result.noteColor=getComputedStyle(note).color;
+    result.noteBg=bg;
+    result.noteRgb=rgb(result.noteColor);
+    const safe=v=>Number.isFinite(v)?Number(v.toFixed(2)):null;
+    result.noteContrast=safe(contrast(rgb(result.noteColor),bg));
+    result.amountContrast=safe(contrast(rgb(getComputedStyle(amount).color),bg));
+  }
   result.guestTotalOutsideScroller=(()=>{const items=guest.querySelector('.calendar-expense-items');
     const total=guest.querySelector('[data-expense-total]');return Boolean(items&&total&&!items.contains(total))})();
   result.guestOneLine=(()=>{const f=guest.querySelector('.calendar-expense-item').getBoundingClientRect();
     return ![...guest.querySelectorAll('.calendar-expense-item')].some(n=>Math.abs(n.getBoundingClientRect().top-f.top)>2)})();
+
+  // --- an entry with no amount must not look like a saved 0 --------------
+  // 대표 read a blank 여행 entry as "0원 저장됨" because the box carried a grey
+  // placeholder 0. The bar counts that entry as excluded, not as zero spent,
+  // so the two must not look alike.
+  root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),
+    guestRepository:makeGuestRepo([{local_date:'2026-09-14',
+      entry:{amount_minor:null,currency:'KRW',expense_category:'TRAVEL'}}])});
+  await wait(()=>root.querySelector('[data-calendar-date="2026-09-14"]'),'day cell');
+  root.querySelector('[data-calendar-date="2026-09-14"]').click();
+  await new Promise(r=>setTimeout(r,300));
+  await wait(()=>root.querySelector('[data-calendar-event-id]'),'event button');
+  root.querySelector('[data-calendar-event-id]').click();
+  await wait(()=>document.querySelector('.calendar-editor-amount'),'editor');
+  const editor=document.querySelector('.calendar-editor-dialog');
+  const amountBox=document.querySelector('.calendar-editor-amount');
+  result.blankAmountValue=amountBox?amountBox.value:null;
+  result.blankAmountPlaceholder=amountBox?amountBox.placeholder:null;
+  result.blankAmountCategory=editor.querySelector('.calendar-editor-category')?.value||null;
+  document.querySelector('.calendar-editor-backdrop')?.remove();
+
+  // --- two currencies: the KRW total must not print a bare W -------------
+  root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),
+    guestRepository:makeGuestRepo([
+      {local_date:'2026-09-05',entry:{amount_minor:50000,currency:'KRW',expense_category:'FOOD'}},
+      {local_date:'2026-09-06',entry:{amount_minor:1200,currency:'USD',expense_category:'SHOPPING'}}])});
+  await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','two-currency strip');
+  result.currencyTotalLabels=[...strip(root).querySelectorAll('.calendar-expense-total-label')].map(n=>n.textContent);
 
   // --- guest, empty month: the empty state, never a login prompt ---------
   root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),guestRepository:makeGuestRepo([])});
@@ -462,6 +512,31 @@ try {
     // An empty month reads as an empty month, not as a login wall.
     if (!value.guestEmptyNote.includes('이번 달 기록 없음')) throw new Error(`${label}: a signed-out empty month must read "이번 달 기록 없음", got "${value.guestEmptyNote}"`);
     if (value.guestEmptyRows.some(amount => amount !== '0원')) throw new Error(`${label}: a signed-out empty month must show six 0원, got ${value.guestEmptyRows.join(',')}`);
+
+    // [E] An entry with no amount must not wear a 0 that looks saved.
+    if (value.blankAmountValue !== '') throw new Error(`${label}: an entry with no amount must open with an empty box, got "${value.blankAmountValue}"`);
+    if (/^\s*0\s*$/.test(value.blankAmountPlaceholder || '')) {
+      throw new Error(`${label}: the amount box must not show a placeholder 0 — "금액 없음" and "0원" are different things in the totals bar`);
+    }
+    // The category saved with it is untouched, which is what ruled out a
+    // per-category bug: 여행 was never lost, only its amount was never set.
+    if (value.blankAmountCategory !== 'TRAVEL') throw new Error(`${label}: the saved category must survive, got ${value.blankAmountCategory}`);
+
+    // [D] A KRW total must not print a bare uppercase W.
+    if (value.currencyTotalLabels.some(text => /\bKRW\b/.test(text))) {
+      throw new Error(`${label}: the KRW total must use ₩, not the letters KRW, got ${JSON.stringify(value.currencyTotalLabels)}`);
+    }
+    if (!value.currencyTotalLabels.some(text => text.includes('₩'))) {
+      throw new Error(`${label}: a multi-currency month must mark the KRW total with ₩, got ${JSON.stringify(value.currencyTotalLabels)}`);
+    }
+    // …and a non-KRW row must keep its own code rather than borrowing ₩.
+    if (!value.currencyTotalLabels.some(text => text.includes('USD'))) {
+      throw new Error(`${label}: a USD total must stay USD, got ${JSON.stringify(value.currencyTotalLabels)}`);
+    }
+
+    // [C] The exclusion line is the one line saying the total is not everything.
+    // It must be readable, not decoration.
+    if (!(value.noteContrast >= 7)) throw new Error(`${label}: "금액 없는 일정 …" must be legible (WCAG AAA 7:1), got ${value.noteContrast}:1 — text ${JSON.stringify(value.noteRgb)} on ${JSON.stringify(value.noteBg)}`);
 
     // The Calendar went down over this bar once. It must not again — and the
     // bar itself must land somewhere defined rather than spinning forever, which
