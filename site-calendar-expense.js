@@ -126,7 +126,7 @@ function orderedCurrencies(currencies) {
   return rows;
 }
 
-function currencyLine(currencyTotals, {showCurrencyName, note = ''}) {
+function currencyLine(currencyTotals, {note = ''} = {}) {
   const line = document.createElement('div');
   line.className = 'calendar-expense-line';
   line.dataset.currency = currencyTotals.currency;
@@ -166,12 +166,13 @@ function currencyLine(currencyTotals, {showCurrencyName, note = ''}) {
   total.dataset.expenseTotal = '';
   const totalLabel = document.createElement('span');
   totalLabel.className = 'calendar-expense-total-label';
-  // Only a multi-currency month names the currency here, and "총 KRW" put a
-  // bare uppercase W on screen. KRW gets its own sign; every other currency
-  // keeps its code, because ₩ on a USD row would be a lie.
-  totalLabel.textContent = showCurrencyName
-    ? `총 ${currencyTotals.currency === 'KRW' ? '₩' : currencyTotals.currency}`
-    : '총';
+  // "총" on its own said nothing about money, and a single-currency month —
+  // which is nearly every month — was the one place the bar never showed a
+  // currency mark at all. It is "합계" with the mark, always, single currency
+  // included. KRW gets its own sign; every other currency keeps its code,
+  // because ₩ on a USD row would be a lie and "합계 KRW" would put a bare
+  // uppercase W on screen.
+  totalLabel.textContent = `합계 ${currencyTotals.currency === 'KRW' ? '₩' : currencyTotals.currency}`;
   const totalAmount = document.createElement('strong');
   totalAmount.className = 'calendar-expense-total-amount';
   totalAmount.textContent = formatExpenseAmount(
@@ -248,7 +249,6 @@ export function calendarExpenseSummaryNode({
   // A month with nothing recorded keeps the same bar at 0원 rather than
   // collapsing, so the row never moves and never reads as a failed load.
   const lines = recorded ? currencies : [EMPTY_KRW];
-  const showCurrencyName = lines.length > 1;
   const withoutAmount = Number.isInteger(summary?.entriesWithoutAmount)
     ? summary.entriesWithoutAmount
     : 0;
@@ -267,7 +267,6 @@ export function calendarExpenseSummaryNode({
   if (local) notes.push('이 브라우저에만 저장돼요 · 로그인하면 다른 기기에서도');
   lines.forEach((currencyTotals, index) => {
     section.appendChild(currencyLine(currencyTotals, {
-      showCurrencyName,
       note: index === 0 ? notes.join(' · ') : '',
     }));
   });
