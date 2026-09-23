@@ -29,6 +29,7 @@ REQUIRED_HTML = (
     "terms.html",
     "account-deletion.html",
     "contact.html",
+    "feedback.html",
 )
 BRAND_SURFACES = REQUIRED_HTML + (
     "404.html",
@@ -41,6 +42,8 @@ REQUIRED_FILES = REQUIRED_HTML + (
     "about.css",
     "mobile-entry.css",
     "mobile-entry.js",
+    "feedback.css",
+    "feedback.js",
     "robots.txt",
     "sitemap.xml",
     "assets/lotbi-main-logo.png",
@@ -54,6 +57,7 @@ EXPECTED_CANONICALS = {
     "terms.html": f"{SITE_ORIGIN}/terms.html",
     "account-deletion.html": f"{SITE_ORIGIN}/account-deletion.html",
     "contact.html": f"{SITE_ORIGIN}/contact.html",
+    "feedback.html": f"{SITE_ORIGIN}/feedback.html",
 }
 
 

@@ -1,0 +1,221 @@
+/* Feedback intake form.
+   This page loads styles.css only, like the other always-light legal surfaces, so
+   it deliberately takes no semantic theme token and no Dark form. */
+
+.feedback-form {
+  max-width: 720px;
+  margin: 32px 0 0;
+}
+
+.feedback-fieldset {
+  margin: 0 0 28px;
+  padding: 0;
+  border: 0;
+}
+
+.feedback-legend {
+  padding: 0;
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.feedback-categories {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.feedback-category {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.feedback-category:hover {
+  border-color: #c9ced8;
+}
+
+/* The radio stays a real focusable input; :has lifts the ring onto the card so the
+   whole target reads as selected. Browsers without :has still show the native ring. */
+.feedback-category:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.feedback-category:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.feedback-category input {
+  margin: 4px 0 0;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.feedback-category-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feedback-category-name {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.feedback-category-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.feedback-field {
+  margin-bottom: 24px;
+}
+
+.feedback-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.feedback-optional {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* 16px keeps iOS Safari from zooming the viewport when the field takes focus. */
+.feedback-form textarea,
+.feedback-form input[type="email"] {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.feedback-form textarea {
+  resize: vertical;
+  min-height: 180px;
+}
+
+.feedback-form textarea:focus-visible,
+.feedback-form input[type="email"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.feedback-form textarea[aria-invalid="true"],
+.feedback-form input[aria-invalid="true"] {
+  border-color: #b42318;
+}
+
+.feedback-help {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.feedback-privacy {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--soft);
+  color: #343942;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.feedback-status {
+  margin: 16px 0 0;
+  min-height: 1.6em;
+  font-size: 14px;
+  font-weight: 700;
+  color: #b42318;
+}
+
+.feedback-status[data-tone="pending"] {
+  color: var(--muted);
+}
+
+.feedback-submit,
+.feedback-again {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.feedback-submit {
+  margin-top: 16px;
+  padding: 14px 28px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.feedback-submit[disabled] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.feedback-again {
+  padding: 10px 20px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.feedback-done {
+  max-width: 720px;
+  margin: 32px 0 0;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+}
+
+.feedback-done h2 {
+  margin-top: 0;
+}
+
+.feedback-receipt code {
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--soft);
+  font-size: 14px;
+}
+
+.feedback-next {
+  color: #343942;
+}
+
+.feedback-done-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .feedback-categories {
+    grid-template-columns: 1fr;
+  }
+}
