@@ -40,6 +40,27 @@ export function petSexLabel(sex) {
 
 // The official registration number is sensitive. Detail views show it masked
 // until the owner explicitly reveals it, and list views never receive it.
+// 번호가 두 가지이고, 섞이면 사용자가 손해를 봅니다.
+//
+//   pet_id                        — 롯비가 발급하는 번호. 우리 시스템 안에서만 뜻이 있습니다.
+//   official_registration_number  — 국가 동물등록번호. 동물보호법에 따라 국가 시스템이
+//                                   발급하며 우리는 발급할 수 없습니다.
+//
+// 화면에 "식별 번호"라고만 쓰면 사용자는 국가 등록번호를 받은 것으로 오해하고,
+// 그 상태로 동물병원이나 지자체에 가면 통하지 않습니다.
+export const LOTBI_PET_NUMBER_LABEL = '롯비 반려동물 번호';
+export const OFFICIAL_REGISTRATION_LABEL = '국가 동물등록번호';
+
+// 읽고 말할 수 있어야 합니다. PET_KR_0123456789ABCDEF0123 을
+// "PET-KR 0123 4567 89AB CDEF 0123" 으로 끊어 줍니다.
+export function lotbiPetNumber(petId) {
+  const raw = String(petId || '');
+  const match = /^PET_KR_([0-9A-F]{20})$/.exec(raw);
+  if (!match) return raw;
+  const groups = match[1].match(/.{1,4}/g) || [];
+  return `PET-KR ${groups.join(' ')}`;
+}
+
 export function maskOfficialRegistrationNumber(value) {
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return '';

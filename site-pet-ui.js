@@ -20,6 +20,9 @@ import {
   listFoundPets,
   listPetSOS,
   listPets,
+  LOTBI_PET_NUMBER_LABEL,
+  OFFICIAL_REGISTRATION_LABEL,
+  lotbiPetNumber,
   maskOfficialRegistrationNumber,
   petPhotoRejection,
   petSexLabel,
@@ -29,7 +32,7 @@ import {
   setPetMatchingConsent,
   uploadFoundPetPhoto,
   uploadPetPhoto,
-} from './site-pet.js?v=20260923-petgate1';
+} from './site-pet.js?v=20260923-petnum1';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
@@ -516,9 +519,20 @@ export async function mountPetFamilyManager({
           : maskOfficialRegistrationNumber(pet.officialRegistrationNumber);
         reveal.textContent = revealed ? '가리기' : '보기';
       });
-      registration.append(el('span', 'pet-registration-term', '동물등록번호'), value, reveal);
+      registration.append(el('span', 'pet-registration-term', OFFICIAL_REGISTRATION_LABEL), value, reveal);
       detailSection.appendChild(registration);
     }
+
+    // 롯비 번호를 국가 등록번호보다 먼저, 그리고 분명히 다른 것으로 보여 줍니다.
+    // 이 번호는 우리가 발급한 것이고, 국가 동물등록번호를 대신하지 않습니다.
+    const lotbiNumber = el('div', 'pet-number-block');
+    lotbiNumber.dataset.petLotbiNumber = '';
+    lotbiNumber.append(
+      el('span', 'pet-number-term', LOTBI_PET_NUMBER_LABEL),
+      el('code', 'pet-number-value', lotbiPetNumber(pet.petId)),
+      el('p', 'pet-number-note', '롯비가 발급한 번호입니다. 국가 동물등록번호를 대신하지 않습니다.'),
+    );
+    detailSection.appendChild(lotbiNumber);
 
     const photos = el('section', 'pet-photo-section');
     photos.dataset.petPhotos = pet.petId;
@@ -1093,16 +1107,18 @@ export async function mountPetFamilyManager({
     marksInput.maxLength = 2000;
     marksField.appendChild(marksInput);
 
-    const registrationField = el('label', 'site-field', '동물등록번호');
+    const registrationField = el('label', 'site-field', `${OFFICIAL_REGISTRATION_LABEL} (선택)`);
     const registrationInput = el('input');
     registrationInput.type = 'text';
     registrationInput.maxLength = 120;
     registrationInput.autocomplete = 'off';
+    registrationInput.placeholder = '없으면 비워 두세요';
     registrationField.appendChild(registrationInput);
     const registrationHint = el(
       'p',
       'pet-field-hint',
-      '민감정보입니다. 목록에는 표시하지 않고 상세에서만 가려서 보여줍니다. 나중에 입력해도 됩니다.',
+      '동물보호법에 따라 국가 시스템에서 발급하는 번호입니다. 롯비가 발급하지 않습니다. '
+      + '없으면 비워 두셔도 등록됩니다. 민감정보라 목록에는 표시하지 않고 상세에서만 가려서 보여줍니다.',
     );
 
     const formError = el('p', 'site-field-error');

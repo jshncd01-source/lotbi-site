@@ -759,3 +759,45 @@ body[data-site-theme="dark"] .pet-nav-lock {
   background: #333c4b;
   color: #c4cbd8;
 }
+
+/* 번호가 두 가지입니다. 롯비 번호와 국가 동물등록번호가 한눈에 다른 것으로
+   보여야 합니다 — 섞이면 사용자가 국가 등록을 마쳤다고 오해합니다. */
+.pet-number-block {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #dfe4ec;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+
+.pet-number-term {
+  color: #5b6478;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pet-number-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.pet-number-note {
+  margin: 0;
+  color: #6b7488;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+body[data-site-theme="dark"] .pet-number-block {
+  border-color: #3b4554;
+  background: #262f3c;
+}
+
+body[data-site-theme="dark"] .pet-number-note,
+body[data-site-theme="dark"] .pet-number-term {
+  color: #b7c0cf;
+}
