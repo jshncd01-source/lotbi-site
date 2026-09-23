@@ -23,6 +23,24 @@ export const PET_PHOTO_SLOT_CODES = Object.freeze([
   'DISTINCTIVE',
 ]);
 
+// Core judges the species; these two groupings exist only so the screen can
+// name the photo to take next. They mirror ANCHOR_SLOT_CODES and
+// CLOSEUP_SLOT_CODES in Core's app/pet_species_gate.py: the nose prints and
+// the distinguishing mark are deliberate extreme close-ups, which an image
+// classifier cannot read a species off, and everything else frames the whole
+// animal. Derived from the one list above rather than retyped, so the slot
+// order stays the single contract it already was.
+const PET_PHOTO_CLOSEUP_SLOT_PREFIX = 'NOSE_';
+const PET_PHOTO_DISTINCTIVE_SLOT = 'DISTINCTIVE';
+export const PET_PHOTO_CLOSEUP_SLOT_CODES = Object.freeze(
+  PET_PHOTO_SLOT_CODES.filter(
+    code => code.startsWith(PET_PHOTO_CLOSEUP_SLOT_PREFIX) || code === PET_PHOTO_DISTINCTIVE_SLOT,
+  ),
+);
+export const PET_PHOTO_ANCHOR_SLOT_CODES = Object.freeze(
+  PET_PHOTO_SLOT_CODES.filter(code => !PET_PHOTO_CLOSEUP_SLOT_CODES.includes(code)),
+);
+
 export const PET_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 export const PET_PHOTO_MIME_TYPES = Object.freeze(['image/jpeg', 'image/png']);
 
@@ -143,6 +161,16 @@ const PET_ERROR_MESSAGES = Object.freeze({
   PET_PHOTO_CONTENT_INVALID: '사진 파일을 읽지 못했습니다. 다른 사진으로 시도해 주세요.',
   PET_PHOTO_CONTENT_MISMATCH: '사진 파일을 읽지 못했습니다. 다른 사진으로 시도해 주세요.',
 
+  // 개·고양이만 등록. Core refuses the photo outright rather than asking the
+  // owner to confirm what it is, so every sentence here has to end in
+  // something the owner can do next.
+  PET_PHOTO_NOT_DOG_OR_CAT: '강아지와 고양이만 등록할 수 있어요. 반려동물이 화면에 꽉 차게 다시 찍어 주세요.',
+  PET_PHOTO_SPECIES_UNCERTAIN: '강아지인지 고양이인지 또렷하게 보이지 않았어요. 밝은 곳에서 다른 각도로 다시 찍어 주세요.',
+  PET_PHOTO_TOO_BLURRY: '사진이 흐려요. 초점을 맞추고 다시 찍어 주세요.',
+  PET_PHOTO_TOO_SMALL: '사진이 너무 작아요. 줄이지 말고 원본 크기로 올려 주세요.',
+  PET_PHOTO_ANCHOR_REQUIRED: '코·특징 사진은 얼굴이나 몸 전체 사진을 먼저 올린 뒤에 등록할 수 있어요.',
+  PET_PHOTO_SPECIES_CHECK_UNAVAILABLE: '사진 확인 기능이 잠시 멈췄어요. 잠시 후 다시 시도해 주세요.',
+
   // Location, for the two report forms.
   PET_LOCATION_REQUIRED: '장소를 입력해 주세요.',
   PET_LOCATION_FIELD_INVALID: '장소를 확인해 주세요.',
@@ -167,7 +195,7 @@ function petErrorMessage(code, status, fallback) {
 function errorFromResponse(response, payload, fallback) {
   const detail = payload && typeof payload.detail === 'object' ? payload.detail : {};
   const code = typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`;
-  return new SiteCoreError(
+  const error = new SiteCoreError(
     petErrorMessage(code, response.status, fallback),
     {
       code,
@@ -175,6 +203,12 @@ function errorFromResponse(response, payload, fallback) {
       retryable: detail.retryable === true,
     },
   );
+  // A refusal the owner cannot act on is a dead end. Core names the next step
+  // and the screen turns it into the button, so it must not be dropped here.
+  if (typeof detail.next_action === 'string' && detail.next_action) {
+    error.nextAction = detail.next_action;
+  }
+  return error;
 }
 
 // Declaring the session invalid tears down the whole site, so only 401 counts:
@@ -387,6 +421,102 @@ export function petPhotoRejection(file) {
   if (!PET_PHOTO_MIME_TYPES.includes(file.type)) return 'JPG 또는 PNG 사진만 올릴 수 있습니다.';
   if (file.size > PET_PHOTO_MAX_BYTES) return '사진 용량은 10MB까지 올릴 수 있습니다.';
   return '';
+}
+
+// What the owner can be told to do about a refusal, in the words of a button.
+export function petPhotoNextActionLabel(nextAction) {
+  if (nextAction === 'UPLOAD_FACE_OR_BODY_FIRST') return '얼굴 사진부터 올리기';
+  if (nextAction === 'RETRY_LATER') return '다시 시도하기';
+  return '다시 찍기';
+}
+
+// Below this Core cannot judge the photo at all: normalising would have to
+// enlarge it, and a frame that small is no use to a nose print either.
+export const PET_PHOTO_MIN_EDGE = 256;
+
+// The screen's own quick look, and only that. Core takes the decision that
+// counts — it has the classifier, and the browser can be skipped entirely.
+// This exists so a frame that is obviously unusable fails in the viewfinder
+// instead of after a round trip.
+//
+// It is deliberately slacker than Core: the blur floor here is 60 against
+// Core's 100, because a browser resamples differently than Core does and an
+// over-eager local check would refuse photos Core would have taken. A photo
+// this lets through may still be refused; a photo this refuses would have been
+// refused anyway.
+const LOCAL_SHARPNESS_FLOOR = 60;
+
+function petPhotoCanvas(size) {
+  if (typeof globalThis.OffscreenCanvas === 'function') return new globalThis.OffscreenCanvas(size, size);
+  const document = globalThis.document;
+  if (!document || typeof document.createElement !== 'function') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  return canvas;
+}
+
+// Short side to 256, centre crop 224 — the same framing Core measures on, so
+// the two numbers mean the same thing.
+async function petPhotoQuickLook(file) {
+  if (typeof globalThis.createImageBitmap !== 'function') return null;
+  let bitmap;
+  try {
+    bitmap = await globalThis.createImageBitmap(file);
+  } catch {
+    return null;
+  }
+  try {
+    const shortEdge = Math.min(bitmap.width, bitmap.height);
+    if (!shortEdge) return null;
+    if (shortEdge < PET_PHOTO_MIN_EDGE) return {tooSmall: true, sharpness: 0};
+
+    const scale = 256 / shortEdge;
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = petPhotoCanvas(224);
+    const context = canvas?.getContext('2d', {willReadFrequently: true});
+    if (!context) return null;
+    context.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height,
+      -Math.floor((width - 224) / 2), -Math.floor((height - 224) / 2), width, height);
+
+    const {data} = context.getImageData(0, 0, 224, 224);
+    const grey = new Float32Array(224 * 224);
+    for (let i = 0, p = 0; i < grey.length; i += 1, p += 4) {
+      grey[i] = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+    }
+    let sum = 0;
+    let sumSquares = 0;
+    let count = 0;
+    for (let y = 1; y < 223; y += 1) {
+      for (let x = 1; x < 223; x += 1) {
+        const i = y * 224 + x;
+        const value = -4 * grey[i] + grey[i - 224] + grey[i + 224] + grey[i - 1] + grey[i + 1];
+        sum += value;
+        sumSquares += value * value;
+        count += 1;
+      }
+    }
+    const mean = sum / count;
+    return {tooSmall: false, sharpness: sumSquares / count - mean * mean};
+  } catch {
+    return null;
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+// Returns {code, message} to show, or null when this screen has no opinion.
+export async function inspectPetPhotoLocally(file) {
+  const looked = await petPhotoQuickLook(file);
+  if (!looked) return null;
+  if (looked.tooSmall) {
+    return {code: 'PET_PHOTO_TOO_SMALL', message: PET_ERROR_MESSAGES.PET_PHOTO_TOO_SMALL};
+  }
+  if (looked.sharpness < LOCAL_SHARPNESS_FLOOR) {
+    return {code: 'PET_PHOTO_TOO_BLURRY', message: PET_ERROR_MESSAGES.PET_PHOTO_TOO_BLURRY};
+  }
+  return null;
 }
 
 export async function uploadPetPhoto(sessionToken, petId, slotCode, file, fetchImpl = globalThis.fetch) {

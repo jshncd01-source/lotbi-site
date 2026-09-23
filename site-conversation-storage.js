@@ -246,6 +246,38 @@ function accountClaimThread(accountState, claimId) {
   ));
 }
 
+// SITE-HOME-FRESH-ENTRY-01 — records that this browser tab has already been
+// inside a conversation namespace, and reports whether it had been before.
+//
+// sessionStorage is the only store with the lifetime this needs: it survives a
+// reload, and survives the redirect out to Account and back because that stays
+// in the same top-level browsing context, but a newly opened tab or a restarted
+// browser starts without it. That is exactly the line between "대화 도중
+// 새로고침" and "자동 로그인으로 들어가면".
+//
+// The value written is the constant '1' under a key derived only from the
+// namespace. Nothing about a session, a bearer or a person goes in here, and
+// nothing is ever removed: this marker only decides which conversation opens.
+//
+// Fail safe: no storage, or storage that throws, reports "already entered",
+// which is the behaviour that shipped before this marker existed. 본체가 먼저
+// 살아야 하므로 이 표시 하나가 대화 복원을 막아서는 안 됩니다.
+export function markConversationTabEntry({
+  namespace,
+  sessionStorage = optionalBrowserStorage('sessionStorage'),
+} = {}) {
+  const key = normalizedAccountNamespace(namespace);
+  if (!key || !sessionStorage) return true;
+  const entryKey = `${STORAGE_PREFIX}.tab-entry.v1.${key}`;
+  try {
+    if (sessionStorage.getItem(entryKey) === '1') return true;
+    sessionStorage.setItem(entryKey, '1');
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 export function guestConversationThreadClaimed({
   anonymousNamespace,
   threadId,

@@ -482,6 +482,23 @@
   line-height: 1.5;
 }
 
+/* 강아지·고양이가 아니면 등록되지 않는다. The refusal is only half the answer;
+   this is the half the owner can act on, so it sits directly under the
+   sentence that caused it rather than in the tile's action row. */
+.pet-slot-retry[hidden] {
+  display: none;
+}
+
+.pet-slot-retry {
+  display: flex;
+}
+
+.pet-slot-retry-action {
+  min-height: 36px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
 /* 실종 SOS / 발견 신고 cases. */
 .pet-case-section {
   padding-top: 10px;
