@@ -429,4 +429,88 @@ assert.equal(GUEST_CREATE_QUOTA, 3);
   assert.equal(repo.quotaStatus().remaining, 7);
 }
 
+// 11. The browser's id generator is not a precondition for saving.
+//
+// Samsung Internet before 16 and older Android WebViews have no
+// crypto.randomUUID. The repository used to throw there, so a signed-out writer
+// filled the whole form, pressed 저장, and was told "일정 식별자를 만들 수
+// 없습니다." — an internal word they could do nothing with. Every tier below
+// must save, and must produce the same v4 shape GUEST_ID_PATTERN accepts.
+{
+  const GUEST_ID = /^guest_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const realCrypto = globalThis.crypto;
+  const getRandomValues = realCrypto.getRandomValues.bind(realCrypto);
+  const withCrypto = async (label, value) => {
+    Object.defineProperty(globalThis, 'crypto', {value, configurable: true, writable: true});
+    try {
+      // A fresh module instance per tier: the tiers are chosen at call time, but
+      // importing again keeps each case independent of the others.
+      const module = await import(`../site-calendar-guest.js?tier=${encodeURIComponent(label)}`);
+      const repo = module.createGuestCalendarRepository(memoryStorage(), {createQuota: 1000, limit: 1000});
+
+      // 대표님's exact entry: 종일 checked, a cost, and every optional field.
+      const full = repo.create({
+        title: 'Ejejeie',
+        local_date: '2026-09-10',
+        local_datetime: null,
+        all_day: true,
+        entry: {
+          amount_minor: 2626,
+          currency: 'KRW',
+          expense_category: 'UNCLASSIFIED',
+          memo: 'Nejej',
+          place: 'Kekeke',
+          merchant: 'Ekekke',
+        },
+      });
+      assert.match(full.id, GUEST_ID, `${label}: id must keep the v4 shape`);
+      assert.equal(full.title, 'Ejejeie');
+      assert.equal(full.all_day, true);
+      assert.equal(full.entry.amount_minor, 2626);
+      assert.equal(full.entry.merchant, 'Ekekke');
+
+      // The rule the editor states: a title alone is enough.
+      const titleOnly = repo.create({title: '제목만'});
+      assert.match(titleOnly.id, GUEST_ID, `${label}: a title alone must save`);
+      assert.equal(titleOnly.local_date, null);
+
+      // A fallback id is worthless if it repeats. 1000 in a row, all distinct.
+      const ids = new Set([full.id, titleOnly.id]);
+      for (let index = 0; index < 998; index += 1) ids.add(repo.create({title: `대량 ${index}`}).id);
+      assert.equal(ids.size, 1000, `${label}: ids must not collide`);
+    } finally {
+      Object.defineProperty(globalThis, 'crypto', {value: realCrypto, configurable: true, writable: true});
+    }
+  };
+
+  await withCrypto('randomUUID', realCrypto);
+  await withCrypto('getRandomValues-only', {getRandomValues});
+  await withCrypto('no-web-crypto', undefined);
+  // Some WebViews expose randomUUID outside a secure context and throw on call.
+  await withCrypto('randomUUID-throws', {
+    randomUUID() { throw new Error('not a secure context'); },
+    getRandomValues,
+  });
+}
+
+// 12. A storage that refuses the write says so in words the writer can act on.
+//
+// Secret mode, blocked site data and a full origin all arrive as a DOMException
+// whose message is English and about quotas. That is not something to put on
+// screen under the 저장 button.
+{
+  const refusing = {
+    getItem: () => null,
+    setItem: () => { throw new Error('QuotaExceededError: storage is full'); },
+  };
+  const repo = createGuestCalendarRepository(refusing);
+  assert.throws(
+    () => repo.create({title: '시크릿 모드'}),
+    error => error?.code === 'GUEST_CALENDAR_STORAGE_UNAVAILABLE'
+      && !/Quota|Error:/.test(error.message)
+      && error.message.includes('로그인'),
+    'a refused write must explain itself in Korean and offer the way forward',
+  );
+}
+
 console.log('LOTBI Guest Calendar local repository: PASS');
