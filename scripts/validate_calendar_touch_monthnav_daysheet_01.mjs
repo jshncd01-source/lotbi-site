@@ -42,7 +42,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
   <button type="button" data-calendar-view="today">오늘</button>
   <button type="button" data-calendar-view="attention">확인 필요</button>
 </aside>
-<main id="main-content" class="chat-home-shell" tabindex="-1">
+<main id="main-content" class="chat-home-shell" tabindex="0">
   <div data-home-avatar-anchor><div data-lotbi-avatar-container></div></div>
   <div id="conversation-thread" class="conversation-thread" hidden></div>
   <div class="chat-composer-stack">

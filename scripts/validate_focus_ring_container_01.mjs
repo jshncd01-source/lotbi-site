@@ -2,24 +2,29 @@
 //
 // 대표: "특정부분 클릭하면 이렇게 파란색 줄생기는거 확인하라고 하고"
 //
-// Measured on the shipped page (Chromium 1600x900, Dark): pressing Tab eight
-// times landed focus on <main id="main-content">, and the shared focus rule
+// Measured on the shipped page (Chromium 1600x900, Dark): Tab reaches
+// <main id="main-content">, and the shared focus rule
 //
 //   body[data-site-theme="dark"] :where(a, button, input, select, textarea,
 //   [tabindex]):focus-visible { outline: 3px solid var(--lotbi-focus-ring)
 //   !important; outline-offset: 2px; }
 //
 // drew a 3px rgb(167,199,255) ring around a box measured at 1240x900 inside a
-// 900px viewport. With the +2px offset its top edge sat at y=-2 and its bottom
-// at y=902 — both off screen. Only the two vertical sides were visible, which
-// is the pair of blue lines down the edges of the content column.
+// 900px viewport. With the +2px offset the ring's top edge sat at y=-2 and its
+// bottom at y=902 — both off screen. Only the two vertical sides were visible,
+// which is the pair of blue lines down the edges of the content column.
 //
-// Two things fix it and both have to stay true:
-//   1. the element is the skip link's landing target, not a control, so it is
-//      focusable programmatically (tabindex="-1") and not a tab stop;
-//   2. the ring is drawn INSIDE the box, so when the skip link does land there
-//      the indicator is a complete frame. It is never removed: `outline: none`
-//      on this element would leave a keyboard user with no landing feedback.
+// The tab stop is NOT the defect and must not be removed. #main-content owns
+// the page's vertical scrolling, and a scrollable region has to be reachable by
+// keyboard; validate_chat_layout_attachment_01 measures that contract directly
+// (mainOverflow "auto", mainTabIndex 0, "main pane must accept scrolling").
+// An earlier revision of this fix dropped the element to tabindex="-1" and that
+// gate caught it in CI.
+//
+// What is wrong is where the ring is drawn. Drawing it inside keeps the
+// indicator — same width, same colour, same contrast — and makes it a complete
+// frame instead of two clipped edges. Removing it is not an option either:
+// `outline: none` would leave a keyboard user with no idea where focus is.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,26 +37,19 @@ const html = read('index.html');
 const tokens = read('site-theme-tokens.css');
 const MARKER = 'SITE-FOCUS-RING-CONTAINER-01';
 
-// ── 1. The scroll container is not a tab stop ────────────────────────────
+// ── 1. The scroll container stays keyboard reachable ─────────────────────
 assert.match(
   html,
-  /<main id="main-content" class="chat-home-shell" tabindex="-1">/,
-  'main#main-content must carry tabindex="-1": it is the skip link target, not a control. '
-  + 'tabindex="0" puts a viewport-sized element in the tab order and its focus ring '
-  + 'reaches the screen as two vertical blue lines.',
+  /<main id="main-content" class="chat-home-shell" tabindex="0">/,
+  'main#main-content must keep tabindex="0": it owns vertical scrolling, and a scrollable '
+  + 'region has to be reachable by keyboard. Fix the ring geometry, never the tab stop.',
 );
-assert.ok(
-  !/<main id="main-content"[^>]*tabindex="0"/.test(html),
-  'main#main-content must not be restored to tabindex="0"',
-);
-
-// The skip link is what makes tabindex="-1" the right value rather than none.
 assert.ok(
   html.includes('class="skip-link" href="#main-content"'),
-  'the skip link must keep pointing at #main-content — that is why the target stays focusable',
+  'the skip link must keep pointing at #main-content',
 );
 
-// ── 2. The indicator survives, drawn inside the box ──────────────────────
+// ── 2. The ring is drawn inside the box ──────────────────────────────────
 assert.ok(tokens.includes(MARKER), 'site-theme-tokens.css must carry the container focus-ring rule');
 
 const at = tokens.indexOf('#main-content:focus-visible');
@@ -63,19 +61,43 @@ assert.match(
   /outline:\s*3px solid var\(--lotbi-focus-ring/,
   'the container must keep a 3px focus ring in the shared focus-ring colour',
 );
-assert.match(
-  block,
-  /outline-offset:\s*-3px/,
-  'the ring must be drawn inside the box (negative offset) — a positive offset on a '
-  + 'viewport-tall element pushes the horizontal edges off screen and leaves only the vertical lines',
+const offset = block.match(/outline-offset:\s*(-?\d+)px/);
+assert.ok(offset, '#main-content:focus-visible must set an explicit outline-offset');
+assert.ok(
+  Number(offset[1]) < 0,
+  `outline-offset is ${offset[1]}px; it must be negative. A positive offset on an element as tall `
+  + 'as the viewport pushes the horizontal edges off screen and leaves only the vertical lines.',
+);
+// The ring is 3px wide, so an offset smaller than -3px would eat into content.
+assert.ok(
+  Number(offset[1]) >= -3,
+  `outline-offset ${offset[1]}px pulls the ring further inside than its own width`,
 );
 assert.ok(
   !/outline:\s*(none|0)/.test(block),
-  'the focus indicator must never be removed: a keyboard user following the skip link '
-  + 'has to see where focus landed',
+  'the focus indicator must never be removed: a keyboard user has to see where focus is',
 );
 
-// ── 3. Nothing else in the site removes focus indication wholesale ───────
+// ── 3. The rule must win the offset, and only the offset ─────────────────
+// The theme rules carry !important on `outline`, so this rule deliberately does
+// not: it overrides the offset by ID specificity and leaves width and colour to
+// the shared a11y rules, which is what keeps the two in step.
+assert.ok(
+  !block.includes('!important'),
+  'this rule must not use !important — width and colour stay owned by the shared focus rules',
+);
+for (const shared of [
+  'body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabindex]):focus-visible',
+  'body[data-site-theme="system"] :where(a, button, input, select, textarea, [tabindex]):focus-visible',
+]) {
+  assert.ok(
+    tokens.includes(shared),
+    `the shared focus rule must still exist (${shared.slice(0, 40)}…) — this fix is an offset `
+    + 'override on top of it, not a replacement',
+  );
+}
+
+// ── 4. Nothing blanket-removes focus indication ──────────────────────────
 for (const name of ['styles.css', 'site-theme-tokens.css']) {
   const css = read(name);
   assert.ok(
@@ -84,4 +106,4 @@ for (const name of ['styles.css', 'site-theme-tokens.css']) {
   );
 }
 
-console.log('SITE-FOCUS-RING-CONTAINER-01 OK — scroll container is not a tab stop, ring drawn inside');
+console.log('SITE-FOCUS-RING-CONTAINER-01 OK — tab stop kept, ring drawn inside the viewport');

@@ -155,18 +155,19 @@
       </nav>
     </aside>
 
-    <!-- SITE-FOCUS-RING-CONTAINER-01 — tabindex="-1", not "0".
-         #main-content is the landing target of the skip link above, so it has
-         to be focusable; it is not a control, so it must not be a tab stop.
-         With tabindex="0" it was: Tab reached this element, and the focus ring
-         that every other control shares — 3px solid var(--lotbi-focus-ring) —
-         was drawn around a box exactly as tall as the viewport. Its top and
-         bottom edges fell outside the visible area, so all that reached the
-         screen were two long blue vertical lines at the left and right edges
-         of the content column. Keyboard scrolling of this region is unchanged:
-         it is still the scroll host, and arrow keys scroll it from any of the
-         controls inside it. -->
-    <main id="main-content" class="chat-home-shell" tabindex="-1">
+    <!-- SITE-FOCUS-RING-CONTAINER-01 — tabindex="0" stays.
+         This element owns the page's vertical scrolling, and a scrollable
+         region has to be reachable by keyboard: validate_chat_layout_attachment_01
+         measures exactly that (mainOverflow "auto", mainTabIndex 0, "main pane
+         must accept scrolling") at every width it checks. An earlier revision of
+         this fix dropped it to "-1" and that gate caught it.
+         What was wrong was never the tab stop — it was where the ring got
+         drawn. The shared rule adds outline-offset: 2px, and this box is
+         exactly as tall as the viewport, so the ring's top and bottom edges
+         landed off screen and only its two vertical sides reached the user:
+         the blue lines down the edges of the content column. The offset is
+         now negative for this one element, in site-theme-tokens.css. -->
+    <main id="main-content" class="chat-home-shell" tabindex="0">
       <h1 class="sr-only">LOTBI</h1>
       <header class="chat-topbar" aria-label="LOTBI 홈 헤더">
         <div class="topbar-left">
