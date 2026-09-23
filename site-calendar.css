@@ -554,6 +554,16 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-day-event small { color: #747e8d; font-size: 11px; }
 .calendar-add-button { margin-top: auto; width: 100%; border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
 
+/* Two ways to add an entry, sharing the row the single button used to fill. */
+.calendar-add-actions { display: flex; gap: 8px; margin-top: auto; }
+.calendar-add-actions .calendar-add-button { margin-top: 0; flex: 1 1 0; min-width: 0; }
+.calendar-add-actions .calendar-add-image-button { border-color: var(--brand-navy, #182a46); background: transparent; color: var(--brand-navy, #182a46); }
+/* What the picture path has to say, next to the buttons that started it —
+   the .calendar-status strip is rewritten by the weather flow on its own
+   schedule and swallowed this a moment after it appeared. */
+.calendar-add-message { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: #f1f4f9; color: #3d4653; font-size: 12px; line-height: 1.45; }
+body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color: #d6dbe4; }
+
 .calendar-year-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .calendar-year-month { min-width: 0; padding: 12px; border: 1px solid #dbe1ea; border-radius: 14px; background: #fff; color: #303642; cursor: pointer; text-align: left; }
 .calendar-year-month[data-current="true"] { border-color: #3568a8; box-shadow: inset 0 0 0 1px #3568a8; }
