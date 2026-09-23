@@ -15,6 +15,12 @@
 
 블록을 HTML 로 그대로 두는 것은 의도적이다. 법정 표시사항을 JavaScript 로 주입하면
 스크립트가 실패한 브라우저에서 표시의무가 통째로 사라진다.
+
+SITE-FOOTER-FOUR-ROWS-01 — 대표: "우리는 왜케 줄이 길어. 충분히 4줄도 가능하지
+않아?" 블록이 다섯 줄에서 세 줄로 줄었다. 줄만 줄었고 항목은 그대로다: 이용약관과
+개인정보처리방침은 바로 위 .footer-links 줄에 이미 있어서 여기서 두 번 적을 이유가
+없었고(privacy.html 은 이름까지 같은 링크를 두 번 걸고 있었다), 브랜드 표기와
+호스팅제공자는 한 줄로 합쳤다. 푸터 전체는 이 세 줄 위에 링크 한 줄을 더해 네 줄이다.
 """
 
 from __future__ import annotations
@@ -49,37 +55,29 @@ CANONICAL_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             "<span>유한회사 알에이디홀딩스</span>",
             "<span>대표자: 전선혜</span>",
-            "<span>주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)</span>",
-        ),
-    ),
-    (
-        "",
-        (
             "<span>사업자등록번호: 583-88-03679</span>",
             "<span>통신판매업신고번호: 2026-전주덕진-0798</span>",
+            '<a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679"'
+            ' target="_blank" rel="noopener noreferrer">사업자정보확인</a>',
         ),
     ),
     (
         "",
         (
+            "<span>주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)</span>",
             '<span>전화: <a href="tel:0632370930">063-237-0930</a></span>',
             '<span>이메일: <a href="mailto:developer@lotbiai.com">developer@lotbiai.com</a></span>',
         ),
     ),
     (
         "",
-        ("<span>호스팅서비스 제공: GitHub, Inc.</span>",),
-    ),
-    (
-        " company-legal-links",
         (
-            '<a href="terms.html">이용약관</a>',
-            '<a href="privacy.html">개인정보처리방침</a>',
-            '<a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679"'
-            ' target="_blank" rel="noopener noreferrer">사업자정보확인</a>',
+            "<span>LOTBI (롯비) © 2026 · AI Voice Commerce Agent</span>",
+            "<span>호스팅서비스 제공: GitHub, Inc.</span>",
         ),
     ),
 )
+
 
 OPEN_RE = re.compile(r'^([ \t]*)<div class="company-legal" aria-label="LOTBI 사업자 정보">$')
 

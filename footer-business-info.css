@@ -20,10 +20,6 @@
   color: #a0a5ad;
 }
 
-.company-legal-links a {
-  font-weight: 700;
-}
-
 @media (max-width: 760px) {
   .company-legal {
     font-size: 11px;
