@@ -100,9 +100,9 @@ assert.match(preference, /longitude > 132\.5/);
 
 assert.match(css, /\.calendar-settings-region-row/);
 assert.match(css, /\.calendar-settings-region-row input/);
-assert.match(ui, /site-calendar-manager\.js\?v=20260923-daysheet2/);
-assert.match(conversation, /site-calendar-ui\.js\?v=20260923-daysheet2/);
-assert.match(index, /site-calendar\.css\?v=20260923-daysheet2/);
+assert.match(ui, /site-calendar-manager\.js\?v=20260923-daysheet3/);
+assert.match(conversation, /site-calendar-ui\.js\?v=20260923-daysheet3/);
+assert.match(index, /site-calendar\.css\?v=20260923-daysheet3/);
 // The Home entry carries its own cache-bust token, bumped whenever the shell
 // changes rather than whenever a Calendar module does. Pinning the Calendar's
 // token here went stale the first time only one of the two moved; what actually
@@ -111,6 +111,6 @@ const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"']+)/)?.[1] |
 assert.ok(homeEntryVersion, 'Home conversation entry must be cache-busted');
 assert.match(callback, new RegExp(`site-conversation\\.js\\?v=${homeEntryVersion}`));
 assert.match(callbackHtml, new RegExp(`auth-callback\\.js\\?v=${homeEntryVersion}`));
-assert.match(callbackHtml, /site-calendar\.css\?v=20260923-daysheet2/);
+assert.match(callbackHtml, /site-calendar\.css\?v=20260923-daysheet3/);
 
 console.log('LOTBI Calendar manual weather region Settings contract: PASS');

@@ -34,3 +34,171 @@
     margin-inline: 5px;
   }
 }
+
+/* SITE-MOBILE-FOOTER-LEGAL-SHEET-01 — 좁은 화면에서 푸터를 한 줄로 접는다.
+   대표: "롯비 홈페이지도 클로드처럼 유한회사 알에이디홀딩스 사업자번호만 나오게
+   하고, 거길 클릭하면 아래에서 슬라이드로 올라오게 바꿔."
+
+   접는 것이지 지우는 것이 아니다. 전자상거래법 제10조제1항의 표시사항은 HTML 에
+   그대로 남고, 자리만 바텀시트 안으로 옮긴다. 접기는 body 의 클래스로 열리는데
+   그 클래스는 스크립트만 붙인다 — 스크립트가 실패한 브라우저에서는 아래 규칙이
+   하나도 걸리지 않아 지금까지처럼 푸터 전체가 펼쳐진 채 보인다. 표시의무가
+   스크립트에 딸려 사라지지 않게 하는 것이 이 구조의 목적이다.
+
+   넓은 화면은 손대지 않는다: 접기는 모바일 폭에서만 일어난다. */
+
+.footer-legal-summary {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  body.footer-legal-collapsed .chat-home-footer > .footer-legal-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    /* 44px: 손가락으로 누르는 줄이므로 탭 타깃 최소 높이를 지킨다. */
+    min-height: 44px;
+    padding: 11px 0;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+    word-break: keep-all;
+    cursor: pointer;
+  }
+
+  body.footer-legal-collapsed .chat-home-footer > .footer-legal-summary:focus-visible {
+    outline: 3px solid rgba(79, 120, 197, .34);
+    outline-offset: 2px;
+  }
+
+  .footer-legal-summary-chevron {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    transition: transform 160ms ease;
+  }
+
+  .footer-legal-summary[aria-expanded="true"] .footer-legal-summary-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* 한 줄만 남기고 나머지는 시트로 간다. 시트 안으로 옮겨진 뒤에는 더 이상
+     .chat-home-footer 의 자식이 아니므로 이 규칙에 걸리지 않고 다시 보인다. */
+  body.footer-legal-collapsed .chat-home-footer > .footer-links,
+  body.footer-legal-collapsed .chat-home-footer > .company-legal,
+  body.footer-legal-collapsed .chat-home-footer > .footer-service {
+    display: none;
+  }
+
+  body.footer-legal-collapsed .chat-home-footer {
+    padding-top: 10px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* --- 시트 안쪽 ----------------------------------------------------------- */
+
+/* 시트 왼쪽 위 X 하나로 닫는다. 프리미티브가 기본으로 다는 아래쪽 '닫기'
+   버튼은 이 시트에서만 감춘다 — display:none 이면 포커스 순서에서도 빠지므로
+   포커스 트랩이 빈 버튼을 짚지 않는다. */
+.lotbi-sheet.footer-legal-sheet > .lotbi-sheet-dismiss {
+  display: none;
+}
+
+.footer-legal-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 2px;
+}
+
+.footer-legal-sheet-close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.footer-legal-sheet-close:hover,
+.footer-legal-sheet-close:focus-visible {
+  background: #f0f2f6;
+}
+
+.footer-legal-sheet-close:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .34);
+  outline-offset: 2px;
+}
+
+.footer-legal-sheet-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 6px;
+}
+
+/* 푸터 밖으로 옮겨지면 .lotbi-footer 스코프 규칙이 더 이상 닿지 않으므로,
+   시트 안에서 쓸 값을 여기서 다시 준다. 화면 아래쪽 좁은 칸에서 읽는 글이라
+   푸터에 있을 때(10~11px)보다 키운다. */
+.footer-legal-sheet .footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.footer-legal-sheet .footer-links a,
+.footer-legal-sheet .company-legal a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-legal-sheet .footer-links a:hover,
+.footer-legal-sheet .footer-links a:focus-visible,
+.footer-legal-sheet .company-legal a:hover,
+.footer-legal-sheet .company-legal a:focus-visible {
+  text-decoration: underline;
+}
+
+.footer-legal-sheet .company-legal {
+  max-width: none;
+  font-size: 12px;
+  line-height: 1.9;
+  color: inherit;
+}
+
+.footer-legal-sheet .footer-service {
+  margin: 0;
+  font-size: 12px;
+  color: inherit;
+  opacity: .8;
+}
+
+body[data-site-theme="dark"] .footer-legal-sheet-close:hover,
+body[data-site-theme="dark"] .footer-legal-sheet-close:focus-visible {
+  background: #1e2532;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .footer-legal-sheet-close:hover,
+  body[data-site-theme="system"] .footer-legal-sheet-close:focus-visible {
+    background: #1e2532;
+  }
+}

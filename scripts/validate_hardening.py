@@ -122,6 +122,10 @@ def main() -> int:
         r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         index,
     )
+    footer_legal_script = re.search(
+        r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
+        index,
+    )
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
@@ -129,10 +133,11 @@ def main() -> int:
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         '<script type="module" src="site-avatar.js"></script>',
+        footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +1 for the allowlisted inline theme bootstrap verified above.
     if index.lower().count("<script") != len(approved_scripts) + 1 or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
+        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js, site-avatar.js and site-footer-legal.js scripts")
 
     # SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — one inline block in <head> is allowed
     # to read localStorage, because the theme has to be known before the first
