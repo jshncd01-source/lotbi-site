@@ -84,14 +84,18 @@ assert.match(petCss, /\.pet-slot-retry-action \{/, 'retry action has no style');
 // A browser that already holds the old modules must be made to fetch these.
 // The three cache-bust tokens move together or a returning owner keeps running
 // a build that has never heard of the species gate.
-const conversation = read('site-conversation.js');
-const indexHtml = read('index.html');
 const token = petUi.match(/site-pet\.js\?v=([\w-]+)/)?.[1];
 assert.ok(token, 'site-pet.js import carries no cache-bust token');
-assert.ok(
-  conversation.includes(`site-pet-ui.js?v=${token}`) && indexHtml.includes(`site-pet.css?v=${token}`),
-  `PET module and stylesheet cache-bust tokens disagree (site-pet.js is ${token})`,
-);
+// The auth callback transplants the whole Home body, so it carries its own copy
+// of the stylesheet link. Bumping Home and forgetting the callback is a CI
+// failure on a gate that belongs to somebody else — check it here instead.
+for (const [file, needle] of [
+  ['site-conversation.js', `site-pet-ui.js?v=${token}`],
+  ['index.html', `site-pet.css?v=${token}`],
+  ['auth/callback/index.html', `site-pet.css?v=${token}`],
+]) {
+  assert.ok(read(file).includes(needle), `${file} is missing ${needle}`);
+}
 
 // ------------------------------------------------------------------ browser
 
