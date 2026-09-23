@@ -4,12 +4,12 @@ import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifi
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260921-guestclaim1';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260923-freshentry1';
 import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-sysdark2';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-sysdark2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-sysdark2';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-profilemenu2';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -33,6 +33,10 @@ const STORAGE_PREFIX = 'lotbi.site.ux.v1';
 const THREAD_LIMIT = 50;
 const MESSAGE_LIMIT = 120;
 const THREAD_TITLE_LIMIT = 60;
+// PROFILE-MENU: the one account-management destination. 설정 navigates here,
+// which is exactly where the profile modal's removed account-management button
+// used to point.
+const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
 const PHOTO_BYTES_LIMIT = 2 * 1024 * 1024;
 const PHOTO_DIMENSION_LIMIT = 4096;
 const COLOR_OPTIONS = Object.freeze([
@@ -1994,6 +1998,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     };
     sortThreads();
     state.activeThreadId = resolveRestoredActiveThreadId(restoredActiveThreadId, state.threads);
+    // SITE-HOME-FRESH-ENTRY-01 — 대표: "자동 로그인으로 들어가면 첫화면이 기존에
+    // 대화창으로 뜨는데 새창으로 뜨도록 해"
+    //
+    // The obvious discriminator — "did we come back through the auth handoff?"
+    // — does not work, and that was measured rather than assumed. site-
+    // continuity.js holds the site session in a module variable, so every load
+    // of / while signed in finds no live session, runs beginSiteHandoff(), and
+    // returns through /auth/callback/. A mid-conversation refresh takes that
+    // same road, so the handoff separates nothing. The tab does: sessionStorage
+    // survives a reload and the redirect out to Account and back, but not a
+    // newly opened tab — which is what "들어가면" means.
+    //
+    // Narrow on purpose, as 총괄방 asked. The anonymous namespace keeps the
+    // behaviour it had, so nothing ⑱ GUEST-ACCESS owns changes shape, and an
+    // entry carrying text to send is the reader continuing, not arriving.
+    // Selection only: the threads themselves are never touched either way.
+    const freshTabEntry = !markConversationTabEntry({namespace})
+      && normalized !== anonymousConversationNamespace()
+      && !(autoSend && typeof initialText === 'string' && initialText.trim());
+    if (freshTabEntry) state.activeThreadId = null;
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
       theme: ['system', 'light', 'dark'].includes(loadedPreferences.theme) ? loadedPreferences.theme : 'system',
@@ -2240,22 +2264,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     });
     actions.append(cancel, remove); content.appendChild(actions); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const colorPicker = () => {
-    const fieldset = document.createElement('fieldset'); fieldset.className = 'color-picker';
-    const legend = document.createElement('legend'); legend.textContent = '대화 색상'; fieldset.appendChild(legend);
-    for (const [key, label] of COLOR_OPTIONS) {
-      const option = document.createElement('button'); option.type = 'button'; option.className = 'color-option'; option.dataset.color = key;
-      option.setAttribute('aria-pressed', String(preferences.color === key));
-      const swatch = document.createElement('span'); swatch.className = 'color-swatch'; swatch.setAttribute('aria-hidden', 'true');
-      const text = document.createElement('span'); text.textContent = label; option.append(swatch, text);
-      option.addEventListener('click', () => {
-        preferences.color = key; applyPreferences(); savePreferences();
-        for (const node of fieldset.querySelectorAll('.color-option')) node.setAttribute('aria-pressed', String(node === option));
-      });
-      fieldset.appendChild(option);
-    }
-    return fieldset;
-  };
   const readProfilePhoto = file => new Promise((resolve, reject) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return reject(new Error('JPEG, PNG, WebP 이미지만 선택할 수 있습니다.'));
     if (file.size > PHOTO_BYTES_LIMIT) return reject(new Error('프로필 이미지는 2MB 이하여야 합니다.'));
@@ -2330,23 +2338,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         save.disabled = false;
       }
     });
-    const manage = document.createElement('a'); manage.className = 'site-button site-button-secondary'; manage.href = 'https://account.lotbiai.com/account'; manage.textContent = '계정 페이지에서 관리';
-    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save, manage); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const openPersonalization = () => {
-    const {backdrop, panel, content} = modalShell('개인 맞춤 설정', '선택한 대화 색상은 현재 사용자 설치의 이 브라우저에 저장됩니다.');
-    content.appendChild(colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
-  };
-  const openSettings = () => {
-    const {backdrop, panel, content} = modalShell('설정');
+  // 개인테마 — the theme choice and nothing else. This surface only calls the
+  // existing applyPreferences/savePreferences pair; the theme switching logic
+  // itself is not touched here.
+  const openPersonalTheme = () => {
+    const {backdrop, panel, content} = modalShell('개인테마', '선택한 테마는 현재 사용자 설치의 이 브라우저에 저장됩니다.');
     const themeLabel = document.createElement('label'); themeLabel.className = 'site-field'; themeLabel.textContent = '테마';
     const select = document.createElement('select');
-    for (const [value, label] of [['system', '기기 설정'], ['light', '라이트'], ['dark', '다크']]) {
+    for (const [value, label] of [['system', '기기모드'], ['light', '라이트모드'], ['dark', '다크모드']]) {
       const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = preferences.theme === value; select.appendChild(option);
     }
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
-    themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
+    themeLabel.appendChild(select); content.append(themeLabel); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
+  // 설정 — no intermediate modal. It leaves for the account page directly, the
+  // same destination the profile modal's removed button used.
+  const openSettings = () => { window.location.assign(ACCOUNT_MANAGE_URL); };
   const openCalendar = async (view, {deepOpen, initialDraft = null, restoreConversation = false} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
@@ -2627,7 +2636,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
     const menu = document.createElement('div'); menu.className = 'profile-popover'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '프로필 메뉴');
     menu.appendChild(profileSummary());
-    for (const [label, action] of [['프로필', openProfile], ['개인 맞춤 설정', openPersonalization], ['설정', openSettings]]) {
+    for (const [label, action] of [['프로필', openProfile], ['개인테마', openPersonalTheme], ['설정', openSettings]]) {
       const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); button.textContent = label;
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
     }
