@@ -127,7 +127,7 @@ if(document.querySelector('.profile-popover-summary-plan'))throw new Error('plan
 releaseSubscription();await wait(()=>document.querySelector('.profile-popover-summary-plan')?.textContent==='현재 이용 등급 · LOTBI Plus','late plan hydration');
 if(location.href!==url||document.querySelector('.profile-popover-summary-name')?.textContent!=='홍길동'||document.querySelector('.profile-popover-summary-handle')?.textContent!=='@hong'||document.querySelector('.profile-popover-summary-email')?.textContent!=='hong@example.com'||document.querySelector('.profile-popover-summary-plan')?.textContent!=='현재 이용 등급 · LOTBI Plus')throw new Error('profile summary/url');
 const labels=[...document.querySelectorAll('.profile-popover [role="menuitem"]')].map(n=>n.textContent).join('|');
-if(labels!=='프로필|개인 맞춤 설정|설정|연결 서비스|도움말|로그아웃'||counts.logout!==0)throw new Error('menu/logout-before-click');
+if(labels!=='프로필 수정|테마 선택|연결 서비스|도움말|설정|로그아웃'||counts.logout!==0)throw new Error('menu/logout-before-click: '+labels);
 let after=state();if(after.activeThreadId!==id||after.draft!=='작성 중인 초안'||prompt.value!=='작성 중인 초안'||JSON.stringify(after.threads[0].messages)!==msgs)throw new Error('continuity open');
 trigger=document.querySelector('[data-profile-menu-trigger]');click(trigger);await wait(()=>!document.querySelector('.profile-popover'),'toggle close');
 trigger=document.querySelector('[data-profile-menu-trigger]');click(trigger);await wait(()=>document.querySelector('.profile-popover-layer'),'outside setup');click(document.querySelector('.profile-popover-layer'));await wait(()=>!document.querySelector('.profile-popover'),'outside close');

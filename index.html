@@ -43,6 +43,15 @@
   <script>
     try {
       var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+      if (lotbiSavedTheme === 'auto') {
+        // SITE-THEME-AUTO-SCHEDULE-01 — '자동' is resolved here rather than
+        // stored already resolved, because a stored answer goes stale the
+        // moment the clock crosses 07:00 or 18:00 and the reader would get
+        // yesterday's theme on the first paint. The attribute only ever
+        // carries light/dark/system, so no new CSS state is needed.
+        var lotbiHour = new Date().getHours();
+        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+      }
       if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
         document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
       }
@@ -78,7 +87,7 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260923-darklogo1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260923-sysdark2"></script>
+  <script type="module" src="site-conversation.js?v=20260923-themeauto1"></script>
   <script type="module" src="site-continuity.js?v=20260921-guestclaim1"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">

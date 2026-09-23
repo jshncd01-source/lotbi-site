@@ -9,10 +9,36 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-sysdark2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-sysdark2';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-themeauto1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
+
+// SITE-THEME-AUTO-SCHEDULE-01 — 대표: "시간이 18시 이후에는 다크로 가고 아침
+// 07시 되면 화이트로 가는 거"
+//
+// '자동' resolves to light or dark here, so body[data-site-theme] and
+// html[data-site-theme-bootstrap] only ever carry the three values the theme
+// tokens already style. ㉑ DARK-THEME's stylesheet needs no fourth state.
+//
+// It is deliberately not the same thing as '기기 설정', which follows the OS.
+// This one follows the clock, which is what 대표 asked for.
+const AUTO_THEME_DARK_HOUR = 18;
+const AUTO_THEME_LIGHT_HOUR = 7;
+function resolveScheduledTheme(now = new Date()) {
+  const hour = now.getHours();
+  return hour >= AUTO_THEME_DARK_HOUR || hour < AUTO_THEME_LIGHT_HOUR ? 'dark' : 'light';
+}
+// When the next switch is due, so a tab left open overnight turns dark at 18:00
+// instead of waiting for a reload.
+function millisecondsUntilNextThemeBoundary(now = new Date()) {
+  const hour = now.getHours();
+  const next = new Date(now.getTime());
+  next.setMinutes(0, 0, 0);
+  next.setHours(hour < AUTO_THEME_LIGHT_HOUR || hour >= AUTO_THEME_DARK_HOUR ? AUTO_THEME_LIGHT_HOUR : AUTO_THEME_DARK_HOUR);
+  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
 
 // SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
 // inline in index.html's <head>, above the stylesheets. It has to: this file is
@@ -21,7 +47,8 @@ const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteA
 // module also runs on pages that do not carry the inline block, and re-running
 // it is harmless — it writes the same attribute from the same value.
 try {
-  const savedTheme = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const stored = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const savedTheme = stored === 'auto' ? resolveScheduledTheme() : stored;
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
     document.documentElement.dataset.siteThemeBootstrap = savedTheme;
   }
@@ -38,6 +65,12 @@ const PHOTO_DIMENSION_LIMIT = 4096;
 const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
   ['orange', '오렌지'], ['pink', '분홍'], ['gray', '회색'],
+]);
+const THEME_OPTIONS = Object.freeze([
+  ['system', '기기 설정'],
+  ['light', '라이트'],
+  ['dark', '다크'],
+  ['auto', '자동 (저녁 6시 다크 · 아침 7시 라이트)'],
 ]);
 const RESPONSE_GRADE_OPTIONS = Object.freeze([
   ['LIGHT', '라이트'],
@@ -476,6 +509,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let lastRenderedCreatedAt;
   let timestampRefreshTimer;
+  let themeBoundaryTimer;
   let richCardActionInFlight = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
@@ -586,11 +620,25 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       option.tabIndex = available && selected ? 0 : -1;
     }
   };
+  // Only armed while '자동' is selected, and always re-armed from the clock
+  // rather than a fixed interval, so a machine that slept through 18:00 corrects
+  // itself on the next tick instead of drifting.
+  const scheduleThemeBoundary = storedTheme => {
+    if (themeBoundaryTimer) { clearTimeout(themeBoundaryTimer); themeBoundaryTimer = undefined; }
+    if (storedTheme !== 'auto' || typeof setTimeout !== 'function') return;
+    themeBoundaryTimer = setTimeout(() => { themeBoundaryTimer = undefined; applyPreferences(); }, millisecondsUntilNextThemeBoundary());
+  };
   const applyPreferences = () => {
     document.body.dataset.chatColor = COLOR_OPTIONS.some(([key]) => key === preferences.color) ? preferences.color : 'default';
-    const resolvedTheme = ['system', 'light', 'dark'].includes(preferences.theme) ? preferences.theme : 'system';
+    // SITE-THEME-AUTO-SCHEDULE-01 — the stored preference may be '자동'; what
+    // reaches the document is always one of the three states the theme tokens
+    // style, so ㉑ DARK-THEME's stylesheet needs nothing new.
+    const storedTheme = THEME_OPTIONS.some(([key]) => key === preferences.theme) ? preferences.theme : 'system';
+    const resolvedTheme = storedTheme === 'auto' ? resolveScheduledTheme() : storedTheme;
+    document.body.dataset.siteThemePreference = storedTheme;
     document.body.dataset.siteTheme = resolvedTheme;
     document.documentElement.dataset.siteThemeBootstrap = resolvedTheme;
+    scheduleThemeBoundary(storedTheme);
     const systemDark = resolvedTheme === 'system' && globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches === true;
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (themeColor) themeColor.setAttribute('content', resolvedTheme === 'dark' || systemDark ? '#151922' : '#ffffff');
@@ -1996,7 +2044,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     state.activeThreadId = resolveRestoredActiveThreadId(restoredActiveThreadId, state.threads);
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
-      theme: ['system', 'light', 'dark'].includes(loadedPreferences.theme) ? loadedPreferences.theme : 'system',
+      theme: THEME_OPTIONS.some(([key]) => key === loadedPreferences.theme) ? loadedPreferences.theme : 'system',
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
       photo: typeof loadedPreferences.photo === 'string' && loadedPreferences.photo.startsWith('data:image/') ? loadedPreferences.photo : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
@@ -2275,7 +2323,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     image.src = objectUrl;
   });
   const openProfile = () => {
-    const {backdrop, panel, content} = modalShell('프로필', '표시 이름·공개 아이디·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
+    // SITE-PROFILE-MENU-ORDER-01 — 계정 전역 식별자(핸들)를 이 화면에서 뺐습니다.
+    // 계정 페이지가 그 값의 주인이라 여기서는 읽기로도 남기지 않고, 아래
+    // '계정 페이지에서 관리' 링크가 그 자리를 대신합니다. 숨긴 것이 아니라
+    // 주인에게 돌려보낸 것이므로 가는 길은 한 번의 클릭으로 열려 있습니다.
+    const {backdrop, panel, content} = modalShell('프로필 수정', '표시 이름·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
@@ -2284,11 +2336,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
     const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
-    const handleLabel = document.createElement('label'); handleLabel.className = 'site-field'; handleLabel.textContent = '공개 아이디';
-    const handle = document.createElement('input'); handle.type = 'text'; handle.minLength = 8; handle.maxLength = 64; handle.value = serverIdentity?.publicHandle || ''; handle.autocomplete = 'off'; handle.autocapitalize = 'none'; handle.spellcheck = false;
-    handle.addEventListener('input', () => { handle.value = handle.value.replace(/[^A-Za-z0-9]/g, ''); });
-    handleLabel.appendChild(handle);
-    const handleHelp = document.createElement('p'); handleHelp.className = 'site-field-help'; handleHelp.textContent = '영문·숫자 8~64자이며 각각 최소 1자를 포함해야 합니다. 이미 사용 중이면 다른 아이디를 선택해야 합니다.';
     const emailField = document.createElement('div'); emailField.className = 'site-readonly-field';
     const emailTitle = document.createElement('strong'); emailTitle.textContent = '이메일';
     const emailValue = document.createElement('span'); emailValue.textContent = serverIdentity?.email || '등록된 이메일 없음'; emailField.append(emailTitle, emailValue);
@@ -2308,44 +2355,38 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!sessionToken || save.disabled) return;
       error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
       try {
-        const normalizedHandle = handle.value.trim().toLowerCase();
-        const currentHandle = serverIdentity?.publicHandle || '';
-        const updated = await updateCurrentSiteProfile(sessionToken, {
-          displayName: name.value,
-          ...(normalizedHandle && normalizedHandle !== currentHandle ? {publicHandle: normalizedHandle} : {}),
-        });
+        const updated = await updateCurrentSiteProfile(sessionToken, {displayName: name.value});
         serverIdentity = Object.freeze({...serverIdentity, ...updated});
         name.value = serverIdentity.name || canonicalProfileName();
-        handle.value = serverIdentity.publicHandle || '';
         emailValue.textContent = serverIdentity.email || '등록된 이메일 없음';
         preview.textContent = initials(canonicalProfileName());
         refreshAuthenticatedProfileSlots();
         save.textContent = '저장됨';
       } catch (caught) {
-        if (caught?.code === 'PUBLIC_HANDLE_TAKEN') error.textContent = '이미 사용 중인 공개 아이디입니다. 다른 아이디를 입력해주세요.';
-        else if (caught?.code === 'PUBLIC_HANDLE_RESERVED') error.textContent = '사용할 수 없는 공개 아이디입니다. 다른 아이디를 입력해주세요.';
-        else error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
+        error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
         save.textContent = '프로필 저장';
       } finally {
         save.disabled = false;
       }
     });
     const manage = document.createElement('a'); manage.className = 'site-button site-button-secondary'; manage.href = 'https://account.lotbiai.com/account'; manage.textContent = '계정 페이지에서 관리';
-    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save, manage); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoLabel, error, nameLabel, emailField, save, manage); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const openPersonalization = () => {
-    const {backdrop, panel, content} = modalShell('개인 맞춤 설정', '선택한 대화 색상은 현재 사용자 설치의 이 브라우저에 저장됩니다.');
-    content.appendChild(colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
-  };
-  const openSettings = () => {
-    const {backdrop, panel, content} = modalShell('설정');
+  // SITE-PROFILE-MENU-ORDER-01 — '개인 맞춤 설정'과 '설정'이 둘 다 이 화면을
+  // 열고 있었습니다(색상 / 테마+색상). 같은 곳을 두 이름으로 부르던 것을
+  // '테마 선택' 하나로 합쳤고, '설정'은 계정 페이지로 나가는 링크가 됐습니다.
+  const openThemeChooser = () => {
+    const {backdrop, panel, content} = modalShell('테마 선택', '테마와 대화 색상은 이 브라우저에 저장됩니다.');
     const themeLabel = document.createElement('label'); themeLabel.className = 'site-field'; themeLabel.textContent = '테마';
     const select = document.createElement('select');
-    for (const [value, label] of [['system', '기기 설정'], ['light', '라이트'], ['dark', '다크']]) {
+    for (const [value, label] of THEME_OPTIONS) {
       const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = preferences.theme === value; select.appendChild(option);
     }
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
-    themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
+    themeLabel.appendChild(select);
+    const themeHelp = document.createElement('p'); themeHelp.className = 'site-field-help';
+    themeHelp.textContent = `'기기 설정'은 기기의 다크 모드를 따라가고, '자동'은 시계를 따라갑니다 — 저녁 ${AUTO_THEME_DARK_HOUR}시부터 다크, 아침 ${AUTO_THEME_LIGHT_HOUR}시부터 라이트.`;
+    content.append(themeLabel, themeHelp, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const openCalendar = async (view, {deepOpen, initialDraft = null, restoreConversation = false} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
@@ -2627,18 +2668,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
     const menu = document.createElement('div'); menu.className = 'profile-popover'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '프로필 메뉴');
     menu.appendChild(profileSummary());
-    for (const [label, action] of [['프로필', openProfile], ['개인 맞춤 설정', openPersonalization], ['설정', openSettings]]) {
+    // SITE-PROFILE-MENU-ORDER-01 — 프로필 수정 → 테마 선택 → 연결 서비스 →
+    // 도움말 → 설정 → 로그아웃. 계정 페이지로 나가는 두 항목은 같은 모양의
+    // 링크입니다: 화면 안에서 열리는 것과 사이트를 떠나는 것이 눈에 구분되도록.
+    const menuAction = (label, action) => {
       const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); button.textContent = label;
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
-    }
-    const connectedServices = document.createElement('a');
-    connectedServices.href = 'https://account.lotbiai.com/connected-services';
-    connectedServices.setAttribute('role', 'menuitem');
-    connectedServices.textContent = '연결 서비스';
-    connectedServices.addEventListener('click', () => closeSurface());
-    menu.appendChild(connectedServices);
-    const help = document.createElement('button'); help.type = 'button'; help.setAttribute('role', 'menuitem'); help.textContent = '도움말';
-    help.addEventListener('click', () => { closeSurface(); openHelp(); }); menu.appendChild(help);
+    };
+    const menuLink = (label, href) => {
+      const link = document.createElement('a');
+      link.href = href;
+      link.setAttribute('role', 'menuitem');
+      link.textContent = label;
+      link.addEventListener('click', () => closeSurface());
+      menu.appendChild(link);
+    };
+    menuAction('프로필 수정', openProfile);
+    menuAction('테마 선택', openThemeChooser);
+    menuLink('연결 서비스', 'https://account.lotbiai.com/connected-services');
+    menuAction('도움말', openHelp);
+    menuLink('설정', 'https://account.lotbiai.com');
     const logout = document.createElement('button'); logout.type = 'button'; logout.setAttribute('role', 'menuitem');
     logout.className = 'profile-menu-logout'; logout.textContent = '로그아웃'; logout.disabled = !sessionToken;
     if (!sessionToken) logout.title = 'Site child session 연결 후 사용할 수 있습니다.';
@@ -3286,7 +3335,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       closeMobileDrawer();
       const action = globalNavAction.dataset.globalNavAction;
       if (action === 'profile') openProfile();
-      else if (action === 'settings') openSettings();
+      else if (action === 'settings' || action === 'theme') openThemeChooser();
       else if (action === 'help') openHelp();
       return;
     }

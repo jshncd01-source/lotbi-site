@@ -110,6 +110,11 @@ jobs:
       - name: Validate theme bootstrap first paint
         run: node scripts/validate_theme_bootstrap_first_paint_01.mjs
 
+      # '자동' follows the clock (18시 다크 / 07시 라이트) and must never reach
+      # the document as a fourth theme state.
+      - name: Validate theme 자동 schedule and account menu order
+        run: node scripts/validate_theme_auto_schedule_01.mjs
+
       # A long answer keeps growing after it is appended; the thread has to
       # follow it without dragging a reader who scrolled up.
       - name: Validate answer scroll and markdown

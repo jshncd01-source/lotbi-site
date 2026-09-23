@@ -47,7 +47,7 @@ assert.ok(
 assert.ok(
   conversation.includes("const action = globalNavAction.dataset.globalNavAction;")
   && conversation.includes("if (action === 'profile') openProfile();")
-  && conversation.includes("else if (action === 'settings') openSettings();")
+  && conversation.includes("else if (action === 'settings' || action === 'theme') openThemeChooser();")
   && conversation.includes("else if (action === 'help') openHelp();"),
   'the data-global-nav-action handler must survive the markup removal',
 );
@@ -99,19 +99,28 @@ const menu = conversation.slice(
 // word appears: 로그아웃 also shows up in the in-flight label and in an error
 // string, so a bare substring check would not notice the item disappearing.
 const boundItems = [
-  ["['프로필', openProfile]", '프로필'],
-  ["['개인 맞춤 설정', openPersonalization]", '개인 맞춤 설정'],
-  ["['설정', openSettings]", '설정'],
-  ["connectedServices.textContent = '연결 서비스'", '연결 서비스'],
-  ["help.textContent = '도움말'", '도움말'],
+  ["menuAction('프로필 수정', openProfile)", '프로필 수정'],
+  ["menuAction('테마 선택', openThemeChooser)", '테마 선택'],
+  ["menuLink('설정', 'https://account.lotbiai.com')", '설정'],
+  ["menuLink('연결 서비스', 'https://account.lotbiai.com/connected-services')", '연결 서비스'],
+  ["menuAction('도움말', openHelp)", '도움말'],
   ["logout.textContent = '로그아웃'", '로그아웃'],
 ];
 for (const [binding, item] of boundItems) {
   assert.ok(menu.includes(binding), `the account menu must still offer ${item}`);
 }
+// SITE-PROFILE-MENU-ORDER-01 — the order 대표 asked for, read off the bindings
+// themselves so a reshuffle cannot pass unnoticed.
+const ORDER = ['프로필 수정', '테마 선택', '연결 서비스', '도움말', '설정', '로그아웃'];
+const positions = boundItems.map(([binding, item]) => [item, menu.indexOf(binding)]);
+const measured = positions.slice().sort((a, b) => a[1] - b[1]).map(([item]) => item);
+assert.deepEqual(measured, ORDER, `account menu order: expected ${ORDER.join(' → ')}, measured ${measured.join(' → ')}`);
+// Both account-page items leave the site, and both are links, so a reader can
+// see which items stay inside the product before clicking.
 assert.ok(
-  menu.includes("connectedServices.href = 'https://account.lotbiai.com/connected-services'"),
-  '연결 서비스 must still reach the external account surface',
+  menu.includes("menuLink('연결 서비스', 'https://account.lotbiai.com/connected-services')")
+  && menu.includes("menuLink('설정', 'https://account.lotbiai.com')"),
+  'the two account-page items must stay links to the external account surface',
 );
 // 로그아웃 is the one item with no other route out of the product.
 assert.ok(
