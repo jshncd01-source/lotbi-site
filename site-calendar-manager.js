@@ -139,6 +139,27 @@ function retryableWeatherRegionListFailure(failure) {
   return failure?.kind === WEATHER_REGION_LIST_FAILURE.HTTP && Number(failure.status) >= 500;
 }
 
+// 날씨 조회가 받아 주는 범위와 같은 범위다(site-calendar-public-weather.js).
+// 여기서 통과시킨 좌표가 저기서 422 로 거절당하면 지역은 저장됐는데 날씨만
+// 없는 상태가 된다.
+function koreaCoordinates(latitude, longitude) {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+  if (
+    !Number.isFinite(lat) || !Number.isFinite(lon)
+    || lat < 31 || lat > 44.5
+    || lon < 122 || lon > 132.5
+  ) return {};
+  return {latitude: lat, longitude: lon};
+}
+
+// 목록에 좌표가 없는 서버를 만났을 때, 행마다 지오코더에게 물어도 되는 최대 행
+// 수. /v2/life/weather/region/resolve 는 /v2/life/weather/public 과 같은 창
+// (클라이언트당 분당 30회)을 쓴다. 행마다 묻다가 한도를 넘기면 정작 날씨 조회가
+// 429 로 막혀 화면에서 날씨가 사라진다. 그럴 바에는 현재 위치를 시·군·구로
+// 되돌리지 않고 저장된 지역을 그대로 쓰는 편이 낫다.
+const CALENDAR_WEATHER_REGION_GEOCODE_MAX = 16;
+
 function weatherRegionCatalogFromItems(rawItems, rawProvinces) {
   const items = (Array.isArray(rawItems) ? rawItems : [])
     .filter(item => (
@@ -159,6 +180,9 @@ function weatherRegionCatalogFromItems(rawItems, rawProvinces) {
       // 사용자가 고르지 않은 이름일 수 있어(광주광역시 → 전남광주통합특별시)
       // 고른 것과 다른 이름을 보여주게 된다.
       displayLabel: item.province === item.label ? item.label.trim() : `${item.province.trim()} ${item.label.trim()}`,
+      // Core 가 목록에 좌표를 실어 보내면 그것을 쓴다. 안 보내는 서버(예전 배포)
+      // 라면 undefined 로 남고, 고른 뒤에 지오코더에게 묻는 예전 길로 간다.
+      ...koreaCoordinates(item.latitude, item.longitude),
     }));
   if (!items.length) return null;
   const provinces = Array.isArray(rawProvinces)
@@ -271,12 +295,35 @@ function writeCalendarWeatherRegionList(storage, catalog, now = Date.now) {
   try {
     storage.setItem(CALENDAR_WEATHER_REGION_LIST_STORAGE_KEY, JSON.stringify({
       savedAtMs: typeof now === 'function' ? Number(now()) : Number(now),
-      items: catalog.items.map(item => ({code: item.code, label: item.label, province: item.province})),
+      items: catalog.items.map(item => ({
+        code: item.code,
+        label: item.label,
+        province: item.province,
+        ...koreaCoordinates(item.latitude, item.longitude),
+      })),
       provinces: [...catalog.provinces],
     }));
   } catch {
     // 저장에 실패해도 이번 화면은 이미 목록을 들고 있다.
   }
+}
+
+// 목록이 좌표를 들고 왔으면 지오코더를 한 번도 부르지 않는다. 좌표를 한 행이라도
+// 빠뜨린 목록은 반쪽으로 쓰지 않고 통째로 없는 것으로 본다: 빠진 행이 하필 그
+// 사람의 동네면, 가장 가까운 곳을 고른 결과가 엉뚱한 곳이 된다.
+function catalogEntriesFromListedCoordinates(catalog) {
+  const items = catalog?.items || [];
+  if (!items.length) return null;
+  const entries = items
+    .filter(item => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+    .map(item => Object.freeze({
+      code: item.code,
+      province: item.province,
+      label: item.displayLabel,
+      latitude: item.latitude,
+      longitude: item.longitude,
+    }));
+  return entries.length === items.length ? entries : null;
 }
 
 // 좌표는 Core 의 지오코딩이 유일한 권위다. 여기서 만들어 내지 않는다.
@@ -1671,7 +1718,15 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
     citySelect.disabled = true;
     weatherStatus.textContent = '지역을 확인하는 중…';
     try {
-      const result = await resolvePublicWeatherRegion(chosen.displayLabel, fetchImpl);
+      // 목록이 좌표를 들고 왔으면 그것이 곧 답이다. 같은 좌표를 지오코더에게 다시
+      // 묻는 것은 왕복 한 번을 더 쓰는 일이고, 그 왕복은 날씨 조회와 분당 한도를
+      // 나눠 쓴다.
+      const listed = Number.isFinite(chosen.latitude) && Number.isFinite(chosen.longitude)
+        ? {latitude: chosen.latitude, longitude: chosen.longitude, midRegionCode: null}
+        : null;
+      const result = listed
+        ? {providerReady: true, found: true, region: listed}
+        : await resolvePublicWeatherRegion(chosen.displayLabel, fetchImpl);
       if (!result.providerReady) {
         weatherStatus.textContent = '현재 지역 검색 기능을 준비 중이에요.';
         return;
@@ -3097,10 +3152,20 @@ export async function mountLifeCalendarManager({
       if (!entries) {
         const catalog = await fetchCalendarWeatherRegions(fetchImpl, settingsStorage);
         if (!catalog) return null;
-        const resolved = await Promise.all(
-          catalog.items.map(item => resolveCatalogRegionCoordinates(item, fetchImpl)),
-        );
-        entries = resolved.filter(Boolean);
+        entries = catalogEntriesFromListedCoordinates(catalog);
+        if (!entries) {
+          // 목록이 좌표를 안 보내는 서버다. 행마다 물어야 하는데, 그 왕복은 날씨
+          // 조회와 분당 한도를 나눠 쓴다. 목록이 길면 묻다가 한도를 태워 날씨를
+          // 통째로 없애므로, 그럴 때는 현재 위치를 시·군·구로 되돌리지 않는다.
+          if (catalog.items.length > CALENDAR_WEATHER_REGION_GEOCODE_MAX) {
+            console.warn('[LOTBI 캘린더] 지역 목록에 좌표가 없고 목록이 길어 현재 위치를 시·군·구로 되돌리지 않습니다.');
+            return null;
+          }
+          const resolved = await Promise.all(
+            catalog.items.map(item => resolveCatalogRegionCoordinates(item, fetchImpl)),
+          );
+          entries = resolved.filter(Boolean);
+        }
         if (!entries.length) return null;
         writeCalendarWeatherRegionCatalog(settingsStorage, entries, locationNow);
       }
