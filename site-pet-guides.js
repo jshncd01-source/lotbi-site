@@ -96,7 +96,7 @@ const DISTINCTIVE_PATHS = [
 // which keeps the left/right pairs exactly symmetric.
 const GUIDES = Object.freeze({
   NOSE_FRONT: {
-    label: '코 주변 정면',
+    label: '코 정면',
     hint: '코를 정면에서. 코주름이 화면에 가득 차게 가까이.',
     draw: {
       paths: [...NOSE_HEAD_PATHS, ...NOSE_CALLOUT_PATHS, ...NOSE_ZOOM_PATHS],
@@ -104,7 +104,7 @@ const GUIDES = Object.freeze({
     },
   },
   NOSE_LEFT: {
-    label: '코 주변 왼쪽',
+    label: '코 왼쪽',
     hint: '코의 왼쪽 면이 보이도록 비스듬히.',
     draw: {
       paths: [...NOSE_CALLOUT_PATHS, ...NOSE_ARROW],
@@ -115,7 +115,7 @@ const GUIDES = Object.freeze({
     },
   },
   NOSE_RIGHT: {
-    label: '코 주변 오른쪽',
+    label: '코 오른쪽',
     hint: '코의 오른쪽 면이 보이도록 비스듬히.',
     draw: {
       paths: [...NOSE_CALLOUT_PATHS, ...NOSE_ARROW],
