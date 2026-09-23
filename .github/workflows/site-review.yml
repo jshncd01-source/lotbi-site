@@ -67,6 +67,11 @@ jobs:
       - name: Validate 개인테마 profile menu
         run: node scripts/validate_profile_menu_personal_theme_01.mjs
 
+      # '자동모드' follows the clock (18시 다크 · 07시 라이트) and must never
+      # leak 'auto' into the attribute the theme tokens style.
+      - name: Validate 자동모드 theme schedule
+        run: node scripts/validate_theme_auto_schedule_02.mjs
+
       - name: Validate canonical email-first identity profile
         run: node scripts/validate_identity_profile_hotfix_02.mjs
 
