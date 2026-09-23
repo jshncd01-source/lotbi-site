@@ -172,3 +172,166 @@ export function stripWakePrefix(value) {
   // text rather than handing back an empty string it would have to special-case.
   return parsed.command || '';
 }
+
+// --- Always-on wake listener --------------------------------------------
+// Ported from Core's consumer page, minus the pieces that page owns and this
+// one does not (the native bridge, GPT-Live, its own avatar states). What
+// carries over is the shape that was already proven there: continuous
+// recognition with interim results, a restart loop, permission errors treated
+// as fatal rather than retried, and listening that stops the moment the tab
+// stops being visible.
+//
+// What a browser can and cannot do here, measured rather than assumed: the tab
+// has to be visible and frontmost. Screen off, tab backgrounded, or another app
+// in front and the browser takes the microphone away. There is no arrangement
+// of this code that keeps a browser listening in the background — that needs a
+// native app, and on iOS not even then.
+
+export const WAKE_STORAGE_KEY = 'lotbi.wake.enabled';
+// Recognition ends itself after a pause. Restarting immediately spins when the
+// engine is refusing; this spaces the retries out without feeling laggy.
+const WAKE_RESTART_DELAY_MS = 450;
+// Same failure the mic button guards against: some engines accept start() and
+// then report nothing at all, forever. A listener that believes it is running
+// is worse than one that knows it is not, because the toggle looks on.
+const WAKE_ENGINE_SILENT_TIMEOUT_MS = 5000;
+
+export function readWakePreference(storage) {
+  // Off unless it was explicitly turned on. Nobody gets a live microphone by
+  // default, and a storage read that throws is not consent.
+  try { return storage?.getItem?.(WAKE_STORAGE_KEY) === '1'; } catch { return false; }
+}
+
+export function writeWakePreference(storage, enabled) {
+  try { storage?.setItem?.(WAKE_STORAGE_KEY, enabled ? '1' : '0'); } catch { /* private mode */ }
+}
+
+function speechRecognitionConstructor() {
+  return globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+}
+
+export function wakeListeningSupported() {
+  return typeof speechRecognitionConstructor() === 'function';
+}
+
+/**
+ * A wake listener bound to one page.
+ *
+ * onCommand(command) fires with the words that followed the call — never with
+ * the raw utterance, and never with anything when nothing followed it.
+ * onState(state, detail) reports 'listening' | 'idle' | 'unavailable' so the
+ * caller can label its own control.
+ */
+export function createWakeListener({onCommand, onState}) {
+  let enabled = false;
+  let recognition;
+  let restartTimer;
+  let silentTimer;
+
+  const report = (state, detail = '') => { try { onState?.(state, detail); } catch { /* the caller's UI is not ours to police */ } };
+
+  const clearTimers = () => {
+    clearTimeout(restartTimer); restartTimer = undefined;
+    clearTimeout(silentTimer); silentTimer = undefined;
+  };
+
+  const teardown = () => {
+    clearTimers();
+    if (!recognition) return;
+    const dying = recognition;
+    recognition = undefined;
+    // Drop the restart handler first, or stopping re-arms the loop we are
+    // trying to leave.
+    try { dying.onend = null; dying.onerror = null; dying.onresult = null; dying.abort(); } catch { /* already gone */ }
+  };
+
+  const canListen = () => enabled
+    && wakeListeningSupported()
+    && globalThis.document?.visibilityState === 'visible';
+
+  const scheduleRestart = (delay = WAKE_RESTART_DELAY_MS) => {
+    clearTimeout(restartTimer);
+    if (!canListen()) return;
+    restartTimer = setTimeout(() => { restartTimer = undefined; start(); }, delay);
+  };
+
+  function start() {
+    if (!canListen() || recognition) return;
+    const SpeechRecognition = speechRecognitionConstructor();
+    const active = new SpeechRecognition();
+    recognition = active;
+    active.lang = 'ko-KR';
+    active.continuous = true;
+    active.interimResults = true;
+    active.maxAlternatives = 1;
+
+    active.onstart = () => { clearTimeout(silentTimer); silentTimer = undefined; report('listening'); };
+
+    active.onresult = event => {
+      clearTimeout(silentTimer); silentTimer = undefined;
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const utterance = event.results[i]?.[0]?.transcript || '';
+        if (!utterance) continue;
+        const parsed = parseWakeUtterance(utterance);
+        // Not a call. Drop it here — it is someone's private conversation and
+        // it goes no further, not to a handler, not to a log, not anywhere.
+        if (!parsed.matched) continue;
+        if (!parsed.command) continue;
+        // A real call with a real request. Stop listening before handing it
+        // over, so LOTBI's own answer is not transcribed as the next command.
+        teardown();
+        report('idle');
+        try { onCommand?.(parsed.command); } catch { /* the caller's problem, not the microphone's */ }
+        return;
+      }
+    };
+
+    active.onerror = event => {
+      clearTimeout(silentTimer); silentTimer = undefined;
+      const fatal = event?.error === 'not-allowed' || event?.error === 'service-not-allowed';
+      if (fatal) {
+        // Permission is gone. Retrying would only spin, and re-asking without
+        // the person touching anything is exactly what they refused.
+        enabled = false; teardown(); report('unavailable', 'permission');
+        return;
+      }
+      scheduleRestart(900);
+    };
+
+    active.onend = () => {
+      if (recognition === active) recognition = undefined;
+      clearTimeout(silentTimer); silentTimer = undefined;
+      if (canListen()) scheduleRestart();
+      else report('idle');
+    };
+
+    try { active.start(); } catch { teardown(); report('unavailable', 'start'); return; }
+
+    // The engine took start() without complaint. If it also never reports
+    // anything, the toggle would sit there claiming to listen.
+    silentTimer = setTimeout(() => {
+      silentTimer = undefined;
+      if (recognition !== active) return;
+      enabled = false; teardown(); report('unavailable', 'silent');
+    }, WAKE_ENGINE_SILENT_TIMEOUT_MS);
+  }
+
+  const handleVisibility = () => {
+    if (canListen()) scheduleRestart(120);
+    else { teardown(); if (enabled) report('idle', 'hidden'); }
+  };
+  globalThis.document?.addEventListener?.('visibilitychange', handleVisibility);
+
+  return {
+    isEnabled: () => enabled,
+    /** Turn listening on. Only ever call this from a real user action. */
+    enable() {
+      if (!wakeListeningSupported()) { report('unavailable', 'unsupported'); return false; }
+      enabled = true; start(); return true;
+    },
+    disable() { enabled = false; teardown(); report('idle'); },
+    /** Pause while LOTBI is answering, without forgetting the preference. */
+    pause() { teardown(); },
+    resume() { scheduleRestart(120); },
+  };
+}

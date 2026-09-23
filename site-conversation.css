@@ -484,15 +484,28 @@
   opacity: 1;
 }
 
-.mic-button {
+.mic-button,
+.wake-button {
   border-color: #d9e0ec;
   background: #f7f9fc;
   color: var(--brand-navy);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .72);
 }
 
+/* Listening for a call, not recording a question. Kept cooler and quieter than
+   the mic button's active state so the two are tellable apart at a glance —
+   this one can sit on for minutes, and a loud badge would wear thin. */
+.wake-button[data-listening="true"] {
+  border-color: rgba(79, 120, 197, .5);
+  background: linear-gradient(135deg, rgba(79, 120, 197, .14), rgba(123, 98, 187, .11));
+  color: #3c5a96;
+  box-shadow: 0 0 0 3px rgba(79, 120, 197, .10);
+}
+
 .mic-button:not(:disabled):hover,
-.mic-button:not(:disabled):focus-visible {
+.wake-button:not(:disabled):hover,
+.mic-button:not(:disabled):focus-visible,
+.wake-button:not(:disabled):focus-visible {
   border-color: rgba(123, 98, 187, .42);
   background: #f5f2fb;
   color: #5f4a9f;
