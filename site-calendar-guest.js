@@ -21,7 +21,9 @@ function invalidInput() {
   return new GuestCalendarError('일정 입력값이 올바르지 않습니다.', 'GUEST_CALENDAR_INPUT_INVALID');
 }
 
-const EXPENSE_CATEGORIES = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'UNCLASSIFIED']);
+// The same six the editor's dropdown offers. A guest can pick 기타 there, and
+// without OTHER here that pick came back as "일정 입력값이 올바르지 않습니다."
+const EXPENSE_CATEGORIES = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', 'UNCLASSIFIED']);
 
 function optionalText(value, maxLength) {
   const normalized = typeof value === 'string' ? value.trim() : '';
