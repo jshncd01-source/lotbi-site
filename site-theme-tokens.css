@@ -85,8 +85,15 @@ body[data-site-theme="dark"] {
 
 @media (prefers-color-scheme: dark) {
   body[data-site-theme="system"],
+  /* SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — this block used to set tokens only,
+     while the bootstrap="dark" block below painted `background` directly. The
+     gap was the remaining white flash: a reader on a dark OS following the
+     system setting got a white first frame that settled to #151922. The two
+     bootstrap states now paint the same way. */
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) {
     color-scheme: dark;
+    background: #151922;
+    color: #f8fafc;
     --lotbi-bg-primary: #151922;
     --lotbi-surface-primary: #171c25;
     --lotbi-surface-elevated: #202631;
@@ -358,21 +365,22 @@ body[data-site-theme="dark"] .lotbi-brand-logo-dark {
 
 /* 2. Following the system, with the system in Dark.
 
-   Deliberately keyed on body[data-site-theme="system"] only, NOT on the
-   matching html[data-site-theme-bootstrap="system"] pre-paint selector that
-   the token block above also carries. The two are not equivalent here: the
-   bootstrap="system" block sets tokens but never paints `background`, so in
-   the window before body gets its attribute the surface is still white even
-   on a dark OS. A logo keyed to the token intent would go white-on-white for
-   that window — the exact flash this change exists to prevent. Matching the
-   painted background instead means the logo is light until body lands, then
-   both flip together. */
+   This now covers the pre-paint bootstrap="system" state as well. It did not
+   before, and the reason is worth keeping: that block used to set tokens
+   without painting `background`, so the surface stayed white in the window
+   before body got its attribute, and a logo keyed to it would have gone
+   white-on-white. SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 made that block paint
+   its background, so the logo follows it again. The rule that matters is
+   unchanged: the wordmark tracks the painted surface, never the token intent
+   on its own. */
 @media (prefers-color-scheme: dark) {
-  body[data-site-theme="system"] .lotbi-brand-logo-light {
+  body[data-site-theme="system"] .lotbi-brand-logo-light,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .lotbi-brand-logo-light {
     display: none;
   }
 
-  body[data-site-theme="system"] .lotbi-brand-logo-dark {
+  body[data-site-theme="system"] .lotbi-brand-logo-dark,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .lotbi-brand-logo-dark {
     display: block;
   }
 }

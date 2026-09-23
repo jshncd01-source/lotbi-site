@@ -8,6 +8,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -19,6 +20,7 @@ const petUi = read('site-pet-ui.js');
 const petCss = read('site-pet.css');
 const petGuides = read('site-pet-guides.js');
 const conversation = read('site-conversation.js');
+const petGate = read('site-pet-gate.js');
 
 // Core's PET_PHOTO_SLOT_CODES order is a contract: slot_index is derived from
 // it, so the web uploader must not reorder or rename the slots.
@@ -147,6 +149,39 @@ assert.ok(
 assert.ok(
   petClient.includes('if (!(error instanceof SiteCoreError) || error.status !== 401) return;'),
   'a 403 must not be treated as an invalid session',
+);
+
+// Core answers in English for operators. The screen must not repeat it: the
+// 대표 saw "Session is restricted to the LOTBI Site audience" verbatim when a
+// pet request was refused. The code still has to be findable, so it rides on
+// the error element rather than in the sentence.
+assert.ok(
+  !petClient.includes("detail.message === 'string' && detail.message ? detail.message : fallback"),
+  "Core's English detail.message must not be shown to the user",
+);
+assert.ok(
+  petClient.includes('const PET_ERROR_MESSAGES = Object.freeze({'),
+  'pet errors must be mapped to Korean by code',
+);
+for (const code of [
+  'SESSION_AUDIENCE_RESTRICTED',
+  'SESSION_EXPIRED',
+  'PET_NAME_INVALID',
+  'PET_PHOTO_TYPE_NOT_ALLOWED',
+  'PET_IDEMPOTENCY_CONFLICT',
+]) {
+  assert.ok(
+    new RegExp(`${code}:\\s*'[^']*[가-힣]`).test(petClient),
+    `${code} needs a Korean message`,
+  );
+}
+assert.ok(
+  petUi.includes('error.dataset.petErrorCode = code'),
+  'the Core error code must stay findable on the error element',
+);
+assert.ok(
+  !/'[^']*[A-Za-z]{4,}[^']*'\s*:\s*'[^']*Session is restricted/.test(petClient),
+  'no English Core sentence may be reused as user copy',
 );
 assert.strictEqual(
   (petClient.match(/if \(announceSessionFailure\) announceInvalidSiteSession\(error\);/g) || []).length,
@@ -588,3 +623,66 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
 }
 
 console.log('SITE-PET-FAMILY-WEB-01 CONTRACT PASS');
+
+// ---------------------------------------------------- 유료 게이트 (A안)
+// 스위치는 꺼진 채로 배포됩니다. 결제가 TEST 환경이라 지금 켜면 대표 계정을
+// 포함해 전원이 막힙니다. 이 단정이 실수로 켜진 채 나가는 것을 막습니다.
+assert.ok(
+  /export const PET_GATE_ENFORCED = false;/.test(petGate),
+  'the paid gate must ship with its switch off',
+);
+assert.ok(
+  petGate.includes('export const PET_REGISTRATION_ALWAYS_ALLOWED = true;'),
+  'registration must never be gated',
+);
+
+const gateModule = await import(`${pathToFileURL(path.join(ROOT, 'site-pet-gate.js')).href}`);
+const {petFeatureState, petGateNotice, petNavLockLabel} = gateModule;
+
+// 스위치가 꺼져 있으면 아무도 막히지 않습니다.
+for (const subscription of [
+  {plan: 'FREE', entitled: false},
+  {plan: 'PRO', entitled: true},
+  undefined,
+  null,
+]) {
+  assert.strictEqual(
+    petFeatureState(subscription).locked,
+    false,
+    'nothing may be locked while the switch is off',
+  );
+}
+
+// 구독을 못 읽으면 여는 쪽으로 갑니다. 조회 장애가 결제한 사용자의 기능을
+// 끄면 안 됩니다.
+for (const unreadable of [undefined, null, {}, {plan: 'PRO'}, {entitled: 'yes'}]) {
+  const state = petFeatureState(unreadable, {enforced: true});
+  assert.strictEqual(state.entitled, true, 'an unreadable subscription must fail open');
+  assert.strictEqual(state.locked, false, 'an unreadable subscription must never lock');
+}
+
+// 스위치를 켜면 Core 구독 상태가 단일 출처입니다.
+assert.strictEqual(petFeatureState({plan: 'FREE', entitled: false}, {enforced: true}).locked, true);
+assert.strictEqual(petFeatureState({plan: 'PRO', entitled: true}, {enforced: true}).locked, false);
+
+// 안내 문구는 현재 상태에 맞아야 합니다. 차단이 꺼져 있는데 "유료 회원만 쓸
+// 수 있습니다" 라고 하면 거짓말입니다.
+const openNotice = petGateNotice(petFeatureState(undefined));
+assert.ok(/지금은 모든 회원이 사용할 수 있/.test(openNotice.body), 'the open notice must not claim the feature is paid-only');
+const lockedNotice = petGateNotice(petFeatureState({entitled: false}, {enforced: true}));
+assert.ok(/그대로 보관/.test(lockedNotice.body), 'the locked notice must say the data is kept');
+assert.ok(!/삭제|사라집니다/.test(lockedNotice.body), 'the locked notice must not suggest data loss');
+assert.strictEqual(petNavLockLabel(petFeatureState(undefined)), '', 'no lock label while the switch is off');
+
+// 사이드바 항목을 제거하거나 못 누르게 만들지 않습니다 — 눌렀을 때 아무 일도
+// 안 일어나면 고장으로 보입니다.
+assert.ok(
+  !/\[data-pet-family-open\][^\n]*\.disabled = true/.test(conversation),
+  'the sidebar entry must stay clickable when locked',
+);
+assert.ok(
+  conversation.includes("nav.dataset.petLocked = locked ? 'true' : 'false'"),
+  'the sidebar must mark its locked state',
+);
+
+console.log('SITE-PET-FAMILY-WEB-01 gate: switch OFF, fail-open, registration always allowed');
