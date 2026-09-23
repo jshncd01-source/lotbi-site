@@ -46,7 +46,7 @@ on:
       - 'scripts/validate_calendar_responsive_01.mjs'
       - 'scripts/validate_calendar_modal_runtime_02.mjs'
       - 'scripts/validate_calendar_touch_monthnav_daysheet_01.mjs'
-      - 'scripts/validate_calendar_day_sheet_compact_01.mjs'
+      - 'scripts/validate_calendar_day_panel_quick_add_01.mjs'
       - 'scripts/validate_calendar_month_geometry_01.mjs'
       - 'scripts/validate_calendar_expense_summary_01.mjs'
       - 'scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs'
@@ -118,10 +118,11 @@ jobs:
           node scripts/validate_calendar_modal_runtime_02.mjs
       - name: Calendar touch month navigation and selected-day sheet
         run: node scripts/validate_calendar_touch_monthnav_daysheet_01.mjs
-      # 날짜를 눌렀을 때 뜨는 패널이 화면을 잡아먹지 않는지, 그리고 패널이 열려
-      # 있어도 다른 날짜를 바로 누를 수 있는지를 실제로 재서 확인한다.
-      - name: The selected-day sheet stays small, and never blocks the month
-        run: node scripts/validate_calendar_day_sheet_compact_01.mjs
+      # 날짜를 누르면 곧바로 제목을 적을 수 있는지, 제목만으로 저장되는지,
+      # 그리고 그 사이에도 달력이 보이고 다른 날짜가 눌리는지를 실제로 재서
+      # 확인한다. 접은 폴드(344px)와 다크모드까지 같은 기준으로 본다.
+      - name: A tap on a date opens a title box, and the month stays usable
+        run: node scripts/validate_calendar_day_panel_quick_add_01.mjs
       - name: Calendar Month desktop geometry and density
         run: node scripts/validate_calendar_month_geometry_01.mjs
       - name: Calendar expense summary strip
