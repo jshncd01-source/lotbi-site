@@ -95,6 +95,12 @@ try {
     spot('날짜 패널 제목', '.calendar-day-heading'),
     spot('날짜 패널', '.calendar-day-panel'),
     spot('설정 패널 제목', '#calendar-settings-heading'),
+    // Added after this very element shipped at 3.56:1: making the panel dark
+    // exposed a heading whose colour had no dark value. The lesson is that the
+    // spot list has to name every text element on the surface, not the ones the
+    // last bug happened to touch.
+    spot('설정 섹션 제목', '.calendar-settings-body h4'),
+    spot('설정 상태 문구', '.calendar-settings-status'),
     spot('설정 항목 설명', '.calendar-settings-toggle-row small'),
     spot('주 시작 요일 선택', '.calendar-settings-select'),
     spot('요일 머리글', '.calendar-weekdays'),
