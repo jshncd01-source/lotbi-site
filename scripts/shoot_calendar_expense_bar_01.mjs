@@ -61,7 +61,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <link rel="stylesheet" href="/site-theme-tokens.css">
 <!-- site-conversation.js injects this at runtime; the modal chrome lives here. -->
 <link rel="stylesheet" href="/site-conversation.css">
-</head><body class="chat-home-page" data-site-auth-state="authenticated" style="margin:0">
+</head><body class="chat-home-page" data-site-auth-state="authenticated" style="margin:0" data-site-theme="THEME">
 <div class="site-modal-backdrop">
   <div class="site-modal site-calendar-modal" role="dialog" aria-modal="true" aria-labelledby="t">
     <header class="site-modal-header"><h2 id="t">캘린더</h2><button type="button" class="site-modal-close" aria-label="캘린더 닫기">×</button></header>
@@ -142,7 +142,16 @@ try{
     dayPanelHidden:document.querySelector('.calendar-day-panel')?.hidden===true,
     total:bar.querySelector('.calendar-expense-total-amount')?.textContent||'',
     items:[...bar.querySelectorAll('.calendar-expense-item')].map(n=>n.querySelector('dt').textContent+' '+n.querySelector('dd').textContent),
-    note:bar.querySelector('.calendar-expense-coverage')?.textContent||''});
+    note:bar.querySelector('.calendar-expense-coverage')?.textContent||'',
+    noteColor:(()=>{const n=bar.querySelector('.calendar-expense-coverage');return n?getComputedStyle(n).color:''})(),
+    noteContrast:(()=>{const n=bar.querySelector('.calendar-expense-coverage');if(!n)return null;
+      const rgb=v=>(String(v).match(/[0-9.]+/g)||[]).map(Number).slice(0,3);
+      const paint=x=>{for(let e=x;e;e=e.parentElement){const c=getComputedStyle(e).backgroundColor;
+        const q=(String(c).match(/[0-9.]+/g)||[]).map(Number);if(q.length>=3&&(q.length<4||q[3]>0))return q.slice(0,3)}return [255,255,255]};
+      const lum=c=>{const [r,g,b]=c.map(v=>{const x=v/255;return x<=0.03928?x/12.92:((x+0.055)/1.055)**2.4});
+        return 0.2126*r+0.7152*g+0.0722*b};
+      const a=lum(rgb(getComputedStyle(n).color)),b=lum(paint(n));
+      return Number(((Math.max(a,b)+0.05)/(Math.min(a,b)+0.05)).toFixed(2))})()});
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
 
@@ -187,7 +196,13 @@ try {
   await send('Page.enable');
   await send('Runtime.enable');
 
-  for (const [label, width, height, mobile] of [['desktop-1440x900', 1440, 900, false], ['mobile-390x844', 390, 844, true]]) {
+  for (const [label, width, height, mobile, theme] of [
+    ['light-desktop-1440x900', 1440, 900, false, 'light'],
+    ['light-mobile-390x844', 390, 844, true, 'light'],
+    ['dark-desktop-1440x900', 1440, 900, false, 'dark'],
+    ['dark-mobile-390x844', 390, 844, true, 'dark'],
+  ]) {
+    fs.writeFileSync(INNER, fixture.replaceAll('THEME', theme), 'utf8');
     await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
     await send('Page.navigate', {url: ORIGIN + '/' + INNER_REL + (mobile ? '?collapse=1' : '')});
     await sleep(5000);

@@ -117,7 +117,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #555d69;
+  /* SITE-DARK-CONVERSATION-LIST-CONTRAST-01 — follows the theme. The literal
+     is the light value, kept only as a fallback if the token never loads. */
+  color: var(--lotbi-nav-history-text, #555d69);
   font-size: 13px;
 }
 

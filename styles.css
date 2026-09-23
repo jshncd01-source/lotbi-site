@@ -80,6 +80,11 @@
 
 /* SITE-BRAND-01 — LOTBI brand accent + header presence */
 :root {
+  /* Raw brand colours. These have no Dark form: anything that paints text or
+     an icon with them goes unreadable the moment a surface flips. Use a
+     semantic token from site-theme-tokens.css instead (see
+     --lotbi-nav-history-text* for the pattern). Reserve these for the brand
+     artwork itself and for surfaces that are light in every theme. */
   --brand-navy: #182A46;
   --brand-pink: #EC6685;
   --brand-violet: #7B62BB;
