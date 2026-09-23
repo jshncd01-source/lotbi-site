@@ -30,7 +30,15 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # account-deletion/404 carry the short footer only; 전자상거래법 제10조는 초기화면
 # 표시를 요구하고 index.html 이 그 초기화면이다. 다른 페이지로 블록을 넓히려면
 # 여기에 파일명을 더하고 --write 를 돌리면 된다.
-PAGES = ("index.html", "privacy.html", "terms.html")
+PAGES = (
+    "index.html",
+    "privacy.html",
+    "terms.html",
+    "subscribe.html",
+    "refund.html",
+    "exchange.html",
+    "dispute.html",
+)
 
 SEPARATOR = '<span class="company-separator" aria-hidden="true">|</span>'
 
