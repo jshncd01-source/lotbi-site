@@ -46,11 +46,22 @@ export function addCivilDays(value, days) {
   return formatCivilDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
 }
 
-export function calendarMonthGrid(year, month) {
+function assertWeekStart(weekStart) {
+  if (!Number.isInteger(weekStart) || weekStart < 0 || weekStart > 6) {
+    throw new RangeError('weekStart must be a weekday index between 0 and 6');
+  }
+}
+
+export function calendarMonthGrid(year, month, weekStart = 0) {
   assertYear(year);
   assertMonth(month);
+  assertWeekStart(weekStart);
   const first = utcCivilDate(year, month, 1);
-  const leadingDays = first.getUTCDay();
+  // How many cells of the previous month come before the 1st. With a Sunday
+  // start this is the weekday itself; any other start rotates it. The +7 is
+  // there because the subtraction goes negative whenever the 1st falls before
+  // the chosen start day in the week's order.
+  const leadingDays = (first.getUTCDay() - weekStart + 7) % 7;
   const last = utcCivilDate(year, month + 1, 0);
   const weekCount = Math.max(4, Math.ceil((leadingDays + last.getUTCDate()) / 7));
   const gridStart = utcCivilDate(year, month, 1 - leadingDays);
@@ -71,18 +82,19 @@ export function calendarMonthGrid(year, month) {
   }));
 }
 
-export function monthGridRange(year, month) {
-  const cells = calendarMonthGrid(year, month);
+export function monthGridRange(year, month, weekStart = 0) {
+  const cells = calendarMonthGrid(year, month, weekStart);
   return Object.freeze({start: cells[0].date, end: cells[cells.length - 1].date});
 }
 
-export function calendarYearOverview(year) {
+export function calendarYearOverview(year, weekStart = 0) {
   assertYear(year);
+  assertWeekStart(weekStart);
   return Object.freeze(Array.from({length: 12}, (_, index) => Object.freeze({
     year,
     month: index + 1,
     label: `${index + 1}월`,
-    cells: calendarMonthGrid(year, index + 1),
+    cells: calendarMonthGrid(year, index + 1, weekStart),
   })));
 }
 

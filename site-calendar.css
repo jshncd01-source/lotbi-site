@@ -497,9 +497,17 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .calendar-weekdays { color: #687180; font-size: 12px; font-weight: 800; text-align: center; }
 .calendar-weekdays span { padding: 5px 2px 9px; }
-.calendar-weekdays span:first-child { color: var(--lotbi-calendar-weekend-sun); }
-.calendar-weekdays span:last-child { color: var(--lotbi-calendar-weekend-sat); }
+/* Keyed to the weekday, not to first/last: with a Monday start those positions
+   are 월 and 일, and the weekend hues would land on the wrong two columns. */
+.calendar-weekdays span[data-weekday="0"] { color: var(--lotbi-calendar-weekend-sun); }
+.calendar-weekdays span[data-weekday="6"] { color: var(--lotbi-calendar-weekend-sat); }
 .calendar-month-grid { overflow: hidden; border: 1px solid #dbe1ea; border-radius: 12px; background: #dbe1ea; gap: 1px; }
+/* The lines ARE the 1px gap showing the container's colour through. Turning
+   them off closes the gap and hides the container, so the cells' own surfaces
+   meet -- today, selection and outside-month stay as legible as before because
+   each still paints its own background. The outer border stays: without it the
+   grid has no edge to sit in. */
+.calendar-month-grid[data-grid-lines="false"] { background: transparent; gap: 0; }
 
 .calendar-date-cell {
   min-width: 0;
@@ -538,8 +546,8 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
    data-current-month="true" is what stops a neighbouring month's Sunday from
    shouting louder than a weekday of the month you are actually looking at --
    and it leaves the one inherit rule below with nothing to fight. */
-.calendar-date-cell[data-current-month="true"]:nth-child(7n + 1) .calendar-date-number { color: var(--lotbi-calendar-weekend-sun); }
-.calendar-date-cell[data-current-month="true"]:nth-child(7n) .calendar-date-number { color: var(--lotbi-calendar-weekend-sat); }
+.calendar-date-cell[data-current-month="true"][data-weekday="0"] .calendar-date-number { color: var(--lotbi-calendar-weekend-sun); }
+.calendar-date-cell[data-current-month="true"][data-weekday="6"] .calendar-date-number { color: var(--lotbi-calendar-weekend-sat); }
 .calendar-date-cell[data-selected="true"] { z-index: 1; box-shadow: inset 0 0 0 2px rgba(24, 42, 70, .58); background: #f6f8fb; }
 .calendar-date-header { min-width: 0; min-height: 24px; display: flex; align-items: center; gap: 4px; }
 .calendar-date-trigger {
@@ -572,8 +580,8 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 }
 .calendar-date-cell[data-current-month="true"][data-holiday="true"]:not([data-today="true"]) .calendar-date-number { color: var(--lotbi-calendar-holiday-ink); }
 .calendar-date-cell[data-today="true"] .calendar-date-number,
-.calendar-date-cell[data-today="true"]:nth-child(7n + 1) .calendar-date-number,
-.calendar-date-cell[data-today="true"]:nth-child(7n) .calendar-date-number { color: #fff; }
+.calendar-date-cell[data-today="true"][data-weekday="0"] .calendar-date-number,
+.calendar-date-cell[data-today="true"][data-weekday="6"] .calendar-date-number { color: #fff; }
 .calendar-date-number { font-size: 14px; font-weight: 850; font-variant-numeric: tabular-nums; }
 .calendar-mobile-event-count { display: none; color: #687180; font-size: 11px; font-weight: 800; }
 .calendar-weather-icon {
@@ -919,6 +927,29 @@ body.calendar-editor-open { overflow: hidden; }
 .calendar-settings-toggle-row strong { font-size: 14px; }
 .calendar-settings-toggle-row small { color: #747e8d; font-size: 11px; line-height: 1.45; }
 .calendar-settings-toggle-row input { width: 22px; height: 22px; accent-color: var(--brand-navy, #182a46); }
+.calendar-settings-select-row {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  color: #242b36;
+}
+.calendar-settings-select-row > span { flex: 1 1 auto; min-width: 0; display: grid; gap: 3px; }
+.calendar-settings-select-row strong { font-size: 14px; }
+.calendar-settings-select-row small { color: #747e8d; font-size: 11px; line-height: 1.45; }
+.calendar-settings-select {
+  flex: 0 0 auto;
+  /* Same 44px floor every other control in the Calendar answers to. */
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid #cfd6e2;
+  border-radius: 10px;
+  background: #fff;
+  color: #303642;
+  font: inherit;
+  cursor: pointer;
+}
 .calendar-settings-body section + section { margin-top: 16px; padding-top: 16px; border-top: 1px solid #edf0f4; }
 .calendar-settings-action-row {
   min-height: 64px;
@@ -1008,6 +1039,9 @@ body[data-site-theme="dark"] .calendar-settings-status { color: #b9c5d7; }
 body[data-site-theme="dark"] .calendar-settings-action-row { color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-settings-action-button { border-color: #465162; background: #171c25; color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-settings-region-row input { border-color: #465162; background: #121720; color: #edf0f5; }
+body[data-site-theme="dark"] .calendar-settings-select-row { color: #edf0f5; }
+body[data-site-theme="dark"] .calendar-settings-select-row small { color: #a8b2c0; }
+body[data-site-theme="dark"] .calendar-settings-select { border-color: #465162; background: #121720; color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-settings-body section + section { border-top-color: #39424f; }
 body[data-site-theme="dark"] .calendar-unscheduled-group { border-top-color: #39424f; }
 body[data-site-theme="dark"] .calendar-unscheduled-note { color: #aab2bf; }

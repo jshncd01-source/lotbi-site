@@ -58,13 +58,17 @@ const agendaCall = calls.find(url => String(url).includes('/agenda'));
 const weatherCall = calls.find(url => String(url).includes('/weather'));
 const holidayCall = calls.find(url => String(url).includes('/holidays'));
 assert.ok(agendaCall, 'month view must load agenda');
-assert.match(agendaCall, /start=2026-08-30&end=2026-10-03/);
+// The month read now covers BOTH week starts at once (see monthBounds): the
+// 주 시작 요일 setting can move the grid's first and last cell by up to six days,
+// and a range tied to one start would leave cells on screen that the last read
+// never asked for. So the window ends one day later than it used to.
+assert.match(agendaCall, /start=2026-08-30&end=2026-10-04/);
 assert.doesNotMatch(agendaCall, /0001|9999/);
 assert.ok(weatherCall, 'month view must load weather fail-soft context');
 // Not the full grid: Core rejects a span wider than 15 inclusive days, and a
 // forecast starts at today (2026-09-20 in Asia/Seoul here), not at the grid's
 // leading overflow days. The agenda assertion above keeps the full grid.
-assert.match(weatherCall, /start=2026-09-20&end=2026-10-03/);
+assert.match(weatherCall, /start=2026-09-20&end=2026-10-04/);
 assert.ok(holidayCall, 'month view must load Korea public holidays');
 assert.match(holidayCall, /year=2026&country=KR/);
 assert.equal(month.holidays[0].name, '추석');
@@ -86,7 +90,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const source = fs.readFileSync(path.join(ROOT, 'site-calendar-ui.js'), 'utf8');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
-assert.ok(source.includes("from './site-calendar-manager.js?v=20260923-editorfields2'"));
+assert.ok(source.includes("from './site-calendar-manager.js?v=20260923-calsettings1'"));
 for (const required of [
   'calendarMonthGrid',
   'calendarYearOverview',

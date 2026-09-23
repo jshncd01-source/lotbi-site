@@ -155,6 +155,7 @@ jobs:
           node scripts/validate_calendar_holiday_surface_settings_icon_01.mjs
           node scripts/validate_calendar_outside_month_01.mjs
           node scripts/validate_calendar_editor_field_height_01.mjs
+          node scripts/validate_calendar_settings_expansion_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
 
       - name: Validate Universal Rich Product Cards

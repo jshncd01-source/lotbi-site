@@ -153,14 +153,18 @@ const responses = {
   assert.equal(month.key, 'month');
   assert.equal(month.kind, 'agenda');
   assert.equal(calls.length, 4);
-  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
+  // The month read now covers BOTH week starts at once (see monthBounds): the
+  // 주 시작 요일 setting can move the grid's first and last cell by up to six
+  // days, and a range tied to one start would leave cells on screen that the
+  // last read never asked for. So the window ends one day later than it used to.
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-04')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
   // Weather is not read for the whole 42-cell grid: Core refuses a span wider
   // than 15 inclusive days, and no forecast exists before today. With today at
   // 2026-09-30 in Asia/Seoul the request covers today through the end of the
   // visible grid. Agenda above still spans the full grid -- events are not a
   // forecast.
-  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-10-03&timezone=Asia%2FSeoul')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-10-04&timezone=Asia%2FSeoul')));
   const monthHolidayCall = calls.find(call => call.url.includes('/v2/life/holidays?year=2026&country=KR'));
   assert.ok(monthHolidayCall, 'month view must load Korea public holidays');
   assert.equal(monthHolidayCall.init.headers.Authorization, undefined);
@@ -170,9 +174,9 @@ const responses = {
   const today = await loadLifeCalendarManagerView('site-token', {...base, view: 'today'});
   assert.equal(today.key, 'month');
   assert.equal(calls.length, 4);
-  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-04')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
-  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-10-03&timezone=Asia%2FSeoul')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-10-04&timezone=Asia%2FSeoul')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/holidays?year=2026&country=KR')));
 
   calls.length = 0;
@@ -194,7 +198,7 @@ const responses = {
   assert.equal(agenda.key, 'agenda');
   assert.equal(agenda.date, '2026-10-02');
   assert.equal(calls.length, 2);
-  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-10-31')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-27&end=2026-11-01')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/unscheduled')));
   assert.deepEqual(agenda.unscheduled, []);
 
@@ -241,7 +245,7 @@ assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry m
 assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish authenticated and guest entry without gating');
 
 
-assert.ok(index.includes('href="site-calendar.css?v=20260923-editorfields2"'));
+assert.ok(index.includes('href="site-calendar.css?v=20260923-calsettings1"'));
 assert.ok(!index.includes('data-life-calendar-panel'), 'Chat Home must not auto-mount a Calendar summary panel');
 assert.ok(!index.includes('data-calendar-enabled="true"'), 'Chat Home must not opt into the legacy Calendar summary');
 assert.ok(!index.includes('aria-label="오늘과 예정" hidden'), 'Chat Home must not carry the Today/Upcoming summary surface');
@@ -255,7 +259,7 @@ for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 �
 for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
   assert.ok(!index.includes(forbidden), `internal Calendar term leaked into user UI: ${forbidden}`);
 }
-assert.ok(callback.includes('href="/site-calendar.css?v=20260923-editorfields2"'));
+assert.ok(callback.includes('href="/site-calendar.css?v=20260923-calsettings1"'));
 const callbackJs = read('auth-callback.js');
 assert.ok(!callbackJs.includes('mountLifeCalendarIfEnabled'), 'Auth callback must not auto-mount Calendar summary into Chat Home');
 
@@ -272,7 +276,7 @@ assert.ok(conversation.includes("parts.push('알림 설정 일정 있음')"), 'C
 assert.ok(conversation.includes("item?.reminder_configured === true"), 'Reminder Bell must be driven only by an explicit authoritative reminder field');
 assert.ok(conversation.includes("window.addEventListener('pageshow', onNavigationCalendarRefresh)"), 'Calendar navigation status must refresh on foreground/page resume');
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("from './site-calendar-manager.js?v=20260923-editorfields2'"));
+assert.ok(ui.includes("from './site-calendar-manager.js?v=20260923-calsettings1'"));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes('mountLifeCalendarManager'));

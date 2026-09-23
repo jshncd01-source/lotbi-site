@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-editorfields2';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-calsettings1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,15 +11,15 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-editorfields2';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-calsettings1';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
 import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-editorfields2';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-editorfields2';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-editorfields2';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-calsettings1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-calsettings1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-calsettings1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -36,6 +36,13 @@ function civilMonthRange(year, month) {
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 const WEEKDAYS = Object.freeze(['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']);
+const WEEKDAY_INITIALS = Object.freeze(['일', '월', '화', '수', '목', '금', '토']);
+
+// The seven weekday indices in the order the grid lays them out.
+function weekdayOrder(weekStart = 0) {
+  const start = Number.isInteger(weekStart) ? ((weekStart % 7) + 7) % 7 : 0;
+  return Array.from({length: 7}, (_, index) => (start + index) % 7);
+}
 const MODES = Object.freeze([['month', '월'], ['year', '연도'], ['agenda', '일정'], ['attention', '확인 필요']]);
 const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
 const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription.v1';
@@ -57,9 +64,27 @@ function readStoredCalendarSettings(storage) {
   }
 }
 
+// Only the two starts Korean calendars actually offer. Anything else stored --
+// by hand, by a bug, by an older build -- falls back to Sunday rather than
+// rotating the grid to something nobody chose.
+export const CALENDAR_WEEK_STARTS = Object.freeze([
+  {value: 0, label: '일요일'},
+  {value: 1, label: '월요일'},
+]);
+
+function normalizeWeekStart(value) {
+  return CALENDAR_WEEK_STARTS.some(option => option.value === value) ? value : 0;
+}
+
 export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
   const stored = readStoredCalendarSettings(storage);
-  return Object.freeze({showKoreaHolidays: stored.showKoreaHolidays !== false});
+  return Object.freeze({
+    // Every display setting defaults to what the Calendar shipped with, so an
+    // empty or unreadable store renders exactly today's screen.
+    showKoreaHolidays: stored.showKoreaHolidays !== false,
+    showGridLines: stored.showGridLines !== false,
+    weekStart: normalizeWeekStart(stored.weekStart),
+  });
 }
 
 function writeCalendarDisplaySettings(storage, settings) {
@@ -71,6 +96,8 @@ function writeCalendarDisplaySettings(storage, settings) {
       // ...and write only the keys this module owns. The caller hands over the
       // live Calendar state, so nothing else from that object may leak in here.
       showKoreaHolidays: settings?.showKoreaHolidays !== false,
+      showGridLines: settings?.showGridLines !== false,
+      weekStart: normalizeWeekStart(settings?.weekStart),
     }));
   } catch {
     // Device/browser storage failure must not block Calendar.
@@ -103,9 +130,19 @@ function normalizeMode(value) {
   return MODES.some(([mode]) => mode === value) ? value : 'month';
 }
 
+// The fetch range deliberately covers BOTH week starts at once. Changing the
+// setting then never leaves a cell on screen that the last read did not ask
+// for, and no fetch path has to be told which start is in force -- worth at
+// most six extra days of events.
 function monthBounds(date) {
   const {year, month} = civilDateParts(date);
-  return {...monthGridRange(year, month), year, month};
+  const ranges = CALENDAR_WEEK_STARTS.map(option => monthGridRange(year, month, option.value));
+  return {
+    start: ranges.map(range => range.start).sort()[0],
+    end: ranges.map(range => range.end).sort().at(-1),
+    year,
+    month,
+  };
 }
 
 function yearBounds(date) {
@@ -761,18 +798,25 @@ function renderMonth(state, actions, weatherCredit = null) {
   const weekdays = document.createElement('div');
   weekdays.className = 'calendar-weekdays';
   weekdays.setAttribute('aria-hidden', 'true');
-  for (const label of ['일', '월', '화', '수', '목', '금', '토']) {
-    const day = document.createElement('span'); day.textContent = label; weekdays.appendChild(day);
+  for (const weekday of weekdayOrder(state.weekStart)) {
+    const day = document.createElement('span');
+    day.textContent = WEEKDAY_INITIALS[weekday];
+    // The heading carries its weekday rather than relying on being first or
+    // last in the row: with a Monday start those positions hold 월 and 일.
+    day.dataset.weekday = String(weekday);
+    weekdays.appendChild(day);
   }
   const grid = document.createElement('div');
   grid.className = 'calendar-month-grid';
+  grid.dataset.gridLines = String(state.showGridLines !== false);
+  grid.dataset.weekStart = String(state.weekStart);
   grid.setAttribute('role', 'grid');
   grid.setAttribute('aria-label', `${state.year}년 ${state.month}월`);
   const groups = groupCalendarEvents(state.items);
   const attentionDates = new Set(state.attention.map(item => item?.due_date).filter(validCivilDate));
   const weatherByDate = calendarWeatherByDate(state.weather);
   const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
-  const cells = calendarMonthGrid(state.year, state.month);
+  const cells = calendarMonthGrid(state.year, state.month, state.weekStart);
   grid.dataset.weekCount = String(cells.length / 7);
 
   for (const cell of cells) {
@@ -787,6 +831,10 @@ function renderMonth(state, actions, weatherCredit = null) {
     cellNode.className = 'calendar-date-cell';
     cellNode.dataset.calendarDate = cell.date;
     cellNode.dataset.currentMonth = String(cell.inCurrentMonth);
+    // Weekend colour keys off the real weekday, not the cell's position in the
+    // row. Position only meant Sunday and Saturday while the week could not
+    // start anywhere else; with a Monday start it would paint 월 and 일.
+    cellNode.dataset.weekday = String(cell.weekday);
     cellNode.dataset.selected = String(selected);
     cellNode.dataset.today = String(today);
     cellNode.dataset.attention = String(hasAttention);
@@ -922,12 +970,12 @@ function renderYear(state, actions) {
   grid.className = 'calendar-year-grid';
   grid.setAttribute('aria-label', `${state.year}년 연간 달력`);
   const counts = countCalendarEventsByMonth(state.items, state.year);
-  for (const month of calendarYearOverview(state.year)) {
+  for (const month of calendarYearOverview(state.year, state.weekStart)) {
     const card = button('', 'calendar-year-month');
     card.dataset.yearMonth = String(month.month);
     card.dataset.current = String(state.year === civilDateParts(state.todayDate).year && month.month === civilDateParts(state.todayDate).month);
     const title = document.createElement('strong'); title.textContent = month.label;
-    const weekdays = document.createElement('span'); weekdays.className = 'calendar-mini-weekdays'; weekdays.textContent = '일 월 화 수 목 금 토';
+    const weekdays = document.createElement('span'); weekdays.className = 'calendar-mini-weekdays'; weekdays.textContent = weekdayOrder(state.weekStart).map(weekday => WEEKDAY_INITIALS[weekday]).join(' ');
     const dates = document.createElement('span'); dates.className = 'calendar-mini-grid';
     for (const cell of month.cells) {
       const day = document.createElement('span'); day.textContent = cell.inCurrentMonth ? String(cell.day) : ''; dates.appendChild(day);
@@ -1007,7 +1055,7 @@ function renderAttention(state) {
   })));
 }
 
-function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegionChange, buildLocationRow, authenticated, sessionToken, fetchImpl}) {
+function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () => {}, onWeatherRegionChange, buildLocationRow, authenticated, sessionToken, fetchImpl}) {
   root.querySelector('.calendar-settings-backdrop')?.remove();
   const backdrop = document.createElement('div');
   backdrop.className = 'calendar-settings-backdrop';
@@ -1044,7 +1092,47 @@ function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegion
   toggle.checked = state.showKoreaHolidays;
   toggle.setAttribute('aria-label', '대한민국 공휴일 표시');
   row.append(copy, toggle);
-  section.append(sectionTitle, row);
+
+  // 격자선: the lines are already on today, so this switch turns them OFF for a
+  // flatter month. Framed that way on screen too -- a setting that claims to add
+  // something already there reads as broken the first time it is toggled.
+  const gridRow = document.createElement('label');
+  gridRow.className = 'calendar-settings-toggle-row';
+  const gridCopy = document.createElement('span');
+  const gridLabel = document.createElement('strong');
+  gridLabel.textContent = '격자선 표시';
+  const gridDescription = document.createElement('small');
+  gridDescription.textContent = '날짜 칸 사이의 선을 표시합니다. 끄면 달력이 더 단순해 보여요.';
+  gridCopy.append(gridLabel, gridDescription);
+  const gridToggle = document.createElement('input');
+  gridToggle.type = 'checkbox';
+  gridToggle.checked = state.showGridLines !== false;
+  gridToggle.setAttribute('aria-label', '격자선 표시');
+  gridRow.append(gridCopy, gridToggle);
+
+  const weekStartRow = document.createElement('div');
+  weekStartRow.className = 'calendar-settings-select-row';
+  const weekStartCopy = document.createElement('span');
+  const weekStartLabel = document.createElement('strong');
+  weekStartLabel.textContent = '주 시작 요일';
+  const weekStartDescription = document.createElement('small');
+  weekStartDescription.textContent = '달력의 첫 칸을 어느 요일로 둘지 정합니다.';
+  weekStartCopy.append(weekStartLabel, weekStartDescription);
+  const weekStartSelect = document.createElement('select');
+  weekStartSelect.className = 'calendar-settings-select';
+  weekStartSelect.id = 'calendar-settings-week-start';
+  weekStartSelect.setAttribute('aria-label', '주 시작 요일');
+  for (const option of CALENDAR_WEEK_STARTS) {
+    const node = document.createElement('option');
+    node.value = String(option.value);
+    node.textContent = option.label;
+    weekStartSelect.appendChild(node);
+  }
+  weekStartSelect.value = String(state.weekStart);
+  weekStartLabel.id = 'calendar-settings-week-start-label';
+  weekStartRow.append(weekStartCopy, weekStartSelect);
+
+  section.append(sectionTitle, row, gridRow, weekStartRow);
   body.appendChild(section);
 
   const weatherSection = document.createElement('section');
@@ -1232,6 +1320,22 @@ function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegion
     state.showKoreaHolidays = toggle.checked;
     writeCalendarDisplaySettings(storage, state);
     void onChange(toggle.checked);
+  });
+
+  // Neither of these needs new data, so they repaint rather than refetch. If the
+  // write fails the screen still follows the switch -- the setting is lost on
+  // the next load, the Calendar is not lost now.
+  gridToggle.addEventListener('change', () => {
+    state.showGridLines = gridToggle.checked;
+    writeCalendarDisplaySettings(storage, state);
+    onRedraw();
+  });
+
+  weekStartSelect.addEventListener('change', () => {
+    state.weekStart = normalizeWeekStart(Number(weekStartSelect.value));
+    weekStartSelect.value = String(state.weekStart);
+    writeCalendarDisplaySettings(storage, state);
+    onRedraw();
   });
 
   root.appendChild(backdrop);
@@ -1556,6 +1660,8 @@ export async function mountLifeCalendarManager({
     mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
     year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], holidays: [], loading: false,
     showKoreaHolidays: displaySettings.showKoreaHolidays,
+    showGridLines: displaySettings.showGridLines,
+    weekStart: displaySettings.weekStart,
     manualWeatherRegion: storedManualWeatherRegion,
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
     locationInFlight: false,
@@ -1718,6 +1824,7 @@ export async function mountLifeCalendarManager({
         if (enabled) await refresh();
         else render();
       },
+      onRedraw: () => { render(); },
     }),
   };
 
