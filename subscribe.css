@@ -1,0 +1,249 @@
+/* SITE-SUBSCRIBE-PLANS-01 — 구독 등급 선택 화면.
+   styles.css 는 hardening 으로 잠겨 있어 이 화면의 스타일만 여기에 둔다.
+   토큰은 styles.css :root 의 것을 그대로 쓴다. */
+
+.plan-lead {
+  max-width: 760px;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.plan-price-note {
+  max-width: 760px;
+  margin: 0 0 30px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* 카드 슬롯 3 장. fieldset 을 쓰는 이유는 셋이 하나의 선택지 묶음이고,
+   스크린리더가 legend 로 그 묶음의 이름을 읽어주기 때문이다. */
+.plan-picker {
+  margin: 0 0 34px;
+  padding: 0;
+  border: 0;
+}
+
+.plan-picker > legend {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: #5d6470;
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--brand-line);
+  border-radius: 20px;
+  background: var(--panel);
+  padding: 26px 24px 24px;
+  cursor: pointer;
+}
+
+/* 라디오는 화면에서 숨기되 접근성 트리와 키보드 조작에는 남긴다.
+   display:none 이면 화살표 키로 등급을 고를 수 없다. */
+.plan-card input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.plan-card:hover {
+  border-color: var(--brand-blue);
+}
+
+/* 선택 상태는 테두리 색만으로 알리지 않는다 — 색을 구분하지 못해도
+   좌측 굵은 띠와 체크 표시로 어떤 카드가 골라졌는지 보이게 한다. */
+.plan-card[data-selected="true"] {
+  border-color: var(--brand-navy);
+  box-shadow: inset 5px 0 0 var(--brand-navy), 0 6px 20px rgba(24, 42, 70, .10);
+}
+
+.plan-card:focus-within {
+  outline: 3px solid var(--brand-blue);
+  outline-offset: 3px;
+}
+
+.plan-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.plan-name {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+  color: var(--brand-navy);
+}
+
+.plan-check {
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--brand-navy);
+}
+
+.plan-card[data-selected="false"] .plan-check {
+  visibility: hidden;
+}
+
+.plan-price {
+  margin: 14px 0 0;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+  color: var(--text);
+}
+
+.plan-price .plan-period {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* 가격이 아직 정해지지 않은 등급. 임시 숫자를 큰 글씨로 띄워
+   확정가처럼 보이게 두지 않는다. */
+.plan-price-pending {
+  font-size: 20px;
+  color: var(--brand-navy);
+}
+
+.plan-price-caption {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.plan-features {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.plan-features li {
+  display: grid;
+  grid-template-columns: 7.5em 1fr;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+/* "영수증 자동 인식" 이 "영수증 자동 인 / 식" 으로 잘리지 않게 한다.
+   한국어는 단어 중간에서 줄바꿈되면 읽기가 크게 나빠진다. */
+.plan-features .plan-feature-label {
+  color: var(--muted);
+  word-break: keep-all;
+}
+
+.plan-features .plan-feature-value {
+  font-weight: 700;
+  color: var(--text);
+  word-break: keep-all;
+}
+
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 10px;
+}
+
+.plan-buy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 26px;
+  border: 1px solid var(--brand-navy);
+  border-radius: 12px;
+  background: var(--brand-navy);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.plan-buy:hover,
+.plan-buy:focus-visible {
+  background: #243b61;
+}
+
+.plan-selected-readout {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.plan-selected-readout strong {
+  color: var(--text);
+}
+
+/* 결제가 아직 열리지 않았다는 안내. 등급 선택을 막지 않는다. */
+.plan-status {
+  margin: 0 0 40px;
+  padding: 18px 20px;
+  border: 1px solid var(--brand-line);
+  border-radius: 16px;
+  background: var(--soft);
+  font-size: 15px;
+  color: #343942;
+}
+
+.plan-status:empty {
+  display: none;
+}
+
+.plan-status p {
+  margin: 0;
+}
+
+.plan-status p + p {
+  margin-top: 8px;
+}
+
+.plan-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+}
+
+@media (max-width: 860px) {
+  .plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-lead {
+    font-size: 16px;
+  }
+
+  .plan-features li {
+    grid-template-columns: 7.5em 1fr;
+  }
+}
