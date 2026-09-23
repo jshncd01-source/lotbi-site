@@ -741,11 +741,11 @@ for (const [name, source] of [
   assert.ok(!source.includes(FORBIDDEN_TERM), `${name} must not use the term`);
 }
 assert.ok(
-  read('site-pet-guides.js').includes("label: '코 주변 정면',"),
-  'the nose-area slots must be labelled 코 주변',
+  read('site-pet-guides.js').includes("label: '코 정면',"),
+  'the nose slots must be labelled 코',
 );
 for (const code of ['NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT']) {
   assert.ok(petClient.includes(code), `${code} must stay — stored photos are keyed by it`);
 }
 
-console.log('SITE-PET-FAMILY-WEB-01 wording: 코 주변 labels, internal slot codes intact');
+console.log('SITE-PET-FAMILY-WEB-01 wording: 코 labels, internal slot codes intact');
