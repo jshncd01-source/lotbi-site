@@ -13,7 +13,7 @@ const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
 const calendarEntryVersion = '20260923-regionlist1';
 const calendarManagerVersion = '20260923-regionlist1';
-const calendarModelVersion = '20260923-daysheet2';
+const calendarModelVersion = '20260923-daysheet3';
 const calendarCssVersion = '20260923-regionlist1';
 const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
 const callbackEntryVersion = callback.match(/\/auth-callback\.js\?v=([^"]+)/)?.[1] || '';

@@ -1320,16 +1320,31 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     align-items: center;
     gap: 4px 8px;
   }
+  /* The sentence yields the width, the buttons keep theirs. The other way round
+     -- buttons on flex: 1 1 0 next to a sentence that refuses to shrink --
+     squeezed both boxes narrower than their own labels, and "이미지로 등록"
+     spilled across "직접 등록". Measured on the deployed page at 390px. */
   .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body[data-empty="true"] .life-calendar-empty {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
     padding: 0;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
   .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body[data-empty="true"] .calendar-add-actions {
     position: static;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     margin-top: 0;
+    margin-left: auto;
     padding-top: 0;
+  }
+  .calendar-day-panel[data-presentation="SHEET"] .calendar-day-body[data-empty="true"] .calendar-add-button {
+    /* width:100% comes from the stacked-panel rule and, with flex-basis auto,
+       it is what made both boxes resolve to the same 140px and outgrow their
+       labels. On this row each button is exactly as wide as its own words. */
+    flex: 0 0 auto;
+    width: auto;
   }
 
   .calendar-day-panel[data-presentation="SHEET"] .calendar-day-list { gap: 5px; }
