@@ -89,7 +89,7 @@ try{
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{
     getCurrentPosition:(_o,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{}}});
-  const manager=await import('/site-calendar-manager.js?v=20260923-editorfields1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-editorfields2');
   const root=document.querySelector('.site-modal-content');
   manager.mountLifeCalendarManager({root,sessionToken:'tok_shot_fixture',timezone:'Asia/Seoul',
     now:()=>new Date('2026-09-22T03:00:00+09:00'),fetchImpl:stub,
