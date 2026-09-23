@@ -166,7 +166,12 @@ function currencyLine(currencyTotals, {showCurrencyName, note = ''}) {
   total.dataset.expenseTotal = '';
   const totalLabel = document.createElement('span');
   totalLabel.className = 'calendar-expense-total-label';
-  totalLabel.textContent = showCurrencyName ? `총 ${currencyTotals.currency}` : '총';
+  // Only a multi-currency month names the currency here, and "총 KRW" put a
+  // bare uppercase W on screen. KRW gets its own sign; every other currency
+  // keeps its code, because ₩ on a USD row would be a lie.
+  totalLabel.textContent = showCurrencyName
+    ? `총 ${currencyTotals.currency === 'KRW' ? '₩' : currencyTotals.currency}`
+    : '총';
   const totalAmount = document.createElement('strong');
   totalAmount.className = 'calendar-expense-total-amount';
   totalAmount.textContent = formatExpenseAmount(
