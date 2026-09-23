@@ -46,8 +46,8 @@ assert.match(css, /\.calendar-settings-action-row/);
 assert.match(css, /\.calendar-settings-action-button/);
 assert.match(ui, /site-calendar-manager\.js\?v=20260923-regionlist2/);
 assert.match(conversation, /site-calendar-ui\.js\?v=20260923-regionlist2/);
-assert.match(index, /site-conversation\.js\?v=20260923-handle6/);
-assert.match(callback, /site-conversation\.js\?v=20260923-handle6/);
-assert.match(callbackHtml, /auth-callback\.js\?v=20260923-handle6/);
+assert.match(index, /site-conversation\.js\?v=20260923-handle7/);
+assert.match(callback, /site-conversation\.js\?v=20260923-handle7/);
+assert.match(callbackHtml, /auth-callback\.js\?v=20260923-handle7/);
 
 console.log('LOTBI Calendar notification Settings opt-in contract: PASS');
