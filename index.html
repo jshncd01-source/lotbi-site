@@ -34,8 +34,8 @@
   <link rel="stylesheet" href="site-avatar.css" />
   <link rel="stylesheet" href="site-sidebar-nav.css?v=20260922-mobileaccount3" />
   <link rel="stylesheet" href="site-auth-continuity.css" />
-  <link rel="stylesheet" href="site-calendar.css?v=20260922-daysheet1" />
-  <link rel="stylesheet" href="site-calendar-expense.css?v=20260922-expense1" />
+  <link rel="stylesheet" href="site-calendar.css?v=20260923-onelinebar1" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=20260923-onelinebar1" />
   <link rel="stylesheet" href="site-pet.css?v=20260922-petweb1" />
   <link rel="stylesheet" href="footer-business-info.css" />
   <link rel="stylesheet" href="mobile-entry.css" />
@@ -57,7 +57,7 @@
   <script src="home-shell.js?v=20260920-fold5" defer></script>
   <script src="mobile-entry.js?v=20260920-homefirst1" defer></script>
   <script type="module" src="site-avatar.js"></script>
-  <script type="module" src="site-conversation.js?v=20260922-sessionfix1"></script>
+  <script type="module" src="site-conversation.js?v=20260923-onelinebar1"></script>
   <script type="module" src="site-continuity.js?v=20260921-guestclaim1"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
@@ -124,25 +124,6 @@
             <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
           </div>
         </section>
-
-        <div class="sidebar-secondary-nav" aria-label="보조 메뉴">
-          <a class="nav-item nav-link" data-sidebar-destination="connected-services" href="https://account.lotbiai.com/connected-services">
-            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-link"></use></svg>
-            <span class="nav-item-label">연결 서비스</span>
-          </a>
-          <button class="nav-item nav-link" type="button" data-global-nav-action="profile">
-            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
-            <span class="nav-item-label">프로필</span>
-          </button>
-          <button class="nav-item nav-link" type="button" data-global-nav-action="settings">
-            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-settings"></use></svg>
-            <span class="nav-item-label">설정</span>
-          </button>
-          <button class="nav-item nav-link" type="button" data-global-nav-action="help">
-            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-help"></use></svg>
-            <span class="nav-item-label">도움말</span>
-          </button>
-        </div>
 
         <div class="sidebar-account-footer">
           <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
@@ -399,8 +380,6 @@
           <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
         </div>
       </section>
-
-      <div class="sidebar-secondary-nav sidebar-secondary-nav-mobile-empty" aria-hidden="true"></div>
 
       <div class="sidebar-account-footer">
         <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
