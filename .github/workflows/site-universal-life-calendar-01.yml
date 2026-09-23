@@ -46,6 +46,7 @@ on:
       - 'scripts/validate_calendar_responsive_01.mjs'
       - 'scripts/validate_calendar_modal_runtime_02.mjs'
       - 'scripts/validate_calendar_touch_monthnav_daysheet_01.mjs'
+      - 'scripts/validate_calendar_day_sheet_compact_01.mjs'
       - 'scripts/validate_calendar_month_geometry_01.mjs'
       - 'scripts/validate_calendar_expense_summary_01.mjs'
       - 'scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs'
@@ -117,6 +118,10 @@ jobs:
           node scripts/validate_calendar_modal_runtime_02.mjs
       - name: Calendar touch month navigation and selected-day sheet
         run: node scripts/validate_calendar_touch_monthnav_daysheet_01.mjs
+      # 날짜를 눌렀을 때 뜨는 패널이 화면을 잡아먹지 않는지, 그리고 패널이 열려
+      # 있어도 다른 날짜를 바로 누를 수 있는지를 실제로 재서 확인한다.
+      - name: The selected-day sheet stays small, and never blocks the month
+        run: node scripts/validate_calendar_day_sheet_compact_01.mjs
       - name: Calendar Month desktop geometry and density
         run: node scripts/validate_calendar_month_geometry_01.mjs
       - name: Calendar expense summary strip
