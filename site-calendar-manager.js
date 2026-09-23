@@ -17,9 +17,9 @@ import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
 import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260922-region1';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260922-region1';
+import {calendarWeatherAttribution, calendarWeatherByDate} from './site-calendar-weather.js?v=20260923-guesttotals1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-guesttotals1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-guesttotals1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -736,7 +736,7 @@ function syncMonthLayout(layout) {
   positionDayPopover(layout);
 }
 
-function renderMonth(state, actions) {
+function renderMonth(state, actions, weatherCredit = null) {
   const layout = document.createElement('div');
   layout.className = 'calendar-month-layout';
   layout.dataset.detailOpen = String(state.detailOpen);
@@ -852,6 +852,18 @@ function renderMonth(state, actions) {
   }
 
   calendar.append(weekdays, grid);
+  // 기상청 출처표시는 날짜 칸에 예보가 실제로 그려졌을 때만, 그 그리드 바로
+  // 아래에 붙는다. 셸의 행으로 두면 휴대폰에서 기본으로 열려 있는 날짜 시트에
+  // 통째로 가려져서, 의무인 표기가 화면에 없는 것과 같아진다.
+  // .calendar-month 의 grid-template-rows(데스크톱)는 건드리지 않는다:
+  // 명시적으로 3행에 놓아 암시적 행을 만들어 쓴다.
+  if (weatherCredit) {
+    const creditLine = document.createElement('p');
+    creditLine.className = 'calendar-weather-credit';
+    creditLine.dataset.calendarWeatherCredit = '';
+    creditLine.textContent = weatherCredit.text;
+    calendar.appendChild(creditLine);
+  }
   const panel = dayPanel(state, groups, actions);
   // Order matters: existing runtime checks read layout.children[0] as the month and
   // layout.children[1] as the selected-day surface. The sheet backdrop is appended
@@ -1862,7 +1874,7 @@ export async function mountLifeCalendarManager({
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else if (state.mode === 'attention') viewport.replaceChildren(renderAttention(state));
-    else viewport.replaceChildren(renderMonth(state, actions));
+    else viewport.replaceChildren(renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
 
     if (state.mode === 'month') {
       const monthKey = `${state.year}-${state.month}`;
