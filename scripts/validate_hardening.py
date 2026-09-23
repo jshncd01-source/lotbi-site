@@ -41,11 +41,17 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # keyboard skip target was #182a46 on #151922, 1.22:1 — present but unseeable.
 # Verified with `git diff --unified=0` and again by stripping /* */ from both
 # revisions: no other declaration in the file moved.
+# SITE-FOOTER-FOUR-ROWS-01 — privacy/terms/account-deletion/contact 의 해시가
+# 푸터 때문에 움직였다. 정책 본문은 한 글자도 바뀌지 않았다: 네 파일에서 <footer>
+# 를 통째로 들어낸 나머지가 이전 revision 과 바이트까지 같은 것을 확인했다.
+# privacy/terms 는 링크 줄이 일곱 페이지 공통으로 맞춰지고 사업자 정보 블록이
+# 다섯 줄에서 세 줄로 줄었다. account-deletion/contact 은 같은 terms.html 을
+# '이용안내'라 부르던 이름 하나를 그 페이지 h1 인 '이용약관'으로 고친 한 줄뿐이다.
 LOCKED_SHA256 = {
-    'privacy.html': '29a376617f88e2609940691589ff8033810b75dc5cf0cd45a26f2fc4b13911db',
-    'terms.html': '252d2264ae4cf9465f6b523e7be6c3b2f55c81791f7b011ccced495c1ea3462b',
-    'account-deletion.html': 'c0b1710b47a8805063443fd286c9d903c90ede33a3f26073568e869a26a28706',
-    'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
+    'privacy.html': '92ab8a8dddf4bb4bec14d08f32c7caecafc354846225c5b17bea5bcefc7adb12',
+    'terms.html': '2f2493142626906df7e5537cad8c4858d3874357e89aa865a1d5ad6e13eceb2e',
+    'account-deletion.html': '9652b2bfc892429c9ff4a51e1175df6af2b7964de60612c4924bb95119f6fc98',
+    'contact.html': '669b510e5232b354af9f718fa98584145aa528663584a4d95f3fbe056ea4892a',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': 'e52fe30dbf6f3a55f24d69f692bf32a1ec57f9f20311eebf7b2e86464ce06b3c',
