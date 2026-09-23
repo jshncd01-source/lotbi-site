@@ -16,7 +16,7 @@ import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-sysdark2';
 import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-sysdark2';
 import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-sysdark2';
@@ -43,9 +43,187 @@ function weekdayOrder(weekStart = 0) {
   const start = Number.isInteger(weekStart) ? ((weekStart % 7) + 7) % 7 : 0;
   return Array.from({length: 7}, (_, index) => (start + index) % 7);
 }
-const MODES = Object.freeze([['month', '월'], ['year', '연도'], ['agenda', '일정'], ['attention', '확인 필요']]);
+// 확인 필요 탭은 없앴다. 그 탭이 모아 보여준 기한 예정·오늘 기한은 월 달력이
+// attentionDates 로 이미 같은 날짜에 표시하고 있었고, 남은 하나 -- 지금 달에 없는
+// 지난 기한 -- 은 일정 보기의 '기한 지남' 묶음이 이어받는다(renderAgenda). 탭만
+// 사라지고 지난 기한이 조용히 사라지지는 않는다.
+const MODES = Object.freeze([['month', '월'], ['year', '연도'], ['agenda', '일정']]);
 const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
 const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription.v1';
+// 저장된 날씨 지역이 어디서 왔는지. 지역 자체는 site-calendar-weather-region.js 가
+// 한 키에 담고, 이 값은 그 지역을 화면에서 어떻게 설명할지와 -- 더 중요하게 --
+// 자동으로 덮어써도 되는지를 가른다: 사용자가 직접 고른 지역은 현재 위치가
+// 자동으로 지우지 않는다.
+const CALENDAR_WEATHER_REGION_ORIGIN_STORAGE_KEY = 'lotbi.calendar.weather-region-origin.v1';
+// 시·군·구 목록과 그 좌표. 공개 행정구역 정보이며 개인 위치가 아니다.
+const CALENDAR_WEATHER_REGION_CATALOG_STORAGE_KEY = 'lotbi.calendar.weather-region-catalog.v1';
+const CALENDAR_WEATHER_REGION_CATALOG_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// 목록에서 가장 가까운 시·군·구가 이보다 멀면 현재 위치를 지역으로 옮기지 않는다.
+// 국내 어디서든 이 안에 하나는 들어오므로, 걸린다면 그건 국내가 아닌 좌표다.
+const CALENDAR_WEATHER_REGION_SNAP_MAX_KM = 200;
+const WEATHER_REGION_ORIGIN = Object.freeze({
+  MANUAL: 'MANUAL',
+  CURRENT_LOCATION: 'CURRENT_LOCATION',
+});
+
+function readWeatherRegionOrigin(storage) {
+  if (!storage || typeof storage.getItem !== 'function') return null;
+  try {
+    const raw = storage.getItem(CALENDAR_WEATHER_REGION_ORIGIN_STORAGE_KEY);
+    return raw === WEATHER_REGION_ORIGIN.MANUAL || raw === WEATHER_REGION_ORIGIN.CURRENT_LOCATION
+      ? raw
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeWeatherRegionOrigin(storage, origin) {
+  if (!storage || typeof storage.setItem !== 'function') return;
+  try {
+    if (origin === null) storage.removeItem?.(CALENDAR_WEATHER_REGION_ORIGIN_STORAGE_KEY);
+    else storage.setItem(CALENDAR_WEATHER_REGION_ORIGIN_STORAGE_KEY, origin);
+  } catch {
+    // 지역 자체는 저장됐다. 출처를 못 적으면 문구가 덜 구체적일 뿐이다.
+  }
+}
+
+// 광역시·도 → 시·군·구 2단계 선택의 원본. Core 가 두 단계를 모두 내려준다:
+// items[].province 가 1단계, items[].label 이 2단계다.
+async function fetchCalendarWeatherRegions(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== 'function') return null;
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}/v2/life/weather/regions`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {'Accept': 'application/json'},
+    });
+  } catch (error) {
+    console.warn('[LOTBI 캘린더] 날씨 지역 목록을 불러오지 못했습니다.', error);
+    return null;
+  }
+  if (!response?.ok) {
+    console.warn('[LOTBI 캘린더] 날씨 지역 목록 응답이 실패했습니다.', response?.status);
+    return null;
+  }
+  let payload = {};
+  try { payload = await response.json(); } catch {}
+  // 계약이 어긋나면 임의로 채우지 않고 없는 것으로 둔다.
+  if (!Array.isArray(payload?.items) || payload.ai_calls !== 0) {
+    console.warn('[LOTBI 캘린더] 날씨 지역 목록 형식이 올바르지 않습니다.');
+    return null;
+  }
+  const items = payload.items
+    .filter(item => (
+      item
+      && typeof item === 'object'
+      && typeof item.code === 'string'
+      && item.code.trim()
+      && typeof item.label === 'string'
+      && item.label.trim()
+      && typeof item.province === 'string'
+      && item.province.trim()
+    ))
+    .map(item => Object.freeze({
+      code: item.code.trim(),
+      label: item.label.trim(),
+      province: item.province.trim(),
+      // 화면과 저장에는 이 이름을 쓴다. 지오코더가 돌려주는 이름은 통합 개편안처럼
+      // 사용자가 고르지 않은 이름일 수 있어(광주광역시 → 전남광주통합특별시)
+      // 고른 것과 다른 이름을 보여주게 된다.
+      displayLabel: item.province === item.label ? item.label.trim() : `${item.province.trim()} ${item.label.trim()}`,
+    }));
+  if (!items.length) return null;
+  const provinces = Array.isArray(payload.provinces)
+    ? payload.provinces.filter(value => typeof value === 'string' && value.trim()).map(value => value.trim())
+    : [];
+  return Object.freeze({
+    items: Object.freeze(items),
+    provinces: Object.freeze(provinces.length
+      ? provinces
+      : [...new Set(items.map(item => item.province))]),
+  });
+}
+
+// 좌표는 Core 의 지오코딩이 유일한 권위다. 여기서 만들어 내지 않는다.
+async function resolveCatalogRegionCoordinates(item, fetchImpl) {
+  try {
+    const result = await resolvePublicWeatherRegion(item.displayLabel, fetchImpl);
+    if (!result?.providerReady || !result.found || !result.region) return null;
+    return Object.freeze({
+      code: item.code,
+      province: item.province,
+      label: item.displayLabel,
+      latitude: result.region.latitude,
+      longitude: result.region.longitude,
+    });
+  } catch (error) {
+    console.warn(`[LOTBI 캘린더] 지역 좌표를 확인하지 못했습니다: ${item.displayLabel}`, error);
+    return null;
+  }
+}
+
+function readCalendarWeatherRegionCatalog(storage, now = Date.now) {
+  if (!storage || typeof storage.getItem !== 'function') return null;
+  try {
+    const parsed = JSON.parse(storage.getItem(CALENDAR_WEATHER_REGION_CATALOG_STORAGE_KEY) || 'null');
+    const savedAtMs = Number(parsed?.savedAtMs);
+    const entries = Array.isArray(parsed?.entries) ? parsed.entries : null;
+    if (!entries?.length || !Number.isFinite(savedAtMs)) return null;
+    const current = typeof now === 'function' ? Number(now()) : Number(now);
+    if (!Number.isFinite(current) || current - savedAtMs > CALENDAR_WEATHER_REGION_CATALOG_MAX_AGE_MS) return null;
+    const usable = entries.filter(entry => (
+      entry
+      && typeof entry.label === 'string'
+      && entry.label
+      && Number.isFinite(Number(entry.latitude))
+      && Number.isFinite(Number(entry.longitude))
+    ));
+    return usable.length ? usable : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCalendarWeatherRegionCatalog(storage, entries, now = Date.now) {
+  if (!storage || typeof storage.setItem !== 'function' || !entries?.length) return;
+  try {
+    storage.setItem(CALENDAR_WEATHER_REGION_CATALOG_STORAGE_KEY, JSON.stringify({
+      savedAtMs: typeof now === 'function' ? Number(now()) : Number(now),
+      entries,
+    }));
+  } catch {
+    // 캐시가 없으면 다음에 다시 물어보면 된다.
+  }
+}
+
+function distanceKilometres(from, to) {
+  const radius = 6371;
+  const toRadians = value => (value * Math.PI) / 180;
+  const deltaLat = toRadians(to.latitude - from.latitude);
+  const deltaLon = toRadians(to.longitude - from.longitude);
+  const a = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(toRadians(from.latitude)) * Math.cos(toRadians(to.latitude)) * Math.sin(deltaLon / 2) ** 2;
+  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function nearestCatalogRegion(entries, coordinates) {
+  let best = null;
+  for (const entry of entries || []) {
+    const distanceKm = distanceKilometres(coordinates, {
+      latitude: Number(entry.latitude),
+      longitude: Number(entry.longitude),
+    });
+    if (!Number.isFinite(distanceKm)) continue;
+    if (!best || distanceKm < best.distanceKm) best = {entry, distanceKm};
+  }
+  if (!best || best.distanceKm > CALENDAR_WEATHER_REGION_SNAP_MAX_KM) return null;
+  return best;
+}
 
 // Everything the Calendar stores about display lives under one key, so a write
 // has to merge rather than replace: a setting this function does not know about
@@ -126,7 +304,9 @@ function dateInTimezone(now, timezone) {
 
 function normalizeMode(value) {
   if (value === 'today' || value === 'all' || value === 'date') return 'month';
-  if (value === 'upcoming') return 'agenda';
+  // 'attention' 은 다른 표면(사이드바·딥링크)이 아직 보낼 수 있는 옛 이름이다.
+  // 탭이 없어졌으니 그 링크는 기한 지남을 이어받은 일정 보기로 보낸다.
+  if (value === 'upcoming' || value === 'attention') return 'agenda';
   return MODES.some(([mode]) => mode === value) ? value : 'month';
 }
 
@@ -482,16 +662,25 @@ function forecastWindow(range, today) {
   return {start, end};
 }
 
+// 날씨 자리에 둘 조용한 안내. 없는 날씨를 그럴듯한 값으로 메우지 않고, 실패를
+// 실패라고만 적는다.
+function weatherFailureCopy(error) {
+  if (!error) return '';
+  if (error instanceof SiteCoreError && (error.status === 401 || error.status === 403)) {
+    return '날씨는 로그인 상태에서 불러옵니다. 일정은 그대로 표시됩니다.';
+  }
+  if (error instanceof SiteCoreError && error.retryable) {
+    return '날씨를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+  }
+  return '날씨를 지금 표시할 수 없어요. 일정은 그대로 표시됩니다.';
+}
+
 export async function loadLifeCalendarManagerView(
   sessionToken,
   {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null} = {},
 ) {
   const selectedDate = validCivilDate(date) ? date : dateInTimezone(now, timezone);
   const key = normalizeMode(view);
-  if (key === 'attention') {
-    const response = await getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl);
-    return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
-  }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
   const weatherWindow = key === 'month'
     ? forecastWindow(range, dateInTimezone(now, timezone))
@@ -504,14 +693,25 @@ export async function loadLifeCalendarManagerView(
         latitude: weatherLocation?.latitude,
         longitude: weatherLocation?.longitude,
         midRegionCode: weatherLocation?.midRegionCode || '',
-      }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
+      }, fetchImpl).catch(error => {
+        // 방어는 그대로 둔다 -- 날씨가 실패해도 일정·공휴일·가계부는 나와야 한다.
+        // 고치는 것은 침묵이다: 원인을 콘솔에 남기고, 실패했다는 사실을 화면까지
+        // 들고 올라간다. 빈 결과와 실패는 서로 다른 일이다.
+        console.warn('[LOTBI 캘린더] 날씨를 불러오지 못했습니다.', error);
+        return {providerReady: false, items: [], aiCalls: 0, failure: error};
+      })
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
   const holidayRequest = (key === 'month' || key === 'year')
-    ? getKoreaHolidays(range.year, fetchImpl).catch(() => ({coverageStatus: 'UNAVAILABLE', items: []}))
+    ? getKoreaHolidays(range.year, fetchImpl).catch(error => {
+        console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
+        return {coverageStatus: 'UNAVAILABLE', items: []};
+      })
     : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
   const [response, monthAttention, unscheduled, weather, holidays] = await Promise.all([
     getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
-    key === 'month'
+    // 일정 보기도 함께 읽는다: 확인 필요 탭이 사라진 뒤 지금 달에 없는 지난 기한을
+    // 보여줄 유일한 자리가 그곳이다.
+    key === 'month' || key === 'agenda'
       ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
       : Promise.resolve(null),
     key === 'agenda'
@@ -532,6 +732,7 @@ export async function loadLifeCalendarManagerView(
     unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
     weather: Object.freeze(weather?.items || []),
     weatherProviderReady: weather?.providerReady === true,
+    weatherFailureMessage: weatherFailureCopy(weather?.failure),
     holidays: Object.freeze(holidays?.items || []),
     holidayCoverageStatus: holidays?.coverageStatus || 'UNAVAILABLE',
   });
@@ -932,6 +1133,16 @@ function renderMonth(state, actions, weatherCredit = null) {
     creditLine.textContent = weatherCredit.text;
     calendar.appendChild(creditLine);
   }
+  // 날씨를 못 불러왔으면 그 자리에 그렇게 적는다. 출처 줄과 같은 자리·같은 톤:
+  // 일정 위로 올라와 달력을 밀어내지 않고, 빈 칸이 원인 없이 남지도 않는다.
+  if (!weatherCredit && state.weatherMessage) {
+    const notice = document.createElement('p');
+    notice.className = 'calendar-weather-credit';
+    notice.dataset.calendarWeatherNotice = '';
+    notice.setAttribute('role', 'status');
+    notice.textContent = state.weatherMessage;
+    calendar.appendChild(notice);
+  }
   const panel = dayPanel(state, groups, actions);
   // Order matters: existing runtime checks read layout.children[0] as the month and
   // layout.children[1] as the selected-day surface. The sheet backdrop is appended
@@ -1013,8 +1224,31 @@ function renderAgenda(state, actions) {
     items = items.filter(item => item.local_date >= range.start && item.local_date <= range.end);
   }
 
+  // 확인 필요 탭이 유일하게 하던 일 -- 지금 달에 없는 지난 기한 -- 을 여기서
+  // 이어받는다. 달력 칸의 기한 표시(attentionDates)는 그대로 두고, 이 묶음은
+  // 이번 달 범위에서만 나온다: '오늘'·'이번 주' 는 그 날짜의 일정을 보는 자리다.
+  const overdue = state.agendaScope === 'month'
+    ? (state.attention || []).filter(item => item?.state === 'OVERDUE' && validCivilDate(item.due_date))
+    : [];
   const showUnscheduled = state.agendaScope === 'month' && state.unscheduled.length > 0;
-  if (!items.length && !showUnscheduled) {
+  if (overdue.length) {
+    const group = document.createElement('section');
+    group.className = 'calendar-overdue-group';
+    group.dataset.calendarOverdueGroup = '';
+    const heading = document.createElement('h3');
+    heading.textContent = '기한 지남';
+    const note = document.createElement('p');
+    note.className = 'calendar-unscheduled-note';
+    note.textContent = '기한이 지난 일입니다. 이번 달 달력에 없는 것도 여기 남습니다.';
+    group.append(heading, note, eventList(overdue.map(item => ({
+      ...item,
+      local_date: item.due_date,
+      local_datetime: null,
+      calendar_attention_state: item.state,
+    }))));
+    section.appendChild(group);
+  }
+  if (!items.length && !showUnscheduled && !overdue.length) {
     section.appendChild(emptyMessage(
       state.agendaScope === 'today' ? '오늘 등록된 일정이 없어요.'
         : state.agendaScope === 'week' ? '이번 주에 등록된 일정이 없어요.'
@@ -1043,16 +1277,6 @@ function renderAgenda(state, actions) {
     section.appendChild(group);
   }
   return section;
-}
-
-function renderAttention(state) {
-  if (!state.attention.length) return emptyMessage('확인이 필요한 일정이 없어요.');
-  return eventList(state.attention.map(item => ({
-    ...item,
-    local_date: item.due_date,
-    local_datetime: null,
-    calendar_attention_state: item.state,
-  })));
 }
 
 function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () => {}, onWeatherRegionChange, buildLocationRow, authenticated, sessionToken, fetchImpl}) {
@@ -1142,69 +1366,185 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   // Current location first, manual region as its fallback: the same order the
   // weather read applies them in.
   const locationRow = typeof buildLocationRow === 'function' ? buildLocationRow() : null;
+
+  // 직접 입력은 없앴다. 자기 위치를 문장으로 적어 넣는 사람은 없고, 오타 하나가
+  // 날씨를 통째로 사라지게 만들었다. 대신 Core 가 내려주는 목록 그대로
+  // 광역시·도 → 시·군·구 두 단계로 고른다: 2단계에는 1단계에 속한 것만 나온다.
+  const provinceRow = document.createElement('div');
+  provinceRow.className = 'calendar-settings-select-row';
+  const provinceCopy = document.createElement('span');
+  const provinceLabel = document.createElement('strong');
+  provinceLabel.textContent = '광역시·도';
+  const provinceDescription = document.createElement('small');
+  provinceDescription.textContent = '먼저 광역시·도를 고르세요.';
+  provinceCopy.append(provinceLabel, provinceDescription);
+  const provinceSelect = document.createElement('select');
+  provinceSelect.className = 'calendar-settings-select';
+  provinceSelect.setAttribute('aria-label', '날씨 지역 광역시·도');
+  provinceRow.append(provinceCopy, provinceSelect);
+
+  const cityRow = document.createElement('div');
+  cityRow.className = 'calendar-settings-select-row';
+  const cityCopy = document.createElement('span');
+  const cityLabel = document.createElement('strong');
+  cityLabel.textContent = '시·군·구';
+  const cityDescription = document.createElement('small');
+  cityDescription.textContent = '고른 광역시·도에 속한 지역만 나옵니다.';
+  cityCopy.append(cityLabel, cityDescription);
+  const citySelect = document.createElement('select');
+  citySelect.className = 'calendar-settings-select';
+  citySelect.setAttribute('aria-label', '날씨 지역 시·군·구');
+  cityRow.append(cityCopy, citySelect);
+
   const weatherRow = document.createElement('div');
   weatherRow.className = 'calendar-settings-region-row';
-  const weatherInput = document.createElement('input');
-  weatherInput.type = 'text';
-  weatherInput.maxLength = 60;
-  weatherInput.autocomplete = 'off';
-  weatherInput.placeholder = '예: 전주시 만성동';
-  weatherInput.setAttribute('aria-label', '날씨 지역 입력');
-  weatherInput.value = state.manualWeatherRegion?.label || '';
-  const weatherApply = button('지역 적용', 'calendar-settings-action-button');
   const weatherClear = button('수동 지역 해제', 'calendar-settings-action-button');
   weatherClear.hidden = !state.manualWeatherRegion;
+  const weatherRetry = button('지역 목록 다시 불러오기', 'calendar-settings-action-button');
+  weatherRetry.hidden = true;
+  weatherRow.append(weatherClear, weatherRetry);
   const weatherStatus = document.createElement('small');
   weatherStatus.className = 'calendar-settings-status';
-  weatherStatus.textContent = state.manualWeatherRegion
-    ? `현재 날씨 지역: ${state.manualWeatherRegion.label}`
-    : '현재 위치를 사용할 수 없을 때 시·군·구 또는 동 이름을 직접 지정할 수 있어요.';
-  weatherRow.append(weatherInput, weatherApply, weatherClear);
+  const storedRegionStatusText = () => {
+    if (!state.manualWeatherRegion) {
+      return '현재 위치를 쓸 수 없을 때 이 지역의 날씨를 보여줍니다.';
+    }
+    return state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.CURRENT_LOCATION
+      ? `현재 날씨 지역: ${state.manualWeatherRegion.label} (현재 위치로 저장한 지역)`
+      : `현재 날씨 지역: ${state.manualWeatherRegion.label} (직접 고른 지역)`;
+  };
+  weatherStatus.textContent = storedRegionStatusText();
   weatherSection.append(weatherTitle);
   if (locationRow) weatherSection.appendChild(locationRow);
-  weatherSection.append(weatherRow, weatherStatus);
+  weatherSection.append(provinceRow, cityRow, weatherRow, weatherStatus);
   body.appendChild(weatherSection);
 
-  weatherApply.addEventListener('click', async () => {
-    const query = weatherInput.value.trim().replace(/\s+/g, ' ');
-    weatherApply.disabled = true;
-    weatherInput.disabled = true;
+  const setOptions = (select, options, placeholder) => {
+    select.replaceChildren();
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = placeholder;
+    select.appendChild(first);
+    for (const option of options) {
+      const node = document.createElement('option');
+      node.value = option.value;
+      node.textContent = option.label;
+      select.appendChild(node);
+    }
+    select.value = '';
+  };
+
+  setOptions(provinceSelect, [], '불러오는 중…');
+  setOptions(citySelect, [], '광역시·도를 먼저 고르세요');
+  provinceSelect.disabled = true;
+  citySelect.disabled = true;
+
+  let regionCatalog = null;
+  const fillCities = province => {
+    const items = (regionCatalog?.items || []).filter(item => item.province === province);
+    if (!province || !items.length) {
+      setOptions(citySelect, [], '광역시·도를 먼저 고르세요');
+      citySelect.disabled = true;
+      return;
+    }
+    setOptions(citySelect, items.map(item => ({value: item.code, label: item.label})), '시·군·구 선택');
+    citySelect.disabled = false;
+    const selected = (regionCatalog?.items || []).find(item => item.displayLabel === state.manualWeatherRegion?.label);
+    if (selected && selected.province === province) citySelect.value = selected.code;
+  };
+
+  const loadRegionOptions = async () => {
+    weatherRetry.hidden = true;
+    provinceSelect.disabled = true;
+    citySelect.disabled = true;
+    setOptions(provinceSelect, [], '불러오는 중…');
+    regionCatalog = await fetchCalendarWeatherRegions(fetchImpl);
+    if (!backdrop.isConnected) return;
+    if (!regionCatalog) {
+      setOptions(provinceSelect, [], '목록을 불러오지 못했어요');
+      weatherRetry.hidden = false;
+      weatherStatus.textContent = '지역 목록을 불러오지 못했어요. 다시 불러오거나 현재 위치를 사용해 주세요.';
+      return;
+    }
+    setOptions(
+      provinceSelect,
+      regionCatalog.provinces.map(province => ({value: province, label: province})),
+      '광역시·도 선택',
+    );
+    provinceSelect.disabled = false;
+    // 이미 저장된 지역이 있으면 그것이 어디에 속한 것인지 그대로 보여준다.
+    const selected = regionCatalog.items.find(item => item.displayLabel === state.manualWeatherRegion?.label);
+    if (selected) {
+      provinceSelect.value = selected.province;
+      fillCities(selected.province);
+    } else {
+      fillCities('');
+    }
+    weatherStatus.textContent = storedRegionStatusText();
+  };
+
+  provinceSelect.addEventListener('change', () => { fillCities(provinceSelect.value); });
+  weatherRetry.addEventListener('click', () => { void loadRegionOptions(); });
+
+  // 설정창을 연 것은 사용자의 명시적인 동작이다. 목록은 그때 읽고, 좌표를 묻는
+  // 지오코딩은 사용자가 시·군·구를 고른 뒤에만 한다 -- 마운트에서는 어느 것도 없다.
+  void loadRegionOptions();
+
+  citySelect.addEventListener('change', async () => {
+    const chosen = (regionCatalog?.items || []).find(item => item.code === citySelect.value);
+    if (!chosen) return;
+    provinceSelect.disabled = true;
+    citySelect.disabled = true;
     weatherStatus.textContent = '지역을 확인하는 중…';
     try {
-      const result = await resolvePublicWeatherRegion(query, fetchImpl);
+      const result = await resolvePublicWeatherRegion(chosen.displayLabel, fetchImpl);
       if (!result.providerReady) {
         weatherStatus.textContent = '현재 지역 검색 기능을 준비 중이에요.';
         return;
       }
       if (!result.found || !result.region) {
-        weatherStatus.textContent = '해당 지역을 찾지 못했어요. 시·군·구 또는 동 이름으로 다시 입력해 주세요.';
+        weatherStatus.textContent = '이 지역의 좌표를 확인하지 못했어요. 다른 지역을 골라 주세요.';
         return;
       }
-      if (!writeCalendarManualWeatherRegion(result.region, storage)) {
+      // 이름은 우리가 보여준 목록의 이름을 그대로 쓴다. 지오코더가 돌려주는 이름은
+      // 사용자가 고르지 않은 이름일 수 있고, 고른 것과 다른 이름을 적으면 거짓말이다.
+      const region = {
+        label: chosen.displayLabel,
+        latitude: result.region.latitude,
+        longitude: result.region.longitude,
+        midRegionCode: result.region.midRegionCode || null,
+      };
+      if (!writeCalendarManualWeatherRegion(region, storage)) {
         weatherStatus.textContent = '이 브라우저에 지역 설정을 저장하지 못했어요.';
         return;
       }
-      state.manualWeatherRegion = result.region;
-      weatherInput.value = result.region.label;
+      writeWeatherRegionOrigin(storage, WEATHER_REGION_ORIGIN.MANUAL);
+      state.manualWeatherRegion = region;
+      state.weatherRegionOrigin = WEATHER_REGION_ORIGIN.MANUAL;
       weatherClear.hidden = false;
-      weatherStatus.textContent = `현재 날씨 지역: ${result.region.label}`;
-      await onWeatherRegionChange(result.region);
+      weatherStatus.textContent = storedRegionStatusText();
+      await onWeatherRegionChange(region);
     } catch (error) {
+      console.warn('[LOTBI 캘린더] 날씨 지역을 확인하지 못했습니다.', error);
       weatherStatus.textContent = error instanceof SiteCoreError
         ? error.message
         : '날씨 지역을 확인하지 못했어요.';
     } finally {
-      weatherApply.disabled = false;
-      weatherInput.disabled = false;
+      if (backdrop.isConnected) {
+        provinceSelect.disabled = false;
+        citySelect.disabled = false;
+      }
     }
   });
 
   weatherClear.addEventListener('click', async () => {
     clearCalendarManualWeatherRegion(storage);
+    writeWeatherRegionOrigin(storage, null);
     state.manualWeatherRegion = null;
-    weatherInput.value = '';
+    state.weatherRegionOrigin = null;
+    citySelect.value = '';
     weatherClear.hidden = true;
-    weatherStatus.textContent = '수동 지역을 해제했습니다. 현재 위치를 다시 사용할 수 있어요.';
+    weatherStatus.textContent = '저장된 지역을 해제했습니다. 현재 위치를 다시 사용할 수 있어요.';
     await onWeatherRegionChange(null);
   });
 
@@ -1224,7 +1564,10 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   notificationCopy.append(notificationLabel, notificationStatus);
   notificationRow.append(notificationCopy, notificationButton);
   notificationSection.append(notificationTitle, notificationRow);
-  body.appendChild(notificationSection);
+  // 이 절은 아직 화면에 붙이지 않는다. 서버에 알림 서명 키가 없으면 버튼은
+  // 껍데기이고, 껍데기를 비활성 상태로 남겨 두는 것도 설명이 필요한 잔재다.
+  // 붙일지는 아래에서 config 를 읽어 결정한다 -- 지우는 것이 아니라 조건부 렌더링이므로
+  // 서버가 켜지면 이 코드가 그대로 다시 항목을 그린다.
 
   const currentNotificationPermission = () => getBrowserNotificationPermissionState();
   const renderNotificationState = (message = '') => {
@@ -1252,7 +1595,6 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
       ? '알림 연결'
       : '알림 사용';
   };
-  renderNotificationState();
 
   notificationButton.addEventListener('click', async () => {
     if (!authenticated || notificationButton.disabled) return;
@@ -1303,6 +1645,23 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
       }
     }
   });
+
+  // 알림 항목은 서버가 실제로 보낼 수 있을 때만 존재한다. web_push 가 꺼져 있거나
+  // 서명 키가 없으면 제목·버튼·설명문 전체를 그리지 않는다. 조회가 실패해도 감춘다:
+  // 보낼 수 있는지 모르는 상태에서 "알림 사용" 을 내밀면 약속이 된다.
+  void (async () => {
+    let dispatchable = false;
+    try {
+      const config = await getCalendarPushConfig(fetchImpl);
+      dispatchable = config.enabled === true && config.ready === true && config.dispatchReady === true;
+    } catch (error) {
+      console.warn('[LOTBI 캘린더] 알림 준비 상태를 확인하지 못해 알림 항목을 감춥니다.', error);
+      dispatchable = false;
+    }
+    if (!dispatchable || !backdrop.isConnected) return;
+    body.appendChild(notificationSection);
+    renderNotificationState();
+  })();
 
   dialog.append(header, body);
   backdrop.appendChild(dialog);
@@ -1649,6 +2008,13 @@ export async function mountLifeCalendarManager({
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
   const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
   const storedManualWeatherRegion = readCalendarManualWeatherRegion(settingsStorage);
+  const storedWeatherRegionOrigin = storedManualWeatherRegion
+    ? (readWeatherRegionOrigin(settingsStorage) || WEATHER_REGION_ORIGIN.MANUAL)
+    : null;
+  // 저장된 지역은 사용자가 직접 고른 것일 수도, 현재 위치에서 옮겨 적은 것일 수도
+  // 있다. 날씨를 부르는 방식은 둘이 같으므로 source 는 하나로 두고(MANUAL_REGION =
+  // 이 브라우저에 저장된 지역), 어느 쪽인지는 weatherRegionOrigin 이 들고 있다.
+  // 화면 문구가 갈리는 곳이 그 하나다.
   let currentWeatherLocation = weatherLocation || (storedManualWeatherRegion
     ? {
         ...storedManualWeatherRegion,
@@ -1663,6 +2029,9 @@ export async function mountLifeCalendarManager({
     showGridLines: displaySettings.showGridLines,
     weekStart: displaySettings.weekStart,
     manualWeatherRegion: storedManualWeatherRegion,
+    weatherRegionOrigin: storedWeatherRegionOrigin,
+    // 날씨 읽기가 실패했을 때 날씨 자리에 남기는 한 줄. 빈 문자열이면 아무 말도 없다.
+    weatherMessage: '',
     detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
     locationInFlight: false,
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
@@ -1812,9 +2181,15 @@ export async function mountLifeCalendarManager({
       fetchImpl,
       buildLocationRow: buildLocationSettingsRow,
       onWeatherRegionChange: async region => {
+        // 지역을 직접 고르면 그것이 화면의 권위다: 방금 잡아 둔 현재 위치 좌표보다
+        // 사용자가 고른 지역이 앞선다. 해제하면 좌표가 없는 상태로 돌아간다.
         currentWeatherLocation = region
           ? {...region, source: 'MANUAL_REGION'}
           : null;
+        clearBrowserLocationProvenance();
+        if (state.locationResolution === LOCATION_RESOLUTION.RESOLVED) {
+          state.locationResolution = LOCATION_RESOLUTION.IDLE;
+        }
         if (region) {
           state.locationMessage = '';
         }
@@ -1843,6 +2218,19 @@ export async function mountLifeCalendarManager({
 
   let refreshGeneration = 0;
   let locationRequestGeneration = 0;
+  // 위치 요청이 하나라도 돌고 있는지. state.locationInFlight 은 "사용자가 누른 것이
+  // 진행 중" 이라는 화면용 상태이고, 이쪽은 자동 호출까지 포함한다. 두 개가 필요한
+  // 이유는 하나다: 화면이 스스로 부른 요청이 사용자가 누른 요청을 밀어내서는 안 된다.
+  // 자동은 진행 중인 요청을 보면 물러나고, 사용자의 요청은 자동을 밀어낸다.
+  let locationRequestActive = false;
+
+  // 저장된 지역으로 돌아갈 자리. 현재 위치가 만료되거나 권한이 꺼져도 날씨가
+  // 통째로 사라지지 않게 하는 것이 이 함수의 전부다.
+  function storedRegionWeatherLocation() {
+    return state.manualWeatherRegion
+      ? {...state.manualWeatherRegion, source: 'MANUAL_REGION'}
+      : null;
+  }
 
   async function syncLocationPermission() {
     const permission = await getBrowserLocationPermissionState({
@@ -1853,14 +2241,14 @@ export async function mountLifeCalendarManager({
     state.locationPermission = permission;
     if (permission === LOCATION_PERMISSION.DENIED) {
       if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
-        currentWeatherLocation = null;
+        currentWeatherLocation = storedRegionWeatherLocation();
         clearBrowserLocationProvenance();
       }
       state.locationResolution = LOCATION_RESOLUTION.IDLE;
       state.locationMessage = state.manualWeatherRegion ? '' : '위치 권한이 꺼져 있어요.';
     } else if (permission === LOCATION_PERMISSION.UNAVAILABLE) {
       if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
-        currentWeatherLocation = null;
+        currentWeatherLocation = storedRegionWeatherLocation();
         clearBrowserLocationProvenance();
       }
       state.locationResolution = state.manualWeatherRegion ? LOCATION_RESOLUTION.IDLE : LOCATION_RESOLUTION.ERROR;
@@ -1874,6 +2262,24 @@ export async function mountLifeCalendarManager({
         state.locationResolution = LOCATION_RESOLUTION.IDLE;
       }
     }
+    await maybeUseGrantedCurrentLocation();
+  }
+
+  // 권한이 이미 허용돼 있으면 버튼을 누르게 하지 않는다. 다만 허용일 때만이다.
+  //
+  // PROMPT_REQUIRED(미결정)·UNKNOWN(Safari 처럼 권한 상태를 알려주지 않는 브라우저)
+  // 에서는 절대 호출하지 않는다: getCurrentPosition 을 부르는 순간 권한 팝업이 뜨고,
+  // 화면에 적어 둔 "버튼을 누를 때만 브라우저가 위치 권한을 요청합니다" 가 거짓이 된다.
+  async function maybeUseGrantedCurrentLocation() {
+    if (state.locationPermission !== LOCATION_PERMISSION.GRANTED) return;
+    if (state.locationInFlight) return;
+    // 사용자가 설정에서 직접 고른 지역은 자동으로 덮어쓰지 않는다.
+    if (state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.MANUAL) return;
+    if (
+      currentWeatherLocation?.source === 'BROWSER_CURRENT'
+      && isFreshBrowserCurrentLocation(currentWeatherLocation, {now: locationNow})
+    ) return;
+    await useCurrentLocation({auto: true});
   }
 
   function clearBrowserLocationProvenance() {
@@ -1924,13 +2330,28 @@ export async function mountLifeCalendarManager({
   // status node; a detached one is simply written to and dropped.
   let locationStatusNode = null;
 
+  // 화면 문구는 실제로 무엇을 보여주고 있는지와 어긋나면 안 된다. 저장된 지역으로
+  // 그려 놓고 "현재 위치로 표시 중" 이라고 적는 것이 이 화면이 하던 거짓말이었다.
+  function storedRegionSentence() {
+    if (!state.manualWeatherRegion) return '';
+    return state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.CURRENT_LOCATION
+      ? `현재 위치로 저장한 지역(${state.manualWeatherRegion.label})으로 날씨를 표시하고 있어요.`
+      : `직접 고른 지역(${state.manualWeatherRegion.label})으로 날씨를 표시하고 있어요.`;
+  }
+
   function locationSettingsStatusText() {
     if (state.locationInFlight) return '현재 위치를 확인하는 중…';
     if (state.locationPermission === LOCATION_PERMISSION.DENIED) {
-      return '브라우저 사이트 설정에서 위치 권한을 허용해 주세요.';
+      const stored = storedRegionSentence();
+      return stored
+        ? `브라우저 사이트 설정에서 위치 권한을 허용해 주세요. 지금은 ${stored}`
+        : '브라우저 사이트 설정에서 위치 권한을 허용해 주세요.';
     }
     if (state.locationPermission === LOCATION_PERMISSION.UNAVAILABLE) {
-      return '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+      const stored = storedRegionSentence();
+      return stored
+        ? `이 브라우저에서는 현재 위치를 사용할 수 없어요. 지금은 ${stored}`
+        : '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
     }
     if (
       currentWeatherLocation?.source === 'BROWSER_CURRENT'
@@ -1938,9 +2359,7 @@ export async function mountLifeCalendarManager({
     ) {
       return '현재 위치로 날씨를 표시하고 있어요.';
     }
-    if (state.manualWeatherRegion) {
-      return `아래 수동 지역(${state.manualWeatherRegion.label})으로 날씨를 표시하고 있어요.`;
-    }
+    if (state.manualWeatherRegion) return storedRegionSentence();
     if (state.locationMessage) return state.locationMessage;
     return '버튼을 누를 때만 브라우저가 위치 권한을 요청합니다.';
   }
@@ -2004,7 +2423,6 @@ export async function mountLifeCalendarManager({
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
-    else if (state.mode === 'attention') viewport.replaceChildren(renderAttention(state));
     else viewport.replaceChildren(renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
 
     if (state.mode === 'month') {
@@ -2181,27 +2599,31 @@ export async function mountLifeCalendarManager({
         currentWeatherLocation?.source === 'BROWSER_CURRENT'
         && !isFreshBrowserCurrentLocation(currentWeatherLocation, {now: locationNow})
       ) {
-        currentWeatherLocation = null;
+        // 좌표는 2분이면 늙는다. 늙은 좌표를 버리는 것은 맞지만, 그렇다고 위치가
+        // 아무것도 없는 상태로 떨어뜨리면 날씨가 통째로 사라진다 -- 저장된 지역으로
+        // 내려앉는다.
+        currentWeatherLocation = storedRegionWeatherLocation();
         clearBrowserLocationProvenance();
         state.locationResolution = LOCATION_RESOLUTION.IDLE;
-        state.locationMessage = '현재 위치가 오래되어 다시 확인이 필요해요.';
+        state.locationMessage = currentWeatherLocation ? '' : '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
         const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation: currentWeatherLocation});
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
-        if (result.kind === 'attention') state.attention = result.items;
-        else {
-          state.items = result.items;
-          state.unscheduled = result.unscheduled || [];
-          if (result.key === 'month') {
-            state.attention = result.attention || [];
-            state.weather = result.weather || [];
-          } else {
-            state.weather = [];
-          }
-          if (result.key === 'month' || result.key === 'year') {
-            state.holidays = result.holidays || [];
-          }
+        state.items = result.items;
+        state.unscheduled = result.unscheduled || [];
+        if (result.key === 'month' || result.key === 'agenda') {
+          state.attention = result.attention || [];
+        }
+        if (result.key === 'month') {
+          state.weather = result.weather || [];
+          state.weatherMessage = result.weatherFailureMessage || '';
+        } else {
+          state.weather = [];
+          state.weatherMessage = '';
+        }
+        if (result.key === 'month' || result.key === 'year') {
+          state.holidays = result.holidays || [];
         }
       } else {
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
@@ -2210,6 +2632,7 @@ export async function mountLifeCalendarManager({
         state.unscheduled = guestItems.filter(item => !validCivilDate(item.local_date));
         state.attention = [];
         state.weather = [];
+        state.weatherMessage = '';
 
         // Guest Calendar is device-local and must remain immediately usable even
         // when public enrichment is slow or unavailable. Render local data first,
@@ -2232,14 +2655,21 @@ export async function mountLifeCalendarManager({
               timezone,
               latitude: currentWeatherLocation.latitude,
               longitude: currentWeatherLocation.longitude,
-            }, fetchImpl).catch(() => ({providerReady: false, items: [], aiCalls: 0}))
+            }, fetchImpl).catch(error => {
+              console.warn('[LOTBI 캘린더] 날씨를 불러오지 못했습니다.', error);
+              return {providerReady: false, items: [], aiCalls: 0, failure: error};
+            })
           : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
         const holidayRequest = (state.mode === 'month' || state.mode === 'year') && state.showKoreaHolidays
-          ? getKoreaHolidays(state.year, fetchImpl).catch(() => ({items: []}))
+          ? getKoreaHolidays(state.year, fetchImpl).catch(error => {
+              console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
+              return {items: []};
+            })
           : Promise.resolve({items: []});
         const [guestWeather, holidayResult] = await Promise.all([weatherRequest, holidayRequest]);
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         state.weather = guestWeather.items || [];
+        state.weatherMessage = weatherFailureCopy(guestWeather.failure);
         if (state.mode === 'month' || state.mode === 'year') {
           state.holidays = holidayResult.items || [];
         }
@@ -2324,9 +2754,26 @@ export async function mountLifeCalendarManager({
   // any future entry point. Location is an accessory of an accessory: every exit
   // below leaves the Calendar itself untouched and costs at most the weather
   // decoration.
-  async function useCurrentLocation() {
+  //
+  // auto: true 는 권한이 이미 허용된 상태에서 화면이 스스로 부른 경우다. 사용자가
+  // 아무것도 누르지 않았으므로 알릴 것도 없다 -- 토스트도, 실패 문구도 내지 않는다.
+  async function useCurrentLocation({auto = false} = {}) {
     if (state.locationInFlight) return;
+    // 자동 호출은 끼어들지 않는다. 사용자가 누른 요청이 진행 중일 때 자동 호출이
+    // 세대 번호를 올리면, 진행 중이던 그 요청이 자기 차례가 지난 줄 알고 조용히
+    // 물러난다 -- 누른 사람에게는 버튼이 먹지 않은 것으로 보인다.
+    if (auto && locationRequestActive) return;
+    locationRequestActive = true;
     const requestGeneration = ++locationRequestGeneration;
+    try {
+      await runCurrentLocationRequest({auto, requestGeneration});
+    } finally {
+      // 사용자의 요청이 이 요청을 밀어냈다면 잠금은 그쪽 것이다.
+      if (requestGeneration === locationRequestGeneration) locationRequestActive = false;
+    }
+  }
+
+  async function runCurrentLocationRequest({auto, requestGeneration}) {
     const previousPermission = await getBrowserLocationPermissionState({
       permissions: locationPermissions,
       geolocation: locationProvider,
@@ -2337,31 +2784,60 @@ export async function mountLifeCalendarManager({
     if (previousPermission === LOCATION_PERMISSION.DENIED) {
       state.locationResolution = LOCATION_RESOLUTION.IDLE;
       state.locationMessage = '위치 권한이 꺼져 있어요.';
-      announceLocation(state.locationMessage);
+      if (!auto) announceLocation(state.locationMessage);
       render();
       return;
     }
     if (previousPermission === LOCATION_PERMISSION.UNAVAILABLE) {
       state.locationResolution = LOCATION_RESOLUTION.ERROR;
       state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
-      announceLocation(state.locationMessage);
+      if (!auto) announceLocation(state.locationMessage);
+      render();
+      return;
+    }
+    // 자동 호출은 허용된 권한에만 붙는다. 다시 읽은 값이 허용이 아니면 그냥 물러난다:
+    // 미결정 상태에서 좌표를 물으면 그 순간 권한 팝업이 뜬다.
+    if (auto && previousPermission !== LOCATION_PERMISSION.GRANTED) {
       render();
       return;
     }
 
-    state.locationInFlight = true;
-    state.locationResolution = LOCATION_RESOLUTION.REQUESTING;
-    state.locationMessage = '';
-    render();
+    // 사용자가 누른 경우에만 "확인 중" 을 보여주고 버튼을 잠근다. 자동 호출은
+    // 화면에 아무 흔적도 남기지 않는다 -- 누르지도 않은 버튼이 잠겨 있으면 그것도
+    // 고장으로 읽힌다.
+    if (!auto) {
+      state.locationInFlight = true;
+      state.locationResolution = LOCATION_RESOLUTION.REQUESTING;
+      state.locationMessage = '';
+      render();
+    }
     try {
       const location = await requestBrowserCurrentLocation({
         geolocation: locationProvider,
         now: locationNow,
       });
       if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
+      if (auto) {
+        // 자동 경로는 정밀 좌표를 화면에 쓰지 않는다. 좌표는 어느 시·군·구인지
+        // 알아내는 데만 쓰고 그대로 버린다. 그리고 그 지역이 이미 날씨를 그리고 있는
+        // 지역이면 달력을 다시 읽지도 않는다 -- 화면을 켤 때마다 같은 달을 두 번
+        // 불러올 이유가 없다.
+        state.locationPermission = LOCATION_PERMISSION.GRANTED;
+        const region = await regionForCurrentLocation(location);
+        if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
+        if (!region) return;
+        const alreadyShowing = currentWeatherLocation?.source === 'MANUAL_REGION'
+          && currentWeatherLocation.label === region.label;
+        storeCurrentLocationRegion(region);
+        if (!alreadyShowing) {
+          currentWeatherLocation = {...region, source: 'MANUAL_REGION'};
+          clearBrowserLocationProvenance();
+          state.locationMessage = '';
+          await refresh();
+        }
+        return;
+      }
       currentWeatherLocation = location;
-      clearCalendarManualWeatherRegion(settingsStorage);
-      state.manualWeatherRegion = null;
       state.locationPermission = LOCATION_PERMISSION.GRANTED;
       state.locationResolution = LOCATION_RESOLUTION.RESOLVED;
       root.dataset.locationSource = location.source;
@@ -2372,9 +2848,13 @@ export async function mountLifeCalendarManager({
       // Said once, when it changes. Never again on reopen.
       announceLocation('현재 위치로 날씨를 표시합니다.');
       await refresh();
+      // 새로고침 뒤에도 날씨가 남아 있게 하는 유일한 장치. 좌표는 저장하지 않는다:
+      // 정밀 좌표는 개인정보이고, 날씨에는 시·군·구면 충분하다.
+      void persistRegionForCurrentLocation(location, requestGeneration);
     } catch (error) {
       if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
-      currentWeatherLocation = null;
+      // 실패했다고 저장된 지역까지 잃지는 않는다. 돌아갈 자리를 남겨 둔다.
+      currentWeatherLocation = storedRegionWeatherLocation();
       clearBrowserLocationProvenance();
       if (error instanceof BrowserLocationError && error.code === 'BROWSER_LOCATION_DENIED') {
         state.locationPermission = LOCATION_PERMISSION.DENIED;
@@ -2397,14 +2877,77 @@ export async function mountLifeCalendarManager({
         state.locationResolution = LOCATION_RESOLUTION.ERROR;
       }
       state.locationMessage = locationErrorCopy(error);
-      announceLocation(state.locationMessage);
+      if (auto) {
+        // 아무도 누르지 않았으므로 아무 말도 하지 않는다. 다만 조용히 삼키지도
+        // 않는다: 원인은 콘솔에 남고, 저장된 지역이 있으면 날씨는 그대로 나온다.
+        console.warn('[LOTBI 캘린더] 허용된 위치 권한으로 현재 위치를 확인하지 못했습니다.', error);
+        if (state.manualWeatherRegion) state.locationMessage = '';
+      } else {
+        announceLocation(state.locationMessage);
+      }
       await refresh();
     } finally {
-      if (requestGeneration === locationRequestGeneration) {
+      if (!auto && requestGeneration === locationRequestGeneration) {
         state.locationInFlight = false;
         render();
       }
     }
+  }
+
+  // 브라우저가 준 좌표가 어느 시·군·구인지 고른다. Core 에는 좌표를 지역명으로
+  // 되돌리는 경로가 없으므로(regions·region/resolve 두 개뿐이다), 목록에 있는
+  // 시·군·구의 좌표를 Core 에게 물어 두고 그중 가장 가까운 곳을 고른다. 좌표를
+  // 만들어 내지 않고, 목록에 없는 지역을 있는 것처럼 꾸미지도 않는다.
+  async function regionForCurrentLocation(location) {
+    try {
+      let entries = readCalendarWeatherRegionCatalog(settingsStorage, locationNow);
+      if (!entries) {
+        const catalog = await fetchCalendarWeatherRegions(fetchImpl);
+        if (!catalog) return null;
+        const resolved = await Promise.all(
+          catalog.items.map(item => resolveCatalogRegionCoordinates(item, fetchImpl)),
+        );
+        entries = resolved.filter(Boolean);
+        if (!entries.length) return null;
+        writeCalendarWeatherRegionCatalog(settingsStorage, entries, locationNow);
+      }
+      const nearest = nearestCatalogRegion(entries, location);
+      if (!nearest) {
+        console.warn('[LOTBI 캘린더] 현재 위치에 해당하는 시·군·구를 찾지 못했습니다.');
+        return null;
+      }
+      return {
+        label: nearest.entry.label,
+        latitude: Number(nearest.entry.latitude),
+        longitude: Number(nearest.entry.longitude),
+        midRegionCode: null,
+      };
+    } catch (error) {
+      console.warn('[LOTBI 캘린더] 현재 위치의 시·군·구를 확인하지 못했습니다.', error);
+      return null;
+    }
+  }
+
+  // 저장하는 것은 시·군·구 이름과 Core 가 준 그 지역의 좌표뿐이다. 브라우저가 준
+  // 정밀 좌표는 이 화면을 벗어나지 않는다.
+  function storeCurrentLocationRegion(region) {
+    if (!writeCalendarManualWeatherRegion(region, settingsStorage)) return false;
+    writeWeatherRegionOrigin(settingsStorage, WEATHER_REGION_ORIGIN.CURRENT_LOCATION);
+    state.manualWeatherRegion = region;
+    state.weatherRegionOrigin = WEATHER_REGION_ORIGIN.CURRENT_LOCATION;
+    // 설정창이 열려 있으면 문구가 바로 사실을 따라가게 한다.
+    syncLocationSettingsControl();
+    return true;
+  }
+
+  // 버튼을 눌러 잡은 좌표는 화면에 바로 쓰고(정확하다), 지역 저장은 뒤에서 따라온다.
+  // 직접 고른 지역은 자동 호출이 여기까지 오지 않게 막아 둔다
+  // (maybeUseGrantedCurrentLocation). 버튼을 눌렀다면 그것은 명시적인 교체다.
+  async function persistRegionForCurrentLocation(location, requestGeneration) {
+    const region = await regionForCurrentLocation(location);
+    // 그 사이 새 위치 요청이 끼어들었거나 화면이 사라졌으면 그쪽이 권위다.
+    if (!region || !root.isConnected || requestGeneration !== locationRequestGeneration) return;
+    storeCurrentLocationRegion(region);
   }
 
   locationButton.addEventListener('click', () => { void useCurrentLocation(); });
@@ -2646,10 +3189,11 @@ export async function mountLifeCalendarManager({
   };
 
   await openDeepTarget();
-  if (authenticated) {
-    void syncLocationPermission().then(() => {
-      if (root.isConnected) render();
-    });
-  }
+  // 화면을 켤 때 권한 상태를 읽는다. 읽기만 하는 조회이므로 팝업은 뜨지 않고,
+  // 이미 허용된 권한이면 여기서 곧바로 현재 위치를 쓴다 -- 버튼을 누를 필요가 없다.
+  // 로그인 여부와 무관하게 필요하다: 손님 캘린더도 같은 날씨를 본다.
+  void syncLocationPermission().then(() => {
+    if (root.isConnected) render();
+  });
   return true;
 }

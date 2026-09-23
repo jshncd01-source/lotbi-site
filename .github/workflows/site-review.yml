@@ -115,6 +115,12 @@ jobs:
       - name: Validate answer scroll and markdown
         run: node scripts/validate_answer_scroll_markdown_01.mjs
 
+      # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
+      # conversation scroller AND cost the thread no height while doing it —
+      # `fixed` would pass the first half and eat the second on a short screen.
+      - name: Validate sticky Home top bar
+        run: node scripts/validate_sticky_topbar_01.mjs
+
       - name: Validate shared bottom sheet primitive
         run: node scripts/validate_bottom_sheet_primitive_01.mjs
 
@@ -177,6 +183,7 @@ jobs:
           node scripts/validate_calendar_expense_summary_01.mjs
           node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
           node scripts/validate_calendar_quiet_location_01.mjs
+          node scripts/validate_calendar_weather_region_province_01.mjs
           node scripts/validate_calendar_holiday_surface_settings_icon_01.mjs
           node scripts/validate_calendar_outside_month_01.mjs
           node scripts/validate_calendar_editor_field_height_01.mjs
@@ -205,6 +212,13 @@ jobs:
           node --check site-pet-ui.js
           node --check site-pet-guides.js
           node scripts/validate_pet_family_web_01.mjs
+
+      # 강아지·고양이가 아니면 등록되지 않는다. Core refuses the photo; this
+      # guards that the refusal reaches the owner with a next step attached,
+      # and that the screen's own quick look stays slacker than Core's so it
+      # never blocks a photo Core would have taken.
+      - name: Validate PET species gate web surface
+        run: node scripts/validate_pet_species_gate_web_01.mjs
 
 
       - name: Validate user bubble content-fit rendering

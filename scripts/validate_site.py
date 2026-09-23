@@ -29,6 +29,10 @@ REQUIRED_HTML = (
     "terms.html",
     "account-deletion.html",
     "contact.html",
+    "subscribe.html",
+    "refund.html",
+    "exchange.html",
+    "dispute.html",
 )
 BRAND_SURFACES = REQUIRED_HTML + (
     "404.html",
@@ -54,6 +58,10 @@ EXPECTED_CANONICALS = {
     "terms.html": f"{SITE_ORIGIN}/terms.html",
     "account-deletion.html": f"{SITE_ORIGIN}/account-deletion.html",
     "contact.html": f"{SITE_ORIGIN}/contact.html",
+    "subscribe.html": f"{SITE_ORIGIN}/subscribe.html",
+    "refund.html": f"{SITE_ORIGIN}/refund.html",
+    "exchange.html": f"{SITE_ORIGIN}/exchange.html",
+    "dispute.html": f"{SITE_ORIGIN}/dispute.html",
 }
 
 
