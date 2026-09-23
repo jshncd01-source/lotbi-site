@@ -183,6 +183,7 @@ jobs:
           node scripts/validate_calendar_expense_summary_01.mjs
           node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
           node scripts/validate_calendar_quiet_location_01.mjs
+          node scripts/validate_calendar_weather_region_province_01.mjs
           node scripts/validate_calendar_holiday_surface_settings_icon_01.mjs
           node scripts/validate_calendar_outside_month_01.mjs
           node scripts/validate_calendar_editor_field_height_01.mjs
@@ -211,6 +212,13 @@ jobs:
           node --check site-pet-ui.js
           node --check site-pet-guides.js
           node scripts/validate_pet_family_web_01.mjs
+
+      # 강아지·고양이가 아니면 등록되지 않는다. Core refuses the photo; this
+      # guards that the refusal reaches the owner with a next step attached,
+      # and that the screen's own quick look stays slacker than Core's so it
+      # never blocks a photo Core would have taken.
+      - name: Validate PET species gate web surface
+        run: node scripts/validate_pet_species_gate_web_01.mjs
 
 
       - name: Validate user bubble content-fit rendering

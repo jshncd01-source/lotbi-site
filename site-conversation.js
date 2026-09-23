@@ -2187,7 +2187,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260923-petnum1');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260923-petspecies1');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
