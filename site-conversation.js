@@ -14,6 +14,12 @@ import {createSafeMessageBody, enhanceExpandableUserMessage} from './site-messag
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
 
+// SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
+// inline in index.html's <head>, above the stylesheets. It has to: this file is
+// loaded as a module, so it defers past first paint and the pre-paint rules in
+// site-theme-tokens.css had already missed their chance. Kept here because this
+// module also runs on pages that do not carry the inline block, and re-running
+// it is harmless — it writes the same attribute from the same value.
 try {
   const savedTheme = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
