@@ -15,6 +15,7 @@ import {
   fetchFoundPetPhotoObjectUrl,
   fetchPetPhotoObjectUrl,
   getPetPhotoManifest,
+  inspectPetPhotoLocally,
   FOUND_PHOTO_SLOT_MAX,
   listFoundPetPhotos,
   listFoundPets,
@@ -24,7 +25,9 @@ import {
   OFFICIAL_REGISTRATION_LABEL,
   lotbiPetNumber,
   maskOfficialRegistrationNumber,
+  petPhotoNextActionLabel,
   petPhotoRejection,
+  PET_PHOTO_ANCHOR_SLOT_CODES,
   petSexLabel,
   petSpeciesLabel,
   registerPet,
@@ -356,6 +359,35 @@ export async function mountPetFamilyManager({
       slotError.setAttribute('role', 'alert');
       slotError.hidden = true;
 
+      // 개·고양이만 등록. Core refuses a photo that is neither rather than
+      // asking the owner what it is, so the refusal has to arrive with the
+      // next step attached — an error message on its own is the dead end this
+      // replaces.
+      const retry = el('div', 'pet-slot-retry');
+      retry.hidden = true;
+      const retryAction = el('button', 'site-button site-button-secondary pet-slot-retry-action', '다시 찍기');
+      retryAction.type = 'button';
+      retry.appendChild(retryAction);
+
+      const clearRefusal = () => {
+        slotError.hidden = true;
+        retry.hidden = true;
+        delete slotError.dataset.petErrorCode;
+      };
+      const refuse = (message, cause) => {
+        slotError.textContent = message;
+        slotError.hidden = false;
+        const code = errorCodeOf(cause);
+        if (code) slotError.dataset.petErrorCode = code;
+        else delete slotError.dataset.petErrorCode;
+        const nextAction = cause && typeof cause === 'object' && typeof cause.nextAction === 'string'
+          ? cause.nextAction
+          : '';
+        retryAction.textContent = petPhotoNextActionLabel(nextAction);
+        retryAction.dataset.petSlotNextAction = nextAction || 'RETAKE';
+        retry.hidden = false;
+      };
+
       const input = el('input');
       input.type = 'file';
       input.accept = 'image/jpeg,image/png';
@@ -377,7 +409,7 @@ export async function mountPetFamilyManager({
         remove.addEventListener('click', async () => {
           if (busy) return;
           setBusy(true);
-          slotError.hidden = true;
+          clearRefusal();
           tile.dataset.petSlotWorking = 'true';
           try {
             const {manifest} = await deletePetPhoto(sessionToken, pet.petId, slotCode);
@@ -389,8 +421,7 @@ export async function mountPetFamilyManager({
             renderPhotos(pet, host);
             status.textContent = `${petPhotoSlotLabel(slotCode)} 사진을 삭제했습니다.`;
           } catch (value) {
-            slotError.textContent = errorMessage(value, '사진을 삭제하지 못했습니다.');
-            slotError.hidden = false;
+            refuse(errorMessage(value, '사진을 삭제하지 못했습니다.'), value);
           } finally {
             tile.dataset.petSlotWorking = 'false';
             setBusy(false);
@@ -405,12 +436,19 @@ export async function mountPetFamilyManager({
         if (!file || busy) return;
         const rejection = petPhotoRejection(file);
         if (rejection) {
-          slotError.textContent = rejection;
-          slotError.hidden = false;
+          refuse(rejection, null);
+          return;
+        }
+        // The screen's own quick look, so an unusable frame fails here rather
+        // than after a round trip. Core still decides: it runs the classifier,
+        // and a browser can be skipped entirely.
+        const localLook = await inspectPetPhotoLocally(file);
+        if (localLook) {
+          refuse(localLook.message, {code: localLook.code});
           return;
         }
         setBusy(true);
-        slotError.hidden = true;
+        clearRefusal();
         tile.dataset.petSlotWorking = 'true';
         try {
           const {manifest} = await uploadPetPhoto(sessionToken, pet.petId, slotCode, file);
@@ -427,15 +465,31 @@ export async function mountPetFamilyManager({
           renderPhotos(pet, host);
           status.textContent = `${petPhotoSlotLabel(slotCode)} 사진을 올렸습니다.`;
         } catch (value) {
-          slotError.textContent = errorMessage(value, '사진을 올리지 못했습니다.');
-          slotError.hidden = false;
+          refuse(errorMessage(value, '사진을 올리지 못했습니다.'), value);
         } finally {
           tile.dataset.petSlotWorking = 'false';
           setBusy(false);
         }
       });
 
-      tile.append(actions, slotError, input);
+      retryAction.addEventListener('click', () => {
+        if (busy) return;
+        // A close-up cannot settle a species on its own, so Core holds it until
+        // the pet has a whole-animal photo. Sending the owner back to the file
+        // picker for the same slot would just repeat the refusal; the button
+        // takes them to the photo Core is actually waiting for.
+        if (retryAction.dataset.petSlotNextAction === 'UPLOAD_FACE_OR_BODY_FIRST') {
+          const anchorTile = grid.querySelector(
+            `[data-pet-slot="${PET_PHOTO_ANCHOR_SLOT_CODES[0]}"] [data-pet-slot-choose]`,
+          );
+          anchorTile?.scrollIntoView({block: 'center', behavior: 'smooth'});
+          anchorTile?.focus();
+          return;
+        }
+        input.click();
+      });
+
+      tile.append(actions, slotError, retry, input);
       grid.appendChild(tile);
     });
 
