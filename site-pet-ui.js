@@ -37,7 +37,7 @@ import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=20260923-petgate1';
+} from './site-pet-guides.js?v=20260923-nosearea1';
 import {
   petFeatureState,
   petGateNotice,
