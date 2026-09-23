@@ -52,7 +52,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260922-mobileaccount3';
+  link.href = '/site-conversation.css?v=20260923-msgactions1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -127,6 +127,118 @@ function resolvePlaceOrbitPointerIndex({
   if (usableRect && pointX < left) return (active - 1 + count) % count;
   if (usableRect && pointX > right) return (active + 1) % count;
   return target;
+}
+
+// SITE-MESSAGE-SHARE-ACTIONS-01 — the icon row LOTBI answers carry.
+// Copy is local to the browser. Share hands the answer to the OS share sheet,
+// where KakaoTalk appears next to every other installed target, so it needs no
+// Kakao app key and no registered JavaScript SDK domain. Desktop browsers have
+// no share sheet, so they fall back to copying the answer plus the site link.
+// "소리내어 읽기" is deliberately absent until Core's /v2/live/tts is reachable
+// from a Site session; a permanently dead button is worse than no button.
+const MESSAGE_ACTION_SHARE_URL = 'https://lotbiai.com/';
+const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16h-9V7h9v14Z';
+const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
+const MESSAGE_ACTION_FEEDBACK_MS = 2600;
+
+function createMessageActionButton(action, label, iconPath) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'chat-message-action';
+  button.dataset.messageAction = action;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', iconPath);
+  svg.appendChild(path);
+  button.appendChild(svg);
+  return button;
+}
+
+async function writeMessageTextToClipboard(text) {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  // Older in-app browsers and Android WebView builds have no async clipboard.
+  const surrogate = document.createElement('textarea');
+  surrogate.value = text;
+  surrogate.setAttribute('readonly', '');
+  surrogate.style.position = 'fixed';
+  surrogate.style.top = '-1000px';
+  surrogate.style.opacity = '0';
+  document.body.appendChild(surrogate);
+  surrogate.select();
+  surrogate.setSelectionRange(0, surrogate.value.length);
+  const copied = document.execCommand('copy');
+  surrogate.remove();
+  if (!copied) throw new Error('복사를 완료하지 못했습니다.');
+}
+
+function createMessageActions(text, announce) {
+  const value = typeof text === 'string' ? text.trim() : '';
+  if (!value) return undefined;
+
+  const actions = document.createElement('div');
+  actions.className = 'chat-message-actions';
+  actions.setAttribute('role', 'group');
+  actions.setAttribute('aria-label', 'LOTBI 답변 도구');
+
+  const feedback = document.createElement('span');
+  feedback.className = 'chat-message-action-feedback';
+  feedback.setAttribute('role', 'status');
+  feedback.setAttribute('aria-live', 'polite');
+
+  let feedbackTimer;
+  const report = (message, tone = '') => {
+    feedback.textContent = message;
+    if (tone) feedback.dataset.tone = tone; else delete feedback.dataset.tone;
+    if (typeof announce === 'function') announce(message);
+    window.clearTimeout(feedbackTimer);
+    feedbackTimer = window.setTimeout(() => {
+      feedback.textContent = '';
+      delete feedback.dataset.tone;
+    }, MESSAGE_ACTION_FEEDBACK_MS);
+  };
+
+  const shareByClipboard = async () => {
+    try {
+      await writeMessageTextToClipboard(`${value}\n\n${MESSAGE_ACTION_SHARE_URL}`);
+      report('이 브라우저에는 공유 시트가 없어 답변과 링크를 복사했습니다. 카카오톡에 붙여넣어 주세요.');
+    } catch {
+      report('공유를 완료하지 못했습니다.', 'error');
+    }
+  };
+
+  const copy = createMessageActionButton('copy', '복사하기', MESSAGE_ACTION_ICON_COPY);
+  copy.addEventListener('click', async () => {
+    try {
+      await writeMessageTextToClipboard(value);
+      report('답변을 복사했습니다.');
+    } catch {
+      report('복사하지 못했습니다. 답변을 길게 눌러 직접 선택해 주세요.', 'error');
+    }
+  });
+
+  const share = createMessageActionButton('share', '공유하기', MESSAGE_ACTION_ICON_SHARE);
+  share.addEventListener('click', () => {
+    // navigator.share has to run inside the click itself — an await before it
+    // spends the user gesture and the OS refuses to open the sheet.
+    if (typeof navigator.share !== 'function') { void shareByClipboard(); return; }
+    navigator.share({title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL})
+      .then(() => report('공유 앱으로 보냈습니다.'))
+      .catch(error => {
+        if (error && error.name === 'AbortError') return;
+        void shareByClipboard();
+      });
+  });
+
+  actions.append(copy, share, feedback);
+  return actions;
 }
 
 function createMessage(role, text, meta = {}) {
@@ -1748,6 +1860,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (message.role === 'assistant' && message.meta?.calendarDraft) {
       const calendarDraft = createConversationCalendarDraft(message.meta.calendarDraft);
       if (calendarDraft) node.appendChild(calendarDraft);
+    }
+    if (message.role === 'assistant') {
+      const actions = createMessageActions(message.text, setStatus);
+      if (actions) node.appendChild(actions);
     }
     return node;
   };
