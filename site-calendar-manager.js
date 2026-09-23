@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-imageadd1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-holidayblock1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,7 +11,7 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-imageadd1';
+import {calendarExpenseSummaryNode, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-holidayblock1';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
@@ -483,6 +483,39 @@ export async function loadLifeCalendarManagerView(
     holidayCoverageStatus: holidays?.coverageStatus || 'UNAVAILABLE',
   });
 }
+
+// Toolbar icons are inline SVG, not emoji: an emoji renders as a different
+// shape on every OS (the gear read as a sun on the reporter's screen, which is
+// why the settings control was mistaken for a weather button). Inline rather
+// than a <use> reference because the sprite lives in index.html and the
+// Calendar also mounts from auth/callback/, which has no sprite.
+// Shape language is the sidebar's: 24x24 box, stroke-only, 1.8 weight,
+// round caps and joins.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function toolbarIcon(shapes) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'calendar-toolbar-icon');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  for (const [tag, attrs] of shapes) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+    svg.appendChild(node);
+  }
+  return svg;
+}
+
+// Sliders, not a gear. A gear is a circle with radial spokes, and at 19px that
+// is the same figure as a sun -- which is precisely the confusion being fixed
+// here, and it would collide head-on with the weather glyphs the day cells
+// carry. Two tracks with offset handles read as "controls" at this size and
+// cannot be mistaken for weather.
+const SETTINGS_ICON_SHAPES = Object.freeze([
+  ['path', {d: 'M4 9h16M4 15h16'}],
+  ['path', {d: 'M9.5 6.5v5M15.5 12.5v5'}],
+]);
 
 function button(label, className) {
   const value = document.createElement('button');
@@ -1511,7 +1544,8 @@ export async function mountLifeCalendarManager({
   const title = button('', 'calendar-title-button');
   const next = button('다음', 'calendar-nav-button'); next.setAttribute('aria-label', '다음 달');
   const today = button('오늘', 'calendar-today-button');
-  const settingsButton = button('⚙️', 'calendar-settings-button');
+  const settingsButton = button('', 'calendar-settings-button');
+  settingsButton.appendChild(toolbarIcon(SETTINGS_ICON_SHAPES));
   settingsButton.setAttribute('aria-label', '캘린더 설정');
   settingsButton.title = '캘린더 설정';
   const modes = document.createElement('div'); modes.className = 'calendar-mode-tabs'; modes.setAttribute('role', 'tablist'); modes.setAttribute('aria-label', '캘린더 보기');
