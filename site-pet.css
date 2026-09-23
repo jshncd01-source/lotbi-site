@@ -1,0 +1,364 @@
+/* SITE-PET-FAMILY-WEB-01 — PET FAMILY surface, Mobile Web first then Desktop. */
+.pet-family-surface {
+  display: grid;
+  gap: 18px;
+}
+
+.pet-status {
+  margin: 0;
+  min-height: 18px;
+  color: var(--lotbi-text-muted, #626b78);
+  font-size: 13px;
+}
+
+.pet-status:empty {
+  display: none;
+}
+
+.pet-error {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--lotbi-error-surface, #fff0f0);
+  color: var(--lotbi-error-text, #a02645);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.pet-section {
+  display: grid;
+  gap: 12px;
+}
+
+.pet-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pet-section-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* The surface lives inside .site-pet-modal, so the card grid must follow the
+   container it actually gets, not the viewport width. */
+.pet-card-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.pet-card {
+  display: grid;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pet-card-name {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lotbi-text-primary, #1d2330);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.pet-card-species {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eef1f6);
+  color: var(--lotbi-text-secondary, #4c5563);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pet-progress {
+  display: grid;
+  gap: 5px;
+}
+
+.pet-progress-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eceff5);
+  overflow: hidden;
+}
+
+.pet-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand-violet, #7b62bb);
+}
+
+.pet-progress-label,
+.pet-card-consent {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pet-card-open {
+  justify-self: start;
+}
+
+.pet-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 20px 16px;
+  border: 1px dashed var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 14px;
+}
+
+.pet-empty-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pet-empty-copy {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pet-login-link {
+  text-decoration: none;
+}
+
+.pet-detail-section {
+  padding: 15px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 14px;
+  background: var(--lotbi-surface-elevated, #f8f9fc);
+}
+
+.pet-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.pet-facts dt {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-weight: 800;
+}
+
+.pet-facts dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--lotbi-text-primary, #262c38);
+  overflow-wrap: anywhere;
+}
+
+.pet-registration {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.pet-registration-term {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-weight: 800;
+}
+
+.pet-registration-value {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.pet-registration-reveal {
+  padding: 4px 9px;
+  border: 1px solid var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 999px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-secondary, #495264);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-form {
+  display: grid;
+  gap: 12px;
+}
+
+.pet-choice-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.pet-choice-field legend {
+  padding: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.pet-choice-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pet-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #2f3540);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-choice:focus-within {
+  outline: 2px solid var(--brand-violet, #7b62bb);
+  outline-offset: 2px;
+}
+
+.pet-field-hint {
+  margin: -6px 0 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.pet-consent {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-consent-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  color: var(--lotbi-text-primary, #262c38);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-consent-copy {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.pet-delete-button {
+  justify-self: start;
+  border: 1px solid #a02645;
+  background: transparent;
+  color: #a02645;
+}
+
+/* .site-button and the layout classes below all set display, which beats the
+   UA [hidden] rule, so every element this surface toggles with .hidden needs
+   its hidden state spelled out. */
+.pet-delete-confirm[hidden],
+.pet-delete-button[hidden],
+.pet-detail-section[hidden],
+.pet-error[hidden] {
+  display: none;
+}
+
+.pet-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pet-notice {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--lotbi-border-default, #e2e6ee);
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.pet-family-surface[data-pet-busy="true"] {
+  cursor: progress;
+}
+
+/* The panel is wider than the default modal so two cards fit side by side on
+   Desktop; on Mobile Web it takes the full sheet like the Calendar does. */
+.site-pet-modal {
+  width: min(100%, 720px);
+  max-height: min(88vh, 820px);
+}
+
+@media (max-width: 760px) {
+  .site-pet-modal {
+    width: 100%;
+    max-height: 92svh;
+  }
+}
+
+@media (min-width: 901px) {
+  .pet-facts {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+}
+
+body[data-site-theme="dark"] .pet-card,
+body[data-site-theme="dark"] .pet-consent,
+body[data-site-theme="dark"] .pet-choice,
+body[data-site-theme="dark"] .pet-registration-reveal {
+  background: var(--lotbi-surface-primary, #1f2632);
+  border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-detail-section {
+  background: var(--lotbi-surface-elevated, #202631);
+  border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-progress-bar,
+body[data-site-theme="dark"] .pet-card-species {
+  background: #2a3140;
+}

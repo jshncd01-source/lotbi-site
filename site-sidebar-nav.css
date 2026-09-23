@@ -421,7 +421,8 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   }
 
   .mobile-nav-drawer .sidebar-primary-nav,
-  .mobile-nav-drawer .sidebar-calendar-nav {
+  .mobile-nav-drawer .sidebar-calendar-nav,
+  .mobile-nav-drawer .sidebar-pet-nav {
     gap: 2px;
   }
 
@@ -503,7 +504,13 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   flex-basis: 17px;
 }
 
-.nav-calendar-status {
+/* SITE-PET-FAMILY-WEB-01 — 반려동물 navigation entry reuses the Calendar row grid. */
+.sidebar-pet-nav {
+  flex: 0 0 auto;
+}
+
+.nav-calendar-status,
+.nav-pet-status {
   display: grid;
   grid-template-columns: 19px minmax(0, 1fr) auto;
   align-items: center;
@@ -518,7 +525,8 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   gap: 5px;
 }
 
-.calendar-status-badge {
+.calendar-status-badge,
+.pet-status-badge {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
@@ -534,6 +542,24 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   font-variant-numeric: tabular-nums;
 }
 
+.nav-item-pending {
+  height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px dashed currentColor;
+  border-radius: 999px;
+  color: #697384;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.nav-item-pending[hidden] {
+  display: none;
+}
+
 .nav-status-icon {
   width: 16px;
   height: 16px;
@@ -547,11 +573,19 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 }
 
 .calendar-status-badge[hidden],
+.pet-status-badge[hidden],
 .calendar-reminder-icon[hidden] {
   display: none;
 }
 
 body[data-site-theme="dark"] .calendar-status-badge,
+body[data-site-theme="dark"] .pet-status-badge,
+body[data-site-theme="dark"] .nav-item-pending,
 body[data-site-theme="dark"] .nav-status-icon {
   color: #aeb6c2;
+}
+
+.nav-item[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.72;
 }
