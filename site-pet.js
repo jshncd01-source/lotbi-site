@@ -71,12 +71,85 @@ async function readPayload(response) {
   }
 }
 
+// Core answers in English, for operators and logs. A customer who cannot
+// register a pet should not be shown "Session is restricted to the LOTBI Site
+// audience" — that is our internal wiring, not their problem. So the screen
+// gets a Korean sentence chosen by error code, and the code itself rides along
+// on the error object (and the DOM) so an engineer can still name the cause.
+const PET_ERROR_MESSAGES = Object.freeze({
+  // Session and permission.
+  SESSION_REQUIRED: '로그인이 필요합니다.',
+  SESSION_INVALID: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+  SESSION_EXPIRED: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+  SESSION_AUDIENCE_RESTRICTED: '이 브라우저 세션에서는 아직 반려동물 기능을 쓸 수 없습니다. 잠시 후 다시 시도해 주세요.',
+  SESSION_ASSURANCE_INSUFFICIENT: '보안 확인이 더 필요한 기능입니다. 다시 로그인한 뒤 시도해 주세요.',
+  FEDERATED_SESSION_LIMITED: '보안 확인이 더 필요한 기능입니다. 다시 로그인한 뒤 시도해 주세요.',
+  PET_ACCOUNT_UNAVAILABLE: '계정 상태를 확인하지 못했습니다.',
+  PET_CASE_ACCOUNT_UNAVAILABLE: '계정 상태를 확인하지 못했습니다.',
+
+  // Registration fields.
+  PET_NAME_INVALID: '이름을 확인해 주세요. 1~120자로 입력합니다.',
+  PET_SPECIES_INVALID: '종류를 확인해 주세요.',
+  PET_SEX_INVALID: '성별을 확인해 주세요.',
+  PET_BIRTH_DATE_INVALID: '생년월일을 확인해 주세요.',
+  PET_AGE_INVALID: '나이를 확인해 주세요.',
+  PET_FIELD_INVALID: '입력한 내용을 확인해 주세요.',
+  PET_CASE_FIELD_INVALID: '입력한 내용을 확인해 주세요.',
+  PET_CONSENT_VERSION_INVALID: '동의 정보를 확인하지 못했습니다.',
+
+  // Retry and idempotency.
+  PET_REQUEST_ID_INVALID: '요청을 다시 보내 주세요.',
+  PET_CASE_REQUEST_ID_INVALID: '요청을 다시 보내 주세요.',
+  PET_IDEMPOTENCY_CONFLICT: '같은 요청이 이미 처리 중입니다. 잠시 후 확인해 주세요.',
+  PET_CASE_IDEMPOTENCY_CONFLICT: '같은 요청이 이미 처리 중입니다. 잠시 후 확인해 주세요.',
+  PET_IDEMPOTENCY_STATE_INVALID: '같은 요청이 이미 처리 중입니다. 잠시 후 확인해 주세요.',
+  PET_CASE_IDEMPOTENCY_STATE_INVALID: '같은 요청이 이미 처리 중입니다. 잠시 후 확인해 주세요.',
+
+  // Records.
+  PET_NOT_FOUND: '반려동물 정보를 찾지 못했습니다.',
+  PET_SOS_NOT_FOUND: '실종 신고를 찾지 못했습니다.',
+  FOUND_PET_CASE_NOT_FOUND: '발견 신고를 찾지 못했습니다.',
+  PET_SOS_STATE_INVALID: '이미 종료된 신고입니다.',
+  FOUND_PET_CASE_STATE_INVALID: '이미 종료된 신고입니다.',
+  FOUND_PET_CASE_PHOTO_CLOSED: '종료된 신고에는 사진을 올릴 수 없습니다.',
+
+  // Photos.
+  PET_PHOTO_NOT_FOUND: '사진을 찾지 못했습니다.',
+  FOUND_PET_PHOTO_NOT_FOUND: '사진을 찾지 못했습니다.',
+  PET_PHOTO_SLOT_INVALID: '사진 칸을 확인해 주세요.',
+  FOUND_PET_PHOTO_SLOT_INVALID: '사진 칸을 확인해 주세요.',
+  PET_PHOTO_TYPE_NOT_ALLOWED: 'JPG 또는 PNG 사진만 올릴 수 있습니다.',
+  PET_PHOTO_CONTENT_INVALID: '사진 파일을 읽지 못했습니다. 다른 사진으로 시도해 주세요.',
+  PET_PHOTO_CONTENT_MISMATCH: '사진 파일을 읽지 못했습니다. 다른 사진으로 시도해 주세요.',
+
+  // Location, for the two report forms.
+  PET_LOCATION_REQUIRED: '장소를 입력해 주세요.',
+  PET_LOCATION_FIELD_INVALID: '장소를 확인해 주세요.',
+  PET_LOCATION_SOURCE_INVALID: '장소 정보를 확인하지 못했습니다.',
+
+  // Deliberately off in Core.
+  PET_SOS_DISABLED: '실종 신고는 아직 열리지 않았습니다.',
+  PET_FOUND_REPORT_DISABLED: '발견 신고는 아직 열리지 않았습니다.',
+});
+
+function petErrorMessage(code, status, fallback) {
+  const known = PET_ERROR_MESSAGES[code];
+  if (known) return known;
+  if (status === 401) return PET_ERROR_MESSAGES.SESSION_INVALID;
+  if (status === 403) return '이 작업을 수행할 권한이 없습니다.';
+  if (status === 413) return '사진 용량이 너무 큽니다.';
+  if (status === 429) return '요청이 많습니다. 잠시 후 다시 시도해 주세요.';
+  if (status >= 500) return '서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해 주세요.';
+  return fallback;
+}
+
 function errorFromResponse(response, payload, fallback) {
   const detail = payload && typeof payload.detail === 'object' ? payload.detail : {};
+  const code = typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`;
   return new SiteCoreError(
-    typeof detail.message === 'string' && detail.message ? detail.message : fallback,
+    petErrorMessage(code, response.status, fallback),
     {
-      code: typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`,
+      code,
       status: response.status,
       retryable: detail.retryable === true,
     },

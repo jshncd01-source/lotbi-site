@@ -54,6 +54,16 @@ def locked_bytes(rel: str, path: Path) -> bytes:
     return path.read_bytes()
 
 
+def extract_theme_bootstrap(index: str) -> str | None:
+    """Return the allowlisted pre-paint theme bootstrap block, or None."""
+    marker = "SITE-THEME-BOOTSTRAP-FIRST-PAINT-01"
+    if marker not in index:
+        return None
+    start = index.index("<script>", index.index(marker))
+    end = index.index("</script>", start) + len("</script>")
+    return index[start:end]
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -108,10 +118,32 @@ def main() -> int:
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         '<script type="module" src="site-avatar.js"></script>',
     )
-    if index.lower().count("<script") != len(approved_scripts) or any(script not in index for script in approved_scripts):
+    # +1 for the allowlisted inline theme bootstrap verified above.
+    if index.lower().count("<script") != len(approved_scripts) + 1 or any(script not in index for script in approved_scripts):
         errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
 
-    combined_home = f"{index}\n{home_js}".lower()
+    # SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — one inline block in <head> is allowed
+    # to read localStorage, because the theme has to be known before the first
+    # paint and nothing deferred can do that. It is allowlisted rather than the
+    # rule being weakened: the block is pinned below, and everything outside it
+    # is still scanned for the same tokens.
+    theme_bootstrap = extract_theme_bootstrap(index)
+    if theme_bootstrap is None:
+        errors.append("the pre-paint theme bootstrap block is missing from index.html")
+    else:
+        if "getitem" not in theme_bootstrap.lower() or "setitem" in theme_bootstrap.lower():
+            errors.append("the pre-paint theme bootstrap must only read storage, never write it")
+        if "lotbi.site.theme.bootstrap.v1" not in theme_bootstrap:
+            errors.append("the pre-paint theme bootstrap must touch only the theme key")
+        for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon",
+                      "indexeddb", "document.cookie", "sessionstorage"):
+            if token in theme_bootstrap.lower():
+                errors.append(f"the pre-paint theme bootstrap must not reach for {token}")
+        if "try" not in theme_bootstrap or "catch" not in theme_bootstrap:
+            errors.append("the pre-paint theme bootstrap must not let a storage failure stop the render")
+
+    scanned_index = index.replace(theme_bootstrap, "") if theme_bootstrap else index
+    combined_home = f"{scanned_index}\n{home_js}".lower()
     forbidden_home = (
         "fetch(",
         "xmlhttprequest",
