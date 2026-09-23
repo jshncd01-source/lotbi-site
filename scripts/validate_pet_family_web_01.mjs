@@ -723,3 +723,29 @@ assert.strictEqual(numbers.lotbiPetNumber(''), '');
 assert.strictEqual(numbers.lotbiPetNumber(undefined), '');
 
 console.log('SITE-PET-FAMILY-WEB-01 numbers: LOTBI number named and readable, national number optional');
+
+// ------------------------------------------------------ 표기 (법적 주의)
+// 경쟁사가 해당 방식으로 특허를 보유하고 있어, 대표 지시로 그 용어를 화면과
+// 저장소 기록 양쪽에서 쓰지 않습니다. 주석도 저장소에 남는 기록입니다.
+//
+// 내부 슬롯 코드 NOSE_FRONT / NOSE_LEFT / NOSE_RIGHT 는 그대로 둡니다. 이미
+// 저장된 사진이 이 코드로 묶여 있어 바꾸면 기존 데이터가 끊깁니다. 용어가
+// 아니고 사용자에게 보이지도 않습니다.
+const FORBIDDEN_TERM = ['비', '문'].join('');
+for (const [name, source] of [
+  ['site-pet-guides.js', read('site-pet-guides.js')],
+  ['site-pet.js', petClient],
+  ['site-pet-ui.js', petUi],
+  ['site-pet.css', petCss],
+]) {
+  assert.ok(!source.includes(FORBIDDEN_TERM), `${name} must not use the term`);
+}
+assert.ok(
+  read('site-pet-guides.js').includes("label: '코 주변 정면',"),
+  'the nose-area slots must be labelled 코 주변',
+);
+for (const code of ['NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT']) {
+  assert.ok(petClient.includes(code), `${code} must stay — stored photos are keyed by it`);
+}
+
+console.log('SITE-PET-FAMILY-WEB-01 wording: 코 주변 labels, internal slot codes intact');

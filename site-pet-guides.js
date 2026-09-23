@@ -1,17 +1,17 @@
 // SITE-PET-FAMILY-WEB-01 — per-slot shooting guidance for the 10 photo slots.
 //
-// Ordinary owners do not know what a 비문(nose print) photo is supposed to
-// look like, so every slot ships a schematic of the view the camera should
-// see, plus a one-line hint. Drawn in the same language as the nav icons:
-// 24-style stroke-only geometry, no fills, rounded caps and joins.
+// Ordinary owners have never photographed the area around a pet's nose, so
+// every slot ships a schematic of the view the camera should see, plus a
+// one-line hint. Drawn in the same language as the nav icons: 24-style
+// stroke-only geometry, no fills, rounded caps and joins.
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Corner brackets marking "fill the frame with this".
 const FRAME = ['M6 14V8h6', 'M66 14V8h-6', 'M6 38v6h6', 'M66 38v6h-6'];
 
 // A nose drawn on its own reads as a face: an oval with two marks and a line.
-// So each 비문 tile shows the head with a magnified callout on the nose, which
-// says which part to shoot, and fills that callout with the 코주름 texture,
+// So each nose-area tile shows the head with a magnified callout on the nose,
+// which says which part to shoot, and fills that callout with surface detail,
 // which says how close to get.
 const NOSE_HEAD_PATHS = [
   'M25 15c6.2 0 9.8 4.2 9.8 9.6S31.2 34.6 25 34.6s-9.8-4.6-9.8-10S18.8 15 25 15Z',
@@ -96,7 +96,7 @@ const DISTINCTIVE_PATHS = [
 // which keeps the left/right pairs exactly symmetric.
 const GUIDES = Object.freeze({
   NOSE_FRONT: {
-    label: '비문 정면',
+    label: '코 주변 정면',
     hint: '코를 정면에서. 코주름이 화면에 가득 차게 가까이.',
     draw: {
       paths: [...NOSE_HEAD_PATHS, ...NOSE_CALLOUT_PATHS, ...NOSE_ZOOM_PATHS],
@@ -104,7 +104,7 @@ const GUIDES = Object.freeze({
     },
   },
   NOSE_LEFT: {
-    label: '비문 왼쪽',
+    label: '코 주변 왼쪽',
     hint: '코의 왼쪽 면이 보이도록 비스듬히.',
     draw: {
       paths: [...NOSE_CALLOUT_PATHS, ...NOSE_ARROW],
@@ -115,7 +115,7 @@ const GUIDES = Object.freeze({
     },
   },
   NOSE_RIGHT: {
-    label: '비문 오른쪽',
+    label: '코 주변 오른쪽',
     hint: '코의 오른쪽 면이 보이도록 비스듬히.',
     draw: {
       paths: [...NOSE_CALLOUT_PATHS, ...NOSE_ARROW],
