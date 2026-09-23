@@ -11,10 +11,10 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 
-const calendarEntryVersion = '20260923-sysdark2';
-const calendarManagerVersion = '20260923-sysdark2';
-const calendarModelVersion = '20260923-sysdark2';
-const calendarCssVersion = '20260923-sysdark2';
+const calendarEntryVersion = '20260923-daysheet3';
+const calendarManagerVersion = '20260923-daysheet3';
+const calendarModelVersion = '20260923-daysheet3';
+const calendarCssVersion = '20260923-daysheet3';
 const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
 const callbackEntryVersion = callback.match(/\/auth-callback\.js\?v=([^"]+)/)?.[1] || '';
 const callbackConversationVersion = callbackJs.match(/\.\/site-conversation\.js\?v=([^']+)/)?.[1] || '';

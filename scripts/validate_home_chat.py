@@ -94,7 +94,7 @@ def main() -> int:
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "새 대화",
         "calendar menu": "캘린더",
-        "calendar stylesheet": 'href="site-calendar.css?v=20260923-sysdark2"',
+        "calendar stylesheet": 'href="site-calendar.css?v=20260923-daysheet3"',
         "recent conversations": "최근 대화",
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
         "Company link": "about.html",
@@ -264,10 +264,16 @@ def main() -> int:
         r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         text,
     )
+    footer_legal_script = re.search(
+        r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
+        text,
+    )
     if not conversation_script:
         errors.append("index.html: current conversation module must be cache-busted")
     if not continuity_script:
         errors.append("index.html: current continuity module must be cache-busted")
+    if not footer_legal_script:
+        errors.append("index.html: current footer legal-sheet module must be cache-busted")
 
     approved_scripts = (
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
@@ -275,11 +281,15 @@ def main() -> int:
         '<script type="module" src="site-avatar.js"></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
+        footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +1 for the sealed Avatar import map, +1 for the allowlisted inline theme
     # bootstrap.
     if text.lower().count("<script") != len(approved_scripts) + 2 or any(approved not in text for approved in approved_scripts):
-        errors.append("index.html: only the approved import map and home/avatar/mobile/conversation/continuity scripts are allowed")
+        errors.append(
+            "index.html: only the approved import map and "
+            "home/avatar/mobile/conversation/continuity/footer-legal scripts are allowed"
+        )
     if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
         errors.append("index.html: sealed Three.js import map missing or changed")
 
