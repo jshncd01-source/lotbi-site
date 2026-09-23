@@ -11,7 +11,7 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode} from './site-calendar-expense.js?v=20260923-onelinebar1';
+import {calendarExpenseSummaryNode} from './site-calendar-expense.js?v=20260923-quietloc1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
 import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260922-region1';
@@ -892,7 +892,7 @@ function renderAttention(state) {
   })));
 }
 
-function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegionChange, authenticated, sessionToken, fetchImpl}) {
+function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegionChange, buildLocationRow, authenticated, sessionToken, fetchImpl}) {
   root.querySelector('.calendar-settings-backdrop')?.remove();
   const backdrop = document.createElement('div');
   backdrop.className = 'calendar-settings-backdrop';
@@ -935,7 +935,10 @@ function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegion
   const weatherSection = document.createElement('section');
   weatherSection.className = 'calendar-settings-section';
   const weatherTitle = document.createElement('h4');
-  weatherTitle.textContent = '날씨 지역';
+  weatherTitle.textContent = '날씨 위치';
+  // Current location first, manual region as its fallback: the same order the
+  // weather read applies them in.
+  const locationRow = typeof buildLocationRow === 'function' ? buildLocationRow() : null;
   const weatherRow = document.createElement('div');
   weatherRow.className = 'calendar-settings-region-row';
   const weatherInput = document.createElement('input');
@@ -954,7 +957,9 @@ function calendarSettingsDialog({root, state, storage, onChange, onWeatherRegion
     ? `현재 날씨 지역: ${state.manualWeatherRegion.label}`
     : '현재 위치를 사용할 수 없을 때 시·군·구 또는 동 이름을 직접 지정할 수 있어요.';
   weatherRow.append(weatherInput, weatherApply, weatherClear);
-  weatherSection.append(weatherTitle, weatherRow, weatherStatus);
+  weatherSection.append(weatherTitle);
+  if (locationRow) weatherSection.appendChild(locationRow);
+  weatherSection.append(weatherRow, weatherStatus);
   body.appendChild(weatherSection);
 
   weatherApply.addEventListener('click', async () => {
@@ -1571,6 +1576,7 @@ export async function mountLifeCalendarManager({
       authenticated,
       sessionToken,
       fetchImpl,
+      buildLocationRow: buildLocationSettingsRow,
       onWeatherRegionChange: async region => {
         currentWeatherLocation = region
           ? {...region, source: 'MANUAL_REGION'}
@@ -1651,6 +1657,96 @@ export async function mountLifeCalendarManager({
     return '현재 위치를 확인할 수 없어요.';
   }
 
+  // A transient, non-blocking notice. Deliberately not the bottom-sheet
+  // primitive: a one-line confirmation must not take focus, trap it, or dim the
+  // Calendar behind a backdrop.
+  const toastHost = document.createElement('div');
+  toastHost.className = 'calendar-toast-host';
+  toastHost.setAttribute('role', 'status');
+  toastHost.setAttribute('aria-live', 'polite');
+  shell.appendChild(toastHost);
+  let toastTimer = null;
+
+  function announceLocation(message) {
+    if (!message) return;
+    try {
+      const node = document.createElement('p');
+      node.className = 'calendar-toast';
+      node.dataset.reducedMotion = String(prefersReducedMotion());
+      node.textContent = message;
+      toastHost.replaceChildren(node);
+      if (toastTimer) globalThis.clearTimeout(toastTimer);
+      toastTimer = globalThis.setTimeout(() => {
+        toastTimer = null;
+        if (toastHost.isConnected) toastHost.replaceChildren();
+      }, 3600);
+    } catch {
+      // A missing toast must never cost the Calendar anything.
+    }
+  }
+
+  // The Settings dialog is rebuilt on every open, so this holds only the live
+  // status node; a detached one is simply written to and dropped.
+  let locationStatusNode = null;
+
+  function locationSettingsStatusText() {
+    if (state.locationInFlight) return '현재 위치를 확인하는 중…';
+    if (state.locationPermission === LOCATION_PERMISSION.DENIED) {
+      return '브라우저 사이트 설정에서 위치 권한을 허용해 주세요.';
+    }
+    if (state.locationPermission === LOCATION_PERMISSION.UNAVAILABLE) {
+      return '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+    }
+    if (
+      currentWeatherLocation?.source === 'BROWSER_CURRENT'
+      && state.locationResolution === LOCATION_RESOLUTION.RESOLVED
+    ) {
+      return '현재 위치로 날씨를 표시하고 있어요.';
+    }
+    if (state.manualWeatherRegion) {
+      return `아래 수동 지역(${state.manualWeatherRegion.label})으로 날씨를 표시하고 있어요.`;
+    }
+    if (state.locationMessage) return state.locationMessage;
+    return '버튼을 누를 때만 브라우저가 위치 권한을 요청합니다.';
+  }
+
+  function syncLocationSettingsControl() {
+    const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
+      && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
+    const blocked = state.locationPermission === LOCATION_PERMISSION.DENIED
+      || state.locationPermission === LOCATION_PERMISSION.UNAVAILABLE;
+    locationButton.disabled = state.locationInFlight || blocked;
+    if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
+    else if (usingBrowserLocation) locationButton.textContent = '변경';
+    else if (
+      !blocked
+      && (state.locationResolution === LOCATION_RESOLUTION.TIMEOUT
+        || state.locationResolution === LOCATION_RESOLUTION.ERROR)
+    ) locationButton.textContent = '다시 시도';
+    else locationButton.textContent = '현재 위치 사용';
+    locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
+    if (locationStatusNode) locationStatusNode.textContent = locationSettingsStatusText();
+  }
+
+  // The Calendar owns this control; Settings only hosts it. Building it here
+  // keeps every location transition in one scope.
+  function buildLocationSettingsRow() {
+    const row = document.createElement('div');
+    row.className = 'calendar-settings-action-row';
+    row.dataset.calendarLocationRow = 'true';
+    const copy = document.createElement('span');
+    const label = document.createElement('strong');
+    label.textContent = '현재 위치';
+    const status = document.createElement('small');
+    status.className = 'calendar-settings-status';
+    copy.append(label, status);
+    row.append(copy, locationButton);
+    locationStatusNode = status;
+    syncLocationSettingsControl();
+    return row;
+  }
+
+
   function render() {
     updateChrome();
     // Release the previous day-sheet visualViewport listeners before the node is
@@ -1661,40 +1757,15 @@ export async function mountLifeCalendarManager({
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
     } else {
-      const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
-        && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
-      const usingManualRegion = currentWeatherLocation?.source === 'MANUAL_REGION'
-        && Boolean(state.manualWeatherRegion);
+      // Weather location is an accessory of an accessory. Once the browser has
+      // granted it, repeating that on every open is noise that sits above the
+      // user's own schedule, so nothing about location is drawn in this row any
+      // more: the durable state and both controls live in Settings, and a change
+      // is announced once as a toast. The dataset attributes stay -- they are the
+      // location contract other surfaces read.
       root.dataset.locationPermission = state.locationPermission;
       root.dataset.locationResolution = state.locationResolution;
-
-      if (usingBrowserLocation || usingManualRegion) {
-        const locationLabel = document.createElement('span');
-        locationLabel.className = 'calendar-location-status';
-        locationLabel.textContent = usingManualRegion
-          ? `📍 ${state.manualWeatherRegion.label}`
-          : '📍 현재 위치';
-        status.appendChild(locationLabel);
-      }
-
-      const canRequestLocation = state.locationPermission !== LOCATION_PERMISSION.DENIED
-        && state.locationPermission !== LOCATION_PERMISSION.UNAVAILABLE;
-      if (state.locationInFlight || canRequestLocation) {
-        locationButton.disabled = state.locationInFlight;
-        if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
-        else if (usingBrowserLocation) locationButton.textContent = '변경';
-        else if (state.locationResolution === LOCATION_RESOLUTION.TIMEOUT || state.locationResolution === LOCATION_RESOLUTION.ERROR) locationButton.textContent = '다시 시도';
-        else locationButton.textContent = '현재 위치 사용';
-        locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
-        status.appendChild(locationButton);
-      }
-
-      if (state.locationMessage) {
-        const locationMessage = document.createElement('span');
-        locationMessage.className = 'calendar-location-status';
-        locationMessage.textContent = state.locationMessage;
-        status.appendChild(locationMessage);
-      }
+      syncLocationSettingsControl();
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
@@ -1887,7 +1958,11 @@ export async function mountLifeCalendarManager({
 
   settingsButton.addEventListener('click', () => actions.openSettings());
 
-  locationButton.addEventListener('click', async () => {
+  // One path for "use my current location", shared by the Settings control and
+  // any future entry point. Location is an accessory of an accessory: every exit
+  // below leaves the Calendar itself untouched and costs at most the weather
+  // decoration.
+  async function useCurrentLocation() {
     if (state.locationInFlight) return;
     const requestGeneration = ++locationRequestGeneration;
     const previousPermission = await getBrowserLocationPermissionState({
@@ -1900,12 +1975,14 @@ export async function mountLifeCalendarManager({
     if (previousPermission === LOCATION_PERMISSION.DENIED) {
       state.locationResolution = LOCATION_RESOLUTION.IDLE;
       state.locationMessage = '위치 권한이 꺼져 있어요.';
+      announceLocation(state.locationMessage);
       render();
       return;
     }
     if (previousPermission === LOCATION_PERMISSION.UNAVAILABLE) {
       state.locationResolution = LOCATION_RESOLUTION.ERROR;
       state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+      announceLocation(state.locationMessage);
       render();
       return;
     }
@@ -1930,6 +2007,8 @@ export async function mountLifeCalendarManager({
       root.dataset.locationApproximation = location.approximationState;
       root.dataset.locationTimestamp = location.timestamp;
       state.locationMessage = '';
+      // Said once, when it changes. Never again on reopen.
+      announceLocation('현재 위치로 날씨를 표시합니다.');
       await refresh();
     } catch (error) {
       if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
@@ -1956,6 +2035,7 @@ export async function mountLifeCalendarManager({
         state.locationResolution = LOCATION_RESOLUTION.ERROR;
       }
       state.locationMessage = locationErrorCopy(error);
+      announceLocation(state.locationMessage);
       await refresh();
     } finally {
       if (requestGeneration === locationRequestGeneration) {
@@ -1963,7 +2043,9 @@ export async function mountLifeCalendarManager({
         render();
       }
     }
-  });
+  }
+
+  locationButton.addEventListener('click', () => { void useCurrentLocation(); });
 
   // Single month-navigation path. The '이전'/'다음' buttons and the touch swipe both
   // go through here so the two can never drift apart.
