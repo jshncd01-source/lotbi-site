@@ -722,55 +722,21 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-day-event small { color: var(--lotbi-calendar-muted-ink); font-size: 11px; }
 .calendar-add-button { margin-top: auto; width: 100%; border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
 
-/* The whole point of the panel: a title box with the caret already in it. It
-   pins to the panel's floor so a day with a long list never buries the one
-   control the panel exists for. */
-.calendar-quick-add {
+/* The panel's only two controls. They pin to its floor so a day with a long
+   list never buries them: on eight entries the row used to be whatever sat
+   below the eighth inside the scroller, reachable only by scrolling to the end
+   -- on the one surface whose job is adding an entry. */
+.calendar-add-actions {
   position: sticky;
   bottom: 0;
   z-index: 1;
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   margin-top: auto;
   padding-top: 6px;
   background: var(--lotbi-calendar-panel-surface, #ffffff);
 }
-.calendar-quick-add-title {
-  box-sizing: border-box;
-  flex: 1 1 auto;
-  min-width: 0;
-  /* 16px is not a taste: below it iOS zooms the page the moment this is
-     focused, and the month behind it jumps. Same floor as the full editor. */
-  min-height: 44px;
-  padding: 9px 10px;
-  border: 1px solid #cfd6e2;
-  border-radius: 10px;
-  background: #fff;
-  color: #303642;
-  font: inherit;
-  font-size: 16px;
-}
-.calendar-quick-add-title::placeholder { color: #98a1b0; }
-.calendar-quick-add-title:disabled { background: #f2f4f8; color: #7b8491; }
-.calendar-quick-add-save {
-  flex: 0 0 auto;
-  min-height: 44px;
-  padding: 9px 14px;
-  border: 1px solid var(--brand-navy, #182a46);
-  border-radius: 10px;
-  background: var(--brand-navy, #182a46);
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.calendar-quick-add-save:disabled { opacity: .6; cursor: default; }
-.calendar-quick-add-message { margin: 0; color: #a13232; font-size: 12px; line-height: 1.4; }
-
-/* Secondary routes in, under the title box rather than in front of it. */
-.calendar-add-actions { display: flex; align-items: center; gap: 8px; }
 .calendar-add-actions .calendar-add-button { margin-top: 0; flex: 0 0 auto; width: auto; min-width: 0; }
 .calendar-add-actions .life-calendar-empty { flex: 0 1 auto; min-width: 0; overflow: hidden; margin-right: auto; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-add-actions .calendar-add-image-button { border-color: var(--brand-navy, #182a46); background: transparent; color: var(--brand-navy, #182a46); }
@@ -1097,17 +1063,6 @@ body[data-site-theme="dark"] .calendar-day-toggle,
 body[data-site-theme="dark"] .calendar-day-close { border-color: #465162; background: #171c25; color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-day-panel { --lotbi-calendar-panel-surface: #121720; border-color: #465162; color: #cbd2dc; }
 body[data-site-theme="dark"] .calendar-day-panel[data-presentation="SHEET"] { background: #121720; border-color: #465162; }
-/* The one control on this panel. Left on its light values it was white-on-white
-   in dark; the sibling 자세히 button next to it is the reason this file keeps a
-   dark rule for every surface it paints rather than trusting inheritance. */
-body[data-site-theme="dark"] .calendar-quick-add-title {
-  border-color: #465162;
-  background: #171c25;
-  color: #edf0f5;
-}
-body[data-site-theme="dark"] .calendar-quick-add-title::placeholder { color: #8d97a6; }
-body[data-site-theme="dark"] .calendar-quick-add-title:disabled { background: #1b212b; color: #8d97a6; }
-body[data-site-theme="dark"] .calendar-quick-add-message { color: #ffb3b8; }
 /* 이미지로 등록 is an outline button carrying the brand navy as its ink. On the
    dark panel that measured 1.25:1 -- not dim, unreadable -- and it stayed that
    way through every earlier pass because nothing dark-themed it. */
@@ -1412,33 +1367,13 @@ body[data-site-theme="dark"] .calendar-day-panel[data-presentation="POPOVER"][da
     padding: 4px 8px;
     font-size: 11px;
   }
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-message,
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-quick-add-message {
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-message {
     margin: 0;
     padding: 4px 0;
     font-size: 11px;
     line-height: 1.35;
   }
-  /* The title box is pinned to the panel's floor. On a day with a full list it
-     used to be whatever sat below eight events inside the scroller, reachable
-     only by scrolling to the end -- on the one surface whose job is adding an
-     entry. Its 16px stays: it is what stops iOS zooming on focus. */
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-quick-add {
-    gap: 5px;
-    padding-top: 4px;
-  }
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-quick-add-title {
-    min-height: 40px;
-    padding: 8px 9px;
-    border-radius: 9px;
-  }
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-quick-add-save {
-    min-height: 40px;
-    padding: 8px 12px;
-    border-radius: 9px;
-    font-size: 12px;
-  }
-  /* Secondary, and sized like it: still above the 24px pointer-target floor. */
+  /* Still above the 24px pointer-target floor. */
   .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-actions { gap: 6px; }
   .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-button {
     min-height: 30px;
@@ -1543,12 +1478,10 @@ body[data-site-theme="dark"] .calendar-day-panel[data-presentation="POPOVER"][da
   .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event { min-height: 56px; grid-template-columns: 62px minmax(0, 1fr); }
   .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event strong { font-size: 15px; }
   /* The narrowest phones -- a folded Fold is 344px -- give the panel even less
-     to spend. The title box keeps its 16px and its 40px: it is the one control
-     here, and shrinking either is what makes iOS zoom or makes it unpressable. */
+     to spend. Both buttons stay above the pointer-target floor. */
   .calendar-day-panel:not([data-presentation="FLOW"]) { padding-inline: 9px; }
   .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-heading { font-size: 12px; }
   .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-button { font-size: 11px; padding-inline: 6px; }
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-quick-add-save { padding-inline: 10px; }
 
   .calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .calendar-year-month { min-height: 74px; padding: 10px; }
@@ -1673,16 +1606,6 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-panel { --lotbi-calendar-panel-surface: #121720; border-color: #465162; color: #cbd2dc; }
   body[data-site-theme="system"] .calendar-day-panel[data-presentation="SHEET"],
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-panel[data-presentation="SHEET"] { background: #121720; border-color: #465162; }
-  body[data-site-theme="system"] .calendar-quick-add-title,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-quick-add-title { border-color: #465162;
-  background: #171c25;
-  color: #edf0f5; }
-  body[data-site-theme="system"] .calendar-quick-add-title::placeholder,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-quick-add-title::placeholder { color: #8d97a6; }
-  body[data-site-theme="system"] .calendar-quick-add-title:disabled,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-quick-add-title:disabled { background: #1b212b; color: #8d97a6; }
-  body[data-site-theme="system"] .calendar-quick-add-message,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-quick-add-message { color: #ffb3b8; }
   body[data-site-theme="system"] .calendar-add-actions .calendar-add-image-button,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-add-actions .calendar-add-image-button { border-color: #6d7f9c;
   color: #cdd8ea; }

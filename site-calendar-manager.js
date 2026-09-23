@@ -1062,45 +1062,6 @@ function dayPanel(state, groups, actions) {
   // accessible name so a screen reader still hears which day.
   const {month: addMonth, day: addDay} = civilDateParts(state.selectedDate);
 
-  // Tapping a date puts the caret in this box. Every calendar people already
-  // use -- Google, Apple, Naver -- lets you write the title where you tapped.
-  // This panel used to answer a tap with a notice and a button that opened a
-  // form somewhere else: one press too many for the one thing it exists to do.
-  const quick = document.createElement('form');
-  quick.className = 'calendar-quick-add';
-  quick.dataset.calendarQuickAdd = '';
-  quick.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 등록`);
-  const quickTitle = document.createElement('input');
-  quickTitle.type = 'text';
-  quickTitle.className = 'calendar-quick-add-title';
-  quickTitle.dataset.calendarQuickAddTitle = '';
-  quickTitle.placeholder = '일정 제목';
-  quickTitle.autocomplete = 'off';
-  quickTitle.enterKeyHint = 'done';
-  quickTitle.maxLength = 200;
-  quickTitle.value = state.quickAddTitle || '';
-  quickTitle.disabled = state.quickAddBusy === true;
-  quickTitle.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정 제목`);
-  quickTitle.addEventListener('input', () => actions.onQuickAddInput?.(quickTitle.value));
-  const quickSave = button(state.quickAddBusy ? '저장 중' : '저장', 'calendar-quick-add-save');
-  quickSave.type = 'submit';
-  quickSave.dataset.calendarQuickAddSave = '';
-  quickSave.disabled = state.quickAddBusy === true;
-  quick.append(quickTitle, quickSave);
-  quick.addEventListener('submit', event => {
-    event.preventDefault();
-    void actions.onQuickAddSubmit?.();
-  });
-  body.appendChild(quick);
-
-  if (state.quickAddMessage) {
-    const note = document.createElement('p');
-    note.className = 'calendar-quick-add-message';
-    note.dataset.calendarQuickAddMessage = '';
-    note.setAttribute('role', 'status');
-    note.textContent = state.quickAddMessage;
-    body.appendChild(note);
-  }
   if (state.imageMessage) {
     const message = document.createElement('p');
     message.className = 'calendar-add-message';
@@ -1110,10 +1071,10 @@ function dayPanel(state, groups, actions) {
     body.appendChild(message);
   }
 
-  // Secondary, deliberately: the picture route and the full form are still one
-  // press away, but they no longer stand between the owner and a title. On an
-  // empty day the "nothing here" sentence shares their row rather than taking
-  // one of its own -- the panel is small enough that a spare line is felt.
+  // The two ways in, and the only controls the panel offers: a picture, or the
+  // full form. On an empty day the "nothing here" sentence shares their row
+  // rather than taking one of its own -- the panel is small enough that a
+  // spare line is felt.
   const addRow = document.createElement('div');
   addRow.className = 'calendar-add-actions';
   if (!items.length) addRow.appendChild(emptyMessage('등록된 일정이 없어요.'));
@@ -1123,16 +1084,15 @@ function dayPanel(state, groups, actions) {
   addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
   addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
 
-  const add = button('자세히', 'calendar-add-button calendar-add-detail-button');
+  const add = button('직접 등록', 'calendar-add-button calendar-add-detail-button');
   add.dataset.calendarAdd = '';
-  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정을 자세히 입력해서 등록`);
+  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정을 직접 입력해서 등록`);
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
 
   addRow.append(addImage, add);
   body.appendChild(addRow);
-  // What the compact one-row layout keys off: nothing in the body but the
-  // quick-add line and this row.
-  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage && !state.quickAddMessage);
+  // What the compact one-row layout keys off: nothing in the body but this row.
+  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage);
   panel.append(head, body);
   return panel;
 }
@@ -2375,7 +2335,11 @@ export async function mountLifeCalendarManager({
     weatherRegionOrigin: storedWeatherRegionOrigin,
     // 날씨 읽기가 실패했을 때 날씨 자리에 남기는 한 줄. 빈 문자열이면 아무 말도 없다.
     weatherMessage: '',
-    detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
+    // Closed on mount, on every width. A phone used to open the Calendar with
+    // the day panel already up for whatever date happened to be selected --
+    // a window for a date nobody had pressed. Opening the Calendar shows the
+    // Calendar; only selectDate({openDetail: true}) raises this panel.
+    detailOpen: false, dayCollapsed: false, agendaScope: 'month',
     locationInFlight: false,
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
@@ -2384,16 +2348,6 @@ export async function mountLifeCalendarManager({
     // status strip because the location flow rewrites that strip on its own
     // schedule and swallowed this message a moment after it appeared.
     imageMessage: '',
-    // The quick-add line in the day panel. The typed title lives here rather
-    // than only in the input, because render() rebuilds the whole viewport and
-    // a value kept solely in the DOM would be lost to any refresh that lands
-    // mid-sentence -- the weather arriving, say. quickAddFocus is a one-shot
-    // request the next render honours: set when a date is opened, never on
-    // mount, so opening the Calendar cannot raise a keyboard nobody asked for.
-    quickAddTitle: '',
-    quickAddBusy: false,
-    quickAddMessage: '',
-    quickAddFocus: false,
     expense: {
       // Signed out there is nothing to wait for: the entries are already here,
       // so the first paint computes rather than showing a loader.
@@ -2454,18 +2408,9 @@ export async function mountLifeCalendarManager({
       state.month = parts.month;
       state.detailOpen = openDetail;
       state.dayCollapsed = false;
-      if (openDetail) {
-        // A new day starts a new blank line, and the caret belongs in it: that
-        // is what opening a date means here.
-        state.quickAddTitle = '';
-        state.quickAddMessage = '';
-        state.quickAddFocus = true;
-      }
       if (monthChanged) await afterMonthChange(); else render();
-      // Arrow-key roaming keeps focus on the grid; opening a day hands it to
-      // the title box, which render() does once it has rebuilt the panel.
+      // Arrow-key roaming keeps focus on the grid.
       if (!openDetail) {
-        state.quickAddFocus = false;
         queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
       }
     },
@@ -2473,7 +2418,7 @@ export async function mountLifeCalendarManager({
       state.month = month;
       state.selectedDate = `${state.year}-${String(month).padStart(2, "0")}-01`;
       state.mode = 'month';
-      state.detailOpen = usesFlowingDayDetail();
+      state.detailOpen = false;
       await refresh();
     },
     onDateKey: (event, date) => {
@@ -2511,14 +2456,11 @@ export async function mountLifeCalendarManager({
       const date = state.selectedDate;
       state.detailOpen = false;
       state.dayCollapsed = false;
-      state.quickAddFocus = false;
-      state.quickAddMessage = '';
       render();
       queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
     },
     toggleDay: () => {
       state.dayCollapsed = !state.dayCollapsed;
-      state.quickAddFocus = false;
       render();
       queueMicrotask(() => root.querySelector('.calendar-day-toggle')?.focus());
     },
@@ -2537,50 +2479,11 @@ export async function mountLifeCalendarManager({
       }
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
-    // Typing does not re-render: the input already shows what was typed, and
-    // rebuilding the panel on every keystroke would drop the caret.
-    onQuickAddInput: value => { state.quickAddTitle = typeof value === 'string' ? value : ''; },
-    // A title and the day it was tapped on. Everything else the full form asks
-    // for is optional, so a title alone is a whole entry -- an all-day one,
-    // which is what "9월 15일에 치과" means when no time was given.
-    onQuickAddSubmit: async () => {
-      if (state.quickAddBusy) return;
-      const title = (state.quickAddTitle || '').trim();
-      if (!title) {
-        state.quickAddMessage = '일정 제목을 입력해 주세요.';
-        state.quickAddFocus = true;
-        render();
-        return;
-      }
-      state.quickAddBusy = true;
-      state.quickAddMessage = '';
-      render();
-      try {
-        await mutationController.create({title, localDate: state.selectedDate, allDay: true});
-        if (!root.isConnected) return;
-        state.quickAddBusy = false;
-        state.quickAddTitle = '';
-        state.quickAddMessage = '';
-        // The caret stays put: the next entry for the same day is the likeliest
-        // next thing, and it is now one line of typing away.
-        state.quickAddFocus = true;
-        await refresh();
-        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
-      } catch (caught) {
-        if (!root.isConnected) return;
-        state.quickAddBusy = false;
-        // What was typed is kept. Losing it to a failed save would be the
-        // second thing to go wrong, and the one the owner would feel.
-        state.quickAddMessage = caught instanceof Error ? caught.message : '일정을 저장하지 못했습니다.';
-        state.quickAddFocus = true;
-        render();
-      }
-    },
-    // The full form and the picture route take the caret with them; the panel
-    // must not pull it back on the next render underneath them.
-    onAdd: date => { state.quickAddFocus = false; return openEditor(null, date); },
-    onAddFromImage: date => { state.quickAddFocus = false; void addFromImage(date); },
-    onEvent: item => { state.quickAddFocus = false; return openEditor(item, item.local_date || item.due_date || ''); },
+    // 직접 등록 opens the full form on the day the panel is showing; the picture
+    // route and an existing entry go to the same dialog.
+    onAdd: date => openEditor(null, date),
+    onAddFromImage: date => { void addFromImage(date); },
+    onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
     openSettings: () => calendarSettingsDialog({
       root,
       state,
@@ -2861,28 +2764,6 @@ export async function mountLifeCalendarManager({
       // the date it belongs to. One frame on a phone; enough to be seen, and
       // enough to make a geometry check land on the wrong box.
       syncMonthLayout(layout);
-    }
-
-    // The panel is rebuilt from scratch on every render, so the caret has to be
-    // put back by hand -- and a save renders twice (the reload starts, then
-    // lands), so honouring the request only once would leave the caret on the
-    // floor of the first of them. The request therefore stands until something
-    // takes the panel away: closeDay, 접기, roaming the grid, or the full form
-    // opening. What keeps it from stealing focus in the meantime is the check
-    // below: a caret already somewhere in this panel is left where it is.
-    if (state.quickAddFocus) {
-      const titleInput = viewport.querySelector('[data-calendar-quick-add-title]');
-      const active = document.activeElement;
-      const alreadyInPanel = Boolean(active && active !== document.body && active.closest?.('.calendar-day-panel'));
-      if (!titleInput) state.quickAddFocus = false;
-      else if (!titleInput.disabled && !alreadyInPanel) {
-        queueMicrotask(() => {
-          if (!titleInput.isConnected) return;
-          titleInput.focus();
-          const end = titleInput.value.length;
-          try { titleInput.setSelectionRange(end, end); } catch { /* not every input allows it */ }
-        });
-      }
     }
 
     if (state.mode === 'month') {
@@ -3459,14 +3340,14 @@ export async function mountLifeCalendarManager({
   });
   title.addEventListener('click', async () => {
     state.mode = state.mode === 'year' ? 'month' : 'year';
-    state.detailOpen = state.mode === 'month' && usesFlowingDayDetail();
+    state.detailOpen = false;
     state.agendaScope = 'month';
     await refresh();
   });
   for (const [mode, control] of modeButtons) control.addEventListener('click', async () => {
     if (state.mode !== mode) {
       state.mode = mode;
-      state.detailOpen = mode === 'month' && usesFlowingDayDetail();
+      state.detailOpen = false;
       state.dayCollapsed = false;
       if (mode !== 'agenda') state.agendaScope = 'month';
       await refresh();

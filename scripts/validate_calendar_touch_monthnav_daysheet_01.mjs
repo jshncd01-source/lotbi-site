@@ -427,12 +427,11 @@ try {
     if (!sheet.addImageButton) throw new Error(`${label}: the day panel must offer the image route too`);
     // The visible words no longer repeat the date — it is already in the
     // heading, the toolbar and the highlighted cell — but the accessible name
-    // still says which day is being added to. 직접 등록 became 자세히 when the
-    // title box arrived: typing the title IS the direct entry now, and that
-    // button is the longer form behind it.
-    if (sheet.addLabel.trim() !== '자세히') throw new Error(`${label}: full-form button label changed (${sheet.addLabel})`);
+    // still says which day is being added to. The panel offers these two and
+    // nothing else: no title box, no [저장].
+    if (sheet.addLabel.trim() !== '직접 등록') throw new Error(`${label}: full-form button label changed (${sheet.addLabel})`);
     if (sheet.addImageLabel.trim() !== '이미지로 등록') throw new Error(`${label}: image add button label changed (${sheet.addImageLabel})`);
-    if (!/\d+월 \d+일 일정을 자세히 입력해서 등록/.test(sheet.addAria)) throw new Error(`${label}: full-form button must name the date for assistive tech (${sheet.addAria})`);
+    if (!/\d+월 \d+일 일정을 직접 입력해서 등록/.test(sheet.addAria)) throw new Error(`${label}: full-form button must name the date for assistive tech (${sheet.addAria})`);
     if (!/\d+월 \d+일에 이미지로 일정 등록/.test(sheet.addImageAria)) throw new Error(`${label}: image add button must name the date for assistive tech (${sheet.addImageAria})`);
     if (!sheet.toggle || !sheet.close) throw new Error(`${label}: the day panel must keep 접기/닫기 controls`);
 
