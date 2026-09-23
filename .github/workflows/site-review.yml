@@ -125,6 +125,11 @@ jobs:
       - name: Validate theme bootstrap first paint
         run: node scripts/validate_theme_bootstrap_first_paint_01.mjs
 
+      # The first paint is only half of it: the module must not then reset the
+      # theme to 'system' when a namespace has no stored preference.
+      - name: Validate theme carry across namespaces
+        run: node scripts/validate_theme_namespace_carry_01.mjs
+
       # The viewport-sized scroll container must not be a tab stop: its focus
       # ring reached the screen as two blue vertical lines.
       - name: Validate container focus ring

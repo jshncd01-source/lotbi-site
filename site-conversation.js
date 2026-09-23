@@ -56,6 +56,57 @@ try {
   }
 } catch {}
 
+// SITE-THEME-NAMESPACE-CARRY-01 — the theme has two stores, and the wrong one
+// used to win.
+//
+// 대표: "다크모드에서 새로고침하면 화이트 화면으로 보인다"
+//
+// The pre-paint bootstrap above reads the durable, device-wide key and paints
+// the first frame correctly. Then this module mounts, switchNamespace() loads
+// the per-namespace preferences, and applyPreferences() writes body and html
+// from those — overwriting the attribute the bootstrap just set, and
+// savePreferences() then writes the result back over the durable key.
+//
+// Whenever the namespace has no stored theme the old fallback was the literal
+// 'system'. So any namespace change — signing in or out, a namespace whose
+// preferences were never written because savePreferences() ran before
+// stateReady, a second account, cleared per-namespace data — reset the user's
+// choice to 'system'. On a light OS that is a white page, and because the
+// durable key is rewritten on the way out, the choice is gone for good rather
+// than for one load. Measured: bootstrap key 'dark' with no stored namespace
+// preferences painted body #151922 at first frame, then settled at
+// rgb(255,255,255) with the attribute flipped to 'system'.
+//
+// So an absent namespace theme now carries the durable value forward instead
+// of discarding it. That key is already device-wide by design — it is what the
+// first paint reads before any namespace is known — so honouring it here makes
+// the two stores agree rather than fight.
+const SITE_THEME_BOOTSTRAP_KEY = 'lotbi.site.theme.bootstrap.v1';
+
+// SITE-THEME-AUTO-SCHEDULE-02 landed '자동모드' while this fix was open, and the
+// durable key can now hold 'auto' as well. Rather than keep a second list that
+// has to be remembered, ask THEME_OPTIONS — the one the settings menu is built
+// from. A fifth theme added there is accepted here on the same commit.
+// Referenced inside the functions, not at module evaluation, because
+// THEME_OPTIONS is declared below this block.
+function isSiteTheme(value) {
+  return THEME_OPTIONS.some(([key]) => key === value);
+}
+
+function durableBootstrapTheme() {
+  try {
+    return globalThis.localStorage?.getItem?.(SITE_THEME_BOOTSTRAP_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function resolveNamespaceTheme(storedTheme, durableTheme) {
+  if (isSiteTheme(storedTheme)) return storedTheme;
+  if (isSiteTheme(durableTheme)) return durableTheme;
+  return 'system';
+}
+
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';
@@ -714,7 +765,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
   const savePreferences = () => {
     if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences));
-    try { globalThis.localStorage?.setItem?.('lotbi.site.theme.bootstrap.v1', preferences.theme); } catch {}
+    try { globalThis.localStorage?.setItem?.(SITE_THEME_BOOTSTRAP_KEY, preferences.theme); } catch {}
   };
   const responseGradeLabel = grade => RESPONSE_GRADE_OPTIONS.find(([key]) => key === grade)?.[1] || '스탠다드';
   const responseGradeAvailable = () => RESPONSE_GRADE_BACKEND_ENABLED && Boolean(sessionToken);
@@ -2189,7 +2240,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (freshTabEntry) state.activeThreadId = null;
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
-      theme: THEME_OPTIONS.some(([key]) => key === loadedPreferences.theme) ? loadedPreferences.theme : 'system',
+      theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
       photo: typeof loadedPreferences.photo === 'string' && loadedPreferences.photo.startsWith('data:image/') ? loadedPreferences.photo : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
