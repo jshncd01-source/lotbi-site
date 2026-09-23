@@ -178,6 +178,7 @@ jobs:
           node scripts/validate_calendar_expense_summary_01.mjs
           node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
           node scripts/validate_calendar_quiet_location_01.mjs
+          node scripts/validate_calendar_weather_region_province_01.mjs
           node scripts/validate_calendar_holiday_surface_settings_icon_01.mjs
           node scripts/validate_calendar_outside_month_01.mjs
           node scripts/validate_calendar_editor_field_height_01.mjs

@@ -33,7 +33,6 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
   <button type="button" data-calendar-view="today">오늘</button>
-  <button type="button" data-calendar-view="attention">확인 필요</button>
 </aside>
 <main id="main-content" class="chat-home-shell" tabindex="0">
   <div data-home-avatar-anchor><div data-lotbi-avatar-container></div></div>
@@ -165,9 +164,13 @@ try{
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   const today=modal.querySelector('.calendar-today-button');
-  const attention=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='확인 필요');
+  // 확인 필요 탭은 없앴다(월 달력이 같은 날짜를 이미 표시한다). 남은 세 탭 가운데
+  // 가장 긴 라벨로 줄바꿈을 본다.
+  const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='일정');
+  const modeTabLabels=[...modal.querySelectorAll('.calendar-mode-tab')].map(n=>n.textContent);
   const calendar=layout?.children?.[0], detail=layout?.children?.[1];
-  if(!grid||!layout||!today||!attention||!calendar||!detail)throw new Error('month chrome missing');
+  if(!grid||!layout||!today||!agendaTab||!calendar||!detail)throw new Error('month chrome missing');
+  if(modeTabLabels.join('/')!=='월/연도/일정')throw new Error('mode tabs must be 월/연도/일정, got '+modeTabLabels.join('/'));
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
   const contentStyle=getComputedStyle(content);
@@ -212,7 +215,7 @@ try{
       contentBottom:contentRect.bottom,
       rowHeightSpread
     },
-    toolbar:{todayOneLine:oneLine(today),attentionOneLine:oneLine(attention),scrollWidth:toolbar.scrollWidth,clientWidth:toolbar.clientWidth,noX:noX(toolbar)},
+    toolbar:{todayOneLine:oneLine(today),agendaOneLine:oneLine(agendaTab),modeTabLabels,scrollWidth:toolbar.scrollWidth,clientWidth:toolbar.clientWidth,noX:noX(toolbar)},
     calendar:{width:calRect.width,layoutWidth:layoutRect.width,widthRatio:layoutRect.width>0?calRect.width/layoutRect.width:0},
     detail:{
       hidden:detail.hidden,
@@ -235,7 +238,7 @@ try{
   if(![28,35,42].includes(result.grid.cells))throw new Error('month grid week count invalid '+result.grid.cells);
   if(result.grid.weekCount!==result.grid.cells/7)throw new Error('week count metadata mismatch');
   if(result.grid.rowHeightSpread>2)throw new Error('month row heights diverged '+result.grid.rowHeightSpread);
-  if(!result.toolbar.todayOneLine||!result.toolbar.attentionOneLine)throw new Error('toolbar label wrapped');
+  if(!result.toolbar.todayOneLine||!result.toolbar.agendaOneLine)throw new Error('toolbar label wrapped');
   if(!result.modal.noX||!result.content.noX||!result.grid.noX)throw new Error('horizontal overflow');
   if(result.guest!=='guest')throw new Error('guest calendar contract');
 
@@ -373,7 +376,7 @@ try{
   const mode=async name=>{
     const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
     click(button);
-    await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda','확인 필요':'attention',월:'month'}[name]),name);
+    await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda',월:'month'}[name]),name);
     await waitCalendarIdle(name);
   };
   await mode('연도');
@@ -394,7 +397,6 @@ try{
   click(weekRange);
   await wait(()=>modal.querySelector('[data-agenda-scope="week"]')?.getAttribute('aria-pressed')==='true','Agenda week range');
   result.agendaRanges=true;
-  await mode('확인 필요');
   await mode('월');
   const title=modal.querySelector('.calendar-title-button').textContent;
   click(modal.querySelector('.calendar-nav-button'));
@@ -520,7 +522,7 @@ try{
   if(!mobiles.every(value=>value.mobileEditor))throw new Error('mobile editor viewport/scroll/background-lock contract');
   if(!results.every(value=>value.escapeContained&&value.calendarDraftEditable))throw new Error('Calendar detail Escape/draft editor containment');
   for(const value of results){
-    if(!value.toolbar.todayOneLine||!value.toolbar.attentionOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
+    if(!value.toolbar.todayOneLine||!value.toolbar.agendaOneLine||![28,35,42].includes(value.grid.cells))throw new Error('responsive Calendar contract');
     if(value.density.map(entry=>entry.expected).join(',')!=='0,1,2,3,5,8')throw new Error('fixture matrix incomplete');
   }
   console.log('CALENDAR MODAL RUNTIME PASS',JSON.stringify(results));
