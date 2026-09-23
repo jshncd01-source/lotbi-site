@@ -37,7 +37,7 @@ import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=20260923-nosearea1';
+} from './site-pet-guides.js?v=20260923-guideart2';
 import {
   petFeatureState,
   petGateNotice,
@@ -338,7 +338,7 @@ export async function mountPetFamilyManager({
         image.decoding = 'async';
         media.appendChild(image);
       } else {
-        const diagram = petPhotoSlotDiagram(slotCode);
+        const diagram = petPhotoSlotDiagram(slotCode, pet.species);
         if (diagram) media.appendChild(diagram);
         if (filled.has(slotCode)) media.appendChild(el('span', 'pet-slot-loading', '불러오는 중'));
       }
