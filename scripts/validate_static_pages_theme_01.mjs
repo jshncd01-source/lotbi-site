@@ -191,6 +191,10 @@ for (const [label, fg, bg, min] of [
   // subscribe.css: the solid plan button inverts in Dark, so its label flips too.
   ['plan button label', '#17191d', '#edf0f5', 4.5],
   ['plan button label, hover', '#17191d', '#ffffff', 4.5],
+  // 제6조 6.1 국외이전 고지표: styles.css writes its cells #343942, which measured
+  // 1.52:1 on the dark page. A disclosure a reviewer cannot read is not a disclosure.
+  ['overseas-transfer table cell', '#e5e7eb', BG, 4.5],
+  ['overseas-transfer table header', '#e5e7eb', '#202631', 4.5],
 ]) {
   const ratio = contrast(fg, bg);
   assert.ok(
@@ -200,13 +204,17 @@ for (const [label, fg, bg, min] of [
   console.log(`  ${label.padEnd(22)} ${fg} on ${bg} = ${ratio.toFixed(2)}:1`);
 }
 
-// Every colour the static theme paints must be one of these measured values —
+// Every colour the static theme PAINTS must be one of these measured values —
 // a new literal slipping in unmeasured is how the last contrast gap happened.
 const MEASURED = new Set([
   '#151922', '#171c25', '#f8fafc', '#cbd5e1', '#e5e7eb', '#edf0f5', '#424b59', '#202631', '#8b93a1',
   '#17191d', '#ffffff',
 ]);
-for (const hex of css.match(/#[0-9a-f]{6}\b/gi) ?? []) {
+// Comments are stripped first: they quote the light-theme literals they exist to
+// explain (styles.css writes the cells of the 국외이전 고지표 a dark slate, and the
+// rule below says so), and a quoted colour is not a painted one.
+const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '');
+for (const hex of declarations.match(/#[0-9a-f]{6}\b/gi) ?? []) {
   assert.ok(
     MEASURED.has(hex.toLowerCase()),
     `site-static-theme.css introduces an unmeasured colour ${hex} — add it to this gate's contrast table`,

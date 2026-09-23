@@ -67,6 +67,12 @@ html[data-site-theme-bootstrap="dark"] body {
 html[data-site-theme-bootstrap="dark"] :where(.eyebrow, .kicker) { color: #cbd5e1; }
 html[data-site-theme-bootstrap="dark"] .legal p { color: #e5e7eb; }
 html[data-site-theme-bootstrap="dark"] .company-legal { color: #cbd5e1; }
+/* SITE-PRIVACY-OVERSEAS-TRANSFER-01 카운터파트 — 제6조 6.1 국외이전 고지표의
+   셀도 styles.css 가 #343942 로 문자 지정한다. 측정: 다크에서 rgb(52,57,66) on
+   rgb(21,25,34) = 1.52:1. 개인정보 보호법 제28조의8 이 요구하는 고지표이고
+   검수자가 실제로 읽어야 하는 표이므로, 다크에서 안 보이는 것은 그냥 대비
+   미달이 아니라 고지 자체가 닿지 않는 것이다. #e5e7eb on #151922 = 14.21:1. */
+html[data-site-theme-bootstrap="dark"] :where(.legal-table th, .legal-table td) { color: #e5e7eb; }
 html[data-site-theme-bootstrap="dark"] .footer-service { color: #cbd5e1; }
 html[data-site-theme-bootstrap="dark"] .company-separator { color: #8b93a1; }
 
@@ -123,6 +129,8 @@ html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-dark { display: block; 
   html:not([data-site-theme-bootstrap]) .legal p { color: #e5e7eb; }
   html[data-site-theme-bootstrap="system"] .company-legal,
   html:not([data-site-theme-bootstrap]) .company-legal { color: #cbd5e1; }
+  html[data-site-theme-bootstrap="system"] :where(.legal-table th, .legal-table td),
+  html:not([data-site-theme-bootstrap]) :where(.legal-table th, .legal-table td) { color: #e5e7eb; }
   html[data-site-theme-bootstrap="system"] .footer-service,
   html:not([data-site-theme-bootstrap]) .footer-service { color: #cbd5e1; }
   html[data-site-theme-bootstrap="system"] .company-separator,
