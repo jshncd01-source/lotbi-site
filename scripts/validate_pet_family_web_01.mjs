@@ -110,6 +110,21 @@ assert.ok(
   'closing the panel must release the cached photo object URLs',
 );
 
+// --------------------------------------------------------------- SOS cases
+
+assert.ok(
+  conversation.includes('renderPetSosBadge') && conversation.includes('data-pet-sos-count'),
+  'the sidebar SOS badge must be driven by the counted cases',
+);
+assert.ok(
+  petUi.includes("'USER_ENTERED'") || petClient.includes("location_source: 'USER_ENTERED'"),
+  'a typed place must be reported as user-entered, never as GPS-verified',
+);
+assert.ok(
+  petUi.includes('붙잡아 사진을 찍지 마세요'),
+  'the found report must warn against approaching the animal',
+);
+
 // -------------------------------------------------------- privacy boundary
 
 assert.ok(petClient.includes("cache: 'no-store'"), 'pet requests must not be cached');
@@ -296,6 +311,29 @@ function innerFixtureHtml() {
         : [];
       return new Response(JSON.stringify({photos: filled, manifest: {slot_count: filled.length, state: 'UPLOAD_INCOMPLETE', manifest_version: 1}}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
+    if (/\\/v2\\/pets\\/sos$/.test(target)) {
+      return new Response(JSON.stringify({cases: [{
+        sos_case_id: 'psos_cccccccccccccccccccc',
+        pet_id: 'PET_KR_AAAAAAAAAAAAAAAAAAAA',
+        last_seen_location: {label: '망원한강공원'},
+        last_seen_at: '2026-09-21T09:30:00Z',
+        note: '파란 목줄',
+        status: 'ACTIVE',
+      }]}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
+    if (/\\/v2\\/pets\\/found\\/[^/]+\\/photos$/.test(target)) {
+      return new Response(JSON.stringify({photos: [{slot_index: 1}]}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
+    if (/\\/v2\\/pets\\/found$/.test(target)) {
+      return new Response(JSON.stringify({cases: [{
+        found_case_id: 'pfound_dddddddddddddddddddd',
+        species: 'CAT',
+        found_location: {label: '정자동 느티마을'},
+        found_at: '2026-09-22T02:10:00Z',
+        description: '회색 줄무늬',
+        status: 'ACTIVE',
+      }]}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
     if (/\\/v2\\/pets$/.test(target)) {
       return new Response(PETS, {status: 200, headers: {'Content-Type': 'application/json'}});
     }
@@ -354,6 +392,32 @@ function innerFixtureHtml() {
   const photoCount = detail.querySelector('.pet-photo-count').textContent;
   const progressNote = detail.querySelector('.pet-photo-progress-note').textContent;
 
+  // 실종 SOS / 발견 신고 sections.
+  const sosSection = document.querySelector('[data-pet-sos]');
+  const foundSection = document.querySelector('[data-pet-found]');
+  const cases = {
+    sos: [...sosSection.querySelectorAll('[data-pet-case]')].map(card => ({
+      status: card.dataset.petCaseStatus,
+      text: card.textContent,
+      hasResolve: Boolean(card.querySelector('[data-pet-case-resolve]')),
+      hasCancel: Boolean(card.querySelector('[data-pet-case-cancel]')),
+    })),
+    found: [...foundSection.querySelectorAll('[data-pet-case]')].map(card => ({
+      status: card.dataset.petCaseStatus,
+      text: card.textContent,
+      photoCount: card.querySelector('.pet-case-photo-count')?.textContent || '',
+    })),
+    safety: foundSection.querySelector('.pet-case-safety')?.textContent || '',
+    sosFormOpensFor: (() => {
+      sosSection.querySelector('[data-pet-sos-new]').click();
+      return Boolean(sosSection.querySelector('[data-pet-sos-form]'));
+    })(),
+    foundFormOpensFor: (() => {
+      foundSection.querySelector('[data-pet-found-new]').click();
+      return Boolean(foundSection.querySelector('[data-pet-found-form]'));
+    })(),
+  };
+
   // Register form: species must offer exactly DOG and CAT.
   document.querySelector('.pet-add-button').click();
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
@@ -372,6 +436,7 @@ function innerFixtureHtml() {
     revealedRegistration,
     consentChecked,
     slots,
+    cases,
     photoCount,
     progressNote,
     deleteBefore,
@@ -501,6 +566,19 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   }
   assert.equal(result.photoCount, '3/10', `${label}: photo progress must count filled slots`);
   assert.match(result.progressNote, /^7장 남았습니다/, `${label}: progress note must name what is left`);
+
+  assert.equal(result.cases.sos.length, 1, `${label}: the active SOS case must render`);
+  assert.equal(result.cases.sos[0].status, 'ACTIVE', `${label}: SOS status must render`);
+  assert.ok(result.cases.sos[0].text.includes('망원한강공원'), `${label}: SOS last-seen place must render`);
+  assert.ok(result.cases.sos[0].hasResolve && result.cases.sos[0].hasCancel,
+    `${label}: an active SOS case must offer both ways to close it`);
+  assert.equal(result.cases.found.length, 1, `${label}: the active found case must render`);
+  assert.ok(result.cases.found[0].text.includes('고양이'), `${label}: found species must render in Korean`);
+  assert.equal(result.cases.found[0].photoCount, '첨부 사진 1/10', `${label}: found photo count must render`);
+  assert.ok(result.cases.safety.includes('붙잡아 사진을 찍지 마세요'),
+    `${label}: the found report must keep its safety warning`);
+  assert.ok(result.cases.sosFormOpensFor, `${label}: the SOS form must open`);
+  assert.ok(result.cases.foundFormOpensFor, `${label}: the found report form must open`);
 
   assert.equal(result.deleteBefore.confirm, 0, `${label}: delete confirmation must be hidden until asked for`);
   assert.ok(result.deleteBefore.trigger > 0, `${label}: delete trigger must be visible`);

@@ -1990,6 +1990,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const content = document.createElement('div'); content.className = 'site-modal-content'; panel.appendChild(content); backdrop.appendChild(panel);
     return {backdrop, panel, content};
   };
+  // Active 실종 SOS count on the sidebar entry, mirroring the Calendar badge.
+  // Nothing is shown until the surface has actually counted the cases.
+  const renderPetSosBadge = ({activeSos = 0} = {}) => {
+    for (const slot of document.querySelectorAll('[data-pet-sos-count]')) {
+      if (!(slot instanceof HTMLElement)) continue;
+      if (Number.isInteger(activeSos) && activeSos > 0) {
+        slot.textContent = String(activeSos);
+        slot.hidden = false;
+      } else {
+        slot.textContent = '';
+        slot.hidden = true;
+      }
+    }
+  };
+
   const openPetFamily = async () => {
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell(
@@ -2010,7 +2025,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
       const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260922-petweb1');
-      const mounted = await mountPetFamilyManager({sessionToken, root: content});
+      const mounted = await mountPetFamilyManager({
+        sessionToken,
+        root: content,
+        onCountChange: renderPetSosBadge,
+      });
       releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
       content.replaceChildren(Object.assign(document.createElement('p'), {
