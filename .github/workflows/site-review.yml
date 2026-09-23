@@ -43,6 +43,9 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
+      - name: Validate footer business information is identical across pages
+        run: python scripts/sync_footer_business_info.py --check
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts
