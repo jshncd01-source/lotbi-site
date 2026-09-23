@@ -103,20 +103,29 @@ assert.ok(
   /body\[data-site-theme="dark"\]\s+\.lotbi-brand-logo-dark\s*\{\s*display:\s*block/.test(tokens),
   'explicit Dark must show the dark wordmark',
 );
+// Matched allowing a selector group: this rule now also carries the pre-paint
+// bootstrap="system" selector beside it.
 assert.ok(
-  /body\[data-site-theme="system"\]\s+\.lotbi-brand-logo-dark\s*\{\s*display:\s*block/.test(tokens),
+  /body\[data-site-theme="system"\]\s+\.lotbi-brand-logo-dark[^{]*\{\s*display:\s*block/.test(tokens),
   'system-following Dark must show the dark wordmark',
 );
 assert.ok(
   /html\[data-site-theme-bootstrap="dark"\] body:not\(\[data-site-theme\]\)\s+\.lotbi-brand-logo-dark\s*\{\s*display:\s*block/.test(tokens),
   'the pre-paint Dark bootstrap must show the dark wordmark',
 );
-// The bootstrap="system" block sets tokens but never paints `background`, so
-// the surface is still white in that window. Keying the logo to it puts a
-// white wordmark on a white page — the flash this change exists to prevent.
+// SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — this used to assert the opposite. The
+// bootstrap="system" block once set tokens without painting `background`, so a
+// logo keyed to it went white-on-white in the pre-paint window. That block now
+// paints its background, so the wordmark has to follow it or the first frame
+// carries a navy wordmark on #151922. The invariant is unchanged — the logo
+// tracks the painted surface — only the surface changed.
 assert.ok(
-  !/html\[data-site-theme-bootstrap="system"\][^{]*\.lotbi-brand-logo/.test(tokens),
-  'the wordmark must not follow the bootstrap="system" state, which does not paint a dark background',
+  /html\[data-site-theme-bootstrap="system"\] body:not\(\[data-site-theme\]\) \.lotbi-brand-logo-dark/.test(tokens),
+  'the wordmark must follow the bootstrap="system" state now that it paints a dark background',
+);
+assert.ok(
+  /html\[data-site-theme-bootstrap="system"\] body:not\(\[data-site-theme\]\)\s*\{[^}]*background:\s*#151922/.test(tokens),
+  'the bootstrap="system" block must paint its background — the logo rule above depends on it',
 );
 
 // ── 5. The mobile entry chooser rides the same CSS ────────────────────────

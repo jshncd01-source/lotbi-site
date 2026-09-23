@@ -29,12 +29,18 @@ import {
   setPetMatchingConsent,
   uploadFoundPetPhoto,
   uploadPetPhoto,
-} from './site-pet.js?v=20260922-petweb1';
+} from './site-pet.js?v=20260923-petgate1';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=20260922-petweb1';
+} from './site-pet-guides.js?v=20260923-petgate1';
+import {
+  petFeatureState,
+  petGateNotice,
+  petNavLockHint,
+  petNavLockLabel,
+} from './site-pet-gate.js?v=20260923-petgate1';
 
 const MATCHING_CONSENT_VERSION = 'site-pet-matching-2026-09';
 
@@ -60,8 +66,27 @@ function errorMessage(value, fallback) {
   return value instanceof Error && value.message ? value.message : fallback;
 }
 
-export async function mountPetFamilyManager({sessionToken = '', root, onCountChange} = {}) {
+// The sentence on screen is Korean and says nothing about our internals. The
+// Core error code still has to be findable, or nobody can diagnose a report of
+// "등록이 안 돼요", so it rides on the element as a data attribute: an engineer
+// can read it in devtools, a customer never sees it.
+function errorCodeOf(value) {
+  const code = value && typeof value === 'object' ? value.code : '';
+  return typeof code === 'string' && code ? code : '';
+}
+
+export async function mountPetFamilyManager({
+  sessionToken = '',
+  root,
+  onCountChange,
+  subscription,
+  search = globalThis.location?.search || '',
+} = {}) {
   if (!(root instanceof HTMLElement)) return null;
+
+  // 유료 게이트. 지금은 스위치가 꺼져 있어 gate.locked 는 항상 false 입니다.
+  // 등록은 게이트와 무관하게 언제나 허용됩니다.
+  const gate = petFeatureState(subscription, {search});
 
   const surface = el('div', 'pet-family-surface');
   surface.dataset.petFamilySurface = '';
@@ -140,9 +165,43 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
     for (const key of [...photoPreviews.keys()]) revokePreview(key);
   };
 
-  const showError = value => {
+  const showError = (value, cause) => {
     error.textContent = value;
     error.hidden = !value;
+    const code = errorCodeOf(cause);
+    if (code) error.dataset.petErrorCode = code;
+    else delete error.dataset.petErrorCode;
+  };
+
+  // 등록에 성공한 뒤 뜨는 안내입니다. 등록을 막는 경고가 아닙니다.
+  const showGateNotice = () => {
+    const copy = petGateNotice(gate);
+    const backdrop = el('div', 'pet-gate-backdrop');
+    backdrop.dataset.petGateNotice = '';
+    const panel = el('div', 'pet-gate-panel');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    const heading = el('h4', 'pet-gate-title', copy.title);
+    const body = el('p', 'pet-gate-copy', copy.body);
+    panel.append(heading, body);
+    const actions = el('div', 'pet-gate-actions');
+    const close = el('button', 'site-button site-button-primary', copy.action);
+    close.type = 'button';
+    const dismiss = () => {
+      backdrop.remove();
+      addButton.focus();
+    };
+    close.addEventListener('click', dismiss);
+    backdrop.addEventListener('click', event => {
+      if (event.target === backdrop) dismiss();
+    });
+    panel.setAttribute('aria-labelledby', 'pet-gate-title');
+    heading.id = 'pet-gate-title';
+    actions.appendChild(close);
+    panel.appendChild(actions);
+    backdrop.appendChild(panel);
+    surface.appendChild(backdrop);
+    close.focus();
   };
 
   const setBusy = value => {
@@ -155,7 +214,13 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
 
   const reportCount = () => {
     if (typeof onCountChange === 'function') {
-      onCountChange({pets: pets.length, activeSos: activeSosCount()});
+      onCountChange({
+        pets: pets.length,
+        activeSos: activeSosCount(),
+        locked: gate.locked,
+        lockLabel: petNavLockLabel(gate),
+        lockHint: petNavLockHint(gate),
+      });
     }
   };
 
@@ -481,7 +546,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
         renderDetail(updated.petId);
         status.textContent = '이름을 저장했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '이름을 바꾸지 못했습니다.'));
+        showError(errorMessage(value, '이름을 바꾸지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -512,7 +577,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
         status.textContent = enabled ? '매칭 동의를 켰습니다.' : '매칭 동의를 껐습니다.';
       } catch (value) {
         consentInput.checked = !enabled;
-        showError(errorMessage(value, '매칭 동의 상태를 바꾸지 못했습니다.'));
+        showError(errorMessage(value, '매칭 동의 상태를 바꾸지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -550,7 +615,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
         reportCount();
         status.textContent = '반려동물을 삭제했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '반려동물을 삭제하지 못했습니다.'));
+        showError(errorMessage(value, '반려동물을 삭제하지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -664,7 +729,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
             renderFoundPhotos(record, host);
             status.textContent = '첨부 사진을 삭제했습니다.';
           } catch (value) {
-            showError(errorMessage(value, '첨부 사진을 삭제하지 못했습니다.'));
+            showError(errorMessage(value, '첨부 사진을 삭제하지 못했습니다.'), value);
           } finally {
             setBusy(false);
           }
@@ -697,7 +762,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
         renderFoundPhotos(record, host);
         status.textContent = '사진을 첨부했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '사진을 첨부하지 못했습니다.'));
+        showError(errorMessage(value, '사진을 첨부하지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -724,7 +789,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
         }
         status.textContent = '신고를 종료했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '신고를 종료하지 못했습니다.'));
+        showError(errorMessage(value, '신고를 종료하지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -1097,6 +1162,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
         reportCount();
         renderDetail(created.petId);
         status.textContent = `${created.name} 등록을 마쳤습니다.`;
+        showGateNotice();
       } catch (value) {
         formError.textContent = errorMessage(value, '반려동물을 등록하지 못했습니다.');
       } finally {
@@ -1124,7 +1190,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
     renderList();
   } catch (value) {
     status.textContent = '';
-    showError(errorMessage(value, '반려동물 정보를 불러오지 못했습니다.'));
+    showError(errorMessage(value, '반려동물 정보를 불러오지 못했습니다.'), value);
     renderList();
   }
 
@@ -1140,7 +1206,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
       foundCases.map(async record => [record.caseId, [...await listFoundPetPhotos(sessionToken, record.caseId)]]),
     ));
   } catch (value) {
-    showError(errorMessage(value, '신고 내역을 불러오지 못했습니다.'));
+    showError(errorMessage(value, '신고 내역을 불러오지 못했습니다.'), value);
   }
   renderSos();
   renderFound();

@@ -47,9 +47,9 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-kmaglyph1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-msgactions2">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
-<link rel="stylesheet" href="/site-calendar-weather.css?v=20260923-kmaglyph1">
+<link rel="stylesheet" href="/site-calendar-weather.css?v=20260923-msgactions2">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast2">
 </head><body style="margin:0">
 <div id="calendar-root"></div>
@@ -135,8 +135,8 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-kmaglyph1');
-  const weatherModule=await import('/site-calendar-weather.js?v=20260923-kmaglyph1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-msgactions2');
+  const weatherModule=await import('/site-calendar-weather.js?v=20260923-msgactions2');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- short forecast only ---------------------------------------------
