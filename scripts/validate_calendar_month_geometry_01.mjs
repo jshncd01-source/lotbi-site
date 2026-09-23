@@ -86,7 +86,10 @@ async function measure({nowIso,date,label,weeks}){
     getItem:key=>values.has(key)?values.get(key):null,
     setItem:(key,value)=>values.set(key,String(value)),
   };
-  const repo=createGuestCalendarRepository(storage);
+  // Five entries on one day is the point of the measurement, which is more than
+  // a guest may create. The quota itself is asserted in
+  // validate_guest_calendar_local_01.mjs, not here.
+  const repo=createGuestCalendarRepository(storage,{createQuota:200});
   addFive(repo,date);
   const {backdrop,modal,root}=makeModal();
   await mountLifeCalendarManager({
@@ -98,7 +101,11 @@ async function measure({nowIso,date,label,weeks}){
     settingsStorage:storage,
   });
   await wait(()=>root.dataset.calendarManagerView==='month'&&root.querySelector('.calendar-month-grid'),'month '+label);
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  // setTimeout rather than requestAnimationFrame: under --virtual-time-budget an
+  // idle page may never produce another animation frame, and the double rAF then
+  // never settles — the run ends as a mute "wrapper timeout" with no stage named.
+  // validate_calendar_touch_monthnav_daysheet_01 already carries this fix.
+  await new Promise(resolve=>setTimeout(resolve,50));
 
   const grid=root.querySelector('.calendar-month-grid');
   const cells=[...grid.querySelectorAll('.calendar-date-cell')];

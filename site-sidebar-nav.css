@@ -121,8 +121,13 @@
   cursor: pointer;
 }
 
+/* SITE-DARK-CONVERSATION-LIST-CONTRAST-01 — this used --brand-navy, a raw
+   brand colour with no dark form. The selected row's background flips to
+   #262e3a in Dark while the text stayed #182a46: 1.05:1, which is why the
+   conversation 대표 was reading became less legible the moment it was
+   selected. The token flips with the background it sits on. */
 .nav-history-list button[aria-current="true"] {
-  color: var(--brand-navy);
+  color: var(--lotbi-nav-history-text-active, #182a46);
   font-weight: 800;
 }
 

@@ -71,6 +71,25 @@ jobs:
       - name: Validate official LOTBI logo wiring
         run: node scripts/validate_brand_official_logo_01.mjs
 
+      # The wordmark has to follow the LOTBI theme switch, not just the OS,
+      # and stay off the always-light pages.
+      - name: Validate theme-aware brand logo
+        run: node scripts/validate_brand_logo_theme_aware_01.mjs
+
+      # The recent-conversation list is read in Dark too, selected row included.
+      - name: Validate dark conversation list contrast
+        run: node scripts/validate_dark_conversation_list_contrast_01.mjs
+
+      # Shared form controls must not trip iOS Safari's focus zoom, and the
+      # viewport must stay pinch-zoomable.
+      - name: Validate iOS input zoom
+        run: node scripts/validate_ios_input_zoom_01.mjs
+
+      # The drawer and sidebar surfaces must be painted by both theme paths, not
+      # only by the Home-scoped skin.
+      - name: Validate dark drawer surface
+        run: node scripts/validate_dark_drawer_surface_01.mjs
+
       - name: Validate shared bottom sheet primitive
         run: node scripts/validate_bottom_sheet_primitive_01.mjs
 
@@ -128,6 +147,9 @@ jobs:
           node scripts/validate_calendar_expense_summary_01.mjs
           node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
           node scripts/validate_calendar_quiet_location_01.mjs
+          node scripts/validate_calendar_holiday_surface_settings_icon_01.mjs
+          node scripts/validate_calendar_outside_month_01.mjs
+          node scripts/validate_calendar_add_from_image_01.mjs
 
       - name: Validate Universal Rich Product Cards
         run: |

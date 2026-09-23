@@ -50,6 +50,9 @@ on:
       - 'scripts/validate_calendar_expense_summary_01.mjs'
       - 'scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs'
       - 'scripts/validate_calendar_quiet_location_01.mjs'
+      - 'scripts/validate_calendar_holiday_surface_settings_icon_01.mjs'
+      - 'scripts/validate_calendar_outside_month_01.mjs'
+      - 'scripts/validate_calendar_add_from_image_01.mjs'
       - 'scripts/validate_auth_continuity_02.mjs'
       - 'scripts/validate_site.py'
       - '.github/workflows/site-universal-life-calendar-01.yml'
@@ -115,7 +118,12 @@ jobs:
         run: |
           node --check site-calendar-expense.js
           node scripts/validate_calendar_expense_summary_01.mjs
+          node scripts/validate_calendar_add_from_image_01.mjs
       - name: Auxiliary Calendar reads never tear the Calendar down
         run: node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
       - name: Weather location stays quiet once it is settled
         run: node scripts/validate_calendar_quiet_location_01.mjs
+      - name: Public holidays read as a day off, and Settings looks like Settings
+        run: node scripts/validate_calendar_holiday_surface_settings_icon_01.mjs
+      - name: Dates outside the month recede, and stay readable
+        run: node scripts/validate_calendar_outside_month_01.mjs

@@ -4,7 +4,8 @@ import path from 'node:path';
 
 const {getCalendarWeather} = await import('../site-calendar.js?v=20260922-holiday1');
 const {loadLifeCalendarManagerView, buildCalendarAriaLabel} = await import('../site-calendar-manager.js?v=20260922-holiday1');
-const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260922-weather1');
+const {normalizeCalendarWeatherResponse, calendarWeatherByDate, weatherTemperatureLabel} = await import('../site-calendar-weather.js?v=20260923-kmaglyph1');
+const {addCivilDays} = await import('../site-calendar-model.js');
 const {
   BrowserLocationError,
   BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
@@ -263,12 +264,22 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const locationSource = fs.readFileSync(path.join(ROOT, 'site-current-location.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
+const weatherModuleSource = fs.readFileSync(path.join(ROOT, 'site-calendar-weather.js'), 'utf8');
 for (const token of [
-  "weatherIcon.className = 'calendar-weather-icon'",
-  'weatherIcon.textContent = weather.weatherIcon',
-  "weatherIcon.setAttribute('aria-hidden', 'true')",
+  'const weatherIcon = calendarWeatherIconNode(weather.weatherKind)',
+  'calendarWeatherIconNode',
   'state.weather = result.weather || []',
 ]) assert.ok(manager.includes(token), `missing weather icon UI contract: ${token}`);
+// 이모지 회귀 방지. 같은 코드포인트가 OS 마다 다른 모양·색으로 렌더되는 것이
+// "날씨가 흐리게 보인다"의 근본 원인이었다.
+assert.ok(
+  !manager.includes('weatherIcon.textContent = weather.weatherIcon'),
+  'the date cell must draw the SVG glyph, not the provider emoji',
+);
+for (const token of [
+  "svg.setAttribute('aria-hidden', 'true')",
+  "doc.createElementNS(SVG_NS, 'svg')",
+]) assert.ok(weatherModuleSource.includes(token), `missing weather glyph contract: ${token}`);
 assert.ok(css.includes('.calendar-weather-icon'), 'weather icon CSS missing');
 assert.ok(!manager.includes('temperature'), 'Calendar manager must not render temperature');
 assert.ok(manager.includes("locationButton.addEventListener('click'"), 'current location must be a user action');
@@ -362,6 +373,97 @@ assert.ok(locationSource.includes('getBrowserLocationPermissionState'), 'browser
   assert.equal(notReady.providerReady, false, 'provider_ready must pass through');
   assert.equal(notReady.items.length, 0, 'a provider that is not ready must yield no days');
   assert.equal(calendarWeatherByDate(notReady.items).size, 0, 'no day may be invented when the provider is not ready');
+}
+
+// Core answers the authenticated Calendar weather read only for a bounded
+// forward window: wider than 15 inclusive days is WEATHER_DATE_WINDOW_INVALID
+// (422), and a forecast exists only from today onward. The month grid is 42
+// cells, so the unclamped grid range was ~35 days and Production returned 422
+// for every signed-in user once the CORS and session gates were cleared.
+{
+  async function weatherRequestFor(date, now) {
+    let weatherUrl = null;
+    await loadLifeCalendarManagerView('site-token', {
+      view: 'month',
+      date,
+      timezone: 'Asia/Seoul',
+      now: new Date(now),
+      weatherLocation: {latitude: 35.8242, longitude: 127.148},
+      fetchImpl: async url => {
+        const parsed = new URL(url);
+        if (parsed.pathname === '/v2/life/weather') {
+          weatherUrl = parsed;
+          return jsonResponse({provider_ready: false, items: [], ai_calls: 0});
+        }
+        if (parsed.pathname === '/v2/life/attention') {
+          return jsonResponse({
+            view: 'ATTENTION', as_of: now, timezone: 'Asia/Seoul',
+            coverage: 'PERSONAL_ACTIVITY_ONLY', items: [], ai_calls: 0, provider_api_calls: 0,
+          });
+        }
+        if (parsed.pathname === '/v2/life/agenda') {
+          return jsonResponse({
+            view: 'AGENDA', as_of: now, timezone: 'Asia/Seoul',
+            coverage: 'PERSONAL_ACTIVITY_ONLY', items: [], ai_calls: 0, provider_api_calls: 0,
+          });
+        }
+        if (parsed.pathname === '/v2/life/holidays') {
+          return jsonResponse({coverage_status: 'VERIFIED', items: [], ai_calls: 0});
+        }
+        throw new Error(`unexpected request ${parsed.pathname}`);
+      },
+    });
+    return weatherUrl;
+  }
+
+  function inclusiveDays(start, end) {
+    let days = 1;
+    let cursor = start;
+    while (cursor < end) {
+      cursor = addCivilDays(cursor, 1);
+      days += 1;
+    }
+    return days;
+  }
+
+  // The month containing today: the request must start no earlier than today
+  // and stay inside what Core accepts.
+  const current = await weatherRequestFor('2026-09-23', '2026-09-23T00:00:00Z');
+  assert.ok(current, 'the visible current month must still read weather');
+  const start = current.searchParams.get('start');
+  const end = current.searchParams.get('end');
+  assert.equal(start, '2026-09-23', 'the window must not begin before today');
+  assert.ok(end <= '2026-10-07', 'the window must not reach past the forecast horizon');
+  assert.ok(
+    inclusiveDays(start, end) <= 15,
+    `the window must fit Core's 15-day limit, got ${inclusiveDays(start, end)} days`,
+  );
+
+  // A month already past has no forecastable day: ask for nothing at all rather
+  // than for days that cannot exist.
+  assert.equal(
+    await weatherRequestFor('2026-08-15', '2026-09-23T00:00:00Z'),
+    null,
+    'a past month must not trigger a weather request',
+  );
+
+  // A month beyond the horizon is the same case from the other side.
+  assert.equal(
+    await weatherRequestFor('2026-12-15', '2026-09-23T00:00:00Z'),
+    null,
+    'a month beyond the forecast horizon must not trigger a weather request',
+  );
+
+  // The month after this one overlaps the horizon only partially; the request
+  // must cover that overlap and stop there.
+  const next = await weatherRequestFor('2026-10-15', '2026-09-23T00:00:00Z');
+  assert.ok(next, 'a month overlapping the horizon must still read weather');
+  assert.ok(next.searchParams.get('start') >= '2026-09-23', 'never before today');
+  assert.ok(next.searchParams.get('end') <= '2026-10-07', 'never past the horizon');
+  assert.ok(
+    inclusiveDays(next.searchParams.get('start'), next.searchParams.get('end')) <= 15,
+    'the partial-overlap window must fit Core limit too',
+  );
 }
 
 console.log('LOTBI Calendar KMA weather icon + browser location contract: PASS');

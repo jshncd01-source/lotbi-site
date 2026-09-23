@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-sessionfix1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-kmaglyph1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,11 +11,15 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode} from './site-calendar-expense.js?v=20260923-quietloc1';
-import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260922-region1';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260922-region1';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-kmaglyph1';
+// One version string, matching site-calendar.js: a second query string makes a
+// second module instance, and then the SiteCoreError this file compares against
+// is a different class from the one site-calendar.js throws. site-core.js is
+// unchanged here, so it keeps the version the Calendar already loads.
+import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-kmaglyph1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-kmaglyph1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-kmaglyph1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -387,6 +391,9 @@ function withUnscheduledShape(item) {
 export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false, weather = null, holiday = null} = {}) {
   const {year, month, day} = civilDateParts(cell.date);
   const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`];
+  // Outside the month on screen the date recedes visually; a screen reader must
+  // be told the same thing rather than left to infer it from the spoken month.
+  if (cell.inCurrentMonth === false) parts.push('다른 달');
   if (today) parts.push('오늘');
   if (selected) parts.push('선택됨');
   if (attention) parts.push('확인 필요 일정 있음');
@@ -405,6 +412,26 @@ export function countCalendarEventsByMonth(items, year) {
   return counts;
 }
 
+// Core serves Calendar weather for a bounded forward window: it rejects a span
+// wider than 15 inclusive days with WEATHER_DATE_WINDOW_INVALID, and a forecast
+// exists only from today onward. The month grid covers 42 cells, so sending the
+// grid range straight through asks for ~35 days and is refused every time.
+//
+// Clamp to the part of the visible grid a forecast can actually cover: never
+// before today, never more than 14 days ahead. A month with no such overlap -- a
+// past month, or one starting beyond the horizon -- yields no window at all, and
+// the caller skips the request rather than asking for days that cannot exist.
+const WEATHER_FORECAST_HORIZON_DAYS = 14;
+
+function forecastWindow(range, today) {
+  if (!range || !validCivilDate(today)) return null;
+  const start = range.start > today ? range.start : today;
+  const horizon = addCivilDays(today, WEATHER_FORECAST_HORIZON_DAYS);
+  const end = range.end < horizon ? range.end : horizon;
+  if (end < start) return null;
+  return {start, end};
+}
+
 export async function loadLifeCalendarManagerView(
   sessionToken,
   {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null} = {},
@@ -416,10 +443,13 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const weatherRequest = key === 'month'
+  const weatherWindow = key === 'month'
+    ? forecastWindow(range, dateInTimezone(now, timezone))
+    : null;
+  const weatherRequest = weatherWindow
     ? getCalendarWeather(sessionToken, {
-        start: range.start,
-        end: range.end,
+        start: weatherWindow.start,
+        end: weatherWindow.end,
         timezone,
         latitude: weatherLocation?.latitude,
         longitude: weatherLocation?.longitude,
@@ -456,6 +486,39 @@ export async function loadLifeCalendarManagerView(
     holidayCoverageStatus: holidays?.coverageStatus || 'UNAVAILABLE',
   });
 }
+
+// Toolbar icons are inline SVG, not emoji: an emoji renders as a different
+// shape on every OS (the gear read as a sun on the reporter's screen, which is
+// why the settings control was mistaken for a weather button). Inline rather
+// than a <use> reference because the sprite lives in index.html and the
+// Calendar also mounts from auth/callback/, which has no sprite.
+// Shape language is the sidebar's: 24x24 box, stroke-only, 1.8 weight,
+// round caps and joins.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function toolbarIcon(shapes) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'calendar-toolbar-icon');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  for (const [tag, attrs] of shapes) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+    svg.appendChild(node);
+  }
+  return svg;
+}
+
+// Sliders, not a gear. A gear is a circle with radial spokes, and at 19px that
+// is the same figure as a sun -- which is precisely the confusion being fixed
+// here, and it would collide head-on with the weather glyphs the day cells
+// carry. Two tracks with offset handles read as "controls" at this size and
+// cannot be mistaken for weather.
+const SETTINGS_ICON_SHAPES = Object.freeze([
+  ['path', {d: 'M4 9h16M4 15h16'}],
+  ['path', {d: 'M9.5 6.5v5M15.5 12.5v5'}],
+]);
 
 function button(label, className) {
   const value = document.createElement('button');
@@ -559,10 +622,33 @@ function dayPanel(state, groups, actions) {
   }
   const items = groups.get(state.selectedDate) || [];
   body.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('등록된 일정이 없어요.'));
-  const add = button(`${civilDateParts(state.selectedDate).month}월 ${civilDateParts(state.selectedDate).day}일에 일정 추가`, 'calendar-add-button');
+  // Two ways in, and neither repeats the date: the selected day is already in
+  // the panel heading, the toolbar title and the highlighted cell. It stays in
+  // each button's accessible name so a screen reader still hears which day.
+  const {month: addMonth, day: addDay} = civilDateParts(state.selectedDate);
+  if (state.imageMessage) {
+    const message = document.createElement('p');
+    message.className = 'calendar-add-message';
+    message.dataset.calendarAddMessage = '';
+    message.setAttribute('role', 'status');
+    message.textContent = state.imageMessage;
+    body.appendChild(message);
+  }
+  const addRow = document.createElement('div');
+  addRow.className = 'calendar-add-actions';
+
+  const addImage = button('이미지로 등록', 'calendar-add-button calendar-add-image-button');
+  addImage.dataset.calendarAddImage = '';
+  addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
+  addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
+
+  const add = button('직접 등록', 'calendar-add-button');
   add.dataset.calendarAdd = '';
+  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 등록`);
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
-  body.appendChild(add);
+
+  addRow.append(addImage, add);
+  body.appendChild(addRow);
   panel.append(head, body);
   return panel;
 }
@@ -653,7 +739,7 @@ function syncMonthLayout(layout) {
   positionDayPopover(layout);
 }
 
-function renderMonth(state, actions) {
+function renderMonth(state, actions, weatherCredit = null) {
   const layout = document.createElement('div');
   layout.className = 'calendar-month-layout';
   layout.dataset.detailOpen = String(state.detailOpen);
@@ -720,13 +806,17 @@ function renderMonth(state, actions) {
     count.setAttribute('aria-hidden', 'true');
     header.append(date, count);
     if (weather) {
-      const weatherIcon = document.createElement('span');
-      weatherIcon.className = 'calendar-weather-icon';
-      weatherIcon.dataset.weatherKind = weather.weatherKind;
-      weatherIcon.textContent = weather.weatherIcon;
-      weatherIcon.title = weather.label;
-      weatherIcon.setAttribute('aria-hidden', 'true');
-      header.appendChild(weatherIcon);
+      // 이모지 대신 인라인 SVG. 같은 이모지가 OS 마다 다른 모양·다른 색으로
+      // 나오는 것이 흐리게 보이던 근본 원인이었다. 글리프 자체는
+      // site-calendar-weather.js 가 그린다 — Core 가 보내는 weather_icon
+      // 이모지는 전송 계약으로 계속 검증된다.
+      const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
+      if (weatherIcon) {
+        const weatherTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        weatherTitle.textContent = weather.label;
+        weatherIcon.appendChild(weatherTitle);
+        header.appendChild(weatherIcon);
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');
@@ -769,6 +859,18 @@ function renderMonth(state, actions) {
   }
 
   calendar.append(weekdays, grid);
+  // 기상청 출처표시는 날짜 칸에 예보가 실제로 그려졌을 때만, 그 그리드 바로
+  // 아래에 붙는다. 셸의 행으로 두면 휴대폰에서 기본으로 열려 있는 날짜 시트에
+  // 통째로 가려져서, 의무인 표기가 화면에 없는 것과 같아진다.
+  // .calendar-month 의 grid-template-rows(데스크톱)는 건드리지 않는다:
+  // 명시적으로 3행에 놓아 암시적 행을 만들어 쓴다.
+  if (weatherCredit) {
+    const creditLine = document.createElement('p');
+    creditLine.className = 'calendar-weather-credit';
+    creditLine.dataset.calendarWeatherCredit = '';
+    creditLine.textContent = weatherCredit.text;
+    calendar.appendChild(creditLine);
+  }
   const panel = dayPanel(state, groups, actions);
   // Order matters: existing runtime checks read layout.children[0] as the month and
   // layout.children[1] as the selected-day surface. The sheet backdrop is appended
@@ -1131,7 +1233,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
-  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 추가');
+  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 등록');
   const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
   const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
   editorHeader.append(heading, closeButton);
@@ -1191,12 +1293,16 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
           merchant: draft.entry.merchant,
         }
       : {};
+  // Not placeholder="0": an empty box showing a grey 0 reads as "0원 recorded"
+  // when it actually means "no amount recorded", and the two are different
+  // things in the totals bar — one is a zero, the other is excluded and
+  // counted. The 대표 read a blank 여행 entry as a saved 0 because of it.
   const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
-  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.placeholder = '0'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
+  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
 
   const categoryLabel = document.createElement('label'); categoryLabel.textContent = '비용 종류';
   const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';
-  for (const [value, label] of [['', '미분류'], ['FOOD', '음식'], ['TRAVEL', '여행'], ['SHOPPING', '쇼핑'], ['LIVING', '기타 / 생활비']]) {
+  for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
     const option = document.createElement('option'); option.value = value; option.textContent = label; categoryInput.appendChild(option);
   }
   categoryInput.value = entry.expense_category === 'UNCLASSIFIED' ? '' : (entry.expense_category || '');
@@ -1443,11 +1549,18 @@ export async function mountLifeCalendarManager({
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
     locationMessage: '',
+    // Owned by the 이미지로 등록 flow. It renders in the day panel rather than the
+    // status strip because the location flow rewrites that strip on its own
+    // schedule and swallowed this message a moment after it appeared.
+    imageMessage: '',
     expense: {
-      status: authenticated ? 'loading' : 'guest',
+      // Signed out there is nothing to wait for: the entries are already here,
+      // so the first paint computes rather than showing a loader.
+      status: 'loading',
       summary: null,
       message: '',
       monthKey: '',
+      local: !authenticated,
     },
   };
 
@@ -1457,7 +1570,8 @@ export async function mountLifeCalendarManager({
   const title = button('', 'calendar-title-button');
   const next = button('다음', 'calendar-nav-button'); next.setAttribute('aria-label', '다음 달');
   const today = button('오늘', 'calendar-today-button');
-  const settingsButton = button('⚙️', 'calendar-settings-button');
+  const settingsButton = button('', 'calendar-settings-button');
+  settingsButton.appendChild(toolbarIcon(SETTINGS_ICON_SHAPES));
   settingsButton.setAttribute('aria-label', '캘린더 설정');
   settingsButton.title = '캘린더 설정';
   const modes = document.createElement('div'); modes.className = 'calendar-mode-tabs'; modes.setAttribute('role', 'tablist'); modes.setAttribute('aria-label', '캘린더 보기');
@@ -1499,7 +1613,7 @@ export async function mountLifeCalendarManager({
       state.month = parts.month;
       state.detailOpen = openDetail;
       state.dayCollapsed = false;
-      if (monthChanged && authenticated) await refresh(); else render();
+      if (monthChanged) await afterMonthChange(); else render();
       queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
     },
     selectMonth: async month => {
@@ -1560,7 +1674,7 @@ export async function mountLifeCalendarManager({
         state.selectedDate = state.todayDate;
         state.year = parts.year;
         state.month = parts.month;
-        if (monthChanged && authenticated) await refresh();
+        if (monthChanged) await afterMonthChange();
         else render();
       } else {
         render();
@@ -1568,6 +1682,7 @@ export async function mountLifeCalendarManager({
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
     onAdd: date => openEditor(null, date),
+    onAddFromImage: date => { void addFromImage(date); },
     onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
     openSettings: () => calendarSettingsDialog({
       root,
@@ -1770,7 +1885,7 @@ export async function mountLifeCalendarManager({
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else if (state.mode === 'attention') viewport.replaceChildren(renderAttention(state));
-    else viewport.replaceChildren(renderMonth(state, actions));
+    else viewport.replaceChildren(renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
 
     if (state.mode === 'month') {
       const monthKey = `${state.year}-${state.month}`;
@@ -1783,6 +1898,9 @@ export async function mountLifeCalendarManager({
         summary: settled ? state.expense.summary : null,
         monthLabel: `${state.year}년 ${state.month}월`,
         errorMessage: settled ? state.expense.message : '',
+        // Signed out, the numbers come from this browser alone. The bar says so
+        // rather than letting them read as kept somewhere safe.
+        local: state.expense.local === true,
       }));
     } else {
       expenseSlot.hidden = true;
@@ -1790,11 +1908,123 @@ export async function mountLifeCalendarManager({
     }
   }
 
+  const imagePicker = document.createElement('input');
+  imagePicker.type = 'file';
+  imagePicker.accept = 'image/*';
+  imagePicker.hidden = true;
+  imagePicker.dataset.calendarImagePicker = '';
+  root.appendChild(imagePicker);
+
+  // The picture becomes a draft the owner reviews — never a saved entry. The
+  // editor opens prefilled with whatever was legible and blank everywhere else;
+  // nothing is guessed, and nothing is written until they press save.
+  async function addFromImage(date) {
+    const say = text => { state.imageMessage = text; render(); };
+    if (!authenticated) {
+      say('이미지로 일정을 만들려면 LOTBI에 로그인해 주세요.');
+      return;
+    }
+    say('');
+    const file = await new Promise(resolve => {
+      const onChange = () => {
+        imagePicker.removeEventListener('change', onChange);
+        const picked = imagePicker.files?.[0] || null;
+        imagePicker.value = '';
+        resolve(picked);
+      };
+      imagePicker.addEventListener('change', onChange);
+      imagePicker.click();
+    });
+    if (!file) return;
+    say('이미지에서 일정을 읽는 중…');
+
+    try {
+      // The upload contract names it `id`, not `attachmentId`.
+      const {id: attachmentId} = await uploadConversationAttachment({sessionToken, file}, fetchImpl);
+      const requestId = `cal-image-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      // The wording matters: it is what tells Core this attachment is meant for
+      // the Calendar, and it is exactly what the owner just asked for.
+      const response = await sendConversationMessage(
+        sessionToken,
+        '이 이미지로 캘린더에 일정 등록',
+        fetchImpl,
+        [attachmentId],
+        requestId,
+        timezone,
+        currentNow().toISOString(),
+        [],
+        {logicalRequestId: requestId, turnId: requestId},
+      );
+      if (!root.isConnected) return;
+      const draft = response?.calendarDraft || null;
+      if (!draft) {
+        say('이미지에서 일정을 읽지 못했습니다. 아래 직접 등록으로 입력해 주세요.');
+        return;
+      }
+      say('');
+      // A draft, not an entry: the editor opens with whatever was legible and
+      // blank everywhere else, and nothing is written until the owner saves.
+      openEditor(null, draft.localDate || date || state.selectedDate, draft);
+    } catch (error) {
+      if (!root.isConnected) return;
+      // A 401 is the session itself, and site-core.js already announces that —
+      // the Calendar closes and the owner signs in again. A 403 is this one
+      // route being refused, which is not the owner's doing and not a reason to
+      // send them to a login screen, so it says what they can do instead.
+      const refused = error instanceof SiteCoreError && error.status === 403;
+      say(refused
+        ? '지금은 이미지로 일정을 만들 수 없습니다. 아래 직접 등록으로 입력해 주세요.'
+        : '이미지를 읽지 못했습니다. 다시 시도하거나 직접 입력해 주세요.');
+    }
+  }
+
+  // A signed-in owner re-fetches the month; a signed-out one already holds every
+  // entry, so only the totals need recomputing. Both paths go through here, so a
+  // month change can never leave the bar showing another month's numbers — or,
+  // with the monthKey guard, a loader that never resolves.
+  async function afterMonthChange() {
+    if (authenticated) { await refresh(); return; }
+    render();
+    await refreshExpenseSummary();
+  }
+
   let expenseGeneration = 0;
 
   async function refreshExpenseSummary() {
     if (!authenticated) {
-      state.expense = {status: 'guest', summary: null, message: '', monthKey: ''};
+      // A signed-out owner already records amounts — the guest repository keeps
+      // entry.amount_minor and entry.expense_category like any other entry. The
+      // only thing missing was somewhere to add them up, so they are added up
+      // here, in this browser. No request is made and nothing is uploaded.
+      //
+      // Wrapped because the month grid has to outlive this: a totals bar that
+      // cannot compute is a missing bar, never a broken Calendar.
+      const monthKey = `${state.year}-${state.month}`;
+      try {
+        const {start, end} = civilMonthRange(state.year, state.month);
+        const inMonth = (repository?.list() || []).filter(event => {
+          const date = event?.local_date;
+          return typeof date === 'string' && date >= start && date <= end;
+        });
+        state.expense = {
+          status: 'ready',
+          summary: expenseSummaryFromEntries(inMonth, {startDate: start, endDate: end}),
+          message: '',
+          monthKey,
+          local: true,
+        };
+      } catch {
+        // Not a login wall — signing in would not fix an unreadable local store,
+        // so it says what happened and leaves the month alone.
+        state.expense = {
+          status: 'error',
+          summary: null,
+          message: '이 브라우저의 기록을 읽지 못해 합계를 낼 수 없어요.',
+          monthKey,
+          local: true,
+        };
+      }
+      render();
       return;
     }
     const generation = ++expenseGeneration;
@@ -1805,7 +2035,7 @@ export async function mountLifeCalendarManager({
     try {
       const summary = await getLifeExpenseSummary(sessionToken, {timezone, start, end}, fetchImpl);
       if (!root.isConnected || generation !== expenseGeneration) return;
-      state.expense = {status: 'ready', summary, message: '', monthKey};
+      state.expense = {status: 'ready', summary, message: '', monthKey, local: false};
     } catch (error) {
       if (!root.isConnected || generation !== expenseGeneration) return;
       state.expense = {
@@ -1904,6 +2134,18 @@ export async function mountLifeCalendarManager({
         ? '일정을 보려면 LOTBI에 다시 로그인해 주세요.' : '일정을 불러오지 못했습니다.';
       const retry = button('다시 시도', 'calendar-retry-button'); retry.addEventListener('click', () => { void refresh(); });
       status.replaceChildren(message, retry);
+      // refresh() reads the guest repository before the totals are ever
+      // computed, so a failure here would leave the bar loading forever.
+      if (state.expense.status === 'loading') {
+        state.expense = {
+          status: 'error',
+          summary: null,
+          message: '지출 합계를 불러오지 못했습니다.',
+          monthKey: `${state.year}-${state.month}`,
+          local: !authenticated,
+        };
+        render();
+      }
     } finally {
       if (requestGeneration === refreshGeneration) root.removeAttribute('aria-busy');
     }
@@ -2115,7 +2357,7 @@ export async function mountLifeCalendarManager({
       state.selectedDate = nextToday;
       state.year = parts.year;
       state.month = parts.month;
-      if (monthChanged && authenticated) await refresh();
+      if (monthChanged) await afterMonthChange();
       else render();
       return;
     }

@@ -323,7 +323,11 @@ export function normalizeSmartCalendarDraft(value) {
   const memo = normalizeCalendarDraftText(entry?.memo, 2000);
   const place = normalizeCalendarDraftText(entry?.place, 240);
   const merchant = normalizeCalendarDraftText(entry?.merchant, 240);
-  const allowedCategories = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'UNCLASSIFIED']);
+  // OTHER is here because Core can now return it on a draft. A draft carrying a
+  // category this list does not know is rejected outright, so leaving OTHER out
+  // would turn a 기타 spend read off a receipt into a contract error rather than
+  // a draft the owner could look at.
+  const allowedCategories = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', 'UNCLASSIFIED']);
   if (
     value.contract_id !== 'CORE-SMART-CALENDAR-DRAFT-01'
     || value.schema_version !== 1

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const {GUEST_CALENDAR_STORAGE_KEY, createGuestCalendarRepository} = await import('../site-calendar-guest.js');
+const {GUEST_CALENDAR_STORAGE_KEY, GUEST_CREATE_QUOTA, createGuestCalendarRepository} = await import('../site-calendar-guest.js');
 
 function memoryStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -172,5 +172,261 @@ assert.throws(
   () => repository.create({title: '잘못된 날짜', local_date: '2026-02-30', all_day: true}),
   error => error?.code === 'GUEST_CALENDAR_INPUT_INVALID',
 );
+
+// 기타 is one of the six the editor's dropdown offers, and a guest sees the same
+// dropdown a signed-in owner does. Without OTHER in this repository's allowlist
+// the pick came back as "일정 입력값이 올바르지 않습니다." and nothing saved.
+{
+  const guest = createGuestCalendarRepository(memoryStorage(), {
+    uuid: () => '00000000-0000-4000-8000-0000000000aa',
+    now: () => new Date('2026-09-20T04:00:00.000Z'),
+  });
+  const saved = guest.create({
+    title: '병원비',
+    local_date: '2026-09-24',
+    all_day: true,
+    entry: {amount_minor: 48000, currency: 'KRW', expense_category: 'OTHER'},
+  });
+  assert.equal(saved.entry.expense_category, 'OTHER');
+  assert.equal(guest.list()[0].entry.expense_category, 'OTHER');
+  // A category nobody offers is still refused: the fix widened the list by one
+  // named value, it did not stop checking.
+  assert.throws(
+    () => guest.create({
+      title: '알 수 없는 분류',
+      local_date: '2026-09-25',
+      all_day: true,
+      entry: {amount_minor: 1000, currency: 'KRW', expense_category: 'MISC'},
+    }),
+    error => error?.code === 'GUEST_CALENDAR_INPUT_INVALID',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Guest create quota. The rule is a running total of creations, not a count of
+// entries held, so deleting must never hand one back.
+// ---------------------------------------------------------------------------
+
+function quotaRepository(initial = {}) {
+  let index = 0;
+  const store = memoryStorage(initial);
+  const repo = createGuestCalendarRepository(store, {
+    uuid: () => `00000000-0000-4000-8000-${String(++index).padStart(12, '0')}`,
+    now: () => new Date('2026-09-23T00:00:00.000Z'),
+  });
+  return {store, repo};
+}
+
+const entry = (title, day) => ({title, local_date: `2026-09-${day}`, all_day: true});
+const quotaReached = error => error?.code === 'GUEST_CALENDAR_CREATE_QUOTA_REACHED';
+
+// The quota the product actually ships. If this figure ever moves, it moves in
+// one place and this assertion is what notices.
+assert.equal(GUEST_CREATE_QUOTA, 3);
+
+// 1. Three creations, then the fourth is refused.
+{
+  const {repo} = quotaRepository();
+  assert.deepEqual(repo.quotaStatus(), {quota: 3, createdCount: 0, remaining: 3, exhausted: false});
+  for (let n = 1; n <= GUEST_CREATE_QUOTA; n += 1) {
+    repo.create(entry(`일정 ${n}`, String(10 + n)));
+    assert.equal(repo.quotaStatus().createdCount, n);
+  }
+  assert.deepEqual(repo.quotaStatus(), {quota: 3, createdCount: 3, remaining: 0, exhausted: true});
+  assert.throws(() => repo.create(entry('네 번째', '20')), quotaReached);
+  // The refusal says what happened and what to do, and blames nobody.
+  assert.throws(() => repo.create(entry('네 번째', '20')), error => (
+    error.message.includes('로그인') && !error.message.includes('오류')
+  ));
+  assert.equal(repo.list().length, 3);
+}
+
+// 2. Deleting does not restore a create. This is the hole the rule exists to
+//    close: use all three, delete all three, and there is still nothing left.
+{
+  const {repo} = quotaRepository();
+  const made = [1, 2, 3].map(n => repo.create(entry(`지울 일정 ${n}`, String(10 + n))));
+  for (const item of made) assert.equal(repo.remove(item.id), true);
+  assert.deepEqual(repo.list(), []);
+  assert.deepEqual(repo.quotaStatus(), {quota: 3, createdCount: 3, remaining: 0, exhausted: true});
+  assert.throws(() => repo.create(entry('삭제 후 재시도', '21')), quotaReached);
+}
+
+// 3. Idempotent replays are the entry that already exists, so they cost
+//    nothing — and they keep working after the quota is spent, because a
+//    reloaded page still has to resolve them.
+{
+  const {repo} = quotaRepository();
+  const action = ['calact_0123456789abcdef01234567', 'calcand_89abcdef0123456701234567'];
+  const first = repo.createForAction(...action, entry('대화 일정', '11'));
+  assert.equal(repo.quotaStatus().createdCount, 1);
+  for (let n = 0; n < 5; n += 1) {
+    assert.equal(repo.createForAction(...action, entry('대화 일정', '11')).id, first.id);
+  }
+  assert.equal(repo.quotaStatus().createdCount, 1, 'replaying one action must spend one create, not six');
+
+  const requestId = 'calendar-guest-quota-0123456789';
+  const direct = repo.createForRequest(requestId, entry('요청 일정', '12'));
+  assert.equal(repo.quotaStatus().createdCount, 2);
+  for (let n = 0; n < 5; n += 1) {
+    assert.equal(repo.createForRequest(requestId, entry('요청 일정', '12')).id, direct.id);
+  }
+  assert.equal(repo.quotaStatus().createdCount, 2);
+
+  repo.create(entry('세 번째', '13'));
+  assert.equal(repo.quotaStatus().exhausted, true);
+  // Exhausted, yet both replays still resolve rather than throwing.
+  assert.equal(repo.createForAction(...action, entry('대화 일정', '11')).id, first.id);
+  assert.equal(repo.createForRequest(requestId, entry('요청 일정', '12')).id, direct.id);
+  // A genuinely new one is refused on every path.
+  assert.throws(() => repo.create(entry('새 일정', '14')), quotaReached);
+  assert.throws(
+    () => repo.createForAction('calact_ffffffffffffffffffffffff', 'calcand_ffffffffffffffffffffffff', entry('새 액션', '15')),
+    quotaReached,
+  );
+  assert.throws(() => repo.createForRequest('calendar-guest-quota-9876543210', entry('새 요청', '16')), quotaReached);
+}
+
+// 4. Only creating is capped. Reading, editing and deleting stay open, because
+//    what a guest already made is theirs.
+{
+  const {repo} = quotaRepository();
+  const made = [1, 2, 3].map(n => repo.create(entry(`보유 일정 ${n}`, String(10 + n))));
+  assert.equal(repo.quotaStatus().exhausted, true);
+  assert.equal(repo.list().length, 3);
+  const edited = repo.update(made[0].id, entry('제목을 바꿔도 된다', '19'));
+  assert.equal(edited.title, '제목을 바꿔도 된다');
+  assert.equal(edited.created_at, made[0].created_at);
+  // Editing is neither a new create nor a refund.
+  assert.equal(repo.quotaStatus().createdCount, 3);
+  assert.equal(repo.remove(made[2].id), true);
+  assert.equal(repo.list().length, 2);
+  assert.equal(repo.quotaStatus().createdCount, 3);
+}
+
+// 5. Guests who were already using the calendar before the quota existed keep
+//    everything. Their stored entries have no count, so the count starts at
+//    what they are holding.
+{
+  const legacyEvents = [1, 2, 3, 4, 5].map(n => ({
+    id: `guest_00000000-0000-4000-8000-${String(700 + n).padStart(12, '0')}`,
+    title: `예전에 만든 일정 ${n}`,
+    local_date: `2026-09-${10 + n}`,
+    local_datetime: null,
+    all_day: true,
+    created_at: '2026-09-19T00:00:00.000Z',
+    updated_at: '2026-09-19T00:00:00.000Z',
+  }));
+  const {repo} = quotaRepository({
+    [GUEST_CALENDAR_STORAGE_KEY]: JSON.stringify({version: 2, events: legacyEvents}),
+  });
+  // Nothing hidden, nothing dropped — five stored, five readable.
+  assert.equal(repo.list().length, 5);
+  assert.deepEqual(repo.list().map(item => item.title), legacyEvents.map(item => item.title));
+  assert.deepEqual(repo.quotaStatus(), {quota: 3, createdCount: 5, remaining: 0, exhausted: true});
+  // Over the quota already, so no new ones — but the five stay usable.
+  assert.throws(() => repo.create(entry('새로 추가', '25')), quotaReached);
+  assert.equal(repo.update(legacyEvents[0].id, entry('예전 일정 수정', '26')).title, '예전 일정 수정');
+  assert.equal(repo.remove(legacyEvents[4].id), true);
+  assert.equal(repo.list().length, 4);
+  // Deleting one did not drop them back under the quota.
+  assert.throws(() => repo.create(entry('삭제 후 추가', '27')), quotaReached);
+}
+
+// A legacy guest under the quota keeps the creates they have not used.
+{
+  const {repo} = quotaRepository({
+    [GUEST_CALENDAR_STORAGE_KEY]: JSON.stringify({
+      version: 1,
+      events: [{
+        id: 'guest_00000000-0000-4000-8000-000000000999',
+        title: '예전 v1 일정 하나',
+        local_date: '2026-09-23',
+        local_datetime: null,
+        all_day: true,
+        created_at: '2026-09-19T00:00:00.000Z',
+        updated_at: '2026-09-19T00:00:00.000Z',
+      }],
+    }),
+  });
+  assert.deepEqual(repo.quotaStatus(), {quota: 3, createdCount: 1, remaining: 2, exhausted: false});
+  repo.create(entry('두 번째', '24'));
+  repo.create(entry('세 번째', '25'));
+  assert.throws(() => repo.create(entry('네 번째', '26')), quotaReached);
+  assert.equal(repo.list().length, 3);
+}
+
+// 6. A count that disagrees with what is stored cannot read below the number of
+//    entries actually held.
+{
+  const {repo} = quotaRepository({
+    [GUEST_CALENDAR_STORAGE_KEY]: JSON.stringify({
+      version: 2,
+      created_count: 0,
+      events: [1, 2, 3].map(n => ({
+        id: `guest_00000000-0000-4000-8000-${String(800 + n).padStart(12, '0')}`,
+        title: `보유 ${n}`,
+        local_date: `2026-09-${10 + n}`,
+        local_datetime: null,
+        all_day: true,
+        created_at: '2026-09-19T00:00:00.000Z',
+        updated_at: '2026-09-19T00:00:00.000Z',
+      })),
+    }),
+  });
+  assert.equal(repo.quotaStatus().createdCount, 3);
+  assert.throws(() => repo.create(entry('0으로 되돌린 뒤 추가', '28')), quotaReached);
+}
+
+// 7. The body must not fall over. A storage that cannot be read reports an
+//    empty calendar the guest can still use — never "you are out of entries".
+{
+  for (const broken of ['{broken', 'null', JSON.stringify({version: 9, events: []})]) {
+    const repo = createGuestCalendarRepository(memoryStorage({[GUEST_CALENDAR_STORAGE_KEY]: broken}), {
+      uuid: () => crypto.randomUUID(),
+    });
+    assert.deepEqual(repo.list(), []);
+    assert.equal(repo.quotaStatus().exhausted, false, 'an unreadable store must not present as an exhausted quota');
+    assert.equal(repo.create(entry('복구 후 첫 일정', '22')).title, '복구 후 첫 일정');
+  }
+}
+
+// 8. The stored shape stays on version 2 on purpose, so a browser still running
+//    the previous bundle reads these entries instead of finding nothing.
+{
+  const {store, repo} = quotaRepository();
+  repo.create(entry('버전 확인', '23'));
+  const persisted = JSON.parse(store.getItem(GUEST_CALENDAR_STORAGE_KEY));
+  assert.equal(persisted.version, 2);
+  assert.equal(persisted.created_count, 1);
+  assert.equal(persisted.events.length, 1);
+  assert.ok(!JSON.stringify(persisted).match(/bearer|session|token|credential|password/i));
+  // What the previous bundle does with this payload: same version check, same
+  // events array, extra key ignored.
+  assert.ok([1, 2].includes(persisted.version) && Array.isArray(persisted.events));
+}
+
+// 9. An invalid entry is reported as invalid even with nothing left, so a guest
+//    is not sent chasing the quota over a blank title — and garbage never
+//    spends one of the three.
+{
+  const {repo} = quotaRepository();
+  assert.throws(() => repo.create({title: ' ', local_date: '2026-09-20', all_day: true}),
+    error => error?.code === 'GUEST_CALENDAR_INPUT_INVALID');
+  assert.equal(repo.quotaStatus().createdCount, 0, 'a rejected entry must not spend a create');
+  [1, 2, 3].forEach(n => repo.create(entry(`채우기 ${n}`, String(10 + n))));
+  assert.throws(() => repo.create({title: ' ', local_date: '2026-09-20', all_day: true}),
+    error => error?.code === 'GUEST_CALENDAR_INPUT_INVALID');
+}
+
+// 10. The holding cap is a separate safety valve and still reports separately.
+{
+  const store = memoryStorage();
+  const repo = createGuestCalendarRepository(store, {limit: 2, createQuota: 9, uuid: () => crypto.randomUUID()});
+  repo.create(entry('하나', '11'));
+  repo.create(entry('둘', '12'));
+  assert.throws(() => repo.create(entry('셋', '13')), error => error?.code === 'GUEST_CALENDAR_LIMIT_REACHED');
+  assert.equal(repo.quotaStatus().remaining, 7);
+}
 
 console.log('LOTBI Guest Calendar local repository: PASS');
