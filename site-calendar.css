@@ -978,6 +978,9 @@ body.calendar-editor-open { overflow: hidden; }
 .calendar-settings-action-row > span { flex: 1 1 auto; min-width: 0; display: grid; gap: 4px; }
 .calendar-settings-action-row strong { font-size: 14px; }
 .calendar-settings-status { color: var(--lotbi-calendar-muted-ink); font-size: 11px; line-height: 1.45; }
+.calendar-settings-location-help { font-size: 11px; line-height: 1.5; color: var(--lotbi-calendar-muted-ink); }
+.calendar-settings-location-help > summary { cursor: pointer; min-height: 24px; padding: 4px 0; text-decoration: underline; }
+.calendar-settings-location-help ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .calendar-settings-action-button {
   flex: 0 0 auto;
   min-height: 40px;
@@ -1052,6 +1055,7 @@ body[data-site-theme="dark"] .calendar-settings-toggle-row { color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-settings-close,
 body[data-site-theme="dark"] .calendar-settings-toggle-row small,
 body[data-site-theme="dark"] .calendar-settings-status { color: #b9c5d7; }
+body[data-site-theme="dark"] .calendar-settings-location-help { color: #b9c5d7; }
 body[data-site-theme="dark"] .calendar-settings-action-row { color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-settings-action-button { border-color: #465162; background: #171c25; color: #edf0f5; }
 body[data-site-theme="dark"] .calendar-settings-region-row input { border-color: #465162; background: #121720; color: #edf0f5; }
@@ -1440,6 +1444,8 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-settings-toggle-row small,
   body[data-site-theme="system"] .calendar-settings-status,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-settings-status { color: #b9c5d7; }
+  body[data-site-theme="system"] .calendar-settings-location-help,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-settings-location-help { color: #b9c5d7; }
   body[data-site-theme="system"] .calendar-settings-action-row,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-settings-action-row { color: #edf0f5; }
   body[data-site-theme="system"] .calendar-settings-action-button,
