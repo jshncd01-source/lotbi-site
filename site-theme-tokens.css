@@ -393,3 +393,25 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .lotbi-brand-
 html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .lotbi-brand-logo-dark {
   display: block;
 }
+
+/* SITE-FOCUS-RING-CONTAINER-01 — the page scroll container keeps a visible
+   focus indicator, drawn inside its own box.
+
+   대표: "특정부분 클릭하면 이렇게 파란색 줄생기는거 확인하라고 하고"
+
+   #main-content is the skip link's landing target and the conversation's
+   scroll host. It is exactly as tall as the viewport, so the shared
+   `outline-offset: 2px` put the ring's top and bottom edges above and below
+   the visible area: only the two vertical sides reached the screen, as a pair
+   of unexplained blue lines down the edges of the content column.
+
+   The indicator is not removed — removing it would leave a keyboard user who
+   followed the skip link with no idea where focus landed. It is moved inside,
+   at the same 3px width and the same --lotbi-focus-ring colour the rest of the
+   UI uses, so all four edges are visible and it reads as a deliberate frame.
+   Only the offset is overridden here; the outline itself still comes from the
+   theme rules above, which carry !important. */
+#main-content:focus-visible {
+  outline: 3px solid var(--lotbi-focus-ring, #4f78c5);
+  outline-offset: -3px;
+}
