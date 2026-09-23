@@ -110,6 +110,11 @@ jobs:
       - name: Validate theme bootstrap first paint
         run: node scripts/validate_theme_bootstrap_first_paint_01.mjs
 
+      # The viewport-sized scroll container must not be a tab stop: its focus
+      # ring reached the screen as two blue vertical lines.
+      - name: Validate container focus ring
+        run: node scripts/validate_focus_ring_container_01.mjs
+
       # A long answer keeps growing after it is appended; the thread has to
       # follow it without dragging a reader who scrolled up.
       - name: Validate answer scroll and markdown
