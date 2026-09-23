@@ -61,7 +61,10 @@ assert.ok(agendaCall, 'month view must load agenda');
 assert.match(agendaCall, /start=2026-08-30&end=2026-10-03/);
 assert.doesNotMatch(agendaCall, /0001|9999/);
 assert.ok(weatherCall, 'month view must load weather fail-soft context');
-assert.match(weatherCall, /start=2026-08-30&end=2026-10-03/);
+// Not the full grid: Core rejects a span wider than 15 inclusive days, and a
+// forecast starts at today (2026-09-20 in Asia/Seoul here), not at the grid's
+// leading overflow days. The agenda assertion above keeps the full grid.
+assert.match(weatherCall, /start=2026-09-20&end=2026-10-03/);
 assert.ok(holidayCall, 'month view must load Korea public holidays');
 assert.match(holidayCall, /year=2026&country=KR/);
 assert.equal(month.holidays[0].name, '추석');
