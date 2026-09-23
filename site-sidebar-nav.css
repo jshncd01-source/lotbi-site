@@ -31,6 +31,14 @@
   filter: none;
 }
 
+/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — authenticated Header renders no control,
+   so the slot site-auth-continuity.css reserves for the anonymous
+   로그인/회원가입 pair must not hold 174px of blank space open. */
+.account-actions[data-auth-state="authenticated"] {
+  min-width: 0;
+  min-height: 0;
+}
+
 .mobile-header-brand {
   display: flex;
   align-items: center;
@@ -72,22 +80,10 @@
   flex: 0 0 auto;
 }
 
-.sidebar-secondary-nav {
-  flex: 0 0 auto;
-  display: grid;
-  gap: 4px;
-  padding: 2px 4px 0;
-}
-
-.sidebar-secondary-nav .nav-item {
-  min-height: 38px;
-  padding: 7px 10px;
-  color: #606978;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.sidebar-secondary-nav .nav-link:focus-visible,
+/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the sidebar secondary menu is gone; its
+   four items (연결 서비스 / 프로필 / 설정 / 도움말) live only in the account
+   menu, which also carries 개인 맞춤 설정 and 로그아웃. The focus ring below is
+   kept for the account row, which still needs it. */
 .sidebar-account-entry:focus-visible {
   outline: 2px solid var(--brand-violet, #7b62bb);
   outline-offset: 2px;
@@ -424,10 +420,6 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
     overflow: hidden;
   }
 
-  .mobile-nav-drawer .sidebar-secondary-nav-mobile-empty {
-    display: none;
-  }
-
   .mobile-nav-drawer .sidebar-primary-nav,
   .mobile-nav-drawer .sidebar-calendar-nav,
   .mobile-nav-drawer .sidebar-pet-nav {
@@ -584,10 +576,6 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 .pet-status-badge[hidden],
 .calendar-reminder-icon[hidden] {
   display: none;
-}
-
-.sidebar-secondary-nav button.nav-item {
-  font-family: inherit;
 }
 
 body[data-site-theme="dark"] .calendar-status-badge,

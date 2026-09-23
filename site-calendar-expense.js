@@ -1,10 +1,15 @@
-// Calendar expense summary — the category totals strip under the month view.
+// Calendar expense summary — the one-line totals bar under the month grid.
 //
 // It shows only what the owner already saved on a Calendar entry. An expense
-// that was never recorded is simply missing from the table; nothing here is
-// estimated, inferred, or filled in on the owner's behalf. The section is also
-// never removed when a month has no amounts — an empty month has to read as
-// "nothing recorded", not as a table that failed to load.
+// that was never recorded is simply missing; nothing here is estimated,
+// inferred, or filled in on the owner's behalf. The bar is also never removed
+// when a month has no amounts — an empty month has to read as "nothing
+// recorded", not as a strip that failed to load.
+//
+// One line, deliberately: the月 grid is the screen, and a tall table pushed the
+// totals below the fold. Every category keeps a fixed slot even at 0원 so the
+// numbers do not move from month to month, and the total stays pinned to the
+// right edge so it is readable without scrolling the items.
 
 const CATEGORY_LABELS = {
   FOOD: '음식',
@@ -13,6 +18,16 @@ const CATEGORY_LABELS = {
   LIVING: '생활비',
   UNCLASSIFIED: '미분류',
 };
+
+// Fixed order and fixed membership. A category with nothing in it still holds
+// its slot, so a reader's eye lands on the same place every month.
+export const EXPENSE_CATEGORY_ORDER = Object.freeze([
+  'FOOD',
+  'TRAVEL',
+  'SHOPPING',
+  'LIVING',
+  'UNCLASSIFIED',
+]);
 
 export function expenseCategoryLabel(value) {
   return CATEGORY_LABELS[value] || '미분류';
@@ -27,63 +42,69 @@ export function formatExpenseAmount(amountMinor, currency) {
   return currency === 'KRW' ? `${digits}원` : `${digits} ${currency}`;
 }
 
-function totalsTable(currencyTotals, {showCurrencyName}) {
-  const table = document.createElement('table');
-  table.className = 'calendar-expense-table';
-  table.dataset.currency = currencyTotals.currency;
+// Currencies are never summed together, so each gets its own line. KRW leads.
+function orderedCurrencies(currencies) {
+  const rows = Array.isArray(currencies) ? [...currencies] : [];
+  rows.sort((a, b) => {
+    if (a.currency === b.currency) return 0;
+    if (a.currency === 'KRW') return -1;
+    if (b.currency === 'KRW') return 1;
+    return a.currency < b.currency ? -1 : 1;
+  });
+  return rows;
+}
 
-  const caption = document.createElement('caption');
-  caption.className = 'calendar-expense-caption';
-  caption.textContent = showCurrencyName
-    ? `${currencyTotals.currency} 카테고리별 지출`
-    : '카테고리별 지출';
-  table.appendChild(caption);
+function currencyLine(currencyTotals, {showCurrencyName, note = ''}) {
+  const line = document.createElement('div');
+  line.className = 'calendar-expense-line';
+  line.dataset.currency = currencyTotals.currency;
 
-  const head = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  for (const [label, scope] of [['항목', 'col'], ['합계', 'col']]) {
-    const cell = document.createElement('th');
-    cell.scope = scope;
-    cell.textContent = label;
-    headRow.appendChild(cell);
+  const byCategory = new Map(
+    (currencyTotals.categories || []).map(row => [row.expenseCategory, row]),
+  );
+
+  const items = document.createElement('dl');
+  items.className = 'calendar-expense-items';
+  for (const category of EXPENSE_CATEGORY_ORDER) {
+    const row = byCategory.get(category);
+    const amount = row ? row.amountMinor : 0;
+    const item = document.createElement('div');
+    item.className = 'calendar-expense-item';
+    item.dataset.expenseCategory = category;
+    const name = document.createElement('dt');
+    name.textContent = expenseCategoryLabel(category);
+    const value = document.createElement('dd');
+    value.textContent = formatExpenseAmount(amount, currencyTotals.currency);
+    item.append(name, value);
+    items.appendChild(item);
   }
-  head.appendChild(headRow);
 
-  const body = document.createElement('tbody');
-  for (const row of currencyTotals.categories) {
-    const tr = document.createElement('tr');
-    tr.dataset.expenseCategory = row.expenseCategory;
-    const name = document.createElement('th');
-    name.scope = 'row';
-    name.className = 'calendar-expense-category';
-    name.textContent = expenseCategoryLabel(row.expenseCategory);
-    const amount = document.createElement('td');
-    amount.className = 'calendar-expense-amount';
-    amount.textContent = formatExpenseAmount(row.amountMinor, currencyTotals.currency);
-    tr.append(name, amount);
-    body.appendChild(tr);
+  if (note) {
+    // A span, not a div: styles.css styles every `dl div` as a legal-page row.
+    const coverage = document.createElement('span');
+    coverage.className = 'calendar-expense-coverage';
+    coverage.textContent = note;
+    items.appendChild(coverage);
   }
 
-  // 총지출 lands in the table footer, so it renders at the bottom-right of the
-  // strip on every width.
-  const foot = document.createElement('tfoot');
-  const footRow = document.createElement('tr');
-  footRow.dataset.expenseTotal = '';
-  const totalLabel = document.createElement('th');
-  totalLabel.scope = 'row';
+  // The total sits outside the scrolling item list so it stays on screen at any
+  // width, at the right edge — the bottom-right figure of the Calendar.
+  const total = document.createElement('p');
+  total.className = 'calendar-expense-total';
+  total.dataset.expenseTotal = '';
+  const totalLabel = document.createElement('span');
   totalLabel.className = 'calendar-expense-total-label';
-  totalLabel.textContent = '총지출';
-  const totalAmount = document.createElement('td');
+  totalLabel.textContent = showCurrencyName ? `총 ${currencyTotals.currency}` : '총';
+  const totalAmount = document.createElement('strong');
   totalAmount.className = 'calendar-expense-total-amount';
   totalAmount.textContent = formatExpenseAmount(
-    currencyTotals.totalAmountMinor,
+    Number.isInteger(currencyTotals.totalAmountMinor) ? currencyTotals.totalAmountMinor : 0,
     currencyTotals.currency,
   );
-  footRow.append(totalLabel, totalAmount);
-  foot.appendChild(footRow);
+  total.append(totalLabel, totalAmount);
 
-  table.append(head, body, foot);
-  return table;
+  line.append(items, total);
+  return line;
 }
 
 function noticeNode(text, {status = false} = {}) {
@@ -93,6 +114,13 @@ function noticeNode(text, {status = false} = {}) {
   node.textContent = text;
   return node;
 }
+
+const EMPTY_KRW = Object.freeze({
+  currency: 'KRW',
+  categories: [],
+  totalAmountMinor: 0,
+  entryCount: 0,
+});
 
 /**
  * @param {object} options
@@ -115,11 +143,6 @@ export function calendarExpenseSummaryNode({
     monthLabel ? `${monthLabel} 지출 합계` : '지출 합계',
   );
 
-  const heading = document.createElement('h3');
-  heading.className = 'calendar-expense-heading';
-  heading.textContent = monthLabel ? `${monthLabel} 지출` : '지출';
-  section.appendChild(heading);
-
   if (state === 'loading') {
     section.appendChild(noticeNode('지출 합계를 불러오는 중…', {status: true}));
     return section;
@@ -139,29 +162,31 @@ export function calendarExpenseSummaryNode({
     return section;
   }
 
-  const currencies = Array.isArray(summary?.currencies) ? summary.currencies : [];
-  if (!currencies.length) {
-    // An empty month keeps the section in place and says so plainly, so it is
-    // never mistaken for a table that is still loading.
-    section.appendChild(noticeNode('이번 달 기록 없음'));
-  } else {
-    const showCurrencyName = currencies.length > 1;
-    for (const currencyTotals of currencies) {
-      section.appendChild(totalsTable(currencyTotals, {showCurrencyName}));
-    }
-  }
+  const currencies = orderedCurrencies(summary?.currencies);
+  const recorded = currencies.length > 0;
+  section.dataset.expenseRecorded = String(recorded);
 
+  // A month with nothing recorded keeps the same bar at 0원 rather than
+  // collapsing, so the row never moves and never reads as a failed load.
+  const lines = recorded ? currencies : [EMPTY_KRW];
+  const showCurrencyName = lines.length > 1;
   const withoutAmount = Number.isInteger(summary?.entriesWithoutAmount)
     ? summary.entriesWithoutAmount
     : 0;
+  const notes = [];
+  if (!recorded) notes.push('이번 달 기록 없음');
+  // Say what the total does not cover rather than guessing at the missing
+  // amounts. It rides at the end of the first line rather than on a row of its
+  // own, so the bar stays one line tall.
   if (withoutAmount > 0) {
-    // Say what the total does not cover rather than guessing at the missing
-    // amounts.
-    const note = document.createElement('p');
-    note.className = 'calendar-expense-coverage';
-    note.textContent = `금액이 없는 일정 ${new Intl.NumberFormat('ko-KR').format(withoutAmount)}건은 합계에 없습니다.`;
-    section.appendChild(note);
+    notes.push(`금액 없는 일정 ${new Intl.NumberFormat('ko-KR').format(withoutAmount)}건 제외`);
   }
+  lines.forEach((currencyTotals, index) => {
+    section.appendChild(currencyLine(currencyTotals, {
+      showCurrencyName,
+      note: index === 0 ? notes.join(' · ') : '',
+    }));
+  });
 
   return section;
 }

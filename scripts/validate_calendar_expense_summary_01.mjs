@@ -35,7 +35,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260922-daysheet1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-onelinebar1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast2">
 </head><body style="margin:0">
@@ -107,7 +107,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260922-sessionfix1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-onelinebar1');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -124,26 +124,48 @@ try{
   result.layoutSecondIsDayPanel=Boolean(layout?.children[1]?.classList.contains('calendar-day-panel'));
   result.stripFollowsMonth=layout?.compareDocumentPosition(ready)===Node.DOCUMENT_POSITION_FOLLOWING;
 
-  const rows=[...ready.querySelectorAll('tbody tr')].map(tr=>({
-    category:tr.dataset.expenseCategory,
-    label:tr.querySelector('.calendar-expense-category')?.textContent||'',
-    amount:tr.querySelector('.calendar-expense-amount')?.textContent||'',
+  const rows=[...ready.querySelectorAll('.calendar-expense-item')].map(node=>({
+    category:node.dataset.expenseCategory,
+    label:node.querySelector('dt')?.textContent||'',
+    amount:node.querySelector('dd')?.textContent||'',
   }));
   result.rows=rows;
 
-  const totalRow=ready.querySelector('tfoot tr[data-expense-total]');
+  const totalRow=ready.querySelector('[data-expense-total]');
   const totalAmount=totalRow?.querySelector('.calendar-expense-total-amount');
   result.totalLabel=totalRow?.querySelector('.calendar-expense-total-label')?.textContent||'';
   result.totalText=totalAmount?.textContent||'';
   result.coverageNote=ready.querySelector('.calendar-expense-coverage')?.textContent||'';
 
-  // 총지출 must sit at the bottom-right of the strip.
+  // One line: the bar's height must stay close to a single row of text.
+  const line=ready.querySelector('.calendar-expense-line');
+  const lineBox=line.getBoundingClientRect();
+  const itemBox=ready.querySelector('.calendar-expense-item').getBoundingClientRect();
+  result.lineHeight=Math.round(lineBox.height);
+  result.itemHeight=Math.round(itemBox.height);
+  result.lineCount=ready.querySelectorAll('.calendar-expense-line').length;
+  // Every item shares the line's vertical band — nothing wrapped to a new row.
+  result.itemsOnOneRow=[...ready.querySelectorAll('.calendar-expense-item')]
+    .every(node=>Math.abs(node.getBoundingClientRect().top-itemBox.top)<2);
+  // The total is outside the scrolling list, so it cannot scroll away.
+  result.totalOutsideScroller=!ready.querySelector('.calendar-expense-items').contains(totalRow);
+  // Where the bar sits relative to the viewport, before any scrolling.
+  const barBox=ready.getBoundingClientRect();
+  result.barBottom=Math.round(barBox.bottom);
+  result.viewportHeight=Math.round(innerHeight);
+  result.aboveTheFold=barBox.bottom<=innerHeight;
+
+  // The total holds the right edge of the bar, past every category.
   const stripBox=ready.getBoundingClientRect();
-  const totalBox=totalAmount?.getBoundingClientRect();
-  const lastRowAmount=[...ready.querySelectorAll('tbody .calendar-expense-amount')].pop();
-  result.totalBelowRows=Boolean(totalBox)&&totalBox.top>=lastRowAmount.getBoundingClientRect().top;
-  result.totalRightAligned=Boolean(totalBox)&&(stripBox.right-totalBox.right)<=Math.max(24,stripBox.width*0.12);
-  result.totalIsLowest=Boolean(totalBox)&&totalBox.bottom<=stripBox.bottom+1;
+  const totalBox=totalAmount.getBoundingClientRect();
+  // Past the whole item list, not past a single item: on a narrow screen the
+  // later categories are scrolled out of view to the right.
+  const itemsBox=ready.querySelector('.calendar-expense-items').getBoundingClientRect();
+  result.totalAfterItems=totalBox.left>=itemsBox.right-1;
+  result.itemsScrollable=ready.querySelector('.calendar-expense-items').scrollWidth
+    > ready.querySelector('.calendar-expense-items').clientWidth;
+  result.totalRightAligned=(stripBox.right-totalBox.right)<=Math.max(24,stripBox.width*0.12);
+  result.totalInsideBar=totalBox.bottom<=stripBox.bottom+1;
 
   // The window Core was asked for is the calendar month, not the grid range.
   result.expenseCalls=populatedFetch.calls.filter(value=>value.startsWith('/v2/life/expense-summary'));
@@ -162,7 +184,7 @@ try{
   // Sampled synchronously: the heading has already moved to October, so the
   // September total must be gone by this same frame.
   const switching=strip(root);
-  result.switchHeading=switching?.querySelector('.calendar-expense-heading')?.textContent||'';
+  result.switchHeading=switching?.getAttribute('aria-label')||'';
   result.switchState=switching?.dataset.calendarExpenseSummary||'';
   result.switchShowsOldTotal=(switching?.textContent||'').includes('314,500');
   await wait(()=>{
@@ -171,7 +193,7 @@ try{
       && (node.textContent||'').includes('7,000원');
   },'october total');
   const october=strip(root);
-  result.octoberHeading=october.querySelector('.calendar-expense-heading')?.textContent||'';
+  result.octoberHeading=october.getAttribute('aria-label')||'';
   result.octoberTotal=october.querySelector('.calendar-expense-total-amount')?.textContent||'';
 
   // --- empty month -----------------------------------------------------
@@ -180,8 +202,9 @@ try{
   await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','ready empty strip');
   const empty=strip(root);
   result.emptyPresent=Boolean(empty);
-  result.emptyText=empty.querySelector('.calendar-expense-notice')?.textContent||'';
-  result.emptyHasNoTable=!empty.querySelector('table');
+  result.emptyText=empty.querySelector('.calendar-expense-coverage')?.textContent||'';
+  result.emptySlots=[...empty.querySelectorAll('.calendar-expense-item dd')].map(n=>n.textContent);
+  result.emptyTotal=empty.querySelector('.calendar-expense-total-amount')?.textContent||'';
 
   // --- Core refuses the read (the 403 that caused the outage) ----------
   for(const status of [401,403]){
@@ -257,20 +280,30 @@ try {
     if (!value.layoutSecondIsDayPanel) throw new Error(`${label}: month layout child 1 must stay the selected-day surface`);
     if (!value.stripFollowsMonth) throw new Error(`${label}: expense strip must render below the month`);
 
+    // Every category keeps its slot, in a fixed order, even at 0원.
     const categories = value.rows.map(row => row.category);
-    if (categories.join(',') !== 'FOOD,TRAVEL,LIVING') throw new Error(`${label}: unexpected category rows ${categories.join(',')}`);
+    if (categories.join(',') !== 'FOOD,TRAVEL,SHOPPING,LIVING,UNCLASSIFIED') throw new Error(`${label}: all five categories must keep a fixed slot, got ${categories.join(',')}`);
     const labels = value.rows.map(row => row.label);
-    if (labels.join(',') !== '음식,여행,생활비') throw new Error(`${label}: Korean category labels missing, got ${labels.join(',')}`);
+    if (labels.join(',') !== '음식,여행,쇼핑,생활비,미분류') throw new Error(`${label}: Korean category labels missing, got ${labels.join(',')}`);
     const amounts = value.rows.map(row => row.amount);
-    if (amounts.join(',') !== '40,500원,180,000원,94,000원') throw new Error(`${label}: category amounts must come from Core, got ${amounts.join(' | ')}`);
+    if (amounts.join(',') !== '40,500원,180,000원,0원,94,000원,0원') throw new Error(`${label}: amounts must come from Core with 0원 for the untouched ones, got ${amounts.join(' | ')}`);
 
-    if (value.totalLabel !== '총지출') throw new Error(`${label}: total row must be labelled 총지출`);
+    // It is one line, not a table.
+    if (value.lineCount !== 1) throw new Error(`${label}: one currency must render one line, got ${value.lineCount}`);
+    if (!value.itemsOnOneRow) throw new Error(`${label}: the categories must stay on one row, never wrap into a table`);
+    // itemsOnOneRow already proves nothing wrapped; this keeps the bar from
+    // growing tall some other way. A wrapped five-row table measured ~80px+.
+    if (value.lineHeight > value.itemHeight * 2 || value.lineHeight > 48) throw new Error(`${label}: the bar must stay one line tall, got ${value.lineHeight}px for a ${value.itemHeight}px item`);
+    if (!value.totalOutsideScroller) throw new Error(`${label}: the total must sit outside the scrolling item list so it cannot scroll away`);
+
+    if (value.totalLabel !== '총') throw new Error(`${label}: total must be labelled 총, got "${value.totalLabel}"`);
     if (value.totalText !== '314,500원') throw new Error(`${label}: total must be the sum Core returned, got ${value.totalText}`);
-    if (!value.totalBelowRows) throw new Error(`${label}: 총지출 must sit below the category rows`);
-    if (!value.totalRightAligned) throw new Error(`${label}: 총지출 must sit at the right edge of the strip`);
-    if (!value.totalIsLowest) throw new Error(`${label}: 총지출 must stay inside the bottom of the strip`);
+    if (!value.totalAfterItems) throw new Error(`${label}: the total must sit past the categories, at the end of the line`);
+    if (!value.totalRightAligned) throw new Error(`${label}: the total must hold the right edge of the bar`);
+    if (!value.totalInsideBar) throw new Error(`${label}: the total must stay inside the bar`);
 
     if (!value.coverageNote.includes('2건')) throw new Error(`${label}: entries without an amount must be reported, got "${value.coverageNote}"`);
+    if (!value.aboveTheFold) throw new Error(`${label}: the totals bar must be visible without scrolling — bar bottom ${value.barBottom}px vs viewport ${value.viewportHeight}px`);
     if (!value.noHorizontalOverflow) throw new Error(`${label}: expense strip must not cause horizontal overflow`);
 
     // The calendar month, not the 42-cell grid window.
@@ -281,14 +314,16 @@ try {
     }
 
     if (value.switchShowsOldTotal) throw new Error(`${label}: the previous month's total must not survive a month change`);
-    if (!value.switchHeading.includes('10월')) throw new Error(`${label}: the strip heading must follow the displayed month, got "${value.switchHeading}"`);
+    if (!value.switchHeading.includes('10월')) throw new Error(`${label}: the bar's accessible name must follow the displayed month, got "${value.switchHeading}"`);
     if (value.switchState !== 'loading') throw new Error(`${label}: a month change must fall back to loading, got "${value.switchState}"`);
-    if (!value.octoberHeading.includes('10월')) throw new Error(`${label}: October heading missing, got "${value.octoberHeading}"`);
+    if (!value.octoberHeading.includes('10월')) throw new Error(`${label}: October accessible name missing, got "${value.octoberHeading}"`);
     if (value.octoberTotal !== '7,000원') throw new Error(`${label}: October total must be October's, got ${value.octoberTotal}`);
 
-    if (!value.emptyPresent) throw new Error(`${label}: an empty month must keep the strip`);
-    if (value.emptyText !== '이번 달 기록 없음') throw new Error(`${label}: empty month must read "이번 달 기록 없음", got "${value.emptyText}"`);
-    if (!value.emptyHasNoTable) throw new Error(`${label}: an empty month must not render a zero-filled table`);
+    if (!value.emptyPresent) throw new Error(`${label}: an empty month must keep the bar`);
+    if (!value.emptyText.includes('이번 달 기록 없음')) throw new Error(`${label}: empty month must say "이번 달 기록 없음", got "${value.emptyText}"`);
+    // The slots stay put at 0원 so the row does not move between months.
+    if (value.emptySlots.join(',') !== '0원,0원,0원,0원,0원') throw new Error(`${label}: an empty month must keep five 0원 slots, got ${value.emptySlots.join(',')}`);
+    if (value.emptyTotal !== '0원') throw new Error(`${label}: an empty month total must read 0원, got ${value.emptyTotal}`);
 
     for (const status of [401, 403]) {
       const state = value['error' + status];
