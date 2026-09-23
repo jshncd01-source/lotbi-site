@@ -579,7 +579,12 @@ export function setDayDetailPresentation(value) {
 
 export function dayDetailPresentation() {
   if (!usesFlowingDayDetail()) return DAY_DETAIL_PRESENTATION.POPOVER;
-  return dayDetailPresentationOverride || DAY_DETAIL_PRESENTATION.SHEET;
+  // Touch used to get a sheet welded to the bottom of the screen. Nothing else
+  // people use works that way -- the panel that answers a tap belongs next to
+  // the date that was tapped, so it reads as that date's, and so the rest of
+  // the month stays where the eye left it. SHEET and FLOW stay reachable
+  // through setDayDetailPresentation for a rollback.
+  return dayDetailPresentationOverride || DAY_DETAIL_PRESENTATION.POPOVER;
 }
 
 function usesSheetDayDetail() {
@@ -1049,17 +1054,14 @@ function dayPanel(state, groups, actions) {
     body.appendChild(holiday);
   }
   const items = groups.get(state.selectedDate) || [];
-  body.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('등록된 일정이 없어요.'));
-  // A day with nothing on it is one sentence and two buttons. Saying so here
-  // lets the touch sheet lay those out on a single line instead of a stack --
-  // the difference between the sheet covering two date rows and covering one.
-  // Anything else in the body (a holiday note, the picture flow's status) means
-  // there is more than one line to show, so the stack stays.
-  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage);
-  // Two ways in, and neither repeats the date: the selected day is already in
-  // the panel heading, the toolbar title and the highlighted cell. It stays in
-  // each button's accessible name so a screen reader still hears which day.
+  // Entries first when there are any: what is already on the day is what the
+  // owner opened it to see. The line that adds one sits under them either way.
+  if (items.length) body.appendChild(eventList(items, {onSelect: actions.onEvent}));
+  // Neither control repeats the date: the selected day is already in the panel
+  // heading, the toolbar title and the highlighted cell. It stays in each
+  // accessible name so a screen reader still hears which day.
   const {month: addMonth, day: addDay} = civilDateParts(state.selectedDate);
+
   if (state.imageMessage) {
     const message = document.createElement('p');
     message.className = 'calendar-add-message';
@@ -1068,21 +1070,29 @@ function dayPanel(state, groups, actions) {
     message.textContent = state.imageMessage;
     body.appendChild(message);
   }
+
+  // The two ways in, and the only controls the panel offers: a picture, or the
+  // full form. On an empty day the "nothing here" sentence shares their row
+  // rather than taking one of its own -- the panel is small enough that a
+  // spare line is felt.
   const addRow = document.createElement('div');
   addRow.className = 'calendar-add-actions';
+  if (!items.length) addRow.appendChild(emptyMessage('등록된 일정이 없어요.'));
 
   const addImage = button('이미지로 등록', 'calendar-add-button calendar-add-image-button');
   addImage.dataset.calendarAddImage = '';
   addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
   addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
 
-  const add = button('직접 등록', 'calendar-add-button');
+  const add = button('직접 등록', 'calendar-add-button calendar-add-detail-button');
   add.dataset.calendarAdd = '';
-  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 등록`);
+  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정을 직접 입력해서 등록`);
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
 
   addRow.append(addImage, add);
   body.appendChild(addRow);
+  // What the compact one-row layout keys off: nothing in the body but this row.
+  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage);
   panel.append(head, body);
   return panel;
 }
@@ -1144,28 +1154,66 @@ function fitMonthEventDensity(layout) {
   }
 }
 
+// The box the panel is allowed to occupy: the Calendar's own surface, clipped
+// to whatever the software keyboard has left of the viewport. visualViewport is
+// what shrinks when the keyboard comes up; innerHeight does not.
+function dayPopoverBounds(layout) {
+  const frame = (layout.closest('.site-calendar-modal') || document.documentElement).getBoundingClientRect();
+  const visual = globalThis.visualViewport;
+  const viewTop = visual ? visual.offsetTop : 0;
+  const viewBottom = visual ? visual.offsetTop + visual.height : globalThis.innerHeight;
+  return {
+    left: Math.max(frame.left, 0),
+    right: Math.min(frame.right, globalThis.innerWidth),
+    top: Math.max(frame.top, viewTop),
+    bottom: Math.min(frame.bottom, viewBottom),
+  };
+}
+
 function positionDayPopover(layout) {
   const panel = layout.querySelector('.calendar-day-panel');
   if (!panel || panel.hidden) return;
   if (dayDetailPresentation() !== DAY_DETAIL_PRESENTATION.POPOVER) {
     // Sheet and flow presentations are positioned by CSS, not anchored to a cell.
-    panel.style.removeProperty('left');
-    panel.style.removeProperty('top');
+    for (const property of ['left', 'top', 'width', 'max-height']) panel.style.removeProperty(property);
+    panel.removeAttribute('data-arrow');
     return;
   }
   const date = panel.dataset.selectedDate;
   const anchor = layout.querySelector(`.calendar-date-cell[data-calendar-date="${date}"]`);
   if (!anchor) return;
-  const bounds = (layout.closest('.site-calendar-modal') || document.documentElement).getBoundingClientRect();
+  const bounds = dayPopoverBounds(layout);
+  const span = Math.max(0, bounds.right - bounds.left);
+  const available = Math.max(0, bounds.bottom - bounds.top);
+  if (span <= 0 || available <= 0) return;
+  const gutter = 8;
+  const gap = 8;
   const anchorRect = anchor.getBoundingClientRect();
-  const width = Math.min(panel.offsetWidth || 400, Math.max(320, bounds.width - 24));
-  const height = panel.offsetHeight || 320;
-  let left = anchorRect.right + 10;
-  if (left + width > bounds.right - 12) left = anchorRect.left - width - 10;
-  left = Math.max(bounds.left + 12, Math.min(left, bounds.right - width - 12));
-  const top = Math.max(bounds.top + 12, Math.min(anchorRect.top, bounds.bottom - height - 12));
+
+  const width = Math.round(Math.max(240, Math.min(380, span - gutter * 2)));
+  panel.style.width = `${width}px`;
+
+  // Prefer whichever side of the tapped cell has more room, and never let the
+  // panel take more than a bit over half of what is visible -- the month it
+  // belongs to has to stay readable behind it.
+  const roomBelow = bounds.bottom - anchorRect.bottom - gap - gutter;
+  const roomAbove = anchorRect.top - bounds.top - gap - gutter;
+  const ceiling = Math.max(140, Math.round(available * 0.55));
+  panel.style.maxHeight = `${Math.round(Math.max(140, Math.min(ceiling, Math.max(roomBelow, roomAbove))))}px`;
+
+  const height = panel.offsetHeight || 180;
+  const below = roomBelow >= height || roomBelow >= roomAbove;
+  panel.dataset.arrow = below ? 'up' : 'down';
+  const rawTop = below ? anchorRect.bottom + gap : anchorRect.top - gap - height;
+  const top = Math.max(bounds.top + gutter, Math.min(rawTop, bounds.bottom - gutter - height));
+  const centred = anchorRect.left + anchorRect.width / 2 - width / 2;
+  const left = Math.max(bounds.left + gutter, Math.min(centred, bounds.right - gutter - width));
   panel.style.left = `${Math.round(left)}px`;
   panel.style.top = `${Math.round(top)}px`;
+  // The pointer tracks the tapped cell even after the box was clamped sideways,
+  // which is the whole reason the panel reads as belonging to that date.
+  const pointer = anchorRect.left + anchorRect.width / 2 - left;
+  panel.style.setProperty('--calendar-day-arrow-left', `${Math.round(Math.max(14, Math.min(width - 14, pointer)))}px`);
 }
 
 // The sheet is fixed to the bottom of the viewport, so whatever it covers is
@@ -1367,6 +1415,32 @@ function renderMonth(state, actions, weatherCredit = null) {
     if (globalThis.visualViewport) panel.dataset.visualViewportBound = 'true';
     // Each render rebuilds the layout, so release with the node it belongs to.
     panel.addEventListener('lotbi:day-sheet-release', releaseViewport, {once: true});
+  } else if (state.detailOpen && dayDetailPresentation() === DAY_DETAIL_PRESENTATION.POPOVER) {
+    // An anchored panel is only anchored while its geometry is kept true. Two
+    // things move underneath it: the software keyboard, which shrinks the
+    // visual viewport, and the month scrolling inside the Calendar. Scroll does
+    // not bubble, so it is listened for in the capture phase.
+    const reposition = event => {
+      // Scrolling the entry list inside the panel is not the panel moving. It
+      // arrives here because the listener is on document in the capture phase,
+      // and acting on it re-ran the geometry under the owner's own finger --
+      // measured as the title box refusing the tap that had just focused it.
+      if (event?.target && panel.contains(event.target)) return;
+      if (layout.isConnected) positionDayPopover(layout);
+    };
+    const visual = globalThis.visualViewport;
+    visual?.addEventListener('resize', reposition);
+    visual?.addEventListener('scroll', reposition);
+    document.addEventListener('scroll', reposition, true);
+    if (visual) panel.dataset.visualViewportBound = 'true';
+    // Marked whether or not visualViewport exists: the scroll listener is on
+    // document either way, and an unreleased one outlives the node it moves.
+    panel.dataset.dayPanelBound = 'true';
+    panel.addEventListener('lotbi:day-sheet-release', () => {
+      visual?.removeEventListener('resize', reposition);
+      visual?.removeEventListener('scroll', reposition);
+      document.removeEventListener('scroll', reposition, true);
+    }, {once: true});
   }
   if (usesFlowingDayDetail()) {
     bindMonthSwipe(calendar, {
@@ -2261,7 +2335,11 @@ export async function mountLifeCalendarManager({
     weatherRegionOrigin: storedWeatherRegionOrigin,
     // 날씨 읽기가 실패했을 때 날씨 자리에 남기는 한 줄. 빈 문자열이면 아무 말도 없다.
     weatherMessage: '',
-    detailOpen: usesFlowingDayDetail(), dayCollapsed: false, agendaScope: 'month',
+    // Closed on mount, on every width. A phone used to open the Calendar with
+    // the day panel already up for whatever date happened to be selected --
+    // a window for a date nobody had pressed. Opening the Calendar shows the
+    // Calendar; only selectDate({openDetail: true}) raises this panel.
+    detailOpen: false, dayCollapsed: false, agendaScope: 'month',
     locationInFlight: false,
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
@@ -2331,13 +2409,16 @@ export async function mountLifeCalendarManager({
       state.detailOpen = openDetail;
       state.dayCollapsed = false;
       if (monthChanged) await afterMonthChange(); else render();
-      queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
+      // Arrow-key roaming keeps focus on the grid.
+      if (!openDetail) {
+        queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
+      }
     },
     selectMonth: async month => {
       state.month = month;
       state.selectedDate = `${state.year}-${String(month).padStart(2, "0")}-01`;
       state.mode = 'month';
-      state.detailOpen = usesFlowingDayDetail();
+      state.detailOpen = false;
       await refresh();
     },
     onDateKey: (event, date) => {
@@ -2398,6 +2479,8 @@ export async function mountLifeCalendarManager({
       }
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
+    // 직접 등록 opens the full form on the day the panel is showing; the picture
+    // route and an existing entry go to the same dialog.
     onAdd: date => openEditor(null, date),
     onAddFromImage: date => { void addFromImage(date); },
     onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
@@ -2653,7 +2736,7 @@ export async function mountLifeCalendarManager({
     updateChrome();
     // Release the previous day-sheet visualViewport listeners before the node is
     // replaced, so repeated renders cannot accumulate them.
-    const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"]');
+    const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"], .calendar-day-panel[data-day-panel-bound="true"]');
     if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
     if (state.loading) {
@@ -2671,7 +2754,17 @@ export async function mountLifeCalendarManager({
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
-    else viewport.replaceChildren(renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
+    else {
+      const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));
+      viewport.replaceChildren(layout);
+      // Synchronously, before this frame is painted. renderMonth also schedules
+      // the same sync on an animation frame -- that one is for metrics that
+      // settle later, such as a webfont swapping in -- but waiting for it here
+      // meant the panel drew once wherever the flow put it and then jumped to
+      // the date it belongs to. One frame on a phone; enough to be seen, and
+      // enough to make a geometry check land on the wrong box.
+      syncMonthLayout(layout);
+    }
 
     if (state.mode === 'month') {
       const monthKey = `${state.year}-${state.month}`;
@@ -3247,14 +3340,14 @@ export async function mountLifeCalendarManager({
   });
   title.addEventListener('click', async () => {
     state.mode = state.mode === 'year' ? 'month' : 'year';
-    state.detailOpen = state.mode === 'month' && usesFlowingDayDetail();
+    state.detailOpen = false;
     state.agendaScope = 'month';
     await refresh();
   });
   for (const [mode, control] of modeButtons) control.addEventListener('click', async () => {
     if (state.mode !== mode) {
       state.mode = mode;
-      state.detailOpen = mode === 'month' && usesFlowingDayDetail();
+      state.detailOpen = false;
       state.dayCollapsed = false;
       if (mode !== 'agenda') state.agendaScope = 'month';
       await refresh();

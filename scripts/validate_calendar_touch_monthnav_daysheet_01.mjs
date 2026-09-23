@@ -281,14 +281,31 @@ try{
       close:Boolean(sheet.querySelector('.calendar-day-close')),
     };
 
-    // --- backdrop dismiss -------------------------------------------------
-    click(modal.querySelector('[data-calendar-day-sheet-backdrop]'));
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'sheet backdrop close');
-    result.backdropDismiss=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
+    // --- 닫기 dismisses --------------------------------------------------
+    // The dismiss backdrop is gone with the sheet: an anchored panel leaves the
+    // month usable, so a tap on another date is a tap on that date rather than
+    // something to be swallowed by a layer over the whole screen.
+    click(sheet.querySelector('.calendar-day-close'));
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'close button dismiss');
+    result.closeDismiss=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
 
-    // --- Escape closes the sheet, Calendar survives (Site #129/#130) ------
+    // --- another date retargets the panel instead of closing it ----------
     click(modal.querySelector('[data-calendar-date="'+cellDate+'"]'));
-    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'sheet reopen');
+    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'panel reopen');
+    const neighbourCell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')]
+      .find(node=>node.dataset.calendarDate!==cellDate);
+    const neighbourDate=neighbourCell?.dataset.calendarDate||'';
+    click(neighbourCell);
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===neighbourDate,'panel retarget');
+    result.retarget={
+      requested:neighbourDate,
+      selected:modal.querySelector('.calendar-day-panel')?.dataset.selectedDate||'',
+      stillOpen:!modal.querySelector('.calendar-day-panel')?.hidden,
+    };
+
+    // --- Escape closes the panel, Calendar survives (Site #129/#130) ------
+    click(modal.querySelector('[data-calendar-date="'+cellDate+'"]'));
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===cellDate,'panel back on the first date');
     const trigger=modal.querySelector('[data-calendar-date-trigger="'+cellDate+'"]');
     trigger.focus();
     trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
@@ -298,10 +315,29 @@ try{
     await wait(()=>document.activeElement?.dataset.calendarDateTrigger===cellDate,'sheet Escape focus restore');
     result.escapeFocusRestore=true;
 
-    // --- the FLOW presentation remains available for rollback -------------
-    const manager=await import('/site-calendar-manager.js?v=20260922-daysheet1');
+    // --- both earlier presentations remain available for rollback ---------
+    // SHEET is not what ships any more, but it is still the one-line way back
+    // if the anchored panel turns out wrong on a device we cannot test here.
+    // The URL matters: a different query string is a different module instance,
+    // with its own presentation override that nothing renders from. Take the
+    // one the running Calendar actually loaded.
+    const managerUrl=performance.getEntriesByType('resource').map(entry=>entry.name)
+      .find(name=>name.includes('site-calendar-manager.js?v='));
+    if(!managerUrl)throw new Error('manager module URL not found');
+    const manager=await import(managerUrl);
     result.flowSwitchable=manager.setDayDetailPresentation('FLOW')==='FLOW'
       &&manager.setDayDetailPresentation('SHEET')==='SHEET';
+    click(modal.querySelector('[data-calendar-date="'+cellDate+'"]'));
+    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'sheet rollback open');
+    await new Promise(r=>setTimeout(r,120));
+    const rolled=modal.querySelector('.calendar-day-panel');
+    result.sheetRollback={
+      presentation:rolled?.dataset.presentation||'',
+      position:rolled?getComputedStyle(rolled).position:'',
+      pinnedToBottom:rolled?Math.abs(rolled.getBoundingClientRect().bottom-innerHeight)<2:false,
+      backdrop:Boolean(modal.querySelector('[data-calendar-day-sheet-backdrop]')),
+    };
+    manager.setDayDetailPresentation('POPOVER');
   }
 
   out.textContent=JSON.stringify(result);
@@ -378,30 +414,44 @@ try {
     if (!value.buttonsPreserved) throw new Error(`${label}: 이전/다음 buttons must keep working`);
 
     const sheet = value.sheet || {};
-    if (sheet.presentation !== 'SHEET') throw new Error(`${label}: touch day detail must use the sheet presentation`);
-    if (sheet.position !== 'fixed') throw new Error(`${label}: sheet must be viewport-fixed`);
-    if (!sheet.backdrop) throw new Error(`${label}: sheet must render a dismiss backdrop`);
-    if (sheet.top < -1) throw new Error(`${label}: sheet escapes the top of the viewport`);
-    if (sheet.bottom > value.viewport.height + 1) throw new Error(`${label}: sheet escapes the bottom of the viewport ${JSON.stringify(sheet)}`);
-    if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: sheet horizontal overflow`);
-    if (!sheet.heading) throw new Error(`${label}: sheet must show the date heading`);
-    if (!sheet.listOrEmpty) throw new Error(`${label}: sheet must show the event list or the empty message`);
-    if (!sheet.addButton) throw new Error(`${label}: sheet must keep the add-event button`);
-    if (!sheet.addImageButton) throw new Error(`${label}: sheet must offer the image route too`);
+    // Touch gets the anchored panel now, not a sheet welded to the bottom edge.
+    if (sheet.presentation !== 'POPOVER') throw new Error(`${label}: touch day detail must be the anchored panel (got ${sheet.presentation})`);
+    if (sheet.position !== 'fixed') throw new Error(`${label}: the day panel must be viewport-fixed`);
+    if (sheet.backdrop) throw new Error(`${label}: the anchored panel must not lay a dismiss layer over the month`);
+    if (sheet.top < -1) throw new Error(`${label}: the day panel escapes the top of the viewport`);
+    if (sheet.bottom > value.viewport.height + 1) throw new Error(`${label}: the day panel escapes the bottom of the viewport ${JSON.stringify(sheet)}`);
+    if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: day panel horizontal overflow`);
+    if (!sheet.heading) throw new Error(`${label}: the day panel must show the date heading`);
+    if (!sheet.listOrEmpty) throw new Error(`${label}: the day panel must show the entry list or the empty message`);
+    if (!sheet.addButton) throw new Error(`${label}: the full form must stay one press away`);
+    if (!sheet.addImageButton) throw new Error(`${label}: the day panel must offer the image route too`);
     // The visible words no longer repeat the date — it is already in the
     // heading, the toolbar and the highlighted cell — but the accessible name
-    // still says which day is being added to.
-    if (sheet.addLabel.trim() !== '직접 등록') throw new Error(`${label}: add button label changed (${sheet.addLabel})`);
+    // still says which day is being added to. The panel offers these two and
+    // nothing else: no title box, no [저장].
+    if (sheet.addLabel.trim() !== '직접 등록') throw new Error(`${label}: full-form button label changed (${sheet.addLabel})`);
     if (sheet.addImageLabel.trim() !== '이미지로 등록') throw new Error(`${label}: image add button label changed (${sheet.addImageLabel})`);
-    if (!/\d+월 \d+일에 일정 등록/.test(sheet.addAria)) throw new Error(`${label}: add button must name the date for assistive tech (${sheet.addAria})`);
+    if (!/\d+월 \d+일 일정을 직접 입력해서 등록/.test(sheet.addAria)) throw new Error(`${label}: full-form button must name the date for assistive tech (${sheet.addAria})`);
     if (!/\d+월 \d+일에 이미지로 일정 등록/.test(sheet.addImageAria)) throw new Error(`${label}: image add button must name the date for assistive tech (${sheet.addImageAria})`);
-    if (!sheet.toggle || !sheet.close) throw new Error(`${label}: sheet must keep 접기/닫기 controls`);
+    if (!sheet.toggle || !sheet.close) throw new Error(`${label}: the day panel must keep 접기/닫기 controls`);
 
-    if (!value.backdropDismiss) throw new Error(`${label}: backdrop dismiss must not close the Calendar modal`);
+    if (!value.closeDismiss) throw new Error(`${label}: 닫기 must dismiss the day without closing the Calendar modal`);
+    // The point of dropping the backdrop: another date is reachable while the
+    // panel is open, and taking it retargets the panel rather than closing it.
+    if (value.retarget?.selected !== value.retarget?.requested) {
+      throw new Error(`${label}: tapping another date must move the panel to it (${JSON.stringify(value.retarget)})`);
+    }
+    if (!value.retarget?.stillOpen) throw new Error(`${label}: tapping another date must leave the panel open`);
     if (!value.escapeKeepsCalendar) throw new Error(`${label}: Escape must leave the Calendar modal open`);
-    if (!value.escapeBackdropCleared) throw new Error(`${label}: Escape must remove the sheet backdrop`);
+    if (!value.escapeBackdropCleared) throw new Error(`${label}: Escape must leave no dismiss layer behind`);
     if (!value.escapeFocusRestore) throw new Error(`${label}: Escape must restore focus to the selected date`);
     if (!value.flowSwitchable) throw new Error(`${label}: FLOW presentation must stay switchable`);
+    // The way back, if the anchored panel turns out wrong on a device we cannot
+    // test from here: one call, and the old sheet is exactly what it was.
+    const rollback = value.sheetRollback || {};
+    if (rollback.presentation !== 'SHEET') throw new Error(`${label}: SHEET must stay reachable as a rollback (got ${rollback.presentation})`);
+    if (rollback.position !== 'fixed' || !rollback.pinnedToBottom) throw new Error(`${label}: the SHEET rollback must still pin to the bottom`);
+    if (!rollback.backdrop) throw new Error(`${label}: the SHEET rollback must still bring its dismiss backdrop`);
   }
 
   for (const value of results) {
@@ -410,8 +460,8 @@ try {
   }
   if (animated.reducedMotion) throw new Error('motion-enabled case unexpectedly reported reduced motion');
   if (animated.sheet.reducedMotion !== 'false') throw new Error('motion-enabled sheet must record prefers-reduced-motion=false');
-  if (animated.sheet.presentation !== 'SHEET' || animated.sheet.position !== 'fixed' || !animated.sheet.backdrop) {
-    throw new Error('motion-enabled sheet must still render as a fixed sheet with a backdrop');
+  if (animated.sheet.presentation !== 'POPOVER' || animated.sheet.position !== 'fixed' || animated.sheet.backdrop) {
+    throw new Error('motion-enabled day panel must still render as the fixed anchored panel with no dismiss layer');
   }
   if (!animated.swipeNext || !animated.swipePrevious || !animated.burstNoSkip) {
     throw new Error('motion-enabled swipe navigation regressed');
