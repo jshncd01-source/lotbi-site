@@ -40,9 +40,18 @@ import {fileURLToPath} from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 
-const tokens = read('site-theme-tokens.css');
-const homeChat = read('home-chat.css');
-const styles = read('styles.css');
+// Comments are blanked out before anything is located or measured, with line
+// breaks kept so positions still line up. This gate does not read prose, and it
+// must not break when somebody writes some: PR #230 landed an explanation
+// *between the two selectors* of the system block, and an earlier version of
+// this file — which matched that selector pair as a literal string — went red
+// on a change that was entirely correct. A gate that fails when a neighbouring
+// room documents its work is a gate that teaches people not to document.
+const withoutComments = source => source.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '));
+
+const tokens = withoutComments(read('site-theme-tokens.css'));
+const homeChat = withoutComments(read('home-chat.css'));
+const styles = withoutComments(read('styles.css'));
 
 // ── contrast maths (WCAG 2.1 relative luminance) ──────────────────────────
 const channel = v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
@@ -62,41 +71,63 @@ const AA = 4.5;
 // the OS is Dark, and the pre-paint bootstrap. Half of today's bugs lived in
 // the gap between two of them, so each is read separately rather than the file
 // being searched as one string.
-const block = (label, opening) => {
-  const start = tokens.indexOf(opening);
-  assert.notEqual(start, -1, `could not find the ${label} token block`);
-  let depth = 0;
-  let at = tokens.indexOf('{', start);
-  const from = at;
-  for (; at < tokens.length; at += 1) {
-    if (tokens[at] === '{') depth += 1;
-    else if (tokens[at] === '}' && (depth -= 1) === 0) break;
+//
+// They are found by what they contain, not by matching their selector text: a
+// token block is a rule that declares --lotbi-bg-primary. There are exactly
+// four, and that count is itself the invariant — a fifth theme state that
+// forgets to carry the tokens, or a fourth that quietly disappears, fails here
+// before any contrast is measured.
+const ruleBlocks = source => {
+  const found = [];
+  const re = /\{([^{}]*)\}/g;
+  let m;
+  while ((m = re.exec(source))) {
+    const before = source.slice(0, m.index);
+    const cut = Math.max(before.lastIndexOf('}'), before.lastIndexOf('{'));
+    found.push({selector: before.slice(cut + 1).trim().replace(/\s+/g, ' '), body: m[1]});
   }
-  return tokens.slice(from, at);
+  return found;
+};
+
+// A *definition* of --lotbi-bg-primary, not a `var(--lotbi-bg-primary)` use:
+// the component mapping rules further down the file consume the token and must
+// not be mistaken for a theme state.
+const DEFINES_BG = /(?:^|;)\s*--lotbi-bg-primary\s*:/;
+const tokenBlocks = ruleBlocks(tokens).filter(rule => DEFINES_BG.test(rule.body));
+assert.equal(tokenBlocks.length, 4,
+  `expected four token blocks (light, Dark, system, pre-paint), found ${tokenBlocks.length}`);
+
+const blockWhose = (label, marker) => {
+  const hits = tokenBlocks.filter(rule => rule.selector.includes(marker));
+  assert.equal(hits.length, 1, `expected exactly one ${label} token block, found ${hits.length}`);
+  return hits[0].body;
 };
 
 const BLOCKS = {
-  light: block('light', ':root,\nbody[data-site-theme="light"] {'),
-  dark: block('explicit Dark', 'body[data-site-theme="dark"] {\n  color-scheme: dark;'),
-  system: block('system Dark', 'body[data-site-theme="system"],\n  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) {'),
-  bootstrap: block('pre-paint Dark', 'html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) {'),
+  light: blockWhose('light', 'body[data-site-theme="light"]'),
+  dark: blockWhose('explicit Dark', 'body[data-site-theme="dark"]'),
+  system: blockWhose('system Dark', 'body[data-site-theme="system"]'),
+  bootstrap: blockWhose('pre-paint Dark', 'html[data-site-theme-bootstrap="dark"]'),
 };
 
 const declared = source => new Set([...source.matchAll(/(--lotbi-[a-z0-9-]+)\s*:/g)].map(m => m[1]));
 const valueOf = (source, token) => source.match(new RegExp(`${token}:\\s*(#[0-9a-fA-F]{3,8})`))?.[1];
 
 // ── 1. The four controls follow the token, not the raw brand colour ───────
-// Comments are dropped: these rules explain in prose why they no longer use
-// --brand-navy, and a gate that reads its own explanation as a violation is
-// worse than no gate.
+// Selectors are compared with whitespace normalised, for the same reason the
+// comments were blanked above: where a rule's selector list wraps, and how it
+// is indented, is formatting — it is not the contract, and it must not be able
+// to fail this gate.
+const normalise = selector => selector.trim().replace(/\s+/g, ' ');
 const ruleFor = (source, selector) => {
-  const at = source.indexOf(selector + ' {');
-  assert.notEqual(at, -1, `could not find the rule for ${selector}`);
-  return source.slice(at, source.indexOf('}', at)).replace(/\/\*[\s\S]*?\*\//g, '');
+  const hits = ruleBlocks(source).filter(rule => rule.selector === normalise(selector));
+  assert.equal(hits.length, 1,
+    `expected exactly one rule for \`${normalise(selector)}\`, found ${hits.length}`);
+  return hits[0].body;
 };
 
 const MOVED = [
-  [homeChat, '.mobile-menu-button,\n.mobile-drawer-close', ['--lotbi-brand-ink'],
+  [homeChat, '.mobile-menu-button, .mobile-drawer-close', ['--lotbi-brand-ink'],
     'the hamburger and the drawer close control'],
   [homeChat, '.mobile-drawer-header', ['--lotbi-brand-ink'], 'the drawer header'],
   [homeChat, '.account-signup', ['--lotbi-brand-solid-bg', '--lotbi-brand-solid-text'], '회원가입'],
