@@ -186,6 +186,19 @@ try{
       if(panel.querySelector('.calendar-day-body')?.dataset.empty!=='true')return false;
       return Math.abs(message.getBoundingClientRect().top-row.getBoundingClientRect().top)<14;
     })(),
+    // Boxes that exist and hit-test can still be too narrow for their own
+    // labels: on the first deploy "이미지로 등록" spilled across "직접 등록".
+    // Compare each label's ink to the box it was given, and check the two boxes
+    // do not overlap.
+    addLabelsFit:(()=>{
+      const buttons=[...panel.querySelectorAll('.calendar-add-actions .calendar-add-button')];
+      if(buttons.length!==2)return false;
+      if(buttons.some(b=>b.scrollWidth-b.clientWidth>1))return false;
+      const [a,b]=buttons.map(n=>n.getBoundingClientRect());
+      return a.right<=b.left+0.5||b.right<=a.left+0.5;
+    })(),
+    addLabelWidths:[...panel.querySelectorAll('.calendar-add-actions .calendar-add-button')]
+      .map(n=>({text:n.textContent.trim(),box:Math.round(n.clientWidth),ink:Math.round(n.scrollWidth)})),
     toggle:Boolean(panel.querySelector('.calendar-day-toggle')),
     close:Boolean(panel.querySelector('.calendar-day-close')),
     hasEmptyMessage:panel.textContent.includes('등록된 일정이 없어요'),
@@ -311,6 +324,7 @@ try {
       busyHeight: Math.round(v.busy.rect.height), busyShare: Number(v.busy.share.toFixed(4)),
       busyScrolls: v.busy.bodyScrolls, reserve: v.empty.scrollReserve,
       addRowSingleLine: v.empty.addRowSingleLine, addHittable: v.empty.addHittable,
+      labels: v.empty.addLabelWidths, fits: v.empty.addLabelsFit, oneLine: v.empty.emptyRowSingleLine,
     })), null, 2));
   } else {
     for (const value of report) {
@@ -320,6 +334,9 @@ try {
       if (!empty.toggle || !empty.close) throw new Error(`${label}: 접기/닫기 controls must survive`);
       if (!empty.addRowSingleLine) throw new Error(`${label}: 이미지로 등록 / 직접 등록 must share one row`);
       if (!empty.addHittable) throw new Error(`${label}: both add buttons must stay hit-testable`);
+      if (!empty.addLabelsFit) {
+        throw new Error(`${label}: the add buttons are narrower than their labels or overlap each other ${JSON.stringify(empty.addLabelWidths)}`);
+      }
       if (busy.eventCount !== 8) throw new Error(`${label}: busy fixture lost events (${busy.eventCount})`);
 
       if (value.desktop) {
