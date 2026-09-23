@@ -110,6 +110,11 @@ jobs:
       - name: Validate theme bootstrap first paint
         run: node scripts/validate_theme_bootstrap_first_paint_01.mjs
 
+      # The first paint is only half of it: the module must not then reset the
+      # theme to 'system' when a namespace has no stored preference.
+      - name: Validate theme carry across namespaces
+        run: node scripts/validate_theme_namespace_carry_01.mjs
+
       # A long answer keeps growing after it is appended; the thread has to
       # follow it without dragging a reader who scrolled up.
       - name: Validate answer scroll and markdown
