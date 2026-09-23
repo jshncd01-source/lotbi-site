@@ -37,7 +37,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/site-calendar.css?v=20260923-onelinebar1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
-<link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast2">
+<link rel="stylesheet" href="/site-theme-tokens.css?v=20260923-darklogo1">
 </head><body style="margin:0">
 <div id="calendar-root"></div>
 <pre id="expense-result">pending</pre>

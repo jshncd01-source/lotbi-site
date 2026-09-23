@@ -8,6 +8,7 @@
   const WEB_CHOICE_KEY = 'lotbi:web-choice:v1';
   const WEB_CHOICE_TTL_MS = 10 * 60 * 1000;
   const OFFICIAL_LOGO_SRC = '/assets/brand/lotbi-lockup-160w.png';
+  const OFFICIAL_LOGO_DARK_SRC = '/assets/brand/lotbi-lockup-dark-160w.png';
 
   // The chooser CTA is safe to enable because /app/open always retains a web
   // fallback. Android native takeover is backed by the approved LOTBI release
@@ -190,8 +191,13 @@
     return true;
   }
 
+  // SITE-BRAND-LOGO-THEME-AWARE-01 — the chooser rides on the Home document,
+  // which carries the LOTBI theme, so it ships both wordmarks and lets
+  // site-theme-tokens.css pick. Only one is ever displayed, so only one is
+  // announced.
   function officialLogoMarkup() {
-    return `<img class="lotbi-entry-logo" src="${OFFICIAL_LOGO_SRC}" alt="LOTBI" width="334" height="96" decoding="async">`;
+    return `<img class="lotbi-entry-logo lotbi-brand-logo-light" src="${OFFICIAL_LOGO_SRC}" alt="LOTBI" width="334" height="96" decoding="async">`
+      + `<img class="lotbi-entry-logo lotbi-brand-logo-dark" src="${OFFICIAL_LOGO_DARK_SRC}" alt="LOTBI" width="334" height="96" decoding="async">`;
   }
 
   function makeOverlay(documentObject) {
@@ -317,6 +323,7 @@
     LOTBI_ANDROID_STORE_URL,
     LOTBI_IOS_STORE_URL,
     OFFICIAL_LOGO_SRC,
+    OFFICIAL_LOGO_DARK_SRC,
     isLotbiSiteHost,
     detectMobilePlatform,
     isMobileUserAgent,

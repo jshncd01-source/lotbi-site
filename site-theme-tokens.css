@@ -234,3 +234,60 @@ body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabinde
     outline-offset: 2px;
   }
 }
+
+/* SITE-BRAND-LOGO-THEME-AWARE-01 — the wordmark follows the LOTBI theme, not
+   just the OS.
+
+   The lockup used <picture media="(prefers-color-scheme: dark)">, which can
+   only read the OS setting. LOTBI has its own three-state switch written to
+   body[data-site-theme], and <picture>'s media attribute takes CSS media
+   queries only — an attribute selector cannot go there. So a user on a light
+   OS who turned LOTBI dark got a dark surface under the navy light wordmark,
+   and the reverse combination failed the same way.
+
+   Both variants ship in the markup and CSS chooses, using the SAME four
+   selectors this file already uses for the surface colors. That is the point:
+   the logo can never disagree with the background it sits on, because one
+   rule set decides both — including during the pre-paint bootstrap, where
+   html[data-site-theme-bootstrap] stands in for body[data-site-theme]. */
+.lotbi-brand-logo-dark {
+  display: none;
+}
+
+/* 1. Explicit Dark. */
+body[data-site-theme="dark"] .lotbi-brand-logo-light {
+  display: none;
+}
+body[data-site-theme="dark"] .lotbi-brand-logo-dark {
+  display: block;
+}
+
+/* 2. Following the system, with the system in Dark.
+
+   Deliberately keyed on body[data-site-theme="system"] only, NOT on the
+   matching html[data-site-theme-bootstrap="system"] pre-paint selector that
+   the token block above also carries. The two are not equivalent here: the
+   bootstrap="system" block sets tokens but never paints `background`, so in
+   the window before body gets its attribute the surface is still white even
+   on a dark OS. A logo keyed to the token intent would go white-on-white for
+   that window — the exact flash this change exists to prevent. Matching the
+   painted background instead means the logo is light until body lands, then
+   both flip together. */
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .lotbi-brand-logo-light {
+    display: none;
+  }
+
+  body[data-site-theme="system"] .lotbi-brand-logo-dark {
+    display: block;
+  }
+}
+
+/* 3. Pre-paint bootstrap resolved to Dark — the one bootstrap state that does
+   paint `background` directly, so the dark wordmark is safe there. */
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .lotbi-brand-logo-light {
+  display: none;
+}
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .lotbi-brand-logo-dark {
+  display: block;
+}

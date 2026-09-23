@@ -149,7 +149,13 @@ function run() {
   assert.equal(entry.LOTBI_ANDROID_STORE_URL, null, 'must not invent Play Store listing');
   assert.equal(entry.LOTBI_IOS_STORE_URL, null, 'must not invent App Store listing');
   assert.equal(entry.OFFICIAL_LOGO_SRC, '/assets/brand/lotbi-lockup-160w.png', 'chooser must use the authoritative LOTBI logo asset');
-  assert.ok(source.includes('class="lotbi-entry-logo"'), 'chooser must render the official logo as an image');
+  // SITE-BRAND-LOGO-THEME-AWARE-01 — the chooser ships both wordmarks and lets
+  // site-theme-tokens.css pick, so the class now carries a variant beside it.
+  assert.ok(source.includes('class="lotbi-entry-logo lotbi-brand-logo-light"')
+    && source.includes('class="lotbi-entry-logo lotbi-brand-logo-dark"'),
+    'chooser must render both official logo variants as images');
+  assert.equal(entry.OFFICIAL_LOGO_DARK_SRC, '/assets/brand/lotbi-lockup-dark-160w.png',
+    'chooser must use the authoritative dark LOTBI logo asset');
   assert.ok(!source.includes('brand-text-logo'), 'text-only LOTBI logo must not return to the chooser');
   assert.ok(!source.includes('brand-o'), 'CSS-recolored O must not return to the chooser');
   assert.ok(!source.includes('lotbi-logo-official-color.jpg'), 'unversioned JPEG logo must not return to the chooser');

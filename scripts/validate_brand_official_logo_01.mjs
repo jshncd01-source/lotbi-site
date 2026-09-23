@@ -81,14 +81,26 @@ const PAGES_WITH_LOGO = [
   '404.html', 'account-deletion.html', 'auth/callback/index.html',
   'android-auth-test.html',
 ];
+// SITE-BRAND-LOGO-THEME-AWARE-01 — only Home carries the LOTBI theme switch,
+// so only Home ships both wordmarks. The rest have no dark surface at all
+// (styles.css has no prefers-color-scheme block), and the <source
+// media="(prefers-color-scheme: dark)"> they used to carry put the white
+// wordmark on #f7f8fb for every dark-OS visitor. The switching contract itself
+// is locked by scripts/validate_brand_logo_theme_aware_01.mjs.
+const THEMED_PAGES = new Set(['index.html']);
 for (const rel of PAGES_WITH_LOGO) {
   const html = read(rel);
   assert.ok(!html.includes('lotbi-logo-header.png'),
     `${rel}: the mock logo asset must be gone`);
   assert.ok(html.includes(LOCKUP), `${rel}: must use the official lockup`);
-  assert.ok(html.includes(LOCKUP_DARK), `${rel}: must provide the dark lockup`);
-  assert.match(html, /<source media="\(prefers-color-scheme: dark\)"/,
-    `${rel}: light/dark switching must be declarative`);
+  assert.ok(!/<source media="\(prefers-color-scheme: dark\)"/.test(html),
+    `${rel}: the wordmark must not be chosen by the OS setting alone`);
+  if (THEMED_PAGES.has(rel)) {
+    assert.ok(html.includes(LOCKUP_DARK), `${rel}: must provide the dark lockup`);
+  } else {
+    assert.ok(!html.includes(LOCKUP_DARK),
+      `${rel}: has no dark surface, so it must not serve the dark lockup`);
+  }
   // width/height on the rendered <img> is what prevents CLS.
   assert.match(html, /<img[^>]*lotbi-lockup-160w\.png"[^>]*width="160"[^>]*height="70"/,
     `${rel}: the logo must declare intrinsic size to avoid layout shift`);
@@ -99,18 +111,21 @@ for (const rel of PAGES_WITH_LOGO) {
 // index.html carries three logo sites: desktop sidebar, mobile topbar, drawer.
 assert.equal((index.match(/lotbi-lockup-160w\.png"/g) || []).length, 3,
   'index.html must render the lockup at exactly three sites');
-assert.equal((index.match(/lotbi-lockup-dark-160w\.png/g) || []).length, 3,
+// Counted on the src attribute (the closing quote), not anywhere in the file:
+// each variant also names itself inside its own srcset.
+assert.equal((index.match(/lotbi-lockup-dark-160w\.png"/g) || []).length, 3,
   'each index.html logo site must offer the dark artwork');
 
 // ------------------------------------------- Home reset contract preserved ---
-// Site #152 / #156: the logo is a reset-to-empty-Home control. Wrapping the image
-// in <picture> must not detach the anchor or its data attribute.
+// Site #152 / #156: the logo is a reset-to-empty-Home control. Whatever markup
+// carries the artwork — <picture> before, paired <img> variants now — must not
+// detach the anchor or its data attribute.
 const sidebarBrand = index.match(/<a class="sidebar-brand"[\s\S]*?<\/a>/)?.[0] || '';
 assert.ok(sidebarBrand, 'desktop sidebar brand anchor missing');
 assert.match(sidebarBrand, /data-new-conversation/,
   'sidebar brand must keep data-new-conversation');
-assert.match(sidebarBrand, /<picture>[\s\S]*<\/picture>/,
-  'sidebar brand must wrap the lockup in <picture>');
+assert.match(sidebarBrand, /lotbi-brand-logo-light[\s\S]*lotbi-brand-logo-dark/,
+  'sidebar brand must carry both wordmark variants inside the reset anchor');
 assert.match(sidebarBrand, /aria-label="LOTBI 홈"/,
   'sidebar brand must keep its accessible name');
 
@@ -118,8 +133,8 @@ const mobileBrand = index.match(/<a class="chat-brand mobile-header-brand[\s\S]*
 assert.ok(mobileBrand, 'mobile header brand anchor missing');
 assert.match(mobileBrand, /data-new-conversation/,
   'mobile header brand must keep data-new-conversation');
-assert.match(mobileBrand, /<picture>[\s\S]*<\/picture>/,
-  'mobile header brand must wrap the lockup in <picture>');
+assert.match(mobileBrand, /lotbi-brand-logo-light[\s\S]*lotbi-brand-logo-dark/,
+  'mobile header brand must carry both wordmark variants inside the reset anchor');
 
 // The runtime still binds the reset on the anchor, not on the image node.
 const conversation = read('site-conversation.js');
