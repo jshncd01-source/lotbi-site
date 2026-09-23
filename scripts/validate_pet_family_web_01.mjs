@@ -17,6 +17,7 @@ const index = read('index.html');
 const petClient = read('site-pet.js');
 const petUi = read('site-pet-ui.js');
 const petCss = read('site-pet.css');
+const petGuides = read('site-pet-guides.js');
 const conversation = read('site-conversation.js');
 
 // Core's PET_PHOTO_SLOT_CODES order is a contract: slot_index is derived from
@@ -83,6 +84,30 @@ assert.ok(
 assert.ok(
   petClient.includes("PET_PHOTO_MIME_TYPES = Object.freeze(['image/jpeg', 'image/png'])"),
   'photo types must match Core',
+);
+
+// ----------------------------------------------------------- photo uploader
+
+// Every slot must carry its own schematic and hint; a slot without guidance is
+// the failure mode this feature exists to avoid.
+for (const code of CORE_SLOT_CODES) {
+  assert.ok(petGuides.includes(`${code}: {`), `slot ${code} has no shooting guide`);
+}
+assert.ok(
+  petClient.includes("petPhotoRejection") && petClient.includes('JPG 또는 PNG'),
+  'uploads must be pre-checked locally against Core type and size limits',
+);
+assert.ok(
+  !petClient.includes("headers['Content-Type'] = 'multipart"),
+  'multipart uploads must let the browser set the boundary',
+);
+assert.ok(
+  petUi.includes('URL.revokeObjectURL') || petClient.includes('URL.revokeObjectURL'),
+  'photo object URLs must be revoked',
+);
+assert.ok(
+  conversation.includes('releasePetSurface'),
+  'closing the panel must release the cached photo object URLs',
 );
 
 // -------------------------------------------------------- privacy boundary
@@ -260,6 +285,11 @@ function innerFixtureHtml() {
   const PETS = ${JSON.stringify(JSON.stringify(FIXTURE_PETS))};
   globalThis.fetch = async (url) => {
     const target = String(url);
+    if (/\\/content$/.test(target)) {
+      // 1x1 PNG, enough to prove the bytes become a blob: preview.
+      const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+      return new Response(png, {status: 200, headers: {'Content-Type': 'image/png'}});
+    }
     if (/\\/v2\\/pets\\/[^/]+\\/photos$/.test(target)) {
       const filled = target.includes('AAAA')
         ? [{slot_code: 'NOSE_FRONT'}, {slot_code: 'NOSE_LEFT'}, {slot_code: 'FACE_FRONT'}]
@@ -307,6 +337,23 @@ function innerFixtureHtml() {
   deleteTrigger.click();
   const deleteAfter = {trigger: box(deleteTrigger), confirm: box(confirmLine)};
 
+  // Photo uploader: 10 tiles, schematics on empty slots, blob previews on
+  // filled ones, and a progress line naming what is left.
+  await new Promise(resolve => setTimeout(resolve, 400));
+  const slotGrid = detail.querySelector('[data-pet-slot-grid]');
+  const slots = [...slotGrid.querySelectorAll('[data-pet-slot]')].map(tile => ({
+    code: tile.dataset.petSlot,
+    filled: tile.dataset.petSlotFilled,
+    label: tile.querySelector('.pet-slot-label').textContent,
+    hint: tile.querySelector('.pet-slot-hint').textContent,
+    hasDiagram: Boolean(tile.querySelector('.pet-slot-diagram')),
+    previewSrc: tile.querySelector('.pet-slot-photo')?.getAttribute('src')?.slice(0, 5) || '',
+    stuckLoading: Boolean(tile.querySelector('.pet-slot-loading')),
+    accept: tile.querySelector('input[type="file"]').getAttribute('accept'),
+  }));
+  const photoCount = detail.querySelector('.pet-photo-count').textContent;
+  const progressNote = detail.querySelector('.pet-photo-progress-note').textContent;
+
   // Register form: species must offer exactly DOG and CAT.
   document.querySelector('.pet-add-button').click();
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
@@ -324,6 +371,9 @@ function innerFixtureHtml() {
     maskedRegistration,
     revealedRegistration,
     consentChecked,
+    slots,
+    photoCount,
+    progressNote,
     deleteBefore,
     deleteAfter,
     speciesChoices,
@@ -431,6 +481,26 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.consentChecked, false, `${label}: NOT_GRANTED must render as an unchecked opt-in`);
   assert.ok(result.hasConsentCopy, `${label}: the consent toggle must explain what it covers`);
   assert.ok(result.hasNotice, `${label}: non-assertion notice must render`);
+
+  assert.equal(result.slots.length, 10, `${label}: all ten photo slots must render`);
+  assert.deepEqual(
+    result.slots.map(slot => slot.code),
+    ['NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT', 'FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT',
+      'BODY_LEFT', 'BODY_RIGHT', 'BACK_REAR', 'DISTINCTIVE'],
+    `${label}: photo slots must render in Core's order`,
+  );
+  for (const slot of result.slots) {
+    assert.ok(slot.hint.length > 0, `${label}: slot ${slot.code} has no shooting hint`);
+    assert.equal(slot.accept, 'image/jpeg,image/png', `${label}: slot ${slot.code} accepts the wrong types`);
+    assert.ok(!slot.stuckLoading, `${label}: slot ${slot.code} is stuck on a loading label`);
+    if (slot.filled === 'true') {
+      assert.equal(slot.previewSrc, 'blob:', `${label}: filled slot ${slot.code} must preview from a blob, not a URL`);
+    } else {
+      assert.ok(slot.hasDiagram, `${label}: empty slot ${slot.code} must show its shooting schematic`);
+    }
+  }
+  assert.equal(result.photoCount, '3/10', `${label}: photo progress must count filled slots`);
+  assert.match(result.progressNote, /^7장 남았습니다/, `${label}: progress note must name what is left`);
 
   assert.equal(result.deleteBefore.confirm, 0, `${label}: delete confirmation must be hidden until asked for`);
   assert.ok(result.deleteBefore.trigger > 0, `${label}: delete trigger must be visible`);
