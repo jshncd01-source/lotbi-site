@@ -113,9 +113,14 @@ try {
       if (seen.has(key)) continue;
       seen.add(key);
       const size = parseFloat(cs.fontSize);
-      // The expense summary is ⑭ CALENDAR-LEDGER's file. Measured and reported,
+      // The expense summary is another room's surface. Measured and reported,
       // never asserted here: this room does not get to fail another room's CI,
       // and it does not get to quietly fix their file either.
+      //
+      // The misses it currently reports are NOT that room's colour to change:
+      // they resolve to --lotbi-text-muted, declared in site-theme-tokens.css
+      // and shared by five stylesheets. Its light value measures 4.27:1 on
+      // white. Whoever owns that token owns the fix.
       rows.push({
         owner: el.closest('[class*="calendar-expense"]') ? 'ledger' : 'calendar',
         what: String(el.className || el.tagName).split(' ')[0],
@@ -235,7 +240,7 @@ try {
     assert.ok(v.rows.length >= 12, `expected the sweep to reach the surface, saw ${v.rows.length} text elements`);
     const mine = v.rows.filter(r => r.owner === 'calendar');
     for (const r of v.rows.filter(r => r.owner === 'ledger' && r.ratio < r.floor)) {
-      console.warn(`  [⑭ 지출 영역 — 이 방이 고치지 않음] ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor})`);
+      console.warn(`  [다른 방 표면 — 이 방이 고치지 않음] ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor})`);
     }
     const misses = mine.filter(r => r.ratio < r.floor);
     assert.deepEqual(misses, [], `${theme} + OS 다크 기준 미달:\n` + misses.map(r => `  ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor}) ink=${r.ink} bg=${r.bg}`).join('\n'));
@@ -252,7 +257,7 @@ try {
   assert.equal(light.osDark, false, 'the OS light emulation did not apply');
   const lightMine = light.rows.filter(r => r.owner === 'calendar');
   for (const r of light.rows.filter(r => r.owner === 'ledger' && r.ratio < r.floor)) {
-    console.warn(`  [⑭ 지출 영역 — 이 방이 고치지 않음] ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor})`);
+    console.warn(`  [다른 방 표면 — 이 방이 고치지 않음] ${r.what} "${r.text}" ${r.ratio}:1 (기준 ${r.floor})`);
   }
   const lightMisses = lightMine.filter(r => r.ratio < r.floor);
   assert.deepEqual(lightMisses, [], 'system + OS 라이트 기준 미달:\n' + lightMisses.map(r => `  ${r.what} "${r.text}" ${r.ratio}:1`).join('\n'));
