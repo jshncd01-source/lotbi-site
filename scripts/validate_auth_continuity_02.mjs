@@ -274,8 +274,6 @@ for (const token of [
   "window.addEventListener('pageshow'",
   "window.addEventListener('focus'",
   "document.addEventListener('visibilitychange'",
-  "account.dataset.profileMenuTrigger = ''",
-  "account.setAttribute('aria-haspopup', 'menu')",
   "const LOGIN_URL = '/auth/start/'",
   'login.href = LOGIN_URL',
   'installDirectLoginHandoff',
@@ -291,6 +289,24 @@ for (const token of [
 ]) {
   assert.ok(continuity.includes(token), `missing continuity contract: ${token}`);
 }
+
+// SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the authenticated Header used to mount its
+// own [data-profile-menu-trigger], duplicating the sidebar/drawer account row.
+// The contract is now the inverse: the Header clears its reserved slot and the
+// account row is the only trigger. Auth continuity itself is unchanged, so the
+// checking/authenticated/anonymous states above still have to hold.
+const authenticatedHeader = continuity.slice(
+  continuity.indexOf('export function markAuthenticatedAccountUi'),
+  continuity.indexOf('export function markAnonymousAccountUi'),
+);
+assert.ok(
+  !authenticatedHeader.includes('profileMenuTrigger'),
+  'authenticated Header must not mount a duplicate profile trigger',
+);
+assert.ok(
+  authenticatedHeader.includes('actions.replaceChildren();'),
+  'authenticated Header must clear its reserved slot',
+);
 
 assert.equal((continuity.match(/installDirectLoginHandoff\(/g) || []).length, 3, 'one direct-login helper plus header/sidebar bindings are required');
 assert.ok(continuity.includes('const login = installDirectLoginHandoff(sidebarAccountLink({'), 'sidebar login must use direct handoff');

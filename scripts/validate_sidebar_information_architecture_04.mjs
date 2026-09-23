@@ -31,14 +31,11 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   for (const required of ['새 대화', '캘린더', '최근 대화']) {
     assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
   }
-  if (label === 'desktop') {
-    for (const required of ['연결 서비스', '프로필', '설정', '도움말']) {
-      assert.ok(block.includes(required), `${label} sidebar missing ${required}`);
-    }
-  } else {
-    for (const moved of ['연결 서비스', '프로필', '설정', '도움말']) {
-      assert.ok(!block.includes(moved), `mobile drawer must move ${moved} into the account menu`);
-    }
+  // SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the mobile drawer had already moved
+  // these four into the account menu while desktop still listed them twice.
+  // Both surfaces now defer to the account menu, so neither may carry them.
+  for (const moved of ['연결 서비스', '프로필', '설정', '도움말']) {
+    assert.ok(!block.includes(moved), `${label} sidebar must move ${moved} into the account menu`);
   }
 
   for (const removed of ['오늘', '확인 필요', '내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
@@ -56,13 +53,18 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   const primary = block.match(/<div class="sidebar-primary-nav">[\s\S]*?<\/div>/)?.[0] || '';
   assert.ok(primary.includes('data-new-conversation'), `${label} primary navigation must keep new conversation`);
   assert.ok(!primary.includes('connected-services'), `${label} connected services must not remain a primary action`);
-  const secondary = block.match(/<div class="sidebar-secondary-nav[^"]*"[^>]*>[\s\S]*?<\/div>/)?.[0] || '';
-  assert.ok(secondary, `${label} secondary navigation slot missing`);
-  if (label === 'desktop') {
-    assert.match(secondary, /<a[^>]*data-sidebar-destination="connected-services"[^>]*href="https:\/\/account\.lotbiai\.com\/connected-services"[^>]*>[\s\S]*?연결 서비스[\s\S]*?<\/a>/, 'desktop 연결 서비스 must keep the Account Web route');
-  } else {
-    assert.ok(!secondary.includes('connected-services') && !secondary.includes('data-global-nav-action'), 'mobile secondary slot must remain empty because account actions moved to the account menu');
-  }
+  // The secondary region itself is gone on both surfaces; what mattered about
+  // it — that 연결 서비스 keeps its authoritative Account Web route — is now
+  // asserted against the account menu in
+  // scripts/validate_single_profile_entry_01.mjs.
+  assert.ok(
+    !block.includes('sidebar-secondary-nav'),
+    `${label} sidebar must not reintroduce the secondary navigation region`,
+  );
+  assert.ok(
+    !block.includes('data-global-nav-action'),
+    `${label} sidebar must not duplicate account-menu actions`,
+  );
   const calendar = block.match(/<div class="sidebar-calendar-nav"[^>]*>[\s\S]*?(?=<section class="nav-section sidebar-history-section")/)?.[0] || '';
   assert.match(calendar, /<button[^>]*data-calendar-view="all"[^>]*>[\s\S]*?<span class="nav-item-label">캘린더<\/span>[\s\S]*?<\/button>/, `${label} Calendar root action missing`);
   assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 1, `${label} must expose only the Calendar root action`);
@@ -77,10 +79,9 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   const primaryPos = block.indexOf('sidebar-primary-nav');
   const calendarPos = block.indexOf('sidebar-calendar-nav');
   const recentPos = block.indexOf('sidebar-history-section');
-  const secondaryPos = block.indexOf('sidebar-secondary-nav');
   const accountPos = block.indexOf('sidebar-account-footer');
   assert.ok(
-    primaryPos >= 0 && calendarPos > primaryPos && recentPos > calendarPos && secondaryPos > recentPos && accountPos > secondaryPos,
+    primaryPos >= 0 && calendarPos > primaryPos && recentPos > calendarPos && accountPos > recentPos,
     `${label} order must be new chat → Calendar → recent conversations → account area`,
   );
 
@@ -100,7 +101,12 @@ assert.ok(sidebarCss.includes('@media (min-width: 901px)'));
 assert.match(sidebarCss, /@media \(min-width: 901px\)[\s\S]*?\.account-actions\s*\{[\s\S]*?display:\s*none/, 'Desktop topbar account affordance must remain presentation-hidden');
 assert.ok(sidebarCss.includes('.sidebar-history-scroll'));
 assert.ok(sidebarCss.includes('overflow-y: auto'));
-assert.ok(sidebarCss.includes('.sidebar-secondary-nav'));
+// SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the secondary region's styles went with
+// its markup. The account row that absorbed it is still asserted below.
+assert.ok(
+  !sidebarCss.includes('.sidebar-secondary-nav'),
+  'secondary navigation styles must not outlive the removed region',
+);
 assert.ok(calendarCss.includes('.sidebar-calendar-nav'));
 assert.ok(sidebarCss.includes('.sidebar-account-footer'));
 assert.ok(sidebarCss.includes('margin-top: auto'));

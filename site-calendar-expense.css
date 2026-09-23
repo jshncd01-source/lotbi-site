@@ -1,102 +1,144 @@
-/* Calendar expense summary strip.
+/* Calendar expense summary — one line under the month grid.
+
+   It occupies its own row of .calendar-product-shell so the month view's
+   clipped content box cannot swallow it.
    Kept in its own file so the Calendar surface stylesheet stays owned by the
    Calendar design work. Colors come from the shared semantic tokens, so light,
-   dark and system themes follow the rest of the site without per-screen values. */
+   dark and system themes follow the rest of the site without per-screen values.
+
+   The bar must not push the month grid around: it is one line tall at every
+   width, and it never wraps into a table again. */
+
+.calendar-expense-slot {
+  /* A grid item defaults to min-width:auto and refuses to shrink below its
+     content, which pushed the whole Calendar wider than a phone screen. */
+  min-width: 0;
+}
+
+.calendar-expense-slot[hidden] {
+  display: none;
+}
 
 .calendar-expense-summary {
   box-sizing: border-box;
   width: 100%;
-  margin-top: 14px;
-  padding: 14px 16px;
+  margin-top: 4px;
+  padding: 5px 12px;
   border: 1px solid var(--lotbi-border-default, #d9dee8);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--lotbi-surface-elevated, #ffffff);
   color: var(--lotbi-text-primary, #303642);
-}
-
-.calendar-expense-heading {
-  margin: 0 0 10px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--lotbi-text-primary, #303642);
+  font-size: 0.82rem;
+  line-height: 1.3;
 }
 
 .calendar-expense-notice,
 .calendar-expense-coverage {
   margin: 0;
-  font-size: 0.82rem;
   color: var(--lotbi-text-muted, #737b88);
+  font-size: 0.76rem;
 }
 
 .calendar-expense-coverage {
-  margin-top: 10px;
+  flex: 0 0 auto;
+  align-self: center;
 }
 
-.calendar-expense-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
+.calendar-expense-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
-.calendar-expense-table + .calendar-expense-table {
-  margin-top: 14px;
-}
-
-.calendar-expense-caption {
-  caption-side: top;
-  text-align: left;
-  padding-bottom: 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--lotbi-text-muted, #737b88);
-}
-
-.calendar-expense-table th,
-.calendar-expense-table td {
-  padding: 7px 2px;
-  text-align: left;
-  font-weight: 500;
-  color: var(--lotbi-text-secondary, #3d4653);
-}
-
-.calendar-expense-table thead th {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--lotbi-text-muted, #737b88);
-  border-bottom: 1px solid var(--lotbi-border-default, #d9dee8);
-}
-
-.calendar-expense-table tbody tr + tr th,
-.calendar-expense-table tbody tr + tr td {
+.calendar-expense-line + .calendar-expense-line {
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid var(--lotbi-border-default, #d9dee8);
 }
 
-/* Amounts, including the grand total, stay right-aligned so the total reads as
-   the bottom-right figure of the strip. */
-.calendar-expense-table th:last-child,
-.calendar-expense-table td:last-child {
-  text-align: right;
+/* The categories scroll sideways when they cannot all fit. They never wrap:
+   wrapping is how this became a multi-row table that fell below the fold. */
+.calendar-expense-items {
+  /* styles.css also caps `dl` at 720px, which would crop the bar. */
+  max-width: none;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  white-space: nowrap;
+}
+
+/* styles.css styles every `dl div` on the site as a two-column legal-page row
+   with 17px of vertical padding and a rule beneath it. That lands on these
+   items and turned the one-line bar into a 52px-tall block, so the geometry is
+   spelled out here rather than inherited. */
+.calendar-expense-item {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex: 0 0 auto;
+  /* Never stretched by the row: the bar's height is one line of text. */
+  align-self: center;
+  grid-template-columns: none;
+  padding: 0;
+  border: 0;
+}
+
+.calendar-expense-item dt {
+  color: var(--lotbi-text-muted, #737b88);
+}
+
+.calendar-expense-item dd {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
   font-variant-numeric: tabular-nums;
 }
 
-.calendar-expense-table tfoot th,
-.calendar-expense-table tfoot td {
-  padding-top: 10px;
-  border-top: 2px solid var(--lotbi-border-strong, #cfd6e2);
-  font-weight: 800;
-  color: var(--lotbi-text-primary, #303642);
+/* Outside the scrolling list on purpose: the total stays on screen at the right
+   edge however far the categories are scrolled. */
+.calendar-expense-total {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  align-self: center;
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+  padding-left: 12px;
+  border-left: 1px solid var(--lotbi-border-strong, #cfd6e2);
+}
+
+.calendar-expense-total-label {
+  color: var(--lotbi-text-muted, #737b88);
+  font-size: 0.76rem;
 }
 
 .calendar-expense-total-amount {
-  font-size: 1rem;
+  color: var(--lotbi-text-primary, #303642);
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 400px) {
+@media (max-width: 520px) {
   .calendar-expense-summary {
-    padding: 12px 13px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
   }
 
-  .calendar-expense-table {
-    font-size: 0.82rem;
+  .calendar-expense-items {
+    gap: 11px;
+  }
+
+  .calendar-expense-total {
+    padding-left: 9px;
+  }
+
+  .calendar-expense-total-amount {
+    font-size: 0.88rem;
   }
 }
