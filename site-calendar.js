@@ -1,5 +1,5 @@
 import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260922-weather1';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260923-kmaglyph1';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -7,7 +7,7 @@ const ACTIVITY_ID_PATTERN = /^activity_[0-9a-f]{32}$/;
 const OCCURRENCE_ID_PATTERN = /^occurrence_[0-9a-f]{32}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
-const EXPENSE_CATEGORIES = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'UNCLASSIFIED']);
+const EXPENSE_CATEGORIES = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', 'UNCLASSIFIED']);
 const EXPLICIT_LIFE_CALENDAR_MARKER_PATTERN = /(?:(?:\d{4})년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시/gu;
 const EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN = /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/u;
 const NON_WRITE_LIFE_CALENDAR_PATTERNS = Object.freeze([

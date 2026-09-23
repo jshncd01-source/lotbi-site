@@ -25,6 +25,12 @@ body[data-site-theme="light"] {
   --lotbi-info-text: #3568a8;
   --lotbi-selected-bg: #f1f3f5;
   --lotbi-selected-text: #111827;
+  /* SITE-DARK-CONVERSATION-LIST-CONTRAST-01 — the recent-conversation list.
+     The selected row changes its background, so its text has to change with it
+     or the pair stops agreeing. Light values are the previous hardcoded ones,
+     unchanged: #555d69 on #fff is 6.65:1, #182a46 on #f1f3f5 is 12.94:1. */
+  --lotbi-nav-history-text: #555d69;
+  --lotbi-nav-history-text-active: #182a46;
 }
 
 body[data-site-theme="light"] { color-scheme: light; }
@@ -52,6 +58,11 @@ body[data-site-theme="dark"] {
   --lotbi-info-text: #a7c7ff;
   --lotbi-selected-bg: #f3f4f6;
   --lotbi-selected-text: #111827;
+  /* #aeb6c3 on #151922 is 8.61:1; #f8fafc on the #262e3a selected
+     row is 13.08:1. The selected row previously kept --brand-navy
+     and measured 1.05:1 — invisible. */
+  --lotbi-nav-history-text: #aeb6c3;
+  --lotbi-nav-history-text-active: #f8fafc;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -79,6 +90,11 @@ body[data-site-theme="dark"] {
     --lotbi-info-text: #a7c7ff;
     --lotbi-selected-bg: #f3f4f6;
     --lotbi-selected-text: #111827;
+    /* #aeb6c3 on #151922 is 8.61:1; #f8fafc on the #262e3a selected
+       row is 13.08:1. The selected row previously kept --brand-navy
+       and measured 1.05:1 — invisible. */
+    --lotbi-nav-history-text: #aeb6c3;
+    --lotbi-nav-history-text-active: #f8fafc;
   }
 }
 
@@ -107,6 +123,11 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) {
   --lotbi-info-text: #a7c7ff;
   --lotbi-selected-bg: #f3f4f6;
   --lotbi-selected-text: #111827;
+  /* #aeb6c3 on #151922 is 8.61:1; #f8fafc on the #262e3a selected
+     row is 13.08:1. The selected row previously kept --brand-navy
+     and measured 1.05:1 — invisible. */
+  --lotbi-nav-history-text: #aeb6c3;
+  --lotbi-nav-history-text-active: #f8fafc;
 }
 
 /* Shared component role mapping for explicit Dark. */
@@ -140,11 +161,32 @@ body[data-site-theme="dark"] .help-links a:hover,
 body[data-site-theme="dark"] .help-links a:focus-visible { background: var(--lotbi-surface-hover); }
 
 /* Navigation / history. */
+/* SITE-DARK-DRAWER-SURFACE-01 — this used to set border-color only, while the
+   system-mode block below set background and colour for the same surfaces. The
+   gap did not show on Home, because home-bare-white.css paints the drawer in
+   both themes there. It showed the moment a conversation started: that file is
+   scoped to :not(.conversation-active), so it stops applying and home-chat.css's
+   hardcoded #f7f8fb comes through — a light drawer carrying the dark theme's
+   light text. The two blocks now carry the same declarations. */
 body[data-site-theme="dark"] :where(.chat-sidebar, .mobile-nav-drawer, .sidebar-account-footer) {
   border-color: var(--lotbi-border-default);
+  background: var(--lotbi-bg-primary);
+  color: var(--lotbi-text-primary);
 }
 body[data-site-theme="dark"] :where(.nav-item, .nav-section-title, .sidebar-account-name, .sidebar-account-handle) {
   color: var(--lotbi-text-secondary);
+}
+/* SITE-DARK-DRAWER-SURFACE-01 — 새 대화 is the one nav item with its own
+   surface: home-chat.css gives it a white pill and --brand-navy text. On Home
+   home-bare-white.css flattens it to transparent, so it inherited the theme and
+   looked right; in a conversation that override stops applying and the white
+   pill returns, now carrying the dark theme's light label. It needs a surface
+   of its own in Dark rather than the raw white. */
+body[data-site-theme="dark"] :where(.nav-item-primary) {
+  border-color: var(--lotbi-border-default);
+  background: var(--lotbi-surface-elevated);
+  color: var(--lotbi-text-primary);
+  box-shadow: none;
 }
 body[data-site-theme="dark"] :where(.nav-item:hover, .nav-item:focus-visible, .conversation-history-menu button:hover, .conversation-history-menu button:focus-visible) {
   background: var(--lotbi-surface-hover);
@@ -196,6 +238,22 @@ body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabinde
     background: var(--lotbi-bg-primary);
     color: var(--lotbi-text-primary);
   }
+  /* SITE-DARK-DRAWER-SURFACE-01 — the mirror of the gap fixed above. System mode
+     painted these surfaces dark but left the navigation text on its light
+     value, so a conversation on a dark OS put navy labels on #151922. The
+     explicit-dark block already carried this rule. */
+  body[data-site-theme="system"] :where(.nav-item, .nav-section-title, .sidebar-account-name, .sidebar-account-handle) {
+    color: var(--lotbi-text-secondary);
+  }
+  body[data-site-theme="system"] :where(.chat-sidebar, .mobile-nav-drawer, .sidebar-account-footer) {
+    border-color: var(--lotbi-border-default);
+  }
+  body[data-site-theme="system"] :where(.nav-item-primary) {
+    border-color: var(--lotbi-border-default);
+    background: var(--lotbi-surface-elevated);
+    color: var(--lotbi-text-primary);
+    box-shadow: none;
+  }
   body[data-site-theme="system"] :where(.site-modal, .profile-popover, .response-grade-menu, .conversation-history-menu) {
     border-color: var(--lotbi-border-default);
     background: var(--lotbi-surface-elevated);
@@ -233,4 +291,61 @@ body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabinde
     outline: 3px solid var(--lotbi-focus-ring) !important;
     outline-offset: 2px;
   }
+}
+
+/* SITE-BRAND-LOGO-THEME-AWARE-01 — the wordmark follows the LOTBI theme, not
+   just the OS.
+
+   The lockup used <picture media="(prefers-color-scheme: dark)">, which can
+   only read the OS setting. LOTBI has its own three-state switch written to
+   body[data-site-theme], and <picture>'s media attribute takes CSS media
+   queries only — an attribute selector cannot go there. So a user on a light
+   OS who turned LOTBI dark got a dark surface under the navy light wordmark,
+   and the reverse combination failed the same way.
+
+   Both variants ship in the markup and CSS chooses, using the SAME four
+   selectors this file already uses for the surface colors. That is the point:
+   the logo can never disagree with the background it sits on, because one
+   rule set decides both — including during the pre-paint bootstrap, where
+   html[data-site-theme-bootstrap] stands in for body[data-site-theme]. */
+.lotbi-brand-logo-dark {
+  display: none;
+}
+
+/* 1. Explicit Dark. */
+body[data-site-theme="dark"] .lotbi-brand-logo-light {
+  display: none;
+}
+body[data-site-theme="dark"] .lotbi-brand-logo-dark {
+  display: block;
+}
+
+/* 2. Following the system, with the system in Dark.
+
+   Deliberately keyed on body[data-site-theme="system"] only, NOT on the
+   matching html[data-site-theme-bootstrap="system"] pre-paint selector that
+   the token block above also carries. The two are not equivalent here: the
+   bootstrap="system" block sets tokens but never paints `background`, so in
+   the window before body gets its attribute the surface is still white even
+   on a dark OS. A logo keyed to the token intent would go white-on-white for
+   that window — the exact flash this change exists to prevent. Matching the
+   painted background instead means the logo is light until body lands, then
+   both flip together. */
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .lotbi-brand-logo-light {
+    display: none;
+  }
+
+  body[data-site-theme="system"] .lotbi-brand-logo-dark {
+    display: block;
+  }
+}
+
+/* 3. Pre-paint bootstrap resolved to Dark — the one bootstrap state that does
+   paint `background` directly, so the dark wordmark is safe there. */
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .lotbi-brand-logo-light {
+  display: none;
+}
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .lotbi-brand-logo-dark {
+  display: block;
 }

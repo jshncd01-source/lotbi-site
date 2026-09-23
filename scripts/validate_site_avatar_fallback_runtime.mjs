@@ -58,10 +58,23 @@ try{
   await evaluate(send,`(()=>{for(let i=0;i<20;i+=1)document.body.setAttribute('data-avatar-mutation-probe',String(i));return true;})()`);
   await delay(1500);
   const after=await evaluate(send,snapshotExpression);
-  const fallbackLogs=events.filter(event=>
-    (event.method==='Log.entryAdded'&&event.params?.entry?.text?.includes('LOTBI 3D Avatar fallback'))||
-    (event.method==='Runtime.consoleAPICalled'&&event.params?.type==='error'&&event.params?.args?.some(arg=>String(arg.value||arg.description||'').includes('LOTBI 3D Avatar fallback')))
+  // One console.error reaches CDP through both Runtime.consoleAPICalled and
+  // Log.entryAdded when, as here, both domains are enabled — and whether both
+  // actually deliver it depends on the Chrome build. Counting raw events
+  // therefore counts the transport, not the fallback: the same single fallback
+  // scored 1 on Chromium 1194 and 2 on the CI runner's Chrome, so this
+  // assertion failed for a browser upgrade rather than for a regression.
+  // Count the fallback itself instead, preferring the Runtime channel and
+  // falling back to Log so the check still works if a future Chrome stops
+  // delivering one of them. A genuine second fallback still produces a second
+  // Runtime event and still fails.
+  const runtimeFallbacks=events.filter(event=>
+    event.method==='Runtime.consoleAPICalled'&&event.params?.type==='error'&&event.params?.args?.some(arg=>String(arg.value||arg.description||'').includes('LOTBI 3D Avatar fallback'))
   );
+  const logFallbacks=events.filter(event=>
+    event.method==='Log.entryAdded'&&event.params?.entry?.text?.includes('LOTBI 3D Avatar fallback')
+  );
+  const fallbackLogs=runtimeFallbacks.length?runtimeFallbacks:logFallbacks;
   assert.equal(before.fallback,true);
   assert.equal(after.fallback,true);
   assert.equal(after.canvasCount,0);

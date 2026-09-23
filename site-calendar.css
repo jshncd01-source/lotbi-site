@@ -1,3 +1,49 @@
+/* CALENDAR SEMANTIC COLOURS
+   Public holidays and weekends used to be spelled as raw hex in a handful of
+   rules, which is why they drifted apart: the weekend number and the holiday
+   number were the same red, so a holiday was indistinguishable from a Sunday,
+   and the dark theme had an override for the holiday label but not for the
+   holiday number or the weekend numbers.
+
+   They are roles now, defined once per theme. A holiday is told apart from a
+   weekend by a SURFACE, not by a hue — "a day off" is a block you can see at a
+   glance, which is also what keeps the two readable side by side. All three
+   theme states are covered: explicit light, explicit dark, and the default
+   "system" preference, which stamps data-site-theme="system" rather than
+   resolving to dark. */
+:root {
+  --lotbi-calendar-weekend-sun: #c03a34;
+  --lotbi-calendar-weekend-sat: #3568a8;
+  --lotbi-calendar-holiday-ink: #a8323f;
+  --lotbi-calendar-holiday-surface: #fdecee;
+  --lotbi-calendar-holiday-surface-outside: #fbf4f5;
+  --lotbi-calendar-outside-surface: #f4f6f9;
+  --lotbi-calendar-outside-ink: #687182;
+}
+
+body[data-site-theme="dark"] {
+  --lotbi-calendar-weekend-sun: #f2a6a6;
+  --lotbi-calendar-weekend-sat: #a7c7ff;
+  --lotbi-calendar-holiday-ink: #ffb3b8;
+  --lotbi-calendar-holiday-surface: #3a2329;
+  --lotbi-calendar-holiday-surface-outside: #241a1e;
+  --lotbi-calendar-outside-surface: #12171f;
+  --lotbi-calendar-outside-ink: #8d97a6;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) {
+    --lotbi-calendar-weekend-sun: #f2a6a6;
+    --lotbi-calendar-weekend-sat: #a7c7ff;
+    --lotbi-calendar-holiday-ink: #ffb3b8;
+    --lotbi-calendar-holiday-surface: #3a2329;
+    --lotbi-calendar-holiday-surface-outside: #241a1e;
+    --lotbi-calendar-outside-surface: #12171f;
+    --lotbi-calendar-outside-ink: #8d97a6;
+  }
+}
+
 [data-life-calendar-panel][hidden] {
   display: none !important;
 }
@@ -382,7 +428,22 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   width: 42px;
   min-width: 42px;
   padding: 0;
-  font-size: 17px;
+  display: inline-grid;
+  place-items: center;
+}
+/* Toolbar icon language, shared with the sidebar's nav icons: 24x24 box,
+   stroke-only, 1.8 weight, round caps and joins. An emoji was rendering as a
+   different shape on every OS -- on the reporter's screen the gear read as a
+   sun, which is why it was mistaken for the weather control. */
+.calendar-toolbar-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .calendar-mode-tabs { min-width: 0; display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 6px; }
 .calendar-mode-tab { min-width: 58px; padding-inline: 10px; border-radius: 999px; }
@@ -436,8 +497,8 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .calendar-weekdays { color: #687180; font-size: 12px; font-weight: 800; text-align: center; }
 .calendar-weekdays span { padding: 5px 2px 9px; }
-.calendar-weekdays span:first-child { color: #b54848; }
-.calendar-weekdays span:last-child { color: #3568a8; }
+.calendar-weekdays span:first-child { color: var(--lotbi-calendar-weekend-sun); }
+.calendar-weekdays span:last-child { color: var(--lotbi-calendar-weekend-sat); }
 .calendar-month-grid { overflow: hidden; border: 1px solid #dbe1ea; border-radius: 12px; background: #dbe1ea; gap: 1px; }
 
 .calendar-date-cell {
@@ -451,9 +512,34 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   background: #fff;
   color: #303642;
 }
-.calendar-date-cell[data-current-month="false"] { background: #fafbfc; color: #a4aab3; }
-.calendar-date-cell:nth-child(7n + 1) .calendar-date-number { color: #b54848; }
-.calendar-date-cell:nth-child(7n) .calendar-date-number { color: #3568a8; }
+/* OUTSIDE THIS MONTH
+   One recessive ink for the whole cell, and `*` makes every child give up its
+   own colour and inherit it -- the date number, the weekend and holiday hues,
+   event chips, the day count, anything another room adds to a cell later. A
+   per-property list is what let the weekend and holiday rules escape in the
+   first place, so this deliberately is not one.
+
+   Recessive, not invisible: these dates are clickable (the cell's click handler
+   is bound regardless of month and jumps to that date), so the ink is chosen to
+   clear 4.5:1 against its own surface in both themes while sitting far below
+   the current month's own contrast. */
+/* Scoped through .calendar-month-grid so it outranks the dark theme's flat cell
+   rule without needing a dark twin: the roles already carry the theme. */
+.calendar-month-grid .calendar-date-cell[data-current-month="false"] {
+  background: var(--lotbi-calendar-outside-surface);
+  color: var(--lotbi-calendar-outside-ink);
+}
+.calendar-month-grid .calendar-date-cell[data-current-month="false"] * { color: inherit; }
+/* The weather mark is an emoji glyph, which `color` cannot reach. When it
+   becomes an SVG on currentColor -- the toolbar icon standard handed to
+   ④ CALENDAR-WEATHER -- the rule above covers it and this line is a no-op. */
+.calendar-month-grid .calendar-date-cell[data-current-month="false"] .calendar-weather-icon { opacity: .45; }
+/* Weekend and holiday hues say something about THIS month. Scoping them to
+   data-current-month="true" is what stops a neighbouring month's Sunday from
+   shouting louder than a weekday of the month you are actually looking at --
+   and it leaves the one inherit rule below with nothing to fight. */
+.calendar-date-cell[data-current-month="true"]:nth-child(7n + 1) .calendar-date-number { color: var(--lotbi-calendar-weekend-sun); }
+.calendar-date-cell[data-current-month="true"]:nth-child(7n) .calendar-date-number { color: var(--lotbi-calendar-weekend-sat); }
 .calendar-date-cell[data-selected="true"] { z-index: 1; box-shadow: inset 0 0 0 2px rgba(24, 42, 70, .58); background: #f6f8fb; }
 .calendar-date-header { min-width: 0; min-height: 24px; display: flex; align-items: center; gap: 4px; }
 .calendar-date-trigger {
@@ -471,7 +557,20 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   font: inherit;
 }
 .calendar-date-cell[data-today="true"] .calendar-date-trigger { border-radius: 999px; background: #3568a8; color: #fff; }
-.calendar-date-cell[data-holiday="true"]:not([data-today="true"]) .calendar-date-number { color: #b54848; }
+/* The day-off block. Scoped through .calendar-month-grid so it outranks the
+   dark theme's flat cell background without needing a dark twin of its own, and
+   it paints background only -- no border, no padding, so the grid geometry the
+   month-density contract measures is untouched. */
+.calendar-month-grid .calendar-date-cell[data-holiday="true"] {
+  background: var(--lotbi-calendar-holiday-surface);
+}
+/* A holiday in a neighbouring month is worth knowing about -- next month's
+   long weekend is real planning information -- but it must never outshine this
+   month's. It keeps a trace of the tint, well under the block above. */
+.calendar-month-grid .calendar-date-cell[data-holiday="true"][data-current-month="false"] {
+  background: var(--lotbi-calendar-holiday-surface-outside);
+}
+.calendar-date-cell[data-current-month="true"][data-holiday="true"]:not([data-today="true"]) .calendar-date-number { color: var(--lotbi-calendar-holiday-ink); }
 .calendar-date-cell[data-today="true"] .calendar-date-number,
 .calendar-date-cell[data-today="true"]:nth-child(7n + 1) .calendar-date-number,
 .calendar-date-cell[data-today="true"]:nth-child(7n) .calendar-date-number { color: #fff; }
@@ -486,7 +585,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-holiday-label {
   min-width: 0;
   overflow: hidden;
-  color: #a13232;
+  color: var(--lotbi-calendar-holiday-ink);
   font-size: 10px;
   font-weight: 850;
   line-height: 1.25;
@@ -576,8 +675,8 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-day-holiday {
   padding: 8px 10px;
   border-radius: 9px;
-  background: #fff4f4;
-  color: #9d3131;
+  background: var(--lotbi-calendar-holiday-surface);
+  color: var(--lotbi-calendar-holiday-ink);
   font-size: 12px;
   font-weight: 800;
 }
@@ -588,6 +687,16 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-day-event strong { overflow: hidden; color: #202734; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-day-event small { color: #747e8d; font-size: 11px; }
 .calendar-add-button { margin-top: auto; width: 100%; border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
+
+/* Two ways to add an entry, sharing the row the single button used to fill. */
+.calendar-add-actions { display: flex; gap: 8px; margin-top: auto; }
+.calendar-add-actions .calendar-add-button { margin-top: 0; flex: 1 1 0; min-width: 0; }
+.calendar-add-actions .calendar-add-image-button { border-color: var(--brand-navy, #182a46); background: transparent; color: var(--brand-navy, #182a46); }
+/* What the picture path has to say, next to the buttons that started it —
+   the .calendar-status strip is rewritten by the weather flow on its own
+   schedule and swallowed this a moment after it appeared. */
+.calendar-add-message { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: #f1f4f9; color: #3d4653; font-size: 12px; line-height: 1.45; }
+body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color: #d6dbe4; }
 
 .calendar-year-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .calendar-year-month { min-width: 0; padding: 12px; border: 1px solid #dbe1ea; border-radius: 14px; background: #fff; color: #303642; cursor: pointer; text-align: left; }
@@ -844,7 +953,6 @@ body[data-site-theme="dark"] .calendar-date-cell,
 body[data-site-theme="dark"] .calendar-day-event,
 body[data-site-theme="dark"] .calendar-day-toggle,
 body[data-site-theme="dark"] .calendar-day-close { border-color: #465162; background: #171c25; color: #edf0f5; }
-body[data-site-theme="dark"] .calendar-date-cell[data-current-month="false"],
 body[data-site-theme="dark"] .calendar-day-panel { border-color: #465162; background: #121720; color: #cbd2dc; }
 body[data-site-theme="dark"] .calendar-day-panel[data-presentation="SHEET"] { background: #121720; border-color: #465162; }
 body[data-site-theme="dark"] .calendar-day-sheet-backdrop { background: rgba(2, 6, 16, .58); }
@@ -855,8 +963,6 @@ body[data-site-theme="dark"] .calendar-event-chip:hover { background: #263751; }
 body[data-site-theme="dark"] .calendar-event-time,
 body[data-site-theme="dark"] .calendar-event-overflow { color: #b9c5d7; }
 body[data-site-theme="dark"] .calendar-attention-marker { color: #f2b774; }
-body[data-site-theme="dark"] .calendar-holiday-label { color: #ff9f9f; }
-body[data-site-theme="dark"] .calendar-day-holiday { background: #321f22; color: #ffb3b3; }
 body[data-site-theme="dark"] .calendar-toast { background: #e8edf5; color: #171c25; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
 body[data-site-theme="dark"] .calendar-settings-dialog { border-color: #465162; background: #171c25; }
 body[data-site-theme="dark"] .calendar-settings-header { border-color: #39424f; }

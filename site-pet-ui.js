@@ -66,6 +66,15 @@ function errorMessage(value, fallback) {
   return value instanceof Error && value.message ? value.message : fallback;
 }
 
+// The sentence on screen is Korean and says nothing about our internals. The
+// Core error code still has to be findable, or nobody can diagnose a report of
+// "등록이 안 돼요", so it rides on the element as a data attribute: an engineer
+// can read it in devtools, a customer never sees it.
+function errorCodeOf(value) {
+  const code = value && typeof value === 'object' ? value.code : '';
+  return typeof code === 'string' && code ? code : '';
+}
+
 export async function mountPetFamilyManager({
   sessionToken = '',
   root,
@@ -156,9 +165,12 @@ export async function mountPetFamilyManager({
     for (const key of [...photoPreviews.keys()]) revokePreview(key);
   };
 
-  const showError = value => {
+  const showError = (value, cause) => {
     error.textContent = value;
     error.hidden = !value;
+    const code = errorCodeOf(cause);
+    if (code) error.dataset.petErrorCode = code;
+    else delete error.dataset.petErrorCode;
   };
 
   // 등록에 성공한 뒤 뜨는 안내입니다. 등록을 막는 경고가 아닙니다.
@@ -534,7 +546,7 @@ export async function mountPetFamilyManager({
         renderDetail(updated.petId);
         status.textContent = '이름을 저장했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '이름을 바꾸지 못했습니다.'));
+        showError(errorMessage(value, '이름을 바꾸지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -565,7 +577,7 @@ export async function mountPetFamilyManager({
         status.textContent = enabled ? '매칭 동의를 켰습니다.' : '매칭 동의를 껐습니다.';
       } catch (value) {
         consentInput.checked = !enabled;
-        showError(errorMessage(value, '매칭 동의 상태를 바꾸지 못했습니다.'));
+        showError(errorMessage(value, '매칭 동의 상태를 바꾸지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -603,7 +615,7 @@ export async function mountPetFamilyManager({
         reportCount();
         status.textContent = '반려동물을 삭제했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '반려동물을 삭제하지 못했습니다.'));
+        showError(errorMessage(value, '반려동물을 삭제하지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -717,7 +729,7 @@ export async function mountPetFamilyManager({
             renderFoundPhotos(record, host);
             status.textContent = '첨부 사진을 삭제했습니다.';
           } catch (value) {
-            showError(errorMessage(value, '첨부 사진을 삭제하지 못했습니다.'));
+            showError(errorMessage(value, '첨부 사진을 삭제하지 못했습니다.'), value);
           } finally {
             setBusy(false);
           }
@@ -750,7 +762,7 @@ export async function mountPetFamilyManager({
         renderFoundPhotos(record, host);
         status.textContent = '사진을 첨부했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '사진을 첨부하지 못했습니다.'));
+        showError(errorMessage(value, '사진을 첨부하지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -777,7 +789,7 @@ export async function mountPetFamilyManager({
         }
         status.textContent = '신고를 종료했습니다.';
       } catch (value) {
-        showError(errorMessage(value, '신고를 종료하지 못했습니다.'));
+        showError(errorMessage(value, '신고를 종료하지 못했습니다.'), value);
       } finally {
         setBusy(false);
       }
@@ -1178,7 +1190,7 @@ export async function mountPetFamilyManager({
     renderList();
   } catch (value) {
     status.textContent = '';
-    showError(errorMessage(value, '반려동물 정보를 불러오지 못했습니다.'));
+    showError(errorMessage(value, '반려동물 정보를 불러오지 못했습니다.'), value);
     renderList();
   }
 
@@ -1194,7 +1206,7 @@ export async function mountPetFamilyManager({
       foundCases.map(async record => [record.caseId, [...await listFoundPetPhotos(sessionToken, record.caseId)]]),
     ));
   } catch (value) {
-    showError(errorMessage(value, '신고 내역을 불러오지 못했습니다.'));
+    showError(errorMessage(value, '신고 내역을 불러오지 못했습니다.'), value);
   }
   renderSos();
   renderFound();

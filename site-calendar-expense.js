@@ -11,23 +11,95 @@
 // numbers do not move from month to month, and the total stays pinned to the
 // right edge so it is readable without scrolling the items.
 
+// The one place these labels live. The entry editor reads them from here too:
+// it used to call LIVING "기타 / 생활비" while the bar called it "생활비", so a
+// 기타 spend and a 생활비 spend were the same row under two different names.
 const CATEGORY_LABELS = {
   FOOD: '음식',
   TRAVEL: '여행',
   SHOPPING: '쇼핑',
   LIVING: '생활비',
+  OTHER: '기타',
   UNCLASSIFIED: '미분류',
 };
 
 // Fixed order and fixed membership. A category with nothing in it still holds
 // its slot, so a reader's eye lands on the same place every month.
+// 기타 is a kind of spending; 미분류 is the absence of a choice, so it sits last
+// and reads as something still to fill in.
 export const EXPENSE_CATEGORY_ORDER = Object.freeze([
   'FOOD',
   'TRAVEL',
   'SHOPPING',
   'LIVING',
+  'OTHER',
   'UNCLASSIFIED',
 ]);
+
+// The editor's dropdown, in the same order and the same words. An empty value
+// means the owner has not chosen, which Core stores as UNCLASSIFIED.
+export const EXPENSE_CATEGORY_CHOICES = Object.freeze([
+  Object.freeze(['', CATEGORY_LABELS.UNCLASSIFIED]),
+  ...EXPENSE_CATEGORY_ORDER
+    .filter(value => value !== 'UNCLASSIFIED')
+    .map(value => Object.freeze([value, CATEGORY_LABELS[value]])),
+]);
+
+// Totals for entries this browser holds, in the exact shape Core returns from
+// /v2/life/expense-summary. It exists because a signed-out owner already records
+// amounts — the guest repository stores entry.amount_minor and
+// entry.expense_category like any other entry — and the only thing that was
+// missing is somewhere to add them up. Nothing here is sent anywhere.
+//
+// It produces the summary; it does not decide how the summary looks. Ordering,
+// labels, the empty month and the total all stay in calendarExpenseSummaryNode
+// below, so the signed-out bar and the signed-in bar are the same bar.
+//
+// Rules it shares with Core, deliberately:
+//   - currencies are never summed together or converted
+//   - an entry with no amount is counted, never estimated
+//   - a recorded amount with no category counts as UNCLASSIFIED, which is what
+//     the guest repository already stores for that case
+export function expenseSummaryFromEntries(entries, {startDate = '', endDate = ''} = {}) {
+  const byCurrency = new Map();
+  let entriesWithoutAmount = 0;
+
+  for (const event of Array.isArray(entries) ? entries : []) {
+    const entry = event?.entry;
+    const amount = entry?.amount_minor;
+    if (!Number.isInteger(amount)) {
+      // No amount recorded is not zero spent. It is counted and said out loud
+      // rather than guessed at.
+      entriesWithoutAmount += 1;
+      continue;
+    }
+    const currency = typeof entry.currency === 'string' && /^[A-Z]{3}$/.test(entry.currency)
+      ? entry.currency
+      : 'KRW';
+    const category = EXPENSE_CATEGORY_ORDER.includes(entry.expense_category)
+      ? entry.expense_category
+      : 'UNCLASSIFIED';
+    if (!byCurrency.has(currency)) byCurrency.set(currency, {categories: new Map(), total: 0, count: 0});
+    const bucket = byCurrency.get(currency);
+    const row = bucket.categories.get(category) || {amountMinor: 0, entryCount: 0};
+    row.amountMinor += amount;
+    row.entryCount += 1;
+    bucket.categories.set(category, row);
+    bucket.total += amount;
+    bucket.count += 1;
+  }
+
+  const currencies = [...byCurrency.entries()].map(([currency, bucket]) => ({
+    currency,
+    categories: EXPENSE_CATEGORY_ORDER
+      .filter(name => bucket.categories.has(name))
+      .map(name => ({expenseCategory: name, ...bucket.categories.get(name)})),
+    totalAmountMinor: bucket.total,
+    entryCount: bucket.count,
+  }));
+
+  return {startDate, endDate, currencies, entriesWithoutAmount};
+}
 
 export function expenseCategoryLabel(value) {
   return CATEGORY_LABELS[value] || '미분류';
@@ -94,7 +166,12 @@ function currencyLine(currencyTotals, {showCurrencyName, note = ''}) {
   total.dataset.expenseTotal = '';
   const totalLabel = document.createElement('span');
   totalLabel.className = 'calendar-expense-total-label';
-  totalLabel.textContent = showCurrencyName ? `총 ${currencyTotals.currency}` : '총';
+  // Only a multi-currency month names the currency here, and "총 KRW" put a
+  // bare uppercase W on screen. KRW gets its own sign; every other currency
+  // keeps its code, because ₩ on a USD row would be a lie.
+  totalLabel.textContent = showCurrencyName
+    ? `총 ${currencyTotals.currency === 'KRW' ? '₩' : currencyTotals.currency}`
+    : '총';
   const totalAmount = document.createElement('strong');
   totalAmount.className = 'calendar-expense-total-amount';
   totalAmount.textContent = formatExpenseAmount(
@@ -128,12 +205,14 @@ const EMPTY_KRW = Object.freeze({
  * @param {{currencies: Array, entriesWithoutAmount: number}|null} [options.summary]
  * @param {string} [options.monthLabel] e.g. "2026년 9월"
  * @param {string} [options.errorMessage]
+ * @param {boolean} [options.local] totals computed from this browser's own entries
  */
 export function calendarExpenseSummaryNode({
   state,
   summary = null,
   monthLabel = '',
   errorMessage = '',
+  local = false,
 }) {
   const section = document.createElement('section');
   section.className = 'calendar-expense-summary';
@@ -181,6 +260,11 @@ export function calendarExpenseSummaryNode({
   if (withoutAmount > 0) {
     notes.push(`금액 없는 일정 ${new Intl.NumberFormat('ko-KR').format(withoutAmount)}건 제외`);
   }
+  // Signed out, this is the whole truth about where the numbers live: this
+  // browser, and nowhere else. It is put as what signing in would add rather
+  // than as something withheld, and it rides behind the totals — the numbers
+  // are the point, this is a footnote to them.
+  if (local) notes.push('이 브라우저에만 저장돼요 · 로그인하면 다른 기기에서도');
   lines.forEach((currencyTotals, index) => {
     section.appendChild(currencyLine(currencyTotals, {
       showCurrencyName,

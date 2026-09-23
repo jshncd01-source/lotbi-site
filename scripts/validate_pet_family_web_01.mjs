@@ -150,6 +150,39 @@ assert.ok(
   petClient.includes('if (!(error instanceof SiteCoreError) || error.status !== 401) return;'),
   'a 403 must not be treated as an invalid session',
 );
+
+// Core answers in English for operators. The screen must not repeat it: the
+// 대표 saw "Session is restricted to the LOTBI Site audience" verbatim when a
+// pet request was refused. The code still has to be findable, so it rides on
+// the error element rather than in the sentence.
+assert.ok(
+  !petClient.includes("detail.message === 'string' && detail.message ? detail.message : fallback"),
+  "Core's English detail.message must not be shown to the user",
+);
+assert.ok(
+  petClient.includes('const PET_ERROR_MESSAGES = Object.freeze({'),
+  'pet errors must be mapped to Korean by code',
+);
+for (const code of [
+  'SESSION_AUDIENCE_RESTRICTED',
+  'SESSION_EXPIRED',
+  'PET_NAME_INVALID',
+  'PET_PHOTO_TYPE_NOT_ALLOWED',
+  'PET_IDEMPOTENCY_CONFLICT',
+]) {
+  assert.ok(
+    new RegExp(`${code}:\\s*'[^']*[가-힣]`).test(petClient),
+    `${code} needs a Korean message`,
+  );
+}
+assert.ok(
+  petUi.includes('error.dataset.petErrorCode = code'),
+  'the Core error code must stay findable on the error element',
+);
+assert.ok(
+  !/'[^']*[A-Za-z]{4,}[^']*'\s*:\s*'[^']*Session is restricted/.test(petClient),
+  'no English Core sentence may be reused as user copy',
+);
 assert.strictEqual(
   (petClient.match(/if \(announceSessionFailure\) announceInvalidSiteSession\(error\);/g) || []).length,
   2,
