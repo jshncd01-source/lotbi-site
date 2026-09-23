@@ -80,6 +80,11 @@ jobs:
       - name: Validate dark conversation list contrast
         run: node scripts/validate_dark_conversation_list_contrast_01.mjs
 
+      # Shared form controls must not trip iOS Safari's focus zoom, and the
+      # viewport must stay pinch-zoomable.
+      - name: Validate iOS input zoom
+        run: node scripts/validate_ios_input_zoom_01.mjs
+
       - name: Validate shared bottom sheet primitive
         run: node scripts/validate_bottom_sheet_primitive_01.mjs
 
