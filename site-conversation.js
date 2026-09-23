@@ -1992,7 +1992,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   // Active 실종 SOS count on the sidebar entry, mirroring the Calendar badge.
   // Nothing is shown until the surface has actually counted the cases.
-  const renderPetSosBadge = ({activeSos = 0} = {}) => {
+  const renderPetSosBadge = ({activeSos = 0, locked = false, lockLabel = '', lockHint = ''} = {}) => {
     for (const slot of document.querySelectorAll('[data-pet-sos-count]')) {
       if (!(slot instanceof HTMLElement)) continue;
       if (Number.isInteger(activeSos) && activeSos > 0) {
@@ -2001,6 +2001,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       } else {
         slot.textContent = '';
         slot.hidden = true;
+      }
+    }
+    // 유료 게이트가 켜졌을 때의 비활성 표시. 스위치가 꺼져 있으면 locked 가
+    // 항상 false 라 아무 표시도 붙지 않습니다.
+    //
+    // 항목을 지우거나 누르지 못하게 만들지 않습니다. 눌렀을 때 아무 일도
+    // 일어나지 않으면 고장으로 보이므로, 패널은 그대로 열리고 왜 비활성인지
+    // 안에서 설명합니다. 등록한 기록도 그대로 보입니다.
+    for (const nav of document.querySelectorAll('[data-pet-nav]')) {
+      if (!(nav instanceof HTMLElement)) continue;
+      nav.dataset.petLocked = locked ? 'true' : 'false';
+      const trigger = nav.querySelector('[data-pet-family-open]');
+      if (!(trigger instanceof HTMLElement)) continue;
+      let note = nav.querySelector('[data-pet-lock-note]');
+      if (locked && lockLabel) {
+        if (!note) {
+          note = document.createElement('span');
+          note.className = 'pet-nav-lock';
+          note.dataset.petLockNote = '';
+          trigger.appendChild(note);
+        }
+        note.textContent = lockLabel;
+        if (lockHint) trigger.title = lockHint;
+      } else {
+        if (note) note.remove();
+        trigger.removeAttribute('title');
       }
     }
   };
@@ -2024,11 +2050,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260922-petweb1');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260923-petgate1');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
         onCountChange: renderPetSosBadge,
+        subscription: serverSubscription,
       });
       releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {

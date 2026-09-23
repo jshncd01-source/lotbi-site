@@ -29,12 +29,18 @@ import {
   setPetMatchingConsent,
   uploadFoundPetPhoto,
   uploadPetPhoto,
-} from './site-pet.js?v=20260922-petweb1';
+} from './site-pet.js?v=20260923-petgate1';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=20260922-petweb1';
+} from './site-pet-guides.js?v=20260923-petgate1';
+import {
+  petFeatureState,
+  petGateNotice,
+  petNavLockHint,
+  petNavLockLabel,
+} from './site-pet-gate.js?v=20260923-petgate1';
 
 const MATCHING_CONSENT_VERSION = 'site-pet-matching-2026-09';
 
@@ -60,8 +66,18 @@ function errorMessage(value, fallback) {
   return value instanceof Error && value.message ? value.message : fallback;
 }
 
-export async function mountPetFamilyManager({sessionToken = '', root, onCountChange} = {}) {
+export async function mountPetFamilyManager({
+  sessionToken = '',
+  root,
+  onCountChange,
+  subscription,
+  search = globalThis.location?.search || '',
+} = {}) {
   if (!(root instanceof HTMLElement)) return null;
+
+  // 유료 게이트. 지금은 스위치가 꺼져 있어 gate.locked 는 항상 false 입니다.
+  // 등록은 게이트와 무관하게 언제나 허용됩니다.
+  const gate = petFeatureState(subscription, {search});
 
   const surface = el('div', 'pet-family-surface');
   surface.dataset.petFamilySurface = '';
@@ -145,6 +161,37 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
     error.hidden = !value;
   };
 
+  // 등록에 성공한 뒤 뜨는 안내입니다. 등록을 막는 경고가 아닙니다.
+  const showGateNotice = () => {
+    const copy = petGateNotice(gate);
+    const backdrop = el('div', 'pet-gate-backdrop');
+    backdrop.dataset.petGateNotice = '';
+    const panel = el('div', 'pet-gate-panel');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    const heading = el('h4', 'pet-gate-title', copy.title);
+    const body = el('p', 'pet-gate-copy', copy.body);
+    panel.append(heading, body);
+    const actions = el('div', 'pet-gate-actions');
+    const close = el('button', 'site-button site-button-primary', copy.action);
+    close.type = 'button';
+    const dismiss = () => {
+      backdrop.remove();
+      addButton.focus();
+    };
+    close.addEventListener('click', dismiss);
+    backdrop.addEventListener('click', event => {
+      if (event.target === backdrop) dismiss();
+    });
+    panel.setAttribute('aria-labelledby', 'pet-gate-title');
+    heading.id = 'pet-gate-title';
+    actions.appendChild(close);
+    panel.appendChild(actions);
+    backdrop.appendChild(panel);
+    surface.appendChild(backdrop);
+    close.focus();
+  };
+
   const setBusy = value => {
     busy = value;
     surface.dataset.petBusy = value ? 'true' : 'false';
@@ -155,7 +202,13 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
 
   const reportCount = () => {
     if (typeof onCountChange === 'function') {
-      onCountChange({pets: pets.length, activeSos: activeSosCount()});
+      onCountChange({
+        pets: pets.length,
+        activeSos: activeSosCount(),
+        locked: gate.locked,
+        lockLabel: petNavLockLabel(gate),
+        lockHint: petNavLockHint(gate),
+      });
     }
   };
 
@@ -1097,6 +1150,7 @@ export async function mountPetFamilyManager({sessionToken = '', root, onCountCha
         reportCount();
         renderDetail(created.petId);
         status.textContent = `${created.name} 등록을 마쳤습니다.`;
+        showGateNotice();
       } catch (value) {
         formError.textContent = errorMessage(value, '반려동물을 등록하지 못했습니다.');
       } finally {
