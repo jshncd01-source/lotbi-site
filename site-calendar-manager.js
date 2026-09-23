@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260922-sessionfix1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-imageadd1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,8 +11,12 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode} from './site-calendar-expense.js?v=20260923-quietloc1';
-import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
+import {calendarExpenseSummaryNode, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-imageadd1';
+// One version string, matching site-calendar.js: a second query string makes a
+// second module instance, and then the SiteCoreError this file compares against
+// is a different class from the one site-calendar.js throws. site-core.js is
+// unchanged here, so it keeps the version the Calendar already loads.
+import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
 import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260922-region1';
 import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260922-region1';
@@ -582,10 +586,33 @@ function dayPanel(state, groups, actions) {
   }
   const items = groups.get(state.selectedDate) || [];
   body.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('등록된 일정이 없어요.'));
-  const add = button(`${civilDateParts(state.selectedDate).month}월 ${civilDateParts(state.selectedDate).day}일에 일정 추가`, 'calendar-add-button');
+  // Two ways in, and neither repeats the date: the selected day is already in
+  // the panel heading, the toolbar title and the highlighted cell. It stays in
+  // each button's accessible name so a screen reader still hears which day.
+  const {month: addMonth, day: addDay} = civilDateParts(state.selectedDate);
+  if (state.imageMessage) {
+    const message = document.createElement('p');
+    message.className = 'calendar-add-message';
+    message.dataset.calendarAddMessage = '';
+    message.setAttribute('role', 'status');
+    message.textContent = state.imageMessage;
+    body.appendChild(message);
+  }
+  const addRow = document.createElement('div');
+  addRow.className = 'calendar-add-actions';
+
+  const addImage = button('이미지로 추가', 'calendar-add-button calendar-add-image-button');
+  addImage.dataset.calendarAddImage = '';
+  addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 추가`);
+  addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
+
+  const add = button('그냥 추가', 'calendar-add-button');
   add.dataset.calendarAdd = '';
+  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 추가`);
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
-  body.appendChild(add);
+
+  addRow.append(addImage, add);
+  body.appendChild(addRow);
   panel.append(head, body);
   return panel;
 }
@@ -1219,7 +1246,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
 
   const categoryLabel = document.createElement('label'); categoryLabel.textContent = '비용 종류';
   const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';
-  for (const [value, label] of [['', '미분류'], ['FOOD', '음식'], ['TRAVEL', '여행'], ['SHOPPING', '쇼핑'], ['LIVING', '기타 / 생활비']]) {
+  for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
     const option = document.createElement('option'); option.value = value; option.textContent = label; categoryInput.appendChild(option);
   }
   categoryInput.value = entry.expense_category === 'UNCLASSIFIED' ? '' : (entry.expense_category || '');
@@ -1466,6 +1493,10 @@ export async function mountLifeCalendarManager({
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
     locationMessage: '',
+    // Owned by the 이미지로 추가 flow. It renders in the day panel rather than the
+    // status strip because the location flow rewrites that strip on its own
+    // schedule and swallowed this message a moment after it appeared.
+    imageMessage: '',
     expense: {
       status: authenticated ? 'loading' : 'guest',
       summary: null,
@@ -1591,6 +1622,7 @@ export async function mountLifeCalendarManager({
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
     onAdd: date => openEditor(null, date),
+    onAddFromImage: date => { void addFromImage(date); },
     onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
     openSettings: () => calendarSettingsDialog({
       root,
@@ -1810,6 +1842,76 @@ export async function mountLifeCalendarManager({
     } else {
       expenseSlot.hidden = true;
       expenseSlot.replaceChildren();
+    }
+  }
+
+  const imagePicker = document.createElement('input');
+  imagePicker.type = 'file';
+  imagePicker.accept = 'image/*';
+  imagePicker.hidden = true;
+  imagePicker.dataset.calendarImagePicker = '';
+  root.appendChild(imagePicker);
+
+  // The picture becomes a draft the owner reviews — never a saved entry. The
+  // editor opens prefilled with whatever was legible and blank everywhere else;
+  // nothing is guessed, and nothing is written until they press save.
+  async function addFromImage(date) {
+    const say = text => { state.imageMessage = text; render(); };
+    if (!authenticated) {
+      say('이미지로 일정을 만들려면 LOTBI에 로그인해 주세요.');
+      return;
+    }
+    say('');
+    const file = await new Promise(resolve => {
+      const onChange = () => {
+        imagePicker.removeEventListener('change', onChange);
+        const picked = imagePicker.files?.[0] || null;
+        imagePicker.value = '';
+        resolve(picked);
+      };
+      imagePicker.addEventListener('change', onChange);
+      imagePicker.click();
+    });
+    if (!file) return;
+    say('이미지에서 일정을 읽는 중…');
+
+    try {
+      // The upload contract names it `id`, not `attachmentId`.
+      const {id: attachmentId} = await uploadConversationAttachment({sessionToken, file}, fetchImpl);
+      const requestId = `cal-image-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      // The wording matters: it is what tells Core this attachment is meant for
+      // the Calendar, and it is exactly what the owner just asked for.
+      const response = await sendConversationMessage(
+        sessionToken,
+        '이 이미지로 캘린더에 일정 추가',
+        fetchImpl,
+        [attachmentId],
+        requestId,
+        timezone,
+        currentNow().toISOString(),
+        [],
+        {logicalRequestId: requestId, turnId: requestId},
+      );
+      if (!root.isConnected) return;
+      const draft = response?.calendarDraft || null;
+      if (!draft) {
+        say('이미지에서 일정을 읽지 못했습니다. 아래 그냥 추가로 직접 입력해 주세요.');
+        return;
+      }
+      say('');
+      // A draft, not an entry: the editor opens with whatever was legible and
+      // blank everywhere else, and nothing is written until the owner saves.
+      openEditor(null, draft.localDate || date || state.selectedDate, draft);
+    } catch (error) {
+      if (!root.isConnected) return;
+      // A 401 is the session itself, and site-core.js already announces that —
+      // the Calendar closes and the owner signs in again. A 403 is this one
+      // route being refused, which is not the owner's doing and not a reason to
+      // send them to a login screen, so it says what they can do instead.
+      const refused = error instanceof SiteCoreError && error.status === 403;
+      say(refused
+        ? '지금은 이미지로 일정을 만들 수 없습니다. 아래 그냥 추가로 직접 입력해 주세요.'
+        : '이미지를 읽지 못했습니다. 다시 시도하거나 직접 입력해 주세요.');
     }
   }
 

@@ -35,7 +35,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-quietloc1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-imageadd1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260922-darkcontrast2">
 </head><body style="margin:0">
@@ -107,7 +107,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-quietloc1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-imageadd1');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -220,6 +220,25 @@ try{
       rootVisible:root.hidden!==true&&root.childElementCount>0,
     };
   }
+  // The editor's dropdown and the bar must call every category the same thing.
+  {
+    const expense=await import('/site-calendar-expense.js?v=20260923-imageadd1');
+    const barLabels=[...ready.querySelectorAll('.calendar-expense-item dt')].map(n=>n.textContent);
+    const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
+    result.labelParity={
+      bar:barLabels,
+      editor:choiceLabels,
+      // The same six words in both places. The dropdown leads with 미분류 as
+      // its empty "not chosen" option; the bar keeps 미분류 last. Order differs
+      // on purpose, the vocabulary must not.
+      matches:choiceLabels.length===barLabels.length
+        && choiceLabels[0]==='미분류'
+        && barLabels[barLabels.length-1]==='미분류'
+        && barLabels.every(text=>choiceLabels.includes(text))
+        && choiceLabels.every(text=>barLabels.includes(text)),
+    };
+  }
+
   result.errorPresent=result.error403.present;
   result.errorText=result.error403.text;
 
@@ -266,6 +285,21 @@ function run(browser, w, h) {
   return v;
 }
 
+// The editor's dropdown must read the shared list rather than spelling the
+// labels again. It drifted once — "기타 / 생활비" in the editor against "생활비"
+// in the bar — and a static check is what keeps a second copy from appearing.
+{
+  const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
+  if (!manager.includes('EXPENSE_CATEGORY_CHOICES')) {
+    throw new Error('the entry editor must build its category dropdown from EXPENSE_CATEGORY_CHOICES');
+  }
+  for (const label of ['기타 / 생활비', "'음식'", "'여행'", "'쇼핑'", "'생활비'"]) {
+    if (manager.includes(label)) {
+      throw new Error(`site-calendar-manager.js must not spell a category label itself (${label}) — it reads them from site-calendar-expense.js`);
+    }
+  }
+}
+
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
@@ -282,11 +316,11 @@ try {
 
     // Every category keeps its slot, in a fixed order, even at 0원.
     const categories = value.rows.map(row => row.category);
-    if (categories.join(',') !== 'FOOD,TRAVEL,SHOPPING,LIVING,UNCLASSIFIED') throw new Error(`${label}: all five categories must keep a fixed slot, got ${categories.join(',')}`);
+    if (categories.join(',') !== 'FOOD,TRAVEL,SHOPPING,LIVING,OTHER,UNCLASSIFIED') throw new Error(`${label}: all six categories must keep a fixed slot, 미분류 last, got ${categories.join(',')}`);
     const labels = value.rows.map(row => row.label);
-    if (labels.join(',') !== '음식,여행,쇼핑,생활비,미분류') throw new Error(`${label}: Korean category labels missing, got ${labels.join(',')}`);
+    if (labels.join(',') !== '음식,여행,쇼핑,생활비,기타,미분류') throw new Error(`${label}: Korean category labels missing, got ${labels.join(',')}`);
     const amounts = value.rows.map(row => row.amount);
-    if (amounts.join(',') !== '40,500원,180,000원,0원,94,000원,0원') throw new Error(`${label}: amounts must come from Core with 0원 for the untouched ones, got ${amounts.join(' | ')}`);
+    if (amounts.join(',') !== '40,500원,180,000원,0원,94,000원,0원,0원') throw new Error(`${label}: amounts must come from Core with 0원 for the untouched ones, got ${amounts.join(' | ')}`);
 
     // It is one line, not a table.
     if (value.lineCount !== 1) throw new Error(`${label}: one currency must render one line, got ${value.lineCount}`);
@@ -319,10 +353,14 @@ try {
     if (!value.octoberHeading.includes('10월')) throw new Error(`${label}: October accessible name missing, got "${value.octoberHeading}"`);
     if (value.octoberTotal !== '7,000원') throw new Error(`${label}: October total must be October's, got ${value.octoberTotal}`);
 
+    if (!value.labelParity.matches) {
+      throw new Error(`${label}: editor and totals labels must match — bar ${value.labelParity.bar.join(',')} vs editor ${value.labelParity.editor.join(',')}`);
+    }
+
     if (!value.emptyPresent) throw new Error(`${label}: an empty month must keep the bar`);
     if (!value.emptyText.includes('이번 달 기록 없음')) throw new Error(`${label}: empty month must say "이번 달 기록 없음", got "${value.emptyText}"`);
     // The slots stay put at 0원 so the row does not move between months.
-    if (value.emptySlots.join(',') !== '0원,0원,0원,0원,0원') throw new Error(`${label}: an empty month must keep five 0원 slots, got ${value.emptySlots.join(',')}`);
+    if (value.emptySlots.join(',') !== '0원,0원,0원,0원,0원,0원') throw new Error(`${label}: an empty month must keep six 0원 slots, got ${value.emptySlots.join(',')}`);
     if (value.emptyTotal !== '0원') throw new Error(`${label}: an empty month total must read 0원, got ${value.emptyTotal}`);
 
     for (const status of [401, 403]) {
