@@ -25,6 +25,10 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
 <link rel="stylesheet" href="/site-calendar.css?v=20260921-calgeom1">
+<!-- The product always loads this beside site-calendar.css; without it the
+     totals bar renders unstyled and the month geometry is measured against a
+     layout the product never shows. -->
+<link rel="stylesheet" href="/site-calendar-expense.css">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -159,7 +163,16 @@ try{
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
   const contentStyle=getComputedStyle(content);
-  const contentInnerBottom=contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
+  // No space under the month grid may be wasted. The expense totals bar owns a
+  // row beneath the grid, so when it shows, the boundary is its top edge less
+  // the shell's row gap — that gap is deliberate spacing, not slack.
+  const expenseSlot=content.querySelector('.calendar-expense-slot:not([hidden])');
+  const shellRowGap=expenseSlot
+    ?(parseFloat(getComputedStyle(content.querySelector('.calendar-product-shell')).rowGap)||0)
+    :0;
+  const contentInnerBottom=expenseSlot
+    ?expenseSlot.getBoundingClientRect().top-shellRowGap
+    :contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
   const unusedBottom=Math.max(0,Math.round(contentInnerBottom-gridRect.bottom));
   const shell=modal.querySelector('.calendar-product-shell');
   const viewport=modal.querySelector('.calendar-viewport');

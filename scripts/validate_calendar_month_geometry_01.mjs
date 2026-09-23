@@ -25,6 +25,10 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
 <link rel="stylesheet" href="/site-calendar.css?v=20260921-calgeom1">
+<!-- The product always loads this beside site-calendar.css; without it the
+     totals bar renders unstyled and the month geometry is measured against a
+     layout the product never shows. -->
+<link rel="stylesheet" href="/site-calendar-expense.css">
 <link rel="stylesheet" href="/site-conversation.css">
 </head><body>
 <pre id="geometry-result">pending</pre>
@@ -109,7 +113,18 @@ async function measure({nowIso,date,label,weeks}){
   const contentRect=root.getBoundingClientRect();
   const contentStyle=getComputedStyle(root);
   const gridRect=grid.getBoundingClientRect();
-  const innerBottom=contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
+  // The rule is that no space below the month grid is wasted. The expense
+  // totals bar occupies its own row under the grid, so when it is showing the
+  // boundary is its top edge rather than the bottom of the content box.
+  const expenseSlot=root.querySelector('.calendar-expense-slot:not([hidden])');
+  // The shell's row gap between the grid and the bar is deliberate spacing, not
+  // slack, so it does not count against the grid.
+  const shellGap=expenseSlot
+    ? (parseFloat(getComputedStyle(root.querySelector('.calendar-product-shell')).rowGap)||0)
+    : 0;
+  const innerBottom=expenseSlot
+    ? expenseSlot.getBoundingClientRect().top-shellGap
+    : contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
   const unusedBottom=Math.max(0,Math.round(innerBottom-gridRect.bottom));
   const weekCount=Number(grid.dataset.weekCount||0);
 
