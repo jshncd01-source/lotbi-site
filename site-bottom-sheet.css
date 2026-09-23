@@ -141,6 +141,26 @@ body[data-site-theme="dark"] .lotbi-sheet-dismiss {
   color: #edf0f5;
 }
 
+/* '시스템' 테마는 OS 가 어두울 때만 어둡다. 명시적 dark 블록이 잡지 못하므로
+   같은 값을 여기 한 번 더 둔다 — 이게 없으면 시스템 다크에서 시트만 흰색으로 뜬다. */
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .lotbi-sheet {
+    border-color: #465162;
+    background: #121720;
+    color: #cbd2dc;
+  }
+
+  body[data-site-theme="system"] .lotbi-sheet[data-presentation="INLINE"] { background: #121720; }
+  body[data-site-theme="system"] .lotbi-sheet-backdrop { background: rgba(2, 6, 16, .58); }
+  body[data-site-theme="system"] .lotbi-sheet-grabber { background: #4a5567; }
+
+  body[data-site-theme="system"] .lotbi-sheet-dismiss {
+    border-color: #515b69;
+    background: #171c25;
+    color: #edf0f5;
+  }
+}
+
 @keyframes lotbi-sheet-fade {
   from { opacity: 0; }
   to { opacity: 1; }

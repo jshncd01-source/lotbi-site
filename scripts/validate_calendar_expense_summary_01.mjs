@@ -4,7 +4,9 @@
 //   - the strip renders under the month grid, as a sibling of the month layout
 //     (the layout's first two children stay the month and the day surface)
 //   - category rows carry Korean labels and the amounts Core returned
-//   - 총지출 is the bottom-right figure of the strip
+//   - the 합계 figure, with its currency mark, is the bottom-right of the strip
+//   - each category name keeps its own fixed, legible colour in Light and Dark,
+//     and the amounts stay neutral
 //   - a month with no recorded amount still shows the strip, reading
 //     "이번 달 기록 없음" — never a vanished table and never a stuck loader
 //   - loading, empty, error and guest are four distinguishable states
@@ -35,7 +37,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-sysdark2">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-daysheet3">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260923-darklogo1">
 </head><body style="margin:0">
@@ -118,7 +120,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-sysdark2');
+  const manager=await import('/site-calendar-manager.js?v=20260923-daysheet3');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -233,7 +235,7 @@ try{
   }
   // The editor's dropdown and the bar must call every category the same thing.
   {
-    const expense=await import('/site-calendar-expense.js?v=20260923-sysdark2');
+    const expense=await import('/site-calendar-expense.js?v=20260923-daysheet3');
     const barLabels=[...ready.querySelectorAll('.calendar-expense-item dt')].map(n=>n.textContent);
     const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
     result.labelParity={
@@ -297,6 +299,26 @@ try{
     const safe=v=>Number.isFinite(v)?Number(v.toFixed(2)):null;
     result.noteContrast=safe(contrast(rgb(result.noteColor),bg));
     result.amountContrast=safe(contrast(rgb(getComputedStyle(amount).color),bg));
+
+    // Each category name carries its own fixed colour. Read in both themes,
+    // because a colour that holds on white can vanish on the dark surface.
+    const readCategories=()=>{
+      const out={};
+      for(const item of guest.querySelectorAll('.calendar-expense-item')){
+        const dt=item.querySelector('dt');
+        const color=getComputedStyle(dt).color;
+        out[item.dataset.expenseCategory]={color,contrast:safe(contrast(rgb(color),paintedBg(dt)))};
+      }
+      return out;
+    };
+    const readAmountColors=()=>[...guest.querySelectorAll('.calendar-expense-item dd')]
+      .map(node=>getComputedStyle(node).color);
+    result.categoryColorsLight=readCategories();
+    result.amountColorsLight=readAmountColors();
+    document.body.dataset.siteTheme='dark';
+    result.categoryColorsDark=readCategories();
+    result.amountColorsDark=readAmountColors();
+    delete document.body.dataset.siteTheme;
   }
   result.guestTotalOutsideScroller=(()=>{const items=guest.querySelector('.calendar-expense-items');
     const total=guest.querySelector('[data-expense-total]');return Boolean(items&&total&&!items.contains(total))})();
@@ -427,7 +449,9 @@ try {
     if (value.lineHeight > value.itemHeight * 2 || value.lineHeight > 48) throw new Error(`${label}: the bar must stay one line tall, got ${value.lineHeight}px for a ${value.itemHeight}px item`);
     if (!value.totalOutsideScroller) throw new Error(`${label}: the total must sit outside the scrolling item list so it cannot scroll away`);
 
-    if (value.totalLabel !== '총') throw new Error(`${label}: total must be labelled 총, got "${value.totalLabel}"`);
+    // "총" said nothing about money and named no currency on a single-currency
+    // month, which is nearly every month.
+    if (value.totalLabel !== '합계 ₩') throw new Error(`${label}: a KRW total must be labelled "합계 ₩", got "${value.totalLabel}"`);
     if (value.totalText !== '314,500원') throw new Error(`${label}: total must be the sum Core returned, got ${value.totalText}`);
     if (!value.totalAfterItems) throw new Error(`${label}: the total must sit past the categories, at the end of the line`);
     if (!value.totalRightAligned) throw new Error(`${label}: the total must hold the right edge of the bar`);
@@ -536,6 +560,29 @@ try {
 
     // [C] The exclusion line is the one line saying the total is not everything.
     // It must be readable, not decoration.
+    // [E] The category names are told apart by colour as well as by word.
+    // Distinct per category, legible on the surface behind them, and the same
+    // in Light and Dark for a given category's hue — never on the amounts.
+    for (const theme of ['Light', 'Dark']) {
+      const colors = value['categoryColors' + theme];
+      for (const category of ['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', 'UNCLASSIFIED']) {
+        const row = colors?.[category];
+        if (!row) throw new Error(`${label}: ${theme} is missing a colour for ${category}`);
+        if (!(row.contrast >= 4.5)) {
+          throw new Error(`${label}: ${theme} ${category} must hold WCAG AA 4.5:1, got ${row.contrast}:1 (${row.color})`);
+        }
+      }
+      const distinct = new Set(Object.values(colors).map(row => row.color));
+      if (distinct.size !== 6) {
+        throw new Error(`${label}: ${theme} must give the six categories six different colours, got ${distinct.size}: ${JSON.stringify(colors)}`);
+      }
+      // A coloured amount would read as a status the bar never means.
+      const amounts = new Set(value['amountColors' + theme]);
+      if (amounts.size !== 1) {
+        throw new Error(`${label}: ${theme} amounts must stay one neutral colour, got ${JSON.stringify([...amounts])}`);
+      }
+    }
+
     if (!(value.noteContrast >= 7)) throw new Error(`${label}: "금액 없는 일정 …" must be legible (WCAG AAA 7:1), got ${value.noteContrast}:1 — text ${JSON.stringify(value.noteRgb)} on ${JSON.stringify(value.noteBg)}`);
 
     // The Calendar went down over this bar once. It must not again — and the
