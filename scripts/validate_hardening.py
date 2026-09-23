@@ -18,11 +18,17 @@ ROOT = Path(__file__).resolve().parents[1]
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
+# SITE-BRAND-LOGO-THEME-AWARE-01 — the four legal pages' hashes moved because
+# each one dropped the <picture><source media="(prefers-color-scheme: dark)">
+# from its header logo. These pages have no dark surface (styles.css carries no
+# prefers-color-scheme block), so the OS-driven source put the white wordmark on
+# #f7f8fb for every dark-OS visitor. One line changed per file, in the header
+# only; no legal text was touched. Verified with `git diff --unified=0`.
 LOCKED_SHA256 = {
-    'privacy.html': 'aa8232983a1158bf5bce7f776adea5f4bcaddce9675ec74ea413935ef020ea28',
-    'terms.html': '4ab3d42468fa673da6546de89ef343330b8301500333d4499d869e3b3fc2eb04',
-    'account-deletion.html': 'ca43bc5541b309895468a766586d3252bc0174b058a300d3d91acc5cf8a8d525',
-    'contact.html': 'de05ad52868711e05ed8e6f234d08905c82a9ab4237c496c90b9cdd8fdc63dac',
+    'privacy.html': '4c9276d5dd0c3f3d3ce6e8c9c3ec2b5907292f9d7416170af76f9f4516c3eaad',
+    'terms.html': 'ed2b6852a836ab50a3f97ddd970501a763091c946f2c70b8bfb0b5f2c50a9abc',
+    'account-deletion.html': 'c0b1710b47a8805063443fd286c9d903c90ede33a3f26073568e869a26a28706',
+    'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': 'b35156b807d4bb18ba1cdc104371135f64f9a7bd0f15f9d8f2031a065e92888f',
@@ -92,7 +98,7 @@ def main() -> int:
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
-        '<script src="mobile-entry.js?v=20260920-homefirst1" defer></script>',
+        '<script src="mobile-entry.js?v=20260923-darklogo1" defer></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         '<script type="module" src="site-avatar.js"></script>',

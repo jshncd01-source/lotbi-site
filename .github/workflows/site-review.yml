@@ -71,6 +71,11 @@ jobs:
       - name: Validate official LOTBI logo wiring
         run: node scripts/validate_brand_official_logo_01.mjs
 
+      # The wordmark has to follow the LOTBI theme switch, not just the OS,
+      # and stay off the always-light pages.
+      - name: Validate theme-aware brand logo
+        run: node scripts/validate_brand_logo_theme_aware_01.mjs
+
       - name: Validate shared bottom sheet primitive
         run: node scripts/validate_bottom_sheet_primitive_01.mjs
 
