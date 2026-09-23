@@ -634,14 +634,14 @@ function dayPanel(state, groups, actions) {
   const addRow = document.createElement('div');
   addRow.className = 'calendar-add-actions';
 
-  const addImage = button('이미지로 추가', 'calendar-add-button calendar-add-image-button');
+  const addImage = button('이미지로 등록', 'calendar-add-button calendar-add-image-button');
   addImage.dataset.calendarAddImage = '';
-  addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 추가`);
+  addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
   addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
 
-  const add = button('그냥 추가', 'calendar-add-button');
+  const add = button('직접 등록', 'calendar-add-button');
   add.dataset.calendarAdd = '';
-  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 추가`);
+  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 일정 등록`);
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
 
   addRow.append(addImage, add);
@@ -1226,7 +1226,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
-  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 추가');
+  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 등록');
   const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
   const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
   editorHeader.append(heading, closeButton);
@@ -1538,7 +1538,7 @@ export async function mountLifeCalendarManager({
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
     locationMessage: '',
-    // Owned by the 이미지로 추가 flow. It renders in the day panel rather than the
+    // Owned by the 이미지로 등록 flow. It renders in the day panel rather than the
     // status strip because the location flow rewrites that strip on its own
     // schedule and swallowed this message a moment after it appeared.
     imageMessage: '',
@@ -1929,7 +1929,7 @@ export async function mountLifeCalendarManager({
       // the Calendar, and it is exactly what the owner just asked for.
       const response = await sendConversationMessage(
         sessionToken,
-        '이 이미지로 캘린더에 일정 추가',
+        '이 이미지로 캘린더에 일정 등록',
         fetchImpl,
         [attachmentId],
         requestId,
@@ -1941,7 +1941,7 @@ export async function mountLifeCalendarManager({
       if (!root.isConnected) return;
       const draft = response?.calendarDraft || null;
       if (!draft) {
-        say('이미지에서 일정을 읽지 못했습니다. 아래 그냥 추가로 직접 입력해 주세요.');
+        say('이미지에서 일정을 읽지 못했습니다. 아래 직접 등록으로 입력해 주세요.');
         return;
       }
       say('');
@@ -1956,7 +1956,7 @@ export async function mountLifeCalendarManager({
       // send them to a login screen, so it says what they can do instead.
       const refused = error instanceof SiteCoreError && error.status === 403;
       say(refused
-        ? '지금은 이미지로 일정을 만들 수 없습니다. 아래 그냥 추가로 직접 입력해 주세요.'
+        ? '지금은 이미지로 일정을 만들 수 없습니다. 아래 직접 등록으로 입력해 주세요.'
         : '이미지를 읽지 못했습니다. 다시 시도하거나 직접 입력해 주세요.');
     }
   }
