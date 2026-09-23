@@ -98,7 +98,11 @@ async function measure({nowIso,date,label,weeks}){
     settingsStorage:storage,
   });
   await wait(()=>root.dataset.calendarManagerView==='month'&&root.querySelector('.calendar-month-grid'),'month '+label);
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  // setTimeout rather than requestAnimationFrame: under --virtual-time-budget an
+  // idle page may never produce another animation frame, and the double rAF then
+  // never settles — the run ends as a mute "wrapper timeout" with no stage named.
+  // validate_calendar_touch_monthnav_daysheet_01 already carries this fix.
+  await new Promise(resolve=>setTimeout(resolve,50));
 
   const grid=root.querySelector('.calendar-month-grid');
   const cells=[...grid.querySelectorAll('.calendar-date-cell')];
