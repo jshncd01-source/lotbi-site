@@ -9,7 +9,8 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-voiceguard1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-wakematch1';
+import {stripWakePrefix} from './site-voice-wake.js?v=20260923-wakematch1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -374,6 +375,7 @@ const VOICE_AUTOSEND_DELAY_MS = 2500;
 const VOICE_AUTOSEND_PENDING_MESSAGE = '곧 보낼게요.';
 const VOICE_AUTOSEND_CANCELLED_MESSAGE = '보내지 않았습니다. 고친 뒤 전송을 눌러 주세요.';
 const VOICE_NOTHING_HEARD_MESSAGE = '잘 못 들었어요. 다시 말씀해 주시거나 입력해 주세요.';
+const VOICE_WAKE_ONLY_MESSAGE = '네, 듣고 있어요. 마이크를 다시 눌러 무엇을 도와드릴지 말씀해 주세요.';
 const VOICE_PERMISSION_TIMEOUT_MS = 10000;
 const VOICE_RECOGNITION_START_TIMEOUT_MS = 5000;
 const VOICE_ENGINE_SILENT_MESSAGE = '이 브라우저에서는 음성 인식이 동작하지 않네요. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
@@ -3033,10 +3035,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
       recognition.onstart = () => { clearVoiceStartDeadline(); voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
       recognition.onresult = event => {
-        const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
+        const heard = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
         // Nothing usable came back. Say so plainly; never send an empty turn and
         // never stand in a guess for words we did not hear.
-        if (!transcript) { setVoiceFeedback(VOICE_NOTHING_HEARD_MESSAGE); prompt.focus(); return; }
+        if (!heard) { setVoiceFeedback(VOICE_NOTHING_HEARD_MESSAGE); prompt.focus(); return; }
+        // "롯비야 내일 날씨" should ask about the weather, not about LOTBI's own
+        // name. Drops a leading wake call; text that does not open with one
+        // comes back untouched.
+        const transcript = stripWakePrefix(heard);
+        // A wake call with nothing after it is a call, not a question. Never
+        // send an empty turn, and never invent the part that was not said.
+        if (!transcript) { setVoiceFeedback(VOICE_WAKE_ONLY_MESSAGE); prompt.focus(); return; }
         const current = prompt.value.trimEnd(); prompt.value = current ? `${current} ${transcript}` : transcript;
         prompt.dispatchEvent(new Event('input', {bubbles: true}));
         beginVoiceAutoSend();
