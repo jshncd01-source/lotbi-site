@@ -235,7 +235,7 @@ try{
   }
   // The editor's dropdown and the bar must call every category the same thing.
   {
-    const expense=await import('/site-calendar-expense.js?v=20260923-sysdark2');
+    const expense=await import('/site-calendar-expense.js?v=20260923-daysheet2');
     const barLabels=[...ready.querySelectorAll('.calendar-expense-item dt')].map(n=>n.textContent);
     const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
     result.labelParity={

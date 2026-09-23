@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-sysdark2';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-daysheet2';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -10,16 +10,16 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=20260923-sysdark2';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-sysdark2';
+} from './site-calendar-model.js?v=20260923-daysheet2';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-daysheet2';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
 import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-sysdark2';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-sysdark2';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-sysdark2';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-daysheet2';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-daysheet2';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-daysheet2';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -1003,6 +1003,12 @@ function dayPanel(state, groups, actions) {
   }
   const items = groups.get(state.selectedDate) || [];
   body.appendChild(items.length ? eventList(items, {onSelect: actions.onEvent}) : emptyMessage('등록된 일정이 없어요.'));
+  // A day with nothing on it is one sentence and two buttons. Saying so here
+  // lets the touch sheet lay those out on a single line instead of a stack --
+  // the difference between the sheet covering two date rows and covering one.
+  // Anything else in the body (a holiday note, the picture flow's status) means
+  // there is more than one line to show, so the stack stays.
+  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage);
   // Two ways in, and neither repeats the date: the selected day is already in
   // the panel heading, the toolbar title and the highlighted cell. It stays in
   // each button's accessible name so a screen reader still hears which day.
@@ -1115,15 +1121,36 @@ function positionDayPopover(layout) {
   panel.style.top = `${Math.round(top)}px`;
 }
 
+// The sheet is fixed to the bottom of the viewport, so whatever it covers is
+// covered for good unless the month can scroll out from under it. Reserving its
+// measured height as trailing space is what lets the last date rows be brought
+// into view -- and CSS cannot measure, so the number is written here.
+function syncDaySheetReserve(layout) {
+  const panel = layout.querySelector('.calendar-day-panel');
+  const open = panel && !panel.hidden && panel.dataset.presentation === DAY_DETAIL_PRESENTATION.SHEET;
+  if (!open) {
+    layout.style.removeProperty('--calendar-day-sheet-reserve');
+    return;
+  }
+  const height = Math.ceil(panel.getBoundingClientRect().height);
+  if (!Number.isFinite(height) || height <= 0) return;
+  layout.style.setProperty('--calendar-day-sheet-reserve', `${height + 12}px`);
+}
+
 function syncMonthLayout(layout) {
   fitMonthEventDensity(layout);
   positionDayPopover(layout);
+  syncDaySheetReserve(layout);
 }
 
 function renderMonth(state, actions, weatherCredit = null) {
   const layout = document.createElement('div');
   layout.className = 'calendar-month-layout';
   layout.dataset.detailOpen = String(state.detailOpen);
+  // The stylesheet needs to know which presentation is in play from the layout
+  // itself: the month has to be raised above the sheet's dismiss layer, and
+  // that rule cannot reach up from the panel to its parent.
+  layout.dataset.dayDetail = dayDetailPresentation();
   const calendar = document.createElement('section');
   calendar.className = 'calendar-month';
   const weekdays = document.createElement('div');
