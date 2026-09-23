@@ -11,7 +11,7 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode} from './site-calendar-expense.js?v=20260922-expense1';
+import {calendarExpenseSummaryNode} from './site-calendar-expense.js?v=20260923-onelinebar1';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
 import {calendarWeatherByDate} from './site-calendar-weather.js?v=20260922-weather1';
 import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260922-region1';
@@ -1466,7 +1466,11 @@ export async function mountLifeCalendarManager({
   locationButton.dataset.calendarCurrentLocation = 'true';
   locationButton.setAttribute('aria-label', '현재 위치를 캘린더 날씨에 사용');
   const viewport = document.createElement('div'); viewport.className = 'calendar-viewport';
-  shell.append(toolbar, status, viewport); root.replaceChildren(shell);
+  // The expense bar is a shell row, not a viewport child: the month view clips
+  // its content box, so anything trailing the month grid inside the viewport is
+  // invisible on desktop.
+  const expenseSlot = document.createElement('div'); expenseSlot.className = 'calendar-expense-slot';
+  shell.append(toolbar, status, viewport, expenseSlot); root.replaceChildren(shell);
 
   const updateChrome = () => {
     title.textContent = state.mode === 'year' ? `${state.year}년` : `${state.year}년 ${state.month}월`;
@@ -1695,22 +1699,23 @@ export async function mountLifeCalendarManager({
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else if (state.mode === 'attention') viewport.replaceChildren(renderAttention(state));
-    else {
-      // The strip is a sibling of the month layout, never a child of it: the
-      // month layout's first two children are a runtime contract.
+    else viewport.replaceChildren(renderMonth(state, actions));
+
+    if (state.mode === 'month') {
       const monthKey = `${state.year}-${state.month}`;
       // Totals belonging to another month are never shown under this month's
-      // heading: until the strip catches up it reads as loading.
+      // heading: until the bar catches up it reads as loading.
       const settled = state.expense.status === 'guest' || state.expense.monthKey === monthKey;
-      viewport.replaceChildren(
-        renderMonth(state, actions),
-        calendarExpenseSummaryNode({
-          state: settled ? state.expense.status : 'loading',
-          summary: settled ? state.expense.summary : null,
-          monthLabel: `${state.year}년 ${state.month}월`,
-          errorMessage: settled ? state.expense.message : '',
-        }),
-      );
+      expenseSlot.hidden = false;
+      expenseSlot.replaceChildren(calendarExpenseSummaryNode({
+        state: settled ? state.expense.status : 'loading',
+        summary: settled ? state.expense.summary : null,
+        monthLabel: `${state.year}년 ${state.month}월`,
+        errorMessage: settled ? state.expense.message : '',
+      }));
+    } else {
+      expenseSlot.hidden = true;
+      expenseSlot.replaceChildren();
     }
   }
 
