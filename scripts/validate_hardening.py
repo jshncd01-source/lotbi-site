@@ -41,14 +41,34 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # keyboard skip target was #182a46 on #151922, 1.22:1 — present but unseeable.
 # Verified with `git diff --unified=0` and again by stripping /* */ from both
 # revisions: no other declaration in the file moved.
+# SITE-FOOTER-FOUR-ROWS-01 — privacy/terms/account-deletion/contact 의 해시가
+# 푸터 때문에 움직였다. 정책 본문은 한 글자도 바뀌지 않았다: 네 파일에서 <footer>
+# 를 통째로 들어낸 나머지가 이전 revision 과 바이트까지 같은 것을 확인했다.
+# privacy/terms 는 링크 줄이 일곱 페이지 공통으로 맞춰지고 사업자 정보 블록이
+# 다섯 줄에서 세 줄로 줄었다. account-deletion/contact 은 같은 terms.html 을
+# '이용안내'라 부르던 이름 하나를 그 페이지 h1 인 '이용약관'으로 고친 한 줄뿐이다.
+# SITE-PRIVACY-OVERSEAS-TRANSFER-01 — privacy.html 과 styles.css 의 해시가 함께
+# 움직였다. 개인정보 보호법 제28조의8 국외이전 고지표를 제6조 6.1 로 넣었기
+# 때문이다. 네이버 동의 화면에는 "[필수] 개인정보 국외 이전 동의" 항목이 떠
+# 있는데 제6조에는 "발생하는 경우 안내하겠다"는 장래형 문구뿐이어서 검수가
+# 막혀 있었다. privacy.html 은 기존 조항을 한 줄도 지우지 않았고 — `git diff`
+# 에 삭제 라인 0 개 — 제6조 끝과 제7조 사이에만 6.1 블록이 들어갔다. 11 개
+# 조항 번호와 본문은 그대로다. styles.css 는 파일 끝에 .legal-table 규칙만
+# 덧붙었고 기존 선택자는 한 줄도 건드리지 않았다.
+# 이 표는 7 열이라 900px 본문 폭에 들어가지 않는다. 거부 방법 열이 검수자가
+# 바로 봐야 하는 열이므로 가로 스크롤 뒤에 숨기지 않고 표만 본문 폭 밖으로
+# 넓혔고, 390px 에서는 각 행이 data-label 을 단 카드로 쌓인다.
+# 주의: privacy.html 본문이 바뀌었으므로 scripts/emit_social_signup_legal_manifest.py
+# 가 내보내는 LOTBI_SOCIAL_PRIVACY_SHA256 도 함께 바뀐다. lotbi-core 에 등록된
+# 동의 증빙 SHA 를 배포 후 갱신해야 실제 문서와 맞는다.
 LOCKED_SHA256 = {
-    'privacy.html': '29a376617f88e2609940691589ff8033810b75dc5cf0cd45a26f2fc4b13911db',
-    'terms.html': '252d2264ae4cf9465f6b523e7be6c3b2f55c81791f7b011ccced495c1ea3462b',
-    'account-deletion.html': 'c0b1710b47a8805063443fd286c9d903c90ede33a3f26073568e869a26a28706',
-    'contact.html': 'a17d7632a221028dcd9989a5ab93c7b5a16d0ccd77e6df20b1195793ad9c2b47',
+    'privacy.html': '31e76d4807d39caa209778f9d6bf2cd3192e6703ad9a3c79408ad7514963c59a',
+    'terms.html': '2f2493142626906df7e5537cad8c4858d3874357e89aa865a1d5ad6e13eceb2e',
+    'account-deletion.html': '9652b2bfc892429c9ff4a51e1175df6af2b7964de60612c4924bb95119f6fc98',
+    'contact.html': '669b510e5232b354af9f718fa98584145aa528663584a4d95f3fbe056ea4892a',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': 'e52fe30dbf6f3a55f24d69f692bf32a1ec57f9f20311eebf7b2e86464ce06b3c',
+    'styles.css': '6c7508831330c67a4886e515cbe1ff57b69beaf8f99968b4f60a7d3ddfa10129',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 

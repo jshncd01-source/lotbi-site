@@ -8,8 +8,8 @@ import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClai
 import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-daysheet3';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-daysheet3';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-themeauto2';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-voiceguard1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
@@ -408,9 +408,38 @@ function userFacingErrorMessage(error) {
   if (error instanceof Error) return error.message;
   return 'LOTBI 대화를 완료하지 못했습니다.';
 }
+// SITE-VOICE-RECOGNITION-TIMEOUT-GUARD-01 — some browsers hand us a working
+// SpeechRecognition constructor that then never reports anything: start()
+// returns cleanly and no event ever arrives, not onstart, not onerror, not
+// onend. Measured here on a Chromium build with no speech backend, and the
+// same shape is what in-app WebViews show. The feature test above cannot see
+// it, so without a deadline the composer sits on "마이크 권한을 확인하고
+// 있습니다." forever. Both waits below are bounded, and every bounded path puts
+// the mic button back the way it was before the click.
+// SITE-VOICE-AUTOSEND-01 — speech that only lands in the textarea still needs a
+// second tap to send, which is most of the reason someone spoke instead of
+// typing. So send it — but not blind: the recogniser mishears often enough that
+// firing instantly would put the wrong question to LOTBI. A short window lets
+// the person stop it, and any move toward the textarea stops it too.
+const VOICE_AUTOSEND_DELAY_MS = 2500;
+const VOICE_AUTOSEND_PENDING_MESSAGE = '곧 보낼게요.';
+const VOICE_AUTOSEND_CANCELLED_MESSAGE = '보내지 않았습니다. 고친 뒤 전송을 눌러 주세요.';
+const VOICE_NOTHING_HEARD_MESSAGE = '잘 못 들었어요. 다시 말씀해 주시거나 입력해 주세요.';
+const VOICE_PERMISSION_TIMEOUT_MS = 10000;
+const VOICE_RECOGNITION_START_TIMEOUT_MS = 5000;
+const VOICE_ENGINE_SILENT_MESSAGE = '이 브라우저에서는 음성 인식이 동작하지 않네요. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
+const VOICE_PERMISSION_TIMEOUT_MESSAGE = '마이크 권한 확인이 끝나지 않았습니다. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
+
+// Carries a message already written for the person, so voiceErrorMessage can
+// hand it straight through instead of flattening it to the generic failure.
+class VoiceGuardError extends Error {
+  constructor(message) { super(message); this.name = 'VoiceGuardError'; }
+}
+
 function voiceErrorMessage(error) {
   const name = error && typeof error === 'object' && typeof error.name === 'string' ? error.name : '';
   const code = error && typeof error === 'object' && typeof error.error === 'string' ? error.error : '';
+  if (name === 'VoiceGuardError') return error.message;
   if (name === 'NotAllowedError' || name === 'SecurityError' || code === 'not-allowed' || code === 'service-not-allowed') return '마이크 권한이 필요합니다. 브라우저의 사이트 권한에서 마이크를 허용해 주세요.';
   if (name === 'NotFoundError' || code === 'audio-capture') return '사용 가능한 마이크를 찾지 못했습니다. 기기 마이크 연결을 확인해 주세요.';
   if (code === 'no-speech') return '음성이 들리지 않았습니다. 마이크 버튼을 눌러 다시 말씀해 주세요.';
@@ -565,7 +594,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let state = {threads: [], activeThreadId: null, draft: ''};
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
-  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
+  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer;
   let lastRenderedCreatedAt;
   let timestampRefreshTimer;
   let themeBoundaryTimer;
@@ -2980,27 +3009,94 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const requestMicrophoneAccess = async () => {
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') throw new Error('음성 입력을 지원하지 않는 브라우저입니다.');
-    const stream = await navigator.mediaDevices.getUserMedia({audio: true}); for (const track of stream.getTracks()) track.stop();
+    const pending = navigator.mediaDevices.getUserMedia({audio: true});
+    let settled = false;
+    // A prompt that never resolves would strand the mic button disabled,
+    // because the finally below would never run. If the deadline wins the race
+    // the permission may still be granted later, so stop that late stream too —
+    // an open track leaves the tab's recording indicator lit.
+    pending.then(
+      late => { if (settled) for (const track of late.getTracks()) track.stop(); },
+      () => {},
+    );
+    let deadline;
+    try {
+      const stream = await Promise.race([
+        pending,
+        new Promise((_, reject) => { deadline = setTimeout(() => reject(new VoiceGuardError(VOICE_PERMISSION_TIMEOUT_MESSAGE)), VOICE_PERMISSION_TIMEOUT_MS); }),
+      ]);
+      for (const track of stream.getTracks()) track.stop();
+    } finally { settled = true; clearTimeout(deadline); }
+  };
+  const cancelVoiceAutoSend = () => {
+    if (voiceAutoSendTimer === undefined) return false;
+    clearTimeout(voiceAutoSendTimer); voiceAutoSendTimer = undefined; return true;
+  };
+  const beginVoiceAutoSend = () => {
+    cancelVoiceAutoSend();
+    setVoiceFeedback(VOICE_AUTOSEND_PENDING_MESSAGE);
+    // A real control, not just a hint. Someone who hears the banner read out
+    // has to be able to stop the send without racing to the textarea.
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.dataset.voiceAutoSendCancel = 'true'; cancel.textContent = '취소';
+    // Inherits the banner's own colour, so it follows light and dark without
+    // adding a rule to a stylesheet another change is already moving.
+    cancel.style.cssText = 'margin-inline-start:.4em;padding:0;border:0;background:none;font:inherit;color:inherit;text-decoration:underline;cursor:pointer';
+    cancel.addEventListener('click', () => {
+      cancelVoiceAutoSend(); setVoiceFeedback(VOICE_AUTOSEND_CANCELLED_MESSAGE); prompt.focus();
+    });
+    if (stateRegion instanceof HTMLElement) stateRegion.appendChild(cancel);
+    voiceAutoSendTimer = setTimeout(() => {
+      voiceAutoSendTimer = undefined;
+      // Nothing left to send: the text was cleared or a turn is already going.
+      if (inFlight || !prompt.value.trim()) { setVoiceFeedback(''); return; }
+      void submitCurrentPrompt();
+    }, VOICE_AUTOSEND_DELAY_MS);
+  };
+  const clearVoiceStartDeadline = () => {
+    if (voiceStartDeadline === undefined) return;
+    clearTimeout(voiceStartDeadline); voiceStartDeadline = undefined;
+  };
+  // The engine accepted start() and then reported nothing at all. Put the
+  // composer back exactly as it was before the click and say so in plain words.
+  // Never stand in a blank or invented transcript for speech we did not hear.
+  const abandonSilentVoiceEngine = recognition => {
+    voiceStartDeadline = undefined;
+    if (voiceRecognition !== recognition) return;
+    try { recognition.abort(); } catch { /* an engine that never started may refuse to stop */ }
+    voiceRecognition = undefined;
+    if (voiceAvatarRequestId) { driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; }
+    setListeningState(false);
+    voiceRequesting = false; delete micButton.dataset.requesting; updateSendState();
+    setVoiceFeedback(VOICE_ENGINE_SILENT_MESSAGE); prompt.focus();
   };
   const startVoiceInput = async () => {
+    cancelVoiceAutoSend();
     if (inFlight || voiceRequesting) return;
     if (voiceListening && voiceRecognition) { voiceRecognition.stop(); return; }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (typeof SpeechRecognition !== 'function') { setVoiceFeedback('음성 입력을 지원하지 않는 브라우저입니다. 텍스트로 입력해 주세요.'); prompt.focus(); return; }
+    // A recogniser left over from a silent engine is still holding the mic.
+    if (voiceRecognition) { const stale = voiceRecognition; voiceRecognition = undefined; clearVoiceStartDeadline(); try { stale.abort(); } catch { /* already gone */ } }
     voiceRequesting = true; micButton.disabled = true; micButton.dataset.requesting = 'true'; setVoiceFeedback('마이크 권한을 확인하고 있습니다.');
     try {
       await requestMicrophoneAccess(); const recognition = new SpeechRecognition(); voiceRecognition = recognition;
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
+      recognition.onstart = () => { clearVoiceStartDeadline(); voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
       recognition.onresult = event => {
-        const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || ''; if (!transcript) return;
+        const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
+        // Nothing usable came back. Say so plainly; never send an empty turn and
+        // never stand in a guess for words we did not hear.
+        if (!transcript) { setVoiceFeedback(VOICE_NOTHING_HEARD_MESSAGE); prompt.focus(); return; }
         const current = prompt.value.trimEnd(); prompt.value = current ? `${current} ${transcript}` : transcript;
-        prompt.dispatchEvent(new Event('input', {bubbles: true})); setVoiceFeedback('음성 입력이 텍스트로 변환되었습니다. 확인 후 전송해 주세요.'); prompt.focus();
+        prompt.dispatchEvent(new Event('input', {bubbles: true}));
+        beginVoiceAutoSend();
       };
-      recognition.onerror = event => setVoiceFeedback(voiceErrorMessage(event));
-      recognition.onend = () => { if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
+      recognition.onerror = event => { clearVoiceStartDeadline(); setVoiceFeedback(voiceErrorMessage(event)); };
+      recognition.onend = () => { clearVoiceStartDeadline(); if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
       recognition.start();
-    } catch (error) { setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
+      voiceStartDeadline = setTimeout(() => abandonSilentVoiceEngine(recognition), VOICE_RECOGNITION_START_TIMEOUT_MS);
+    } catch (error) { clearVoiceStartDeadline(); voiceRecognition = undefined; setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
   const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
@@ -3301,6 +3397,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   });
 
   const submitCurrentPrompt = async () => {
+    cancelVoiceAutoSend();
     if (inFlight || attachmentUploadsInFlight) return;
     const message = prompt.value.trim();
     if (!message && !selectedAttachments.length) return;
@@ -3337,6 +3434,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   }
   prompt.addEventListener('input', () => { updateSendState(); if (stateReady) { state.draft = prompt.value.slice(0, 1000); saveState(); } });
   prompt.addEventListener('compositionend', updateSendState);
+  // Reaching for the textarea means they want to fix the transcript themselves.
+  // Bound to real interaction only — never to the synthetic 'input' event the
+  // transcript dispatches, which would cancel the send it just scheduled.
+  for (const interaction of ['beforeinput', 'keydown', 'pointerdown']) {
+    prompt.addEventListener(interaction, () => {
+      if (cancelVoiceAutoSend()) setVoiceFeedback(VOICE_AUTOSEND_CANCELLED_MESSAGE);
+    });
+  }
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });
   sendButton.addEventListener('click', () => void submitCurrentPrompt());
   attachmentTrigger.addEventListener('click', () => {

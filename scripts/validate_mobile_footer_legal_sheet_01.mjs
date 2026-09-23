@@ -42,17 +42,17 @@ const MANDATORY = [
   '063-237-0930',
   'developer@lotbiai.com',
   '호스팅서비스 제공: GitHub, Inc.',
-  'LOTBI © 2026',
   '회사 소개',
   '구독 안내',
   '구독 철회 및 해지',
+  '반품 및 교환',
+  '소비자 분쟁 해결 기준',
+  '이용약관',
   '개인정보처리방침',
-  '이용안내',
   '계정 삭제',
   '문의하기',
-  '이용약관',
   '사업자정보확인',
-  'LOTBI (롯비) · AI Voice Commerce Agent',
+  'LOTBI (롯비) © 2026 · AI Voice Commerce Agent',
 ];
 
 // 오늘 배포된 주소들. 접으면서 링크를 갈아끼우면 여기서 걸린다.
@@ -64,6 +64,8 @@ const MANDATORY_HREFS = [
   'terms.html',
   'account-deletion.html',
   'contact.html',
+  'exchange.html',
+  'dispute.html',
   'tel:0632370930',
   'mailto:developer@lotbiai.com',
   'https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679',
@@ -104,6 +106,67 @@ assert.ok(
   !/cloneNode|innerHTML\s*=/.test(module_),
   'site-footer-legal.js: 표시사항을 복제하면 두 벌이 됩니다 — 노드를 옮기십시오',
 );
+
+// ── 1b. 링크 줄: 일곱 페이지가 같아야 하고, 중복이 없어야 한다 ───────────
+//
+// 대표: "우리는 왜케 줄이 길어. 충분히 4줄도 가능하지 않아?"
+//
+// 줄이 길었던 이유의 절반은 중복이었다. terms.html 이 '이용안내'와 '이용약관'
+// 두 이름으로 걸려 있었고, privacy.html 은 이름까지 같은 링크가 두 번 있었다.
+// 나머지 절반은 페이지마다 링크 줄이 제각각이라는 것이었고, 그 틈에 오늘 배포한
+// exchange.html 과 dispute.html 이 어느 푸터에도 걸리지 않은 채 남아 있었다 —
+// 만들어만 놓고 링크를 안 걸면 표시하지 않은 것과 같다.
+const BUSINESS_PAGES = [
+  'index.html', 'privacy.html', 'terms.html', 'subscribe.html',
+  'refund.html', 'exchange.html', 'dispute.html',
+];
+// 이름은 그 페이지의 h1 을 따른다. terms.html 의 h1 은 '이용약관'이다.
+const FOOTER_LINKS = [
+  ['about.html', '회사 소개'],
+  ['subscribe.html', '구독 안내'],
+  ['refund.html', '구독 철회 및 해지'],
+  ['exchange.html', '반품 및 교환'],
+  ['dispute.html', '소비자 분쟁 해결 기준'],
+  ['terms.html', '이용약관'],
+  ['privacy.html', '개인정보처리방침'],
+  ['account-deletion.html', '계정 삭제'],
+  ['contact.html', '문의하기'],
+];
+
+for (const page of BUSINESS_PAGES) {
+  const html = read(page);
+  const row = html.match(/<div class="footer-links">([\s\S]*?)<\/div>/);
+  assert.ok(row, `${page}: 푸터 링크 줄이 없습니다`);
+  const anchors = [...row[1].matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)]
+    .map(([, href, label]) => [href, label]);
+
+  assert.deepEqual(
+    anchors, FOOTER_LINKS,
+    `${page}: 푸터 링크 줄이 다른 페이지와 다릅니다 — 일곱 페이지가 같은 줄을 써야 `
+    + '한 곳만 고쳐지고 나머지가 뒤처지는 일이 없습니다',
+  );
+
+  const hrefs = anchors.map(([href]) => href);
+  assert.equal(
+    new Set(hrefs).size, hrefs.length,
+    `${page}: 같은 페이지로 가는 링크가 두 번 걸려 있습니다`,
+  );
+
+  // 블록 안에서도 같은 링크를 또 걸지 않는다.
+  const legal = html.match(/<div class="company-legal"[\s\S]*?\n( *)<\/div>/);
+  assert.ok(legal, `${page}: 사업자 정보 블록이 없습니다`);
+  for (const href of ['terms.html', 'privacy.html']) {
+    assert.ok(
+      !legal[0].includes(`href="${href}"`),
+      `${page}: ${href} 가 링크 줄과 사업자 정보 블록에 두 번 걸려 있습니다`,
+    );
+  }
+
+  // 브랜드 표기는 한 번만.
+  const brands = (html.match(/AI Voice Commerce Agent/g) || []).length;
+  assert.equal(brands, 1, `${page}: 브랜드 표기가 ${brands}번 나옵니다 — 한 번이어야 합니다`);
+}
+console.log(`링크 줄 ${FOOTER_LINKS.length}개 항목이 ${BUSINESS_PAGES.length}개 페이지에서 동일, 중복 없음`);
 
 // ── 2. 실제 브라우저 ──────────────────────────────────────────────────────
 function browserPath() {
@@ -154,7 +217,7 @@ const census = () => ({
   legalInDocument: document.querySelectorAll('.company-legal').length,
   legalInFooter: document.querySelectorAll('.chat-home-footer > .company-legal').length,
   linksInFooter: document.querySelectorAll('.chat-home-footer > .footer-links').length,
-  serviceInFooter: document.querySelectorAll('.chat-home-footer > .footer-service').length,
+  legalRows: document.querySelectorAll('.company-legal > .company-legal-row').length,
 });
 
 (async () => {
@@ -172,7 +235,11 @@ const census = () => ({
       footerHeight: Math.round(footer().getBoundingClientRect().height),
       links: shown('.chat-home-footer > .footer-links'),
       legal: shown('.chat-home-footer > .company-legal'),
-      service: shown('.chat-home-footer > .footer-service'),
+      footerRows: [...footer().children]
+        .filter(node => !node.matches('[data-footer-legal-toggle]'))
+        .flatMap(node => (node.matches('.company-legal') ? [...node.children] : [node]))
+        .filter(node => node.getBoundingClientRect().height > 0)
+        .length,
       census: census(),
     };
 
@@ -300,9 +367,10 @@ assert.ok(
   phone.collapsed.toggleHeight >= 44,
   `390px: 접힌 줄이 ${phone.collapsed.toggleHeight}px 로 손가락 탭 타깃 44px 에 못 미칩니다`,
 );
-for (const [name, panel] of [['링크', phone.collapsed.links], ['사업자 정보', phone.collapsed.legal], ['서비스 표기', phone.collapsed.service]]) {
+for (const [name, panel] of [['링크', phone.collapsed.links], ['사업자 정보', phone.collapsed.legal]]) {
   assert.equal(panel.display, 'none', `390px: ${name} 가 접힌 푸터에 그대로 남아 있습니다`);
 }
+assert.equal(phone.collapsed.footerRows, 0, '390px: 접힌 푸터에 한 줄 말고 다른 줄이 남아 있습니다');
 assert.ok(
   phone.collapsed.footerHeight <= 96,
   `390px: 접힌 푸터가 ${phone.collapsed.footerHeight}px 입니다 — 한 줄이라기에는 너무 높습니다`,
@@ -346,14 +414,14 @@ assert.equal(phone.afterCloseButton.backdrop, false, '시트는 닫혔는데 배
 assert.equal(phone.afterCloseButton.toggleExpanded, 'false');
 assert.deepEqual(
   phone.afterCloseButton.census,
-  {legalInDocument: 1, legalInFooter: 1, linksInFooter: 1, serviceInFooter: 1},
+  {legalInDocument: 1, legalInFooter: 1, linksInFooter: 1, legalRows: 3},
   '닫은 뒤 표시사항이 푸터로 돌아오지 않았습니다',
 );
 
 assert.equal(phone.afterBackdrop.sheet, false, '시트 바깥을 눌러도 닫히지 않습니다');
 assert.deepEqual(
   phone.afterBackdrop.census,
-  {legalInDocument: 1, legalInFooter: 1, linksInFooter: 1, serviceInFooter: 1},
+  {legalInDocument: 1, legalInFooter: 1, linksInFooter: 1, legalRows: 3},
   '바깥 누르기로 닫은 뒤 표시사항이 푸터로 돌아오지 않았습니다',
 );
 
@@ -362,9 +430,15 @@ const desktop = await render(1280, 900);
 console.log('desktop', JSON.stringify(desktop.collapsed));
 assert.equal(desktop.collapsed.bodyCollapsed, false, '1280px: 넓은 화면까지 접혔습니다');
 assert.equal(desktop.collapsed.toggleDisplay, 'none', '1280px: 넓은 화면에 접힌 줄이 나옵니다');
-for (const [name, panel] of [['링크', desktop.collapsed.links], ['사업자 정보', desktop.collapsed.legal], ['서비스 표기', desktop.collapsed.service]]) {
+for (const [name, panel] of [['링크', desktop.collapsed.links], ['사업자 정보', desktop.collapsed.legal]]) {
   assert.notEqual(panel.display, 'none', `1280px: ${name} 가 사라졌습니다 — 넓은 화면은 그대로 두기로 했습니다`);
   assert.ok(panel.height > 0, `1280px: ${name} 의 높이가 0 입니다`);
 }
+
+assert.equal(
+  desktop.collapsed.footerRows, 4,
+  `1280px: 푸터가 ${desktop.collapsed.footerRows}줄입니다 — 링크 한 줄 + 사업자 정보 세 줄, 네 줄이어야 합니다`,
+);
+console.log(`1280px 푸터 ${desktop.collapsed.footerRows}줄`);
 
 console.log('SITE-MOBILE-FOOTER-LEGAL-SHEET-01 PASS');

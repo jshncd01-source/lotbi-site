@@ -58,9 +58,24 @@ const CALENDAR_WEATHER_REGION_ORIGIN_STORAGE_KEY = 'lotbi.calendar.weather-regio
 // 시·군·구 목록과 그 좌표. 공개 행정구역 정보이며 개인 위치가 아니다.
 const CALENDAR_WEATHER_REGION_CATALOG_STORAGE_KEY = 'lotbi.calendar.weather-region-catalog.v1';
 const CALENDAR_WEATHER_REGION_CATALOG_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// 광역시·도 → 시·군·구 목록 자체(이름과 소속만, 좌표 없음). 한 번 받아 두면
+// 서버가 잠깐 흔들려도 고를 것이 사라지지 않는다.
+const CALENDAR_WEATHER_REGION_LIST_STORAGE_KEY = 'lotbi.calendar.weather-region-list.v1';
+const CALENDAR_WEATHER_REGION_LIST_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 // 목록에서 가장 가까운 시·군·구가 이보다 멀면 현재 위치를 지역으로 옮기지 않는다.
 // 국내 어디서든 이 안에 하나는 들어오므로, 걸린다면 그건 국내가 아닌 좌표다.
 const CALENDAR_WEATHER_REGION_SNAP_MAX_KM = 200;
+// 대표님이 보신 문구는 "브라우저 사이트 설정에서 위치 권한을 허용해 주세요" 한 줄이
+// 전부였고, 그래서 어디를 눌러야 하는지 알 수 없었다. 기기별로 실제로 눌러야 하는
+// 것의 이름을 적는다. 브라우저 종류를 UA 로 추측하지 않는다: 틀리면 없는 메뉴를
+// 찾게 만들고, 그것이 지금보다 나쁘다.
+const LOCATION_PERMISSION_STEPS = Object.freeze([
+  '안드로이드(삼성 인터넷·크롬): 주소창 왼쪽의 자물쇠 또는 ⓘ 를 누르고 → 권한 → 위치 → 허용으로 바꾼 뒤, 이 화면을 새로고침해 주세요.',
+  '그래도 안 되면 휴대폰 설정 → 애플리케이션 → 쓰고 계신 브라우저(삼성 인터넷·Chrome) → 권한 → 위치를 허용으로 바꿔 주세요.',
+  '아이폰(사파리): 설정 → Safari → 위치 → 허용으로 바꾸고, 설정 → 개인정보 보호 및 보안 → 위치 서비스가 켜져 있는지 확인해 주세요.',
+  '허용하지 않으셔도 됩니다. 아래에서 광역시·도와 시·군·구를 고르시면 같은 날씨가 나옵니다.',
+]);
+
 const WEATHER_REGION_ORIGIN = Object.freeze({
   MANUAL: 'MANUAL',
   CURRENT_LOCATION: 'CURRENT_LOCATION',
@@ -88,36 +103,65 @@ function writeWeatherRegionOrigin(storage, origin) {
   }
 }
 
-// 광역시·도 → 시·군·구 2단계 선택의 원본. Core 가 두 단계를 모두 내려준다:
-// items[].province 가 1단계, items[].label 이 2단계다.
-async function fetchCalendarWeatherRegions(fetchImpl = globalThis.fetch) {
-  if (typeof fetchImpl !== 'function') return null;
-  let response;
-  try {
-    response = await fetchImpl(`${CORE_ORIGIN}/v2/life/weather/regions`, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'no-store',
-      referrerPolicy: 'no-referrer',
-      headers: {'Accept': 'application/json'},
-    });
-  } catch (error) {
-    console.warn('[LOTBI 캘린더] 날씨 지역 목록을 불러오지 못했습니다.', error);
-    return null;
+// 목록을 못 불러왔을 때 화면이 이유를 말할 수 있게 갈래를 나눈다. 전에는 네 가지
+// 원인이 모두 "불러오지 못했어요" 한 문장으로 뭉개졌고, 그래서 요청이 안 나간 것인지
+// 나갔는데 거절당한 것인지 화면만 보고는 아무도 알 수 없었다.
+const WEATHER_REGION_LIST_FAILURE = Object.freeze({
+  NETWORK: 'NETWORK',
+  TIMEOUT: 'TIMEOUT',
+  HTTP: 'HTTP',
+  CONTRACT: 'CONTRACT',
+  UNSUPPORTED: 'UNSUPPORTED',
+});
+const WEATHER_REGION_LIST_TIMEOUT_MS = 10_000;
+
+function weatherRegionListFailureCopy(failure) {
+  if (failure?.kind === WEATHER_REGION_LIST_FAILURE.TIMEOUT) {
+    return '지역 목록 서버가 제때 응답하지 않았어요.';
   }
-  if (!response?.ok) {
-    console.warn('[LOTBI 캘린더] 날씨 지역 목록 응답이 실패했습니다.', response?.status);
-    return null;
+  if (failure?.kind === WEATHER_REGION_LIST_FAILURE.HTTP) {
+    return `지역 목록 서버가 요청을 받아주지 않았어요 (응답 코드 ${failure.status}).`;
   }
-  let payload = {};
-  try { payload = await response.json(); } catch {}
-  // 계약이 어긋나면 임의로 채우지 않고 없는 것으로 둔다.
-  if (!Array.isArray(payload?.items) || payload.ai_calls !== 0) {
-    console.warn('[LOTBI 캘린더] 날씨 지역 목록 형식이 올바르지 않습니다.');
-    return null;
+  if (failure?.kind === WEATHER_REGION_LIST_FAILURE.CONTRACT) {
+    return '지역 목록의 형식이 이 화면이 아는 것과 달라요.';
   }
-  const items = payload.items
+  if (failure?.kind === WEATHER_REGION_LIST_FAILURE.UNSUPPORTED) {
+    return '이 브라우저에서는 지역 목록을 불러올 수 없어요.';
+  }
+  return '지역 목록 서버에 연결하지 못했어요. 인터넷 연결이나 광고·추적 차단 기능을 확인해 주세요.';
+}
+
+// 한 번 더 걸어 볼 가치가 있는 실패인지. 형식이 어긋난 응답은 다시 물어도 같은
+// 답이 오므로 되묻지 않는다.
+function retryableWeatherRegionListFailure(failure) {
+  if (failure?.kind === WEATHER_REGION_LIST_FAILURE.NETWORK) return true;
+  if (failure?.kind === WEATHER_REGION_LIST_FAILURE.TIMEOUT) return true;
+  return failure?.kind === WEATHER_REGION_LIST_FAILURE.HTTP && Number(failure.status) >= 500;
+}
+
+// 날씨 조회가 받아 주는 범위와 같은 범위다(site-calendar-public-weather.js).
+// 여기서 통과시킨 좌표가 저기서 422 로 거절당하면 지역은 저장됐는데 날씨만
+// 없는 상태가 된다.
+function koreaCoordinates(latitude, longitude) {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+  if (
+    !Number.isFinite(lat) || !Number.isFinite(lon)
+    || lat < 31 || lat > 44.5
+    || lon < 122 || lon > 132.5
+  ) return {};
+  return {latitude: lat, longitude: lon};
+}
+
+// 목록에 좌표가 없는 서버를 만났을 때, 행마다 지오코더에게 물어도 되는 최대 행
+// 수. /v2/life/weather/region/resolve 는 /v2/life/weather/public 과 같은 창
+// (클라이언트당 분당 30회)을 쓴다. 행마다 묻다가 한도를 넘기면 정작 날씨 조회가
+// 429 로 막혀 화면에서 날씨가 사라진다. 그럴 바에는 현재 위치를 시·군·구로
+// 되돌리지 않고 저장된 지역을 그대로 쓰는 편이 낫다.
+const CALENDAR_WEATHER_REGION_GEOCODE_MAX = 16;
+
+function weatherRegionCatalogFromItems(rawItems, rawProvinces) {
+  const items = (Array.isArray(rawItems) ? rawItems : [])
     .filter(item => (
       item
       && typeof item === 'object'
@@ -136,17 +180,150 @@ async function fetchCalendarWeatherRegions(fetchImpl = globalThis.fetch) {
       // 사용자가 고르지 않은 이름일 수 있어(광주광역시 → 전남광주통합특별시)
       // 고른 것과 다른 이름을 보여주게 된다.
       displayLabel: item.province === item.label ? item.label.trim() : `${item.province.trim()} ${item.label.trim()}`,
+      // Core 가 목록에 좌표를 실어 보내면 그것을 쓴다. 안 보내는 서버(예전 배포)
+      // 라면 undefined 로 남고, 고른 뒤에 지오코더에게 묻는 예전 길로 간다.
+      ...koreaCoordinates(item.latitude, item.longitude),
     }));
   if (!items.length) return null;
-  const provinces = Array.isArray(payload.provinces)
-    ? payload.provinces.filter(value => typeof value === 'string' && value.trim()).map(value => value.trim())
+  const provinces = Array.isArray(rawProvinces)
+    ? rawProvinces.filter(value => typeof value === 'string' && value.trim()).map(value => value.trim())
     : [];
+  // 1단계에서 고를 수 있는데 2단계가 비는 광역시·도는 막다른 골목이다. 서버가 보낸
+  // 순서는 지키되, 실제로 갈 곳이 있는 것만 남긴다.
+  const reachable = new Set(items.map(item => item.province));
+  const ordered = (provinces.length ? provinces : [...reachable]).filter(province => reachable.has(province));
   return Object.freeze({
     items: Object.freeze(items),
-    provinces: Object.freeze(provinces.length
-      ? provinces
-      : [...new Set(items.map(item => item.province))]),
+    provinces: Object.freeze([...new Set(ordered)]),
   });
+}
+
+// 광역시·도 → 시·군·구 2단계 선택의 원본. Core 가 두 단계를 모두 내려준다:
+// items[].province 가 1단계, items[].label 이 2단계다.
+//
+// 실패해도 catalog 를 null 로 뭉개 버리지 않고 왜 실패했는지 함께 돌려준다.
+// 화면은 그 이유를 사람에게 그대로 적어 주고, 우리는 다음에 같은 신고를 받았을 때
+// 코드를 읽는 대신 그 문장을 읽는다.
+async function readCalendarWeatherRegions(fetchImpl = globalThis.fetch, {attempts = 2} = {}) {
+  if (typeof fetchImpl !== 'function') {
+    return {catalog: null, failure: {kind: WEATHER_REGION_LIST_FAILURE.UNSUPPORTED, status: 0}};
+  }
+  let last = {catalog: null, failure: {kind: WEATHER_REGION_LIST_FAILURE.NETWORK, status: 0}};
+  const total = Math.max(1, Math.min(3, Number(attempts) || 1));
+  for (let attempt = 0; attempt < total; attempt += 1) {
+    last = await requestCalendarWeatherRegions(fetchImpl);
+    if (last.catalog) return last;
+    if (!retryableWeatherRegionListFailure(last.failure)) return last;
+  }
+  return last;
+}
+
+async function requestCalendarWeatherRegions(fetchImpl) {
+  // 응답이 오지 않는 요청은 실패보다 나쁘다: 화면이 '불러오는 중…' 에 영원히 멈춰
+  // 서서 다시 불러오기 버튼조차 나오지 않는다.
+  let controller = null;
+  let timer = null;
+  try { controller = typeof AbortController === 'function' ? new AbortController() : null; } catch { controller = null; }
+  if (controller) {
+    timer = globalThis.setTimeout?.(() => { try { controller.abort(); } catch {} }, WEATHER_REGION_LIST_TIMEOUT_MS);
+  }
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}/v2/life/weather/regions`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {'Accept': 'application/json'},
+      ...(controller ? {signal: controller.signal} : {}),
+    });
+  } catch (error) {
+    console.warn('[LOTBI 캘린더] 날씨 지역 목록을 불러오지 못했습니다.', error);
+    const aborted = error?.name === 'AbortError';
+    return {
+      catalog: null,
+      failure: {kind: aborted ? WEATHER_REGION_LIST_FAILURE.TIMEOUT : WEATHER_REGION_LIST_FAILURE.NETWORK, status: 0},
+    };
+  } finally {
+    if (timer !== null) globalThis.clearTimeout?.(timer);
+  }
+  if (!response?.ok) {
+    console.warn('[LOTBI 캘린더] 날씨 지역 목록 응답이 실패했습니다.', response?.status);
+    return {catalog: null, failure: {kind: WEATHER_REGION_LIST_FAILURE.HTTP, status: Number(response?.status) || 0}};
+  }
+  let payload = {};
+  try { payload = await response.json(); } catch {}
+  // 계약이 어긋나면 임의로 채우지 않고 없는 것으로 둔다.
+  if (!Array.isArray(payload?.items) || payload.ai_calls !== 0) {
+    console.warn('[LOTBI 캘린더] 날씨 지역 목록 형식이 올바르지 않습니다.');
+    return {catalog: null, failure: {kind: WEATHER_REGION_LIST_FAILURE.CONTRACT, status: Number(response.status) || 0}};
+  }
+  const catalog = weatherRegionCatalogFromItems(payload.items, payload.provinces);
+  if (!catalog) {
+    return {catalog: null, failure: {kind: WEATHER_REGION_LIST_FAILURE.CONTRACT, status: Number(response.status) || 0}};
+  }
+  return {catalog, failure: null};
+}
+
+// 현재 위치 경로는 이유까지는 쓸 데가 없다. 목록이 있으면 쓰고 없으면 그만이다.
+async function fetchCalendarWeatherRegions(fetchImpl = globalThis.fetch, storage = null) {
+  const {catalog} = await readCalendarWeatherRegions(fetchImpl);
+  if (catalog && storage) writeCalendarWeatherRegionList(storage, catalog);
+  return catalog;
+}
+
+// 한 번 받아 둔 목록은 남겨 둔다. 서버가 잠깐 흔들려도 -- 지하철에서 신호가
+// 끊겨도 -- 고를 것이 하나도 없는 빈 상자를 보여주지 않기 위해서다. 좌표는 여기
+// 없다: 이름과 소속뿐이고, 좌표는 고른 뒤에 Core 에게 다시 묻는다.
+function readCalendarWeatherRegionList(storage, now = Date.now) {
+  if (!storage || typeof storage.getItem !== 'function') return null;
+  try {
+    const parsed = JSON.parse(storage.getItem(CALENDAR_WEATHER_REGION_LIST_STORAGE_KEY) || 'null');
+    const savedAtMs = Number(parsed?.savedAtMs);
+    if (!Number.isFinite(savedAtMs)) return null;
+    const current = typeof now === 'function' ? Number(now()) : Number(now);
+    if (!Number.isFinite(current) || current - savedAtMs > CALENDAR_WEATHER_REGION_LIST_MAX_AGE_MS) return null;
+    return weatherRegionCatalogFromItems(parsed?.items, parsed?.provinces);
+  } catch {
+    return null;
+  }
+}
+
+function writeCalendarWeatherRegionList(storage, catalog, now = Date.now) {
+  if (!storage || typeof storage.setItem !== 'function' || !catalog?.items?.length) return;
+  try {
+    storage.setItem(CALENDAR_WEATHER_REGION_LIST_STORAGE_KEY, JSON.stringify({
+      savedAtMs: typeof now === 'function' ? Number(now()) : Number(now),
+      items: catalog.items.map(item => ({
+        code: item.code,
+        label: item.label,
+        province: item.province,
+        ...koreaCoordinates(item.latitude, item.longitude),
+      })),
+      provinces: [...catalog.provinces],
+    }));
+  } catch {
+    // 저장에 실패해도 이번 화면은 이미 목록을 들고 있다.
+  }
+}
+
+// 목록이 좌표를 들고 왔으면 지오코더를 한 번도 부르지 않는다. 좌표를 한 행이라도
+// 빠뜨린 목록은 반쪽으로 쓰지 않고 통째로 없는 것으로 본다: 빠진 행이 하필 그
+// 사람의 동네면, 가장 가까운 곳을 고른 결과가 엉뚱한 곳이 된다.
+function catalogEntriesFromListedCoordinates(catalog) {
+  const items = catalog?.items || [];
+  if (!items.length) return null;
+  const entries = items
+    .filter(item => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+    .map(item => Object.freeze({
+      code: item.code,
+      province: item.province,
+      label: item.displayLabel,
+      latitude: item.latitude,
+      longitude: item.longitude,
+    }));
+  return entries.length === items.length ? entries : null;
 }
 
 // 좌표는 Core 의 지오코딩이 유일한 권위다. 여기서 만들어 내지 않는다.
@@ -1480,19 +1657,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
     if (selected && selected.province === province) citySelect.value = selected.code;
   };
 
-  const loadRegionOptions = async () => {
-    weatherRetry.hidden = true;
-    provinceSelect.disabled = true;
-    citySelect.disabled = true;
-    setOptions(provinceSelect, [], '불러오는 중…');
-    regionCatalog = await fetchCalendarWeatherRegions(fetchImpl);
-    if (!backdrop.isConnected) return;
-    if (!regionCatalog) {
-      setOptions(provinceSelect, [], '목록을 불러오지 못했어요');
-      weatherRetry.hidden = false;
-      weatherStatus.textContent = '지역 목록을 불러오지 못했어요. 다시 불러오거나 현재 위치를 사용해 주세요.';
-      return;
-    }
+  const showProvinceOptions = () => {
     setOptions(
       provinceSelect,
       regionCatalog.provinces.map(province => ({value: province, label: province})),
@@ -1507,7 +1672,36 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
     } else {
       fillCities('');
     }
-    weatherStatus.textContent = storedRegionStatusText();
+  };
+
+  const loadRegionOptions = async () => {
+    weatherRetry.hidden = true;
+    provinceSelect.disabled = true;
+    citySelect.disabled = true;
+    setOptions(provinceSelect, [], '불러오는 중…');
+    const {catalog, failure} = await readCalendarWeatherRegions(fetchImpl);
+    if (!backdrop.isConnected) return;
+    if (catalog) {
+      regionCatalog = catalog;
+      writeCalendarWeatherRegionList(storage, catalog);
+      showProvinceOptions();
+      weatherStatus.textContent = storedRegionStatusText();
+      return;
+    }
+    // 서버가 답하지 않는다고 해서 고를 것이 하나도 없는 빈 상자를 내밀지는 않는다.
+    // 전에 받아 둔 목록이 있으면 그것으로 고를 수 있게 하고, 그것이 어제 것임을
+    // 숨기지 않는다.
+    const cached = readCalendarWeatherRegionList(storage);
+    if (cached) {
+      regionCatalog = cached;
+      showProvinceOptions();
+      weatherRetry.hidden = false;
+      weatherStatus.textContent = `${weatherRegionListFailureCopy(failure)} 지금은 전에 받아 둔 목록으로 고를 수 있어요.`;
+      return;
+    }
+    setOptions(provinceSelect, [], '목록을 불러오지 못했어요');
+    weatherRetry.hidden = false;
+    weatherStatus.textContent = `${weatherRegionListFailureCopy(failure)} 다시 불러오거나 현재 위치를 사용해 주세요.`;
   };
 
   provinceSelect.addEventListener('change', () => { fillCities(provinceSelect.value); });
@@ -1524,7 +1718,15 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
     citySelect.disabled = true;
     weatherStatus.textContent = '지역을 확인하는 중…';
     try {
-      const result = await resolvePublicWeatherRegion(chosen.displayLabel, fetchImpl);
+      // 목록이 좌표를 들고 왔으면 그것이 곧 답이다. 같은 좌표를 지오코더에게 다시
+      // 묻는 것은 왕복 한 번을 더 쓰는 일이고, 그 왕복은 날씨 조회와 분당 한도를
+      // 나눠 쓴다.
+      const listed = Number.isFinite(chosen.latitude) && Number.isFinite(chosen.longitude)
+        ? {latitude: chosen.latitude, longitude: chosen.longitude, midRegionCode: null}
+        : null;
+      const result = listed
+        ? {providerReady: true, found: true, region: listed}
+        : await resolvePublicWeatherRegion(chosen.displayLabel, fetchImpl);
       if (!result.providerReady) {
         weatherStatus.textContent = '현재 지역 검색 기능을 준비 중이에요.';
         return;
@@ -2356,6 +2558,7 @@ export async function mountLifeCalendarManager({
   // The Settings dialog is rebuilt on every open, so this holds only the live
   // status node; a detached one is simply written to and dropped.
   let locationStatusNode = null;
+  let locationHelpNode = null;
 
   // 화면 문구는 실제로 무엇을 보여주고 있는지와 어긋나면 안 된다. 저장된 지역으로
   // 그려 놓고 "현재 위치로 표시 중" 이라고 적는 것이 이 화면이 하던 거짓말이었다.
@@ -2407,6 +2610,9 @@ export async function mountLifeCalendarManager({
     else locationButton.textContent = '현재 위치 사용';
     locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
     if (locationStatusNode) locationStatusNode.textContent = locationSettingsStatusText();
+    // 브라우저가 아예 위치를 제공하지 않는 경우(UNAVAILABLE)에는 사이트 권한을
+    // 바꿔도 달라지는 것이 없다. 안내는 거부된 상태에서만 내민다.
+    if (locationHelpNode) locationHelpNode.hidden = state.locationPermission !== LOCATION_PERMISSION.DENIED;
   }
 
   // The Calendar owns this control; Settings only hosts it. Building it here
@@ -2420,9 +2626,24 @@ export async function mountLifeCalendarManager({
     label.textContent = '현재 위치';
     const status = document.createElement('small');
     status.className = 'calendar-settings-status';
-    copy.append(label, status);
+    // "브라우저 사이트 설정에서 허용해 주세요" 만으로는 어디를 눌러야 하는지 아무도
+    // 모른다. 권한이 막혀 있을 때만, 실제로 누를 것의 이름으로 적어 둔다.
+    const help = document.createElement('details');
+    help.className = 'calendar-settings-location-help';
+    help.hidden = true;
+    const helpSummary = document.createElement('summary');
+    helpSummary.textContent = '위치 권한, 어디서 허용하나요?';
+    const helpList = document.createElement('ul');
+    for (const line of LOCATION_PERMISSION_STEPS) {
+      const item = document.createElement('li');
+      item.textContent = line;
+      helpList.appendChild(item);
+    }
+    help.append(helpSummary, helpList);
+    copy.append(label, status, help);
     row.append(copy, locationButton);
     locationStatusNode = status;
+    locationHelpNode = help;
     syncLocationSettingsControl();
     return row;
   }
@@ -2929,12 +3150,22 @@ export async function mountLifeCalendarManager({
     try {
       let entries = readCalendarWeatherRegionCatalog(settingsStorage, locationNow);
       if (!entries) {
-        const catalog = await fetchCalendarWeatherRegions(fetchImpl);
+        const catalog = await fetchCalendarWeatherRegions(fetchImpl, settingsStorage);
         if (!catalog) return null;
-        const resolved = await Promise.all(
-          catalog.items.map(item => resolveCatalogRegionCoordinates(item, fetchImpl)),
-        );
-        entries = resolved.filter(Boolean);
+        entries = catalogEntriesFromListedCoordinates(catalog);
+        if (!entries) {
+          // 목록이 좌표를 안 보내는 서버다. 행마다 물어야 하는데, 그 왕복은 날씨
+          // 조회와 분당 한도를 나눠 쓴다. 목록이 길면 묻다가 한도를 태워 날씨를
+          // 통째로 없애므로, 그럴 때는 현재 위치를 시·군·구로 되돌리지 않는다.
+          if (catalog.items.length > CALENDAR_WEATHER_REGION_GEOCODE_MAX) {
+            console.warn('[LOTBI 캘린더] 지역 목록에 좌표가 없고 목록이 길어 현재 위치를 시·군·구로 되돌리지 않습니다.');
+            return null;
+          }
+          const resolved = await Promise.all(
+            catalog.items.map(item => resolveCatalogRegionCoordinates(item, fetchImpl)),
+          );
+          entries = resolved.filter(Boolean);
+        }
         if (!entries.length) return null;
         writeCalendarWeatherRegionCatalog(settingsStorage, entries, locationNow);
       }
