@@ -7,7 +7,7 @@ import {
   SiteHandoffClientError,
 } from './site-auth.js?v=20260920-authux1';
 import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=20260921-guestclaim1';
-import {mountConversation} from './site-conversation.js?v=20260923-quietloc1';
+import {mountConversation} from './site-conversation.js?v=20260923-othercat2';
 import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=20260921-guestclaim1';
 
 const callbackShell = document.getElementById('auth-callback-shell');

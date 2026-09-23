@@ -173,4 +173,33 @@ assert.throws(
   error => error?.code === 'GUEST_CALENDAR_INPUT_INVALID',
 );
 
+// 기타 is one of the six the editor's dropdown offers, and a guest sees the same
+// dropdown a signed-in owner does. Without OTHER in this repository's allowlist
+// the pick came back as "일정 입력값이 올바르지 않습니다." and nothing saved.
+{
+  const guest = createGuestCalendarRepository(memoryStorage(), {
+    uuid: () => '00000000-0000-4000-8000-0000000000aa',
+    now: () => new Date('2026-09-20T04:00:00.000Z'),
+  });
+  const saved = guest.create({
+    title: '병원비',
+    local_date: '2026-09-24',
+    all_day: true,
+    entry: {amount_minor: 48000, currency: 'KRW', expense_category: 'OTHER'},
+  });
+  assert.equal(saved.entry.expense_category, 'OTHER');
+  assert.equal(guest.list()[0].entry.expense_category, 'OTHER');
+  // A category nobody offers is still refused: the fix widened the list by one
+  // named value, it did not stop checking.
+  assert.throws(
+    () => guest.create({
+      title: '알 수 없는 분류',
+      local_date: '2026-09-25',
+      all_day: true,
+      entry: {amount_minor: 1000, currency: 'KRW', expense_category: 'MISC'},
+    }),
+    error => error?.code === 'GUEST_CALENDAR_INPUT_INVALID',
+  );
+}
+
 console.log('LOTBI Guest Calendar local repository: PASS');

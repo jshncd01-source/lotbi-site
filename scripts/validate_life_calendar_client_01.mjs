@@ -542,6 +542,34 @@ await assert.rejects(
 }
 
 {
+  // 기타 is a category Core can now put on a draft. This normalizer rejects a
+  // draft outright when it does not recognise the category, so a 기타 spend read
+  // off a receipt has to arrive as a draft the owner can look at — not as
+  // "LOTBI 캘린더 초안 응답 형식이 올바르지 않습니다."
+  const normalized = normalizeSmartCalendarDraft({
+    contract_id: 'CORE-SMART-CALENDAR-DRAFT-01',
+    schema_version: 1,
+    source_kind: 'ATTACHMENT_AI_DRAFT',
+    requires_user_confirmation: true,
+    automatic_write: false,
+    title: '병원비',
+    local_date: '2026-09-24',
+    local_time: null,
+    entry: {
+      amount_minor: 48000,
+      currency: 'KRW',
+      expense_category: 'OTHER',
+      memo: null,
+      place: null,
+      merchant: null,
+    },
+    source_attachment_ids: ['att_0123456789abcdef0123'],
+  });
+  assert.equal(normalized.entry.expenseCategory, 'OTHER');
+  assert.equal(normalized.entry.amountMinor, 48000);
+}
+
+{
   let request;
   const response = await sendConversationMessage(
     'site-token',
