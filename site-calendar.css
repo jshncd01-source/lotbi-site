@@ -16,7 +16,9 @@
   --lotbi-calendar-weekend-sat: #3568a8;
   --lotbi-calendar-holiday-ink: #a8323f;
   --lotbi-calendar-holiday-surface: #fdecee;
-  --lotbi-calendar-holiday-surface-muted: #faf0f1;
+  --lotbi-calendar-holiday-surface-outside: #fbf4f5;
+  --lotbi-calendar-outside-surface: #f4f6f9;
+  --lotbi-calendar-outside-ink: #687182;
 }
 
 body[data-site-theme="dark"] {
@@ -24,7 +26,9 @@ body[data-site-theme="dark"] {
   --lotbi-calendar-weekend-sat: #a7c7ff;
   --lotbi-calendar-holiday-ink: #ffb3b8;
   --lotbi-calendar-holiday-surface: #3a2329;
-  --lotbi-calendar-holiday-surface-muted: #2a1b20;
+  --lotbi-calendar-holiday-surface-outside: #241a1e;
+  --lotbi-calendar-outside-surface: #12171f;
+  --lotbi-calendar-outside-ink: #8d97a6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,7 +38,9 @@ body[data-site-theme="dark"] {
     --lotbi-calendar-weekend-sat: #a7c7ff;
     --lotbi-calendar-holiday-ink: #ffb3b8;
     --lotbi-calendar-holiday-surface: #3a2329;
-    --lotbi-calendar-holiday-surface-muted: #2a1b20;
+    --lotbi-calendar-holiday-surface-outside: #241a1e;
+    --lotbi-calendar-outside-surface: #12171f;
+    --lotbi-calendar-outside-ink: #8d97a6;
   }
 }
 
@@ -506,9 +512,34 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   background: #fff;
   color: #303642;
 }
-.calendar-date-cell[data-current-month="false"] { background: #fafbfc; color: #a4aab3; }
-.calendar-date-cell:nth-child(7n + 1) .calendar-date-number { color: var(--lotbi-calendar-weekend-sun); }
-.calendar-date-cell:nth-child(7n) .calendar-date-number { color: var(--lotbi-calendar-weekend-sat); }
+/* OUTSIDE THIS MONTH
+   One recessive ink for the whole cell, and `*` makes every child give up its
+   own colour and inherit it -- the date number, the weekend and holiday hues,
+   event chips, the day count, anything another room adds to a cell later. A
+   per-property list is what let the weekend and holiday rules escape in the
+   first place, so this deliberately is not one.
+
+   Recessive, not invisible: these dates are clickable (the cell's click handler
+   is bound regardless of month and jumps to that date), so the ink is chosen to
+   clear 4.5:1 against its own surface in both themes while sitting far below
+   the current month's own contrast. */
+/* Scoped through .calendar-month-grid so it outranks the dark theme's flat cell
+   rule without needing a dark twin: the roles already carry the theme. */
+.calendar-month-grid .calendar-date-cell[data-current-month="false"] {
+  background: var(--lotbi-calendar-outside-surface);
+  color: var(--lotbi-calendar-outside-ink);
+}
+.calendar-month-grid .calendar-date-cell[data-current-month="false"] * { color: inherit; }
+/* The weather mark is an emoji glyph, which `color` cannot reach. When it
+   becomes an SVG on currentColor -- the toolbar icon standard handed to
+   ④ CALENDAR-WEATHER -- the rule above covers it and this line is a no-op. */
+.calendar-month-grid .calendar-date-cell[data-current-month="false"] .calendar-weather-icon { opacity: .45; }
+/* Weekend and holiday hues say something about THIS month. Scoping them to
+   data-current-month="true" is what stops a neighbouring month's Sunday from
+   shouting louder than a weekday of the month you are actually looking at --
+   and it leaves the one inherit rule below with nothing to fight. */
+.calendar-date-cell[data-current-month="true"]:nth-child(7n + 1) .calendar-date-number { color: var(--lotbi-calendar-weekend-sun); }
+.calendar-date-cell[data-current-month="true"]:nth-child(7n) .calendar-date-number { color: var(--lotbi-calendar-weekend-sat); }
 .calendar-date-cell[data-selected="true"] { z-index: 1; box-shadow: inset 0 0 0 2px rgba(24, 42, 70, .58); background: #f6f8fb; }
 .calendar-date-header { min-width: 0; min-height: 24px; display: flex; align-items: center; gap: 4px; }
 .calendar-date-trigger {
@@ -533,10 +564,13 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-month-grid .calendar-date-cell[data-holiday="true"] {
   background: var(--lotbi-calendar-holiday-surface);
 }
+/* A holiday in a neighbouring month is worth knowing about -- next month's
+   long weekend is real planning information -- but it must never outshine this
+   month's. It keeps a trace of the tint, well under the block above. */
 .calendar-month-grid .calendar-date-cell[data-holiday="true"][data-current-month="false"] {
-  background: var(--lotbi-calendar-holiday-surface-muted);
+  background: var(--lotbi-calendar-holiday-surface-outside);
 }
-.calendar-date-cell[data-holiday="true"]:not([data-today="true"]) .calendar-date-number { color: var(--lotbi-calendar-holiday-ink); }
+.calendar-date-cell[data-current-month="true"][data-holiday="true"]:not([data-today="true"]) .calendar-date-number { color: var(--lotbi-calendar-holiday-ink); }
 .calendar-date-cell[data-today="true"] .calendar-date-number,
 .calendar-date-cell[data-today="true"]:nth-child(7n + 1) .calendar-date-number,
 .calendar-date-cell[data-today="true"]:nth-child(7n) .calendar-date-number { color: #fff; }
@@ -919,7 +953,6 @@ body[data-site-theme="dark"] .calendar-date-cell,
 body[data-site-theme="dark"] .calendar-day-event,
 body[data-site-theme="dark"] .calendar-day-toggle,
 body[data-site-theme="dark"] .calendar-day-close { border-color: #465162; background: #171c25; color: #edf0f5; }
-body[data-site-theme="dark"] .calendar-date-cell[data-current-month="false"],
 body[data-site-theme="dark"] .calendar-day-panel { border-color: #465162; background: #121720; color: #cbd2dc; }
 body[data-site-theme="dark"] .calendar-day-panel[data-presentation="SHEET"] { background: #121720; border-color: #465162; }
 body[data-site-theme="dark"] .calendar-day-sheet-backdrop { background: rgba(2, 6, 16, .58); }
