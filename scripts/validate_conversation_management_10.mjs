@@ -58,7 +58,7 @@ assert.ok(conversation.includes("if (deletingActive) showBlankHome()"), 'deletin
 const managementStart = conversation.indexOf('const closeConversationMenus');
 const managementEnd = conversation.indexOf('const lotbiBoxKey', managementStart);
 const modalStart = conversation.indexOf('const openRenameThread');
-const modalEnd = conversation.indexOf('const colorPicker', modalStart);
+const modalEnd = conversation.indexOf('const readProfilePhoto', modalStart);
 assert.ok(managementStart > 0 && managementEnd > managementStart && modalStart > 0 && modalEnd > modalStart);
 const managementSource = conversation.slice(managementStart, managementEnd) + conversation.slice(modalStart, modalEnd);
 for (const forbidden of ['fetch(', 'sendConversationMessage(', 'sendGuestConversationMessage(', 'executeLifeCalendarCommand(', 'logoutSiteSession(']) {
