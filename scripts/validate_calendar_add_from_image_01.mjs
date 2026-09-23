@@ -1,4 +1,4 @@
-// Locks 이미지로 추가 — the picture-to-draft path on the Calendar day panel.
+// Locks 이미지로 등록 — the picture-to-draft path on the Calendar day panel.
 //
 // The rule the 대표 set is that LOTBI never saves by itself: a picture becomes a
 // draft the owner looks at and presses save on. So the assertions here are as
@@ -38,7 +38,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-holidayblock1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-register1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 </head><body style="margin:0">
 <div id="calendar-root"></div>
@@ -116,7 +116,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-holidayblock1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-register1');
   const result={ok:true};
 
   // --- the happy path --------------------------------------------------
@@ -242,10 +242,10 @@ try {
     const v = run(browser, w, h);
     const label = `${w}x${h}`;
 
-    if (v.buttonOrder.join('|') !== '이미지로 추가|그냥 추가') {
-      throw new Error(`${label}: the day panel must offer 이미지로 추가 then 그냥 추가, got ${v.buttonOrder.join('|')}`);
+    if (v.buttonOrder.join('|') !== '이미지로 등록|직접 등록') {
+      throw new Error(`${label}: the day panel must offer 이미지로 등록 then 직접 등록, got ${v.buttonOrder.join('|')}`);
     }
-    if (!v.plainButtonPresent) throw new Error(`${label}: 그냥 추가 must keep its own data hook`);
+    if (!v.plainButtonPresent) throw new Error(`${label}: 직접 등록 must keep its own data hook`);
     if (!v.pickerHidden) throw new Error(`${label}: the file input must stay hidden`);
     if (!v.pickerAcceptsImages.includes('image/')) throw new Error(`${label}: the file input must ask for images, got "${v.pickerAcceptsImages}"`);
 
@@ -289,7 +289,7 @@ try {
     if (!v.noDraftText) throw new Error(`${label}: a response with no draft must say so`);
     if (v.noDraftEditorOpened) throw new Error(`${label}: a response with no draft must not open an empty editor`);
 
-    if (!/그냥 추가/.test(v.refusedText)) throw new Error(`${label}: a refused upload must point at the manual way in, got "${v.refusedText}"`);
+    if (!/직접 등록/.test(v.refusedText)) throw new Error(`${label}: a refused upload must point at the manual way in, got "${v.refusedText}"`);
     if (/로그인/.test(v.refusedText)) throw new Error(`${label}: a 403 is the route, not the session — it must not send the owner to a login screen, got "${v.refusedText}"`);
     if (v.refusedAskedChat) throw new Error(`${label}: a refused upload must not go on to ask for a draft`);
     if (!v.refusedCalendarStanding) throw new Error(`${label}: a 403 must leave the month grid standing`);
@@ -299,7 +299,7 @@ try {
 
     console.log(label, JSON.stringify({attachment: v.sentAttachmentIds, text: v.sentText, heading: v.heading, prefill: v.prefill}));
   }
-  console.log('LOTBI Calendar 이미지로 추가: PASS');
+  console.log('LOTBI Calendar 이미지로 등록: PASS');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

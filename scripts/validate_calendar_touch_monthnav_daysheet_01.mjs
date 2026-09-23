@@ -391,10 +391,10 @@ try {
     // The visible words no longer repeat the date — it is already in the
     // heading, the toolbar and the highlighted cell — but the accessible name
     // still says which day is being added to.
-    if (sheet.addLabel.trim() !== '그냥 추가') throw new Error(`${label}: add button label changed (${sheet.addLabel})`);
-    if (sheet.addImageLabel.trim() !== '이미지로 추가') throw new Error(`${label}: image add button label changed (${sheet.addImageLabel})`);
-    if (!/\d+월 \d+일에 일정 추가/.test(sheet.addAria)) throw new Error(`${label}: add button must name the date for assistive tech (${sheet.addAria})`);
-    if (!/\d+월 \d+일에 이미지로 일정 추가/.test(sheet.addImageAria)) throw new Error(`${label}: image add button must name the date for assistive tech (${sheet.addImageAria})`);
+    if (sheet.addLabel.trim() !== '직접 등록') throw new Error(`${label}: add button label changed (${sheet.addLabel})`);
+    if (sheet.addImageLabel.trim() !== '이미지로 등록') throw new Error(`${label}: image add button label changed (${sheet.addImageLabel})`);
+    if (!/\d+월 \d+일에 일정 등록/.test(sheet.addAria)) throw new Error(`${label}: add button must name the date for assistive tech (${sheet.addAria})`);
+    if (!/\d+월 \d+일에 이미지로 일정 등록/.test(sheet.addImageAria)) throw new Error(`${label}: image add button must name the date for assistive tech (${sheet.addImageAria})`);
     if (!sheet.toggle || !sheet.close) throw new Error(`${label}: sheet must keep 접기/닫기 controls`);
 
     if (!value.backdropDismiss) throw new Error(`${label}: backdrop dismiss must not close the Calendar modal`);
