@@ -35,7 +35,7 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260923-outsidemonth1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260923-fieldheight1">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260923-darklogo1">
 </head><body style="margin:0">
@@ -118,7 +118,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260923-outsidemonth1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-fieldheight1');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -233,7 +233,7 @@ try{
   }
   // The editor's dropdown and the bar must call every category the same thing.
   {
-    const expense=await import('/site-calendar-expense.js?v=20260923-outsidemonth1');
+    const expense=await import('/site-calendar-expense.js?v=20260923-fieldheight1');
     const barLabels=[...ready.querySelectorAll('.calendar-expense-item dt')].map(n=>n.textContent);
     const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
     result.labelParity={

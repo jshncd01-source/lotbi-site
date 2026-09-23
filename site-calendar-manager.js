@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-outsidemonth1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-fieldheight1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,15 +11,15 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-outsidemonth1';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-fieldheight1';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
 import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherAttribution, calendarWeatherByDate} from './site-calendar-weather.js?v=20260923-outsidemonth1';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-outsidemonth1';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-outsidemonth1';
+import {calendarWeatherAttribution, calendarWeatherByDate} from './site-calendar-weather.js?v=20260923-fieldheight1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-fieldheight1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-fieldheight1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -40,24 +40,37 @@ const MODES = Object.freeze([['month', '월'], ['year', '연도'], ['agenda', '�
 const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
 const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription.v1';
 
-export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
-  const fallback = Object.freeze({showKoreaHolidays: true});
-  if (!storage || typeof storage.getItem !== 'function') return fallback;
+// Everything the Calendar stores about display lives under one key, so a write
+// has to merge rather than replace: a setting this function does not know about
+// -- one a later feature adds, or one another surface wrote -- must survive
+// someone toggling the holidays switch.
+function readStoredCalendarSettings(storage) {
+  if (!storage || typeof storage.getItem !== 'function') return {};
   try {
     const raw = storage.getItem(CALENDAR_SETTINGS_STORAGE_KEY);
-    if (!raw) return fallback;
+    if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return Object.freeze({showKoreaHolidays: parsed?.showKoreaHolidays !== false});
+    // A corrupt blob, a bare array, a stored null: all the same as no settings.
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   } catch {
-    return fallback;
+    return {};
   }
+}
+
+export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
+  const stored = readStoredCalendarSettings(storage);
+  return Object.freeze({showKoreaHolidays: stored.showKoreaHolidays !== false});
 }
 
 function writeCalendarDisplaySettings(storage, settings) {
   if (!storage || typeof storage.setItem !== 'function') return;
   try {
     storage.setItem(CALENDAR_SETTINGS_STORAGE_KEY, JSON.stringify({
-      showKoreaHolidays: settings.showKoreaHolidays !== false,
+      // Keep what is already stored...
+      ...readStoredCalendarSettings(storage),
+      // ...and write only the keys this module owns. The caller hands over the
+      // live Calendar state, so nothing else from that object may leak in here.
+      showKoreaHolidays: settings?.showKoreaHolidays !== false,
     }));
   } catch {
     // Device/browser storage failure must not block Calendar.

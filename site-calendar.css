@@ -803,6 +803,40 @@ body.calendar-editor-open { overflow: hidden; }
 .calendar-editor-memo,
 .calendar-editor-place,
 .calendar-editor-merchant { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 9px 10px; border: 1px solid #cfd6e2; border-radius: 10px; background: #fff; color: #303642; font: inherit; }
+/* The date and time fields are the only native pickers in this form. iOS Safari
+   gives input[type=date]/[type=time] an intrinsic height of their own, and
+   min-height is a floor, not a ceiling -- so those two grew past 44px while
+   every other field sat exactly on it, and the value inside them was centred
+   while the rest of the form was left-aligned.
+
+   ::-webkit-date-and-time-value is the part that carries both, so that is where
+   the fix goes: dropping its own minimum lets these two size from the same
+   padding, font and line-height as every other field, which is what makes them
+   agree. Pinning a height instead would only move the disagreement -- measured
+   in Chromium, a fixed 44px made the pickers SHORTER than the text fields,
+   which sit at 47.19px on the 16px mobile font. The 44px floor and that 16px
+   font stay exactly as they are: one is the touch-target minimum, the other is
+   what stops iOS zooming the page on focus. */
+.calendar-editor-date,
+.calendar-editor-time {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+.calendar-editor-date::-webkit-date-and-time-value,
+.calendar-editor-time::-webkit-date-and-time-value {
+  min-height: 0;
+  margin: 0;
+  text-align: left;
+}
+/* Chromium adds its own padding to the inner editor AND to the wrapper around
+   its fields; zeroing only the first leaves 2px behind, measured. Both, and the
+   pickers land on exactly the text fields' height. */
+.calendar-editor-date::-webkit-datetime-edit,
+.calendar-editor-time::-webkit-datetime-edit,
+.calendar-editor-date::-webkit-datetime-edit-fields-wrapper,
+.calendar-editor-time::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+
 .calendar-editor-wide { grid-column: 1 / -1; }
 .calendar-editor-memo { min-height: 76px; resize: vertical; }
 .calendar-editor-all-day { align-content: end; grid-template-columns: auto 1fr; align-items: center; min-height: 44px; }
