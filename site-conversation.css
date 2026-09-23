@@ -154,6 +154,34 @@
   line-height: 1.6;
 }
 
+/* SITE-ANSWER-MARKDOWN-01 — block nodes the answer renderer now produces.
+   The body keeps white-space: pre-wrap for text that is genuinely preformatted;
+   these carry their own spacing so paragraphs and list items do not collapse
+   into one another. */
+.chat-message-paragraph {
+  margin: 0;
+}
+
+.chat-message-paragraph + .chat-message-paragraph,
+.chat-message-paragraph + .chat-message-list,
+.chat-message-list + .chat-message-paragraph {
+  margin-top: 10px;
+}
+
+.chat-message-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  /* The body is pre-wrap; a list must not inherit it or every marker sits on
+     its own line. */
+  white-space: normal;
+}
+
+.chat-message-list li {
+  margin: 0;
+}
+
 .chat-message-meta {
   display: block;
   margin-top: 8px;

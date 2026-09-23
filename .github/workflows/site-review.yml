@@ -110,6 +110,11 @@ jobs:
       - name: Validate theme bootstrap first paint
         run: node scripts/validate_theme_bootstrap_first_paint_01.mjs
 
+      # A long answer keeps growing after it is appended; the thread has to
+      # follow it without dragging a reader who scrolled up.
+      - name: Validate answer scroll and markdown
+        run: node scripts/validate_answer_scroll_markdown_01.mjs
+
       - name: Validate shared bottom sheet primitive
         run: node scripts/validate_bottom_sheet_primitive_01.mjs
 

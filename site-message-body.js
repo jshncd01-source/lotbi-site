@@ -4,6 +4,61 @@ export const LONG_MESSAGE_RENDERED_HEIGHT = 272;
 
 let messageBodySequence = 0;
 
+// SITE-ANSWER-MARKDOWN-01 — the model answers in Markdown and this file only
+// understood code fences and backticks, so **강조** reached the reader as
+// literal asterisks. Bold, list items and paragraph breaks are handled here now.
+//
+// Every node is built with createElement and textContent. No markup string
+// derived from the model is ever handed to the DOM for parsing — model output
+// is untrusted, and that is not negotiable, so this stays a small hand-rolled
+// renderer rather than a Markdown library with an HTML backend.
+
+// Splits a line into text and <strong> runs. **bold** only; a lone or unclosed
+// asterisk is left exactly as the model wrote it rather than swallowed.
+function appendEmphasis(container, value) {
+  const text = String(value ?? '');
+  const pattern = /\*\*([^*\n]+)\*\*/g;
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(text))) {
+    if (match.index > cursor) appendInlineCode(container, text.slice(cursor, match.index));
+    const strong = document.createElement('strong');
+    appendInlineCode(strong, match[1]);
+    container.appendChild(strong);
+    cursor = pattern.lastIndex;
+  }
+  if (cursor < text.length) appendInlineCode(container, text.slice(cursor));
+}
+
+const LIST_ITEM = /^\s{0,3}(?:[-*+]|\d{1,3}[.)])\s+(.*)$/;
+
+// Turns a run of plain text into block nodes: bullet lists become <ul>, blank
+// lines separate <p>, and single newlines stay line breaks inside a paragraph.
+function appendRichText(container, value) {
+  const text = String(value ?? '');
+  if (!text) return;
+  let list = null;
+  let paragraph = null;
+  const closeList = () => { list = null; };
+  const closeParagraph = () => { paragraph = null; };
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) { closeList(); closeParagraph(); continue; }
+    const item = line.match(LIST_ITEM);
+    if (item) {
+      closeParagraph();
+      if (!list) { list = document.createElement('ul'); list.className = 'chat-message-list'; container.appendChild(list); }
+      const li = document.createElement('li');
+      appendEmphasis(li, item[1]);
+      list.appendChild(li);
+      continue;
+    }
+    closeList();
+    if (!paragraph) { paragraph = document.createElement('p'); paragraph.className = 'chat-message-paragraph'; container.appendChild(paragraph); }
+    else paragraph.appendChild(document.createElement('br'));
+    appendEmphasis(paragraph, line);
+  }
+}
+
 function appendInlineCode(container, value) {
   const text = String(value ?? '');
   const pattern = /`([^`\n]+)`/g;
@@ -51,7 +106,7 @@ export function createSafeMessageBody(value) {
   let cursor = 0;
   let match;
   while ((match = fence.exec(text))) {
-    if (match.index > cursor) appendInlineCode(body, text.slice(cursor, match.index));
+    if (match.index > cursor) appendRichText(body, text.slice(cursor, match.index));
     const pre = document.createElement('pre');
     pre.className = 'chat-code-block';
     const code = document.createElement('code');
@@ -62,7 +117,7 @@ export function createSafeMessageBody(value) {
     body.appendChild(pre);
     cursor = fence.lastIndex;
   }
-  if (cursor < text.length) appendInlineCode(body, text.slice(cursor));
+  if (cursor < text.length) appendRichText(body, text.slice(cursor));
   return body;
 }
 

@@ -606,6 +606,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     mainScrollHost.scrollHeight - mainScrollHost.scrollTop - mainScrollHost.clientHeight <= 72
   );
   const scrollThread = () => { mainScrollHost.scrollTop = mainScrollHost.scrollHeight; };
+
+  // SITE-ANSWER-SCROLL-FOLLOW-01 — a single scroll at append time is not enough
+  // when the answer keeps growing afterwards. Measured at 390x844: appending a
+  // long answer and scrolling synchronously lands exactly at the bottom (0px),
+  // and then an image inside it finishes loading and the reader is 139px above
+  // it. Product cards carry images, and "모델 추천해줘" is the request that
+  // brings them, which is why that one felt like the scroll had not moved.
+  //
+  // So the intent to stay at the bottom outlives the append: it is held until
+  // the reader scrolls away from the bottom themselves. Someone reading further
+  // up is never pulled down — that is the whole reason this is a held intent
+  // rather than an unconditional scroll on every resize.
+  // The flag answers "was the reader at the bottom before this growth?", so it
+  // is refreshed on every scroll and never by the growth itself: content
+  // getting taller does not move scrollTop and so fires no scroll event, which
+  // is exactly what makes the pre-growth answer survive long enough to act on.
+  let followThreadBottom = true;
+  mainScrollHost.addEventListener('scroll', () => {
+    followThreadBottom = isThreadNearBottom();
+  }, {passive: true});
+  const stickThreadToBottom = () => { scrollThread(); followThreadBottom = true; };
+  if (typeof ResizeObserver === 'function') {
+    // Fires for the thread's own growth and for any descendant that changes
+    // size later — a loaded image, an expanded card, a late rich result.
+    new ResizeObserver(() => { if (followThreadBottom) scrollThread(); }).observe(thread);
+  }
   const createConversationSeparator = createdAt => {
     const label = formatConversationTimestamp(createdAt);
     if (!label) return null;
@@ -631,7 +657,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const slot = document.createElement('div'); slot.className = 'assistant-avatar-slot'; slot.setAttribute('aria-hidden', 'true');
       slot.appendChild(avatar); row.append(slot, node); thread.appendChild(row);
     } else thread.appendChild(node);
-    if (!suppressScroll && shouldStick) scrollThread();
+    if (!suppressScroll && shouldStick) stickThreadToBottom();
     return node;
   };
   const closeConversationMenus = except => {
