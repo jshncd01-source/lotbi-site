@@ -365,6 +365,15 @@ function userFacingErrorMessage(error) {
 // it, so without a deadline the composer sits on "마이크 권한을 확인하고
 // 있습니다." forever. Both waits below are bounded, and every bounded path puts
 // the mic button back the way it was before the click.
+// SITE-VOICE-AUTOSEND-01 — speech that only lands in the textarea still needs a
+// second tap to send, which is most of the reason someone spoke instead of
+// typing. So send it — but not blind: the recogniser mishears often enough that
+// firing instantly would put the wrong question to LOTBI. A short window lets
+// the person stop it, and any move toward the textarea stops it too.
+const VOICE_AUTOSEND_DELAY_MS = 2500;
+const VOICE_AUTOSEND_PENDING_MESSAGE = '곧 보낼게요.';
+const VOICE_AUTOSEND_CANCELLED_MESSAGE = '보내지 않았습니다. 고친 뒤 전송을 눌러 주세요.';
+const VOICE_NOTHING_HEARD_MESSAGE = '잘 못 들었어요. 다시 말씀해 주시거나 입력해 주세요.';
 const VOICE_PERMISSION_TIMEOUT_MS = 10000;
 const VOICE_RECOGNITION_START_TIMEOUT_MS = 5000;
 const VOICE_ENGINE_SILENT_MESSAGE = '이 브라우저에서는 음성 인식이 동작하지 않네요. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
@@ -534,7 +543,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let state = {threads: [], activeThreadId: null, draft: ''};
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
-  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline;
+  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer;
   let lastRenderedCreatedAt;
   let timestampRefreshTimer;
   let themeBoundaryTimer;
@@ -2968,6 +2977,31 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       for (const track of stream.getTracks()) track.stop();
     } finally { settled = true; clearTimeout(deadline); }
   };
+  const cancelVoiceAutoSend = () => {
+    if (voiceAutoSendTimer === undefined) return false;
+    clearTimeout(voiceAutoSendTimer); voiceAutoSendTimer = undefined; return true;
+  };
+  const beginVoiceAutoSend = () => {
+    cancelVoiceAutoSend();
+    setVoiceFeedback(VOICE_AUTOSEND_PENDING_MESSAGE);
+    // A real control, not just a hint. Someone who hears the banner read out
+    // has to be able to stop the send without racing to the textarea.
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.dataset.voiceAutoSendCancel = 'true'; cancel.textContent = '취소';
+    // Inherits the banner's own colour, so it follows light and dark without
+    // adding a rule to a stylesheet another change is already moving.
+    cancel.style.cssText = 'margin-inline-start:.4em;padding:0;border:0;background:none;font:inherit;color:inherit;text-decoration:underline;cursor:pointer';
+    cancel.addEventListener('click', () => {
+      cancelVoiceAutoSend(); setVoiceFeedback(VOICE_AUTOSEND_CANCELLED_MESSAGE); prompt.focus();
+    });
+    if (stateRegion instanceof HTMLElement) stateRegion.appendChild(cancel);
+    voiceAutoSendTimer = setTimeout(() => {
+      voiceAutoSendTimer = undefined;
+      // Nothing left to send: the text was cleared or a turn is already going.
+      if (inFlight || !prompt.value.trim()) { setVoiceFeedback(''); return; }
+      void submitCurrentPrompt();
+    }, VOICE_AUTOSEND_DELAY_MS);
+  };
   const clearVoiceStartDeadline = () => {
     if (voiceStartDeadline === undefined) return;
     clearTimeout(voiceStartDeadline); voiceStartDeadline = undefined;
@@ -2986,6 +3020,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     setVoiceFeedback(VOICE_ENGINE_SILENT_MESSAGE); prompt.focus();
   };
   const startVoiceInput = async () => {
+    cancelVoiceAutoSend();
     if (inFlight || voiceRequesting) return;
     if (voiceListening && voiceRecognition) { voiceRecognition.stop(); return; }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2998,9 +3033,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
       recognition.onstart = () => { clearVoiceStartDeadline(); voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
       recognition.onresult = event => {
-        const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || ''; if (!transcript) return;
+        const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
+        // Nothing usable came back. Say so plainly; never send an empty turn and
+        // never stand in a guess for words we did not hear.
+        if (!transcript) { setVoiceFeedback(VOICE_NOTHING_HEARD_MESSAGE); prompt.focus(); return; }
         const current = prompt.value.trimEnd(); prompt.value = current ? `${current} ${transcript}` : transcript;
-        prompt.dispatchEvent(new Event('input', {bubbles: true})); setVoiceFeedback('음성 입력이 텍스트로 변환되었습니다. 확인 후 전송해 주세요.'); prompt.focus();
+        prompt.dispatchEvent(new Event('input', {bubbles: true}));
+        beginVoiceAutoSend();
       };
       recognition.onerror = event => { clearVoiceStartDeadline(); setVoiceFeedback(voiceErrorMessage(event)); };
       recognition.onend = () => { clearVoiceStartDeadline(); if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
@@ -3307,6 +3346,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   });
 
   const submitCurrentPrompt = async () => {
+    cancelVoiceAutoSend();
     if (inFlight || attachmentUploadsInFlight) return;
     const message = prompt.value.trim();
     if (!message && !selectedAttachments.length) return;
@@ -3343,6 +3383,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   }
   prompt.addEventListener('input', () => { updateSendState(); if (stateReady) { state.draft = prompt.value.slice(0, 1000); saveState(); } });
   prompt.addEventListener('compositionend', updateSendState);
+  // Reaching for the textarea means they want to fix the transcript themselves.
+  // Bound to real interaction only — never to the synthetic 'input' event the
+  // transcript dispatches, which would cancel the send it just scheduled.
+  for (const interaction of ['beforeinput', 'keydown', 'pointerdown']) {
+    prompt.addEventListener(interaction, () => {
+      if (cancelVoiceAutoSend()) setVoiceFeedback(VOICE_AUTOSEND_CANCELLED_MESSAGE);
+    });
+  }
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void submitCurrentPrompt(); } });
   sendButton.addEventListener('click', () => void submitCurrentPrompt());
   attachmentTrigger.addEventListener('click', () => {
