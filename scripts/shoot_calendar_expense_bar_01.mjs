@@ -90,13 +90,35 @@ try{
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{
     getCurrentPosition:(_o,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{}}});
-  const manager=await import('/site-calendar-manager.js?v=20260923-kmacredit1');
+  const manager=await import('/site-calendar-manager.js?v=20260923-guesttotals1');
   const root=document.querySelector('.site-modal-content');
-  manager.mountLifeCalendarManager({root,sessionToken:'tok_shot_fixture',timezone:'Asia/Seoul',
+  // Signed OUT on purpose: this is the picture the 대표 asked for — a guest who
+  // recorded a few amounts, and the totals bar adding them up with no account.
+  const guestRows=[
+    {local_date:'2026-09-03',entry:{amount_minor:32000,currency:'KRW',expense_category:'FOOD'}},
+    {local_date:'2026-09-14',entry:{amount_minor:208320,currency:'KRW',expense_category:'TRAVEL'}},
+    {local_date:'2026-09-18',entry:{amount_minor:12500,currency:'KRW',expense_category:'LIVING'}},
+    {local_date:'2026-09-20',entry:{amount_minor:48000,currency:'KRW',expense_category:'OTHER'}},
+    {local_date:'2026-09-22',entry:{amount_minor:null}},
+  ].map((e,i)=>({id:'guest_'+String(i).padStart(8,'0')+'-0000-4000-8000-000000000000',
+    title:'기록 '+i,local_datetime:null,all_day:true,...e,
+    entry:{amount_minor:null,currency:'KRW',expense_category:null,memo:null,place:null,merchant:null,...(e.entry||{})}}));
+  manager.mountLifeCalendarManager({root,sessionToken:'',timezone:'Asia/Seoul',
     now:()=>new Date('2026-09-22T03:00:00+09:00'),fetchImpl:stub,
+    guestRepository:{list:()=>guestRows,create(){},update(){},remove(){}},
     settingsStorage:{getItem:()=>JSON.stringify({showKoreaHolidays:false}),setItem(){}}});
   await wait(()=>root.querySelector('.calendar-expense-summary')?.dataset.calendarExpenseSummary==='ready','ready bar');
   await new Promise(r=>setTimeout(r,120));
+  // On a phone the selected-day sheet sits over the bottom of the modal. The
+  // capture collapses it when asked, so the bar can be judged on its own.
+  if(new URL(location.href).searchParams.get('collapse')==='1'){
+    const collapse=[...root.querySelectorAll('button')].find(b=>b.textContent.trim()==='접기');
+    globalThis.__collapseFound=Boolean(collapse);
+    if(collapse){collapse.click();await new Promise(r=>setTimeout(r,500))}
+    const close=[...root.querySelectorAll('button')].find(b=>b.textContent.trim()==='닫기');
+    globalThis.__closeFound=Boolean(close);
+    if(close){close.click();await new Promise(r=>setTimeout(r,500))}
+  }
   const bar=root.querySelector('.calendar-expense-summary');
   const box=bar.getBoundingClientRect();
   const line=bar.querySelector('.calendar-expense-line').getBoundingClientRect();
@@ -111,6 +133,13 @@ try{
     clippedByModal:(()=>{const c=document.querySelector('.site-modal-content').getBoundingClientRect();
       return bar.getBoundingClientRect().bottom>c.bottom+1})(),
     visibleWithoutScrolling:box.bottom<=innerHeight&&box.top>=0,
+    // What the eye actually sees at the bar's own centre.
+    topElementAtBar:(()=>{const n=document.elementFromPoint(Math.round(box.left+box.width/2),Math.round(box.top+box.height/2));
+      return n?(n.className&&typeof n.className==='string'?n.className:n.tagName):'none'})(),
+    barCovered:(()=>{const n=document.elementFromPoint(Math.round(box.left+box.width/2),Math.round(box.top+box.height/2));
+      return !(n&&bar.contains(n))})(),
+    collapseFound:globalThis.__collapseFound===true,closeFound:globalThis.__closeFound===true,
+    dayPanelHidden:document.querySelector('.calendar-day-panel')?.hidden===true,
     total:bar.querySelector('.calendar-expense-total-amount')?.textContent||'',
     items:[...bar.querySelectorAll('.calendar-expense-item')].map(n=>n.querySelector('dt').textContent+' '+n.querySelector('dd').textContent),
     note:bar.querySelector('.calendar-expense-coverage')?.textContent||''});
@@ -160,7 +189,7 @@ try {
 
   for (const [label, width, height, mobile] of [['desktop-1440x900', 1440, 900, false], ['mobile-390x844', 390, 844, true]]) {
     await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
-    await send('Page.navigate', {url: ORIGIN + '/' + INNER_REL});
+    await send('Page.navigate', {url: ORIGIN + '/' + INNER_REL + (mobile ? '?collapse=1' : '')});
     await sleep(5000);
     const probe = await send('Runtime.evaluate', {
       returnByValue: true,

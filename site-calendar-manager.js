@@ -1,4 +1,4 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-kmacredit1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-guesttotals1';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {
   addCivilDays,
@@ -11,15 +11,15 @@ import {
   sortCalendarEvents,
   validCivilDate,
 } from './site-calendar-model.js?v=20260921-smartcaldraft1';
-import {calendarExpenseSummaryNode, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-kmacredit1';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-guesttotals1';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
 import {sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-import {calendarWeatherAttribution, calendarWeatherByDate} from './site-calendar-weather.js?v=20260923-kmacredit1';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-kmacredit1';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-kmacredit1';
+import {calendarWeatherAttribution, calendarWeatherByDate} from './site-calendar-weather.js?v=20260923-guesttotals1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-guesttotals1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-guesttotals1';
 import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
 import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
 import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
@@ -1543,10 +1543,13 @@ export async function mountLifeCalendarManager({
     // schedule and swallowed this message a moment after it appeared.
     imageMessage: '',
     expense: {
-      status: authenticated ? 'loading' : 'guest',
+      // Signed out there is nothing to wait for: the entries are already here,
+      // so the first paint computes rather than showing a loader.
+      status: 'loading',
       summary: null,
       message: '',
       monthKey: '',
+      local: !authenticated,
     },
   };
 
@@ -1599,7 +1602,7 @@ export async function mountLifeCalendarManager({
       state.month = parts.month;
       state.detailOpen = openDetail;
       state.dayCollapsed = false;
-      if (monthChanged && authenticated) await refresh(); else render();
+      if (monthChanged) await afterMonthChange(); else render();
       queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
     },
     selectMonth: async month => {
@@ -1660,7 +1663,7 @@ export async function mountLifeCalendarManager({
         state.selectedDate = state.todayDate;
         state.year = parts.year;
         state.month = parts.month;
-        if (monthChanged && authenticated) await refresh();
+        if (monthChanged) await afterMonthChange();
         else render();
       } else {
         render();
@@ -1884,6 +1887,9 @@ export async function mountLifeCalendarManager({
         summary: settled ? state.expense.summary : null,
         monthLabel: `${state.year}년 ${state.month}월`,
         errorMessage: settled ? state.expense.message : '',
+        // Signed out, the numbers come from this browser alone. The bar says so
+        // rather than letting them read as kept somewhere safe.
+        local: state.expense.local === true,
       }));
     } else {
       expenseSlot.hidden = true;
@@ -1961,11 +1967,53 @@ export async function mountLifeCalendarManager({
     }
   }
 
+  // A signed-in owner re-fetches the month; a signed-out one already holds every
+  // entry, so only the totals need recomputing. Both paths go through here, so a
+  // month change can never leave the bar showing another month's numbers — or,
+  // with the monthKey guard, a loader that never resolves.
+  async function afterMonthChange() {
+    if (authenticated) { await refresh(); return; }
+    render();
+    await refreshExpenseSummary();
+  }
+
   let expenseGeneration = 0;
 
   async function refreshExpenseSummary() {
     if (!authenticated) {
-      state.expense = {status: 'guest', summary: null, message: '', monthKey: ''};
+      // A signed-out owner already records amounts — the guest repository keeps
+      // entry.amount_minor and entry.expense_category like any other entry. The
+      // only thing missing was somewhere to add them up, so they are added up
+      // here, in this browser. No request is made and nothing is uploaded.
+      //
+      // Wrapped because the month grid has to outlive this: a totals bar that
+      // cannot compute is a missing bar, never a broken Calendar.
+      const monthKey = `${state.year}-${state.month}`;
+      try {
+        const {start, end} = civilMonthRange(state.year, state.month);
+        const inMonth = (repository?.list() || []).filter(event => {
+          const date = event?.local_date;
+          return typeof date === 'string' && date >= start && date <= end;
+        });
+        state.expense = {
+          status: 'ready',
+          summary: expenseSummaryFromEntries(inMonth, {startDate: start, endDate: end}),
+          message: '',
+          monthKey,
+          local: true,
+        };
+      } catch {
+        // Not a login wall — signing in would not fix an unreadable local store,
+        // so it says what happened and leaves the month alone.
+        state.expense = {
+          status: 'error',
+          summary: null,
+          message: '이 브라우저의 기록을 읽지 못해 합계를 낼 수 없어요.',
+          monthKey,
+          local: true,
+        };
+      }
+      render();
       return;
     }
     const generation = ++expenseGeneration;
@@ -1976,7 +2024,7 @@ export async function mountLifeCalendarManager({
     try {
       const summary = await getLifeExpenseSummary(sessionToken, {timezone, start, end}, fetchImpl);
       if (!root.isConnected || generation !== expenseGeneration) return;
-      state.expense = {status: 'ready', summary, message: '', monthKey};
+      state.expense = {status: 'ready', summary, message: '', monthKey, local: false};
     } catch (error) {
       if (!root.isConnected || generation !== expenseGeneration) return;
       state.expense = {
@@ -2075,6 +2123,18 @@ export async function mountLifeCalendarManager({
         ? '일정을 보려면 LOTBI에 다시 로그인해 주세요.' : '일정을 불러오지 못했습니다.';
       const retry = button('다시 시도', 'calendar-retry-button'); retry.addEventListener('click', () => { void refresh(); });
       status.replaceChildren(message, retry);
+      // refresh() reads the guest repository before the totals are ever
+      // computed, so a failure here would leave the bar loading forever.
+      if (state.expense.status === 'loading') {
+        state.expense = {
+          status: 'error',
+          summary: null,
+          message: '지출 합계를 불러오지 못했습니다.',
+          monthKey: `${state.year}-${state.month}`,
+          local: !authenticated,
+        };
+        render();
+      }
     } finally {
       if (requestGeneration === refreshGeneration) root.removeAttribute('aria-busy');
     }
@@ -2286,7 +2346,7 @@ export async function mountLifeCalendarManager({
       state.selectedDate = nextToday;
       state.year = parts.year;
       state.month = parts.month;
-      if (monthChanged && authenticated) await refresh();
+      if (monthChanged) await afterMonthChange();
       else render();
       return;
     }
