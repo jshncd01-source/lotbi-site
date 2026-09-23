@@ -1,3 +1,7 @@
 
 # Local screenshot output from scripts/shoot_calendar_expense_bar_01.mjs
 .calendar-shots/
+
+# Python bytecode — a local import of a validator drops these into scripts/
+__pycache__/
+*.pyc
