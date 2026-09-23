@@ -405,6 +405,26 @@ export function countCalendarEventsByMonth(items, year) {
   return counts;
 }
 
+// Core serves Calendar weather for a bounded forward window: it rejects a span
+// wider than 15 inclusive days with WEATHER_DATE_WINDOW_INVALID, and a forecast
+// exists only from today onward. The month grid covers 42 cells, so sending the
+// grid range straight through asks for ~35 days and is refused every time.
+//
+// Clamp to the part of the visible grid a forecast can actually cover: never
+// before today, never more than 14 days ahead. A month with no such overlap -- a
+// past month, or one starting beyond the horizon -- yields no window at all, and
+// the caller skips the request rather than asking for days that cannot exist.
+const WEATHER_FORECAST_HORIZON_DAYS = 14;
+
+function forecastWindow(range, today) {
+  if (!range || !validCivilDate(today)) return null;
+  const start = range.start > today ? range.start : today;
+  const horizon = addCivilDays(today, WEATHER_FORECAST_HORIZON_DAYS);
+  const end = range.end < horizon ? range.end : horizon;
+  if (end < start) return null;
+  return {start, end};
+}
+
 export async function loadLifeCalendarManagerView(
   sessionToken,
   {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null} = {},
@@ -416,10 +436,13 @@ export async function loadLifeCalendarManagerView(
     return Object.freeze({key, date: selectedDate, items: response.items, kind: 'attention'});
   }
   const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const weatherRequest = key === 'month'
+  const weatherWindow = key === 'month'
+    ? forecastWindow(range, dateInTimezone(now, timezone))
+    : null;
+  const weatherRequest = weatherWindow
     ? getCalendarWeather(sessionToken, {
-        start: range.start,
-        end: range.end,
+        start: weatherWindow.start,
+        end: weatherWindow.end,
         timezone,
         latitude: weatherLocation?.latitude,
         longitude: weatherLocation?.longitude,

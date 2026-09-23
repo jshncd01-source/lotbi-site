@@ -155,7 +155,12 @@ const responses = {
   assert.equal(calls.length, 4);
   assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
-  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-08-30&end=2026-10-03&timezone=Asia%2FSeoul')));
+  // Weather is not read for the whole 42-cell grid: Core refuses a span wider
+  // than 15 inclusive days, and no forecast exists before today. With today at
+  // 2026-09-30 in Asia/Seoul the request covers today through the end of the
+  // visible grid. Agenda above still spans the full grid -- events are not a
+  // forecast.
+  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-10-03&timezone=Asia%2FSeoul')));
   const monthHolidayCall = calls.find(call => call.url.includes('/v2/life/holidays?year=2026&country=KR'));
   assert.ok(monthHolidayCall, 'month view must load Korea public holidays');
   assert.equal(monthHolidayCall.init.headers.Authorization, undefined);
@@ -167,7 +172,7 @@ const responses = {
   assert.equal(calls.length, 4);
   assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-03')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
-  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-08-30&end=2026-10-03&timezone=Asia%2FSeoul')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-10-03&timezone=Asia%2FSeoul')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/holidays?year=2026&country=KR')));
 
   calls.length = 0;
