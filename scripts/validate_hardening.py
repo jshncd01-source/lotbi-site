@@ -41,20 +41,40 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # keyboard skip target was #182a46 on #151922, 1.22:1 — present but unseeable.
 # Verified with `git diff --unified=0` and again by stripping /* */ from both
 # revisions: no other declaration in the file moved.
-# SITE-USER-FEEDBACK-INTAKE-01 — contact.html's hash moved for exactly one added
-# line in the footer link row: <a href="feedback.html">의견 보내기</a>, placed next to
-# 문의하기 so the page that people reach when they want to tell us something also
-# points at the place that accepts ideas. No legal text, no business-information
-# row and no contact detail changed; the company-legal block this page does not
-# carry is unaffected. Verified with `git diff --unified=0`.
+# SITE-FOOTER-FOUR-ROWS-01 — privacy/terms/account-deletion/contact 의 해시가
+# 푸터 때문에 움직였다. 정책 본문은 한 글자도 바뀌지 않았다: 네 파일에서 <footer>
+# 를 통째로 들어낸 나머지가 이전 revision 과 바이트까지 같은 것을 확인했다.
+# privacy/terms 는 링크 줄이 일곱 페이지 공통으로 맞춰지고 사업자 정보 블록이
+# 다섯 줄에서 세 줄로 줄었다. account-deletion/contact 은 같은 terms.html 을
+# '이용안내'라 부르던 이름 하나를 그 페이지 h1 인 '이용약관'으로 고친 한 줄뿐이다.
+# SITE-PRIVACY-OVERSEAS-TRANSFER-01 — privacy.html 과 styles.css 의 해시가 함께
+# 움직였다. 개인정보 보호법 제28조의8 국외이전 고지표를 제6조 6.1 로 넣었기
+# 때문이다. 네이버 동의 화면에는 "[필수] 개인정보 국외 이전 동의" 항목이 떠
+# 있는데 제6조에는 "발생하는 경우 안내하겠다"는 장래형 문구뿐이어서 검수가
+# 막혀 있었다. privacy.html 은 기존 조항을 한 줄도 지우지 않았고 — `git diff`
+# 에 삭제 라인 0 개 — 제6조 끝과 제7조 사이에만 6.1 블록이 들어갔다. 11 개
+# 조항 번호와 본문은 그대로다. styles.css 는 파일 끝에 .legal-table 규칙만
+# 덧붙었고 기존 선택자는 한 줄도 건드리지 않았다.
+# 이 표는 7 열이라 900px 본문 폭에 들어가지 않는다. 거부 방법 열이 검수자가
+# 바로 봐야 하는 열이므로 가로 스크롤 뒤에 숨기지 않고 표만 본문 폭 밖으로
+# 넓혔고, 390px 에서는 각 행이 data-label 을 단 카드로 쌓인다.
+# 주의: privacy.html 본문이 바뀌었으므로 scripts/emit_social_signup_legal_manifest.py
+# 가 내보내는 LOTBI_SOCIAL_PRIVACY_SHA256 도 함께 바뀐다. lotbi-core 에 등록된
+# 동의 증빙 SHA 를 배포 후 갱신해야 실제 문서와 맞는다.
+# SITE-USER-FEEDBACK-INTAKE-01 — contact.html 의 해시가 SITE-FOOTER-FOUR-ROWS-01
+# 이 정리한 푸터 위에서 한 줄 더 움직였다. 링크 줄에 <a href="feedback.html">의견
+# 보내기</a> 하나가 문의하기 옆에 붙었다. 하고 싶은 말이 있어 문의 페이지까지 온
+# 사람이 의견을 받는 곳도 바로 볼 수 있어야 하기 때문이다. 법정 고지 문구·사업자
+# 정보 행·연락처는 한 글자도 바뀌지 않았고, 위 네 줄 정리가 맞춰 둔 링크 목록에
+# 항목 하나가 더해졌을 뿐이다. `git diff --unified=0` 으로 확인했다.
 LOCKED_SHA256 = {
-    'privacy.html': '29a376617f88e2609940691589ff8033810b75dc5cf0cd45a26f2fc4b13911db',
-    'terms.html': '252d2264ae4cf9465f6b523e7be6c3b2f55c81791f7b011ccced495c1ea3462b',
-    'account-deletion.html': 'c0b1710b47a8805063443fd286c9d903c90ede33a3f26073568e869a26a28706',
-    'contact.html': '160053b52881481a52f3949c159e4a737efd03b477db5a7e1e2e8c6820ad12e4',
+    'privacy.html': '31e76d4807d39caa209778f9d6bf2cd3192e6703ad9a3c79408ad7514963c59a',
+    'terms.html': '2f2493142626906df7e5537cad8c4858d3874357e89aa865a1d5ad6e13eceb2e',
+    'account-deletion.html': '9652b2bfc892429c9ff4a51e1175df6af2b7964de60612c4924bb95119f6fc98',
+    'contact.html': '17eed38886c49970a1918be5bc173ac02b27eb6fa018c560cb98b32bebe164b1',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': 'e52fe30dbf6f3a55f24d69f692bf32a1ec57f9f20311eebf7b2e86464ce06b3c',
+    'styles.css': '6c7508831330c67a4886e515cbe1ff57b69beaf8f99968b4f60a7d3ddfa10129',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
@@ -128,6 +148,10 @@ def main() -> int:
         r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         index,
     )
+    footer_legal_script = re.search(
+        r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
+        index,
+    )
     approved_scripts = (
         '<script type="importmap">',
         '<script src="home-shell.js?v=20260920-fold5" defer></script>',
@@ -135,10 +159,11 @@ def main() -> int:
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         '<script type="module" src="site-avatar.js"></script>',
+        footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +1 for the allowlisted inline theme bootstrap verified above.
     if index.lower().count("<script") != len(approved_scripts) + 1 or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js and site-avatar.js scripts")
+        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js, site-avatar.js and site-footer-legal.js scripts")
 
     # SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — one inline block in <head> is allowed
     # to read localStorage, because the theme has to be known before the first

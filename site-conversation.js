@@ -4,15 +4,42 @@ import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifi
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260921-guestclaim1';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-sysdark2';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260923-freshentry1';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-daysheet3';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-sysdark2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-sysdark2';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-regionlist2';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-regionlist2';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
+
+// SITE-THEME-AUTO-SCHEDULE-02 — 대표: "시간이 18시 이후에는 다크로 가고 아침
+// 07시 되면 화이트로 가는 거"
+//
+// '자동' is a fourth *preference*, not a fourth theme. What reaches
+// body[data-site-theme] and html[data-site-theme-bootstrap] is always one of the
+// three states site-theme-tokens.css already paints, so the dark-theme
+// stylesheet needs nothing new and cannot be broken from here.
+//
+// It is deliberately not the same answer as '기기모드', which follows the OS.
+// This one follows the clock, which is what 대표 asked for. Both stay on offer.
+const AUTO_THEME_DARK_HOUR = 18;
+const AUTO_THEME_LIGHT_HOUR = 7;
+function resolveScheduledTheme(now = new Date()) {
+  const hour = now.getHours();
+  return hour >= AUTO_THEME_DARK_HOUR || hour < AUTO_THEME_LIGHT_HOUR ? 'dark' : 'light';
+}
+// When the next switch is due, so a tab left open overnight turns dark at 18:00
+// instead of waiting for a reload.
+function millisecondsUntilNextThemeBoundary(now = new Date()) {
+  const hour = now.getHours();
+  const next = new Date(now.getTime());
+  next.setMinutes(0, 0, 0);
+  next.setHours(hour < AUTO_THEME_LIGHT_HOUR || hour >= AUTO_THEME_DARK_HOUR ? AUTO_THEME_LIGHT_HOUR : AUTO_THEME_DARK_HOUR);
+  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
 
 // SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
 // inline in index.html's <head>, above the stylesheets. It has to: this file is
@@ -21,7 +48,8 @@ const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteA
 // module also runs on pages that do not carry the inline block, and re-running
 // it is harmless — it writes the same attribute from the same value.
 try {
-  const savedTheme = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const stored = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const savedTheme = stored === 'auto' ? resolveScheduledTheme() : stored;
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
     document.documentElement.dataset.siteThemeBootstrap = savedTheme;
   }
@@ -33,11 +61,24 @@ const STORAGE_PREFIX = 'lotbi.site.ux.v1';
 const THREAD_LIMIT = 50;
 const MESSAGE_LIMIT = 120;
 const THREAD_TITLE_LIMIT = 60;
+// PROFILE-MENU: the one account-management destination. 설정 navigates here,
+// which is exactly where the profile modal's removed account-management button
+// used to point.
+const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
 const PHOTO_BYTES_LIMIT = 2 * 1024 * 1024;
 const PHOTO_DIMENSION_LIMIT = 4096;
 const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
   ['orange', '오렌지'], ['pink', '분홍'], ['gray', '회색'],
+]);
+// SITE-THEME-AUTO-SCHEDULE-02 — the 개인테마 window's offer, in 대표's wording.
+// '자동' rides beside '기기모드' rather than replacing it: 기기모드 follows the
+// device, 자동 follows the clock, and they are different answers.
+const THEME_OPTIONS = Object.freeze([
+  ['system', '기기모드'],
+  ['light', '라이트모드'],
+  ['dark', '다크모드'],
+  ['auto', '자동모드'],
 ]);
 const RESPONSE_GRADE_OPTIONS = Object.freeze([
   ['LIGHT', '라이트'],
@@ -476,6 +517,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition;
   let lastRenderedCreatedAt;
   let timestampRefreshTimer;
+  let themeBoundaryTimer;
   let richCardActionInFlight = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
   let avatarSequence = 0, voiceAvatarRequestId;
@@ -586,11 +628,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       option.tabIndex = available && selected ? 0 : -1;
     }
   };
+  // SITE-THEME-AUTO-SCHEDULE-02 — only armed while '자동모드' is selected, and
+  // always re-armed from the clock rather than a fixed interval, so a machine
+  // that slept through 18:00 corrects itself on the next tick instead of drifting.
+  const scheduleThemeBoundary = storedTheme => {
+    if (themeBoundaryTimer) { clearTimeout(themeBoundaryTimer); themeBoundaryTimer = undefined; }
+    if (storedTheme !== 'auto' || typeof setTimeout !== 'function') return;
+    themeBoundaryTimer = setTimeout(() => { themeBoundaryTimer = undefined; applyPreferences(); }, millisecondsUntilNextThemeBoundary());
+  };
   const applyPreferences = () => {
     document.body.dataset.chatColor = COLOR_OPTIONS.some(([key]) => key === preferences.color) ? preferences.color : 'default';
-    const resolvedTheme = ['system', 'light', 'dark'].includes(preferences.theme) ? preferences.theme : 'system';
+    // The stored preference may be '자동'; what reaches the document is always
+    // one of the three states the theme tokens style.
+    const storedTheme = THEME_OPTIONS.some(([key]) => key === preferences.theme) ? preferences.theme : 'system';
+    const resolvedTheme = storedTheme === 'auto' ? resolveScheduledTheme() : storedTheme;
+    document.body.dataset.siteThemePreference = storedTheme;
     document.body.dataset.siteTheme = resolvedTheme;
     document.documentElement.dataset.siteThemeBootstrap = resolvedTheme;
+    scheduleThemeBoundary(storedTheme);
     const systemDark = resolvedTheme === 'system' && globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches === true;
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (themeColor) themeColor.setAttribute('content', resolvedTheme === 'dark' || systemDark ? '#151922' : '#ffffff');
@@ -1994,9 +2049,29 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     };
     sortThreads();
     state.activeThreadId = resolveRestoredActiveThreadId(restoredActiveThreadId, state.threads);
+    // SITE-HOME-FRESH-ENTRY-01 — 대표: "자동 로그인으로 들어가면 첫화면이 기존에
+    // 대화창으로 뜨는데 새창으로 뜨도록 해"
+    //
+    // The obvious discriminator — "did we come back through the auth handoff?"
+    // — does not work, and that was measured rather than assumed. site-
+    // continuity.js holds the site session in a module variable, so every load
+    // of / while signed in finds no live session, runs beginSiteHandoff(), and
+    // returns through /auth/callback/. A mid-conversation refresh takes that
+    // same road, so the handoff separates nothing. The tab does: sessionStorage
+    // survives a reload and the redirect out to Account and back, but not a
+    // newly opened tab — which is what "들어가면" means.
+    //
+    // Narrow on purpose, as 총괄방 asked. The anonymous namespace keeps the
+    // behaviour it had, so nothing ⑱ GUEST-ACCESS owns changes shape, and an
+    // entry carrying text to send is the reader continuing, not arriving.
+    // Selection only: the threads themselves are never touched either way.
+    const freshTabEntry = !markConversationTabEntry({namespace})
+      && normalized !== anonymousConversationNamespace()
+      && !(autoSend && typeof initialText === 'string' && initialText.trim());
+    if (freshTabEntry) state.activeThreadId = null;
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
-      theme: ['system', 'light', 'dark'].includes(loadedPreferences.theme) ? loadedPreferences.theme : 'system',
+      theme: THEME_OPTIONS.some(([key]) => key === loadedPreferences.theme) ? loadedPreferences.theme : 'system',
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
       photo: typeof loadedPreferences.photo === 'string' && loadedPreferences.photo.startsWith('data:image/') ? loadedPreferences.photo : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
@@ -2240,22 +2315,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     });
     actions.append(cancel, remove); content.appendChild(actions); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const colorPicker = () => {
-    const fieldset = document.createElement('fieldset'); fieldset.className = 'color-picker';
-    const legend = document.createElement('legend'); legend.textContent = '대화 색상'; fieldset.appendChild(legend);
-    for (const [key, label] of COLOR_OPTIONS) {
-      const option = document.createElement('button'); option.type = 'button'; option.className = 'color-option'; option.dataset.color = key;
-      option.setAttribute('aria-pressed', String(preferences.color === key));
-      const swatch = document.createElement('span'); swatch.className = 'color-swatch'; swatch.setAttribute('aria-hidden', 'true');
-      const text = document.createElement('span'); text.textContent = label; option.append(swatch, text);
-      option.addEventListener('click', () => {
-        preferences.color = key; applyPreferences(); savePreferences();
-        for (const node of fieldset.querySelectorAll('.color-option')) node.setAttribute('aria-pressed', String(node === option));
-      });
-      fieldset.appendChild(option);
-    }
-    return fieldset;
-  };
   const readProfilePhoto = file => new Promise((resolve, reject) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return reject(new Error('JPEG, PNG, WebP 이미지만 선택할 수 있습니다.'));
     if (file.size > PHOTO_BYTES_LIMIT) return reject(new Error('프로필 이미지는 2MB 이하여야 합니다.'));
@@ -2330,23 +2389,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         save.disabled = false;
       }
     });
-    const manage = document.createElement('a'); manage.className = 'site-button site-button-secondary'; manage.href = 'https://account.lotbiai.com/account'; manage.textContent = '계정 페이지에서 관리';
-    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save, manage); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoLabel, error, nameLabel, handleLabel, handleHelp, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  const openPersonalization = () => {
-    const {backdrop, panel, content} = modalShell('개인 맞춤 설정', '선택한 대화 색상은 현재 사용자 설치의 이 브라우저에 저장됩니다.');
-    content.appendChild(colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
-  };
-  const openSettings = () => {
-    const {backdrop, panel, content} = modalShell('설정');
+  // 개인테마 — the theme choice and nothing else. This surface only calls the
+  // existing applyPreferences/savePreferences pair; the theme switching logic
+  // itself is not touched here.
+  const openPersonalTheme = () => {
+    const {backdrop, panel, content} = modalShell('개인테마', '선택한 테마는 현재 사용자 설치의 이 브라우저에 저장됩니다.');
     const themeLabel = document.createElement('label'); themeLabel.className = 'site-field'; themeLabel.textContent = '테마';
     const select = document.createElement('select');
-    for (const [value, label] of [['system', '기기 설정'], ['light', '라이트'], ['dark', '다크']]) {
+    for (const [value, label] of THEME_OPTIONS) {
       const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = preferences.theme === value; select.appendChild(option);
     }
     select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
-    themeLabel.appendChild(select); content.append(themeLabel, colorPicker()); installSurfaceBehavior(backdrop, panel, {modal: true});
+    themeLabel.appendChild(select);
+    // 기기모드 and 자동모드 are different answers, so the window says which is which.
+    const themeHelp = document.createElement('p'); themeHelp.className = 'site-field-help';
+    themeHelp.textContent = `'기기모드'는 기기의 다크 모드를 따라가고, '자동모드'는 시계를 따라갑니다 — 저녁 ${AUTO_THEME_DARK_HOUR}시부터 다크, 아침 ${AUTO_THEME_LIGHT_HOUR}시부터 라이트.`;
+    content.append(themeLabel, themeHelp); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
+  // 설정 — no intermediate modal. It leaves for the account page directly, the
+  // same destination the profile modal's removed button used.
+  const openSettings = () => { window.location.assign(ACCOUNT_MANAGE_URL); };
   const openCalendar = async (view, {deepOpen, initialDraft = null, restoreConversation = false} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
@@ -2627,7 +2691,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
     const menu = document.createElement('div'); menu.className = 'profile-popover'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '프로필 메뉴');
     menu.appendChild(profileSummary());
-    for (const [label, action] of [['프로필', openProfile], ['개인 맞춤 설정', openPersonalization], ['설정', openSettings]]) {
+    for (const [label, action] of [['프로필', openProfile], ['개인테마', openPersonalTheme], ['설정', openSettings]]) {
       const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); button.textContent = label;
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
     }
