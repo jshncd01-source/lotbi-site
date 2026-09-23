@@ -85,9 +85,7 @@ def main() -> int:
         "new chat menu": "새 대화",
         "calendar menu": "캘린더",
         "calendar stylesheet": 'href="site-calendar.css?v=20260923-quietloc1"',
-        "connected services menu": "연결 서비스",
         "recent conversations": "최근 대화",
-        "connected services URL": CONNECTED_SERVICES_URL,
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
         "Company link": "about.html",
         "Privacy link": "privacy.html",
@@ -172,18 +170,14 @@ def main() -> int:
         for required in ("새 대화", "캘린더", "최근 대화"):
             if required not in block:
                 errors.append(f"index.html: {label} missing approved IA item: {required}")
-        if label == "desktop sidebar":
-            for required in ("연결 서비스", "프로필", "설정", "도움말"):
-                if required not in block:
-                    errors.append(f"index.html: {label} missing desktop account navigation item: {required}")
-            if CONNECTED_SERVICES_URL not in block:
-                errors.append(f"index.html: {label} must keep authoritative Account Web connected-services route")
-        else:
-            for moved in ("연결 서비스", "프로필", "설정", "도움말"):
-                if moved in block:
-                    errors.append(f"index.html: {label} must move account navigation out of the main drawer: {moved}")
-            if CONNECTED_SERVICES_URL in block:
-                errors.append(f"index.html: {label} must not duplicate connected-services in the main drawer")
+        # SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the drawer had already delegated
+        # these four to the account menu; the desktop sidebar now does the
+        # same, so neither surface may list them beside it.
+        for moved in ("연결 서비스", "프로필", "설정", "도움말"):
+            if moved in block:
+                errors.append(f"index.html: {label} must move account navigation into the account menu: {moved}")
+        if CONNECTED_SERVICES_URL in block:
+            errors.append(f"index.html: {label} must not duplicate the connected-services route beside the account menu")
         for removed in ("오늘", "확인 필요", "내 작업", "라이브러리"):
             if removed in block:
                 errors.append(f"index.html: {label} must remove duplicated or disabled navigation item: {removed}")
@@ -209,15 +203,10 @@ def main() -> int:
         elif "connected-services" in primary_match.group(0):
             errors.append(f"index.html: {label} connected services must be secondary, not primary")
 
-        secondary_match = re.search(
-            r'<div class="sidebar-secondary-nav[^"]*"[^>]*>[\s\S]*?</div>',
-            block,
-        )
-        if label == "desktop sidebar":
-            if not secondary_match or "connected-services" not in secondary_match.group(0):
-                errors.append(f"index.html: {label} must keep connected services in the secondary region")
-        elif not secondary_match or "connected-services" in secondary_match.group(0):
-            errors.append(f"index.html: {label} secondary region must stay empty because account items live in the account menu")
+        if "sidebar-secondary-nav" in block:
+            errors.append(f"index.html: {label} must not reintroduce the secondary navigation region")
+        if "data-global-nav-action" in block:
+            errors.append(f"index.html: {label} must not duplicate account-menu actions")
 
         recent_match = re.search(
             r'<ul[^>]*class="nav-history-list"[^>]*data-recent-conversations[^>]*>[\s\S]*?</ul>',
@@ -236,7 +225,6 @@ def main() -> int:
         'class="sidebar-calendar-nav"',
         'class="nav-section sidebar-history-section"',
         'class="sidebar-history-scroll"',
-        'class="sidebar-secondary-nav"',
         'class="sidebar-account-footer"',
     ):
         if required not in desktop_sidebar:

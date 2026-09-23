@@ -54,6 +54,11 @@ jobs:
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 
+      # The account row is now the only profile entry point. Guard the removals
+      # and, more importantly, that every item it absorbed is still reachable.
+      - name: Validate single profile entry point
+        run: node scripts/validate_single_profile_entry_01.mjs
+
       - name: Validate canonical email-first identity profile
         run: node scripts/validate_identity_profile_hotfix_02.mjs
 
