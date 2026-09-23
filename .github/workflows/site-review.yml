@@ -43,6 +43,9 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
+      - name: Validate footer business information is identical across pages
+        run: python scripts/sync_footer_business_info.py --check
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts
@@ -194,6 +197,11 @@ jobs:
 
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
+
+      # 복사하기/공유하기 ride under every LOTBI answer. Guard that share stays
+      # on the OS share sheet — no Kakao SDK, no app key, no extra page script.
+      - name: Validate message copy and share actions
+        run: node scripts/validate_message_share_actions_01.mjs
 
       - name: Validate attachment API and file safety contracts
         run: |

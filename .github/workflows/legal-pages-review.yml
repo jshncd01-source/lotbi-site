@@ -5,8 +5,10 @@ on:
     branches:
       - main
     paths:
+      - index.html
       - privacy.html
       - terms.html
+      - scripts/sync_footer_business_info.py
       - scripts/validate_legal_pages.py
       - scripts/emit_social_signup_legal_manifest.py
       - .github/workflows/legal-pages-review.yml
@@ -34,6 +36,11 @@ jobs:
 
       - name: Validate Production legal pages
         run: python scripts/validate_legal_pages.py
+
+      # 전자상거래법 제10조 표시사항은 페이지마다 하드코딩되어 있어 한 곳만
+      # 고쳐지고 나머지가 뒤처지기 쉽다. 실제로 이메일과 전화번호가 그렇게 빠졌다.
+      - name: Validate footer business information is identical across pages
+        run: python scripts/sync_footer_business_info.py --check
 
       - name: Validate public-site structure
         run: python scripts/validate_site.py

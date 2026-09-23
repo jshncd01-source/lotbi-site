@@ -163,6 +163,90 @@
   font-weight: 700;
 }
 
+/* SITE-MESSAGE-SHARE-ACTIONS-01 — copy/share row under each LOTBI answer.
+   Ghost buttons so the row never competes with the answer, but on the
+   composer's 44px touch contract so a thumb hits them on every phone. */
+.chat-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 2px 0 0 -10px;
+}
+
+.chat-message-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--lotbi-text-muted, #737b88);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .16s ease, color .16s ease, transform .12s ease;
+}
+
+.chat-message-action svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.chat-message-action:hover {
+  background: var(--lotbi-surface-hover, #f0f2f7);
+  color: var(--lotbi-text-primary, #303642);
+}
+
+.chat-message-action:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .26);
+  outline-offset: 2px;
+  color: var(--lotbi-text-primary, #303642);
+}
+
+.chat-message-action:active {
+  transform: scale(.94);
+  background: var(--lotbi-surface-hover, #f0f2f7);
+}
+
+.chat-message-action-feedback {
+  margin-left: 6px;
+  color: var(--lotbi-text-muted, #737b88);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.chat-message-action-feedback[data-tone="error"] {
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-message-action {
+    transition: none;
+  }
+
+  .chat-message-action:active {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .chat-message-action {
+    border: 1px solid ButtonBorder;
+    color: ButtonText;
+  }
+
+  .chat-message-action svg {
+    fill: currentColor;
+  }
+}
+
 .chat-message-sources {
   display: flex;
   flex-wrap: wrap;

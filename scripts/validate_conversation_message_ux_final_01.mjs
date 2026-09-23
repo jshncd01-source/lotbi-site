@@ -39,7 +39,7 @@ assert.ok(messageBody.includes("button.textContent = expanded ? '접기' : '더 
 assert.ok(messageBody.includes("button.addEventListener('click'"));
 assert.ok(messageBody.includes("code.textContent = match[2]"));
 assert.ok(!messageBody.includes('innerHTML'), 'message renderer must never inject HTML');
-assert.ok(conversation.includes("from './site-message-body.js?v=20260920-messageux1'"));
+assert.ok(conversation.includes("from './site-message-body.js?v=20260923-calsettings1'"));
 assert.ok(conversation.includes("if (role === 'user') enhanceExpandableUserMessage(article, body, text);"));
 assert.ok(conversation.includes("const displayMessage = message ||"));
 assert.ok(conversation.includes("timestampedConversationMessage({role: 'user', text: displayMessage"));
