@@ -294,6 +294,25 @@ try{
     listAboveQuickAdd:Boolean(busyList&&busyQuick&&busyList.compareDocumentPosition(busyQuick)&Node.DOCUMENT_POSITION_FOLLOWING),
     titleHittable:hit(busyPanel.querySelector('[data-calendar-quick-add-title]')),
     titleFocused:document.activeElement?.hasAttribute?.('data-calendar-quick-add-title')===true,
+    // Kept so a failure names what was in the way instead of only that
+    // something was. This check has been the flaky one.
+    titleHitDiagnostic:(()=>{
+      const node=busyPanel.querySelector('[data-calendar-quick-add-title]');
+      if(!node)return {reason:'no title box'};
+      const r=node.getBoundingClientRect();
+      const x=Math.round(r.left+r.width/2),y=Math.round(r.top+r.height/2);
+      const found=document.elementFromPoint(x,y);
+      return {
+        point:{x,y},
+        boxRect:{top:Math.round(r.top),bottom:Math.round(r.bottom),height:Math.round(r.height),width:Math.round(r.width)},
+        panelRect:{top:Math.round(busyRect.top),bottom:Math.round(busyRect.bottom)},
+        bodyScrollTop:Math.round(busyBody.scrollTop),
+        bodyRect:(()=>{const b=busyBody.getBoundingClientRect();return {top:Math.round(b.top),bottom:Math.round(b.bottom)}})(),
+        viewport:{width:innerWidth,height:innerHeight},
+        hitTag:found?found.tagName:'(none)',
+        hitClass:found?String(found.className||''):'',
+      };
+    })(),
   };
 
   out.textContent=JSON.stringify(result);
@@ -377,7 +396,7 @@ try {
       // Entries first on a day that has them, and a long list scrolls inside.
       if (busy.events !== 8) throw new Error(`${label}: busy fixture lost entries (${busy.events})`);
       if (!busy.listAboveQuickAdd) throw new Error(`${label}: the entry list must come before the add line`);
-      if (!busy.titleHittable) throw new Error(`${label}: the title box must stay reachable on a full day`);
+      if (!busy.titleHittable) throw new Error(`${label}: the title box must stay reachable on a full day ${JSON.stringify(busy.titleHitDiagnostic)}`);
       if (!busy.bodyScrolls) throw new Error(`${label}: a full day must scroll inside the panel, not grow it`);
 
       if (empty.presentation !== 'POPOVER') throw new Error(`${label}: the day panel must be the anchored popover (got ${empty.presentation})`);

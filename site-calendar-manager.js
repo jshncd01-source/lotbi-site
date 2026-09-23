@@ -2851,7 +2851,17 @@ export async function mountLifeCalendarManager({
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
-    else viewport.replaceChildren(renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
+    else {
+      const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));
+      viewport.replaceChildren(layout);
+      // Synchronously, before this frame is painted. renderMonth also schedules
+      // the same sync on an animation frame -- that one is for metrics that
+      // settle later, such as a webfont swapping in -- but waiting for it here
+      // meant the panel drew once wherever the flow put it and then jumped to
+      // the date it belongs to. One frame on a phone; enough to be seen, and
+      // enough to make a geometry check land on the wrong box.
+      syncMonthLayout(layout);
+    }
 
     // The panel is rebuilt from scratch on every render, so the caret has to be
     // put back by hand -- and a save renders twice (the reload starts, then
