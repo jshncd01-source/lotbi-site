@@ -79,6 +79,9 @@ try {
   // 알림 권한 팝업이 저절로 뜨지 않는지 보려면 실제로 세어야 한다.
   let notificationRequests = 0;
   let geolocationCalls = 0;
+  let regionListRequests = 0;
+  // 6·7 단계만 서버를 끈다. 나머지 단계의 동작은 그대로다.
+  let regionsHealthy = !(phase === '6' || phase === '7');
   const weatherRequests = [];
   if (!globalThis.Notification) globalThis.Notification = {permission: 'default'};
   globalThis.Notification.requestPermission = () => { notificationRequests += 1; return Promise.resolve('denied'); };
@@ -119,7 +122,12 @@ try {
         user_visible_only: true, service_worker_required: true,
       }});
     }
-    if (u.pathname === '/v2/life/weather/regions') return j(REGIONS);
+    if (u.pathname === '/v2/life/weather/regions') {
+      // 서버가 200 이 아닌 답을 줄 때 화면이 무엇을 하는지 보는 자리다.
+      if (!regionsHealthy) return Promise.resolve(new Response('{"detail":{"code":"UPSTREAM"}}', {status: 503, headers: {'Content-Type': 'application/json'}}));
+      regionListRequests += 1;
+      return j(REGIONS);
+    }
     if (u.pathname === '/v2/life/weather/region/resolve') {
       const q = u.searchParams.get('q') || '';
       const found = COORDINATES[q];
@@ -156,7 +164,7 @@ try {
   };
 
   // 권한 상태는 단계마다 다르다. 'prompt' 는 미결정 -- 여기서 좌표를 물으면 팝업이 뜬다.
-  const permissionState = {1: 'granted', 2: 'prompt', 3: 'denied', 4: 'denied', 5: 'granted'}[phase];
+  const permissionState = {1: 'granted', 2: 'prompt', 3: 'denied', 4: 'denied', 5: 'granted', 6: 'denied', 7: 'denied'}[phase];
   const permissions = {query: async () => ({state: permissionState})};
   const geolocation = {
     getCurrentPosition(onOk, onErr) {
@@ -167,7 +175,7 @@ try {
     },
   };
 
-  if (phase === '1' || phase === '3') {
+  if (phase === '1' || phase === '3' || phase === '6') {
     // 1: 처음부터. 3: 저장된 지역 없이 권한이 거부된 상태.
     localStorage.clear();
     localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false}));
@@ -185,6 +193,13 @@ try {
   const weatherCells = () => root.querySelectorAll('.calendar-weather-icon[data-weather-kind]').length;
   const storedRegion = () => { try { return JSON.parse(localStorage.getItem('lotbi.calendar.weather-region.v1') || 'null'); } catch { return null; } };
   const storedOrigin = () => localStorage.getItem('lotbi.calendar.weather-region-origin.v1');
+  // 날씨 칸의 상태 문구. 위치 행에도 같은 클래스가 있어 마지막 것을 집는다.
+  const weatherStatusText = dialog => {
+    const select = dialog.querySelector('.calendar-settings-select[aria-label="날씨 지역 광역시·도"]');
+    const section = select?.closest('.calendar-settings-section');
+    if (!section) return '';
+    return [...section.querySelectorAll('.calendar-settings-status')].at(-1)?.textContent || '';
+  };
   const openSettings = async () => {
     click(root.querySelector('.calendar-settings-button'));
     await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings dialog');
@@ -263,6 +278,10 @@ try {
     result.storedRegion = storedRegion();
     result.storedOrigin = storedOrigin();
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+    // 권한이 거부된 사람에게는 어디를 눌러 허용하는지가 화면에 적혀 있어야 한다.
+    const help = dialog.querySelector('[data-calendar-location-row] .calendar-settings-location-help');
+    result.locationHelpShown = Boolean(help) && !help.hidden;
+    result.locationHelpText = help ? help.textContent : '';
   }
 
   if (phase === '4') {
@@ -273,6 +292,42 @@ try {
     result.storedOrigin = storedOrigin();
     const dialog = await openSettings();
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+  }
+
+  if (phase === '6') {
+    // 목록 서버가 죽었다. 저장해 둔 목록도 없다 -- 대표님이 보신 그 빈 상자다.
+    const dialog = await openSettings();
+    const province = [...dialog.querySelectorAll('.calendar-settings-select')].find(n => n.getAttribute('aria-label') === '날씨 지역 광역시·도');
+    const retry = [...dialog.querySelectorAll('button')].find(n => n.textContent === '지역 목록 다시 불러오기');
+    await wait(() => !retry.hidden, 'retry button');
+    result.failureStatusText = weatherStatusText(dialog);
+    result.failurePlaceholder = province.options[0]?.textContent || '';
+    result.retryShown = !retry.hidden;
+    // 서버가 돌아오면 다시 불러오기 한 번으로 목록이 찬다.
+    regionsHealthy = true;
+    click(retry);
+    await wait(() => province.options.length > 1, 'province options after retry');
+    result.provinceOptionsAfterRetry = [...province.options].map(o => o.textContent);
+  }
+
+  if (phase === '7') {
+    // 서버는 여전히 죽어 있지만, 직전 단계에서 한 번 받아 둔 목록이 있다.
+    const dialog = await openSettings();
+    const province = [...dialog.querySelectorAll('.calendar-settings-select')].find(n => n.getAttribute('aria-label') === '날씨 지역 광역시·도');
+    const city = [...dialog.querySelectorAll('.calendar-settings-select')].find(n => n.getAttribute('aria-label') === '날씨 지역 시·군·구');
+    await wait(() => province.options.length > 1, 'province options from the saved list');
+    result.regionListRequests = regionListRequests;
+    result.cachedProvinceOptions = [...province.options].map(o => o.textContent);
+    result.cachedStatusText = weatherStatusText(dialog);
+    // 저장된 목록으로도 끝까지 갈 수 있어야 한다: 고르면 좌표를 묻고 날씨가 뜬다.
+    province.value = '전북특별자치도';
+    change(province);
+    await wait(() => city.options.length > 1, 'city options from the saved list');
+    city.value = 'KR_JEONJU';
+    change(city);
+    await wait(() => weatherCells() > 0, 'weather from the saved list');
+    result.weatherCells = weatherCells();
+    result.storedRegion = storedRegion();
   }
 
   if (phase === '5') {
@@ -371,6 +426,12 @@ try {
   if (!(results.denied.weatherCells > 0)) throw new Error('권한을 거부하면 지역을 골라도 날씨를 볼 수 없다');
   if (results.denied.storedRegion?.label !== '전북특별자치도 전주시') throw new Error('직접 고른 지역이 저장되지 않았다');
   if (results.denied.storedOrigin !== 'MANUAL') throw new Error('직접 고른 지역이 그렇게 기록되지 않았다');
+  if (!results.denied.locationHelpShown) throw new Error('권한이 거부됐는데 어디서 허용하는지 안내가 없다');
+  for (const needle of ['삼성 인터넷', '자물쇠', '설정']) {
+    if (!results.denied.locationHelpText.includes(needle)) {
+      throw new Error(`권한 안내가 누를 것의 이름을 말하지 않는다(${needle} 없음): ${results.denied.locationHelpText}`);
+    }
+  }
 
   results.deniedReloaded = run(browser, profile, 4, width, height);
   if (!(results.deniedReloaded.weatherCells > 0)) throw new Error('직접 고른 지역이 새로고침을 넘기지 못했다');
@@ -381,6 +442,33 @@ try {
   // 서버가 켜지면 코드를 고치지 않아도 알림 항목이 돌아온다 -- 지운 것이 아니라 가린 것이다.
   results.pushReady = run(browser, profile, 5, width, height);
   if (!results.pushReady.hasNotificationSection) throw new Error('서버가 준비됐는데도 알림 항목이 돌아오지 않았다');
+
+  // 목록 서버가 죽었을 때. 화면이 이유를 말하고, 다시 불러오기로 되살아나야 한다.
+  results.listDown = run(browser, profile, 6, width, height);
+  if (!results.listDown.retryShown) throw new Error('목록을 못 불러왔는데 다시 불러오기 버튼이 없다');
+  if (results.listDown.failurePlaceholder !== '목록을 불러오지 못했어요') {
+    throw new Error(`1단계 칸이 실패를 말하지 않는다: ${results.listDown.failurePlaceholder}`);
+  }
+  if (!results.listDown.failureStatusText.includes('503')) {
+    throw new Error(`실패 이유(응답 코드)를 화면이 말하지 않는다: ${results.listDown.failureStatusText}`);
+  }
+  if (!results.listDown.provinceOptionsAfterRetry.includes('전북특별자치도')) {
+    throw new Error(`서버가 돌아왔는데 다시 불러오기로 목록이 차지 않는다: ${JSON.stringify(results.listDown.provinceOptionsAfterRetry)}`);
+  }
+
+  // 서버가 여전히 죽어 있어도, 한 번 받아 둔 목록이 있으면 고를 수 있어야 한다.
+  results.listDownCached = run(browser, profile, 7, width, height);
+  if (results.listDownCached.regionListRequests !== 0) throw new Error('죽은 서버에서 목록을 받아온 것처럼 셌다 -- 시험이 틀렸다');
+  if (!results.listDownCached.cachedProvinceOptions.includes('전북특별자치도')) {
+    throw new Error(`저장해 둔 목록이 있는데도 고를 것이 없다: ${JSON.stringify(results.listDownCached.cachedProvinceOptions)}`);
+  }
+  if (!results.listDownCached.cachedStatusText.includes('전에 받아 둔 목록')) {
+    throw new Error(`저장해 둔 목록을 쓰고 있다는 사실을 숨긴다: ${results.listDownCached.cachedStatusText}`);
+  }
+  if (!(results.listDownCached.weatherCells > 0)) throw new Error('저장해 둔 목록으로 고른 지역의 날씨가 뜨지 않는다');
+  if (results.listDownCached.storedRegion?.label !== '전북특별자치도 전주시') {
+    throw new Error(`저장해 둔 목록으로 고른 지역이 저장되지 않았다: ${JSON.stringify(results.listDownCached.storedRegion)}`);
+  }
 
   console.log('CALENDAR WEATHER REGION PROVINCE PASS', JSON.stringify(results));
 } finally {
