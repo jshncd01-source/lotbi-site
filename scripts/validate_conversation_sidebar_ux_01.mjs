@@ -75,12 +75,20 @@ for (const [label, block] of [['desktop', desktopNavBlock], ['mobile', mobileNav
   assert.ok(block.includes('data-calendar-count'), `${label} Calendar count badge slot missing`);
   assert.ok(block.includes('data-calendar-reminder'), `${label} Calendar reminder Bell slot missing`);
 }
-for (const iconId of ['lotbi-icon-user', 'lotbi-icon-settings', 'lotbi-icon-help']) {
-  assert.ok(desktopNavBlock.includes(`#${iconId}`), `desktop navigation missing monochrome vector icon ${iconId}`);
-}
-for (const action of ['profile', 'settings', 'help']) {
-  assert.ok(desktopNavBlock.includes(`data-global-nav-action="${action}"`), `desktop navigation missing existing ${action} destination`);
-  assert.ok(!mobileNavBlock.includes(`data-global-nav-action="${action}"`), `mobile drawer must move ${action} into the account menu`);
+// SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the mobile drawer had already folded
+// profile/settings/help into the account menu; this used to assert that the
+// desktop sidebar still listed them separately. Desktop has now made the same
+// move, so the contract is that NEITHER surface duplicates the account menu.
+// That the six items survive the move is locked by
+// scripts/validate_single_profile_entry_01.mjs.
+for (const [label, block] of [['desktop', desktopNavBlock], ['mobile', mobileNavBlock]]) {
+  for (const action of ['profile', 'settings', 'help']) {
+    assert.ok(!block.includes(`data-global-nav-action="${action}"`), `${label} navigation must leave ${action} to the account menu`);
+  }
+  assert.ok(
+    !block.includes('data-sidebar-destination="connected-services"'),
+    `${label} navigation must leave 연결 서비스 to the account menu`,
+  );
 }
 assert.ok(!mobileNavBlock.includes('data-sidebar-destination="connected-services"'), 'mobile drawer must move connected services into the account menu');
 assert.ok(sidebarCss.includes('.nav-item .nav-icon'), 'global navigation vector icon styling missing');
