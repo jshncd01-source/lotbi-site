@@ -89,7 +89,9 @@ assert.ok(conversation.includes("event.target instanceof Element ? event.target.
 assert.ok(conversation.includes('bindCalendarEntries();'), 'Calendar entries must bind on initial mount');
 assert.ok(conversation.includes("window.addEventListener(SIDEBAR_RENDERED_EVENT"), 'sidebar rerender recovery hook missing');
 assert.ok(manager.includes("if (value === 'today' || value === 'all' || value === 'date') return 'month'"));
-assert.ok(manager.includes("if (value === 'upcoming') return 'agenda'"));
+// 'attention' 은 사이드바·딥링크가 아직 보낼 수 있는 옛 이름이다. 탭이 없어졌으므로
+// 그 링크는 기한 지남을 이어받은 일정 보기로 간다 -- 빈 화면으로 떨어지지 않는다.
+assert.ok(manager.includes("if (value === 'upcoming' || value === 'attention') return 'agenda'"));
 assert.ok(manager.includes("case 'Home'"));
 assert.ok(manager.includes("case 'End'"));
 assert.ok(manager.includes("case 'PageUp'"));
