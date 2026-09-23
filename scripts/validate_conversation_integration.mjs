@@ -588,7 +588,29 @@ assert.ok(!auth.includes('Authorization'), 'Account bearer must never be handled
 assert.ok(!callback.includes('sessionStorage.setItem'), 'callback must not persist the Site bearer');
 assert.ok(!conversation.includes('sessionStorage.setItem'), 'conversation must not persist the Site bearer');
 assert.ok(conversation.includes("error.code === 'FREE_LIMIT_REACHED'"), 'FREE quota exhaustion must have dedicated user-facing copy');
-assert.ok(conversation.includes('이번 달 무료 AI 사용 횟수를 모두 사용했어요.'), 'FREE quota exhaustion must be rendered in Korean');
+assert.ok(conversation.includes('이번 달 무료 AI 답변을 다 쓰셨어요.'), 'FREE quota exhaustion must be rendered in Korean');
+
+// Running out must never resolve to "come back next month". Four weeks is not
+// a next step a person takes; it is where they stop being a user. Core already
+// reports that an upgrade clears this, and the refusal has to carry that.
+assert.ok(
+  !conversation.includes('다음 달에 다시 제공됩니다'),
+  'FREE quota exhaustion must not tell the owner to wait for next month',
+);
+assert.ok(
+  conversation.includes("error.upgradeAction === 'VIEW_SUBSCRIPTION_OPTIONS'"),
+  'the refusal must act on the upgrade route Core reports rather than hard-coding one',
+);
+assert.ok(
+  conversation.includes('https://account.lotbiai.com/account'),
+  'the upgrade control must lead somewhere the owner can actually subscribe',
+);
+
+// Core sends these alongside the refusal; dropping them in transport is why the
+// message could only ever be a dead end.
+for (const carried of ['upgrade_available', 'upgrade_action', 'upgradeAvailable', 'upgradeAction']) {
+  assert.ok(core.includes(carried), `Site Core client must carry ${carried} from the Core refusal`);
+}
 assert.ok(!conversation.includes('evidence.push(`오류 코드 ${error.code}`)'), 'raw internal error code must not be visible in production Chat UI');
 assert.ok(!conversation.includes('evidence.push(`HTTP ${error.status}`)'), 'raw HTTP status must not be visible in production Chat UI');
 assert.ok(!footerCss.includes('conversation'), 'business footer stylesheet must remain unrelated to conversation integration');
