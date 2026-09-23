@@ -70,12 +70,12 @@ assert.match(preference, /longitude > 132\.5/);
 
 assert.match(css, /\.calendar-settings-region-row/);
 assert.match(css, /\.calendar-settings-region-row input/);
-assert.match(ui, /site-calendar-manager\.js\?v=20260923-othercat2/);
-assert.match(conversation, /site-calendar-ui\.js\?v=20260923-othercat2/);
-assert.match(index, /site-calendar\.css\?v=20260923-othercat2/);
-assert.match(index, /site-conversation\.js\?v=20260923-othercat2/);
-assert.match(callback, /site-conversation\.js\?v=20260923-othercat2/);
-assert.match(callbackHtml, /site-calendar\.css\?v=20260923-othercat2/);
-assert.match(callbackHtml, /auth-callback\.js\?v=20260923-othercat2/);
+assert.match(ui, /site-calendar-manager\.js\?v=20260923-imageadd1/);
+assert.match(conversation, /site-calendar-ui\.js\?v=20260923-imageadd1/);
+assert.match(index, /site-calendar\.css\?v=20260923-imageadd1/);
+assert.match(index, /site-conversation\.js\?v=20260923-imageadd1/);
+assert.match(callback, /site-conversation\.js\?v=20260923-imageadd1/);
+assert.match(callbackHtml, /site-calendar\.css\?v=20260923-imageadd1/);
+assert.match(callbackHtml, /auth-callback\.js\?v=20260923-imageadd1/);
 
 console.log('LOTBI Calendar manual weather region Settings contract: PASS');
