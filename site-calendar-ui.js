@@ -1,6 +1,6 @@
-import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260923-othercat1';
+import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=20260923-othercat2';
 import {SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
-export {buildCalendarAriaLabel, countCalendarEventsByMonth, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=20260923-othercat1';
+export {buildCalendarAriaLabel, countCalendarEventsByMonth, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=20260923-othercat2';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
