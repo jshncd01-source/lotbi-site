@@ -18,8 +18,8 @@ const CALENDAR_CANDIDATE_ID_PATTERN = /^calcand_[0-9a-f]{24}$/;
 const CALENDAR_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{8,160}$/;
 
 class GuestCalendarError extends Error {
-  constructor(message, code) {
-    super(message);
+  constructor(message, code, options) {
+    super(message, options);
     this.name = 'GuestCalendarError';
     this.code = code;
   }
@@ -133,17 +133,81 @@ function readState(storage) {
   }
 }
 
+// A signed-out calendar lives in this browser's storage, and that storage can
+// refuse the write: secret/private mode on some Android browsers, site data
+// blocked, or the origin simply full. The refusal arrives as a DOMException
+// whose message is English and about quotas, which is no help to someone who
+// just wants their entry kept. Say what happened and what they can do instead.
 function writeState(storage, events, createdCount) {
-  storage.setItem(GUEST_CALENDAR_STORAGE_KEY, JSON.stringify({
-    version: SCHEMA_VERSION,
-    created_count: createdCount,
-    events,
-  }));
+  try {
+    storage.setItem(GUEST_CALENDAR_STORAGE_KEY, JSON.stringify({
+      version: SCHEMA_VERSION,
+      created_count: createdCount,
+      events,
+    }));
+  } catch (cause) {
+    throw new GuestCalendarError(
+      '이 브라우저에 일정을 저장하지 못했어요. 시크릿 모드를 끄거나 저장 공간을 비운 뒤 다시 시도해 주세요. 로그인하면 계정에 바로 저장됩니다.',
+      'GUEST_CALENDAR_STORAGE_UNAVAILABLE',
+      {cause},
+    );
+  }
+}
+
+// Every guest entry needs a v4-shaped id, and for a while the only way we made
+// one was crypto.randomUUID(). That method does not exist in Samsung Internet
+// before 16 or in older Android WebViews, so on those browsers a guest filled
+// the whole form, pressed 저장, and got "일정 식별자를 만들 수 없습니다." —
+// an internal word for a problem they had no way to act on. Making the id is
+// our job, not theirs, so it now falls back instead of failing.
+//
+// Three tiers, best first. Every tier returns the same v4 shape, so the id is
+// indistinguishable downstream and GUEST_ID_PATTERN accepts all of them.
+let uuidCounter = Math.floor(Math.random() * 0x10000);
+
+function randomBytes16() {
+  const bytes = new Uint8Array(16);
+  // Tier 2: no randomUUID, but getRandomValues has been everywhere since long
+  // before it. Same entropy, just spelled out by hand.
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(bytes);
+    return bytes;
+  }
+  // Tier 3: no Web Crypto at all. Math.random is not cryptographic, and this id
+  // is not a secret — it only has to not collide. Time and a per-page counter
+  // are mixed in so two ids made in the same millisecond still differ even if
+  // Math.random is seeded badly.
+  const stamp = Date.now();
+  const seq = (uuidCounter = (uuidCounter + 1) & 0xffff);
+  for (let index = 0; index < 16; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  bytes[0] ^= (stamp / 0x1000000) & 0xff;
+  bytes[1] ^= (stamp >>> 16) & 0xff;
+  bytes[2] ^= (stamp >>> 8) & 0xff;
+  bytes[3] ^= stamp & 0xff;
+  bytes[4] ^= (seq >>> 8) & 0xff;
+  bytes[5] ^= seq & 0xff;
+  return bytes;
+}
+
+function uuidV4FromBytes(bytes) {
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
+  const hex = [];
+  for (let index = 0; index < 16; index += 1) hex.push(bytes[index].toString(16).padStart(2, '0'));
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
 }
 
 function defaultUuid() {
-  if (typeof globalThis.crypto?.randomUUID !== 'function') throw new GuestCalendarError('일정 식별자를 만들 수 없습니다.', 'GUEST_CALENDAR_UUID_UNAVAILABLE');
-  return globalThis.crypto.randomUUID();
+  // Tier 1: the browser's own generator, when it has one.
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    try {
+      return globalThis.crypto.randomUUID();
+    } catch {
+      // Some WebViews expose randomUUID outside a secure context and throw on
+      // call. Falling through is better than surfacing that to the writer.
+    }
+  }
+  return uuidV4FromBytes(randomBytes16());
 }
 
 export function createGuestCalendarRepository(
@@ -198,7 +262,12 @@ export function createGuestCalendarRepository(
 
     const stamp = now().toISOString();
     const id = `guest_${uuid()}`;
-    if (!GUEST_ID_PATTERN.test(id)) throw new GuestCalendarError('일정 식별자가 올바르지 않습니다.', 'GUEST_CALENDAR_UUID_INVALID');
+    if (!GUEST_ID_PATTERN.test(id)) {
+      throw new GuestCalendarError(
+        '일정을 저장하지 못했어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.',
+        'GUEST_CALENDAR_UUID_INVALID',
+      );
+    }
     const event = Object.freeze({id, ...normalized, ...metadata, created_at: stamp, updated_at: stamp});
     // The count rises in the same write that stores the event: a write that
     // fails spends nothing, and one that succeeds cannot be replayed for free.
