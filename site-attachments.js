@@ -88,3 +88,83 @@ export function attachmentKindLabel(mediaType) {
   if (mediaType === 'application/json') return 'JSON';
   return '파일';
 }
+
+/* SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — browser-local preview lifecycle.
+   Previews are ephemeral object URLs for the attachment the user just chose.
+   They never travel to Core, never reach persisted conversation state, and are
+   never logged. Upload, attachment ids and the AI analysis path are untouched.
+   WebP is listed here so the renderer is ready for it, but the upload contract
+   (ATTACHMENT_MEDIA_TYPES / index.html accept) still ships JPEG + PNG only. */
+export const ATTACHMENT_PREVIEW_MEDIA_TYPES = Object.freeze(['image/jpeg', 'image/png', 'image/webp']);
+
+const PREVIEW_OWNER_COMPOSER = 'composer';
+const PREVIEW_OWNER_MESSAGE = 'message';
+const previewOwners = new Map();
+
+export function isPreviewableImageAttachment(attachment) {
+  if (!attachment || typeof attachment !== 'object') return false;
+  const kind = typeof attachment.mediaKind === 'string' ? attachment.mediaKind : '';
+  if (kind && kind !== 'IMAGE') return false;
+  const mediaType = typeof attachment.mediaType === 'string' && attachment.mediaType
+    ? attachment.mediaType
+    : (typeof attachment.mimeType === 'string' ? attachment.mimeType : '');
+  return ATTACHMENT_PREVIEW_MEDIA_TYPES.includes(mediaType);
+}
+
+function objectUrlSupport() {
+  const api = globalThis.URL;
+  if (!api || typeof api.createObjectURL !== 'function' || typeof api.revokeObjectURL !== 'function') return null;
+  return api;
+}
+
+function revokePreviewUrl(url) {
+  const api = objectUrlSupport();
+  previewOwners.delete(url);
+  if (!api) return false;
+  try { api.revokeObjectURL(url); return true; }
+  catch { return false; }
+}
+
+export function createAttachmentPreviewUrl(file) {
+  const api = objectUrlSupport();
+  if (!api || !(file instanceof Blob)) return '';
+  // Content type comes from the validated File, never from the filename suffix.
+  if (!isPreviewableImageAttachment({mediaType: file.type})) return '';
+  try {
+    const url = api.createObjectURL(file);
+    previewOwners.set(url, PREVIEW_OWNER_COMPOSER);
+    return url;
+  } catch { return ''; }
+}
+
+/* Ownership moves composer -> rendered message when the message is sent, so
+   clearing the composer (and the server-side attachment cleanup that follows)
+   can never blank a thumbnail that is still on screen. */
+export function adoptAttachmentPreviewUrl(url) {
+  if (typeof url !== 'string' || !previewOwners.has(url)) return false;
+  previewOwners.set(url, PREVIEW_OWNER_MESSAGE);
+  return true;
+}
+
+export function releaseComposerPreviewUrl(url) {
+  if (typeof url !== 'string' || previewOwners.get(url) !== PREVIEW_OWNER_COMPOSER) return false;
+  return revokePreviewUrl(url);
+}
+
+export function releaseRenderedPreviewUrls() {
+  let released = 0;
+  for (const [url, owner] of [...previewOwners]) {
+    if (owner === PREVIEW_OWNER_MESSAGE && revokePreviewUrl(url)) released += 1;
+  }
+  return released;
+}
+
+export function releaseAllAttachmentPreviewUrls() {
+  let released = 0;
+  for (const url of [...previewOwners.keys()]) if (revokePreviewUrl(url)) released += 1;
+  return released;
+}
+
+export function attachmentPreviewOwner(url) {
+  return typeof url === 'string' ? (previewOwners.get(url) || '') : '';
+}
