@@ -90,6 +90,7 @@ assert.ok(
 assert.ok(conversation.includes("['camera', '카메라'], ['gallery', '갤러리'], ['files', '내 파일']"), '카메라 / 갤러리 / 내 파일 세 경로가 정확히 있어야 합니다');
 assert.ok(conversation.includes("input.accept = 'image/*'"), '모든 프로필 사진 input은 image/* 여야 합니다');
 assert.ok(conversation.includes("if (source === 'camera') input.setAttribute('capture', 'environment')"), '카메라 경로만 후면 정지사진 capture를 요청해야 합니다');
+assert.ok(conversation.includes('excludeAcceptAllOption: true'), '내 파일 경로도 임의 파일 전체 허용 옵션을 노출하면 안 됩니다');
 assert.ok(!conversation.includes("input.accept = 'video/*'") && !conversation.includes('capture="camcorder"'), 'video/camcorder 계약은 없어야 합니다');
 assert.ok(conversation.includes("mime.startsWith('image/')"), '선택 후에도 image MIME을 검증해야 합니다');
 assert.ok(conversation.includes("mime === 'image/svg+xml'"), '실행 가능한 SVG는 프로필 사진으로 직접 저장하지 않습니다');
