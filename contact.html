@@ -13,15 +13,41 @@
   <meta property="og:url" content="https://lotbiai.com/contact.html" />
   <meta property="og:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
   <title>문의 | LOTBI</title>
+  <!-- SITE-STATIC-PAGES-THEME-01 — same pre-paint bootstrap as index.html, and
+       for the same reasons: inline, blocking, above every stylesheet. These
+       pages load no module, so this script is the ONLY thing that puts the
+       theme on the document. site-static-theme.css keys entirely on the
+       attribute it sets.
+       Reads only. Wrapped in try/catch and does nothing on a bad or missing
+       value: a storage failure must not stop a legal page from rendering. -->
+  <script>
+    try {
+      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+      if (lotbiSavedTheme === 'auto') {
+        // SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' is resolved here, with the same
+        // 18:00/07:00 boundaries index.html uses, rather than stored already
+        // resolved: a stored answer goes stale the moment the clock crosses one.
+        // Measured before this: with the key at 'auto' these pages set no
+        // attribute at all and fell back to the OS, so at 22:00 on a light OS
+        // Home went dark by the clock and a legal page stayed rgb(247,248,251).
+        var lotbiHour = new Date().getHours();
+        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+      }
+      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+      }
+    } catch (error) {}
+  </script>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="mobile-entry.css" />
+  <link rel="stylesheet" href="site-static-theme.css" />
   <script src="mobile-entry.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
   <main id="main-content" class="wrap legal">
     <header class="topbar">
-      <a class="brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈"><img class="lotbi-official-brand-logo" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /></a>
+      <a class="brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈"><img class="lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /></a>
       <nav aria-label="주요 메뉴"><a href="index.html">홈</a><a href="account-deletion.html">계정 삭제</a></nav>
     </header>
 
