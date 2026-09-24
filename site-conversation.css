@@ -2575,3 +2575,221 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
     font-size: 16px;
   }
 }
+
+
+/* SITE-PLACE-CARD-CROSS-PLATFORM-01 — compact photo-aware consumer contract */
+.lotbi-place-orbit {
+  height: 190px;
+}
+
+.lotbi-place-orbit.has-place-photo {
+  height: 300px;
+}
+
+.lotbi-place-orbit-card {
+  width: min(38%, 280px);
+  min-width: 220px;
+  border-color: rgba(73, 91, 118, .22);
+  border-radius: 16px;
+  background: var(--lotbi-surface-elevated, #fff);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  opacity: .18;
+  filter: saturate(.7) blur(.5px);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"] {
+  transform: translate(calc(-116% + var(--lotbi-orbit-drag-x)), -50%) scale(.82);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  transform: translate(calc(16% + var(--lotbi-orbit-drag-x)), -50%) scale(.82);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+  opacity: .08;
+  filter: saturate(.55) blur(1px);
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+  pointer-events: none;
+}
+
+.lotbi-rich-card-place-media[hidden] {
+  display: none;
+}
+
+.lotbi-rich-card-place-media {
+  aspect-ratio: 16 / 8.25;
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 88%, #dfe6ef);
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-copy {
+  gap: 3px;
+  padding: 9px 11px 7px;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-title {
+  color: var(--lotbi-text-primary, #202632);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-source {
+  color: var(--lotbi-text-muted, #687180);
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-price {
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 11.5px;
+}
+
+.lotbi-place-card-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  min-height: 54px;
+  padding: 4px 5px 6px;
+  border-color: color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 74%, transparent);
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action {
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 1px 3px;
+  flex-direction: column;
+  gap: 2px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 9.5px;
+  line-height: 1;
+}
+
+.lotbi-place-action-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.lotbi-place-action-label {
+  overflow: hidden;
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lotbi-phone-action .lotbi-place-action-icon::before { content: "☎"; }
+.lotbi-naver-map-action .lotbi-place-action-icon::before { content: "N"; }
+.lotbi-kakao-navi-action .lotbi-place-action-icon::before { content: "K"; }
+.lotbi-tmap-action .lotbi-place-action-icon::before { content: "T"; }
+.lotbi-google-maps-action .lotbi-place-action-icon::before { content: "G"; }
+
+.lotbi-phone-action .lotbi-place-action-icon {
+  background: #dff3e6;
+  color: #267044;
+}
+
+.lotbi-naver-map-action .lotbi-place-action-icon {
+  background: #dcf6e8;
+  color: #087b45;
+}
+
+.lotbi-kakao-navi-action .lotbi-place-action-icon {
+  background: #fff1ba;
+  color: #5c4900;
+}
+
+.lotbi-tmap-action .lotbi-place-action-icon {
+  background: #e4edfb;
+  color: #245991;
+}
+
+.lotbi-google-maps-action .lotbi-place-action-icon {
+  background: #e8edf4;
+  color: #3c556e;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action:hover,
+.lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+body[data-site-theme="dark"] .lotbi-phone-action .lotbi-place-action-icon {
+  background: #213d2d;
+  color: #9fe0b8;
+}
+body[data-site-theme="dark"] .lotbi-naver-map-action .lotbi-place-action-icon {
+  background: #16392a;
+  color: #89ddb3;
+}
+body[data-site-theme="dark"] .lotbi-kakao-navi-action .lotbi-place-action-icon {
+  background: #433b1c;
+  color: #f6d977;
+}
+body[data-site-theme="dark"] .lotbi-tmap-action .lotbi-place-action-icon {
+  background: #23354c;
+  color: #a9c9f0;
+}
+body[data-site-theme="dark"] .lotbi-google-maps-action .lotbi-place-action-icon {
+  background: #303a48;
+  color: #d2d8e2;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    width: min(100%, calc(100vw - 24px));
+    height: 178px;
+    margin-inline: auto;
+  }
+
+  .lotbi-place-orbit.has-place-photo {
+    height: 286px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(76vw, 286px);
+    min-width: min(76vw, 244px);
+  }
+
+  .lotbi-place-orbit-control {
+    opacity: .78;
+  }
+}
+
+@media (max-width: 390px) {
+  .lotbi-place-orbit-card {
+    width: min(78vw, 278px);
+    min-width: min(78vw, 238px);
+  }
+
+  .lotbi-place-card-actions {
+    gap: 1px;
+    padding-inline: 3px;
+  }
+
+  .lotbi-place-card-actions .lotbi-rich-card-action {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-place-orbit-card {
+    width: min(80vw, 272px);
+    min-width: 232px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card {
+    transition: none;
+  }
+}
