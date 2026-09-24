@@ -3,8 +3,7 @@
 // Covered contracts:
 //   - the strip renders under the month grid, as a sibling of the month layout
 //     (the layout's first two children stay the month and the day surface)
-//   - category rows carry Korean labels and the amounts Core returned
-//   - the 합계 figure, with its currency mark, is the bottom-right of the strip
+//   - the monthly total leads and category detail follows only for non-zero rows
 //   - each category name keeps its own fixed, legible colour in Light and Dark,
 //     and the amounts stay neutral
 //   - a month with no recorded amount still shows the strip, reading
@@ -37,8 +36,8 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260924-imagethumb2">
-<link rel="stylesheet" href="/site-calendar-expense.css?v=20260922-expense1">
+<link rel="stylesheet" href="/site-calendar.css?v=20260924-calendarux1">
+<link rel="stylesheet" href="/site-calendar-expense.css?v=20260924-calendarux1">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260923-darklogo1">
 </head><body style="margin:0">
 <div id="calendar-root"></div>
@@ -120,7 +119,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260924-imagethumb2');
+  const manager=await import('/site-calendar-manager.js?v=20260924-calendarux1');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -168,16 +167,15 @@ try{
   result.viewportHeight=Math.round(innerHeight);
   result.aboveTheFold=barBox.bottom<=innerHeight;
 
-  // The total holds the right edge of the bar, past every category.
+  // The total leads; categories are secondary and may scroll without moving it.
   const stripBox=ready.getBoundingClientRect();
   const totalBox=totalAmount.getBoundingClientRect();
   // Past the whole item list, not past a single item: on a narrow screen the
   // later categories are scrolled out of view to the right.
   const itemsBox=ready.querySelector('.calendar-expense-items').getBoundingClientRect();
-  result.totalAfterItems=totalBox.left>=itemsBox.right-1;
+  result.totalBeforeItems=totalBox.right<=itemsBox.left+1 || totalBox.top<itemsBox.top;
   result.itemsScrollable=ready.querySelector('.calendar-expense-items').scrollWidth
     > ready.querySelector('.calendar-expense-items').clientWidth;
-  result.totalRightAligned=(stripBox.right-totalBox.right)<=Math.max(24,stripBox.width*0.12);
   result.totalInsideBar=totalBox.bottom<=stripBox.bottom+1;
 
   // The window Core was asked for is the calendar month, not the grid range.
@@ -235,7 +233,7 @@ try{
   }
   // The editor's dropdown and the bar must call every category the same thing.
   {
-    const expense=await import('/site-calendar-expense.js?v=20260923-daysheet3');
+    const expense=await import('/site-calendar-expense.js?v=20260924-calendarux1');
     const barLabels=[...ready.querySelectorAll('.calendar-expense-item dt')].map(n=>n.textContent);
     const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
     result.labelParity={
@@ -244,11 +242,8 @@ try{
       // The same six words in both places. The dropdown leads with 미분류 as
       // its empty "not chosen" option; the bar keeps 미분류 last. Order differs
       // on purpose, the vocabulary must not.
-      matches:choiceLabels.length===barLabels.length
-        && choiceLabels[0]==='미분류'
-        && barLabels[barLabels.length-1]==='미분류'
-        && barLabels.every(text=>choiceLabels.includes(text))
-        && choiceLabels.every(text=>barLabels.includes(text)),
+      matches:choiceLabels[0]==='미분류'
+        && barLabels.every(text=>choiceLabels.includes(text)),
     };
   }
 
@@ -433,28 +428,27 @@ try {
     if (!value.layoutSecondIsDayPanel) throw new Error(`${label}: month layout child 1 must stay the selected-day surface`);
     if (!value.stripFollowsMonth) throw new Error(`${label}: expense strip must render below the month`);
 
-    // Every category keeps its slot, in a fixed order, even at 0원.
+    // Only recorded non-zero categories follow the total.
     const categories = value.rows.map(row => row.category);
-    if (categories.join(',') !== 'FOOD,TRAVEL,SHOPPING,LIVING,OTHER,UNCLASSIFIED') throw new Error(`${label}: all six categories must keep a fixed slot, 미분류 last, got ${categories.join(',')}`);
+    if (categories.join(',') !== 'FOOD,TRAVEL,LIVING') throw new Error(`${label}: only non-zero categories must render in fixed order, got ${categories.join(',')}`);
     const labels = value.rows.map(row => row.label);
-    if (labels.join(',') !== '음식,여행,쇼핑,생활비,기타,미분류') throw new Error(`${label}: Korean category labels missing, got ${labels.join(',')}`);
+    if (labels.join(',') !== '음식,여행,생활비') throw new Error(`${label}: Korean category labels missing, got ${labels.join(',')}`);
     const amounts = value.rows.map(row => row.amount);
-    if (amounts.join(',') !== '40,500원,180,000원,0원,94,000원,0원,0원') throw new Error(`${label}: amounts must come from Core with 0원 for the untouched ones, got ${amounts.join(' | ')}`);
+    if (amounts.join(',') !== '40,500원,180,000원,94,000원') throw new Error(`${label}: amounts must come from Core without synthetic zero rows, got ${amounts.join(' | ')}`);
 
     // It is one line, not a table.
     if (value.lineCount !== 1) throw new Error(`${label}: one currency must render one line, got ${value.lineCount}`);
     if (!value.itemsOnOneRow) throw new Error(`${label}: the categories must stay on one row, never wrap into a table`);
     // itemsOnOneRow already proves nothing wrapped; this keeps the bar from
     // growing tall some other way. A wrapped five-row table measured ~80px+.
-    if (value.lineHeight > value.itemHeight * 2 || value.lineHeight > 48) throw new Error(`${label}: the bar must stay one line tall, got ${value.lineHeight}px for a ${value.itemHeight}px item`);
+    if (value.lineHeight > 82) throw new Error(`${label}: the secondary summary must stay compact, got ${value.lineHeight}px`);
     if (!value.totalOutsideScroller) throw new Error(`${label}: the total must sit outside the scrolling item list so it cannot scroll away`);
 
     // "총" said nothing about money and named no currency on a single-currency
     // month, which is nearly every month.
-    if (value.totalLabel !== '합계 ₩') throw new Error(`${label}: a KRW total must be labelled "합계 ₩", got "${value.totalLabel}"`);
+    if (value.totalLabel !== '이번 달 지출') throw new Error(`${label}: the primary total must be labelled "이번 달 지출", got "${value.totalLabel}"`);
     if (value.totalText !== '314,500원') throw new Error(`${label}: total must be the sum Core returned, got ${value.totalText}`);
-    if (!value.totalAfterItems) throw new Error(`${label}: the total must sit past the categories, at the end of the line`);
-    if (!value.totalRightAligned) throw new Error(`${label}: the total must hold the right edge of the bar`);
+    if (!value.totalBeforeItems) throw new Error(`${label}: the total must lead the optional category detail`);
     if (!value.totalInsideBar) throw new Error(`${label}: the total must stay inside the bar`);
 
     if (!value.coverageNote.includes('2건')) throw new Error(`${label}: entries without an amount must be reported, got "${value.coverageNote}"`);
@@ -480,8 +474,7 @@ try {
 
     if (!value.emptyPresent) throw new Error(`${label}: an empty month must keep the bar`);
     if (!value.emptyText.includes('이번 달 기록 없음')) throw new Error(`${label}: empty month must say "이번 달 기록 없음", got "${value.emptyText}"`);
-    // The slots stay put at 0원 so the row does not move between months.
-    if (value.emptySlots.join(',') !== '0원,0원,0원,0원,0원,0원') throw new Error(`${label}: an empty month must keep six 0원 slots, got ${value.emptySlots.join(',')}`);
+    if (value.emptySlots.length !== 0) throw new Error(`${label}: an empty month must not emphasize six 0원 categories`);
     if (value.emptyTotal !== '0원') throw new Error(`${label}: an empty month total must read 0원, got ${value.emptyTotal}`);
 
     for (const status of [401, 403]) {
@@ -501,12 +494,12 @@ try {
     if (!value.guestPresent) throw new Error(`${label}: guests must still see the strip`);
     if (!value.guestAskedCore) throw new Error(`${label}: guest totals must be computed here, never fetched from Core`);
 
-    // The same bar, not a lesser one: same six slots, same labels, same order.
+    // The same total-first card, with only recorded non-zero categories.
     const guestCategories = value.guestRows.map(row => row.category);
-    if (guestCategories.join(',') !== 'FOOD,TRAVEL,SHOPPING,LIVING,OTHER,UNCLASSIFIED') {
-      throw new Error(`${label}: the signed-out bar must keep all six slots in order, got ${guestCategories.join(',')}`);
+    if (guestCategories.join(',') !== 'FOOD,TRAVEL,OTHER,UNCLASSIFIED') {
+      throw new Error(`${label}: the signed-out bar must keep non-zero categories in order, got ${guestCategories.join(',')}`);
     }
-    if (value.guestRows.map(row => row.label).join(',') !== '음식,여행,쇼핑,생활비,기타,미분류') {
+    if (value.guestRows.map(row => row.label).join(',') !== '음식,여행,기타,미분류') {
       throw new Error(`${label}: the signed-out bar must use the same labels, got ${value.guestRows.map(r => r.label).join(',')}`);
     }
     if (!value.guestTotalOutsideScroller) throw new Error(`${label}: the signed-out total must sit outside the scroller like the signed-in one`);
@@ -517,8 +510,7 @@ try {
     //   미분류 5,000 (an amount with no category) · 금액 없음 1건 · 10월 것은 제외
     const guestAmounts = Object.fromEntries(value.guestRows.map(row => [row.category, row.amount]));
     const guestExpected = {
-      FOOD: '40,500원', TRAVEL: '208,320원', SHOPPING: '0원',
-      LIVING: '0원', OTHER: '48,000원', UNCLASSIFIED: '5,000원',
+      FOOD: '40,500원', TRAVEL: '208,320원', OTHER: '48,000원', UNCLASSIFIED: '5,000원',
     };
     for (const [category, want] of Object.entries(guestExpected)) {
       if (guestAmounts[category] !== want) {
@@ -535,7 +527,7 @@ try {
 
     // An empty month reads as an empty month, not as a login wall.
     if (!value.guestEmptyNote.includes('이번 달 기록 없음')) throw new Error(`${label}: a signed-out empty month must read "이번 달 기록 없음", got "${value.guestEmptyNote}"`);
-    if (value.guestEmptyRows.some(amount => amount !== '0원')) throw new Error(`${label}: a signed-out empty month must show six 0원, got ${value.guestEmptyRows.join(',')}`);
+    if (value.guestEmptyRows.length !== 0) throw new Error(`${label}: a signed-out empty month must keep zero categories quiet`);
 
     // [E] An entry with no amount must not wear a 0 that looks saved.
     if (value.blankAmountValue !== '') throw new Error(`${label}: an entry with no amount must open with an empty box, got "${value.blankAmountValue}"`);
@@ -565,7 +557,7 @@ try {
     // in Light and Dark for a given category's hue — never on the amounts.
     for (const theme of ['Light', 'Dark']) {
       const colors = value['categoryColors' + theme];
-      for (const category of ['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', 'UNCLASSIFIED']) {
+      for (const category of ['FOOD', 'TRAVEL', 'OTHER', 'UNCLASSIFIED']) {
         const row = colors?.[category];
         if (!row) throw new Error(`${label}: ${theme} is missing a colour for ${category}`);
         if (!(row.contrast >= 4.5)) {
@@ -573,8 +565,8 @@ try {
         }
       }
       const distinct = new Set(Object.values(colors).map(row => row.color));
-      if (distinct.size !== 6) {
-        throw new Error(`${label}: ${theme} must give the six categories six different colours, got ${distinct.size}: ${JSON.stringify(colors)}`);
+      if (distinct.size !== 4) {
+        throw new Error(`${label}: ${theme} must give rendered categories distinct colours, got ${distinct.size}: ${JSON.stringify(colors)}`);
       }
       // A coloured amount would read as a status the bar never means.
       const amounts = new Set(value['amountColors' + theme]);

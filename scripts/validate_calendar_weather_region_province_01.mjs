@@ -5,7 +5,7 @@
 //   2. 권한이 이미 허용돼 있으면 버튼을 누르지 않아도 현재 위치를 쓴다.
 //   3. 현재 위치는 시·군·구로 저장되어 새로고침 뒤에도 날씨가 남는다(좌표는 저장하지 않는다).
 //   4. 권한 미결정 상태에서는 위치·알림 팝업이 저절로 뜨지 않는다.
-// 여기에 설정창의 알림 항목(서버가 못 보내면 그리지 않음)과 상단 탭 셋,
+// 여기에 설정창의 알림 항목(서버가 못 보내면 그리지 않음)과 상단 네 보기,
 // 그리고 없어진 확인 필요 탭이 보여주던 기한 지남이 일정 보기에 남아 있는지까지 본다.
 //
 // 새로고침은 흉내내지 않는다: 같은 프로필(--user-data-dir)로 브라우저를 다시 띄워
@@ -175,18 +175,19 @@ try {
   };
 
   // 권한 상태는 단계마다 다르다. 'prompt' 는 미결정 -- 여기서 좌표를 물으면 팝업이 뜬다.
-  const permissionState = {1: 'granted', 2: 'prompt', 3: 'denied', 4: 'denied', 5: 'granted', 6: 'denied', 7: 'denied', 8: 'denied'}[phase];
+  let permissionState = {1: 'granted', 2: 'prompt', 3: 'denied', 4: 'denied', 5: 'granted', 6: 'denied', 7: 'denied', 8: 'denied', 9: 'prompt'}[phase];
   const permissions = {query: async () => ({state: permissionState})};
   const geolocation = {
     getCurrentPosition(onOk, onErr) {
       geolocationCalls += 1;
+      if (phase === '9') permissionState = 'granted';
       if (permissionState !== 'granted') { onErr({code: 1, PERMISSION_DENIED: 1, message: 'denied'}); return; }
       // 전주 만성동 근처. 저장되는 것은 이 좌표가 아니라 시·군·구여야 한다.
       onOk({coords: {latitude: 35.8345, longitude: 127.1057, accuracy: 55}, timestamp: Date.now()});
     },
   };
 
-  if (phase === '1' || phase === '3' || phase === '6' || phase === '8') {
+  if (phase === '1' || phase === '3' || phase === '6' || phase === '8' || phase === '9') {
     // 1: 처음부터. 3: 저장된 지역 없이 권한이 거부된 상태.
     localStorage.clear();
     localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false}));
@@ -211,6 +212,11 @@ try {
     if (!section) return '';
     return [...section.querySelectorAll('.calendar-settings-status')].at(-1)?.textContent || '';
   };
+  const weatherOverview = dialog => ({
+    summary: dialog.querySelector('.calendar-settings-weather-overview strong')?.textContent || '',
+    relationship: dialog.querySelector('.calendar-settings-weather-overview small')?.textContent || '',
+    manualClearVisible: !dialog.querySelector('[data-calendar-weather-manual-clear]')?.hidden,
+  });
   const openSettings = async () => {
     click(root.querySelector('.calendar-settings-button'));
     await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings dialog');
@@ -232,6 +238,7 @@ try {
     result.precisePositionLeaked = dump.includes('35.8345') || dump.includes('127.1057') || dump.includes('capturedAtMs');
     const dialog = await openSettings();
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+    result.overview = weatherOverview(dialog);
     result.resolveCalls = resolveCalls;
   }
 
@@ -247,6 +254,7 @@ try {
     result.weatherRequests = weatherRequests;
     const dialog = await openSettings();
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+    result.overview = weatherOverview(dialog);
     result.hasTextInput = Boolean(dialog.querySelector('input[type="text"]'));
     result.hasNotificationSection = dialog.textContent.includes('일정 알림');
     result.selectLabels = [...dialog.querySelectorAll('.calendar-settings-select')]
@@ -290,6 +298,7 @@ try {
     result.storedRegion = storedRegion();
     result.storedOrigin = storedOrigin();
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+    result.overview = weatherOverview(dialog);
     // 권한이 거부된 사람에게는 어디를 눌러 허용하는지가 화면에 적혀 있어야 한다.
     const help = dialog.querySelector('[data-calendar-location-row] .calendar-settings-location-help');
     result.locationHelpShown = Boolean(help) && !help.hidden;
@@ -305,6 +314,7 @@ try {
     result.storedOrigin = storedOrigin();
     const dialog = await openSettings();
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+    result.overview = weatherOverview(dialog);
   }
 
   if (phase === '6') {
@@ -366,6 +376,23 @@ try {
     await wait(() => dialog.textContent.includes('일정 알림'), 'notification section returns');
     result.hasNotificationSection = true;
     result.notificationRequests = notificationRequests;
+  }
+
+  if (phase === '9') {
+    // Settings가 열린 채로 현재 위치가 해결되는 경우. overview와 fallback
+    // 해제 동작이 닫았다 다시 열지 않아도 같은 상태를 말해야 한다.
+    const dialog = await openSettings();
+    const currentLocation = dialog.querySelector('[data-calendar-location-row] button');
+    click(currentLocation);
+    await wait(
+      () => weatherOverview(dialog).summary === '현재 지역 · 전북특별자치도 전주시',
+      'live current-region overview',
+    );
+    result.dialogStayedOpen = dialog.isConnected;
+    result.overview = weatherOverview(dialog);
+    result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
+    result.storedRegion = storedRegion();
+    result.storedOrigin = storedOrigin();
   }
 
   out.textContent = JSON.stringify(result);
@@ -438,8 +465,8 @@ try {
   if (results.reloaded.notificationRequests !== 0) throw new Error('알림 권한을 저절로 물었다');
   if (results.reloaded.hasTextInput) throw new Error('설정창에 자유 텍스트 입력칸이 남아 있다');
   if (results.reloaded.hasNotificationSection) throw new Error('보낼 수 없는 알림 항목이 설정창에 남아 있다');
-  if (!results.reloaded.statusText.includes('현재 위치로 저장한 지역')) {
-    throw new Error(`저장된 지역을 현재 위치라고 뭉개서 말한다: ${results.reloaded.statusText}`);
+  if (results.reloaded.overview.summary !== '현재 지역 · 전북특별자치도 전주시') {
+    throw new Error(`저장된 현재 지역 summary가 정확하지 않다: ${results.reloaded.overview.summary}`);
   }
   if (results.reloaded.selectLabels.join('|') !== '날씨 지역 광역시·도|날씨 지역 시·군·구') {
     throw new Error(`2단계 선택이 아니다: ${JSON.stringify(results.reloaded.selectLabels)}`);
@@ -448,7 +475,7 @@ try {
   if (!results.reloaded.cityOptions.includes('전주시') || results.reloaded.cityOptions.includes('수원시')) {
     throw new Error(`2단계에 다른 광역시·도의 지역이 섞였다: ${JSON.stringify(results.reloaded.cityOptions)}`);
   }
-  if (results.reloaded.modeTabs.join('/') !== '월/연도/일정') throw new Error(`상단 탭은 월/연도/일정 셋이다: ${results.reloaded.modeTabs.join('/')}`);
+  if (results.reloaded.modeTabs.join('/') !== '주/월/년/일정') throw new Error(`상단 탭은 주/월/년/일정이다: ${results.reloaded.modeTabs.join('/')}`);
   if (results.reloaded.overdueHeading !== '기한 지남') throw new Error('일정 보기에 기한 지남 묶음이 없다');
   if (!results.reloaded.overdueTitles.includes('지난달에 지난 기한')) {
     throw new Error(`지금 달에 없는 지난 기한이 어디에도 보이지 않는다: ${JSON.stringify(results.reloaded.overdueTitles)}`);
@@ -474,13 +501,23 @@ try {
 
   results.deniedReloaded = run(browser, profile, 4, width, height);
   if (!(results.deniedReloaded.weatherCells > 0)) throw new Error('직접 고른 지역이 새로고침을 넘기지 못했다');
-  if (!results.deniedReloaded.statusText.includes('직접 고른 지역')) {
-    throw new Error(`직접 고른 지역을 그렇게 말하지 않는다: ${results.deniedReloaded.statusText}`);
+  if (results.deniedReloaded.overview.summary !== '수동 지역 · 전북특별자치도 전주시') {
+    throw new Error(`직접 고른 지역 summary가 정확하지 않다: ${results.deniedReloaded.overview.summary}`);
   }
 
   // 서버가 켜지면 코드를 고치지 않아도 알림 항목이 돌아온다 -- 지운 것이 아니라 가린 것이다.
   results.pushReady = run(browser, profile, 5, width, height);
   if (!results.pushReady.hasNotificationSection) throw new Error('서버가 준비됐는데도 알림 항목이 돌아오지 않았다');
+
+  results.liveSettings = run(browser, profile, 9, width, height);
+  if (!results.liveSettings.dialogStayedOpen) throw new Error('현재 위치 해결 중 Settings가 닫혔다');
+  if (results.liveSettings.overview.summary !== '현재 지역 · 전북특별자치도 전주시') {
+    throw new Error(`열린 Settings가 현재 지역을 즉시 반영하지 않았다: ${results.liveSettings.overview.summary}`);
+  }
+  if (!results.liveSettings.overview.relationship.includes('현재 위치를 우선 사용')) {
+    throw new Error(`현재 위치와 fallback 관계가 즉시 갱신되지 않았다: ${results.liveSettings.overview.relationship}`);
+  }
+  if (!results.liveSettings.overview.manualClearVisible) throw new Error('저장된 fallback 해제 동작이 열린 Settings에 나타나지 않았다');
 
   // 목록 서버가 죽었을 때. 화면이 이유를 말하고, 다시 불러오기로 되살아나야 한다.
   results.listDown = run(browser, profile, 6, width, height);

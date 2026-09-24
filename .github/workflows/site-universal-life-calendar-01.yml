@@ -10,6 +10,7 @@ on:
       - 'site-calendar-ui.js'
       - 'site-calendar-manager.js'
       - 'site-calendar-model.js'
+      - 'site-calendar-product.js'
       - 'site-calendar-guest.js'
       - 'site-calendar.css'
       - 'site-calendar-weather.js'
@@ -56,6 +57,10 @@ on:
       - 'scripts/validate_calendar_outside_month_01.mjs'
       - 'scripts/validate_calendar_editor_field_height_01.mjs'
       - 'scripts/validate_calendar_settings_expansion_01.mjs'
+      - 'scripts/validate_calendar_secondary_surfaces_01.mjs'
+      - 'scripts/validate_calendar_product_model_01.mjs'
+      - 'scripts/validate_calendar_cross_platform_ux_01.mjs'
+      - 'scripts/validate_calendar_compact_editor_01.mjs'
       - 'scripts/validate_calendar_system_dark_01.mjs'
       - 'scripts/generate_calendar_system_dark.mjs'
       - 'scripts/validate_calendar_add_from_image_01.mjs'
@@ -104,8 +109,10 @@ jobs:
         run: node scripts/validate_life_calendar_ui_01.mjs
       - name: Real Calendar month and year model
         run: |
+          node --check site-calendar-product.js
           node scripts/validate_calendar_month_grid_01.mjs
           node scripts/validate_calendar_year_view_01.mjs
+          node scripts/validate_calendar_product_model_01.mjs
       - name: Guest Calendar local repository
         run: node scripts/validate_guest_calendar_local_01.mjs
       - name: Real Calendar UI and editor
@@ -160,5 +167,10 @@ jobs:
         run: node scripts/validate_calendar_editor_field_height_01.mjs
       - name: Grid lines and week start are settings, and the weekend stays on the weekend
         run: node scripts/validate_calendar_settings_expansion_01.mjs
+      - name: Calendar secondary expense, settings, and cache surfaces
+        run: |
+          node scripts/validate_calendar_secondary_surfaces_01.mjs
+          node scripts/validate_calendar_cross_platform_ux_01.mjs
+          node scripts/validate_calendar_compact_editor_01.mjs
       - name: The default theme preference follows a dark OS, measured not asserted
         run: node scripts/validate_calendar_system_dark_01.mjs

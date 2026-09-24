@@ -308,10 +308,12 @@ if (!manager.includes("cellNode.dataset.weekday = String(cell.weekday);")) {
 if (!manager.includes('격자선 표시') || !manager.includes('주 시작 요일')) {
   throw new Error('both approved settings must be on screen');
 }
-// 보류 목록을 슬쩍 되살리지 않는다: the held items stay out of this PR.
-for (const held of ['음력', '할 일', '주간 보기', '24시간', '외부 캘린더']) {
+// 보류 목록을 슬쩍 되살리지 않는다. 주 보기는 이제 제품의 primary view라서
+// 예전의 "주간 보기 보류" 조건에는 포함되지 않는다.
+for (const held of ['음력', '할 일', '24시간', '외부 캘린더']) {
   if (manager.includes(held)) throw new Error(`held setting must not appear: ${held}`);
 }
+if (!manager.includes("['week', '주']")) throw new Error('Week must remain a primary Calendar view');
 
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');

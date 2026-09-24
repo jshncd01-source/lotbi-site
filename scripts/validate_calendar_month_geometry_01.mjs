@@ -113,7 +113,7 @@ async function measure({nowIso,date,label,weeks}){
   const rows=[...target.querySelectorAll('.calendar-event-chip')];
   const more=target.querySelector('.calendar-event-overflow');
   const visible=rows.filter(row=>!row.hidden&&getComputedStyle(row).display!=='none').length;
-  const hiddenCount=more&&!more.hidden&&getComputedStyle(more).display!=='none'?Number(more.dataset.hiddenCount||0):0;
+  const overflowVisible=Boolean(more&&!more.hidden&&getComputedStyle(more).display!=='none');
   const heights=cells.map(node=>node.getBoundingClientRect().height);
   const spread=heights.length?Math.max(...heights)-Math.min(...heights):0;
   const cellHeight=target.getBoundingClientRect().height;
@@ -143,11 +143,12 @@ async function measure({nowIso,date,label,weeks}){
   if(getComputedStyle(modal).overflowY!=='hidden')throw new Error(label+' modal must not scroll');
   if(getComputedStyle(root).overflowY!=='hidden')throw new Error(label+' month content must not scroll');
   if(modal.scrollHeight>modal.clientHeight+1)throw new Error(label+' modal double scroll');
-  if(rows.length!==5||visible+hiddenCount!==5)throw new Error(label+' five-event accounting '+visible+'+'+hiddenCount);
-  if(cellHeight>=130&&visible<3)throw new Error(label+' five-event density too sparse '+cellHeight+'px visible '+visible);
-  if(cellHeight>=156&&visible<5)throw new Error(label+' should show all five at '+cellHeight+'px, visible '+visible);
+  if(rows.length!==2)throw new Error(label+' Month must mount exactly two representative rows, got '+rows.length);
+  if(visible!==2)throw new Error(label+' both representative rows must be visible, got '+visible);
+  if(!overflowVisible)throw new Error(label+' +N overflow summary must be visible');
+  if(more.textContent!=='+3')throw new Error(label+' five-event overflow must read +3, got '+more.textContent);
 
-  const result={label,weeks,cellHeight,visible,hiddenCount,unusedBottom,gridHeight:gridRect.height,modalHeight:modal.getBoundingClientRect().height};
+  const result={label,weeks,cellHeight,visible,overflow:more.textContent,unusedBottom,gridHeight:gridRect.height,modalHeight:modal.getBoundingClientRect().height};
   backdrop.remove();
   return result;
 }

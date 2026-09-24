@@ -31,7 +31,10 @@ assert.match(manager, /'날씨 지역 시·군·구'/);
 assert.match(manager, /items \|\| \[\]\)\.filter\(item => item\.province === province\)/);
 assert.match(manager, /\/v2\/life\/weather\/regions/);
 assert.match(manager, /수동 지역 해제/);
-assert.match(manager, /현재 날씨 지역:/);
+assert.match(manager, /calendarWeatherLocationPresentation/);
+assert.match(manager, /manualSummary/);
+assert.match(manager, /현재 위치를 우선 사용하고, 사용할 수 없으면 저장된 지역으로 전환합니다/);
+assert.match(manager, /현재 위치를 사용할 수 없으면 수동 지역의 날씨를 표시합니다/);
 assert.match(manager, /state\.manualWeatherRegion/);
 assert.match(manager, /currentWeatherLocation\?\.source === 'BROWSER_CURRENT'/);
 assert.match(manager, /state\.manualWeatherRegion \? '' : '위치 권한이 꺼져 있어요.'/);
@@ -64,7 +67,7 @@ assert.match(manager, /row\.dataset\.calendarLocationRow = 'true'/);
 assert.match(manager, /row\.append\(copy, locationButton\)/);
 assert.match(manager, /announceLocation\('현재 위치로 날씨를 표시합니다\.'\)/);
 const renderStart = manager.indexOf('  function render() {');
-const renderEnd = manager.indexOf('  async function refresh() {');
+const renderEnd = manager.indexOf('  async function refresh({');
 assert.ok(renderStart >= 0 && renderEnd > renderStart, 'render/refresh boundary not found');
 const renderBody = manager.slice(renderStart, renderEnd);
 assert.equal(
@@ -100,9 +103,9 @@ assert.match(preference, /longitude > 132\.5/);
 
 assert.match(css, /\.calendar-settings-region-row/);
 assert.match(css, /\.calendar-settings-region-row input/);
-assert.match(ui, /site-calendar-manager\.js\?v=20260924-imagethumb2/);
-assert.match(conversation, /site-calendar-ui\.js\?v=20260924-imagethumb2/);
-assert.match(index, /site-calendar\.css\?v=20260924-imagethumb2/);
+assert.match(ui, /site-calendar-manager\.js\?v=20260924-calendarux1/);
+assert.match(conversation, /site-calendar-ui\.js\?v=20260924-calendarux1/);
+assert.match(index, /site-calendar\.css\?v=20260924-calendarux1/);
 // The Home entry carries its own cache-bust token, bumped whenever the shell
 // changes rather than whenever a Calendar module does. Pinning the Calendar's
 // token here went stale the first time only one of the two moved; what actually
@@ -111,6 +114,6 @@ const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"']+)/)?.[1] |
 assert.ok(homeEntryVersion, 'Home conversation entry must be cache-busted');
 assert.match(callback, new RegExp(`site-conversation\\.js\\?v=${homeEntryVersion}`));
 assert.match(callbackHtml, new RegExp(`auth-callback\\.js\\?v=${homeEntryVersion}`));
-assert.match(callbackHtml, /site-calendar\.css\?v=20260924-imagethumb2/);
+assert.match(callbackHtml, /site-calendar\.css\?v=20260924-calendarux1/);
 
 console.log('LOTBI Calendar manual weather region Settings contract: PASS');

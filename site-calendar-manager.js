@@ -1,5 +1,5 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260923-daysheet3';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=20260924-calendarux1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260924-calendarux1';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,19 +10,27 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=20260923-daysheet3';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260923-daysheet3';
+} from './site-calendar-model.js?v=20260924-calendarux1';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=20260924-calendarux1';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
 import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=20260924-assurance1';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260923-daysheet3';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260923-daysheet3';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260923-daysheet3';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260922-notificationperm2';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260922-notificationperm2';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260922-locationperm1';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=20260924-calendarux1';
+import {
+  calendarEventPresentation,
+  calendarWeatherPresentation,
+  calendarWeekDays,
+  filterScheduleItems,
+  monthCellSummary,
+  weekAgendaGroups,
+} from './site-calendar-product.js?v=20260924-calendarux1';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=20260924-calendarux1';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=20260924-calendarux1';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=20260924-calendarux1';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=20260924-calendarux1';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=20260924-calendarux1';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -47,7 +55,7 @@ function weekdayOrder(weekStart = 0) {
 // attentionDates 로 이미 같은 날짜에 표시하고 있었고, 남은 하나 -- 지금 달에 없는
 // 지난 기한 -- 은 일정 보기의 '기한 지남' 묶음이 이어받는다(renderAgenda). 탭만
 // 사라지고 지난 기한이 조용히 사라지지는 않는다.
-const MODES = Object.freeze([['month', '월'], ['year', '연도'], ['agenda', '일정']]);
+const MODES = Object.freeze([['week', '주'], ['month', '월'], ['year', '년'], ['agenda', '일정']]);
 const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
 const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription.v1';
 // 저장된 날씨 지역이 어디서 왔는지. 지역 자체는 site-calendar-weather-region.js 가
@@ -80,6 +88,47 @@ const WEATHER_REGION_ORIGIN = Object.freeze({
   MANUAL: 'MANUAL',
   CURRENT_LOCATION: 'CURRENT_LOCATION',
 });
+
+export function calendarWeatherLocationPresentation({
+  manualWeatherRegion = null,
+  weatherRegionOrigin = null,
+  usingBrowserLocation = false,
+  locationPermission = LOCATION_PERMISSION.UNKNOWN,
+  locationResolution = LOCATION_RESOLUTION.IDLE,
+  locationInFlight = false,
+  locationMessage = '',
+} = {}) {
+  const label = typeof manualWeatherRegion?.label === 'string'
+    ? manualWeatherRegion.label.trim()
+    : '';
+  const currentAction = locationInFlight
+    ? '위치 확인 중…'
+    : usingBrowserLocation
+      ? '변경'
+      : [LOCATION_RESOLUTION.TIMEOUT, LOCATION_RESOLUTION.ERROR].includes(locationResolution)
+        && ![LOCATION_PERMISSION.DENIED, LOCATION_PERMISSION.UNAVAILABLE].includes(locationPermission)
+        ? '다시 시도'
+        : '현재 위치 사용';
+
+  let currentStatus = '버튼을 누를 때만 위치 권한을 요청합니다.';
+  if (locationInFlight) currentStatus = '현재 위치를 확인하는 중…';
+  else if (locationPermission === LOCATION_PERMISSION.DENIED) currentStatus = '브라우저 사이트 설정에서 위치 권한을 허용해 주세요.';
+  else if (locationPermission === LOCATION_PERMISSION.UNAVAILABLE) currentStatus = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+  else if (usingBrowserLocation) currentStatus = '현재 위치로 날씨를 표시합니다.';
+  else if (locationMessage) currentStatus = locationMessage;
+
+  const manualSummary = label
+    ? `${weatherRegionOrigin === WEATHER_REGION_ORIGIN.CURRENT_LOCATION ? '현재 지역' : '수동 지역'} · ${label}`
+    : '수동 지역이 선택되지 않았습니다.';
+  let relationship = '아래에서 광역시·도와 시·군·구를 선택할 수 있습니다.';
+  if (usingBrowserLocation && label) {
+    relationship = '현재 위치를 우선 사용하고, 사용할 수 없으면 저장된 지역으로 전환합니다.';
+  } else if (label) {
+    relationship = '현재 위치를 사용할 수 없으면 수동 지역의 날씨를 표시합니다.';
+  }
+
+  return {currentAction, currentStatus, manualSummary, relationship};
+}
 
 function readWeatherRegionOrigin(storage) {
   if (!storage || typeof storage.getItem !== 'function') return null;
@@ -564,12 +613,10 @@ function usesFlowingDayDetail() {
   return globalThis.innerWidth <= 900;
 }
 
-export const DAY_DETAIL_PRESENTATION = Object.freeze({POPOVER: 'POPOVER', SHEET: 'SHEET', FLOW: 'FLOW'});
+export const DAY_DETAIL_PRESENTATION = Object.freeze({FLOW: 'FLOW', SIDE: 'SIDE'});
 
-// usesFlowingDayDetail() keeps deciding "is this a touch layout"; this is the single
-// place that decides HOW the selected-day detail is presented. Desktop keeps the
-// anchored popover. Touch defaults to the bottom sheet, and FLOW remains reachable
-// so the previous below-the-month panel can be restored without touching call sites.
+// Touch widths keep the selected day in document flow; desktop gives it a
+// stable side rail. Neither presentation covers the month grid.
 let dayDetailPresentationOverride = null;
 
 export function setDayDetailPresentation(value) {
@@ -578,17 +625,8 @@ export function setDayDetailPresentation(value) {
 }
 
 export function dayDetailPresentation() {
-  if (!usesFlowingDayDetail()) return DAY_DETAIL_PRESENTATION.POPOVER;
-  // Touch used to get a sheet welded to the bottom of the screen. Nothing else
-  // people use works that way -- the panel that answers a tap belongs next to
-  // the date that was tapped, so it reads as that date's, and so the rest of
-  // the month stays where the eye left it. SHEET and FLOW stay reachable
-  // through setDayDetailPresentation for a rollback.
-  return dayDetailPresentationOverride || DAY_DETAIL_PRESENTATION.POPOVER;
-}
-
-function usesSheetDayDetail() {
-  return dayDetailPresentation() === DAY_DETAIL_PRESENTATION.SHEET;
+  return dayDetailPresentationOverride
+    || (usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE);
 }
 
 function prefersReducedMotion() {
@@ -687,24 +725,45 @@ export function bindMonthSwipe(node, {onPrevious, onNext, isBusy = () => false} 
   };
 }
 
-function weekBounds(value) {
+function weekBounds(value, weekStart = 0) {
   const {year, month, day} = civilDateParts(value);
   const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
-  const start = addCivilDays(value, -weekday);
+  const start = addCivilDays(value, -((weekday - weekStart + 7) % 7));
   return Object.freeze({start, end: addCivilDays(start, 6)});
 }
 
-export function buildCalendarTemporal({localDate, time = '', allDay = false, timezone = DEFAULT_TIMEZONE}) {
+export function buildCalendarTemporal({localDate, time = '', endDate = '', endTime = '', allDay = false, timezone = DEFAULT_TIMEZONE}) {
   const date = typeof localDate === 'string' ? localDate.trim() : '';
   const clock = typeof time === 'string' ? time.trim() : '';
+  const endingDate = typeof endDate === 'string' && endDate.trim() ? endDate.trim() : date;
+  const end = typeof endTime === 'string' ? endTime.trim() : '';
   if (!date) {
-    if (clock) throw new SiteCoreError('날짜 없이 시간만 저장할 수 없습니다.', {code: 'LIFE_DATE_REQUIRED_FOR_TIME', status: 422});
+    if (clock || end) throw new SiteCoreError('날짜 없이 시간만 저장할 수 없습니다.', {code: 'LIFE_DATE_REQUIRED_FOR_TIME', status: 422});
     return Object.freeze({kind: 'UNSCHEDULED'});
   }
   if (!validCivilDate(date)) throw new SiteCoreError('날짜가 올바르지 않습니다.', {code: 'LIFE_DATE_INVALID', status: 422});
-  if (allDay || !clock) return Object.freeze({kind: 'DATE_ONLY', local_date: date});
+  if (allDay) {
+    if (endDate && (!validCivilDate(endingDate) || endingDate < date)) throw new SiteCoreError('종료 날짜가 올바르지 않습니다.', {code: 'LIFE_END_DATE_INVALID', status: 422});
+    if (endingDate > date) return Object.freeze({kind: 'DATE_RANGE', local_date: date, date_end: endingDate, timezone_name: timezone});
+    return Object.freeze({kind: 'DATE_ONLY', local_date: date});
+  }
+  if (end && !clock) throw new SiteCoreError('종료 시간에는 시작 시간이 필요합니다.', {code: 'LIFE_START_TIME_REQUIRED', status: 422});
+  if (!clock) return Object.freeze({kind: 'DATE_ONLY', local_date: date});
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(clock)) throw new SiteCoreError('시간이 올바르지 않습니다.', {code: 'LIFE_TIME_INVALID', status: 422});
+  if (end) {
+    if (!validCivilDate(endingDate) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(end) || `${endingDate}T${end}` <= `${date}T${clock}`) {
+      throw new SiteCoreError('종료 시간은 시작 시간보다 늦어야 합니다.', {code: 'LIFE_END_TIME_INVALID', status: 422});
+    }
+    return Object.freeze({kind: 'TIME_WINDOW', window_start: `${date}T${clock}:00`, window_end: `${endingDate}T${end}:00`, timezone_name: timezone});
+  }
   return Object.freeze({kind: 'LOCAL_DATE_TIME', local_datetime: `${date}T${clock}:00`, timezone_name: timezone});
+}
+
+export function normalizeCalendarClockInput(value) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) return '';
+  const clock = /^\d{4}$/.test(raw) ? `${raw.slice(0, 2)}:${raw.slice(2)}` : raw;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(clock) ? clock : null;
 }
 
 function defaultRequestId(kind) {
@@ -723,6 +782,8 @@ export function createCalendarMutationController({
       title: typeof input?.title === 'string' ? input.title.trim() : '',
       localDate: typeof input?.localDate === 'string' ? input.localDate.trim() : '',
       time: typeof input?.time === 'string' ? input.time.trim() : '',
+      endTime: typeof input?.endTime === 'string' ? input.endTime.trim() : '',
+      endDate: typeof input?.endDate === 'string' ? input.endDate.trim() : '',
       allDay: input?.allDay === true,
       entry: {
         amount_minor: amountMinor,
@@ -737,8 +798,10 @@ export function createCalendarMutationController({
   const guestPayload = (value, temporal) => ({
     title: value.title,
     local_date: value.localDate || null,
-    local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : null,
-    all_day: temporal.kind === 'DATE_ONLY',
+    local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : temporal.kind === 'TIME_WINDOW' ? temporal.window_start : null,
+    local_end_datetime: temporal.kind === 'TIME_WINDOW' ? temporal.window_end : null,
+    local_end_date: temporal.kind === 'TIME_WINDOW' ? temporal.window_end.slice(0, 10) : temporal.kind === 'DATE_RANGE' ? temporal.date_end : null,
+    all_day: temporal.kind === 'DATE_ONLY' || temporal.kind === 'DATE_RANGE',
     entry: value.entry,
   });
   return Object.freeze({
@@ -859,12 +922,16 @@ function weatherFailureCopy(error) {
 
 export async function loadLifeCalendarManagerView(
   sessionToken,
-  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null} = {},
+  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null, weekStart = 0} = {},
 ) {
   const selectedDate = validCivilDate(date) ? date : dateInTimezone(now, timezone);
   const key = normalizeMode(view);
-  const range = key === 'year' ? yearBounds(selectedDate) : monthBounds(selectedDate);
-  const weatherWindow = key === 'month'
+  const range = key === 'year'
+    ? yearBounds(selectedDate)
+    : key === 'week'
+      ? {...weekBounds(selectedDate, weekStart), ...civilDateParts(selectedDate)}
+      : monthBounds(selectedDate);
+  const weatherWindow = key === 'month' || key === 'week'
     ? forecastWindow(range, dateInTimezone(now, timezone))
     : null;
   const weatherRequest = weatherWindow
@@ -883,7 +950,7 @@ export async function loadLifeCalendarManagerView(
         return {providerReady: false, items: [], aiCalls: 0, failure: error};
       })
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
-  const holidayRequest = (key === 'month' || key === 'year')
+  const holidayRequest = (key === 'month' || key === 'week' || key === 'year')
     ? getKoreaHolidays(range.year, fetchImpl).catch(error => {
         console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
         return {coverageStatus: 'UNAVAILABLE', items: []};
@@ -893,7 +960,7 @@ export async function loadLifeCalendarManagerView(
     getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
     // 일정 보기도 함께 읽는다: 확인 필요 탭이 사라진 뒤 지금 달에 없는 지난 기한을
     // 보여줄 유일한 자리가 그곳이다.
-    key === 'month' || key === 'agenda'
+    key === 'month' || key === 'week' || key === 'agenda'
       ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
       : Promise.resolve(null),
     key === 'agenda'
@@ -961,6 +1028,34 @@ function button(label, className) {
   return value;
 }
 
+export function rovingTabTargetIndex(key, currentIndex, length) {
+  if (!Number.isInteger(currentIndex) || currentIndex < 0 || currentIndex >= length || length < 1) return null;
+  if (key === 'ArrowRight') return (currentIndex + 1) % length;
+  if (key === 'ArrowLeft') return (currentIndex - 1 + length) % length;
+  if (key === 'Home') return 0;
+  if (key === 'End') return length - 1;
+  return null;
+}
+
+function bindRovingTablist(container, controls) {
+  const tabs = Array.from(controls);
+  container.addEventListener('keydown', event => {
+    const current = event.target instanceof Element ? event.target.closest('[role="tab"]') : null;
+    const currentIndex = tabs.indexOf(current);
+    const targetIndex = rovingTabTargetIndex(event.key, currentIndex, tabs.length);
+    if (targetIndex === null) return;
+    event.preventDefault();
+    const target = tabs[targetIndex];
+    for (const tab of tabs) {
+      const selected = tab === target;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+    }
+    target.focus();
+    target.click();
+  });
+}
+
 function emptyMessage(text) {
   const value = document.createElement('p');
   value.className = 'life-calendar-empty';
@@ -1010,17 +1105,31 @@ function eventList(items, {onSelect} = {}) {
   const list = document.createElement('ul');
   list.className = 'calendar-day-list';
   for (const item of sortCalendarEvents(items)) {
+    const presentation = calendarEventPresentation(item);
     const li = document.createElement('li');
     li.className = 'calendar-day-event';
+    li.dataset.eventKind = presentation.kind;
     li.dataset.calendarEventId = item.id || item.activity_id || '';
     const time = document.createElement('time');
     time.textContent = eventTime(item);
     const copy = document.createElement('span');
     const title = document.createElement('strong');
     title.textContent = item.title;
+    const badges = document.createElement('span');
+    badges.className = 'calendar-event-badges';
+    const type = document.createElement('span');
+    type.className = 'calendar-event-type';
+    type.textContent = presentation.typeLabel;
+    badges.appendChild(type);
+    if (presentation.statusLabel) {
+      const status = document.createElement('span');
+      status.className = 'calendar-event-status';
+      status.textContent = presentation.statusLabel;
+      badges.appendChild(status);
+    }
     const meta = document.createElement('small');
-    meta.textContent = eventMetaText(item);
-    copy.append(title);
+    meta.textContent = presentation.metaText || eventMetaText(item);
+    copy.append(title, badges);
     if (meta.textContent) copy.append(meta);
     li.append(time, copy);
     if (onSelect) {
@@ -1050,15 +1159,15 @@ function dayPanel(state, groups, actions) {
   head.className = 'calendar-day-panel-head';
   const heading = document.createElement('h3');
   heading.className = 'calendar-day-heading';
-  heading.textContent = koreanDate(state.selectedDate);
+  const selectedParts = civilDateParts(state.selectedDate);
+  const selectedWeekday = new Date(Date.UTC(selectedParts.year, selectedParts.month - 1, selectedParts.day, 12)).getUTCDay();
+  heading.textContent = `${selectedParts.month}월 ${selectedParts.day}일 ${WEEKDAY_INITIALS[selectedWeekday]}`;
   const controls = document.createElement('div');
   controls.className = 'calendar-day-panel-actions';
-  const toggle = button(state.dayCollapsed ? '펼치기' : '접기', 'calendar-day-toggle');
-  toggle.setAttribute('aria-expanded', String(!state.dayCollapsed));
-  toggle.addEventListener('click', () => actions.toggleDay());
-  const close = button('닫기', 'calendar-day-close');
+  const close = button('×', 'calendar-day-close');
+  close.setAttribute('aria-label', '선택한 날짜 일정 닫기');
   close.addEventListener('click', () => actions.closeDay());
-  controls.append(toggle, close);
+  controls.append(close);
   head.append(heading, controls);
 
   const body = document.createElement('div');
@@ -1100,12 +1209,12 @@ function dayPanel(state, groups, actions) {
   addRow.className = 'calendar-add-actions';
   if (!items.length) addRow.appendChild(emptyMessage('등록된 일정이 없어요.'));
 
-  const addImage = button('이미지로 등록', 'calendar-add-button calendar-add-image-button');
+  const addImage = button('사진에서 일정 추가', 'calendar-add-button calendar-add-image-button');
   addImage.dataset.calendarAddImage = '';
   addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
   addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
 
-  const add = button('직접 등록', 'calendar-add-button calendar-add-detail-button');
+  const add = button('+ 일정 추가', 'calendar-add-button calendar-add-detail-button');
   add.dataset.calendarAdd = '';
   add.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정을 직접 입력해서 등록`);
   add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
@@ -1141,122 +1250,114 @@ function monthEventRow(item, onSelect) {
 }
 
 function fitMonthEventDensity(layout) {
-  const desktop = typeof globalThis.matchMedia === 'function'
-    ? globalThis.matchMedia('(min-width: 901px)').matches
-    : globalThis.innerWidth > 900;
-  for (const cell of layout.querySelectorAll('.calendar-date-cell')) {
-    const stack = cell.querySelector('.calendar-event-stack');
-    if (!stack) continue;
-    const rows = [...stack.querySelectorAll('.calendar-event-chip')];
-    const more = stack.querySelector('.calendar-event-overflow');
-    for (const row of rows) row.hidden = !desktop;
-    if (more) more.hidden = true;
-    if (!desktop || !rows.length) continue;
-
-    for (const row of rows) row.hidden = false;
-    const cellStyle = getComputedStyle(cell);
-    const paddingY = (parseFloat(cellStyle.paddingTop) || 0) + (parseFloat(cellStyle.paddingBottom) || 0);
-    const cellGap = parseFloat(cellStyle.rowGap || cellStyle.gap) || 0;
-    const headerHeight = Math.ceil(cell.querySelector('.calendar-date-header')?.getBoundingClientRect().height || 0);
-    const available = Math.max(0, Math.floor(cell.getBoundingClientRect().height - paddingY - headerHeight - cellGap));
-    const rowHeight = Math.max(24, Math.ceil(rows[0].getBoundingClientRect().height || 24));
-    const moreHeight = Math.max(22, Math.ceil(more?.getBoundingClientRect().height || 22));
-    const gap = 1;
-    const fullCapacity = Math.max(1, Math.floor((available + gap) / (rowHeight + gap)));
-    if (rows.length <= fullCapacity) continue;
-
-    const visible = Math.max(0, Math.floor((available - moreHeight) / (rowHeight + gap)));
-    rows.forEach((row, index) => { row.hidden = index >= visible; });
-    if (more) {
-      more.hidden = false;
-      more.textContent = `${rows.length - visible}개 더 보기`;
-      more.dataset.hiddenCount = String(rows.length - visible);
-    }
-  }
-}
-
-// The box the panel is allowed to occupy: the Calendar's own surface, clipped
-// to whatever the software keyboard has left of the viewport. visualViewport is
-// what shrinks when the keyboard comes up; innerHeight does not.
-function dayPopoverBounds(layout) {
-  const frame = (layout.closest('.site-calendar-modal') || document.documentElement).getBoundingClientRect();
-  const visual = globalThis.visualViewport;
-  const viewTop = visual ? visual.offsetTop : 0;
-  const viewBottom = visual ? visual.offsetTop + visual.height : globalThis.innerHeight;
-  return {
-    left: Math.max(frame.left, 0),
-    right: Math.min(frame.right, globalThis.innerWidth),
-    top: Math.max(frame.top, viewTop),
-    bottom: Math.min(frame.bottom, viewBottom),
-  };
-}
-
-function positionDayPopover(layout) {
-  const panel = layout.querySelector('.calendar-day-panel');
-  if (!panel || panel.hidden) return;
-  if (dayDetailPresentation() !== DAY_DETAIL_PRESENTATION.POPOVER) {
-    // Sheet and flow presentations are positioned by CSS, not anchored to a cell.
-    for (const property of ['left', 'top', 'width', 'max-height']) panel.style.removeProperty(property);
-    panel.removeAttribute('data-arrow');
-    return;
-  }
-  const date = panel.dataset.selectedDate;
-  const anchor = layout.querySelector(`.calendar-date-cell[data-calendar-date="${date}"]`);
-  if (!anchor) return;
-  const bounds = dayPopoverBounds(layout);
-  const span = Math.max(0, bounds.right - bounds.left);
-  const available = Math.max(0, bounds.bottom - bounds.top);
-  if (span <= 0 || available <= 0) return;
-  const gutter = 8;
-  const gap = 8;
-  const anchorRect = anchor.getBoundingClientRect();
-
-  const width = Math.round(Math.max(240, Math.min(380, span - gutter * 2)));
-  panel.style.width = `${width}px`;
-
-  // Prefer whichever side of the tapped cell has more room, and never let the
-  // panel take more than a bit over half of what is visible -- the month it
-  // belongs to has to stay readable behind it.
-  const roomBelow = bounds.bottom - anchorRect.bottom - gap - gutter;
-  const roomAbove = anchorRect.top - bounds.top - gap - gutter;
-  const ceiling = Math.max(140, Math.round(available * 0.55));
-  panel.style.maxHeight = `${Math.round(Math.max(140, Math.min(ceiling, Math.max(roomBelow, roomAbove))))}px`;
-
-  const height = panel.offsetHeight || 180;
-  const below = roomBelow >= height || roomBelow >= roomAbove;
-  panel.dataset.arrow = below ? 'up' : 'down';
-  const rawTop = below ? anchorRect.bottom + gap : anchorRect.top - gap - height;
-  const top = Math.max(bounds.top + gutter, Math.min(rawTop, bounds.bottom - gutter - height));
-  const centred = anchorRect.left + anchorRect.width / 2 - width / 2;
-  const left = Math.max(bounds.left + gutter, Math.min(centred, bounds.right - gutter - width));
-  panel.style.left = `${Math.round(left)}px`;
-  panel.style.top = `${Math.round(top)}px`;
-  // The pointer tracks the tapped cell even after the box was clamped sideways,
-  // which is the whole reason the panel reads as belonging to that date.
-  const pointer = anchorRect.left + anchorRect.width / 2 - left;
-  panel.style.setProperty('--calendar-day-arrow-left', `${Math.round(Math.max(14, Math.min(width - 14, pointer)))}px`);
-}
-
-// The sheet is fixed to the bottom of the viewport, so whatever it covers is
-// covered for good unless the month can scroll out from under it. Reserving its
-// measured height as trailing space is what lets the last date rows be brought
-// into view -- and CSS cannot measure, so the number is written here.
-function syncDaySheetReserve(layout) {
-  const panel = layout.querySelector('.calendar-day-panel');
-  const open = panel && !panel.hidden && panel.dataset.presentation === DAY_DETAIL_PRESENTATION.SHEET;
-  if (!open) {
-    layout.style.removeProperty('--calendar-day-sheet-reserve');
-    return;
-  }
-  const height = Math.ceil(panel.getBoundingClientRect().height);
-  if (!Number.isFinite(height) || height <= 0) return;
-  layout.style.setProperty('--calendar-day-sheet-reserve', `${height + 12}px`);
+  // monthCellSummary() already caps every cell at two event rows and one +N
+  // control. Marking the settled layout keeps the existing render hook stable
+  // without measuring every event in a dense month.
+  layout.dataset.monthDensity = 'bounded';
 }
 
 function syncMonthLayout(layout) {
   fitMonthEventDensity(layout);
-  positionDayPopover(layout);
-  syncDaySheetReserve(layout);
+}
+
+function renderWeek(state, actions, weatherCredit = null) {
+  const section = document.createElement('section');
+  section.className = 'calendar-week-agenda';
+  section.setAttribute('aria-label', '주간 일정');
+  const groups = weekAgendaGroups(state.selectedDate, state.items, state.weekStart);
+  const weatherByDate = calendarWeatherByDate(state.weather);
+  const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
+
+  const strip = document.createElement('div');
+  strip.className = 'calendar-week-strip';
+  strip.setAttribute('role', 'tablist');
+  strip.setAttribute('aria-label', '이번 주 날짜');
+  const weekControls = [];
+  for (const day of calendarWeekDays(state.selectedDate, state.weekStart)) {
+    const selected = day.date === state.selectedDate;
+    const control = button('', 'calendar-week-date');
+    control.dataset.calendarWeekDate = day.date;
+    control.dataset.selected = String(selected);
+    control.setAttribute('role', 'tab');
+    control.setAttribute('aria-selected', String(selected));
+    control.setAttribute('aria-label', koreanDate(day.date));
+    control.tabIndex = selected ? 0 : -1;
+    const weekday = document.createElement('span');
+    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    const number = document.createElement('strong');
+    number.textContent = String(day.day);
+    control.append(weekday, number);
+    control.addEventListener('click', () => { void actions.selectDate(day.date); });
+    weekControls.push(control);
+    strip.appendChild(control);
+  }
+  bindRovingTablist(strip, weekControls);
+  section.appendChild(strip);
+
+  const agenda = document.createElement('div');
+  agenda.className = 'calendar-week-days';
+  const hasAny = groups.some(group => group.items.length > 0);
+  if (!hasAny) agenda.appendChild(emptyMessage('이번 주에는 일정이 없어요.'));
+
+  for (const day of groups) {
+    const group = document.createElement('section');
+    group.className = 'calendar-week-day';
+    group.dataset.calendarWeekGroup = day.date;
+    group.dataset.selected = String(day.date === state.selectedDate);
+    const head = document.createElement('div');
+    head.className = 'calendar-week-day-head';
+    const heading = document.createElement('h3');
+    const headingButton = button(koreanDate(day.date).replace(`${day.year}년 `, ''), 'calendar-week-day-title');
+    headingButton.addEventListener('click', () => { void actions.selectDate(day.date); });
+    heading.appendChild(headingButton);
+    head.appendChild(heading);
+    const weather = weatherByDate.get(day.date);
+    if (weather) {
+      const weatherLine = document.createElement('span');
+      weatherLine.className = 'calendar-week-weather';
+      const temperature = calendarWeatherPresentation(weather).weekLabel;
+      weatherLine.textContent = [weather.label, temperature].filter(Boolean).join(' · ');
+      weatherLine.setAttribute('aria-label', `날씨 ${weatherLine.textContent}`);
+      const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
+      if (weatherIcon) weatherLine.prepend(weatherIcon);
+      head.appendChild(weatherLine);
+    }
+    const holiday = holidayMap.get(day.date);
+    if (holiday) {
+      const holidayLine = document.createElement('span');
+      holidayLine.className = 'calendar-week-holiday';
+      holidayLine.textContent = holiday.name;
+      head.appendChild(holidayLine);
+    }
+    group.appendChild(head);
+    if (day.items.length) group.appendChild(eventList(day.items, {onSelect: actions.onEvent}));
+    else group.appendChild(emptyMessage('일정 없음'));
+    agenda.appendChild(group);
+  }
+  section.appendChild(agenda);
+
+  const addActions = document.createElement('div');
+  addActions.className = 'calendar-week-add-actions';
+  const add = button('+ 일정 추가', 'calendar-add-button');
+  add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
+  const addImage = button('사진에서 일정 추가', 'calendar-add-button calendar-add-image-button');
+  addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
+  addActions.append(add, addImage);
+  section.appendChild(addActions);
+
+  if (weatherCredit) {
+    const credit = document.createElement('p');
+    credit.className = 'calendar-weather-credit';
+    credit.textContent = weatherCredit.text;
+    section.appendChild(credit);
+  } else if (state.weatherMessage) {
+    const notice = document.createElement('p');
+    notice.className = 'calendar-weather-credit';
+    notice.setAttribute('role', 'status');
+    notice.textContent = state.weatherMessage;
+    section.appendChild(notice);
+  }
+  return section;
 }
 
 function renderMonth(state, actions, weatherCredit = null) {
@@ -1352,6 +1453,15 @@ function renderMonth(state, actions, weatherCredit = null) {
         weatherIcon.appendChild(weatherTitle);
         header.appendChild(weatherIcon);
       }
+      const temperatureLabel = calendarWeatherPresentation(weather).monthLabel;
+      if (temperatureLabel) {
+        const temperature = document.createElement('span');
+        temperature.className = 'calendar-weather-temperature';
+        temperature.textContent = temperatureLabel;
+        temperature.dataset.compactTemperature = temperatureLabel.replace(/\s+/g, '');
+        temperature.setAttribute('aria-hidden', 'true');
+        header.appendChild(temperature);
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');
@@ -1373,10 +1483,13 @@ function renderMonth(state, actions, weatherCredit = null) {
 
     const stack = document.createElement('div');
     stack.className = 'calendar-event-stack';
-    for (const item of events) stack.appendChild(monthEventRow(item, actions.onEvent));
+    const summary = monthCellSummary(events);
+    for (const item of summary.visible) stack.appendChild(monthEventRow(item, actions.onEvent));
     const more = button('', 'calendar-event-overflow');
     more.dataset.eventOverflow = '';
-    more.hidden = true;
+    more.hidden = !summary.moreLabel;
+    more.textContent = summary.moreLabel;
+    more.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 일정 ${summary.remaining}개 더 보기`);
     more.addEventListener('click', event => {
       event.stopPropagation();
       void actions.selectDate(cell.date, {openDetail: true});
@@ -1421,48 +1534,6 @@ function renderMonth(state, actions, weatherCredit = null) {
   // layout.children[1] as the selected-day surface. The sheet backdrop is appended
   // after both so that contract is preserved.
   layout.append(calendar, panel);
-  if (usesSheetDayDetail() && state.detailOpen) {
-    const backdrop = document.createElement('div');
-    backdrop.className = 'calendar-day-sheet-backdrop';
-    backdrop.dataset.calendarDaySheetBackdrop = '';
-    backdrop.dataset.reducedMotion = String(prefersReducedMotion());
-    backdrop.addEventListener('click', () => actions.closeDay());
-    layout.appendChild(backdrop);
-    const releaseViewport = bindVisualViewport(panel, {
-      heightVar: '--calendar-day-sheet-visual-height',
-      topVar: '--calendar-day-sheet-visual-top',
-      bottomGapVar: '--calendar-day-sheet-bottom-gap',
-    });
-    if (globalThis.visualViewport) panel.dataset.visualViewportBound = 'true';
-    // Each render rebuilds the layout, so release with the node it belongs to.
-    panel.addEventListener('lotbi:day-sheet-release', releaseViewport, {once: true});
-  } else if (state.detailOpen && dayDetailPresentation() === DAY_DETAIL_PRESENTATION.POPOVER) {
-    // An anchored panel is only anchored while its geometry is kept true. Two
-    // things move underneath it: the software keyboard, which shrinks the
-    // visual viewport, and the month scrolling inside the Calendar. Scroll does
-    // not bubble, so it is listened for in the capture phase.
-    const reposition = event => {
-      // Scrolling the entry list inside the panel is not the panel moving. It
-      // arrives here because the listener is on document in the capture phase,
-      // and acting on it re-ran the geometry under the owner's own finger --
-      // measured as the title box refusing the tap that had just focused it.
-      if (event?.target && panel.contains(event.target)) return;
-      if (layout.isConnected) positionDayPopover(layout);
-    };
-    const visual = globalThis.visualViewport;
-    visual?.addEventListener('resize', reposition);
-    visual?.addEventListener('scroll', reposition);
-    document.addEventListener('scroll', reposition, true);
-    if (visual) panel.dataset.visualViewportBound = 'true';
-    // Marked whether or not visualViewport exists: the scroll listener is on
-    // document either way, and an unreleased one outlives the node it moves.
-    panel.dataset.dayPanelBound = 'true';
-    panel.addEventListener('lotbi:day-sheet-release', () => {
-      visual?.removeEventListener('resize', reposition);
-      visual?.removeEventListener('scroll', reposition);
-      document.removeEventListener('scroll', reposition, true);
-    }, {once: true});
-  }
   if (usesFlowingDayDetail()) {
     bindMonthSwipe(calendar, {
       onPrevious: () => void actions.shiftMonth?.(-1),
@@ -1505,8 +1576,16 @@ function renderAgenda(state, actions) {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'calendar-agenda-toolbar';
-  toolbar.setAttribute('aria-label', '일정 범위');
-  for (const [scope, label] of [['month', '이번 달'], ['today', '오늘'], ['week', '이번 주']]) {
+  toolbar.setAttribute('aria-label', '일정 필터');
+  for (const [scope, label] of [
+    ['all', '전체'],
+    ['today', '오늘'],
+    ['week', '이번 주'],
+    ['month', '이번 달'],
+    ['reservation', '예약'],
+    ['payment', '결제'],
+    ['schedule', '일정'],
+  ]) {
     const control = button(label, 'calendar-agenda-range');
     control.dataset.agendaScope = scope;
     control.setAttribute('aria-pressed', String(state.agendaScope === scope));
@@ -1515,21 +1594,21 @@ function renderAgenda(state, actions) {
   }
   section.appendChild(toolbar);
 
-  let items = sortCalendarEvents(state.items);
-  if (state.agendaScope === 'today') {
-    items = items.filter(item => item.local_date === state.todayDate);
-  } else if (state.agendaScope === 'week') {
-    const range = weekBounds(state.todayDate);
-    items = items.filter(item => item.local_date >= range.start && item.local_date <= range.end);
-  }
+  const filterAnchor = state.agendaScope === 'month'
+    ? `${state.year}-${String(state.month).padStart(2, '0')}-01`
+    : state.todayDate;
+  const items = filterScheduleItems(state.items, state.agendaScope, {
+    today: filterAnchor,
+    weekStart: state.weekStart,
+  });
 
   // 확인 필요 탭이 유일하게 하던 일 -- 지금 달에 없는 지난 기한 -- 을 여기서
   // 이어받는다. 달력 칸의 기한 표시(attentionDates)는 그대로 두고, 이 묶음은
   // 이번 달 범위에서만 나온다: '오늘'·'이번 주' 는 그 날짜의 일정을 보는 자리다.
-  const overdue = state.agendaScope === 'month'
+  const overdue = (state.agendaScope === 'month' || state.agendaScope === 'all')
     ? (state.attention || []).filter(item => item?.state === 'OVERDUE' && validCivilDate(item.due_date))
     : [];
-  const showUnscheduled = state.agendaScope === 'month' && state.unscheduled.length > 0;
+  const showUnscheduled = ['all', 'month', 'schedule'].includes(state.agendaScope) && state.unscheduled.length > 0;
   if (overdue.length) {
     const group = document.createElement('section');
     group.className = 'calendar-overdue-group';
@@ -1548,11 +1627,7 @@ function renderAgenda(state, actions) {
     section.appendChild(group);
   }
   if (!items.length && !showUnscheduled && !overdue.length) {
-    section.appendChild(emptyMessage(
-      state.agendaScope === 'today' ? '오늘 등록된 일정이 없어요.'
-        : state.agendaScope === 'week' ? '이번 주에 등록된 일정이 없어요.'
-          : '이 달에는 일정이 없어요.',
-    ));
+    section.appendChild(emptyMessage('이 기간에는 일정이 없어요.'));
     return section;
   }
 
@@ -1578,7 +1653,8 @@ function renderAgenda(state, actions) {
   return section;
 }
 
-function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () => {}, onWeatherRegionChange, buildLocationRow, authenticated, sessionToken, fetchImpl}) {
+function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () => {}, onWeatherRegionChange, buildLocationRow, getWeatherLocationPresentation, authenticated, sessionToken, fetchImpl}) {
+  const opener = document.activeElement;
   root.querySelector('.calendar-settings-backdrop')?.remove();
   const backdrop = document.createElement('div');
   backdrop.className = 'calendar-settings-backdrop';
@@ -1661,7 +1737,23 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   const weatherSection = document.createElement('section');
   weatherSection.className = 'calendar-settings-section';
   const weatherTitle = document.createElement('h4');
-  weatherTitle.textContent = '날씨 위치';
+  weatherTitle.textContent = '날씨';
+  const weatherOverview = document.createElement('div');
+  weatherOverview.className = 'calendar-settings-weather-overview';
+  const weatherRegionSummary = document.createElement('strong');
+  const weatherRelationship = document.createElement('small');
+  const syncWeatherOverview = () => {
+    const presentation = typeof getWeatherLocationPresentation === 'function'
+      ? getWeatherLocationPresentation()
+      : calendarWeatherLocationPresentation({
+        manualWeatherRegion: state.manualWeatherRegion,
+        weatherRegionOrigin: state.weatherRegionOrigin,
+      });
+    weatherRegionSummary.textContent = presentation.manualSummary;
+    weatherRelationship.textContent = presentation.relationship;
+  };
+  weatherOverview.append(weatherRegionSummary, weatherRelationship);
+  syncWeatherOverview();
   // Current location first, manual region as its fallback: the same order the
   // weather read applies them in.
   const locationRow = typeof buildLocationRow === 'function' ? buildLocationRow() : null;
@@ -1698,22 +1790,21 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   const weatherRow = document.createElement('div');
   weatherRow.className = 'calendar-settings-region-row';
   const weatherClear = button('수동 지역 해제', 'calendar-settings-action-button');
+  weatherClear.dataset.calendarWeatherManualClear = '';
   weatherClear.hidden = !state.manualWeatherRegion;
   const weatherRetry = button('지역 목록 다시 불러오기', 'calendar-settings-action-button');
   weatherRetry.hidden = true;
   weatherRow.append(weatherClear, weatherRetry);
   const weatherStatus = document.createElement('small');
   weatherStatus.className = 'calendar-settings-status';
-  const storedRegionStatusText = () => {
-    if (!state.manualWeatherRegion) {
-      return '현재 위치를 쓸 수 없을 때 이 지역의 날씨를 보여줍니다.';
-    }
-    return state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.CURRENT_LOCATION
-      ? `현재 날씨 지역: ${state.manualWeatherRegion.label} (현재 위치로 저장한 지역)`
-      : `현재 날씨 지역: ${state.manualWeatherRegion.label} (직접 고른 지역)`;
-  };
+  const storedRegionStatusText = () => (typeof getWeatherLocationPresentation === 'function'
+    ? getWeatherLocationPresentation()
+    : calendarWeatherLocationPresentation({
+      manualWeatherRegion: state.manualWeatherRegion,
+      weatherRegionOrigin: state.weatherRegionOrigin,
+    })).manualSummary;
   weatherStatus.textContent = storedRegionStatusText();
-  weatherSection.append(weatherTitle);
+  weatherSection.append(weatherTitle, weatherOverview);
   if (locationRow) weatherSection.appendChild(locationRow);
   weatherSection.append(provinceRow, cityRow, weatherRow, weatherStatus);
   body.appendChild(weatherSection);
@@ -1846,6 +1937,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
       state.manualWeatherRegion = region;
       state.weatherRegionOrigin = WEATHER_REGION_ORIGIN.MANUAL;
       weatherClear.hidden = false;
+      syncWeatherOverview();
       weatherStatus.textContent = storedRegionStatusText();
       await onWeatherRegionChange(region);
     } catch (error) {
@@ -1868,6 +1960,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
     state.weatherRegionOrigin = null;
     citySelect.value = '';
     weatherClear.hidden = true;
+    syncWeatherOverview();
     weatherStatus.textContent = '저장된 지역을 해제했습니다. 현재 위치를 다시 사용할 수 있어요.';
     await onWeatherRegionChange(null);
   });
@@ -1990,13 +2083,41 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   dialog.append(header, body);
   backdrop.appendChild(dialog);
 
-  const dismiss = () => backdrop.remove();
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    backdrop.remove();
+    const focusTarget = opener instanceof HTMLElement && opener.isConnected
+      ? opener
+      : root.querySelector('.calendar-settings-button');
+    focusTarget?.focus();
+  };
   close.addEventListener('click', dismiss);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
   dialog.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       dismiss();
+      return;
+    }
+    if (event.key === 'Tab') {
+      const focusable = [...dialog.querySelectorAll('button, input, select, summary')]
+        .filter(control => !control.disabled && !control.hidden && !control.closest('[hidden]'));
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   });
   toggle.addEventListener('change', () => {
@@ -2067,19 +2188,98 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const allDayLabel = document.createElement('label'); allDayLabel.className = 'calendar-editor-all-day';
   const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = item ? isAllDay(item) : !draft?.localTime; allDayLabel.append(allDayInput, document.createTextNode('종일'));
 
-  const timeLabel = document.createElement('label'); timeLabel.textContent = '시간';
-  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'time'; timeInput.value = item?.local_datetime?.slice(11, 16) || draft?.localTime || '';
+  const primary = document.createElement('div'); primary.className = 'calendar-editor-primary';
+  const details = document.createElement('details'); details.className = 'calendar-editor-details';
+  const detailsSummary = document.createElement('summary'); detailsSummary.textContent = '상세 입력 (선택)';
+  details.append(detailsSummary);
+
+  const timeControl = document.createElement('div'); timeControl.className = 'calendar-editor-time-control';
+  const timeLabel = document.createElement('span'); timeLabel.textContent = '시작 시간';
+  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'text'; timeInput.inputMode = 'numeric'; timeInput.maxLength = 5; timeInput.placeholder = 'HH:mm'; timeInput.setAttribute('aria-label', '시작 시간 네 자리 숫자 또는 HH:mm'); timeInput.value = item?.local_datetime?.slice(11, 16) || draft?.localTime || '';
+  const endTimeInput = document.createElement('input'); endTimeInput.className = 'calendar-editor-end-time'; endTimeInput.type = 'text'; endTimeInput.inputMode = 'numeric'; endTimeInput.maxLength = 5; endTimeInput.placeholder = 'HH:mm'; endTimeInput.setAttribute('aria-label', '종료 시간 네 자리 숫자 또는 HH:mm'); endTimeInput.value = item?.local_end_datetime?.slice(11, 16) || draft?.endLocalTime || '';
+  const existingEndDate = item?.local_end_date || item?.local_end_datetime?.slice(0, 10) || draft?.endLocalDate || '';
+  const hasMultiDayEnd = Boolean(existingEndDate && existingEndDate !== dateInput.value);
+  const endDateLabel = document.createElement('label'); endDateLabel.className = 'calendar-editor-end-date-label'; endDateLabel.textContent = '종료 날짜';
+  const endDateInput = document.createElement('input'); endDateInput.className = 'calendar-editor-end-date'; endDateInput.type = 'date'; endDateInput.value = hasMultiDayEnd ? existingEndDate : '';
+  endDateLabel.append(endDateInput);
+  endDateLabel.hidden = !hasMultiDayEnd;
+  const timeTrigger = button('', 'calendar-editor-time-trigger');
+  const endTimeTrigger = button('', 'calendar-editor-end-time-trigger');
+  const timeSheet = document.createElement('div'); timeSheet.className = 'calendar-editor-time-sheet'; timeSheet.hidden = true; timeSheet.setAttribute('role', 'group'); timeSheet.setAttribute('aria-label', '시간 선택');
+  timeSheet.id = 'calendar-editor-time-sheet';
+  for (const trigger of [timeTrigger, endTimeTrigger]) {
+    trigger.setAttribute('aria-controls', timeSheet.id);
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+  const quickTimes = document.createElement('div'); quickTimes.className = 'calendar-editor-time-quick';
+  for (const time of ['09:00', '12:00', '18:00']) {
+    const quick = button(time, 'calendar-editor-time-quick-choice'); quick.dataset.quickTime = time; quickTimes.appendChild(quick);
+  }
+  const clearTime = button('시간 지우기', 'calendar-editor-time-clear');
+  const doneTime = button('완료', 'calendar-editor-time-done');
+  const sheetActions = document.createElement('div'); sheetActions.className = 'calendar-editor-time-actions'; sheetActions.append(clearTime, doneTime);
+  timeSheet.append(quickTimes, timeInput, endTimeInput, sheetActions);
+  timeControl.append(timeLabel, timeTrigger, endTimeTrigger, timeSheet);
+  let activeTimeInput = timeInput;
+  let activeTimeTrigger = timeTrigger;
+  const refreshTimeLabels = () => {
+    timeTrigger.textContent = timeInput.value || '시작 시간 선택';
+    endTimeTrigger.textContent = endTimeInput.value ? `종료 ${endTimeInput.value}` : '종료 시간 추가 (선택)';
+  };
+  const closeTimeSheet = ({restoreFocus = true} = {}) => {
+    timeSheet.hidden = true;
+    timeTrigger.setAttribute('aria-expanded', 'false'); endTimeTrigger.setAttribute('aria-expanded', 'false');
+    timeInput.setAttribute('aria-invalid', 'false'); endTimeInput.setAttribute('aria-invalid', 'false');
+    refreshTimeLabels();
+    if (restoreFocus) activeTimeTrigger.focus();
+  };
+  const openTimeSheet = (input, trigger) => {
+    closeCategorySheet({restoreFocus: false});
+    activeTimeInput = input; activeTimeTrigger = trigger;
+    timeInput.hidden = input !== timeInput; endTimeInput.hidden = input !== endTimeInput;
+    timeSheet.hidden = false;
+    timeTrigger.setAttribute('aria-expanded', String(trigger === timeTrigger));
+    endTimeTrigger.setAttribute('aria-expanded', String(trigger === endTimeTrigger));
+    input.focus();
+  };
+  timeTrigger.addEventListener('click', () => openTimeSheet(timeInput, timeTrigger));
+  endTimeTrigger.addEventListener('click', () => openTimeSheet(endTimeInput, endTimeTrigger));
+  quickTimes.addEventListener('click', event => {
+    const quick = event.target.closest('[data-quick-time]');
+    if (!quick) return;
+    activeTimeInput.value = quick.dataset.quickTime;
+    activeTimeInput.setAttribute('aria-invalid', 'false');
+    activeTimeInput.focus();
+  });
+  clearTime.addEventListener('click', () => {
+    activeTimeInput.value = '';
+    if (activeTimeInput === timeInput) endTimeInput.value = '';
+    closeTimeSheet();
+  });
+  doneTime.addEventListener('click', () => {
+    const normalized = normalizeCalendarClockInput(activeTimeInput.value);
+    if (normalized === null) {
+      activeTimeInput.setAttribute('aria-invalid', 'true'); activeTimeInput.focus(); return;
+    }
+    activeTimeInput.value = normalized;
+    closeTimeSheet();
+  });
+  refreshTimeLabels();
 
   const syncTemporalControls = () => {
     const hasDate = Boolean(dateInput.value);
     allDayInput.disabled = !hasDate;
+    timeControl.hidden = !hasDate || allDayInput.checked;
     timeInput.disabled = !hasDate || allDayInput.checked;
-    if (!hasDate) timeInput.value = '';
+    endTimeInput.disabled = !hasDate || allDayInput.checked;
+    timeTrigger.disabled = !hasDate || allDayInput.checked;
+    endTimeTrigger.disabled = !hasDate || allDayInput.checked;
+    if (timeControl.hidden) closeTimeSheet({restoreFocus: false});
+    if (!hasDate) {timeInput.value = ''; endTimeInput.value = ''; refreshTimeLabels();}
   };
   dateInput.addEventListener('change', syncTemporalControls);
   allDayInput.addEventListener('change', syncTemporalControls);
   syncTemporalControls();
-  timeLabel.appendChild(timeInput);
 
   const entry = item?.entry && typeof item.entry === 'object'
     ? item.entry
@@ -2100,13 +2300,55 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
   const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
 
-  const categoryLabel = document.createElement('label'); categoryLabel.textContent = '비용 종류';
+  const categoryLabel = document.createElement('div'); categoryLabel.className = 'calendar-editor-category-field';
+  const categoryHeading = document.createElement('span'); categoryHeading.textContent = '비용 종류'; categoryLabel.append(categoryHeading);
   const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';
+  categoryInput.hidden = true; categoryInput.setAttribute('aria-hidden', 'true'); categoryInput.tabIndex = -1;
   for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
     const option = document.createElement('option'); option.value = value; option.textContent = label; categoryInput.appendChild(option);
   }
   categoryInput.value = entry.expense_category === 'UNCLASSIFIED' ? '' : (entry.expense_category || '');
   categoryLabel.appendChild(categoryInput);
+  const categoryTrigger = button('', 'calendar-editor-category-trigger');
+  const categorySheet = document.createElement('div'); categorySheet.className = 'calendar-editor-category-sheet'; categorySheet.hidden = true;
+  categorySheet.setAttribute('role', 'group'); categorySheet.setAttribute('aria-label', '비용 종류 선택');
+  categorySheet.id = 'calendar-editor-category-sheet';
+  categoryTrigger.setAttribute('aria-controls', categorySheet.id); categoryTrigger.setAttribute('aria-expanded', 'false');
+  const closeCategorySheet = ({restoreFocus = true} = {}) => {
+    categorySheet.hidden = true;
+    categoryTrigger.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) categoryTrigger.focus();
+  };
+  const refreshCategoryLabel = () => {
+    categoryTrigger.textContent = EXPENSE_CATEGORY_CHOICES.find(([value]) => value === categoryInput.value)?.[1] || '비용 종류 선택';
+  };
+  for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
+    const choice = button(label, 'calendar-editor-category-choice'); choice.dataset.category = value;
+    choice.addEventListener('click', () => {
+      categoryInput.value = value; closeCategorySheet(); refreshCategoryLabel();
+    });
+    categorySheet.append(choice);
+  }
+  categoryTrigger.addEventListener('click', () => {
+    closeTimeSheet({restoreFocus: false});
+    categorySheet.hidden = false; categoryTrigger.setAttribute('aria-expanded', 'true'); categorySheet.querySelector('button')?.focus();
+  });
+  detailsSummary.addEventListener('click', () => {
+    if (details.open) {
+      const categoryHadFocus = categorySheet.contains(document.activeElement);
+      closeCategorySheet({restoreFocus: false});
+      if (categoryHadFocus) detailsSummary.focus();
+    }
+  });
+  details.addEventListener('toggle', () => {
+    if (!details.open) {
+      const categoryHadFocus = categorySheet.contains(document.activeElement);
+      closeCategorySheet({restoreFocus: false});
+      if (categoryHadFocus) detailsSummary.focus();
+    }
+  });
+  categoryLabel.append(categoryTrigger, categorySheet);
+  refreshCategoryLabel();
 
   const memoLabel = document.createElement('label'); memoLabel.className = 'calendar-editor-wide'; memoLabel.textContent = '메모';
   const memoInput = document.createElement('textarea'); memoInput.className = 'calendar-editor-memo'; memoInput.maxLength = 2000; memoInput.rows = 3; memoInput.value = entry.memo || ''; memoLabel.appendChild(memoInput);
@@ -2238,11 +2480,10 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     });
   }
 
-  editorBody.append(
-    titleLabel, titleNote, dateLabel, allDayLabel, timeLabel,
-    amountLabel, categoryLabel, memoLabel, placeLabel, merchantLabel,
-    error,
-  );
+  primary.append(titleLabel, titleNote, dateLabel, allDayLabel, timeControl);
+  details.append(placeLabel, merchantLabel, memoLabel, amountLabel, categoryLabel);
+  if (hasMultiDayEnd) detailsSummary.after(endDateLabel);
+  editorBody.append(primary, details, error);
   form.append(editorBody, actions);
   dialog.append(editorHeader, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
 
@@ -2256,11 +2497,25 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   cancel.addEventListener('click', close);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
   dialog.addEventListener('keydown', event => {
+    if (!details.open && !categorySheet.hidden) closeCategorySheet({restoreFocus: false});
+    const activeSheet = !timeSheet.hidden && !timeControl.hidden ? timeSheet
+      : !categorySheet.hidden && details.open ? categorySheet : dialog;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
+      if (activeSheet === timeSheet) {closeTimeSheet(); return;}
+      if (activeSheet === categorySheet) {closeCategorySheet(); return;}
       close();
+      return;
     }
+    if (event.key !== 'Tab') return;
+    const focusable = [...activeSheet.querySelectorAll('button, input, select, textarea, summary')]
+      .filter(control => !control.disabled && !control.hidden && control.getClientRects().length && control.tabIndex !== -1);
+    if (!focusable.length) {event.preventDefault(); return;}
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
+    else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
+    else if (!activeSheet.contains(document.activeElement)) {event.preventDefault(); first.focus();}
   });
   form.addEventListener('focusin', event => {
     if (!usesFlowingDayDetail()) return;
@@ -2272,10 +2527,21 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
+    const startClock = normalizeCalendarClockInput(timeInput.value);
+    const endClock = normalizeCalendarClockInput(endTimeInput.value);
+    if (!allDayInput.checked && (startClock === null || endClock === null)) {
+      error.textContent = '시간을 HH:mm 형식으로 입력해 주세요.';
+      openTimeSheet(startClock === null ? timeInput : endTimeInput,
+        startClock === null ? timeTrigger : endTimeTrigger);
+      return;
+    }
+    if (!allDayInput.checked) { timeInput.value = startClock; endTimeInput.value = endClock; refreshTimeLabels(); }
     const value = {
       title: titleInput.value,
       localDate: dateInput.value,
       time: timeInput.value,
+      endTime: endTimeInput.value,
+      endDate: endDateInput.value,
       allDay: allDayInput.checked,
       amountMinor: amountInput.value,
       expenseCategory: categoryInput.value || null,
@@ -2383,8 +2649,10 @@ export async function mountLifeCalendarManager({
   const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
   const toolbar = document.createElement('header'); toolbar.className = 'calendar-toolbar';
   const previous = button('이전', 'calendar-nav-button'); previous.setAttribute('aria-label', '이전 달');
+  previous.dataset.calendarNavigation = 'previous';
   const title = button('', 'calendar-title-button');
   const next = button('다음', 'calendar-nav-button'); next.setAttribute('aria-label', '다음 달');
+  next.dataset.calendarNavigation = 'next';
   const today = button('오늘', 'calendar-today-button');
   const settingsButton = button('', 'calendar-settings-button');
   settingsButton.appendChild(toolbarIcon(SETTINGS_ICON_SHAPES));
@@ -2395,6 +2663,7 @@ export async function mountLifeCalendarManager({
   for (const [mode, label] of MODES) {
     const control = button(label, 'calendar-mode-tab'); control.dataset.calendarMode = mode; control.setAttribute('role', 'tab'); modeButtons.set(mode, control); modes.appendChild(control);
   }
+  bindRovingTablist(modes, modeButtons.values());
   toolbar.append(previous, title, next, today, settingsButton, modes);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
@@ -2408,8 +2677,22 @@ export async function mountLifeCalendarManager({
   shell.append(toolbar, status, viewport, expenseSlot); root.replaceChildren(shell);
 
   const updateChrome = () => {
-    title.textContent = state.mode === 'year' ? `${state.year}년` : `${state.year}년 ${state.month}월`;
-    title.setAttribute('aria-label', state.mode === 'year' ? `${state.year}년 월간 보기` : `${state.year}년 연간 보기`);
+    if (state.mode === 'year') {
+      title.textContent = `${state.year}년`;
+      title.setAttribute('aria-label', `${state.year}년 연간 보기`);
+    } else if (state.mode === 'week') {
+      const days = calendarWeekDays(state.selectedDate, state.weekStart);
+      const first = days[0];
+      const last = days.at(-1);
+      title.textContent = `${first.month}월 ${first.day}일–${last.month}월 ${last.day}일`;
+      title.setAttribute('aria-label', `${first.year}년 ${first.month}월 ${first.day}일부터 ${last.month}월 ${last.day}일까지 주간 보기`);
+    } else {
+      title.textContent = `${state.year}년 ${state.month}월`;
+      title.setAttribute('aria-label', `${state.year}년 ${state.month}월 월간 보기`);
+    }
+    const navigationUnit = state.mode === 'year' ? '해' : state.mode === 'week' ? '주' : '달';
+    previous.setAttribute('aria-label', `이전 ${navigationUnit}`);
+    next.setAttribute('aria-label', `다음 ${navigationUnit}`);
     for (const [mode, control] of modeButtons) {
       const selected = state.mode === mode; control.setAttribute('aria-selected', String(selected)); control.tabIndex = selected ? 0 : -1;
     }
@@ -2417,11 +2700,32 @@ export async function mountLifeCalendarManager({
     root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest';
   };
 
+  function focusSelectedCalendarTarget({detail = false, date = state.selectedDate} = {}) {
+    queueMicrotask(() => {
+      let selector = '';
+      if (detail && state.mode === 'month') {
+        selector = '.calendar-day-close';
+      } else if (state.mode === 'week') {
+        selector = `[data-calendar-week-date="${date}"]`;
+      } else if (state.mode === 'month') {
+        selector = `[data-calendar-date-trigger="${date}"]`;
+      }
+      if (!selector) return;
+      root.querySelector(selector)?.focus();
+    });
+  }
+
   let openEditor = () => {};
   // Guards month navigation so a burst of fast swipes cannot skip months.
   let monthShiftInFlight = false;
+  // State equality cannot distinguish "never moved" from "moved away and
+  // returned" while an editor save waits for an accessory request. User-owned
+  // Calendar navigation advances this token; renders and data refreshes do not.
+  let calendarContextGeneration = 0;
+  const markCalendarContextNavigation = () => { calendarContextGeneration += 1; };
   const actions = {
     selectDate: async (date, {openDetail = false} = {}) => {
+      markCalendarContextNavigation();
       const parts = civilDateParts(date);
       const monthChanged = parts.year !== state.year || parts.month !== state.month;
       state.selectedDate = date;
@@ -2430,12 +2734,10 @@ export async function mountLifeCalendarManager({
       state.detailOpen = openDetail;
       state.dayCollapsed = false;
       if (monthChanged) await afterMonthChange(); else render();
-      // Arrow-key roaming keeps focus on the grid.
-      if (!openDetail) {
-        queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
-      }
+      focusSelectedCalendarTarget({detail: openDetail, date});
     },
     selectMonth: async month => {
+      markCalendarContextNavigation();
       state.month = month;
       state.selectedDate = `${state.year}-${String(month).padStart(2, "0")}-01`;
       state.mode = 'month';
@@ -2474,19 +2776,22 @@ export async function mountLifeCalendarManager({
       }
     },
     closeDay: () => {
+      markCalendarContextNavigation();
       const date = state.selectedDate;
       state.detailOpen = false;
       state.dayCollapsed = false;
       render();
-      queueMicrotask(() => root.querySelector(`[data-calendar-date-trigger="${date}"]`)?.focus());
+      focusSelectedCalendarTarget({date});
     },
     toggleDay: () => {
+      markCalendarContextNavigation();
       state.dayCollapsed = !state.dayCollapsed;
       render();
       queueMicrotask(() => root.querySelector('.calendar-day-toggle')?.focus());
     },
     setAgendaScope: async scope => {
-      state.agendaScope = ['month', 'today', 'week'].includes(scope) ? scope : 'month';
+      markCalendarContextNavigation();
+      state.agendaScope = ['all', 'month', 'today', 'week', 'reservation', 'payment', 'schedule'].includes(scope) ? scope : 'month';
       if (state.agendaScope === 'today' || state.agendaScope === 'week') {
         const parts = civilDateParts(state.todayDate);
         const monthChanged = parts.year !== state.year || parts.month !== state.month;
@@ -2513,6 +2818,7 @@ export async function mountLifeCalendarManager({
       sessionToken,
       fetchImpl,
       buildLocationRow: buildLocationSettingsRow,
+      getWeatherLocationPresentation: weatherLocationPresentation,
       onWeatherRegionChange: async region => {
         // 지역을 직접 고르면 그것이 화면의 권위다: 방금 잡아 둔 현재 위치 좌표보다
         // 사용자가 고른 지역이 앞선다. 해제하면 좌표가 없는 상태로 돌아간다.
@@ -2537,6 +2843,10 @@ export async function mountLifeCalendarManager({
   };
 
   root.addEventListener('keydown', event => {
+    // Settings is the top layer. This listener runs in capture phase, before
+    // the Settings dialog can consume Escape itself, so explicitly defer to it
+    // instead of closing the selected-day detail underneath.
+    if (event.key === 'Escape' && root.querySelector('.calendar-settings-dialog')) return;
     if (
       event.key === 'Escape'
       && state.mode === 'month'
@@ -2664,38 +2974,38 @@ export async function mountLifeCalendarManager({
   let locationStatusNode = null;
   let locationHelpNode = null;
 
-  // 화면 문구는 실제로 무엇을 보여주고 있는지와 어긋나면 안 된다. 저장된 지역으로
-  // 그려 놓고 "현재 위치로 표시 중" 이라고 적는 것이 이 화면이 하던 거짓말이었다.
-  function storedRegionSentence() {
-    if (!state.manualWeatherRegion) return '';
-    return state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.CURRENT_LOCATION
-      ? `현재 위치로 저장한 지역(${state.manualWeatherRegion.label})으로 날씨를 표시하고 있어요.`
-      : `직접 고른 지역(${state.manualWeatherRegion.label})으로 날씨를 표시하고 있어요.`;
+  function weatherLocationPresentation() {
+    return calendarWeatherLocationPresentation({
+      manualWeatherRegion: state.manualWeatherRegion,
+      weatherRegionOrigin: state.weatherRegionOrigin,
+      usingBrowserLocation: currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        && state.locationResolution === LOCATION_RESOLUTION.RESOLVED,
+      locationPermission: state.locationPermission,
+      locationResolution: state.locationResolution,
+      locationInFlight: state.locationInFlight,
+      locationMessage: state.locationMessage,
+    });
+  }
+
+  function syncOpenWeatherLocationSettings() {
+    const presentation = weatherLocationPresentation();
+    const overview = root.querySelector('.calendar-settings-weather-overview');
+    if (overview) {
+      const summary = overview.querySelector('strong');
+      const relationship = overview.querySelector('small');
+      if (summary) summary.textContent = presentation.manualSummary;
+      if (relationship) relationship.textContent = presentation.relationship;
+    }
+    const manualClear = root.querySelector('[data-calendar-weather-manual-clear]');
+    if (manualClear) manualClear.hidden = !state.manualWeatherRegion;
   }
 
   function locationSettingsStatusText() {
-    if (state.locationInFlight) return '현재 위치를 확인하는 중…';
-    if (state.locationPermission === LOCATION_PERMISSION.DENIED) {
-      const stored = storedRegionSentence();
-      return stored
-        ? `브라우저 사이트 설정에서 위치 권한을 허용해 주세요. 지금은 ${stored}`
-        : '브라우저 사이트 설정에서 위치 권한을 허용해 주세요.';
+    const presentation = weatherLocationPresentation();
+    if (state.manualWeatherRegion && !presentation.currentStatus.includes('현재 위치로 날씨')) {
+      return `${presentation.currentStatus} ${presentation.manualSummary}`;
     }
-    if (state.locationPermission === LOCATION_PERMISSION.UNAVAILABLE) {
-      const stored = storedRegionSentence();
-      return stored
-        ? `이 브라우저에서는 현재 위치를 사용할 수 없어요. 지금은 ${stored}`
-        : '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
-    }
-    if (
-      currentWeatherLocation?.source === 'BROWSER_CURRENT'
-      && state.locationResolution === LOCATION_RESOLUTION.RESOLVED
-    ) {
-      return '현재 위치로 날씨를 표시하고 있어요.';
-    }
-    if (state.manualWeatherRegion) return storedRegionSentence();
-    if (state.locationMessage) return state.locationMessage;
-    return '버튼을 누를 때만 브라우저가 위치 권한을 요청합니다.';
+    return presentation.currentStatus;
   }
 
   function syncLocationSettingsControl() {
@@ -2704,14 +3014,8 @@ export async function mountLifeCalendarManager({
     const blocked = state.locationPermission === LOCATION_PERMISSION.DENIED
       || state.locationPermission === LOCATION_PERMISSION.UNAVAILABLE;
     locationButton.disabled = state.locationInFlight || blocked;
-    if (state.locationInFlight) locationButton.textContent = '위치 확인 중…';
-    else if (usingBrowserLocation) locationButton.textContent = '변경';
-    else if (
-      !blocked
-      && (state.locationResolution === LOCATION_RESOLUTION.TIMEOUT
-        || state.locationResolution === LOCATION_RESOLUTION.ERROR)
-    ) locationButton.textContent = '다시 시도';
-    else locationButton.textContent = '현재 위치 사용';
+    locationButton.textContent = weatherLocationPresentation().currentAction;
+    syncOpenWeatherLocationSettings();
     locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
     if (locationStatusNode) locationStatusNode.textContent = locationSettingsStatusText();
     // 브라우저가 아예 위치를 제공하지 않는 경우(UNAVAILABLE)에는 사이트 권한을
@@ -2774,6 +3078,7 @@ export async function mountLifeCalendarManager({
       syncLocationSettingsControl();
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
+    else if (state.mode === 'week') viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else {
       const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));
@@ -2950,11 +3255,25 @@ export async function mountLifeCalendarManager({
           : '지출 합계를 불러오지 못했습니다.',
       };
     }
+    // A delayed accessory response must not discard the Calendar focus chosen
+    // by someone who navigated while an editor save was waiting for it. An open
+    // day detail owns focus through its close control; a closed detail uses the
+    // selected date trigger.
+    const focusedDayDetail = state.mode === 'month'
+      && state.detailOpen
+      && Boolean(document.activeElement?.closest?.('.calendar-day-panel'));
+    const focusedCalendarDate = document.activeElement?.getAttribute('data-calendar-date-trigger');
     render();
+    if (focusedDayDetail && state.mode === 'month' && state.detailOpen) {
+      root.querySelector('.calendar-day-close')?.focus();
+    } else if (state.mode === 'month' && focusedCalendarDate === state.selectedDate) {
+      root.querySelector(`[data-calendar-date-trigger="${focusedCalendarDate}"]`)?.focus();
+    }
   }
 
-  async function refresh() {
+  async function refresh({settleExpense = false} = {}) {
     const requestGeneration = ++refreshGeneration;
+    let expenseRefresh = null;
     state.loading = true; render(); root.setAttribute('aria-busy', 'true');
     try {
       if (
@@ -2970,21 +3289,21 @@ export async function mountLifeCalendarManager({
         state.locationMessage = currentWeatherLocation ? '' : '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation: currentWeatherLocation});
+        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation: currentWeatherLocation, weekStart: state.weekStart});
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         state.items = result.items;
         state.unscheduled = result.unscheduled || [];
-        if (result.key === 'month' || result.key === 'agenda') {
+        if (result.key === 'month' || result.key === 'week' || result.key === 'agenda') {
           state.attention = result.attention || [];
         }
-        if (result.key === 'month') {
+        if (result.key === 'month' || result.key === 'week') {
           state.weather = result.weather || [];
           state.weatherMessage = result.weatherFailureMessage || '';
         } else {
           state.weather = [];
           state.weatherMessage = '';
         }
-        if (result.key === 'month' || result.key === 'year') {
+        if (result.key === 'month' || result.key === 'week' || result.key === 'year') {
           state.holidays = result.holidays || [];
         }
       } else {
@@ -3006,13 +3325,25 @@ export async function mountLifeCalendarManager({
         const currentMonthVisible = state.mode === 'month'
           && state.year === todayParts.year
           && state.month === todayParts.month;
-        const monthRange = currentMonthVisible ? monthBounds(state.selectedDate) : null;
-        const guestWeatherEnd = monthRange
-          ? [monthRange.end, addCivilDays(state.todayDate, 14)].sort()[0]
+        const selectedWeekRange = state.mode === 'week' ? weekBounds(state.selectedDate, state.weekStart) : null;
+        const forecastHorizon = addCivilDays(state.todayDate, 14);
+        const weekForecastVisible = selectedWeekRange
+          && selectedWeekRange.end >= state.todayDate
+          && selectedWeekRange.start <= forecastHorizon;
+        const visibleWeatherRange = currentMonthVisible
+          ? monthBounds(state.selectedDate)
+          : weekForecastVisible
+            ? selectedWeekRange
+            : null;
+        const guestWeatherStart = visibleWeatherRange
+          ? [visibleWeatherRange.start, state.todayDate].sort().at(-1)
           : null;
-        const weatherRequest = currentMonthVisible && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
+        const guestWeatherEnd = visibleWeatherRange
+          ? [visibleWeatherRange.end, forecastHorizon].sort()[0]
+          : null;
+        const weatherRequest = visibleWeatherRange && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
           ? getPublicCalendarWeather({
-              start: state.todayDate,
+              start: guestWeatherStart,
               end: guestWeatherEnd,
               timezone,
               latitude: currentWeatherLocation.latitude,
@@ -3022,7 +3353,7 @@ export async function mountLifeCalendarManager({
               return {providerReady: false, items: [], aiCalls: 0, failure: error};
             })
           : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
-        const holidayRequest = (state.mode === 'month' || state.mode === 'year') && state.showKoreaHolidays
+        const holidayRequest = (state.mode === 'month' || state.mode === 'week' || state.mode === 'year') && state.showKoreaHolidays
           ? getKoreaHolidays(state.year, fetchImpl).catch(error => {
               console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
               return {items: []};
@@ -3032,12 +3363,12 @@ export async function mountLifeCalendarManager({
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         state.weather = guestWeather.items || [];
         state.weatherMessage = weatherFailureCopy(guestWeather.failure);
-        if (state.mode === 'month' || state.mode === 'year') {
+        if (state.mode === 'month' || state.mode === 'week' || state.mode === 'year') {
           state.holidays = holidayResult.items || [];
         }
       }
       state.loading = false; render();
-      if (state.mode === 'month') void refreshExpenseSummary();
+      if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
     } catch (error) {
       if (!root.isConnected || requestGeneration !== refreshGeneration) return;
       state.loading = false; render();
@@ -3061,15 +3392,19 @@ export async function mountLifeCalendarManager({
     } finally {
       if (requestGeneration === refreshGeneration) root.removeAttribute('aria-busy');
     }
+    // The authoritative schedule and its busy state finish first. Only an
+    // editor save needs to wait for the auxiliary expense render before placing
+    // final focus; other refreshes stay fail-soft and independently responsive.
+    if (settleExpense && authenticated && expenseRefresh) await expenseRefresh;
   }
 
-  const focusCalendarContext = (origin, item) => {
+  const focusCalendarContext = (origin, item, isCurrent = () => true) => {
     queueMicrotask(() => {
+      if (!isCurrent()) return;
       const eventId = item?.id || item?.activity_id || '';
       const eventCandidate = eventId
         ? root.querySelector(`[data-calendar-event-id="${eventId}"]`)
         : null;
-      const eventTarget = eventCandidate?.getClientRects?.().length ? eventCandidate : null;
       const dateTarget = origin.mode === 'month'
         ? root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`)
         : null;
@@ -3077,7 +3412,12 @@ export async function mountLifeCalendarManager({
         ? root.querySelector(`[data-agenda-scope="${origin.agendaScope}"]`)
         : null;
       const modeTarget = modeButtons.get(origin.mode);
-      (eventTarget || dateTarget || agendaTarget || modeTarget)?.focus();
+      const weekTarget = origin.mode === 'week'
+        ? root.querySelector(`[data-calendar-week-date="${origin.selectedDate}"]`)
+        : null;
+      const target = [eventCandidate, dateTarget, weekTarget, agendaTarget, modeTarget]
+        .find(candidate => candidate?.isConnected && candidate.getClientRects().length);
+      target?.focus();
     });
   };
 
@@ -3090,7 +3430,16 @@ export async function mountLifeCalendarManager({
       agendaScope: state.agendaScope,
       detailOpen: state.detailOpen,
       dayCollapsed: state.dayCollapsed,
+      generation: calendarContextGeneration,
     });
+    const sameCalendarContext = context => calendarContextGeneration === context.generation
+      && state.mode === context.mode
+      && state.selectedDate === context.selectedDate
+      && state.year === context.year
+      && state.month === context.month
+      && state.agendaScope === context.agendaScope
+      && state.detailOpen === context.detailOpen
+      && state.dayCollapsed === context.dayCollapsed;
     return calendarEditorDialog({
       root, item, selectedDate: date, initialDraft: draft, authenticated, controller: mutationController,
       onSaved: async () => {
@@ -3101,9 +3450,10 @@ export async function mountLifeCalendarManager({
         state.agendaScope = origin.agendaScope;
         state.detailOpen = origin.detailOpen;
         state.dayCollapsed = origin.dayCollapsed;
-        await refresh();
-        focusCalendarContext(origin, item);
+        await refresh({settleExpense: authenticated && origin.mode === 'month'});
         window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
+        // Expense may have taken time to settle; a newer navigation owns focus.
+        if (sameCalendarContext(origin)) focusCalendarContext(origin, item, () => sameCalendarContext(origin));
       },
       onStale: refresh,
       onClose: () => focusCalendarContext(origin, item),
@@ -3324,20 +3674,27 @@ export async function mountLifeCalendarManager({
 
   locationButton.addEventListener('click', () => { void useCurrentLocation(); });
 
-  // Single month-navigation path. The '이전'/'다음' buttons and the touch swipe both
-  // go through here so the two can never drift apart.
+  // One navigation path, with the unit owned by the active product view.
   async function shiftMonth(delta) {
     if (!Number.isInteger(delta) || delta === 0) return;
     if (monthShiftInFlight) return;
     monthShiftInFlight = true;
     try {
-      if (state.mode === 'year') state.year += delta;
-      else {
+      markCalendarContextNavigation();
+      if (state.mode === 'year') {
+        state.year += delta;
+        state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
+      } else if (state.mode === 'week') {
+        state.selectedDate = addCivilDays(state.selectedDate, delta * 7);
+        const parts = civilDateParts(state.selectedDate);
+        state.year = parts.year;
+        state.month = parts.month;
+      } else {
         state.month += delta;
         while (state.month < 1) { state.month += 12; state.year -= 1; }
         while (state.month > 12) { state.month -= 12; state.year += 1; }
+        state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
       }
-      state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
       state.detailOpen = false;
       if (state.mode === 'agenda') state.agendaScope = 'month';
       await refresh();
@@ -3350,16 +3707,17 @@ export async function mountLifeCalendarManager({
   previous.addEventListener('click', () => { void shiftMonth(-1); });
   next.addEventListener('click', () => { void shiftMonth(1); });
   today.addEventListener('click', async () => {
+    markCalendarContextNavigation();
     const parts = civilDateParts(state.todayDate);
     state.year = parts.year;
     state.month = parts.month;
     state.selectedDate = state.todayDate;
-    state.mode = 'month';
-    state.detailOpen = true;
+    state.detailOpen = state.mode === 'month';
     state.dayCollapsed = false;
     await refresh();
   });
   title.addEventListener('click', async () => {
+    markCalendarContextNavigation();
     state.mode = state.mode === 'year' ? 'month' : 'year';
     state.detailOpen = false;
     state.agendaScope = 'month';
@@ -3367,6 +3725,7 @@ export async function mountLifeCalendarManager({
   });
   for (const [mode, control] of modeButtons) control.addEventListener('click', async () => {
     if (state.mode !== mode) {
+      markCalendarContextNavigation();
       state.mode = mode;
       state.detailOpen = false;
       state.dayCollapsed = false;
@@ -3375,7 +3734,17 @@ export async function mountLifeCalendarManager({
     }
   });
 
+  let lastDayDetailPresentation = dayDetailPresentation();
   const onResize = () => {
+    const nextDayDetailPresentation = dayDetailPresentation();
+    if (nextDayDetailPresentation !== lastDayDetailPresentation) {
+      lastDayDetailPresentation = nextDayDetailPresentation;
+      const detailOwnedFocus = state.detailOpen
+        && Boolean(document.activeElement?.closest?.('.calendar-day-panel'));
+      if (state.mode === 'month') render();
+      if (detailOwnedFocus) focusSelectedCalendarTarget({detail: true});
+      return;
+    }
     const layout = viewport.querySelector('.calendar-month-layout');
     if (layout) syncMonthLayout(layout);
   };

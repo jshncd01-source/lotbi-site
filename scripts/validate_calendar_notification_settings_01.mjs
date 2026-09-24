@@ -12,8 +12,8 @@ const index = readFileSync('index.html', 'utf8');
 const callback = readFileSync('auth-callback.js', 'utf8');
 const callbackHtml = readFileSync('auth/callback/index.html', 'utf8');
 
-assert.match(manager, /site-calendar-notifications\.js\?v=20260922-notificationperm2/);
-assert.match(manager, /site-calendar-push\.js\?v=20260922-notificationperm2/);
+assert.match(manager, /site-calendar-notifications\.js\?v=20260924-calendarux1/);
+assert.match(manager, /site-calendar-push\.js\?v=20260924-calendarux1/);
 assert.match(manager, /notificationButton\.addEventListener\('click', async \(\) =>/);
 assert.match(manager, /getCalendarPushConfig\(fetchImpl\)/);
 assert.match(manager, /requestBrowserNotificationPermissionForFeature\(\)/);
@@ -44,10 +44,10 @@ assert.doesNotMatch(worker, /addEventListener\(['"]fetch['"]/, 'push-only worker
 
 assert.match(css, /\.calendar-settings-action-row/);
 assert.match(css, /\.calendar-settings-action-button/);
-assert.match(ui, /site-calendar-manager\.js\?v=20260924-imagethumb2/);
-assert.match(conversation, /site-calendar-ui\.js\?v=20260924-imagethumb2/);
-assert.match(index, /site-conversation\.js\?v=20260924-imagethumb2/);
-assert.match(callback, /site-conversation\.js\?v=20260924-imagethumb2/);
-assert.match(callbackHtml, /auth-callback\.js\?v=20260924-imagethumb2/);
+assert.match(ui, /site-calendar-manager\.js\?v=20260924-calendarux1/);
+assert.match(conversation, /site-calendar-ui\.js\?v=20260924-calendarux1/);
+assert.match(index, /site-conversation\.js\?v=20260924-calendarux1/);
+assert.match(callback, /site-conversation\.js\?v=20260924-calendarux1/);
+assert.match(callbackHtml, /auth-callback\.js\?v=20260924-calendarux1/);
 
 console.log('LOTBI Calendar notification Settings opt-in contract: PASS');
