@@ -2679,20 +2679,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     if (!usesFlowingDayDetail()) return;
     const target = event.target;
     if (!(target instanceof HTMLElement) || typeof target.scrollIntoView !== 'function') return;
-    const reveal = () => {
-      target.scrollIntoView({block: 'nearest', inline: 'nearest'});
-      const targetRect = target.getBoundingClientRect();
-      const bodyRect = editorBody.getBoundingClientRect();
-      if (targetRect.bottom > bodyRect.bottom) {
-        editorBody.scrollTop += targetRect.bottom - bodyRect.bottom + 8;
-      } else if (targetRect.top < bodyRect.top) {
-        editorBody.scrollTop -= bodyRect.top - targetRect.top + 8;
-      }
-    };
-    // Focus can arrive before the mobile sheet has finished its first layout.
-    // Reveal immediately, then once more on the next frame so the lower fields
-    // stay above the fixed action footer on Chrome/Safari visual viewports.
-    reveal();
+    const reveal = () => target.scrollIntoView({block: 'nearest', inline: 'nearest'});
     if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(reveal);
     else setTimeout(reveal, 0);
   });
