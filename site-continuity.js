@@ -5,6 +5,7 @@ export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
 export const AUTH_STATE_AUTHENTICATED = 'authenticated';
 export const AUTH_STATE_UNAUTHENTICATED = 'unauthenticated';
+export const AUTH_STATE_UNKNOWN = 'unknown';
 
 const LOGIN_URL = '/auth/start/';
 const SIGNUP_URL = 'https://account.lotbiai.com/signup';
@@ -174,6 +175,27 @@ function markCheckingSidebarAccountUi(message = '계정 상태 확인 중') {
   }
 }
 
+function markUnknownSidebarAccountUi() {
+  for (const slot of sidebarAccountSlots()) {
+    const state = document.createElement('span');
+    state.className = 'sidebar-account-entry sidebar-account-unknown';
+    state.setAttribute('role', 'status');
+
+    const primary = document.createElement('span');
+    primary.className = 'sidebar-account-name';
+    primary.textContent = '계정 상태 확인 필요';
+
+    const detail = document.createElement('span');
+    detail.className = 'sidebar-account-handle';
+    detail.textContent = '잠시 후 자동으로 다시 확인합니다.';
+
+    state.append(primary, detail);
+    slot.replaceChildren(state);
+    setSidebarAuthState(slot, AUTH_STATE_UNKNOWN, false);
+  }
+  window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'));
+}
+
 function markAuthenticatedSidebarAccountUi() {
   for (const slot of sidebarAccountSlots()) {
     const button = document.createElement('button');
@@ -232,6 +254,24 @@ export function markCheckingAccountUi(message = '계정 상태 확인 중') {
   }
   delete document.body.dataset.siteAuthenticated;
   markCheckingSidebarAccountUi(message);
+}
+
+export function markUnknownAccountUi() {
+  const actions = accountActions();
+  if (actions) {
+    const state = document.createElement('span');
+    state.className = 'account-auth-unknown';
+    state.setAttribute('role', 'status');
+    state.textContent = '계정 확인 필요';
+    actions.replaceChildren(state);
+    setAuthState(actions, AUTH_STATE_UNKNOWN, false);
+    delete actions.dataset.siteAuthenticated;
+  } else {
+    document.body.dataset.siteAuthState = AUTH_STATE_UNKNOWN;
+  }
+  delete document.body.dataset.siteAuthenticated;
+  markUnknownSidebarAccountUi();
+  recordTiming('header-auth-unknown', {elapsedMs: Math.round(performanceNow())});
 }
 
 export function markAuthenticatedAccountUi() {
@@ -317,7 +357,7 @@ export async function synchronizeAccountContinuity() {
       authenticated,
     });
 
-    if (!authenticated) {
+    if (authenticated === false) {
       clearSiteLogoutSuppression();
       siteLogoutSuppressed = false;
       siteSessionActive = false;
@@ -344,14 +384,18 @@ export async function synchronizeAccountContinuity() {
     redirecting = true;
     recordTiming('auth-start-transition', {elapsedMs: Math.round(performanceNow())});
     await beginSiteHandoff();
-  } catch {
+  } catch (error) {
     recordTiming('account-status-error', {
       durationMs: Math.round(Math.max(0, performanceNow() - statusStartedAt)),
+      code: typeof error?.code === 'string' ? error.code : 'UNKNOWN',
     });
-    // The anonymous CTA is the safe default: a transient Account/Core failure
-    // must never hide login/signup or leave the account slot as a placeholder.
+    // SITE-HOME-SAME-URL-STABILITY-01 — transport failure is not evidence of
+    // logout. Preserve a verified live Site session; otherwise move to the
+    // explicit UNKNOWN presentation. Only authenticated:false above is allowed
+    // to render login/signup.
     redirecting = false;
-    markAnonymousAccountUi();
+    if (hasLiveSiteSession()) markAuthenticatedAccountUi();
+    else markUnknownAccountUi();
   } finally {
     checking = false;
   }
