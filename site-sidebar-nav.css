@@ -366,11 +366,24 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 }
 
 .sidebar-account-placeholder {
-  display: block;
+  display: grid;
+  align-items: center;
   inline-size: 100%;
   height: 54px;
   border-radius: 12px;
   background: transparent;
+  color: #737b88;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sidebar-account-placeholder::after {
+  content: "계정 확인 중";
+}
+
+.sidebar-account-unknown {
+  cursor: default;
+  pointer-events: none;
 }
 
 .sidebar-guest-actions {

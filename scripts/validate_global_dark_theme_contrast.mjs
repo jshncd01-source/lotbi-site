@@ -7,6 +7,7 @@ const theme = fs.readFileSync(path.join(ROOT, 'site-theme-tokens.css'), 'utf8');
 const conversation = fs.readFileSync(path.join(ROOT, 'site-conversation.css'), 'utf8');
 const entry = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const runtime = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
+const assetVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'site-asset-version.json'), 'utf8')).version;
 
 for (const token of [
   '--lotbi-text-primary', '--lotbi-text-secondary', '--lotbi-text-muted', '--lotbi-text-disabled',
@@ -17,7 +18,7 @@ for (const token of [
 }
 if (!theme.includes('body[data-site-theme="dark"]')) throw new Error('explicit dark mapping missing');
 if (!theme.includes('@media (prefers-color-scheme: dark)')) throw new Error('system dark mapping missing');
-if (!entry.includes('site-theme-tokens.css?v=20260923-darklogo1')) throw new Error('theme stylesheet cache key missing');
+if (!entry.includes(`site-theme-tokens.css?v=${assetVersion}`)) throw new Error('generated theme stylesheet cache key missing');
 if (!runtime.includes("getItem?.('lotbi.site.theme.bootstrap.v1')")) throw new Error('pre-paint theme bootstrap read missing');
 // SITE-THEME-NAMESPACE-CARRY-01 — the key is now a named constant, so the
 // assertion checks the declaration and the write that uses it, not one literal.

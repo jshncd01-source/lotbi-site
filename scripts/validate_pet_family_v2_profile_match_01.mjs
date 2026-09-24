@@ -13,6 +13,7 @@ const conversationSource = read('site-conversation.js');
 const conversationCss = read('site-conversation.css');
 const index = read('index.html');
 const callback = read('auth/callback/index.html');
+const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 
 for (const contract of [
   '/v2/pets/profile-hub',
@@ -56,7 +57,8 @@ assert.ok(/\.conversation-pet-action-button\s*\{[\s\S]*?min-height:\s*44px/.test
   'chat task CTA must retain a 44px touch target');
 
 const token = uiSource.match(/site-pet\.js\?v=([\w-]+)/)?.[1];
-assert.equal(token, '20260924-petv2profile1');
+assert.equal(token, assetVersion,
+  'Pet V2 modules must use the generated content-hash asset version');
 for (const [name, source, expected] of [
   ['site-conversation.js', conversationSource, `site-pet-ui.js?v=${token}`],
   ['index.html', index, `site-pet.css?v=${token}`],

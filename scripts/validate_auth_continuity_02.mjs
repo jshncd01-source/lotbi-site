@@ -9,6 +9,7 @@ const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 const {
   ACCOUNT_SITE_FALLBACK_URL,
   ACCOUNT_SITE_SESSION_STATUS_URL,
+  ACCOUNT_SESSION_STATUS_TIMEOUT_MS,
   HANDOFF_RECOVERY_KEY,
   HANDOFF_RECOVERY_TTL_MS,
   SITE_LOGOUT_SUPPRESSION_KEY,
@@ -30,6 +31,7 @@ function jsonResponse(body, status = 200) {
 }
 
 assert.equal(ACCOUNT_SITE_SESSION_STATUS_URL, 'https://account.lotbiai.com/api/auth/site-session-status');
+assert.equal(ACCOUNT_SESSION_STATUS_TIMEOUT_MS, 5000);
 assert.equal(ACCOUNT_SITE_FALLBACK_URL, 'https://account.lotbiai.com/?site_fallback=1');
 assert.equal(new URL(ACCOUNT_SITE_FALLBACK_URL).searchParams.get('site_fallback'), '1');
 assert.equal(new URL(ACCOUNT_SITE_FALLBACK_URL).searchParams.has('state'), false);
@@ -161,6 +163,24 @@ assert.equal(SITE_LOGOUT_SUPPRESSION_TTL_MS, 10 * 60 * 1000);
   assert.equal(authenticated, false);
 }
 
+{
+  let timeoutError;
+  const started = Date.now();
+  try {
+    await readAccountSessionStatus(
+      async (_url, init) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), {once: true});
+      }),
+      {timeoutMs: 250},
+    );
+  } catch (error) {
+    timeoutError = error;
+  }
+  assert.ok(timeoutError instanceof SiteHandoffClientError);
+  assert.equal(timeoutError.code, 'ACCOUNT_SESSION_STATUS_TIMEOUT');
+  assert.ok(Date.now() - started < 2000, 'bounded Account status timeout must settle promptly');
+}
+
 for (const responseFactory of [
   () => jsonResponse({contract_id: 'wrong', schema_version: 1, authenticated: true}),
   () => jsonResponse({contract_id: 'ACCOUNT-SITE-SESSION-STATUS-01', schema_version: 1, authenticated: 'true'}),
@@ -192,7 +212,7 @@ const homeContinuityVersion = index.match(/type="module" src="site-continuity\.j
 const callbackContinuityVersion = callbackHtml.match(/type="module" src="\/site-continuity\.js\?v=([^"]+)"/)?.[1] || '';
 assert.ok(homeContinuityVersion, 'Home continuity runtime must be cache-busted');
 assert.equal(callbackContinuityVersion, homeContinuityVersion, 'callback must load the same current continuity runtime');
-assert.ok(index.includes('href="site-auth-continuity.css"'));
+assert.match(index, /href="site-auth-continuity\.css\?v=aset-[^"]+"/);
 assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
 assert.equal((index.match(/data-sidebar-account data-auth-state="checking" aria-busy="true"/g) || []).length, 2, 'desktop/mobile Sidebar must reserve neutral checking slots');
 assert.equal((index.match(/class="sidebar-account-placeholder"/g) || []).length, 2);
@@ -203,6 +223,7 @@ assert.ok(staticAccountActions.includes('class="account-auth-placeholder"'), 'in
 assert.ok(!staticAccountActions.includes('>로그인<'), 'initial static header must not flash login');
 assert.ok(!staticAccountActions.includes('>회원가입<'), 'initial static header must not flash signup');
 assert.ok(!staticAccountActions.includes('>내 계정<'), 'initial static header must not claim authenticated state');
+assert.ok(staticAccountActions.includes('계정 확인 중'), 'first paint must show a truthful neutral account status instead of an empty hole');
 
 assert.match(callbackHtml, /src="\/auth-callback\.js\?v=[^"]+"/, 'callback entry runtime must be cache-busted');
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
@@ -210,7 +231,7 @@ assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'))
 assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
 
 assert.ok(authStartHtml.includes('id="auth-start-error-shell"'));
-assert.ok(authStartHtml.includes('src="/auth-start.js?v=20260920-authux1"'));
+assert.match(authStartHtml, /src="\/auth-start\.js\?v=aset-[^"]+"/);
 assert.ok(authStartHtml.includes('href="https://account.lotbiai.com/?site_fallback=1"'));
 assert.ok(authStartHtml.includes('>계정 로그인으로 이동</a>'));
 assert.ok(!authStartHtml.includes('href="/auth/start/" hidden>다시 시도</a>'), 'fallback error recovery must not recurse into /auth/start/');
@@ -241,8 +262,8 @@ const sidebarStylesheet = homeStylesheets.find(href => href.startsWith('site-sid
 assert.ok(sidebarStylesheet, 'home Sidebar stylesheet must be cache-busted');
 assert.ok(callbackStylesheets.includes(sidebarStylesheet), 'callback must share the current Home Sidebar stylesheet');
 assert.ok(
-  callbackStylesheets.indexOf('site-hardening.css?v=20260920-attachments1') < callbackStylesheets.indexOf(sidebarStylesheet)
-    && callbackStylesheets.indexOf(sidebarStylesheet) < callbackStylesheets.indexOf('site-auth-continuity.css'),
+  callbackStylesheets.findIndex(href => href.startsWith('site-hardening.css?v=')) < callbackStylesheets.indexOf(sidebarStylesheet)
+    && callbackStylesheets.indexOf(sidebarStylesheet) < callbackStylesheets.findIndex(href => href.startsWith('site-auth-continuity.css?v=')),
   'callback must preserve the home cascade order around Sidebar and auth styles',
 );
 assert.ok(sidebarCss.includes('.sidebar-brand-logo'));
@@ -266,7 +287,9 @@ for (const token of [
   "export const AUTH_STATE_CHECKING = 'checking'",
   "export const AUTH_STATE_AUTHENTICATED = 'authenticated'",
   "export const AUTH_STATE_UNAUTHENTICATED = 'unauthenticated'",
+  "export const AUTH_STATE_UNKNOWN = 'unknown'",
   'markCheckingAccountUi',
+  'markUnknownAccountUi',
   'markAuthenticatedAccountUi',
   'markAnonymousAccountUi',
   'readAccountSessionStatus',
@@ -281,7 +304,7 @@ for (const token of [
   "recordTiming('login-click'",
   'window.location.assign(LOGIN_URL)',
   'scheduleExpiry',
-  'if (!authenticated)',
+  'if (authenticated === false)',
   'await beginSiteHandoff()',
   'hasSiteLogoutSuppression',
   'clearSiteLogoutSuppression',
@@ -330,7 +353,11 @@ const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStar
 const syncBody = continuity.slice(syncStart, syncEnd);
 assert.ok(syncBody.indexOf('if (!hasLiveSiteSession()) markCheckingAccountUi();') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must remain neutral until Account status resolves');
 assert.ok(!syncBody.includes('if (!hasLiveSiteSession()) markAnonymousAccountUi();'), 'normal boot must not paint anonymous actions before authoritative status');
-assert.ok(syncBody.includes('redirecting = false;') && syncBody.includes('markAnonymousAccountUi();'), '503/network or handoff failures must keep the anonymous login CTA usable');
+const syncCatch = syncBody.slice(syncBody.indexOf('} catch (error) {'), syncBody.indexOf('} finally {'));
+assert.ok(syncCatch.includes('redirecting = false;'), 'transient failure must release the redirect guard');
+assert.ok(syncCatch.includes('if (hasLiveSiteSession()) markAuthenticatedAccountUi();'), 'verified live Site session must survive Account transient failure');
+assert.ok(syncCatch.includes('else markUnknownAccountUi();'), 'unknown Account status must render UNKNOWN, not anonymous');
+assert.ok(!syncCatch.includes('markAnonymousAccountUi();'), 'transient Account failure must never pretend the user is logged out');
 assert.ok(syncBody.includes('siteLogoutSuppressed || hasSiteLogoutSuppression()'), 'fresh Home must honor the tab-scoped logout suppression marker');
 assert.ok(syncBody.indexOf('siteLogoutSuppressed || hasSiteLogoutSuppression()') < syncBody.indexOf('await beginSiteHandoff()'), 'logout suppression must stop automatic handoff before it starts');
 assert.ok(syncBody.includes('clearSiteLogoutSuppression();'), 'confirmed anonymous Account state must clear logout suppression');
@@ -345,7 +372,9 @@ for (const forbiddenDelay of ['sleep(', 'retryDelay', 'AUTH_DELAY', '5000)', '5_
 assert.ok(continuityCss.includes('min-width: 174px'));
 assert.ok(continuityCss.includes('min-width: 132px'));
 assert.ok(continuityCss.includes('.account-auth-placeholder'));
-assert.ok(continuityCss.includes('visibility: hidden'));
+assert.ok(continuityCss.includes('.account-auth-unknown'));
+assert.ok(continuityCss.includes('display: inline-flex'));
+assert.ok(!continuityCss.includes('visibility: hidden'), 'checking must not look like a missing header control');
 assert.ok(continuityCss.includes('body.auth-callback-page:not(.auth-callback-error-page)'));
 assert.ok(continuityCss.includes('.auth-callback-page:not(.auth-callback-error-page) .auth-callback-shell'));
 assert.ok(!continuityCss.includes('.account-auth-placeholder::before'));
@@ -357,6 +386,7 @@ for (const timing of [
   "recordTiming('account-status'",
   "recordTiming('auth-start-transition'",
   "recordTiming('header-authenticated'",
+  "recordTiming('header-auth-unknown'",
 ]) {
   assert.ok(continuity.includes(timing), `missing nonpersistent continuity timing marker: ${timing}`);
 }

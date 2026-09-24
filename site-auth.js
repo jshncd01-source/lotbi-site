@@ -1,8 +1,13 @@
-import {SITE_CALLBACK_URI} from './site-core.js?v=20260924-assurance1';
+import {SITE_CALLBACK_URI} from './site-core.js?v=aset-4def738f36a9';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
 export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/auth/site-session-status';
+// SITE-HOME-SAME-URL-STABILITY-01 — Account status is a presentation hint, not
+// permission to block the document forever. Five seconds is deliberately above
+// the normal same-region response budget while still bounding a stalled mobile
+// radio / background-resume request. A timeout is UNKNOWN, never logged-out.
+export const ACCOUNT_SESSION_STATUS_TIMEOUT_MS = 5000;
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
 export const HANDOFF_RECOVERY_KEY = 'lotbi.site-handoff-recovery.v1';
@@ -245,23 +250,49 @@ export function parseSiteHandoffCallback(url) {
   return Object.freeze({code, state});
 }
 
-export async function readAccountSessionStatus(fetchImpl = globalThis.fetch) {
+export async function readAccountSessionStatus(
+  fetchImpl = globalThis.fetch,
+  {timeoutMs = ACCOUNT_SESSION_STATUS_TIMEOUT_MS} = {},
+) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteHandoffClientError('LOTBI 계정 상태를 확인할 수 없습니다.', 'ACCOUNT_SESSION_STATUS_FETCH_UNAVAILABLE');
   }
 
+  const boundedTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
+    ? Math.min(Math.max(Math.round(timeoutMs), 250), 30_000)
+    : ACCOUNT_SESSION_STATUS_TIMEOUT_MS;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = globalThis.setTimeout(() => {
+      // Reject the timeout result before aborting the underlying request so an
+      // AbortError cannot win the Promise.race and be misclassified as a plain
+      // network failure.
+      reject(new SiteHandoffClientError(
+        'LOTBI 계정 상태 확인 시간이 초과되었습니다.',
+        'ACCOUNT_SESSION_STATUS_TIMEOUT',
+      ));
+      try { controller?.abort(); } catch {}
+    }, boundedTimeout);
+  });
+
   let response;
   try {
-    response = await fetchImpl(ACCOUNT_SITE_SESSION_STATUS_URL, {
+    const request = Promise.resolve().then(() => fetchImpl(ACCOUNT_SITE_SESSION_STATUS_URL, {
       method: 'GET',
       mode: 'cors',
       credentials: 'include',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
       headers: {'Accept': 'application/json'},
-    });
-  } catch {
+      ...(controller ? {signal: controller.signal} : {}),
+    }));
+    response = await Promise.race([request, timeout]);
+  } catch (error) {
+    if (error instanceof SiteHandoffClientError) throw error;
     throw new SiteHandoffClientError('LOTBI 계정 상태 서버에 접속하지 못했습니다.', 'ACCOUNT_SESSION_STATUS_NETWORK_ERROR');
+  } finally {
+    if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
   }
 
   let payload = {};
