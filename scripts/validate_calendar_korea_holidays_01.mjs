@@ -6,6 +6,7 @@ const manager = readFileSync('site-calendar-manager.js', 'utf8');
 const css = readFileSync('site-calendar.css', 'utf8');
 const ui = readFileSync('site-calendar-ui.js', 'utf8');
 const index = readFileSync('index.html', 'utf8');
+const assetVersion = JSON.parse(readFileSync('site-asset-version.json', 'utf8')).version;
 
 
 const {loadKoreaHolidaysForRange} = await import('../site-calendar-manager.js');
@@ -93,7 +94,7 @@ assert.match(css, /\.calendar-settings-dialog/);
 assert.match(css, /\.calendar-date-cell\[data-holiday="true"\]/);
 assert.match(css, /@media \(max-width: 520px\)/);
 
-assert.match(ui, /site-calendar-manager\.js\?v=20260924-calendarux1/);
-assert.match(index, /site-calendar\.css\?v=20260924-calendarux1/);
+assert.ok(ui.includes(`site-calendar-manager.js?v=${assetVersion}`));
+assert.ok(index.includes(`site-calendar.css?v=${assetVersion}`));
 
 console.log('Calendar Korea holiday UI contract: PASS');
