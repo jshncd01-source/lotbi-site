@@ -1,4 +1,4 @@
-import {sampleClip,zero,smooth,validateControls} from './animation.mjs';
+import {sampleClip,zero,smooth,validateControls} from './animation.mjs?v=20260924-running1';
 import {speechEmphasis,easeSpeechMotionEnergy} from './speech-envelope.mjs';
 import {AvatarStateMachine} from './state-machine.mjs';
 import {deriveSpeechVariation,sampleSpeechVariation} from './speech-variation.mjs';
@@ -77,14 +77,14 @@ export class AvatarController {
       this.turn.gesture=gesture==='none'||p.intensity===0?null:{name:gesture,at:t};
       if(this.speechMode==='audio'&&p.speech&&this.turn.gesture){this.turn.queuedGesture=this.turn.gesture.name;this.turn.gesture=null;}
       // Receiving text does not start audio or a speaking animation.
-      if(this.state==='thinking') {this.state='idle';this.stateAt=t;}
+      if(this.state==='thinking'||this.state==='running') {this.state='idle';this.stateAt=t;}
     });
     return {accepted:true,gestureSuppressed:suppressed};
   }
   verifiedCompletion(token,t) { this.#clock(t);this.#active(token);this.lifecycle.dispatch('completion-verified');if(!this.turn.verified)this.turn.completedAt=t;this.turn.verified=true; }
   hostEvent(token,type,t) {
     this.#clock(t);this.#active(token);
-    const states={'listening-start':'listening','listening-end':'idle','response-wait':'thinking','audio-start':'speaking','audio-end':'idle','audio-pause':'idle','audio-resume':'speaking'};
+    const states={'listening-start':'listening','listening-end':'idle','response-wait':'running','audio-start':'speaking','audio-end':'idle','audio-pause':'idle','audio-resume':'speaking'};
     if(!Object.hasOwn(states,type)) throw new Error('Unknown host event');
     const next=states[type];
     if(type==='audio-start' && (!this.turn.accepted || !this.turn.expression.speech || this.turn.audioStarted)) throw new Error('Audio start requires unplayed accepted speech');

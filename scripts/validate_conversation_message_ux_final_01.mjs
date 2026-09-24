@@ -39,7 +39,7 @@ assert.ok(messageBody.includes("button.textContent = expanded ? '접기' : '더 
 assert.ok(messageBody.includes("button.addEventListener('click'"));
 assert.ok(messageBody.includes("code.textContent = match[2]"));
 assert.ok(!messageBody.includes('innerHTML'), 'message renderer must never inject HTML');
-assert.ok(conversation.includes("from './site-message-body.js?v=20260924-mapdeeplink1'"));
+assert.ok(conversation.includes("from './site-message-body.js?v=20260924-chatmedia3'"));
 // Every user message still gets the 접기/더 보기 enhancement. The one exception
 // is an image-only turn (SITE-IMAGE-ATTACHMENT-THUMBNAIL-01), whose generated
 // placeholder sentence is hidden behind the thumbnail and has nothing to expand.
@@ -47,7 +47,7 @@ assert.ok(conversation.includes("if (role === 'user' && !article.classList.conta
 assert.ok(conversation.includes('enhanceExpandableUserMessage(article, body, text);'));
 assert.ok(conversation.includes("const displayMessage = message ||"));
 assert.ok(conversation.includes("timestampedConversationMessage({role: 'user', text: displayMessage"));
-assert.ok(conversation.includes('appendPersistedMessage(userRecord)'), 'full user record must remain the persistence source');
+assert.ok(conversation.includes('appendPersistedMessage({...userRecord, meta: {attachments: persistedAttachments}})'), 'sanitized user record must remain the persistence source');
 assert.ok(!conversation.includes("text: message.slice("), 'long-message UI must not truncate persisted text');
 assert.ok(!conversation.includes("text: message.substring("), 'long-message UI must not truncate persisted text');
 assert.ok(workflow.includes('node scripts/validate_conversation_message_ux_final_01.mjs'));

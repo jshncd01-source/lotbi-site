@@ -338,6 +338,9 @@ jobs:
           REQUIRE_BROWSER: 1
         run: node scripts/validate_image_attachment_thumbnail_01.mjs
 
+      - name: Validate chat attachment privacy and Running LOTBI thinking UX
+        run: node scripts/validate_chat_media_thinking_01.mjs
+
       - name: Validate centered conversation timeline
         run: node scripts/validate_conversation_timeline_01.mjs
 
@@ -441,7 +444,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 
