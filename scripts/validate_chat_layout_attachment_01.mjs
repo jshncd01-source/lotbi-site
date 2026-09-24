@@ -46,15 +46,25 @@ if (!browser && process.env.REQUIRE_BROWSER === '1') {
 const fixture = path.join(os.tmpdir(), `lotbi-chat-layout-${process.pid}.html`);
 const source = html
   .replace(/<script[\s\S]*?<\/script>/gi, '')
-  .replaceAll('href="styles.css"', `href="file://${path.join(ROOT, 'styles.css')}"`)
-  .replaceAll('href="home-chat.css"', `href="file://${path.join(ROOT, 'home-chat.css')}"`)
+  .replace(/href="styles\.css[^\"]*"/, `href="file://${path.join(ROOT, 'styles.css')}"`)
+  .replace(/href="home-chat\.css[^\"]*"/, `href="file://${path.join(ROOT, 'home-chat.css')}"`)
   .replace(/href="site-hardening\.css[^\"]*"/, `href="file://${path.join(ROOT, 'site-hardening.css')}"`)
   .replace(/href="site-sidebar-nav\.css[^\"]*"/, `href="file://${path.join(ROOT, 'site-sidebar-nav.css')}"`)
-  .replaceAll('href="site-auth-continuity.css"', `href="file://${path.join(ROOT, 'site-auth-continuity.css')}"`)
+  .replace(/href="site-auth-continuity\.css[^\"]*"/, `href="file://${path.join(ROOT, 'site-auth-continuity.css')}"`)
   .replace(/href="site-calendar\.css[^\"]*"/, `href="file://${path.join(ROOT, 'site-calendar.css')}"`)
-  .replaceAll('href="footer-business-info.css"', `href="file://${path.join(ROOT, 'footer-business-info.css')}"`)
-  .replaceAll('href="mobile-entry.css"', `href="file://${path.join(ROOT, 'mobile-entry.css')}"`)
+  .replace(/href="footer-business-info\.css[^\"]*"/, `href="file://${path.join(ROOT, 'footer-business-info.css')}"`)
+  .replace(/href="mobile-entry\.css[^\"]*"/, `href="file://${path.join(ROOT, 'mobile-entry.css')}"`)
   .replace('</head>', `<link rel="stylesheet" href="file://${path.join(ROOT, 'site-conversation.css')}"></head>`);
+for (const stylesheet of [
+  'styles.css', 'home-chat.css', 'site-hardening.css', 'site-sidebar-nav.css',
+  'site-auth-continuity.css', 'site-calendar.css', 'footer-business-info.css',
+  'mobile-entry.css', 'site-conversation.css',
+]) {
+  assert.ok(
+    source.includes(`href="file://${path.join(ROOT, stylesheet)}"`),
+    `layout fixture must resolve the generated ${stylesheet} URL to local content`,
+  );
+}
 fs.writeFileSync(fixture, source);
 
 if (browser) try {
