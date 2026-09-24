@@ -121,13 +121,6 @@
   color: var(--muted);
 }
 
-/* 가격이 아직 정해지지 않은 등급. 임시 숫자를 큰 글씨로 띄워
-   확정가처럼 보이게 두지 않는다. */
-.plan-price-pending {
-  font-size: 20px;
-  color: var(--brand-navy);
-}
-
 .plan-price-caption {
   margin: 6px 0 0;
   font-size: 13px;
