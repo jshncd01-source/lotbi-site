@@ -82,11 +82,18 @@ const PROBE = '<script>(function(){var r=document.documentElement,s=[];function 
 // 로그아웃 억제 마커를 module script 보다 먼저 심는다 (classic inline script 는
 // deferred module 보다 앞서 실행된다).
 const SEED_LOGOUT = "<script>try{sessionStorage.setItem('lotbi.site-logout-suppression.v1',String(Date.now()));}catch(e){}</script>";
-const STRESS = '<script>(function(){setInterval(function(){'
+// 이벤트 폭격은 반드시 끝나야 한다. 처음에는 setInterval 을 무한히 돌렸는데,
+// --virtual-time-budget 은 대기 중인 네트워크 요청이 있으면 가상 시간을
+// 진행시키지 않는다. 그래서 매 폭격이 새 site-session-status 요청을 만들면
+// 예산에 영원히 도달하지 못하고 Chrome 이 종료되지 않는다 — CI 에서
+// spawnSync ETIMEDOUT 으로 떨어졌다. 정해진 횟수만 두드리고 멈춘다.
+const STRESS_BURSTS = 40;
+const STRESS = '<script>(function(){var n=0;var i=setInterval(function(){'
+  + 'if(++n>' + STRESS_BURSTS + "){clearInterval(i);document.documentElement.setAttribute('data-lotbi-stress','done');return;}"
   + "try{window.dispatchEvent(new Event('focus'));}catch(e){}"
   + "try{window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:false}));}catch(e){}"
   + "try{document.dispatchEvent(new Event('visibilitychange'));}catch(e){}"
-  + '},120);})();</script>';
+  + '},100);})();</script>';
 const clicker = selector => '<script>(function(){var n=0;var i=setInterval(function(){'
   + "var b=document.querySelector('" + selector + "');"
   + "if(b){clearInterval(i);document.documentElement.setAttribute('data-lotbi-clicked','1');"
@@ -315,13 +322,33 @@ async function measure(label, scenario, {url = 'https://lotbiai.com/', budget = 
       // 이 환경은 HTTPS_PROXY 가 설정돼 있다. 프록시를 끄지 않으면
       // --host-resolver-rules 가 무시되고 전부 ERR_TIMED_OUT 이 된다.
       '--no-proxy-server',
-      `--host-resolver-rules=MAP * 127.0.0.1:${port}`,
+      // 세 호스트만 스텁으로 보내고 나머지는 즉시 해석 실패시킨다.
+      // 처음에는 `MAP *` 로 전부 스텁에 보냈는데, 그러면 Chrome 자신의
+      // 시작 트래픽(component update, safe-browsing, accounts.google.com …)
+      // 까지 스텁을 두드린다. 그 대기 요청들이 가상 시간을 붙잡아 CI 에서
+      // Chrome 이 종료되지 않았다. ~NOTFOUND 는 즉시 실패하므로 매달리지 않는다.
+      '--host-resolver-rules='
+        + `MAP lotbiai.com 127.0.0.1:${port},`
+        + `MAP account.lotbiai.com 127.0.0.1:${port},`
+        + `MAP api.lotbiai.com 127.0.0.1:${port},`
+        + 'MAP * ~NOTFOUND',
+      // Chrome 자신의 배경 네트워킹을 끈다. 측정 대상이 아니고, 느려지면
+      // 가상 시간 예산을 갉아먹는다.
+      '--no-first-run', '--no-default-browser-check',
+      '--disable-component-update', '--disable-background-networking',
+      '--disable-sync', '--disable-default-apps', '--disable-extensions',
+      '--disable-client-side-phishing-detection', '--metrics-recording-only',
       '--window-size=1280,900', '--force-device-scale-factor=1',
       '--force-prefers-reduced-motion=reduce',
       `--virtual-time-budget=${budget}`,
       '--dump-dom', url,
     ], {encoding: 'utf8', timeout: budget + 120000, maxBuffer: 32 * 1024 * 1024});
-    if (r.error) throw r.error;
+    if (r.error) {
+      if (r.error.code === 'ETIMEDOUT') {
+        throw new Error(`${label}: the browser never exited. 대기 중인 요청이 가상 시간을 붙잡고 있는지 확인하십시오 (끝나지 않는 타이머, 해석되지 않는 호스트).`);
+      }
+      throw r.error;
+    }
     const dom = r.stdout || '';
     const netError = (dom.match(/ERR_[A-Z_]+/) || [''])[0];
     if (netError) throw new Error(`${label}: the browser could not reach the stub origins (${netError})`);
@@ -342,6 +369,7 @@ async function measure(label, scenario, {url = 'https://lotbiai.com/', budget = 
       continueCta: attr('continue') === '1',
       accountLinked: attr('linked') === 'true',
       sidebarLabel: attr('sidebar'),
+      stressDone: attr('stress') === 'done',
       callbackError: attr('cberr'),
       accountStub: /data-account-stub="1"/.test(dom),
       handoffStarts: count(e => e.host === 'account.lotbiai.com' && e.path === '/auth/site-handoff'),
@@ -378,6 +406,7 @@ try {
       {accountAuthenticated: false, stressEvents: true});
     report.push(v);
     assert.equal(v.final, 'https://lotbiai.com/', `${v.label}: 이벤트 반복이 주소를 옮기면 안 된다`);
+    assert.ok(v.stressDone, `${v.label}: 이벤트 폭격이 실제로 끝까지 실행됐어야 한다`);
     assert.equal(v.handoffStarts, 0, `${v.label}: 이벤트 반복이 handoff 를 만들면 안 된다`);
     assert.equal(v.callbackNavigations, 0, `${v.label}: 이벤트 반복이 callback 을 열면 안 된다`);
     assert.equal(v.homeDocuments, 1, `${v.label}: 홈 문서를 다시 읽는 루프가 없어야 한다`);
@@ -413,6 +442,7 @@ try {
       {accountAuthenticated: true, stressEvents: true});
     report.push(v);
     assert.equal(v.final, 'https://lotbiai.com/', `${v.label}: 최종 주소는 '/' 여야 한다`);
+    assert.ok(v.stressDone, `${v.label}: 이벤트 폭격이 실제로 끝까지 실행됐어야 한다 (아니면 이 케이스는 아무것도 증명하지 않는다)`);
     assert.equal(v.handoffStarts, 0, `${v.label}: 이벤트 반복이 handoff 를 만들면 안 된다`);
     assert.equal(v.callbackNavigations, 0, `${v.label}: 이벤트 반복이 callback 을 열면 안 된다`);
     assert.equal(v.homeDocuments, 1, `${v.label}: 홈 문서를 다시 읽는 루프가 없어야 한다`);
@@ -422,7 +452,7 @@ try {
   // 그리고 누르면 실제로 이어진다 — 목표 C 와 같은 경로다.
   {
     const v = await measure('authenticated → 이어서 사용하기 클릭',
-      {accountAuthenticated: true, clickContinue: true}, {budget: 40000});
+      {accountAuthenticated: true, clickContinue: true});
     report.push(v);
     assert.equal(v.handoffStarts, 1, `${v.label}: 누르면 handoff 가 정확히 한 번 시작돼야 한다`);
     assert.equal(v.redeemPosts, 1, `${v.label}: redeem 은 정확히 한 번이어야 한다 (replay 금지)`);
@@ -448,7 +478,7 @@ try {
   {
     // 로그아웃 억제 상태에서도 사용자가 직접 누르면 로그인된다.
     const v = await measure('logout-suppressed → 로그인 클릭',
-      {accountAuthenticated: true, seedLogoutSuppression: true, clickLogin: true}, {budget: 40000});
+      {accountAuthenticated: true, seedLogoutSuppression: true, clickLogin: true});
     report.push(v);
     assert.equal(v.handoffStarts, 1, `${v.label}: 명시적 로그인은 억제를 풀고 handoff 를 시작해야 한다`);
     assert.equal(v.redeemPosts, 1, `${v.label}: 명시적 로그인은 세션을 발급받아야 한다`);
@@ -474,6 +504,7 @@ try {
     const v = await measure('logout-suppressed + repeated focus/pageshow',
       {accountAuthenticated: true, seedLogoutSuppression: true, stressEvents: true});
     report.push(v);
+    assert.ok(v.stressDone, `${v.label}: 이벤트 폭격이 실제로 끝까지 실행됐어야 한다`);
     assert.equal(v.handoffStarts, 0, `${v.label}: 이벤트 반복이 억제를 뚫으면 안 된다`);
     assert.equal(v.callbackNavigations, 0, `${v.label}: 이벤트 반복이 callback 을 열면 안 된다`);
     assert.equal(v.final, 'https://lotbiai.com/', `${v.label}: 주소가 옮겨지면 안 된다`);
@@ -517,7 +548,7 @@ try {
   ];
   for (const [name, knobs, expectedMessage] of strandingCases) {
     const v = await measure(`explicit login → ${name}`,
-      {accountAuthenticated: true, clickContinue: true, ...knobs}, {budget: 40000});
+      {accountAuthenticated: true, clickContinue: true, ...knobs});
     report.push(v);
     // 실패는 반드시 fail closed 여야 한다: 세션 있는 척 금지.
     assert.ok(!v.authenticated, `${v.label}: 실패했는데 로그인 상태를 주장하면 안 된다`);
