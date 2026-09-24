@@ -10,6 +10,7 @@ conversation/handoff and authenticated continuity runtimes.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -130,6 +131,10 @@ def sha256_bytes(data: bytes) -> str:
 def locked_bytes(rel: str, path: Path) -> bytes:
     if rel.endswith('.html'):
         text = path.read_text(encoding='utf-8')
+        # Generated cache keys are deployment metadata, not legal copy. Strip
+        # them before hashing so a new coherent asset set cannot unlock or
+        # silently rewrite the policy/body content this gate protects.
+        text = re.sub(r'(\.(?:js|mjs|css))\?v=[A-Za-z0-9._-]+', r'\1', text)
         if CHOOSER_BOOTSTRAP not in text:
             return text.encode('utf-8')
         return text.replace(CHOOSER_BOOTSTRAP, '', 1).encode('utf-8')
@@ -164,6 +169,7 @@ def main() -> int:
     home_js = (ROOT / "home-shell.js").read_text(encoding="utf-8")
     mobile_js = (ROOT / "mobile-entry.js").read_text(encoding="utf-8")
     continuity_js = (ROOT / "site-continuity.js").read_text(encoding="utf-8")
+    asset_version = json.loads((ROOT / "site-asset-version.json").read_text(encoding="utf-8"))["version"]
 
     for url, label in ((LOGIN_URL, "login"), (SIGNUP_URL, "signup")):
         if url not in continuity_js:
@@ -196,13 +202,17 @@ def main() -> int:
         r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
         index,
     )
+    avatar_script = re.search(
+        r'<script type="module" src="site-avatar\.js\?v=[^"]+"></script>',
+        index,
+    )
     approved_scripts = (
         '<script type="importmap">',
-        '<script src="home-shell.js?v=20260920-fold5" defer></script>',
-        '<script src="mobile-entry.js?v=20260923-darklogo1" defer></script>',
+        f'<script src="home-shell.js?v={asset_version}" defer></script>',
+        f'<script src="mobile-entry.js?v={asset_version}" defer></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
-        '<script type="module" src="site-avatar.js"></script>',
+        avatar_script.group(0) if avatar_script else "__missing_avatar_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +1 for the allowlisted inline theme bootstrap verified above.
@@ -295,11 +305,11 @@ def main() -> int:
         if token not in index:
             errors.append(f"missing conversation state contract: {token}")
 
-    if 'href="site-hardening.css?v=20260920-attachments1"' not in index:
+    if f'href="site-hardening.css?v={asset_version}"' not in index:
         errors.append("hardening stylesheet is not linked after approved home stylesheet")
-    if 'href="site-auth-continuity.css"' not in index:
+    if f'href="site-auth-continuity.css?v={asset_version}"' not in index:
         errors.append("authenticated continuity stylesheet missing from home")
-    if 'href="mobile-entry.css"' not in index:
+    if f'href="mobile-entry.css?v={asset_version}"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
     if not conversation_script:
         errors.append("approved cache-busted conversation module missing from home")
@@ -310,7 +320,8 @@ def main() -> int:
         ".account-auth-placeholder",
         "min-width: 174px",
         "min-width: 132px",
-        "var(--brand-line)",
+        "display: inline-flex",
+        "color: var(--muted)",
     ):
         if token not in auth_css:
             errors.append(f"missing layout-safe auth continuity style: {token}")

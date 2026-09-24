@@ -89,6 +89,30 @@ export function attachmentKindLabel(mediaType) {
   return '파일';
 }
 
+// CHAT-ATTACHMENT-NO-FILENAME-01 — the original name remains available to
+// upload, validation and download code, but it is never presentation copy.
+export function attachmentDisplayLabel(mediaType) {
+  if (String(mediaType || '').startsWith('image/')) return '첨부 이미지';
+  if (mediaType === 'application/pdf') return 'PDF 문서';
+  if (mediaType === DOCX) return '문서';
+  if (mediaType === 'text/plain') return '텍스트 문서';
+  if (mediaType === 'text/csv') return 'CSV 문서';
+  if (mediaType === 'application/json') return 'JSON 문서';
+  return '첨부 파일';
+}
+
+export function attachmentDisplayPresentation(attachment) {
+  const mediaType = attachment && typeof attachment === 'object'
+    ? (attachment.mediaType || attachment.mimeType || '')
+    : '';
+  const label = attachmentDisplayLabel(mediaType);
+  return Object.freeze({
+    label,
+    imageAlt: '첨부 이미지',
+    removeLabel: `${label} 제거`,
+  });
+}
+
 /* SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — browser-local preview lifecycle.
    Previews are ephemeral object URLs for the attachment the user just chose.
    They never travel to Core, never reach persisted conversation state, and are

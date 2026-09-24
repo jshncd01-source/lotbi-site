@@ -1,5 +1,5 @@
 // Engine-independent, seconds-based CP4 sampling. No networking or audio playback.
-export const ACTIONS = Object.freeze(['idle','blink','listening','thinking','speaking','laugh','cry','surprised','worried','excited','nod','wave','celebrate']);
+export const ACTIONS = Object.freeze(['idle','blink','listening','thinking','running','speaking','laugh','cry','surprised','worried','excited','nod','wave','celebrate']);
 export const smooth = t => { t=Math.max(0,Math.min(1,t)); return t*t*(3-2*t); };
 export const zero = contract => Object.fromEntries(Object.keys(contract.controls).map(k=>[k,0]));
 export function validateControls(values, contract) {

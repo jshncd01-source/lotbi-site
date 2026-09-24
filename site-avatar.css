@@ -37,6 +37,18 @@
   visibility: hidden;
 }
 
+/* Reduced Motion keeps the same official character and state text, but swaps
+   the processing loop for its static brand image. The single 3D runtime stays
+   mounted so the rest of the chat lifecycle is unchanged. */
+.chat-character-wrap.avatar-3d-ready.avatar-processing.avatar-reduced-motion .site-avatar-stage {
+  opacity: 0;
+}
+
+.chat-character-wrap.avatar-3d-ready.avatar-processing.avatar-reduced-motion .chat-character-logo {
+  opacity: 1;
+  visibility: visible;
+}
+
 .chat-character-wrap.avatar-3d-fallback .site-avatar-stage {
   display: none;
 }

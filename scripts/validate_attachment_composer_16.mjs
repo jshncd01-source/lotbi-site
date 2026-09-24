@@ -30,10 +30,11 @@ for (const token of [
 ]) {
   assert.ok(runtime.includes(token), `missing attachment runtime contract: ${token}`);
 }
-assert.ok(runtime.includes("timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt)"), 'user message timestamp must preserve the original turn time without persisting attachment metadata');
-assert.ok(runtime.includes("appendPersistedMessage(userRecord)"));
-assert.ok(runtime.includes("meta: {attachments: attachmentMeta}"), 'attachment details may exist only in the live DOM record');
-assert.ok(!runtime.includes('persistedAttachments'), 'attachment IDs and filenames must not be persisted in Site state');
+assert.ok(runtime.includes("timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt)"), 'user message timestamp must preserve the original turn time');
+assert.ok(runtime.includes("appendPersistedMessage({...userRecord, meta: {attachments: persistedAttachments}})"));
+assert.ok(runtime.includes("meta: {attachments: attachmentMeta}"), 'private attachment details may exist only in the live DOM record');
+assert.ok(runtime.includes('const persistedAttachments = attachments.map(item => ({'), 'reload-safe generic descriptors must be persisted');
+assert.doesNotMatch(runtime, /persistedAttachments[\s\S]{0,220}(fileName|filename|previewUrl)/, 'filenames and ephemeral preview URLs must not be persisted in Site state');
 assert.doesNotMatch(runtime, /ensureThread\([^\n]*fileName/);
 assert.ok(runtime.includes("const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`"));
 assert.doesNotMatch(runtime, /첨부 파일 확인:/);
