@@ -10,6 +10,7 @@ const conversation = readFileSync('site-conversation.js', 'utf8');
 const index = readFileSync('index.html', 'utf8');
 const callback = readFileSync('auth-callback.js', 'utf8');
 const callbackHtml = readFileSync('auth/callback/index.html', 'utf8');
+const assetVersion = JSON.parse(readFileSync('site-asset-version.json', 'utf8')).version;
 
 assert.match(manager, /resolvePublicWeatherRegion/);
 assert.match(manager, /readCalendarManualWeatherRegion/);
@@ -103,9 +104,9 @@ assert.match(preference, /longitude > 132\.5/);
 
 assert.match(css, /\.calendar-settings-region-row/);
 assert.match(css, /\.calendar-settings-region-row input/);
-assert.match(ui, /site-calendar-manager\.js\?v=20260924-calendarux1/);
-assert.match(conversation, /site-calendar-ui\.js\?v=20260924-calendarux1/);
-assert.match(index, /site-calendar\.css\?v=20260924-calendarux1/);
+assert.ok(ui.includes(`site-calendar-manager.js?v=${assetVersion}`));
+assert.ok(conversation.includes(`site-calendar-ui.js?v=${assetVersion}`));
+assert.ok(index.includes(`site-calendar.css?v=${assetVersion}`));
 // The Home entry carries its own cache-bust token, bumped whenever the shell
 // changes rather than whenever a Calendar module does. Pinning the Calendar's
 // token here went stale the first time only one of the two moved; what actually
@@ -114,6 +115,6 @@ const homeEntryVersion = index.match(/site-conversation\.js\?v=([^"']+)/)?.[1] |
 assert.ok(homeEntryVersion, 'Home conversation entry must be cache-busted');
 assert.match(callback, new RegExp(`site-conversation\\.js\\?v=${homeEntryVersion}`));
 assert.match(callbackHtml, new RegExp(`auth-callback\\.js\\?v=${homeEntryVersion}`));
-assert.match(callbackHtml, /site-calendar\.css\?v=20260924-calendarux1/);
+assert.ok(callbackHtml.includes(`site-calendar.css?v=${assetVersion}`));
 
 console.log('LOTBI Calendar manual weather region Settings contract: PASS');
