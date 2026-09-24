@@ -60,7 +60,7 @@ const validPhoto = normalizePlaceResult({
     photo_evidence: {
       provider: 'GOOGLE_PLACES',
       provider_place_id: 'google-place',
-      match_basis: 'EXACT_NAME_AND_ADDRESS',
+      match_basis: 'EXACT_NAME_AND_80M_COORDINATE',
       fetched_at: '2026-09-24T09:00:00Z',
       verification_state: 'VERIFIED',
       attributions: [],
