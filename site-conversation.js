@@ -8,6 +8,7 @@ import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClai
 import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-daysheet3';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=20260924-imagecalendar1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-placecompact1';
 import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-placecompact1';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
@@ -1578,6 +1579,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         title: value.title,
         local_date: value.localDate,
         local_time: value.localTime,
+        end_local_date: value.endLocalDate,
+        end_local_time: value.endLocalTime,
+        calendar_relevance: value.calendarRelevance,
+        document_kind: value.documentKind,
+        detection_confidence: value.detectionConfidence,
+        dedupe_fingerprint: value.dedupeFingerprint,
+        auto_suggestable: value.autoSuggestable === true,
         entry: value.entry && typeof value.entry === 'object' ? {
           amount_minor: value.entry.amountMinor,
           currency: value.entry.currency,
@@ -1593,9 +1601,51 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
+  const calendarDraftClock = (date, time) => {
+    const [, month, day] = String(date).split('-');
+    const stamp = `${month}월 ${Number(day)}일`;
+    return time ? `${stamp} ${time}` : stamp;
+  };
+
   const calendarDraftWhen = draft => {
     if (!draft?.localDate) return '날짜 미정';
-    return draft.localTime ? `${draft.localDate} · ${draft.localTime}` : draft.localDate;
+    const start = calendarDraftClock(draft.localDate, draft.localTime);
+    // A stay reads as one line with two ends — 9월 12일 15:00 → 9월 13일 11:00 —
+    // because that is the shape of the thing the owner is confirming.
+    if (!draft.endLocalDate) return start;
+    return `${start} → ${calendarDraftClock(draft.endLocalDate, draft.endLocalTime)}`;
+  };
+
+  const draftLocalTimezone = () => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
+    } catch {
+      return 'Asia/Seoul';
+    }
+  };
+
+  /** Record what the owner decided about a draft, so a reload does not re-ask. */
+  const settleConversationCalendarDraft = (fingerprint, result) => {
+    const key = String(fingerprint || '');
+    if (!key) return;
+    let changed = false;
+    for (const record of state.threads) {
+      if (!Array.isArray(record.messages)) continue;
+      record.messages = record.messages.map(message => {
+        if (message?.meta?.calendarDraft?.dedupeFingerprint !== key) return message;
+        changed = true;
+        const meta = {...message.meta};
+        delete meta.calendarDraft;
+        if (result) meta.calendarResult = result;
+        return {...message, meta};
+      });
+      if (changed) record.updatedAt = Date.now();
+    }
+    if (changed) {
+      sortThreads();
+      saveState();
+      renderRecent();
+    }
   };
 
   const createConversationCalendarDraft = draftValue => {
@@ -1629,15 +1679,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     const status = document.createElement('div');
     status.className = 'conversation-calendar-action-status';
-    status.textContent = '저장 전 확인 필요';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
 
     const controls = document.createElement('div');
     controls.className = 'conversation-calendar-action-controls';
-    const review = document.createElement('button');
-    review.type = 'button';
-    review.className = 'conversation-calendar-action-button';
-    review.textContent = '초안 확인 · 편집';
-    review.addEventListener('click', async () => {
+
+    const openEditor = async () => {
       if (!sessionToken) {
         try {
           await beginGuestClaimingSiteHandoff('캘린더 초안 확인');
@@ -1650,8 +1698,119 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         initialDraft: draft,
         restoreConversation: true,
       });
+    };
+
+    // No date means there is nothing to register — the owner has to supply the
+    // one thing the image never said, and the editor is where that happens.
+    const registerable = Boolean(draft.localDate && draft.title && draft.dedupeFingerprint);
+    if (!registerable) {
+      status.textContent = '저장 전 확인 필요';
+      const review = document.createElement('button');
+      review.type = 'button';
+      review.className = 'conversation-calendar-action-button';
+      review.textContent = '초안 확인 · 편집';
+      review.addEventListener('click', () => void openEditor());
+      controls.appendChild(review);
+      row.append(summary, status, controls);
+      return row;
+    }
+
+    status.textContent = '캘린더에 등록할까요?';
+    const register = document.createElement('button');
+    register.type = 'button';
+    register.className = 'conversation-calendar-action-button conversation-calendar-action-button-primary';
+    register.textContent = '등록';
+    register.setAttribute('aria-label', `${draft.title} 일정을 캘린더에 등록`);
+    const decline = document.createElement('button');
+    decline.type = 'button';
+    decline.className = 'conversation-calendar-action-button';
+    decline.textContent = '아니요';
+    decline.setAttribute('aria-label', `${draft.title} 일정을 캘린더에 등록하지 않음`);
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'conversation-calendar-action-button';
+    edit.textContent = '편집';
+    edit.setAttribute('aria-label', `${draft.title} 일정을 편집해서 등록`);
+
+    let submitting = false;
+    const settle = text => {
+      row.dataset.calendarDraft = 'settled';
+      status.textContent = text;
+      controls.replaceChildren();
+    };
+
+    register.addEventListener('click', async () => {
+      if (!sessionToken) {
+        try {
+          await beginGuestClaimingSiteHandoff('캘린더 등록');
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : '로그인 연결을 시작하지 못했습니다.');
+        }
+        return;
+      }
+      // Disabling the buttons is courtesy, not the duplicate guard: the write
+      // identity is derived from the booking, so a second press that slips
+      // through replays the first one instead of writing a second entry.
+      if (submitting) return;
+      submitting = true;
+      register.disabled = true;
+      decline.disabled = true;
+      edit.disabled = true;
+      status.textContent = '캘린더에 등록하는 중…';
+
+      const timezone = draftLocalTimezone();
+      const outcome = await registerCalendarDraft(draft, {sessionToken, timezone});
+
+      if (outcome.state === CALENDAR_DRAFT_WRITE_STATE.REGISTERED) {
+        const result = {
+          scope: 'AUTH',
+          state: 'REGISTERED',
+          title: outcome.result.title,
+          dateHint: outcome.result.dateHint,
+          timezone: outcome.result.timezone,
+          activityId: outcome.result.activityId,
+          occurrenceId: outcome.result.occurrenceId,
+        };
+        settleConversationCalendarDraft(draft.dedupeFingerprint, result);
+        const registered = createConversationCalendarResult(result);
+        if (registered && row.isConnected) row.replaceWith(registered);
+        else settle('✓ 캘린더에 등록했습니다');
+        // Whatever Calendar surface is mounted refreshes itself, so the day the
+        // owner just saved onto is already right when they look at it.
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+        setStatus('캘린더에 일정을 등록했습니다.');
+        return;
+      }
+
+      if (outcome.state === CALENDAR_DRAFT_WRITE_STATE.ALREADY_REGISTERED) {
+        settleConversationCalendarDraft(draft.dedupeFingerprint, null);
+        settle('이미 등록된 일정입니다');
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
+        setStatus('같은 일정이 이미 캘린더에 있습니다.');
+        return;
+      }
+
+      // A failed save is a failed save — the conversation and the reply the
+      // owner actually asked for stay exactly as they were.
+      submitting = false;
+      register.disabled = false;
+      decline.disabled = false;
+      edit.disabled = false;
+      status.textContent = outcome.error?.message || '일정을 등록하지 못했습니다.';
     });
-    controls.appendChild(review);
+
+    decline.addEventListener('click', () => {
+      if (submitting) return;
+      settleConversationCalendarDraft(draft.dedupeFingerprint, null);
+      settle('등록하지 않았습니다');
+    });
+
+    edit.addEventListener('click', () => {
+      if (submitting) return;
+      void openEditor();
+    });
+
+    controls.append(register, decline, edit);
     row.append(summary, status, controls);
     return row;
   };

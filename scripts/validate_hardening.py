@@ -91,8 +91,19 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 바뀌지 않았고, 링크 목록에 항목 하나가 더해졌을 뿐이다.
 # `git diff --unified=0 origin/main -- contact.html` 이 추가 1 줄만 보인다.
 # privacy·terms·account-deletion 의 잠금 값은 main 쪽을 그대로 받았다.
+# SITE-IMAGE-CALENDAR-AUTO-SUGGEST-01 — privacy.html 의 해시만 다시 잠갔다.
+# 대화창에 첨부한 이미지·문서를 읽어 예약·일정 정보를 캘린더 등록 후보로 제안하는
+# 처리가 방침에 없었다. 실제로 하는 일을 적지 않은 채 그 기능을 켤 수는 없으므로
+# 제1조 목적, 제2조 제5항(첨부 이미지·문서), 제3조 보유기간, 제6조 제1항
+# 국외이전 표의 AI Provider 두 행을 보강했다. 기존 조항은 한 줄도 지우지 않았고 —
+# `git diff --unified=0 origin/main -- privacy.html` 이 추가 줄과 해당 두 행의
+# 항목·목적 셀 갱신만 보인다 — 시행일과 개정 이력을 함께 적었다.
+# 주의: privacy.html 본문이 바뀌었으므로 scripts/emit_social_signup_legal_manifest.py
+# 의 PRIVACY version 을 LOTBI_PRIVACY_2026-09-24_R1 로 올렸다. Production 의
+# LOTBI_SOCIAL_PRIVACY_VERSION 과 LOTBI_SOCIAL_PRIVACY_SHA256 도 배포와 함께
+# 갱신해야 동의 증빙이 실제 게시본을 가리킨다.
 LOCKED_SHA256 = {
-    'privacy.html': '05f6fdbe7c186d5660543c8b7cd6dc415afee6856ede414c15644a57c4d2ec3b',
+    'privacy.html': 'b81b5d3de01471c05782d53e1db4e8cf78725297d3c455428c131a514f3b74f7',
     'terms.html': 'fa9ed6210a69a9e11ead04f91ee099a774447bb31f495c1a021dcbca70e3f835',
     'account-deletion.html': '4f897a168aa686e16099fc3477c1d41491a24c6b871f20c0a912343bc76fba29',
     'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',

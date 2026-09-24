@@ -227,6 +227,8 @@ jobs:
           node scripts/validate_calendar_settings_expansion_01.mjs
           node scripts/validate_calendar_system_dark_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
+          node --check site-calendar-draft-write.js
+          node scripts/validate_conversation_calendar_auto_suggest_01.mjs
 
       - name: Validate voice wake phrase matching
         run: |
