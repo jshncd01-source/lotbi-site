@@ -16,7 +16,7 @@ DOCS = (
     ),
     (
         "PRIVACY",
-        "LOTBI_PRIVACY_2026-09-17_R1",
+        "LOTBI_PRIVACY_2026-09-24_R1",
         ROOT / "privacy.html",
         "https://lotbiai.com/privacy.html",
     ),

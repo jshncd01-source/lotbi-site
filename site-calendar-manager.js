@@ -975,8 +975,29 @@ function attentionStateLabel(value) {
   return '';
 }
 
+// 09/12 15:00 → 09/13 11:00. A stay, a flight and a rental are one entry with
+// two ends, and showing only the check-in reads as if the owner never leaves.
+// Core sends an ending only when the booking stated one, so an ordinary
+// appointment is untouched and keeps showing its single time in the left column.
+export function eventSpanText(item) {
+  const endDate = typeof item?.local_end_date === 'string' ? item.local_end_date : '';
+  const endDatetime = typeof item?.local_end_datetime === 'string' ? item.local_end_datetime : '';
+  const resolvedEnd = validCivilDate(endDate) ? endDate : endDatetime.slice(0, 10);
+  if (!validCivilDate(item?.local_date) || !validCivilDate(resolvedEnd)) return '';
+  const stamp = (date, datetime) => {
+    const day = `${date.slice(5, 7)}/${date.slice(8, 10)}`;
+    const clock = typeof datetime === 'string' && datetime.length >= 16 ? datetime.slice(11, 16) : '';
+    return clock ? `${day} ${clock}` : day;
+  };
+  const start = stamp(item.local_date, item.local_datetime);
+  const finish = stamp(resolvedEnd, endDatetime);
+  return start === finish ? '' : `${start} → ${finish}`;
+}
+
 function eventMetaText(item) {
   const parts = [];
+  const span = eventSpanText(item);
+  if (span) parts.push(span);
   const attention = attentionStateLabel(item?.calendar_attention_state || item?.state);
   if (attention) parts.push(attention);
   if (String(item?.id || '').startsWith('guest_')) parts.push('이 기기에 저장');
