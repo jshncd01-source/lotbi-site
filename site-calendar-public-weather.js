@@ -1,4 +1,4 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260921-smartcaldraft1';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260924-assurance1';
 import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=20260923-daysheet3';
 
 function isoDate(value, label) {
