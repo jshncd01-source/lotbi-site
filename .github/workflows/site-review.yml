@@ -246,6 +246,14 @@ jobs:
           node --check site-navigation.js
           node scripts/validate_naver_maps_navigation_01.mjs
 
+      # 대표님이 실제 맛집 카드를 보시고 지시하신 네 가지 — 카드 크기, 지도
+      # 썸네일과 "위치" 삭제, "전화"·"네이버지도" 글자 삭제, 인허가 문구 축약.
+      # 줄었다는 것은 숫자라서 소스가 아니라 렌더된 카드를 실제로 잰다. 줄이기
+      # 전 카드는 레일보다 52~62px 높아 동작 버튼이 잘려 있었고, 그것은 소스만
+      # 봐서는 보이지 않는 결함이었다.
+      - name: Validate compact Place Card
+        run: node scripts/validate_place_card_compact_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
