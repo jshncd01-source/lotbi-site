@@ -1,4 +1,4 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260922-notificationperm1';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260924-assurance1';
 
 function assertSessionToken(sessionToken) {
   const value = typeof sessionToken === 'string' ? sessionToken.trim() : '';
