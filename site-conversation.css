@@ -2288,13 +2288,17 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   text-overflow: ellipsis;
 }
 
+/* 버튼이 넷(전화·네이버·카카오·티맵)이 되면서 44px 타깃 넷과 여백의 합이 가장
+   좁은 카드(데스크톱 215.7px, 360px 화면 214px)를 넘지 않아야 합니다.
+   44*4 + 6*3 + 6*2 = 206px. 줄이는 것은 여백뿐이고 타깃은 44px 그대로입니다.
+   카드·레일 치수(PR #278)는 건드리지 않습니다 — min-height 46px 도 그대로. */
 .lotbi-place-card-actions {
   display: flex;
   grid-template-columns: none;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   min-height: 46px;
-  padding: 3px 8px 6px;
+  padding: 3px 6px 6px;
 }
 
 .lotbi-rich-card-icon-action {
@@ -2343,6 +2347,28 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   font-size: 22px;
   line-height: 1;
   font-weight: 760;
+}
+
+/* SITE-PLACE-CARD-MAP-DEEPLINK-01 — 카카오맵·티맵 버튼.
+   두 곳 모두 로고 파일을 끌어다 쓰지 않고 글자 표시로 그린다. 네이버 아이콘이
+   못 뜰 때 쓰는 그 is-icon-fallback 자리를 그대로 쓰므로 규칙이 하나뿐이다.
+   지름 44px 터치 타깃은 .lotbi-rich-card-icon-action 이 이미 잡아 준다. */
+.lotbi-kakao-map-action.is-icon-fallback::before {
+  content: "카";
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.lotbi-tmap-action.is-icon-fallback::before {
+  content: "T";
+  font-size: 21px;
+  line-height: 1;
+  font-weight: 820;
+}
+
+.lotbi-tmap-action[data-tmap-state="MOBILE_ONLY"] {
+  opacity: .48;
 }
 
 .lotbi-place-orbit-control {
@@ -2484,7 +2510,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   }
 
   .lotbi-place-card-actions {
-    gap: 8px;
+    gap: 6px;
   }
 }
 
