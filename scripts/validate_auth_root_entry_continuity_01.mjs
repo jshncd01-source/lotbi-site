@@ -36,10 +36,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORK = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-auth-root-'));
 
 // 로그인된 Account 로 홈에 들어갈 때 사용자에게 보이는 callback navigation 의
-// 허용치. 현재 제품은 1 이다 — 이것이 대표님이 보신 그 주소다. 구조를 고쳐
-// 자동 continuity 가 callback 을 거치지 않게 되면 이 값을 0 으로 내린다.
-// 올리는 방향으로는 절대 바꾸지 않는다.
-const AUTHENTICATED_ROOT_CALLBACK_BUDGET = 1;
+// 허용치. 0 이다. 홈 주소를 입력한 것만으로 cross-origin auth 왕복이 일어나선
+// 안 된다 — 그것이 대표님이 주소창에서 보신 결함이다. 올리지 마십시오.
+const AUTHENTICATED_ROOT_CALLBACK_BUDGET = 0;
 
 // ── stub server ───────────────────────────────────────────────────────────
 // 별도 프로세스로 띄운다. 부모는 spawnSync(browser) 에서 블로킹되므로
@@ -73,6 +72,9 @@ const PROBE = '<script>(function(){var r=document.documentElement,s=[];function 
   + "r.setAttribute('data-lotbi-authed',document.body.dataset.siteAuthenticated||'');"
   + "r.setAttribute('data-lotbi-home',document.getElementById('lotbi-prompt')?'1':'0');"
   + "r.setAttribute('data-lotbi-login',document.querySelector('.account-actions a.account-login')?'1':'0');"
+  + "r.setAttribute('data-lotbi-continue',document.querySelector('.account-actions a.account-continue')?'1':'0');"
+  + "r.setAttribute('data-lotbi-linked',document.body.dataset.siteAccountLinked||'');"
+  + "r.setAttribute('data-lotbi-sidebar',document.querySelector('[data-sidebar-account] .sidebar-account-name')?.textContent||'');"
   + "var sh=document.getElementById('auth-callback-shell'),e=document.getElementById('auth-callback-status');"
   + "r.setAttribute('data-lotbi-cberr',(sh&&!sh.hasAttribute('hidden')&&e)?(e.textContent||''):'');}}"
   + 't();setInterval(t,25);})();</script>';
@@ -85,11 +87,17 @@ const STRESS = '<script>(function(){setInterval(function(){'
   + "try{window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:false}));}catch(e){}"
   + "try{document.dispatchEvent(new Event('visibilitychange'));}catch(e){}"
   + '},120);})();</script>';
-const CLICK_LOGIN = '<script>(function(){var n=0;var i=setInterval(function(){'
-  + "var b=document.querySelector('.account-actions a.account-login');"
+const clicker = selector => '<script>(function(){var n=0;var i=setInterval(function(){'
+  + "var b=document.querySelector('" + selector + "');"
   + "if(b){clearInterval(i);document.documentElement.setAttribute('data-lotbi-clicked','1');"
   + 'b.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,button:0}));}'
   + 'else if(++n>300)clearInterval(i);},50);})();</script>';
+const CLICK_LOGIN = clicker('.account-actions a.account-login');
+const CLICK_CONTINUE = clicker('.account-actions a.account-continue');
+// PKCE 컨텍스트가 왕복 중에 사라진 경우 (sessionStorage 축출, 다른 탭, 5분
+// HANDOFF_CONTEXT_TTL_MS 만료) 를 재현한다. classic inline script 는 deferred
+// module 보다 먼저 실행되므로 auth-callback.js 가 읽기 전에 지워진다.
+const DROP_CONTEXT = "<script>try{sessionStorage.removeItem('lotbi.site-handoff.v1');}catch(e){}</script>";
 
 const issued = new Map();
 const record = entry => fs.appendFileSync(logPath, JSON.stringify(entry) + '\n');
@@ -133,8 +141,10 @@ function account(req, res, url) {
     }
     const code = 'hc' + crypto.randomBytes(24).toString('hex');
     issued.set(code, {challenge, state, used: false});
+    // state 불일치 재현: Account 가 받은 것과 다른 state 로 돌려보낸다.
+    const returned = scenario.stateMismatch ? 'MISMATCHED' + crypto.randomBytes(12).toString('hex') : state;
     return res.writeHead(303, {Location: 'https://lotbiai.com/auth/callback?code=' + code
-      + '&state=' + encodeURIComponent(state)}).end();
+      + '&state=' + encodeURIComponent(returned)}).end();
   }
   res.setHeader('X-Frame-Options', 'DENY');
   return res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
@@ -154,7 +164,19 @@ function core(req, res, url) {
     req.on('data', c => { body += c; });
     req.on('end', () => {
       cors(res, {'Content-Type': 'application/json'});
-      const fail = why => res.writeHead(400).end(JSON.stringify({code: 'SITE_HANDOFF_REPLAY_OR_INVALID', message: why}));
+      // 실제 Core 의 오류 봉투 그대로: HTTPException(status, detail={code, message})
+      // → {"detail": {"code": …, "message": …}}. site-core.js 의
+      // errorFromResponse() 가 payload.detail.code 를 읽으므로 이 모양이어야
+      // SiteCoreError 코드가 제대로 서고, callbackErrorMessage() 의 사용자
+      // 안내 매핑이 실제로 검증된다. 평평한 {code} 로 보내면 검증이 헛돈다.
+      const coreFail = (code, status) => res.writeHead(status || 400)
+        .end(JSON.stringify({detail: {code, message: 'stubbed core failure'}}));
+      const fail = why => coreFail('SITE_HANDOFF_REPLAY_OR_INVALID', 400) && why;
+      if (scenario.redeemFailure) {
+        // app/site_session_handoff_api.py: source-session-invalid 만 401.
+        return coreFail(scenario.redeemFailure,
+          scenario.redeemFailure === 'SITE_HANDOFF_SOURCE_SESSION_INVALID' ? 401 : 400);
+      }
       let parsed;
       try { parsed = JSON.parse(body); } catch { return fail('body'); }
       const held = issued.get(parsed.handoff_code);
@@ -187,6 +209,11 @@ function site(req, res, url) {
     return res.writeHead(301, {Location: rel + '/' + url.search, 'Cache-Control': 'no-store'}).end();
   }
   if (rel.endsWith('/')) rel += 'index.html';
+  // hydrateHomeShell() 의 fetch('/index.html') 만 떨어뜨린다. 최초 navigation
+  // 은 Sec-Fetch-Dest: document, fetch 는 empty 라서 구분된다.
+  if (scenario.hydrateFailure && rel === '/index.html' && req.headers['sec-fetch-dest'] === 'empty') {
+    return res.writeHead(500, {'Content-Type': 'text/plain'}).end('home shell unavailable');
+  }
   const file = path.join(ROOT, rel);
   if (!file.startsWith(ROOT) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
     return res.writeHead(404, {'Content-Type': 'text/html; charset=utf-8'}).end('<!doctype html><title>404</title>');
@@ -195,10 +222,13 @@ function site(req, res, url) {
   res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
   res.setHeader('Cache-Control', 'no-store');
   if (ext === '.html') {
+    const onCallback = rel === '/auth/callback/index.html';
     let inject = PROBE;
     if (scenario.seedLogoutSuppression) inject = SEED_LOGOUT + inject;
+    if (scenario.dropContext && onCallback) inject = DROP_CONTEXT + inject;
     if (scenario.stressEvents) inject += STRESS;
     if (scenario.clickLogin) inject += CLICK_LOGIN;
+    if (scenario.clickContinue) inject += CLICK_CONTINUE;
     return res.writeHead(200).end(
       fs.readFileSync(file, 'utf8').replace(/<head(\s[^>]*)?>/i, m => m + inject));
   }
@@ -309,6 +339,9 @@ async function measure(label, scenario, {url = 'https://lotbiai.com/', budget = 
       authenticated: attr('authed') === 'true',
       homeMounted: attr('home') === '1',
       loginCta: attr('login') === '1',
+      continueCta: attr('continue') === '1',
+      accountLinked: attr('linked') === 'true',
+      sidebarLabel: attr('sidebar'),
       callbackError: attr('cberr'),
       accountStub: /data-account-stub="1"/.test(dom),
       handoffStarts: count(e => e.host === 'account.lotbiai.com' && e.path === '/auth/site-handoff'),
@@ -350,36 +383,58 @@ try {
     assert.equal(v.homeDocuments, 1, `${v.label}: 홈 문서를 다시 읽는 루프가 없어야 한다`);
   }
 
-  // ── B. 로그인된 Account ───────────────────────────────────────────────
+  // ── B. 로그인된 Account — 이 PR 의 본론 ───────────────────────────────
+  // 대표님이 보신 그 동작이 여기서 막힌다. 홈 주소를 입력하면 주소가 그대로
+  // 남고, cross-origin 왕복이 아예 시작되지 않는다.
   for (const entry of ['https://lotbiai.com/', 'https://lotbiai.com/index.html']) {
-    const v = await measure(`authenticated ${entry}`, {accountAuthenticated: true}, {url: entry, budget: 35000});
+    const v = await measure(`authenticated ${entry}`, {accountAuthenticated: true}, {url: entry});
     report.push(v);
-    // 최종 상태는 반드시 Home 이고, 주소는 '/' 다.
-    assert.equal(v.final, 'https://lotbiai.com/', `${v.label}: 최종 주소는 '/' 여야 한다`);
-    assert.ok(v.homeMounted, `${v.label}: Home 이 최종적으로 mount 돼야 한다`);
-    assert.equal(v.authState, 'authenticated', `${v.label}: 로그인 상태 continuity 가 유지돼야 한다`);
-    assert.ok(v.authenticated, `${v.label}: body[data-site-authenticated] 가 서야 한다`);
-    assert.equal(v.callbackError, '', `${v.label}: callback 오류 화면이 떠선 안 된다`);
-    // handoff 와 redeem 은 정확히 한 번. Core 스텁이 PKCE S256 · state ·
-    // callback_uri · audience · 단일 사용을 실제로 검증하므로, 여기서
-    // authenticated 로 끝났다는 것은 Site 가 올바른 verifier 를 보냈다는 뜻이다.
-    assert.equal(v.handoffStarts, 1, `${v.label}: handoff 는 정확히 한 번이어야 한다 (중복/루프 금지)`);
-    assert.equal(v.redeemPosts, 1, `${v.label}: redeem 은 정확히 한 번이어야 한다 (replay 금지)`);
-    assert.ok(v.callbackNavigations <= AUTHENTICATED_ROOT_CALLBACK_BUDGET,
+    assert.equal(v.final, entry, `${v.label}: 홈 주소를 입력했으면 그 주소에 머물러야 한다`);
+    assert.equal(v.handoffStarts, 0, `${v.label}: 홈 진입만으로 handoff 가 시작되면 안 된다`);
+    assert.equal(v.redeemPosts, 0, `${v.label}: 홈 진입만으로 세션이 발급되면 안 된다`);
+    assert.equal(v.callbackNavigations, AUTHENTICATED_ROOT_CALLBACK_BUDGET,
       `${v.label}: 홈 진입에서 callback navigation 이 ${v.callbackNavigations}회 일어났다 — 허용치 ${AUTHENTICATED_ROOT_CALLBACK_BUDGET}회`);
+    assert.equal(v.callbackError, '', `${v.label}: 홈을 열었을 뿐인데 로그인 오류 화면이 떠선 안 된다`);
+    assert.ok(v.homeMounted, `${v.label}: Home 이 바로 보여야 한다`);
+    // 계정이 연결돼 있다는 사실은 보여주되, 세션이 있는 척하지 않는다.
+    assert.ok(v.accountLinked, `${v.label}: 계정 연결 상태가 표시돼야 한다`);
+    assert.ok(v.continueCta, `${v.label}: 이어서 사용하기 CTA 가 있어야 한다`);
+    assert.ok(!v.loginCta, `${v.label}: 이미 로그인한 분에게 '로그인' 을 다시 요구하면 안 된다`);
+    assert.equal(v.sidebarLabel, '이어서 사용하기', `${v.label}: 사이드바도 같은 동작을 제시해야 한다`);
+    // Site 세션은 진짜로 없다 — guest namespace 소비자가 그대로 동작해야 한다.
+    assert.equal(v.authState, 'unauthenticated', `${v.label}: Site 세션이 없으면 authenticated 로 위장하면 안 된다`);
+    assert.ok(!v.authenticated, `${v.label}: fake login state 금지`);
   }
 
-  // 이벤트를 두드려도 handoff/redeem 은 늘지 않는다 (§10).
+  // 이벤트를 두드려도 아무 왕복도 시작되지 않는다 (§10). 이제 자동 navigation
+  // 자체가 없으므로 루프는 구조적으로 불가능하다.
   {
     const v = await measure('authenticated + repeated focus/pageshow/visibilitychange',
-      {accountAuthenticated: true, stressEvents: true}, {budget: 40000});
+      {accountAuthenticated: true, stressEvents: true});
     report.push(v);
     assert.equal(v.final, 'https://lotbiai.com/', `${v.label}: 최종 주소는 '/' 여야 한다`);
-    assert.equal(v.handoffStarts, 1, `${v.label}: 이벤트 반복이 handoff 를 늘리면 안 된다`);
-    assert.equal(v.redeemPosts, 1, `${v.label}: 이벤트 반복이 redeem 을 늘리면 안 된다`);
-    assert.ok(v.callbackNavigations <= AUTHENTICATED_ROOT_CALLBACK_BUDGET,
-      `${v.label}: callback navigation ${v.callbackNavigations}회 — 루프로 번졌다`);
-    assert.equal(v.authState, 'authenticated', `${v.label}: 로그인 상태가 유지돼야 한다`);
+    assert.equal(v.handoffStarts, 0, `${v.label}: 이벤트 반복이 handoff 를 만들면 안 된다`);
+    assert.equal(v.callbackNavigations, 0, `${v.label}: 이벤트 반복이 callback 을 열면 안 된다`);
+    assert.equal(v.homeDocuments, 1, `${v.label}: 홈 문서를 다시 읽는 루프가 없어야 한다`);
+    assert.ok(v.accountLinked, `${v.label}: 계정 연결 표시가 유지돼야 한다`);
+  }
+
+  // 그리고 누르면 실제로 이어진다 — 목표 C 와 같은 경로다.
+  {
+    const v = await measure('authenticated → 이어서 사용하기 클릭',
+      {accountAuthenticated: true, clickContinue: true}, {budget: 40000});
+    report.push(v);
+    assert.equal(v.handoffStarts, 1, `${v.label}: 누르면 handoff 가 정확히 한 번 시작돼야 한다`);
+    assert.equal(v.redeemPosts, 1, `${v.label}: redeem 은 정확히 한 번이어야 한다 (replay 금지)`);
+    assert.equal(v.final, 'https://lotbiai.com/', `${v.label}: callback 처리 후 주소는 '/' 여야 한다`);
+    // Core 스텁이 PKCE S256 · state · callback_uri · audience · 단일 사용을
+    // 실제로 검증하므로, authenticated 로 끝났다는 것은 Site 가 올바른
+    // code_verifier 를 보냈다는 증거다.
+    assert.equal(v.authState, 'authenticated', `${v.label}: FULL 세션이 서야 한다`);
+    assert.ok(v.authenticated, `${v.label}: body[data-site-authenticated] 가 서야 한다`);
+    assert.ok(v.homeMounted, `${v.label}: 로그인 후 Home 이 보여야 한다`);
+    assert.ok(!v.accountLinked, `${v.label}: 로그인되면 연결 안내 표식은 지워져야 한다`);
+    assert.equal(v.callbackError, '', `${v.label}: 정상 경로에서 오류 화면이 떠선 안 된다`);
   }
 
   // ── C. 명시적 로그인 ──────────────────────────────────────────────────
@@ -440,6 +495,42 @@ try {
     assert.ok(!v.final.includes('code='), `${v.label}: 주소창에 code/state 가 남으면 안 된다`);
   }
 
+  // ── E2. auth-callback.js:155 이전의 네 실패 지점 ───────────────────────
+  // 총괄방이 지목한 네 후보가 각각 사용자를 어디에 남기는지 실제로 잰다.
+  // 넷 다 사용자를 /auth/callback 에 갇히게 만든다 — auth-callback.js 가
+  // 주소를 '/' 로 되돌리는 것은 hydrate 까지 성공한 뒤이기 때문이다.
+  //
+  // 핵심은 이것이다: 이제 이 네 지점은 **명시적 로그인에서만** 도달한다.
+  // 홈 주소를 입력한 사람은 애초에 이 흐름에 들어가지 않으므로, "홈을 열었을
+  // 뿐인데 로그인 오류 화면에 갇힌다" 는 사고 자체가 사라진다. 위 B 묶음의
+  // callbackNavigations === 0 이 그것을 증명한다.
+  const strandingCases = [
+    ['state 불일치', {stateMismatch: true}, '로그인 연결 상태값이 일치하지 않습니다.'],
+    ['PKCE 컨텍스트 소실', {dropContext: true}, undefined],
+    ['redeem replay', {redeemFailure: 'SITE_HANDOFF_REPLAY_OR_INVALID'},
+      '이 로그인 연결은 이미 사용되었거나 유효하지 않습니다. 홈에서 다시 시도해 주세요.'],
+    ['redeem 만료', {redeemFailure: 'SITE_HANDOFF_EXPIRED'},
+      '로그인 연결 시간이 만료되었습니다. 홈에서 다시 시도해 주세요.'],
+    ['redeem 원본 세션 무효', {redeemFailure: 'SITE_HANDOFF_SOURCE_SESSION_INVALID'},
+      '계정 로그인 상태가 더 이상 유효하지 않습니다. 홈에서 다시 연결해 주세요.'],
+    ['홈 셸 hydrate 실패', {hydrateFailure: true}, undefined],
+  ];
+  for (const [name, knobs, expectedMessage] of strandingCases) {
+    const v = await measure(`explicit login → ${name}`,
+      {accountAuthenticated: true, clickContinue: true, ...knobs}, {budget: 40000});
+    report.push(v);
+    // 실패는 반드시 fail closed 여야 한다: 세션 있는 척 금지.
+    assert.ok(!v.authenticated, `${v.label}: 실패했는데 로그인 상태를 주장하면 안 된다`);
+    assert.ok(v.callbackError, `${v.label}: 실패는 사용자에게 오류로 보여야 한다 (조용히 삼키지 말 것)`);
+    assert.ok(!v.final.includes('code='), `${v.label}: 주소창에 code/state 가 남으면 안 된다`);
+    if (expectedMessage) {
+      assert.equal(v.callbackError, expectedMessage, `${v.label}: 사용자에게 맞는 안내가 떠야 한다`);
+    }
+    // 무한 재시도 금지: 실패가 handoff 를 반복 생성하면 루프가 된다.
+    assert.ok(v.handoffStarts <= 2,
+      `${v.label}: handoff 가 ${v.handoffStarts}회 — 실패가 재시도 루프로 번졌다`);
+  }
+
   // ── F. Account 상태 서버 장애 ─────────────────────────────────────────
   {
     const v = await measure('Account status 503', {accountStatus: 'unavailable'});
@@ -459,7 +550,8 @@ try {
       '| handoff=' + v.handoffStarts,
       '| callbackNav=' + v.callbackNavigations,
       '| redeem=' + v.redeemPosts,
-      '| status=' + v.statusGets,
+      '| cta=' + (v.continueCta ? '이어서' : v.loginCta ? '로그인' : '-'),
+      v.callbackError ? '| err=' + v.callbackError.slice(0, 28) : '',
     );
   }
 } finally {

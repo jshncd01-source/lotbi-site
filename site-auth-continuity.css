@@ -16,6 +16,21 @@
   background: transparent;
 }
 
+/* SITE-AUTH-ROOT-ENTRY-CONTINUITY-01 — Account 쿠키는 살아 있고 Site 세션만
+   없는 상태의 단일 기본 동작. 로그인/회원가입 쌍을 대신하는 하나의 버튼이라
+   회원가입과 같은 solid 처리를 쓴다. 토큰을 그대로 쓰므로 Dark 에서도
+   회원가입과 같은 대비를 유지한다 (SITE-DARK-BRAND-SURFACES-01). */
+.account-continue {
+  border: 1px solid var(--lotbi-brand-solid-bg, #182a46);
+  background: var(--lotbi-brand-solid-bg, #182a46);
+  color: var(--lotbi-brand-solid-text, #fff);
+}
+
+.account-continue:hover,
+.account-continue:focus-visible {
+  background: var(--lotbi-brand-solid-bg-hover, #243b61);
+}
+
 /* The callback must stay visually blank during the normal pending/success
    path. The existing callback card is reserved exclusively for a real error. */
 body.auth-callback-page:not(.auth-callback-error-page) {

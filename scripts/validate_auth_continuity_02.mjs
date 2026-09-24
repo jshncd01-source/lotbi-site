@@ -282,7 +282,13 @@ for (const token of [
   'window.location.assign(LOGIN_URL)',
   'scheduleExpiry',
   'if (!authenticated)',
-  'await beginSiteHandoff()',
+  // SITE-AUTH-ROOT-ENTRY-CONTINUITY-01 — 예전 계약은 여기서
+  // 'await beginSiteHandoff()' 를 요구했다. 그것이 바로 결함이었다: 홈 주소를
+  // 입력한 것만으로 cross-origin 왕복이 시작돼 /auth/callback 이 주소창에
+  // 노출됐다. 이제 자동 continuity 는 handoff 를 시작하지 않고, handoff 는
+  // 사용자가 누르는 경로에만 남는다. 아래 syncBody 검사가 그것을 강제한다.
+  'void beginSiteHandoff()',
+  'markAccountLinkedAccountUi',
   'hasSiteLogoutSuppression',
   'clearSiteLogoutSuppression',
   'markSiteLogoutSuppression',
@@ -308,9 +314,15 @@ assert.ok(
   'authenticated Header must clear its reserved slot',
 );
 
-assert.equal((continuity.match(/installDirectLoginHandoff\(/g) || []).length, 3, 'one direct-login helper plus header/sidebar bindings are required');
+// 하나의 helper 정의 + 네 개의 바인딩. 익명(헤더·사이드바) 둘, 그리고
+// SITE-AUTH-ROOT-ENTRY-CONTINUITY-01 이 더한 account-linked(헤더·사이드바) 둘.
+// account-linked 는 Account 쿠키는 살아 있고 Site 세션만 없는 상태이며, 자동
+// 왕복을 대신해 사용자가 누르는 같은 handoff 경로를 쓴다.
+assert.equal((continuity.match(/installDirectLoginHandoff\(/g) || []).length, 5, 'one direct-login helper plus anonymous and account-linked header/sidebar bindings are required');
 assert.ok(continuity.includes('const login = installDirectLoginHandoff(sidebarAccountLink({'), 'sidebar login must use direct handoff');
 assert.ok(continuity.includes('installDirectLoginHandoff(login);'), 'header login must use direct handoff');
+assert.ok(continuity.includes('const entry = installDirectLoginHandoff(sidebarAccountLink({'), 'account-linked sidebar must use the same explicit handoff path');
+assert.ok(continuity.includes('installDirectLoginHandoff(resume);'), 'account-linked header must use the same explicit handoff path');
 const directStart = continuity.indexOf('function installDirectLoginHandoff(link)');
 const directEnd = continuity.indexOf('\nfunction rootLocation()', directStart);
 const directBody = continuity.slice(directStart, directEnd);
@@ -332,8 +344,59 @@ assert.ok(syncBody.indexOf('if (!hasLiveSiteSession()) markCheckingAccountUi();'
 assert.ok(!syncBody.includes('if (!hasLiveSiteSession()) markAnonymousAccountUi();'), 'normal boot must not paint anonymous actions before authoritative status');
 assert.ok(syncBody.includes('redirecting = false;') && syncBody.includes('markAnonymousAccountUi();'), '503/network or handoff failures must keep the anonymous login CTA usable');
 assert.ok(syncBody.includes('siteLogoutSuppressed || hasSiteLogoutSuppression()'), 'fresh Home must honor the tab-scoped logout suppression marker');
-assert.ok(syncBody.indexOf('siteLogoutSuppressed || hasSiteLogoutSuppression()') < syncBody.indexOf('await beginSiteHandoff()'), 'logout suppression must stop automatic handoff before it starts');
 assert.ok(syncBody.includes('clearSiteLogoutSuppression();'), 'confirmed anonymous Account state must clear logout suppression');
+
+// SITE-AUTH-ROOT-ENTRY-CONTINUITY-01 — 이것이 이 파일에서 가장 중요한 줄이다.
+// 홈 진입 동기화는 어떤 경로로도 cross-origin handoff 나 top-level navigation
+// 을 시작하지 못한다. 예전에는 바로 이 함수가 beginSiteHandoff() 를 걸어서,
+// 로그인한 분이 홈 주소를 입력할 때마다 /auth/callback 을 지나갔다. 그리고 그
+// 왕복이 실패하면 홈을 열었을 뿐인 사람이 로그인 오류 화면에 갇혔다.
+// 여기에 handoff 를 되돌려 놓으면 그 결함이 그대로 돌아온다.
+for (const forbidden of ['beginSiteHandoff(', 'location.assign', 'location.replace', 'location.href =']) {
+  assert.ok(!syncBody.includes(forbidden), `automatic Home continuity must not navigate: ${forbidden}`);
+}
+assert.ok(
+  syncBody.includes('markAccountLinkedAccountUi();'),
+  'authenticated Account without a Site session must render the explicit continue CTA instead of navigating',
+);
+assert.ok(
+  syncBody.indexOf('siteLogoutSuppressed || hasSiteLogoutSuppression()') < syncBody.indexOf('markAccountLinkedAccountUi();'),
+  'logout suppression must be honored before the account-linked CTA is offered',
+);
+
+// account-linked 는 세션이 있는 척해서는 안 된다. Site 세션은 진짜로 없으므로
+// data-site-auth-state 는 'unauthenticated' 로 남고, guest namespace 를 보는
+// site-conversation.js 소비자들이 그대로 동작해야 한다.
+const linkedStart = continuity.indexOf('export function markAccountLinkedAccountUi');
+const linkedEnd = continuity.indexOf('export function markCheckingAccountUi', linkedStart);
+const linkedBody = continuity.slice(linkedStart, linkedEnd);
+assert.ok(linkedStart >= 0 && linkedEnd > linkedStart, 'markAccountLinkedAccountUi must exist');
+assert.ok(
+  linkedBody.includes('setAuthState(actions, AUTH_STATE_UNAUTHENTICATED, false);'),
+  'account-linked must stay Site-unauthenticated — the Site session really is absent',
+);
+assert.ok(
+  !linkedBody.includes('AUTH_STATE_AUTHENTICATED') && !linkedBody.includes("dataset.siteAuthenticated = 'true'"),
+  'account-linked must never claim an authenticated Site session (no fake login state)',
+);
+assert.ok(
+  linkedBody.includes("document.body.dataset.siteAccountLinked = 'true';"),
+  'account-linked must be observable through its own marker, not by faking the auth state',
+);
+for (const cleared of ['markAuthenticatedAccountUi', 'markAnonymousAccountUi', 'markCheckingAccountUi']) {
+  const start = continuity.indexOf(`export function ${cleared}`);
+  const body = continuity.slice(start, continuity.indexOf('\n}', start));
+  assert.ok(
+    body.includes('delete document.body.dataset.siteAccountLinked;'),
+    `${cleared} must clear the account-linked marker so it cannot go stale`,
+  );
+}
+// guest namespace 소비자는 'unauthenticated' 문자열을 본다. 새 상태가 그
+// 문자열을 대체해버리면 guest 대화 namespace 가 서지 않는다.
+assert.ok(
+  conversation.includes("document.body.dataset.siteAuthState === 'unauthenticated'"),
+  'guest conversation namespace still keys off the unauthenticated state',
+);
 assert.equal((continuity.match(/setTimeout\(/g) || []).length, 1, 'only the real Site-session expiry timer is allowed');
 assert.ok(continuity.includes('Math.min(delay, 2_147_000_000)'), 'the sole timer must remain bound to the actual session expiry');
 for (const forbiddenDelay of ['sleep(', 'retryDelay', 'AUTH_DELAY', '5000)', '5_000']) {
