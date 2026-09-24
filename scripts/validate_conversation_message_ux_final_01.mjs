@@ -39,7 +39,7 @@ assert.ok(messageBody.includes("button.textContent = expanded ? '접기' : '더 
 assert.ok(messageBody.includes("button.addEventListener('click'"));
 assert.ok(messageBody.includes("code.textContent = match[2]"));
 assert.ok(!messageBody.includes('innerHTML'), 'message renderer must never inject HTML');
-assert.ok(conversation.includes("from './site-message-body.js?v=20260924-chatmedia2'"));
+assert.ok(conversation.includes("from './site-message-body.js?v=20260924-mapdeeplink1'"));
 // Every user message still gets the 접기/더 보기 enhancement. The one exception
 // is an image-only turn (SITE-IMAGE-ATTACHMENT-THUMBNAIL-01), whose generated
 // placeholder sentence is hidden behind the thumbnail and has nothing to expand.

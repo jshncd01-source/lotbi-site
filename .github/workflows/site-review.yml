@@ -258,6 +258,15 @@ jobs:
       - name: Validate compact Place Card
         run: node scripts/validate_place_card_compact_01.mjs
 
+      # 대표님 지시로 길찾기가 딥링크 3종이 되었습니다 — 네이버 옆에 카카오맵과
+      # 티맵. 새 API 키도 과금도 없고 URL scheme 과 Android intent 뿐입니다.
+      # 티맵은 x 가 경도 y 가 위도라 순서를 뒤집으면 엉뚱한 곳으로 보내므로
+      # 좌표 순서를 문자열로 못 박고, 좌표가 확인되지 않은 장소는 이름 검색으로
+      # 떨어지는지도 봅니다. 버튼이 넷이 되어 카드가 깨지지 않는지는 412·390·
+      # 360px 에서 실제로 잽니다.
+      - name: Validate Place Card map deep links
+        run: node scripts/validate_place_card_map_deeplinks_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
