@@ -200,7 +200,7 @@
         </div>
 
         <nav class="account-actions" aria-label="계정 메뉴" data-auth-state="checking" aria-busy="true">
-          <span class="account-auth-placeholder" aria-hidden="true"></span>
+          <span class="account-auth-placeholder" aria-hidden="true">계정 확인 중</span>
           <span class="sr-only" role="status">계정 상태 확인 중</span>
         </nav>
       </header>
@@ -337,18 +337,18 @@
       </section>
 
       <footer class="lotbi-footer chat-home-footer">
-        <button
-          class="footer-legal-summary"
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded="false"
-          data-footer-legal-toggle
-          hidden
-        >
-          <span class="footer-legal-summary-text">유한회사 알에이디홀딩스 | 사업자등록번호 583-88-03679</span>
-          <svg class="footer-legal-summary-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4-6.7 6.7-6.7-6.7 1.4-1.4Z" /></svg>
-        </button>
+        <details class="footer-legal-disclosure" data-footer-legal-disclosure>
+          <summary
+            class="footer-legal-summary"
+            data-footer-legal-toggle
+            aria-controls="footer-legal-panels"
+          >
+            <span class="footer-legal-summary-text">유한회사 알에이디홀딩스 | 사업자등록번호 583-88-03679</span>
+            <svg class="footer-legal-summary-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4-6.7 6.7-6.7-6.7 1.4-1.4Z" /></svg>
+          </summary>
+        </details>
 
+        <div id="footer-legal-panels" class="footer-legal-panels">
         <div class="footer-links">
           <a href="about.html">회사 소개</a>
           <a href="subscribe.html">구독 안내</a>
@@ -385,6 +385,7 @@
             <span class="company-separator" aria-hidden="true">|</span>
             <span>호스팅서비스 제공: GitHub, Inc.</span>
           </div>
+        </div>
         </div>
       </footer>
     </main>
