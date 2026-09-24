@@ -281,7 +281,9 @@ for (const token of [
   "doc.createElementNS(SVG_NS, 'svg')",
 ]) assert.ok(weatherModuleSource.includes(token), `missing weather glyph contract: ${token}`);
 assert.ok(css.includes('.calendar-weather-icon'), 'weather icon CSS missing');
-assert.ok(!manager.includes('temperature'), 'Calendar manager must not render temperature');
+assert.ok(manager.includes('calendarWeatherPresentation(weather).monthLabel'), 'Month must render normalized temperature when Core supplies it');
+assert.ok(manager.includes('calendarWeatherPresentation(weather).weekLabel'), 'Week must render the available temperature range');
+assert.ok(manager.includes("temperature.className = 'calendar-weather-temperature'"), 'temperature needs a distinct compact visual slot');
 assert.ok(manager.includes("locationButton.addEventListener('click'"), 'current location must be a user action');
 assert.ok(manager.includes('requestBrowserCurrentLocation({'), 'Calendar must request location only from the explicit button path');
 assert.ok(manager.includes('weatherLocation: currentWeatherLocation'), 'fresh browser location must feed only the Core weather fallback');
@@ -299,8 +301,8 @@ assert.ok(manager.includes('const afterPermission = await getBrowserLocationPerm
 assert.ok(manager.includes('afterPermission === LOCATION_PERMISSION.GRANTED'), 'post-prompt grant must remain GRANTED when coordinates time out');
 assert.ok(manager.includes('void syncLocationPermission().then'), 'browser return/focus must re-sync permission state');
 assert.ok(manager.includes("state.locationPermission = LOCATION_PERMISSION.DENIED"), 'only explicit permission denial may become DENIED');
-assert.ok(manager.includes("locationButton.textContent = '변경'"), 'resolved current location must remove the current-location CTA label');
-assert.ok(manager.includes("locationButton.textContent = '다시 시도'"), 'location failure must expose an explicit retry action');
+assert.ok(manager.includes("usingBrowserLocation\n      ? '변경'"), 'resolved current location must remove the current-location CTA label');
+assert.ok(manager.includes("? '다시 시도'\n        : '현재 위치 사용'"), 'location failure must expose an explicit retry action');
 assert.ok(locationSource.includes('getBrowserLocationPermissionState'), 'browser permission state must be queried when supported');
 
 

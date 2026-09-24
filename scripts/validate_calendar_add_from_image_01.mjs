@@ -245,8 +245,8 @@ try {
     // 자세히 went back to 직접 등록 when the title box left the panel: with no
     // box to type in, this button IS how an entry is written by hand. The
     // picture route keeps its name and its place in front of it.
-    if (v.buttonOrder.join('|') !== '이미지로 등록|직접 등록') {
-      throw new Error(`${label}: the day panel must offer 이미지로 등록 then 직접 등록, got ${v.buttonOrder.join('|')}`);
+    if (v.buttonOrder.join('|') !== '사진에서 일정 추가|+ 일정 추가') {
+      throw new Error(`${label}: the day panel must offer 사진에서 일정 추가 then + 일정 추가, got ${v.buttonOrder.join('|')}`);
     }
     if (!v.plainButtonPresent) throw new Error(`${label}: the full-form button must keep its own data hook`);
     if (!v.pickerHidden) throw new Error(`${label}: the file input must stay hidden`);

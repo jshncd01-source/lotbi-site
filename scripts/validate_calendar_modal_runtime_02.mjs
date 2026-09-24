@@ -164,13 +164,12 @@ try{
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   const today=modal.querySelector('.calendar-today-button');
-  // 확인 필요 탭은 없앴다(월 달력이 같은 날짜를 이미 표시한다). 남은 세 탭 가운데
-  // 가장 긴 라벨로 줄바꿈을 본다.
+  // 확인 필요 탭은 없앴다. Week/Month/Year/Schedule의 네 역할을 검증한다.
   const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='일정');
   const modeTabLabels=[...modal.querySelectorAll('.calendar-mode-tab')].map(n=>n.textContent);
   const calendar=layout?.children?.[0], detail=layout?.children?.[1];
   if(!grid||!layout||!today||!agendaTab||!calendar||!detail)throw new Error('month chrome missing');
-  if(modeTabLabels.join('/')!=='월/연도/일정')throw new Error('mode tabs must be 월/연도/일정, got '+modeTabLabels.join('/'));
+  if(modeTabLabels.join('/')!=='주/월/년/일정')throw new Error('mode tabs must be 주/월/년/일정, got '+modeTabLabels.join('/'));
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
   const contentStyle=getComputedStyle(content);
@@ -247,23 +246,27 @@ try{
     const cell=grid.querySelector('[data-calendar-date="'+fixtureDates[index]+'"]');
     if(!cell)throw new Error('fixture date missing '+fixtureDates[index]);
     const rows=[...cell.querySelectorAll('.calendar-event-chip')];
-    if(rows.length!==expected)throw new Error('fixture row count '+fixtureDates[index]+' '+rows.length+' expected '+expected);
+    const expectedRows=Math.min(expected,2);
+    if(rows.length!==expectedRows)throw new Error('Month must mount at most two rows '+fixtureDates[index]+' '+rows.length+' expected '+expectedRows);
     const countText=cell.querySelector('.calendar-mobile-event-count')?.textContent||'';
     const more=cell.querySelector('.calendar-event-overflow');
     const visible=rows.filter(row=>!row.hidden&&getComputedStyle(row).display!=='none').length;
-    const hiddenCount=more&&!more.hidden&&getComputedStyle(more).display!=='none'?Number(more.dataset.hiddenCount||0):0;
+    const overflowVisible=Boolean(more&&!more.hidden&&getComputedStyle(more).display!=='none');
+    const hiddenCount=Math.max(0,expected-rows.length);
     const cellHeight=cell.getBoundingClientRect().height;
     if(desktop){
-      if(visible+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]+' visible '+visible+' hidden '+hiddenCount+' expected '+expected);
-      if(hiddenCount>0&&more.textContent!==hiddenCount+'개 더 보기')throw new Error('overflow copy mismatch '+fixtureDates[index]);
+      if(visible!==expectedRows)throw new Error('representative rows must actually be visible '+fixtureDates[index]+' '+visible+' expected '+expectedRows);
+      if(rows.length+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]+' mounted '+rows.length+' hidden '+hiddenCount+' expected '+expected);
+      if(hiddenCount>0&&!overflowVisible)throw new Error('overflow summary must actually be visible '+fixtureDates[index]);
+      if(hiddenCount>0&&more.textContent!=='+'+hiddenCount)throw new Error('overflow copy mismatch '+fixtureDates[index]);
+      if(hiddenCount===0&&overflowVisible)throw new Error('zero overflow must stay hidden '+fixtureDates[index]);
       const stack=cell.querySelector('.calendar-event-stack');
       if(getComputedStyle(stack).overflowY==='auto'||getComputedStyle(stack).overflowY==='scroll')throw new Error('cell inner scrollbar '+fixtureDates[index]);
-      if(expected===5&&cellHeight>=130&&visible<3)throw new Error('130px density budget too sparse '+cellHeight+'px visible '+visible);
-      if(expected===5&&cellHeight>=156&&visible<5)throw new Error('156px density budget should show all five '+cellHeight+'px visible '+visible);
+      if(rows.length>2)throw new Error('Month mounted unbounded event detail '+fixtureDates[index]);
     }else if(countText!==(expected?expected+'개':'')){
       throw new Error('mobile event count mismatch '+fixtureDates[index]+' '+countText+' expected '+expected);
     }
-    density.push({date:fixtureDates[index],expected,visible,hiddenCount,cellHeight});
+    density.push({date:fixtureDates[index],expected,visible,hiddenCount,overflowVisible,cellHeight});
   });
   result.density=density;
 
@@ -274,7 +277,8 @@ try{
     if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
     if(result.calendar.widthRatio<0.97)throw new Error('desktop Month does not own available width '+result.calendar.widthRatio);
     if(!result.detail.hidden)throw new Error('desktop Calendar must start with an unobstructed Month');
-    if(result.detail.position!=='fixed')throw new Error('desktop selected-day detail must overlay the Month');
+    if(result.detail.presentation!=='SIDE')throw new Error('desktop selected-day detail contract must be SIDE');
+    if(result.detail.position!=='sticky')throw new Error('desktop selected-day detail must remain a sticky side panel');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
     if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
 
@@ -364,21 +368,20 @@ try{
         right:openedRect.right,
         presentation:opened.dataset.presentation||'',
         backdrop:Boolean(layout.querySelector('[data-calendar-day-sheet-backdrop]')),
+        // Opening a FLOW detail may scroll the Calendar content so its actions
+        // are immediately reachable. Compare against the grid's position after
+        // that scroll, not the DOMRect cached before the user tapped the date.
+        gridBottom:grid.getBoundingClientRect().bottom,
       };
     }
-    // What has held throughout, and is what these assertions are really for, is
-    // that the surface is reachable without any scrolling -- the flow panel
-    // never was. It is no longer welded to the bottom edge, and it no longer
-    // lays a dismiss layer over the month, so those two assertions are inverted
-    // rather than dropped: either coming back is the regression.
+    // Mobile detail is in normal flow below the month. It may require vertical
+    // scrolling, but it must never cover or dismiss the grid.
     if(result.detail.hidden)throw new Error('a tap on a date must open the selected-day surface');
-    if(result.detail.presentation!=='POPOVER')throw new Error('touch selected-day surface must be the anchored panel');
-    if(result.detail.position!=='fixed')throw new Error('touch selected-day panel must be viewport-fixed');
+    if(result.detail.presentation!=='FLOW')throw new Error('touch selected-day surface must be the in-flow panel');
+    if(result.detail.position!=='static')throw new Error('touch selected-day panel must stay in document flow');
     if(result.detail.backdrop)throw new Error('touch selected-day panel must not lay a dismiss layer over the month');
-    if(result.detail.top<-1)throw new Error('touch selected-day panel escapes the top of the viewport');
-    if(result.detail.bottom>innerHeight+1)throw new Error('touch selected-day panel escapes the bottom of the viewport');
     if(result.detail.left<-1||result.detail.right>innerWidth+1)throw new Error('touch selected-day panel horizontal overflow');
-    if(innerHeight-result.detail.bottom<2)throw new Error('touch selected-day panel must not be welded to the bottom edge');
+    if(result.detail.top<result.detail.gridBottom-2)throw new Error('touch selected-day panel covers the month grid');
 
     const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const mobileEventButton=mobileEventCell?.querySelector('.calendar-event-chip');
@@ -398,6 +401,11 @@ try{
     if(getComputedStyle(document.body).overflow!=='hidden')throw new Error('mobile editor must lock background scroll');
     if(mobileActionsRect.bottom>mobileEditorRect.bottom+1)throw new Error('mobile editor action footer unreachable');
     if(innerWidth<=520&&mobileEditorRect.height<innerHeight-2)throw new Error('phone editor must use the visual viewport');
+    const detailsSummary=mobileEditor.querySelector('.calendar-editor-details > summary');
+    const editorDetails=mobileEditor.querySelector('.calendar-editor-details');
+    if(!(detailsSummary instanceof HTMLElement)||!(editorDetails instanceof HTMLDetailsElement))throw new Error('mobile optional details disclosure missing');
+    click(detailsSummary);
+    await wait(()=>editorDetails.open,'mobile optional details open');
     const merchant=modal.querySelector('.calendar-editor-merchant');
     if(!(merchant instanceof HTMLInputElement))throw new Error('mobile lower field missing');
     merchant.focus();
@@ -418,10 +426,11 @@ try{
   const mode=async name=>{
     const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
     click(button);
-    await wait(()=>content.dataset.calendarManagerView===({연도:'year',일정:'agenda',월:'month'}[name]),name);
+    await wait(()=>content.dataset.calendarManagerView===({주:'week',년:'year',일정:'agenda',월:'month'}[name]),name);
     await waitCalendarIdle(name);
   };
-  await mode('연도');
+  await mode('주');
+  await mode('년');
   await mode('일정');
   await wait(()=>modal.querySelector('.calendar-unscheduled-group'),'Agenda unscheduled group');
   const unscheduledGroup=modal.querySelector('.calendar-unscheduled-group');
@@ -452,6 +461,26 @@ try{
   click(ordinary);
   await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
   await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'selected-day detail open');
+  const settingsButton=modal.querySelector('.calendar-settings-button');
+  if(!(settingsButton instanceof HTMLButtonElement))throw new Error('Settings opener missing');
+  settingsButton.focus();
+  click(settingsButton);
+  await wait(()=>modal.querySelector('.calendar-settings-dialog'),'Settings dialog open');
+  const settingsDialog=modal.querySelector('.calendar-settings-dialog');
+  const settingsFocusable=()=>[...settingsDialog.querySelectorAll('button, input, select, summary')]
+    .filter(control=>!control.disabled&&!control.hidden&&!control.closest('[hidden]'));
+  const firstSettingsControl=settingsFocusable()[0];
+  const lastSettingsControl=settingsFocusable().at(-1);
+  lastSettingsControl.focus();
+  lastSettingsControl.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
+  if(document.activeElement!==firstSettingsControl)throw new Error('Settings forward Tab escaped the dialog');
+  firstSettingsControl.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,cancelable:true}));
+  if(document.activeElement!==lastSettingsControl)throw new Error('Settings backward Tab escaped the dialog');
+  lastSettingsControl.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!modal.querySelector('.calendar-settings-dialog'),'Settings Escape close');
+  if(modal.querySelector('.calendar-day-panel')?.hidden)throw new Error('Settings Escape also closed the underlying day detail');
+  await wait(()=>document.activeElement===settingsButton,'Settings Escape focus restore');
+  result.settingsModalContained=true;
   const selectedTrigger=modal.querySelector('[data-calendar-date-trigger="'+selectedDate+'"]');
   selectedTrigger.focus();
   selectedTrigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));

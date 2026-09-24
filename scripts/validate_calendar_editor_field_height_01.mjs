@@ -1,22 +1,16 @@
-// Every field in the event editor is the same height, and one setting cannot
-// erase another.
+// Compact editor touch-target geometry, and one setting cannot erase another.
 //
 // Two things, both reported from a real screen.
 //
-// 1. The date and time fields were taller than the rest. They are the only
-//    native pickers in the form, and the shared rule gives a min-height, which
-//    is a floor and not a ceiling -- so on iOS Safari those two grew past it
-//    while every other field sat exactly on 44px, and their value was centred
-//    while the rest of the form was left-aligned.
+// 1. Date and primary title remain aligned with the 44px floor; the time
+//    control is now LOTBI-owned and hidden entirely for all-day entries.
+//    Details open only on request; their controls and the time sheet keep the
+//    same reachable touch-target floor in Light, Dark, and System.
 // 2. Saving a display setting rewrote the stored object with one key, so any
 //    other key in it was discarded. Nothing writes a second key yet, which is
 //    the only reason it has not bitten.
 //
-// The height is measured in a real browser here. That is Chromium, not iOS
-// Safari: this sandbox has no Apple device, and the ::-webkit-date-and-time-value
-// part of the fix cannot be exercised anywhere else. What CI can hold is that
-// the fields agree with each other and that the floor and the 16px mobile font
-// are still in place.
+// Measured in real Chromium where available; no Apple device is present here.
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
@@ -75,7 +69,8 @@ const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
 assert.match(css, /min-height: 44px; padding: 9px 10px/, 'the 44px touch-target floor stays');
 assert.match(css, /\.calendar-editor-merchant \{ font-size: 16px; \}/, 'the 16px mobile font stays: it is what stops iOS zooming on focus');
 assert.match(css, /\.calendar-editor-date::-webkit-date-and-time-value/, 'the iOS-only source of the extra height must be addressed directly');
-assert.match(css, /\.calendar-editor-time::-webkit-date-and-time-value/, 'the iOS-only source of the extra height must be addressed directly');
+assert.match(css, /\.calendar-editor-time-trigger/, 'custom LOTBI time control must retain touch targets');
+assert.match(css, /\.calendar-editor-details/, 'optional controls must have a compact section');
 
 function browserPath() {
   for (const name of [process.env.CHROME_BIN, 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
@@ -143,10 +138,13 @@ try {
     return {
       title: pick('.calendar-editor-title'),
       date: pick('.calendar-editor-date'),
-      time: pick('.calendar-editor-time'),
+      timeTrigger: pick('.calendar-editor-time-trigger'),
+      endTimeTrigger: pick('.calendar-editor-end-time-trigger'),
+      timeInput: pick('.calendar-editor-time'),
       amount: pick('.calendar-editor-amount'),
       place: pick('.calendar-editor-place'),
       merchant: pick('.calendar-editor-merchant'),
+      detailsSummary: pick('.calendar-editor-details summary'),
     };
   };
 
@@ -155,10 +153,19 @@ try {
   // of each, and an empty picker must not measure differently.
   result.dateValue = root.querySelector('.calendar-editor-date')?.value || '';
   result.timeValue = root.querySelector('.calendar-editor-time')?.value ?? '(missing)';
+  result.collapsed = {details: !root.querySelector('.calendar-editor-details').open,
+    time: root.querySelector('.calendar-editor-time-control').hidden};
+  root.querySelector('.calendar-editor-all-day input').click();
+  root.querySelector('.calendar-editor-details summary').click();
+  root.querySelector('.calendar-editor-time-trigger').click();
   result.light = read();
+  result.timeType = root.querySelector('.calendar-editor-time').type;
   document.body.dataset.siteTheme = 'dark';
   await sleep(140);
   result.dark = read();
+  document.body.dataset.siteTheme = 'system';
+  await sleep(140);
+  result.system = read();
 
   out.textContent = JSON.stringify(result);
 } catch (e) {
@@ -214,24 +221,24 @@ try {
     const where = `${v.viewport.width}x${v.viewport.height}`;
     if (!v.dateValue) throw new Error(`${where}: the date field should carry the selected day`);
     if (v.timeValue !== '') throw new Error(`${where}: the time field should be the empty one, got ${v.timeValue}`);
-    for (const [theme, t] of [['light', v.light], ['dark', v.dark]]) {
+    if (!v.collapsed.details || !v.collapsed.time) throw new Error(`${where}: optional controls must be collapsed and all-day time hidden`);
+    if (v.timeType !== 'text') throw new Error(`${where}: time must be keyboard-safe text, not the native picker`);
+    for (const [theme, t] of [['light', v.light], ['dark', v.dark], ['system', v.system]]) {
       const named = Object.entries(t).filter(([, value]) => value);
       if (named.length < 5) throw new Error(`${where} ${theme}: expected the whole form, found ${named.length} fields`);
-      const heights = named.map(([, value]) => value.h);
-      const min = Math.min(...heights);
-      const max = Math.max(...heights);
-      if (max - min > 0.5) {
-        const detail = named.map(([name, value]) => `${name} ${value.h}`).join(', ');
-        throw new Error(`${where} ${theme}: the fields are not the same height -- ${detail}`);
+      for (const [name, value] of named) {
+        if (value.h < 44) throw new Error(`${where} ${theme}: ${name} fell below the 44px touch target floor (${value.h})`);
       }
-      if (min < 44) throw new Error(`${where} ${theme}: the 44px touch target floor was lowered to ${min}`);
+      if (Math.abs(t.date.h - t.title.h) > 0.5) {
+        throw new Error(`${where} ${theme}: primary title/date heights diverged (${t.title.h}, ${t.date.h})`);
+      }
       for (const [name, value] of named) {
         if (value.align !== 'left' && value.align !== 'start') {
           throw new Error(`${where} ${theme}: ${name} is ${value.align}-aligned; the form reads left`);
         }
       }
-      if (t.date.appearance !== 'none' || t.time.appearance !== 'none') {
-        throw new Error(`${where} ${theme}: the pickers must drop their native metrics`);
+      if (t.date.appearance !== 'none') {
+        throw new Error(`${where} ${theme}: the date picker must drop its native metrics`);
       }
     }
   }

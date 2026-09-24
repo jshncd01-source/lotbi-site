@@ -1,4 +1,4 @@
-import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-0c0852554a5f';
+import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-92fe6efacb0f';
 
 export const GUEST_CALENDAR_STORAGE_KEY = 'lotbi.guest.calendar.v1';
 const SCHEMA_VERSION = 2;
@@ -67,17 +67,24 @@ function normalizeEventInput(input) {
   const allDay = localDate !== null && input?.all_day === true;
   const localDatetime = allDay || input?.local_datetime == null ? null : String(input.local_datetime);
   const match = localDatetime === null ? null : LOCAL_DATETIME_PATTERN.exec(localDatetime);
+  const localEndDatetime = allDay || input?.local_end_datetime == null ? null : String(input.local_end_datetime);
+  const endMatch = localEndDatetime === null ? null : LOCAL_DATETIME_PATTERN.exec(localEndDatetime);
+  const localEndDate = typeof input?.local_end_date === 'string' && input.local_end_date ? input.local_end_date : localEndDatetime?.slice(0, 10) || null;
   if (
     !title
     || title.length > 240
     || (localDate !== null && !validCivilDate(localDate))
     || (localDate === null && localDatetime !== null)
     || (localDatetime !== null && (!match || match[1] !== localDate))
+    || (localEndDatetime !== null && (!endMatch || localDatetime === null || localEndDatetime <= localDatetime))
+    || (localEndDate !== null && (!validCivilDate(localEndDate) || localDate === null || localEndDate < localDate || (localEndDatetime !== null && localEndDate !== endMatch?.[1])))
   ) throw invalidInput();
   return {
     title,
     local_date: localDate,
     local_datetime: localDatetime,
+    local_end_datetime: localEndDatetime,
+    local_end_date: localEndDate,
     all_day: allDay,
     entry: normalizeEntry(input?.entry),
   };
@@ -297,6 +304,8 @@ export function createGuestCalendarRepository(
         previous.title !== normalized.title
         || previous.local_date !== normalized.local_date
         || previous.local_datetime !== normalized.local_datetime
+        || (previous.local_end_datetime ?? null) !== normalized.local_end_datetime
+        || (previous.local_end_date ?? null) !== normalized.local_end_date
         || previous.all_day !== normalized.all_day
         || JSON.stringify(previous.entry || {}) !== JSON.stringify(normalized.entry)
       ) {
@@ -326,6 +335,8 @@ export function createGuestCalendarRepository(
         previous.title !== normalized.title
         || previous.local_date !== normalized.local_date
         || previous.local_datetime !== normalized.local_datetime
+        || (previous.local_end_datetime ?? null) !== normalized.local_end_datetime
+        || (previous.local_end_date ?? null) !== normalized.local_end_date
         || previous.all_day !== normalized.all_day
         || JSON.stringify(previous.entry || {}) !== JSON.stringify(normalized.entry)
       ) {
