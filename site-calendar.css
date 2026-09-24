@@ -523,13 +523,22 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
    are 월 and 일, and the weekend hues would land on the wrong two columns. */
 .calendar-weekdays span[data-weekday="0"] { color: var(--lotbi-calendar-weekend-sun); }
 .calendar-weekdays span[data-weekday="6"] { color: var(--lotbi-calendar-weekend-sat); }
-.calendar-month-grid { overflow: hidden; border: 1px solid var(--lotbi-calendar-grid-line); border-radius: 12px; background: var(--lotbi-calendar-grid-line); gap: 1px; }
-/* The lines ARE the 1px gap showing the container's colour through. Turning
-   them off closes the gap and hides the container, so the cells' own surfaces
-   meet -- today, selection and outside-month stay as legible as before because
-   each still paints its own background. The outer border stays: without it the
-   grid has no edge to sit in. */
-.calendar-month-grid[data-grid-lines="false"] { background: transparent; gap: 0; }
+.calendar-month-grid { overflow: hidden; border: 1px solid var(--lotbi-calendar-grid-line); border-radius: 12px; }
+/* The setting is the authority for both axes. Do not rely on a bare `gap`
+   default here: responsive rules and browser grid normalization must never make
+   data-grid-lines="true" render with only one axis (or neither) visible. */
+.calendar-month-grid[data-grid-lines="true"] {
+  background: var(--lotbi-calendar-grid-line);
+  row-gap: 1px;
+  column-gap: 1px;
+}
+/* The lines ARE the gaps showing the container's colour through. Turning them
+   off closes both axes and hides the container, while cells keep their surfaces. */
+.calendar-month-grid[data-grid-lines="false"] {
+  background: transparent;
+  row-gap: 0;
+  column-gap: 0;
+}
 
 .calendar-date-cell {
   min-width: 0;
@@ -1605,8 +1614,8 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-weekdays span { padding-bottom: 6px; }
 
   .calendar-month-grid { border-inline: 0; }
-  .calendar-month-grid[data-grid-lines="true"] { gap: 1px; }
-  .calendar-month-grid[data-grid-lines="false"] { gap: 0; }
+  .calendar-month-grid[data-grid-lines="true"] { row-gap: 1px; column-gap: 1px; }
+  .calendar-month-grid[data-grid-lines="false"] { row-gap: 0; column-gap: 0; }
   .calendar-date-cell { min-height: 86px; gap: 2px; padding: 2px 0; }
   .calendar-date-header {
     position: relative;
