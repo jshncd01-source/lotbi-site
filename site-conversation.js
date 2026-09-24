@@ -1286,6 +1286,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const fresh = isPlaceResultFresh(placeResult);
     const rail = document.createElement('section');
     rail.className = 'lotbi-rich-card-rail lotbi-place-orbit';
+    rail.classList.toggle('has-place-photo', placeResult.results.some(place => Boolean(place.imageUrl)));
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
     rail.dataset.cardCount = String(placeResult.results.length);
