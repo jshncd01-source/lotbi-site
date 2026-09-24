@@ -450,7 +450,12 @@ try {
   }
   if (results.granted.storedOrigin !== 'CURRENT_LOCATION') throw new Error('저장된 지역의 출처가 현재 위치로 기록되지 않았다');
   if (results.granted.precisePositionLeaked) throw new Error('브라우저가 준 정밀 좌표가 브라우저 저장소에 남았다');
-  if (!results.granted.statusText.includes('현재 위치')) throw new Error(`설정 문구가 현재 위치를 말하지 않는다: ${results.granted.statusText}`);
+  if (!results.granted.statusText.includes('현재 지역 · 전북특별자치도 전주시')) {
+    throw new Error(`현재 위치에서 얻은 저장 지역을 설정 문구가 말하지 않는다: ${results.granted.statusText}`);
+  }
+  if (results.granted.statusText.includes('수동 지역 ·')) {
+    throw new Error(`현재 위치에서 얻은 지역을 수동 선택으로 잘못 표시한다: ${results.granted.statusText}`);
+  }
   // 목록이 좌표를 들고 오면 현재 위치를 시·군·구로 되돌리는 데 지오코더가 한 번도
   // 필요 없다. 이 왕복은 날씨 조회와 분당 한도를 나눠 쓰고, 목록이 한도보다 길어지면
   // 그 자리에서 날씨가 429 로 사라진다.
