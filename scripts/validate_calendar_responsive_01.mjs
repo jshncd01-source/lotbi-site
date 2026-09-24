@@ -49,11 +49,13 @@ assert.ok(css.includes('.calendar-month-layout { position: relative; display: bl
 for (const weeks of [4, 5, 6]) {
   assert.ok(css.includes(`.calendar-month-grid[data-week-count="${weeks}"]`), `missing ${weeks}-week geometry`);
 }
-assert.ok(css.includes('position: fixed;'), 'desktop selected-day detail must overlay instead of consuming a permanent column');
-assert.ok(css.includes('grid-template-columns: 42px minmax(80px, 1fr) 42px 52px 42px'), 'mobile toolbar first row contract missing');
-assert.ok(css.includes('grid-template-columns: 38px minmax(0, 1fr) 38px 44px 38px'), 'narrow mobile toolbar must fit without horizontal scrolling');
+assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) minmax(290px, 340px)'), 'desktop Month must reserve a side detail column when open');
+assert.ok(css.includes('.calendar-day-panel[data-presentation="SIDE"] {\n    position: sticky;'), 'desktop selected-day detail must remain beside the grid');
+assert.ok(css.includes('grid-template-columns: 44px minmax(80px, 1fr) 44px 52px 44px'), 'mobile toolbar first row contract missing');
+assert.ok(css.includes('grid-template-columns: 44px minmax(0, 1fr) 44px 48px 44px'), 'narrow mobile toolbar must keep 44px controls without horizontal scrolling');
 assert.ok(css.includes('grid-template-columns: repeat(4, minmax(0, 1fr))'), 'mobile view controls must be discoverable without horizontal scrolling');
-assert.ok(css.includes('.calendar-event-stack { display: none; }'), 'touch Month should prefer overview plus selected-day list');
+assert.ok(css.includes('.calendar-event-stack { display: none; }'), 'touch Month should prefer bounded density plus selected-day list');
+assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"] {\n    position: static;'), 'mobile selected-day detail must remain in flow rather than cover the month');
 assert.ok(css.includes('.calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'mobile Year must use readable two-column summaries');
 assert.ok(css.includes('white-space: nowrap'));
 assert.ok(css.includes('overflow-y: auto'));

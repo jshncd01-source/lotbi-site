@@ -1,14 +1,13 @@
-// Locks the touch month-navigation swipe and the selected-day bottom sheet.
+// Locks touch month navigation and the selected-day in-flow detail.
 //
 // Covered contracts:
 //   - horizontal swipe changes month (left -> next, right -> previous)
 //   - vertical drag never changes month and never suppresses native scrolling
 //   - a tap-sized movement stays a tap, so date cells and event chips still work
 //   - a burst of swipes advances exactly one month (no skipping)
-//   - the touch selected-day surface is a bottom sheet with a dismiss backdrop
-//   - the sheet carries the same content as the previous flow panel
-//   - Escape closes the sheet but leaves the Calendar modal open (Site #129/#130)
-//   - desktop keeps the anchored popover and gains no swipe behaviour
+//   - the touch selected-day surface stays below the Month with no overlay
+//   - Escape closes the detail but leaves the Calendar modal open (Site #129/#130)
+//   - desktop keeps the sticky side detail and gains no swipe behaviour
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -189,7 +188,7 @@ try{
   result.verticalScrollSafe=titleOf()===baseTitle&&!verticalPrevented;
 
   if(desktop){
-    // Desktop keeps the anchored popover and must gain no swipe behaviour.
+    // Desktop keeps the sticky side detail and must gain no swipe behaviour.
     const swiped=drag(monthNode(),rightX,midY,leftX,midY);
     await new Promise(r=>setTimeout(r,30));
     result.desktopSwipeInert=titleOf()===baseTitle&&!swiped;
@@ -199,6 +198,7 @@ try{
     await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'desktop detail open');
     const panel=modal.querySelector('.calendar-day-panel');
     result.desktopPresentation=panel.dataset.presentation;
+    result.desktopPosition=getComputedStyle(panel).position;
     result.desktopBackdrop=Boolean(modal.querySelector('[data-calendar-day-sheet-backdrop]'));
   }else{
     // --- swipe left -> next month ---------------------------------------
@@ -236,12 +236,12 @@ try{
     await idle('previous button idle');
     result.buttonsPreserved=true;
 
-    // --- date tap opens the bottom sheet ---------------------------------
+    // --- date tap opens the in-flow detail below the Month ----------------
     const cell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
     const cellDate=cell.dataset.calendarDate;
     click(cell);
     await wait(()=>modal.querySelector('[data-calendar-date="'+cellDate+'"]')?.dataset.selected==='true','date selection');
-    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'sheet open');
+    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'day detail open');
     const sheet=modal.querySelector('.calendar-day-panel');
     // The sheet rises from below the fold, so geometry is only meaningful once the
     // entry animation has settled.
@@ -265,6 +265,7 @@ try{
       bottom:sheetRect.bottom,
       left:sheetRect.left,
       right:sheetRect.right,
+      gridBottom:modal.querySelector('.calendar-month-grid').getBoundingClientRect().bottom,
       backdrop:Boolean(modal.querySelector('[data-calendar-day-sheet-backdrop]')),
       bottomOffset:getComputedStyle(sheet).bottom,
       viewportBound:sheet.dataset.visualViewportBound||'',
@@ -277,14 +278,12 @@ try{
       addImageLabel:sheet.querySelector('[data-calendar-add-image]')?.textContent||'',
       addImageAria:sheet.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
       listOrEmpty:Boolean(sheet.querySelector('.calendar-day-event')||sheet.querySelector('.calendar-empty')||sheet.textContent.includes('등록된 일정이 없어요')),
-      toggle:Boolean(sheet.querySelector('.calendar-day-toggle')),
       close:Boolean(sheet.querySelector('.calendar-day-close')),
     };
 
     // --- 닫기 dismisses --------------------------------------------------
-    // The dismiss backdrop is gone with the sheet: an anchored panel leaves the
-    // month usable, so a tap on another date is a tap on that date rather than
-    // something to be swallowed by a layer over the whole screen.
+    // The in-flow detail has no dismiss backdrop, so a tap on another date is
+    // handled by that date rather than swallowed by a full-screen layer.
     click(sheet.querySelector('.calendar-day-close'));
     await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'close button dismiss');
     result.closeDismiss=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
@@ -309,35 +308,11 @@ try{
     const trigger=modal.querySelector('[data-calendar-date-trigger="'+cellDate+'"]');
     trigger.focus();
     trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'sheet Escape close');
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'day detail Escape close');
     result.escapeKeepsCalendar=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
     result.escapeBackdropCleared=!modal.querySelector('[data-calendar-day-sheet-backdrop]');
-    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===cellDate,'sheet Escape focus restore');
+    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===cellDate,'day detail Escape focus restore');
     result.escapeFocusRestore=true;
-
-    // --- both earlier presentations remain available for rollback ---------
-    // SHEET is not what ships any more, but it is still the one-line way back
-    // if the anchored panel turns out wrong on a device we cannot test here.
-    // The URL matters: a different query string is a different module instance,
-    // with its own presentation override that nothing renders from. Take the
-    // one the running Calendar actually loaded.
-    const managerUrl=performance.getEntriesByType('resource').map(entry=>entry.name)
-      .find(name=>name.includes('site-calendar-manager.js?v='));
-    if(!managerUrl)throw new Error('manager module URL not found');
-    const manager=await import(managerUrl);
-    result.flowSwitchable=manager.setDayDetailPresentation('FLOW')==='FLOW'
-      &&manager.setDayDetailPresentation('SHEET')==='SHEET';
-    click(modal.querySelector('[data-calendar-date="'+cellDate+'"]'));
-    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'sheet rollback open');
-    await new Promise(r=>setTimeout(r,120));
-    const rolled=modal.querySelector('.calendar-day-panel');
-    result.sheetRollback={
-      presentation:rolled?.dataset.presentation||'',
-      position:rolled?getComputedStyle(rolled).position:'',
-      pinnedToBottom:rolled?Math.abs(rolled.getBoundingClientRect().bottom-innerHeight)<2:false,
-      backdrop:Boolean(modal.querySelector('[data-calendar-day-sheet-backdrop]')),
-    };
-    manager.setDayDetailPresentation('POPOVER');
   }
 
   out.textContent=JSON.stringify(result);
@@ -402,8 +377,9 @@ try {
   for (const value of desktops) {
     const label = `${value.viewport.width}x${value.viewport.height}`;
     if (!value.desktopSwipeInert) throw new Error(`${label}: desktop must not gain swipe month navigation`);
-    if (value.desktopPresentation !== 'POPOVER') throw new Error(`${label}: desktop must keep the anchored popover`);
-    if (value.desktopBackdrop) throw new Error(`${label}: desktop must not render the sheet backdrop`);
+    if (value.desktopPresentation !== 'SIDE') throw new Error(`${label}: desktop must keep the side detail`);
+    if (value.desktopPosition !== 'sticky') throw new Error(`${label}: desktop detail must remain sticky`);
+    if (value.desktopBackdrop) throw new Error(`${label}: desktop must not render a dismiss backdrop`);
   }
 
   for (const value of mobiles) {
@@ -414,12 +390,10 @@ try {
     if (!value.buttonsPreserved) throw new Error(`${label}: 이전/다음 buttons must keep working`);
 
     const sheet = value.sheet || {};
-    // Touch gets the anchored panel now, not a sheet welded to the bottom edge.
-    if (sheet.presentation !== 'POPOVER') throw new Error(`${label}: touch day detail must be the anchored panel (got ${sheet.presentation})`);
-    if (sheet.position !== 'fixed') throw new Error(`${label}: the day panel must be viewport-fixed`);
-    if (sheet.backdrop) throw new Error(`${label}: the anchored panel must not lay a dismiss layer over the month`);
-    if (sheet.top < -1) throw new Error(`${label}: the day panel escapes the top of the viewport`);
-    if (sheet.bottom > value.viewport.height + 1) throw new Error(`${label}: the day panel escapes the bottom of the viewport ${JSON.stringify(sheet)}`);
+    if (sheet.presentation !== 'FLOW') throw new Error(`${label}: touch day detail must stay in flow (got ${sheet.presentation})`);
+    if (sheet.position !== 'static') throw new Error(`${label}: the day panel must stay in document flow`);
+    if (sheet.backdrop) throw new Error(`${label}: the in-flow panel must not lay a dismiss layer over the month`);
+    if (sheet.top < sheet.gridBottom - 2) throw new Error(`${label}: the day panel covers the Month grid`);
     if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: day panel horizontal overflow`);
     if (!sheet.heading) throw new Error(`${label}: the day panel must show the date heading`);
     if (!sheet.listOrEmpty) throw new Error(`${label}: the day panel must show the entry list or the empty message`);
@@ -429,11 +403,11 @@ try {
     // heading, the toolbar and the highlighted cell — but the accessible name
     // still says which day is being added to. The panel offers these two and
     // nothing else: no title box, no [저장].
-    if (sheet.addLabel.trim() !== '직접 등록') throw new Error(`${label}: full-form button label changed (${sheet.addLabel})`);
-    if (sheet.addImageLabel.trim() !== '이미지로 등록') throw new Error(`${label}: image add button label changed (${sheet.addImageLabel})`);
+    if (sheet.addLabel.trim() !== '+ 일정 추가') throw new Error(`${label}: full-form button label changed (${sheet.addLabel})`);
+    if (sheet.addImageLabel.trim() !== '사진에서 일정 추가') throw new Error(`${label}: image add button label changed (${sheet.addImageLabel})`);
     if (!/\d+월 \d+일 일정을 직접 입력해서 등록/.test(sheet.addAria)) throw new Error(`${label}: full-form button must name the date for assistive tech (${sheet.addAria})`);
     if (!/\d+월 \d+일에 이미지로 일정 등록/.test(sheet.addImageAria)) throw new Error(`${label}: image add button must name the date for assistive tech (${sheet.addImageAria})`);
-    if (!sheet.toggle || !sheet.close) throw new Error(`${label}: the day panel must keep 접기/닫기 controls`);
+    if (!sheet.close) throw new Error(`${label}: the day panel must keep its close control`);
 
     if (!value.closeDismiss) throw new Error(`${label}: 닫기 must dismiss the day without closing the Calendar modal`);
     // The point of dropping the backdrop: another date is reachable while the
@@ -445,13 +419,6 @@ try {
     if (!value.escapeKeepsCalendar) throw new Error(`${label}: Escape must leave the Calendar modal open`);
     if (!value.escapeBackdropCleared) throw new Error(`${label}: Escape must leave no dismiss layer behind`);
     if (!value.escapeFocusRestore) throw new Error(`${label}: Escape must restore focus to the selected date`);
-    if (!value.flowSwitchable) throw new Error(`${label}: FLOW presentation must stay switchable`);
-    // The way back, if the anchored panel turns out wrong on a device we cannot
-    // test from here: one call, and the old sheet is exactly what it was.
-    const rollback = value.sheetRollback || {};
-    if (rollback.presentation !== 'SHEET') throw new Error(`${label}: SHEET must stay reachable as a rollback (got ${rollback.presentation})`);
-    if (rollback.position !== 'fixed' || !rollback.pinnedToBottom) throw new Error(`${label}: the SHEET rollback must still pin to the bottom`);
-    if (!rollback.backdrop) throw new Error(`${label}: the SHEET rollback must still bring its dismiss backdrop`);
   }
 
   for (const value of results) {
@@ -460,14 +427,14 @@ try {
   }
   if (animated.reducedMotion) throw new Error('motion-enabled case unexpectedly reported reduced motion');
   if (animated.sheet.reducedMotion !== 'false') throw new Error('motion-enabled sheet must record prefers-reduced-motion=false');
-  if (animated.sheet.presentation !== 'POPOVER' || animated.sheet.position !== 'fixed' || animated.sheet.backdrop) {
-    throw new Error('motion-enabled day panel must still render as the fixed anchored panel with no dismiss layer');
+  if (animated.sheet.presentation !== 'FLOW' || animated.sheet.position !== 'static' || animated.sheet.backdrop) {
+    throw new Error('motion-enabled day panel must still render in flow with no dismiss layer');
   }
   if (!animated.swipeNext || !animated.swipePrevious || !animated.burstNoSkip) {
     throw new Error('motion-enabled swipe navigation regressed');
   }
 
-  console.log('CALENDAR TOUCH MONTHNAV + DAY SHEET PASS', JSON.stringify({results, animated}));
+  console.log('CALENDAR TOUCH MONTHNAV + DAY DETAIL PASS', JSON.stringify({results, animated}));
 } finally {
   server.kill('SIGTERM');
   fs.rmSync(INNER, {force: true});
