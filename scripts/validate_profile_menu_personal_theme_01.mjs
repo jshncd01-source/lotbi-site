@@ -23,6 +23,7 @@ import {fileURLToPath} from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const conversation = read('site-conversation.js');
+const index = read('index.html');
 const workflow = read('.github/workflows/site-review.yml');
 
 const MENU_LABELS = ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'];
@@ -82,15 +83,19 @@ assert.ok(
   "'프로필 저장' 버튼은 그대로 남아야 합니다",
 );
 
-// PROFILE-PHOTO-IMAGE-ONLY — a single image wildcard is intentional. Chromium
-// treats a list of several concrete image MIME types as a generic chooser on
-// Android, which can make a camcorder intent appear. Keep the chooser image-only,
-// single-select and capture-neutral so the OS may offer still camera + photos/files.
-assert.ok(conversation.includes("photo.accept = 'image/*'"), '프로필 사진 input은 image/* 여야 합니다');
-assert.ok(!conversation.includes("photo.accept = 'image/jpeg,image/png,image/webp'"), '구체 MIME 나열로 Android chooser를 generic fallback 시키면 안 됩니다');
+// PROFILE-PHOTO-SOURCES-01 — LOTBI owns the three user-facing choices so
+// Samsung's generic chooser cannot replace the requested wording with duplicate
+// Files apps. Every path remains one decoded still image; only the explicit
+// camera path carries capture=environment.
+assert.ok(conversation.includes("['camera', '카메라'], ['gallery', '갤러리'], ['files', '내 파일']"), '카메라 / 갤러리 / 내 파일 세 경로가 정확히 있어야 합니다');
+assert.ok(conversation.includes("input.accept = 'image/*'"), '모든 프로필 사진 input은 image/* 여야 합니다');
+assert.ok(conversation.includes("if (source === 'camera') input.setAttribute('capture', 'environment')"), '카메라 경로만 후면 정지사진 capture를 요청해야 합니다');
+assert.ok(!conversation.includes("input.accept = 'video/*'") && !conversation.includes('capture="camcorder"'), 'video/camcorder 계약은 없어야 합니다');
 assert.ok(conversation.includes("mime.startsWith('image/')"), '선택 후에도 image MIME을 검증해야 합니다');
 assert.ok(conversation.includes("mime === 'image/svg+xml'"), '실행 가능한 SVG는 프로필 사진으로 직접 저장하지 않습니다');
 assert.ok(conversation.includes("'프로필에는 사진만 사용할 수 있어요.'"), 'video/non-image 거부 문구가 있어야 합니다');
+assert.ok(index.includes('site-conversation.js?v=20260924-profilepicker1'), 'Production HTML은 새 프로필 picker JS token을 사용해야 합니다');
+assert.ok(conversation.includes("/site-conversation.css?v=20260924-profilepicker1"), '새 source menu CSS도 cache-bust 되어야 합니다');
 
 // ── 런타임 측정 ───────────────────────────────────────────────────────────
 const INNER_REL = 'scripts/.personal-theme-inner.html';
@@ -166,52 +171,61 @@ const profileTitle=modal().querySelector('h2').textContent;
 const profileButtons=[...modal().querySelectorAll('.site-modal-content button')].map(n=>n.textContent);
 const profileLinks=[...modal().querySelectorAll('.site-modal-content a')].map(n=>n.getAttribute('href'));
 const manageGone=!modal().textContent.includes('계정 페이지에서 관리');
-const profilePhotoInput=modal().querySelector('input[type="file"]');
-if(!(profilePhotoInput instanceof HTMLInputElement))throw new Error('profile photo input missing');
+const profilePhotoInputs=[...modal().querySelectorAll('input[data-profile-photo-input]')];
+if(profilePhotoInputs.length!==3)throw new Error('profile photo input count '+profilePhotoInputs.length);
+const profilePhotoInputBySource=Object.fromEntries(profilePhotoInputs.map(input=>[input.dataset.profilePhotoInput,input]));
 const profilePhotoPreview=modal().querySelector('.profile-photo-preview');
 const profilePhotoError=modal().querySelector('.site-field-error');
-const setProfileFile=async file=>{
+const photoSourceMenu=modal().querySelector('.profile-photo-source-menu');
+const photoTrigger=[...modal().querySelectorAll('button')].find(node=>node.textContent==='사진 선택');
+const sourceLabels=[...photoSourceMenu.querySelectorAll('[data-profile-photo-source]')].map(node=>node.textContent);
+const menuInitiallyHidden=photoSourceMenu.hidden;
+click(photoTrigger);await wait(()=>!photoSourceMenu.hidden,'profile photo source menu');
+const menuVisibleAfterTrigger=!photoSourceMenu.hidden&&photoTrigger.getAttribute('aria-expanded')==='true';
+const setProfileFile=async(source,file)=>{
+  const input=profilePhotoInputBySource[source];
+  if(!(input instanceof HTMLInputElement))throw new Error('profile photo input missing '+source);
   const transfer=new DataTransfer();
   if(file)transfer.items.add(file);
-  profilePhotoInput.files=transfer.files;
-  profilePhotoInput.dispatchEvent(new Event('change',{bubbles:true}));
+  input.files=transfer.files;
+  input.dispatchEvent(new Event('change',{bubbles:true}));
   await sleep(100);
 };
-const pickerContract={
-  accept:profilePhotoInput.accept,
-  multiple:profilePhotoInput.multiple,
-  capture:profilePhotoInput.hasAttribute('capture'),
-};
+const pickerContract=Object.fromEntries(profilePhotoInputs.map(input=>[input.dataset.profilePhotoInput,{
+  accept:input.accept,
+  multiple:input.multiple,
+  capture:input.getAttribute('capture'),
+}]));
 
 const storageSnapshot=()=>Object.fromEntries(Array.from({length:localStorage.length},(_,i)=>[localStorage.key(i),localStorage.getItem(localStorage.key(i))]));
 const beforeCancelStorage=JSON.stringify(storageSnapshot());
 const beforeCancelPreview=profilePhotoPreview.style.backgroundImage;
-await setProfileFile(null);
+await setProfileFile('gallery',null);
 const initialCancelPreserved=beforeCancelStorage===JSON.stringify(storageSnapshot())&&beforeCancelPreview===profilePhotoPreview.style.backgroundImage;
 
-await setProfileFile(new File([new Uint8Array([0,0,0,20,102,116,121,112])],'renamed-photo.jpg',{type:'video/mp4'}));
+await setProfileFile('gallery',new File([new Uint8Array([0,0,0,20,102,116,121,112])],'renamed-photo.jpg',{type:'video/mp4'}));
 await wait(()=>profilePhotoError.textContent==='프로필에는 사진만 사용할 수 있어요.','video rejection');
 const videoError=profilePhotoError.textContent;
 
-await setProfileFile(new File([new Uint8Array([1,2,3,4,5,6,7,8])],'spoofed.jpg',{type:'image/jpeg'}));
+await setProfileFile('files',new File([new Uint8Array([1,2,3,4,5,6,7,8])],'spoofed.jpg',{type:'image/jpeg'}));
 await wait(()=>profilePhotoError.textContent==='이미지 파일을 읽지 못했습니다.','decode rejection');
 const decodeError=profilePhotoError.textContent;
 
 const png=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),c=>c.charCodeAt(0));
-await setProfileFile(new File([png],'profile.png',{type:'image/png'}));
+await setProfileFile('camera',new File([png],'profile.png',{type:'image/png'}));
 await wait(()=>profilePhotoPreview.style.backgroundImage.includes('data:image/webp'),'valid preview');
 const validPreview=profilePhotoPreview.style.backgroundImage.includes('data:image/webp');
 const storedPhoto=Object.values(storageSnapshot()).some(v=>String(v).includes('data:image/webp'));
 const beforeFinalCancelStorage=JSON.stringify(storageSnapshot());
 const beforeFinalCancelPreview=profilePhotoPreview.style.backgroundImage;
-await setProfileFile(null);
+await setProfileFile('camera',null);
 const finalCancelPreserved=beforeFinalCancelStorage===JSON.stringify(storageSnapshot())&&beforeFinalCancelPreview===profilePhotoPreview.style.backgroundImage;
 await closeModal();
 
 out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},
 labels,disabledItems,deadEnd:popoverText.includes('준비 중'),
 theme:{title:themeTitle,choices:themeChoices,colorPickerPresent,applied:themeApplied,bootstrap:themeBootstrap,stored:themeStored,deadEnd:themeModalText.includes('준비 중')},
-profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,pickerContract,initialCancelPreserved,videoError,decodeError,validPreview,storedPhoto,finalCancelPreserved}})
+profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,validPreview,storedPhoto,finalCancelPreserved}})
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
 
@@ -270,9 +284,12 @@ try {
     assert.ok(v.profile.buttons.includes('프로필 저장'), `${surface}: '프로필 저장' 은 남아야 합니다`);
     assert.equal(v.profile.manageGone, true, `${surface}: '계정 페이지에서 관리' 는 사라져야 합니다`);
     assert.deepEqual(v.profile.links, [], `${surface}: 프로필 창에 계정 페이지로 나가는 링크가 남아 있으면 안 됩니다`);
-    assert.equal(v.profile.pickerContract.accept, 'image/*', `${surface}: profile picker accept는 image/* 여야 합니다`);
-    assert.equal(v.profile.pickerContract.multiple, false, `${surface}: 프로필 사진은 한 장만 선택해야 합니다`);
-    assert.equal(v.profile.pickerContract.capture, false, `${surface}: 단일 chooser를 강제로 camera-only로 만들면 안 됩니다`);
+    assert.deepEqual(v.profile.sourceLabels, ['카메라', '갤러리', '내 파일'], `${surface}: 사진 선택 메뉴는 카메라 / 갤러리 / 내 파일 순서여야 합니다`);
+    assert.equal(v.profile.menuInitiallyHidden, true, `${surface}: source menu는 사진 선택을 누르기 전에는 닫혀 있어야 합니다`);
+    assert.equal(v.profile.menuVisibleAfterTrigger, true, `${surface}: 사진 선택을 누르면 source menu가 열려야 합니다`);
+    assert.deepEqual(v.profile.pickerContract.camera, {accept:'image/*',multiple:false,capture:'environment'}, `${surface}: 카메라는 한 장의 정지 이미지만 촬영해야 합니다`);
+    assert.deepEqual(v.profile.pickerContract.gallery, {accept:'image/*',multiple:false,capture:null}, `${surface}: 갤러리는 한 장의 이미지만 선택해야 합니다`);
+    assert.deepEqual(v.profile.pickerContract.files, {accept:'image/*',multiple:false,capture:null}, `${surface}: 내 파일은 이미지 한 장만 선택해야 합니다`);
     assert.equal(v.profile.initialCancelPreserved, true, `${surface}: 최초 picker 취소는 기존 상태를 유지해야 합니다`);
     assert.equal(v.profile.videoError, '프로필에는 사진만 사용할 수 있어요.', `${surface}: video MIME은 사진 전용 문구로 거부해야 합니다`);
     assert.equal(v.profile.decodeError, '이미지 파일을 읽지 못했습니다.', `${surface}: image MIME으로 위장한 비이미지 bytes도 decode 단계에서 거부해야 합니다`);
