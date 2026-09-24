@@ -10,7 +10,7 @@ import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=20260924-imagecalendar1';
 import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-mapdeeplink1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-mapdeeplink1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-chatmedia3';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=20260924-chatmedia3';
 
