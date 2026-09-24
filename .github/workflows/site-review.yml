@@ -40,6 +40,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Validate deterministic asset cache coherence
+        run: node scripts/asset_cache_version.mjs --check
+
+      - name: Validate same-URL Home first-paint stability
+        run: node scripts/validate_home_same_url_stability_01.mjs
+
       - name: Validate public site
         run: python scripts/validate_site.py
 
