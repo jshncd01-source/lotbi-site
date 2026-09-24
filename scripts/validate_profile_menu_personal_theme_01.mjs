@@ -24,6 +24,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const conversation = read('site-conversation.js');
 const index = read('index.html');
+const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 const workflow = read('.github/workflows/site-review.yml');
 
 const MENU_LABELS = ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'];
@@ -95,8 +96,8 @@ assert.ok(!conversation.includes("input.accept = 'video/*'") && !conversation.in
 assert.ok(conversation.includes("mime.startsWith('image/')"), '선택 후에도 image MIME을 검증해야 합니다');
 assert.ok(conversation.includes("mime === 'image/svg+xml'"), '실행 가능한 SVG는 프로필 사진으로 직접 저장하지 않습니다');
 assert.ok(conversation.includes("'프로필에는 사진만 사용할 수 있어요.'"), 'video/non-image 거부 문구가 있어야 합니다');
-assert.ok(index.includes('site-conversation.js?v=20260924-profilepicker1'), 'Production HTML은 새 프로필 picker JS token을 사용해야 합니다');
-assert.ok(conversation.includes("/site-conversation.css?v=20260924-profilepicker1"), '새 source menu CSS도 cache-bust 되어야 합니다');
+assert.ok(index.includes(`site-conversation.js?v=${assetVersion}`), 'Production HTML은 현재 asset-set version의 프로필 picker JS를 사용해야 합니다');
+assert.ok(conversation.includes(`/site-conversation.css?v=${assetVersion}`), '새 source menu CSS도 현재 asset-set version으로 cache-bust 되어야 합니다');
 
 // ── 런타임 측정 ───────────────────────────────────────────────────────────
 const INNER_REL = 'scripts/.personal-theme-inner.html';

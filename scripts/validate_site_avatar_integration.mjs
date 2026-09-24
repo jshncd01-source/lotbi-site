@@ -15,6 +15,7 @@ const avatar = read('site-avatar.js');
 const avatarCss = read('site-avatar.css');
 const conversationCss = read('site-conversation.css');
 const conversation = read('site-conversation.js');
+const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 
 assert.ok(index.includes('data-lotbi-avatar-stage'));
 assert.ok(index.includes('data-lotbi-avatar-fallback'));
@@ -66,8 +67,8 @@ for (const token of [
   'const resumeId = `${desiredLifecycle.requestId}.r${++lifecycleResumeSequence}`',
   "controller.hostEvent(lifecycleToken, phase, now)",
 ]) assert.ok(avatar.includes(token), `missing Site Avatar runtime contract: ${token}`);
-assert.ok(avatar.includes("./avatar-runtime/runtime/controller.mjs?v=20260924-running1"));
-assert.ok(avatar.includes("./avatar-runtime/runtime/refinement.mjs?v=20260924-running1"));
+assert.ok(avatar.includes(`./avatar-runtime/runtime/controller.mjs?v=${assetVersion}`));
+assert.ok(avatar.includes(`./avatar-runtime/runtime/refinement.mjs?v=${assetVersion}`));
 
 for (const token of [
   "new CustomEvent('lotbi-avatar-lifecycle'",

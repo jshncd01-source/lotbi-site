@@ -8,6 +8,7 @@ approved site-continuity.js module; home-shell.js itself remains free of
 network and persistence behavior. The approved mobile-entry.js bootstrap may coexist.
 """
 from pathlib import Path
+import json
 import re
 import sys
 
@@ -64,6 +65,7 @@ def main() -> int:
     script = HOME_JS.read_text(encoding="utf-8") if HOME_JS.exists() else ""
     continuity = CONTINUITY_JS.read_text(encoding="utf-8") if CONTINUITY_JS.exists() else ""
     sidebar_css = SIDEBAR_CSS.read_text(encoding="utf-8") if SIDEBAR_CSS.exists() else ""
+    asset_version = json.loads((ROOT / "site-asset-version.json").read_text(encoding="utf-8"))["version"]
 
     requirements = {
         "approved LOTBI character asset": 'src="assets/lotbi-main-logo.png"',
@@ -74,16 +76,16 @@ def main() -> int:
         "microphone control": "mic-button",
         "send control": "send-button",
         "conversation thread": 'id="conversation-thread"',
-        "local navigation script": 'src="home-shell.js?v=20260920-fold5"',
-        "approved mobile entry runtime": 'src="mobile-entry.js?v=20260923-darklogo1"',
-        "approved 3D Avatar module": 'src="site-avatar.js?v=20260924-running1"',
-        "approved 3D Avatar stylesheet": 'href="site-avatar.css?v=20260924-running1"',
+        "local navigation script": f'src="home-shell.js?v={asset_version}"',
+        "approved mobile entry runtime": f'src="mobile-entry.js?v={asset_version}"',
+        "approved 3D Avatar module": f'src="site-avatar.js?v={asset_version}"',
+        "approved 3D Avatar stylesheet": f'href="site-avatar.css?v={asset_version}"',
         "approved 3D Avatar stage": "data-lotbi-avatar-stage",
         "approved static Avatar fallback": "data-lotbi-avatar-fallback",
         "approved conversation module": 'src="site-conversation.js?v=',
         "approved continuity module": 'src="site-continuity.js?v=',
-        "auth continuity stylesheet": 'href="site-auth-continuity.css"',
-        "sidebar navigation stylesheet": 'href="site-sidebar-nav.css?v=20260923-msgactions2"',
+        "auth continuity stylesheet": f'href="site-auth-continuity.css?v={asset_version}"',
+        "sidebar navigation stylesheet": f'href="site-sidebar-nav.css?v={asset_version}"',
         "neutral initial auth state": 'data-auth-state="checking"',
         "neutral auth placeholder": 'account-auth-placeholder',
         "desktop sidebar": "chat-sidebar-desktop",
@@ -94,7 +96,7 @@ def main() -> int:
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "새 대화",
         "calendar menu": "캘린더",
-        "calendar stylesheet": 'href="site-calendar.css?v=20260924-mapdeeplink1"',
+        "calendar stylesheet": f'href="site-calendar.css?v={asset_version}"',
         "recent conversations": "최근 대화",
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
         "Company link": "about.html",
@@ -102,8 +104,8 @@ def main() -> int:
         "Terms link": "terms.html",
         "Account deletion link": "account-deletion.html",
         "Contact link": "contact.html",
-        "home stylesheet": 'href="home-chat.css"',
-        "chooser stylesheet": 'href="mobile-entry.css"',
+        "home stylesheet": f'href="home-chat.css?v={asset_version}"',
+        "chooser stylesheet": f'href="mobile-entry.css?v={asset_version}"',
     }
     for label, token in requirements.items():
         if token not in text:
@@ -276,9 +278,9 @@ def main() -> int:
         errors.append("index.html: current footer legal-sheet module must be cache-busted")
 
     approved_scripts = (
-        '<script src="home-shell.js?v=20260920-fold5" defer></script>',
-        '<script src="mobile-entry.js?v=20260923-darklogo1" defer></script>',
-        '<script type="module" src="site-avatar.js?v=20260924-running1"></script>',
+        f'<script src="home-shell.js?v={asset_version}" defer></script>',
+        f'<script src="mobile-entry.js?v={asset_version}" defer></script>',
+        f'<script type="module" src="site-avatar.js?v={asset_version}"></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",

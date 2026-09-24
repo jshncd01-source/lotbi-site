@@ -33,6 +33,7 @@ import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
+const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 
 const MARKER = 'SITE-STATIC-PAGES-THEME-01';
 const KEY = 'lotbi.site.theme.bootstrap.v1';
@@ -116,9 +117,9 @@ for (const page of PAGES) {
   // The stylesheet that reads the attribute has to actually be on the page,
   // and after styles.css whose tokens it overrides.
   // Matched on the <link> itself: the bootstrap comment above names the file too.
-  const themeAt = html.search(/<link rel="stylesheet" href="\/?site-static-theme\.css"/);
+  const themeAt = html.indexOf(`site-static-theme.css?v=${assetVersion}`);
   assert.ok(themeAt > 0, `${page} must load site-static-theme.css`);
-  const baseAt = html.search(/<link rel="stylesheet" href="\/?styles\.css"/);
+  const baseAt = html.indexOf(`styles.css?v=${assetVersion}`);
   assert.ok(baseAt > 0, `${page} must still load styles.css`);
   assert.ok(
     themeAt > baseAt,
