@@ -132,6 +132,9 @@
 }
 
 .chat-message-loading {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
   color: var(--lotbi-text-muted, #687180);
 }
 
@@ -960,10 +963,9 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 
 .message-attachment-card { padding: 7px; }
 
-/* SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — a sent image attachment shows the image
-   itself; the filename drops to a caption. Non-image attachments keep the
-   existing icon card untouched. Thumbnails are contained, never square-cropped,
-   so a reservation or screenshot stays readable. */
+/* CHAT-ATTACHMENT-NO-FILENAME-01 — a sent image is the content. Its private
+   filename is not a caption; documents use a generic type label. Thumbnails
+   are contained, never square-cropped, so a reservation stays readable. */
 /* Flex, not the grid above: an auto-fit track stretches to fill the bubble, so
    every image card came out as wide as the row instead of as wide as its photo. */
 .message-attachment-list[data-image-count] {
@@ -1004,15 +1006,6 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 
 .message-attachment-list[data-image-count="2"] .message-attachment-card-image { --thumbnail-size: 150px; }
 .message-attachment-list[data-image-count="3"] .message-attachment-card-image { --thumbnail-size: 116px; }
-
-/* The caption is bounded by the same size the photo is, so a long filename
-   ellipsises inside the card instead of stretching it into an empty strip. */
-.message-attachment-card-image .message-attachment-name {
-  max-width: var(--thumbnail-size);
-  font-size: 11px;
-  font-weight: 650;
-  opacity: .82;
-}
 
 /* An image-only turn: the thumbnail is the content, the generated sentence
    stays in the DOM for assistive technology only. */
@@ -1817,9 +1810,8 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
   white-space: nowrap;
 }
 
-/* SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — the composer shows the chosen image
-   before it is sent. The thumbnail sits beside the filename and never covers
-   the remove button's touch target. */
+/* CHAT-ATTACHMENT-NO-FILENAME-01 — the composer shows the chosen image and a
+   remove target only. Documents use a generic type label. */
 .attachment-chip-with-thumb,
 .attachment-chip-pending {
   flex: 0 0 auto;
@@ -2793,3 +2785,4 @@ body[data-site-theme="dark"] .lotbi-google-maps-action .lotbi-place-action-icon 
     transition: none;
   }
 }
+

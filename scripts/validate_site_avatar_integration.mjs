@@ -18,13 +18,17 @@ const conversation = read('site-conversation.js');
 
 assert.ok(index.includes('data-lotbi-avatar-stage'));
 assert.ok(index.includes('data-lotbi-avatar-fallback'));
-assert.ok(index.includes('type="module" src="site-avatar.js"'));
-assert.ok(index.includes('href="site-avatar.css"'));
+const homeAvatarVersion = index.match(/src="site-avatar\.js\?v=([^"]+)"/)?.[1] || '';
+const homeAvatarCssVersion = index.match(/href="site-avatar\.css\?v=([^"]+)"/)?.[1] || '';
+const callbackAvatarVersion = callbackHtml.match(/src="\/site-avatar\.js\?v=([^"]+)"/)?.[1] || '';
+const callbackAvatarCssVersion = callbackHtml.match(/href="\/site-avatar\.css\?v=([^"]+)"/)?.[1] || '';
+assert.ok(homeAvatarVersion);
+assert.equal(homeAvatarCssVersion, homeAvatarVersion);
+assert.equal(callbackAvatarVersion, homeAvatarVersion);
+assert.equal(callbackAvatarCssVersion, homeAvatarVersion);
 assert.ok(index.includes('"three": "/avatar-runtime/vendor/three/three.module.js"'));
 assert.ok(index.includes('"three/addons/": "/avatar-runtime/vendor/three/addons/"'));
 
-assert.ok(callbackHtml.includes('type="module" src="/site-avatar.js"'));
-assert.ok(callbackHtml.includes('href="/site-avatar.css"'));
 assert.ok(callbackHtml.includes('"three": "/avatar-runtime/vendor/three/three.module.js"'));
 assert.ok(callback.includes("new CustomEvent('lotbi:home-shell-hydrated')"));
 
@@ -32,7 +36,7 @@ for (const token of [
   "const MODEL_URL = '/assets/models/lotbi-faithful-v2-rigged.glb'",
   "const MODEL_SHA256 = 'fb2729f56f18844e85a821f1cc8f2f6a7c64c95fa858bfcda994632131a35c3d'",
   "const AVATAR_SOURCE_HEAD = 'b131f898246ce9852d23dd17009f5914b6ae252e'",
-  "const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json'",
+  "const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json?v=20260924-running1'",
   "const CONTRACT_URL = '/avatar-runtime/contracts/avatar-rig-controls.v2.json'",
   'new GLTFLoader().loadAsync(MODEL_URL)',
   'gltf.animations.length !== 13',
@@ -53,9 +57,17 @@ for (const token of [
   "const documentObserver = new MutationObserver(reconcileAvatar)",
   "window.addEventListener('lotbi:home-shell-hydrated', reconcileAvatar)",
   "Object.defineProperty(window, '__lotbiSiteAvatar'",
-  "window.addEventListener(LIFECYCLE_EVENT, event => activeMount?.driveLifecycle(event.detail))",
+  'let desiredLifecycle = null',
+  "['listening-end', 'response-complete', 'cancel'].includes(detail.phase)",
+  'activeMount?.driveLifecycle(detail)',
+  'if (desiredLifecycle) driveLifecycle(desiredLifecycle)',
+  'controller.setBackground(document.hidden, now)',
+  "container.classList.remove('avatar-processing')",
+  'const resumeId = `${desiredLifecycle.requestId}.r${++lifecycleResumeSequence}`',
   "controller.hostEvent(lifecycleToken, phase, now)",
 ]) assert.ok(avatar.includes(token), `missing Site Avatar runtime contract: ${token}`);
+assert.ok(avatar.includes("./avatar-runtime/runtime/controller.mjs?v=20260924-running1"));
+assert.ok(avatar.includes("./avatar-runtime/runtime/refinement.mjs?v=20260924-running1"));
 
 for (const token of [
   "new CustomEvent('lotbi-avatar-lifecycle'",
