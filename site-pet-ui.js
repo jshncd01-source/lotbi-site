@@ -35,18 +35,18 @@ import {
   setPetMatchingConsent,
   uploadFoundPetPhoto,
   uploadPetPhoto,
-} from './site-pet.js?v=aset-e5b4de42dbf0';
+} from './site-pet.js?v=aset-489a2d0c6266';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-e5b4de42dbf0';
+} from './site-pet-guides.js?v=aset-489a2d0c6266';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-e5b4de42dbf0';
+} from './site-pet-gate.js?v=aset-489a2d0c6266';
 
 const MATCHING_CONSENT_VERSION = 'site-pet-matching-2026-09';
 
