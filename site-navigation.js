@@ -13,9 +13,7 @@ const NAVIGATION_TTL_MS = 60 * 60 * 1000;
 // 새 API 키도, 과금도, SDK 도 없다. URL scheme 과 Android intent 뿐이다.
 // Core 에 있는 카카오내비 SDK 경로는 구 라이프플랜 전용이고 이 카드와 무관하다 —
 // 이번 작업은 딥링크지 내비 SDK 연동이 아니므로 그 경로를 켜지 않는다.
-const KAKAO_MAP_SCHEME = 'kakaomap';
-const KAKAO_MAP_ANDROID_PACKAGE = 'net.daum.android.map';
-const KAKAO_MAP_WEB_SEARCH_BASE = 'https://map.kakao.com/?q=';
+const KAKAO_NAVI_HANDOFF_PATH = '/kakao-navi.html';
 const TMAP_SCHEME = 'tmap';
 const TMAP_ANDROID_PACKAGE = 'com.skt.tmap.ku';
 const TMAP_ANDROID_STORE_URL = `https://play.google.com/store/apps/details?id=${TMAP_ANDROID_PACKAGE}`;
@@ -29,15 +27,40 @@ function finiteCoordinate(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function safeHttpsImageUrl(value) {
-  const candidate = text(value);
-  if (!candidate || candidate.length > 2048) return '';
+function normalizeVerifiedPhoto(place) {
+  const candidate = text(place?.image_url);
+  const evidence = place?.photo_evidence;
+  if (!candidate || candidate.length > 2048 || !evidence || typeof evidence !== 'object') {
+    return Object.freeze({url: '', evidence: null});
+  }
   try {
     const url = new URL(candidate);
-    if (url.protocol !== 'https:' || url.username || url.password) return '';
-    return url.href;
+    const host = url.hostname.toLowerCase();
+    if (
+      url.protocol !== 'https:'
+      || url.username
+      || url.password
+      || url.searchParams.has('key')
+      || !(host === 'googleusercontent.com' || host.endsWith('.googleusercontent.com'))
+      || evidence.provider !== 'GOOGLE_PLACES'
+      || evidence.verification_state !== 'VERIFIED'
+      || !['EXACT_NAME_AND_ADDRESS', 'EXACT_NAME_AND_COORDINATES'].includes(text(evidence.match_basis))
+      || !text(evidence.provider_place_id)
+      || !Number.isFinite(Date.parse(text(evidence.fetched_at)))
+    ) return Object.freeze({url: '', evidence: null});
+    return Object.freeze({
+      url: url.href,
+      evidence: Object.freeze({
+        provider: 'GOOGLE_PLACES',
+        providerPlaceId: text(evidence.provider_place_id),
+        matchBasis: text(evidence.match_basis),
+        fetchedAt: text(evidence.fetched_at),
+        verificationState: 'VERIFIED',
+        attributions: Object.freeze(Array.isArray(evidence.attributions) ? evidence.attributions.slice(0, 8) : []),
+      }),
+    });
   } catch {
-    return '';
+    return Object.freeze({url: '', evidence: null});
   }
 }
 
@@ -99,6 +122,7 @@ function normalizePlace(place, index) {
   const longitude = finiteCoordinate(place.longitude);
   const sourceUrl = text(place.source_url);
   const verifiedPhone = normalizeVerifiedPhone(place);
+  const verifiedPhoto = normalizeVerifiedPhoto(place);
   const foodLicenseVerification = normalizeFoodLicenseVerification(place.food_license_verification);
   return Object.freeze({
     candidateIndex: index,
@@ -112,7 +136,8 @@ function normalizePlace(place, index) {
     coordinateSystem: text(place.coordinate_system).toUpperCase(),
     coordinateAuthority: text(place.coordinate_authority),
     sourceUrl: sourceUrl.startsWith('https://') ? sourceUrl : '',
-    imageUrl: safeHttpsImageUrl(place.image_url),
+    imageUrl: verifiedPhoto.url,
+    photoEvidence: verifiedPhoto.evidence,
     phone: verifiedPhone.number,
     phoneHref: verifiedPhone.href,
     phoneVerified: Boolean(verifiedPhone.href),
@@ -212,27 +237,26 @@ function destinationCoordinates(place) {
   });
 }
 
-export function buildKakaoMapMobileUri(place) {
-  if (!place || typeof place !== 'object') throw new TypeError('place is required');
+export function buildKakaoNaviSdkPayload(place) {
   const destination = destinationCoordinates(place);
-  // ep 는 '위도,경도' 한 쌍이다. by 는 이동수단이고 CAR 가 기본값.
-  if (destination) return `${KAKAO_MAP_SCHEME}://route?ep=${destination.latitude},${destination.longitude}&by=CAR`;
-  const query = searchQuery(place);
-  if (!query) throw new TypeError('place search query is required');
-  return `${KAKAO_MAP_SCHEME}://search?q=${encodeURIComponent(query)}`;
+  const name = text(place?.name);
+  if (!destination || !name) throw new TypeError('verified destination is required');
+  return Object.freeze({
+    name,
+    x: Number(destination.longitude),
+    y: Number(destination.latitude),
+    coordType: 'wgs84',
+  });
 }
 
-export function buildKakaoMapWebSearchUrl(place) {
-  const query = searchQuery(place);
-  if (!query) throw new TypeError('place search query is required');
-  return KAKAO_MAP_WEB_SEARCH_BASE + encodeURIComponent(query);
-}
-
-export function buildKakaoMapAndroidIntentUri(place) {
-  const scheme = `${KAKAO_MAP_SCHEME}://`;
-  const path = buildKakaoMapMobileUri(place).slice(scheme.length);
-  const fallbackUrl = encodeURIComponent(buildKakaoMapWebSearchUrl(place));
-  return `intent://${path}#Intent;scheme=${KAKAO_MAP_SCHEME};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=${KAKAO_MAP_ANDROID_PACKAGE};S.browser_fallback_url=${fallbackUrl};end`;
+export function buildKakaoNaviHandoffUrl(place, {origin = 'https://lotbiai.com'} = {}) {
+  const payload = buildKakaoNaviSdkPayload(place);
+  const url = new URL(KAKAO_NAVI_HANDOFF_PATH, origin);
+  url.searchParams.set('name', payload.name);
+  url.searchParams.set('x', String(payload.x));
+  url.searchParams.set('y', String(payload.y));
+  url.searchParams.set('coordType', 'wgs84');
+  return url.href;
 }
 
 export function buildTmapMobileUri(place) {
@@ -272,69 +296,75 @@ export function isTmapHandoffAvailable({userAgent = globalThis.navigator?.userAg
   return android || ios;
 }
 
-// iOS 는 intent: 를 모르고, scheme 이 실패해도 알려 주지 않는다. 앱으로 넘어가면
-// 페이지가 가려지므로 그 신호로 폴백을 취소한다. NAVER 쪽과 같은 동작이다.
-function openIosSchemeWithFallback(windowRef, documentRef, uri, fallbackUrl) {
-  let fallbackTimer = null;
-  let fallbackCancelled = false;
-  const cancelFallback = () => {
-    fallbackCancelled = true;
-    if (fallbackTimer !== null) windowRef.clearTimeout?.(fallbackTimer);
-  };
-  documentRef?.addEventListener?.('visibilitychange', () => {
-    if (documentRef.visibilityState === 'hidden') cancelFallback();
-  }, {once: true});
-  windowRef.addEventListener?.('pagehide', cancelFallback, {once: true});
-  fallbackTimer = windowRef.setTimeout?.(() => {
-    if (!fallbackCancelled) windowRef.location.href = fallbackUrl;
-  }, 1400) ?? null;
-  windowRef.location.href = uri;
+function openNewBrowsingContext(windowRef, uri) {
+  if (!windowRef || typeof windowRef.open !== 'function') {
+    return Object.freeze({opened: false, child: null});
+  }
+  try {
+    const child = windowRef.open(uri, '_blank', 'noopener,noreferrer');
+    if (!child) return Object.freeze({opened: false, child: null});
+    child.opener = null;
+    return Object.freeze({opened: true, child});
+  } catch {
+    return Object.freeze({opened: false, child: null});
+  }
 }
 
-export function openKakaoMapPlace(place, {
+export function openKakaoNaviPlace(place, {
   windowRef = globalThis.window,
-  documentRef = globalThis.document,
-  userAgent = globalThis.navigator?.userAgent || '',
+  origin = globalThis.location?.origin || 'https://lotbiai.com',
 } = {}) {
-  if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
-  const {android, ios} = mobilePlatform(userAgent);
-  const webUrl = buildKakaoMapWebSearchUrl(place);
-  const routed = place.navigationCapable === true;
-
-  if (android) {
-    const uri = buildKakaoMapAndroidIntentUri(place);
-    windowRef.location.href = uri;
-    return Object.freeze({opened: true, mode: routed ? 'KAKAO_ROUTE_INTENT' : 'KAKAO_SEARCH_INTENT', uri, fallbackUri: webUrl});
+  if (!place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
+  let uri = '';
+  try {
+    uri = buildKakaoNaviHandoffUrl(place, {origin});
+  } catch {
+    return Object.freeze({opened: false, mode: 'BLOCKED'});
   }
-
-  if (ios) {
-    const uri = buildKakaoMapMobileUri(place);
-    openIosSchemeWithFallback(windowRef, documentRef, uri, webUrl);
-    return Object.freeze({opened: true, mode: routed ? 'KAKAO_ROUTE_URL_SCHEME' : 'KAKAO_SEARCH_URL_SCHEME', uri, fallbackUri: webUrl});
-  }
-
-  return Object.freeze({opened: true, mode: 'KAKAO_WEB_SEARCH', uri: webUrl, fallbackUri: webUrl});
+  const result = openNewBrowsingContext(windowRef, uri);
+  return Object.freeze({opened: result.opened, mode: result.opened ? 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB' : 'BLOCKED', uri});
 }
 
 export function openTmapPlace(place, {
   windowRef = globalThis.window,
-  documentRef = globalThis.document,
   userAgent = globalThis.navigator?.userAgent || '',
 } = {}) {
   if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   const {android, ios} = mobilePlatform(userAgent);
   if (!android && !ios) return Object.freeze({opened: false, mode: 'TMAP_MOBILE_ONLY'});
-  const routed = place.navigationCapable === true;
+  const uri = android ? buildTmapAndroidIntentUri(place) : buildTmapMobileUri(place);
+  const result = openNewBrowsingContext(windowRef, uri);
+  return Object.freeze({
+    opened: result.opened,
+    mode: result.opened
+      ? (place.navigationCapable
+        ? (android ? 'TMAP_ROUTE_INTENT_NEW_TAB' : 'TMAP_ROUTE_URL_SCHEME_NEW_TAB')
+        : (android ? 'TMAP_SEARCH_INTENT_NEW_TAB' : 'TMAP_SEARCH_URL_SCHEME_NEW_TAB'))
+      : 'BLOCKED',
+    uri,
+    fallbackUri: android ? TMAP_ANDROID_STORE_URL : TMAP_IOS_STORE_URL,
+  });
+}
 
-  if (android) {
-    const uri = buildTmapAndroidIntentUri(place);
-    windowRef.location.href = uri;
-    return Object.freeze({opened: true, mode: routed ? 'TMAP_ROUTE_INTENT' : 'TMAP_SEARCH_INTENT', uri, fallbackUri: TMAP_ANDROID_STORE_URL});
+export function buildGoogleMapsDirectionsUrl(place) {
+  if (!place || typeof place !== 'object') throw new TypeError('place is required');
+  const destination = destinationCoordinates(place);
+  const query = destination ? `${destination.latitude},${destination.longitude}` : searchQuery(place);
+  if (!query) throw new TypeError('place destination is required');
+  const params = new URLSearchParams({api: '1', destination: query});
+  if (destination) params.set('travelmode', 'driving');
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+export function openGoogleMapsPlace(place, {windowRef = globalThis.window} = {}) {
+  let uri = '';
+  try {
+    uri = buildGoogleMapsDirectionsUrl(place);
+  } catch {
+    return Object.freeze({opened: false, mode: 'BLOCKED'});
   }
-
-  const uri = buildTmapMobileUri(place);
-  openIosSchemeWithFallback(windowRef, documentRef, uri, TMAP_IOS_STORE_URL);
-  return Object.freeze({opened: true, mode: routed ? 'TMAP_ROUTE_URL_SCHEME' : 'TMAP_SEARCH_URL_SCHEME', uri, fallbackUri: TMAP_IOS_STORE_URL});
+  const result = openNewBrowsingContext(windowRef, uri);
+  return Object.freeze({opened: result.opened, mode: result.opened ? 'GOOGLE_MAPS_NEW_TAB' : 'BLOCKED', uri});
 }
 
 export function naverMapsPlaceActionLabel(place, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
@@ -345,50 +375,27 @@ export function naverMapsPlaceActionLabel(place, {userAgent = globalThis.navigat
 
 export function openNaverMapsPlace(place, {
   windowRef = globalThis.window,
-  documentRef = globalThis.document,
   userAgent = globalThis.navigator?.userAgent || '',
 } = {}) {
   if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   const {android, ios} = mobilePlatform(userAgent);
   const webUrl = buildNaverMapsWebSearchUrl(place);
-
-  if (android) {
-    const uri = buildNaverMapsAndroidIntentUri(place);
-    windowRef.location.href = uri;
-    return Object.freeze({opened: true, mode: place.navigationCapable ? 'NAVER_NAVIGATION_INTENT' : 'NAVER_SEARCH_INTENT', uri, fallbackUri: webUrl});
-  }
-
-  if (ios) {
-    const uri = buildNaverMapsMobileUri(place);
-    let fallbackTimer = null;
-    let fallbackCancelled = false;
-    const cancelFallback = () => {
-      fallbackCancelled = true;
-      if (fallbackTimer !== null) windowRef.clearTimeout?.(fallbackTimer);
-    };
-    documentRef?.addEventListener?.('visibilitychange', () => {
-      if (documentRef.visibilityState === 'hidden') cancelFallback();
-    }, {once: true});
-    windowRef.addEventListener?.('pagehide', cancelFallback, {once: true});
-    fallbackTimer = windowRef.setTimeout?.(() => {
-      if (!fallbackCancelled) windowRef.location.href = webUrl;
-    }, 1400) ?? null;
-    windowRef.location.href = uri;
-    return Object.freeze({opened: true, mode: place.navigationCapable ? 'NAVER_NAVIGATION_URL_SCHEME' : 'NAVER_SEARCH_URL_SCHEME', uri, fallbackUri: webUrl});
-  }
-
-  let child = null;
-  try {
-    child = typeof windowRef.open === 'function'
-      ? windowRef.open(webUrl, '_blank', 'noopener,noreferrer')
-      : null;
-  } catch {
-    child = null;
-  }
-  if (child) {
-    child.opener = null;
-    return Object.freeze({opened: true, mode: 'NAVER_WEB_SEARCH_NEW_TAB', uri: webUrl});
-  }
-  windowRef.location.href = webUrl;
-  return Object.freeze({opened: true, mode: 'NAVER_WEB_SEARCH_SAME_TAB', uri: webUrl});
+  const uri = android
+    ? buildNaverMapsAndroidIntentUri(place)
+    : ios
+      ? buildNaverMapsMobileUri(place)
+      : webUrl;
+  const result = openNewBrowsingContext(windowRef, uri);
+  return Object.freeze({
+    opened: result.opened,
+    mode: result.opened
+      ? android
+        ? (place.navigationCapable ? 'NAVER_NAVIGATION_INTENT_NEW_TAB' : 'NAVER_SEARCH_INTENT_NEW_TAB')
+        : ios
+          ? (place.navigationCapable ? 'NAVER_NAVIGATION_URL_SCHEME_NEW_TAB' : 'NAVER_SEARCH_URL_SCHEME_NEW_TAB')
+          : 'NAVER_WEB_SEARCH_NEW_TAB'
+      : 'BLOCKED',
+    uri,
+    fallbackUri: webUrl,
+  });
 }
