@@ -347,7 +347,11 @@ try{
       {local_date:'2026-09-05',entry:{amount_minor:50000,currency:'KRW',expense_category:'FOOD'}},
       {local_date:'2026-09-06',entry:{amount_minor:1200,currency:'USD',expense_category:'SHOPPING'}}])});
   await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','two-currency strip');
-  result.currencyTotalLabels=[...strip(root).querySelectorAll('.calendar-expense-total-label')].map(n=>n.textContent);
+  result.currencyTotals=[...strip(root).querySelectorAll('.calendar-expense-total')].map(node=>({
+    label:node.querySelector('.calendar-expense-total-label')?.textContent||'',
+    amount:node.querySelector('.calendar-expense-total-amount')?.textContent||'',
+  }));
+  result.currencyTotalLabels=result.currencyTotals.map(row=>row.label);
 
   // --- guest, empty month: the empty state, never a login prompt ---------
   root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),guestRepository:makeGuestRepo([])});
@@ -539,16 +543,18 @@ try {
     // per-category bug: 여행 was never lost, only its amount was never set.
     if (value.blankAmountCategory !== 'TRAVEL') throw new Error(`${label}: the saved category must survive, got ${value.blankAmountCategory}`);
 
-    // [D] A KRW total must not print a bare uppercase W.
+    // [D] The primary KRW line stays visually quiet: the amount itself says
+    // "원", while extra currencies are disambiguated in their secondary label.
     if (value.currencyTotalLabels.some(text => /\bKRW\b/.test(text))) {
-      throw new Error(`${label}: the KRW total must use ₩, not the letters KRW, got ${JSON.stringify(value.currencyTotalLabels)}`);
+      throw new Error(`${label}: the primary KRW line must not print the letters KRW, got ${JSON.stringify(value.currencyTotalLabels)}`);
     }
-    if (!value.currencyTotalLabels.some(text => text.includes('₩'))) {
-      throw new Error(`${label}: a multi-currency month must mark the KRW total with ₩, got ${JSON.stringify(value.currencyTotalLabels)}`);
+    if (value.currencyTotals?.[0]?.label !== '이번 달 지출' || !value.currencyTotals?.[0]?.amount.endsWith('원')) {
+      throw new Error(`${label}: the primary KRW total must read as 이번 달 지출 + 원 amount, got ${JSON.stringify(value.currencyTotals)}`);
     }
-    // …and a non-KRW row must keep its own code rather than borrowing ₩.
-    if (!value.currencyTotalLabels.some(text => text.includes('USD'))) {
-      throw new Error(`${label}: a USD total must stay USD, got ${JSON.stringify(value.currencyTotalLabels)}`);
+    // …and a non-KRW row must keep its own code in both label and amount.
+    const usdTotal = value.currencyTotals?.find(row => row.label.includes('USD'));
+    if (!usdTotal || !usdTotal.amount.includes('USD')) {
+      throw new Error(`${label}: a USD total must stay explicitly USD, got ${JSON.stringify(value.currencyTotals)}`);
     }
 
     // [C] The exclusion line is the one line saying the total is not everything.
