@@ -356,7 +356,7 @@ function innerFixtureHtml() {
   const PETS = ${JSON.stringify(JSON.stringify(FIXTURE_PETS))};
   globalThis.fetch = async (url, options = {}) => {
     const target = String(url);
-    if (/\/v2\/pet-catalog$/.test(target)) {
+    if (/\\/v2\\/pet-catalog$/.test(target)) {
       return new Response(JSON.stringify({
         breeds: {
           DOG: [{code: 'JINDO', display_name: '진돗개', species: 'DOG'}],
@@ -366,10 +366,10 @@ function innerFixtureHtml() {
         patterns: [{code: 'SOLID', display_name: '단색', species: null}],
       }), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
-    if (/\/v2\/pet-registration-drafts\/active$/.test(target)) {
+    if (/\\/v2\\/pet-registration-drafts\\/active$/.test(target)) {
       return new Response(JSON.stringify({draft: null}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
-    if (/\/v2\/pet-registration-drafts$/.test(target) && options.method === 'POST') {
+    if (/\\/v2\\/pet-registration-drafts$/.test(target) && options.method === 'POST') {
       return new Response(JSON.stringify({draft: {
         draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee',
         status: 'ACTIVE', current_step: 'PHOTOS', revision: 1,
