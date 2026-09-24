@@ -94,7 +94,7 @@ def main() -> int:
         "mobile drawer": 'id="mobile-nav-drawer"',
         "new chat menu": "새 대화",
         "calendar menu": "캘린더",
-        "calendar stylesheet": 'href="site-calendar.css?v=20260924-placecompact1"',
+        "calendar stylesheet": 'href="site-calendar.css?v=20260924-imagethumb1"',
         "recent conversations": "최근 대화",
         "live handoff boundary": "메시지를 입력하면 LOTBI와 대화를 시작합니다.",
         "Company link": "about.html",

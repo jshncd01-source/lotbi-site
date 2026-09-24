@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260921-guestclaim1';
-import {buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260924-compact1';
+import {buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260924-imagethumb1';
 import * as siteAttachments from './site-attachments.js?v=20260924-imagethumb1';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -8,7 +8,7 @@ import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClai
 import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-daysheet3';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-placecompact1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-imagethumb1';
 import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-imagethumb1';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 
@@ -1215,6 +1215,31 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!value || typeof value !== 'object') return null;
     return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
   };
+  // The five 인허가 wordings, unchanged. They read as one set, and the subject
+  // stays on our side of the comparison: NOT_FOUND means WE could not match
+  // this place in the public data, not that the place is unlicensed. None of
+  // them may ever be rewritten as '인허가 기록 없음' / '무허가' / '허가 없음'.
+  const LICENSE_BADGE_COPY = Object.freeze({
+    VERIFIED: '인허가 대조 확인',
+    AMBIGUOUS: '인허가 후보 여럿',
+    CONFLICTING: '인허가 정보 불일치',
+    NOT_FOUND: '인허가 대조 안 됨',
+    UNAVAILABLE: '인허가 대조 불가',
+  });
+
+  // What the badge is short for. Not painted on the card — it reaches a screen
+  // reader and a hover without taking a line.
+  const LICENSE_BADGE_DETAIL = Object.freeze({
+    VERIFIED: '공공 인허가 데이터에서 이 가게를 찾아 맞춰봤어요.',
+    AMBIGUOUS: '공공 인허가 데이터에 맞춰볼 후보가 여러 개라 하나로 정하지 못했어요.',
+    CONFLICTING: '공공 인허가 데이터와 업체 식별 정보가 서로 맞지 않았어요.',
+    NOT_FOUND: '공공 인허가 데이터에서 이 가게를 찾지 못했어요. 가게 문제가 아니라 대조가 안 된 것입니다.',
+    UNAVAILABLE: '공공 인허가 데이터를 조회하지 못했어요.',
+  });
+
+  // Only where a reader might otherwise read the badge as a verdict on the shop.
+  const LICENSE_LAG_NOTE_STATES = new Set(['NOT_FOUND', 'CONFLICTING']);
+
   const createPlaceCardRail = placeValue => {
     const placeResult = normalizedPersistedPlaceResult(placeValue);
     if (!placeResult) return null;
@@ -1314,28 +1339,51 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       copy.append(source, title, address);
 
       if (place.foodLicenseVerification) {
-        const foodLicense = document.createElement('span');
-        foodLicense.className = 'lotbi-place-license-evidence';
         const state = place.foodLicenseVerification.state;
-        // These five read as one set, so they are shortened together and the
-        // subject stays on our side of the comparison. NOT_FOUND in particular
-        // means WE could not match this place in the public data — it is not a
-        // claim that the place is unlicensed, so it must never be written as
-        // '인허가 기록 없음' / '무허가' / '허가 없음'.
-        if (state === 'VERIFIED') {
-          foodLicense.textContent = place.foodLicenseVerification.administrativeStatus
-            ? `인허가 대조 확인 · ${place.foodLicenseVerification.administrativeStatus}`
-            : '인허가 대조 확인';
-        } else if (state === 'AMBIGUOUS') {
-          foodLicense.textContent = '인허가 후보 여럿';
-        } else if (state === 'CONFLICTING') {
-          foodLicense.textContent = '인허가 정보 불일치';
-        } else if (state === 'NOT_FOUND') {
-          foodLicense.textContent = '인허가 대조 안 됨';
-        } else {
-          foodLicense.textContent = '인허가 대조 불가';
+        // UNAVAILABLE is not an outcome. The other four say what our comparison
+        // against the public licence data found; UNAVAILABLE says the
+        // comparison never ran — the provider was not reachable. Printing
+        // '인허가 대조 불가' on someone's shop for a reason that is entirely on
+        // our side is a caveat the reader cannot act on, so the card stays
+        // silent. The wording itself is kept below, unchanged, for the states
+        // that do render.
+        const badgeText = LICENSE_BADGE_COPY[state];
+        if (badgeText && state !== 'UNAVAILABLE') {
+          // Badges sit in a row of their own so a second one (the
+          // administrative status) wraps beside the first instead of being
+          // glued into the same sentence with a separator.
+          const badges = document.createElement('div');
+          badges.className = 'lotbi-place-badges';
+
+          const foodLicense = document.createElement('span');
+          foodLicense.className = 'lotbi-place-license-evidence';
+          foodLicense.textContent = badgeText;
+          // The short badge has to stay short. The sentence that spells out
+          // whose side the subject is on rides along without costing height.
+          foodLicense.title = LICENSE_BADGE_DETAIL[state];
+          badges.appendChild(foodLicense);
+
+          const administrativeStatus = place.foodLicenseVerification.administrativeStatus;
+          if (state === 'VERIFIED' && administrativeStatus) {
+            const status = document.createElement('span');
+            status.className = 'lotbi-place-license-status';
+            status.textContent = administrativeStatus;
+            status.title = '행정 인허가 데이터에 적힌 영업 상태입니다.';
+            badges.appendChild(status);
+          }
+          copy.appendChild(badges);
+
+          // Public licence data is updated on its own schedule, so a shop can
+          // be perfectly fine and still not line up with it yet. Said only
+          // where a reader might otherwise draw a conclusion about the shop,
+          // and said about the data, never about the shop.
+          if (LICENSE_LAG_NOTE_STATES.has(state)) {
+            const note = document.createElement('span');
+            note.className = 'lotbi-place-license-note';
+            note.textContent = '공공데이터 갱신이 늦을 수 있어요';
+            copy.appendChild(note);
+          }
         }
-        copy.appendChild(foodLicense);
       }
 
       const actions = document.createElement('div');
