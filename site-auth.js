@@ -265,11 +265,14 @@ export async function readAccountSessionStatus(
   let timeoutId;
   const timeout = new Promise((_, reject) => {
     timeoutId = globalThis.setTimeout(() => {
-      try { controller?.abort(); } catch {}
+      // Reject the timeout result before aborting the underlying request so an
+      // AbortError cannot win the Promise.race and be misclassified as a plain
+      // network failure.
       reject(new SiteHandoffClientError(
         'LOTBI 계정 상태 확인 시간이 초과되었습니다.',
         'ACCOUNT_SESSION_STATUS_TIMEOUT',
       ));
+      try { controller?.abort(); } catch {}
     }, boundedTimeout);
   });
 
