@@ -39,8 +39,12 @@ assert.ok(messageBody.includes("button.textContent = expanded ? '접기' : '더 
 assert.ok(messageBody.includes("button.addEventListener('click'"));
 assert.ok(messageBody.includes("code.textContent = match[2]"));
 assert.ok(!messageBody.includes('innerHTML'), 'message renderer must never inject HTML');
-assert.ok(conversation.includes("from './site-message-body.js?v=20260924-licensebadge1'"));
-assert.ok(conversation.includes("if (role === 'user') enhanceExpandableUserMessage(article, body, text);"));
+assert.ok(conversation.includes("from './site-message-body.js?v=20260924-imagethumb1'"));
+// Every user message still gets the 접기/더 보기 enhancement. The one exception
+// is an image-only turn (SITE-IMAGE-ATTACHMENT-THUMBNAIL-01), whose generated
+// placeholder sentence is hidden behind the thumbnail and has nothing to expand.
+assert.ok(conversation.includes("if (role === 'user' && !article.classList.contains('chat-message-attachment-only')) {"));
+assert.ok(conversation.includes('enhanceExpandableUserMessage(article, body, text);'));
 assert.ok(conversation.includes("const displayMessage = message ||"));
 assert.ok(conversation.includes("timestampedConversationMessage({role: 'user', text: displayMessage"));
 assert.ok(conversation.includes('appendPersistedMessage(userRecord)'), 'full user record must remain the persistence source');

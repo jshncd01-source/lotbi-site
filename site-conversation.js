@@ -1,7 +1,7 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260924-assurance1';
-import {buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260924-licensebadge1';
-import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
+import {buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260924-imagethumb1';
+import * as siteAttachments from './site-attachments.js?v=20260924-imagethumb1';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
 import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260923-freshentry1';
@@ -9,12 +9,19 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=20260924-imagecalendar1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-licensebadge1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-licensebadge1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-imagethumb1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-imagethumb1';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
-const {attachmentKindLabel, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
+const {adoptAttachmentPreviewUrl, attachmentKindLabel, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
+
+// SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
+// placeholder as its conversation text. The composer builds the same sentence
+// (its literal form is pinned by validate_attachment_composer_16.mjs), so the
+// renderer recognises it and lets the thumbnail be the visible content while
+// the sentence stays available to screen readers.
+const attachmentOnlyPlaceholder = count => `첨부 파일 ${count}개를 확인해 주세요.`;
 
 // SITE-THEME-AUTO-SCHEDULE-02 — 대표: "시간이 18시 이후에는 다크로 가고 아침
 // 07시 되면 화이트로 가는 거"
@@ -152,7 +159,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260924-licensebadge1';
+  link.href = '/site-conversation.css?v=20260924-imagethumb1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -409,6 +416,14 @@ function createMessageActions(text, announce) {
   return actions;
 }
 
+function createAttachmentIcon(attachment) {
+  const icon = document.createElement('span');
+  icon.className = 'message-attachment-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = attachment && attachment.mediaType === 'application/pdf' ? 'PDF' : '파일';
+  return icon;
+}
+
 function createMessage(role, text, meta = {}) {
   const article = document.createElement('article');
   article.className = `chat-message chat-message-${role}`;
@@ -420,16 +435,42 @@ function createMessage(role, text, meta = {}) {
   article.appendChild(body);
   if (Array.isArray(meta.attachments) && meta.attachments.length) {
     const list = document.createElement('div'); list.className = 'message-attachment-list'; list.setAttribute('aria-label', '첨부 파일');
+    let thumbnailCount = 0;
     for (const attachment of meta.attachments) {
       const item = document.createElement('div'); item.className = 'message-attachment-card';
       const name = safeAttachmentName(attachment && attachment.filename);
-      const mediaType = attachment && attachment.mediaType ? attachment.mediaType : '';
-      if (String(mediaType).startsWith('image/') && attachment && attachment.previewUrl) {
-        const image = document.createElement('img'); image.className = 'message-attachment-image'; image.src = attachment.previewUrl; image.alt = name; item.appendChild(image);
+      const previewUrl = attachment && typeof attachment.previewUrl === 'string' ? attachment.previewUrl : '';
+      // The image branch needs a validated image media type AND a browser-local
+      // preview; a filename suffix alone never promotes a file to a thumbnail.
+      if (previewUrl && isPreviewableImageAttachment(attachment)) {
+        item.classList.add('message-attachment-card-image');
+        const image = document.createElement('img'); image.className = 'message-attachment-image';
+        image.decoding = 'async'; image.loading = 'lazy';
+        image.src = previewUrl; image.alt = `첨부 이미지: ${name}`;
+        // A revoked or unreadable preview falls back to the file card instead of
+        // leaving a broken image behind.
+        image.addEventListener('error', () => {
+          item.classList.remove('message-attachment-card-image');
+          image.replaceWith(createAttachmentIcon(attachment));
+          list.dataset.imageCount = String(Math.max(0, Number(list.dataset.imageCount || 0) - 1));
+          // Without a thumbnail there is nothing left to carry the turn, so the
+          // placeholder sentence becomes visible again.
+          article.classList.remove('chat-message-attachment-only');
+          body.classList.remove('sr-only');
+        }, {once: true});
+        item.appendChild(image);
+        thumbnailCount += 1;
       } else {
-        const icon = document.createElement('span'); icon.className = 'message-attachment-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = attachment && attachment.mediaType === 'application/pdf' ? 'PDF' : '파일'; item.appendChild(icon);
+        item.appendChild(createAttachmentIcon(attachment));
       }
       const label = document.createElement('span'); label.className = 'message-attachment-name'; label.textContent = name; item.appendChild(label); list.appendChild(item);
+    }
+    if (thumbnailCount) list.dataset.imageCount = String(thumbnailCount);
+    // §5 — on an image-only turn the thumbnail is the content; the generated
+    // sentence stays in the DOM for assistive technology only.
+    if (role === 'user' && thumbnailCount === meta.attachments.length && text === attachmentOnlyPlaceholder(meta.attachments.length)) {
+      article.classList.add('chat-message-attachment-only');
+      body.classList.add('sr-only');
     }
     article.appendChild(list);
   }
@@ -464,7 +505,11 @@ function createMessage(role, text, meta = {}) {
     }
     if (sources.querySelector('a')) article.appendChild(sources);
   }
-  if (role === 'user') enhanceExpandableUserMessage(article, body, text);
+  // An image-only turn keeps its one-sentence placeholder hidden, so there is
+  // nothing for a "더 보기" control to expand.
+  if (role === 'user' && !article.classList.contains('chat-message-attachment-only')) {
+    enhanceExpandableUserMessage(article, body, text);
+  }
   return article;
 }
 function createLoadingMessage() {
@@ -2306,6 +2351,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return appendNode(messageNode(message), options);
   };
   const renderActiveThread = () => {
+    // Thumbnails live only in the document that rendered them; rebuilding the
+    // transcript drops those nodes, so their object URLs are released here.
+    releaseRenderedPreviewUrls();
     restoreAvatarHome(); thread.replaceChildren();
     lastRenderedCreatedAt = undefined;
     const record = threadRecord();
@@ -3075,6 +3123,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   let responseGradeOpen = false;
   let selectedAttachments = [];
+  let pendingAttachmentPreviews = [];
   let attachmentUploadsInFlight = 0;
   let attachmentMenuOpen = false;
   const attachmentSizeLabel = size => {
@@ -3096,10 +3145,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     attachmentTrigger.setAttribute('aria-expanded', 'true');
     queueMicrotask(() => attachmentMenu.querySelector('[role="menuitem"]')?.focus());
   };
+  const appendChipThumbnail = (chip, item, label) => {
+    if (!item || !item.previewUrl || !isPreviewableImageAttachment(item)) return false;
+    const thumb = document.createElement('img');
+    thumb.className = 'attachment-chip-thumb';
+    thumb.decoding = 'async';
+    thumb.src = item.previewUrl;
+    thumb.alt = `첨부 이미지: ${label}`;
+    thumb.addEventListener('error', () => thumb.remove(), {once: true});
+    chip.appendChild(thumb);
+    chip.classList.add('attachment-chip-with-thumb');
+    return true;
+  };
   const renderAttachmentPreview = () => {
     const fragment = document.createDocumentFragment();
     for (const item of selectedAttachments) {
       const chip = document.createElement('span'); chip.className = 'attachment-chip'; chip.dataset.attachmentId = item.id;
+      appendChipThumbnail(chip, item, safeAttachmentName(item.fileName));
       const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = safeAttachmentName(item.fileName); name.title = safeAttachmentName(item.fileName);
       const meta = document.createElement('span'); meta.className = 'attachment-chip-meta'; meta.textContent = `${attachmentKindLabel(item.mimeType)} · ${attachmentSizeLabel(item.sizeBytes)}`;
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'attachment-chip-remove'; remove.textContent = '×';
@@ -3111,11 +3173,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           const guestToken = sessionToken ? '' : (readGuestSession() || '');
           await deleteConversationAttachment({sessionToken: sessionToken || '', guestToken, attachmentId: item.id});
           selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
+          releaseComposerPreviewUrl(item.previewUrl);
           renderAttachmentPreview();
           setStatus('첨부 파일을 제거했습니다.');
         } catch (error) {
           if (error instanceof SiteCoreError && error.status === 404) {
             selectedAttachments = selectedAttachments.filter(candidate => candidate.id !== item.id);
+            releaseComposerPreviewUrl(item.previewUrl);
             renderAttachmentPreview();
           } else {
             remove.disabled = false;
@@ -3124,6 +3188,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       });
       chip.append(name, meta, remove); fragment.appendChild(chip);
+    }
+    // A chosen image shows its thumbnail while the original is still uploading.
+    for (const pending of pendingAttachmentPreviews) {
+      const chip = document.createElement('span'); chip.className = 'attachment-chip attachment-chip-pending';
+      const label = safeAttachmentName(pending.fileName);
+      appendChipThumbnail(chip, pending, label);
+      const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = label; name.title = label;
+      const meta = document.createElement('span'); meta.className = 'attachment-chip-meta'; meta.textContent = '업로드 중…';
+      chip.append(name, meta); fragment.appendChild(chip);
     }
     if (attachmentUploadsInFlight > 0) {
       const uploading = document.createElement('span'); uploading.className = 'attachment-uploading';
@@ -3153,21 +3226,34 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       return;
     }
     attachmentUploadsInFlight = validated.length;
+    // Browser-local previews are created from the validated File before upload
+    // so the thumbnail is on screen the moment the photo is chosen.
+    const queued = validated.map(file => ({
+      file,
+      fileName: file.name,
+      mimeType: file.type,
+      sizeBytes: file.size,
+      previewUrl: createAttachmentPreviewUrl(file),
+    }));
+    pendingAttachmentPreviews = [...queued];
     closeAttachmentMenu();
     renderAttachmentPreview();
-    for (const file of validated) {
+    for (const entry of queued) {
       try {
         const uploaded = await uploadConversationAttachment({
           sessionToken: sessionToken || '',
           guestToken,
-          file,
+          file: entry.file,
         });
-        selectedAttachments = [...selectedAttachments, uploaded];
+        selectedAttachments = [...selectedAttachments, Object.freeze({...uploaded, previewUrl: entry.previewUrl})];
       } catch (error) {
+        // A failed upload leaves no half-ready attachment and no stale preview.
+        releaseComposerPreviewUrl(entry.previewUrl);
         if (isSessionError(error)) sessionToken = undefined;
         if (isGuestSessionError(error)) clearGuestSession();
         setStatus(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
       } finally {
+        pendingAttachmentPreviews = pendingAttachmentPreviews.filter(candidate => candidate !== entry);
         attachmentUploadsInFlight = Math.max(0, attachmentUploadsInFlight - 1);
         renderAttachmentPreview();
       }
@@ -3183,6 +3269,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const selectedAttachmentIds = () => selectedAttachments.map(item => item.id);
   const attachmentSummary = items => items.map(item => safeAttachmentName(item.fileName)).join(', ');
+  // The server-side attachment binary and the browser-local visual preview have
+  // separate lifecycles: clearing the composer (and deleting the uploaded file)
+  // must never blank a thumbnail the sent message is still showing.
   const clearSentAttachments = (items, {session = '', guest = ''} = {}) => {
     const sent = Array.isArray(items) ? items : [];
     const sentIds = new Set(sent.map(item => item.id));
@@ -3200,6 +3289,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const session = sessionToken || '';
     const guest = session ? '' : (readGuestSession() || '');
     selectedAttachments = [];
+    for (const item of pending) releaseComposerPreviewUrl(item.previewUrl);
     renderAttachmentPreview();
     if (!pending.length || (!session && !guest)) return;
     void Promise.allSettled(pending.map(item => deleteConversationAttachment({
@@ -3209,7 +3299,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     })));
   };
   const clearLocalAttachments = () => {
+    for (const item of selectedAttachments) releaseComposerPreviewUrl(item.previewUrl);
+    for (const item of pendingAttachmentPreviews) releaseComposerPreviewUrl(item.previewUrl);
     selectedAttachments = [];
+    pendingAttachmentPreviews = [];
     attachmentUploadsInFlight = 0;
     closeAttachmentMenu();
     renderAttachmentPreview();
@@ -3417,7 +3510,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const activeConversation = ensureThread(displayMessage);
     const activeConversationId = activeConversation?.id || state.activeThreadId || '';
     if (appendUserMessage) {
-      const attachmentMeta = attachments.map(item => ({id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl: ''}));
+      // previewUrl is ephemeral browser-local UI state: it is never sent to
+      // Core, never persisted, and never logged. Ownership moves to the
+      // rendered message so composer cleanup cannot revoke it.
+      const attachmentMeta = attachments.map(item => {
+        const previewUrl = isPreviewableImageAttachment(item) && typeof item.previewUrl === 'string' ? item.previewUrl : '';
+        if (previewUrl) adoptAttachmentPreviewUrl(previewUrl);
+        return {id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl};
+      });
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
       appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
       appendPersistedMessage(userRecord);
@@ -3879,6 +3979,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') closeConversationMenus();
+  });
+  // Page teardown releases every object URL. A bfcache-persisted page keeps its
+  // previews so a back-navigation does not restore broken images.
+  window.addEventListener('pagehide', event => {
+    if (event instanceof PageTransitionEvent && event.persisted) return;
+    releaseAllAttachmentPreviewUrls();
   });
   window.addEventListener(SESSION_STATE_EVENT, event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
