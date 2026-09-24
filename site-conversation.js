@@ -2951,8 +2951,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setPhotoMenuOpen(false); input.value = '';
         if (source !== 'files' || typeof globalThis.showOpenFilePicker !== 'function') { input.click(); return; }
         try {
-          const [handle] = await globalThis.showOpenFilePicker({multiple: false, types: [{description: '이미지 파일', accept: {'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif']}}]});
-          const file = await handle?.getFile?.();
+          const [selectedFile] = await globalThis.showOpenFilePicker({multiple: false, types: [{description: '이미지 파일', accept: {'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif']}}]});
+          const file = await selectedFile?.getFile?.();
           await applyProfilePhoto(file);
         } catch (caught) {
           if (caught?.name === 'AbortError') return;
