@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {AvatarController} from './avatar-runtime/runtime/controller.mjs';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=20260924-running1';
 import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs';
-import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=20260924-running1';
 
 const MODEL_URL = '/assets/models/lotbi-faithful-v2-rigged.glb';
 const MODEL_SHA256 = 'fb2729f56f18844e85a821f1cc8f2f6a7c64c95fa858bfcda994632131a35c3d';
 const AVATAR_SOURCE_HEAD = 'b131f898246ce9852d23dd17009f5914b6ae252e';
-const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json';
+const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json?v=20260924-running1';
 const CONTRACT_URL = '/avatar-runtime/contracts/avatar-rig-controls.v2.json';
 const READY_EVENT = 'lotbi-avatar-ready';
 const ERROR_EVENT = 'lotbi-avatar-error';
@@ -16,6 +16,7 @@ const LIFECYCLE_EVENT = 'lotbi-avatar-lifecycle';
 let activeMount = null;
 let pendingStage = null;
 let mountGeneration = 0;
+let desiredLifecycle = null;
 const terminalStages = new WeakSet();
 const diagnostics = {
   mounts: 0,
@@ -102,6 +103,7 @@ async function mountAvatar(stage) {
   let controller = null;
   let reducedMotionQuery = null;
   let lifecycleToken = null;
+  let lifecycleResumeSequence = 0;
   let runtimeEpochSeconds = 0;
   const runtimeSeconds = () => Math.max(0, monotonicSeconds() - runtimeEpochSeconds);
 
@@ -120,8 +122,21 @@ async function mountAvatar(stage) {
   const handleVisibility = () => {
     if (!controller || disposed) return;
     try {
-      controller.setBackground(document.hidden, runtimeSeconds());
+      const now = runtimeSeconds();
+      controller.setBackground(document.hidden, now);
+      if (document.hidden) {
+        lifecycleToken = null;
+        container.classList.remove('avatar-processing');
+        return;
+      }
+      if (desiredLifecycle && ['listening-start', 'response-wait'].includes(desiredLifecycle.phase)) {
+        const resumeId = `${desiredLifecycle.requestId}.r${++lifecycleResumeSequence}`;
+        lifecycleToken = controller.beginTurn(resumeId, now);
+        controller.hostEvent(lifecycleToken, desiredLifecycle.phase, now);
+        container.classList.toggle('avatar-processing', desiredLifecycle.phase === 'response-wait');
+      }
     } catch (error) {
+      container.classList.remove('avatar-processing');
       console.error('LOTBI Avatar lifecycle fallback', error);
     }
   };
@@ -141,7 +156,7 @@ async function mountAvatar(stage) {
     renderer?.dispose();
     renderer?.forceContextLoss?.();
     renderer?.domElement.remove();
-    container.classList.remove('avatar-3d-loading', 'avatar-3d-ready');
+    container.classList.remove('avatar-3d-loading', 'avatar-3d-ready', 'avatar-processing', 'avatar-reduced-motion');
     diagnostics.disposals += 1;
     if (activeMount?.stage === stage) activeMount = null;
   };
@@ -165,6 +180,7 @@ async function mountAvatar(stage) {
 
   const handleReducedMotion = event => {
     if (!controller || disposed) return;
+    container.classList.toggle('avatar-reduced-motion', Boolean(event.matches));
     controller.setReducedMotion(Boolean(event.matches), runtimeSeconds());
   };
 
@@ -229,6 +245,7 @@ async function mountAvatar(stage) {
     if (gltf.animations.length !== 13) throw new Error('Approved V5 animation set missing');
     const binding = createFaithfulBinding(gltf.scene, contract);
     reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    container.classList.toggle('avatar-reduced-motion', reducedMotionQuery.matches);
     runtimeEpochSeconds = monotonicSeconds();
     controller = new AvatarController(clips, contract, {
       speechMode: 'audio',
@@ -239,6 +256,12 @@ async function mountAvatar(stage) {
     const driveLifecycle = ({phase, requestId} = {}) => {
       const now = runtimeSeconds();
       if (phase === 'listening-start' || phase === 'response-wait') {
+        if (document.hidden) {
+          container.classList.remove('avatar-processing');
+          return;
+        }
+        if (phase === 'response-wait') container.classList.add('avatar-processing');
+        else container.classList.remove('avatar-processing');
         if (!lifecycleToken || lifecycleToken.id !== requestId) {
           if (lifecycleToken) controller.cancel(now, 'site-lifecycle-replaced');
           lifecycleToken = controller.beginTurn(requestId, now);
@@ -249,6 +272,9 @@ async function mountAvatar(stage) {
       if (phase === 'listening-end' && lifecycleToken) {
         controller.hostEvent(lifecycleToken, phase, now);
         return;
+      }
+      if (phase === 'response-complete' || phase === 'cancel') {
+        container.classList.remove('avatar-processing');
       }
       if (phase === 'response-complete' && lifecycleToken) {
         controller.accept(lifecycleToken, {
@@ -265,6 +291,7 @@ async function mountAvatar(stage) {
     };
 
     activeMount = {stage, camera, dispose, driveLifecycle};
+    if (desiredLifecycle) driveLifecycle(desiredLifecycle);
     resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(stage);
     window.addEventListener('resize', resize, {passive: true});
@@ -305,7 +332,19 @@ function reconcileAvatar() {
 const documentObserver = new MutationObserver(reconcileAvatar);
 documentObserver.observe(document.documentElement, {childList: true, subtree: true});
 window.addEventListener('lotbi:home-shell-hydrated', reconcileAvatar);
-window.addEventListener(LIFECYCLE_EVENT, event => activeMount?.driveLifecycle(event.detail));
+window.addEventListener(LIFECYCLE_EVENT, event => {
+  const detail = event instanceof CustomEvent ? event.detail : undefined;
+  if (!detail || typeof detail.phase !== 'string' || typeof detail.requestId !== 'string') return;
+  if (detail.phase === 'listening-start' || detail.phase === 'response-wait') {
+    desiredLifecycle = Object.freeze({phase: detail.phase, requestId: detail.requestId});
+  } else if (
+    ['listening-end', 'response-complete', 'cancel'].includes(detail.phase)
+    && desiredLifecycle?.requestId === detail.requestId
+  ) {
+    desiredLifecycle = null;
+  }
+  activeMount?.driveLifecycle(detail);
+});
 window.addEventListener('pagehide', () => activeMount?.dispose(), {once: true});
 
 Object.defineProperty(window, '__lotbiSiteAvatar', {

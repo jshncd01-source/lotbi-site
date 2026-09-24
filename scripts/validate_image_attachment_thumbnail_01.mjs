@@ -131,7 +131,7 @@ assert.ok(
   'the uploaded attachment must carry its browser-local preview',
 );
 assert.match(runtime, /attachment-chip-thumb/, 'composer chips must render a thumbnail');
-assert.match(runtime, /appendChipThumbnail\(chip, item, safeAttachmentName\(item\.fileName\)\)/);
+assert.match(runtime, /appendChipThumbnail\(chip, item\)/);
 assert.match(runtime, /attachment-chip-pending/, 'a chosen image shows a thumbnail while it uploads');
 
 // The sent message renders the image itself, no longer a forced empty preview.
@@ -142,13 +142,16 @@ assert.ok(
 );
 assert.ok(runtime.includes('if (previewUrl) adoptAttachmentPreviewUrl(previewUrl);'), 'sending transfers preview ownership');
 assert.match(runtime, /message-attachment-card-image/);
-assert.match(runtime, /image\.alt = `첨부 이미지: \$\{name\}`/, 'thumbnails must not be decorative');
+assert.match(runtime, /image\.alt = presentation\.imageAlt/, 'thumbnails must keep a generic accessible label');
 assert.match(runtime, /if \(previewUrl && isPreviewableImageAttachment\(attachment\)\)/, 'only validated image types render as images');
 assert.ok(!runtime.includes("String(mediaType).startsWith('image/') && attachment && attachment.previewUrl"), 'the prefix-only image branch is replaced');
 
 // Non-image attachments keep the existing icon card.
 assert.match(runtime, /createAttachmentIcon\(attachment\)/);
-assert.match(runtime, /icon\.textContent = attachment && attachment\.mediaType === 'application\/pdf' \? 'PDF' : '파일'/);
+assert.match(runtime, /mediaType === 'application\/pdf' \? 'PDF' : '파일'/);
+assert.match(runtime, /attachmentDisplayPresentation\(attachment\)/);
+assert.match(runtime, /attachmentDisplayPresentation\(item\)/);
+assert.doesNotMatch(runtime, /safeAttachmentName\(item\.fileName\)/, 'composer must not display a private filename');
 
 // Lifecycle wiring.
 const clearSent = runtime.slice(runtime.indexOf('const clearSentAttachments'), runtime.indexOf('const discardPendingAttachments'));
@@ -167,14 +170,13 @@ assert.match(runtime, /if \(event instanceof PageTransitionEvent && event\.persi
 
 /* ---------------------------------------------------------------- 3. no leak of previewUrl */
 
-// previewUrl is UI-only: never persisted, never sent to Core, never logged.
-assert.ok(
-  runtime.includes("timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt)"),
-  'the persisted user record must still carry no attachment metadata',
-);
-assert.ok(runtime.includes('appendPersistedMessage(userRecord)'));
-assert.ok(runtime.includes('meta: {attachments: attachmentMeta}'), 'attachment details stay in the live DOM record only');
-assert.ok(!runtime.includes('persistedAttachments'));
+// previewUrl is UI-only. Reload retains only filename-private descriptors so
+// an image-only turn becomes a safe generic card instead of a broken image or
+// the internal placeholder sentence.
+assert.match(runtime, /const persistedAttachments = attachments\.map\(item => \(\{[\s\S]{0,220}mediaType: item\.mimeType/);
+assert.match(runtime, /appendPersistedMessage\(\{\.\.\.userRecord, meta: \{attachments: persistedAttachments\}\}\)/);
+assert.doesNotMatch(runtime, /persistedAttachments[\s\S]{0,220}(fileName|filename|previewUrl)/);
+assert.match(runtime, /meta\.attachments\.length && text === attachmentOnlyPlaceholder/);
 assert.ok(!/previewUrl/.test(storage), 'conversation storage must know nothing about previews');
 assert.ok(!/blob:/.test(runtime), 'no blob URL literal belongs in the conversation runtime');
 for (const line of runtime.split('\n')) {
@@ -290,8 +292,8 @@ if (!browser && process.env.REQUIRE_BROWSER === '1') {
 }
 
 const attachmentCard = (src, name) => (src
-  ? `<div class="message-attachment-card message-attachment-card-image"><img class="message-attachment-image" src="${src}" alt="첨부 이미지: ${name}" /><span class="message-attachment-name">${name}</span></div>`
-  : `<div class="message-attachment-card"><span class="message-attachment-icon" aria-hidden="true">PDF</span><span class="message-attachment-name">${name}</span></div>`);
+  ? `<div class="message-attachment-card message-attachment-card-image"><img class="message-attachment-image" src="${src}" alt="첨부 이미지" /></div>`
+  : `<div class="message-attachment-card"><span class="message-attachment-icon" aria-hidden="true">PDF</span><span class="message-attachment-name">PDF 문서</span></div>`);
 
 const imageList = (cards, imageCount) =>
   `<div class="message-attachment-list"${imageCount ? ` data-image-count="${imageCount}"` : ''} aria-label="첨부 파일">${cards.join('')}</div>`;
@@ -326,8 +328,8 @@ if (browser) {
 </div>
 <div class="chat-composer-stack">
   <div class="attachment-preview-strip">
-    <span class="attachment-chip attachment-chip-with-thumb" id="chip"><img class="attachment-chip-thumb" src="${wide}" alt="첨부 이미지: 21930.jpg" /><span class="attachment-chip-name">21930.jpg</span><span class="attachment-chip-meta">이미지 · 21KB</span><button type="button" class="attachment-chip-remove" aria-label="21930.jpg 첨부 제거">×</button></span>
-    <span class="attachment-chip attachment-chip-pending" id="pending"><img class="attachment-chip-thumb" src="${tall}" alt="첨부 이미지: 세로사진.png" /><span class="attachment-chip-name">세로사진.png</span><span class="attachment-chip-meta">업로드 중…</span></span>
+    <span class="attachment-chip attachment-chip-with-thumb" id="chip"><img class="attachment-chip-thumb" src="${wide}" alt="첨부 이미지" /><button type="button" class="attachment-chip-remove" aria-label="첨부 이미지 제거">×</button></span>
+    <span class="attachment-chip attachment-chip-pending" id="pending"><img class="attachment-chip-thumb" src="${tall}" alt="첨부 이미지" /><span class="attachment-chip-meta">업로드 중…</span></span>
   </div>
 </div></div></main></body></html>`;
 

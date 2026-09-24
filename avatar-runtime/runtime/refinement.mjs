@@ -1,4 +1,4 @@
-import {eyeWeights, smooth} from './animation.mjs';
+import {eyeWeights, smooth} from './animation.mjs?v=20260924-running1';
 import {deriveSpeechVariation,sampleSpeechVariation} from './speech-variation.mjs';
 
 // Presentation only. Call after controller.sample(t). The host owns listening,
@@ -35,11 +35,11 @@ export function sampleRefinement(controller,t,controls) {
   for(const side of ['L','R']) {
     const weights=eyeWeights(c,side),open=1-c['blink_'+side];
     const available=open*(1-Math.min(1,c.eye_surprised+c.eye_sad+c.eye_worried));
-    const listening=state==='listening'?1:0,focus=state==='thinking'?1:0;
+    const listening=state==='listening'?1:0,focus=['thinking','running'].includes(state)?1:0;
     const smile=Math.max(joy,completion)*(1-listening)*(1-focus);
     eyes[side]={...weights,Listening:listening*available,Focus:focus*available,Smile:smile*available};
   }
-  const task=state==='thinking';
+  const task=state==='thinking'||state==='running';
   return {controls:c,eyes,dots,
     listeningGlow:state==='listening'?(reduced?.3:.35+.08*Math.sin(t*2*Math.PI/3.5)):0,
     taskMix:task&&!reduced?.5+.5*Math.sin(t*2*Math.PI/4):.5,

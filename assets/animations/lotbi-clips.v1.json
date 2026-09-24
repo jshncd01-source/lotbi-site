@@ -159,6 +159,72 @@
         ]
       ]
     },
+    "running": {
+      "duration": 0.7,
+      "loop": true,
+      "peak_time": 0.35,
+      "keys": [
+        [
+          0,
+          {
+            "body_pitch_deg": 4,
+            "body_roll_deg": -1.5,
+            "arm_L_lift_deg": 18,
+            "arm_R_lift_deg": 18,
+            "arm_L_swing_deg": -13,
+            "arm_R_swing_deg": 13,
+            "hover_m": 0.001,
+            "display_glow": 0.3
+          }
+        ],
+        [
+          0.175,
+          {
+            "body_pitch_deg": 4.5,
+            "arm_L_lift_deg": 20,
+            "arm_R_lift_deg": 20,
+            "hover_m": 0.006,
+            "display_glow": 0.42
+          }
+        ],
+        [
+          0.35,
+          {
+            "body_pitch_deg": 4,
+            "body_roll_deg": 1.5,
+            "arm_L_lift_deg": 18,
+            "arm_R_lift_deg": 18,
+            "arm_L_swing_deg": 13,
+            "arm_R_swing_deg": -13,
+            "hover_m": 0.001,
+            "display_glow": 0.3
+          }
+        ],
+        [
+          0.525,
+          {
+            "body_pitch_deg": 4.5,
+            "arm_L_lift_deg": 20,
+            "arm_R_lift_deg": 20,
+            "hover_m": 0.006,
+            "display_glow": 0.42
+          }
+        ],
+        [
+          0.7,
+          {
+            "body_pitch_deg": 4,
+            "body_roll_deg": -1.5,
+            "arm_L_lift_deg": 18,
+            "arm_R_lift_deg": 18,
+            "arm_L_swing_deg": -13,
+            "arm_R_swing_deg": 13,
+            "hover_m": 0.001,
+            "display_glow": 0.3
+          }
+        ]
+      ]
+    },
     "speaking": {
       "duration": 3,
       "loop": true,

@@ -158,7 +158,7 @@ const click=n=>n.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:t
 window.fetch=async()=>new Response('{}',{status:503});
 const NS='install-theme-auto-02-test';
 try{
-const conversation=await import('/site-conversation.js?v=20260924-mapdeeplink1');
+const conversation=await import('/site-conversation.js?v=20260924-chatmedia3');
 root.innerHTML=\`${SKELETON}\`;
 localStorage.clear();sessionStorage.clear();
 document.body.dataset.siteAuthState='authenticated';
