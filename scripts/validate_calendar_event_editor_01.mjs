@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const {createGuestCalendarRepository} = await import('../site-calendar-guest.js');
-const {buildCalendarTemporal, createCalendarMutationController} = await import('../site-calendar-manager.js');
+const {buildCalendarTemporal, calendarItemActionPolicy, createCalendarMutationController} = await import('../site-calendar-manager.js');
 
 function memoryStorage() {
   const values = new Map();
@@ -83,6 +83,25 @@ assert.equal(requests[2].init.method, 'POST');
 assert.match(requests[2].url, /\/remove$/);
 assert.equal(requests[2].body.expected_revision, 3);
 
+
+const readOnlyResult = {
+  id: 'result-occurrence',
+  activity_id: mutation.activity_id,
+  source_kind: 'LIFE_RESULT',
+  allowed_actions: ['VIEW_SOURCE', 'HIDE', 'REMINDER_SETTINGS'],
+};
+assert.equal(calendarItemActionPolicy(readOnlyResult).readOnly, true);
+const networkCountBeforeReadOnly = requests.length;
+await assert.rejects(
+  auth.update(readOnlyResult, {title: '금지된 수정'}),
+  error => error?.status === 403 && error?.code === 'LIFE_ACTION_NOT_ALLOWED',
+);
+await assert.rejects(
+  auth.remove(readOnlyResult),
+  error => error?.status === 403 && error?.code === 'LIFE_ACTION_NOT_ALLOWED',
+);
+assert.equal(requests.length, networkCountBeforeReadOnly, 'read-only update/remove must fail before any network request');
+
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const legacy = fs.readFileSync('site-calendar-ui.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
@@ -120,7 +139,26 @@ for (const removed of ['calendar-editor-confirm-delete', '이 일정을 삭제�
 }
 assert.ok(!manager.includes('prompt('));
 assert.ok(!legacy.includes('prompt('));
+const readonlyStart = manager.indexOf('function calendarReadonlyDetailDialog');
+const readonlyEnd = manager.indexOf('function calendarEditorDialog', readonlyStart);
+assert.ok(readonlyStart >= 0 && readonlyEnd > readonlyStart, 'read-only detail dialog must exist separately from the editor');
+const readonlySource = manager.slice(readonlyStart, readonlyEnd);
+for (const token of [
+  'calendar-readonly-dialog',
+  '읽기 전용 일정',
+  '읽기 전용 일정 닫기',
+  "event.key === 'Escape'",
+  'opener instanceof HTMLElement',
+]) assert.ok(readonlySource.includes(token), `missing read-only dialog contract: ${token}`);
+for (const forbidden of ["createElement('form')", 'calendar-editor-save', 'calendar-editor-delete']) {
+  assert.ok(!readonlySource.includes(forbidden), `read-only detail must not expose editor mutation UI: ${forbidden}`);
+}
+assert.ok(manager.includes('if (item && calendarItemActionPolicy(item).readOnly)'));
+assert.ok(manager.includes('if (item && itemPolicy.canRemove)'));
+assert.ok(manager.includes('if (!item || itemPolicy.canUpdate) actions.prepend(save)'));
 assert.ok(css.includes('.calendar-editor-dialog'));
+assert.ok(css.includes('.calendar-readonly-dialog'));
+assert.ok(css.includes('.calendar-readonly-backdrop'));
 assert.ok(css.includes('.calendar-editor-body {'));
 assert.ok(css.includes('min-height: 0;'));
 assert.ok(css.includes('-webkit-overflow-scrolling: touch;'));
