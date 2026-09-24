@@ -460,7 +460,7 @@ assert.match(readyImageStyle, /opacity:\s*1\s*;/u);
 const orbitStyle = conversationStyles.match(/\.lotbi-place-orbit \{[^}]*\}/s)?.[0] || '';
 assert.match(orbitStyle, /position:\s*relative/u);
 assert.match(orbitStyle, /display:\s*block/u);
-assert.match(orbitStyle, /height:\s*304px/u);
+assert.match(orbitStyle, /height:\s*312px/u);
 assert.match(orbitStyle, /overflow:\s*hidden/u);
 assert.match(orbitStyle, /touch-action:\s*pan-y/u);
 assert.doesNotMatch(orbitStyle, /overflow-x:\s*auto|scroll-snap-type|scrollbar-width/u);
@@ -475,9 +475,9 @@ assert.match(orbitCardStyle, /transition:/u);
 
 const placeMediaStyle = conversationStyles.match(/\.lotbi-rich-card-place-media \{[^}]*\}/s)?.[0] || '';
 assert.match(placeMediaStyle, /aspect-ratio:\s*16 \/ 9/u);
-assert.match(conversationStyles, /@media \(max-width: 760px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*302px/u);
-assert.match(conversationStyles, /@media \(max-width: 390px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*300px/u);
-assert.match(conversationStyles, /@media \(max-width: 360px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*296px/u);
+assert.match(conversationStyles, /@media \(max-width: 760px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*312px/u);
+assert.match(conversationStyles, /@media \(max-width: 390px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*310px/u);
+assert.match(conversationStyles, /@media \(max-width: 360px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*306px/u);
 // Icon-only, but a finger still needs 44x44 to land on.
 assert.match(conversationStyles, /\.lotbi-rich-card-icon-action\s*\{[^}]*min-width:\s*44px[^}]*height:\s*44px/su);
 assert.doesNotMatch(conversationStyles, /\.lotbi-place-action-label\s*\{|\.lotbi-place-location-support\s*\{|\.lotbi-place-location-thumbnail\s*\{/u);
