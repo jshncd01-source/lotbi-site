@@ -1178,126 +1178,63 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const note = document.createElement('span'); note.textContent = '판매처에서 상세 정보 확인'; evidence.appendChild(note);
       }
       copy.appendChild(evidence);
-      const actions = document.createElement('div');
-      actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
-
-      const addActionLabel = (control, label) => {
-        const icon = document.createElement('span');
-        icon.className = 'lotbi-place-action-icon';
-        icon.setAttribute('aria-hidden', 'true');
-        const copyLabel = document.createElement('span');
-        copyLabel.className = 'lotbi-place-action-label';
-        copyLabel.textContent = label;
-        control.append(icon, copyLabel);
+      const actions = document.createElement('div'); actions.className = 'lotbi-rich-card-actions';
+      if (card.product_url) {
+        const detail = document.createElement('a'); detail.className = 'lotbi-rich-card-action'; detail.href = card.product_url;
+        detail.target = '_blank'; detail.rel = 'noopener noreferrer'; detail.referrerPolicy = 'no-referrer'; detail.textContent = '상세보기'; actions.appendChild(detail);
+      } else {
+        const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-rich-card-action'; detail.disabled = true;
+        detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
+      }
+      const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
+      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
+      const syncBoxLabel = () => {
+        const saved = isInLotbiBox(rich, card);
+        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+        box.setAttribute('aria-pressed', String(saved));
       };
-
-      const phoneHref = buildVerifiedPhoneHref(place);
-      if (phoneHref) {
-        const phone = document.createElement('a');
-        phone.className = 'lotbi-rich-card-action lotbi-phone-action';
-        phone.dataset.action = 'phone';
-        phone.dataset.phoneState = 'VERIFIED';
-        phone.href = phoneHref;
-        phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
-        phone.title = '전화 걸기';
-        phone.tabIndex = placeIndex === 0 ? 0 : -1;
-        addActionLabel(phone, '전화');
-        phone.addEventListener('click', event => {
-          if (placeIndex !== activeIndex) {
-            event.preventDefault();
-            setActiveIndex(placeIndex);
-            return;
-          }
-          phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
-          setStatus('전화 앱 연결을 시작합니다.');
-        });
-        actions.appendChild(phone);
-      }
-
-      const navigate = document.createElement('a');
-      navigate.className = 'lotbi-rich-card-action lotbi-naver-map-action';
-      navigate.href = buildNaverMapsWebSearchUrl(place);
-      navigate.target = '_blank';
-      navigate.rel = 'noopener noreferrer';
-      navigate.setAttribute('aria-label', `${place.name} 네이버 지도에서 열기`);
-      navigate.title = '네이버 지도에서 열기';
-      navigate.dataset.action = 'naver-map';
-      navigate.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionLabel(navigate, '네이버');
-      navigate.addEventListener('click', event => {
-        if (placeIndex !== activeIndex) {
-          event.preventDefault();
-          setActiveIndex(placeIndex);
+      syncBoxLabel();
+      box.addEventListener('click', () => {
+        const added = toggleLotbiBox(rich, card);
+        refreshLotbiBoxControls();
+        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
+      });
+      actions.appendChild(box);
+      const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
+      buy.disabled = rich.expired || card.available === false;
+      if (rich.expired) buy.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
+      else if (card.available === false) buy.title = '현재 판매 가능 상태가 아닙니다.';
+      buy.addEventListener('click', async () => {
+        if (richCardActionInFlight) return;
+        if (!sessionToken) {
+          richCardActionInFlight = true; buy.disabled = true; buy.textContent = '로그인 연결…';
+          try {
+            await beginGuestClaimingSiteHandoff(rich.originalText || rich.query || card.title);
+          } catch (error) {
+            buy.disabled = false; buy.textContent = '구매하기'; setStatus(userFacingErrorMessage(error));
+          } finally { richCardActionInFlight = false; }
           return;
         }
-        if (openPlaceInNaverMap(place)) event.preventDefault();
-      });
-      actions.appendChild(navigate);
-
-      if (place.navigationCapable) {
-        const kakaoNavi = document.createElement('a');
-        kakaoNavi.className = 'lotbi-rich-card-action lotbi-kakao-navi-action';
-        kakaoNavi.href = buildKakaoNaviHandoffUrl(place);
-        kakaoNavi.target = '_blank';
-        kakaoNavi.rel = 'noopener noreferrer';
-        kakaoNavi.setAttribute('aria-label', `${place.name} 카카오내비 길안내`);
-        kakaoNavi.title = '카카오내비 길안내';
-        kakaoNavi.dataset.action = 'kakao-navi';
-        kakaoNavi.tabIndex = placeIndex === 0 ? 0 : -1;
-        addActionLabel(kakaoNavi, '카카오');
-        kakaoNavi.addEventListener('click', event => {
-          if (placeIndex !== activeIndex) {
-            event.preventDefault();
-            setActiveIndex(placeIndex);
-            return;
-          }
-          if (openPlaceInKakaoNavi(place)) event.preventDefault();
-        });
-        actions.appendChild(kakaoNavi);
-      }
-
-      if (isTmapHandoffAvailable()) {
-        const tmap = document.createElement('a');
-        tmap.className = 'lotbi-rich-card-action lotbi-tmap-action';
-        tmap.href = '#';
-        tmap.rel = 'noopener noreferrer';
-        tmap.setAttribute('aria-label', `${place.name} T맵 길안내`);
-        tmap.title = 'T맵 길안내';
-        tmap.dataset.action = 'tmap';
-        tmap.dataset.tmapState = 'MOBILE_APP';
-        tmap.tabIndex = placeIndex === 0 ? 0 : -1;
-        addActionLabel(tmap, 'T맵');
-        tmap.addEventListener('click', event => {
-          event.preventDefault();
-          if (placeIndex !== activeIndex) {
-            setActiveIndex(placeIndex);
-            return;
-          }
-          openPlaceInTmap(place);
-        });
-        actions.appendChild(tmap);
-      }
-
-      const google = document.createElement('a');
-      google.className = 'lotbi-rich-card-action lotbi-google-maps-action';
-      google.href = buildGoogleMapsDirectionsUrl(place);
-      google.target = '_blank';
-      google.rel = 'noopener noreferrer';
-      google.setAttribute('aria-label', `${place.name} Google Maps에서 열기`);
-      google.title = 'Google Maps에서 열기';
-      google.dataset.action = 'google-maps';
-      google.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionLabel(google, 'Google');
-      google.addEventListener('click', event => {
-        if (placeIndex !== activeIndex) {
-          event.preventDefault();
-          setActiveIndex(placeIndex);
+        if (!rich.resolutionId || !rich.resolutionHash) {
+          setStatus('구매 전 상품을 다시 검색해 최신 판매처 정보를 확인해야 합니다.');
           return;
         }
-        if (openPlaceInGoogleMaps(place)) event.preventDefault();
+        richCardActionInFlight = true; buy.disabled = true; buy.textContent = '확인 중…';
+        try {
+          const review = await reviewProductCard(sessionToken, {resolutionId: rich.resolutionId, resolutionHash: rich.resolutionHash, candidateIndex: card.candidate_index});
+          const currentPrice = formatCardMoney(review.card.price, review.card.currency);
+          const reviewText = review.priceChanged
+            ? '판매처의 현재 가격이 바뀌어 ' + currentPrice + '으로 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.'
+            : '판매처에서 현재 가격 ' + currentPrice + '과 상품 상태를 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.';
+          const meta = {status: 'PURCHASE_REVIEW_REQUIRED', responseMode: 'RICH_PRODUCT_REVIEW'};
+          const reviewRecord = timestampedConversationMessage({role: 'assistant', text: reviewText, meta});
+          appendConversationRecord(reviewRecord); appendPersistedMessage(reviewRecord);
+          buy.textContent = '구매 검토됨'; setStatus('구매 전 최신 상품 정보를 확인했습니다. 결제는 실행하지 않았습니다.');
+        } catch (error) {
+          buy.textContent = '다시 확인'; buy.disabled = false; setStatus(userFacingErrorMessage(error));
+        } finally { richCardActionInFlight = false; }
       });
-      actions.appendChild(google);
-
+      actions.appendChild(buy);
       item.append(media, copy, actions); rail.appendChild(item);
     }
     return rail;
