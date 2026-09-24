@@ -397,6 +397,11 @@ try{
     if(getComputedStyle(document.body).overflow!=='hidden')throw new Error('mobile editor must lock background scroll');
     if(mobileActionsRect.bottom>mobileEditorRect.bottom+1)throw new Error('mobile editor action footer unreachable');
     if(innerWidth<=520&&mobileEditorRect.height<innerHeight-2)throw new Error('phone editor must use the visual viewport');
+    const detailsSummary=mobileEditor.querySelector('.calendar-editor-details > summary');
+    const editorDetails=mobileEditor.querySelector('.calendar-editor-details');
+    if(!(detailsSummary instanceof HTMLElement)||!(editorDetails instanceof HTMLDetailsElement))throw new Error('mobile optional details disclosure missing');
+    click(detailsSummary);
+    await wait(()=>editorDetails.open,'mobile optional details open');
     const merchant=modal.querySelector('.calendar-editor-merchant');
     if(!(merchant instanceof HTMLInputElement))throw new Error('mobile lower field missing');
     merchant.focus();
