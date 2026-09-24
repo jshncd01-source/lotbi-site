@@ -125,8 +125,9 @@ const THREAD_TITLE_LIMIT = 60;
 // which is exactly where the profile modal's removed account-management button
 // used to point.
 const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
-const PHOTO_BYTES_LIMIT = 2 * 1024 * 1024;
-const PHOTO_DIMENSION_LIMIT = 4096;
+const PHOTO_BYTES_LIMIT = 20 * 1024 * 1024;
+const PHOTO_DIMENSION_LIMIT = 8192;
+const PHOTO_PIXEL_LIMIT = 40_000_000;
 const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
   ['orange', '오렌지'], ['pink', '분홍'], ['gray', '회색'],
@@ -2720,12 +2721,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     actions.append(cancel, remove); content.appendChild(actions); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   const readProfilePhoto = file => new Promise((resolve, reject) => {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return reject(new Error('JPEG, PNG, WebP 이미지만 선택할 수 있습니다.'));
-    if (file.size > PHOTO_BYTES_LIMIT) return reject(new Error('프로필 이미지는 2MB 이하여야 합니다.'));
+    const mime = typeof file?.type === 'string' ? file.type.split(';', 1)[0].trim().toLowerCase() : '';
+    // The chooser is image-only, but a provider can still return stale or spoofed
+    // metadata. Fail closed on MIME first, then require the browser image decoder
+    // to successfully decode the bytes before anything is persisted.
+    if (!mime.startsWith('image/') || mime === 'image/svg+xml') return reject(new Error('프로필에는 사진만 사용할 수 있어요.'));
+    if (file.size > PHOTO_BYTES_LIMIT) return reject(new Error('프로필 사진은 20MB 이하여야 합니다.'));
     const objectUrl = URL.createObjectURL(file); const image = new Image();
     image.onload = () => {
       try {
-        if (image.naturalWidth > PHOTO_DIMENSION_LIMIT || image.naturalHeight > PHOTO_DIMENSION_LIMIT) throw new Error('이미지 크기는 가로·세로 4096px 이하여야 합니다.');
+        if (
+          image.naturalWidth <= 0
+          || image.naturalHeight <= 0
+          || image.naturalWidth > PHOTO_DIMENSION_LIMIT
+          || image.naturalHeight > PHOTO_DIMENSION_LIMIT
+          || image.naturalWidth * image.naturalHeight > PHOTO_PIXEL_LIMIT
+        ) throw new Error('사진 크기가 너무 큽니다. 다른 사진을 선택해 주세요.');
         const size = Math.min(image.naturalWidth, image.naturalHeight); const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 256; const context = canvas.getContext('2d', {alpha: false});
         if (!context) throw new Error('프로필 이미지를 처리하지 못했습니다.');
@@ -2746,7 +2757,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
-    const photo = document.createElement('input'); photo.type = 'file'; photo.accept = 'image/jpeg,image/png,image/webp'; photo.className = 'sr-only'; photoLabel.appendChild(photo);
+    const photo = document.createElement('input'); photo.type = 'file'; photo.accept = 'image/*'; photo.className = 'sr-only'; photoLabel.appendChild(photo);
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
 
     const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
