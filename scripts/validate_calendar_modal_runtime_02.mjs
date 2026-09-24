@@ -368,6 +368,10 @@ try{
         right:openedRect.right,
         presentation:opened.dataset.presentation||'',
         backdrop:Boolean(layout.querySelector('[data-calendar-day-sheet-backdrop]')),
+        // Opening a FLOW detail may scroll the Calendar content so its actions
+        // are immediately reachable. Compare against the grid's position after
+        // that scroll, not the DOMRect cached before the user tapped the date.
+        gridBottom:grid.getBoundingClientRect().bottom,
       };
     }
     // Mobile detail is in normal flow below the month. It may require vertical
