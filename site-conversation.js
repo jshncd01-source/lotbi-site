@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 56326)
+Total output lines: 4159
+
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260924-assurance1';
 import {buildKakaoMapWebSearchUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoMapPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=20260924-mapdeeplink1';
@@ -423,6 +426,22 @@ function createAttachmentIcon(attachment) {
   icon.setAttribute('aria-hidden', 'true');
   icon.textContent = attachment && attachment.mediaType === 'application/pdf' ? 'PDF' : '파일';
   return icon;
+}
+
+export function petConversationAction(text, attachments = []) {
+  const value = typeof text === 'string' ? text.trim() : '';
+  const hasAnimal = /(강아지|고양이|반려동물|동물|우리\s*개|우리\s*냥)/u.test(value);
+  const hasImage = Array.isArray(attachments)
+    && attachments.some(item => typeof item?.mimeType === 'string' && item.mimeType.startsWith('image/'));
+  const foundIntent = /(길에서|발견했|발견한|주인을\s*찾|보호\s*중|잃어버린\s*애인지\s*찾)/u.test(value);
+  if ((hasAnimal || hasImage) && foundIntent) {
+    return Object.freeze({target: 'found', label: '발견 제보하기'});
+  }
+  const sosIntent = /(잃어버렸|잃어버린\s*(?:것\s*같|것\s*같아)|없어졌|사라졌|실종)/u.test(value);
+  if (hasAnimal && sosIntent) {
+    return Object.freeze({target: 'sos', label: '실종 신고하기'});
+  }
+  return null;
 }
 
 function createMessage(role, text, meta = {}) {
@@ -1881,572 +1900,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       status.textContent = '저장 전 확인 필요';
       const review = document.createElement('button');
       review.type = 'button';
-      review.className = 'conversation-calendar-action-button';
-      review.textContent = '초안 확인 · 편집';
-      review.addEventListener('click', () => void openEditor());
-      controls.appendChild(review);
-      row.append(summary, status, controls);
-      return row;
-    }
-
-    status.textContent = '캘린더에 등록할까요?';
-    const register = document.createElement('button');
-    register.type = 'button';
-    register.className = 'conversation-calendar-action-button conversation-calendar-action-button-primary';
-    register.textContent = '등록';
-    register.setAttribute('aria-label', `${draft.title} 일정을 캘린더에 등록`);
-    const decline = document.createElement('button');
-    decline.type = 'button';
-    decline.className = 'conversation-calendar-action-button';
-    decline.textContent = '아니요';
-    decline.setAttribute('aria-label', `${draft.title} 일정을 캘린더에 등록하지 않음`);
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.className = 'conversation-calendar-action-button';
-    edit.textContent = '편집';
-    edit.setAttribute('aria-label', `${draft.title} 일정을 편집해서 등록`);
-
-    let submitting = false;
-    const settle = text => {
-      row.dataset.calendarDraft = 'settled';
-      status.textContent = text;
-      controls.replaceChildren();
-    };
-
-    register.addEventListener('click', async () => {
-      if (!sessionToken) {
-        try {
-          await beginGuestClaimingSiteHandoff('캘린더 등록');
-        } catch (error) {
-          setStatus(error instanceof Error ? error.message : '로그인 연결을 시작하지 못했습니다.');
-        }
-        return;
-      }
-      // Disabling the buttons is courtesy, not the duplicate guard: the write
-      // identity is derived from the booking, so a second press that slips
-      // through replays the first one instead of writing a second entry.
-      if (submitting) return;
-      submitting = true;
-      register.disabled = true;
-      decline.disabled = true;
-      edit.disabled = true;
-      status.textContent = '캘린더에 등록하는 중…';
-
-      const timezone = draftLocalTimezone();
-      const outcome = await registerCalendarDraft(draft, {sessionToken, timezone});
-
-      if (outcome.state === CALENDAR_DRAFT_WRITE_STATE.REGISTERED) {
-        const result = {
-          scope: 'AUTH',
-          state: 'REGISTERED',
-          title: outcome.result.title,
-          dateHint: outcome.result.dateHint,
-          timezone: outcome.result.timezone,
-          activityId: outcome.result.activityId,
-          occurrenceId: outcome.result.occurrenceId,
-        };
-        settleConversationCalendarDraft(draft.dedupeFingerprint, result);
-        const registered = createConversationCalendarResult(result);
-        if (registered && row.isConnected) row.replaceWith(registered);
-        else settle('✓ 캘린더에 등록했습니다');
-        // Whatever Calendar surface is mounted refreshes itself, so the day the
-        // owner just saved onto is already right when they look at it.
-        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
-        setStatus('캘린더에 일정을 등록했습니다.');
-        return;
-      }
-
-      if (outcome.state === CALENDAR_DRAFT_WRITE_STATE.ALREADY_REGISTERED) {
-        settleConversationCalendarDraft(draft.dedupeFingerprint, null);
-        settle('이미 등록된 일정입니다');
-        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
-        setStatus('같은 일정이 이미 캘린더에 있습니다.');
-        return;
-      }
-
-      // A failed save is a failed save — the conversation and the reply the
-      // owner actually asked for stay exactly as they were.
-      submitting = false;
-      register.disabled = false;
-      decline.disabled = false;
-      edit.disabled = false;
-      status.textContent = outcome.error?.message || '일정을 등록하지 못했습니다.';
-    });
-
-    decline.addEventListener('click', () => {
-      if (submitting) return;
-      settleConversationCalendarDraft(draft.dedupeFingerprint, null);
-      settle('등록하지 않았습니다');
-    });
-
-    edit.addEventListener('click', () => {
-      if (submitting) return;
-      void openEditor();
-    });
-
-    controls.append(register, decline, edit);
-    row.append(summary, status, controls);
-    return row;
-  };
-
-
-  const persistConversationCalendarResult = value => {
-    const result = normalizeConversationCalendarResult(value);
-    if (!result) return null;
-    const key = calendarResultKey(result);
-    let changed = false;
-    for (const record of state.threads) {
-      if (!Array.isArray(record.messages)) continue;
-      record.messages = record.messages.map(message => {
-        const current = normalizeConversationCalendarResult(message?.meta?.calendarResult);
-        if (!current || calendarResultKey(current) !== key) return message;
-        changed = true;
-        return {...message, meta: {...message.meta, calendarResult: result}};
-      });
-      if (changed) record.updatedAt = Date.now();
-    }
-    if (changed) {
-      sortThreads();
-      saveState();
-      renderRecent();
-    }
-    return result;
-  };
-
-  const normalizeConversationCalendarItem = value => {
-    if (!value || typeof value !== 'object') return null;
-    if (value.kind === 'ACTION') {
-      const action = normalizePersistedCalendarAction(value.action);
-      return action ? Object.freeze({kind: 'ACTION', action}) : null;
-    }
-    if (value.kind === 'PARTIAL') {
-      try {
-        const candidate = normalizeCalendarPartialCandidate(value.candidate);
-        return candidate ? Object.freeze({kind: 'PARTIAL', candidate}) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  };
-
-  const recoverConversationCalendarItemAfterReload = value => {
-    const item = normalizeConversationCalendarItem(value);
-    if (!item) return null;
-    if (item.kind === 'PARTIAL') return item;
-    const action = recoverCalendarActionAfterReload(item.action);
-    return action ? Object.freeze({kind: 'ACTION', action}) : null;
-  };
-
-  const conversationCalendarItemsFromResponse = (response, scope) => {
-    const set = response?.calendarCandidateSet;
-    if (!set || !Array.isArray(set.candidates)) return [];
-    return set.candidates.map(member => {
-      if (member?.kind === 'COMPLETE') {
-        const action = createAvailableCalendarAction(member.candidate, {scope, ownerNamespace: namespace});
-        return action ? Object.freeze({kind: 'ACTION', action}) : null;
-      }
-      if (member?.kind === 'PARTIAL') {
-        try {
-          const candidate = normalizeCalendarPartialCandidate(member.candidate);
-          return candidate ? Object.freeze({kind: 'PARTIAL', candidate}) : null;
-        } catch {
-          return null;
-        }
-      }
-      return null;
-    }).filter(Boolean).slice(0, 4);
-  };
-
-  const persistConversationCalendarAction = actionValue => {
-    const action = normalizePersistedCalendarAction(actionValue);
-    if (!action) return null;
-    let changed = false;
-    for (const record of state.threads) {
-      if (!Array.isArray(record.messages)) continue;
-      let recordChanged = false;
-      record.messages = record.messages.map(message => {
-        if (!message?.meta || typeof message.meta !== 'object') return message;
-        let messageChanged = false;
-        const nextMeta = {...message.meta};
-        if (nextMeta.calendarAction?.actionId === action.actionId) {
-          nextMeta.calendarAction = action;
-          messageChanged = true;
-        }
-        if (Array.isArray(nextMeta.calendarItems)) {
-          const nextItems = nextMeta.calendarItems.map(item => {
-            if (item?.kind !== 'ACTION' || item?.action?.actionId !== action.actionId) return item;
-            messageChanged = true;
-            return Object.freeze({kind: 'ACTION', action});
-          });
-          if (messageChanged) nextMeta.calendarItems = nextItems;
-        }
-        if (!messageChanged) return message;
-        changed = true;
-        recordChanged = true;
-        return {...message, meta: nextMeta};
-      });
-      if (recordChanged) record.updatedAt = Date.now();
-    }
-    if (changed) {
-      sortThreads();
-      saveState();
-      renderRecent();
-    }
-    return action;
-  };
-
-  const calendarPartialCandidateSummary = candidate => {
-    const localDate = candidate?.temporal?.localDate || '';
-    const localTime = candidate?.temporal?.localTime || '';
-    if (localDate) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
-      if (match) return `${Number(match[1])}년 ${Number(match[2])}월 ${Number(match[3])}일 · 시간 필요`;
-      return `${localDate} · 시간 필요`;
-    }
-    if (localTime) {
-      const match = /^(\d{2}):(\d{2}):\d{2}$/.exec(localTime);
-      if (match) {
-        const hour = Number(match[1]);
-        const period = hour < 12 ? '오전' : '오후';
-        const displayHour = hour % 12 || 12;
-        const minute = Number(match[2]);
-        return `${period} ${displayHour}시${minute ? ` ${minute}분` : ''} · 날짜 필요`;
-      }
-      return `${localTime} · 날짜 필요`;
-    }
-    return '날짜와 시간을 확인해 주세요';
-  };
-
-  const calendarCandidateSummary = candidate => {
-    const value = candidate?.temporal?.localDatetime || '';
-    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d{2}$/.exec(value);
-    if (!match) return value;
-    const hour = Number(match[4]);
-    const period = hour < 12 ? '오전' : '오후';
-    const displayHour = hour % 12 || 12;
-    const minute = Number(match[5]);
-    const minuteText = minute ? ` ${minute}분` : '';
-    return `${Number(match[1])}년 ${Number(match[2])}월 ${Number(match[3])}일 ${period} ${displayHour}시${minuteText}`;
-  };
-
-  const viewConversationCalendarAction = async (actionValue, row, render) => {
-    const action = normalizePersistedCalendarAction(actionValue);
-    if (!action || (action.state !== 'SUCCESS' && action.state !== 'DELETED') || !action.result) return;
-    if (action.state === 'DELETED') {
-      setStatus('삭제된 일정입니다.');
-      return;
-    }
-    const opened = await openCalendar('month', {
-      deepOpen: Object.freeze({
-        scope: action.scope,
-        activityId: action.result.activityId || '',
-        occurrenceId: action.result.occurrenceId || '',
-        guestEventId: action.result.guestEventId || '',
-        dateHint: action.result.dateHint,
-        timezone: action.result.timezone,
-      }),
-      restoreConversation: true,
-    });
-    if (opened?.deepOpenState === 'deleted') {
-      const deleted = Object.freeze({...action, state: 'DELETED'});
-      persistConversationCalendarAction(deleted);
-      if (row.isConnected) render(deleted);
-      setStatus('삭제된 일정입니다.');
-    }
-  };
-
-  const executeConversationCalendarAction = async (actionValue, row, render) => {
-    const current = normalizePersistedCalendarAction(actionValue);
-    if (!current || current.state === 'SUCCESS' || current.state === 'DELETED' || current.state === 'IN_FLIGHT') return;
-    const inFlightAction = calendarActionInFlight(current);
-    if (!inFlightAction) return;
-    persistConversationCalendarAction(inFlightAction);
-    render(inFlightAction);
-    setStatus(current.state === 'UNKNOWN_RESULT' ? '일정 등록 결과를 확인하고 있습니다.' : '일정을 등록하고 있습니다.');
-    const result = await runCalendarAction(inFlightAction, {
-      sessionToken,
-      currentNamespace: namespace,
-      storage,
-    });
-    if (!row.isConnected || !result) return;
-    const persisted = persistConversationCalendarAction(result) || result;
-    render(persisted);
-    if (persisted.state === 'SUCCESS') {
-      window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
-      setStatus('캘린더에 등록했습니다.');
-    } else if (persisted.state === 'UNKNOWN_RESULT') {
-      setStatus('등록 결과를 아직 확인하지 못했습니다. 같은 요청으로 결과를 확인할 수 있습니다.');
-    } else {
-      setStatus(persisted.lastError?.message || '일정을 등록하지 못했습니다.');
-    }
-  };
-
-  const viewConversationCalendarResult = async (resultValue, row, render) => {
-    const result = normalizeConversationCalendarResult(resultValue);
-    if (!result) return;
-    if (result.state === 'DELETED') {
-      setStatus('삭제된 일정입니다.');
-      return;
-    }
-    const opened = await openCalendar('month', {
-      deepOpen: Object.freeze({
-        scope: result.scope,
-        activityId: result.activityId || '',
-        occurrenceId: result.occurrenceId || '',
-        guestEventId: result.guestEventId || '',
-        dateHint: result.dateHint,
-        timezone: result.timezone,
-      }),
-      restoreConversation: true,
-    });
-    if (opened?.deepOpenState === 'deleted') {
-      const deleted = Object.freeze({...result, state: 'DELETED'});
-      persistConversationCalendarResult(deleted);
-      if (row.isConnected) render(deleted);
-      setStatus('삭제된 일정입니다.');
-    }
-  };
-
-  const createConversationCalendarResult = resultValue => {
-    const initial = normalizeConversationCalendarResult(resultValue);
-    if (!initial) return null;
-    const row = document.createElement('section');
-    row.className = 'conversation-calendar-action';
-    row.dataset.calendarResult = calendarResultKey(initial);
-    row.setAttribute('aria-label', '등록된 캘린더 일정');
-
-    const render = nextValue => {
-      const result = normalizeConversationCalendarResult(nextValue);
-      if (!result) { row.remove(); return; }
-      const summary = document.createElement('div');
-      summary.className = 'conversation-calendar-action-summary';
-      const icon = document.createElement('span');
-      icon.className = 'conversation-calendar-action-icon';
-      icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = '📅';
-      const copy = document.createElement('div');
-      copy.className = 'conversation-calendar-action-copy';
-      const title = document.createElement('strong'); title.textContent = result.title;
-      const when = document.createElement('span'); when.textContent = result.dateHint;
-      const zone = document.createElement('small'); zone.textContent = result.timezone;
-      copy.append(title, when, zone);
-      summary.append(icon, copy);
-
-      const status = document.createElement('div');
-      status.className = 'conversation-calendar-action-status';
-      status.setAttribute('role', 'status');
-      status.setAttribute('aria-live', 'polite');
-      const controls = document.createElement('div');
-      controls.className = 'conversation-calendar-action-controls';
-      if (result.state === 'DELETED') {
-        status.textContent = '삭제된 일정입니다';
-      } else {
-        status.textContent = '✓ 등록됨';
-        const view = document.createElement('button');
-        view.type = 'button';
-        view.className = 'conversation-calendar-action-button';
-        view.textContent = '캘린더에서 보기';
-        view.addEventListener('click', () => void viewConversationCalendarResult(result, row, render));
-        controls.appendChild(view);
-      }
-      row.replaceChildren(summary, status, controls);
-    };
-    render(initial);
-    return row;
-  };
-
-  const createConversationCalendarPartial = candidateValue => {
-    let candidate;
-    try {
-      candidate = normalizeCalendarPartialCandidate(candidateValue);
-    } catch {
-      return null;
-    }
-    if (!candidate) return null;
-    const row = document.createElement('section');
-    row.className = 'conversation-calendar-action conversation-calendar-partial';
-    row.dataset.calendarCandidateId = candidate.candidateId;
-    row.setAttribute('aria-label', '추가 정보가 필요한 캘린더 일정 후보');
-
-    const summary = document.createElement('div');
-    summary.className = 'conversation-calendar-action-summary';
-    const icon = document.createElement('span');
-    icon.className = 'conversation-calendar-action-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = '📅';
-    const copy = document.createElement('div');
-    copy.className = 'conversation-calendar-action-copy';
-    const title = document.createElement('strong');
-    title.textContent = candidate.title;
-    const when = document.createElement('span');
-    when.textContent = calendarPartialCandidateSummary(candidate);
-    const zone = document.createElement('small');
-    zone.textContent = candidate.temporal.timezoneName;
-    copy.append(title, when, zone);
-    summary.append(icon, copy);
-
-    const status = document.createElement('div');
-    status.className = 'conversation-calendar-action-status';
-    status.setAttribute('role', 'status');
-    status.setAttribute('aria-live', 'polite');
-    status.textContent = candidate.missingFields.includes('time')
-      ? '등록하려면 시간을 알려주세요.'
-      : '등록하려면 날짜를 알려주세요.';
-
-    const guide = document.createElement('div');
-    guide.className = 'conversation-calendar-partial-guide';
-    guide.textContent = '빠진 정보를 대화에서 알려주면 일정 후보를 다시 확인할 수 있어요.';
-    row.replaceChildren(summary, status, guide);
-    return row;
-  };
-
-  const createConversationCalendarAction = actionValue => {
-    const initial = normalizePersistedCalendarAction(actionValue);
-    if (!initial) return null;
-    const row = document.createElement('section');
-    row.className = 'conversation-calendar-action';
-    row.dataset.calendarActionId = initial.actionId;
-    row.setAttribute('aria-label', '캘린더 일정 작업');
-
-    const render = nextValue => {
-      const action = normalizePersistedCalendarAction(nextValue);
-      if (!action) {
-        row.remove();
-        return;
-      }
-      row.dataset.calendarActionState = action.state;
-      const summary = document.createElement('div');
-      summary.className = 'conversation-calendar-action-summary';
-      const icon = document.createElement('span');
-      icon.className = 'conversation-calendar-action-icon';
-      icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = '📅';
-      const copy = document.createElement('div');
-      copy.className = 'conversation-calendar-action-copy';
-      const title = document.createElement('strong');
-      title.textContent = action.candidate.title;
-      const when = document.createElement('span');
-      when.textContent = calendarCandidateSummary(action.candidate);
-      const zone = document.createElement('small');
-      zone.textContent = action.candidate.temporal.timezoneName;
-      copy.append(title, when, zone);
-      summary.append(icon, copy);
-
-      const status = document.createElement('div');
-      status.className = 'conversation-calendar-action-status';
-      status.setAttribute('role', 'status');
-      status.setAttribute('aria-live', 'polite');
-      const controls = document.createElement('div');
-      controls.className = 'conversation-calendar-action-controls';
-
-      if (action.state === 'AVAILABLE') {
-        const add = document.createElement('button');
-        add.type = 'button'; add.className = 'conversation-calendar-action-button';
-        add.textContent = '캘린더에 등록';
-        add.setAttribute('aria-label', `${action.candidate.title} 일정을 캘린더에 등록`);
-        add.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
-        controls.appendChild(add);
-      } else if (action.state === 'IN_FLIGHT') {
-        status.textContent = '등록 중…';
-        row.setAttribute('aria-busy', 'true');
-        const pending = document.createElement('button');
-        pending.type = 'button'; pending.className = 'conversation-calendar-action-button'; pending.disabled = true; pending.textContent = '등록 중…';
-        controls.appendChild(pending);
-      } else if (action.state === 'SUCCESS') {
-        status.textContent = '✓ 등록됨';
-        const view = document.createElement('button');
-        view.type = 'button'; view.className = 'conversation-calendar-action-button';
-        view.textContent = '캘린더에서 보기';
-        view.addEventListener('click', () => void viewConversationCalendarAction(action, row, render));
-        controls.appendChild(view);
-      } else if (action.state === 'UNKNOWN_RESULT') {
-        status.textContent = '등록 결과를 확인하고 있어요';
-        const verify = document.createElement('button');
-        verify.type = 'button'; verify.className = 'conversation-calendar-action-button';
-        verify.textContent = '결과 확인';
-        verify.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
-        controls.appendChild(verify);
-      } else if (action.state === 'DEFINITE_FAILURE') {
-        status.textContent = action.lastError?.message || '일정을 등록하지 못했습니다.';
-        const retry = document.createElement('button');
-        retry.type = 'button'; retry.className = 'conversation-calendar-action-button';
-        retry.textContent = '다시 시도';
-        retry.addEventListener('click', () => void executeConversationCalendarAction(action, row, render));
-        controls.appendChild(retry);
-      } else if (action.state === 'DELETED') {
-        status.textContent = '삭제된 일정입니다';
-      }
-      if (action.state !== 'IN_FLIGHT') row.removeAttribute('aria-busy');
-      row.replaceChildren(summary, status, controls);
-    };
-    render(initial);
-    return row;
-  };
-
-  const messageNode = message => {
-    const node = createMessage(message.role, message.text, message.meta || {});
-    const rich = compactRichProductMeta(message.meta?.richProduct);
-    const place = normalizedPersistedPlaceResult(message.meta?.placeResult);
-    if (message.role === 'assistant' && rich) {
-      const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
-    }
-    if (message.role === 'assistant' && place) {
-      const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
-    }
-    if (message.role === 'assistant' && Array.isArray(message.meta?.calendarItems)) {
-      for (const rawItem of message.meta.calendarItems) {
-        const item = normalizeConversationCalendarItem(rawItem);
-        if (!item) continue;
-        const calendarNode = item.kind === 'ACTION'
-          ? createConversationCalendarAction(item.action)
-          : createConversationCalendarPartial(item.candidate);
-        if (calendarNode) node.appendChild(calendarNode);
-      }
-    } else if (message.role === 'assistant' && message.meta?.calendarAction) {
-      const calendarAction = createConversationCalendarAction(message.meta.calendarAction);
-      if (calendarAction) node.appendChild(calendarAction);
-    }
-    if (message.role === 'assistant' && message.meta?.calendarResult) {
-      const calendarResult = createConversationCalendarResult(message.meta.calendarResult);
-      if (calendarResult) node.appendChild(calendarResult);
-    }
-    if (message.role === 'assistant' && message.meta?.calendarDraft) {
-      const calendarDraft = createConversationCalendarDraft(message.meta.calendarDraft);
-      if (calendarDraft) node.appendChild(calendarDraft);
-    }
-    if (message.role === 'assistant') {
-      const actions = createMessageActions(message.text, setStatus);
-      if (actions) node.appendChild(actions);
-    }
-    return node;
-  };
-  const appendConversationRecord = (message, options = {}) => {
-    if (shouldShowConversationSeparator(lastRenderedCreatedAt, message?.createdAt)) {
-      const separator = createConversationSeparator(message.createdAt);
-      if (separator) appendNode(separator, {suppressScroll: true});
-    }
-    if (Number.isFinite(Number(message?.createdAt)) && Number(message.createdAt) > 0) {
-      lastRenderedCreatedAt = Number(message.createdAt);
-    }
-    return appendNode(messageNode(message), options);
-  };
-  const renderActiveThread = () => {
-    // Thumbnails live only in the document that rendered them; rebuilding the
-    // transcript drops those nodes, so their object URLs are released here.
-    releaseRenderedPreviewUrls();
-    restoreAvatarHome(); thread.replaceChildren();
-    lastRenderedCreatedAt = undefined;
-    const record = threadRecord();
-    if (!record || !record.messages.length) { showBlankHome(); return; }
-    showThread();
-    for (const message of record.messages) {
-      appendConversationRecord(message, {suppressScroll: true});
-    }
-    scrollThread();
-  };
-  const closeMobileDrawer = () => {
-    const close = document.querySelector('[data-mobile-nav-close]');
+      review.clas…6326 tokens truncated…t.querySelector('[data-mobile-nav-close]');
     if (document.body.classList.contains('nav-drawer-open') && close instanceof HTMLButtonElement) close.click();
   };
   const activateThread = id => {
@@ -2724,7 +2178,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
-  const openPetFamily = async () => {
+  const openPetFamily = async (initialSurface = 'pets') => {
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell(
       '반려동물',
@@ -2743,12 +2197,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260924-petv2draft1');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260924-petv2profile1');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
+        initialSurface,
       });
       releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
@@ -3595,6 +3050,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
+    const suggestedPetAction = petConversationAction(message, attachments);
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || anonymousConversationNamespace());
     const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
@@ -3617,7 +3073,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
-      const record = timestampedConversationMessage({role: 'assistant', text: local, meta: {status: 'ANSWERED', responseMode: 'LOCAL_DETERMINISTIC'}});
+      const record = timestampedConversationMessage({
+        role: 'assistant',
+        text: local,
+        meta: {
+          status: 'ANSWERED',
+          responseMode: 'LOCAL_DETERMINISTIC',
+          ...(suggestedPetAction ? {petAction: suggestedPetAction} : {}),
+        },
+      });
       appendConversationRecord(record); appendPersistedMessage(record);
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt));
       const requestsAfter = resourceCounts();
@@ -3718,6 +3182,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        if (suggestedPetAction) meta.petAction = suggestedPetAction;
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
         const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
         if (calendarItems.length) {
@@ -3821,6 +3286,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      if (suggestedPetAction) meta.petAction = suggestedPetAction;
       if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
@@ -4046,6 +3512,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (petFamilyTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       void openPetFamily();
+      return;
+    }
+    const petChatAction = target?.closest('[data-pet-chat-action]');
+    if (petChatAction instanceof HTMLButtonElement) {
+      event.preventDefault();
+      void openPetFamily(petChatAction.dataset.petChatAction || 'pets');
       return;
     }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');

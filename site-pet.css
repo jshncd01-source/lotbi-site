@@ -104,6 +104,121 @@
   background: var(--lotbi-surface-primary, #fff);
 }
 
+.pet-profile-thumbnail {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--lotbi-surface-muted, #eef1f5);
+  display: grid;
+  place-items: center;
+}
+
+.pet-profile-thumbnail-image,
+.pet-candidate-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pet-profile-thumbnail-loading,
+.pet-candidate-photo-loading {
+  color: var(--lotbi-text-muted, #687386);
+  font-size: 0.8rem;
+}
+
+.pet-profile-age,
+.pet-profile-family,
+.pet-profile-identity,
+.pet-profile-sos,
+.pet-profile-resolved,
+.pet-profile-birthday {
+  margin: 5px 0 0;
+  color: var(--lotbi-text-muted, #596579);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.pet-profile-sos { color: #b42318; font-weight: 700; }
+.pet-profile-resolved { color: #067647; font-weight: 700; }
+.pet-profile-birthday { color: #8a4b00; font-weight: 700; }
+
+.pet-candidate-cta {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px solid #f79009;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pet-profile-controls,
+.pet-timeline,
+.pet-candidate-section {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--lotbi-border, #d8dee8);
+  border-radius: 16px;
+}
+
+.pet-profile-controls-title,
+.pet-timeline-title,
+.pet-candidate-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.pet-timeline-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.pet-timeline-item { margin: 8px 0; }
+.pet-timeline-time { display: block; color: var(--lotbi-text-muted, #687386); font-size: 0.78rem; }
+.pet-timeline-label { display: block; margin-top: 2px; }
+
+.pet-candidate-safety,
+.pet-candidate-privacy,
+.pet-candidate-evidence,
+.pet-candidate-response {
+  margin: 8px 0 0;
+  color: var(--lotbi-text-muted, #596579);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.pet-candidate-card {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #fdb022;
+  border-radius: 14px;
+  background: #fffcf5;
+}
+
+.pet-candidate-photo {
+  width: min(100%, 280px);
+  aspect-ratio: 4 / 3;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f2f4f7;
+  display: grid;
+  place-items: center;
+}
+
+.pet-candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .pet-card-head {
   display: flex;
   align-items: center;
@@ -805,6 +920,19 @@ body[data-site-theme="dark"] .pet-choice,
 body[data-site-theme="dark"] .pet-registration-reveal {
   background: var(--lotbi-surface-primary, #1f2632);
   border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-profile-controls,
+body[data-site-theme="dark"] .pet-timeline,
+body[data-site-theme="dark"] .pet-candidate-section,
+body[data-site-theme="dark"] .pet-candidate-card {
+  border-color: var(--lotbi-border, #384357);
+  background: var(--lotbi-surface-raised, #182033);
+}
+
+body[data-site-theme="dark"] .pet-candidate-cta {
+  background: #3b2508;
+  color: #ffd7a1;
 }
 
 body[data-site-theme="dark"] .pet-detail-section {

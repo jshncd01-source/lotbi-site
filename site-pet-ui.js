@@ -16,16 +16,20 @@ import {
   deletePetRegistrationDraft,
   deletePetRegistrationDraftPhoto,
   fetchFoundPetPhotoObjectUrl,
+  fetchPetMatchNoticePhotoObjectUrl,
   fetchPetPhotoObjectUrl,
   fetchPetRegistrationDraftPhotoObjectUrl,
   finalizePetRegistrationDraft,
+  FOUND_PHOTO_SEMANTIC_SLOT_CODES,
   getActivePetRegistrationDraft,
   getPetCatalog,
   getPetPhotoManifest,
+  getPetProfileHub,
   inspectPetPhotoLocally,
   FOUND_PHOTO_SLOT_MAX,
   listFoundPetPhotos,
   listFoundPets,
+  listPetMatchNotices,
   listPetSOS,
   listPets,
   LOTBI_PET_NUMBER_LABEL,
@@ -39,12 +43,14 @@ import {
   petSexLabel,
   petSpeciesLabel,
   renamePet,
+  respondToPetMatchNotice,
   setPetMatchingConsent,
   uploadFoundPetPhoto,
   uploadPetPhoto,
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
-} from './site-pet.js?v=20260924-petv2draft1';
+  updatePetProfilePreferences,
+} from './site-pet.js?v=20260924-petv2profile1';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
@@ -94,6 +100,7 @@ export async function mountPetFamilyManager({
   onCountChange,
   subscription,
   search = globalThis.location?.search || '',
+  initialSurface = 'pets',
 } = {}) {
   if (!(root instanceof HTMLElement)) return null;
 
@@ -168,9 +175,11 @@ export async function mountPetFamilyManager({
   let foundCases = [];
   let foundPhotos = new Map();
   let photoCounts = new Map();
+  let petProfiles = new Map();
+  let matchNotices = [];
   let catalog = null;
   let registrationDraft = null;
-  let activeSurface = 'pets';
+  let activeSurface = ['pets', 'sos', 'found'].includes(initialSurface) ? initialSurface : 'pets';
   let busy = false;
   // `${petId}:${slotCode}` -> object URL. Cached so re-rendering the detail
   // does not refetch every private photo, and revoked on dispose.
@@ -197,7 +206,7 @@ export async function mountPetFamilyManager({
     if (!(button instanceof HTMLButtonElement)) return;
     showSurface(button.dataset.petHomeTarget || 'pets');
   });
-  showSurface('pets');
+  showSurface(activeSurface);
 
   const revokePreview = key => {
     const url = photoPreviews.get(key);
@@ -295,7 +304,7 @@ export async function mountPetFamilyManager({
       const empty = el('div', 'pet-empty');
       empty.append(
         el('p', 'pet-empty-title', '등록된 반려동물이 없습니다.'),
-        el('p', 'pet-empty-copy', '이름과 종만 있으면 등록할 수 있습니다. 사진은 등록 후 천천히 채워도 됩니다.'),
+        el('p', 'pet-empty-copy', '사진부터 올리면 비공개 등록 초안이 저장됩니다. 이름과 기본 정보는 그다음에 입력합니다.'),
       );
       listBody.appendChild(empty);
       return;
@@ -303,11 +312,71 @@ export async function mountPetFamilyManager({
     for (const pet of pets) {
       const card = el('article', 'pet-card');
       card.dataset.petCard = pet.petId;
+      const profile = petProfiles.get(pet.petId);
+
+      if (profile?.thumbnailSlot) {
+        const thumbnail = el('div', 'pet-profile-thumbnail');
+        const key = previewKey(pet.petId, profile.thumbnailSlot);
+        const cached = photoPreviews.get(key);
+        if (cached) {
+          const image = el('img', 'pet-profile-thumbnail-image');
+          image.src = cached;
+          image.alt = `${pet.name} 대표 사진`;
+          image.decoding = 'async';
+          thumbnail.appendChild(image);
+        } else {
+          thumbnail.appendChild(el('span', 'pet-profile-thumbnail-loading', '사진'));
+          void (async () => {
+            try {
+              const url = await fetchPetPhotoObjectUrl(sessionToken, pet.petId, profile.thumbnailSlot);
+              photoPreviews.set(key, url);
+              if (!thumbnail.isConnected) return;
+              const image = el('img', 'pet-profile-thumbnail-image');
+              image.src = url;
+              image.alt = `${pet.name} 대표 사진`;
+              image.decoding = 'async';
+              thumbnail.replaceChildren(image);
+            } catch {
+              thumbnail.dataset.petThumbnailUnavailable = 'true';
+            }
+          })();
+        }
+        card.appendChild(thumbnail);
+      }
 
       const head = el('div', 'pet-card-head');
-      head.append(el('h4', 'pet-card-name', pet.name));
+      head.append(el('h4', 'pet-card-name', `${pet.name}${profile?.isPrimary ? ' ⭐' : ''}`));
       head.appendChild(el('span', 'pet-card-species', petSpeciesLabel(pet.species)));
       card.appendChild(head);
+
+      if (profile) {
+        card.appendChild(el('p', 'pet-profile-age', `${pet.name} · ${profile.ageLabel}`));
+        if (profile.familyLabel) card.appendChild(el('p', 'pet-profile-family', profile.familyLabel));
+        const identity = profile.photoCount >= profile.photoTotal && profile.visualStatus === 'READY'
+          ? `✓ ${profile.visualLabel}`
+          : `📷 식별사진 ${profile.photoCount}/${profile.photoTotal}`;
+        card.appendChild(el('p', 'pet-profile-identity', identity));
+        if (profile.activeSos) {
+          card.appendChild(el('p', 'pet-profile-sos', `🔴 ${pet.name} 실종 신고 중`));
+        } else if (profile.recentlyResolved) {
+          card.appendChild(el('p', 'pet-profile-resolved', `❤️ ${pet.name}가 돌아왔어요`));
+        }
+        if (profile.birthday?.reminderDue) {
+          const birthdayCopy = profile.birthday.state === 'TODAY'
+            ? `🎉 오늘은 ${pet.name} 생일이에요!`
+            : (profile.birthday.state === 'D1'
+              ? `🎂 ${pet.name} 생일이 내일이에요`
+              : `🎂 ${pet.name} 생일까지 7일`);
+          card.appendChild(el('p', 'pet-profile-birthday', birthdayCopy));
+        }
+        if (profile.candidateNoticeCount > 0) {
+          const candidate = el('button', 'pet-candidate-cta', `🟠 ${pet.name}와 유사한 발견 제보가 있어요 · 확인하기 ›`);
+          candidate.type = 'button';
+          candidate.dataset.petOpen = pet.petId;
+          candidate.dataset.petCandidateOpen = pet.petId;
+          card.appendChild(candidate);
+        }
+      }
 
       const filled = photoCounts.get(pet.petId);
       const progress = el('div', 'pet-progress');
@@ -568,6 +637,103 @@ export async function mountPetFamilyManager({
     }
   };
 
+  const refreshPetProfileData = async () => {
+    const [profiles, notices] = await Promise.all([
+      getPetProfileHub(sessionToken),
+      listPetMatchNotices(sessionToken),
+    ]);
+    petProfiles = new Map(profiles.map(row => [row.petId, row]));
+    matchNotices = [...notices];
+  };
+
+  const renderMatchNotices = (pet, host) => {
+    host.replaceChildren();
+    const rows = matchNotices.filter(item => item.petId === pet.petId);
+    if (!rows.length) {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    host.appendChild(el('h4', 'pet-candidate-title', '유사한 발견 제보'));
+    host.appendChild(el(
+      'p',
+      'pet-candidate-safety',
+      '관리자가 근거를 검토한 후보입니다. 시각적 유사도는 같은 반려동물일 확률이나 확정 판정이 아닙니다.',
+    ));
+    for (const notice of rows) {
+      const card = el('article', 'pet-candidate-card');
+      card.dataset.petCandidate = notice.candidateId;
+      card.appendChild(el('strong', 'pet-candidate-message', notice.message));
+      const photo = el('div', 'pet-candidate-photo');
+      const key = previewKey(pet.petId, `candidate-${notice.candidateId}`);
+      const cached = photoPreviews.get(key);
+      if (cached) {
+        const image = el('img', 'pet-candidate-photo-image');
+        image.src = cached; image.alt = '발견 제보 사진'; image.decoding = 'async';
+        photo.appendChild(image);
+      } else {
+        photo.appendChild(el('span', 'pet-candidate-photo-loading', '발견 사진 불러오는 중'));
+        void (async () => {
+          try {
+            const url = await fetchPetMatchNoticePhotoObjectUrl(sessionToken, notice.candidateId);
+            photoPreviews.set(key, url);
+            if (!photo.isConnected) return;
+            const image = el('img', 'pet-candidate-photo-image');
+            image.src = url; image.alt = '발견 제보 사진'; image.decoding = 'async';
+            photo.replaceChildren(image);
+          } catch {
+            photo.replaceChildren(el('span', 'pet-candidate-photo-loading', '발견 사진을 불러오지 못했습니다.'));
+          }
+        })();
+      }
+      card.appendChild(photo);
+      if (notice.visualSimilarityLabel) {
+        card.appendChild(el('p', 'pet-candidate-evidence', notice.visualSimilarityLabel));
+      }
+      if (notice.foundAt) card.appendChild(el('p', 'pet-candidate-evidence', `발견 시각 ${displayMoment(notice.foundAt)}`));
+      const location = notice.foundLocation.label
+        || notice.foundLocation.district
+        || notice.foundLocation.city
+        || notice.foundLocation.region
+        || '';
+      if (location) card.appendChild(el('p', 'pet-candidate-evidence', `발견 지역 ${location}`));
+      const privacy = el('p', 'pet-candidate-privacy', '발견자 연락처는 공개되지 않습니다.');
+      card.appendChild(privacy);
+      if (notice.status === 'RESPONDED' || notice.ownerResponse) {
+        const labels = {LIKELY_MINE: '내 반려동물 같아요', NOT_MINE: '아닌 것 같아요', UNSURE: '잘 모르겠어요'};
+        card.appendChild(el('p', 'pet-candidate-response', `응답: ${labels[notice.ownerResponse] || '확인 완료'}`));
+      } else {
+        const actions = el('div', 'pet-candidate-actions');
+        for (const [response, label] of [
+          ['LIKELY_MINE', '내 반려동물 같아요'],
+          ['NOT_MINE', '아닌 것 같아요'],
+          ['UNSURE', '잘 모르겠어요'],
+        ]) {
+          const button = el('button', 'site-button site-button-secondary', label);
+          button.type = 'button';
+          button.addEventListener('click', async () => {
+            if (busy) return;
+            setBusy(true); showError('');
+            try {
+              await respondToPetMatchNotice(sessionToken, notice.candidateId, response);
+              await refreshPetProfileData();
+              renderList();
+              renderDetail(pet.petId);
+              status.textContent = '발견 제보 확인 응답을 저장했습니다. 연락처 연결은 시작하지 않았습니다.';
+            } catch (value) {
+              showError(errorMessage(value, '확인 응답을 저장하지 못했습니다.'), value);
+            } finally {
+              setBusy(false);
+            }
+          });
+          actions.appendChild(button);
+        }
+        card.appendChild(actions);
+      }
+      host.appendChild(card);
+    }
+  };
+
   const renderDetail = petId => {
     const pet = pets.find(item => item.petId === petId);
     if (!pet) {
@@ -603,7 +769,59 @@ export async function mountPetFamilyManager({
     addFact('특징', pet.distinctiveMarks);
     const filled = photoCounts.get(pet.petId);
     addFact('사진', Number.isInteger(filled) ? `${filled}/${PET_PHOTO_SLOT_CODES.length}` : '확인 실패');
+    const profile = petProfiles.get(pet.petId);
+    if (profile) {
+      addFact('현재 나이', profile.ageLabel);
+      addFact('가족 기간', profile.familyLabel);
+      addFact('식별정보', profile.visualLabel);
+      if (profile.activeSos) addFact('실종 상태', '실종 신고 중');
+      else if (profile.recentlyResolved) addFact('실종 상태', '최근 돌아옴');
+    }
     detailSection.appendChild(facts);
+
+    if (profile) {
+      const profileControls = el('section', 'pet-profile-controls');
+      profileControls.appendChild(el('h4', 'pet-profile-controls-title', '프로필 설정'));
+      for (const [field, label, checked] of [
+        ['is_primary', '대표 반려동물 ⭐', profile.isPrimary],
+        ['birthday_reminders_enabled', '정확한 생일 알림', profile.birthdayRemindersEnabled],
+        ['family_anniversary_reminders_enabled', '가족이 된 날 알림', profile.familyAnniversaryRemindersEnabled],
+      ]) {
+        const line = el('label', 'pet-consent-toggle');
+        const input = el('input'); input.type = 'checkbox'; input.checked = checked;
+        if (field === 'birthday_reminders_enabled' && profile.ageMode !== 'EXACT') input.disabled = true;
+        line.append(input, el('span', '', label));
+        input.addEventListener('change', async () => {
+          if (busy) return;
+          setBusy(true); showError('');
+          try {
+            await updatePetProfilePreferences(sessionToken, pet.petId, {[field]: input.checked});
+            await refreshPetProfileData();
+            renderList(); renderDetail(pet.petId);
+            status.textContent = '프로필 설정을 저장했습니다.';
+          } catch (value) {
+            input.checked = !input.checked;
+            showError(errorMessage(value, '프로필 설정을 저장하지 못했습니다.'), value);
+          } finally { setBusy(false); }
+        });
+        profileControls.appendChild(line);
+      }
+      detailSection.appendChild(profileControls);
+
+      if (profile.timeline.length) {
+        const timeline = el('section', 'pet-timeline');
+        timeline.appendChild(el('h4', 'pet-timeline-title', '기록'));
+        const list = el('ol', 'pet-timeline-list');
+        for (const item of profile.timeline) {
+          const row = el('li', 'pet-timeline-item');
+          if (item.at) row.appendChild(el('time', 'pet-timeline-time', displayMoment(item.at)));
+          row.appendChild(el('span', 'pet-timeline-label', item.label));
+          list.appendChild(row);
+        }
+        timeline.appendChild(list);
+        detailSection.appendChild(timeline);
+      }
+    }
 
     if (pet.officialRegistrationNumber) {
       const registration = el('div', 'pet-registration');
@@ -637,6 +855,11 @@ export async function mountPetFamilyManager({
     photos.dataset.petPhotos = pet.petId;
     detailSection.appendChild(photos);
     renderPhotos(pet, photos);
+
+    const candidates = el('section', 'pet-candidate-section');
+    candidates.dataset.petCandidates = pet.petId;
+    detailSection.appendChild(candidates);
+    renderMatchNotices(pet, candidates);
 
     const renameField = el('label', 'site-field', '이름');
     const renameInput = el('input');
@@ -784,8 +1007,9 @@ export async function mountPetFamilyManager({
     return {field, input};
   };
 
-  // Found photos have no fixed meaning per slot, unlike a registered pet's ten,
-  // so the next free index is used rather than asking the reporter to pick one.
+  // Found reporters are never forced through annotation. The next free index is
+  // paired with the corresponding semantic view as a best-effort server hint;
+  // the report remains valid with any number of photos, including zero.
   const nextFoundSlot = caseId => {
     const used = new Set(foundPhotos.get(caseId) || []);
     for (let index = 1; index <= FOUND_PHOTO_SLOT_MAX; index += 1) {
@@ -870,7 +1094,13 @@ export async function mountPetFamilyManager({
       if (!file || busy) return;
       setBusy(true);
       try {
-        await uploadFoundPetPhoto(sessionToken, record.caseId, slotIndex, file);
+        await uploadFoundPetPhoto(
+          sessionToken,
+          record.caseId,
+          slotIndex,
+          file,
+          FOUND_PHOTO_SEMANTIC_SLOT_CODES[slotIndex - 1] || '',
+        );
         foundPhotos.set(record.caseId, [...slots, slotIndex].sort((a, b) => a - b));
         renderFoundPhotos(record, host);
         status.textContent = '사진을 첨부했습니다.';
@@ -1846,7 +2076,10 @@ export async function mountPetFamilyManager({
   status.textContent = '반려동물 정보를 불러오는 중입니다.';
   try {
     pets = [...await listPets(sessionToken)];
-    await loadPhotoCounts();
+    await Promise.all([
+      loadPhotoCounts(),
+      refreshPetProfileData().catch(() => {}),
+    ]);
     status.textContent = '';
     renderList();
   } catch (value) {

@@ -190,6 +190,8 @@ const PET_ERROR_MESSAGES = Object.freeze({
   PET_DRAFT_PHOTO_CHECK_PENDING: '사진 확인이 아직 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.',
   PET_DRAFT_PHOTO_NOT_FOUND: '등록 초안의 사진을 찾지 못했습니다.',
   PET_DRAFT_REQUEST_ID_INVALID: '등록을 새로 시작해 주세요.',
+  PET_MATCH_NOTICE_NOT_FOUND: '확인할 발견 제보를 찾지 못했습니다.',
+  PET_MATCH_PHOTO_NOT_FOUND: '발견 사진을 불러오지 못했습니다.',
 
   // Location, for the two report forms.
   PET_LOCATION_REQUIRED: '장소를 입력해 주세요.',
@@ -252,11 +254,18 @@ async function petRequest(path, sessionToken, {
   requestId = '',
   raw = false,
   announceSessionFailure = false,
+  extraHeaders = undefined,
 } = {}, fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
   }
   const headers = {Authorization: `Bearer ${bearerToken(sessionToken)}`};
+  if (extraHeaders && typeof extraHeaders === 'object') {
+    for (const [name, value] of Object.entries(extraHeaders)) {
+      if (name.toLowerCase() === 'authorization') continue;
+      if (typeof value === 'string' && value) headers[name] = value;
+    }
+  }
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   // Core reads the idempotency key from X-Request-ID, matching the app client.
   if (requestId) headers['X-Request-ID'] = requestId;
@@ -502,6 +511,130 @@ export async function listPets(sessionToken, fetchImpl = globalThis.fetch) {
   const payload = await petRequest('/v2/pets', sessionToken, {announceSessionFailure: true}, fetchImpl);
   const rows = Array.isArray(payload?.pets) ? payload.pets : [];
   return Object.freeze(rows.map(normalizePet).filter(Boolean));
+}
+
+function normalizePetProfile(value) {
+  if (!value || typeof value !== 'object') return null;
+  const petId = typeof value.pet_id === 'string' ? value.pet_id : '';
+  const name = typeof value.name === 'string' ? value.name : '';
+  if (!petId || !name) return null;
+  const thumbnail = value.thumbnail && typeof value.thumbnail === 'object' ? value.thumbnail : {};
+  const visual = value.visual_identity && typeof value.visual_identity === 'object' ? value.visual_identity : {};
+  const sos = value.sos && typeof value.sos === 'object' ? value.sos : {};
+  const age = value.age && typeof value.age === 'object' ? value.age : {};
+  const family = value.family_duration && typeof value.family_duration === 'object' ? value.family_duration : null;
+  const birthday = value.birthday && typeof value.birthday === 'object' ? value.birthday : null;
+  return Object.freeze({
+    petId,
+    name,
+    species: PET_SPECIES.includes(value.species) ? value.species : 'DOG',
+    isPrimary: value.is_primary === true,
+    ageLabel: typeof age.label === 'string' ? age.label : '나이 미등록',
+    ageMode: typeof age.mode === 'string' ? age.mode : 'UNKNOWN',
+    familyLabel: typeof family?.label === 'string' ? family.label : '',
+    birthday: birthday ? Object.freeze({
+      date: typeof birthday.date === 'string' ? birthday.date : '',
+      daysUntil: Number.isInteger(birthday.days_until) ? birthday.days_until : null,
+      state: typeof birthday.state === 'string' ? birthday.state : '',
+      reminderDue: birthday.reminder_due === true,
+    }) : null,
+    photoCount: Number.isInteger(value.photo_count) ? value.photo_count : 0,
+    photoTotal: Number.isInteger(value.photo_total) ? value.photo_total : PET_PHOTO_SLOT_CODES.length,
+    thumbnailSlot: PET_PHOTO_SLOT_CODES.includes(thumbnail.slot_code) ? thumbnail.slot_code : '',
+    visualStatus: typeof visual.status === 'string' ? visual.status : 'UNAVAILABLE',
+    visualLabel: typeof visual.label === 'string' ? visual.label : '식별정보 준비 중',
+    activeSos: sos.active === true,
+    recentlyResolved: sos.recently_resolved === true,
+    lastSeenAt: typeof sos.last_seen_at === 'string' ? sos.last_seen_at : '',
+    lastSeenLocation: sos.last_seen_location && typeof sos.last_seen_location === 'object'
+      ? Object.freeze({...sos.last_seen_location})
+      : Object.freeze({}),
+    candidateNoticeCount: Number.isInteger(value.candidate_notice_count) ? value.candidate_notice_count : 0,
+    candidateLabel: typeof value.candidate_label === 'string' ? value.candidate_label : '',
+    timeline: Object.freeze((Array.isArray(value.timeline) ? value.timeline : []).flatMap(item => {
+      if (!item || typeof item !== 'object' || typeof item.label !== 'string') return [];
+      return [Object.freeze({
+        type: typeof item.type === 'string' ? item.type : '',
+        at: typeof item.at === 'string' ? item.at : '',
+        label: item.label,
+      })];
+    })),
+    birthdayRemindersEnabled: value.birthday_reminders_enabled !== false,
+    familyAnniversaryRemindersEnabled: value.family_anniversary_reminders_enabled === true,
+  });
+}
+
+export async function getPetProfileHub(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pets/profile-hub', sessionToken, {}, fetchImpl);
+  const rows = Array.isArray(payload?.pets) ? payload.pets : [];
+  return Object.freeze(rows.map(normalizePetProfile).filter(Boolean));
+}
+
+export async function updatePetProfilePreferences(sessionToken, petId, updates, fetchImpl = globalThis.fetch) {
+  const body = {};
+  for (const key of ['is_primary', 'birthday_reminders_enabled', 'family_anniversary_reminders_enabled']) {
+    if (typeof updates?.[key] === 'boolean') body[key] = updates[key];
+  }
+  const payload = await petRequest(`/v2/pets/${encodeURIComponent(petId)}/profile-preferences`, sessionToken, {
+    method: 'PUT',
+    body,
+  }, fetchImpl);
+  return normalizePet(payload?.pet);
+}
+
+function normalizePetMatchNotice(value) {
+  if (!value || typeof value !== 'object') return null;
+  const candidateId = typeof value.candidate_id === 'string' ? value.candidate_id : '';
+  const petId = typeof value.pet_id === 'string' ? value.pet_id : '';
+  if (!candidateId || !petId) return null;
+  const location = value.found_location && typeof value.found_location === 'object' ? value.found_location : {};
+  return Object.freeze({
+    noticeId: typeof value.notice_id === 'string' ? value.notice_id : '',
+    candidateId,
+    petId,
+    status: typeof value.status === 'string' ? value.status : 'UNREAD',
+    ownerResponse: typeof value.owner_response === 'string' ? value.owner_response : '',
+    message: typeof value.message === 'string' ? value.message : '유사한 발견 제보가 접수되었습니다.',
+    visualSimilarity: Number.isInteger(value.visual_similarity) ? value.visual_similarity : null,
+    visualSimilarityLabel: typeof value.visual_similarity_label === 'string' ? value.visual_similarity_label : '',
+    scoreIsIdentityProbability: value.score_is_identity_probability === true,
+    evidenceCoverage: typeof value.evidence_coverage === 'string' ? value.evidence_coverage : '',
+    foundAt: typeof value.found_at === 'string' ? value.found_at : '',
+    foundLocation: Object.freeze({...location}),
+    reporterContactReturned: value.reporter_contact_returned === true,
+    createdAt: typeof value.created_at === 'string' ? value.created_at : '',
+  });
+}
+
+export async function listPetMatchNotices(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pets/match-notices', sessionToken, {}, fetchImpl);
+  const rows = Array.isArray(payload?.notices) ? payload.notices : [];
+  return Object.freeze(rows.map(normalizePetMatchNotice).filter(Boolean));
+}
+
+export async function fetchPetMatchNoticePhotoObjectUrl(sessionToken, candidateId, fetchImpl = globalThis.fetch) {
+  const response = await petRequest(
+    `/v2/pets/match-notices/${encodeURIComponent(candidateId)}/found-photo`,
+    sessionToken,
+    {raw: true},
+    fetchImpl,
+  );
+  return URL.createObjectURL(await response.blob());
+}
+
+export async function respondToPetMatchNotice(sessionToken, candidateId, response, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(
+    `/v2/pets/match-notices/${encodeURIComponent(candidateId)}/response`,
+    sessionToken,
+    {method: 'POST', body: {response}},
+    fetchImpl,
+  );
+  return Object.freeze({
+    candidateId: typeof payload?.candidate_id === 'string' ? payload.candidate_id : candidateId,
+    response: typeof payload?.response === 'string' ? payload.response : '',
+    contactRelayStarted: payload?.contact_relay_started === true,
+    reporterContactReturned: payload?.reporter_contact_returned === true,
+  });
 }
 
 export async function getPet(sessionToken, petId, fetchImpl = globalThis.fetch) {
@@ -845,6 +978,12 @@ export async function closeFoundPet(sessionToken, caseId, resolved, fetchImpl = 
 }
 
 export const FOUND_PHOTO_SLOT_MAX = 10;
+// A single found-animal photo should be useful by itself. Start with a broad
+// face/body view and only then consume close-up slots; the reporter never has
+// to understand or select these internal semantic labels.
+export const FOUND_PHOTO_SEMANTIC_SLOT_CODES = Object.freeze(
+  [3, 4, 5, 6, 7, 8, 0, 1, 2, 9].map(index => PET_PHOTO_SLOT_CODES[index]),
+);
 
 export async function listFoundPetPhotos(sessionToken, caseId, fetchImpl = globalThis.fetch) {
   const payload = await petRequest(
@@ -862,7 +1001,7 @@ export async function listFoundPetPhotos(sessionToken, caseId, fetchImpl = globa
   );
 }
 
-export async function uploadFoundPetPhoto(sessionToken, caseId, slotIndex, file, fetchImpl = globalThis.fetch) {
+export async function uploadFoundPetPhoto(sessionToken, caseId, slotIndex, file, semanticSlotCode = '', fetchImpl = globalThis.fetch) {
   const rejection = petPhotoRejection(file);
   if (rejection) {
     throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
@@ -872,7 +1011,13 @@ export async function uploadFoundPetPhoto(sessionToken, caseId, slotIndex, file,
   const payload = await petRequest(
     `/v2/pets/found/${encodeURIComponent(caseId)}/photos/${encodeURIComponent(slotIndex)}`,
     sessionToken,
-    {method: 'PUT', formData},
+    {
+      method: 'PUT',
+      formData,
+      extraHeaders: PET_PHOTO_SLOT_CODES.includes(semanticSlotCode)
+        ? {'X-Pet-Photo-Slot-Code': semanticSlotCode}
+        : undefined,
+    },
     fetchImpl,
   );
   return Number.isInteger(payload?.photo_count) ? payload.photo_count : 0;
