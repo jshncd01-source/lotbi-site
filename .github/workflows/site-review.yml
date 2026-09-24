@@ -230,6 +230,7 @@ jobs:
           node --check site-calendar-draft-write.js
           node scripts/validate_conversation_calendar_auto_suggest_01.mjs
           node scripts/validate_conversation_calendar_card_02.mjs
+          node scripts/validate_calendar_day_list_range_01.mjs
 
       - name: Validate voice wake phrase matching
         run: |
