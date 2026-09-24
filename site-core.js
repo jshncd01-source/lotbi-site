@@ -332,6 +332,8 @@ export function normalizeCalendarCandidateSet(value) {
   });
 }
 
+const CALENDAR_DRAFT_RELEVANCES = new Set(['SCHEDULED_EVENT', 'PAST_TRANSACTION_ONLY', 'NONE']);
+
 function validCalendarDraftDate(value) {
   if (!LOCAL_DATE_RE.test(String(value || ''))) return false;
   const [year, month, day] = String(value).split('-').map(Number);
@@ -358,6 +360,15 @@ export function normalizeSmartCalendarDraft(value) {
   const title = normalizeCalendarDraftText(value.title, 240);
   const localDate = normalizeCalendarDraftText(value.local_date, 10);
   const localTime = normalizeCalendarDraftText(value.local_time, 5);
+  // A stay, a flight and a rental all have two ends. Core fills these only when
+  // the attachment stated the ending, and an older Core does not send them at
+  // all, so their absence is ordinary and never a contract error.
+  const endLocalDate = normalizeCalendarDraftText(value.end_local_date, 10);
+  const endLocalTime = normalizeCalendarDraftText(value.end_local_time, 5);
+  const calendarRelevance = normalizeCalendarDraftText(value.calendar_relevance, 24);
+  const documentKind = normalizeCalendarDraftText(value.document_kind, 24);
+  const detectionConfidence = normalizeCalendarDraftText(value.detection_confidence, 8);
+  const dedupeFingerprint = normalizeCalendarDraftText(value.dedupe_fingerprint, 64);
   const entry = value.entry && typeof value.entry === 'object' ? value.entry : null;
   const sourceIds = Array.isArray(value.source_attachment_ids) ? value.source_attachment_ids.map(item => String(item || '').trim()) : null;
   const amountMinor = entry?.amount_minor == null ? null : Number(entry.amount_minor);
@@ -379,6 +390,11 @@ export function normalizeSmartCalendarDraft(value) {
     || value.automatic_write !== false
     || (localDate !== null && !validCalendarDraftDate(localDate))
     || (localTime !== null && (localDate === null || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(localTime)))
+    || (endLocalDate !== null && (localDate === null || !validCalendarDraftDate(endLocalDate) || endLocalDate < localDate))
+    || (endLocalTime !== null && (endLocalDate === null || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(endLocalTime)))
+    || (endLocalTime !== null && endLocalDate === localDate && localTime !== null && endLocalTime <= localTime)
+    || (calendarRelevance !== null && !CALENDAR_DRAFT_RELEVANCES.has(calendarRelevance))
+    || (dedupeFingerprint !== null && !/^[0-9a-f]{64}$/.test(dedupeFingerprint))
     || !entry
     || (amountMinor !== null && (!Number.isSafeInteger(amountMinor) || amountMinor < 0 || amountMinor > 1_000_000_000_000))
     || (currency !== null && currency !== 'KRW')
@@ -400,6 +416,16 @@ export function normalizeSmartCalendarDraft(value) {
     title,
     localDate,
     localTime,
+    endLocalDate,
+    endLocalTime,
+    calendarRelevance,
+    documentKind,
+    detectionConfidence,
+    dedupeFingerprint,
+    // Core decides whether a draft nobody asked for may raise a save card. The
+    // Site does not re-derive that judgement; it only reports what it was told,
+    // and an older Core that says nothing is treated as not volunteering.
+    autoSuggestable: value.auto_suggestable === true,
     entry: Object.freeze({
       amountMinor,
       currency,
