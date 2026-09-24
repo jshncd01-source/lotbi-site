@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260924-assurance1';
-import {buildKakaoMapWebSearchUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoMapPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=20260924-mapdeeplink1';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=20260924-placecard1';
 import * as siteAttachments from './site-attachments.js?v=20260924-mapdeeplink1';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -1114,63 +1114,126 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const note = document.createElement('span'); note.textContent = '판매처에서 상세 정보 확인'; evidence.appendChild(note);
       }
       copy.appendChild(evidence);
-      const actions = document.createElement('div'); actions.className = 'lotbi-rich-card-actions';
-      if (card.product_url) {
-        const detail = document.createElement('a'); detail.className = 'lotbi-rich-card-action'; detail.href = card.product_url;
-        detail.target = '_blank'; detail.rel = 'noopener noreferrer'; detail.referrerPolicy = 'no-referrer'; detail.textContent = '상세보기'; actions.appendChild(detail);
-      } else {
-        const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-rich-card-action'; detail.disabled = true;
-        detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
-      }
-      const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
-      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
-      const syncBoxLabel = () => {
-        const saved = isInLotbiBox(rich, card);
-        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
-        box.setAttribute('aria-pressed', String(saved));
+      const actions = document.createElement('div');
+      actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
+
+      const addActionLabel = (control, label) => {
+        const icon = document.createElement('span');
+        icon.className = 'lotbi-place-action-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        const copyLabel = document.createElement('span');
+        copyLabel.className = 'lotbi-place-action-label';
+        copyLabel.textContent = label;
+        control.append(icon, copyLabel);
       };
-      syncBoxLabel();
-      box.addEventListener('click', () => {
-        const added = toggleLotbiBox(rich, card);
-        refreshLotbiBoxControls();
-        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
-      });
-      actions.appendChild(box);
-      const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
-      buy.disabled = rich.expired || card.available === false;
-      if (rich.expired) buy.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
-      else if (card.available === false) buy.title = '현재 판매 가능 상태가 아닙니다.';
-      buy.addEventListener('click', async () => {
-        if (richCardActionInFlight) return;
-        if (!sessionToken) {
-          richCardActionInFlight = true; buy.disabled = true; buy.textContent = '로그인 연결…';
-          try {
-            await beginGuestClaimingSiteHandoff(rich.originalText || rich.query || card.title);
-          } catch (error) {
-            buy.disabled = false; buy.textContent = '구매하기'; setStatus(userFacingErrorMessage(error));
-          } finally { richCardActionInFlight = false; }
+
+      const phoneHref = buildVerifiedPhoneHref(place);
+      if (phoneHref) {
+        const phone = document.createElement('a');
+        phone.className = 'lotbi-rich-card-action lotbi-phone-action';
+        phone.dataset.action = 'phone';
+        phone.dataset.phoneState = 'VERIFIED';
+        phone.href = phoneHref;
+        phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
+        phone.title = '전화 걸기';
+        phone.tabIndex = placeIndex === 0 ? 0 : -1;
+        addActionLabel(phone, '전화');
+        phone.addEventListener('click', event => {
+          if (placeIndex !== activeIndex) {
+            event.preventDefault();
+            setActiveIndex(placeIndex);
+            return;
+          }
+          phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
+          setStatus('전화 앱 연결을 시작합니다.');
+        });
+        actions.appendChild(phone);
+      }
+
+      const navigate = document.createElement('a');
+      navigate.className = 'lotbi-rich-card-action lotbi-naver-map-action';
+      navigate.href = buildNaverMapsWebSearchUrl(place);
+      navigate.target = '_blank';
+      navigate.rel = 'noopener noreferrer';
+      navigate.setAttribute('aria-label', `${place.name} 네이버 지도에서 열기`);
+      navigate.title = '네이버 지도에서 열기';
+      navigate.dataset.action = 'naver-map';
+      navigate.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionLabel(navigate, '네이버');
+      navigate.addEventListener('click', event => {
+        if (placeIndex !== activeIndex) {
+          event.preventDefault();
+          setActiveIndex(placeIndex);
           return;
         }
-        if (!rich.resolutionId || !rich.resolutionHash) {
-          setStatus('구매 전 상품을 다시 검색해 최신 판매처 정보를 확인해야 합니다.');
+        if (openPlaceInNaverMap(place)) event.preventDefault();
+      });
+      actions.appendChild(navigate);
+
+      if (place.navigationCapable) {
+        const kakaoNavi = document.createElement('a');
+        kakaoNavi.className = 'lotbi-rich-card-action lotbi-kakao-navi-action';
+        kakaoNavi.href = buildKakaoNaviHandoffUrl(place);
+        kakaoNavi.target = '_blank';
+        kakaoNavi.rel = 'noopener noreferrer';
+        kakaoNavi.setAttribute('aria-label', `${place.name} 카카오내비 길안내`);
+        kakaoNavi.title = '카카오내비 길안내';
+        kakaoNavi.dataset.action = 'kakao-navi';
+        kakaoNavi.tabIndex = placeIndex === 0 ? 0 : -1;
+        addActionLabel(kakaoNavi, '카카오');
+        kakaoNavi.addEventListener('click', event => {
+          if (placeIndex !== activeIndex) {
+            event.preventDefault();
+            setActiveIndex(placeIndex);
+            return;
+          }
+          if (openPlaceInKakaoNavi(place)) event.preventDefault();
+        });
+        actions.appendChild(kakaoNavi);
+      }
+
+      if (isTmapHandoffAvailable()) {
+        const tmap = document.createElement('a');
+        tmap.className = 'lotbi-rich-card-action lotbi-tmap-action';
+        tmap.href = '#';
+        tmap.rel = 'noopener noreferrer';
+        tmap.setAttribute('aria-label', `${place.name} T맵 길안내`);
+        tmap.title = 'T맵 길안내';
+        tmap.dataset.action = 'tmap';
+        tmap.dataset.tmapState = 'MOBILE_APP';
+        tmap.tabIndex = placeIndex === 0 ? 0 : -1;
+        addActionLabel(tmap, 'T맵');
+        tmap.addEventListener('click', event => {
+          event.preventDefault();
+          if (placeIndex !== activeIndex) {
+            setActiveIndex(placeIndex);
+            return;
+          }
+          openPlaceInTmap(place);
+        });
+        actions.appendChild(tmap);
+      }
+
+      const google = document.createElement('a');
+      google.className = 'lotbi-rich-card-action lotbi-google-maps-action';
+      google.href = buildGoogleMapsDirectionsUrl(place);
+      google.target = '_blank';
+      google.rel = 'noopener noreferrer';
+      google.setAttribute('aria-label', `${place.name} Google Maps에서 열기`);
+      google.title = 'Google Maps에서 열기';
+      google.dataset.action = 'google-maps';
+      google.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionLabel(google, 'Google');
+      google.addEventListener('click', event => {
+        if (placeIndex !== activeIndex) {
+          event.preventDefault();
+          setActiveIndex(placeIndex);
           return;
         }
-        richCardActionInFlight = true; buy.disabled = true; buy.textContent = '확인 중…';
-        try {
-          const review = await reviewProductCard(sessionToken, {resolutionId: rich.resolutionId, resolutionHash: rich.resolutionHash, candidateIndex: card.candidate_index});
-          const currentPrice = formatCardMoney(review.card.price, review.card.currency);
-          const reviewText = review.priceChanged
-            ? '판매처의 현재 가격이 바뀌어 ' + currentPrice + '으로 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.'
-            : '판매처에서 현재 가격 ' + currentPrice + '과 상품 상태를 다시 확인했습니다. 아직 주문·결제는 실행하지 않았습니다.';
-          const meta = {status: 'PURCHASE_REVIEW_REQUIRED', responseMode: 'RICH_PRODUCT_REVIEW'};
-          const reviewRecord = timestampedConversationMessage({role: 'assistant', text: reviewText, meta});
-          appendConversationRecord(reviewRecord); appendPersistedMessage(reviewRecord);
-          buy.textContent = '구매 검토됨'; setStatus('구매 전 최신 상품 정보를 확인했습니다. 결제는 실행하지 않았습니다.');
-        } catch (error) {
-          buy.textContent = '다시 확인'; buy.disabled = false; setStatus(userFacingErrorMessage(error));
-        } finally { richCardActionInFlight = false; }
+        if (openPlaceInGoogleMaps(place)) event.preventDefault();
       });
-      actions.appendChild(buy);
+      actions.appendChild(google);
+
       item.append(media, copy, actions); rail.appendChild(item);
     }
     return rail;
@@ -1217,31 +1280,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!value || typeof value !== 'object') return null;
     return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
   };
-  // The five 인허가 wordings, unchanged. They read as one set, and the subject
-  // stays on our side of the comparison: NOT_FOUND means WE could not match
-  // this place in the public data, not that the place is unlicensed. None of
-  // them may ever be rewritten as '인허가 기록 없음' / '무허가' / '허가 없음'.
-  const LICENSE_BADGE_COPY = Object.freeze({
-    VERIFIED: '인허가 대조 확인',
-    AMBIGUOUS: '인허가 후보 여럿',
-    CONFLICTING: '인허가 정보 불일치',
-    NOT_FOUND: '인허가 대조 안 됨',
-    UNAVAILABLE: '인허가 대조 불가',
-  });
-
-  // What the badge is short for. Not painted on the card — it reaches a screen
-  // reader and a hover without taking a line.
-  const LICENSE_BADGE_DETAIL = Object.freeze({
-    VERIFIED: '공공 인허가 데이터에서 이 가게를 찾아 맞춰봤어요.',
-    AMBIGUOUS: '공공 인허가 데이터에 맞춰볼 후보가 여러 개라 하나로 정하지 못했어요.',
-    CONFLICTING: '공공 인허가 데이터와 업체 식별 정보가 서로 맞지 않았어요.',
-    NOT_FOUND: '공공 인허가 데이터에서 이 가게를 찾지 못했어요. 가게 문제가 아니라 대조가 안 된 것입니다.',
-    UNAVAILABLE: '공공 인허가 데이터를 조회하지 못했어요.',
-  });
-
-  // Only where a reader might otherwise read the badge as a verdict on the shop.
-  const LICENSE_LAG_NOTE_STATES = new Set(['NOT_FOUND', 'CONFLICTING']);
-
   const createPlaceCardRail = placeValue => {
     const placeResult = normalizedPersistedPlaceResult(placeValue);
     if (!placeResult) return null;
@@ -1256,72 +1294,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     rail.setAttribute('aria-roledescription', 'carousel');
     rail.tabIndex = 0;
 
-    const setNeutralPlaceholder = media => {
+    const collapseMedia = media => {
       media.replaceChildren();
       media.classList.remove('lotbi-rich-card-media-loading');
-      media.classList.add('lotbi-rich-card-placeholder', 'lotbi-place-photo-placeholder');
-      media.dataset.mediaState = 'placeholder';
-      media.dataset.mediaSource = 'NEUTRAL_PLACE_PLACEHOLDER';
-      const mark = document.createElement('span');
-      mark.className = 'lotbi-place-placeholder-mark';
-      mark.textContent = 'LOTBI';
-      mark.setAttribute('aria-hidden', 'true');
-      const label = document.createElement('span');
-      label.className = 'lotbi-place-placeholder-label';
-      label.textContent = '사진 정보 없음';
-      media.append(mark, label);
+      media.hidden = true;
+      media.dataset.mediaState = 'compact-no-photo';
+      media.dataset.mediaSource = 'NONE';
     };
 
-    const openPlaceInNaverMap = place => {
-      const fallbackHref = buildNaverMapsWebSearchUrl(place);
+    const openFreshPlace = (place, opener, successCopy) => {
       if (!isPlaceResultFresh(placeResult)) {
         setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return;
+        return false;
       }
-      const opened = openNaverMapsPlace(place);
-      if (!opened.opened) {
-        globalThis.location.href = fallbackHref;
-        setStatus('네이버지도 웹 검색으로 연결합니다.');
-        return;
-      }
-      const navigationMode = opened.mode === 'NAVER_NAVIGATION_INTENT' || opened.mode === 'NAVER_NAVIGATION_URL_SCHEME';
-      setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
+      const opened = opener(place);
+      if (!opened.opened) return false;
+      setStatus(successCopy);
+      return true;
     };
-
-    // 카카오맵과 티맵은 같은 장소를 사용자가 이미 쓰는 앱에서 여는 손잡이일
-    // 뿐이다. 장소를 다시 고르지 않는다 — 네이버가 확정한 이름과 좌표를 그대로
-    // 넘긴다. 오래된 결과를 막는 규칙도 네이버 버튼과 하나로 맞춘다.
-    const openPlaceInKakaoMap = place => {
-      const fallbackHref = buildKakaoMapWebSearchUrl(place);
-      if (!isPlaceResultFresh(placeResult)) {
-        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return;
-      }
-      const opened = openKakaoMapPlace(place);
-      if (!opened.opened) {
-        globalThis.location.href = fallbackHref;
-        setStatus('카카오맵 웹 검색으로 연결합니다.');
-        return;
-      }
-      const routeMode = opened.mode === 'KAKAO_ROUTE_INTENT' || opened.mode === 'KAKAO_ROUTE_URL_SCHEME';
-      setStatus(routeMode ? '선택한 장소를 카카오맵 길찾기로 연결합니다.' : '선택한 장소를 카카오맵에서 엽니다.');
-    };
-
-    const openPlaceInTmap = place => {
-      if (!isPlaceResultFresh(placeResult)) {
-        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return;
-      }
-      const opened = openTmapPlace(place);
-      if (!opened.opened) {
-        // 티맵에는 장소를 여는 웹 화면이 없다. 데스크톱에서 눌렸다면 보낼 곳이
-        // 없으므로, 없는 곳으로 보내는 대신 그렇다고 말한다.
-        setStatus('티맵은 휴대폰 앱에서 열 수 있어요.');
-        return;
-      }
-      const routeMode = opened.mode === 'TMAP_ROUTE_INTENT' || opened.mode === 'TMAP_ROUTE_URL_SCHEME';
-      setStatus(routeMode ? '선택한 장소를 티맵 길안내로 연결합니다.' : '선택한 장소를 티맵에서 찾습니다.');
-    };
+    const openPlaceInNaverMap = place => openFreshPlace(place, openNaverMapsPlace, '선택한 장소를 네이버 지도에서 엽니다.');
+    const openPlaceInKakaoNavi = place => openFreshPlace(place, openKakaoNaviPlace, '선택한 장소를 카카오내비 길안내로 연결합니다.');
+    const openPlaceInTmap = place => openFreshPlace(place, openTmapPlace, '선택한 장소를 T맵 길안내로 연결합니다.');
+    const openPlaceInGoogleMaps = place => openFreshPlace(place, openGoogleMapsPlace, '선택한 장소를 Google Maps에서 엽니다.');
 
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
@@ -1355,11 +1349,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           media.dataset.mediaSource = 'VERIFIED_PLACE_PHOTO';
         };
         image.addEventListener('load', () => { void revealImage(); }, {once: true});
-        image.addEventListener('error', () => setNeutralPlaceholder(media), {once: true});
+        image.addEventListener('error', () => collapseMedia(media), {once: true});
         image.src = place.imageUrl;
         media.appendChild(image);
       } else {
-        setNeutralPlaceholder(media);
+        collapseMedia(media);
       }
 
       const copy = document.createElement('div');
@@ -1374,54 +1368,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.className = 'lotbi-rich-card-price';
       address.textContent = place.address;
       copy.append(source, title, address);
-
-      if (place.foodLicenseVerification) {
-        const state = place.foodLicenseVerification.state;
-        // UNAVAILABLE is not an outcome. The other four say what our comparison
-        // against the public licence data found; UNAVAILABLE says the
-        // comparison never ran — the provider was not reachable. Printing
-        // '인허가 대조 불가' on someone's shop for a reason that is entirely on
-        // our side is a caveat the reader cannot act on, so the card stays
-        // silent. The wording itself is kept below, unchanged, for the states
-        // that do render.
-        const badgeText = LICENSE_BADGE_COPY[state];
-        if (badgeText && state !== 'UNAVAILABLE') {
-          // Badges sit in a row of their own so a second one (the
-          // administrative status) wraps beside the first instead of being
-          // glued into the same sentence with a separator.
-          const badges = document.createElement('div');
-          badges.className = 'lotbi-place-badges';
-
-          const foodLicense = document.createElement('span');
-          foodLicense.className = 'lotbi-place-license-evidence';
-          foodLicense.textContent = badgeText;
-          // The short badge has to stay short. The sentence that spells out
-          // whose side the subject is on rides along without costing height.
-          foodLicense.title = LICENSE_BADGE_DETAIL[state];
-          badges.appendChild(foodLicense);
-
-          const administrativeStatus = place.foodLicenseVerification.administrativeStatus;
-          if (state === 'VERIFIED' && administrativeStatus) {
-            const status = document.createElement('span');
-            status.className = 'lotbi-place-license-status';
-            status.textContent = administrativeStatus;
-            status.title = '행정 인허가 데이터에 적힌 영업 상태입니다.';
-            badges.appendChild(status);
-          }
-          copy.appendChild(badges);
-
-          // Public licence data is updated on its own schedule, so a shop can
-          // be perfectly fine and still not line up with it yet. Said only
-          // where a reader might otherwise draw a conclusion about the shop,
-          // and said about the data, never about the shop.
-          if (LICENSE_LAG_NOTE_STATES.has(state)) {
-            const note = document.createElement('span');
-            note.className = 'lotbi-place-license-note';
-            note.textContent = '공공데이터 갱신이 늦을 수 있어요';
-            copy.appendChild(note);
-          }
-        }
-      }
 
       const actions = document.createElement('div');
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
@@ -1585,6 +1531,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         card.tabIndex = current ? 0 : -1;
         for (const control of card.querySelectorAll('a, button')) {
           control.tabIndex = current ? 0 : -1;
+          control.setAttribute('aria-disabled', current ? 'false' : 'true');
         }
       });
       previous.disabled = cards.length < 2;
