@@ -431,8 +431,11 @@ try {
       if (empty.caret.editable) {
         throw new Error(`${label}: tapping a date put the caret in ${empty.caret.tag}.${empty.caret.cls} — a phone raises its keyboard for that`);
       }
-      if (empty.caret.insidePanel) {
-        throw new Error(`${label}: tapping a date moved the caret into the panel (${empty.caret.tag}.${empty.caret.cls})`);
+      // Opening a detail surface moves keyboard focus to its Close control so
+      // screen-reader and keyboard users land inside the newly opened context.
+      // This is not an editable caret and must never raise the mobile keyboard.
+      if (!empty.caret.insidePanel || empty.caret.tag !== 'BUTTON' || !empty.caret.cls.includes('calendar-day-close')) {
+        throw new Error(`${label}: tapping a date must focus the day-detail close control, got ${empty.caret.tag}.${empty.caret.cls}`);
       }
       if (busy.caret.editable) throw new Error(`${label}: a day with entries put the caret in ${busy.caret.tag}.${busy.caret.cls}`);
 
