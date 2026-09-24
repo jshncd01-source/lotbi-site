@@ -44,7 +44,7 @@ function normalizeVerifiedPhoto(place) {
       || !(host === 'googleusercontent.com' || host.endsWith('.googleusercontent.com'))
       || evidence.provider !== 'GOOGLE_PLACES'
       || evidence.verification_state !== 'VERIFIED'
-      || !['EXACT_NAME_AND_ADDRESS', 'EXACT_NAME_AND_COORDINATES'].includes(text(evidence.match_basis))
+      || !['EXACT_NAME_AND_ADDRESS', 'EXACT_NAME_AND_80M_COORDINATE'].includes(text(evidence.match_basis))
       || !text(evidence.provider_place_id)
       || !Number.isFinite(Date.parse(text(evidence.fetched_at)))
     ) return Object.freeze({url: '', evidence: null});
