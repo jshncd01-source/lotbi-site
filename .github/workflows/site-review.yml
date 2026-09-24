@@ -130,6 +130,11 @@ jobs:
       - name: Validate theme carry across namespaces
         run: node scripts/validate_theme_namespace_carry_01.mjs
 
+      # Following a footer link must not walk the reader out of Dark: the
+      # static pages carried no theme code at all.
+      - name: Validate static pages theme
+        run: node scripts/validate_static_pages_theme_01.mjs
+
       # The viewport-sized scroll container must not be a tab stop: its focus
       # ring reached the screen as two blue vertical lines.
       - name: Validate container focus ring

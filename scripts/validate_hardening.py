@@ -61,11 +61,34 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 주의: privacy.html 본문이 바뀌었으므로 scripts/emit_social_signup_legal_manifest.py
 # 가 내보내는 LOTBI_SOCIAL_PRIVACY_SHA256 도 함께 바뀐다. lotbi-core 에 등록된
 # 동의 증빙 SHA 를 배포 후 갱신해야 실제 문서와 맞는다.
+# SITE-STATIC-PAGES-THEME-01 — these four pages' hashes moved so that following
+# a footer link stops walking the reader out of Dark. Measured with the saved
+# theme at 'dark': index.html painted rgb(21,25,34) and every one of these
+# painted rgb(247,248,251), on a dark OS and a light one alike, because they
+# carried no theme code at all.
+# What moved, per file: the pre-paint theme bootstrap and one <link> in <head>,
+# and one line in the header where the logo <img> gained its light/dark pair.
+# NO LEGAL TEXT CHANGED. Verified two ways: `git diff --unified=0` shows only
+# those head lines and that single <img> line, and stripping the logo <img> from
+# both revisions makes the entire <body> byte-identical on all four files.
+# The bootstrap is the same read-only block index.html carries — it reads
+# localStorage and sets one attribute, writes nothing, and is wrapped in
+# try/catch so a storage failure cannot stop a legal page from rendering.
+# SITE-THEME-AUTO-SCHEDULE-02 카운터파트 — these hashes moved a second time, so
+# that '자동모드' reaches these pages too. SITE-THEME-AUTO-SCHEDULE-02 made the
+# durable key able to hold 'auto'; the bootstrap here accepted only
+# light/dark/system, so with 'auto' stored these pages set no attribute at all
+# and fell back to the OS. Measured at 22:00 on a light OS: Home went dark by
+# the clock, privacy.html stayed rgb(247,248,251). The bootstrap now resolves
+# 'auto' on index.html's own 18:00/07:00 boundaries, and the gate reads those
+# boundaries out of index.html rather than restating them.
+# Again: NO LEGAL TEXT CHANGED. Stripping the logo <img> from both revisions
+# makes the entire <body> byte-identical on all ten pages.
 LOCKED_SHA256 = {
-    'privacy.html': '31e76d4807d39caa209778f9d6bf2cd3192e6703ad9a3c79408ad7514963c59a',
-    'terms.html': '2f2493142626906df7e5537cad8c4858d3874357e89aa865a1d5ad6e13eceb2e',
-    'account-deletion.html': '9652b2bfc892429c9ff4a51e1175df6af2b7964de60612c4924bb95119f6fc98',
-    'contact.html': '669b510e5232b354af9f718fa98584145aa528663584a4d95f3fbe056ea4892a',
+    'privacy.html': '05f6fdbe7c186d5660543c8b7cd6dc415afee6856ede414c15644a57c4d2ec3b',
+    'terms.html': 'fa9ed6210a69a9e11ead04f91ee099a774447bb31f495c1a021dcbca70e3f835',
+    'account-deletion.html': '4f897a168aa686e16099fc3477c1d41491a24c6b871f20c0a912343bc76fba29',
+    'contact.html': 'a6528c70c743a2b61afcc7f2357236751403e29d9058ab959fb762623ed158be',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': '6c7508831330c67a4886e515cbe1ff57b69beaf8f99968b4f60a7d3ddfa10129',

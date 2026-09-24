@@ -46,7 +46,10 @@ def main() -> int:
 
     if (
         'class="brand lotbi-official-brand"' not in about
-        or 'class="lotbi-official-brand-logo"' not in about
+        # SITE-STATIC-PAGES-THEME-01 — the lockup is now a light/dark pair, so the
+        # class attribute carries a variant beside the base class.
+        or 'class="lotbi-official-brand-logo lotbi-brand-logo-light"' not in about
+        or 'class="lotbi-official-brand-logo lotbi-brand-logo-dark"' not in about
         or 'src="/assets/brand/lotbi-lockup-160w.png"' not in about
     ):
         errors.append("about.html: official LOTBI brand asset must be reused")

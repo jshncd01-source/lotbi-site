@@ -23,14 +23,20 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 
 const THEMED_PAGES = ['index.html'];
-const STATIC_PAGES = [
+// SITE-STATIC-PAGES-THEME-01 — these six are reachable from the footer and now
+// follow the LOTBI theme through site-static-theme.css, so they carry both
+// wordmarks like index.html does.
+const THEMED_STATIC_PAGES = [
   'about.html', 'contact.html', 'privacy.html', 'terms.html',
-  'account-deletion.html', '404.html', 'android-auth-test.html',
-  'auth/callback/index.html',
+  'account-deletion.html', '404.html',
+  'subscribe.html', 'refund.html', 'exchange.html', 'dispute.html',
 ];
+// Still genuinely always-light: neither is reachable from the footer and
+// neither loads the static theme.
+const STATIC_PAGES = ['android-auth-test.html', 'auth/callback/index.html'];
 
 // ── 1. The OS-only mechanism is gone everywhere ───────────────────────────
-for (const page of [...THEMED_PAGES, ...STATIC_PAGES]) {
+for (const page of [...THEMED_PAGES, ...THEMED_STATIC_PAGES, ...STATIC_PAGES]) {
   const html = read(page);
   assert.ok(
     !/media="\(prefers-color-scheme: dark\)"/.test(html),
@@ -76,16 +82,59 @@ for (const page of THEMED_PAGES) {
   }
 }
 
-// ── 3. Static pages stay on the light wordmark ────────────────────────────
-// They have no dark styling at all — styles.css carries no prefers-color-scheme
-// block — so a dark wordmark there is white on #f7f8fb.
+// ── 3a. Footer-reachable pages carry both wordmarks ───────────────────────
+// SITE-STATIC-PAGES-THEME-01 — this block used to assert the opposite, on the
+// premise that these pages had no dark surface. They do now, so the premise
+// moved and the invariant did not: the wordmark tracks the painted surface.
+// A single light lockup here would be navy on #151922.
+const staticTheme = read('site-static-theme.css');
+for (const page of THEMED_STATIC_PAGES) {
+  const html = read(page);
+  assert.ok(
+    html.includes('site-static-theme.css'),
+    `${page} must load site-static-theme.css — that is what paints its dark surface`,
+  );
+  for (const variant of ['light', 'dark']) {
+    assert.ok(
+      html.includes(`lotbi-brand-logo-${variant}`),
+      `${page} is missing its ${variant} wordmark variant`,
+    );
+  }
+  assert.ok(
+    /lotbi-brand-logo-dark" src="\/assets\/brand\/lotbi-lockup-dark-160w\.png/.test(html),
+    `${page} dark wordmark must use the dark asset`,
+  );
+  const imgs = html.match(/<img[^>]*lotbi-brand-logo-(?:light|dark)[^>]*>/g) ?? [];
+  assert.equal(imgs.length, 2, `${page} must have exactly one wordmark pair`);
+  for (const img of imgs) {
+    assert.ok(/alt="LOTBI"/.test(img), `${page} wordmark lost its alt text: ${img.slice(0, 80)}`);
+  }
+}
+
+// The static theme has to hide the off-variant, or both lockups render at once.
+assert.ok(
+  /\.lotbi-brand-logo-dark\s*\{\s*display:\s*none/.test(staticTheme),
+  'site-static-theme.css must hide the dark wordmark by default',
+);
+assert.ok(
+  /html\[data-site-theme-bootstrap="dark"\] \.lotbi-brand-logo-dark\s*\{\s*display:\s*block/.test(staticTheme),
+  'explicit Dark must show the dark wordmark on the static pages',
+);
+
+// ── 3b. The genuinely always-light pages stay light ───────────────────────
+// styles.css itself must still carry no dark block: the static theme lives in
+// its own file, which these two pages do not load.
 const styles = read('styles.css');
 assert.ok(
   !styles.includes('prefers-color-scheme'),
-  'styles.css gained dark styling — the static pages now need themed wordmarks too',
+  'styles.css gained dark styling — android-auth-test and the auth callback would inherit it',
 );
 for (const page of STATIC_PAGES) {
   const html = read(page);
+  assert.ok(
+    !html.includes('site-static-theme.css'),
+    `${page} is not footer-reachable and must stay on the always-light path`,
+  );
   assert.ok(
     !html.includes('lotbi-lockup-dark'),
     `${page} has no dark surface, so it must not serve the dark wordmark`,
