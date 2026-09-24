@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const {rovingTabTargetIndex} = await import('../site-calendar-manager.js');
+const {calendarItemActionPolicy, monthGridKeyboardTargetDate, rovingTabTargetIndex} = await import('../site-calendar-manager.js');
 
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
@@ -58,6 +58,34 @@ assert.equal(rovingTabTargetIndex('End', 1, 4), 3);
 assert.equal(rovingTabTargetIndex('Enter', 1, 4), null);
 assert.ok(manager.includes('bindRovingTablist(modes'));
 assert.ok(manager.includes('bindRovingTablist(strip'));
+
+// Month Home/End must follow the visual row owned by the configured week start.
+assert.equal(monthGridKeyboardTargetDate('2026-09-24', 'Home', 0), '2026-09-20');
+assert.equal(monthGridKeyboardTargetDate('2026-09-24', 'End', 0), '2026-09-26');
+assert.equal(monthGridKeyboardTargetDate('2026-09-24', 'Home', 1), '2026-09-21');
+assert.equal(monthGridKeyboardTargetDate('2026-09-24', 'End', 1), '2026-09-27');
+assert.equal(monthGridKeyboardTargetDate('2026-09-27', 'End', 1), '2026-09-27');
+assert.equal(monthGridKeyboardTargetDate('2026-09-24', 'PageUp', 1), null);
+
+// Core-owned LIFE_RESULT rows are not silently turned into editable USER_INPUT.
+assert.deepEqual(calendarItemActionPolicy({
+  source_kind: 'LIFE_RESULT',
+  allowed_actions: ['VIEW_SOURCE', 'HIDE', 'REMINDER_SETTINGS'],
+}), {
+  canUpdate: false,
+  canRemove: false,
+  readOnly: true,
+  allowedActions: ['VIEW_SOURCE', 'HIDE', 'REMINDER_SETTINGS'],
+});
+assert.deepEqual(calendarItemActionPolicy({
+  source_kind: 'USER_INPUT',
+  allowed_actions: ['UPDATE', 'REMOVE'],
+}), {
+  canUpdate: true,
+  canRemove: true,
+  readOnly: false,
+  allowedActions: ['UPDATE', 'REMOVE'],
+});
 
 // Selection restores focus only to a target guaranteed by the active view.
 assert.ok(manager.includes('function focusSelectedCalendarTarget'));
