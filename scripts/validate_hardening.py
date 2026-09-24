@@ -84,11 +84,18 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # boundaries out of index.html rather than restating them.
 # Again: NO LEGAL TEXT CHANGED. Stripping the logo <img> from both revisions
 # makes the entire <body> byte-identical on all ten pages.
+# SITE-USER-FEEDBACK-INTAKE-01 — contact.html 의 해시가 위 테마 작업 위에서 한 줄
+# 더 움직였다. 링크 줄에 <a href="feedback.html">의견 보내기</a> 하나가 문의하기
+# 옆에 붙었다. 하고 싶은 말이 있어 문의 페이지까지 온 사람이 의견을 받는 곳도 바로
+# 볼 수 있어야 하기 때문이다. 법정 고지 문구·사업자 정보 행·연락처는 한 글자도
+# 바뀌지 않았고, 링크 목록에 항목 하나가 더해졌을 뿐이다.
+# `git diff --unified=0 origin/main -- contact.html` 이 추가 1 줄만 보인다.
+# privacy·terms·account-deletion 의 잠금 값은 main 쪽을 그대로 받았다.
 LOCKED_SHA256 = {
     'privacy.html': '05f6fdbe7c186d5660543c8b7cd6dc415afee6856ede414c15644a57c4d2ec3b',
     'terms.html': 'fa9ed6210a69a9e11ead04f91ee099a774447bb31f495c1a021dcbca70e3f835',
     'account-deletion.html': '4f897a168aa686e16099fc3477c1d41491a24c6b871f20c0a912343bc76fba29',
-    'contact.html': 'a6528c70c743a2b61afcc7f2357236751403e29d9058ab959fb762623ed158be',
+    'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': '6c7508831330c67a4886e515cbe1ff57b69beaf8f99968b4f60a7d3ddfa10129',

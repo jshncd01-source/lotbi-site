@@ -18,6 +18,7 @@ PAGES = (
     "terms.html",
     "account-deletion.html",
     "contact.html",
+    "feedback.html",
     "404.html",
     "subscribe.html",
     "refund.html",

@@ -33,6 +33,7 @@ REQUIRED_HTML = (
     "refund.html",
     "exchange.html",
     "dispute.html",
+    "feedback.html",
 )
 BRAND_SURFACES = REQUIRED_HTML + (
     "404.html",
@@ -45,6 +46,8 @@ REQUIRED_FILES = REQUIRED_HTML + (
     "about.css",
     "mobile-entry.css",
     "mobile-entry.js",
+    "feedback.css",
+    "feedback.js",
     "robots.txt",
     "sitemap.xml",
     "assets/lotbi-main-logo.png",
@@ -62,6 +65,7 @@ EXPECTED_CANONICALS = {
     "refund.html": f"{SITE_ORIGIN}/refund.html",
     "exchange.html": f"{SITE_ORIGIN}/exchange.html",
     "dispute.html": f"{SITE_ORIGIN}/dispute.html",
+    "feedback.html": f"{SITE_ORIGIN}/feedback.html",
 }
 
 
