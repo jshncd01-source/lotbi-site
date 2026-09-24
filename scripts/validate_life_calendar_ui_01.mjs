@@ -239,6 +239,7 @@ const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const css = read('site-calendar.css');
 const conversation = read('site-conversation.js');
+const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 const openCalendarStart = conversation.indexOf('const openCalendar = async (view,');
 const openCalendarEnd = conversation.indexOf('const openHelp = () =>', openCalendarStart);
 assert.ok(openCalendarStart >= 0 && openCalendarEnd > openCalendarStart, 'Calendar open handler missing');
@@ -249,7 +250,7 @@ assert.ok(openCalendar.includes('mountLifeCalendarManager({'), 'Calendar entry m
 assert.match(openCalendar, /sessionToken\s*\?/, 'Calendar copy must distinguish authenticated and guest entry without gating');
 
 
-assert.ok(index.includes('href="site-calendar.css?v=20260924-calendarux1"'));
+assert.ok(index.includes(`href="site-calendar.css?v=${assetVersion}"`));
 assert.ok(!index.includes('data-life-calendar-panel'), 'Chat Home must not auto-mount a Calendar summary panel');
 assert.ok(!index.includes('data-calendar-enabled="true"'), 'Chat Home must not opt into the legacy Calendar summary');
 assert.ok(!index.includes('aria-label="오늘과 예정" hidden'), 'Chat Home must not carry the Today/Upcoming summary surface');
@@ -263,7 +264,7 @@ for (const hiddenNavLabel of ['전체 일정', '예정된 일정', '날짜별 �
 for (const forbidden of ['>Today<', '>Upcoming<', '>Needs Attention<']) {
   assert.ok(!index.includes(forbidden), `internal Calendar term leaked into user UI: ${forbidden}`);
 }
-assert.ok(callback.includes('href="/site-calendar.css?v=20260924-calendarux1"'));
+assert.ok(callback.includes(`href="/site-calendar.css?v=${assetVersion}"`));
 const callbackJs = read('auth-callback.js');
 assert.ok(!callbackJs.includes('mountLifeCalendarIfEnabled'), 'Auth callback must not auto-mount Calendar summary into Chat Home');
 
@@ -280,7 +281,7 @@ assert.ok(conversation.includes("parts.push('알림 설정 일정 있음')"), 'C
 assert.ok(conversation.includes("item?.reminder_configured === true"), 'Reminder Bell must be driven only by an explicit authoritative reminder field');
 assert.ok(conversation.includes("window.addEventListener('pageshow', onNavigationCalendarRefresh)"), 'Calendar navigation status must refresh on foreground/page resume');
 assert.ok(ui.includes("getLifeAgenda("));
-assert.ok(ui.includes("from './site-calendar-manager.js?v=20260924-calendarux1'"));
+assert.ok(ui.includes(`from './site-calendar-manager.js?v=${assetVersion}'`));
 assert.ok(ui.includes("export function loadGuestLifeCalendarManagerView"));
 assert.ok(ui.includes("root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest'"));
 assert.ok(ui.includes('mountLifeCalendarManager'));

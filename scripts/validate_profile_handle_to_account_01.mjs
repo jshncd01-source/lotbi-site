@@ -36,7 +36,7 @@ assert.ok(
 );
 // 화면에 붙는 노드 목록에서도 빠져야 한다.
 assert.ok(
-  profile.includes('content.append(preview, photoLabel, error, nameLabel, emailField, save)'),
+  profile.includes('content.append(preview, photoPicker, error, nameLabel, emailField, save)'),
   '핸들 필드가 화면 구성에서 빠져야 합니다',
 );
 

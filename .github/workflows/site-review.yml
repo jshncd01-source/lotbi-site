@@ -40,6 +40,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Validate deterministic asset cache coherence
+        run: node scripts/asset_cache_version.mjs --check
+
+      - name: Validate same-URL Home first-paint stability
+        run: node scripts/validate_home_same_url_stability_01.mjs
+
       - name: Validate public site
         run: python scripts/validate_site.py
 
@@ -258,6 +264,15 @@ jobs:
       - name: Validate compact Place Card
         run: node scripts/validate_place_card_compact_01.mjs
 
+      # 대표님 지시로 길찾기가 딥링크 3종이 되었습니다 — 네이버 옆에 카카오맵과
+      # 티맵. 새 API 키도 과금도 없고 URL scheme 과 Android intent 뿐입니다.
+      # 티맵은 x 가 경도 y 가 위도라 순서를 뒤집으면 엉뚱한 곳으로 보내므로
+      # 좌표 순서를 문자열로 못 박고, 좌표가 확인되지 않은 장소는 이름 검색으로
+      # 떨어지는지도 봅니다. 버튼이 넷이 되어 카드가 깨지지 않는지는 412·390·
+      # 360px 에서 실제로 잽니다.
+      - name: Validate Place Card map deep links
+        run: node scripts/validate_place_card_map_deeplinks_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
@@ -326,6 +341,9 @@ jobs:
         env:
           REQUIRE_BROWSER: 1
         run: node scripts/validate_image_attachment_thumbnail_01.mjs
+
+      - name: Validate chat attachment privacy and Running LOTBI thinking UX
+        run: node scripts/validate_chat_media_thinking_01.mjs
 
       - name: Validate centered conversation timeline
         run: node scripts/validate_conversation_timeline_01.mjs
@@ -430,7 +448,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 

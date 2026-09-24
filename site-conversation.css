@@ -132,6 +132,9 @@
 }
 
 .chat-message-loading {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
   color: var(--lotbi-text-muted, #687180);
 }
 
@@ -960,10 +963,9 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 
 .message-attachment-card { padding: 7px; }
 
-/* SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — a sent image attachment shows the image
-   itself; the filename drops to a caption. Non-image attachments keep the
-   existing icon card untouched. Thumbnails are contained, never square-cropped,
-   so a reservation or screenshot stays readable. */
+/* CHAT-ATTACHMENT-NO-FILENAME-01 — a sent image is the content. Its private
+   filename is not a caption; documents use a generic type label. Thumbnails
+   are contained, never square-cropped, so a reservation stays readable. */
 /* Flex, not the grid above: an auto-fit track stretches to fill the bubble, so
    every image card came out as wide as the row instead of as wide as its photo. */
 .message-attachment-list[data-image-count] {
@@ -1004,15 +1006,6 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 
 .message-attachment-list[data-image-count="2"] .message-attachment-card-image { --thumbnail-size: 150px; }
 .message-attachment-list[data-image-count="3"] .message-attachment-card-image { --thumbnail-size: 116px; }
-
-/* The caption is bounded by the same size the photo is, so a long filename
-   ellipsises inside the card instead of stretching it into an empty strip. */
-.message-attachment-card-image .message-attachment-name {
-  max-width: var(--thumbnail-size);
-  font-size: 11px;
-  font-weight: 650;
-  opacity: .82;
-}
 
 /* An image-only turn: the thumbnail is the content, the generated sentence
    stays in the DOM for assistive technology only. */
@@ -1247,6 +1240,21 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 .profile-photo-preview {
   width: 88px; height: 88px; display: grid; place-items: center; border-radius: 50%;
   background: #e7ebf3 center / cover no-repeat; color: #18345f; font-size: 24px; font-weight: 850;
+}
+.profile-photo-picker { width: min(100%, 390px); display: grid; gap: 10px; justify-items: start; }
+.profile-photo-source-menu {
+  width: 100%; padding: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  border: 1px solid var(--lotbi-border-strong, #cfd6e2); border-radius: 15px;
+  background: var(--lotbi-surface-primary, #fff); box-shadow: 0 12px 30px rgba(21, 36, 59, .14);
+}
+.profile-photo-source-menu[hidden] { display: none; }
+.profile-photo-source-option {
+  min-width: 0; min-height: 58px; padding: 9px 6px; border: 1px solid var(--lotbi-border-default, #d5dbe6);
+  border-radius: 12px; background: var(--lotbi-surface-subtle, #f5f7fa); color: var(--lotbi-text-primary, #303642);
+  font: inherit; font-size: 14px; font-weight: 800; line-height: 1.25; cursor: pointer;
+}
+.profile-photo-source-option:hover, .profile-photo-source-option:focus-visible {
+  border-color: #18345f; background: var(--lotbi-surface-hover, #f0f2f7); outline: 2px solid rgba(24, 52, 95, .15); outline-offset: 1px;
 }
 .color-picker { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border: 0; }
 .color-picker legend { grid-column: 1 / -1; margin-bottom: 4px; color: var(--lotbi-text-secondary, #3d4653); font-size: 14px; font-weight: 800; }
@@ -1817,9 +1825,8 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
   white-space: nowrap;
 }
 
-/* SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — the composer shows the chosen image
-   before it is sent. The thumbnail sits beside the filename and never covers
-   the remove button's touch target. */
+/* CHAT-ATTACHMENT-NO-FILENAME-01 — the composer shows the chosen image and a
+   remove target only. Documents use a generic type label. */
 .attachment-chip-with-thumb,
 .attachment-chip-pending {
   flex: 0 0 auto;
@@ -2296,13 +2303,17 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   text-overflow: ellipsis;
 }
 
+/* 버튼이 넷(전화·네이버·카카오·티맵)이 되면서 44px 타깃 넷과 여백의 합이 가장
+   좁은 카드(데스크톱 215.7px, 360px 화면 214px)를 넘지 않아야 합니다.
+   44*4 + 6*3 + 6*2 = 206px. 줄이는 것은 여백뿐이고 타깃은 44px 그대로입니다.
+   카드·레일 치수(PR #278)는 건드리지 않습니다 — min-height 46px 도 그대로. */
 .lotbi-place-card-actions {
   display: flex;
   grid-template-columns: none;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   min-height: 46px;
-  padding: 3px 8px 6px;
+  padding: 3px 6px 6px;
 }
 
 .lotbi-rich-card-icon-action {
@@ -2351,6 +2362,28 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   font-size: 22px;
   line-height: 1;
   font-weight: 760;
+}
+
+/* SITE-PLACE-CARD-MAP-DEEPLINK-01 — 카카오맵·티맵 버튼.
+   두 곳 모두 로고 파일을 끌어다 쓰지 않고 글자 표시로 그린다. 네이버 아이콘이
+   못 뜰 때 쓰는 그 is-icon-fallback 자리를 그대로 쓰므로 규칙이 하나뿐이다.
+   지름 44px 터치 타깃은 .lotbi-rich-card-icon-action 이 이미 잡아 준다. */
+.lotbi-kakao-map-action.is-icon-fallback::before {
+  content: "카";
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.lotbi-tmap-action.is-icon-fallback::before {
+  content: "T";
+  font-size: 21px;
+  line-height: 1;
+  font-weight: 820;
+}
+
+.lotbi-tmap-action[data-tmap-state="MOBILE_ONLY"] {
+  opacity: .48;
 }
 
 .lotbi-place-orbit-control {
@@ -2492,7 +2525,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   }
 
   .lotbi-place-card-actions {
-    gap: 8px;
+    gap: 6px;
   }
 }
 

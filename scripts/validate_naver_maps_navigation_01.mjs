@@ -9,6 +9,7 @@ const coreSource = await fs.readFile(new URL('../site-core.js', import.meta.url)
 const conversationSource = await fs.readFile(new URL('../site-conversation.js', import.meta.url), 'utf8');
 const indexSource = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
 const conversationStyles = await fs.readFile(new URL('../site-conversation.css', import.meta.url), 'utf8');
+const assetVersion = JSON.parse(await fs.readFile(new URL('../site-asset-version.json', import.meta.url), 'utf8')).version;
 
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(navSource).toString('base64');
 const nav = await import(moduleUrl);
@@ -430,7 +431,7 @@ assert.match(placeRendererSource, /navigate\.rel = 'noopener noreferrer'/u);
 assert.match(placeRendererSource, /event\.preventDefault\(\)/u);
 assert.match(conversationSource, /navigate\.title = '네이버지도에서 열기'/u);
 assert.match(conversationSource, /https:\/\/navercorp\.com\/img\/pc\/service-map-app-4\.jpg/u);
-assert.match(conversationSource, /site-navigation\.js\?v=20260924-imagethumb2/u);
+assert.ok(conversationSource.includes(`site-navigation.js?v=${assetVersion}`));
 assert.doesNotMatch(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
 assert.doesNotMatch(placeRendererSource, /detail\.textContent = '상세보기'/u);
 assert.doesNotMatch(placeRendererSource, /navigate\.disabled = !fresh/u);
@@ -512,10 +513,9 @@ assert.match(conversationStyles, /\.lotbi-place-photo-placeholder\s*\{/u);
 assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.lotbi-place-orbit-card[\s\S]*transition:\s*none/u);
 
 assert.match(indexSource, /site-conversation\.js\?v=[A-Za-z0-9._-]+/u, 'Home conversation runtime must remain cache-busted');
-assert.match(
-  conversationSource,
-  /\.\/site-navigation\.js\?v=20260924-imagethumb2/u,
-  'Home Place Card runtime must keep the compact-actions navigation module',
+assert.ok(
+  conversationSource.includes(`./site-navigation.js?v=${assetVersion}`),
+  'Home Place Card runtime must keep the compact-actions navigation module at the generated asset-set version',
 );
 
 console.log('NAVER Place Card CENTER BODY -> NAVER MAP + side select + drag + fallback + phone fail-safe contract: PASS');

@@ -1,20 +1,21 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260924-assurance1';
-import {buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260924-imagethumb2';
-import * as siteAttachments from './site-attachments.js?v=20260924-imagethumb2';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
-import {deterministicReply} from './site-deterministic.js';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260923-freshentry1';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260924-calendarux1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260924-calendarux1';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260924-calendarux1';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=20260924-calendarux1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-calendarux1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-imagethumb2';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-0c0852554a5f';
+import * as siteCore from './site-core.js?v=aset-0c0852554a5f';
+import {buildKakaoMapWebSearchUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoMapPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-0c0852554a5f';
+import * as siteAttachments from './site-attachments.js?v=aset-0c0852554a5f';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-0c0852554a5f';
+import {deterministicReply} from './site-deterministic.js?v=aset-0c0852554a5f';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-0c0852554a5f';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-0c0852554a5f';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-0c0852554a5f';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-0c0852554a5f';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-0c0852554a5f';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-0c0852554a5f';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-0c0852554a5f';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-0c0852554a5f';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-0c0852554a5f';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
-const {adoptAttachmentPreviewUrl, attachmentKindLabel, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, safeAttachmentName, validateAttachmentFiles} = siteAttachments;
+const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
 // placeholder as its conversation text. The composer builds the same sentence
@@ -128,6 +129,9 @@ const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
 const PHOTO_BYTES_LIMIT = 20 * 1024 * 1024;
 const PHOTO_DIMENSION_LIMIT = 8192;
 const PHOTO_PIXEL_LIMIT = 40_000_000;
+const PROFILE_PHOTO_SOURCE_OPTIONS = Object.freeze([
+  ['camera', '카메라'], ['gallery', '갤러리'], ['files', '내 파일'],
+]);
 const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
   ['orange', '오렌지'], ['pink', '분홍'], ['gray', '회색'],
@@ -160,7 +164,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260924-calendarux1';
+  link.href = '/site-conversation.css?v=aset-0c0852554a5f';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -421,8 +425,19 @@ function createAttachmentIcon(attachment) {
   const icon = document.createElement('span');
   icon.className = 'message-attachment-icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = attachment && attachment.mediaType === 'application/pdf' ? 'PDF' : '파일';
+  const mediaType = attachment && (attachment.mediaType || attachment.mimeType);
+  icon.textContent = String(mediaType || '').startsWith('image/')
+    ? '사진'
+    : (mediaType === 'application/pdf' ? 'PDF' : '파일');
   return icon;
+}
+
+function appendAttachmentLabel(item, presentation) {
+  const label = document.createElement('span');
+  label.className = 'message-attachment-name';
+  label.textContent = presentation.label;
+  item.appendChild(label);
+  return label;
 }
 
 function createMessage(role, text, meta = {}) {
@@ -439,7 +454,7 @@ function createMessage(role, text, meta = {}) {
     let thumbnailCount = 0;
     for (const attachment of meta.attachments) {
       const item = document.createElement('div'); item.className = 'message-attachment-card';
-      const name = safeAttachmentName(attachment && attachment.filename);
+      const presentation = attachmentDisplayPresentation(attachment);
       const previewUrl = attachment && typeof attachment.previewUrl === 'string' ? attachment.previewUrl : '';
       // The image branch needs a validated image media type AND a browser-local
       // preview; a filename suffix alone never promotes a file to a thumbnail.
@@ -447,12 +462,13 @@ function createMessage(role, text, meta = {}) {
         item.classList.add('message-attachment-card-image');
         const image = document.createElement('img'); image.className = 'message-attachment-image';
         image.decoding = 'async'; image.loading = 'lazy';
-        image.src = previewUrl; image.alt = `첨부 이미지: ${name}`;
+        image.src = previewUrl; image.alt = presentation.imageAlt;
         // A revoked or unreadable preview falls back to the file card instead of
         // leaving a broken image behind.
         image.addEventListener('error', () => {
           item.classList.remove('message-attachment-card-image');
           image.replaceWith(createAttachmentIcon(attachment));
+          if (!item.querySelector('.message-attachment-name')) appendAttachmentLabel(item, presentation);
           list.dataset.imageCount = String(Math.max(0, Number(list.dataset.imageCount || 0) - 1));
           // Without a thumbnail there is nothing left to carry the turn, so the
           // placeholder sentence becomes visible again.
@@ -463,13 +479,14 @@ function createMessage(role, text, meta = {}) {
         thumbnailCount += 1;
       } else {
         item.appendChild(createAttachmentIcon(attachment));
+        appendAttachmentLabel(item, presentation);
       }
-      const label = document.createElement('span'); label.className = 'message-attachment-name'; label.textContent = name; item.appendChild(label); list.appendChild(item);
+      list.appendChild(item);
     }
     if (thumbnailCount) list.dataset.imageCount = String(thumbnailCount);
     // §5 — on an image-only turn the thumbnail is the content; the generated
     // sentence stays in the DOM for assistive technology only.
-    if (role === 'user' && thumbnailCount === meta.attachments.length && text === attachmentOnlyPlaceholder(meta.attachments.length)) {
+    if (role === 'user' && meta.attachments.length && text === attachmentOnlyPlaceholder(meta.attachments.length)) {
       article.classList.add('chat-message-attachment-only');
       body.classList.add('sr-only');
     }
@@ -513,10 +530,10 @@ function createMessage(role, text, meta = {}) {
   }
   return article;
 }
-function createLoadingMessage() {
-  const article = createMessage('assistant', 'LOTBI가 답변을 준비하고 있습니다…');
+function createLoadingMessage(text) {
+  const article = createMessage('assistant', text);
   article.classList.add('chat-message-loading');
-  article.dataset.transient = 'true'; article.setAttribute('role', 'status');
+  article.dataset.transient = 'true';
   return article;
 }
 function isGuestSessionError(error) {
@@ -736,7 +753,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let themeBoundaryTimer;
   let richCardActionInFlight = false;
   let guestSessionToken, guestSessionExpiresAt = 0;
-  let avatarSequence = 0, voiceAvatarRequestId;
+  let avatarSequence = 0, voiceAvatarRequestId, activeThinking, activeTurnGeneration = 0;
   const nextAvatarRequestId = kind => `site-${kind}-${Date.now()}-${++avatarSequence}`;
   const driveAvatar = (phase, requestId) => window.dispatchEvent(new CustomEvent('lotbi-avatar-lifecycle', {
     detail: Object.freeze({phase, requestId}),
@@ -930,6 +947,56 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } else thread.appendChild(node);
     if (!suppressScroll && shouldStick) stickThreadToBottom();
     return node;
+  };
+  const stopThinking = (handle, reason = 'cancel') => {
+    if (!handle || handle !== activeThinking) return;
+    handle.presentation.stop(reason);
+    if (handle.avatarVisible) {
+      if (reason === 'answer') driveAvatar('response-complete', handle.requestId);
+      else driveAvatar('cancel', handle.requestId);
+    }
+    if (handle.node) {
+      handle.node.closest('.chat-assistant-row')?.remove();
+      handle.node.remove();
+      handle.node = undefined;
+      restoreAvatarHome();
+    }
+    activeThinking = undefined;
+  };
+  const beginThinking = ({attachments = [], text = '', onTimeout = () => {}} = {}) => {
+    if (activeThinking) stopThinking(activeThinking, 'replaced');
+    const handle = {
+      avatarVisible: false,
+      node: undefined,
+      presentation: undefined,
+      requestId: nextAvatarRequestId('turn'),
+    };
+    const updateCopy = state => {
+      if (activeThinking !== handle || !handle.node) return;
+      const body = handle.node.querySelector('.chat-message-body');
+      if (body) body.textContent = state.text;
+    };
+    handle.presentation = createThinkingPresentation({
+      onVisible: state => {
+        if (activeThinking !== handle) return;
+        handle.node = appendNode(createLoadingMessage(state.text));
+        handle.avatarVisible = true;
+        driveAvatar('response-wait', handle.requestId);
+      },
+      onLongWait: updateCopy,
+      onTimeout,
+    });
+    activeThinking = handle;
+    handle.presentation.start(selectThinkingKind({attachments, text}));
+    return Object.freeze({stop: reason => stopThinking(handle, reason)});
+  };
+  const cancelActiveTurn = reason => {
+    activeTurnGeneration += 1;
+    if (activeThinking) stopThinking(activeThinking, reason);
+    if (inFlight) {
+      inFlight = false;
+      updateSendState();
+    }
   };
   const closeConversationMenus = except => {
     for (const menu of document.querySelectorAll('details[data-conversation-menu][open]')) {
@@ -1288,6 +1355,41 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
     };
 
+    // 카카오맵과 티맵은 같은 장소를 사용자가 이미 쓰는 앱에서 여는 손잡이일
+    // 뿐이다. 장소를 다시 고르지 않는다 — 네이버가 확정한 이름과 좌표를 그대로
+    // 넘긴다. 오래된 결과를 막는 규칙도 네이버 버튼과 하나로 맞춘다.
+    const openPlaceInKakaoMap = place => {
+      const fallbackHref = buildKakaoMapWebSearchUrl(place);
+      if (!isPlaceResultFresh(placeResult)) {
+        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
+        return;
+      }
+      const opened = openKakaoMapPlace(place);
+      if (!opened.opened) {
+        globalThis.location.href = fallbackHref;
+        setStatus('카카오맵 웹 검색으로 연결합니다.');
+        return;
+      }
+      const routeMode = opened.mode === 'KAKAO_ROUTE_INTENT' || opened.mode === 'KAKAO_ROUTE_URL_SCHEME';
+      setStatus(routeMode ? '선택한 장소를 카카오맵 길찾기로 연결합니다.' : '선택한 장소를 카카오맵에서 엽니다.');
+    };
+
+    const openPlaceInTmap = place => {
+      if (!isPlaceResultFresh(placeResult)) {
+        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
+        return;
+      }
+      const opened = openTmapPlace(place);
+      if (!opened.opened) {
+        // 티맵에는 장소를 여는 웹 화면이 없다. 데스크톱에서 눌렸다면 보낼 곳이
+        // 없으므로, 없는 곳으로 보내는 대신 그렇다고 말한다.
+        setStatus('티맵은 휴대폰 앱에서 열 수 있어요.');
+        return;
+      }
+      const routeMode = opened.mode === 'TMAP_ROUTE_INTENT' || opened.mode === 'TMAP_ROUTE_URL_SCHEME';
+      setStatus(routeMode ? '선택한 장소를 티맵 길안내로 연결합니다.' : '선택한 장소를 티맵에서 찾습니다.');
+    };
+
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
       const item = document.createElement('article');
@@ -1444,6 +1546,51 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         openPlaceInNaverMap(place);
       });
       actions.appendChild(navigate);
+
+      // 카카오맵. 네이버 버튼과 같은 골격이다 — 진짜 링크를 href 에 두어 새 탭
+      // 열기와 복사가 살아 있게 하고, 클릭은 앱 우선 handoff 가 가로챈다.
+      // 아이콘은 글리프로 그린다. 남의 로고 파일을 우리 페이지에서 끌어다 쓰지
+      // 않으며, 네이버 아이콘이 실패했을 때 쓰는 그 is-icon-fallback 표시를
+      // 그대로 쓴다.
+      const kakaoMap = document.createElement('a');
+      kakaoMap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-map-action is-icon-fallback';
+      kakaoMap.href = buildKakaoMapWebSearchUrl(place);
+      kakaoMap.target = '_blank';
+      kakaoMap.rel = 'noopener noreferrer';
+      kakaoMap.setAttribute('aria-label', `${place.name} 카카오맵에서 열기`);
+      kakaoMap.title = '카카오맵에서 열기';
+      kakaoMap.dataset.action = 'kakao-map';
+      kakaoMap.tabIndex = placeIndex === 0 ? 0 : -1;
+      kakaoMap.addEventListener('click', event => {
+        event.preventDefault();
+        openPlaceInKakaoMap(place);
+      });
+      actions.appendChild(kakaoMap);
+
+      // 티맵은 앱 전용이다. 열어 줄 웹 화면이 없는 데스크톱에서는 링크가 아니라
+      // 비활성 버튼으로 둔다 — 전화번호가 없을 때 전화 버튼이 하는 것과 같다.
+      const tmapReady = isTmapHandoffAvailable();
+      const tmap = document.createElement(tmapReady ? 'a' : 'button');
+      tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action is-icon-fallback';
+      tmap.dataset.action = 'tmap';
+      tmap.dataset.tmapState = tmapReady ? 'MOBILE_APP' : 'MOBILE_ONLY';
+      tmap.tabIndex = placeIndex === 0 ? 0 : -1;
+      if (tmapReady) {
+        tmap.href = '#';
+        tmap.setAttribute('aria-label', `${place.name} 티맵에서 열기`);
+        tmap.title = '티맵에서 열기';
+        tmap.addEventListener('click', event => {
+          event.preventDefault();
+          openPlaceInTmap(place);
+        });
+      } else {
+        tmap.type = 'button';
+        tmap.disabled = true;
+        tmap.setAttribute('aria-disabled', 'true');
+        tmap.setAttribute('aria-label', `${place.name} 티맵은 휴대폰 앱에서 열기`);
+        tmap.title = '티맵은 휴대폰 앱에서 열 수 있어요';
+      }
+      actions.appendChild(tmap);
 
       item.append(media, copy, actions);
       cards.push(item);
@@ -2371,10 +2518,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const activateThread = id => {
     if (!state.threads.some(item => item.id === id)) return;
+    cancelActiveTurn('conversation-switch');
     closeConversationMenus();
     state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); prompt.focus();
   };
   const startNewConversation = () => {
+    cancelActiveTurn('new-conversation');
     closeConversationMenus();
     discardPendingAttachments();
     state.activeThreadId = null; state.draft = ''; prompt.value = '';
@@ -2390,6 +2539,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const normalizeStoredMessage = value => {
     if (!value || typeof value !== 'object' || !['user', 'assistant'].includes(value.role) || typeof value.text !== 'string') return null;
     const meta = value.meta && typeof value.meta === 'object' ? {...value.meta} : {};
+    if ('attachments' in meta) {
+      const attachments = Array.isArray(meta.attachments)
+        ? meta.attachments.flatMap(item => {
+          if (!item || typeof item !== 'object') return [];
+          const mediaType = typeof item.mediaType === 'string' ? item.mediaType.trim().slice(0, 128) : '';
+          if (!mediaType) return [];
+          return [{
+            id: typeof item.id === 'string' ? item.id.trim().slice(0, 128) : '',
+            mediaType,
+            sizeBytes: Number.isFinite(Number(item.sizeBytes)) ? Math.max(0, Number(item.sizeBytes)) : 0,
+          }];
+        }).slice(0, 3)
+        : [];
+      if (attachments.length) meta.attachments = attachments;
+      else delete meta.attachments;
+    }
     if ('calendarAction' in meta) {
       const recovered = recoverCalendarActionAfterReload(meta.calendarAction);
       if (recovered) meta.calendarAction = recovered;
@@ -2663,7 +2828,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260923-petspecies1');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-0c0852554a5f');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
@@ -2756,9 +2921,48 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const {backdrop, panel, content} = modalShell('프로필', '표시 이름·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
-    const photoLabel = document.createElement('label'); photoLabel.className = 'site-button site-button-secondary'; photoLabel.textContent = '사진 선택';
-    const photo = document.createElement('input'); photo.type = 'file'; photo.accept = 'image/*'; photo.className = 'sr-only'; photoLabel.appendChild(photo);
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
+    const photoPicker = document.createElement('div'); photoPicker.className = 'profile-photo-picker';
+    const photoTrigger = document.createElement('button'); photoTrigger.type = 'button'; photoTrigger.className = 'site-button site-button-secondary'; photoTrigger.textContent = '사진 선택';
+    photoTrigger.setAttribute('aria-haspopup', 'menu'); photoTrigger.setAttribute('aria-expanded', 'false');
+    const photoMenu = document.createElement('div'); photoMenu.className = 'profile-photo-source-menu'; photoMenu.id = 'profile-photo-source-menu'; photoMenu.setAttribute('role', 'menu'); photoMenu.setAttribute('aria-label', '프로필 사진 가져오기'); photoMenu.hidden = true;
+    photoTrigger.setAttribute('aria-controls', photoMenu.id);
+    const setPhotoMenuOpen = open => { photoMenu.hidden = !open; photoTrigger.setAttribute('aria-expanded', String(open)); };
+    function applyProfilePhoto(file) {
+      if (!file) return Promise.resolve();
+      error.textContent = '';
+      return readProfilePhoto(file).then(value => {
+        preferences.photo = value;
+        savePreferences();
+        preview.style.backgroundImage = `url(${preferences.photo})`;
+        refreshAuthenticatedProfileSlots();
+      }).catch(caught => { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; });
+    }
+    for (const [source, label] of PROFILE_PHOTO_SOURCE_OPTIONS) {
+      const option = document.createElement('button'); option.type = 'button'; option.className = 'profile-photo-source-option'; option.textContent = label; option.setAttribute('role', 'menuitem'); option.dataset.profilePhotoSource = source;
+      const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.multiple = false; input.className = 'sr-only'; input.dataset.profilePhotoInput = source;
+      if (source === 'camera') input.setAttribute('capture', 'environment');
+      photoMenu.appendChild(option); photoPicker.appendChild(input);
+      input.addEventListener('change', async () => {
+        const file = input.files?.[0];
+        try { await applyProfilePhoto(file); } finally { input.value = ''; }
+      });
+      option.addEventListener('click', async () => {
+        setPhotoMenuOpen(false); input.value = '';
+        if (source !== 'files' || typeof globalThis.showOpenFilePicker !== 'function') { input.click(); return; }
+        try {
+          const [selectedFile] = await globalThis.showOpenFilePicker({multiple: false, excludeAcceptAllOption: true, types: [{description: '이미지 파일', accept: {'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif']}}]});
+          const file = await selectedFile?.getFile?.();
+          await applyProfilePhoto(file);
+        } catch (caught) {
+          if (caught?.name === 'AbortError') return;
+          input.click();
+        }
+      });
+    }
+    photoTrigger.addEventListener('click', () => setPhotoMenuOpen(photoMenu.hidden));
+    photoMenu.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); setPhotoMenuOpen(false); photoTrigger.focus(); } });
+    photoPicker.prepend(photoTrigger, photoMenu);
 
     const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
     const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
@@ -2768,15 +2972,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const save = document.createElement('button'); save.type = 'button'; save.className = 'site-button site-button-primary'; save.textContent = '프로필 저장';
     save.disabled = !sessionToken;
 
-    photo.addEventListener('change', async () => {
-      const file = photo.files?.[0]; if (!file) return; error.textContent = '';
-      try {
-        preferences.photo = await readProfilePhoto(file);
-        savePreferences();
-        preview.style.backgroundImage = `url(${preferences.photo})`;
-        refreshAuthenticatedProfileSlots();
-      } catch (caught) { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; }
-    });
     save.addEventListener('click', async () => {
       if (!sessionToken || save.disabled) return;
       error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
@@ -2797,7 +2992,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         save.disabled = false;
       }
     });
-    content.append(preview, photoLabel, error, nameLabel, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoPicker, error, nameLabel, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
   // 개인테마 — the theme choice and nothing else. This surface only calls the
   // existing applyPreferences/savePreferences pair; the theme switching logic
@@ -3137,12 +3332,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let pendingAttachmentPreviews = [];
   let attachmentUploadsInFlight = 0;
   let attachmentMenuOpen = false;
-  const attachmentSizeLabel = size => {
-    const bytes = Math.max(0, Number(size || 0));
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
-    if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`;
-    return `${bytes}B`;
-  };
   const closeAttachmentMenu = ({restoreFocus = false} = {}) => {
     attachmentMenuOpen = false;
     attachmentMenu.hidden = true;
@@ -3156,14 +3345,25 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     attachmentTrigger.setAttribute('aria-expanded', 'true');
     queueMicrotask(() => attachmentMenu.querySelector('[role="menuitem"]')?.focus());
   };
-  const appendChipThumbnail = (chip, item, label) => {
+  const appendChipFallbackLabel = (chip, item) => {
+    if (chip.querySelector('.attachment-chip-name')) return;
+    const label = document.createElement('span');
+    label.className = 'attachment-chip-name';
+    label.textContent = attachmentDisplayPresentation(item).label;
+    chip.insertBefore(label, chip.querySelector('.attachment-chip-meta, .attachment-chip-remove'));
+  };
+  const appendChipThumbnail = (chip, item) => {
     if (!item || !item.previewUrl || !isPreviewableImageAttachment(item)) return false;
     const thumb = document.createElement('img');
     thumb.className = 'attachment-chip-thumb';
     thumb.decoding = 'async';
     thumb.src = item.previewUrl;
-    thumb.alt = `첨부 이미지: ${label}`;
-    thumb.addEventListener('error', () => thumb.remove(), {once: true});
+    thumb.alt = attachmentDisplayPresentation(item).imageAlt;
+    thumb.addEventListener('error', () => {
+      thumb.remove();
+      appendChipFallbackLabel(chip, item);
+      chip.classList.remove('attachment-chip-with-thumb');
+    }, {once: true});
     chip.appendChild(thumb);
     chip.classList.add('attachment-chip-with-thumb');
     return true;
@@ -3172,11 +3372,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const fragment = document.createDocumentFragment();
     for (const item of selectedAttachments) {
       const chip = document.createElement('span'); chip.className = 'attachment-chip'; chip.dataset.attachmentId = item.id;
-      appendChipThumbnail(chip, item, safeAttachmentName(item.fileName));
-      const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = safeAttachmentName(item.fileName); name.title = safeAttachmentName(item.fileName);
-      const meta = document.createElement('span'); meta.className = 'attachment-chip-meta'; meta.textContent = `${attachmentKindLabel(item.mimeType)} · ${attachmentSizeLabel(item.sizeBytes)}`;
+      const presentation = attachmentDisplayPresentation(item);
+      const hasThumbnail = appendChipThumbnail(chip, item);
+      if (!hasThumbnail) {
+        const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = presentation.label;
+        chip.appendChild(name);
+      }
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'attachment-chip-remove'; remove.textContent = '×';
-      remove.setAttribute('aria-label', `${safeAttachmentName(item.fileName)} 첨부 제거`);
+      remove.setAttribute('aria-label', presentation.removeLabel);
       remove.addEventListener('click', async () => {
         if (inFlight || remove.disabled) return;
         remove.disabled = true;
@@ -3198,16 +3401,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
       });
-      chip.append(name, meta, remove); fragment.appendChild(chip);
+      chip.appendChild(remove); fragment.appendChild(chip);
     }
     // A chosen image shows its thumbnail while the original is still uploading.
     for (const pending of pendingAttachmentPreviews) {
       const chip = document.createElement('span'); chip.className = 'attachment-chip attachment-chip-pending';
-      const label = safeAttachmentName(pending.fileName);
-      appendChipThumbnail(chip, pending, label);
-      const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = label; name.title = label;
+      const presentation = attachmentDisplayPresentation(pending);
+      const hasThumbnail = appendChipThumbnail(chip, pending);
+      if (!hasThumbnail) {
+        const name = document.createElement('span'); name.className = 'attachment-chip-name'; name.textContent = presentation.label;
+        chip.appendChild(name);
+      }
       const meta = document.createElement('span'); meta.className = 'attachment-chip-meta'; meta.textContent = '업로드 중…';
-      chip.append(name, meta); fragment.appendChild(chip);
+      chip.appendChild(meta); fragment.appendChild(chip);
     }
     if (attachmentUploadsInFlight > 0) {
       const uploading = document.createElement('span'); uploading.className = 'attachment-uploading';
@@ -3279,7 +3485,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     await uploadAttachmentSelection(files);
   };
   const selectedAttachmentIds = () => selectedAttachments.map(item => item.id);
-  const attachmentSummary = items => items.map(item => safeAttachmentName(item.fileName)).join(', ');
   // The server-side attachment binary and the browser-local visual preview have
   // separate lifecycles: clearing the composer (and deleting the uploaded file)
   // must never blank a thumbnail the sent message is still showing.
@@ -3515,6 +3720,27 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
+    const turnGeneration = ++activeTurnGeneration;
+    const turnStillActive = () => turnGeneration === activeTurnGeneration;
+    const beginRequestThinking = logicalRequestId => {
+      let handle;
+      handle = beginThinking({
+        attachments,
+        text: message,
+        onTimeout: () => {
+          if (!turnStillActive()) return;
+          handle?.stop('timeout');
+          activeTurnGeneration += 1;
+          inFlight = false;
+          updateSendState();
+          const timeoutError = new Error('응답 시간이 오래 걸려 중단했어요. 다시 시도해 주세요.');
+          showError(timeoutError, message, true, logicalRequestId, sourceTurnCreatedAt);
+          setStatus('LOTBI 응답 시간이 초과되었습니다.');
+          prompt.focus();
+        },
+      });
+      return handle;
+    };
     const submittedAt = performanceNow(); const requestsBefore = resourceCounts(); recordTiming('T0-submit', {length: message.length, attachmentCount: attachments.length});
     if (!stateReady) switchNamespace(normalizedNamespace(identityKey) || anonymousConversationNamespace());
     const displayMessage = message || `첨부 파일 ${attachments.length}개를 확인해 주세요.`;
@@ -3529,9 +3755,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (previewUrl) adoptAttachmentPreviewUrl(previewUrl);
         return {id: item.id, filename: item.fileName, mediaType: item.mimeType, sizeBytes: item.sizeBytes, previewUrl};
       });
+      const persistedAttachments = attachments.map(item => ({
+        id: item.id,
+        mediaType: item.mimeType,
+        sizeBytes: item.sizeBytes,
+      }));
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
       appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
-      appendPersistedMessage(userRecord);
+      appendPersistedMessage({...userRecord, meta: {attachments: persistedAttachments}});
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
@@ -3549,8 +3780,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
     }
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
-      const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
+      const thinking = beginRequestThinking(calendarRequestId); inFlight = true; updateSendState();
       const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
       try {
         if (!storage || !globalThis.navigator?.locks?.request) {
@@ -3562,6 +3793,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           timezone: timezoneName,
           turnCreatedAt: sourceTurnCreatedAtIso,
         });
+        if (!turnStillActive()) return;
         const event = await globalThis.navigator.locks.request(
           `lotbi-calendar-direct:${calendarRequestId}`,
           {mode: 'exclusive'},
@@ -3572,7 +3804,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
             all_day: false,
           }),
         );
-        loading.parentElement?.remove();
+        if (!turnStillActive()) return;
         const meta = {
           status: 'ANSWERED',
           responseMode: preview.parserType,
@@ -3590,6 +3822,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           text: `${event.local_date} ‘${event.title}’ 일정을 이 브라우저 캘린더에 등록했어요.`,
           meta,
         });
+        thinking.stop('answer');
         appendConversationRecord(calendarRecord);
         appendPersistedMessage(calendarRecord);
         diagnostics.lastPath = 'CORE_CALENDAR_GUEST_DETERMINISTIC';
@@ -3598,22 +3831,27 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
         setStatus('이 브라우저 캘린더에 일정을 등록했습니다.');
       } catch (caught) {
-        loading.parentElement?.remove();
+        if (!turnStillActive()) return;
+        thinking.stop('error');
         showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally {
-        inFlight = false;
-        updateSendState();
-        prompt.focus();
+        if (turnStillActive()) {
+          thinking.stop('cancel');
+          inFlight = false;
+          updateSendState();
+          prompt.focus();
+        }
       }
       return;
     }
     if (!sessionToken) {
-      const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
       const guestRequestId = logicalRequestId || newId('guest-ai');
+      const thinking = beginRequestThinking(guestRequestId); inFlight = true; updateSendState(); setVoiceFeedback('');
       diagnostics.lastPath = 'CORE_GUEST_CONVERSATION'; diagnostics.coreCalls += 1;
       const coreStartedAt = performanceNow(); recordTiming('T1-core-guest-request', {coreCall: diagnostics.coreCalls});
       try {
         const token = await ensureGuestSession();
+        if (!turnStillActive()) return;
         const response = await sendGuestConversationMessage({
           guestToken: token,
           text: message,
@@ -3627,9 +3865,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           logicalRequestId: guestRequestId,
           stateVersion: Number.isInteger(activeConversation?.stateVersion) ? activeConversation.stateVersion : 0,
         });
+        if (!turnStillActive()) return;
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
         recordTiming('T2-core-guest-response', {durationMs: diagnostics.lastCoreDurationMs});
-        loading.parentElement?.remove();
         if (Number.isInteger(response.stateVersion) && response.stateVersion >= 0) {
           const currentThread = state.threads.find(item => item.id === activeConversationId);
           if (currentThread && response.stateVersion >= Number(currentThread.stateVersion || 0)) {
@@ -3652,6 +3890,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           try {
             const merchantHint = productMerchantHint(message, response.intent);
             const publicResult = await searchPublicProductCards({query: response.intent.product_query, merchantCode: merchantHint.merchantCode, merchantExplicit: merchantHint.merchantExplicit, maxResults: 6});
+            if (!turnStillActive()) return;
             richProduct = compactRichProductMeta({displayId: publicResult.displayId, query: publicResult.query, originalText: message, merchant: publicResult.merchant, sourceMode: publicResult.sourceMode, expired: false, cards: publicResult.cards});
           } catch (cardError) {
             console.info('[LOTBI public rich product cards unavailable]', {code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN'});
@@ -3661,28 +3900,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const placeResult = compactPlaceResultMeta(response.placeResult);
         if (placeResult) meta.placeResult = placeResult;
         const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
+        thinking.stop('answer');
         appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
         if (attachments.length) clearSentAttachments(attachments, {guest: token});
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
         setStatus(placeResult ? '로그인 없이 실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
       } catch (caught) {
-        loading.parentElement?.remove();
+        if (!turnStillActive()) return;
+        thinking.stop('error');
         if (isGuestSessionError(caught)) clearGuestSession();
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
-      } finally { inFlight = false; updateSendState(); prompt.focus(); }
+      } finally {
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+      }
       return;
     }
     if (!attachments.length && isExplicitLifeCalendarCommand(message)) {
-      const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState();
       const calendarRequestId = logicalRequestId || newId('calendar');
+      const thinking = beginRequestThinking(calendarRequestId); inFlight = true; updateSendState();
       try {
         const calendar = await executeLifeCalendarCommand(sessionToken, {
           logicalRequestId: calendarRequestId, text: message,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
           turnCreatedAt: sourceTurnCreatedAtIso,
         });
-        loading.parentElement?.remove();
+        if (!turnStillActive()) return;
         const meta = {
           status: 'ANSWERED',
           responseMode: calendar.parserType,
@@ -3697,20 +3940,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           },
         };
         const calendarRecord = timestampedConversationMessage({role: 'assistant', text: calendar.assistantText, meta});
+        thinking.stop('answer');
         appendConversationRecord(calendarRecord);
         appendPersistedMessage(calendarRecord);
         diagnostics.lastPath = 'CORE_CALENDAR_DETERMINISTIC'; diagnostics.coreCalls += 1; diagnostics.providerCallsAvoided += 1;
         window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh'));
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
       } catch (caught) {
-        loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
+        if (!turnStillActive()) return;
+        thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
         showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
-      } finally { inFlight = false; updateSendState(); prompt.focus(); }
+      } finally {
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+      }
       return;
     }
     const authenticatedRequestId = logicalRequestId || newId('auth-ai');
-    const avatarRequestId = nextAvatarRequestId('turn'); driveAvatar('response-wait', avatarRequestId);
-    const loading = appendNode(createLoadingMessage()); inFlight = true; updateSendState(); setVoiceFeedback(''); setStatus('LOTBI 응답을 기다리는 중입니다.');
+    const thinking = beginRequestThinking(authenticatedRequestId); inFlight = true; updateSendState(); setVoiceFeedback('');
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
     try {
@@ -3731,8 +3977,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           stateVersion: Number.isInteger(activeConversation?.stateVersion) ? activeConversation.stateVersion : 0,
         },
       );
+      if (!turnStillActive()) return;
       diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt)); recordTiming('T2-core-response', {durationMs: diagnostics.lastCoreDurationMs});
-      loading.parentElement?.remove();
       if (Number.isInteger(response.stateVersion) && response.stateVersion >= 0) {
         const currentThread = state.threads.find(item => item.id === activeConversationId);
         if (currentThread && response.stateVersion >= Number(currentThread.stateVersion || 0)) {
@@ -3756,7 +4002,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         try {
           const merchantHint = productMerchantHint(message, response.intent);
           const discovery = await searchProductCards(sessionToken, {query: response.intent.product_query, originalText: message, merchantCode: merchantHint.merchantCode, merchantExplicit: merchantHint.merchantExplicit, brand: typeof response.intent.brand === 'string' ? response.intent.brand : '', maxPrice: Number.isInteger(response.intent.max_price) ? response.intent.max_price : null, preferences: Array.isArray(response.intent.preferences) ? response.intent.preferences : [], maxResults: 6});
+          if (!turnStillActive()) return;
           const cards = await getProductCards(sessionToken, discovery.resolutionId);
+          if (!turnStillActive()) return;
           richProduct = compactRichProductMeta({resolutionId: cards.resolutionId, resolutionHash: cards.resolutionHash, query: cards.query, originalText: message, merchant: discovery.merchant, sourceMode: cards.sourceMode || discovery.sourceMode, expired: cards.expired, cards: cards.cards});
         } catch (cardError) {
           console.info('[LOTBI rich product cards unavailable]', {code: cardError instanceof SiteCoreError ? cardError.code : 'UNKNOWN'});
@@ -3766,16 +4014,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const placeResult = compactPlaceResultMeta(response.placeResult);
       if (placeResult) meta.placeResult = placeResult;
       const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
+      thinking.stop('answer');
       appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
       if (attachments.length) clearSentAttachments(attachments, {session: activeSessionToken});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(placeResult ? '실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
-      driveAvatar('response-complete', avatarRequestId);
     } catch (caught) {
-      driveAvatar('cancel', avatarRequestId);
-      loading.parentElement?.remove(); if (isSessionError(caught)) sessionToken = undefined;
+      if (!turnStillActive()) return;
+      thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
-    } finally { inFlight = false; updateSendState(); prompt.focus(); }
+    } finally {
+      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+    }
   };
   window.addEventListener('lotbi:keyboard-viewport', () => {
     if (!thread.hidden && isThreadNearBottom()) {
@@ -3994,6 +4244,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // Page teardown releases every object URL. A bfcache-persisted page keeps its
   // previews so a back-navigation does not restore broken images.
   window.addEventListener('pagehide', event => {
+    cancelActiveTurn('pagehide');
     if (event instanceof PageTransitionEvent && event.persisted) return;
     releaseAllAttachmentPreviewUrls();
   });

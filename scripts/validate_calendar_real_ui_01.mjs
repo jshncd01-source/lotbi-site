@@ -90,7 +90,8 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const source = fs.readFileSync(path.join(ROOT, 'site-calendar-ui.js'), 'utf8');
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
-assert.ok(source.includes("from './site-calendar-manager.js?v=20260924-calendarux1'"));
+const assetVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'site-asset-version.json'), 'utf8')).version;
+assert.ok(source.includes(`from './site-calendar-manager.js?v=${assetVersion}'`));
 for (const required of [
   'calendarMonthGrid',
   'calendarYearOverview',

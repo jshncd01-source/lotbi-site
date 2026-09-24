@@ -58,7 +58,8 @@ for (const token of [
 
 assert.ok(avatar.includes('runtimeEpochSeconds = monotonicSeconds()'));
 assert.ok(avatar.includes('const time = runtimeSeconds()'));
-assert.ok(avatar.includes('controller.setBackground(document.hidden, runtimeSeconds())'));
+assert.ok(avatar.includes('const now = runtimeSeconds()'));
+assert.ok(avatar.includes('controller.setBackground(document.hidden, now)'));
 assert.ok(avatar.includes('controller.setReducedMotion(Boolean(event.matches), runtimeSeconds())'));
 assert.ok(!avatar.includes('Math.random'), 'Site Avatar host must not randomize initial render');
 assert.ok(controller.includes("this.state='idle'"), 'sealed Avatar controller must initialize idle');
