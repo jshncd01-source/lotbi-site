@@ -1,18 +1,18 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
-import * as siteCore from './site-core.js?v=20260924-assurance1';
-import {buildKakaoMapWebSearchUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoMapPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=20260924-mapdeeplink1';
-import * as siteAttachments from './site-attachments.js?v=20260924-chatmedia3';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
-import {deterministicReply} from './site-deterministic.js';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260923-freshentry1';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-daysheet3';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=20260924-imagecalendar1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-mapdeeplink1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-chatmedia3';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=20260924-chatmedia3';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-98929b1917d3';
+import * as siteCore from './site-core.js?v=aset-98929b1917d3';
+import {buildKakaoMapWebSearchUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoMapPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-98929b1917d3';
+import * as siteAttachments from './site-attachments.js?v=aset-98929b1917d3';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-98929b1917d3';
+import {deterministicReply} from './site-deterministic.js?v=aset-98929b1917d3';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-98929b1917d3';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-98929b1917d3';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-98929b1917d3';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-98929b1917d3';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-98929b1917d3';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-98929b1917d3';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-98929b1917d3';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-98929b1917d3';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-98929b1917d3';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -161,7 +161,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260924-chatmedia3';
+  link.href = '/site-conversation.css?v=aset-98929b1917d3';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -2825,7 +2825,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=20260923-petspecies1');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-98929b1917d3');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
