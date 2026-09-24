@@ -1241,6 +1241,21 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   width: 88px; height: 88px; display: grid; place-items: center; border-radius: 50%;
   background: #e7ebf3 center / cover no-repeat; color: #18345f; font-size: 24px; font-weight: 850;
 }
+.profile-photo-picker { width: min(100%, 390px); display: grid; gap: 10px; justify-items: start; }
+.profile-photo-source-menu {
+  width: 100%; padding: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  border: 1px solid var(--lotbi-border-strong, #cfd6e2); border-radius: 15px;
+  background: var(--lotbi-surface-primary, #fff); box-shadow: 0 12px 30px rgba(21, 36, 59, .14);
+}
+.profile-photo-source-menu[hidden] { display: none; }
+.profile-photo-source-option {
+  min-width: 0; min-height: 58px; padding: 9px 6px; border: 1px solid var(--lotbi-border-default, #d5dbe6);
+  border-radius: 12px; background: var(--lotbi-surface-subtle, #f5f7fa); color: var(--lotbi-text-primary, #303642);
+  font: inherit; font-size: 14px; font-weight: 800; line-height: 1.25; cursor: pointer;
+}
+.profile-photo-source-option:hover, .profile-photo-source-option:focus-visible {
+  border-color: #18345f; background: var(--lotbi-surface-hover, #f0f2f7); outline: 2px solid rgba(24, 52, 95, .15); outline-offset: 1px;
+}
 .color-picker { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border: 0; }
 .color-picker legend { grid-column: 1 / -1; margin-bottom: 4px; color: var(--lotbi-text-secondary, #3d4653); font-size: 14px; font-weight: 800; }
 .color-option {
@@ -2785,4 +2800,5 @@ body[data-site-theme="dark"] .lotbi-google-maps-action .lotbi-place-action-icon 
     transition: none;
   }
 }
+
 

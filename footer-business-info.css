@@ -31,30 +31,39 @@
   }
 }
 
-/* SITE-MOBILE-FOOTER-LEGAL-SHEET-01 — 좁은 화면에서 푸터를 한 줄로 접는다.
-   대표: "롯비 홈페이지도 클로드처럼 유한회사 알에이디홀딩스 사업자번호만 나오게
-   하고, 거길 클릭하면 아래에서 슬라이드로 올라오게 바꿔."
+/* SITE-HOME-SAME-URL-STABILITY-01 — progressive legal disclosure.
+   Mobile is compact in the HTML/CSS first paint, not after hydration. <details>
+   is the no-JS control; its adjacent single-source panel opens inline when JS
+   is unavailable. When JS works, site-footer-legal.js enhances the same panel
+   into the existing LOTBI bottom sheet. Desktop keeps the full footer. */
 
-   접는 것이지 지우는 것이 아니다. 전자상거래법 제10조제1항의 표시사항은 HTML 에
-   그대로 남고, 자리만 바텀시트 안으로 옮긴다. 접기는 body 의 클래스로 열리는데
-   그 클래스는 스크립트만 붙인다 — 스크립트가 실패한 브라우저에서는 아래 규칙이
-   하나도 걸리지 않아 지금까지처럼 푸터 전체가 펼쳐진 채 보인다. 표시의무가
-   스크립트에 딸려 사라지지 않게 하는 것이 이 구조의 목적이다.
-
-   넓은 화면은 손대지 않는다: 접기는 모바일 폭에서만 일어난다. */
-
-.footer-legal-summary {
+.footer-legal-disclosure {
   display: none;
 }
 
+.footer-legal-summary {
+  list-style: none;
+}
+
+.footer-legal-summary::-webkit-details-marker {
+  display: none;
+}
+
+.footer-legal-panels {
+  display: block;
+}
+
 @media (max-width: 760px) {
-  body.footer-legal-collapsed .chat-home-footer > .footer-legal-summary {
+  .footer-legal-disclosure {
+    display: block;
+  }
+
+  .footer-legal-summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     width: 100%;
-    /* 44px: 손가락으로 누르는 줄이므로 탭 타깃 최소 높이를 지킨다. */
     min-height: 44px;
     padding: 11px 0;
     border: 0;
@@ -69,7 +78,7 @@
     cursor: pointer;
   }
 
-  body.footer-legal-collapsed .chat-home-footer > .footer-legal-summary:focus-visible {
+  .footer-legal-summary:focus-visible {
     outline: 3px solid rgba(79, 120, 197, .34);
     outline-offset: 2px;
   }
@@ -82,19 +91,22 @@
     transition: transform 160ms ease;
   }
 
-  .footer-legal-summary[aria-expanded="true"] .footer-legal-summary-chevron {
+  .footer-legal-disclosure[open] .footer-legal-summary-chevron {
     transform: rotate(180deg);
   }
 
-  /* 한 줄만 남기고 나머지는 시트로 간다. 시트 안으로 옮겨진 뒤에는 더 이상
-     .chat-home-footer 의 자식이 아니므로 이 규칙에 걸리지 않고 다시 보인다. */
-  body.footer-legal-collapsed .chat-home-footer > .footer-links,
-  body.footer-legal-collapsed .chat-home-footer > .company-legal,
-  body.footer-legal-collapsed .chat-home-footer > .footer-service {
+  /* Closed <details> + adjacent panels is the no-JS compact state. Because the
+     legal nodes remain in the DOM and the native summary toggles [open], JS
+     failure never makes required information unreachable. */
+  .footer-legal-disclosure:not([open]) + .footer-legal-panels {
     display: none;
   }
 
-  body.footer-legal-collapsed .chat-home-footer {
+  .footer-legal-disclosure[open] + .footer-legal-panels {
+    display: block;
+  }
+
+  .chat-home-footer {
     padding-top: 10px;
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }

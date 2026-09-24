@@ -40,6 +40,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Validate deterministic asset cache coherence
+        run: node scripts/asset_cache_version.mjs --check
+
+      - name: Validate same-URL Home first-paint stability
+        run: node scripts/validate_home_same_url_stability_01.mjs
+
       - name: Validate public site
         run: python scripts/validate_site.py
 
@@ -451,3 +457,4 @@ jobs:
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
+

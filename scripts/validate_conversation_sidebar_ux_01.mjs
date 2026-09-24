@@ -130,10 +130,23 @@ for (const label of ['개인테마', '프로필', '설정', '연결 서비스', 
 for (const a11y of ["event.key === 'Escape'", "event.key !== 'Tab'", "setAttribute('aria-modal', 'true')", "surfaceRestoreFocus.focus()"] ) {
   assert.ok(conversation.includes(a11y), `overlay accessibility missing ${a11y}`);
 }
-for (const imageContract of ["photo.accept = 'image/*'", "mime.startsWith('image/')", 'PHOTO_BYTES_LIMIT', 'PHOTO_DIMENSION_LIMIT', 'PHOTO_PIXEL_LIMIT', "canvas.toDataURL('image/webp'"]) {
+for (const imageContract of [
+  "['camera', '카메라']",
+  "['gallery', '갤러리']",
+  "['files', '내 파일']",
+  "input.accept = 'image/*'",
+  "if (source === 'camera') input.setAttribute('capture', 'environment')",
+  "mime.startsWith('image/')",
+  'PHOTO_BYTES_LIMIT',
+  'PHOTO_DIMENSION_LIMIT',
+  'PHOTO_PIXEL_LIMIT',
+  "canvas.toDataURL('image/webp'",
+]) {
   assert.ok(conversation.includes(imageContract), `profile photo contract missing ${imageContract}`);
 }
-assert.ok(!conversation.includes("photo.accept = 'image/jpeg,image/png,image/webp'"), 'profile photo chooser must not regress to the Android generic chooser fallback');
+assert.ok(!conversation.includes("input.accept = 'image/jpeg,image/png,image/webp'"), 'profile photo chooser must not regress to the Android generic chooser fallback');
+assert.ok(!conversation.includes("input.accept = 'video/*'"), 'profile photo sources must never request video');
+assert.ok(!conversation.includes('capture="camcorder"'), 'profile photo sources must never request a camcorder');
 assert.ok(conversation.includes("'프로필에는 사진만 사용할 수 있어요.'"), 'profile photo post-selection validation must reject video/non-image payloads');
 assert.ok(conversation.includes('logoutSiteSession(sessionToken)'), 'logout must use the authoritative Site child-session contract');
 assert.ok(conversation.includes("form.action = 'https://account.lotbiai.com/auth/site-logout'"), 'logout must continue through the fixed Account-origin handoff');

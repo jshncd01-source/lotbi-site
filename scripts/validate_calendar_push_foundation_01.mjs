@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+
+const assetVersion = JSON.parse(readFileSync('site-asset-version.json', 'utf8')).version;
 
 globalThis.atob ??= value => Buffer.from(value, 'base64').toString('binary');
 globalThis.btoa ??= value => Buffer.from(value, 'binary').toString('base64');
@@ -70,7 +73,7 @@ const {
     },
   };
   assert.equal(await registerCalendarPushWorker({navigatorImpl}), registration);
-  assert.deepEqual(registered, {url: '/lotbi-calendar-push-worker.js', options: {scope: '/'}});
+  assert.deepEqual(registered, {url: `/lotbi-calendar-push-worker.js?v=${assetVersion}`, options: {scope: '/'}});
 }
 
 {

@@ -20,6 +20,7 @@ const css = cssFiles.map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
 const conversation = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
 const messageBody = fs.readFileSync(path.join(ROOT, 'site-message-body.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/site-review.yml'), 'utf8');
+const assetVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'site-asset-version.json'), 'utf8')).version;
 
 assert.ok(!css.includes('#fff1f3'), 'legacy pink default bubble must be removed');
 assert.match(css, /body\[data-chat-color="default"\]\s*\{[^}]*--user-bubble:\s*#f5f3f2[^}]*--user-bubble-foreground:\s*#303238/s);
@@ -39,7 +40,7 @@ assert.ok(messageBody.includes("button.textContent = expanded ? '접기' : '더 
 assert.ok(messageBody.includes("button.addEventListener('click'"));
 assert.ok(messageBody.includes("code.textContent = match[2]"));
 assert.ok(!messageBody.includes('innerHTML'), 'message renderer must never inject HTML');
-assert.ok(conversation.includes("from './site-message-body.js?v=20260924-chatmedia3'"));
+assert.ok(conversation.includes(`from './site-message-body.js?v=${assetVersion}'`));
 // Every user message still gets the 접기/더 보기 enhancement. The one exception
 // is an image-only turn (SITE-IMAGE-ATTACHMENT-THUMBNAIL-01), whose generated
 // placeholder sentence is hidden behind the thumbnail and has nothing to expand.
