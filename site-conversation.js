@@ -2927,7 +2927,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     photoTrigger.setAttribute('aria-haspopup', 'menu'); photoTrigger.setAttribute('aria-expanded', 'false');
     const photoMenu = document.createElement('div'); photoMenu.className = 'profile-photo-source-menu'; photoMenu.id = 'profile-photo-source-menu'; photoMenu.setAttribute('role', 'menu'); photoMenu.setAttribute('aria-label', '프로필 사진 가져오기'); photoMenu.hidden = true;
     photoTrigger.setAttribute('aria-controls', photoMenu.id);
-    const photoInputs = new Map();
     const setPhotoMenuOpen = open => { photoMenu.hidden = !open; photoTrigger.setAttribute('aria-expanded', String(open)); };
     function applyProfilePhoto(file) {
       if (!file) return Promise.resolve();
@@ -2943,7 +2942,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const option = document.createElement('button'); option.type = 'button'; option.className = 'profile-photo-source-option'; option.textContent = label; option.setAttribute('role', 'menuitem'); option.dataset.profilePhotoSource = source;
       const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.multiple = false; input.className = 'sr-only'; input.dataset.profilePhotoInput = source;
       if (source === 'camera') input.setAttribute('capture', 'environment');
-      photoInputs.set(source, input); photoMenu.appendChild(option); photoPicker.appendChild(input);
+      photoMenu.appendChild(option); photoPicker.appendChild(input);
       input.addEventListener('change', async () => {
         const file = input.files?.[0];
         try { await applyProfilePhoto(file); } finally { input.value = ''; }
