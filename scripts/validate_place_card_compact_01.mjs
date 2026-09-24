@@ -53,8 +53,13 @@ const LICENSE_COPY = {
   AMBIGUOUS: '인허가 후보 여럿',
   CONFLICTING: '인허가 정보 불일치',
   NOT_FOUND: '인허가 대조 안 됨',
-  OTHER: '인허가 대조 불가',
+  UNAVAILABLE: '인허가 대조 불가',
 };
+// UNAVAILABLE 은 대조 결과가 아니라 대조가 아예 못 돈 상태다. 문구는 그대로
+// 두되 카드에는 그리지 않는다.
+const LICENSE_RENDERED_STATES = ['VERIFIED', 'AMBIGUOUS', 'CONFLICTING', 'NOT_FOUND'];
+const LICENSE_LAG_NOTE = '공공데이터 갱신이 늦을 수 있어요';
+const LICENSE_LAG_NOTE_STATES = new Set(['NOT_FOUND', 'CONFLICTING']);
 
 // ── the deleted markup must be gone from the source, not commented out ────
 const conversationSource = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
@@ -81,28 +86,42 @@ assert.ok(
   'site-navigation.js must not keep the static map thumbnail builder once its only caller is gone',
 );
 
-// ── the five 인허가 lines move together ───────────────────────────────────
-const assignments = [...conversationSource.matchAll(/foodLicense\.textContent = ([^;]+);/gu)].map(m => m[1]);
-assert.equal(assignments.length, 5, '인허가 문구는 다섯 갈래 그대로여야 합니다');
+// ── the five 인허가 lines are fixed, and stay a set ───────────────────────
+// 다섯 문구는 바꾸지 않는다. 상태 이름에 묶어 읽으므로 한 줄을 다른 상태에
+// 붙여 놓는 실수도 여기서 걸린다.
 const lengths = [];
 for (const [state, copy] of Object.entries(LICENSE_COPY)) {
-  assert.ok(conversationSource.includes(`'${copy}'`), `${state} 인허가 문구가 '${copy}' 가 아닙니다`);
+  assert.match(
+    conversationSource,
+    new RegExp(`${state}:\\s*'${copy}'`, 'u'),
+    `${state} 인허가 문구가 '${copy}' 가 아닙니다 — 이 다섯은 바꾸지 않습니다`,
+  );
   lengths.push(copy.length);
 }
-// 하나만 줄이면 다섯 개가 따로 논다. 가장 긴 것과 가장 짧은 것의 차이를 묶는다.
 assert.ok(
   Math.max(...lengths) - Math.min(...lengths) <= 3,
   `인허가 문구 다섯 개의 길이가 고르지 않습니다: ${JSON.stringify(LICENSE_COPY)}`,
 );
 // NOT_FOUND 는 "이 가게가 무허가다" 가 아니라 "우리가 공공 데이터에서 이 가게를
 // 못 찾았다" 는 뜻이다. 주어가 가게 쪽으로 넘어가면 조회 실패가 고발이 된다.
-for (const assignment of assignments) {
+for (const copy of [...Object.values(LICENSE_COPY), LICENSE_LAG_NOTE]) {
   assert.doesNotMatch(
-    assignment,
+    copy,
     /인허가 기록 없음|무허가|허가 없음|미허가|불법 영업/u,
-    `인허가 문구가 가게를 무허가로 읽히게 씌어 있습니다: ${assignment}`,
+    `가게를 무허가로 읽히게 씌어 있습니다: ${copy}`,
   );
 }
+
+// ── 공공데이터 시차 문구 ──────────────────────────────────────────────────
+// 공공 인허가 데이터는 제 일정대로 갱신된다. 멀쩡한 가게가 아직 대조되지 않을
+// 수 있다는 사실만 적고, 주어는 데이터에 둔다.
+assert.ok(conversationSource.includes(`'${LICENSE_LAG_NOTE}'`), '공공데이터 시차 문구가 없습니다');
+assert.match(LICENSE_LAG_NOTE, /^공공데이터/u, '시차 문구의 주어는 공공데이터여야 합니다');
+assert.doesNotMatch(
+  LICENSE_LAG_NOTE,
+  /가게|업소|업체|의심|주의|확인 필요|위험/u,
+  '시차 문구가 업소를 의심하게 만듭니다',
+);
 
 function browserPath() {
   for (const name of [process.env.CHROME_BIN, 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
@@ -137,11 +156,14 @@ const PLACES = [
     address: '전북특별자치도 전주시 완산구 효자동3가 1536-8 3층',
     road: '전북특별자치도 전주시 완산구 홍산중앙로 26 3층',
     lat: 35.8159596, lon: 127.1093458, license: {state: 'CONFLICTING'}},
+  // 대조가 아예 못 돈 카드. 배지가 한 장도 나오면 안 된다.
   {name: '자매갈비전골', category: '한식>육류,고기요리',
     address: '전북특별자치도 전주시 완산구 남노송동 536-1 자매갈비전골',
     road: '전북특별자치도 전주시 완산구 기린대로 121 자매갈비전골',
     lat: 35.8198479, lon: 127.1534529, license: {state: 'UNAVAILABLE'}},
 ];
+
+const UNAVAILABLE_PLACE_NAME = PLACES.find(place => place.license.state === 'UNAVAILABLE').name;
 
 const placeResult = {
   contract_id: 'CORE-PLACE-RESULT-01',
@@ -187,6 +209,7 @@ function buildInner() {
   html = html.replace('<head>', '<head>\n  <base href="/">');
   const harness = `<script type="module">
 const PLACE_RESULT = ${JSON.stringify(placeResult)};
+const UNAVAILABLE_PLACE_NAME = ${JSON.stringify(UNAVAILABLE_PLACE_NAME)};
 const out = document.getElementById('placecard-result');
 const fail = e => { out.textContent = JSON.stringify({ok: false, error: String((e && e.stack) || e)}); };
 setTimeout(() => { if (out.textContent === 'pending') fail('watchdog'); }, 50000);
@@ -256,6 +279,30 @@ try {
       disabled: node.disabled === true || node.getAttribute('aria-disabled') === 'true',
     })),
     licenseTexts: [...rail.querySelectorAll('.lotbi-place-license-evidence')].map(n => (n.textContent || '').trim()),
+    licenseTitles: [...rail.querySelectorAll('.lotbi-place-license-evidence')].map(n => n.getAttribute('title') || ''),
+    statusBadges: [...rail.querySelectorAll('.lotbi-place-license-status')].map(n => (n.textContent || '').trim()),
+    lagNotes: [...rail.querySelectorAll('.lotbi-place-license-note')].map(n => (n.textContent || '').trim()),
+    // 배지가 둘일 때 같은 줄 묶음 안에 들어가는지. 줄의 배치는 가운데 카드에서
+    // 읽는다 — 사이드 카드의 줄은 숨김 목록 때문에 display:none 이 맞다.
+    badgeRowCounts: [...rail.querySelectorAll('.lotbi-place-badges')].map(row => row.children.length),
+    centerBadgeRow: (() => {
+      const row = center.querySelector('.lotbi-place-badges');
+      if (!row) return null;
+      const style = getComputedStyle(row);
+      return {count: row.children.length, display: style.display, wrap: style.flexWrap};
+    })(),
+    // 사이드 카드가 아직 칠하고 있는 것. 비어 있어야 한다.
+    sidePainted: [...rail.querySelectorAll('.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"])')]
+      .flatMap(card => [...card.querySelectorAll('.lotbi-rich-card-price, .lotbi-place-badges, .lotbi-place-license-note, .lotbi-place-card-actions')]
+        .filter(n => getComputedStyle(n).display !== 'none')
+        .map(n => n.className)),
+    // UNAVAILABLE 카드가 배지를 하나도 그리지 않았는지.
+    unavailableCardBadges: (() => {
+      const card = [...rail.querySelectorAll('.lotbi-place-orbit-card')]
+        .find(n => (n.querySelector('.lotbi-rich-card-title')?.textContent || '') === UNAVAILABLE_PLACE_NAME);
+      if (!card) return null;
+      return card.querySelectorAll('.lotbi-place-badges, .lotbi-place-license-evidence, .lotbi-place-license-note').length;
+    })(),
     hasLocationThumb: Boolean(rail.querySelector('.lotbi-place-location-thumbnail, .lotbi-place-location-support')),
     hasActionLabel: Boolean(rail.querySelector('.lotbi-place-action-label')),
     mediaState: center.querySelector('.lotbi-rich-card-media')?.dataset.mediaState || '',
@@ -384,15 +431,55 @@ for (const [label, reading] of Object.entries(readings)) {
   assert.equal(reading.hasActionLabel, false, `${label}: 동작 버튼 글자가 아직 카드에 있습니다`);
 
   // ── 6. 인허가 다섯 갈래가 화면에 그대로 나온다 ─────────────────────────
-  assert.equal(reading.licenseTexts.length, 5, `${label}: 인허가 문구가 다섯 장에 다 나오지 않았습니다`);
-  const expected = [
-    LICENSE_COPY.NOT_FOUND,
-    `${LICENSE_COPY.VERIFIED} · 영업/정상`,
-    LICENSE_COPY.AMBIGUOUS,
-    LICENSE_COPY.CONFLICTING,
-    LICENSE_COPY.OTHER,
-  ];
-  assert.deepEqual(reading.licenseTexts, expected, `${label}: 인허가 문구가 기대와 다릅니다`);
+  // 다섯 장 중 UNAVAILABLE 한 장은 배지를 그리지 않으므로 네 개가 맞다.
+  // 고정 데이터에 적힌 순서 그대로, UNAVAILABLE 한 장만 빠진 채 나와야 한다.
+  assert.deepEqual(
+    reading.licenseTexts,
+    PLACES.map(place => place.license.state)
+      .filter(state => LICENSE_RENDERED_STATES.includes(state))
+      .map(state => LICENSE_COPY[state]),
+    `${label}: 인허가 배지가 기대와 다릅니다`,
+  );
+  assert.equal(
+    reading.unavailableCardBadges,
+    0,
+    `${label}: UNAVAILABLE 카드가 아직 배지를 그립니다 — 대조가 안 돈 것은 결과가 아닙니다`,
+  );
+  // 행정상 상태는 대조 결과와 다른 사실이므로 같은 문장에 구분자로 붙이지 않고
+  // 제 배지를 가집니다.
+  assert.deepEqual(reading.statusBadges, ['영업/정상'], `${label}: 행정상 상태 배지가 기대와 다릅니다`);
+  for (const text of reading.licenseTexts) {
+    assert.doesNotMatch(text, / · /u, `${label}: 배지 둘을 구분자로 한 줄에 붙여 놓았습니다 — "${text}"`);
+  }
+  assert.ok(
+    reading.badgeRowCounts.some(count => count > 1),
+    `${label}: 배지가 둘인 줄이 없습니다 — 행정상 상태가 제 배지를 갖지 못했습니다`,
+  );
+  assert.ok(reading.centerBadgeRow, `${label}: 가운데 카드에 배지 줄이 없습니다`);
+  assert.equal(reading.centerBadgeRow.display, 'flex', `${label}: 배지 줄이 flex 가 아닙니다`);
+  assert.equal(reading.centerBadgeRow.wrap, 'wrap', `${label}: 배지 줄이 넘칠 때 접히지 않습니다`);
+
+  // 공공데이터 시차 문구는 읽는 사람이 배지를 가게에 대한 판정으로 오해할 수
+  // 있는 두 상태에만 붙는다.
+  assert.deepEqual(
+    reading.lagNotes,
+    PLACES.map(place => place.license.state)
+      .filter(state => LICENSE_LAG_NOTE_STATES.has(state))
+      .map(() => LICENSE_LAG_NOTE),
+    `${label}: 공공데이터 시차 문구가 기대와 다릅니다`,
+  );
+  // 짧은 배지가 무슨 뜻인지는 높이를 쓰지 않고도 닿아야 한다.
+  for (const title of reading.licenseTitles) {
+    assert.ok(title, `${label}: 인허가 배지에 설명이 붙어 있지 않습니다`);
+  }
+
+  // 사이드 카드는 가운데 카드가 감추는 것을 똑같이 감춰야 한다. 인허가 배지가
+  // 목록에서 빠져 있어 옆 카드에서 글자만 비어져 나오고 있었다.
+  assert.deepEqual(
+    reading.sidePainted,
+    [],
+    `${label}: 사이드 카드가 아직 칠하고 있습니다 — ${reading.sidePainted.join(', ')}`,
+  );
 
   // ── 7. 사진이 없으면 없다고만 한다 ─────────────────────────────────────
   // 가짜·추정 사진을 채우는 것은 금지. 없을 때의 정답은 중립 자리표시다.
