@@ -254,7 +254,7 @@ try {
   await new Promise(r => setTimeout(r, 500));
 
   const round = value => Math.round(value * 10) / 10;
-  const box = node => { const r = node.getBoundingClientRect(); return {w: round(r.width), h: round(r.height)}; };
+  const box = node => { const r = node.getBoundingClientRect(); return {x: round(r.left), w: round(r.width), h: round(r.height)}; };
   const railBox = rail.getBoundingClientRect();
   const centerBox = center.getBoundingClientRect();
   out.textContent = JSON.stringify({
@@ -405,9 +405,11 @@ for (const [label, reading] of Object.entries(readings)) {
   );
 
   // ── 4. 글자는 없고 이름과 터치 영역은 남는다 ───────────────────────────
-  assert.equal(actions.length, 2, `${label}: 동작 버튼은 전화와 네이버지도 둘입니다`);
+  // 대표님 지시로 길찾기 손잡이가 셋이 되었습니다 — 네이버 옆에 카카오맵과
+  // 티맵. 전화까지 넷이고, 넷 모두 44x44 를 지킨 채 카드 안에 들어와야 합니다.
+  assert.equal(actions.length, 4, `${label}: 동작 버튼은 전화·네이버지도·카카오맵·티맵 넷입니다`);
   const byAction = Object.fromEntries(actions.map(a => [a.action, a]));
-  for (const name of ['phone', 'naver-map']) {
+  for (const name of ['phone', 'naver-map', 'kakao-map', 'tmap']) {
     const button = byAction[name];
     assert.ok(button, `${label}: ${name} 버튼이 없습니다`);
     assert.equal(button.visibleText, '', `${label}: ${name} 버튼에 아직 글자가 보입니다 — "${button.visibleText}"`);
@@ -425,6 +427,20 @@ for (const [label, reading] of Object.entries(readings)) {
   assert.equal(byAction.phone.disabled, true, `${label}: 번호 없는 전화 버튼이 눌리면 안 됩니다`);
   assert.equal(byAction.phone.tag, 'BUTTON', `${label}: 번호 없는 전화는 링크가 아니라 꺼진 버튼입니다`);
   assert.equal(byAction['naver-map'].tag, 'A', `${label}: 네이버지도는 링크여야 합니다`);
+  assert.equal(byAction['kakao-map'].tag, 'A', `${label}: 카카오맵은 링크여야 합니다`);
+  // 이 검사는 데스크톱 Chromium 의 UA 로 돕니다. 티맵은 열어 줄 웹 화면이 없어
+  // 그 자리에서는 꺼진 버튼이 맞습니다. 휴대폰 UA 에서 링크가 되는지는
+  // validate_place_card_map_deeplinks_01.mjs 가 봅니다.
+  assert.equal(byAction.tmap.tag, 'BUTTON', `${label}: 데스크톱 UA 에서 티맵은 꺼진 버튼이어야 합니다`);
+  assert.equal(byAction.tmap.disabled, true, `${label}: 데스크톱 UA 의 티맵 버튼이 눌리면 안 됩니다`);
+
+  // 넷이 되면서 줄이 넘치는지. 버튼 줄은 접히지 않으므로 넘치면 그대로 잘립니다.
+  const actionsRight = Math.max(...actions.map(a => a.x + a.w));
+  const actionsLeft = Math.min(...actions.map(a => a.x));
+  assert.ok(
+    actionsLeft >= centerCard.x - 0.5 && actionsRight <= centerCard.x + centerCard.w + 0.5,
+    `${label}: 버튼 넷이 카드 밖으로 나갑니다 — 카드 ${centerCard.x}~${(centerCard.x + centerCard.w).toFixed(1)}, 버튼 ${actionsLeft}~${actionsRight.toFixed(1)}`,
+  );
 
   // ── 5. 지도 썸네일과 "위치" 는 화면에도 없다 ───────────────────────────
   assert.equal(reading.hasLocationThumb, false, `${label}: 지도 썸네일이 아직 카드에 있습니다`);

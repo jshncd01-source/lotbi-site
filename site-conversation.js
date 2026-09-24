@@ -1,7 +1,7 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260924-assurance1';
-import {buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260924-imagethumb2';
-import * as siteAttachments from './site-attachments.js?v=20260924-imagethumb2';
+import {buildKakaoMapWebSearchUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoMapPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=20260924-mapdeeplink1';
+import * as siteAttachments from './site-attachments.js?v=20260924-mapdeeplink1';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
 import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=20260923-freshentry1';
@@ -9,8 +9,8 @@ import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand,
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
 import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=20260924-imagecalendar1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-imagethumb2';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-imagethumb2';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-mapdeeplink1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-mapdeeplink1';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
@@ -160,7 +160,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260924-imagethumb2';
+  link.href = '/site-conversation.css?v=20260924-mapdeeplink1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -1288,6 +1288,41 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
     };
 
+    // 카카오맵과 티맵은 같은 장소를 사용자가 이미 쓰는 앱에서 여는 손잡이일
+    // 뿐이다. 장소를 다시 고르지 않는다 — 네이버가 확정한 이름과 좌표를 그대로
+    // 넘긴다. 오래된 결과를 막는 규칙도 네이버 버튼과 하나로 맞춘다.
+    const openPlaceInKakaoMap = place => {
+      const fallbackHref = buildKakaoMapWebSearchUrl(place);
+      if (!isPlaceResultFresh(placeResult)) {
+        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
+        return;
+      }
+      const opened = openKakaoMapPlace(place);
+      if (!opened.opened) {
+        globalThis.location.href = fallbackHref;
+        setStatus('카카오맵 웹 검색으로 연결합니다.');
+        return;
+      }
+      const routeMode = opened.mode === 'KAKAO_ROUTE_INTENT' || opened.mode === 'KAKAO_ROUTE_URL_SCHEME';
+      setStatus(routeMode ? '선택한 장소를 카카오맵 길찾기로 연결합니다.' : '선택한 장소를 카카오맵에서 엽니다.');
+    };
+
+    const openPlaceInTmap = place => {
+      if (!isPlaceResultFresh(placeResult)) {
+        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
+        return;
+      }
+      const opened = openTmapPlace(place);
+      if (!opened.opened) {
+        // 티맵에는 장소를 여는 웹 화면이 없다. 데스크톱에서 눌렸다면 보낼 곳이
+        // 없으므로, 없는 곳으로 보내는 대신 그렇다고 말한다.
+        setStatus('티맵은 휴대폰 앱에서 열 수 있어요.');
+        return;
+      }
+      const routeMode = opened.mode === 'TMAP_ROUTE_INTENT' || opened.mode === 'TMAP_ROUTE_URL_SCHEME';
+      setStatus(routeMode ? '선택한 장소를 티맵 길안내로 연결합니다.' : '선택한 장소를 티맵에서 찾습니다.');
+    };
+
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
       const item = document.createElement('article');
@@ -1444,6 +1479,51 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         openPlaceInNaverMap(place);
       });
       actions.appendChild(navigate);
+
+      // 카카오맵. 네이버 버튼과 같은 골격이다 — 진짜 링크를 href 에 두어 새 탭
+      // 열기와 복사가 살아 있게 하고, 클릭은 앱 우선 handoff 가 가로챈다.
+      // 아이콘은 글리프로 그린다. 남의 로고 파일을 우리 페이지에서 끌어다 쓰지
+      // 않으며, 네이버 아이콘이 실패했을 때 쓰는 그 is-icon-fallback 표시를
+      // 그대로 쓴다.
+      const kakaoMap = document.createElement('a');
+      kakaoMap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-map-action is-icon-fallback';
+      kakaoMap.href = buildKakaoMapWebSearchUrl(place);
+      kakaoMap.target = '_blank';
+      kakaoMap.rel = 'noopener noreferrer';
+      kakaoMap.setAttribute('aria-label', `${place.name} 카카오맵에서 열기`);
+      kakaoMap.title = '카카오맵에서 열기';
+      kakaoMap.dataset.action = 'kakao-map';
+      kakaoMap.tabIndex = placeIndex === 0 ? 0 : -1;
+      kakaoMap.addEventListener('click', event => {
+        event.preventDefault();
+        openPlaceInKakaoMap(place);
+      });
+      actions.appendChild(kakaoMap);
+
+      // 티맵은 앱 전용이다. 열어 줄 웹 화면이 없는 데스크톱에서는 링크가 아니라
+      // 비활성 버튼으로 둔다 — 전화번호가 없을 때 전화 버튼이 하는 것과 같다.
+      const tmapReady = isTmapHandoffAvailable();
+      const tmap = document.createElement(tmapReady ? 'a' : 'button');
+      tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action is-icon-fallback';
+      tmap.dataset.action = 'tmap';
+      tmap.dataset.tmapState = tmapReady ? 'MOBILE_APP' : 'MOBILE_ONLY';
+      tmap.tabIndex = placeIndex === 0 ? 0 : -1;
+      if (tmapReady) {
+        tmap.href = '#';
+        tmap.setAttribute('aria-label', `${place.name} 티맵에서 열기`);
+        tmap.title = '티맵에서 열기';
+        tmap.addEventListener('click', event => {
+          event.preventDefault();
+          openPlaceInTmap(place);
+        });
+      } else {
+        tmap.type = 'button';
+        tmap.disabled = true;
+        tmap.setAttribute('aria-disabled', 'true');
+        tmap.setAttribute('aria-label', `${place.name} 티맵은 휴대폰 앱에서 열기`);
+        tmap.title = '티맵은 휴대폰 앱에서 열 수 있어요';
+      }
+      actions.appendChild(tmap);
 
       item.append(media, copy, actions);
       cards.push(item);
