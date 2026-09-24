@@ -283,6 +283,14 @@ jobs:
       - name: Validate authenticated return and refresh continuity
         run: node scripts/validate_auth_continuity_02.mjs
 
+      # validate_auth_continuity_02.mjs only reads source strings, so it never
+      # saw what actually happens in the address bar when someone types
+      # https://lotbiai.com/ while signed in to Account. This one drives a real
+      # Chromium against three local stub origins and measures the navigation
+      # timeline, the handoff/redeem counts and the logout suppression contract.
+      - name: Validate root-entry auth continuity in a real browser
+        run: node scripts/validate_auth_root_entry_continuity_01.mjs
+
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
