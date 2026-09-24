@@ -24,6 +24,7 @@ const WRAPPER_REL = 'scripts/.calendar-expense-wrapper.html';
 const WRAPPER = path.join(ROOT, WRAPPER_REL);
 const PORT = 4198;
 const ORIGIN = 'http://127.0.0.1:' + PORT;
+const assetVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'site-asset-version.json'), 'utf8')).version;
 
 function browserPath() {
   for (const name of [process.env.CHROME_BIN, 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
@@ -36,8 +37,8 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/site-calendar.css?v=20260924-calendarux1">
-<link rel="stylesheet" href="/site-calendar-expense.css?v=20260924-calendarux1">
+<link rel="stylesheet" href="/site-calendar.css?v=${assetVersion}">
+<link rel="stylesheet" href="/site-calendar-expense.css?v=${assetVersion}">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260923-darklogo1">
 </head><body style="margin:0">
 <div id="calendar-root"></div>
@@ -119,7 +120,7 @@ try{
     getCurrentPosition:(_ok,err)=>{if(typeof err==='function')err({code:1,message:'denied'})},
     watchPosition:()=>0,clearWatch:()=>{},
   }});
-  const manager=await import('/site-calendar-manager.js?v=20260924-calendarux1');
+  const manager=await import('/site-calendar-manager.js?v=${assetVersion}');
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
 
   // --- populated month -------------------------------------------------
@@ -233,7 +234,7 @@ try{
   }
   // The editor's dropdown and the bar must call every category the same thing.
   {
-    const expense=await import('/site-calendar-expense.js?v=20260924-calendarux1');
+    const expense=await import('/site-calendar-expense.js?v=${assetVersion}');
     const barLabels=[...ready.querySelectorAll('.calendar-expense-item dt')].map(n=>n.textContent);
     const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
     result.labelParity={
