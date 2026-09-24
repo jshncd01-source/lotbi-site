@@ -150,7 +150,7 @@ try {
     })),
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
-    sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>getComputedStyle(n).display!=='none'),
+    sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
     consumerText:rail.textContent||'',
     noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
