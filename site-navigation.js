@@ -1,7 +1,6 @@
 const NAVER_MAPS_WEB_APPNAME = 'https://lotbiai.com';
 const NAVER_MAPS_ANDROID_PACKAGE = 'com.nhn.android.nmap';
 const NAVER_MAPS_WEB_SEARCH_BASE = 'https://map.naver.com/p/search/';
-const NAVER_STATIC_MAP_THUMBNAIL_BASE = 'https://api.lotbiai.com/v2/maps/static-place-thumbnail';
 const NAVIGATION_TTL_MS = 60 * 60 * 1000;
 
 function text(value) {
@@ -179,26 +178,6 @@ export function buildNaverMapsWebSearchUrl(place) {
   const query = searchQuery(place);
   if (!query) throw new TypeError('place search query is required');
   return NAVER_MAPS_WEB_SEARCH_BASE + encodeURIComponent(query);
-}
-
-export function buildNaverStaticMapThumbnailUrl(place) {
-  if (!place || typeof place !== 'object' || place.navigationCapable !== true) return '';
-  const latitude = finiteCoordinate(place.latitude);
-  const longitude = finiteCoordinate(place.longitude);
-  if (
-    latitude === null
-    || longitude === null
-    || latitude < 31.43
-    || latitude > 44.35
-    || longitude < 122.37
-    || longitude > 132
-    || text(place.coordinateSystem).toUpperCase() !== 'WGS84'
-    || text(place.coordinateAuthority) !== 'NAVER_MAPS_GEOCODING'
-  ) return '';
-  const url = new URL(NAVER_STATIC_MAP_THUMBNAIL_BASE);
-  url.searchParams.set('latitude', latitude.toFixed(7));
-  url.searchParams.set('longitude', longitude.toFixed(7));
-  return url.toString();
 }
 
 function mobilePlatform(userAgent) {

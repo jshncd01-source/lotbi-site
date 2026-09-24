@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=20260920-authux1';
 import * as siteCore from './site-core.js?v=20260921-guestclaim1';
-import {buildNaverMapsWebSearchUrl, buildNaverStaticMapThumbnailUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260922-mois1';
+import {buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, normalizePlaceResult, openNaverMapsPlace} from './site-navigation.js?v=20260924-compact1';
 import * as siteAttachments from './site-attachments.js?v=20260920-attach16prod';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=20260920-conversationpolish1';
 import {deterministicReply} from './site-deterministic.js';
@@ -8,8 +8,8 @@ import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClai
 import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=20260923-daysheet3';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=20260921-smartcaldraft1';
 import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=20260921-smartcaldraft1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260923-daypanel2btn1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260923-daypanel2btn1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=20260924-placecompact1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=20260924-placecompact1';
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=20260923-browsertts1';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
@@ -151,7 +151,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260923-wakelisten1';
+  link.href = '/site-conversation.css?v=20260924-placecompact1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -1272,39 +1272,25 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const foodLicense = document.createElement('span');
         foodLicense.className = 'lotbi-place-license-evidence';
         const state = place.foodLicenseVerification.state;
+        // These five read as one set, so they are shortened together and the
+        // subject stays on our side of the comparison. NOT_FOUND in particular
+        // means WE could not match this place in the public data — it is not a
+        // claim that the place is unlicensed, so it must never be written as
+        // '인허가 기록 없음' / '무허가' / '허가 없음'.
         if (state === 'VERIFIED') {
           foodLicense.textContent = place.foodLicenseVerification.administrativeStatus
-            ? `행정 인허가 데이터상 확인 · 행정상 상태: ${place.foodLicenseVerification.administrativeStatus}`
-            : '행정 인허가 데이터상 확인';
+            ? `인허가 대조 확인 · ${place.foodLicenseVerification.administrativeStatus}`
+            : '인허가 대조 확인';
         } else if (state === 'AMBIGUOUS') {
-          foodLicense.textContent = '공공 인허가 데이터 일치 후보가 여러 개예요';
+          foodLicense.textContent = '인허가 후보 여럿';
         } else if (state === 'CONFLICTING') {
-          foodLicense.textContent = '공공 인허가 데이터와 업체 식별 정보가 일치하지 않아요';
+          foodLicense.textContent = '인허가 정보 불일치';
         } else if (state === 'NOT_FOUND') {
-          foodLicense.textContent = '공공 인허가 데이터에서 일치 기록 미확인';
+          foodLicense.textContent = '인허가 대조 안 됨';
         } else {
-          foodLicense.textContent = '행정 인허가 데이터 확인 불가';
+          foodLicense.textContent = '인허가 대조 불가';
         }
         copy.appendChild(foodLicense);
-      }
-
-      const staticMapUrl = buildNaverStaticMapThumbnailUrl(place);
-      if (staticMapUrl) {
-        const locationSupport = document.createElement('div');
-        locationSupport.className = 'lotbi-place-location-support';
-        locationSupport.setAttribute('aria-label', `${place.name} 위치 미리보기`);
-        const locationImage = document.createElement('img');
-        locationImage.className = 'lotbi-place-location-thumbnail';
-        locationImage.src = staticMapUrl;
-        locationImage.alt = '';
-        locationImage.loading = 'lazy';
-        locationImage.decoding = 'async';
-        locationImage.referrerPolicy = 'no-referrer';
-        locationImage.addEventListener('error', () => locationSupport.remove(), {once: true});
-        const locationLabel = document.createElement('span');
-        locationLabel.textContent = '위치';
-        locationSupport.append(locationImage, locationLabel);
-        copy.appendChild(locationSupport);
       }
 
       const actions = document.createElement('div');
@@ -1331,10 +1317,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         phone.setAttribute('aria-label', `${place.name} 전화번호 정보 없음`);
         phone.title = '전화번호 정보 없음';
       }
-      const phoneLabel = document.createElement('span');
-      phoneLabel.className = 'lotbi-place-action-label';
-      phoneLabel.textContent = '전화';
-      phone.appendChild(phoneLabel);
+      // Icon only. The name a screen reader announces stays on aria-label and
+      // title above — dropping the visible word must not drop the name.
       actions.appendChild(phone);
 
       const navigate = document.createElement('a');
@@ -1360,10 +1344,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         navigate.classList.add('is-icon-fallback');
       }, {once: true});
       navigate.appendChild(naverIcon);
-      const mapLabel = document.createElement('span');
-      mapLabel.className = 'lotbi-place-action-label';
-      mapLabel.textContent = '네이버지도';
-      navigate.appendChild(mapLabel);
       navigate.addEventListener('click', event => {
         event.preventDefault();
         openPlaceInNaverMap(place);

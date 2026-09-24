@@ -198,13 +198,11 @@ assert.equal(typeof iosFallback, 'function');
 iosFallback();
 assert.equal(iosWindow.location.href, desktop);
 
-const thumbnail = nav.buildNaverStaticMapThumbnailUrl(place);
-const thumbnailUrl = new URL(thumbnail);
-assert.equal(thumbnailUrl.origin, 'https://api.lotbiai.com');
-assert.equal(thumbnailUrl.pathname, '/v2/maps/static-place-thumbnail');
-assert.equal(thumbnailUrl.searchParams.get('latitude'), '35.8242000');
-assert.equal(thumbnailUrl.searchParams.get('longitude'), '127.1480000');
-assert.doesNotMatch(thumbnail, /secret|api[-_]?key|x-ncp/iu);
+// 대표님: "지도 썸네일과 그 옆 '위치' 글자를 지워라. 주소가 이미 있고 네이버
+// 지도 버튼도 있어 같은 말을 세 번 한다." The builder that fed the thumbnail
+// dies with it — deleted from site-navigation.js, not left commented out.
+assert.equal(typeof nav.buildNaverStaticMapThumbnailUrl, 'undefined');
+assert.doesNotMatch(navSource, /buildNaverStaticMapThumbnailUrl|NAVER_STATIC_MAP_THUMBNAIL_BASE|static-place-thumbnail/u);
 assert.doesNotMatch(navSource, /maps\.apigw\.ntruss\.com/iu);
 assert.doesNotMatch(navSource, /x-ncp-apigw-api-key/iu);
 
@@ -213,16 +211,36 @@ delete noEvidence.results[0].coordinate_authority;
 const fallback = nav.normalizePlaceResult(noEvidence, {capturedAt: 1000});
 assert.equal(fallback.results[0].navigationCapable, false);
 assert.match(nav.buildNaverMapsMobileUri(fallback.results[0]), /^nmap:\/\/search\?/u);
-assert.equal(nav.buildNaverStaticMapThumbnailUrl(fallback.results[0]), '');
 
 const placeRendererStart = conversationSource.indexOf("const createPlaceCardRail = placeValue => {");
 const placeRendererEnd = conversationSource.indexOf("const normalizeConversationCalendarResult = value => {", placeRendererStart);
 assert.ok(placeRendererStart >= 0 && placeRendererEnd > placeRendererStart);
 const placeRendererSource = conversationSource.slice(placeRendererStart, placeRendererEnd);
-assert.match(placeRendererSource, /행정 인허가 데이터상 확인/u);
-assert.match(placeRendererSource, /공공 인허가 데이터에서 일치 기록 미확인/u);
-assert.match(placeRendererSource, /행정 인허가 데이터 확인 불가/u);
+// 대표님: "인허가 문구가 길다. 다섯 개를 같은 길이감으로 줄여라." One shortened
+// on its own would leave the other four out of step, so all five move together.
+const licenseCopy = {
+  VERIFIED: '인허가 대조 확인',
+  AMBIGUOUS: '인허가 후보 여럿',
+  CONFLICTING: '인허가 정보 불일치',
+  NOT_FOUND: '인허가 대조 안 됨',
+  OTHER: '인허가 대조 불가',
+};
+for (const [state, copy] of Object.entries(licenseCopy)) {
+  assert.ok(placeRendererSource.includes(`'${copy}'`), `${state} 인허가 문구가 '${copy}' 가 아닙니다`);
+  assert.ok(copy.length <= 10, `${state} 인허가 문구가 아직 깁니다: ${copy}`);
+}
+// NOT_FOUND means WE could not match the place in the public data. Writing it
+// as a claim about the shop would turn a lookup miss into an accusation. The
+// ban is read off what the card actually prints, so the note in the renderer
+// that spells the banned wordings out is not itself a violation.
+const licenseAssignments = [...placeRendererSource.matchAll(/foodLicense\.textContent = ([^;]+);/gu)].map(m => m[1]);
+assert.equal(licenseAssignments.length, 5, '인허가 문구는 다섯 갈래 그대로여야 합니다');
+for (const assignment of licenseAssignments) {
+  assert.doesNotMatch(assignment, /인허가 기록 없음|무허가|허가 없음|미허가|불법 영업/u);
+}
 assert.doesNotMatch(placeRendererSource, /정부 인증 맛집|현재 영업 중|안전한 식당|믿을 수 있는 식당/u);
+// The long forms are gone from the source, not merely unused.
+assert.doesNotMatch(placeRendererSource, /행정 인허가 데이터상 확인|공공 인허가 데이터 일치 후보가 여러 개예요|공공 인허가 데이터와 업체 식별 정보가 일치하지 않아요|공공 인허가 데이터에서 일치 기록 미확인|행정 인허가 데이터 확인 불가/u);
 assert.match(conversationSource, /food_license_verification/u);
 
 const placePointerResolverStart = conversationSource.indexOf('function resolvePlaceOrbitPointerIndex(');
@@ -287,7 +305,6 @@ const finishDragSource = placeRendererSource.slice(finishDragStart, pointerUpSta
 
 assert.match(coreSource, /placeResult: payload\.place_result/u);
 assert.match(conversationSource, /openNaverMapsPlace\(place\)/u);
-assert.match(conversationSource, /buildNaverStaticMapThumbnailUrl\(place\)/u);
 assert.match(conversationSource, /buildVerifiedPhoneHref\(place\)/u);
 assert.match(conversationSource, /phone\.href = phoneHref/u);
 assert.match(conversationSource, /CALL_HANDOFF_STARTED/u);
@@ -296,7 +313,12 @@ assert.match(placeRendererSource, /document\.createElement\(phoneHref \? 'a' : '
 assert.match(placeRendererSource, /phone\.dataset\.phoneState = phoneHref \? 'VERIFIED' : 'UNAVAILABLE'/u);
 assert.match(placeRendererSource, /phone\.disabled = true/u);
 assert.match(placeRendererSource, /phone\.setAttribute\('aria-label', `\$\{place\.name\} 전화번호 정보 없음`\)/u);
-assert.match(placeRendererSource, /phoneLabel\.textContent = '전화'/u);
+// 대표님: "'전화'·'네이버지도' 글자는 지우고 아이콘만 둬라. 아이콘만 있어도
+// 사람들은 다 안다." The word goes; the accessible name does not — a screen
+// reader still needs to say which place this button calls or opens.
+assert.doesNotMatch(placeRendererSource, /lotbi-place-action-label|phoneLabel|mapLabel/u);
+assert.doesNotMatch(placeRendererSource, /textContent = '전화'|textContent = '네이버지도'|textContent = '위치'/u);
+assert.match(placeRendererSource, /phone\.title = '전화 걸기'/u);
 
 assert.match(conversationSource, /lotbi-place-orbit/u);
 assert.match(conversationSource, /aria-roledescription', 'carousel'/u);
@@ -402,10 +424,9 @@ assert.match(placeRendererSource, /navigate\.href = buildNaverMapsWebSearchUrl\(
 assert.match(placeRendererSource, /navigate\.target = '_blank'/u);
 assert.match(placeRendererSource, /navigate\.rel = 'noopener noreferrer'/u);
 assert.match(placeRendererSource, /event\.preventDefault\(\)/u);
-assert.match(placeRendererSource, /mapLabel\.textContent = '네이버지도'/u);
 assert.match(conversationSource, /navigate\.title = '네이버지도에서 열기'/u);
 assert.match(conversationSource, /https:\/\/navercorp\.com\/img\/pc\/service-map-app-4\.jpg/u);
-assert.match(conversationSource, /site-navigation\.js\?v=20260922-mois1/u);
+assert.match(conversationSource, /site-navigation\.js\?v=20260924-compact1/u);
 assert.doesNotMatch(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
 assert.doesNotMatch(placeRendererSource, /detail\.textContent = '상세보기'/u);
 assert.doesNotMatch(placeRendererSource, /navigate\.disabled = !fresh/u);
@@ -420,12 +441,9 @@ assert.match(placeRendererSource, /대표 사진/u);
 assert.match(placeRendererSource, /media\.dataset\.mediaSource = 'VERIFIED_PLACE_PHOTO'/u);
 assert.match(placeRendererSource, /media\.dataset\.mediaSource = 'NEUTRAL_PLACE_PLACEHOLDER'/u);
 assert.match(placeRendererSource, /사진 정보 없음/u);
-assert.match(placeRendererSource, /const staticMapUrl = buildNaverStaticMapThumbnailUrl\(place\)/u);
-assert.match(placeRendererSource, /lotbi-place-location-support/u);
-assert.ok(
-  placeRendererSource.indexOf("if (place.imageUrl)") < placeRendererSource.indexOf("const staticMapUrl = buildNaverStaticMapThumbnailUrl(place)"),
-  'Place photo/placeholder must be primary; static map must remain secondary location support',
-);
+// The thumbnail and its '위치' caption are deleted from the card, markup and
+// all. The address line above and the NAVER Map button below already say it.
+assert.doesNotMatch(placeRendererSource, /staticMapUrl|lotbi-place-location-support|lotbi-place-location-thumbnail|위치 미리보기/u);
 assert.match(conversationSource, /for \(const \[placeIndex, place\] of placeResult\.results\.entries\(\)\)/u);
 assert.match(conversationSource, /image\.loading = placeIndex === 0 \? 'eager' : 'lazy'/u);
 assert.match(conversationSource, /typeof image\.decode === 'function'/u);
@@ -442,7 +460,7 @@ assert.match(readyImageStyle, /opacity:\s*1\s*;/u);
 const orbitStyle = conversationStyles.match(/\.lotbi-place-orbit \{[^}]*\}/s)?.[0] || '';
 assert.match(orbitStyle, /position:\s*relative/u);
 assert.match(orbitStyle, /display:\s*block/u);
-assert.match(orbitStyle, /height:\s*352px/u);
+assert.match(orbitStyle, /height:\s*304px/u);
 assert.match(orbitStyle, /overflow:\s*hidden/u);
 assert.match(orbitStyle, /touch-action:\s*pan-y/u);
 assert.doesNotMatch(orbitStyle, /overflow-x:\s*auto|scroll-snap-type|scrollbar-width/u);
@@ -450,17 +468,19 @@ assert.doesNotMatch(orbitStyle, /overflow-x:\s*auto|scroll-snap-type|scrollbar-w
 const orbitCardStyle = conversationStyles.match(/\.lotbi-place-orbit-card \{[^}]*\}/s)?.[0] || '';
 assert.match(orbitCardStyle, /position:\s*absolute/u);
 assert.match(orbitCardStyle, /left:\s*50%/u);
-assert.match(orbitCardStyle, /width:\s*min\(38%, 276px\)/u);
-assert.match(orbitCardStyle, /min-width:\s*216px/u);
+assert.match(orbitCardStyle, /width:\s*min\(32%, 236px\)/u);
+assert.match(orbitCardStyle, /min-width:\s*192px/u);
 assert.match(orbitCardStyle, /pointer-events:\s*auto/u);
 assert.match(orbitCardStyle, /transition:/u);
 
 const placeMediaStyle = conversationStyles.match(/\.lotbi-rich-card-place-media \{[^}]*\}/s)?.[0] || '';
 assert.match(placeMediaStyle, /aspect-ratio:\s*16 \/ 9/u);
-assert.match(conversationStyles, /@media \(max-width: 760px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*348px/u);
-assert.match(conversationStyles, /@media \(max-width: 390px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*342px/u);
-assert.match(conversationStyles, /@media \(max-width: 360px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*334px/u);
-assert.match(conversationStyles, /\.lotbi-rich-card-icon-action\s*\{[^}]*min-width:\s*72px[^}]*height:\s*44px/su);
+assert.match(conversationStyles, /@media \(max-width: 760px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*302px/u);
+assert.match(conversationStyles, /@media \(max-width: 390px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*300px/u);
+assert.match(conversationStyles, /@media \(max-width: 360px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*296px/u);
+// Icon-only, but a finger still needs 44x44 to land on.
+assert.match(conversationStyles, /\.lotbi-rich-card-icon-action\s*\{[^}]*min-width:\s*44px[^}]*height:\s*44px/su);
+assert.doesNotMatch(conversationStyles, /\.lotbi-place-action-label\s*\{|\.lotbi-place-location-support\s*\{|\.lotbi-place-location-thumbnail\s*\{/u);
 assert.match(conversationStyles, /\.lotbi-phone-action\[data-phone-state="UNAVAILABLE"\]\s*\{[^}]*opacity:/su);
 
 for (const slot of ['CENTER', 'LEFT_FRONT', 'RIGHT_FRONT', 'LEFT_BACK', 'RIGHT_BACK']) {
@@ -485,13 +505,12 @@ assert.match(conversationStyles, /\.lotbi-place-orbit-control-prev\s*\{[^}]*left
 assert.match(conversationStyles, /\.lotbi-place-orbit-control-next\s*\{[^}]*right:\s*8px/su);
 assert.match(conversationStyles, /\.lotbi-place-orbit-control\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/su);
 assert.match(conversationStyles, /\.lotbi-place-photo-placeholder\s*\{/u);
-assert.match(conversationStyles, /\.lotbi-place-location-thumbnail\s*\{/u);
 assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.lotbi-place-orbit-card[\s\S]*transition:\s*none/u);
 
 assert.match(indexSource, /site-conversation\.js\?v=[A-Za-z0-9._-]+/u, 'Home conversation runtime must remain cache-busted');
 assert.match(
   conversationSource,
-  /\.\/site-navigation\.js\?v=20260922-mois1/u,
+  /\.\/site-navigation\.js\?v=20260924-compact1/u,
   'Home Place Card runtime must keep the compact-actions navigation module',
 );
 
