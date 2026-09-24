@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 
 const {
   createLifeActivity,
@@ -14,7 +15,14 @@ const {
   removeLifeActivity,
   rescheduleLifeActivity,
 } = await import('../site-calendar.js');
-const {CORE_ORIGIN, SiteCoreError, normalizeSmartCalendarDraft, sendConversationMessage} = await import('../site-core.js?v=20260921-smartcaldraft1');
+// site-calendar.js 가 던지는 SiteCoreError 와 instanceof 가 맞아야 한다. Node 는
+// 쿼리가 다른 specifier 를 **별개 모듈 인스턴스**로 취급하므로, 여기서 다른
+// ?v= 를 쓰면 같은 클래스가 아니게 되어 assert.rejects(..., SiteCoreError) 가
+// 깨진다. 실제로 site-core.js 의 캐시버전을 올릴 때 이 테스트가 그렇게 깨졌다.
+// 그래서 버전 문자열을 손으로 맞추지 않고 site-calendar.js 에서 읽어온다.
+const CORE_SPECIFIER = readFileSync(new URL('../site-calendar.js', import.meta.url), 'utf8')
+  .match(/from '\.\/(site-core\.js\?v=[^']+)'/)[1];
+const {CORE_ORIGIN, SiteCoreError, normalizeSmartCalendarDraft, sendConversationMessage} = await import(`../${CORE_SPECIFIER}`);
 
 assert.equal(isExplicitLifeCalendarCommand('9월 30일 오후 3시에 병원 가'), true);
 for (const value of [

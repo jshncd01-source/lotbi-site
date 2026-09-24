@@ -2,6 +2,29 @@ export const CORE_ORIGIN = 'https://api.lotbiai.com';
 export const SITE_AUDIENCE = 'lotbiai.com';
 export const SITE_CALLBACK_URI = 'https://lotbiai.com/auth/callback';
 
+// SITE-NORMAL-ASSURANCE-01 — Core 의 정상 소비자 assurance 집합과 짝을 맞춘다.
+//   lotbi-core app/consumer_auth.py:21
+//   NORMAL_CONSUMER_ASSURANCE_LEVELS = frozenset({"FULL", "FEDERATED_LIMITED"})
+//
+// Site 는 이 두 값만 받는다. 소셜 로그인(Kakao/Google/Naver)이 들어오면서 Core 가
+// FEDERATED_LIMITED child session 을 정상 발급하는데, Site 는 'FULL' 문자열만
+// 비교하고 있었다. 그래서 redeem 은 200 으로 성공한 직후 Site 계약 검사에서
+// 튕겨 "LOTBI Site 세션 응답이 올바르지 않습니다." 가 떴다.
+//
+// 이 집합은 **응답 계약 검증용**이다. 민감 기능 권한은 여기서 정하지 않는다 —
+// Core 의 require_session_access() (app/consumer_auth.py:540) 가
+// FEDERATED_LIMITED 에 _federated_standard_access_allowed() 게이트를 걸고
+// FEDERATED_SESSION_LIMITED 로 거부한다. 그것이 권한 경계이고 그대로 둔다.
+// 그래서 이 목록을 넓히는 것으로 민감 권한이 넓어지지 않는다.
+//
+// 목록을 늘리지 마십시오. RECOVERY_LIMITED 같은 제한 세션은 여기에 들어오면
+// 안 되고, 들어오면 scripts/validate_site_normal_assurance_01.mjs 가 떨어진다.
+export const NORMAL_SITE_ASSURANCE_LEVELS = Object.freeze(['FULL', 'FEDERATED_LIMITED']);
+
+export function isNormalSiteAssurance(value) {
+  return typeof value === 'string' && NORMAL_SITE_ASSURANCE_LEVELS.includes(value);
+}
+
 const CONVERSATION_PATH = '/v2/conversation/messages';
 const PRODUCT_CARD_SEARCH_PATH = '/v2/product-resolutions/search';
 const PUBLIC_PRODUCT_CARD_SEARCH_PATH = '/v2/public/product-cards/search';
@@ -129,7 +152,9 @@ export async function redeemSiteHandoff({handoffCode, state, codeVerifier}, fetc
   }
 
   const sessionToken = typeof payload.session_token === 'string' ? payload.session_token.trim() : '';
-  if (!sessionToken || payload.session_type !== 'Bearer' || payload.assurance_level !== 'FULL' || payload.audience !== SITE_AUDIENCE) {
+  // handoff redeem 응답 계약. 새로 발급된 Site child session 이 Bearer 이고,
+  // 정상 소비자 assurance 이며, Site audience 로 묶였는지 확인한다.
+  if (!sessionToken || payload.session_type !== 'Bearer' || !isNormalSiteAssurance(payload.assurance_level) || payload.audience !== SITE_AUDIENCE) {
     throw new SiteCoreError('LOTBI Site 세션 응답이 올바르지 않습니다.', {code: 'SITE_SESSION_CONTRACT_INVALID'});
   }
 
@@ -1201,7 +1226,9 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
   const userId = typeof user.id === 'string' ? user.id.trim() : '';
   const sessionId = typeof session.id === 'string' ? session.id.trim() : '';
   const installationId = typeof installation.id === 'string' ? installation.id.trim() : '';
-  if (!userId || !sessionId || !installationId || session.assurance_level !== 'FULL') {
+  // 현재 Site 사용자/세션 신원 계약. /v2/me 가 돌려준 세션이 정상 소비자
+  // assurance 인지 확인한다. 민감 기능 허용 여부는 Core 가 판단한다.
+  if (!userId || !sessionId || !installationId || !isNormalSiteAssurance(session.assurance_level)) {
     throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
   }
   return Object.freeze({
