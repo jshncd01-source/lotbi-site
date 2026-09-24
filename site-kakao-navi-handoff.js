@@ -1,4 +1,4 @@
-import {CORE_ORIGIN} from './site-core.js?v=20260924-placecard1';
+import {CORE_ORIGIN} from './site-core.js?v=aset-e5b4de42dbf0';
 
 const status = document.getElementById('status');
 const launch = document.getElementById('launch');
