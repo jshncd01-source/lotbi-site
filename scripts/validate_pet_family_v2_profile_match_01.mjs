@@ -47,7 +47,7 @@ assert.ok(uiSource.includes('FOUND_PHOTO_SEMANTIC_SLOT_CODES[slotIndex - 1]'),
   'found photos must carry an automatic internal semantic slot');
 assert.ok(clientSource.includes('[3, 4, 5, 6, 7, 8, 0, 1, 2, 9].map(index => PET_PHOTO_SLOT_CODES[index])'),
   'the first found photo must be a broad face view, not a close-up');
-assert.ok(conversationSource.includes('export function petConversationAction'));
+assert.ok(conversationSource.includes('function petConversationAction'));
 assert.ok(conversationSource.includes("target: 'found'"));
 assert.ok(conversationSource.includes("target: 'sos'"));
 assert.ok(conversationSource.includes("openPetFamily(petChatAction.dataset.petChatAction || 'pets')"));

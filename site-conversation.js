@@ -429,7 +429,7 @@ function createAttachmentIcon(attachment) {
   return icon;
 }
 
-export function petConversationAction(text, attachments = []) {
+function petConversationAction(text, attachments = []) {
   const value = typeof text === 'string' ? text.trim() : '';
   const hasAnimal = /(강아지|고양이|반려동물|동물|우리\s*개|우리\s*냥)/u.test(value);
   const hasImage = Array.isArray(attachments)
