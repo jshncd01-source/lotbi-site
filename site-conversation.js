@@ -160,7 +160,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=20260924-mapdeeplink1';
+  link.href = '/site-conversation.css?v=20260924-placecard1';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
