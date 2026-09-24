@@ -770,6 +770,21 @@ function defaultRequestId(kind) {
   return `site.calendar.${kind}.${globalThis.crypto?.randomUUID?.() || Date.now()}`;
 }
 
+export function calendarItemActionPolicy(item = {}) {
+  const explicitActions = Array.isArray(item?.allowed_actions);
+  const allowedActions = explicitActions ? item.allowed_actions : [];
+  const sourceKind = item?.source_kind || 'USER_INPUT';
+  const mutableByDefault = sourceKind !== 'LIFE_RESULT' && !explicitActions;
+  const canUpdate = mutableByDefault || allowedActions.includes('UPDATE');
+  const canRemove = mutableByDefault || allowedActions.includes('REMOVE');
+  return Object.freeze({
+    canUpdate,
+    canRemove,
+    readOnly: !canUpdate && !canRemove,
+    allowedActions: Object.freeze([...allowedActions]),
+  });
+}
+
 export function createCalendarMutationController({
   sessionToken = '', timezone = DEFAULT_TIMEZONE, guestRepository, fetchImpl = globalThis.fetch, requestId = defaultRequestId,
 } = {}) {
@@ -815,6 +830,12 @@ export function createCalendarMutationController({
       }, fetchImpl);
     },
     async update(item, input) {
+      if (!calendarItemActionPolicy(item).canUpdate) {
+        throw new SiteCoreError('읽기 전용 일정은 수정할 수 없습니다.', {
+          code: 'LIFE_ACTION_NOT_ALLOWED',
+          status: 403,
+        });
+      }
       const value = normalized(input);
       const temporal = buildCalendarTemporal({...value, timezone});
       if (!authenticated) return guestRepository.update(item.id, guestPayload(value, temporal));
@@ -830,6 +851,12 @@ export function createCalendarMutationController({
       }, fetchImpl);
     },
     async remove(item) {
+      if (!calendarItemActionPolicy(item).canRemove) {
+        throw new SiteCoreError('읽기 전용 일정은 삭제할 수 없습니다.', {
+          code: 'LIFE_ACTION_NOT_ALLOWED',
+          status: 403,
+        });
+      }
       if (!authenticated) return guestRepository.remove(item.id);
       return removeLifeActivity(sessionToken, item.activity_id || item.activityId, {
         logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision ?? item.activityRevision,
@@ -907,6 +934,40 @@ function forecastWindow(range, today) {
   return {start, end};
 }
 
+function calendarRangeYears(range) {
+  if (!validCivilDate(range?.start) || !validCivilDate(range?.end) || range.end < range.start) return [];
+  const startYear = civilDateParts(range.start).year;
+  const endYear = civilDateParts(range.end).year;
+  return Array.from({length: endYear - startYear + 1}, (_, index) => startYear + index);
+}
+
+export async function loadKoreaHolidaysForRange(range, fetchImpl = globalThis.fetch) {
+  const years = calendarRangeYears(range);
+  if (!years.length) return Object.freeze({coverageStatus: 'UNAVAILABLE', items: Object.freeze([])});
+  const results = await Promise.all(years.map(async year => {
+    try {
+      return await getKoreaHolidays(year, fetchImpl);
+    } catch (error) {
+      console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
+      return {coverageStatus: 'UNAVAILABLE', items: []};
+    }
+  }));
+  const unique = new Map();
+  for (const item of results.flatMap(result => result?.items || [])) {
+    const key = [item.date, item.name, item.holidayType, String(item.isSubstitute)].join('\u0000');
+    if (!unique.has(key)) unique.set(key, item);
+  }
+  const items = [...unique.values()].sort((left, right) =>
+    left.date.localeCompare(right.date)
+      || left.name.localeCompare(right.name)
+      || String(left.holidayType).localeCompare(String(right.holidayType))
+      || Number(left.isSubstitute) - Number(right.isSubstitute));
+  return Object.freeze({
+    coverageStatus: results.every(result => result?.coverageStatus === 'VERIFIED') ? 'VERIFIED' : 'UNAVAILABLE',
+    items: Object.freeze(items),
+  });
+}
+
 // 날씨 자리에 둘 조용한 안내. 없는 날씨를 그럴듯한 값으로 메우지 않고, 실패를
 // 실패라고만 적는다.
 function weatherFailureCopy(error) {
@@ -951,10 +1012,7 @@ export async function loadLifeCalendarManagerView(
       })
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
   const holidayRequest = (key === 'month' || key === 'week' || key === 'year')
-    ? getKoreaHolidays(range.year, fetchImpl).catch(error => {
-        console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
-        return {coverageStatus: 'UNAVAILABLE', items: []};
-      })
+    ? loadKoreaHolidaysForRange(range, fetchImpl)
     : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
   const [response, monthAttention, unscheduled, weather, holidays] = await Promise.all([
     getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
@@ -1035,6 +1093,15 @@ export function rovingTabTargetIndex(key, currentIndex, length) {
   if (key === 'Home') return 0;
   if (key === 'End') return length - 1;
   return null;
+}
+
+export function monthGridKeyboardTargetDate(date, key, weekStart = 0) {
+  if (!validCivilDate(date)) return null;
+  if (key !== 'Home' && key !== 'End') return null;
+  const {year, month, day} = civilDateParts(date);
+  const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+  const rowOffset = (weekday - normalizeWeekStart(weekStart) + 7) % 7;
+  return addCivilDays(date, key === 'Home' ? -rowOffset : 6 - rowOffset);
 }
 
 function bindRovingTablist(container, controls) {
@@ -1136,9 +1203,9 @@ function eventList(items, {onSelect} = {}) {
       li.tabIndex = 0;
       li.setAttribute('role', 'button');
       li.setAttribute('aria-label', `${eventTime(item)} ${item.title}${meta.textContent ? `, ${meta.textContent}` : ""}`);
-      li.addEventListener('click', () => onSelect(item));
+      li.addEventListener('click', event => onSelect(item, event.currentTarget));
       li.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item); }
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item, event.currentTarget); }
       });
     }
     list.appendChild(li);
@@ -1244,7 +1311,7 @@ function monthEventRow(item, onSelect) {
   row.setAttribute('aria-label', `${isAllDay(item) ? "" : `${eventTime(item)} `}${item.title}`);
   row.addEventListener('click', event => {
     event.stopPropagation();
-    onSelect(item);
+    onSelect(item, event.currentTarget);
   });
   return row;
 }
@@ -2146,6 +2213,95 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   queueMicrotask(() => toggle.focus());
 }
 
+function calendarReadonlyDetailDialog({root, item, opener = null, onClose = () => {}}) {
+  root.querySelector('.calendar-readonly-backdrop')?.remove();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-readonly-backdrop';
+  const dialog = document.createElement('section');
+  dialog.className = 'calendar-readonly-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'calendar-readonly-heading');
+
+  const header = document.createElement('div');
+  header.className = 'calendar-readonly-header';
+  const heading = document.createElement('h3');
+  heading.id = 'calendar-readonly-heading';
+  heading.textContent = '일정 상세';
+  const close = button('×', 'calendar-readonly-close');
+  close.setAttribute('aria-label', '읽기 전용 일정 닫기');
+  header.append(heading, close);
+
+  const title = document.createElement('strong');
+  title.className = 'calendar-readonly-title';
+  title.textContent = item?.title || '일정';
+  const notice = document.createElement('p');
+  notice.className = 'calendar-readonly-notice';
+  notice.textContent = '읽기 전용 일정';
+  const details = document.createElement('dl');
+  details.className = 'calendar-readonly-details';
+  const presentation = calendarEventPresentation(item);
+  const entry = item?.entry && typeof item.entry === 'object' ? item.entry : {};
+  const rows = [
+    ['시간', eventTime(item)],
+    ['종류 · 상태', [presentation.typeLabel, presentation.statusLabel].filter(Boolean).join(' · ')],
+    ['장소', entry.place || ''],
+    ['예약처', entry.merchant || ''],
+    ['메모', entry.memo || ''],
+    ['출처', item?.source_kind === 'LIFE_RESULT' ? '연결된 결과' : '직접 입력'],
+  ];
+  for (const [label, value] of rows) {
+    if (!value) continue;
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const description = document.createElement('dd');
+    description.textContent = String(value);
+    details.append(term, description);
+  }
+
+  const footer = document.createElement('div');
+  footer.className = 'calendar-readonly-actions';
+  const done = button('닫기', 'calendar-readonly-done');
+  footer.append(done);
+  dialog.append(header, title, notice, details, footer);
+  backdrop.append(dialog);
+  root.append(backdrop);
+
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    backdrop.remove();
+    if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    else onClose();
+  };
+  close.addEventListener('click', dismiss);
+  done.addEventListener('click', dismiss);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      dismiss();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [close, done].filter(control => !control.disabled);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  queueMicrotask(() => close.focus());
+  return dialog;
+}
+
 function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
   document.body.classList.remove('calendar-editor-open');
@@ -2154,6 +2310,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
+  const itemPolicy = calendarItemActionPolicy(item);
   const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 등록');
   const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
   const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
@@ -2363,12 +2520,13 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const actions = document.createElement('div'); actions.className = 'calendar-editor-actions';
   const cancel = button('취소', 'calendar-editor-cancel');
   const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
-  actions.append(cancel, save);
+  actions.append(cancel);
+  if (!item || itemPolicy.canUpdate) actions.prepend(save);
 
   let cleanupDeleteConfirmation = () => {};
   let deleteRequestInFlight = false;
 
-  if (item) {
+  if (item && itemPolicy.canRemove) {
     const remove = button('삭제', 'calendar-editor-delete');
     actions.prepend(remove);
     remove.addEventListener('click', () => {
@@ -2527,6 +2685,10 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
+    if (item && !itemPolicy.canUpdate) {
+      error.textContent = '읽기 전용 일정은 수정할 수 없습니다.';
+      return;
+    }
     const startClock = normalizeCalendarClockInput(timeInput.value);
     const endClock = normalizeCalendarClockInput(endTimeInput.value);
     if (!allDayInput.checked && (startClock === null || endClock === null)) {
@@ -2749,18 +2911,11 @@ export async function mountLifeCalendarManager({
       switch (event.key) {
         case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown':
           event.preventDefault(); void actions.selectDate(addCivilDays(date, offsets[event.key])); break;
-        case 'Home': {
+        case 'Home': case 'End': {
+          const targetDate = monthGridKeyboardTargetDate(date, event.key, state.weekStart);
+          if (!targetDate) break;
           event.preventDefault();
-          const {year, month, day} = civilDateParts(date);
-          const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
-          void actions.selectDate(addCivilDays(date, -weekday));
-          break;
-        }
-        case 'End': {
-          event.preventDefault();
-          const {year, month, day} = civilDateParts(date);
-          const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
-          void actions.selectDate(addCivilDays(date, 6 - weekday));
+          void actions.selectDate(targetDate);
           break;
         }
         case 'PageUp':
@@ -2809,7 +2964,7 @@ export async function mountLifeCalendarManager({
     // route and an existing entry go to the same dialog.
     onAdd: date => openEditor(null, date),
     onAddFromImage: date => { void addFromImage(date); },
-    onEvent: item => openEditor(item, item.local_date || item.due_date || ''),
+    onEvent: (item, opener) => openEditor(item, item.local_date || item.due_date || '', null, opener),
     openSettings: () => calendarSettingsDialog({
       root,
       state,
@@ -3353,12 +3508,14 @@ export async function mountLifeCalendarManager({
               return {providerReady: false, items: [], aiCalls: 0, failure: error};
             })
           : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
+        const holidayRange = state.mode === 'year'
+          ? yearBounds(state.selectedDate)
+          : state.mode === 'week'
+            ? weekBounds(state.selectedDate, state.weekStart)
+            : monthBounds(state.selectedDate);
         const holidayRequest = (state.mode === 'month' || state.mode === 'week' || state.mode === 'year') && state.showKoreaHolidays
-          ? getKoreaHolidays(state.year, fetchImpl).catch(error => {
-              console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
-              return {items: []};
-            })
-          : Promise.resolve({items: []});
+          ? loadKoreaHolidaysForRange(holidayRange, fetchImpl)
+          : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
         const [guestWeather, holidayResult] = await Promise.all([weatherRequest, holidayRequest]);
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         state.weather = guestWeather.items || [];
@@ -3421,7 +3578,7 @@ export async function mountLifeCalendarManager({
     });
   };
 
-  openEditor = (item, date, draft = null) => {
+  openEditor = (item, date, draft = null, opener = document.activeElement) => {
     const origin = Object.freeze({
       mode: state.mode,
       selectedDate: state.selectedDate,
@@ -3440,6 +3597,14 @@ export async function mountLifeCalendarManager({
       && state.agendaScope === context.agendaScope
       && state.detailOpen === context.detailOpen
       && state.dayCollapsed === context.dayCollapsed;
+    if (item && calendarItemActionPolicy(item).readOnly) {
+      return calendarReadonlyDetailDialog({
+        root,
+        item,
+        opener,
+        onClose: () => focusCalendarContext(origin, item),
+      });
+    }
     return calendarEditorDialog({
       root, item, selectedDate: date, initialDraft: draft, authenticated, controller: mutationController,
       onSaved: async () => {
