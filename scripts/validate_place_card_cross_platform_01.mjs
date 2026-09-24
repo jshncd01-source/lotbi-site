@@ -109,7 +109,7 @@ for (const forbidden of [
   assert.doesNotMatch(renderer, new RegExp(forbidden, 'u'));
 }
 for (const label of ['전화', '네이버', '카카오', 'T맵', 'Google']) {
-  assert.match(renderer, new RegExp(`addActionLabel\\\\([^,]+, '${label}'\\\\)`, 'u'));
+  assert.match(renderer, new RegExp(`addActionLabel\\([^,]+, '${label}'\\)`, 'u'));
 }
 assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
 assert.match(renderer, /dataset\.action = 'google-maps'/u);
