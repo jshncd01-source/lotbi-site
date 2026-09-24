@@ -375,8 +375,8 @@ try {
 
     // --- no layout damage ---------------------------------------------------
     assert.equal(v.mondayStart.cellCount % 7, 0, `${where}: whole weeks only`);
-    if (Math.abs(v.mondayStart.cellHeight - v.initial.cellHeight) > 1) {
-      throw new Error(`${where}: changing the week start resized the cells (${v.initial.cellHeight} -> ${v.mondayStart.cellHeight})`);
+    if (Math.abs(v.mondayStart.cellHeight - v.linesOff.cellHeight) > 1) {
+      throw new Error(`${where}: changing only the week start resized the cells (${v.linesOff.cellHeight} -> ${v.mondayStart.cellHeight})`);
     }
 
     // --- the controls -------------------------------------------------------
