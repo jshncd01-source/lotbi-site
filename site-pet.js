@@ -10,6 +10,8 @@ import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=20260924-assurance1';
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
 
+export const PET_MATCHING_CONSENT_VERSION = 'PET_MATCHING_CONSENT_2026_09_V2';
+
 export const PET_PHOTO_SLOT_CODES = Object.freeze([
   'NOSE_FRONT',
   'NOSE_LEFT',
@@ -170,6 +172,24 @@ const PET_ERROR_MESSAGES = Object.freeze({
   PET_PHOTO_TOO_SMALL: '사진이 너무 작아요. 줄이지 말고 원본 크기로 올려 주세요.',
   PET_PHOTO_ANCHOR_REQUIRED: '코·특징 사진은 얼굴이나 몸 전체 사진을 먼저 올린 뒤에 등록할 수 있어요.',
   PET_PHOTO_SPECIES_CHECK_UNAVAILABLE: '사진 확인 기능이 잠시 멈췄어요. 잠시 후 다시 시도해 주세요.',
+  PET_DRAFT_NOT_FOUND: '저장하던 등록 초안을 찾지 못했습니다. 새로 시작해 주세요.',
+  PET_DRAFT_NOT_ACTIVE: '이미 마친 등록 초안입니다.',
+  PET_DRAFT_FIELD_INVALID: '입력한 내용을 확인해 주세요.',
+  PET_DRAFT_STEP_INVALID: '등록 단계를 다시 선택해 주세요.',
+  PET_DRAFT_BREED_INVALID: '품종을 선택해 주세요.',
+  PET_DRAFT_BREED_OTHER_REQUIRED: '기타 품종 이름을 입력해 주세요.',
+  PET_DRAFT_BREED_SPECIES_CONFLICT: '선택한 종과 품종이 맞지 않습니다.',
+  PET_DRAFT_COLORS_INVALID: '털색은 여섯 개까지 선택할 수 있습니다.',
+  PET_DRAFT_COLOR_INVALID: '털색을 다시 선택해 주세요.',
+  PET_DRAFT_COLOR_OTHER_REQUIRED: '기타 털색을 입력해 주세요.',
+  PET_DRAFT_PATTERN_INVALID: '무늬를 다시 선택해 주세요.',
+  PET_DRAFT_PATTERN_OTHER_REQUIRED: '기타 무늬를 입력해 주세요.',
+  PET_DRAFT_PATTERN_SPECIES_CONFLICT: '선택한 종과 무늬가 맞지 않습니다.',
+  PET_DRAFT_PHOTOS_INCOMPLETE: '사진 10장을 모두 올려 주세요.',
+  PET_DRAFT_PHOTO_REJECTED: '확인하지 못한 사진이 있습니다. 표시된 사진을 다시 올려 주세요.',
+  PET_DRAFT_PHOTO_CHECK_PENDING: '사진 확인이 아직 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.',
+  PET_DRAFT_PHOTO_NOT_FOUND: '등록 초안의 사진을 찾지 못했습니다.',
+  PET_DRAFT_REQUEST_ID_INVALID: '등록을 새로 시작해 주세요.',
 
   // Location, for the two report forms.
   PET_LOCATION_REQUIRED: '장소를 입력해 주세요.',
@@ -289,9 +309,16 @@ function normalizePet(value) {
     species: PET_SPECIES.includes(value.species) ? value.species : 'DOG',
     sex: PET_SEXES.includes(value.sex) ? value.sex : 'UNKNOWN',
     breed: typeof value.breed === 'string' ? value.breed : '',
+    breedCode: typeof value.breed_code === 'string' ? value.breed_code : '',
     birthDate: typeof value.birth_date === 'string' ? value.birth_date : '',
     approximateAgeMonths: Number.isInteger(value.approximate_age_months) ? value.approximate_age_months : null,
+    ageEstimateAsOf: typeof value.age_estimate_as_of === 'string' ? value.age_estimate_as_of : '',
+    familyDate: typeof value.family_date === 'string' ? value.family_date : '',
     color: typeof value.color === 'string' ? value.color : '',
+    colorCodes: Array.isArray(value.color_codes) ? Object.freeze(value.color_codes.filter(item => typeof item === 'string')) : Object.freeze([]),
+    colorOther: typeof value.color_other === 'string' ? value.color_other : '',
+    coatPatternCode: typeof value.coat_pattern_code === 'string' ? value.coat_pattern_code : '',
+    coatPatternOther: typeof value.coat_pattern_other === 'string' ? value.coat_pattern_other : '',
     distinctiveMarks: typeof value.distinctive_marks === 'string' ? value.distinctive_marks : '',
     officialRegistrationNumber: typeof value.official_registration_number === 'string'
       ? value.official_registration_number
@@ -306,6 +333,157 @@ function normalizePet(value) {
     matchingConsentState: value.matching_consent_state === 'GRANTED' ? 'GRANTED' : 'NOT_GRANTED',
     accountState: typeof value.account_state === 'string' ? value.account_state : '',
   });
+}
+
+function normalizeCatalogItem(value) {
+  if (!value || typeof value !== 'object') return null;
+  const code = typeof value.code === 'string' ? value.code : '';
+  const displayName = typeof value.display_name === 'string' ? value.display_name : '';
+  if (!code || !displayName) return null;
+  return Object.freeze({
+    code,
+    displayName,
+    species: PET_SPECIES.includes(value.species) ? value.species : '',
+  });
+}
+
+function normalizePetCatalog(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const breeds = source.breeds && typeof source.breeds === 'object' ? source.breeds : {};
+  return Object.freeze({
+    breeds: Object.freeze({
+      DOG: Object.freeze((Array.isArray(breeds.DOG) ? breeds.DOG : []).map(normalizeCatalogItem).filter(Boolean)),
+      CAT: Object.freeze((Array.isArray(breeds.CAT) ? breeds.CAT : []).map(normalizeCatalogItem).filter(Boolean)),
+    }),
+    colors: Object.freeze((Array.isArray(source.colors) ? source.colors : []).map(normalizeCatalogItem).filter(Boolean)),
+    patterns: Object.freeze((Array.isArray(source.patterns) ? source.patterns : []).map(normalizeCatalogItem).filter(Boolean)),
+  });
+}
+
+function normalizePetDraftPhoto(value) {
+  if (!value || typeof value !== 'object' || !PET_PHOTO_SLOT_CODES.includes(value.slot_code)) return null;
+  return Object.freeze({
+    slotCode: value.slot_code,
+    slotIndex: Number.isInteger(value.slot_index) ? value.slot_index : 0,
+    revision: Number.isInteger(value.revision) ? value.revision : 0,
+    inspectionState: ['PENDING', 'ACCEPTED', 'REJECTED'].includes(value.inspection_state)
+      ? value.inspection_state
+      : 'PENDING',
+    inspectionReasonCode: typeof value.inspection_reason_code === 'string' ? value.inspection_reason_code : '',
+  });
+}
+
+function normalizePetRegistrationDraft(value) {
+  if (!value || typeof value !== 'object' || typeof value.draft_id !== 'string') return null;
+  return Object.freeze({
+    draftId: value.draft_id,
+    status: typeof value.status === 'string' ? value.status : 'ACTIVE',
+    currentStep: ['PHOTOS', 'BASIC', 'ADDITIONAL', 'REVIEW'].includes(value.current_step) ? value.current_step : 'PHOTOS',
+    revision: Number.isInteger(value.revision) ? value.revision : 0,
+    name: typeof value.name === 'string' ? value.name : '',
+    species: PET_SPECIES.includes(value.species) ? value.species : '',
+    sex: PET_SEXES.includes(value.sex) ? value.sex : '',
+    breedCode: typeof value.breed_code === 'string' ? value.breed_code : '',
+    breed: typeof value.breed === 'string' ? value.breed : '',
+    birthDate: typeof value.birth_date === 'string' ? value.birth_date : '',
+    approximateAgeMonths: Number.isInteger(value.approximate_age_months) ? value.approximate_age_months : null,
+    ageEstimateAsOf: typeof value.age_estimate_as_of === 'string' ? value.age_estimate_as_of : '',
+    familyDate: typeof value.family_date === 'string' ? value.family_date : '',
+    colorCodes: Object.freeze(Array.isArray(value.color_codes) ? value.color_codes.filter(item => typeof item === 'string') : []),
+    colorOther: typeof value.color_other === 'string' ? value.color_other : '',
+    coatPatternCode: typeof value.coat_pattern_code === 'string' ? value.coat_pattern_code : '',
+    coatPatternOther: typeof value.coat_pattern_other === 'string' ? value.coat_pattern_other : '',
+    distinctiveMarks: typeof value.distinctive_marks === 'string' ? value.distinctive_marks : '',
+    officialRegistrationNumber: typeof value.official_registration_number === 'string' ? value.official_registration_number : '',
+    matchingConsentState: value.matching_consent_state === 'GRANTED' ? 'GRANTED' : 'NOT_GRANTED',
+    matchingConsentVersion: typeof value.matching_consent_version === 'string' ? value.matching_consent_version : '',
+    photos: Object.freeze((Array.isArray(value.photos) ? value.photos : []).map(normalizePetDraftPhoto).filter(Boolean)),
+    completedPetId: typeof value.completed_pet_id === 'string' ? value.completed_pet_id : '',
+    updatedAt: typeof value.updated_at === 'string' ? value.updated_at : '',
+  });
+}
+
+export async function getPetCatalog(fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pet-catalog', 'catalog-public', {}, fetchImpl);
+  return normalizePetCatalog(payload);
+}
+
+export async function getActivePetRegistrationDraft(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pet-registration-drafts/active', sessionToken, {}, fetchImpl);
+  return normalizePetRegistrationDraft(payload?.draft);
+}
+
+export async function createPetRegistrationDraft(sessionToken, requestId = '', fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pet-registration-drafts', sessionToken, {
+    method: 'POST',
+    requestId: requestId || petRequestId('draft'),
+  }, fetchImpl);
+  const draft = normalizePetRegistrationDraft(payload?.draft);
+  if (!draft) throw new SiteCoreError('반려동물 등록을 시작하지 못했습니다.', {code: 'PET_DRAFT_CREATE_FAILED'});
+  return draft;
+}
+
+export async function updatePetRegistrationDraft(sessionToken, draftId, updates, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(`/v2/pet-registration-drafts/${encodeURIComponent(draftId)}`, sessionToken, {
+    method: 'PATCH',
+    body: updates && typeof updates === 'object' ? updates : {},
+  }, fetchImpl);
+  const draft = normalizePetRegistrationDraft(payload?.draft);
+  if (!draft) throw new SiteCoreError('등록 초안을 저장하지 못했습니다.', {code: 'PET_DRAFT_SAVE_FAILED'});
+  return draft;
+}
+
+export async function deletePetRegistrationDraft(sessionToken, draftId, fetchImpl = globalThis.fetch) {
+  return petRequest(`/v2/pet-registration-drafts/${encodeURIComponent(draftId)}`, sessionToken, {
+    method: 'DELETE',
+  }, fetchImpl);
+}
+
+export async function uploadPetRegistrationDraftPhoto(sessionToken, draftId, slotCode, file, fetchImpl = globalThis.fetch) {
+  const rejection = petPhotoRejection(file);
+  if (rejection) throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'pet-photo');
+  const payload = await petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(slotCode)}`,
+    sessionToken,
+    {method: 'PUT', formData},
+    fetchImpl,
+  );
+  const photo = normalizePetDraftPhoto(payload?.photo);
+  if (!photo) throw new SiteCoreError('등록 사진을 저장하지 못했습니다.', {code: 'PET_DRAFT_PHOTO_SAVE_FAILED'});
+  return photo;
+}
+
+export async function deletePetRegistrationDraftPhoto(sessionToken, draftId, slotCode, fetchImpl = globalThis.fetch) {
+  return petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(slotCode)}`,
+    sessionToken,
+    {method: 'DELETE'},
+    fetchImpl,
+  );
+}
+
+export async function fetchPetRegistrationDraftPhotoObjectUrl(sessionToken, draftId, slotCode, fetchImpl = globalThis.fetch) {
+  const response = await petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(slotCode)}/content`,
+    sessionToken,
+    {raw: true},
+    fetchImpl,
+  );
+  return URL.createObjectURL(await response.blob());
+}
+
+export async function finalizePetRegistrationDraft(sessionToken, draftId, requestId = '', fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/finalize`,
+    sessionToken,
+    {method: 'POST', requestId: requestId || petRequestId('finalize')},
+    fetchImpl,
+  );
+  const pet = normalizePet(payload?.pet);
+  if (!pet) throw new SiteCoreError('반려동물 등록을 마치지 못했습니다.', {code: 'PET_DRAFT_FINALIZE_FAILED'});
+  return Object.freeze({pet, draft: normalizePetRegistrationDraft(payload?.draft)});
 }
 
 function normalizePhotoManifest(value) {

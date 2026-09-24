@@ -87,6 +87,27 @@ assert.ok(
   petClient.includes("PET_PHOTO_MIME_TYPES = Object.freeze(['image/jpeg', 'image/png'])"),
   'photo types must match Core',
 );
+assert.ok(
+  petClient.includes("PET_MATCHING_CONSENT_VERSION = 'PET_MATCHING_CONSENT_2026_09_V2'"),
+  'matching consent version must match Core V2',
+);
+for (const route of [
+  '/v2/pet-catalog',
+  '/v2/pet-registration-drafts',
+  '/finalize',
+]) {
+  assert.ok(petClient.includes(route), `V2 registration client route missing: ${route}`);
+}
+assert.ok(
+  !/registerPet\(sessionToken/.test(petUi),
+  'the UI must not allocate a stable Pet before the photo-first draft is finalized',
+);
+assert.ok(
+  petUi.includes("['pets', '내 반려동물'")
+    && petUi.includes("['sos', '실종 신고'")
+    && petUi.includes("['found', '발견 제보'"),
+  'Pet Home must expose three separate entry cards',
+);
 
 // ----------------------------------------------------------- photo uploader
 
@@ -333,8 +354,28 @@ function innerFixtureHtml() {
 <script>
   // Stand in for Core so the surface is exercised without the network.
   const PETS = ${JSON.stringify(JSON.stringify(FIXTURE_PETS))};
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, options = {}) => {
     const target = String(url);
+    if (/\/v2\/pet-catalog$/.test(target)) {
+      return new Response(JSON.stringify({
+        breeds: {
+          DOG: [{code: 'JINDO', display_name: '진돗개', species: 'DOG'}],
+          CAT: [{code: 'KOREAN_SHORTHAIR', display_name: '코리안숏헤어', species: 'CAT'}],
+        },
+        colors: [{code: 'WHITE', display_name: '흰색'}],
+        patterns: [{code: 'SOLID', display_name: '단색', species: null}],
+      }), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
+    if (/\/v2\/pet-registration-drafts\/active$/.test(target)) {
+      return new Response(JSON.stringify({draft: null}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
+    if (/\/v2\/pet-registration-drafts$/.test(target) && options.method === 'POST') {
+      return new Response(JSON.stringify({draft: {
+        draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee',
+        status: 'ACTIVE', current_step: 'PHOTOS', revision: 1,
+        matching_consent_state: 'NOT_GRANTED', photos: [],
+      }}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
     if (/\\/content$/.test(target)) {
       // 1x1 PNG, enough to prove the bytes become a blob: preview.
       const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
@@ -453,8 +494,16 @@ function innerFixtureHtml() {
     })(),
   };
 
-  // Register form: species must offer exactly DOG and CAT.
+  const homeCards = [...document.querySelectorAll('[data-pet-home-target]')].map(button => ({
+    target: button.dataset.petHomeTarget,
+    title: button.querySelector('.pet-home-card-title').textContent,
+  }));
+
+  // Registration begins with the ten private photo slots. Species is not
+  // requested until the next step, and no stable Pet ID exists yet.
   document.querySelector('.pet-add-button').click();
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const draftSlots = [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => tile.dataset.petDraftSlot);
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
 
   // Measure layout before the result sink is filled.
@@ -476,6 +525,8 @@ function innerFixtureHtml() {
     progressNote,
     deleteBefore,
     deleteAfter,
+    homeCards,
+    draftSlots,
     speciesChoices,
     hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
     hasNotice: surface.textContent.includes('공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다'),
@@ -619,7 +670,17 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.ok(result.deleteBefore.trigger > 0, `${label}: delete trigger must be visible`);
   assert.ok(result.deleteAfter.confirm > 0, `${label}: delete confirmation must appear after the first click`);
   assert.equal(result.deleteAfter.trigger, 0, `${label}: delete trigger must be replaced by its confirmation`);
-  assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: species choices must be DOG and CAT only`);
+  assert.deepEqual(
+    result.homeCards,
+    [
+      {target: 'pets', title: '내 반려동물'},
+      {target: 'sos', title: '실종 신고'},
+      {target: 'found', title: '발견 제보'},
+    ],
+    `${label}: Pet Home must show the three separate surfaces`,
+  );
+  assert.deepEqual(result.draftSlots, CORE_SLOT_CODES, `${label}: registration must begin with all ten photo slots`);
+  assert.deepEqual(result.speciesChoices, [], `${label}: the first registration step must not ask for species before photos`);
 }
 
 console.log('SITE-PET-FAMILY-WEB-01 CONTRACT PASS');

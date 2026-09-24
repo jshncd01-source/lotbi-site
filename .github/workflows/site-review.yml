@@ -276,6 +276,7 @@ jobs:
           node --check site-pet-ui.js
           node --check site-pet-guides.js
           node scripts/validate_pet_family_web_01.mjs
+          node scripts/validate_pet_family_v2_registration_01.mjs
 
       # 강아지·고양이가 아니면 등록되지 않는다. Core refuses the photo; this
       # guards that the refusal reaches the owner with a next step attached,

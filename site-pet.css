@@ -4,6 +4,48 @@
   gap: 18px;
 }
 
+.pet-home {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pet-home-card {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 15px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 15px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #202634);
+  text-align: left;
+  cursor: pointer;
+}
+
+.pet-home-card[data-pet-home-active='true'] {
+  border-color: var(--brand-violet, #7b62bb);
+  background: color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff));
+  box-shadow: inset 0 0 0 1px var(--brand-violet, #7b62bb);
+}
+
+.pet-home-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand-violet, #7b62bb) 38%, transparent);
+  outline-offset: 2px;
+}
+
+.pet-home-card-title {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.pet-home-card-copy {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .pet-status {
   margin: 0;
   min-height: 18px;
@@ -210,6 +252,72 @@
   gap: 12px;
 }
 
+.pet-draft-body {
+  display: grid;
+  gap: 14px;
+}
+
+.pet-draft-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.pet-draft-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pet-draft-step {
+  min-width: 0;
+  padding: 7px 5px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eef1f6);
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pet-draft-step[data-pet-draft-step-active='true'] {
+  background: var(--brand-violet, #7b62bb);
+  color: #fff;
+}
+
+.pet-draft-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.pet-draft-photo-state {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pet-draft-photo-state-accepted {
+  color: #24734b;
+}
+
+.pet-draft-photo-state-rejected {
+  color: var(--lotbi-error-text, #a02645);
+}
+
+.pet-draft-review {
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 13px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
 .pet-choice-field {
   margin: 0;
   padding: 0;
@@ -223,6 +331,25 @@
   color: var(--lotbi-text-secondary, #3d4653);
   font-size: 14px;
   font-weight: 750;
+}
+
+.pet-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  .pet-home {
+    grid-template-columns: 1fr;
+  }
+
+  .pet-home-card {
+    min-height: 72px;
+  }
+
+  .pet-draft-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .pet-choice-row {
