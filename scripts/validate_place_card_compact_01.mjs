@@ -117,10 +117,13 @@ function browserPath() {
 // photo, no phone, and four of the five 인허가 states between them. Nothing is
 // invented — no rating, no hours, no number.
 const PLACES = [
-  {name: '전주는전주 전주한옥마을 본점', category: '음식점>한식',
-    address: '전북특별자치도 전주시 완산구 교동 72-2 1층, 2층',
-    road: '전북특별자치도 전주시 완산구 태조로 31 1층, 2층',
-    lat: 35.8142654, lon: 127.1513267, license: {state: 'NOT_FOUND'}},
+  // Worst case first, so the rail centres it: a name that wraps to the 2-line
+  // clamp, an address that wraps to its own 2-line clamp, and the longest
+  // category the provider emits.
+  {name: '진원소우 전주신시가지점 한옥마을 본점', category: '음식점>한식>육류,고기요리>소고기구이',
+    address: '전북특별자치도 전주시 완산구 효자동3가 1536-8 3층 남노송동 상가',
+    road: '전북특별자치도 전주시 완산구 홍산중앙로 26 3층 남노송동 상가',
+    lat: 35.8159596, lon: 127.1093458, license: {state: 'NOT_FOUND'}},
   {name: '호시마츠생라멘', category: '음식점>일식>일본식라면',
     address: '전북특별자치도 전주시 완산구 고사동 473-9',
     road: '전북특별자치도 전주시 완산구 전주객사2길 46-12',
@@ -236,6 +239,9 @@ try {
     viewport: {width: innerWidth, height: innerHeight},
     rail: box(rail),
     centerCard: box(center),
+    // Every card, not just the centred one: the card that overflows is not
+    // always the one on top.
+    tallestCardPx: Math.max(...[...rail.querySelectorAll('.lotbi-place-orbit-card')].map(n => round(n.offsetHeight))),
     // How much of the next store sits beside the centre card and inside the
     // rail. This is the number 대표님 asked to see move.
     neighbourStripPx: round((railBox.width - centerBox.width) / 2),
@@ -337,6 +343,12 @@ for (const [label, reading] of Object.entries(readings)) {
   assert.ok(
     centerCard.h <= rail.h,
     `${label}: 카드 ${centerCard.h}px 가 레일 ${rail.h}px 를 넘어, 아래쪽 ${(centerCard.h - rail.h).toFixed(1)}px 가 잘립니다`,
+  );
+  // 운영에서 두 줄짜리 상호명 카드가 301.5px 로 300px 레일을 1.5px 넘고 있었다.
+  // 가운데 카드만 재면 그것을 놓친다.
+  assert.ok(
+    reading.tallestCardPx <= rail.h,
+    `${label}: 가장 높은 카드 ${reading.tallestCardPx}px 가 레일 ${rail.h}px 를 넘어 ${(reading.tallestCardPx - rail.h).toFixed(1)}px 가 잘립니다`,
   );
 
   // ── 3. 옆 가게가 눈에 들어온다 ─────────────────────────────────────────

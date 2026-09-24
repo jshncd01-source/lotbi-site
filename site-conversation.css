@@ -1972,7 +1972,7 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   box-sizing: border-box;
   width: min(100%, 960px);
   max-width: 100%;
-  height: 304px;
+  height: 312px;
   margin-top: 12px;
   padding: 0;
   overflow: hidden;
@@ -2143,7 +2143,10 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 }
 
 .lotbi-rich-card-place .lotbi-rich-card-source {
+  overflow: hidden;
   font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .lotbi-place-card-actions {
@@ -2290,7 +2293,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   .lotbi-place-orbit {
     width: 100%;
     max-width: 100%;
-    height: 302px;
+    height: 312px;
     margin-right: 0;
   }
 
@@ -2339,7 +2342,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 @media (max-width: 390px) {
   .lotbi-place-orbit {
-    height: 300px;
+    height: 310px;
   }
 
   .lotbi-place-orbit-card {
@@ -2350,7 +2353,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 @media (max-width: 360px) {
   .lotbi-place-orbit {
-    height: 296px;
+    height: 306px;
   }
 
   .lotbi-place-orbit-card {
