@@ -79,13 +79,13 @@ for (const rel of htmlFiles) {
 }
 
 // ── 3. Note on what is deliberately not covered ───────────────────────────
-// The profile photo picker is <input type="file" class="sr-only">, rendered
-// 1x1. A file input opens the photo picker rather than a text keyboard, so it
-// never triggers the zoom, and it carries no visible text to size. If it ever
-// stops being sr-only this assertion is the reminder to look again.
+// Each profile photo source uses <input type="file" class="sr-only">, rendered
+// 1x1. File inputs open a camera/photo/file picker rather than a text keyboard,
+// so they never trigger the zoom and carry no visible text to size. If they
+// ever stop being sr-only this assertion is the reminder to look again.
 assert.ok(
-  /photo\.className = 'sr-only'/.test(read('site-conversation.js')),
-  'the profile photo input is exempt only because it is visually hidden and opens a picker, not a keyboard',
+  /input\.className = 'sr-only'; input\.dataset\.profilePhotoInput = source/.test(read('site-conversation.js')),
+  'profile photo inputs are exempt only because they are visually hidden and open pickers, not keyboards',
 );
 
 console.log(`SITE-IOS-INPUT-ZOOM-01 OK — .site-field controls reach 16px at <=${zoomRule.width}px, viewport stays zoomable`);
