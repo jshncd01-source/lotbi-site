@@ -1377,104 +1377,99 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const actions = document.createElement('div');
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
 
+      const addActionLabel = (control, label) => {
+        const icon = document.createElement('span');
+        icon.className = 'lotbi-place-action-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        const copy = document.createElement('span');
+        copy.className = 'lotbi-place-action-label';
+        copy.textContent = label;
+        control.append(icon, copy);
+      };
+
       const phoneHref = buildVerifiedPhoneHref(place);
-      const phone = document.createElement(phoneHref ? 'a' : 'button');
-      phone.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-phone-action';
-      phone.dataset.action = 'phone';
-      phone.dataset.phoneState = phoneHref ? 'VERIFIED' : 'UNAVAILABLE';
-      phone.tabIndex = placeIndex === 0 ? 0 : -1;
       if (phoneHref) {
+        const phone = document.createElement('a');
+        phone.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-phone-action';
+        phone.dataset.action = 'phone';
+        phone.dataset.phoneState = 'VERIFIED';
         phone.href = phoneHref;
+        phone.tabIndex = placeIndex === 0 ? 0 : -1;
         phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
         phone.title = '전화 걸기';
+        addActionLabel(phone, '전화');
         phone.addEventListener('click', () => {
           phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
           setStatus('전화 앱 연결을 시작합니다.');
         });
-      } else {
-        phone.type = 'button';
-        phone.disabled = true;
-        phone.setAttribute('aria-disabled', 'true');
-        phone.setAttribute('aria-label', `${place.name} 전화번호 정보 없음`);
-        phone.title = '전화번호 정보 없음';
+        actions.appendChild(phone);
       }
-      // Icon only. The name a screen reader announces stays on aria-label and
-      // title above — dropping the visible word must not drop the name.
-      actions.appendChild(phone);
 
       const navigate = document.createElement('a');
       navigate.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-naver-map-action';
       navigate.href = buildNaverMapsWebSearchUrl(place);
       navigate.target = '_blank';
       navigate.rel = 'noopener noreferrer';
-      navigate.setAttribute('aria-label', `${place.name} 네이버지도에서 열기`);
-      navigate.title = '네이버지도에서 열기';
+      navigate.setAttribute('aria-label', `${place.name} 네이버 지도에서 열기`);
+      navigate.title = '네이버 지도에서 열기';
       navigate.dataset.action = 'naver-map';
       navigate.tabIndex = placeIndex === 0 ? 0 : -1;
-      const naverIcon = document.createElement('img');
-      naverIcon.className = 'lotbi-naver-map-icon';
-      naverIcon.src = 'https://navercorp.com/img/pc/service-map-app-4.jpg';
-      naverIcon.alt = '';
-      naverIcon.width = 28;
-      naverIcon.height = 28;
-      naverIcon.loading = 'eager';
-      naverIcon.decoding = 'async';
-      naverIcon.referrerPolicy = 'no-referrer';
-      naverIcon.addEventListener('error', () => {
-        naverIcon.remove();
-        navigate.classList.add('is-icon-fallback');
-      }, {once: true});
-      navigate.appendChild(naverIcon);
+      addActionLabel(navigate, '네이버');
       navigate.addEventListener('click', event => {
         event.preventDefault();
         openPlaceInNaverMap(place);
       });
       actions.appendChild(navigate);
 
-      // 카카오맵. 네이버 버튼과 같은 골격이다 — 진짜 링크를 href 에 두어 새 탭
-      // 열기와 복사가 살아 있게 하고, 클릭은 앱 우선 handoff 가 가로챈다.
-      // 아이콘은 글리프로 그린다. 남의 로고 파일을 우리 페이지에서 끌어다 쓰지
-      // 않으며, 네이버 아이콘이 실패했을 때 쓰는 그 is-icon-fallback 표시를
-      // 그대로 쓴다.
-      const kakaoMap = document.createElement('a');
-      kakaoMap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-map-action is-icon-fallback';
-      kakaoMap.href = buildKakaoMapWebSearchUrl(place);
-      kakaoMap.target = '_blank';
-      kakaoMap.rel = 'noopener noreferrer';
-      kakaoMap.setAttribute('aria-label', `${place.name} 카카오맵에서 열기`);
-      kakaoMap.title = '카카오맵에서 열기';
-      kakaoMap.dataset.action = 'kakao-map';
-      kakaoMap.tabIndex = placeIndex === 0 ? 0 : -1;
-      kakaoMap.addEventListener('click', event => {
+      const kakaoNavi = document.createElement('a');
+      kakaoNavi.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-navi-action';
+      kakaoNavi.href = buildKakaoNaviHandoffUrl(place);
+      kakaoNavi.target = '_blank';
+      kakaoNavi.rel = 'noopener noreferrer';
+      kakaoNavi.setAttribute('aria-label', `${place.name} 카카오내비에서 길안내`);
+      kakaoNavi.title = '카카오내비에서 길안내';
+      kakaoNavi.dataset.action = 'kakao-navi';
+      kakaoNavi.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionLabel(kakaoNavi, '카카오');
+      kakaoNavi.addEventListener('click', event => {
         event.preventDefault();
-        openPlaceInKakaoMap(place);
+        openPlaceInKakaoNavi(place);
       });
-      actions.appendChild(kakaoMap);
+      actions.appendChild(kakaoNavi);
 
-      // 티맵은 앱 전용이다. 열어 줄 웹 화면이 없는 데스크톱에서는 링크가 아니라
-      // 비활성 버튼으로 둔다 — 전화번호가 없을 때 전화 버튼이 하는 것과 같다.
       const tmapReady = isTmapHandoffAvailable();
-      const tmap = document.createElement(tmapReady ? 'a' : 'button');
-      tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action is-icon-fallback';
-      tmap.dataset.action = 'tmap';
-      tmap.dataset.tmapState = tmapReady ? 'MOBILE_APP' : 'MOBILE_ONLY';
-      tmap.tabIndex = placeIndex === 0 ? 0 : -1;
       if (tmapReady) {
+        const tmap = document.createElement('a');
+        tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action';
+        tmap.dataset.action = 'tmap';
+        tmap.dataset.tmapState = 'MOBILE_APP';
         tmap.href = '#';
-        tmap.setAttribute('aria-label', `${place.name} 티맵에서 열기`);
-        tmap.title = '티맵에서 열기';
+        tmap.tabIndex = placeIndex === 0 ? 0 : -1;
+        tmap.setAttribute('aria-label', `${place.name} T맵에서 길안내`);
+        tmap.title = 'T맵에서 길안내';
+        addActionLabel(tmap, 'T맵');
         tmap.addEventListener('click', event => {
           event.preventDefault();
           openPlaceInTmap(place);
         });
-      } else {
-        tmap.type = 'button';
-        tmap.disabled = true;
-        tmap.setAttribute('aria-disabled', 'true');
-        tmap.setAttribute('aria-label', `${place.name} 티맵은 휴대폰 앱에서 열기`);
-        tmap.title = '티맵은 휴대폰 앱에서 열 수 있어요';
+        actions.appendChild(tmap);
       }
-      actions.appendChild(tmap);
+
+      const googleMaps = document.createElement('a');
+      googleMaps.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-google-maps-action';
+      googleMaps.href = buildGoogleMapsDirectionsUrl(place);
+      googleMaps.target = '_blank';
+      googleMaps.rel = 'noopener noreferrer';
+      googleMaps.setAttribute('aria-label', `${place.name} Google Maps에서 길안내`);
+      googleMaps.title = 'Google Maps에서 길안내';
+      googleMaps.dataset.action = 'google-maps';
+      googleMaps.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionLabel(googleMaps, 'Google');
+      googleMaps.addEventListener('click', event => {
+        event.preventDefault();
+        openPlaceInGoogleMaps(place);
+      });
+      actions.appendChild(googleMaps);
 
       item.append(media, copy, actions);
       cards.push(item);
