@@ -163,11 +163,11 @@ try{
   get('time-sheet').querySelector('.calendar-editor-time-clear').click();
   get('category-trigger').click();get('details').querySelector('summary').focus();get('details').querySelector('summary').click();
   const summaryWasFocused=document.activeElement===get('details').querySelector('summary');
-  const saveImmediately=get('save');saveImmediately.focus();saveImmediately.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
+  const lastActionImmediately=get('cancel');lastActionImmediately.focus();lastActionImmediately.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
   const immediateDialogTrap=document.activeElement===get('close');
   await wait(()=>get('category-sheet').hidden);
   const detailsCollapsed={categoryClosed:get('category-sheet').hidden,categoryCollapsed:get('category-trigger').getAttribute('aria-expanded')==='false',focus:summaryWasFocused};
-  const saveButton=get('save');saveButton.focus();saveButton.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
+  const lastDialogAction=get('cancel');lastDialogAction.focus();lastDialogAction.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
   const dialogTrapAfterCollapse=document.activeElement===get('close');
   get('time-trigger').click();
   get('time-sheet').querySelector('[data-quick-time="09:00"]').click();
