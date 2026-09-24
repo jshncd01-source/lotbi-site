@@ -1997,7 +1997,7 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   box-sizing: border-box;
   width: min(100%, 960px);
   max-width: 100%;
-  height: 312px;
+  height: 326px;
   margin-top: 12px;
   padding: 0;
   overflow: hidden;
@@ -2068,6 +2068,8 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 }
 
 .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-price,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-badges,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-license-note,
 .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
   display: none;
 }
@@ -2160,11 +2162,34 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
    size — on a phone that one line was setting the card's height and pushing
    the action row past the rail's clip. It is evidence attached to the address,
    so it reads at the address's size, not the answer's. */
-.lotbi-place-license-evidence {
+.lotbi-place-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 5px;
+}
+
+.lotbi-place-license-evidence,
+.lotbi-place-license-status {
   color: #6f7886;
   font-size: 11px;
   line-height: 1.3;
   font-weight: 700;
+}
+
+.lotbi-place-license-status {
+  padding: 0 5px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 999px;
+  color: #5f6978;
+}
+
+/* 공공데이터가 늦을 수 있다는 사실만 적는다. 주어는 데이터이고, 업소가 아니다. */
+.lotbi-place-license-note {
+  color: #838c99;
+  font-size: 10.5px;
+  line-height: 1.3;
+  font-weight: 620;
 }
 
 .lotbi-rich-card-place .lotbi-rich-card-source {
@@ -2286,8 +2311,17 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 }
 
 body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price,
-body[data-site-theme="dark"] .lotbi-place-license-evidence {
+body[data-site-theme="dark"] .lotbi-place-license-evidence,
+body[data-site-theme="dark"] .lotbi-place-license-status {
   color: #c2c9d4;
+}
+
+body[data-site-theme="dark"] .lotbi-place-license-status {
+  border-color: rgba(198, 207, 221, .24);
+}
+
+body[data-site-theme="dark"] .lotbi-place-license-note {
+  color: #a8b1be;
 }
 
 body[data-site-theme="dark"] .lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
@@ -2318,7 +2352,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   .lotbi-place-orbit {
     width: 100%;
     max-width: 100%;
-    height: 312px;
+    height: 326px;
     margin-right: 0;
   }
 
@@ -2367,7 +2401,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 @media (max-width: 390px) {
   .lotbi-place-orbit {
-    height: 310px;
+    height: 324px;
   }
 
   .lotbi-place-orbit-card {
@@ -2378,7 +2412,7 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 @media (max-width: 360px) {
   .lotbi-place-orbit {
-    height: 306px;
+    height: 320px;
   }
 
   .lotbi-place-orbit-card {

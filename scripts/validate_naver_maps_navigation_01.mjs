@@ -218,29 +218,33 @@ assert.ok(placeRendererStart >= 0 && placeRendererEnd > placeRendererStart);
 const placeRendererSource = conversationSource.slice(placeRendererStart, placeRendererEnd);
 // 대표님: "인허가 문구가 길다. 다섯 개를 같은 길이감으로 줄여라." One shortened
 // on its own would leave the other four out of step, so all five move together.
+// 다섯은 이제 렌더러 바깥의 LICENSE_BADGE_COPY 한 곳에 상태 이름과 묶여 있다.
+// 상태에 묶어 읽으므로 한 줄을 다른 상태에 붙여 놓는 실수도 여기서 걸린다.
 const licenseCopy = {
   VERIFIED: '인허가 대조 확인',
   AMBIGUOUS: '인허가 후보 여럿',
   CONFLICTING: '인허가 정보 불일치',
   NOT_FOUND: '인허가 대조 안 됨',
-  OTHER: '인허가 대조 불가',
+  UNAVAILABLE: '인허가 대조 불가',
 };
 for (const [state, copy] of Object.entries(licenseCopy)) {
-  assert.ok(placeRendererSource.includes(`'${copy}'`), `${state} 인허가 문구가 '${copy}' 가 아닙니다`);
+  assert.match(
+    conversationSource,
+    new RegExp(`${state}:\\s*'${copy}'`, 'u'),
+    `${state} 인허가 문구가 '${copy}' 가 아닙니다`,
+  );
   assert.ok(copy.length <= 10, `${state} 인허가 문구가 아직 깁니다: ${copy}`);
 }
 // NOT_FOUND means WE could not match the place in the public data. Writing it
 // as a claim about the shop would turn a lookup miss into an accusation. The
-// ban is read off what the card actually prints, so the note in the renderer
+// ban is read off the wordings the card can print, so the note in the renderer
 // that spells the banned wordings out is not itself a violation.
-const licenseAssignments = [...placeRendererSource.matchAll(/foodLicense\.textContent = ([^;]+);/gu)].map(m => m[1]);
-assert.equal(licenseAssignments.length, 5, '인허가 문구는 다섯 갈래 그대로여야 합니다');
-for (const assignment of licenseAssignments) {
-  assert.doesNotMatch(assignment, /인허가 기록 없음|무허가|허가 없음|미허가|불법 영업/u);
+for (const copy of Object.values(licenseCopy)) {
+  assert.doesNotMatch(copy, /인허가 기록 없음|무허가|허가 없음|미허가|불법 영업/u);
 }
 assert.doesNotMatch(placeRendererSource, /정부 인증 맛집|현재 영업 중|안전한 식당|믿을 수 있는 식당/u);
 // The long forms are gone from the source, not merely unused.
-assert.doesNotMatch(placeRendererSource, /행정 인허가 데이터상 확인|공공 인허가 데이터 일치 후보가 여러 개예요|공공 인허가 데이터와 업체 식별 정보가 일치하지 않아요|공공 인허가 데이터에서 일치 기록 미확인|행정 인허가 데이터 확인 불가/u);
+assert.doesNotMatch(conversationSource, /행정 인허가 데이터상 확인|공공 인허가 데이터 일치 후보가 여러 개예요|공공 인허가 데이터와 업체 식별 정보가 일치하지 않아요|공공 인허가 데이터에서 일치 기록 미확인|행정 인허가 데이터 확인 불가/u);
 assert.match(conversationSource, /food_license_verification/u);
 
 const placePointerResolverStart = conversationSource.indexOf('function resolvePlaceOrbitPointerIndex(');
@@ -426,7 +430,7 @@ assert.match(placeRendererSource, /navigate\.rel = 'noopener noreferrer'/u);
 assert.match(placeRendererSource, /event\.preventDefault\(\)/u);
 assert.match(conversationSource, /navigate\.title = '네이버지도에서 열기'/u);
 assert.match(conversationSource, /https:\/\/navercorp\.com\/img\/pc\/service-map-app-4\.jpg/u);
-assert.match(conversationSource, /site-navigation\.js\?v=20260924-compact1/u);
+assert.match(conversationSource, /site-navigation\.js\?v=20260924-licensebadge1/u);
 assert.doesNotMatch(conversationSource, /naverMapsPlaceActionLabel\(place\)/u);
 assert.doesNotMatch(placeRendererSource, /detail\.textContent = '상세보기'/u);
 assert.doesNotMatch(placeRendererSource, /navigate\.disabled = !fresh/u);
@@ -460,7 +464,7 @@ assert.match(readyImageStyle, /opacity:\s*1\s*;/u);
 const orbitStyle = conversationStyles.match(/\.lotbi-place-orbit \{[^}]*\}/s)?.[0] || '';
 assert.match(orbitStyle, /position:\s*relative/u);
 assert.match(orbitStyle, /display:\s*block/u);
-assert.match(orbitStyle, /height:\s*312px/u);
+assert.match(orbitStyle, /height:\s*326px/u);
 assert.match(orbitStyle, /overflow:\s*hidden/u);
 assert.match(orbitStyle, /touch-action:\s*pan-y/u);
 assert.doesNotMatch(orbitStyle, /overflow-x:\s*auto|scroll-snap-type|scrollbar-width/u);
@@ -475,9 +479,9 @@ assert.match(orbitCardStyle, /transition:/u);
 
 const placeMediaStyle = conversationStyles.match(/\.lotbi-rich-card-place-media \{[^}]*\}/s)?.[0] || '';
 assert.match(placeMediaStyle, /aspect-ratio:\s*16 \/ 9/u);
-assert.match(conversationStyles, /@media \(max-width: 760px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*312px/u);
-assert.match(conversationStyles, /@media \(max-width: 390px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*310px/u);
-assert.match(conversationStyles, /@media \(max-width: 360px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*306px/u);
+assert.match(conversationStyles, /@media \(max-width: 760px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*326px/u);
+assert.match(conversationStyles, /@media \(max-width: 390px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*324px/u);
+assert.match(conversationStyles, /@media \(max-width: 360px\)[\s\S]*?\.lotbi-place-orbit \{[\s\S]*?height:\s*320px/u);
 // Icon-only, but a finger still needs 44x44 to land on.
 assert.match(conversationStyles, /\.lotbi-rich-card-icon-action\s*\{[^}]*min-width:\s*44px[^}]*height:\s*44px/su);
 assert.doesNotMatch(conversationStyles, /\.lotbi-place-action-label\s*\{|\.lotbi-place-location-support\s*\{|\.lotbi-place-location-thumbnail\s*\{/u);
@@ -510,7 +514,7 @@ assert.match(conversationStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S
 assert.match(indexSource, /site-conversation\.js\?v=[A-Za-z0-9._-]+/u, 'Home conversation runtime must remain cache-busted');
 assert.match(
   conversationSource,
-  /\.\/site-navigation\.js\?v=20260924-compact1/u,
+  /\.\/site-navigation\.js\?v=20260924-licensebadge1/u,
   'Home Place Card runtime must keep the compact-actions navigation module',
 );
 
