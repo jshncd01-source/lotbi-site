@@ -91,9 +91,18 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 바뀌지 않았고, 링크 목록에 항목 하나가 더해졌을 뿐이다.
 # `git diff --unified=0 origin/main -- contact.html` 이 추가 1 줄만 보인다.
 # privacy·terms·account-deletion 의 잠금 값은 main 쪽을 그대로 받았다.
+# SITE-SUBSCRIBE-TIER-PRICING-02 — terms.html 의 잠금 값이 움직였다. 제8조가
+# "LOTBI Plus의 월 구독료는 9,900원" 한 등급 기준으로 적혀 있었는데, 구독 화면
+# (PR #280)이 기본·프리미엄·프리미엄 플러스 세 등급 확정가를 표시하게 되면서
+# 약관만 한 등급으로 남아 어긋났다. 제8조 본문이 세 등급을 적도록 바뀌었고,
+# 등급별 이용범위는 숫자를 약관에 복제하지 않고 구독 안내 화면을 가리킨다.
+# 판매 활성화 전 별도 고지 조항과, 활성화되지 않은 채널의 조건을 제공 중인
+# 유료서비스처럼 표시하지 않는다는 조항은 한 글자도 바뀌지 않았다.
+# 잠금을 푼 것이 아니라 새 본문으로 다시 고정한 것이다 — terms.html 은
+# 목록에 그대로 있고 검사 로직도 그대로다.
 LOCKED_SHA256 = {
     'privacy.html': '05f6fdbe7c186d5660543c8b7cd6dc415afee6856ede414c15644a57c4d2ec3b',
-    'terms.html': 'fa9ed6210a69a9e11ead04f91ee099a774447bb31f495c1a021dcbca70e3f835',
+    'terms.html': 'fcecae54f43e69b31928f341d3102625488bb35b34e111858c460967a9331cc0',
     'account-deletion.html': '4f897a168aa686e16099fc3477c1d41491a24c6b871f20c0a912343bc76fba29',
     'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
