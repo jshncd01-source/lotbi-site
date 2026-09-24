@@ -280,6 +280,12 @@ jobs:
           REQUIRE_BROWSER: 1
         run: node scripts/validate_conversation_message_ux_final_01.mjs
 
+      # 소셜 로그인 세션은 Core 가 FEDERATED_LIMITED 로 발급한다. Site 의 응답
+      # 계약이 'FULL' 만 비교해 로그인이 깨진 적이 있다. 테스트 스텁이 전부
+      # 'FULL' 이라 CI 가 잡지 못했다 — 이 게이트가 그 빈칸이다.
+      - name: Validate Site normal consumer assurance contract
+        run: node scripts/validate_site_normal_assurance_01.mjs
+
       - name: Validate authenticated return and refresh continuity
         run: node scripts/validate_auth_continuity_02.mjs
 
