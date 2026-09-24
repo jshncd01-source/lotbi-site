@@ -2865,7 +2865,13 @@ export async function mountLifeCalendarManager({
   function focusSelectedCalendarTarget({detail = false, date = state.selectedDate} = {}) {
     queueMicrotask(() => {
       let selector = '';
+      let preventFocusScroll = false;
       if (detail && state.mode === 'month') {
+        const panel = root.querySelector('.calendar-day-panel');
+        if (panel instanceof HTMLElement && panel.dataset.presentation === DAY_DETAIL_PRESENTATION.FLOW) {
+          panel.scrollIntoView({block: 'nearest', inline: 'nearest'});
+          preventFocusScroll = true;
+        }
         selector = '.calendar-day-close';
       } else if (state.mode === 'week') {
         selector = `[data-calendar-week-date="${date}"]`;
@@ -2873,7 +2879,8 @@ export async function mountLifeCalendarManager({
         selector = `[data-calendar-date-trigger="${date}"]`;
       }
       if (!selector) return;
-      root.querySelector(selector)?.focus();
+      const target = root.querySelector(selector);
+      if (target instanceof HTMLElement) target.focus(preventFocusScroll ? {preventScroll: true} : undefined);
     });
   }
 
