@@ -267,6 +267,9 @@ jobs:
       - name: Validate Place Card map deep links
         run: node scripts/validate_place_card_map_deeplinks_01.mjs
 
+      - name: Validate cross-platform Place Card product contract
+        run: node scripts/validate_place_card_cross_platform_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
