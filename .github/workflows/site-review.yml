@@ -320,6 +320,13 @@ jobs:
       - name: Validate PHASE 16 attachment composer
         run: node scripts/validate_attachment_composer_16.mjs
 
+      # 사진을 첨부하면 "[파일] 21930.jpg" 가 아니라 실제 썸네일이 보여야 합니다.
+      # 업로드·AI 이미지 분석·Calendar 후보 경로는 그대로 유지합니다.
+      - name: Validate image attachment thumbnails
+        env:
+          REQUIRE_BROWSER: 1
+        run: node scripts/validate_image_attachment_thumbnail_01.mjs
+
       - name: Validate centered conversation timeline
         run: node scripts/validate_conversation_timeline_01.mjs
 
