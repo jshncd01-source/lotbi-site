@@ -1604,7 +1604,9 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-mode-tab { min-height: 44px; padding-inline: 3px; font-size: 12px; }
   .calendar-weekdays span { padding-bottom: 6px; }
 
-  .calendar-month-grid { gap: 0; border-inline: 0; }
+  .calendar-month-grid { border-inline: 0; }
+  .calendar-month-grid[data-grid-lines="true"] { gap: 1px; }
+  .calendar-month-grid[data-grid-lines="false"] { gap: 0; }
   .calendar-date-cell { min-height: 86px; gap: 2px; padding: 2px 0; }
   .calendar-date-header {
     position: relative;
