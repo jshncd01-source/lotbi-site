@@ -458,6 +458,39 @@
   color: var(--lotbi-error-text, #a02645);
 }
 
+.pet-draft-species-field {
+  padding: 12px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-draft-species-choice {
+  min-width: 124px;
+  justify-content: center;
+}
+
+.pet-draft-species-choice:has(input:checked) {
+  border-color: var(--brand-violet, #7b62bb);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-violet, #7b62bb) 18%, transparent);
+}
+
+.pet-draft-species-icon {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 22px;
+}
+
+.pet-draft-species-prompt {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 12px;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+}
+
 .pet-draft-review {
   padding: 14px;
   border: 1px solid var(--lotbi-border-default, #e2e6ee);
@@ -673,7 +706,27 @@
   stroke: none;
   fill: currentColor;
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  font-size: 17px;
+  font-size: 30px;
+}
+
+.pet-slot-guide-arrow,
+.pet-slot-guide-copy,
+.pet-slot-guide-accent {
+  stroke: none;
+  fill: var(--brand-violet, #7b62bb);
+  font-family: inherit;
+  font-weight: 900;
+}
+
+.pet-slot-guide-arrow { font-size: 18px; }
+.pet-slot-guide-copy { font-size: 8px; }
+.pet-slot-guide-accent { font-size: 17px; }
+
+.pet-slot-guide-focus {
+  fill: none;
+  stroke: var(--brand-violet, #7b62bb);
+  stroke-width: 1.8;
+  stroke-dasharray: 2.5 2;
 }
 
 .pet-slot-photo {
