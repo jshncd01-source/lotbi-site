@@ -1,5 +1,5 @@
 import {Color} from 'three';
-import {createThreeBinding} from './three-binding.mjs?v=aset-7db3f5c4ae8d';
+import {createThreeBinding} from './three-binding.mjs?v=aset-a2d974c2fcfd';
 
 export function createRefinementBinding(scene,contract) {
   const base=createThreeBinding(scene,contract),materials=new Map(),dots=[];
