@@ -1,19 +1,19 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-6381989b8794';
-import * as siteCore from './site-core.js?v=aset-6381989b8794';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-6381989b8794';
-import * as siteAttachments from './site-attachments.js?v=aset-6381989b8794';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-6381989b8794';
-import {deterministicReply} from './site-deterministic.js?v=aset-6381989b8794';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-6381989b8794';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-6381989b8794';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6381989b8794';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-6381989b8794';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-6381989b8794';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-6381989b8794';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-6381989b8794';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-6381989b8794';
-import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-6381989b8794';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-6381989b8794';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-55317470c4fa';
+import * as siteCore from './site-core.js?v=aset-55317470c4fa';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-55317470c4fa';
+import * as siteAttachments from './site-attachments.js?v=aset-55317470c4fa';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-55317470c4fa';
+import {deterministicReply} from './site-deterministic.js?v=aset-55317470c4fa';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-55317470c4fa';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-55317470c4fa';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-55317470c4fa';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-55317470c4fa';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-55317470c4fa';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-55317470c4fa';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-55317470c4fa';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-55317470c4fa';
+import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-55317470c4fa';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-55317470c4fa';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -165,7 +165,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-6381989b8794';
+  link.href = '/site-conversation.css?v=aset-55317470c4fa';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -1295,6 +1295,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         coordinate_authority: place.coordinateAuthority,
         source_url: place.sourceUrl,
         image_url: place.imageUrl,
+        photo_evidence: place.photoEvidence ? {
+          provider: place.photoEvidence.provider,
+          provider_place_id: place.photoEvidence.providerPlaceId,
+          match_basis: place.photoEvidence.matchBasis,
+          fetched_at: place.photoEvidence.fetchedAt,
+          verification_state: place.photoEvidence.verificationState,
+          attributions: Array.isArray(place.photoEvidence.attributions)
+            ? place.photoEvidence.attributions.map(attribution => ({...attribution}))
+            : [],
+        } : undefined,
         phone: place.phone,
         phone_verified: place.phoneVerified,
         food_license_verification: place.foodLicenseVerification ? {
@@ -2772,7 +2782,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6381989b8794');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-55317470c4fa');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
