@@ -185,7 +185,7 @@ const WEATHER_GLYPHS = Object.freeze({
   CLOUDY: CLOUD_LOW,
   RAIN: Object.freeze([
     ...CLOUD_HIGH,
-    ['path', {d: 'M8.8 17.7 7.5 21.9M12.4 17.7l-1.3 4.2M16 17.7l-1.3 4.2', 'data-weather-part': 'rain'}],
+    ['path', {d: 'M8.5 17.5 7.2 22M12.4 17.5 11.1 22M16.3 17.5 15 22', 'data-weather-part': 'rain'}],
   ]),
   SNOW: Object.freeze([
     ...CLOUD_HIGH,

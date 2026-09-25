@@ -117,11 +117,11 @@ assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-mobile-event-cou
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-icon\s*\{[^}]*grid-row:\s*3;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-temperature\s*\{[^}]*grid-row:\s*3;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.site-modal\.site-calendar-modal > \.site-modal-content\s*\{[^}]*padding-inline:\s*8px;/);
-assert.ok(css.includes('grid-template-columns: minmax(0, 12px) minmax(0, 1fr);'));
+assert.ok(css.includes('grid-template-columns: minmax(0, 17px) minmax(0, 1fr);'));
 assert.ok(!css.includes('grid-template-columns: 12px minmax(0, 34px);'));
 // The later weather stylesheet uses svg.calendar-weather-icon (0,1,1).
-// The narrow 12px rule needs the header class too (0,2,1), otherwise the
-// later 14px dimensions overflow the icon track and crowd the temperature.
+// The narrow 17px rule needs the header class too (0,2,1), otherwise the
+// later desktop dimensions overflow the icon track and crowd the temperature.
 assert.ok(
   /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*>\s*svg\.calendar-weather-icon\s*\{[^}]*width:\s*12px;[^}]*height:\s*12px;/.test(css),
   'narrow Month weather dimensions must outrank the later svg.calendar-weather-icon rule'
