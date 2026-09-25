@@ -27,9 +27,12 @@ assert.doesNotMatch(index, /<script[^>]*\bsrc\s*=\s*["']\s*(?:https?:)?\/\//i, '
 assert.ok(read('.github/workflows/legal-pages-review.yml').includes('scripts/validate_hardening.py'), 'the sealed-script gate must stay in required CI');
 assert.match(index, /<script type="module" src="site-conversation\.js\?v=[^"]+"><\/script>/);
 
-// Only LOTBI answers get the row, and it is appended after the answer's cards.
-assert.match(conversation, /if \(message\.role === 'assistant'\) \{\s*\n\s*const actions = createMessageActions\(message\.text, setStatus\);/);
+// Ordinary LOTBI answers keep the approved message action row. A reusable-output
+// answer does not duplicate copy/share on its short lead-in because the result
+// card owns current-variant copy/share/edit actions instead.
+assert.match(conversation, /if \(message\.role === 'assistant' && !reusableOutput\) \{\s*\n\s*const actions = createMessageActions\(message\.text, setStatus\);/);
 assert.match(conversation, /if \(actions\) node\.appendChild\(actions\);/);
+assert.match(conversation, /const reusableOutput = message\.role === 'assistant' \? message\.meta\?\.reusableOutput : null;/);
 assert.match(conversation, /const actions = document\.createElement\('div'\);/);
 assert.match(conversation, /actions\.className = 'chat-message-actions'/);
 assert.match(conversation, /actions\.setAttribute\('role', 'group'\)/);
