@@ -1,0 +1,412 @@
+/* FESTIVAL-07 — public "축제" browse UI.
+   Lives inside .site-festival-modal (site-conversation.js openFestival()),
+   following the same modal-modifier pattern as .site-calendar-modal /
+   .site-pet-modal: the shared .site-modal shell handles the backdrop/header,
+   this file only sizes the panel and styles what mountFestivalManager()
+   (site-festival-ui.js) renders into .site-modal-content. */
+
+.site-modal.site-festival-modal {
+  width: min(100%, 900px);
+  max-height: min(88vh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.site-modal.site-festival-modal > .site-modal-header,
+.site-modal.site-festival-modal > .site-modal-description {
+  flex: 0 0 auto;
+}
+
+.site-modal.site-festival-modal > .site-modal-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (max-width: 760px) {
+  .site-modal.site-festival-modal {
+    width: 100%;
+    max-height: 92svh;
+  }
+}
+
+.festival-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ------------------------------------------------------------- filters -- */
+.festival-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Chips always wrap, never a vertical list — required for the 17-region row
+   to fit narrow Mobile Web widths (360–430px) without horizontal overflow. */
+.festival-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.festival-chip {
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.festival-chip:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-chip[aria-pressed="true"] {
+  background: var(--lotbi-brand-solid-bg);
+  border-color: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+}
+
+.festival-chip:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.festival-date-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--lotbi-text-secondary);
+}
+
+.festival-date-field input[type="date"] {
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font-size: 16px; /* validate_ios_input_zoom_01: keep form inputs >=16px */
+}
+
+.festival-date-field input[type="date"]:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------- list state -- */
+.festival-status,
+.festival-error,
+.festival-empty {
+  margin: 0;
+  font-size: 14px;
+}
+
+.festival-error {
+  color: var(--lotbi-error-text);
+}
+
+.festival-status[hidden],
+.festival-error[hidden],
+.festival-empty[hidden] {
+  display: none;
+}
+
+/* -------------------------------------------------------------- cards --- */
+.festival-card-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.festival-card {
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--lotbi-surface-primary);
+}
+
+.festival-card-open {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.festival-card-open:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: -2px;
+}
+
+.festival-hero {
+  aspect-ratio: 16 / 9;
+  background: var(--lotbi-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.festival-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.festival-hero-placeholder::before {
+  content: "축제";
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lotbi-text-disabled);
+}
+
+.festival-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 14px;
+}
+
+.festival-card-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-card-period,
+.festival-card-location {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-status-badge {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.festival-status-ongoing { background: color-mix(in srgb, var(--lotbi-success-text) 18%, transparent); color: var(--lotbi-success-text); }
+.festival-status-this_weekend { background: color-mix(in srgb, var(--lotbi-info-text) 18%, transparent); color: var(--lotbi-info-text); }
+.festival-status-upcoming { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-secondary); }
+.festival-status-ended { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-disabled); }
+.festival-status-cancelled { background: color-mix(in srgb, var(--lotbi-error-text) 18%, transparent); color: var(--lotbi-error-text); }
+
+/* ------------------------------------------------------------- detail --- */
+.festival-detail-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.festival-back-button {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  color: var(--lotbi-link-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.festival-back-button:hover {
+  color: var(--lotbi-link-hover);
+}
+
+.festival-back-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.festival-detail-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-detail-period,
+.festival-detail-location,
+.festival-detail-address {
+  margin: 0;
+  font-size: 14px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-detail-summary {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--lotbi-text-secondary);
+  line-height: 1.5;
+}
+
+.festival-section {
+  border-top: 1px solid var(--lotbi-border-default);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.festival-section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-empty-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-program-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.festival-program-date {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-secondary);
+}
+
+.festival-program-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.festival-program-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--lotbi-text-secondary);
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--lotbi-surface-subtle);
+}
+
+.festival-program-time {
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-program-category {
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--lotbi-surface-hover);
+  color: var(--lotbi-text-secondary);
+}
+
+.festival-program-title {
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-program-venue,
+.festival-program-price {
+  color: var(--lotbi-text-muted);
+}
+
+.festival-program-note {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-reservation-type {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-reservation-note,
+.festival-parking-note,
+.festival-shuttle-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-reservation-link,
+.festival-official-source-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--lotbi-border-strong);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-link-primary);
+  text-decoration: none;
+}
+
+.festival-reservation-link:hover,
+.festival-official-source-link:hover {
+  background: var(--lotbi-surface-hover);
+  color: var(--lotbi-link-hover);
+}
+
+.festival-reservation-link:focus-visible,
+.festival-official-source-link:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-external-note {
+  font-weight: 400;
+  color: var(--lotbi-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .festival-chip,
+  .festival-card-open,
+  .festival-reservation-link,
+  .festival-official-source-link {
+    transition: none;
+  }
+}

@@ -440,6 +440,7 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 
   .mobile-nav-drawer .sidebar-primary-nav,
   .mobile-nav-drawer .sidebar-calendar-nav,
+  .mobile-nav-drawer .sidebar-festival-nav,
   .mobile-nav-drawer .sidebar-pet-nav {
     gap: 2px;
   }
@@ -524,6 +525,10 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 
 /* SITE-PET-FAMILY-WEB-01 — 반려동물 navigation entry reuses the Calendar row grid. */
 .sidebar-pet-nav {
+  flex: 0 0 auto;
+}
+
+.sidebar-festival-nav {
   flex: 0 0 auto;
 }
 
