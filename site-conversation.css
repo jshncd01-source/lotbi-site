@@ -2737,3 +2737,146 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
     transition: none;
   }
 }
+
+
+/* LOTBI reusable text output card — completed text meant to be copied, shared,
+   edited or reused. Ordinary assistant replies never use this surface. */
+.reusable-output-card {
+  width: min(100%, 720px);
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-subtle, #e1e5eb);
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #202631);
+  box-sizing: border-box;
+  touch-action: pan-y;
+}
+
+.reusable-output-title {
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 800;
+}
+
+.reusable-output-variant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--lotbi-text-muted, #667085);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.reusable-output-page {
+  min-width: 0;
+  margin-top: 8px;
+  padding: 12px 0 4px;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+.reusable-output-page .chat-message-body {
+  max-width: 100%;
+}
+
+.reusable-output-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.reusable-output-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 42px;
+}
+
+.reusable-output-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lotbi-border-strong, #a8b0bd);
+  opacity: .35;
+}
+
+.reusable-output-dot[data-current="true"] {
+  opacity: 1;
+}
+
+.reusable-output-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.reusable-output-action {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 13px;
+  border: 1px solid var(--lotbi-border-subtle, #dce1e8);
+  border-radius: 12px;
+  background: var(--lotbi-surface-subtle, #f7f8fa);
+  color: var(--lotbi-text-primary, #303642);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reusable-output-action:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.reusable-output-action:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.reusable-output-feedback {
+  display: block;
+  min-height: 18px;
+  margin-top: 4px;
+  color: var(--lotbi-text-muted, #667085);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reusable-output-feedback[data-tone="error"] {
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .reusable-output-card {
+    width: 100%;
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .reusable-output-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reusable-output-action {
+    width: 100%;
+    padding-inline: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reusable-output-action {
+    transition: none;
+  }
+}
