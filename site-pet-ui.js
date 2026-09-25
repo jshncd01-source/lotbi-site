@@ -50,18 +50,18 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-c6c91651936d';
+} from './site-pet.js?v=aset-507a59068efd';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-c6c91651936d';
+} from './site-pet-guides.js?v=aset-507a59068efd';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-c6c91651936d';
+} from './site-pet-gate.js?v=aset-507a59068efd';
 
 const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -455,7 +455,7 @@ export async function mountPetFamilyManager({
         image.decoding = 'async';
         media.appendChild(image);
       } else {
-        const diagram = petPhotoSlotDiagram(slotCode);
+        const diagram = petPhotoSlotDiagram(slotCode, pet.species);
         if (diagram) media.appendChild(diagram);
         if (filled.has(slotCode)) media.appendChild(el('span', 'pet-slot-loading', '불러오는 중'));
       }
@@ -1484,7 +1484,50 @@ export async function mountPetFamilyManager({
       body.replaceChildren();
       stepChrome('PHOTOS');
       body.append(
-        el('h4', 'pet-draft-title', '사진부터 등록해 주세요'),
+        el('h4', 'pet-draft-title', '먼저 반려동물 종류를 선택해 주세요'),
+        el('p', 'pet-empty-copy', '선택한 동물에 맞는 사진 촬영 예시만 보여드립니다.'),
+      );
+
+      const speciesField = el('fieldset', 'pet-choice-field pet-draft-species-field');
+      speciesField.appendChild(el('legend', '', '등록할 반려동물'));
+      const speciesRow = el('div', 'pet-choice-row');
+      for (const [value, icon, label] of [['DOG', '🐶', '강아지'], ['CAT', '🐱', '고양이']]) {
+        const choice = el('label', 'pet-choice pet-draft-species-choice');
+        const input = el('input');
+        input.type = 'radio';
+        input.name = 'pet-species';
+        input.value = value;
+        input.checked = registrationDraft.species === value;
+        choice.append(input, el('span', 'pet-draft-species-icon', icon), el('span', '', label));
+        speciesRow.appendChild(choice);
+      }
+      speciesField.appendChild(speciesRow);
+      const speciesError = formError();
+      speciesRow.addEventListener('change', async () => {
+        if (busy) return;
+        const species = speciesRow.querySelector('input:checked')?.value || '';
+        if (!species) return;
+        setBusy(true);
+        speciesError.textContent = '';
+        try {
+          const speciesChanged = registrationDraft.species && registrationDraft.species !== species;
+          await saveDraft({species, ...(speciesChanged ? {breed_code: null, breed: null} : {})});
+          renderDraftPhotos();
+        } catch (value) {
+          speciesError.textContent = errorMessage(value, '반려동물 종류를 저장하지 못했습니다.');
+        } finally {
+          setBusy(false);
+        }
+      });
+      body.append(speciesField, speciesError);
+
+      if (!['DOG', 'CAT'].includes(registrationDraft.species)) {
+        body.appendChild(el('p', 'pet-draft-species-prompt', '강아지 또는 고양이를 선택하면 사진 등록 칸이 나타납니다.'));
+        return;
+      }
+
+      body.append(
+        el('h4', 'pet-draft-title', `${petSpeciesLabel(registrationDraft.species)} 사진 10장을 등록해 주세요`),
         el('p', 'pet-empty-copy', '10장은 모두 비공개 초안에 저장됩니다. 얼굴·몸 전체 사진보다 코나 특징 사진을 먼저 올려도 지우지 않고 보관했다가 다시 확인합니다.'),
       );
       const photosBySlot = new Map(registrationDraft.photos.map(photo => [photo.slotCode, photo]));
@@ -1508,7 +1551,7 @@ export async function mountPetFamilyManager({
           image.alt = `${petPhotoSlotLabel(slotCode)} 등록 사진`;
           media.appendChild(image);
         } else {
-          const diagram = petPhotoSlotDiagram(slotCode);
+          const diagram = petPhotoSlotDiagram(slotCode, registrationDraft.species);
           if (diagram) media.appendChild(diagram);
         }
         tile.appendChild(media);
@@ -1661,20 +1704,6 @@ export async function mountPetFamilyManager({
       nameInput.autocomplete = 'off';
       nameInput.value = registrationDraft.name;
       nameField.appendChild(nameInput);
-      const speciesField = el('fieldset', 'pet-choice-field');
-      speciesField.appendChild(el('legend', '', '종'));
-      const speciesRow = el('div', 'pet-choice-row');
-      for (const value of ['DOG', 'CAT']) {
-        const choice = el('label', 'pet-choice');
-        const input = el('input');
-        input.type = 'radio';
-        input.name = 'pet-species';
-        input.value = value;
-        input.checked = registrationDraft.species === value;
-        choice.append(input, el('span', '', petSpeciesLabel(value)));
-        speciesRow.appendChild(choice);
-      }
-      speciesField.appendChild(speciesRow);
       const sexField = el('fieldset', 'pet-choice-field');
       sexField.appendChild(el('legend', '', '성별'));
       const sexRow = el('div', 'pet-choice-row');
@@ -1703,7 +1732,7 @@ export async function mountPetFamilyManager({
       breedOtherField.appendChild(breedOtherInput);
       breedOtherField.hidden = true;
 
-      const selectedSpecies = () => speciesRow.querySelector('input:checked')?.value || '';
+      const selectedSpecies = () => registrationDraft.species;
       const populateBreeds = () => {
         const species = selectedSpecies();
         breedSelect.replaceChildren();
@@ -1719,21 +1748,6 @@ export async function mountPetFamilyManager({
         breedOtherField.hidden = !['OTHER_DOG', 'OTHER_CAT'].includes(breedSelect.value);
       };
       populateBreeds();
-      speciesRow.addEventListener('change', () => {
-        populateBreeds();
-        clearTimeout(autosaveTimer);
-        autosaveTimer = setTimeout(async () => {
-          const species = selectedSpecies();
-          try {
-            if (registrationDraft.species && registrationDraft.species !== species && registrationDraft.breedCode) {
-              await saveDraft({breed_code: null, breed: null});
-            }
-            await saveDraft({species});
-          } catch (value) {
-            showError(errorMessage(value, '종을 자동 저장하지 못했습니다.'), value);
-          }
-        }, 500);
-      });
       breedSelect.addEventListener('change', () => {
         breedOtherField.hidden = !['OTHER_DOG', 'OTHER_CAT'].includes(breedSelect.value);
         scheduleAutosave(() => ({species: selectedSpecies(), breed_code: breedSelect.value || null}));
@@ -1747,7 +1761,7 @@ export async function mountPetFamilyManager({
       const next = el('button', 'site-button site-button-primary', '추가 정보 입력');
       next.type = 'submit';
       actions.append(backButton('PHOTOS'), next);
-      form.append(nameField, speciesField, sexField, breedField, breedOtherField, error, actions);
+      form.append(nameField, sexField, breedField, breedOtherField, error, actions);
       form.addEventListener('submit', async event => {
         event.preventDefault();
         const species = selectedSpecies();
@@ -1758,7 +1772,7 @@ export async function mountPetFamilyManager({
           return;
         }
         if (!species) {
-          error.textContent = '강아지 또는 고양이를 선택해 주세요.';
+          error.textContent = '사진 단계로 돌아가 강아지 또는 고양이를 선택해 주세요.';
           return;
         }
         if (!sex) {
@@ -1778,9 +1792,6 @@ export async function mountPetFamilyManager({
         clearTimeout(autosaveTimer);
         setBusy(true);
         try {
-          if (registrationDraft.species && registrationDraft.species !== species && registrationDraft.breedCode) {
-            await saveDraft({breed_code: null, breed: null});
-          }
           await saveDraft({
             current_step: 'ADDITIONAL',
             name: nameInput.value.trim(),

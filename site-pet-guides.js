@@ -181,25 +181,22 @@ function shape(tag, attributes) {
   return node;
 }
 
-function speciesMark(value, x, y, label) {
+function diagramText(value, x, y, className, label = '') {
   const node = shape('text', {
     x,
     y,
-    class: 'pet-slot-species-mark',
+    class: className,
     'text-anchor': 'middle',
-    'aria-label': label,
   });
+  if (label) node.setAttribute('aria-label', label);
   node.textContent = value;
   return node;
 }
 
 // Returns the schematic for a slot, or null when the code is unknown.
-export function petPhotoSlotDiagram(slotCode) {
+export function petPhotoSlotDiagram(slotCode, species) {
   const guide = GUIDES[slotCode];
-  if (!guide) return null;
-  const {
-    paths = [], circles = [], turned = [], turnedCircles = [], zoomed = [], mirror = false,
-  } = guide.draw;
+  if (!guide || !['DOG', 'CAT'].includes(species)) return null;
 
   const root = shape('svg', {
     viewBox: '0 0 72 52',
@@ -207,31 +204,25 @@ export function petPhotoSlotDiagram(slotCode) {
     'aria-hidden': 'true',
     focusable: 'false',
   });
-  const group = shape('g', mirror ? {transform: 'translate(72,0) scale(-1,1)'} : {});
-  for (const d of paths) group.appendChild(shape('path', {d}));
-  if (turned.length) {
-    const away = shape('g', {transform: NOSE_TURN});
-    for (const d of turned) away.appendChild(shape('path', {d}));
-    for (const [cx, cy, rx] of turnedCircles) away.appendChild(shape('circle', {cx, cy, r: rx}));
-    group.appendChild(away);
+  const face = species === 'DOG' ? '🐶' : '🐱';
+  const body = species === 'DOG' ? '🐕' : '🐈';
+  const animalLabel = species === 'DOG' ? '강아지' : '고양이';
+  const bodySlot = ['BODY_LEFT', 'BODY_RIGHT', 'BACK_REAR'].includes(slotCode);
+  root.appendChild(diagramText(bodySlot ? body : face, 36, 35, 'pet-slot-species-mark', animalLabel));
+
+  if (slotCode.endsWith('_LEFT')) {
+    root.appendChild(diagramText('←', 11, 32, 'pet-slot-guide-arrow'));
+  } else if (slotCode.endsWith('_RIGHT')) {
+    root.appendChild(diagramText('→', 61, 32, 'pet-slot-guide-arrow'));
+  } else if (slotCode === 'BACK_REAR') {
+    root.appendChild(diagramText('뒤에서', 36, 49, 'pet-slot-guide-copy'));
+  } else if (slotCode === 'DISTINCTIVE') {
+    root.appendChild(diagramText('✦', 57, 19, 'pet-slot-guide-accent'));
   }
-  if (zoomed.length) {
-    const closer = shape('g', {transform: NOSE_ZOOM_TURN});
-    for (const d of zoomed) closer.appendChild(shape('path', {d}));
-    group.appendChild(closer);
+
+  if (slotCode.startsWith('NOSE_')) {
+    root.appendChild(shape('circle', {cx: 36, cy: 31, r: 10, class: 'pet-slot-guide-focus'}));
+    root.appendChild(diagramText('코', 36, 49, 'pet-slot-guide-copy'));
   }
-  for (const [cx, cy, rx, ry] of circles) {
-    group.appendChild(rx === ry
-      ? shape('circle', {cx, cy, r: rx})
-      : shape('ellipse', {cx, cy, rx, ry}));
-  }
-  root.appendChild(group);
-  // Species is selected after the photo step, so every empty slot shows both
-  // supported animals. These familiar faces keep the abstract angle drawing
-  // from being mistaken for a chick, cow, or another unsupported animal.
-  root.append(
-    speciesMark('🐶', 11, 17, '강아지'),
-    speciesMark('🐱', 61, 17, '고양이'),
-  );
   return root;
 }
