@@ -2578,7 +2578,8 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   height: 190px;
 }
 
-.lotbi-place-orbit.has-place-photo {
+.lotbi-place-orbit.has-place-photo,
+.lotbi-place-orbit.has-place-banner {
   height: 300px;
 }
 
@@ -2693,7 +2694,8 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
     margin-inline: auto;
   }
 
-  .lotbi-place-orbit.has-place-photo {
+  .lotbi-place-orbit.has-place-photo,
+  .lotbi-place-orbit.has-place-banner {
     height: 286px;
   }
 
