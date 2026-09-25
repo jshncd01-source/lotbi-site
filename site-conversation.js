@@ -1,6 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-e5c6cf672ce0';
 import * as siteCore from './site-core.js?v=aset-e5c6cf672ce0';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-e5c6cf672ce0';
+import {buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-e5c6cf672ce0';
 import * as siteAttachments from './site-attachments.js?v=aset-e5c6cf672ce0';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-e5c6cf672ce0';
 import {deterministicReply} from './site-deterministic.js?v=aset-e5c6cf672ce0';
@@ -1373,7 +1373,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const openPlaceInNaverMap = place => openFreshPlace(place, openNaverMapsPlace, '선택한 장소를 네이버 지도에서 엽니다.');
     const openPlaceInKakaoNavi = place => openFreshPlace(place, openKakaoNaviPlace, '선택한 장소를 카카오내비 길안내로 연결합니다.');
     const openPlaceInTmap = place => openFreshPlace(place, openTmapPlace, '선택한 장소를 T맵 길안내로 연결합니다.');
-    const openPlaceInGoogleMaps = place => openFreshPlace(place, openGoogleMapsPlace, '선택한 장소를 Google Maps에서 엽니다.');
 
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
@@ -1429,6 +1428,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
       const actions = document.createElement('div');
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
+      const phoneActions = document.createElement('div');
+      phoneActions.className = 'lotbi-place-card-phone-actions';
+      const navigationActions = document.createElement('div');
+      navigationActions.className = 'lotbi-place-card-navigation-actions';
 
       const addActionIcon = (control, iconName) => {
         const icon = document.createElement('span');
@@ -1460,7 +1463,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
           setStatus('전화 앱 연결을 시작합니다.');
         });
-        actions.appendChild(phone);
+        phoneActions.appendChild(phone);
       }
 
       const navigate = document.createElement('a');
@@ -1477,7 +1480,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         event.preventDefault();
         openPlaceInNaverMap(place);
       });
-      actions.appendChild(navigate);
+      navigationActions.appendChild(navigate);
 
       const kakaoNavi = document.createElement('a');
       kakaoNavi.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-navi-action';
@@ -1493,7 +1496,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         event.preventDefault();
         openPlaceInKakaoNavi(place);
       });
-      actions.appendChild(kakaoNavi);
+      navigationActions.appendChild(kakaoNavi);
 
       const tmap = document.createElement('a');
       tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action';
@@ -1508,24 +1511,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         event.preventDefault();
         openPlaceInTmap(place);
       });
-      actions.appendChild(tmap);
+      navigationActions.appendChild(tmap);
 
-      const googleMaps = document.createElement('a');
-      googleMaps.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-google-maps-action';
-      googleMaps.href = buildGoogleMapsDirectionsUrl(place);
-      googleMaps.target = '_blank';
-      googleMaps.rel = 'noopener noreferrer';
-      googleMaps.setAttribute('aria-label', `${place.name} Google Maps에서 길안내`);
-      googleMaps.title = 'Google Maps에서 길안내';
-      googleMaps.dataset.action = 'google-maps';
-      googleMaps.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(googleMaps, 'google-maps');
-      googleMaps.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInGoogleMaps(place);
-      });
-      actions.appendChild(googleMaps);
-
+      actions.append(phoneActions, navigationActions);
       item.append(media, copy, actions);
       cards.push(item);
       rail.appendChild(item);
