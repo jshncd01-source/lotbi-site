@@ -9,8 +9,8 @@
 // Covered contracts:
 //   - every kind renders <svg class="calendar-weather-icon"> with its kind,
 //     and the provider emoji never reaches the date cell as text
-//   - the glyph is never larger than the date number it sits beside
-//   - it is not smaller than 12px either — legibility has a floor
+//   - desktop uses a clearly visible 24px glyph; narrow mobile cells retain a
+//     compact but readable 17px glyph
 //   - the four kinds are visually distinct from one another, by shape AND colour
 //   - the body colour clears 3:1 against the date cell it sits on
 //     (WCAG 1.4.11 non-text contrast), in light AND dark
@@ -254,10 +254,12 @@ try {
         if (!glyph.ariaLabel.includes(`날씨 ${LABELS[kind]}`)) throw new Error(`${label}/${theme}: ${kind} lost its accessible name, got "${glyph.ariaLabel}"`);
         if (glyph.titleText !== LABELS[kind]) throw new Error(`${label}/${theme}: ${kind} lost its hover title, got "${glyph.titleText}"`);
 
-        // 날씨는 보조 정보다. 날짜보다 커지면 안 된다.
-        if (glyph.height > glyph.numberHeight + 0.5) throw new Error(`${label}/${theme}: ${kind} glyph (${glyph.height}px) must not be taller than the date number (${glyph.numberHeight}px)`);
-        // 그렇다고 안 보일 만큼 작아도 안 된다.
-        if (glyph.height < 12) throw new Error(`${label}/${theme}: ${kind} glyph is ${glyph.height}px — below the legibility floor`);
+        // 사진으로 찍은 실제 PC 화면에서도 비·눈이 구별될 만큼 충분히 크게
+        // 그린다. 휴대폰은 좁은 날짜 칸에 맞춘 17px를 유지한다.
+        const expectedSize = w <= 520 ? 17 : 24;
+        if (Math.abs(glyph.height - expectedSize) > 0.5 || Math.abs(glyph.width - expectedSize) > 0.5) {
+          throw new Error(`${label}/${theme}: ${kind} glyph must be ${expectedSize}px, got ${glyph.width}x${glyph.height}px`);
+        }
 
         // WCAG 1.4.11 non-text contrast.
         if (glyph.clippedByCell) throw new Error(`${label}/${theme}: ${kind} glyph is clipped by its date cell — the grid hides the overflow, so it loses part of the picture`);

@@ -621,8 +621,8 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-weather-icon {
   flex: 0 0 auto;
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
 }
 .calendar-weather-temperature { color: #3f5067; font-size: 11px; font-weight: 850; font-variant-numeric: tabular-nums; }
 .calendar-holiday-label {
@@ -1624,7 +1624,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     position: relative;
     min-height: 70px;
     display: grid;
-    grid-template-columns: minmax(0, 12px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 17px) minmax(0, 1fr);
     grid-template-rows: 44px 12px 14px;
     justify-content: center;
     align-items: center;
@@ -1634,7 +1634,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-date-trigger { grid-column: 1 / -1; grid-row: 1; min-width: 44px; min-height: 44px; justify-self: center; }
   .calendar-date-number { font-size: 12px; }
   .calendar-mobile-event-count { grid-column: 1 / -1; grid-row: 2; justify-self: center; font-size: 9px; line-height: 12px; }
-  .calendar-date-header > svg.calendar-weather-icon { grid-column: 1; grid-row: 3; width: 12px; height: 12px; }
+  .calendar-date-header > svg.calendar-weather-icon { grid-column: 1; grid-row: 3; width: 17px; height: 17px; }
   .calendar-weather-temperature { grid-column: 2; grid-row: 3; min-width: 0; overflow: hidden; font-size: 0; line-height: 14px; white-space: nowrap; }
   .calendar-weather-temperature::after { content: attr(data-compact-temperature); font-size: 8px; }
   .calendar-holiday-label { font-size: 8px; }
