@@ -93,12 +93,12 @@ export function calendarWeatherByDate(items) {
 // owner's call; this only decides what the text says.
 export function weatherTemperatureLabel(item) {
   if (!item || typeof item !== 'object') return '';
-  if (Number.isFinite(item.temperature)) return `${Math.round(item.temperature)}°`;
   const hasMin = Number.isFinite(item.minTemperature);
   const hasMax = Number.isFinite(item.maxTemperature);
   if (hasMin && hasMax) return `${Math.round(item.minTemperature)}° / ${Math.round(item.maxTemperature)}°`;
   if (hasMax) return `${Math.round(item.maxTemperature)}°`;
   if (hasMin) return `${Math.round(item.minTemperature)}°`;
+  if (Number.isFinite(item.temperature)) return `${Math.round(item.temperature)}°`;
   return '';
 }
 
@@ -189,9 +189,7 @@ const WEATHER_GLYPHS = Object.freeze({
   ]),
   SNOW: Object.freeze([
     ...CLOUD_HIGH,
-    ['circle', {cx: '8.3', cy: '19.4', r: '1.4', 'data-weather-part': 'snow'}],
-    ['circle', {cx: '12', cy: '21.3', r: '1.4', 'data-weather-part': 'snow'}],
-    ['circle', {cx: '15.7', cy: '19.4', r: '1.4', 'data-weather-part': 'snow'}],
+    ['path', {d: 'M8.4 18.2v4M6.7 19.2l3.4 2M10.1 19.2l-3.4 2M15.6 18.2v4M13.9 19.2l3.4 2M17.3 19.2l-3.4 2', 'data-weather-part': 'snow'}],
   ]),
 });
 

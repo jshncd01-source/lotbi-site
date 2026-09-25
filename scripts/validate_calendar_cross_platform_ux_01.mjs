@@ -44,6 +44,8 @@ assert.ok(manager.includes("next.dataset.calendarNavigation = 'next'"));
 assert.ok(css.includes('.calendar-nav-button[data-calendar-navigation="next"]::before'));
 assert.ok(css.includes('.calendar-week-agenda'));
 assert.ok(css.includes('.calendar-week-day'));
+assert.match(css, /@media \(min-width: 901px\)[\s\S]*\.calendar-week-days\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+assert.ok(!css.includes('.calendar-week-days { grid-template-columns: repeat(2'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
 assert.ok(manager.includes("loading.textContent = '일정을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));
@@ -102,6 +104,7 @@ assert.ok(manager.includes('if (state.mode === \'month\') render()'));
 // The semantic date button itself, not only the enclosing cell, is a full
 // touch target at every width.
 assert.match(css, /\.calendar-date-trigger\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s);
+assert.match(css, /\.calendar-date-number\s*\{[^}]*font-size:\s*17px;/);
 assert.ok(!css.includes('.calendar-date-trigger { min-width: 25px; min-height: 25px; }'));
 
 // A 49–55px narrow cell gets three explicit rows: the 44px date target,
