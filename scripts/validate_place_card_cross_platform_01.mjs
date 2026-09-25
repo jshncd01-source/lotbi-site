@@ -108,9 +108,13 @@ for (const forbidden of [
 ]) {
   assert.doesNotMatch(renderer, new RegExp(forbidden, 'u'));
 }
-for (const label of ['전화', '네이버', '카카오', 'T맵', 'Google']) {
-  assert.match(renderer, new RegExp(`addActionLabel\\([^,]+, '${label}'\\)`, 'u'));
+for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps']) {
+  assert.match(renderer, new RegExp(`addActionIcon\\([^,]+, '${iconName}'\\)`, 'u'));
+  assert.equal(fs.existsSync(new URL(`../assets/place-actions/${iconName}.png`, import.meta.url)), true);
 }
+assert.doesNotMatch(renderer, /lotbi-place-action-label/u);
+assert.doesNotMatch(renderer, /addActionLabel/u);
+assert.match(renderer, /dataset\.tmapState = isTmapHandoffAvailable\(\) \? 'MOBILE_APP' : 'INSTALL_GUIDE'/u);
 assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
 assert.match(renderer, /dataset\.action = 'google-maps'/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
