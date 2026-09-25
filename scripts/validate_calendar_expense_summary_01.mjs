@@ -6,8 +6,8 @@
 //   - all six fixed category slots lead and the monthly total stays at the right
 //   - each category name keeps its own fixed, legible colour in Light and Dark,
 //     and the amounts stay neutral
-//   - a month with no recorded amount still shows the strip, reading
-//     "이번 달 기록 없음" — never a vanished table and never a stuck loader
+//   - a month with no recorded amount still shows the six 0원 slots and total,
+//     without repeating a second empty-month sentence
 //   - loading, empty, error and guest are four distinguishable states
 //   - no amount is invented: entries without an amount are reported separately
 //   - the month window is the calendar month, not the 42-cell grid
@@ -274,6 +274,7 @@ try{
     category:n.dataset.expenseCategory,label:n.querySelector('dt')?.textContent||'',amount:n.querySelector('dd')?.textContent||''}));
   result.guestTotal=guest.querySelector('.calendar-expense-total-amount')?.textContent||'';
   result.guestNote=guest.querySelector('.calendar-expense-coverage')?.textContent||'';
+  result.guestStorageNote=guest.querySelector('.calendar-expense-storage-note')?.textContent||'';
   // Legibility: the exclusion line must not be the faint grey it was.
   {
     const note=guest.querySelector('.calendar-expense-coverage');
@@ -358,6 +359,7 @@ try{
   await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','guest empty strip');
   const guestEmpty=strip(root);
   result.guestEmptyNote=guestEmpty.querySelector('.calendar-expense-coverage')?.textContent||'';
+  result.guestEmptyStorageNote=guestEmpty.querySelector('.calendar-expense-storage-note')?.textContent||'';
   result.guestEmptyRows=[...guestEmpty.querySelectorAll('.calendar-expense-item')].map(n=>n.querySelector('dd')?.textContent||'');
 
   // --- guest, a repository that throws: the Calendar must outlive it ------
@@ -476,7 +478,7 @@ try {
     }
 
     if (!value.emptyPresent) throw new Error(`${label}: an empty month must keep the bar`);
-    if (!value.emptyText.includes('이번 달 기록 없음')) throw new Error(`${label}: empty month must say "이번 달 기록 없음", got "${value.emptyText}"`);
+    if (value.emptyText !== '') throw new Error(`${label}: six 0원 slots already explain an empty month; duplicate copy must be absent, got "${value.emptyText}"`);
     if (value.emptySlots.length !== 6 || value.emptySlots.some(amount => amount !== '0원')) {
       throw new Error(`${label}: an empty month must retain six 0원 category slots, got ${JSON.stringify(value.emptySlots)}`);
     }
@@ -526,13 +528,13 @@ try {
     if (value.guestTotal !== '301,820원') throw new Error(`${label}: signed-out total must be 301,820원 (October's entry excluded), got ${value.guestTotal}`);
     if (!value.guestNote.includes('금액 없는 일정 1건 제외')) throw new Error(`${label}: an entry with no amount must be reported, not estimated, got "${value.guestNote}"`);
 
-    // Honest about where the numbers live, and framed as what signing in adds.
-    if (!value.guestNote.includes('이 브라우저에만 저장')) throw new Error(`${label}: the signed-out bar must say the numbers live only in this browser, got "${value.guestNote}"`);
-    if (!value.guestNote.includes('로그인하면')) throw new Error(`${label}: the note must say what signing in would add, got "${value.guestNote}"`);
-    if (/로그인해야|로그인하면 .*보여드려요/.test(value.guestNote)) throw new Error(`${label}: the note must not stand in place of the totals, got "${value.guestNote}"`);
+    // Storage scope is visually separated from the money so it cannot compete
+    // with the six categories or the pinned total.
+    if (value.guestStorageNote !== '이 기기에 저장됨') throw new Error(`${label}: the signed-out storage note must stay short and separate, got "${value.guestStorageNote}"`);
 
     // An empty month reads as an empty month, not as a login wall.
-    if (!value.guestEmptyNote.includes('이번 달 기록 없음')) throw new Error(`${label}: a signed-out empty month must read "이번 달 기록 없음", got "${value.guestEmptyNote}"`);
+    if (value.guestEmptyNote !== '') throw new Error(`${label}: a signed-out empty month must not repeat the six 0원 slots, got "${value.guestEmptyNote}"`);
+    if (value.guestEmptyStorageNote !== '') throw new Error(`${label}: an empty month has no local records whose storage scope needs explaining`);
     if (value.guestEmptyRows.length !== 6 || value.guestEmptyRows.some(amount => amount !== '0원')) {
       throw new Error(`${label}: a signed-out empty month must retain six 0원 category slots`);
     }

@@ -37,15 +37,17 @@ assert.deepEqual(expense.lines[0], {
     {expenseCategory: 'OTHER', label: '기타', amount: '0원'},
     {expenseCategory: 'UNCLASSIFIED', label: '미분류', amount: '0원'},
   ],
-  note: '금액 없는 일정 1건 제외 · 이 브라우저에만 저장돼요 · 로그인하면 다른 기기에서도',
+  note: '금액 없는 일정 1건 제외',
 });
+assert.equal(expense.storageNote, '이 기기에 저장됨');
 
 const emptyExpense = expenseSummaryPresentation({currencies: [], entriesWithoutAmount: 0});
 assert.equal(emptyExpense.lines[0].totalLabel, '합계 ₩');
 assert.equal(emptyExpense.lines[0].totalAmount, '0원');
 assert.deepEqual(emptyExpense.lines[0].categories.map(row => row.amount), Array(6).fill('0원'));
 assert.deepEqual(emptyExpense.lines[0].categories.map(row => row.label), ['음식', '여행', '쇼핑', '생활비', '기타', '미분류']);
-assert.equal(emptyExpense.lines[0].note, '이번 달 기록 없음');
+assert.equal(emptyExpense.lines[0].note, '');
+assert.equal(emptyExpense.storageNote, '');
 
 const multiCurrency = expenseSummaryPresentation({
   currencies: [
@@ -118,6 +120,8 @@ const conversation = read('site-conversation.js');
 const ui = read('site-calendar-ui.js');
 const manager = read('site-calendar-manager.js');
 const calendarCss = read('site-calendar.css');
+const expenseCss = read('site-calendar-expense.css');
+const weatherCss = read('site-calendar-weather.css');
 const workflow = read('.github/workflows/site-universal-life-calendar-01.yml');
 const modalRuntime = read('scripts/validate_calendar_modal_runtime_02.mjs');
 const touchRuntime = read('scripts/validate_calendar_touch_monthnav_daysheet_01.mjs');
@@ -201,6 +205,14 @@ assert.match(calendarCss, /\.calendar-settings-action-button \{[\s\S]*min-height
   'Settings actions must meet the 44px touch floor');
 assert.match(calendarCss, /\.calendar-settings-location-help > summary \{[\s\S]*min-height:\s*44px;/,
   'weather permission help control must meet the 44px touch floor');
+assert.match(manager, /calendar-settings-label[\s\S]*textContent = '설정'/,
+  'the Settings control must carry a visible Korean label, not an icon alone');
+assert.match(calendarCss, /\.calendar-settings-button \{[\s\S]*display:\s*inline-flex;[\s\S]*gap:\s*5px;/,
+  'the Settings icon and visible label must share one compact control');
+assert.match(expenseCss, /\.calendar-expense-summary \{[\s\S]*font-size:\s*0\.875rem;/,
+  'expense categories must stay readable at 14px on desktop');
+assert.match(weatherCss, /\.calendar-weather-credit \{[\s\S]*color:\s*var\(--lotbi-text-secondary[\s\S]*font-size:\s*0\.75rem;[\s\S]*font-weight:\s*600;/,
+  'weather attribution must use readable size, weight, and secondary-text contrast');
 
 const rootEscapeStart = manager.indexOf("root.addEventListener('keydown'");
 const rootEscapeEnd = manager.indexOf('\n  let refreshGeneration', rootEscapeStart);

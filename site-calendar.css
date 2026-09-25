@@ -416,7 +416,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   grid-row: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(170px, auto) auto auto 42px minmax(0, 1fr);
+  grid-template-columns: auto minmax(170px, auto) auto auto auto minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   white-space: nowrap;
@@ -447,12 +447,15 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-title-button { padding-inline: 14px; font-size: 17px; }
 .calendar-today-button { padding-inline: 14px; }
 .calendar-settings-button {
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
+  width: auto;
+  min-width: 68px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
+.calendar-settings-label { font-size: 12px; }
 /* Toolbar icon language, shared with the sidebar's nav icons: 24x24 box,
    stroke-only, 1.8 weight, round caps and joins. An emoji was rendering as a
    different shape on every OS -- on the reporter's screen the gear read as a
@@ -1368,7 +1371,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
 
   .calendar-toolbar {
     display: grid;
-    grid-template-columns: 44px minmax(80px, 1fr) 44px 52px 44px;
+    grid-template-columns: 44px minmax(80px, 1fr) 44px 52px 68px;
     gap: 6px;
     overflow: visible;
     white-space: nowrap;
@@ -1377,7 +1380,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-nav-button { min-width: 44px; }
   .calendar-title-button { min-width: 0; }
   .calendar-today-button { min-width: 52px; }
-  .calendar-settings-button { min-width: 44px; }
+  .calendar-settings-button { min-width: 68px; }
   .calendar-mode-tabs {
     grid-column: 1 / -1;
     min-width: 0;
@@ -1601,7 +1604,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .site-modal.site-calendar-modal > .site-modal-content { padding-inline: 8px; }
 
   .calendar-toolbar {
-    grid-template-columns: 44px minmax(0, 1fr) 44px 48px 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px 48px 64px;
     gap: 4px;
   }
   .calendar-nav-button { min-width: 44px; font-size: 0; }
@@ -1609,7 +1612,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-nav-button[data-calendar-navigation="next"]::before { content: '›'; }
   .calendar-title-button { padding-inline: 5px; font-size: 15px; }
   .calendar-today-button { min-width: 44px; padding-inline: 5px; }
-  .calendar-settings-button { min-width: 44px; width: 44px; }
+  .calendar-settings-button { min-width: 64px; width: 64px; padding-inline: 7px; }
   .calendar-mode-tab { min-height: 44px; padding-inline: 3px; font-size: 12px; }
   .calendar-weekdays span { padding-bottom: 6px; }
 
