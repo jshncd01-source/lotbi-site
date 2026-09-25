@@ -285,6 +285,11 @@ assert.match(
 
 assert.ok(petCss.includes('@media (min-width: 901px)'), 'Desktop breakpoint missing');
 assert.ok(petCss.includes('body[data-site-theme="dark"]'), 'Dark theme rules missing');
+assert.match(
+  petCss,
+  /\.pet-section\[hidden\][\s\S]*?display:\s*none/,
+  'Pet Home sections must honor the hidden state when a different tab is active',
+);
 for (const check of ['node --check site-pet.js', 'node --check site-pet-ui.js']) {
   const [cmd, ...args] = check.split(' ');
   const run = spawnSync(cmd, args, {cwd: ROOT, encoding: 'utf8'});
@@ -498,6 +503,30 @@ function innerFixtureHtml() {
     target: button.dataset.petHomeTarget,
     title: button.querySelector('.pet-home-card-title').textContent,
   }));
+  const homeButtons = new Map(
+    [...document.querySelectorAll('[data-pet-home-target]')]
+      .map(button => [button.dataset.petHomeTarget, button]),
+  );
+  const listSection = list.closest('.pet-section');
+  const tabState = target => {
+    homeButtons.get(target).click();
+    return {
+      active: [...homeButtons.values()]
+        .find(button => button.dataset.petHomeActive === 'true')?.dataset.petHomeTarget || '',
+      pets: box(listSection),
+      register: box(document.querySelector('.pet-add-button')),
+      sos: box(sosSection),
+      sosAction: box(sosSection.querySelector('[data-pet-sos-new]')),
+      found: box(foundSection),
+      foundAction: box(foundSection.querySelector('[data-pet-found-new]')),
+    };
+  };
+  const homeTabs = {
+    pets: tabState('pets'),
+    sos: tabState('sos'),
+    found: tabState('found'),
+  };
+  homeButtons.get('pets').click();
 
   // Registration begins with the ten private photo slots. Species is not
   // requested until the next step, and no stable Pet ID exists yet.
@@ -526,6 +555,7 @@ function innerFixtureHtml() {
     deleteBefore,
     deleteAfter,
     homeCards,
+    homeTabs,
     draftSlots,
     speciesChoices,
     hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
@@ -679,6 +709,23 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     ],
     `${label}: Pet Home must show the three separate surfaces`,
   );
+  assert.equal(result.homeTabs.pets.active, 'pets', `${label}: pets tab must become active`);
+  assert.ok(result.homeTabs.pets.pets > 0 && result.homeTabs.pets.register > 0,
+    `${label}: pets tab must show the pet list and registration action`);
+  assert.equal(result.homeTabs.pets.sos, 0, `${label}: pets tab must hide the SOS surface`);
+  assert.equal(result.homeTabs.pets.found, 0, `${label}: pets tab must hide the found surface`);
+
+  assert.equal(result.homeTabs.sos.active, 'sos', `${label}: SOS tab must become active`);
+  assert.equal(result.homeTabs.sos.pets, 0, `${label}: SOS tab must hide the pet list`);
+  assert.ok(result.homeTabs.sos.sos > 0 && result.homeTabs.sos.sosAction > 0,
+    `${label}: SOS tab must show only the SOS surface and action`);
+  assert.equal(result.homeTabs.sos.found, 0, `${label}: SOS tab must hide the found surface`);
+
+  assert.equal(result.homeTabs.found.active, 'found', `${label}: found tab must become active`);
+  assert.equal(result.homeTabs.found.pets, 0, `${label}: found tab must hide the pet list`);
+  assert.equal(result.homeTabs.found.sos, 0, `${label}: found tab must hide the SOS surface`);
+  assert.ok(result.homeTabs.found.found > 0 && result.homeTabs.found.foundAction > 0,
+    `${label}: found tab must show only the found surface and action`);
   assert.deepEqual(result.draftSlots, CORE_SLOT_CODES, `${label}: registration must begin with all ten photo slots`);
   assert.deepEqual(result.speciesChoices, [], `${label}: the first registration step must not ask for species before photos`);
 }

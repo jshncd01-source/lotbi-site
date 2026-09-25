@@ -536,6 +536,7 @@
 /* .site-button and the layout classes below all set display, which beats the
    UA [hidden] rule, so every element this surface toggles with .hidden needs
    its hidden state spelled out. */
+.pet-section[hidden],
 .pet-delete-confirm[hidden],
 .pet-delete-button[hidden],
 .pet-detail-section[hidden],
