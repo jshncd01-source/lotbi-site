@@ -2079,6 +2079,43 @@ body[data-site-theme="dark"] .conversation-calendar-action-button {
 body[data-site-theme="dark"] .conversation-calendar-action-button:hover:not(:disabled),
 body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible { background: #262d38; }
 
+.conversation-pet-action-button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 9px 14px;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  background: #334155;
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conversation-pet-action-button:hover,
+.conversation-pet-action-button:focus-visible {
+  border-color: #1f2937;
+  background: #1f2937;
+}
+
+.conversation-pet-action-button:focus-visible {
+  outline: 2px solid rgba(79, 120, 197, .30);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .conversation-pet-action-button {
+  border-color: #dbe2ec;
+  background: #dbe2ec;
+  color: #161b22;
+}
+
+body[data-site-theme="dark"] .conversation-pet-action-button:hover,
+body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
+  border-color: #eef2f7;
+  background: #eef2f7;
+}
+
 @media (max-width: 520px) {
   .conversation-calendar-action-controls { width: 100%; }
   .conversation-calendar-action-button { min-width: 0; max-width: 100%; }
@@ -2334,55 +2371,7 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   background: #f7f8fa;
 }
 
-.lotbi-phone-action::before {
-  content: "☎";
-  font-size: 20px;
-  line-height: 1;
-  font-weight: 700;
-}
-
 .lotbi-phone-action[data-phone-state="UNAVAILABLE"] {
-  opacity: .48;
-}
-
-.lotbi-naver-map-action {
-  overflow: hidden;
-}
-
-.lotbi-naver-map-icon {
-  display: block;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  object-fit: cover;
-}
-
-.lotbi-naver-map-action.is-icon-fallback::before {
-  content: "↗";
-  font-size: 22px;
-  line-height: 1;
-  font-weight: 760;
-}
-
-/* SITE-PLACE-CARD-MAP-DEEPLINK-01 — 카카오맵·티맵 버튼.
-   두 곳 모두 로고 파일을 끌어다 쓰지 않고 글자 표시로 그린다. 네이버 아이콘이
-   못 뜰 때 쓰는 그 is-icon-fallback 자리를 그대로 쓰므로 규칙이 하나뿐이다.
-   지름 44px 터치 타깃은 .lotbi-rich-card-icon-action 이 이미 잡아 준다. */
-.lotbi-kakao-map-action.is-icon-fallback::before {
-  content: "카";
-  font-size: 17px;
-  line-height: 1;
-  font-weight: 800;
-}
-
-.lotbi-tmap-action.is-icon-fallback::before {
-  content: "T";
-  font-size: 21px;
-  line-height: 1;
-  font-weight: 820;
-}
-
-.lotbi-tmap-action[data-tmap-state="MOBILE_ONLY"] {
   opacity: .48;
 }
 
@@ -2580,5 +2569,171 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   .site-field select,
   .site-field textarea {
     font-size: 16px;
+  }
+}
+
+
+/* SITE-PLACE-CARD-CROSS-PLATFORM-01 — compact photo-aware consumer contract */
+.lotbi-place-orbit {
+  height: 190px;
+}
+
+.lotbi-place-orbit.has-place-photo,
+.lotbi-place-orbit.has-place-banner {
+  height: 300px;
+}
+
+.lotbi-place-orbit-card {
+  width: min(38%, 280px);
+  min-width: 220px;
+  border-color: rgba(73, 91, 118, .22);
+  border-radius: 16px;
+  background: var(--lotbi-surface-elevated, #fff);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  opacity: .18;
+  filter: saturate(.7) blur(.5px);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"] {
+  transform: translate(calc(-116% + var(--lotbi-orbit-drag-x)), -50%) scale(.82);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  transform: translate(calc(16% + var(--lotbi-orbit-drag-x)), -50%) scale(.82);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+  opacity: .08;
+  filter: saturate(.55) blur(1px);
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+  pointer-events: none;
+}
+
+.lotbi-rich-card-place-media[hidden] {
+  display: none;
+}
+
+.lotbi-rich-card-place-media {
+  aspect-ratio: 16 / 8.25;
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 88%, #dfe6ef);
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-copy {
+  gap: 3px;
+  padding: 9px 11px 7px;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-title {
+  color: var(--lotbi-text-primary, #202632);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-source {
+  color: var(--lotbi-text-muted, #687180);
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-price {
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 11.5px;
+}
+
+.lotbi-place-card-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  min-height: 54px;
+  padding: 4px 5px 6px;
+  border-color: color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 74%, transparent);
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action {
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px;
+  flex-direction: row;
+  gap: 0;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-secondary, #4d535d);
+  line-height: 1;
+}
+
+.lotbi-place-action-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.lotbi-place-action-icon-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action:hover,
+.lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    width: min(100%, calc(100vw - 24px));
+    height: 178px;
+    margin-inline: auto;
+  }
+
+  .lotbi-place-orbit.has-place-photo,
+  .lotbi-place-orbit.has-place-banner {
+    height: 286px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(76vw, 286px);
+    min-width: min(76vw, 244px);
+  }
+
+  .lotbi-place-orbit-control {
+    opacity: .78;
+  }
+}
+
+@media (max-width: 390px) {
+  .lotbi-place-orbit-card {
+    width: min(78vw, 278px);
+    min-width: min(78vw, 238px);
+  }
+
+  .lotbi-place-card-actions {
+    gap: 1px;
+    padding-inline: 3px;
+  }
+
+  .lotbi-place-card-actions .lotbi-rich-card-action {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-place-orbit-card {
+    width: min(80vw, 272px);
+    min-width: 232px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card {
+    transition: none;
   }
 }

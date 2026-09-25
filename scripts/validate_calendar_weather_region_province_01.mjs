@@ -393,6 +393,10 @@ try {
     result.statusText = dialog.querySelector('[data-calendar-location-row] .calendar-settings-status')?.textContent || '';
     result.storedRegion = storedRegion();
     result.storedOrigin = storedOrigin();
+    const province = dialog.querySelector('[aria-label="날씨 지역 광역시·도"]');
+    const city = dialog.querySelector('[aria-label="날씨 지역 시·군·구"]');
+    result.preselectedProvince = province?.value || '';
+    result.preselectedCity = city?.value || '';
   }
 
   out.textContent = JSON.stringify(result);
@@ -523,6 +527,12 @@ try {
     throw new Error(`현재 위치와 fallback 관계가 즉시 갱신되지 않았다: ${results.liveSettings.overview.relationship}`);
   }
   if (!results.liveSettings.overview.manualClearVisible) throw new Error('저장된 fallback 해제 동작이 열린 Settings에 나타나지 않았다');
+  if (results.liveSettings.preselectedProvince !== '전북특별자치도') {
+    throw new Error(`현재 위치가 열린 Settings의 광역시·도에 반영되지 않았다: ${results.liveSettings.preselectedProvince}`);
+  }
+  if (results.liveSettings.preselectedCity !== 'KR_JEONJU') {
+    throw new Error(`현재 위치가 열린 Settings의 시·군·구에 반영되지 않았다: ${results.liveSettings.preselectedCity}`);
+  }
 
   // 목록 서버가 죽었을 때. 화면이 이유를 말하고, 다시 불러오기로 되살아나야 한다.
   results.listDown = run(browser, profile, 6, width, height);

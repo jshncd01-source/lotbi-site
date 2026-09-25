@@ -181,13 +181,22 @@ function shape(tag, attributes) {
   return node;
 }
 
+function diagramText(value, x, y, className, label = '') {
+  const node = shape('text', {
+    x,
+    y,
+    class: className,
+    'text-anchor': 'middle',
+  });
+  if (label) node.setAttribute('aria-label', label);
+  node.textContent = value;
+  return node;
+}
+
 // Returns the schematic for a slot, or null when the code is unknown.
-export function petPhotoSlotDiagram(slotCode) {
+export function petPhotoSlotDiagram(slotCode, species) {
   const guide = GUIDES[slotCode];
-  if (!guide) return null;
-  const {
-    paths = [], circles = [], turned = [], turnedCircles = [], zoomed = [], mirror = false,
-  } = guide.draw;
+  if (!guide || !['DOG', 'CAT'].includes(species)) return null;
 
   const root = shape('svg', {
     viewBox: '0 0 72 52',
@@ -195,24 +204,35 @@ export function petPhotoSlotDiagram(slotCode) {
     'aria-hidden': 'true',
     focusable: 'false',
   });
-  const group = shape('g', mirror ? {transform: 'translate(72,0) scale(-1,1)'} : {});
-  for (const d of paths) group.appendChild(shape('path', {d}));
-  if (turned.length) {
-    const away = shape('g', {transform: NOSE_TURN});
-    for (const d of turned) away.appendChild(shape('path', {d}));
-    for (const [cx, cy, rx] of turnedCircles) away.appendChild(shape('circle', {cx, cy, r: rx}));
-    group.appendChild(away);
+  const face = species === 'DOG' ? '🐶' : '🐱';
+  const body = species === 'DOG' ? '🐕' : '🐈';
+  const animalLabel = species === 'DOG' ? '강아지' : '고양이';
+  const bodySlot = ['BODY_LEFT', 'BODY_RIGHT'].includes(slotCode);
+  if (slotCode === 'BACK_REAR') {
+    root.setAttribute('data-pet-rear-species', species);
+    root.appendChild(shape('image', {
+      href: species === 'DOG' ? '/assets/pet/dog-rear-v1.png' : '/assets/pet/cat-rear-v1.png',
+      x: 17,
+      y: 2,
+      width: 38,
+      height: 46,
+      preserveAspectRatio: 'xMidYMid meet',
+    }));
+  } else {
+    root.appendChild(diagramText(bodySlot ? body : face, 36, 35, 'pet-slot-species-mark', animalLabel));
   }
-  if (zoomed.length) {
-    const closer = shape('g', {transform: NOSE_ZOOM_TURN});
-    for (const d of zoomed) closer.appendChild(shape('path', {d}));
-    group.appendChild(closer);
+
+  if (slotCode.endsWith('_LEFT')) {
+    root.appendChild(diagramText('←', 11, 32, 'pet-slot-guide-arrow'));
+  } else if (slotCode.endsWith('_RIGHT')) {
+    root.appendChild(diagramText('→', 61, 32, 'pet-slot-guide-arrow'));
+  } else if (slotCode === 'DISTINCTIVE') {
+    root.appendChild(diagramText('✦', 57, 19, 'pet-slot-guide-accent'));
   }
-  for (const [cx, cy, rx, ry] of circles) {
-    group.appendChild(rx === ry
-      ? shape('circle', {cx, cy, r: rx})
-      : shape('ellipse', {cx, cy, rx, ry}));
+
+  if (slotCode.startsWith('NOSE_')) {
+    root.appendChild(shape('circle', {cx: 36, cy: 31, r: 10, class: 'pet-slot-guide-focus'}));
+    root.appendChild(diagramText('코', 36, 49, 'pet-slot-guide-copy'));
   }
-  root.appendChild(group);
   return root;
 }

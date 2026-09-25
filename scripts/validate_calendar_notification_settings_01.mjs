@@ -52,3 +52,4 @@ assert.ok(callback.includes(`site-conversation.js?v=${assetVersion}`));
 assert.ok(callbackHtml.includes(`auth-callback.js?v=${assetVersion}`));
 
 console.log('LOTBI Calendar notification Settings opt-in contract: PASS');
+

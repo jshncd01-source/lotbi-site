@@ -8,17 +8,28 @@ import {
   closeFoundPet,
   closePetSOS,
   createFoundPet,
+  createPetRegistrationDraft,
   createPetSOS,
   deleteFoundPetPhoto,
   deletePet,
   deletePetPhoto,
+  deletePetRegistrationDraft,
+  deletePetRegistrationDraftPhoto,
   fetchFoundPetPhotoObjectUrl,
+  fetchPetMatchNoticePhotoObjectUrl,
   fetchPetPhotoObjectUrl,
+  fetchPetRegistrationDraftPhotoObjectUrl,
+  finalizePetRegistrationDraft,
+  FOUND_PHOTO_SEMANTIC_SLOT_CODES,
+  getActivePetRegistrationDraft,
+  getPetCatalog,
   getPetPhotoManifest,
+  getPetProfileHub,
   inspectPetPhotoLocally,
   FOUND_PHOTO_SLOT_MAX,
   listFoundPetPhotos,
   listFoundPets,
+  listPetMatchNotices,
   listPetSOS,
   listPets,
   LOTBI_PET_NUMBER_LABEL,
@@ -28,27 +39,29 @@ import {
   petPhotoNextActionLabel,
   petPhotoRejection,
   PET_PHOTO_ANCHOR_SLOT_CODES,
+  PET_MATCHING_CONSENT_VERSION,
   petSexLabel,
   petSpeciesLabel,
-  registerPet,
   renamePet,
+  respondToPetMatchNotice,
   setPetMatchingConsent,
   uploadFoundPetPhoto,
   uploadPetPhoto,
-} from './site-pet.js?v=aset-f82d1df7c62e';
+  uploadPetRegistrationDraftPhoto,
+  updatePetRegistrationDraft,
+  updatePetProfilePreferences,
+} from './site-pet.js?v=aset-4eb033984c05';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-f82d1df7c62e';
+} from './site-pet-guides.js?v=aset-4eb033984c05';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-f82d1df7c62e';
-
-const MATCHING_CONSENT_VERSION = 'site-pet-matching-2026-09';
+} from './site-pet-gate.js?v=aset-4eb033984c05';
 
 const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -87,6 +100,7 @@ export async function mountPetFamilyManager({
   onCountChange,
   subscription,
   search = globalThis.location?.search || '',
+  initialSurface = 'pets',
 } = {}) {
   if (!(root instanceof HTMLElement)) return null;
 
@@ -137,15 +151,35 @@ export async function mountPetFamilyManager({
   const foundSection = el('section', 'pet-section pet-case-section');
   foundSection.dataset.petFound = '';
 
+  const home = el('nav', 'pet-home');
+  home.setAttribute('aria-label', '반려동물 메뉴');
+  const homeItems = [
+    ['pets', '내 반려동물', '등록·사진·기본 정보를 관리합니다.'],
+    ['sos', '실종 신고', '내 반려동물의 실종 기록을 남깁니다.'],
+    ['found', '발견 제보', '발견한 동물을 안전하게 기록합니다.'],
+  ];
+  for (const [target, title, copy] of homeItems) {
+    const button = el('button', 'pet-home-card');
+    button.type = 'button';
+    button.dataset.petHomeTarget = target;
+    button.append(el('strong', 'pet-home-card-title', title), el('span', 'pet-home-card-copy', copy));
+    home.appendChild(button);
+  }
+
   const notice = el('p', 'pet-notice', NON_ASSERTION_NOTICE);
 
-  surface.append(status, error, listSection, detailSection, sosSection, foundSection, notice);
+  surface.append(status, error, home, listSection, detailSection, sosSection, foundSection, notice);
 
   let pets = [];
   let sosCases = [];
   let foundCases = [];
   let foundPhotos = new Map();
   let photoCounts = new Map();
+  let petProfiles = new Map();
+  let matchNotices = [];
+  let catalog = null;
+  let registrationDraft = null;
+  let activeSurface = ['pets', 'sos', 'found'].includes(initialSurface) ? initialSurface : 'pets';
   let busy = false;
   // `${petId}:${slotCode}` -> object URL. Cached so re-rendering the detail
   // does not refetch every private photo, and revoked on dispose.
@@ -153,6 +187,26 @@ export async function mountPetFamilyManager({
   const filledSlots = new Map();
 
   const previewKey = (petId, slotCode) => `${petId}:${slotCode}`;
+
+  const showSurface = target => {
+    activeSurface = ['pets', 'sos', 'found'].includes(target) ? target : 'pets';
+    listSection.hidden = activeSurface !== 'pets';
+    detailSection.hidden = activeSurface !== 'pets' || detailSection.childElementCount === 0;
+    sosSection.hidden = activeSurface !== 'sos';
+    foundSection.hidden = activeSurface !== 'found';
+    for (const button of home.querySelectorAll('[data-pet-home-target]')) {
+      const selected = button.dataset.petHomeTarget === activeSurface;
+      button.dataset.petHomeActive = selected ? 'true' : 'false';
+      button.setAttribute('aria-current', selected ? 'page' : 'false');
+    }
+  };
+
+  home.addEventListener('click', event => {
+    const button = event.target instanceof Element ? event.target.closest('[data-pet-home-target]') : null;
+    if (!(button instanceof HTMLButtonElement)) return;
+    showSurface(button.dataset.petHomeTarget || 'pets');
+  });
+  showSurface(activeSurface);
 
   const revokePreview = key => {
     const url = photoPreviews.get(key);
@@ -250,7 +304,7 @@ export async function mountPetFamilyManager({
       const empty = el('div', 'pet-empty');
       empty.append(
         el('p', 'pet-empty-title', '등록된 반려동물이 없습니다.'),
-        el('p', 'pet-empty-copy', '이름과 종만 있으면 등록할 수 있습니다. 사진은 등록 후 천천히 채워도 됩니다.'),
+        el('p', 'pet-empty-copy', '사진부터 올리면 비공개 등록 초안이 저장됩니다. 이름과 기본 정보는 그다음에 입력합니다.'),
       );
       listBody.appendChild(empty);
       return;
@@ -258,11 +312,71 @@ export async function mountPetFamilyManager({
     for (const pet of pets) {
       const card = el('article', 'pet-card');
       card.dataset.petCard = pet.petId;
+      const profile = petProfiles.get(pet.petId);
+
+      if (profile?.thumbnailSlot) {
+        const thumbnail = el('div', 'pet-profile-thumbnail');
+        const key = previewKey(pet.petId, profile.thumbnailSlot);
+        const cached = photoPreviews.get(key);
+        if (cached) {
+          const image = el('img', 'pet-profile-thumbnail-image');
+          image.src = cached;
+          image.alt = `${pet.name} 대표 사진`;
+          image.decoding = 'async';
+          thumbnail.appendChild(image);
+        } else {
+          thumbnail.appendChild(el('span', 'pet-profile-thumbnail-loading', '사진'));
+          void (async () => {
+            try {
+              const url = await fetchPetPhotoObjectUrl(sessionToken, pet.petId, profile.thumbnailSlot);
+              photoPreviews.set(key, url);
+              if (!thumbnail.isConnected) return;
+              const image = el('img', 'pet-profile-thumbnail-image');
+              image.src = url;
+              image.alt = `${pet.name} 대표 사진`;
+              image.decoding = 'async';
+              thumbnail.replaceChildren(image);
+            } catch {
+              thumbnail.dataset.petThumbnailUnavailable = 'true';
+            }
+          })();
+        }
+        card.appendChild(thumbnail);
+      }
 
       const head = el('div', 'pet-card-head');
-      head.append(el('h4', 'pet-card-name', pet.name));
+      head.append(el('h4', 'pet-card-name', `${pet.name}${profile?.isPrimary ? ' ⭐' : ''}`));
       head.appendChild(el('span', 'pet-card-species', petSpeciesLabel(pet.species)));
       card.appendChild(head);
+
+      if (profile) {
+        card.appendChild(el('p', 'pet-profile-age', `${pet.name} · ${profile.ageLabel}`));
+        if (profile.familyLabel) card.appendChild(el('p', 'pet-profile-family', profile.familyLabel));
+        const identity = profile.photoCount >= profile.photoTotal && profile.visualStatus === 'READY'
+          ? `✓ ${profile.visualLabel}`
+          : `📷 식별사진 ${profile.photoCount}/${profile.photoTotal}`;
+        card.appendChild(el('p', 'pet-profile-identity', identity));
+        if (profile.activeSos) {
+          card.appendChild(el('p', 'pet-profile-sos', `🔴 ${pet.name} 실종 신고 중`));
+        } else if (profile.recentlyResolved) {
+          card.appendChild(el('p', 'pet-profile-resolved', `❤️ ${pet.name}가 돌아왔어요`));
+        }
+        if (profile.birthday?.reminderDue) {
+          const birthdayCopy = profile.birthday.state === 'TODAY'
+            ? `🎉 오늘은 ${pet.name} 생일이에요!`
+            : (profile.birthday.state === 'D1'
+              ? `🎂 ${pet.name} 생일이 내일이에요`
+              : `🎂 ${pet.name} 생일까지 7일`);
+          card.appendChild(el('p', 'pet-profile-birthday', birthdayCopy));
+        }
+        if (profile.candidateNoticeCount > 0) {
+          const candidate = el('button', 'pet-candidate-cta', `🟠 ${pet.name}와 유사한 발견 제보가 있어요 · 확인하기 ›`);
+          candidate.type = 'button';
+          candidate.dataset.petOpen = pet.petId;
+          candidate.dataset.petCandidateOpen = pet.petId;
+          card.appendChild(candidate);
+        }
+      }
 
       const filled = photoCounts.get(pet.petId);
       const progress = el('div', 'pet-progress');
@@ -341,7 +455,7 @@ export async function mountPetFamilyManager({
         image.decoding = 'async';
         media.appendChild(image);
       } else {
-        const diagram = petPhotoSlotDiagram(slotCode);
+        const diagram = petPhotoSlotDiagram(slotCode, pet.species);
         if (diagram) media.appendChild(diagram);
         if (filled.has(slotCode)) media.appendChild(el('span', 'pet-slot-loading', '불러오는 중'));
       }
@@ -523,7 +637,105 @@ export async function mountPetFamilyManager({
     }
   };
 
+  const refreshPetProfileData = async () => {
+    const [profiles, notices] = await Promise.all([
+      getPetProfileHub(sessionToken),
+      listPetMatchNotices(sessionToken),
+    ]);
+    petProfiles = new Map(profiles.map(row => [row.petId, row]));
+    matchNotices = [...notices];
+  };
+
+  const renderMatchNotices = (pet, host) => {
+    host.replaceChildren();
+    const rows = matchNotices.filter(item => item.petId === pet.petId);
+    if (!rows.length) {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    host.appendChild(el('h4', 'pet-candidate-title', '유사한 발견 제보'));
+    host.appendChild(el(
+      'p',
+      'pet-candidate-safety',
+      '관리자가 근거를 검토한 후보입니다. 시각적 유사도는 같은 반려동물일 확률이나 확정 판정이 아닙니다.',
+    ));
+    for (const notice of rows) {
+      const card = el('article', 'pet-candidate-card');
+      card.dataset.petCandidate = notice.candidateId;
+      card.appendChild(el('strong', 'pet-candidate-message', notice.message));
+      const photo = el('div', 'pet-candidate-photo');
+      const key = previewKey(pet.petId, `candidate-${notice.candidateId}`);
+      const cached = photoPreviews.get(key);
+      if (cached) {
+        const image = el('img', 'pet-candidate-photo-image');
+        image.src = cached; image.alt = '발견 제보 사진'; image.decoding = 'async';
+        photo.appendChild(image);
+      } else {
+        photo.appendChild(el('span', 'pet-candidate-photo-loading', '발견 사진 불러오는 중'));
+        void (async () => {
+          try {
+            const url = await fetchPetMatchNoticePhotoObjectUrl(sessionToken, notice.candidateId);
+            photoPreviews.set(key, url);
+            if (!photo.isConnected) return;
+            const image = el('img', 'pet-candidate-photo-image');
+            image.src = url; image.alt = '발견 제보 사진'; image.decoding = 'async';
+            photo.replaceChildren(image);
+          } catch {
+            photo.replaceChildren(el('span', 'pet-candidate-photo-loading', '발견 사진을 불러오지 못했습니다.'));
+          }
+        })();
+      }
+      card.appendChild(photo);
+      if (notice.visualSimilarityLabel) {
+        card.appendChild(el('p', 'pet-candidate-evidence', notice.visualSimilarityLabel));
+      }
+      if (notice.foundAt) card.appendChild(el('p', 'pet-candidate-evidence', `발견 시각 ${displayMoment(notice.foundAt)}`));
+      const location = notice.foundLocation.label
+        || notice.foundLocation.district
+        || notice.foundLocation.city
+        || notice.foundLocation.region
+        || '';
+      if (location) card.appendChild(el('p', 'pet-candidate-evidence', `발견 지역 ${location}`));
+      const privacy = el('p', 'pet-candidate-privacy', '발견자 연락처는 공개되지 않습니다.');
+      card.appendChild(privacy);
+      if (notice.status === 'RESPONDED' || notice.ownerResponse) {
+        const labels = {LIKELY_MINE: '내 반려동물 같아요', NOT_MINE: '아닌 것 같아요', UNSURE: '잘 모르겠어요'};
+        card.appendChild(el('p', 'pet-candidate-response', `응답: ${labels[notice.ownerResponse] || '확인 완료'}`));
+      } else {
+        const actions = el('div', 'pet-candidate-actions');
+        for (const [response, label] of [
+          ['LIKELY_MINE', '내 반려동물 같아요'],
+          ['NOT_MINE', '아닌 것 같아요'],
+          ['UNSURE', '잘 모르겠어요'],
+        ]) {
+          const button = el('button', 'site-button site-button-secondary', label);
+          button.type = 'button';
+          button.addEventListener('click', async () => {
+            if (busy) return;
+            setBusy(true); showError('');
+            try {
+              await respondToPetMatchNotice(sessionToken, notice.candidateId, response);
+              await refreshPetProfileData();
+              renderList();
+              renderDetail(pet.petId);
+              status.textContent = '발견 제보 확인 응답을 저장했습니다. 연락처 연결은 시작하지 않았습니다.';
+            } catch (value) {
+              showError(errorMessage(value, '확인 응답을 저장하지 못했습니다.'), value);
+            } finally {
+              setBusy(false);
+            }
+          });
+          actions.appendChild(button);
+        }
+        card.appendChild(actions);
+      }
+      host.appendChild(card);
+    }
+  };
+
   const renderDetail = petId => {
+    addButton.hidden = false;
     const pet = pets.find(item => item.petId === petId);
     if (!pet) {
       detailSection.hidden = true;
@@ -558,7 +770,59 @@ export async function mountPetFamilyManager({
     addFact('특징', pet.distinctiveMarks);
     const filled = photoCounts.get(pet.petId);
     addFact('사진', Number.isInteger(filled) ? `${filled}/${PET_PHOTO_SLOT_CODES.length}` : '확인 실패');
+    const profile = petProfiles.get(pet.petId);
+    if (profile) {
+      addFact('현재 나이', profile.ageLabel);
+      addFact('가족 기간', profile.familyLabel);
+      addFact('식별정보', profile.visualLabel);
+      if (profile.activeSos) addFact('실종 상태', '실종 신고 중');
+      else if (profile.recentlyResolved) addFact('실종 상태', '최근 돌아옴');
+    }
     detailSection.appendChild(facts);
+
+    if (profile) {
+      const profileControls = el('section', 'pet-profile-controls');
+      profileControls.appendChild(el('h4', 'pet-profile-controls-title', '프로필 설정'));
+      for (const [field, label, checked] of [
+        ['is_primary', '대표 반려동물 ⭐', profile.isPrimary],
+        ['birthday_reminders_enabled', '정확한 생일 알림', profile.birthdayRemindersEnabled],
+        ['family_anniversary_reminders_enabled', '가족이 된 날 알림', profile.familyAnniversaryRemindersEnabled],
+      ]) {
+        const line = el('label', 'pet-consent-toggle');
+        const input = el('input'); input.type = 'checkbox'; input.checked = checked;
+        if (field === 'birthday_reminders_enabled' && profile.ageMode !== 'EXACT') input.disabled = true;
+        line.append(input, el('span', '', label));
+        input.addEventListener('change', async () => {
+          if (busy) return;
+          setBusy(true); showError('');
+          try {
+            await updatePetProfilePreferences(sessionToken, pet.petId, {[field]: input.checked});
+            await refreshPetProfileData();
+            renderList(); renderDetail(pet.petId);
+            status.textContent = '프로필 설정을 저장했습니다.';
+          } catch (value) {
+            input.checked = !input.checked;
+            showError(errorMessage(value, '프로필 설정을 저장하지 못했습니다.'), value);
+          } finally { setBusy(false); }
+        });
+        profileControls.appendChild(line);
+      }
+      detailSection.appendChild(profileControls);
+
+      if (profile.timeline.length) {
+        const timeline = el('section', 'pet-timeline');
+        timeline.appendChild(el('h4', 'pet-timeline-title', '기록'));
+        const list = el('ol', 'pet-timeline-list');
+        for (const item of profile.timeline) {
+          const row = el('li', 'pet-timeline-item');
+          if (item.at) row.appendChild(el('time', 'pet-timeline-time', displayMoment(item.at)));
+          row.appendChild(el('span', 'pet-timeline-label', item.label));
+          list.appendChild(row);
+        }
+        timeline.appendChild(list);
+        detailSection.appendChild(timeline);
+      }
+    }
 
     if (pet.officialRegistrationNumber) {
       const registration = el('div', 'pet-registration');
@@ -592,6 +856,11 @@ export async function mountPetFamilyManager({
     photos.dataset.petPhotos = pet.petId;
     detailSection.appendChild(photos);
     renderPhotos(pet, photos);
+
+    const candidates = el('section', 'pet-candidate-section');
+    candidates.dataset.petCandidates = pet.petId;
+    detailSection.appendChild(candidates);
+    renderMatchNotices(pet, candidates);
 
     const renameField = el('label', 'site-field', '이름');
     const renameInput = el('input');
@@ -739,8 +1008,9 @@ export async function mountPetFamilyManager({
     return {field, input};
   };
 
-  // Found photos have no fixed meaning per slot, unlike a registered pet's ten,
-  // so the next free index is used rather than asking the reporter to pick one.
+  // Found reporters are never forced through annotation. The next free index is
+  // paired with the corresponding semantic view as a best-effort server hint;
+  // the report remains valid with any number of photos, including zero.
   const nextFoundSlot = caseId => {
     const used = new Set(foundPhotos.get(caseId) || []);
     for (let index = 1; index <= FOUND_PHOTO_SLOT_MAX; index += 1) {
@@ -825,7 +1095,13 @@ export async function mountPetFamilyManager({
       if (!file || busy) return;
       setBusy(true);
       try {
-        await uploadFoundPetPhoto(sessionToken, record.caseId, slotIndex, file);
+        await uploadFoundPetPhoto(
+          sessionToken,
+          record.caseId,
+          slotIndex,
+          file,
+          FOUND_PHOTO_SEMANTIC_SLOT_CODES[slotIndex - 1] || '',
+        );
         foundPhotos.set(record.caseId, [...slots, slotIndex].sort((a, b) => a - b));
         renderFoundPhotos(record, host);
         status.textContent = '사진을 첨부했습니다.';
@@ -1087,165 +1363,745 @@ export async function mountPetFamilyManager({
     });
   };
 
-  const renderRegisterForm = () => {
+  const renderRegisterForm = async () => {
+    showSurface('pets');
+    // The list-level action starts or resumes the draft. Once the draft is
+    // open, keeping a disabled "등록 계속" button above the active form looks
+    // like an extra step, so the form owns all navigation from here.
+    addButton.hidden = true;
     detailSection.hidden = false;
     detailSection.replaceChildren();
 
     const header = el('div', 'pet-section-header');
     header.append(el('h3', 'pet-section-title', '반려동물 등록'));
-    const cancel = el('button', 'site-button site-button-secondary', '취소');
+    const cancel = el('button', 'site-button site-button-secondary', '나중에 계속');
     cancel.type = 'button';
     cancel.addEventListener('click', () => {
       detailSection.hidden = true;
       detailSection.replaceChildren();
+      addButton.hidden = false;
+      addButton.focus();
     });
     header.appendChild(cancel);
-    detailSection.appendChild(header);
+    const body = el('div', 'pet-draft-body');
+    detailSection.append(header, body);
 
-    const form = el('form', 'pet-form');
-    form.dataset.petRegisterForm = '';
-    form.noValidate = true;
-
-    const nameField = el('label', 'site-field', '이름 (필수)');
-    const nameInput = el('input');
-    nameInput.type = 'text';
-    nameInput.required = true;
-    nameInput.maxLength = 120;
-    nameInput.autocomplete = 'off';
-    nameField.appendChild(nameInput);
-
-    const speciesField = el('fieldset', 'pet-choice-field');
-    speciesField.appendChild(el('legend', '', '종 (필수)'));
-    const speciesRow = el('div', 'pet-choice-row');
-    for (const value of ['DOG', 'CAT']) {
-      const choice = el('label', 'pet-choice');
-      const input = el('input');
-      input.type = 'radio';
-      input.name = 'pet-species';
-      input.value = value;
-      if (value === 'DOG') input.checked = true;
-      choice.append(input, el('span', '', petSpeciesLabel(value)));
-      speciesRow.appendChild(choice);
+    const renderLoading = copy => body.replaceChildren(el('p', 'pet-empty-copy', copy));
+    renderLoading('저장된 등록 초안을 확인하는 중입니다.');
+    showError('');
+    try {
+      catalog = catalog || await getPetCatalog();
+      registrationDraft = registrationDraft || await getActivePetRegistrationDraft(sessionToken);
+      registrationDraft = registrationDraft || await createPetRegistrationDraft(sessionToken);
+      addButton.textContent = '등록 계속';
+    } catch (value) {
+      body.replaceChildren(el('p', 'site-field-error', errorMessage(value, '반려동물 등록을 시작하지 못했습니다.')));
+      addButton.hidden = false;
+      return;
     }
-    speciesField.appendChild(speciesRow);
 
-    const sexField = el('label', 'site-field', '성별');
-    const sexSelect = el('select');
-    for (const [value, label] of [['UNKNOWN', '모름'], ['MALE', '수컷'], ['FEMALE', '암컷']]) {
-      const option = el('option', '', label);
-      option.value = value;
-      sexSelect.appendChild(option);
-    }
-    sexField.appendChild(sexSelect);
+    const stepNames = Object.freeze({PHOTOS: '사진', BASIC: '기본 정보', ADDITIONAL: '추가 정보', REVIEW: '검토'});
+    let finalizeRequestId = '';
+    let autosaveTimer = 0;
 
-    const breedField = el('label', 'site-field', '품종');
-    const breedInput = el('input');
-    breedInput.type = 'text';
-    breedInput.maxLength = 120;
-    breedField.appendChild(breedInput);
+    const replaceDraftPhoto = photo => {
+      const photos = registrationDraft.photos.filter(item => item.slotCode !== photo.slotCode);
+      registrationDraft = Object.freeze({...registrationDraft, photos: Object.freeze([...photos, photo])});
+    };
 
-    const birthField = el('label', 'site-field', '생년월일');
-    const birthInput = el('input');
-    birthInput.type = 'date';
-    birthField.appendChild(birthInput);
+    const saveDraft = async updates => {
+      registrationDraft = await updatePetRegistrationDraft(
+        sessionToken,
+        registrationDraft.draftId,
+        updates,
+      );
+      status.textContent = '등록 초안을 저장했습니다.';
+      return registrationDraft;
+    };
 
-    const colorField = el('label', 'site-field', '색상');
-    const colorInput = el('input');
-    colorInput.type = 'text';
-    colorInput.maxLength = 120;
-    colorField.appendChild(colorInput);
+    const scheduleAutosave = producer => {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(async () => {
+        if (busy || !detailSection.isConnected) return;
+        try {
+          await saveDraft(producer());
+        } catch (value) {
+          showError(errorMessage(value, '등록 초안을 자동 저장하지 못했습니다.'), value);
+        }
+      }, 500);
+    };
 
-    const marksField = el('label', 'site-field', '특징');
-    const marksInput = el('input');
-    marksInput.type = 'text';
-    marksInput.maxLength = 2000;
-    marksField.appendChild(marksInput);
+    const stepChrome = step => {
+      const stepCodes = ['PHOTOS', 'BASIC', 'ADDITIONAL', 'REVIEW'];
+      const activeIndex = Math.max(0, stepCodes.indexOf(step));
+      body.appendChild(el(
+        'p',
+        'pet-draft-progress-label',
+        `반려동물 등록 ${activeIndex + 1}단계 / ${stepCodes.length}단계`,
+      ));
+      const progress = el('ol', 'pet-draft-steps');
+      stepCodes.forEach((code, index) => {
+        const complete = index < activeIndex;
+        const item = el('li', 'pet-draft-step');
+        item.dataset.petDraftStep = code;
+        item.dataset.petDraftStepActive = code === step ? 'true' : 'false';
+        item.dataset.petDraftStepComplete = complete ? 'true' : 'false';
+        if (code === step) item.setAttribute('aria-current', 'step');
+        item.append(
+          el('span', 'pet-draft-step-number', complete ? '✓' : String(index + 1)),
+          el('span', 'pet-draft-step-name', stepNames[code]),
+        );
+        progress.appendChild(item);
+      });
+      body.appendChild(progress);
+    };
 
-    const registrationField = el('label', 'site-field', `${OFFICIAL_REGISTRATION_LABEL} (선택)`);
-    const registrationInput = el('input');
-    registrationInput.type = 'text';
-    registrationInput.maxLength = 120;
-    registrationInput.autocomplete = 'off';
-    registrationInput.placeholder = '없으면 비워 두세요';
-    registrationField.appendChild(registrationInput);
-    const registrationHint = el(
-      'p',
-      'pet-field-hint',
-      '동물보호법에 따라 국가 시스템에서 발급하는 번호입니다. 롯비가 발급하지 않습니다. '
-      + '없으면 비워 두셔도 등록됩니다. 민감정보라 목록에는 표시하지 않고 상세에서만 가려서 보여줍니다.',
-    );
+    const formError = () => {
+      const node = el('p', 'site-field-error');
+      node.setAttribute('role', 'alert');
+      return node;
+    };
 
-    const formError = el('p', 'site-field-error');
-    formError.setAttribute('role', 'alert');
+    const backButton = target => {
+      const button = el('button', 'site-button site-button-secondary', '이전');
+      button.type = 'button';
+      button.addEventListener('click', async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+          await saveDraft({current_step: target});
+          renderStep();
+        } catch (value) {
+          showError(errorMessage(value, '이전 단계로 이동하지 못했습니다.'), value);
+        } finally {
+          setBusy(false);
+        }
+      });
+      return button;
+    };
 
-    const submit = el('button', 'site-button site-button-primary', '등록');
-    submit.type = 'submit';
+    const renderDraftPhotos = () => {
+      body.replaceChildren();
+      stepChrome('PHOTOS');
+      body.append(
+        el('h4', 'pet-draft-title', '먼저 반려동물 종류를 선택해 주세요'),
+        el('p', 'pet-empty-copy', '선택한 동물에 맞는 사진 촬영 예시만 보여드립니다.'),
+      );
 
-    form.append(
-      nameField,
-      speciesField,
-      sexField,
-      breedField,
-      birthField,
-      colorField,
-      marksField,
-      registrationField,
-      registrationHint,
-      formError,
-      submit,
-    );
+      const speciesField = el('fieldset', 'pet-choice-field pet-draft-species-field');
+      speciesField.appendChild(el('legend', '', '등록할 반려동물'));
+      const speciesRow = el('div', 'pet-choice-row');
+      for (const [value, icon, label] of [['DOG', '🐶', '강아지'], ['CAT', '🐱', '고양이']]) {
+        const choice = el('label', 'pet-choice pet-draft-species-choice');
+        const input = el('input');
+        input.type = 'radio';
+        input.name = 'pet-species';
+        input.value = value;
+        input.checked = registrationDraft.species === value;
+        choice.append(input, el('span', 'pet-draft-species-icon', icon), el('span', '', label));
+        speciesRow.appendChild(choice);
+      }
+      speciesField.appendChild(speciesRow);
+      const speciesError = formError();
+      speciesRow.addEventListener('change', async () => {
+        if (busy) return;
+        const species = speciesRow.querySelector('input:checked')?.value || '';
+        if (!species) return;
+        setBusy(true);
+        speciesError.textContent = '';
+        try {
+          const speciesChanged = registrationDraft.species && registrationDraft.species !== species;
+          await saveDraft({species, ...(speciesChanged ? {breed_code: null, breed: null} : {})});
+          renderDraftPhotos();
+        } catch (value) {
+          speciesError.textContent = errorMessage(value, '반려동물 종류를 저장하지 못했습니다.');
+        } finally {
+          setBusy(false);
+        }
+      });
+      body.append(speciesField, speciesError);
 
-    // One request id per attempt keeps Core's idempotent replay meaningful
-    // when a submit is retried after a network error.
-    let requestId = '';
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      if (busy) return;
-      const name = nameInput.value.trim();
-      if (!name) {
-        formError.textContent = '이름을 입력해 주세요.';
-        nameInput.focus();
+      if (!['DOG', 'CAT'].includes(registrationDraft.species)) {
+        body.appendChild(el('p', 'pet-draft-species-prompt', '강아지 또는 고양이를 선택하면 사진 등록 칸이 나타납니다.'));
         return;
       }
-      formError.textContent = '';
-      setBusy(true);
-      showError('');
-      submit.disabled = true;
-      requestId = requestId || `site.pet.register.${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)}`;
-      try {
-        const created = await registerPet(sessionToken, {
-          requestId,
-          name,
-          species: speciesRow.querySelector('input:checked')?.value || 'DOG',
-          sex: sexSelect.value,
-          breed: breedInput.value,
-          birthDate: birthInput.value,
-          color: colorInput.value,
-          distinctiveMarks: marksInput.value,
-          officialRegistrationNumber: registrationInput.value,
-        });
-        requestId = '';
-        pets = [...pets, created];
-        photoCounts.set(created.petId, 0);
-        filledSlots.set(created.petId, new Set());
-        renderList();
-        reportCount();
-        renderDetail(created.petId);
-        status.textContent = `${created.name} 등록을 마쳤습니다.`;
-        showGateNotice();
-      } catch (value) {
-        formError.textContent = errorMessage(value, '반려동물을 등록하지 못했습니다.');
-      } finally {
-        submit.disabled = false;
-        setBusy(false);
-      }
-    });
 
-    detailSection.appendChild(form);
-    queueMicrotask(() => nameInput.focus());
+      body.append(
+        el('h4', 'pet-draft-title', `${petSpeciesLabel(registrationDraft.species)} 사진 10장을 등록해 주세요`),
+        el('p', 'pet-empty-copy', '10장은 모두 비공개 초안에 저장됩니다. 얼굴·몸 전체 사진보다 코나 특징 사진을 먼저 올려도 지우지 않고 보관했다가 다시 확인합니다.'),
+      );
+      const photosBySlot = new Map(registrationDraft.photos.map(photo => [photo.slotCode, photo]));
+      const count = el('p', 'pet-photo-count', `${photosBySlot.size}/${PET_PHOTO_SLOT_CODES.length}`);
+      body.appendChild(count);
+      const grid = el('div', 'pet-slot-grid');
+      grid.dataset.petDraftSlotGrid = '';
+
+      PET_PHOTO_SLOT_CODES.forEach((slotCode, index) => {
+        const photo = photosBySlot.get(slotCode);
+        const tile = el('figure', 'pet-slot');
+        tile.dataset.petDraftSlot = slotCode;
+        tile.dataset.petSlotFilled = photo ? 'true' : 'false';
+        tile.dataset.petPhotoInspection = photo?.inspectionState || '';
+        const media = el('div', 'pet-slot-media');
+        const key = previewKey(registrationDraft.draftId, slotCode);
+        const cached = photoPreviews.get(key);
+        if (cached) {
+          const image = el('img', 'pet-slot-photo');
+          image.src = cached;
+          image.alt = `${petPhotoSlotLabel(slotCode)} 등록 사진`;
+          media.appendChild(image);
+        } else {
+          const diagram = petPhotoSlotDiagram(slotCode, registrationDraft.species);
+          if (diagram) media.appendChild(diagram);
+        }
+        tile.appendChild(media);
+        const caption = el('figcaption', 'pet-slot-caption');
+        caption.append(el('span', 'pet-slot-index', String(index + 1)), el('span', 'pet-slot-label', petPhotoSlotLabel(slotCode)));
+        tile.append(caption, el('p', 'pet-slot-hint', petPhotoSlotHint(slotCode)));
+        if (photo) {
+          const stateCopy = photo.inspectionState === 'ACCEPTED'
+            ? '사진 확인됨'
+            : (photo.inspectionState === 'REJECTED' ? '다시 촬영 필요' : '초안 보관 · 확인 대기');
+          tile.appendChild(el('p', `pet-draft-photo-state pet-draft-photo-state-${photo.inspectionState.toLowerCase()}`, stateCopy));
+        }
+        const slotError = formError();
+        slotError.hidden = true;
+        const input = el('input');
+        input.type = 'file';
+        input.accept = 'image/jpeg,image/png';
+        input.hidden = true;
+        const actions = el('div', 'pet-slot-actions');
+        const choose = el('button', 'site-button site-button-secondary', photo ? '다시 올리기' : '사진 올리기');
+        choose.type = 'button';
+        choose.addEventListener('click', () => input.click());
+        actions.appendChild(choose);
+        if (photo) {
+          const remove = el('button', 'pet-slot-remove', '삭제');
+          remove.type = 'button';
+          remove.addEventListener('click', async () => {
+            if (busy) return;
+            setBusy(true);
+            try {
+              await deletePetRegistrationDraftPhoto(sessionToken, registrationDraft.draftId, slotCode);
+              registrationDraft = Object.freeze({
+                ...registrationDraft,
+                photos: Object.freeze(registrationDraft.photos.filter(item => item.slotCode !== slotCode)),
+              });
+              revokePreview(key);
+              renderDraftPhotos();
+            } catch (value) {
+              slotError.textContent = errorMessage(value, '초안 사진을 삭제하지 못했습니다.');
+              slotError.hidden = false;
+            } finally {
+              setBusy(false);
+            }
+          });
+          actions.appendChild(remove);
+        }
+        input.addEventListener('change', async () => {
+          const file = input.files?.[0];
+          input.value = '';
+          if (!file || busy) return;
+          const rejection = petPhotoRejection(file);
+          if (rejection) {
+            slotError.textContent = rejection;
+            slotError.hidden = false;
+            return;
+          }
+          const localLook = await inspectPetPhotoLocally(file);
+          if (localLook) {
+            slotError.textContent = localLook.message;
+            slotError.hidden = false;
+            return;
+          }
+          setBusy(true);
+          slotError.hidden = true;
+          try {
+            const saved = await uploadPetRegistrationDraftPhoto(
+              sessionToken,
+              registrationDraft.draftId,
+              slotCode,
+              file,
+            );
+            replaceDraftPhoto(saved);
+            revokePreview(key);
+            try {
+              photoPreviews.set(key, await fetchPetRegistrationDraftPhotoObjectUrl(
+                sessionToken,
+                registrationDraft.draftId,
+                slotCode,
+              ));
+            } catch {
+              // The private upload succeeded; the preview can be retried after resume.
+            }
+            renderDraftPhotos();
+            status.textContent = `${petPhotoSlotLabel(slotCode)} 사진을 초안에 저장했습니다.`;
+          } catch (value) {
+            slotError.textContent = errorMessage(value, '초안 사진을 저장하지 못했습니다.');
+            slotError.hidden = false;
+          } finally {
+            setBusy(false);
+          }
+        });
+        tile.append(actions, slotError, input);
+        grid.appendChild(tile);
+      });
+      body.appendChild(grid);
+
+      for (const photo of registrationDraft.photos) {
+        const key = previewKey(registrationDraft.draftId, photo.slotCode);
+        if (photoPreviews.has(key)) continue;
+        void (async () => {
+          try {
+            photoPreviews.set(key, await fetchPetRegistrationDraftPhotoObjectUrl(
+              sessionToken,
+              registrationDraft.draftId,
+              photo.slotCode,
+            ));
+            if (detailSection.isConnected) renderDraftPhotos();
+          } catch {
+            // A missing preview does not discard or invalidate the private draft photo.
+          }
+        })();
+      }
+
+      const error = formError();
+      const actions = el('div', 'pet-draft-actions');
+      const next = el('button', 'site-button site-button-primary', '기본 정보 입력');
+      next.type = 'button';
+      next.dataset.petDraftNext = 'BASIC';
+      next.addEventListener('click', async () => {
+        if (busy) return;
+        if (registrationDraft.photos.length !== PET_PHOTO_SLOT_CODES.length) {
+          error.textContent = '사진 10장을 모두 올려 주세요.';
+          return;
+        }
+        setBusy(true);
+        try {
+          await saveDraft({current_step: 'BASIC'});
+          renderStep();
+        } catch (value) {
+          error.textContent = errorMessage(value, '다음 단계로 이동하지 못했습니다.');
+        } finally {
+          setBusy(false);
+        }
+      });
+      actions.appendChild(next);
+      body.append(error, actions);
+    };
+
+    const renderBasic = () => {
+      body.replaceChildren();
+      stepChrome('BASIC');
+      body.append(el('h4', 'pet-draft-title', '기본 정보를 알려 주세요'));
+      const form = el('form', 'pet-form');
+      form.dataset.petRegisterForm = '';
+      form.noValidate = true;
+      const nameField = el('label', 'site-field', '이름');
+      const nameInput = el('input');
+      nameInput.type = 'text';
+      nameInput.maxLength = 120;
+      nameInput.autocomplete = 'off';
+      nameInput.value = registrationDraft.name;
+      nameField.appendChild(nameInput);
+      const sexField = el('fieldset', 'pet-choice-field');
+      sexField.appendChild(el('legend', '', '성별'));
+      const sexRow = el('div', 'pet-choice-row');
+      for (const [value, label] of [['MALE', '수컷'], ['FEMALE', '암컷'], ['UNKNOWN', '모름']]) {
+        const choice = el('label', 'pet-choice');
+        const input = el('input');
+        input.type = 'radio';
+        input.name = 'pet-sex';
+        input.value = value;
+        input.checked = registrationDraft.sex === value;
+        choice.append(input, el('span', '', label));
+        sexRow.appendChild(choice);
+      }
+      sexField.appendChild(sexRow);
+      const breedField = el('label', 'site-field', '품종');
+      const breedSelect = el('select');
+      const breedPlaceholder = el('option', '', '종을 먼저 선택해 주세요');
+      breedPlaceholder.value = '';
+      breedSelect.appendChild(breedPlaceholder);
+      breedField.appendChild(breedSelect);
+      const breedOtherField = el('label', 'site-field', '기타 품종 이름');
+      const breedOtherInput = el('input');
+      breedOtherInput.type = 'text';
+      breedOtherInput.maxLength = 120;
+      breedOtherInput.value = registrationDraft.breed;
+      breedOtherField.appendChild(breedOtherInput);
+      breedOtherField.hidden = true;
+
+      const selectedSpecies = () => registrationDraft.species;
+      const populateBreeds = () => {
+        const species = selectedSpecies();
+        breedSelect.replaceChildren();
+        const placeholder = el('option', '', species ? '품종을 선택해 주세요' : '종을 먼저 선택해 주세요');
+        placeholder.value = '';
+        breedSelect.appendChild(placeholder);
+        for (const item of catalog.breeds[species] || []) {
+          const option = el('option', '', item.displayName);
+          option.value = item.code;
+          option.selected = registrationDraft.breedCode === item.code;
+          breedSelect.appendChild(option);
+        }
+        breedOtherField.hidden = !['OTHER_DOG', 'OTHER_CAT'].includes(breedSelect.value);
+      };
+      populateBreeds();
+      breedSelect.addEventListener('change', () => {
+        breedOtherField.hidden = !['OTHER_DOG', 'OTHER_CAT'].includes(breedSelect.value);
+        scheduleAutosave(() => ({species: selectedSpecies(), breed_code: breedSelect.value || null}));
+      });
+      nameInput.addEventListener('input', () => scheduleAutosave(() => ({name: nameInput.value.trim() || null})));
+      sexRow.addEventListener('change', () => scheduleAutosave(() => ({sex: sexRow.querySelector('input:checked')?.value || null})));
+      breedOtherInput.addEventListener('input', () => scheduleAutosave(() => ({breed: breedOtherInput.value.trim() || null})));
+
+      const error = formError();
+      const actions = el('div', 'pet-draft-actions');
+      const next = el('button', 'site-button site-button-primary', '추가 정보 입력');
+      next.type = 'submit';
+      actions.append(backButton('PHOTOS'), next);
+      form.append(nameField, sexField, breedField, breedOtherField, error, actions);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const species = selectedSpecies();
+        const sex = sexRow.querySelector('input:checked')?.value || '';
+        if (!nameInput.value.trim()) {
+          error.textContent = '이름을 입력해 주세요.';
+          nameInput.focus();
+          return;
+        }
+        if (!species) {
+          error.textContent = '사진 단계로 돌아가 강아지 또는 고양이를 선택해 주세요.';
+          return;
+        }
+        if (!sex) {
+          error.textContent = '성별을 선택해 주세요. 모르면 ‘모름’을 선택할 수 있습니다.';
+          return;
+        }
+        if (!breedSelect.value) {
+          error.textContent = '품종을 선택해 주세요. 모르면 ‘잘 모르겠어요’를 선택할 수 있습니다.';
+          breedSelect.focus();
+          return;
+        }
+        if (['OTHER_DOG', 'OTHER_CAT'].includes(breedSelect.value) && !breedOtherInput.value.trim()) {
+          error.textContent = '기타 품종 이름을 입력해 주세요.';
+          breedOtherInput.focus();
+          return;
+        }
+        clearTimeout(autosaveTimer);
+        setBusy(true);
+        try {
+          await saveDraft({
+            current_step: 'ADDITIONAL',
+            name: nameInput.value.trim(),
+            species,
+            sex,
+            breed_code: breedSelect.value,
+            breed: breedOtherInput.value.trim() || null,
+          });
+          renderStep();
+        } catch (value) {
+          error.textContent = errorMessage(value, '기본 정보를 저장하지 못했습니다.');
+        } finally {
+          setBusy(false);
+        }
+      });
+      body.appendChild(form);
+      queueMicrotask(() => nameInput.focus());
+    };
+
+    const renderAdditional = () => {
+      body.replaceChildren();
+      stepChrome('ADDITIONAL');
+      body.append(el('h4', 'pet-draft-title', '추가 정보를 확인해 주세요'));
+      const form = el('form', 'pet-form');
+      form.noValidate = true;
+      const ageField = el('fieldset', 'pet-choice-field');
+      ageField.appendChild(el('legend', '', '나이 기준'));
+      const ageRow = el('div', 'pet-choice-row');
+      const initialAgeMode = registrationDraft.birthDate
+        ? 'BIRTH_DATE'
+        : (Number.isInteger(registrationDraft.approximateAgeMonths) ? 'ESTIMATED' : 'UNKNOWN');
+      for (const [value, label] of [['BIRTH_DATE', '생년월일'], ['ESTIMATED', '추정 나이'], ['UNKNOWN', '모름']]) {
+        const choice = el('label', 'pet-choice');
+        const input = el('input');
+        input.type = 'radio';
+        input.name = 'pet-age-mode';
+        input.value = value;
+        input.checked = initialAgeMode === value;
+        choice.append(input, el('span', '', label));
+        ageRow.appendChild(choice);
+      }
+      ageField.appendChild(ageRow);
+      const birthField = el('label', 'site-field', '생년월일');
+      const birthInput = el('input');
+      birthInput.type = 'date';
+      birthInput.max = new Date().toISOString().slice(0, 10);
+      birthInput.value = registrationDraft.birthDate;
+      birthField.appendChild(birthInput);
+      const estimateField = el('label', 'site-field', '추정 나이 (개월)');
+      const estimateInput = el('input');
+      estimateInput.type = 'number';
+      estimateInput.min = '0';
+      estimateInput.max = '600';
+      estimateInput.inputMode = 'numeric';
+      estimateInput.value = Number.isInteger(registrationDraft.approximateAgeMonths)
+        ? String(registrationDraft.approximateAgeMonths)
+        : '';
+      estimateField.appendChild(estimateInput);
+      const syncAgeFields = () => {
+        const mode = ageRow.querySelector('input:checked')?.value || 'UNKNOWN';
+        birthField.hidden = mode !== 'BIRTH_DATE';
+        estimateField.hidden = mode !== 'ESTIMATED';
+      };
+      ageRow.addEventListener('change', syncAgeFields);
+      syncAgeFields();
+      const familyField = el('label', 'site-field', '가족이 된 날');
+      const familyInput = el('input');
+      familyInput.type = 'date';
+      familyInput.max = new Date().toISOString().slice(0, 10);
+      familyInput.value = registrationDraft.familyDate;
+      familyField.appendChild(familyInput);
+
+      const colorsField = el('fieldset', 'pet-choice-field');
+      colorsField.appendChild(el('legend', '', '털색 (여러 개 선택 가능)'));
+      const colors = el('div', 'pet-choice-row');
+      for (const item of catalog.colors) {
+        const choice = el('label', 'pet-choice');
+        const input = el('input');
+        input.type = 'checkbox';
+        input.name = 'pet-color';
+        input.value = item.code;
+        input.checked = registrationDraft.colorCodes.includes(item.code);
+        choice.append(input, el('span', '', item.displayName));
+        colors.appendChild(choice);
+      }
+      colorsField.appendChild(colors);
+      const colorOtherField = el('label', 'site-field', '기타 털색');
+      const colorOtherInput = el('input');
+      colorOtherInput.type = 'text';
+      colorOtherInput.maxLength = 120;
+      colorOtherInput.value = registrationDraft.colorOther;
+      colorOtherField.appendChild(colorOtherInput);
+      const syncColorOther = () => {
+        colorOtherField.hidden = !colors.querySelector('input[value="OTHER"]')?.checked;
+      };
+      colors.addEventListener('change', syncColorOther);
+      syncColorOther();
+
+      const patternField = el('label', 'site-field', '털 무늬');
+      const patternSelect = el('select');
+      const noPattern = el('option', '', '선택 안 함');
+      noPattern.value = '';
+      patternSelect.appendChild(noPattern);
+      for (const item of catalog.patterns.filter(item => !item.species || item.species === registrationDraft.species)) {
+        const option = el('option', '', item.displayName);
+        option.value = item.code;
+        option.selected = registrationDraft.coatPatternCode === item.code;
+        patternSelect.appendChild(option);
+      }
+      patternField.appendChild(patternSelect);
+      const patternOtherField = el('label', 'site-field', '기타 무늬');
+      const patternOtherInput = el('input');
+      patternOtherInput.type = 'text';
+      patternOtherInput.maxLength = 120;
+      patternOtherInput.value = registrationDraft.coatPatternOther;
+      patternOtherField.appendChild(patternOtherInput);
+      const syncPatternOther = () => {
+        patternOtherField.hidden = patternSelect.value !== 'OTHER';
+      };
+      patternSelect.addEventListener('change', syncPatternOther);
+      syncPatternOther();
+
+      const marksField = el('label', 'site-field', '눈에 띄는 특징');
+      const marksInput = el('textarea');
+      marksInput.maxLength = 2000;
+      marksInput.value = registrationDraft.distinctiveMarks;
+      marksField.appendChild(marksInput);
+      const registrationField = el('label', 'site-field', `${OFFICIAL_REGISTRATION_LABEL} (선택)`);
+      const registrationInput = el('input');
+      registrationInput.type = 'text';
+      registrationInput.maxLength = 120;
+      registrationInput.autocomplete = 'off';
+      registrationInput.placeholder = '없으면 비워 두세요';
+      registrationInput.value = registrationDraft.officialRegistrationNumber;
+      registrationField.appendChild(registrationInput);
+      const registrationHint = el(
+        'p',
+        'pet-field-hint',
+        '동물보호법에 따라 국가 시스템에서 발급하는 번호입니다. 롯비가 발급하지 않습니다. '
+        + '없으면 비워 두셔도 등록됩니다. 민감정보라 목록에는 표시하지 않고 상세에서만 가려서 보여줍니다.',
+      );
+      const consent = el('label', 'pet-consent-toggle');
+      const consentInput = el('input');
+      consentInput.type = 'checkbox';
+      consentInput.checked = registrationDraft.matchingConsentState === 'GRANTED';
+      consent.append(consentInput, el('span', '', '유사 공고 후보 찾기에 사진 사용 동의'));
+      const error = formError();
+      const actions = el('div', 'pet-draft-actions');
+      const review = el('button', 'site-button site-button-primary', '등록 내용 검토');
+      review.type = 'submit';
+      actions.append(backButton('BASIC'), review);
+      form.append(
+        ageField, birthField, estimateField, familyField, colorsField, colorOtherField,
+        patternField, patternOtherField, marksField, registrationField, registrationHint,
+        consent, el('p', 'pet-consent-copy', MATCHING_CONSENT_COPY), error, actions,
+      );
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const ageMode = ageRow.querySelector('input:checked')?.value || 'UNKNOWN';
+        if (ageMode === 'BIRTH_DATE' && !birthInput.value) {
+          error.textContent = '생년월일을 입력해 주세요.';
+          birthInput.focus();
+          return;
+        }
+        if (ageMode === 'ESTIMATED' && estimateInput.value === '') {
+          error.textContent = '추정 나이를 개월 수로 입력해 주세요.';
+          estimateInput.focus();
+          return;
+        }
+        const colorCodes = [...colors.querySelectorAll('input:checked')].map(input => input.value);
+        if (colorCodes.includes('OTHER') && !colorOtherInput.value.trim()) {
+          error.textContent = '기타 털색을 입력해 주세요.';
+          colorOtherInput.focus();
+          return;
+        }
+        if (patternSelect.value === 'OTHER' && !patternOtherInput.value.trim()) {
+          error.textContent = '기타 무늬를 입력해 주세요.';
+          patternOtherInput.focus();
+          return;
+        }
+        const updates = {
+          current_step: 'REVIEW',
+          age_mode: ageMode,
+          family_date: familyInput.value || null,
+          color_codes: colorCodes,
+          color_other: colorOtherInput.value.trim() || null,
+          coat_pattern_code: patternSelect.value || null,
+          coat_pattern_other: patternOtherInput.value.trim() || null,
+          distinctive_marks: marksInput.value.trim() || null,
+          official_registration_number: registrationInput.value.trim() || null,
+          matching_consent: consentInput.checked,
+          matching_consent_version: consentInput.checked ? PET_MATCHING_CONSENT_VERSION : null,
+        };
+        if (ageMode === 'BIRTH_DATE') updates.birth_date = birthInput.value;
+        if (ageMode === 'ESTIMATED') {
+          updates.approximate_age_months = Number(estimateInput.value);
+          updates.age_estimate_as_of = new Date().toISOString().slice(0, 10);
+        }
+        setBusy(true);
+        try {
+          await saveDraft(updates);
+          renderStep();
+        } catch (value) {
+          error.textContent = errorMessage(value, '추가 정보를 저장하지 못했습니다.');
+        } finally {
+          setBusy(false);
+        }
+      });
+      body.appendChild(form);
+    };
+
+    const renderReview = () => {
+      body.replaceChildren();
+      stepChrome('REVIEW');
+      body.append(
+        el('h4', 'pet-draft-title', '등록 전 마지막으로 확인해 주세요'),
+        el('p', 'pet-empty-copy', '등록을 확정한 뒤 롯비 반려동물 번호가 발급됩니다. 공개 자동 매칭이나 보호자 자동 알림은 켜지지 않습니다.'),
+      );
+      const facts = el('dl', 'pet-facts pet-draft-review');
+      const add = (term, value) => {
+        if (value !== '' && value !== null && value !== undefined) facts.append(el('dt', '', term), el('dd', '', String(value)));
+      };
+      add('이름', registrationDraft.name);
+      add('종', petSpeciesLabel(registrationDraft.species));
+      add('성별', petSexLabel(registrationDraft.sex));
+      add('품종', catalog.breeds[registrationDraft.species]?.find(item => item.code === registrationDraft.breedCode)?.displayName || registrationDraft.breed);
+      add('사진', `${registrationDraft.photos.length}/${PET_PHOTO_SLOT_CODES.length}`);
+      add('생년월일', registrationDraft.birthDate);
+      add('추정 나이', Number.isInteger(registrationDraft.approximateAgeMonths) ? `${registrationDraft.approximateAgeMonths}개월` : '');
+      add('가족이 된 날', registrationDraft.familyDate);
+      add('매칭 동의', consentLabel(registrationDraft.matchingConsentState));
+      body.appendChild(facts);
+      const error = formError();
+      const actions = el('div', 'pet-draft-actions');
+      const finish = el('button', 'site-button site-button-primary', '등록 확정');
+      finish.type = 'button';
+      finish.dataset.petDraftFinalize = '';
+      finish.addEventListener('click', async () => {
+        if (busy) return;
+        setBusy(true);
+        finalizeRequestId = finalizeRequestId || `site.pet.finalize.${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)}`;
+        try {
+          const result = await finalizePetRegistrationDraft(
+            sessionToken,
+            registrationDraft.draftId,
+            finalizeRequestId,
+          );
+          finalizeRequestId = '';
+          const created = result.pet;
+          revokePetPreviews(registrationDraft.draftId);
+          registrationDraft = null;
+          addButton.textContent = '반려동물 등록';
+          addButton.hidden = false;
+          pets = [...pets, created];
+          photoCounts.set(created.petId, PET_PHOTO_SLOT_CODES.length);
+          filledSlots.set(created.petId, new Set(PET_PHOTO_SLOT_CODES));
+          renderList();
+          reportCount();
+          renderDetail(created.petId);
+          status.textContent = `${created.name} 등록을 마쳤습니다.`;
+          showGateNotice();
+        } catch (value) {
+          error.textContent = errorMessage(value, '반려동물 등록을 확정하지 못했습니다.');
+          const code = errorCodeOf(value);
+          if (code) error.dataset.petErrorCode = code;
+        } finally {
+          setBusy(false);
+        }
+      });
+      actions.append(backButton('ADDITIONAL'), finish);
+      const discard = el('button', 'pet-case-cancel', '등록 초안 삭제');
+      discard.type = 'button';
+      const confirmDiscard = el('button', 'pet-delete-button', '초안 삭제 확정');
+      confirmDiscard.type = 'button';
+      confirmDiscard.hidden = true;
+      discard.addEventListener('click', () => {
+        discard.hidden = true;
+        confirmDiscard.hidden = false;
+      });
+      confirmDiscard.addEventListener('click', async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+          await deletePetRegistrationDraft(sessionToken, registrationDraft.draftId);
+          revokePetPreviews(registrationDraft.draftId);
+          registrationDraft = null;
+          addButton.textContent = '반려동물 등록';
+          addButton.hidden = false;
+          detailSection.hidden = true;
+          detailSection.replaceChildren();
+          status.textContent = '등록 초안을 삭제했습니다.';
+        } catch (value) {
+          error.textContent = errorMessage(value, '등록 초안을 삭제하지 못했습니다.');
+        } finally {
+          setBusy(false);
+        }
+      });
+      body.append(error, actions, discard, confirmDiscard);
+    };
+
+    const renderStep = () => {
+      if (registrationDraft.currentStep === 'BASIC') renderBasic();
+      else if (registrationDraft.currentStep === 'ADDITIONAL') renderAdditional();
+      else if (registrationDraft.currentStep === 'REVIEW') renderReview();
+      else renderDraftPhotos();
+    };
+    renderStep();
   };
 
-  addButton.addEventListener('click', renderRegisterForm);
+  addButton.addEventListener('click', () => void renderRegisterForm());
   listBody.addEventListener('click', event => {
     const trigger = event.target instanceof Element ? event.target.closest('[data-pet-open]') : null;
     if (!(trigger instanceof HTMLButtonElement)) return;
@@ -1255,7 +2111,10 @@ export async function mountPetFamilyManager({
   status.textContent = '반려동물 정보를 불러오는 중입니다.';
   try {
     pets = [...await listPets(sessionToken)];
-    await loadPhotoCounts();
+    await Promise.all([
+      loadPhotoCounts(),
+      refreshPetProfileData().catch(() => {}),
+    ]);
     status.textContent = '';
     renderList();
   } catch (value) {
@@ -1280,6 +2139,16 @@ export async function mountPetFamilyManager({
   }
   renderSos();
   renderFound();
+  try {
+    [catalog, registrationDraft] = await Promise.all([
+      getPetCatalog(),
+      getActivePetRegistrationDraft(sessionToken),
+    ]);
+    if (registrationDraft) addButton.textContent = '등록 계속';
+  } catch {
+    // The registered-pet surface remains usable when draft recovery is unavailable.
+  }
+  showSurface(activeSurface);
   reportCount();
   return Object.freeze({mounted: true, dispose});
 }

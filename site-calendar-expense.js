@@ -6,9 +6,9 @@
 // when a month has no amounts — an empty month has to read as "nothing
 // recorded", not as a strip that failed to load.
 //
-// The total is the primary fact. Only categories with a recorded non-zero
-// amount follow it; six repeated 0원 slots made an empty month look busy and
-// gave category detail more weight than the monthly total.
+// The same six category slots lead the row and the total stays pinned on the
+// right. Zero-value slots stay visible so the category set and its order do not
+// appear to change when the owner records a different kind of expense.
 
 // The one place these labels live. The entry editor reads them from here too:
 // it used to call LIVING "기타 / 생활비" while the bar called it "생활비", so a
@@ -136,26 +136,29 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
   return {
     recorded,
     lines: lines.map((currencyTotals, index) => {
-      const categories = (currencyTotals.categories || [])
-        .filter(row => Number.isInteger(row.amountMinor) && row.amountMinor !== 0)
-        .sort((a, b) => EXPENSE_CATEGORY_ORDER.indexOf(a.expenseCategory)
-          - EXPENSE_CATEGORY_ORDER.indexOf(b.expenseCategory))
-        .map(row => ({
-          expenseCategory: EXPENSE_CATEGORY_ORDER.includes(row.expenseCategory)
-            ? row.expenseCategory
-            : 'UNCLASSIFIED',
-          label: expenseCategoryLabel(row.expenseCategory),
-          amount: formatExpenseAmount(row.amountMinor, currencyTotals.currency),
-        }));
+      const byCategory = new Map(
+        (currencyTotals.categories || [])
+          .filter(row => EXPENSE_CATEGORY_ORDER.includes(row.expenseCategory))
+          .map(row => [row.expenseCategory, row]),
+      );
+      const categories = EXPENSE_CATEGORY_ORDER.map(expenseCategory => {
+        const row = byCategory.get(expenseCategory);
+        return {
+          expenseCategory,
+          label: expenseCategoryLabel(expenseCategory),
+          amount: formatExpenseAmount(
+            Number.isInteger(row?.amountMinor) ? row.amountMinor : 0,
+            currencyTotals.currency,
+          ),
+        };
+      });
       const notes = [];
-      if (!recorded && index === 0) notes.push('이번 달 기록 없음');
       if (withoutAmount > 0 && index === 0) {
         notes.push(`금액 없는 일정 ${new Intl.NumberFormat('ko-KR').format(withoutAmount)}건 제외`);
       }
-      if (local && index === 0) notes.push('이 브라우저에만 저장돼요 · 로그인하면 다른 기기에서도');
       return {
         currency: currencyTotals.currency,
-        totalLabel: index === 0 ? '이번 달 지출' : `이번 달 지출 · ${currencyTotals.currency}`,
+        totalLabel: `합계 ${currencyTotals.currency === 'KRW' ? '₩' : currencyTotals.currency}`,
         totalAmount: formatExpenseAmount(
           Number.isInteger(currencyTotals.totalAmountMinor) ? currencyTotals.totalAmountMinor : 0,
           currencyTotals.currency,
@@ -164,6 +167,10 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
         note: notes.join(' · '),
       };
     }),
+    // The six 0원 slots and the 0원 total already communicate an empty month.
+    // Only show storage scope when there is something local to explain, and
+    // keep it separate from the amounts so it does not compete with them.
+    storageNote: local && recorded ? '이 기기에 저장됨' : '',
   };
 }
 
@@ -205,7 +212,7 @@ function currencyLine(presentation) {
     items.appendChild(coverage);
   }
 
-  line.append(total, items);
+  line.append(items, total);
   return line;
 }
 
@@ -269,6 +276,14 @@ export function calendarExpenseSummaryNode({
   const presentation = expenseSummaryPresentation(summary, {local});
   section.dataset.expenseRecorded = String(presentation.recorded);
   presentation.lines.forEach(line => section.appendChild(currencyLine(line)));
+  if (presentation.storageNote) {
+    const storageNote = document.createElement('p');
+    storageNote.className = 'calendar-expense-storage-note';
+    storageNote.textContent = presentation.storageNote;
+    storageNote.title = '로그인하면 다른 기기에서도 캘린더 기록을 확인할 수 있어요.';
+    storageNote.setAttribute('aria-label', '이 기기에 저장됨. 로그인하면 다른 기기에서도 캘린더 기록을 확인할 수 있어요.');
+    section.appendChild(storageNote);
+  }
 
   return section;
 }

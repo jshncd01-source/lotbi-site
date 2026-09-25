@@ -4,6 +4,48 @@
   gap: 18px;
 }
 
+.pet-home {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pet-home-card {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 15px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 15px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #202634);
+  text-align: left;
+  cursor: pointer;
+}
+
+.pet-home-card[data-pet-home-active='true'] {
+  border-color: var(--brand-violet, #7b62bb);
+  background: color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff));
+  box-shadow: inset 0 0 0 1px var(--brand-violet, #7b62bb);
+}
+
+.pet-home-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand-violet, #7b62bb) 38%, transparent);
+  outline-offset: 2px;
+}
+
+.pet-home-card-title {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.pet-home-card-copy {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .pet-status {
   margin: 0;
   min-height: 18px;
@@ -60,6 +102,121 @@
   border: 1px solid var(--lotbi-border-default, #e2e6ee);
   border-radius: 14px;
   background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-profile-thumbnail {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--lotbi-surface-muted, #eef1f5);
+  display: grid;
+  place-items: center;
+}
+
+.pet-profile-thumbnail-image,
+.pet-candidate-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pet-profile-thumbnail-loading,
+.pet-candidate-photo-loading {
+  color: var(--lotbi-text-muted, #687386);
+  font-size: 0.8rem;
+}
+
+.pet-profile-age,
+.pet-profile-family,
+.pet-profile-identity,
+.pet-profile-sos,
+.pet-profile-resolved,
+.pet-profile-birthday {
+  margin: 5px 0 0;
+  color: var(--lotbi-text-muted, #596579);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.pet-profile-sos { color: #b42318; font-weight: 700; }
+.pet-profile-resolved { color: #067647; font-weight: 700; }
+.pet-profile-birthday { color: #8a4b00; font-weight: 700; }
+
+.pet-candidate-cta {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px solid #f79009;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pet-profile-controls,
+.pet-timeline,
+.pet-candidate-section {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--lotbi-border, #d8dee8);
+  border-radius: 16px;
+}
+
+.pet-profile-controls-title,
+.pet-timeline-title,
+.pet-candidate-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.pet-timeline-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.pet-timeline-item { margin: 8px 0; }
+.pet-timeline-time { display: block; color: var(--lotbi-text-muted, #687386); font-size: 0.78rem; }
+.pet-timeline-label { display: block; margin-top: 2px; }
+
+.pet-candidate-safety,
+.pet-candidate-privacy,
+.pet-candidate-evidence,
+.pet-candidate-response {
+  margin: 8px 0 0;
+  color: var(--lotbi-text-muted, #596579);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.pet-candidate-card {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #fdb022;
+  border-radius: 14px;
+  background: #fffcf5;
+}
+
+.pet-candidate-photo {
+  width: min(100%, 280px);
+  aspect-ratio: 4 / 3;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f2f4f7;
+  display: grid;
+  place-items: center;
+}
+
+.pet-candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .pet-card-head {
@@ -210,6 +367,137 @@
   gap: 12px;
 }
 
+.pet-draft-body {
+  display: grid;
+  gap: 14px;
+}
+
+.pet-draft-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.pet-draft-progress-label {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.pet-draft-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pet-draft-step {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: var(--lotbi-surface-hover, #eef1f6);
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pet-draft-step-number {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.pet-draft-step-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pet-draft-step[data-pet-draft-step-active='true'] {
+  background: var(--brand-violet, #7b62bb);
+  color: #fff;
+}
+
+.pet-draft-step[data-pet-draft-step-complete='true'] {
+  background: #e8f5ee;
+  color: #24734b;
+}
+
+.pet-draft-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.pet-draft-photo-state {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pet-draft-photo-state-accepted {
+  color: #24734b;
+}
+
+.pet-draft-photo-state-rejected {
+  color: var(--lotbi-error-text, #a02645);
+}
+
+.pet-draft-species-field {
+  padding: 12px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-draft-species-choice {
+  min-width: 124px;
+  justify-content: center;
+}
+
+.pet-draft-species-choice:has(input:checked) {
+  border-color: var(--brand-violet, #7b62bb);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-violet, #7b62bb) 18%, transparent);
+}
+
+.pet-draft-species-icon {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 22px;
+}
+
+.pet-draft-species-prompt {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 12px;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.pet-draft-review {
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 13px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
 .pet-choice-field {
   margin: 0;
   padding: 0;
@@ -223,6 +511,23 @@
   color: var(--lotbi-text-secondary, #3d4653);
   font-size: 14px;
   font-weight: 750;
+}
+
+.pet-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  .pet-home {
+    grid-template-columns: 1fr;
+  }
+
+  .pet-home-card {
+    min-height: 72px;
+  }
+
+  .pet-draft-step { font-size: 10px; }
 }
 
 .pet-choice-row {
@@ -294,6 +599,8 @@
 /* .site-button and the layout classes below all set display, which beats the
    UA [hidden] rule, so every element this surface toggles with .hidden needs
    its hidden state spelled out. */
+.pet-section[hidden],
+.pet-add-button[hidden],
 .pet-delete-confirm[hidden],
 .pet-delete-button[hidden],
 .pet-detail-section[hidden],
@@ -393,6 +700,33 @@
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.pet-slot-species-mark {
+  stroke: none;
+  fill: currentColor;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 30px;
+}
+
+.pet-slot-guide-arrow,
+.pet-slot-guide-copy,
+.pet-slot-guide-accent {
+  stroke: none;
+  fill: var(--brand-violet, #7b62bb);
+  font-family: inherit;
+  font-weight: 900;
+}
+
+.pet-slot-guide-arrow { font-size: 18px; }
+.pet-slot-guide-copy { font-size: 8px; }
+.pet-slot-guide-accent { font-size: 17px; }
+
+.pet-slot-guide-focus {
+  fill: none;
+  stroke: var(--brand-violet, #7b62bb);
+  stroke-width: 1.8;
+  stroke-dasharray: 2.5 2;
 }
 
 .pet-slot-photo {
@@ -678,6 +1012,19 @@ body[data-site-theme="dark"] .pet-choice,
 body[data-site-theme="dark"] .pet-registration-reveal {
   background: var(--lotbi-surface-primary, #1f2632);
   border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-profile-controls,
+body[data-site-theme="dark"] .pet-timeline,
+body[data-site-theme="dark"] .pet-candidate-section,
+body[data-site-theme="dark"] .pet-candidate-card {
+  border-color: var(--lotbi-border, #384357);
+  background: var(--lotbi-surface-raised, #182033);
+}
+
+body[data-site-theme="dark"] .pet-candidate-cta {
+  background: #3b2508;
+  color: #ffd7a1;
 }
 
 body[data-site-theme="dark"] .pet-detail-section {

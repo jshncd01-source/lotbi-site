@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <base href="/">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://lotbiai.com/" />
+  <link rel="icon" href="/favicon.ico?v=20260922-officiallogo1" sizes="any" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/lotbi-mark-48.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/assets/brand/lotbi-mark-96.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/lotbi-mark-32.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/brand/lotbi-mark-192.png?v=20260922-officiallogo1" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/lotbi-mark-192.png?v=20260922-officiallogo1" />
+  <link rel="manifest" href="/site.webmanifest?v=20260922-officiallogo1" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LOTBI" />
+  <meta property="og:title" content="LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI" />
+  <meta property="og:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta property="og:url" content="https://lotbiai.com/" />
+  <meta property="og:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI" />
+  <meta name="twitter:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta name="twitter:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <title>LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI</title>
+  <!-- SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — this is the authoritative theme
+       bootstrap and it has to stay here: inline, blocking, and above every
+       stylesheet. site-theme-tokens.css keys its pre-paint rules on
+       html[data-site-theme-bootstrap], and the copy of this code inside
+       site-conversation.js could never satisfy them — that file loads as a
+       module, so it defers past first paint and the stylesheets below had
+       already painted a light page. That was the white flash on reload in
+       Dark.
+       The module still sets the same attribute; it is now a no-op on load and
+       the live writer when the user changes themes.
+       Wrapped in try/catch and deliberately does nothing on a bad or missing
+       value: a storage failure must not stop the page from rendering. -->
+  <script>
+    try {
+      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+      if (lotbiSavedTheme === 'auto') {
+        // SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' is resolved here rather than
+        // stored already resolved, because a stored answer goes stale the moment
+        // the clock crosses 07:00 or 18:00 and the reader would get yesterday's
+        // theme on the first paint. The attribute only ever carries
+        // light/dark/system, so no new CSS state is needed.
+        var lotbiHour = new Date().getHours();
+        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+      }
+      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+      }
+    } catch (error) {}
+  </script>
+  <link rel="stylesheet" href="styles.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-7db3f5c4ae8d" />
+  <style>
+    body[data-conversation-restore="pending"] [data-home-avatar-anchor] {
+      visibility: hidden;
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/avatar-runtime/vendor/three/three.module.js",
+      "three/addons/": "/avatar-runtime/vendor/three/addons/"
+    }
+  }
+  </script>
+  <script src="home-shell.js?v=aset-7db3f5c4ae8d" defer></script>
+  <script src="mobile-entry.js?v=aset-7db3f5c4ae8d" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-7db3f5c4ae8d"></script>
+  <script type="module">
+const PLACE_RESULT = {"contract_id":"CORE-PLACE-RESULT-01","schema_version":1,"result_set_id":"plrs_0c0a0d0e0f0102030405","provider_code":"NAVER","source":"NAVER_LOCAL_SEARCH","query":"전주 맛집","results":[{"result_id":"place-1","place_id":"naver:one","name":"진원소우 전주신시가지점","category":"음식점>한식>소고기구이","road_address":"전북특별자치도 전주시 완산구 홍산중앙로 26 3층","latitude":35.8159596,"longitude":127.1093458,"coordinate_system":"WGS84","coordinate_authority":"NAVER_MAPS_GEOCODING","navigation_capability":true,"phone":"063-000-0000","phone_verified":true,"image_url":null,"photo_evidence":null,"food_license_verification":{"state":"CONFLICTING","source":"MOIS_FOOD_LICENSE","ai_calls":0}},{"result_id":"place-2","place_id":"naver:two","name":"호시마츠생라멘","category":"음식점>일식","road_address":"전북특별자치도 전주시 완산구 전주객사2길 46-12","latitude":35.8189944,"longitude":127.1412996,"coordinate_system":"WGS84","coordinate_authority":"NAVER_MAPS_GEOCODING","navigation_capability":true,"phone":null,"phone_verified":false,"image_url":null,"photo_evidence":null,"food_license_verification":{"state":"VERIFIED","source":"MOIS_FOOD_LICENSE","administrative_status":"영업/정상","ai_calls":0}}]};
+const out = document.getElementById('placecard-result');
+const fail = e => { out.textContent = JSON.stringify({ok:false,error:String((e&&e.stack)||e)}); };
+setTimeout(() => { if (out.textContent === 'pending') fail('watchdog'); }, 50000);
+try {
+  localStorage.clear();
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  const json = body => Promise.resolve(new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}}));
+  globalThis.fetch = (url, init) => {
+    let parsed;
+    try { parsed = new URL(String((url&&url.url)||url), location.origin); } catch { return nativeFetch(url, init); }
+    if (parsed.pathname === '/v2/conversation/guest/sessions') return json({
+      contract_id:'CORE-GUEST-SESSION-01',schema_version:1,guest_token:'g'.repeat(43),
+      expires_at:new Date(Date.now()+3600000).toISOString(),
+    });
+    if (parsed.pathname === '/v2/conversation/guest/messages') return json({
+      contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
+      assistant_text:'전주에서 확인한 후보 2곳이에요. 아래 카드에서 전화나 지도를 바로 열 수 있어요.',
+      response_mode:'PLACE_PROVIDER_READONLY',correlation_id:'req_placecardfinal01',
+      intent:{action:'PLACE_SEARCH',domain:'PLACE'},
+      follow_up:{required:false,action:'PLACE_SEARCH',automatic_execution:false},
+      safety:{execution_authority:false,external_side_effect:false,transaction_created:false,
+        order_created:false,payment_attempted:false,reservation_created:false,merchant_execution_started:false},
+      place_result:PLACE_RESULT,retry_safe:true,
+    });
+    if (parsed.origin !== location.origin) return json({items:[]});
+    return nativeFetch(url, init);
+  };
+  const conversation = await import('/site-conversation.js?v=placecardfinal01');
+  if (!conversation.mountConversation()) throw new Error('mount');
+  const wait = async (fn, label) => {
+    for (let i=0;i<500;i+=1) { const value=fn(); if(value) return value; await new Promise(r=>setTimeout(r,25)); }
+    throw new Error('timeout '+label);
+  };
+  const field=document.getElementById('lotbi-prompt');
+  field.value='전주 맛집 추천해줘';
+  field.dispatchEvent(new Event('input',{bubbles:true}));
+  document.querySelector('.send-button').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+  const rail=await wait(()=>document.querySelector('.lotbi-place-orbit'),'rail');
+  const center=await wait(()=>rail.querySelector('[data-orbit-slot="CENTER"]'),'center');
+  await new Promise(r=>setTimeout(r,250));
+  const side=rail.querySelector('.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"])');
+  const box=node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};
+  const actions=[...center.querySelectorAll('.lotbi-rich-card-action')];
+  out.textContent=JSON.stringify({
+    ok:true,
+    rail:box(rail),
+    card:box(center),
+    actions:actions.map(node=>({
+      action:node.dataset.action,
+      text:(node.textContent||'').trim(),
+      aria:node.getAttribute('aria-label')||'',
+      target:node.getAttribute('target')||'',
+      rel:node.getAttribute('rel')||'',
+      ...box(node),
+    })),
+    mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
+    sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
+    sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
+    sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
+    consumerText:rail.textContent||'',
+    noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
+    assistantText:document.querySelector('.chat-message-assistant .chat-message-body')?.textContent||'',
+  });
+} catch(e) { fail(e); }
+</script><pre id="placecard-result">pending</pre>
+  <script type="module" src="site-continuity.js?v=aset-7db3f5c4ae8d"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-7db3f5c4ae8d"></script>
+</head>
+<body class="chat-home-page" data-conversation-restore="pending">
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+
+  <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="lotbi-icon-message" viewBox="0 0 24 24"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M14.5 8.5 17 11l-4.8 4.8-3 .5.5-3 4.8-4.8Z"/></symbol>
+    <symbol id="lotbi-icon-inbox" viewBox="0 0 24 24"><path d="M4.5 6.5h15l1.5 8.5v2.5h-18V15l1.5-8.5Z"/><path d="M3.5 14.5h5l1.5 2h4l1.5-2h5"/></symbol>
+    <symbol id="lotbi-icon-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></symbol>
+    <symbol id="lotbi-icon-paw" viewBox="0 0 24 24"><circle cx="9.3" cy="6.1" r="2.1"/><circle cx="14.7" cy="6.1" r="2.1"/><circle cx="5.1" cy="9.5" r="2.1"/><circle cx="18.9" cy="9.5" r="2.1"/><path d="M12 12c2.9 0 5.4 2.2 5.4 4.7 0 2.1-1.8 3.5-3.8 3.5h-3.2c-2 0-3.8-1.4-3.8-3.5 0-2.5 2.5-4.7 5.4-4.7Z"/></symbol>
+    <symbol id="lotbi-icon-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4.5v4h4M12 8v4.5l3 1.5"/></symbol>
+    <symbol id="lotbi-icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.8-4 3-6 6.5-6s5.7 2 6.5 6"/></symbol>
+    <symbol id="lotbi-icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.5 1.5M16.5 16.5 18 18M18 6l-1.5 1.5M7.5 16.5 6 18"/></symbol>
+    <symbol id="lotbi-icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 2-2.5 2.1-2.5 4M12 17.4h.01"/></symbol>
+    <symbol id="lotbi-icon-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9.5"/><path d="M7.5 16.5 6 18a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"/><path d="m16.5 7.5 1.5-1.5a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/></symbol>
+    <symbol id="lotbi-icon-bell" viewBox="0 0 24 24"><path d="M6.5 16.5h11l-1.5-2V10a4 4 0 1 0-8 0v4.5l-1.5 2Z"/><path d="M10 19h4"/></symbol>
+  </svg>
+
+  <div class="chat-app-shell">
+    <aside class="chat-sidebar chat-sidebar-desktop" aria-label="LOTBI 탐색 메뉴">
+      <a class="sidebar-brand" href="index.html" aria-label="LOTBI 홈" data-new-conversation>
+        <img class="sidebar-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="sidebar-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+      </a>
+
+      <nav class="sidebar-nav sidebar-nav-desktop" aria-label="대화 및 서비스 탐색">
+        <div class="sidebar-primary-nav">
+          <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+            <span class="nav-item-label">새 대화</span>
+          </button>
+          <button class="nav-item nav-link" type="button" data-lotbi-box-open aria-label="저장한 항목, 롯비함 열기">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+            <span class="nav-item-label">저장한 항목</span>
+          </button>
+        </div>
+
+        <div class="sidebar-calendar-nav" data-calendar-nav role="group" aria-label="캘린더">
+          <button class="nav-item nav-link nav-calendar-status" type="button" data-calendar-view="all" aria-label="캘린더">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+            <span class="nav-item-label">캘린더</span>
+            <span class="nav-item-status" aria-hidden="true">
+              <span class="calendar-status-badge" data-calendar-count hidden></span>
+              <svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg>
+            </span>
+          </button>
+        </div>
+
+        <div class="sidebar-pet-nav" data-pet-nav role="group" aria-label="반려동물">
+          <button class="nav-item nav-link nav-pet-status" type="button" data-pet-family-open aria-label="반려동물">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-paw"></use></svg>
+            <span class="nav-item-label">반려동물</span>
+            <span class="nav-item-status" aria-hidden="true">
+              <span class="pet-status-badge" data-pet-sos-count hidden></span>
+            </span>
+          </button>
+        </div>
+
+        <section class="nav-section sidebar-history-section" aria-labelledby="desktop-recent-title">
+          <h2 id="desktop-recent-title" class="nav-section-title nav-section-title-icon">
+            <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+            <span>최근 대화</span>
+          </h2>
+          <div class="sidebar-history-scroll">
+            <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
+          </div>
+        </section>
+
+        <div class="sidebar-account-footer">
+          <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- SITE-FOCUS-RING-CONTAINER-01 — tabindex="0" stays.
+         This element owns the page's vertical scrolling, and a scrollable
+         region has to be reachable by keyboard: validate_chat_layout_attachment_01
+         measures exactly that (mainOverflow "auto", mainTabIndex 0, "main pane
+         must accept scrolling") at every width it checks. An earlier revision of
+         this fix dropped it to "-1" and that gate caught it.
+         What was wrong was never the tab stop — it was where the ring got
+         drawn. The shared rule adds outline-offset: 2px, and this box is
+         exactly as tall as the viewport, so the ring's top and bottom edges
+         landed off screen and only its two vertical sides reached the user:
+         the blue lines down the edges of the content column. The offset is
+         now negative for this one element, in site-theme-tokens.css. -->
+    <main id="main-content" class="chat-home-shell" tabindex="0">
+      <h1 class="sr-only">LOTBI</h1>
+      <header class="chat-topbar" aria-label="LOTBI 홈 헤더">
+        <div class="topbar-left">
+          <button
+            class="mobile-menu-button"
+            type="button"
+            aria-label="메뉴 열기"
+            aria-controls="mobile-nav-drawer"
+            aria-expanded="false"
+            data-mobile-nav-open
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+              <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" />
+            </svg>
+          </button>
+          <a class="chat-brand mobile-header-brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈" data-new-conversation>
+            <img class="mobile-header-logo lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="mobile-header-logo lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+          </a>
+        </div>
+
+        <nav class="account-actions" aria-label="계정 메뉴" data-auth-state="checking" aria-busy="true">
+          <span class="account-auth-placeholder" aria-hidden="true">계정 확인 중</span>
+          <span class="sr-only" role="status">계정 상태 확인 중</span>
+        </nav>
+      </header>
+
+      <section class="chat-hero" aria-label="LOTBI 대화 시작">
+        <div class="home-avatar-anchor" data-home-avatar-anchor>
+          <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
+            <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
+            <img
+              src="assets/lotbi-main-logo.png"
+              class="chat-character-logo"
+              data-lotbi-avatar-fallback
+              alt="웃으며 손을 흔드는 LOTBI 캐릭터"
+              width="1535"
+              height="697"
+              decoding="async"
+              fetchpriority="high"
+            />
+          </div>
+        </div>
+
+        <section class="home-value-proposition" aria-label="LOTBI 활용 안내">
+          <p>찾고, 계획하고, 기록하는 일상을 LOTBI와 대화로 해결하세요</p>
+          <div class="home-example-prompts" aria-label="대화 예시">
+            <button type="button" data-home-prompt="근처 식당 찾아줘">근처 식당 찾기</button>
+            <button type="button" data-home-prompt="오늘 날씨 알려줘">오늘 날씨</button>
+            <button type="button" data-home-prompt="일정 추가해줘">일정 추가</button>
+          </div>
+        </section>
+
+        <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
+
+        <div class="chat-composer-stack">
+          <div id="attachment-preview-strip" class="attachment-preview-strip" data-attachment-preview aria-live="polite" hidden></div>
+          <p class="chat-safety-copy">LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.</p>
+          <div class="chat-composer" aria-labelledby="composer-label" aria-describedby="chat-status chat-attachment-help">
+          <label id="composer-label" class="sr-only" for="lotbi-prompt">LOTBI에게 요청할 내용</label>
+          <textarea
+            id="lotbi-prompt"
+            class="chat-input"
+            rows="1"
+            maxlength="1000"
+            placeholder="LOTBI에게 무엇이든 물어보세요"
+            autocomplete="off"
+            autocapitalize="sentences"
+            spellcheck="true"
+          ></textarea>
+
+          <div class="composer-actions">
+            <div class="attachment-control" data-attachment-control>
+              <button
+                class="composer-button attachment-button"
+                type="button"
+                aria-label="첨부 추가"
+                title="첨부 추가"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                data-attachment-trigger
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z" />
+                </svg>
+              </button>
+              <div class="attachment-menu" role="menu" aria-label="첨부 추가" data-attachment-menu hidden>
+                <button type="button" role="menuitem" data-attachment-action="camera">카메라</button>
+                <button type="button" role="menuitem" data-attachment-action="photos">사진·스크린샷</button>
+                <button type="button" role="menuitem" data-attachment-action="files">파일</button>
+              </div>
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept="image/jpeg,image/png" capture="environment" data-attachment-input="camera" />
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept="image/jpeg,image/png" multiple data-attachment-input="photos" />
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept=".pdf,.docx,.txt,.csv,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv,application/json" multiple data-attachment-input="files" />
+            </div>
+            <div class="response-grade-control" data-response-grade-control hidden inert aria-hidden="true">
+              <button
+                class="response-grade-trigger"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="response-grade-menu"
+                aria-label="응답 등급: 스탠다드"
+                data-response-grade-trigger
+                disabled
+              >
+                <span data-response-grade-label>스탠다드</span>
+                <span class="response-grade-chevron" aria-hidden="true">▾</span>
+              </button>
+
+              <div
+                id="response-grade-menu"
+                class="response-grade-menu"
+                role="menu"
+                aria-label="응답 등급"
+                data-response-grade-menu
+                hidden
+              >
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="LIGHT">
+                  <span class="response-grade-name">라이트</span>
+                  <span class="response-grade-description">빠르고 간단한 답변</span>
+                </button>
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="true" disabled data-response-grade="STANDARD">
+                  <span class="response-grade-name">스탠다드</span>
+                  <span class="response-grade-description">균형 잡힌 기본 모드</span>
+                </button>
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="PREMIUM">
+                  <span class="response-grade-name">프리미엄</span>
+                  <span class="response-grade-description">복잡한 질문 · 깊은 분석</span>
+                </button>
+              </div>
+            </div>
+
+            <button class="composer-button wake-button" type="button" disabled hidden data-wake-toggle aria-pressed="false" aria-label="롯비야 듣기 — 준비 중" title="롯비야 듣기 준비 중">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M3 10.5h2v3H3v-3Zm4-3h2v9H7v-9Zm4-4h2v17h-2v-17Zm4 4h2v9h-2v-9Zm4 3h2v3h-2v-3Z" />
+              </svg>
+            </button>
+
+            <button class="composer-button mic-button" type="button" disabled aria-label="마이크 — 음성 입력 연결 준비 중" title="음성 입력 연결 준비 중">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V7a3.5 3.5 0 1 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Zm6-3.5a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.94V22h2v-2.06A8 8 0 0 0 20 12h-2Z" />
+              </svg>
+            </button>
+
+            <button class="composer-button send-button" type="button" disabled aria-label="전송" title="전송">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="m4 4 17 8-17 8 3-7 9-1-9-1-3-7Z" />
+              </svg>
+            </button>
+          </div>
+          </div>
+          <p id="chat-attachment-help" class="sr-only">이미지는 JPEG·PNG, 파일은 PDF·DOCX·TXT·CSV·JSON을 지원하며 메시지당 최대 3개까지 첨부할 수 있습니다.</p>
+        </div>
+
+        <p id="chat-status" class="sr-only" role="status">
+          메시지를 입력하면 LOTBI와 대화를 시작합니다. 로그인 연결이 필요하면 안전한 Account handoff로 이동합니다.
+        </p>
+
+        <div id="chat-state-region" class="chat-state-banner" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+        <template id="chat-state-templates">
+          <span data-chat-state="loading">LOTBI 응답을 기다리는 중입니다.</span>
+          <span data-chat-state="unavailable">LOTBI 로그인이 필요합니다.</span>
+          <span data-chat-state="error">LOTBI 대화를 완료하지 못했습니다.</span>
+        </template>
+      </section>
+
+      <footer class="lotbi-footer chat-home-footer">
+        <details class="footer-legal-disclosure" data-footer-legal-disclosure>
+          <summary
+            class="footer-legal-summary"
+            data-footer-legal-toggle
+            aria-controls="footer-legal-panels"
+          >
+            <span class="footer-legal-summary-text">유한회사 알에이디홀딩스 | 사업자등록번호 583-88-03679</span>
+            <svg class="footer-legal-summary-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4-6.7 6.7-6.7-6.7 1.4-1.4Z" /></svg>
+          </summary>
+        </details>
+
+        <div id="footer-legal-panels" class="footer-legal-panels">
+        <div class="footer-links">
+          <a href="about.html">회사 소개</a>
+          <a href="subscribe.html">구독 안내</a>
+          <a href="refund.html">구독 철회 및 해지</a>
+          <a href="exchange.html">반품 및 교환</a>
+          <a href="dispute.html">소비자 분쟁 해결 기준</a>
+          <a href="terms.html">이용약관</a>
+          <a href="privacy.html">개인정보처리방침</a>
+          <a href="account-deletion.html">계정 삭제</a>
+          <a href="contact.html">문의하기</a>
+        </div>
+
+        <div class="company-legal" aria-label="LOTBI 사업자 정보">
+          <div class="company-legal-row">
+            <span>유한회사 알에이디홀딩스</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>대표자: 전선혜</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>사업자등록번호: 583-88-03679</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>통신판매업신고번호: 2026-전주덕진-0798</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679" target="_blank" rel="noopener noreferrer">사업자정보확인</a>
+          </div>
+          <div class="company-legal-row">
+            <span>주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>전화: <a href="tel:0632370930">063-237-0930</a></span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>이메일: <a href="mailto:developer@lotbiai.com">developer@lotbiai.com</a></span>
+          </div>
+          <div class="company-legal-row">
+            <span>LOTBI (롯비) © 2026 · AI Voice Commerce Agent</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>호스팅서비스 제공: GitHub, Inc.</span>
+          </div>
+        </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <div class="mobile-nav-backdrop" data-mobile-nav-backdrop aria-hidden="true"></div>
+  <aside
+    id="mobile-nav-drawer"
+    class="mobile-nav-drawer"
+    aria-labelledby="mobile-nav-title"
+    aria-hidden="true"
+    inert
+  >
+    <div class="mobile-drawer-header">
+      <strong id="mobile-nav-title" class="mobile-drawer-brand lotbi-official-brand">
+        <img class="mobile-drawer-brand-logo lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="mobile-drawer-brand-logo lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+      </strong>
+      <button class="mobile-drawer-close" type="button" aria-label="메뉴 닫기" data-mobile-nav-close>×</button>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="LOTBI 모바일 탐색 메뉴">
+      <div class="sidebar-primary-nav">
+        <button class="nav-item nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+          <span class="nav-item-label">새 대화</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-lotbi-box-open aria-label="저장한 항목, 롯비함 열기">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+          <span class="nav-item-label">저장한 항목</span>
+        </button>
+      </div>
+
+      <div class="sidebar-calendar-nav" data-calendar-nav role="group" aria-label="캘린더">
+        <button class="nav-item nav-link nav-calendar-status" type="button" data-calendar-view="all" aria-label="캘린더">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+          <span class="nav-item-label">캘린더</span>
+          <span class="nav-item-status" aria-hidden="true">
+            <span class="calendar-status-badge" data-calendar-count hidden></span>
+            <svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg>
+          </span>
+        </button>
+      </div>
+
+      <div class="sidebar-pet-nav" data-pet-nav role="group" aria-label="반려동물">
+        <button class="nav-item nav-link nav-pet-status" type="button" data-pet-family-open aria-label="반려동물">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-paw"></use></svg>
+          <span class="nav-item-label">반려동물</span>
+          <span class="nav-item-status" aria-hidden="true">
+            <span class="pet-status-badge" data-pet-sos-count hidden></span>
+          </span>
+        </button>
+      </div>
+
+      <section class="nav-section sidebar-history-section" aria-labelledby="mobile-recent-title">
+        <h2 id="mobile-recent-title" class="nav-section-title nav-section-title-icon">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+          <span>최근 대화</span>
+        </h2>
+        <div class="sidebar-history-scroll">
+          <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
+        </div>
+      </section>
+
+      <div class="sidebar-account-footer">
+        <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
+          </div>
+      </div>
+    </nav>
+  </aside>
+</body>
+</html>

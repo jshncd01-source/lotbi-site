@@ -1,4 +1,4 @@
-/* Calendar expense summary — a secondary total-first card under the grid.
+/* Calendar expense summary — fixed categories with a pinned total.
 
    It occupies its own row of .calendar-product-shell so the month view's
    clipped content box cannot swallow it.
@@ -8,8 +8,8 @@
    The one exception is the six category colours below, which no semantic token
    covers — they are named here, once, with a Dark value each.
 
-   It stays compact, but mobile may put its optional category detail below the
-   total instead of shrinking the primary figure. */
+   It stays one row at every width: the total remains pinned on the right while
+   the six fixed category slots can scroll horizontally. */
 
 .calendar-expense-slot {
   /* A grid item defaults to min-width:auto and refuses to shrink below its
@@ -52,7 +52,7 @@
   border-radius: 12px;
   background: var(--lotbi-surface-elevated, #ffffff);
   color: var(--lotbi-text-primary, #303642);
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   line-height: 1.3;
 }
 
@@ -71,14 +71,22 @@
 .calendar-expense-coverage {
   margin: 0;
   color: var(--lotbi-text-primary, #303642);
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   flex: 0 0 auto;
   align-self: center;
 }
 
+.calendar-expense-storage-note {
+  margin: 6px 0 0;
+  color: var(--lotbi-text-muted, #737b88);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: left;
+}
+
 .calendar-expense-line {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
   min-width: 0;
@@ -155,27 +163,29 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Outside the scrolling list on purpose: the total stays on screen at the right
-   edge however far the categories are scrolled. */
+/* Outside the scrolling list on purpose: the total stays on the right however
+   far the fixed category row is scrolled. */
 .calendar-expense-total {
-  display: grid;
-  gap: 2px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   align-self: center;
   margin: 0;
-  padding-right: 14px;
-  border-right: 1px solid var(--lotbi-border-strong, #cfd6e2);
+  padding-left: 14px;
+  border-left: 1px solid var(--lotbi-border-strong, #cfd6e2);
 }
 
 .calendar-expense-total-label {
-  color: var(--lotbi-text-muted, #737b88);
-  font-size: 0.76rem;
-  font-weight: 700;
+  color: var(--brand-blue, #285f9e);
+  font-size: 0.95rem;
+  font-weight: 850;
+  white-space: nowrap;
 }
 
 .calendar-expense-total-amount {
   color: var(--lotbi-text-primary, #303642);
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
 
@@ -211,7 +221,7 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
 @media (max-width: 520px) {
   .calendar-expense-summary {
     padding: 10px;
-    font-size: 0.78rem;
+    font-size: 0.8125rem;
   }
 
   .calendar-expense-items {
@@ -219,19 +229,27 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
   }
 
   .calendar-expense-line {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
   }
 
   .calendar-expense-total {
-    display: flex;
-    justify-content: space-between;
-    padding: 0 0 7px;
+    display: inline-flex;
+    padding: 0 0 0 9px;
     border-right: 0;
-    border-bottom: 1px solid var(--lotbi-border-strong, #cfd6e2);
+    border-left: 1px solid var(--lotbi-border-strong, #cfd6e2);
+    border-bottom: 0;
   }
 
   .calendar-expense-total-amount {
-    font-size: 0.88rem;
+    font-size: 0.9rem;
+  }
+
+  .calendar-expense-total-label {
+    font-size: 0.9rem;
+  }
+
+  .calendar-expense-storage-note {
+    margin-top: 5px;
   }
 }

@@ -5,10 +5,12 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-f82d1df7c62e';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-4eb033984c05';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
+
+export const PET_MATCHING_CONSENT_VERSION = 'PET_MATCHING_CONSENT_2026_09_V2';
 
 export const PET_PHOTO_SLOT_CODES = Object.freeze([
   'NOSE_FRONT',
@@ -170,6 +172,26 @@ const PET_ERROR_MESSAGES = Object.freeze({
   PET_PHOTO_TOO_SMALL: '사진이 너무 작아요. 줄이지 말고 원본 크기로 올려 주세요.',
   PET_PHOTO_ANCHOR_REQUIRED: '코·특징 사진은 얼굴이나 몸 전체 사진을 먼저 올린 뒤에 등록할 수 있어요.',
   PET_PHOTO_SPECIES_CHECK_UNAVAILABLE: '사진 확인 기능이 잠시 멈췄어요. 잠시 후 다시 시도해 주세요.',
+  PET_DRAFT_NOT_FOUND: '저장하던 등록 초안을 찾지 못했습니다. 새로 시작해 주세요.',
+  PET_DRAFT_NOT_ACTIVE: '이미 마친 등록 초안입니다.',
+  PET_DRAFT_FIELD_INVALID: '입력한 내용을 확인해 주세요.',
+  PET_DRAFT_STEP_INVALID: '등록 단계를 다시 선택해 주세요.',
+  PET_DRAFT_BREED_INVALID: '품종을 선택해 주세요.',
+  PET_DRAFT_BREED_OTHER_REQUIRED: '기타 품종 이름을 입력해 주세요.',
+  PET_DRAFT_BREED_SPECIES_CONFLICT: '선택한 종과 품종이 맞지 않습니다.',
+  PET_DRAFT_COLORS_INVALID: '털색은 여섯 개까지 선택할 수 있습니다.',
+  PET_DRAFT_COLOR_INVALID: '털색을 다시 선택해 주세요.',
+  PET_DRAFT_COLOR_OTHER_REQUIRED: '기타 털색을 입력해 주세요.',
+  PET_DRAFT_PATTERN_INVALID: '무늬를 다시 선택해 주세요.',
+  PET_DRAFT_PATTERN_OTHER_REQUIRED: '기타 무늬를 입력해 주세요.',
+  PET_DRAFT_PATTERN_SPECIES_CONFLICT: '선택한 종과 무늬가 맞지 않습니다.',
+  PET_DRAFT_PHOTOS_INCOMPLETE: '사진 10장을 모두 올려 주세요.',
+  PET_DRAFT_PHOTO_REJECTED: '확인하지 못한 사진이 있습니다. 표시된 사진을 다시 올려 주세요.',
+  PET_DRAFT_PHOTO_CHECK_PENDING: '사진 확인이 아직 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.',
+  PET_DRAFT_PHOTO_NOT_FOUND: '등록 초안의 사진을 찾지 못했습니다.',
+  PET_DRAFT_REQUEST_ID_INVALID: '등록을 새로 시작해 주세요.',
+  PET_MATCH_NOTICE_NOT_FOUND: '확인할 발견 제보를 찾지 못했습니다.',
+  PET_MATCH_PHOTO_NOT_FOUND: '발견 사진을 불러오지 못했습니다.',
 
   // Location, for the two report forms.
   PET_LOCATION_REQUIRED: '장소를 입력해 주세요.',
@@ -232,11 +254,18 @@ async function petRequest(path, sessionToken, {
   requestId = '',
   raw = false,
   announceSessionFailure = false,
+  extraHeaders = undefined,
 } = {}, fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== 'function') {
     throw new SiteCoreError('브라우저 네트워크 기능을 사용할 수 없습니다.', {code: 'FETCH_UNAVAILABLE'});
   }
   const headers = {Authorization: `Bearer ${bearerToken(sessionToken)}`};
+  if (extraHeaders && typeof extraHeaders === 'object') {
+    for (const [name, value] of Object.entries(extraHeaders)) {
+      if (name.toLowerCase() === 'authorization') continue;
+      if (typeof value === 'string' && value) headers[name] = value;
+    }
+  }
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   // Core reads the idempotency key from X-Request-ID, matching the app client.
   if (requestId) headers['X-Request-ID'] = requestId;
@@ -289,9 +318,16 @@ function normalizePet(value) {
     species: PET_SPECIES.includes(value.species) ? value.species : 'DOG',
     sex: PET_SEXES.includes(value.sex) ? value.sex : 'UNKNOWN',
     breed: typeof value.breed === 'string' ? value.breed : '',
+    breedCode: typeof value.breed_code === 'string' ? value.breed_code : '',
     birthDate: typeof value.birth_date === 'string' ? value.birth_date : '',
     approximateAgeMonths: Number.isInteger(value.approximate_age_months) ? value.approximate_age_months : null,
+    ageEstimateAsOf: typeof value.age_estimate_as_of === 'string' ? value.age_estimate_as_of : '',
+    familyDate: typeof value.family_date === 'string' ? value.family_date : '',
     color: typeof value.color === 'string' ? value.color : '',
+    colorCodes: Array.isArray(value.color_codes) ? Object.freeze(value.color_codes.filter(item => typeof item === 'string')) : Object.freeze([]),
+    colorOther: typeof value.color_other === 'string' ? value.color_other : '',
+    coatPatternCode: typeof value.coat_pattern_code === 'string' ? value.coat_pattern_code : '',
+    coatPatternOther: typeof value.coat_pattern_other === 'string' ? value.coat_pattern_other : '',
     distinctiveMarks: typeof value.distinctive_marks === 'string' ? value.distinctive_marks : '',
     officialRegistrationNumber: typeof value.official_registration_number === 'string'
       ? value.official_registration_number
@@ -306,6 +342,157 @@ function normalizePet(value) {
     matchingConsentState: value.matching_consent_state === 'GRANTED' ? 'GRANTED' : 'NOT_GRANTED',
     accountState: typeof value.account_state === 'string' ? value.account_state : '',
   });
+}
+
+function normalizeCatalogItem(value) {
+  if (!value || typeof value !== 'object') return null;
+  const code = typeof value.code === 'string' ? value.code : '';
+  const displayName = typeof value.display_name === 'string' ? value.display_name : '';
+  if (!code || !displayName) return null;
+  return Object.freeze({
+    code,
+    displayName,
+    species: PET_SPECIES.includes(value.species) ? value.species : '',
+  });
+}
+
+function normalizePetCatalog(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const breeds = source.breeds && typeof source.breeds === 'object' ? source.breeds : {};
+  return Object.freeze({
+    breeds: Object.freeze({
+      DOG: Object.freeze((Array.isArray(breeds.DOG) ? breeds.DOG : []).map(normalizeCatalogItem).filter(Boolean)),
+      CAT: Object.freeze((Array.isArray(breeds.CAT) ? breeds.CAT : []).map(normalizeCatalogItem).filter(Boolean)),
+    }),
+    colors: Object.freeze((Array.isArray(source.colors) ? source.colors : []).map(normalizeCatalogItem).filter(Boolean)),
+    patterns: Object.freeze((Array.isArray(source.patterns) ? source.patterns : []).map(normalizeCatalogItem).filter(Boolean)),
+  });
+}
+
+function normalizePetDraftPhoto(value) {
+  if (!value || typeof value !== 'object' || !PET_PHOTO_SLOT_CODES.includes(value.slot_code)) return null;
+  return Object.freeze({
+    slotCode: value.slot_code,
+    slotIndex: Number.isInteger(value.slot_index) ? value.slot_index : 0,
+    revision: Number.isInteger(value.revision) ? value.revision : 0,
+    inspectionState: ['PENDING', 'ACCEPTED', 'REJECTED'].includes(value.inspection_state)
+      ? value.inspection_state
+      : 'PENDING',
+    inspectionReasonCode: typeof value.inspection_reason_code === 'string' ? value.inspection_reason_code : '',
+  });
+}
+
+function normalizePetRegistrationDraft(value) {
+  if (!value || typeof value !== 'object' || typeof value.draft_id !== 'string') return null;
+  return Object.freeze({
+    draftId: value.draft_id,
+    status: typeof value.status === 'string' ? value.status : 'ACTIVE',
+    currentStep: ['PHOTOS', 'BASIC', 'ADDITIONAL', 'REVIEW'].includes(value.current_step) ? value.current_step : 'PHOTOS',
+    revision: Number.isInteger(value.revision) ? value.revision : 0,
+    name: typeof value.name === 'string' ? value.name : '',
+    species: PET_SPECIES.includes(value.species) ? value.species : '',
+    sex: PET_SEXES.includes(value.sex) ? value.sex : '',
+    breedCode: typeof value.breed_code === 'string' ? value.breed_code : '',
+    breed: typeof value.breed === 'string' ? value.breed : '',
+    birthDate: typeof value.birth_date === 'string' ? value.birth_date : '',
+    approximateAgeMonths: Number.isInteger(value.approximate_age_months) ? value.approximate_age_months : null,
+    ageEstimateAsOf: typeof value.age_estimate_as_of === 'string' ? value.age_estimate_as_of : '',
+    familyDate: typeof value.family_date === 'string' ? value.family_date : '',
+    colorCodes: Object.freeze(Array.isArray(value.color_codes) ? value.color_codes.filter(item => typeof item === 'string') : []),
+    colorOther: typeof value.color_other === 'string' ? value.color_other : '',
+    coatPatternCode: typeof value.coat_pattern_code === 'string' ? value.coat_pattern_code : '',
+    coatPatternOther: typeof value.coat_pattern_other === 'string' ? value.coat_pattern_other : '',
+    distinctiveMarks: typeof value.distinctive_marks === 'string' ? value.distinctive_marks : '',
+    officialRegistrationNumber: typeof value.official_registration_number === 'string' ? value.official_registration_number : '',
+    matchingConsentState: value.matching_consent_state === 'GRANTED' ? 'GRANTED' : 'NOT_GRANTED',
+    matchingConsentVersion: typeof value.matching_consent_version === 'string' ? value.matching_consent_version : '',
+    photos: Object.freeze((Array.isArray(value.photos) ? value.photos : []).map(normalizePetDraftPhoto).filter(Boolean)),
+    completedPetId: typeof value.completed_pet_id === 'string' ? value.completed_pet_id : '',
+    updatedAt: typeof value.updated_at === 'string' ? value.updated_at : '',
+  });
+}
+
+export async function getPetCatalog(fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pet-catalog', 'catalog-public', {}, fetchImpl);
+  return normalizePetCatalog(payload);
+}
+
+export async function getActivePetRegistrationDraft(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pet-registration-drafts/active', sessionToken, {}, fetchImpl);
+  return normalizePetRegistrationDraft(payload?.draft);
+}
+
+export async function createPetRegistrationDraft(sessionToken, requestId = '', fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pet-registration-drafts', sessionToken, {
+    method: 'POST',
+    requestId: requestId || petRequestId('draft'),
+  }, fetchImpl);
+  const draft = normalizePetRegistrationDraft(payload?.draft);
+  if (!draft) throw new SiteCoreError('반려동물 등록을 시작하지 못했습니다.', {code: 'PET_DRAFT_CREATE_FAILED'});
+  return draft;
+}
+
+export async function updatePetRegistrationDraft(sessionToken, draftId, updates, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(`/v2/pet-registration-drafts/${encodeURIComponent(draftId)}`, sessionToken, {
+    method: 'PATCH',
+    body: updates && typeof updates === 'object' ? updates : {},
+  }, fetchImpl);
+  const draft = normalizePetRegistrationDraft(payload?.draft);
+  if (!draft) throw new SiteCoreError('등록 초안을 저장하지 못했습니다.', {code: 'PET_DRAFT_SAVE_FAILED'});
+  return draft;
+}
+
+export async function deletePetRegistrationDraft(sessionToken, draftId, fetchImpl = globalThis.fetch) {
+  return petRequest(`/v2/pet-registration-drafts/${encodeURIComponent(draftId)}`, sessionToken, {
+    method: 'DELETE',
+  }, fetchImpl);
+}
+
+export async function uploadPetRegistrationDraftPhoto(sessionToken, draftId, slotCode, file, fetchImpl = globalThis.fetch) {
+  const rejection = petPhotoRejection(file);
+  if (rejection) throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'pet-photo');
+  const payload = await petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(slotCode)}`,
+    sessionToken,
+    {method: 'PUT', formData},
+    fetchImpl,
+  );
+  const photo = normalizePetDraftPhoto(payload?.photo);
+  if (!photo) throw new SiteCoreError('등록 사진을 저장하지 못했습니다.', {code: 'PET_DRAFT_PHOTO_SAVE_FAILED'});
+  return photo;
+}
+
+export async function deletePetRegistrationDraftPhoto(sessionToken, draftId, slotCode, fetchImpl = globalThis.fetch) {
+  return petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(slotCode)}`,
+    sessionToken,
+    {method: 'DELETE'},
+    fetchImpl,
+  );
+}
+
+export async function fetchPetRegistrationDraftPhotoObjectUrl(sessionToken, draftId, slotCode, fetchImpl = globalThis.fetch) {
+  const response = await petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(slotCode)}/content`,
+    sessionToken,
+    {raw: true},
+    fetchImpl,
+  );
+  return URL.createObjectURL(await response.blob());
+}
+
+export async function finalizePetRegistrationDraft(sessionToken, draftId, requestId = '', fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/finalize`,
+    sessionToken,
+    {method: 'POST', requestId: requestId || petRequestId('finalize')},
+    fetchImpl,
+  );
+  const pet = normalizePet(payload?.pet);
+  if (!pet) throw new SiteCoreError('반려동물 등록을 마치지 못했습니다.', {code: 'PET_DRAFT_FINALIZE_FAILED'});
+  return Object.freeze({pet, draft: normalizePetRegistrationDraft(payload?.draft)});
 }
 
 function normalizePhotoManifest(value) {
@@ -324,6 +511,130 @@ export async function listPets(sessionToken, fetchImpl = globalThis.fetch) {
   const payload = await petRequest('/v2/pets', sessionToken, {announceSessionFailure: true}, fetchImpl);
   const rows = Array.isArray(payload?.pets) ? payload.pets : [];
   return Object.freeze(rows.map(normalizePet).filter(Boolean));
+}
+
+function normalizePetProfile(value) {
+  if (!value || typeof value !== 'object') return null;
+  const petId = typeof value.pet_id === 'string' ? value.pet_id : '';
+  const name = typeof value.name === 'string' ? value.name : '';
+  if (!petId || !name) return null;
+  const thumbnail = value.thumbnail && typeof value.thumbnail === 'object' ? value.thumbnail : {};
+  const visual = value.visual_identity && typeof value.visual_identity === 'object' ? value.visual_identity : {};
+  const sos = value.sos && typeof value.sos === 'object' ? value.sos : {};
+  const age = value.age && typeof value.age === 'object' ? value.age : {};
+  const family = value.family_duration && typeof value.family_duration === 'object' ? value.family_duration : null;
+  const birthday = value.birthday && typeof value.birthday === 'object' ? value.birthday : null;
+  return Object.freeze({
+    petId,
+    name,
+    species: PET_SPECIES.includes(value.species) ? value.species : 'DOG',
+    isPrimary: value.is_primary === true,
+    ageLabel: typeof age.label === 'string' ? age.label : '나이 미등록',
+    ageMode: typeof age.mode === 'string' ? age.mode : 'UNKNOWN',
+    familyLabel: typeof family?.label === 'string' ? family.label : '',
+    birthday: birthday ? Object.freeze({
+      date: typeof birthday.date === 'string' ? birthday.date : '',
+      daysUntil: Number.isInteger(birthday.days_until) ? birthday.days_until : null,
+      state: typeof birthday.state === 'string' ? birthday.state : '',
+      reminderDue: birthday.reminder_due === true,
+    }) : null,
+    photoCount: Number.isInteger(value.photo_count) ? value.photo_count : 0,
+    photoTotal: Number.isInteger(value.photo_total) ? value.photo_total : PET_PHOTO_SLOT_CODES.length,
+    thumbnailSlot: PET_PHOTO_SLOT_CODES.includes(thumbnail.slot_code) ? thumbnail.slot_code : '',
+    visualStatus: typeof visual.status === 'string' ? visual.status : 'UNAVAILABLE',
+    visualLabel: typeof visual.label === 'string' ? visual.label : '식별정보 준비 중',
+    activeSos: sos.active === true,
+    recentlyResolved: sos.recently_resolved === true,
+    lastSeenAt: typeof sos.last_seen_at === 'string' ? sos.last_seen_at : '',
+    lastSeenLocation: sos.last_seen_location && typeof sos.last_seen_location === 'object'
+      ? Object.freeze({...sos.last_seen_location})
+      : Object.freeze({}),
+    candidateNoticeCount: Number.isInteger(value.candidate_notice_count) ? value.candidate_notice_count : 0,
+    candidateLabel: typeof value.candidate_label === 'string' ? value.candidate_label : '',
+    timeline: Object.freeze((Array.isArray(value.timeline) ? value.timeline : []).flatMap(item => {
+      if (!item || typeof item !== 'object' || typeof item.label !== 'string') return [];
+      return [Object.freeze({
+        type: typeof item.type === 'string' ? item.type : '',
+        at: typeof item.at === 'string' ? item.at : '',
+        label: item.label,
+      })];
+    })),
+    birthdayRemindersEnabled: value.birthday_reminders_enabled !== false,
+    familyAnniversaryRemindersEnabled: value.family_anniversary_reminders_enabled === true,
+  });
+}
+
+export async function getPetProfileHub(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pets/profile-hub', sessionToken, {}, fetchImpl);
+  const rows = Array.isArray(payload?.pets) ? payload.pets : [];
+  return Object.freeze(rows.map(normalizePetProfile).filter(Boolean));
+}
+
+export async function updatePetProfilePreferences(sessionToken, petId, updates, fetchImpl = globalThis.fetch) {
+  const body = {};
+  for (const key of ['is_primary', 'birthday_reminders_enabled', 'family_anniversary_reminders_enabled']) {
+    if (typeof updates?.[key] === 'boolean') body[key] = updates[key];
+  }
+  const payload = await petRequest(`/v2/pets/${encodeURIComponent(petId)}/profile-preferences`, sessionToken, {
+    method: 'PUT',
+    body,
+  }, fetchImpl);
+  return normalizePet(payload?.pet);
+}
+
+function normalizePetMatchNotice(value) {
+  if (!value || typeof value !== 'object') return null;
+  const candidateId = typeof value.candidate_id === 'string' ? value.candidate_id : '';
+  const petId = typeof value.pet_id === 'string' ? value.pet_id : '';
+  if (!candidateId || !petId) return null;
+  const location = value.found_location && typeof value.found_location === 'object' ? value.found_location : {};
+  return Object.freeze({
+    noticeId: typeof value.notice_id === 'string' ? value.notice_id : '',
+    candidateId,
+    petId,
+    status: typeof value.status === 'string' ? value.status : 'UNREAD',
+    ownerResponse: typeof value.owner_response === 'string' ? value.owner_response : '',
+    message: typeof value.message === 'string' ? value.message : '유사한 발견 제보가 접수되었습니다.',
+    visualSimilarity: Number.isInteger(value.visual_similarity) ? value.visual_similarity : null,
+    visualSimilarityLabel: typeof value.visual_similarity_label === 'string' ? value.visual_similarity_label : '',
+    scoreIsIdentityProbability: value.score_is_identity_probability === true,
+    evidenceCoverage: typeof value.evidence_coverage === 'string' ? value.evidence_coverage : '',
+    foundAt: typeof value.found_at === 'string' ? value.found_at : '',
+    foundLocation: Object.freeze({...location}),
+    reporterContactReturned: value.reporter_contact_returned === true,
+    createdAt: typeof value.created_at === 'string' ? value.created_at : '',
+  });
+}
+
+export async function listPetMatchNotices(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest('/v2/pets/match-notices', sessionToken, {}, fetchImpl);
+  const rows = Array.isArray(payload?.notices) ? payload.notices : [];
+  return Object.freeze(rows.map(normalizePetMatchNotice).filter(Boolean));
+}
+
+export async function fetchPetMatchNoticePhotoObjectUrl(sessionToken, candidateId, fetchImpl = globalThis.fetch) {
+  const response = await petRequest(
+    `/v2/pets/match-notices/${encodeURIComponent(candidateId)}/found-photo`,
+    sessionToken,
+    {raw: true},
+    fetchImpl,
+  );
+  return URL.createObjectURL(await response.blob());
+}
+
+export async function respondToPetMatchNotice(sessionToken, candidateId, response, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(
+    `/v2/pets/match-notices/${encodeURIComponent(candidateId)}/response`,
+    sessionToken,
+    {method: 'POST', body: {response}},
+    fetchImpl,
+  );
+  return Object.freeze({
+    candidateId: typeof payload?.candidate_id === 'string' ? payload.candidate_id : candidateId,
+    response: typeof payload?.response === 'string' ? payload.response : '',
+    contactRelayStarted: payload?.contact_relay_started === true,
+    reporterContactReturned: payload?.reporter_contact_returned === true,
+  });
 }
 
 export async function getPet(sessionToken, petId, fetchImpl = globalThis.fetch) {
@@ -667,6 +978,12 @@ export async function closeFoundPet(sessionToken, caseId, resolved, fetchImpl = 
 }
 
 export const FOUND_PHOTO_SLOT_MAX = 10;
+// A single found-animal photo should be useful by itself. Start with a broad
+// face/body view and only then consume close-up slots; the reporter never has
+// to understand or select these internal semantic labels.
+export const FOUND_PHOTO_SEMANTIC_SLOT_CODES = Object.freeze(
+  [3, 4, 5, 6, 7, 8, 0, 1, 2, 9].map(index => PET_PHOTO_SLOT_CODES[index]),
+);
 
 export async function listFoundPetPhotos(sessionToken, caseId, fetchImpl = globalThis.fetch) {
   const payload = await petRequest(
@@ -684,7 +1001,7 @@ export async function listFoundPetPhotos(sessionToken, caseId, fetchImpl = globa
   );
 }
 
-export async function uploadFoundPetPhoto(sessionToken, caseId, slotIndex, file, fetchImpl = globalThis.fetch) {
+export async function uploadFoundPetPhoto(sessionToken, caseId, slotIndex, file, semanticSlotCode = '', fetchImpl = globalThis.fetch) {
   const rejection = petPhotoRejection(file);
   if (rejection) {
     throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
@@ -694,7 +1011,13 @@ export async function uploadFoundPetPhoto(sessionToken, caseId, slotIndex, file,
   const payload = await petRequest(
     `/v2/pets/found/${encodeURIComponent(caseId)}/photos/${encodeURIComponent(slotIndex)}`,
     sessionToken,
-    {method: 'PUT', formData},
+    {
+      method: 'PUT',
+      formData,
+      extraHeaders: PET_PHOTO_SLOT_CODES.includes(semanticSlotCode)
+        ? {'X-Pet-Photo-Slot-Code': semanticSlotCode}
+        : undefined,
+    },
     fetchImpl,
   );
   return Number.isInteger(payload?.photo_count) ? payload.photo_count : 0;

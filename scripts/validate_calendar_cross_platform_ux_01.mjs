@@ -44,6 +44,8 @@ assert.ok(manager.includes("next.dataset.calendarNavigation = 'next'"));
 assert.ok(css.includes('.calendar-nav-button[data-calendar-navigation="next"]::before'));
 assert.ok(css.includes('.calendar-week-agenda'));
 assert.ok(css.includes('.calendar-week-day'));
+assert.match(css, /@media \(min-width: 901px\)[\s\S]*\.calendar-week-days\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+assert.ok(!css.includes('.calendar-week-days { grid-template-columns: repeat(2'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
 assert.ok(manager.includes("loading.textContent = '일정을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));
@@ -102,26 +104,26 @@ assert.ok(manager.includes('if (state.mode === \'month\') render()'));
 // The semantic date button itself, not only the enclosing cell, is a full
 // touch target at every width.
 assert.match(css, /\.calendar-date-trigger\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s);
+assert.match(css, /\.calendar-date-number\s*\{[^}]*font-size:\s*17px;/);
 assert.ok(!css.includes('.calendar-date-trigger { min-width: 25px; min-height: 25px; }'));
 
-// A 49–55px narrow cell gets three explicit rows: the 44px date target,
-// event density, then weather + compact temperature. No sibling competes for
-// horizontal space with the semantic date button.
+// Weather is a distinct upper-right summary. Min and max use a diagonal
+// composition and semantic colour, instead of becoming another navy line next
+// to the date. Narrow cells stack the icon over that range in the same corner.
 assert.ok(manager.includes("temperature.dataset.compactTemperature = temperatureLabel.replace(/\\s+/g, '')"));
-assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*44px 12px 14px;/);
-assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-trigger\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-row:\s*1;/);
-assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-mobile-event-count\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-row:\s*2;/);
-assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-icon\s*\{[^}]*grid-row:\s*3;/);
-assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-temperature\s*\{[^}]*grid-row:\s*3;/);
+assert.ok(manager.includes("weatherSummary.className = 'calendar-weather-summary'"));
+assert.ok(manager.includes("minimum.className = 'calendar-weather-temperature-min'"));
+assert.ok(manager.includes("maximum.className = 'calendar-weather-temperature-max'"));
+assert.ok(manager.includes("separator.className = 'calendar-weather-temperature-separator'"));
+assert.match(css, /\.calendar-weather-temperature-min\s*\{[^}]*left:\s*0;[^}]*bottom:\s*0;[^}]*color:\s*#1769c2;/);
+assert.match(css, /\.calendar-weather-temperature-max\s*\{[^}]*top:\s*0;[^}]*right:\s*0;[^}]*color:\s*#d43b32;/);
+assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*44px 12px;/);
+assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-trigger\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*1;/);
+assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-mobile-event-count\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;/);
+assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-summary\s*\{[^}]*position:\s*absolute;[^}]*top:\s*2px;[^}]*right:\s*1px;[^}]*grid-template-columns:\s*28px;[^}]*grid-template-rows:\s*15px 22px;/);
+assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-summary\s*>\s*svg\.calendar-weather-icon\s*\{[^}]*grid-row:\s*1;[^}]*width:\s*15px;[^}]*height:\s*15px;/);
+assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-temperature\s*\{[^}]*grid-row:\s*2;[^}]*width:\s*27px;[^}]*height:\s*21px;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.site-modal\.site-calendar-modal > \.site-modal-content\s*\{[^}]*padding-inline:\s*8px;/);
-assert.ok(css.includes('grid-template-columns: minmax(0, 12px) minmax(0, 1fr);'));
 assert.ok(!css.includes('grid-template-columns: 12px minmax(0, 34px);'));
-// The later weather stylesheet uses svg.calendar-weather-icon (0,1,1).
-// The narrow 12px rule needs the header class too (0,2,1), otherwise the
-// later 14px dimensions overflow the icon track and crowd the temperature.
-assert.ok(
-  /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*>\s*svg\.calendar-weather-icon\s*\{[^}]*width:\s*12px;[^}]*height:\s*12px;/.test(css),
-  'narrow Month weather dimensions must outrank the later svg.calendar-weather-icon rule'
-);
 
 console.log('LOTBI Calendar cross-platform view UX: PASS');
