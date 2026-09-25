@@ -44,8 +44,15 @@ const PLACE_RESULT = {
       navigation_capability: true,
       phone: '063-000-0000',
       phone_verified: true,
-      image_url: null,
-      photo_evidence: null,
+      image_url: 'https://lh3.googleusercontent.com/lotbi-place-photo-contract.jpg',
+      photo_evidence: {
+        provider: 'GOOGLE_PLACES',
+        provider_place_id: 'google:verified-one',
+        match_basis: 'EXACT_NAME_AND_80M_COORDINATE',
+        fetched_at: '2026-09-25T08:30:00Z',
+        verification_state: 'VERIFIED',
+        attributions: [{display_name: 'Google Places contributor'}],
+      },
       food_license_verification: {
         state: 'CONFLICTING',
         source: 'MOIS_FOOD_LICENSE',
@@ -100,6 +107,15 @@ try {
   localStorage.clear();
   const nativeFetch = globalThis.fetch.bind(globalThis);
   const json = body => Promise.resolve(new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}}));
+  const nativeImageSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  Object.defineProperty(HTMLImageElement.prototype, 'src', {
+    configurable: true,
+    get() { return this.getAttribute('src') || nativeImageSrc?.get?.call(this) || ''; },
+    set(value) {
+      this.setAttribute('src', String(value));
+      queueMicrotask(() => this.dispatchEvent(new Event('load')));
+    },
+  });
   globalThis.fetch = (url, init) => {
     let parsed;
     try { parsed = new URL(String((url&&url.url)||url), location.origin); } catch { return nativeFetch(url, init); }
@@ -151,6 +167,9 @@ try {
     })),
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     mediaState:center.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
+    photoSrc:center.querySelector('.lotbi-place-photo')?.getAttribute('src')||'',
+    sideMediaHidden:side.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
+    sideMediaState:side.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
     sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
@@ -221,8 +240,11 @@ try {
         assert.match(action.rel,/noreferrer/u);
       }
     }
-    assert.equal(reading.mediaHidden,false,`${testCase.label}: no-photo banner remains visible`);
-    assert.equal(reading.mediaState,'empty-no-photo',`${testCase.label}: no-photo media state`);
+    assert.equal(reading.mediaHidden,false,`${testCase.label}: verified photo banner remains visible`);
+    assert.equal(reading.mediaState,'loaded',`${testCase.label}: verified photo media state`);
+    assert.equal(reading.photoSrc,PLACE_RESULT.results[0].image_url,`${testCase.label}: verified photo src preserved`);
+    assert.equal(reading.sideMediaHidden,false,`${testCase.label}: no-photo side banner remains visible`);
+    assert.equal(reading.sideMediaState,'empty-no-photo',`${testCase.label}: no-photo side media state`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
     assert.ok(reading.card.w<=Math.min(testCase.width*.82,286)+2,`${testCase.label}: card width ${reading.card.w}`);
     assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);
