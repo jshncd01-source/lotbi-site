@@ -148,6 +148,13 @@ try{
   const totalAmount=totalRow?.querySelector('.calendar-expense-total-amount');
   result.totalLabel=totalRow?.querySelector('.calendar-expense-total-label')?.textContent||'';
   result.totalText=totalAmount?.textContent||'';
+  const totalLabelNode=totalRow?.querySelector('.calendar-expense-total-label');
+  const totalLabelStyle=totalLabelNode?getComputedStyle(totalLabelNode):null;
+  const totalAmountStyle=totalAmount?getComputedStyle(totalAmount):null;
+  result.totalOneLine=Boolean(totalLabelNode&&totalAmount)&&Math.abs(totalLabelNode.getBoundingClientRect().top-totalAmount.getBoundingClientRect().top)<3;
+  result.totalLabelFont=Math.round(parseFloat(totalLabelStyle?.fontSize||'0'));
+  result.totalAmountFont=Math.round(parseFloat(totalAmountStyle?.fontSize||'0'));
+  result.totalLabelIsProminent=result.totalLabelFont>=result.totalAmountFont-1&&totalLabelStyle?.color!==getComputedStyle(ready).color;
   result.coverageNote=ready.querySelector('.calendar-expense-coverage')?.textContent||'';
 
   // One line: the bar's height must stay close to a single row of text.
@@ -453,6 +460,8 @@ try {
 
     if (value.totalLabel !== '합계 ₩') throw new Error(`${label}: the primary total must be labelled "합계 ₩", got "${value.totalLabel}"`);
     if (value.totalText !== '314,500원') throw new Error(`${label}: total must be the sum Core returned, got ${value.totalText}`);
+    if (!value.totalOneLine) throw new Error(`${label}: total label and amount must share one line`);
+    if (!value.totalLabelIsProminent) throw new Error(`${label}: total label must match the amount scale and use an accent color`);
     if (!value.totalAfterItems) throw new Error(`${label}: the total must stay to the right of the category detail`);
     if (!value.totalInsideBar) throw new Error(`${label}: the total must stay inside the bar`);
 

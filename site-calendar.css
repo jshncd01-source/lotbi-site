@@ -616,7 +616,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-date-cell[data-today="true"] .calendar-date-number,
 .calendar-date-cell[data-today="true"][data-weekday="0"] .calendar-date-number,
 .calendar-date-cell[data-today="true"][data-weekday="6"] .calendar-date-number { color: #fff; }
-.calendar-date-number { font-size: 14px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.calendar-date-number { font-size: 17px; font-weight: 850; font-variant-numeric: tabular-nums; }
 .calendar-mobile-event-count { display: none; color: #687180; font-size: 11px; font-weight: 800; }
 .calendar-weather-icon {
   flex: 0 0 auto;
@@ -624,7 +624,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   width: 18px;
   height: 18px;
 }
-.calendar-weather-temperature { color: #4f5d70; font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.calendar-weather-temperature { color: #3f5067; font-size: 11px; font-weight: 850; font-variant-numeric: tabular-nums; }
 .calendar-holiday-label {
   min-width: 0;
   overflow: hidden;
@@ -1301,7 +1301,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-actions button { border-co
 body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d36b6b !important; color: #f2a1a1 !important; }
 
 @media (min-width: 901px) {
-  .calendar-week-days { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+  .calendar-week-days { grid-template-columns: minmax(0, 1fr); }
   .calendar-month-layout,
   .calendar-month {
     height: 100%;

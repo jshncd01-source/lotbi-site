@@ -166,8 +166,9 @@
 /* Outside the scrolling list on purpose: the total stays on the right however
    far the fixed category row is scrolled. */
 .calendar-expense-total {
-  display: grid;
-  gap: 2px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   align-self: center;
   margin: 0;
   padding-left: 14px;
@@ -175,15 +176,16 @@
 }
 
 .calendar-expense-total-label {
-  color: var(--lotbi-text-muted, #737b88);
-  font-size: 0.76rem;
-  font-weight: 700;
+  color: var(--brand-blue, #285f9e);
+  font-size: 0.95rem;
+  font-weight: 850;
+  white-space: nowrap;
 }
 
 .calendar-expense-total-amount {
   color: var(--lotbi-text-primary, #303642);
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
 
@@ -232,7 +234,7 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
   }
 
   .calendar-expense-total {
-    display: grid;
+    display: inline-flex;
     padding: 0 0 0 9px;
     border-right: 0;
     border-left: 1px solid var(--lotbi-border-strong, #cfd6e2);
@@ -240,7 +242,11 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
   }
 
   .calendar-expense-total-amount {
-    font-size: 0.88rem;
+    font-size: 0.9rem;
+  }
+
+  .calendar-expense-total-label {
+    font-size: 0.9rem;
   }
 
   .calendar-expense-storage-note {
