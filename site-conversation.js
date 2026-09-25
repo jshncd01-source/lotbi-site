@@ -1,20 +1,20 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-fb9f6e763abf';
-import * as siteCore from './site-core.js?v=aset-fb9f6e763abf';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-fb9f6e763abf';
-import * as siteAttachments from './site-attachments.js?v=aset-fb9f6e763abf';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-fb9f6e763abf';
-import {deterministicReply} from './site-deterministic.js?v=aset-fb9f6e763abf';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-fb9f6e763abf';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-fb9f6e763abf';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-fb9f6e763abf';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-fb9f6e763abf';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-fb9f6e763abf';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-fb9f6e763abf';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-fb9f6e763abf';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-fb9f6e763abf';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-fb9f6e763abf';
-import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-fb9f6e763abf';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-fb9f6e763abf';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-dee627b2d35e';
+import * as siteCore from './site-core.js?v=aset-dee627b2d35e';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-dee627b2d35e';
+import * as siteAttachments from './site-attachments.js?v=aset-dee627b2d35e';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-dee627b2d35e';
+import {deterministicReply} from './site-deterministic.js?v=aset-dee627b2d35e';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-dee627b2d35e';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-dee627b2d35e';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-dee627b2d35e';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-dee627b2d35e';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-dee627b2d35e';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-dee627b2d35e';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-dee627b2d35e';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-dee627b2d35e';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-dee627b2d35e';
+import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-dee627b2d35e';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-dee627b2d35e';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -166,7 +166,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-fb9f6e763abf';
+  link.href = '/site-conversation.css?v=aset-dee627b2d35e';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -2819,7 +2819,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-fb9f6e763abf');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-dee627b2d35e');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
@@ -2832,6 +2832,29 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       content.replaceChildren(Object.assign(document.createElement('p'), {
         className: 'pet-error',
         textContent: '반려동물 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
+  const openFestival = async () => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('축제', 'LOTBI 총괄방이 승인해 공개한 축제 정보만 보여줍니다.');
+    panel.classList.add('site-festival-modal');
+    let releaseFestivalSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      modal: true,
+      onClose: () => { releaseFestivalSurface?.(); releaseFestivalSurface = null; },
+    });
+    try {
+      // Loaded on demand, like the 반려동물 panel: no visit needs the festival
+      // client/UI bundle until this panel is opened.
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-dee627b2d35e');
+      const mounted = await mountFestivalManager({root: content});
+      releaseFestivalSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'festival-error',
+        textContent: '축제 화면을 열지 못했습니다.',
       }));
     }
   };
@@ -4236,6 +4259,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (petFamilyTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       void openPetFamily();
+      return;
+    }
+    const festivalTrigger = target?.closest('[data-festival-open]');
+    if (festivalTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      void openFestival();
       return;
     }
     const petChatAction = target?.closest('[data-pet-chat-action]');
