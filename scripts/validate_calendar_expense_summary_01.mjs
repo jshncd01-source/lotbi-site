@@ -3,7 +3,7 @@
 // Covered contracts:
 //   - the strip renders under the month grid, as a sibling of the month layout
 //     (the layout's first two children stay the month and the day surface)
-//   - the monthly total leads and all six fixed category slots follow
+//   - all six fixed category slots lead and the monthly total stays at the right
 //   - each category name keeps its own fixed, legible colour in Light and Dark,
 //     and the amounts stay neutral
 //   - a month with no recorded amount still shows the strip, reading
@@ -168,13 +168,13 @@ try{
   result.viewportHeight=Math.round(innerHeight);
   result.aboveTheFold=barBox.bottom<=innerHeight;
 
-  // The total leads; categories are secondary and may scroll without moving it.
+  // The total stays at the right; categories may scroll without moving it.
   const stripBox=ready.getBoundingClientRect();
   const totalBox=totalAmount.getBoundingClientRect();
   // Past the whole item list, not past a single item: on a narrow screen the
   // later categories are scrolled out of view to the right.
   const itemsBox=ready.querySelector('.calendar-expense-items').getBoundingClientRect();
-  result.totalBeforeItems=totalBox.right<=itemsBox.left+1 || totalBox.top<itemsBox.top;
+  result.totalAfterItems=totalBox.left>=itemsBox.right-1;
   result.itemsScrollable=ready.querySelector('.calendar-expense-items').scrollWidth
     > ready.querySelector('.calendar-expense-items').clientWidth;
   result.totalInsideBar=totalBox.bottom<=stripBox.bottom+1;
@@ -451,7 +451,7 @@ try {
 
     if (value.totalLabel !== '합계 ₩') throw new Error(`${label}: the primary total must be labelled "합계 ₩", got "${value.totalLabel}"`);
     if (value.totalText !== '314,500원') throw new Error(`${label}: total must be the sum Core returned, got ${value.totalText}`);
-    if (!value.totalBeforeItems) throw new Error(`${label}: the total must lead the optional category detail`);
+    if (!value.totalAfterItems) throw new Error(`${label}: the total must stay to the right of the category detail`);
     if (!value.totalInsideBar) throw new Error(`${label}: the total must stay inside the bar`);
 
     if (!value.coverageNote.includes('2건')) throw new Error(`${label}: entries without an amount must be reported, got "${value.coverageNote}"`);
@@ -499,7 +499,7 @@ try {
     if (!value.guestPresent) throw new Error(`${label}: guests must still see the strip`);
     if (!value.guestAskedCore) throw new Error(`${label}: guest totals must be computed here, never fetched from Core`);
 
-    // The same total-first card, with all six fixed category slots.
+    // The same fixed-category card, with the total pinned at the right.
     const guestCategories = value.guestRows.map(row => row.category);
     if (guestCategories.join(',') !== 'FOOD,TRAVEL,SHOPPING,LIVING,OTHER,UNCLASSIFIED') {
       throw new Error(`${label}: the signed-out bar must keep all categories in order, got ${guestCategories.join(',')}`);
