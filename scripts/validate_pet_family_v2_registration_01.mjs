@@ -17,7 +17,10 @@ for (const forbidden of [
 }
 assert.ok(uiSource.indexOf("stepChrome('PHOTOS')") < uiSource.indexOf("stepChrome('BASIC')"),
   'the registration source must place the photo step before basic information');
-assert.ok(uiSource.includes('초안 보관 · 확인 대기'), 'pending close-ups must be presented as retained draft data');
+assert.ok(uiSource.includes('petDraftPhotoInspectionMessage'), 'draft photo reason codes must drive visible inspection guidance');
+assert.ok(uiSource.includes('next.disabled = !progression.ready'), 'BASIC must stay disabled until the progression contract is green');
+assert.ok(!uiSource.includes('registrationDraft.photos.length !== PET_PHOTO_SLOT_CODES.length'),
+  '10/10 presence alone must never authorize BASIC');
 assert.ok(uiSource.includes("current_step: 'REVIEW'"), 'the form must persist review progress');
 assert.ok(uiSource.includes('finalizePetRegistrationDraft'), 'stable registration must require explicit finalize');
 assert.ok(clientSource.includes("PET_MATCHING_CONSENT_VERSION = 'PET_MATCHING_CONSENT_2026_09_V2'"));
@@ -33,6 +36,7 @@ const draftPayload = {
   status: 'ACTIVE',
   current_step: 'PHOTOS',
   revision: 3,
+  species: 'DOG',
   matching_consent_state: 'NOT_GRANTED',
   photos: [{
     slot_code: 'NOSE_FRONT',
@@ -40,6 +44,7 @@ const draftPayload = {
     revision: 1,
     inspection_state: 'PENDING',
     inspection_reason_code: 'PET_PHOTO_ANCHOR_REQUIRED',
+    detected_species: null,
   }],
 };
 const fetchImpl = async (url, options = {}) => {
@@ -82,6 +87,60 @@ assert.equal(active.draftId, draftPayload.draft_id);
 assert.equal(active.photos[0].inspectionState, 'PENDING');
 assert.equal(active.photos[0].inspectionReasonCode, 'PET_PHOTO_ANCHOR_REQUIRED');
 assert.ok(!('petId' in active), 'a private registration draft must not allocate a stable Pet ID');
+assert.match(
+  client.petDraftPhotoInspectionMessage(active.photos[0]),
+  /얼굴이나 몸 전체/,
+  'pending close-ups must explain the anchor requirement',
+);
+
+const acceptedDogPhotos = client.PET_PHOTO_SLOT_CODES.map((slotCode, index) => ({
+  slotCode,
+  slotIndex: index + 1,
+  revision: 1,
+  inspectionState: 'ACCEPTED',
+  inspectionReasonCode: '',
+  detectedSpecies: 'DOG',
+}));
+const greenProgression = client.petDraftPhotoProgression({
+  species: 'DOG',
+  photos: acceptedDogPhotos,
+});
+assert.equal(greenProgression.presentCount, 10);
+assert.equal(greenProgression.acceptedCount, 10);
+assert.equal(greenProgression.ready, true, '10 accepted DOG photos must authorize BASIC');
+
+const rejectedProgression = client.petDraftPhotoProgression({
+  species: 'DOG',
+  photos: acceptedDogPhotos.map(photo => (
+    photo.slotCode === 'FACE_LEFT'
+      ? {...photo, inspectionState: 'REJECTED', inspectionReasonCode: 'PET_PHOTO_NOT_DOG_OR_CAT'}
+      : photo
+  )),
+});
+assert.equal(rejectedProgression.presentCount, 10);
+assert.equal(rejectedProgression.ready, false, '10/10 with one rejected photo must not authorize BASIC');
+assert.deepEqual(rejectedProgression.rejectedSlots, ['FACE_LEFT']);
+
+const pendingProgression = client.petDraftPhotoProgression({
+  species: 'DOG',
+  photos: acceptedDogPhotos.map(photo => (
+    photo.slotCode === 'BODY_RIGHT'
+      ? {...photo, inspectionState: 'PENDING', inspectionReasonCode: 'PET_PHOTO_SPECIES_CHECK_UNAVAILABLE'}
+      : photo
+  )),
+});
+assert.equal(pendingProgression.presentCount, 10);
+assert.equal(pendingProgression.ready, false, '10/10 with one pending photo must not authorize BASIC');
+assert.deepEqual(pendingProgression.pendingSlots, ['BODY_RIGHT']);
+
+const mismatchProgression = client.petDraftPhotoProgression({
+  species: 'DOG',
+  photos: acceptedDogPhotos.map(photo => (
+    photo.slotCode === 'FACE_FRONT' ? {...photo, detectedSpecies: 'CAT'} : photo
+  )),
+});
+assert.equal(mismatchProgression.ready, false, 'accepted anchor species must still match the selected species');
+assert.deepEqual(mismatchProgression.speciesMismatchSlots, ['FACE_FRONT']);
 
 await client.createPetRegistrationDraft('session-token', 'site.pet.draft.contract', fetchImpl);
 const createCall = calls.find(call => new URL(call.url).pathname === '/v2/pet-registration-drafts'
