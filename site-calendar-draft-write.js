@@ -17,8 +17,8 @@
 //     double-tap, a reload-and-retry and the same confirmation photographed
 //     again all land on the one entry without any of them knowing about each
 //     other.
-import {createLifeActivity} from './site-calendar.js?v=aset-c6b1e0c8f05b';
-import {SiteCoreError} from './site-core.js?v=aset-c6b1e0c8f05b';
+import {createLifeActivity} from './site-calendar.js?v=aset-12c6289e7c52';
+import {SiteCoreError} from './site-core.js?v=aset-12c6289e7c52';
 
 const FINGERPRINT_RE = /^[0-9a-f]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

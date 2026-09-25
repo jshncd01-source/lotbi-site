@@ -1,5 +1,5 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-c6b1e0c8f05b';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-c6b1e0c8f05b';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-12c6289e7c52';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-12c6289e7c52';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,14 +10,14 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-c6b1e0c8f05b';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-c6b1e0c8f05b';
+} from './site-calendar-model.js?v=aset-12c6289e7c52';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-12c6289e7c52';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-c6b1e0c8f05b';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-c6b1e0c8f05b';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-12c6289e7c52';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-12c6289e7c52';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -25,12 +25,12 @@ import {
   filterScheduleItems,
   monthCellSummary,
   weekAgendaGroups,
-} from './site-calendar-product.js?v=aset-c6b1e0c8f05b';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-c6b1e0c8f05b';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-c6b1e0c8f05b';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-c6b1e0c8f05b';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-c6b1e0c8f05b';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-c6b1e0c8f05b';
+} from './site-calendar-product.js?v=aset-12c6289e7c52';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-12c6289e7c52';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-12c6289e7c52';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-12c6289e7c52';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-12c6289e7c52';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-12c6289e7c52';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -63,6 +63,7 @@ const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription
 // 자동으로 덮어써도 되는지를 가른다: 사용자가 직접 고른 지역은 현재 위치가
 // 자동으로 지우지 않는다.
 const CALENDAR_WEATHER_REGION_ORIGIN_STORAGE_KEY = 'lotbi.calendar.weather-region-origin.v1';
+const CALENDAR_WEATHER_REGION_SYNC_EVENT = 'lotbi:calendar-weather-region-sync';
 // 시·군·구 목록과 그 좌표. 공개 행정구역 정보이며 개인 위치가 아니다.
 const CALENDAR_WEATHER_REGION_CATALOG_STORAGE_KEY = 'lotbi.calendar.weather-region-catalog.v1';
 const CALENDAR_WEATHER_REGION_CATALOG_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -1927,6 +1928,22 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
     }
   };
 
+  // 현재 위치가 해결되는 동안에도 Settings는 열린 채로 남는다. 그 경우 overview
+  // 문구만 바꾸면 아래 두 선택칸은 빈 값으로 남아, 위치가 적용되지 않은 것처럼
+  // 보인다. 같은 catalog 항목을 찾아 두 칸도 즉시 현재 지역으로 맞춘다.
+  const syncWeatherRegionSelects = () => {
+    if (!regionCatalog) return;
+    const selected = regionCatalog.items.find(
+      item => item.displayLabel === state.manualWeatherRegion?.label,
+    );
+    if (!selected) return;
+    provinceSelect.value = selected.province;
+    fillCities(selected.province);
+    citySelect.value = selected.code;
+    weatherStatus.textContent = storedRegionStatusText();
+  };
+  root.addEventListener(CALENDAR_WEATHER_REGION_SYNC_EVENT, syncWeatherRegionSelects);
+
   const loadRegionOptions = async () => {
     weatherRetry.hidden = true;
     provinceSelect.disabled = true;
@@ -2154,6 +2171,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   const dismiss = () => {
     if (dismissed) return;
     dismissed = true;
+    root.removeEventListener(CALENDAR_WEATHER_REGION_SYNC_EVENT, syncWeatherRegionSelects);
     backdrop.remove();
     const focusTarget = opener instanceof HTMLElement && opener.isConnected
       ? opener
@@ -3831,6 +3849,7 @@ export async function mountLifeCalendarManager({
     state.weatherRegionOrigin = WEATHER_REGION_ORIGIN.CURRENT_LOCATION;
     // 설정창이 열려 있으면 문구가 바로 사실을 따라가게 한다.
     syncLocationSettingsControl();
+    root.dispatchEvent(new Event(CALENDAR_WEATHER_REGION_SYNC_EVENT));
     return true;
   }
 
