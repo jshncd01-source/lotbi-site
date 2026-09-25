@@ -86,6 +86,24 @@ const BACK_REAR_PATHS = [
   'M31 15.8c1.4-1.8 3-2.7 5-2.7s3.6.9 5 2.7',
 ];
 
+// Rear-view silhouettes used only by the BACK_REAR slot. The ordinary dog
+// and cat emoji are side views, so this slot needs its own back-facing art.
+const DOG_REAR_PATHS = [
+  'M24 15c3.2-4.2 7.2-6.2 12-6.2s8.8 2 12 6.2',
+  'M24.5 14.5c-4.8-2.4-8.4.2-7.2 5.8.8 4 3.5 6.2 7 6.7',
+  'M47.5 14.5c4.8-2.4 8.4.2 7.2 5.8-.8 4-3.5 6.2-7 6.7',
+  'M25 23c-2.8 3.2-4 7.1-4 11.5v4.8c0 2.6 2.1 4.7 4.7 4.7h20.6c2.6 0 4.7-2.1 4.7-4.7v-4.8c0-4.4-1.2-8.3-4-11.5',
+  'M28 43.8v3.4M44 43.8v3.4',
+  'M50 31c5-1.3 7.2-4.5 5.8-8',
+];
+
+const CAT_REAR_PATHS = [
+  'M23 20l2-10 7 5c2.6-.9 5.4-.9 8 0l7-5 2 10',
+  'M25 21c-2.7 3.3-4 8-4 13.2v5.1c0 2.6 2.1 4.7 4.7 4.7h20.6c2.6 0 4.7-2.1 4.7-4.7v-5.1c0-5.2-1.3-9.9-4-13.2',
+  'M28 43.8v3.4M44 43.8v3.4',
+  'M50.5 37c7 1 10.5-3.5 9.2-9.3-1-4.5-5.3-5.3-7.2-2',
+];
+
 const DISTINCTIVE_PATHS = [
   'M22 22c5-4 13-4 17 0 3.5 3.5 2 9-3 11.5-5.5 2.8-12 1.6-15-2-2.2-2.7-1.6-7 1-9.5Z',
   'M52 37l5.5 5.5',
@@ -207,8 +225,15 @@ export function petPhotoSlotDiagram(slotCode, species) {
   const face = species === 'DOG' ? '🐶' : '🐱';
   const body = species === 'DOG' ? '🐕' : '🐈';
   const animalLabel = species === 'DOG' ? '강아지' : '고양이';
-  const bodySlot = ['BODY_LEFT', 'BODY_RIGHT', 'BACK_REAR'].includes(slotCode);
-  root.appendChild(diagramText(bodySlot ? body : face, 36, 35, 'pet-slot-species-mark', animalLabel));
+  const bodySlot = ['BODY_LEFT', 'BODY_RIGHT'].includes(slotCode);
+  if (slotCode === 'BACK_REAR') {
+    root.setAttribute('data-pet-rear-species', species);
+    for (const d of species === 'DOG' ? DOG_REAR_PATHS : CAT_REAR_PATHS) {
+      root.appendChild(shape('path', {d}));
+    }
+  } else {
+    root.appendChild(diagramText(bodySlot ? body : face, 36, 35, 'pet-slot-species-mark', animalLabel));
+  }
 
   if (slotCode.endsWith('_LEFT')) {
     root.appendChild(diagramText('←', 11, 32, 'pet-slot-guide-arrow'));

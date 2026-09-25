@@ -553,6 +553,7 @@ function innerFixtureHtml() {
   }));
   const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
   const speciesMarks = [...document.querySelectorAll('.pet-slot-species-mark')].map(item => item.textContent);
+  const rearSpecies = document.querySelector('[data-pet-rear-species]')?.dataset.petRearSpecies || '';
 
   // Measure layout before the result sink is filled.
   const scrollWidth = document.documentElement.scrollWidth;
@@ -582,6 +583,7 @@ function innerFixtureHtml() {
     registrationSteps,
     registrationActionWhileOpen,
     speciesMarks,
+    rearSpecies,
     hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
     hasNotice: surface.textContent.includes('공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다'),
   });
@@ -764,6 +766,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     `${label}: the list-level registration/resume action must disappear while its form is open`);
   assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => ['🐶', '🐕'].includes(mark)),
     `${label}: DOG selection must show only dog photo guides`);
+  assert.equal(result.rearSpecies, 'DOG', `${label}: rear slot must use the selected dog's back-facing guide`);
 }
 
 console.log('SITE-PET-FAMILY-WEB-01 CONTRACT PASS');
