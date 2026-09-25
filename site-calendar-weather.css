@@ -75,15 +75,16 @@ body[data-site-theme="dark"] {
    날짜보다 커지면 안 됩니다. 선명해진 것은 크기가 아니라 모양과 대비입니다. */
 svg.calendar-weather-icon {
   flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   display: block;
   overflow: visible;
 }
 
 .calendar-weather-icon [data-weather-part="body"] { fill: var(--lotbi-weather-cloud); }
 .calendar-weather-icon [data-weather-part="ray"],
-.calendar-weather-icon [data-weather-part="rain"] {
+.calendar-weather-icon [data-weather-part="rain"],
+.calendar-weather-icon [data-weather-part="snow"] {
   fill: none;
   stroke-width: 2.4;
   stroke-linecap: round;
@@ -96,4 +97,4 @@ svg.calendar-weather-icon {
    구름 아래 모양입니다 — 없음 / 기울어진 선 / 점. 14px 에서 색보다 모양이
    먼저 읽힙니다. */
 .calendar-weather-icon[data-weather-kind="RAIN"] [data-weather-part="rain"] { stroke: var(--lotbi-weather-rain); }
-.calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="snow"] { fill: var(--lotbi-weather-snow); }
+.calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="snow"] { stroke: var(--lotbi-weather-snow); }

@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 22442)
+Total output lines: 2143
+
 // SITE-PET-FAMILY-WEB-01 — PET FAMILY surface for Mobile Web and Desktop.
 //
 // Language rule, inherited from the Core migrations and the app screen:
@@ -50,18 +53,18 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-c6c91651936d';
+} from './site-pet.js?v=aset-6c31fddb37a5';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-c6c91651936d';
+} from './site-pet-guides.js?v=aset-6c31fddb37a5';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-c6c91651936d';
+} from './site-pet-gate.js?v=aset-6c31fddb37a5';
 
 const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -978,248 +981,7 @@ export async function mountPetFamilyManager({
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     const pad = n => String(n).padStart(2, '0');
-    return `${parsed.getFullYear()}.${pad(parsed.getMonth() + 1)}.${pad(parsed.getDate())} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
-  };
-
-  const caseStatusLabel = status => ({
-    ACTIVE: '진행 중',
-    RESOLVED: '종료 (돌아옴)',
-    CANCELLED: '신고 취소',
-    EXPIRED: '기간 만료',
-  })[status] || status;
-
-  const momentField = (labelText, initial) => {
-    const field = el('label', 'site-field', labelText);
-    const input = el('input');
-    input.type = 'datetime-local';
-    input.value = initial;
-    field.appendChild(input);
-    return {field, input};
-  };
-
-  const textField = (labelText, maxLength, placeholder = '') => {
-    const field = el('label', 'site-field', labelText);
-    const input = el('input');
-    input.type = 'text';
-    input.maxLength = maxLength;
-    input.autocomplete = 'off';
-    if (placeholder) input.placeholder = placeholder;
-    field.appendChild(input);
-    return {field, input};
-  };
-
-  // Found reporters are never forced through annotation. The next free index is
-  // paired with the corresponding semantic view as a best-effort server hint;
-  // the report remains valid with any number of photos, including zero.
-  const nextFoundSlot = caseId => {
-    const used = new Set(foundPhotos.get(caseId) || []);
-    for (let index = 1; index <= FOUND_PHOTO_SLOT_MAX; index += 1) {
-      if (!used.has(index)) return index;
-    }
-    return 0;
-  };
-
-  const renderFoundPhotos = (record, host) => {
-    host.replaceChildren();
-    const slots = foundPhotos.get(record.caseId) || [];
-    host.appendChild(el('p', 'pet-case-photo-count', `첨부 사진 ${slots.length}/${FOUND_PHOTO_SLOT_MAX}`));
-
-    const strip = el('div', 'pet-case-photo-strip');
-    for (const slotIndex of slots) {
-      const item = el('div', 'pet-case-photo');
-      const key = previewKey(record.caseId, `found-${slotIndex}`);
-      const cached = photoPreviews.get(key);
-      if (cached) {
-        const image = el('img', 'pet-case-photo-image');
-        image.src = cached;
-        image.alt = `발견 신고 첨부 사진 ${slotIndex}`;
-        image.decoding = 'async';
-        item.appendChild(image);
-      } else {
-        item.appendChild(el('span', 'pet-case-photo-loading', '불러오는 중'));
-        void (async () => {
-          try {
-            const url = await fetchFoundPetPhotoObjectUrl(sessionToken, record.caseId, slotIndex);
-            photoPreviews.set(key, url);
-            if (!item.isConnected) return;
-            const image = el('img', 'pet-case-photo-image');
-            image.src = url;
-            image.alt = `발견 신고 첨부 사진 ${slotIndex}`;
-            image.decoding = 'async';
-            item.replaceChildren(image, item.lastElementChild);
-          } catch {
-            const loading = item.querySelector('.pet-case-photo-loading');
-            if (loading) loading.textContent = '미리보기 실패';
-          }
-        })();
-      }
-      if (record.status === 'ACTIVE') {
-        const remove = el('button', 'pet-case-photo-remove', '삭제');
-        remove.type = 'button';
-        remove.setAttribute('aria-label', `첨부 사진 ${slotIndex} 삭제`);
-        remove.addEventListener('click', async () => {
-          if (busy) return;
-          setBusy(true);
-          try {
-            await deleteFoundPetPhoto(sessionToken, record.caseId, slotIndex);
-            foundPhotos.set(record.caseId, slots.filter(value => value !== slotIndex));
-            revokePreview(key);
-            renderFoundPhotos(record, host);
-            status.textContent = '첨부 사진을 삭제했습니다.';
-          } catch (value) {
-            showError(errorMessage(value, '첨부 사진을 삭제하지 못했습니다.'), value);
-          } finally {
-            setBusy(false);
-          }
-        });
-        item.appendChild(remove);
-      }
-      strip.appendChild(item);
-    }
-    host.appendChild(strip);
-
-    if (record.status !== 'ACTIVE') return;
-    const slotIndex = nextFoundSlot(record.caseId);
-    if (slotIndex === 0) return;
-
-    const input = el('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg,image/png';
-    input.hidden = true;
-    const add = el('button', 'site-button site-button-secondary pet-case-photo-add', '사진 첨부');
-    add.type = 'button';
-    add.addEventListener('click', () => input.click());
-    input.addEventListener('change', async () => {
-      const file = input.files?.[0];
-      input.value = '';
-      if (!file || busy) return;
-      setBusy(true);
-      try {
-        await uploadFoundPetPhoto(
-          sessionToken,
-          record.caseId,
-          slotIndex,
-          file,
-          FOUND_PHOTO_SEMANTIC_SLOT_CODES[slotIndex - 1] || '',
-        );
-        foundPhotos.set(record.caseId, [...slots, slotIndex].sort((a, b) => a - b));
-        renderFoundPhotos(record, host);
-        status.textContent = '사진을 첨부했습니다.';
-      } catch (value) {
-        showError(errorMessage(value, '사진을 첨부하지 못했습니다.'), value);
-      } finally {
-        setBusy(false);
-      }
-    });
-    host.append(add, input);
-  };
-
-  const closeCaseButtons = (record, kind) => {
-    const actions = el('div', 'pet-case-actions');
-    const run = async resolved => {
-      if (busy) return;
-      setBusy(true);
-      showError('');
-      try {
-        const closer = kind === 'sos' ? closePetSOS : closeFoundPet;
-        const updated = await closer(sessionToken, record.caseId, resolved);
-        if (kind === 'sos') {
-          sosCases = sosCases.map(item => (item.caseId === updated.caseId ? updated : item));
-          renderSos();
-          reportCount();
-        } else {
-          foundCases = foundCases.map(item => (item.caseId === updated.caseId ? updated : item));
-          renderFound();
-        }
-        status.textContent = '신고를 종료했습니다.';
-      } catch (value) {
-        showError(errorMessage(value, '신고를 종료하지 못했습니다.'), value);
-      } finally {
-        setBusy(false);
-      }
-    };
-    const resolvedButton = el('button', 'site-button site-button-secondary',
-      kind === 'sos' ? '돌아왔어요 (종료)' : '보호자를 만났어요 (종료)');
-    resolvedButton.type = 'button';
-    resolvedButton.dataset.petCaseResolve = record.caseId;
-    resolvedButton.addEventListener('click', () => void run(true));
-    const cancelButton = el('button', 'pet-case-cancel', '신고 취소');
-    cancelButton.type = 'button';
-    cancelButton.dataset.petCaseCancel = record.caseId;
-    cancelButton.addEventListener('click', () => void run(false));
-    actions.append(resolvedButton, cancelButton);
-    return actions;
-  };
-
-  const renderSos = () => {
-    sosSection.replaceChildren();
-    const header = el('div', 'pet-section-header');
-    header.append(el('h3', 'pet-section-title', '실종 신고'));
-    const openForm = el('button', 'site-button site-button-secondary', '실종 신고하기');
-    openForm.type = 'button';
-    openForm.dataset.petSosNew = '';
-    openForm.disabled = pets.length === 0;
-    header.appendChild(openForm);
-    sosSection.append(header);
-
-    if (pets.length === 0) {
-      sosSection.appendChild(el('p', 'pet-empty-copy', '반려동물을 먼저 등록하면 실종 신고를 할 수 있습니다.'));
-    }
-
-    const active = sosCases.filter(item => item.status === 'ACTIVE');
-    const closed = sosCases.filter(item => item.status !== 'ACTIVE');
-    if (active.length === 0 && pets.length > 0) {
-      sosSection.appendChild(el('p', 'pet-empty-copy', '진행 중인 실종 신고가 없습니다.'));
-    }
-
-    for (const record of [...active, ...closed]) {
-      const pet = pets.find(item => item.petId === record.petId);
-      const card = el('article', 'pet-case-card');
-      card.dataset.petCase = record.caseId;
-      card.dataset.petCaseStatus = record.status;
-      const head = el('div', 'pet-card-head');
-      head.append(
-        el('h4', 'pet-card-name', pet ? pet.name : '등록 해제된 반려동물'),
-        el('span', 'pet-case-status', caseStatusLabel(record.status)),
-      );
-      card.appendChild(head);
-      if (record.locationLabel) card.appendChild(el('p', 'pet-case-line', `마지막 목격 ${record.locationLabel}`));
-      if (record.occurredAt) card.appendChild(el('p', 'pet-case-line', displayMoment(record.occurredAt)));
-      if (record.note) card.appendChild(el('p', 'pet-case-line', record.note));
-      if (record.status === 'ACTIVE') card.appendChild(closeCaseButtons(record, 'sos'));
-      sosSection.appendChild(card);
-    }
-
-    const formHost = el('div', 'pet-case-form-host');
-    sosSection.appendChild(formHost);
-    openForm.addEventListener('click', () => {
-      if (pets.length === 0) return;
-      formHost.replaceChildren();
-      const form = el('form', 'pet-form');
-      form.dataset.petSosForm = '';
-      form.noValidate = true;
-
-      const petField = el('label', 'site-field', '반려동물');
-      const petSelect = el('select');
-      for (const pet of pets) {
-        const option = el('option', '', pet.name);
-        option.value = pet.petId;
-        petSelect.appendChild(option);
-      }
-      petField.appendChild(petSelect);
-
-      const place = textField('마지막으로 본 장소', 500, '예: 서울시 마포구 망원동 한강공원');
-      const moment = momentField('마지막으로 본 시각', localNowValue());
-      const note = textField('특이사항 (선택)', 2000);
-
-      const formError = el('p', 'site-field-error');
-      formError.setAttribute('role', 'alert');
-      const submit = el('button', 'site-button site-button-primary', '실종 신고 저장');
-      submit.type = 'submit';
-      form.append(petField, place.field, moment.field, note.field, formError, submit);
-
-      let requestId = '';
-      form.addEventListener('submit', async event => {
+    return `${parsed.getFullYear()}.${pad(parsed.getMonth…2442 tokens truncated…, async event => {
         event.preventDefault();
         if (busy) return;
         const lastSeenAt = isoFromLocal(moment.input.value);

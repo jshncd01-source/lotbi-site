@@ -129,6 +129,12 @@ const fixture = {
   ai_calls: 0,
 };
 
+assert.equal(
+  weatherTemperatureLabel({temperature: 19.4, minTemperature: 12.2, maxTemperature: 23.7}),
+  '12° / 24°',
+  'month cells must prefer the daily low/high range over a single representative temperature',
+);
+
 {
   const normalized = normalizeCalendarWeatherResponse(fixture);
   assert.equal(normalized.items.length, 4);
@@ -336,7 +342,7 @@ assert.ok(locationSource.includes('getBrowserLocationPermissionState'), 'browser
   assert.equal(item.maxTemperature, 27.2, 'max_temperature_c must be parsed');
   assert.equal(item.precipitationProbability, 20, 'precipitation_probability must be parsed');
   assert.equal(item.freshness, 'CACHE_VALID', 'freshness must be parsed');
-  assert.equal(weatherTemperatureLabel(item), '23\u00b0', 'a current temperature reads as one rounded value');
+  assert.equal(weatherTemperatureLabel(item), '17\u00b0 / 27\u00b0', 'daily low/high must take precedence over one representative temperature');
 
   // An older Core, or a date the provider did not cover, simply omits them.
   const bare = normalizeCalendarWeatherResponse({provider_ready: true, ai_calls: 0, items: [{...base}]});
