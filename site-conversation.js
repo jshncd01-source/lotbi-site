@@ -1,21 +1,22 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-aa858474e430';
-import * as siteCore from './site-core.js?v=aset-aa858474e430';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-aa858474e430';
-import * as siteAttachments from './site-attachments.js?v=aset-aa858474e430';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-aa858474e430';
-import {deterministicReply} from './site-deterministic.js?v=aset-aa858474e430';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-aa858474e430';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-aa858474e430';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-aa858474e430';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-aa858474e430';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-aa858474e430';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-aa858474e430';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-aa858474e430';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-aa858474e430';
-import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-aa858474e430';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-aa858474e430';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-317a9f39c081';
+import * as siteCore from './site-core.js?v=aset-317a9f39c081';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-317a9f39c081';
+import * as siteAttachments from './site-attachments.js?v=aset-317a9f39c081';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-317a9f39c081';
+import {deterministicReply} from './site-deterministic.js?v=aset-317a9f39c081';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-317a9f39c081';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-317a9f39c081';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-317a9f39c081';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-317a9f39c081';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-317a9f39c081';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-317a9f39c081';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-317a9f39c081';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-317a9f39c081';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-317a9f39c081';
+import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-317a9f39c081';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-317a9f39c081';
 
-const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
@@ -320,6 +321,24 @@ async function writeMessageTextToClipboard(text) {
   if (!copied) throw new Error('복사를 완료하지 못했습니다.');
 }
 
+async function shareMessageText(text, {includeUrl = true} = {}) {
+  const value = typeof text === 'string' ? text.trim() : '';
+  if (!value) throw new Error('공유할 내용이 없습니다.');
+  const shareData = includeUrl
+    ? {title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL}
+    : {text: value};
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share(shareData);
+      return 'shared';
+    } catch (error) {
+      if (error && error.name === 'AbortError') return 'cancelled';
+    }
+  }
+  await writeMessageTextToClipboard(includeUrl ? `${value}\n\n${MESSAGE_ACTION_SHARE_URL}` : value);
+  return 'copied';
+}
+
 function createMessageActions(text, announce) {
   const value = typeof text === 'string' ? text.trim() : '';
   if (!value) return undefined;
@@ -346,15 +365,6 @@ function createMessageActions(text, announce) {
     }, MESSAGE_ACTION_FEEDBACK_MS);
   };
 
-  const shareByClipboard = async () => {
-    try {
-      await writeMessageTextToClipboard(`${value}\n\n${MESSAGE_ACTION_SHARE_URL}`);
-      report('이 브라우저에는 공유 시트가 없어 답변과 링크를 복사했습니다. 카카오톡에 붙여넣어 주세요.');
-    } catch {
-      report('공유를 완료하지 못했습니다.', 'error');
-    }
-  };
-
   const copy = createIconButton({className: 'chat-message-action', label: '복사하기', iconPath: MESSAGE_ACTION_ICON_COPY, dataset: {messageAction: 'copy'}});
   copy.addEventListener('click', async () => {
     try {
@@ -367,15 +377,16 @@ function createMessageActions(text, announce) {
 
   const share = createIconButton({className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: {messageAction: 'share'}});
   share.addEventListener('click', () => {
-    // navigator.share has to run inside the click itself — an await before it
-    // spends the user gesture and the OS refuses to open the sheet.
-    if (typeof navigator.share !== 'function') { void shareByClipboard(); return; }
-    navigator.share({title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL})
-      .then(() => report('공유 앱으로 보냈습니다.'))
-      .catch(error => {
-        if (error && error.name === 'AbortError') return;
-        void shareByClipboard();
-      });
+    // shareMessageText calls navigator.share synchronously before its first await,
+    // preserving the user gesture required by mobile share sheets.
+    void shareMessageText(value).then(result => {
+      if (result === 'cancelled') return;
+      if (result === 'copied') {
+        report('이 브라우저에는 공유 시트가 없어 답변과 링크를 복사했습니다. 카카오톡에 붙여넣어 주세요.');
+        return;
+      }
+      report('공유 앱으로 보냈습니다.');
+    }).catch(() => report('공유를 완료하지 못했습니다.', 'error'));
   });
 
   // Built only where the browser can actually speak. No dialog, no disabled
@@ -2397,6 +2408,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   const messageNode = message => {
     const node = createMessage(message.role, message.text, message.meta || {});
+    const reusableOutput = message.role === 'assistant' ? message.meta?.reusableOutput : null;
+    if (reusableOutput) {
+      const card = createReusableOutputCard(reusableOutput, {
+        copyText: writeMessageTextToClipboard,
+        shareText: text => shareMessageText(text, {includeUrl: false}),
+        editText: text => {
+          prompt.value = text;
+          state.draft = text.slice(0, 1000);
+          saveState();
+          prompt.dispatchEvent(new Event('input', {bubbles: true}));
+          prompt.focus();
+          if (text.length > 1000) setStatus('긴 결과물 전체를 입력창에 넣었습니다. 전송하려면 1000자 이하로 편집해 주세요.');
+        },
+        announce: setStatus,
+      });
+      if (card) node.appendChild(card);
+    }
     const rich = compactRichProductMeta(message.meta?.richProduct);
     const place = normalizedPersistedPlaceResult(message.meta?.placeResult);
     if (message.role === 'assistant' && rich) {
@@ -2436,7 +2464,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         : (message.meta.petAction.target === 'sos' ? '실종 신고하기' : '발견 제보하기');
       node.appendChild(action);
     }
-    if (message.role === 'assistant') {
+    if (message.role === 'assistant' && !reusableOutput) {
       const actions = createMessageActions(message.text, setStatus);
       if (actions) node.appendChild(actions);
     }
@@ -2530,6 +2558,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const draft = normalizeConversationCalendarDraft(meta.calendarDraft);
       if (draft) meta.calendarDraft = draft;
       else delete meta.calendarDraft;
+    }
+    if ('reusableOutput' in meta) {
+      try {
+        const output = normalizeReusableOutput(meta.reusableOutput);
+        if (output) meta.reusableOutput = output;
+        else delete meta.reusableOutput;
+      } catch {
+        delete meta.reusableOutput;
+      }
     }
     return {...value, meta};
   };
@@ -3845,6 +3882,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
         if (suggestedPetAction) meta.petAction = suggestedPetAction;
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
+      if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
+        if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
         const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
         if (calendarItems.length) {
           meta.calendarItems = calendarItems;
