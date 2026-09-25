@@ -1,18 +1,18 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-d753bb50ca93';
-import * as siteCore from './site-core.js?v=aset-d753bb50ca93';
-import {buildKakaoMapWebSearchUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openKakaoMapPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-d753bb50ca93';
-import * as siteAttachments from './site-attachments.js?v=aset-d753bb50ca93';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-d753bb50ca93';
-import {deterministicReply} from './site-deterministic.js?v=aset-d753bb50ca93';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-d753bb50ca93';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-d753bb50ca93';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-d753bb50ca93';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-d753bb50ca93';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-d753bb50ca93';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-d753bb50ca93';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-d753bb50ca93';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-d753bb50ca93';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-d753bb50ca93';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-12c6289e7c52';
+import * as siteCore from './site-core.js?v=aset-12c6289e7c52';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-12c6289e7c52';
+import * as siteAttachments from './site-attachments.js?v=aset-12c6289e7c52';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-12c6289e7c52';
+import {deterministicReply} from './site-deterministic.js?v=aset-12c6289e7c52';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-12c6289e7c52';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-12c6289e7c52';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-12c6289e7c52';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-12c6289e7c52';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-12c6289e7c52';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-12c6289e7c52';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-12c6289e7c52';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-12c6289e7c52';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-12c6289e7c52';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -164,7 +164,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-d753bb50ca93';
+  link.href = '/site-conversation.css?v=aset-12c6289e7c52';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -1300,37 +1300,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!value || typeof value !== 'object') return null;
     return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
   };
-  // The five 인허가 wordings, unchanged. They read as one set, and the subject
-  // stays on our side of the comparison: NOT_FOUND means WE could not match
-  // this place in the public data, not that the place is unlicensed. None of
-  // them may ever be rewritten as '인허가 기록 없음' / '무허가' / '허가 없음'.
-  const LICENSE_BADGE_COPY = Object.freeze({
-    VERIFIED: '인허가 대조 확인',
-    AMBIGUOUS: '인허가 후보 여럿',
-    CONFLICTING: '인허가 정보 불일치',
-    NOT_FOUND: '인허가 대조 안 됨',
-    UNAVAILABLE: '인허가 대조 불가',
-  });
-
-  // What the badge is short for. Not painted on the card — it reaches a screen
-  // reader and a hover without taking a line.
-  const LICENSE_BADGE_DETAIL = Object.freeze({
-    VERIFIED: '공공 인허가 데이터에서 이 가게를 찾아 맞춰봤어요.',
-    AMBIGUOUS: '공공 인허가 데이터에 맞춰볼 후보가 여러 개라 하나로 정하지 못했어요.',
-    CONFLICTING: '공공 인허가 데이터와 업체 식별 정보가 서로 맞지 않았어요.',
-    NOT_FOUND: '공공 인허가 데이터에서 이 가게를 찾지 못했어요. 가게 문제가 아니라 대조가 안 된 것입니다.',
-    UNAVAILABLE: '공공 인허가 데이터를 조회하지 못했어요.',
-  });
-
-  // Only where a reader might otherwise read the badge as a verdict on the shop.
-  const LICENSE_LAG_NOTE_STATES = new Set(['NOT_FOUND', 'CONFLICTING']);
-
   const createPlaceCardRail = placeValue => {
     const placeResult = normalizedPersistedPlaceResult(placeValue);
     if (!placeResult) return null;
     const fresh = isPlaceResultFresh(placeResult);
     const rail = document.createElement('section');
     rail.className = 'lotbi-rich-card-rail lotbi-place-orbit';
+    rail.classList.toggle('has-place-photo', placeResult.results.some(place => Boolean(place.imageUrl)));
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
     rail.dataset.cardCount = String(placeResult.results.length);
@@ -1339,72 +1315,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     rail.setAttribute('aria-roledescription', 'carousel');
     rail.tabIndex = 0;
 
-    const setNeutralPlaceholder = media => {
+    const collapseMedia = media => {
       media.replaceChildren();
       media.classList.remove('lotbi-rich-card-media-loading');
-      media.classList.add('lotbi-rich-card-placeholder', 'lotbi-place-photo-placeholder');
-      media.dataset.mediaState = 'placeholder';
-      media.dataset.mediaSource = 'NEUTRAL_PLACE_PLACEHOLDER';
-      const mark = document.createElement('span');
-      mark.className = 'lotbi-place-placeholder-mark';
-      mark.textContent = 'LOTBI';
-      mark.setAttribute('aria-hidden', 'true');
-      const label = document.createElement('span');
-      label.className = 'lotbi-place-placeholder-label';
-      label.textContent = '사진 정보 없음';
-      media.append(mark, label);
+      media.hidden = true;
+      media.dataset.mediaState = 'compact-no-photo';
+      media.dataset.mediaSource = 'NONE';
     };
 
-    const openPlaceInNaverMap = place => {
-      const fallbackHref = buildNaverMapsWebSearchUrl(place);
+    const openFreshPlace = (place, opener, successCopy) => {
       if (!isPlaceResultFresh(placeResult)) {
         setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return;
+        return false;
       }
-      const opened = openNaverMapsPlace(place);
-      if (!opened.opened) {
-        globalThis.location.href = fallbackHref;
-        setStatus('네이버지도 웹 검색으로 연결합니다.');
-        return;
-      }
-      const navigationMode = opened.mode === 'NAVER_NAVIGATION_INTENT' || opened.mode === 'NAVER_NAVIGATION_URL_SCHEME';
-      setStatus(navigationMode ? '선택한 장소를 네이버지도 길안내로 연결합니다.' : '선택한 장소를 네이버지도에서 엽니다.');
+      const opened = opener(place);
+      if (!opened.opened) return false;
+      setStatus(successCopy);
+      return true;
     };
-
-    // 카카오맵과 티맵은 같은 장소를 사용자가 이미 쓰는 앱에서 여는 손잡이일
-    // 뿐이다. 장소를 다시 고르지 않는다 — 네이버가 확정한 이름과 좌표를 그대로
-    // 넘긴다. 오래된 결과를 막는 규칙도 네이버 버튼과 하나로 맞춘다.
-    const openPlaceInKakaoMap = place => {
-      const fallbackHref = buildKakaoMapWebSearchUrl(place);
-      if (!isPlaceResultFresh(placeResult)) {
-        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return;
-      }
-      const opened = openKakaoMapPlace(place);
-      if (!opened.opened) {
-        globalThis.location.href = fallbackHref;
-        setStatus('카카오맵 웹 검색으로 연결합니다.');
-        return;
-      }
-      const routeMode = opened.mode === 'KAKAO_ROUTE_INTENT' || opened.mode === 'KAKAO_ROUTE_URL_SCHEME';
-      setStatus(routeMode ? '선택한 장소를 카카오맵 길찾기로 연결합니다.' : '선택한 장소를 카카오맵에서 엽니다.');
-    };
-
-    const openPlaceInTmap = place => {
-      if (!isPlaceResultFresh(placeResult)) {
-        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return;
-      }
-      const opened = openTmapPlace(place);
-      if (!opened.opened) {
-        // 티맵에는 장소를 여는 웹 화면이 없다. 데스크톱에서 눌렸다면 보낼 곳이
-        // 없으므로, 없는 곳으로 보내는 대신 그렇다고 말한다.
-        setStatus('티맵은 휴대폰 앱에서 열 수 있어요.');
-        return;
-      }
-      const routeMode = opened.mode === 'TMAP_ROUTE_INTENT' || opened.mode === 'TMAP_ROUTE_URL_SCHEME';
-      setStatus(routeMode ? '선택한 장소를 티맵 길안내로 연결합니다.' : '선택한 장소를 티맵에서 찾습니다.');
-    };
+    const openPlaceInNaverMap = place => openFreshPlace(place, openNaverMapsPlace, '선택한 장소를 네이버 지도에서 엽니다.');
+    const openPlaceInKakaoNavi = place => openFreshPlace(place, openKakaoNaviPlace, '선택한 장소를 카카오내비 길안내로 연결합니다.');
+    const openPlaceInTmap = place => openFreshPlace(place, openTmapPlace, '선택한 장소를 T맵 길안내로 연결합니다.');
+    const openPlaceInGoogleMaps = place => openFreshPlace(place, openGoogleMapsPlace, '선택한 장소를 Google Maps에서 엽니다.');
 
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
@@ -1438,11 +1370,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           media.dataset.mediaSource = 'VERIFIED_PLACE_PHOTO';
         };
         image.addEventListener('load', () => { void revealImage(); }, {once: true});
-        image.addEventListener('error', () => setNeutralPlaceholder(media), {once: true});
+        image.addEventListener('error', () => collapseMedia(media), {once: true});
         image.src = place.imageUrl;
         media.appendChild(image);
       } else {
-        setNeutralPlaceholder(media);
+        collapseMedia(media);
       }
 
       const copy = document.createElement('div');
@@ -1458,155 +1390,102 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.textContent = place.address;
       copy.append(source, title, address);
 
-      if (place.foodLicenseVerification) {
-        const state = place.foodLicenseVerification.state;
-        // UNAVAILABLE is not an outcome. The other four say what our comparison
-        // against the public licence data found; UNAVAILABLE says the
-        // comparison never ran — the provider was not reachable. Printing
-        // '인허가 대조 불가' on someone's shop for a reason that is entirely on
-        // our side is a caveat the reader cannot act on, so the card stays
-        // silent. The wording itself is kept below, unchanged, for the states
-        // that do render.
-        const badgeText = LICENSE_BADGE_COPY[state];
-        if (badgeText && state !== 'UNAVAILABLE') {
-          // Badges sit in a row of their own so a second one (the
-          // administrative status) wraps beside the first instead of being
-          // glued into the same sentence with a separator.
-          const badges = document.createElement('div');
-          badges.className = 'lotbi-place-badges';
-
-          const foodLicense = document.createElement('span');
-          foodLicense.className = 'lotbi-place-license-evidence';
-          foodLicense.textContent = badgeText;
-          // The short badge has to stay short. The sentence that spells out
-          // whose side the subject is on rides along without costing height.
-          foodLicense.title = LICENSE_BADGE_DETAIL[state];
-          badges.appendChild(foodLicense);
-
-          const administrativeStatus = place.foodLicenseVerification.administrativeStatus;
-          if (state === 'VERIFIED' && administrativeStatus) {
-            const status = document.createElement('span');
-            status.className = 'lotbi-place-license-status';
-            status.textContent = administrativeStatus;
-            status.title = '행정 인허가 데이터에 적힌 영업 상태입니다.';
-            badges.appendChild(status);
-          }
-          copy.appendChild(badges);
-
-          // Public licence data is updated on its own schedule, so a shop can
-          // be perfectly fine and still not line up with it yet. Said only
-          // where a reader might otherwise draw a conclusion about the shop,
-          // and said about the data, never about the shop.
-          if (LICENSE_LAG_NOTE_STATES.has(state)) {
-            const note = document.createElement('span');
-            note.className = 'lotbi-place-license-note';
-            note.textContent = '공공데이터 갱신이 늦을 수 있어요';
-            copy.appendChild(note);
-          }
-        }
-      }
-
       const actions = document.createElement('div');
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
 
+      const addActionLabel = (control, label) => {
+        const icon = document.createElement('span');
+        icon.className = 'lotbi-place-action-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        const copy = document.createElement('span');
+        copy.className = 'lotbi-place-action-label';
+        copy.textContent = label;
+        control.append(icon, copy);
+      };
+
       const phoneHref = buildVerifiedPhoneHref(place);
-      const phone = document.createElement(phoneHref ? 'a' : 'button');
-      phone.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-phone-action';
-      phone.dataset.action = 'phone';
-      phone.dataset.phoneState = phoneHref ? 'VERIFIED' : 'UNAVAILABLE';
-      phone.tabIndex = placeIndex === 0 ? 0 : -1;
       if (phoneHref) {
+        const phone = document.createElement('a');
+        phone.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-phone-action';
+        phone.dataset.action = 'phone';
+        phone.dataset.phoneState = 'VERIFIED';
         phone.href = phoneHref;
+        phone.tabIndex = placeIndex === 0 ? 0 : -1;
         phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
         phone.title = '전화 걸기';
+        addActionLabel(phone, '전화');
         phone.addEventListener('click', () => {
           phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
           setStatus('전화 앱 연결을 시작합니다.');
         });
-      } else {
-        phone.type = 'button';
-        phone.disabled = true;
-        phone.setAttribute('aria-disabled', 'true');
-        phone.setAttribute('aria-label', `${place.name} 전화번호 정보 없음`);
-        phone.title = '전화번호 정보 없음';
+        actions.appendChild(phone);
       }
-      // Icon only. The name a screen reader announces stays on aria-label and
-      // title above — dropping the visible word must not drop the name.
-      actions.appendChild(phone);
 
       const navigate = document.createElement('a');
       navigate.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-naver-map-action';
       navigate.href = buildNaverMapsWebSearchUrl(place);
       navigate.target = '_blank';
       navigate.rel = 'noopener noreferrer';
-      navigate.setAttribute('aria-label', `${place.name} 네이버지도에서 열기`);
-      navigate.title = '네이버지도에서 열기';
+      navigate.setAttribute('aria-label', `${place.name} 네이버 지도에서 열기`);
+      navigate.title = '네이버 지도에서 열기';
       navigate.dataset.action = 'naver-map';
       navigate.tabIndex = placeIndex === 0 ? 0 : -1;
-      const naverIcon = document.createElement('img');
-      naverIcon.className = 'lotbi-naver-map-icon';
-      naverIcon.src = 'https://navercorp.com/img/pc/service-map-app-4.jpg';
-      naverIcon.alt = '';
-      naverIcon.width = 28;
-      naverIcon.height = 28;
-      naverIcon.loading = 'eager';
-      naverIcon.decoding = 'async';
-      naverIcon.referrerPolicy = 'no-referrer';
-      naverIcon.addEventListener('error', () => {
-        naverIcon.remove();
-        navigate.classList.add('is-icon-fallback');
-      }, {once: true});
-      navigate.appendChild(naverIcon);
+      addActionLabel(navigate, '네이버');
       navigate.addEventListener('click', event => {
         event.preventDefault();
         openPlaceInNaverMap(place);
       });
       actions.appendChild(navigate);
 
-      // 카카오맵. 네이버 버튼과 같은 골격이다 — 진짜 링크를 href 에 두어 새 탭
-      // 열기와 복사가 살아 있게 하고, 클릭은 앱 우선 handoff 가 가로챈다.
-      // 아이콘은 글리프로 그린다. 남의 로고 파일을 우리 페이지에서 끌어다 쓰지
-      // 않으며, 네이버 아이콘이 실패했을 때 쓰는 그 is-icon-fallback 표시를
-      // 그대로 쓴다.
-      const kakaoMap = document.createElement('a');
-      kakaoMap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-map-action is-icon-fallback';
-      kakaoMap.href = buildKakaoMapWebSearchUrl(place);
-      kakaoMap.target = '_blank';
-      kakaoMap.rel = 'noopener noreferrer';
-      kakaoMap.setAttribute('aria-label', `${place.name} 카카오맵에서 열기`);
-      kakaoMap.title = '카카오맵에서 열기';
-      kakaoMap.dataset.action = 'kakao-map';
-      kakaoMap.tabIndex = placeIndex === 0 ? 0 : -1;
-      kakaoMap.addEventListener('click', event => {
+      const kakaoNavi = document.createElement('a');
+      kakaoNavi.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-navi-action';
+      kakaoNavi.href = buildKakaoNaviHandoffUrl(place);
+      kakaoNavi.target = '_blank';
+      kakaoNavi.rel = 'noopener noreferrer';
+      kakaoNavi.setAttribute('aria-label', `${place.name} 카카오내비에서 길안내`);
+      kakaoNavi.title = '카카오내비에서 길안내';
+      kakaoNavi.dataset.action = 'kakao-navi';
+      kakaoNavi.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionLabel(kakaoNavi, '카카오');
+      kakaoNavi.addEventListener('click', event => {
         event.preventDefault();
-        openPlaceInKakaoMap(place);
+        openPlaceInKakaoNavi(place);
       });
-      actions.appendChild(kakaoMap);
+      actions.appendChild(kakaoNavi);
 
-      // 티맵은 앱 전용이다. 열어 줄 웹 화면이 없는 데스크톱에서는 링크가 아니라
-      // 비활성 버튼으로 둔다 — 전화번호가 없을 때 전화 버튼이 하는 것과 같다.
       const tmapReady = isTmapHandoffAvailable();
-      const tmap = document.createElement(tmapReady ? 'a' : 'button');
-      tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action is-icon-fallback';
-      tmap.dataset.action = 'tmap';
-      tmap.dataset.tmapState = tmapReady ? 'MOBILE_APP' : 'MOBILE_ONLY';
-      tmap.tabIndex = placeIndex === 0 ? 0 : -1;
       if (tmapReady) {
+        const tmap = document.createElement('a');
+        tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action';
+        tmap.dataset.action = 'tmap';
+        tmap.dataset.tmapState = 'MOBILE_APP';
         tmap.href = '#';
-        tmap.setAttribute('aria-label', `${place.name} 티맵에서 열기`);
-        tmap.title = '티맵에서 열기';
+        tmap.tabIndex = placeIndex === 0 ? 0 : -1;
+        tmap.setAttribute('aria-label', `${place.name} T맵에서 길안내`);
+        tmap.title = 'T맵에서 길안내';
+        addActionLabel(tmap, 'T맵');
         tmap.addEventListener('click', event => {
           event.preventDefault();
           openPlaceInTmap(place);
         });
-      } else {
-        tmap.type = 'button';
-        tmap.disabled = true;
-        tmap.setAttribute('aria-disabled', 'true');
-        tmap.setAttribute('aria-label', `${place.name} 티맵은 휴대폰 앱에서 열기`);
-        tmap.title = '티맵은 휴대폰 앱에서 열 수 있어요';
+        actions.appendChild(tmap);
       }
-      actions.appendChild(tmap);
+
+      const googleMaps = document.createElement('a');
+      googleMaps.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-google-maps-action';
+      googleMaps.href = buildGoogleMapsDirectionsUrl(place);
+      googleMaps.target = '_blank';
+      googleMaps.rel = 'noopener noreferrer';
+      googleMaps.setAttribute('aria-label', `${place.name} Google Maps에서 길안내`);
+      googleMaps.title = 'Google Maps에서 길안내';
+      googleMaps.dataset.action = 'google-maps';
+      googleMaps.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionLabel(googleMaps, 'Google');
+      googleMaps.addEventListener('click', event => {
+        event.preventDefault();
+        openPlaceInGoogleMaps(place);
+      });
+      actions.appendChild(googleMaps);
 
       item.append(media, copy, actions);
       cards.push(item);
@@ -1668,6 +1547,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         card.tabIndex = current ? 0 : -1;
         for (const control of card.querySelectorAll('a, button')) {
           control.tabIndex = current ? 0 : -1;
+          control.setAttribute('aria-disabled', current ? 'false' : 'true');
         }
       });
       previous.disabled = cards.length < 2;
@@ -2854,7 +2734,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-d753bb50ca93');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-12c6289e7c52');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
