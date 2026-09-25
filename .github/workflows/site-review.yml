@@ -371,6 +371,9 @@ jobs:
       - name: Validate global Dark Theme semantic contrast
         run: node scripts/validate_global_dark_theme_contrast.mjs
 
+      - name: Validate Home small-text contrast
+        run: node scripts/validate_home_small_text_contrast_01.mjs
+
       - name: Validate mobile entry chooser contracts
         run: node scripts/validate_mobile_entry.js
 
