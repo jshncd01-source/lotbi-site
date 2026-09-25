@@ -8,7 +8,7 @@ import {
   calendarWeatherLocationPresentation,
 } from '../site-calendar-manager.js';
 
-// Product contract: the total stays at the left and the same six category
+// Product contract: the total stays at the right and the same six category
 // slots remain visible, including 0원, so the row never changes membership.
 const expense = expenseSummaryPresentation({
   currencies: [{

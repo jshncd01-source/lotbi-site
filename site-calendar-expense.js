@@ -6,8 +6,8 @@
 // when a month has no amounts — an empty month has to read as "nothing
 // recorded", not as a strip that failed to load.
 //
-// The total leads the row, followed by the same six category slots every
-// month. Zero-value slots stay visible so the category set and its order do not
+// The same six category slots lead the row and the total stays pinned on the
+// right. Zero-value slots stay visible so the category set and its order do not
 // appear to change when the owner records a different kind of expense.
 
 // The one place these labels live. The entry editor reads them from here too:
@@ -210,7 +210,7 @@ function currencyLine(presentation) {
     items.appendChild(coverage);
   }
 
-  line.append(total, items);
+  line.append(items, total);
   return line;
 }
 
