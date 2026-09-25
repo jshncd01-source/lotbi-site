@@ -72,14 +72,15 @@ assert.match(conversation, /document\.execCommand\('copy'\)/);
 assert.match(conversation, /report\('답변을 복사했습니다\.'\)/);
 assert.match(conversation, /report\('복사하지 못했습니다[^']*', 'error'\)/);
 
-// Share must open the OS sheet from inside the click; an await first spends the
-// user gesture and the sheet never opens.
-assert.match(conversation, /if \(typeof navigator\.share !== 'function'\) \{ void shareByClipboard\(\); return; \}/);
-assert.match(conversation, /navigator\.share\(\{title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL\}\)/);
-assert.doesNotMatch(conversation, /await [^\n;]*;\s*\n?\s*navigator\.share\(/);
+// Share must enter the helper synchronously from the click handler. The helper
+// calls navigator.share before its first await completes, preserving the mobile
+// user gesture; unsupported/failed sheets fall back to canonical clipboard text.
+assert.match(conversation, /async function shareMessageText\(text, \{includeUrl = true\} = \{\}\)/);
+assert.match(conversation, /if \(typeof navigator\.share === 'function'\) \{[\s\S]*?await navigator\.share\(shareData\);/);
+assert.match(conversation, /share\.addEventListener\('click', \(\) => \{[\s\S]*?void shareMessageText\(value\)/);
 // A cancelled sheet is not a failure and must not fall back to copying.
-assert.match(conversation, /if \(error && error\.name === 'AbortError'\) return;/);
-assert.match(conversation, /await writeMessageTextToClipboard\(`\$\{value\}\\n\\n\$\{MESSAGE_ACTION_SHARE_URL\}`\)/);
+assert.match(conversation, /if \(error && error\.name === 'AbortError'\) return 'cancelled';/);
+assert.match(conversation, /await writeMessageTextToClipboard\(includeUrl \? `\$\{value\}\\n\\n\$\{MESSAGE_ACTION_SHARE_URL\}` : value\)/);
 assert.match(conversation, /const MESSAGE_ACTION_SHARE_URL = 'https:\/\/lotbiai\.com\/';/);
 
 // No Kakao SDK, app key or third-party origin rides in with this row.
