@@ -574,7 +574,7 @@ try {
         }
       }
       const distinct = new Set(Object.values(colors).map(row => row.color));
-      if (distinct.size !== 4) {
+      if (distinct.size !== 6) {
         throw new Error(`${label}: ${theme} must give rendered categories distinct colours, got ${distinct.size}: ${JSON.stringify(colors)}`);
       }
       // A coloured amount would read as a status the bar never means.
