@@ -10,8 +10,9 @@ const publicCss = read('styles.css');
 const conversation = read('site-conversation.js');
 const about = read('about.html');
 
-assert.match(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
-assert.match(index, /장소·날씨·일정·생활기록을 대화로 도와드려요\./u);
+assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
+assert.match(index, /찾고, 계획하고, 기록하는 일상을 LOTBI와 대화로 해결하세요/u);
+assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
 assert.equal((index.match(/data-home-prompt=/gu) || []).length, 3, 'Home must expose exactly three example prompts');
 assert.match(conversation, /closest\('\[data-home-prompt\]'\)/u, 'example prompts must be wired to the composer');
 assert.match(conversation, /prompt\.focus\(\)/u, 'example prompts must return focus to the composer');
