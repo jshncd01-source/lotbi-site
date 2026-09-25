@@ -1295,6 +1295,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         coordinate_authority: place.coordinateAuthority,
         source_url: place.sourceUrl,
         image_url: place.imageUrl,
+        photo_evidence: place.photoEvidence ? {
+          provider: place.photoEvidence.provider,
+          provider_place_id: place.photoEvidence.providerPlaceId,
+          match_basis: place.photoEvidence.matchBasis,
+          fetched_at: place.photoEvidence.fetchedAt,
+          verification_state: place.photoEvidence.verificationState,
+          attributions: Array.isArray(place.photoEvidence.attributions)
+            ? place.photoEvidence.attributions.map(attribution => ({...attribution}))
+            : [],
+        } : undefined,
         phone: place.phone,
         phone_verified: place.phoneVerified,
         food_license_verification: place.foodLicenseVerification ? {
