@@ -181,6 +181,18 @@ function shape(tag, attributes) {
   return node;
 }
 
+function speciesMark(value, x, y, label) {
+  const node = shape('text', {
+    x,
+    y,
+    class: 'pet-slot-species-mark',
+    'text-anchor': 'middle',
+    'aria-label': label,
+  });
+  node.textContent = value;
+  return node;
+}
+
 // Returns the schematic for a slot, or null when the code is unknown.
 export function petPhotoSlotDiagram(slotCode) {
   const guide = GUIDES[slotCode];
@@ -214,5 +226,12 @@ export function petPhotoSlotDiagram(slotCode) {
       : shape('ellipse', {cx, cy, rx, ry}));
   }
   root.appendChild(group);
+  // Species is selected after the photo step, so every empty slot shows both
+  // supported animals. These familiar faces keep the abstract angle drawing
+  // from being mistaken for a chick, cow, or another unsupported animal.
+  root.append(
+    speciesMark('🐶', 11, 17, '강아지'),
+    speciesMark('🐱', 61, 17, '고양이'),
+  );
   return root;
 }

@@ -50,18 +50,18 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-1534a9c6d00a';
+} from './site-pet.js?v=aset-c6c91651936d';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-1534a9c6d00a';
+} from './site-pet-guides.js?v=aset-c6c91651936d';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-1534a9c6d00a';
+} from './site-pet-gate.js?v=aset-c6c91651936d';
 
 const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -735,6 +735,7 @@ export async function mountPetFamilyManager({
   };
 
   const renderDetail = petId => {
+    addButton.hidden = false;
     const pet = pets.find(item => item.petId === petId);
     if (!pet) {
       detailSection.hidden = true;
@@ -1364,6 +1365,10 @@ export async function mountPetFamilyManager({
 
   const renderRegisterForm = async () => {
     showSurface('pets');
+    // The list-level action starts or resumes the draft. Once the draft is
+    // open, keeping a disabled "등록 계속" button above the active form looks
+    // like an extra step, so the form owns all navigation from here.
+    addButton.hidden = true;
     detailSection.hidden = false;
     detailSection.replaceChildren();
 
@@ -1374,6 +1379,8 @@ export async function mountPetFamilyManager({
     cancel.addEventListener('click', () => {
       detailSection.hidden = true;
       detailSection.replaceChildren();
+      addButton.hidden = false;
+      addButton.focus();
     });
     header.appendChild(cancel);
     const body = el('div', 'pet-draft-body');
@@ -1389,6 +1396,7 @@ export async function mountPetFamilyManager({
       addButton.textContent = '등록 계속';
     } catch (value) {
       body.replaceChildren(el('p', 'site-field-error', errorMessage(value, '반려동물 등록을 시작하지 못했습니다.')));
+      addButton.hidden = false;
       return;
     }
 
@@ -1424,13 +1432,27 @@ export async function mountPetFamilyManager({
     };
 
     const stepChrome = step => {
+      const stepCodes = ['PHOTOS', 'BASIC', 'ADDITIONAL', 'REVIEW'];
+      const activeIndex = Math.max(0, stepCodes.indexOf(step));
+      body.appendChild(el(
+        'p',
+        'pet-draft-progress-label',
+        `반려동물 등록 ${activeIndex + 1}단계 / ${stepCodes.length}단계`,
+      ));
       const progress = el('ol', 'pet-draft-steps');
-      for (const code of ['PHOTOS', 'BASIC', 'ADDITIONAL', 'REVIEW']) {
-        const item = el('li', 'pet-draft-step', stepNames[code]);
+      stepCodes.forEach((code, index) => {
+        const complete = index < activeIndex;
+        const item = el('li', 'pet-draft-step');
         item.dataset.petDraftStep = code;
         item.dataset.petDraftStepActive = code === step ? 'true' : 'false';
+        item.dataset.petDraftStepComplete = complete ? 'true' : 'false';
+        if (code === step) item.setAttribute('aria-current', 'step');
+        item.append(
+          el('span', 'pet-draft-step-number', complete ? '✓' : String(index + 1)),
+          el('span', 'pet-draft-step-name', stepNames[code]),
+        );
         progress.appendChild(item);
-      }
+      });
       body.appendChild(progress);
     };
 
@@ -2011,6 +2033,7 @@ export async function mountPetFamilyManager({
           revokePetPreviews(registrationDraft.draftId);
           registrationDraft = null;
           addButton.textContent = '반려동물 등록';
+          addButton.hidden = false;
           pets = [...pets, created];
           photoCounts.set(created.petId, PET_PHOTO_SLOT_CODES.length);
           filledSlots.set(created.petId, new Set(PET_PHOTO_SLOT_CODES));
@@ -2045,6 +2068,7 @@ export async function mountPetFamilyManager({
           revokePetPreviews(registrationDraft.draftId);
           registrationDraft = null;
           addButton.textContent = '반려동물 등록';
+          addButton.hidden = false;
           detailSection.hidden = true;
           detailSection.replaceChildren();
           status.textContent = '등록 초안을 삭제했습니다.';
