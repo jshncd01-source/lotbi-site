@@ -1,18 +1,18 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-92fe6efacb0f';
-import * as siteCore from './site-core.js?v=aset-92fe6efacb0f';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-92fe6efacb0f';
-import * as siteAttachments from './site-attachments.js?v=aset-92fe6efacb0f';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-92fe6efacb0f';
-import {deterministicReply} from './site-deterministic.js?v=aset-92fe6efacb0f';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-92fe6efacb0f';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-92fe6efacb0f';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-92fe6efacb0f';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-92fe6efacb0f';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-92fe6efacb0f';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-92fe6efacb0f';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-92fe6efacb0f';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-92fe6efacb0f';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-92fe6efacb0f';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-c6b1e0c8f05b';
+import * as siteCore from './site-core.js?v=aset-c6b1e0c8f05b';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-c6b1e0c8f05b';
+import * as siteAttachments from './site-attachments.js?v=aset-c6b1e0c8f05b';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-c6b1e0c8f05b';
+import {deterministicReply} from './site-deterministic.js?v=aset-c6b1e0c8f05b';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-c6b1e0c8f05b';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-c6b1e0c8f05b';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-c6b1e0c8f05b';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-c6b1e0c8f05b';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-c6b1e0c8f05b';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-c6b1e0c8f05b';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-c6b1e0c8f05b';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-c6b1e0c8f05b';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-c6b1e0c8f05b';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -164,7 +164,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-92fe6efacb0f';
+  link.href = '/site-conversation.css?v=aset-c6b1e0c8f05b';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -430,6 +430,22 @@ function createAttachmentIcon(attachment) {
     ? '사진'
     : (mediaType === 'application/pdf' ? 'PDF' : '파일');
   return icon;
+}
+
+function petConversationAction(text, attachments = []) {
+  const value = typeof text === 'string' ? text.trim() : '';
+  const hasAnimal = /(강아지|고양이|반려동물|동물|우리\s*개|우리\s*냥)/u.test(value);
+  const hasImage = Array.isArray(attachments)
+    && attachments.some(item => typeof item?.mimeType === 'string' && item.mimeType.startsWith('image/'));
+  const foundIntent = /(길에서|발견했|발견한|주인을\s*찾|보호\s*중|잃어버린\s*애인지\s*찾)/u.test(value);
+  if ((hasAnimal || hasImage) && foundIntent) {
+    return Object.freeze({target: 'found', label: '발견 제보하기'});
+  }
+  const sosIntent = /(잃어버렸|잃어버린\s*(?:것\s*같|것\s*같아)|없어졌|사라졌|실종)/u.test(value);
+  if (hasAnimal && sosIntent) {
+    return Object.freeze({target: 'sos', label: '실종 신고하기'});
+  }
+  return null;
 }
 
 function appendAttachmentLabel(item, presentation) {
@@ -2362,6 +2378,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const calendarDraft = createConversationCalendarDraft(message.meta.calendarDraft);
       if (calendarDraft) node.appendChild(calendarDraft);
     }
+    if (message.role === 'assistant' && ['sos', 'found'].includes(message.meta?.petAction?.target)) {
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.className = 'conversation-pet-action-button';
+      action.dataset.petChatAction = message.meta.petAction.target;
+      action.textContent = typeof message.meta.petAction.label === 'string'
+        ? message.meta.petAction.label
+        : (message.meta.petAction.target === 'sos' ? '실종 신고하기' : '발견 제보하기');
+      node.appendChild(action);
+    }
     if (message.role === 'assistant') {
       const actions = createMessageActions(message.text, setStatus);
       if (actions) node.appendChild(actions);
@@ -2689,7 +2715,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
-  const openPetFamily = async () => {
+  const openPetFamily = async (initialSurface = 'pets') => {
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell(
       '반려동물',
@@ -2708,12 +2734,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-92fe6efacb0f');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-c6b1e0c8f05b');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
+        initialSurface,
       });
       releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
@@ -3600,6 +3627,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
+    const suggestedPetAction = petConversationAction(message, attachments);
     const turnGeneration = ++activeTurnGeneration;
     const turnStillActive = () => turnGeneration === activeTurnGeneration;
     const beginRequestThinking = logicalRequestId => {
@@ -3648,7 +3676,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (local) {
       diagnostics.lastPath = 'LOCAL_DETERMINISTIC'; diagnostics.deterministicReplies += 1; diagnostics.providerCallsAvoided += 1;
       recordTiming('T1-local-route', {coreCalls: 0, providerCalls: 0}); await Promise.resolve();
-      const record = timestampedConversationMessage({role: 'assistant', text: local, meta: {status: 'ANSWERED', responseMode: 'LOCAL_DETERMINISTIC'}});
+      const record = timestampedConversationMessage({
+        role: 'assistant',
+        text: local,
+        meta: {
+          status: 'ANSWERED',
+          responseMode: 'LOCAL_DETERMINISTIC',
+          ...(suggestedPetAction ? {petAction: suggestedPetAction} : {}),
+        },
+      });
       appendConversationRecord(record); appendPersistedMessage(record);
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt));
       const requestsAfter = resourceCounts();
@@ -3756,6 +3792,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        if (suggestedPetAction) meta.petAction = suggestedPetAction;
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
         const calendarItems = conversationCalendarItemsFromResponse(response, 'GUEST');
         if (calendarItems.length) {
@@ -3867,6 +3904,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      if (suggestedPetAction) meta.petAction = suggestedPetAction;
       if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
@@ -4096,6 +4134,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (petFamilyTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       void openPetFamily();
+      return;
+    }
+    const petChatAction = target?.closest('[data-pet-chat-action]');
+    if (petChatAction instanceof HTMLButtonElement) {
+      event.preventDefault();
+      void openPetFamily(petChatAction.dataset.petChatAction || 'pets');
       return;
     }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');

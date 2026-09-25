@@ -2079,6 +2079,43 @@ body[data-site-theme="dark"] .conversation-calendar-action-button {
 body[data-site-theme="dark"] .conversation-calendar-action-button:hover:not(:disabled),
 body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible { background: #262d38; }
 
+.conversation-pet-action-button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 9px 14px;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  background: #334155;
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conversation-pet-action-button:hover,
+.conversation-pet-action-button:focus-visible {
+  border-color: #1f2937;
+  background: #1f2937;
+}
+
+.conversation-pet-action-button:focus-visible {
+  outline: 2px solid rgba(79, 120, 197, .30);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .conversation-pet-action-button {
+  border-color: #dbe2ec;
+  background: #dbe2ec;
+  color: #161b22;
+}
+
+body[data-site-theme="dark"] .conversation-pet-action-button:hover,
+body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
+  border-color: #eef2f7;
+  background: #eef2f7;
+}
+
 @media (max-width: 520px) {
   .conversation-calendar-action-controls { width: 100%; }
   .conversation-calendar-action-button { min-width: 0; max-width: 100%; }
