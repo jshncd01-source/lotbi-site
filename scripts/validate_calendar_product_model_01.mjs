@@ -107,7 +107,7 @@ for (const scope of ['today', 'week', 'month']) {
 
 assert.deepEqual(calendarWeatherPresentation(null), {monthLabel: '', weekLabel: ''});
 assert.deepEqual(calendarWeatherPresentation({temperature: 22.6, minTemperature: 18.1, maxTemperature: 27.8}),
-  {monthLabel: '23°', weekLabel: '18° / 28°'});
+  {monthLabel: '18° / 28°', weekLabel: '18° / 28°'});
 assert.deepEqual(calendarWeatherPresentation({minTemperature: 0, maxTemperature: 5}),
   {monthLabel: '0° / 5°', weekLabel: '0° / 5°'});
 assert.deepEqual(calendarWeatherPresentation({temperature: null}), {monthLabel: '', weekLabel: ''});
