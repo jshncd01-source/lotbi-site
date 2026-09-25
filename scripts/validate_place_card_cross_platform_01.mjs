@@ -7,6 +7,7 @@ import {
   openGoogleMapsPlace,
 } from '../site-navigation.js';
 
+// Use multiple independent photo-bearing places below so persistence can never become name-specific.
 const NAVER_PLACE = Object.freeze({
   resultId: 'place-1',
   name: '라마다 프라자 호텔 자은도',
