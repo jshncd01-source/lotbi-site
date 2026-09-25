@@ -479,6 +479,57 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-mode-tab { min-width: 58px; padding-inline: 10px; border-radius: 999px; }
 .calendar-mode-tab[aria-selected="true"] { border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
 
+/* A more refined toolbar tone: rounder corners, a soft resting shadow
+   instead of a flat border-only look, tightened weight/letter-spacing, and
+   real hover/active feedback for pointer input. Scoped under .calendar-toolbar
+   so the day panel's add/retry buttons -- which share the base rules above --
+   are untouched, and deliberately layers only new properties (radius, shadow,
+   weight, transform) on top rather than touching background/border-color, so
+   every existing light/dark/system colour rule for these buttons still wins
+   exactly as before. 44px touch targets and the focus-visible ring above are
+   untouched. */
+.calendar-toolbar .calendar-nav-button,
+.calendar-toolbar .calendar-title-button,
+.calendar-toolbar .calendar-today-button,
+.calendar-toolbar .calendar-settings-button,
+.calendar-toolbar .calendar-mode-tab {
+  border-radius: 14px;
+  font-weight: 750;
+  letter-spacing: .01em;
+  transition: box-shadow .15s ease, transform .05s ease, background-color .15s ease;
+}
+.calendar-toolbar .calendar-title-button { font-weight: 850; letter-spacing: 0; }
+.calendar-toolbar .calendar-nav-button,
+.calendar-toolbar .calendar-today-button,
+.calendar-toolbar .calendar-settings-button {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+.calendar-toolbar .calendar-nav-button:hover,
+.calendar-toolbar .calendar-today-button:hover,
+.calendar-toolbar .calendar-settings-button:hover {
+  box-shadow: 0 3px 8px rgba(15, 23, 42, .12);
+}
+.calendar-toolbar .calendar-nav-button:active,
+.calendar-toolbar .calendar-today-button:active,
+.calendar-toolbar .calendar-settings-button:active,
+.calendar-toolbar .calendar-mode-tab:active {
+  transform: scale(.96);
+}
+.calendar-toolbar .calendar-mode-tabs { gap: 4px; }
+.calendar-toolbar .calendar-mode-tab[aria-selected="true"] { box-shadow: 0 1px 4px rgba(15, 23, 42, .22); }
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-toolbar .calendar-nav-button,
+  .calendar-toolbar .calendar-title-button,
+  .calendar-toolbar .calendar-today-button,
+  .calendar-toolbar .calendar-settings-button,
+  .calendar-toolbar .calendar-mode-tab { transition: none; }
+  .calendar-toolbar .calendar-nav-button:active,
+  .calendar-toolbar .calendar-today-button:active,
+  .calendar-toolbar .calendar-settings-button:active,
+  .calendar-toolbar .calendar-mode-tab:active { transform: none; }
+}
+
 .calendar-status { grid-row: 2; min-height: 0; }
 .calendar-viewport { grid-row: 3; min-width: 0; min-height: 0; }
 .calendar-status:empty { display: none; }
