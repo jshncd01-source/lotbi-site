@@ -18,6 +18,7 @@ import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_
 // unchanged here, so it keeps the version the Calendar already loads.
 import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-317a9f39c081';
 import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-317a9f39c081';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-317a9f39c081';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -488,6 +489,10 @@ export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
     // empty or unreadable store renders exactly today's screen.
     showKoreaHolidays: stored.showKoreaHolidays !== false,
     showGridLines: stored.showGridLines !== false,
+    // Unlike the two settings above, lunar dates are new screen density on
+    // every cell rather than a correction to something already shown, so
+    // this one ships off until the owner asks for it.
+    showLunarDates: stored.showLunarDates === true,
     weekStart: normalizeWeekStart(stored.weekStart),
   });
 }
@@ -502,6 +507,7 @@ function writeCalendarDisplaySettings(storage, settings) {
       // live Calendar state, so nothing else from that object may leak in here.
       showKoreaHolidays: settings?.showKoreaHolidays !== false,
       showGridLines: settings?.showGridLines !== false,
+      showLunarDates: settings?.showLunarDates === true,
       weekStart: normalizeWeekStart(settings?.weekStart),
     }));
   } catch {
@@ -1423,6 +1429,16 @@ function renderWeek(state, actions, weatherCredit = null) {
     dayNumber.className = 'calendar-week-day-number';
     dayNumber.textContent = String(day.day);
     headerCell.append(weekdayLabel, dayNumber);
+    if (state.showLunarDates) {
+      const lunarLabel = lunarDateLabel(solarToLunar(day.date));
+      if (lunarLabel) {
+        const lunar = document.createElement('span');
+        lunar.className = 'calendar-week-day-lunar';
+        lunar.textContent = lunarLabel;
+        headerCell.appendChild(lunar);
+        headerCell.setAttribute('aria-label', `${headerCell.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
+      }
+    }
     if (weather) {
       const weatherLine = document.createElement('span');
       weatherLine.className = 'calendar-week-weather';
@@ -1587,6 +1603,17 @@ function renderMonth(state, actions, weatherCredit = null) {
     number.textContent = String(cell.day);
     date.textContent = '';
     date.appendChild(number);
+    if (state.showLunarDates) {
+      const lunarLabel = lunarDateLabel(solarToLunar(cell.date));
+      if (lunarLabel) {
+        const lunar = document.createElement('span');
+        lunar.className = 'calendar-date-lunar';
+        lunar.textContent = lunarLabel;
+        lunar.setAttribute('aria-hidden', 'true');
+        date.appendChild(lunar);
+        date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
+      }
+    }
     date.addEventListener('click', event => {
       event.stopPropagation();
       void actions.selectDate(cell.date, {openDetail: true});
@@ -1886,6 +1913,22 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   gridToggle.setAttribute('aria-label', '격자선 표시');
   gridRow.append(gridCopy, gridToggle);
 
+  // Pure display, like 격자선 above: no fetch depends on it, so toggling it
+  // only ever needs a repaint.
+  const lunarRow = document.createElement('label');
+  lunarRow.className = 'calendar-settings-toggle-row';
+  const lunarCopy = document.createElement('span');
+  const lunarLabel = document.createElement('strong');
+  lunarLabel.textContent = '음력 표시';
+  const lunarDescription = document.createElement('small');
+  lunarDescription.textContent = '날짜 칸에 음력 날짜를 함께 표시합니다.';
+  lunarCopy.append(lunarLabel, lunarDescription);
+  const lunarToggle = document.createElement('input');
+  lunarToggle.type = 'checkbox';
+  lunarToggle.checked = state.showLunarDates === true;
+  lunarToggle.setAttribute('aria-label', '음력 표시');
+  lunarRow.append(lunarCopy, lunarToggle);
+
   const weekStartRow = document.createElement('div');
   weekStartRow.className = 'calendar-settings-select-row';
   const weekStartCopy = document.createElement('span');
@@ -1908,7 +1951,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   weekStartLabel.id = 'calendar-settings-week-start-label';
   weekStartRow.append(weekStartCopy, weekStartSelect);
 
-  section.append(sectionTitle, row, gridRow, weekStartRow);
+  section.append(sectionTitle, row, gridRow, lunarRow, weekStartRow);
   body.appendChild(section);
 
   const weatherSection = document.createElement('section');
@@ -2325,6 +2368,12 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   // the next load, the Calendar is not lost now.
   gridToggle.addEventListener('change', () => {
     state.showGridLines = gridToggle.checked;
+    writeCalendarDisplaySettings(storage, state);
+    onRedraw();
+  });
+
+  lunarToggle.addEventListener('change', () => {
+    state.showLunarDates = lunarToggle.checked;
     writeCalendarDisplaySettings(storage, state);
     onRedraw();
   });
@@ -2906,6 +2955,7 @@ export async function mountLifeCalendarManager({
     year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], holidays: [], loading: false,
     showKoreaHolidays: displaySettings.showKoreaHolidays,
     showGridLines: displaySettings.showGridLines,
+    showLunarDates: displaySettings.showLunarDates,
     weekStart: displaySettings.weekStart,
     manualWeatherRegion: storedManualWeatherRegion,
     weatherRegionOrigin: storedWeatherRegionOrigin,
