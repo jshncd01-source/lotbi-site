@@ -1,4 +1,4 @@
-/* Calendar expense summary — a secondary total-first card under the grid.
+/* Calendar expense summary — a fixed-category total-first card under the grid.
 
    It occupies its own row of .calendar-product-shell so the month view's
    clipped content box cannot swallow it.
@@ -8,8 +8,8 @@
    The one exception is the six category colours below, which no semantic token
    covers — they are named here, once, with a Dark value each.
 
-   It stays compact, but mobile may put its optional category detail below the
-   total instead of shrinking the primary figure. */
+   It stays one row at every width: the total remains pinned on the left while
+   the six fixed category slots can scroll horizontally. */
 
 .calendar-expense-slot {
   /* A grid item defaults to min-width:auto and refuses to shrink below its
@@ -155,8 +155,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Outside the scrolling list on purpose: the total stays on screen at the right
-   edge however far the categories are scrolled. */
+/* Outside the scrolling list on purpose: the total stays on the left however
+   far the fixed category row is scrolled. */
 .calendar-expense-total {
   display: grid;
   gap: 2px;
@@ -219,16 +219,15 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
   }
 
   .calendar-expense-line {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 9px;
   }
 
   .calendar-expense-total {
-    display: flex;
-    justify-content: space-between;
-    padding: 0 0 7px;
-    border-right: 0;
-    border-bottom: 1px solid var(--lotbi-border-strong, #cfd6e2);
+    display: grid;
+    padding: 0 9px 0 0;
+    border-right: 1px solid var(--lotbi-border-strong, #cfd6e2);
+    border-bottom: 0;
   }
 
   .calendar-expense-total-amount {

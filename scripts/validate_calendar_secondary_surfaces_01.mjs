@@ -8,8 +8,8 @@ import {
   calendarWeatherLocationPresentation,
 } from '../site-calendar-manager.js';
 
-// Break caught: the old strip rendered six equally loud 0원 category slots
-// before the figure people opened the summary to see.
+// Product contract: the total stays at the left and the same six category
+// slots remain visible, including 0원, so the row never changes membership.
 const expense = expenseSummaryPresentation({
   currencies: [{
     currency: 'KRW',
@@ -27,19 +27,24 @@ const expense = expenseSummaryPresentation({
 assert.equal(expense.lines.length, 1);
 assert.deepEqual(expense.lines[0], {
   currency: 'KRW',
-  totalLabel: '이번 달 지출',
+  totalLabel: '합계 ₩',
   totalAmount: '222,300원',
   categories: [
     {expenseCategory: 'FOOD', label: '음식', amount: '42,300원'},
+    {expenseCategory: 'TRAVEL', label: '여행', amount: '0원'},
+    {expenseCategory: 'SHOPPING', label: '쇼핑', amount: '0원'},
     {expenseCategory: 'LIVING', label: '생활비', amount: '180,000원'},
+    {expenseCategory: 'OTHER', label: '기타', amount: '0원'},
+    {expenseCategory: 'UNCLASSIFIED', label: '미분류', amount: '0원'},
   ],
   note: '금액 없는 일정 1건 제외 · 이 브라우저에만 저장돼요 · 로그인하면 다른 기기에서도',
 });
 
 const emptyExpense = expenseSummaryPresentation({currencies: [], entriesWithoutAmount: 0});
-assert.equal(emptyExpense.lines[0].totalLabel, '이번 달 지출');
+assert.equal(emptyExpense.lines[0].totalLabel, '합계 ₩');
 assert.equal(emptyExpense.lines[0].totalAmount, '0원');
-assert.deepEqual(emptyExpense.lines[0].categories, [], '0원 categories stay quiet instead of becoming six badges');
+assert.deepEqual(emptyExpense.lines[0].categories.map(row => row.amount), Array(6).fill('0원'));
+assert.deepEqual(emptyExpense.lines[0].categories.map(row => row.label), ['음식', '여행', '쇼핑', '생활비', '기타', '미분류']);
 assert.equal(emptyExpense.lines[0].note, '이번 달 기록 없음');
 
 const multiCurrency = expenseSummaryPresentation({
@@ -50,7 +55,7 @@ const multiCurrency = expenseSummaryPresentation({
   entriesWithoutAmount: 0,
 });
 assert.deepEqual(multiCurrency.lines.map(line => line.currency), ['KRW', 'USD'], 'currencies remain separate with KRW first');
-assert.deepEqual(multiCurrency.lines.map(line => line.totalLabel), ['이번 달 지출', '이번 달 지출 · USD']);
+assert.deepEqual(multiCurrency.lines.map(line => line.totalLabel), ['합계 ₩', '합계 USD']);
 assert.deepEqual(multiCurrency.lines.map(line => line.totalAmount), ['5,000원', '12 USD']);
 
 // Break caught: Settings used several long rows without an explicit primary

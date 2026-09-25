@@ -6,9 +6,9 @@
 // when a month has no amounts — an empty month has to read as "nothing
 // recorded", not as a strip that failed to load.
 //
-// The total is the primary fact. Only categories with a recorded non-zero
-// amount follow it; six repeated 0원 slots made an empty month look busy and
-// gave category detail more weight than the monthly total.
+// The total leads the row, followed by the same six category slots every
+// month. Zero-value slots stay visible so the category set and its order do not
+// appear to change when the owner records a different kind of expense.
 
 // The one place these labels live. The entry editor reads them from here too:
 // it used to call LIVING "기타 / 생활비" while the bar called it "생활비", so a
@@ -136,17 +136,22 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
   return {
     recorded,
     lines: lines.map((currencyTotals, index) => {
-      const categories = (currencyTotals.categories || [])
-        .filter(row => Number.isInteger(row.amountMinor) && row.amountMinor !== 0)
-        .sort((a, b) => EXPENSE_CATEGORY_ORDER.indexOf(a.expenseCategory)
-          - EXPENSE_CATEGORY_ORDER.indexOf(b.expenseCategory))
-        .map(row => ({
-          expenseCategory: EXPENSE_CATEGORY_ORDER.includes(row.expenseCategory)
-            ? row.expenseCategory
-            : 'UNCLASSIFIED',
-          label: expenseCategoryLabel(row.expenseCategory),
-          amount: formatExpenseAmount(row.amountMinor, currencyTotals.currency),
-        }));
+      const byCategory = new Map(
+        (currencyTotals.categories || [])
+          .filter(row => EXPENSE_CATEGORY_ORDER.includes(row.expenseCategory))
+          .map(row => [row.expenseCategory, row]),
+      );
+      const categories = EXPENSE_CATEGORY_ORDER.map(expenseCategory => {
+        const row = byCategory.get(expenseCategory);
+        return {
+          expenseCategory,
+          label: expenseCategoryLabel(expenseCategory),
+          amount: formatExpenseAmount(
+            Number.isInteger(row?.amountMinor) ? row.amountMinor : 0,
+            currencyTotals.currency,
+          ),
+        };
+      });
       const notes = [];
       if (!recorded && index === 0) notes.push('이번 달 기록 없음');
       if (withoutAmount > 0 && index === 0) {
@@ -155,7 +160,7 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
       if (local && index === 0) notes.push('이 브라우저에만 저장돼요 · 로그인하면 다른 기기에서도');
       return {
         currency: currencyTotals.currency,
-        totalLabel: index === 0 ? '이번 달 지출' : `이번 달 지출 · ${currencyTotals.currency}`,
+        totalLabel: `합계 ${currencyTotals.currency === 'KRW' ? '₩' : currencyTotals.currency}`,
         totalAmount: formatExpenseAmount(
           Number.isInteger(currencyTotals.totalAmountMinor) ? currencyTotals.totalAmountMinor : 0,
           currencyTotals.currency,
