@@ -49,6 +49,9 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
+      - name: Validate UI/UX Phase 1 contracts
+        run: node scripts/validate_uiux_phase1_01.mjs
+
       - name: Validate footer business information is identical across pages
         run: python scripts/sync_footer_business_info.py --check
 
@@ -459,4 +462,3 @@ jobs:
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
-
