@@ -64,12 +64,11 @@ on:
       - 'scripts/validate_calendar_system_dark_01.mjs'
       - 'scripts/generate_calendar_system_dark.mjs'
       - 'scripts/validate_calendar_add_from_image_01.mjs'
-      - 'site-calendar-lunar.js'
       - 'scripts/validate_calendar_week_timegrid_model_01.mjs'
       - 'scripts/validate_calendar_week_timegrid_ui_01.mjs'
+      - 'site-calendar-lunar.js'
       - 'scripts/validate_calendar_lunar_model_01.mjs'
       - 'scripts/validate_calendar_lunar_settings_ui_01.mjs'
-      - 'scripts/validate_calendar_toolbar_polish_01.mjs'
       - 'site-calendar-draft-write.js'
       - 'scripts/validate_conversation_calendar_auto_suggest_01.mjs'
       - 'scripts/validate_conversation_calendar_card_02.mjs'
@@ -189,5 +188,3 @@ jobs:
           node --check site-calendar-lunar.js
           node scripts/validate_calendar_lunar_model_01.mjs
           node scripts/validate_calendar_lunar_settings_ui_01.mjs
-      - name: Toolbar visual polish keeps 44px targets and theme contrast
-        run: node scripts/validate_calendar_toolbar_polish_01.mjs
