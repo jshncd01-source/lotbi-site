@@ -2645,12 +2645,25 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 }
 
 .lotbi-place-card-actions {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-height: 54px;
   padding: 4px 5px 6px;
   border-color: color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 74%, transparent);
+}
+
+.lotbi-place-card-phone-actions,
+.lotbi-place-card-navigation-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.lotbi-place-card-navigation-actions {
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 .lotbi-place-card-actions .lotbi-rich-card-action {

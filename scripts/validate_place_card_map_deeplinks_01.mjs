@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import {
-  buildGoogleMapsDirectionsUrl,
   buildKakaoNaviHandoffUrl,
   buildKakaoNaviSdkPayload,
   buildNaverMapsAndroidIntentUri,
@@ -9,7 +8,6 @@ import {
   buildTmapAndroidIntentUri,
   buildTmapMobileUri,
   isTmapHandoffAvailable,
-  openGoogleMapsPlace,
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
@@ -45,11 +43,6 @@ assert.match(tmap, /goalx=126\.4567891/u);
 assert.match(tmap, /goaly=35\.8012345/u);
 assert.match(buildTmapAndroidIntentUri(PLACE), /package=com\.skt\.tmap\.ku/u);
 
-const google = buildGoogleMapsDirectionsUrl(PLACE);
-assert.match(google, /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&/u);
-assert.match(google, /destination=35\.8012345%2C126\.4567891/u);
-assert.doesNotMatch(google, /(?:key|api_key|client_id)=/iu);
-
 assert.equal(isTmapHandoffAvailable({userAgent: ANDROID}), true);
 assert.equal(isTmapHandoffAvailable({userAgent: IPHONE}), true);
 assert.equal(isTmapHandoffAvailable({userAgent: DESKTOP}), false);
@@ -77,7 +70,6 @@ for (const [open, options, mode] of [
   [openKakaoNaviPlace, {}, 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB'],
   [openTmapPlace, {userAgent: ANDROID}, 'TMAP_ROUTE_INTENT_NEW_TAB'],
   [openTmapPlace, {userAgent: IPHONE}, 'TMAP_ROUTE_URL_SCHEME_NEW_TAB'],
-  [openGoogleMapsPlace, {}, 'GOOGLE_MAPS_NEW_TAB'],
 ]) {
   const windowRef = fakeWindow();
   const before = windowRef.location.href;
