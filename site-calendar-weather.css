@@ -48,20 +48,16 @@
 :root {
   /* 3:1(WCAG 1.4.11 비텍스트 대비)을 날짜 칸 배경 위에서 넘깁니다. 선택된
      날짜 칸은 순백이 아니라 #f6f8fb 이므로 그 쪽이 기준입니다. */
-  --lotbi-weather-sun: #c06a00;
+  --lotbi-weather-sun: #f2b600;
   --lotbi-weather-cloud: #66758a;
-  --lotbi-weather-rain-cloud: #4f82aa;
-  --lotbi-weather-rain: #086fca;
-  --lotbi-weather-snow-cloud: #438595;
-  --lotbi-weather-snow: #007f9c;
+  --lotbi-weather-rain: #087fd1;
+  --lotbi-weather-snow: #078fc7;
 }
 
 body[data-site-theme="dark"] {
   --lotbi-weather-sun: #ffc247;
   --lotbi-weather-cloud: #b6c1d1;
-  --lotbi-weather-rain-cloud: #8bc8f4;
   --lotbi-weather-rain: #7bc0ff;
-  --lotbi-weather-snow-cloud: #9bdde8;
   --lotbi-weather-snow: #8fe0ff;
 }
 
@@ -100,7 +96,7 @@ svg.calendar-weather-icon {
 /* 구름은 흐림·비·눈이 같은 회색입니다. 셋을 구별하는 것은 구름 색이 아니라
    구름 아래 모양입니다 — 없음 / 기울어진 선 / 점. 14px 에서 색보다 모양이
    먼저 읽힙니다. */
-.calendar-weather-icon[data-weather-kind="RAIN"] [data-weather-part="body"] { fill: var(--lotbi-weather-rain-cloud); }
+.calendar-weather-icon[data-weather-kind="RAIN"] [data-weather-part="body"] { fill: var(--lotbi-weather-cloud); }
 .calendar-weather-icon[data-weather-kind="RAIN"] [data-weather-part="rain"] { stroke: var(--lotbi-weather-rain); stroke-width: 3.1; }
-.calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="body"] { fill: var(--lotbi-weather-snow-cloud); }
+.calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="body"] { fill: var(--lotbi-weather-cloud); }
 .calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="snow"] { stroke: var(--lotbi-weather-snow); stroke-width: 2.1; }

@@ -583,7 +583,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-date-cell[data-current-month="true"][data-weekday="0"] .calendar-date-number { color: var(--lotbi-calendar-weekend-sun); }
 .calendar-date-cell[data-current-month="true"][data-weekday="6"] .calendar-date-number { color: var(--lotbi-calendar-weekend-sat); }
 .calendar-date-cell[data-selected="true"] { z-index: 1; box-shadow: inset 0 0 0 1px rgba(24, 42, 70, .42); background: #f6f8fb; }
-.calendar-date-header { min-width: 0; min-height: 24px; display: flex; align-items: center; gap: 4px; }
+.calendar-date-header { min-width: 0; min-height: 44px; display: flex; align-items: flex-start; gap: 4px; }
 .calendar-date-trigger {
   flex: 0 0 auto;
   min-width: 44px;
@@ -624,7 +624,12 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   width: 24px;
   height: 24px;
 }
-.calendar-weather-temperature { color: #3f5067; font-size: 11px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.calendar-weather-summary { margin-left: auto; display: grid; grid-template-columns: 24px 46px; align-items: start; gap: 3px; }
+.calendar-weather-temperature { position: relative; width: 46px; height: 30px; font-size: 11px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.calendar-weather-temperature-min { position: absolute; left: 0; bottom: 0; color: #1769c2; }
+.calendar-weather-temperature-max { position: absolute; top: 0; right: 0; color: #d43b32; }
+.calendar-weather-temperature-separator { position: absolute; top: 50%; left: 50%; color: #818a98; font-size: 13px; transform: translate(-50%, -50%) rotate(-8deg); }
+.calendar-weather-temperature-value { display: block; padding-top: 6px; color: #3f5067; text-align: right; }
 .calendar-holiday-label {
   min-width: 0;
   overflow: hidden;
@@ -1624,19 +1629,23 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     position: relative;
     min-height: 70px;
     display: grid;
-    grid-template-columns: minmax(0, 17px) minmax(0, 1fr);
-    grid-template-rows: 44px 12px 14px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 44px 12px;
     justify-content: center;
     align-items: center;
     column-gap: 1px;
     row-gap: 0;
   }
-  .calendar-date-trigger { grid-column: 1 / -1; grid-row: 1; min-width: 44px; min-height: 44px; justify-self: center; }
+  .calendar-date-trigger { grid-column: 1; grid-row: 1; min-width: 44px; min-height: 44px; place-items: start; padding: 5px 0 0 4px; justify-self: start; }
   .calendar-date-number { font-size: 12px; }
-  .calendar-mobile-event-count { grid-column: 1 / -1; grid-row: 2; justify-self: center; font-size: 9px; line-height: 12px; }
-  .calendar-date-header > svg.calendar-weather-icon { grid-column: 1; grid-row: 3; width: 17px; height: 17px; }
-  .calendar-weather-temperature { grid-column: 2; grid-row: 3; min-width: 0; overflow: hidden; font-size: 0; line-height: 14px; white-space: nowrap; }
-  .calendar-weather-temperature::after { content: attr(data-compact-temperature); font-size: 8px; }
+  .calendar-date-cell[data-today="true"] .calendar-date-trigger { background: transparent; }
+  .calendar-date-cell[data-today="true"] .calendar-date-number { display: inline-grid; width: 26px; height: 26px; place-items: center; border-radius: 999px; background: #3568a8; }
+  .calendar-mobile-event-count { grid-column: 1; grid-row: 2; justify-self: center; font-size: 9px; line-height: 12px; }
+  .calendar-weather-summary { position: absolute; top: 2px; right: 1px; margin: 0; display: grid; grid-template-columns: 28px; grid-template-rows: 15px 22px; justify-items: center; gap: 0; }
+  .calendar-weather-summary > svg.calendar-weather-icon { grid-row: 1; width: 15px; height: 15px; }
+  .calendar-weather-temperature { grid-row: 2; width: 27px; height: 21px; font-size: 7px; line-height: 1; }
+  .calendar-weather-temperature-separator { font-size: 9px; }
+  .calendar-weather-temperature-value { padding-top: 4px; font-size: 8px; text-align: center; }
   .calendar-holiday-label { font-size: 8px; }
   .calendar-attention-marker { position: absolute; top: 3px; right: 2px; width: 6px; height: 6px; margin: 0; border-radius: 999px; background: #a56720; font-size: 0; }
 

@@ -1,5 +1,5 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-df62104d83eb';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-df62104d83eb';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-cd3ebf85a56e';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-cd3ebf85a56e';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,14 +10,14 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-df62104d83eb';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-df62104d83eb';
+} from './site-calendar-model.js?v=aset-cd3ebf85a56e';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-cd3ebf85a56e';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-df62104d83eb';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-df62104d83eb';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-cd3ebf85a56e';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-cd3ebf85a56e';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -25,12 +25,12 @@ import {
   filterScheduleItems,
   monthCellSummary,
   weekAgendaGroups,
-} from './site-calendar-product.js?v=aset-df62104d83eb';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-df62104d83eb';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-df62104d83eb';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-df62104d83eb';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-df62104d83eb';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-df62104d83eb';
+} from './site-calendar-product.js?v=aset-cd3ebf85a56e';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-cd3ebf85a56e';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-cd3ebf85a56e';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-cd3ebf85a56e';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-cd3ebf85a56e';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-cd3ebf85a56e';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1510,6 +1510,9 @@ function renderMonth(state, actions, weatherCredit = null) {
     count.setAttribute('aria-hidden', 'true');
     header.append(date, count);
     if (weather) {
+      const weatherSummary = document.createElement('span');
+      weatherSummary.className = 'calendar-weather-summary';
+      weatherSummary.setAttribute('aria-hidden', 'true');
       // 이모지 대신 인라인 SVG. 같은 이모지가 OS 마다 다른 모양·다른 색으로
       // 나오는 것이 흐리게 보이던 근본 원인이었다. 글리프 자체는
       // site-calendar-weather.js 가 그린다 — Core 가 보내는 weather_icon
@@ -1519,17 +1522,34 @@ function renderMonth(state, actions, weatherCredit = null) {
         const weatherTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
         weatherTitle.textContent = weather.label;
         weatherIcon.appendChild(weatherTitle);
-        header.appendChild(weatherIcon);
+        weatherSummary.appendChild(weatherIcon);
       }
       const temperatureLabel = calendarWeatherPresentation(weather).monthLabel;
       if (temperatureLabel) {
         const temperature = document.createElement('span');
         temperature.className = 'calendar-weather-temperature';
-        temperature.textContent = temperatureLabel;
         temperature.dataset.compactTemperature = temperatureLabel.replace(/\s+/g, '');
-        temperature.setAttribute('aria-hidden', 'true');
-        header.appendChild(temperature);
+        if (Number.isFinite(weather.minTemperature) && Number.isFinite(weather.maxTemperature)) {
+          temperature.classList.add('calendar-weather-temperature-range');
+          const minimum = document.createElement('span');
+          minimum.className = 'calendar-weather-temperature-min';
+          minimum.textContent = `${Math.round(weather.minTemperature)}°`;
+          const separator = document.createElement('span');
+          separator.className = 'calendar-weather-temperature-separator';
+          separator.textContent = '/';
+          const maximum = document.createElement('span');
+          maximum.className = 'calendar-weather-temperature-max';
+          maximum.textContent = `${Math.round(weather.maxTemperature)}°`;
+          temperature.append(minimum, separator, maximum);
+        } else {
+          const value = document.createElement('span');
+          value.className = 'calendar-weather-temperature-value';
+          value.textContent = temperatureLabel;
+          temperature.appendChild(value);
+        }
+        weatherSummary.appendChild(temperature);
       }
+      if (weatherSummary.childElementCount) header.appendChild(weatherSummary);
     }
     if (hasAttention) {
       const marker = document.createElement('span');
