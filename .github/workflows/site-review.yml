@@ -267,6 +267,9 @@ jobs:
       - name: Validate compact Place Card
         run: node scripts/validate_place_card_compact_01.mjs
 
+      - name: TEMP verify Production place photos
+        run: node scripts/diagnose_place_photo_prod_temp.mjs
+
       # 대표님 지시로 길찾기가 딥링크 3종이 되었습니다 — 네이버 옆에 카카오맵과
       # 티맵. 새 API 키도 과금도 없고 URL scheme 과 Android intent 뿐입니다.
       # 티맵은 x 가 경도 y 가 위도라 순서를 뒤집으면 엉뚱한 곳으로 보내므로
