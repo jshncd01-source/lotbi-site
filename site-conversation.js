@@ -1,18 +1,19 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-4eb033984c05';
-import * as siteCore from './site-core.js?v=aset-4eb033984c05';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-4eb033984c05';
-import * as siteAttachments from './site-attachments.js?v=aset-4eb033984c05';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-4eb033984c05';
-import {deterministicReply} from './site-deterministic.js?v=aset-4eb033984c05';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-4eb033984c05';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-4eb033984c05';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-4eb033984c05';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-4eb033984c05';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-4eb033984c05';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-4eb033984c05';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-4eb033984c05';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-4eb033984c05';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-4eb033984c05';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-6381989b8794';
+import * as siteCore from './site-core.js?v=aset-6381989b8794';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-6381989b8794';
+import * as siteAttachments from './site-attachments.js?v=aset-6381989b8794';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-6381989b8794';
+import {deterministicReply} from './site-deterministic.js?v=aset-6381989b8794';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-6381989b8794';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-6381989b8794';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6381989b8794';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-6381989b8794';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-6381989b8794';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-6381989b8794';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-6381989b8794';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-6381989b8794';
+import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-6381989b8794';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-6381989b8794';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -164,7 +165,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-4eb033984c05';
+  link.href = '/site-conversation.css?v=aset-6381989b8794';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -273,6 +274,9 @@ function speechSupported() {
   return typeof globalThis.speechSynthesis !== 'undefined'
     && typeof globalThis.SpeechSynthesisUtterance === 'function';
 }
+
+// Picking the best of whatever ko-KR voices the device already has —
+// SITE-VOICE-BROWSER-TTS-QUALITY-01, see site-voice-tts.js for why.
 
 function splitForSpeech(value) {
   const text = String(value ?? '').replace(/\s+/gu, ' ').trim();
@@ -389,18 +393,26 @@ function createMessageActions(text, announce) {
       if (active) speak.dataset.speaking = 'true'; else delete speak.dataset.speaking;
     };
     setSpeakUi(false);
-    speak.addEventListener('click', () => {
+    let loadingVoices = false;
+    speak.addEventListener('click', async () => {
       // The button is the stop control from the first click onward. Nobody has
       // to sit through a long answer to get it back.
       if (speaking) { globalThis.speechSynthesis.cancel(); setSpeakUi(false); report('읽기를 멈췄습니다.'); return; }
+      if (loadingVoices) return;
       const chunks = splitForSpeech(value);
       if (!chunks.length) { report('읽을 내용이 없습니다.', 'error'); return; }
       // The API can be present on a device that has no installed voice at all —
       // headless Linux is the obvious one, but it happens on stripped-down
       // handsets too. Saying which thing is missing beats a bare failure.
+      // The list can also arrive a moment after page load (Chrome fires
+      // 'voiceschanged' once it is ready), so this waits briefly rather than
+      // failing on a call that landed before the browser was ready.
+      loadingVoices = true;
       let voices = [];
-      try { voices = globalThis.speechSynthesis.getVoices() || []; } catch { voices = []; }
+      try { voices = await waitForVoices(); } catch { voices = []; }
+      loadingVoices = false;
       if (!voices.length) { report('이 기기에 설치된 음성이 없어 읽어 드릴 수 없습니다.', 'error'); return; }
+      const voice = pickBestKoreanVoice(voices);
       // Whatever else was being read stops first: two answers at once is noise.
       globalThis.speechSynthesis.cancel();
       setSpeakUi(true);
@@ -408,6 +420,7 @@ function createMessageActions(text, announce) {
       chunks.forEach((chunk, index) => {
         const utterance = new globalThis.SpeechSynthesisUtterance(chunk);
         utterance.lang = 'ko-KR';
+        if (voice) utterance.voice = voice;
         if (index === chunks.length - 1) utterance.onend = () => setSpeakUi(false);
         utterance.onerror = () => { setSpeakUi(false); report('읽어 드리지 못했습니다.', 'error'); };
         globalThis.speechSynthesis.speak(utterance);
@@ -2759,7 +2772,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-4eb033984c05');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6381989b8794');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
