@@ -554,6 +554,7 @@ function innerFixtureHtml() {
   const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
   const speciesMarks = [...document.querySelectorAll('.pet-slot-species-mark')].map(item => item.textContent);
   const rearSpecies = document.querySelector('[data-pet-rear-species]')?.dataset.petRearSpecies || '';
+  const rearImage = document.querySelector('[data-pet-rear-species] image')?.getAttribute('href') || '';
 
   // Measure layout before the result sink is filled.
   const scrollWidth = document.documentElement.scrollWidth;
@@ -584,6 +585,7 @@ function innerFixtureHtml() {
     registrationActionWhileOpen,
     speciesMarks,
     rearSpecies,
+    rearImage,
     hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
     hasNotice: surface.textContent.includes('공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다'),
   });
@@ -767,6 +769,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => ['🐶', '🐕'].includes(mark)),
     `${label}: DOG selection must show only dog photo guides`);
   assert.equal(result.rearSpecies, 'DOG', `${label}: rear slot must use the selected dog's back-facing guide`);
+  assert.equal(result.rearImage, '/assets/pet/dog-rear-v1.png',
+    `${label}: slot 9 must use only the selected dog's color rear-view artwork`);
 }
 
 console.log('SITE-PET-FAMILY-WEB-01 CONTRACT PASS');
