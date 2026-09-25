@@ -324,6 +324,9 @@ jobs:
       - name: Validate message copy and share actions
         run: node scripts/validate_message_share_actions_01.mjs
 
+      - name: Validate reusable output cards
+        run: node scripts/validate_reusable_output_card_01.mjs
+
       - name: Validate attachment API and file safety contracts
         run: |
           node scripts/validate_attachment_api_01.mjs
