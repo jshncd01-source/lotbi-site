@@ -44,8 +44,16 @@ assert.ok(manager.includes("next.dataset.calendarNavigation = 'next'"));
 assert.ok(css.includes('.calendar-nav-button[data-calendar-navigation="next"]::before'));
 assert.ok(css.includes('.calendar-week-agenda'));
 assert.ok(css.includes('.calendar-week-day'));
-assert.match(css, /@media \(min-width: 901px\)[\s\S]*\.calendar-week-days\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-assert.ok(!css.includes('.calendar-week-days { grid-template-columns: repeat(2'));
+// Week is a real Google-Calendar-style time grid: 7 side-by-side day columns
+// against an hour axis, not the removed single-column agenda list, at any
+// width -- there is no longer a >=901px override collapsing it back to one
+// column.
+assert.match(css, /\.calendar-week-grid-header,\s*\n\.calendar-week-allday-row,\s*\n\.calendar-week-grid-scroll\s*\{[^}]*grid-template-columns:\s*var\(--calendar-week-axis-width\) repeat\(7, minmax\(var\(--calendar-week-column-min\), 1fr\)\);/);
+assert.ok(!css.includes('.calendar-week-days'));
+assert.ok(css.includes('.calendar-week-grid-event {'));
+assert.match(css, /\.calendar-week-grid-event\s*\{[^}]*position:\s*absolute;/);
+assert.ok(manager.includes("block.style.top = `${(entry.start / MINUTES_PER_DAY) * 100}%`"));
+assert.ok(css.includes('.calendar-week-allday-row'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
 assert.ok(manager.includes("loading.textContent = '일정을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));
