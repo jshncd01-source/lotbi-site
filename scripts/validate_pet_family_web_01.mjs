@@ -381,6 +381,14 @@ function innerFixtureHtml() {
         matching_consent_state: 'NOT_GRANTED', photos: [],
       }}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
+    if (/\\/v2\\/pet-registration-drafts\\/pdraft_eeeeeeeeeeeeeeeeeeee$/.test(target) && options.method === 'PATCH') {
+      const update = JSON.parse(options.body || '{}');
+      return new Response(JSON.stringify({draft: {
+        draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee',
+        status: 'ACTIVE', current_step: update.current_step || 'PHOTOS', revision: 2,
+        species: update.species || 'DOG', matching_consent_state: 'NOT_GRANTED', photos: [],
+      }}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
     if (/\\/content$/.test(target)) {
       // 1x1 PNG, enough to prove the bytes become a blob: preview.
       const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
@@ -528,12 +536,15 @@ function innerFixtureHtml() {
   };
   homeButtons.get('pets').click();
 
-  // Registration begins with the ten private photo slots. Species is not
-  // requested until the next step, and no stable Pet ID exists yet.
+  // Registration begins by choosing one supported species. Only that
+  // animal's ten private photo guides appear; no stable Pet ID exists yet.
   document.querySelector('.pet-add-button').click();
   await new Promise(resolve => setTimeout(resolve, 100));
-  const draftSlots = [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => tile.dataset.petDraftSlot);
+  const draftSlotsBeforeSpecies = [...document.querySelectorAll('[data-pet-draft-slot]')].length;
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
+  document.querySelector('input[name="pet-species"][value="DOG"]').click();
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const draftSlots = [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => tile.dataset.petDraftSlot);
   const registrationProgress = document.querySelector('.pet-draft-progress-label')?.textContent || '';
   const registrationSteps = [...document.querySelectorAll('.pet-draft-step')].map(item => ({
     number: item.querySelector('.pet-draft-step-number')?.textContent || '',
@@ -565,6 +576,7 @@ function innerFixtureHtml() {
     homeCards,
     homeTabs,
     draftSlots,
+    draftSlotsBeforeSpecies,
     speciesChoices,
     registrationProgress,
     registrationSteps,
@@ -739,7 +751,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.ok(result.homeTabs.found.found > 0 && result.homeTabs.found.foundAction > 0,
     `${label}: found tab must show only the found surface and action`);
   assert.deepEqual(result.draftSlots, CORE_SLOT_CODES, `${label}: registration must begin with all ten photo slots`);
-  assert.deepEqual(result.speciesChoices, [], `${label}: the first registration step must not ask for species before photos`);
+  assert.equal(result.draftSlotsBeforeSpecies, 0, `${label}: photo slots must wait for one species selection`);
+  assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: the first step must offer dog or cat before photos`);
   assert.equal(result.registrationProgress, '반려동물 등록 1단계 / 4단계',
     `${label}: registration must identify the current numbered step`);
   assert.deepEqual(result.registrationSteps.map(step => step.name), ['사진', '기본 정보', '추가 정보', '검토'],
@@ -749,8 +762,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.registrationSteps[0].active, 'true', `${label}: photo step must be active first`);
   assert.equal(result.registrationActionWhileOpen, 0,
     `${label}: the list-level registration/resume action must disappear while its form is open`);
-  assert.ok(result.speciesMarks.includes('🐶') && result.speciesMarks.includes('🐱'),
-    `${label}: empty photo guides must visibly identify both supported species`);
+  assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => ['🐶', '🐕'].includes(mark)),
+    `${label}: DOG selection must show only dog photo guides`);
 }
 
 console.log('SITE-PET-FAMILY-WEB-01 CONTRACT PASS');
