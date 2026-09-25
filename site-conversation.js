@@ -1,18 +1,18 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-7e0aa3840b49';
-import * as siteCore from './site-core.js?v=aset-7e0aa3840b49';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-7e0aa3840b49';
-import * as siteAttachments from './site-attachments.js?v=aset-7e0aa3840b49';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-7e0aa3840b49';
-import {deterministicReply} from './site-deterministic.js?v=aset-7e0aa3840b49';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-7e0aa3840b49';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-7e0aa3840b49';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7e0aa3840b49';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-7e0aa3840b49';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-7e0aa3840b49';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-7e0aa3840b49';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-7e0aa3840b49';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-7e0aa3840b49';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-7e0aa3840b49';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-7db3f5c4ae8d';
+import * as siteCore from './site-core.js?v=aset-7db3f5c4ae8d';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-7db3f5c4ae8d';
+import * as siteAttachments from './site-attachments.js?v=aset-7db3f5c4ae8d';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-7db3f5c4ae8d';
+import {deterministicReply} from './site-deterministic.js?v=aset-7db3f5c4ae8d';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-7db3f5c4ae8d';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-7db3f5c4ae8d';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7db3f5c4ae8d';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-7db3f5c4ae8d';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-7db3f5c4ae8d';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-7db3f5c4ae8d';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-7db3f5c4ae8d';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-7db3f5c4ae8d';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-7db3f5c4ae8d';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -164,7 +164,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-7e0aa3840b49';
+  link.href = '/site-conversation.css?v=aset-7db3f5c4ae8d';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -1393,14 +1393,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const actions = document.createElement('div');
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
 
-      const addActionLabel = (control, label) => {
+      const addActionIcon = (control, iconName) => {
         const icon = document.createElement('span');
         icon.className = 'lotbi-place-action-icon';
         icon.setAttribute('aria-hidden', 'true');
-        const copy = document.createElement('span');
-        copy.className = 'lotbi-place-action-label';
-        copy.textContent = label;
-        control.append(icon, copy);
+        const image = document.createElement('img');
+        image.className = 'lotbi-place-action-icon-image';
+        image.src = `/assets/place-actions/${iconName}.png?v=place-icons-20260925`;
+        image.alt = '';
+        image.width = 32;
+        image.height = 32;
+        image.decoding = 'async';
+        icon.appendChild(image);
+        control.appendChild(icon);
       };
 
       const phoneHref = buildVerifiedPhoneHref(place);
@@ -1413,7 +1418,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         phone.tabIndex = placeIndex === 0 ? 0 : -1;
         phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
         phone.title = '전화 걸기';
-        addActionLabel(phone, '전화');
+        addActionIcon(phone, 'phone');
         phone.addEventListener('click', () => {
           phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
           setStatus('전화 앱 연결을 시작합니다.');
@@ -1430,7 +1435,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       navigate.title = '네이버 지도에서 열기';
       navigate.dataset.action = 'naver-map';
       navigate.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionLabel(navigate, '네이버');
+      addActionIcon(navigate, 'naver-map');
       navigate.addEventListener('click', event => {
         event.preventDefault();
         openPlaceInNaverMap(place);
@@ -1446,30 +1451,27 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       kakaoNavi.title = '카카오내비에서 길안내';
       kakaoNavi.dataset.action = 'kakao-navi';
       kakaoNavi.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionLabel(kakaoNavi, '카카오');
+      addActionIcon(kakaoNavi, 'kakao-map');
       kakaoNavi.addEventListener('click', event => {
         event.preventDefault();
         openPlaceInKakaoNavi(place);
       });
       actions.appendChild(kakaoNavi);
 
-      const tmapReady = isTmapHandoffAvailable();
-      if (tmapReady) {
-        const tmap = document.createElement('a');
-        tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action';
-        tmap.dataset.action = 'tmap';
-        tmap.dataset.tmapState = 'MOBILE_APP';
-        tmap.href = '#';
-        tmap.tabIndex = placeIndex === 0 ? 0 : -1;
-        tmap.setAttribute('aria-label', `${place.name} T맵에서 길안내`);
-        tmap.title = 'T맵에서 길안내';
-        addActionLabel(tmap, 'T맵');
-        tmap.addEventListener('click', event => {
-          event.preventDefault();
-          openPlaceInTmap(place);
-        });
-        actions.appendChild(tmap);
-      }
+      const tmap = document.createElement('a');
+      tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action';
+      tmap.dataset.action = 'tmap';
+      tmap.dataset.tmapState = isTmapHandoffAvailable() ? 'MOBILE_APP' : 'INSTALL_GUIDE';
+      tmap.href = '#';
+      tmap.tabIndex = placeIndex === 0 ? 0 : -1;
+      tmap.setAttribute('aria-label', `${place.name} T맵에서 길안내`);
+      tmap.title = 'T맵에서 길안내';
+      addActionIcon(tmap, 'tmap');
+      tmap.addEventListener('click', event => {
+        event.preventDefault();
+        openPlaceInTmap(place);
+      });
+      actions.appendChild(tmap);
 
       const googleMaps = document.createElement('a');
       googleMaps.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-google-maps-action';
@@ -1480,7 +1482,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       googleMaps.title = 'Google Maps에서 길안내';
       googleMaps.dataset.action = 'google-maps';
       googleMaps.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionLabel(googleMaps, 'Google');
+      addActionIcon(googleMaps, 'google-maps');
       googleMaps.addEventListener('click', event => {
         event.preventDefault();
         openPlaceInGoogleMaps(place);
@@ -2734,7 +2736,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7e0aa3840b49');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7db3f5c4ae8d');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
