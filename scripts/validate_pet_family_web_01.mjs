@@ -534,6 +534,14 @@ function innerFixtureHtml() {
   await new Promise(resolve => setTimeout(resolve, 100));
   const draftSlots = [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => tile.dataset.petDraftSlot);
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
+  const registrationProgress = document.querySelector('.pet-draft-progress-label')?.textContent || '';
+  const registrationSteps = [...document.querySelectorAll('.pet-draft-step')].map(item => ({
+    number: item.querySelector('.pet-draft-step-number')?.textContent || '',
+    name: item.querySelector('.pet-draft-step-name')?.textContent || '',
+    active: item.dataset.petDraftStepActive,
+  }));
+  const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
+  const speciesMarks = [...document.querySelectorAll('.pet-slot-species-mark')].map(item => item.textContent);
 
   // Measure layout before the result sink is filled.
   const scrollWidth = document.documentElement.scrollWidth;
@@ -558,6 +566,10 @@ function innerFixtureHtml() {
     homeTabs,
     draftSlots,
     speciesChoices,
+    registrationProgress,
+    registrationSteps,
+    registrationActionWhileOpen,
+    speciesMarks,
     hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
     hasNotice: surface.textContent.includes('공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다'),
   });
@@ -728,6 +740,17 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     `${label}: found tab must show only the found surface and action`);
   assert.deepEqual(result.draftSlots, CORE_SLOT_CODES, `${label}: registration must begin with all ten photo slots`);
   assert.deepEqual(result.speciesChoices, [], `${label}: the first registration step must not ask for species before photos`);
+  assert.equal(result.registrationProgress, '반려동물 등록 1단계 / 4단계',
+    `${label}: registration must identify the current numbered step`);
+  assert.deepEqual(result.registrationSteps.map(step => step.name), ['사진', '기본 정보', '추가 정보', '검토'],
+    `${label}: registration must show the four steps in order`);
+  assert.deepEqual(result.registrationSteps.map(step => step.number), ['1', '2', '3', '4'],
+    `${label}: registration steps must be numbered`);
+  assert.equal(result.registrationSteps[0].active, 'true', `${label}: photo step must be active first`);
+  assert.equal(result.registrationActionWhileOpen, 0,
+    `${label}: the list-level registration/resume action must disappear while its form is open`);
+  assert.ok(result.speciesMarks.includes('🐶') && result.speciesMarks.includes('🐱'),
+    `${label}: empty photo guides must visibly identify both supported species`);
 }
 
 console.log('SITE-PET-FAMILY-WEB-01 CONTRACT PASS');

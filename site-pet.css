@@ -379,6 +379,13 @@
   font-weight: 900;
 }
 
+.pet-draft-progress-label {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .pet-draft-steps {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -390,8 +397,11 @@
 
 .pet-draft-step {
   min-width: 0;
-  padding: 7px 5px;
-  border-radius: 999px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 12px;
   background: var(--lotbi-surface-hover, #eef1f6);
   color: var(--lotbi-text-muted, #6a7280);
   font-size: 11px;
@@ -399,9 +409,31 @@
   text-align: center;
 }
 
+.pet-draft-step-number {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.pet-draft-step-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pet-draft-step[data-pet-draft-step-active='true'] {
   background: var(--brand-violet, #7b62bb);
   color: #fff;
+}
+
+.pet-draft-step[data-pet-draft-step-complete='true'] {
+  background: #e8f5ee;
+  color: #24734b;
 }
 
 .pet-draft-actions {
@@ -462,9 +494,7 @@
     min-height: 72px;
   }
 
-  .pet-draft-steps {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .pet-draft-step { font-size: 10px; }
 }
 
 .pet-choice-row {
@@ -537,6 +567,7 @@
    UA [hidden] rule, so every element this surface toggles with .hidden needs
    its hidden state spelled out. */
 .pet-section[hidden],
+.pet-add-button[hidden],
 .pet-delete-confirm[hidden],
 .pet-delete-button[hidden],
 .pet-detail-section[hidden],
@@ -636,6 +667,13 @@
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.pet-slot-species-mark {
+  stroke: none;
+  fill: currentColor;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 17px;
 }
 
 .pet-slot-photo {

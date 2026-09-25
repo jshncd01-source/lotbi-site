@@ -3,11 +3,11 @@
 // Covered contracts:
 //   - the strip renders under the month grid, as a sibling of the month layout
 //     (the layout's first two children stay the month and the day surface)
-//   - the monthly total leads and all six fixed category slots follow
+//   - all six fixed category slots lead and the monthly total stays at the right
 //   - each category name keeps its own fixed, legible colour in Light and Dark,
 //     and the amounts stay neutral
-//   - a month with no recorded amount still shows the strip, reading
-//     "이번 달 기록 없음" — never a vanished table and never a stuck loader
+//   - a month with no recorded amount still shows the six 0원 slots and total,
+//     without repeating a second empty-month sentence
 //   - loading, empty, error and guest are four distinguishable states
 //   - no amount is invented: entries without an amount are reported separately
 //   - the month window is the calendar month, not the 42-cell grid
@@ -168,13 +168,13 @@ try{
   result.viewportHeight=Math.round(innerHeight);
   result.aboveTheFold=barBox.bottom<=innerHeight;
 
-  // The total leads; categories are secondary and may scroll without moving it.
+  // The total stays at the right; categories may scroll without moving it.
   const stripBox=ready.getBoundingClientRect();
   const totalBox=totalAmount.getBoundingClientRect();
   // Past the whole item list, not past a single item: on a narrow screen the
   // later categories are scrolled out of view to the right.
   const itemsBox=ready.querySelector('.calendar-expense-items').getBoundingClientRect();
-  result.totalBeforeItems=totalBox.right<=itemsBox.left+1 || totalBox.top<itemsBox.top;
+  result.totalAfterItems=totalBox.left>=itemsBox.right-1;
   result.itemsScrollable=ready.querySelector('.calendar-expense-items').scrollWidth
     > ready.querySelector('.calendar-expense-items').clientWidth;
   result.totalInsideBar=totalBox.bottom<=stripBox.bottom+1;
@@ -274,6 +274,7 @@ try{
     category:n.dataset.expenseCategory,label:n.querySelector('dt')?.textContent||'',amount:n.querySelector('dd')?.textContent||''}));
   result.guestTotal=guest.querySelector('.calendar-expense-total-amount')?.textContent||'';
   result.guestNote=guest.querySelector('.calendar-expense-coverage')?.textContent||'';
+  result.guestStorageNote=guest.querySelector('.calendar-expense-storage-note')?.textContent||'';
   // Legibility: the exclusion line must not be the faint grey it was.
   {
     const note=guest.querySelector('.calendar-expense-coverage');
@@ -358,6 +359,7 @@ try{
   await wait(()=>strip(root)?.dataset.calendarExpenseSummary==='ready','guest empty strip');
   const guestEmpty=strip(root);
   result.guestEmptyNote=guestEmpty.querySelector('.calendar-expense-coverage')?.textContent||'';
+  result.guestEmptyStorageNote=guestEmpty.querySelector('.calendar-expense-storage-note')?.textContent||'';
   result.guestEmptyRows=[...guestEmpty.querySelectorAll('.calendar-expense-item')].map(n=>n.querySelector('dd')?.textContent||'');
 
   // --- guest, a repository that throws: the Calendar must outlive it ------
@@ -451,7 +453,7 @@ try {
 
     if (value.totalLabel !== '합계 ₩') throw new Error(`${label}: the primary total must be labelled "합계 ₩", got "${value.totalLabel}"`);
     if (value.totalText !== '314,500원') throw new Error(`${label}: total must be the sum Core returned, got ${value.totalText}`);
-    if (!value.totalBeforeItems) throw new Error(`${label}: the total must lead the optional category detail`);
+    if (!value.totalAfterItems) throw new Error(`${label}: the total must stay to the right of the category detail`);
     if (!value.totalInsideBar) throw new Error(`${label}: the total must stay inside the bar`);
 
     if (!value.coverageNote.includes('2건')) throw new Error(`${label}: entries without an amount must be reported, got "${value.coverageNote}"`);
@@ -476,7 +478,7 @@ try {
     }
 
     if (!value.emptyPresent) throw new Error(`${label}: an empty month must keep the bar`);
-    if (!value.emptyText.includes('이번 달 기록 없음')) throw new Error(`${label}: empty month must say "이번 달 기록 없음", got "${value.emptyText}"`);
+    if (value.emptyText !== '') throw new Error(`${label}: six 0원 slots already explain an empty month; duplicate copy must be absent, got "${value.emptyText}"`);
     if (value.emptySlots.length !== 6 || value.emptySlots.some(amount => amount !== '0원')) {
       throw new Error(`${label}: an empty month must retain six 0원 category slots, got ${JSON.stringify(value.emptySlots)}`);
     }
@@ -499,7 +501,7 @@ try {
     if (!value.guestPresent) throw new Error(`${label}: guests must still see the strip`);
     if (!value.guestAskedCore) throw new Error(`${label}: guest totals must be computed here, never fetched from Core`);
 
-    // The same total-first card, with all six fixed category slots.
+    // The same fixed-category card, with the total pinned at the right.
     const guestCategories = value.guestRows.map(row => row.category);
     if (guestCategories.join(',') !== 'FOOD,TRAVEL,SHOPPING,LIVING,OTHER,UNCLASSIFIED') {
       throw new Error(`${label}: the signed-out bar must keep all categories in order, got ${guestCategories.join(',')}`);
@@ -526,13 +528,13 @@ try {
     if (value.guestTotal !== '301,820원') throw new Error(`${label}: signed-out total must be 301,820원 (October's entry excluded), got ${value.guestTotal}`);
     if (!value.guestNote.includes('금액 없는 일정 1건 제외')) throw new Error(`${label}: an entry with no amount must be reported, not estimated, got "${value.guestNote}"`);
 
-    // Honest about where the numbers live, and framed as what signing in adds.
-    if (!value.guestNote.includes('이 브라우저에만 저장')) throw new Error(`${label}: the signed-out bar must say the numbers live only in this browser, got "${value.guestNote}"`);
-    if (!value.guestNote.includes('로그인하면')) throw new Error(`${label}: the note must say what signing in would add, got "${value.guestNote}"`);
-    if (/로그인해야|로그인하면 .*보여드려요/.test(value.guestNote)) throw new Error(`${label}: the note must not stand in place of the totals, got "${value.guestNote}"`);
+    // Storage scope is visually separated from the money so it cannot compete
+    // with the six categories or the pinned total.
+    if (value.guestStorageNote !== '이 기기에 저장됨') throw new Error(`${label}: the signed-out storage note must stay short and separate, got "${value.guestStorageNote}"`);
 
     // An empty month reads as an empty month, not as a login wall.
-    if (!value.guestEmptyNote.includes('이번 달 기록 없음')) throw new Error(`${label}: a signed-out empty month must read "이번 달 기록 없음", got "${value.guestEmptyNote}"`);
+    if (value.guestEmptyNote !== '') throw new Error(`${label}: a signed-out empty month must not repeat the six 0원 slots, got "${value.guestEmptyNote}"`);
+    if (value.guestEmptyStorageNote !== '') throw new Error(`${label}: an empty month has no local records whose storage scope needs explaining`);
     if (value.guestEmptyRows.length !== 6 || value.guestEmptyRows.some(amount => amount !== '0원')) {
       throw new Error(`${label}: a signed-out empty month must retain six 0원 category slots`);
     }

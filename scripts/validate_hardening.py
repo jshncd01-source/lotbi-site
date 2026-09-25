@@ -112,6 +112,12 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 의 PRIVACY version 을 LOTBI_PRIVACY_2026-09-24_R1 로 올렸다. Production 의
 # LOTBI_SOCIAL_PRIVACY_VERSION 과 LOTBI_SOCIAL_PRIVACY_SHA256 도 배포와 함께
 # 갱신해야 동의 증빙이 실제 게시본을 가리킨다.
+# SITE-UIUX-PHASE1-01 — styles.css 의 잠금 값이 skip link 위치 수정으로
+# 움직였다. 기존 absolute 요소는 transform 된 상태에서 첫 Tab을 받으면 실제
+# rect top 이 viewport 밖(-62px)에 남는 브라우저가 있었다. position: fixed,
+# safe-area-aware top, 높이 기반 숨김 transform 으로 바꾸어 focus 시 전체 링크가
+# viewport 안에 들어온다. 변경 범위는 .skip-link 의 position/top/transform 세
+# 선언뿐이며 법적 페이지 본문·계정 URL·보안 경계에는 변화가 없다.
 LOCKED_SHA256 = {
     'privacy.html': 'b81b5d3de01471c05782d53e1db4e8cf78725297d3c455428c131a514f3b74f7',
     'terms.html': 'fcecae54f43e69b31928f341d3102625488bb35b34e111858c460967a9331cc0',
@@ -119,7 +125,7 @@ LOCKED_SHA256 = {
     'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': '6c7508831330c67a4886e515cbe1ff57b69beaf8f99968b4f60a7d3ddfa10129',
+    'styles.css': '49c66de0ef4322c39dcedcbd796e7831b6369b359482bf25c2d4eb609b611969',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 

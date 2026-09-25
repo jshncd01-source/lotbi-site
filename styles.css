@@ -234,9 +234,9 @@
 
 /* SITE-PUBLIC-02 — accessibility and support-page utilities */
 .skip-link {
-  position: absolute;
+  position: fixed;
   left: 16px;
-  top: 12px;
+  top: max(12px, env(safe-area-inset-top));
   z-index: 1000;
   padding: 10px 14px;
   border-radius: 10px;
@@ -249,7 +249,7 @@
   color: var(--lotbi-brand-solid-text, #fff);
   font-weight: 800;
   text-decoration: none;
-  transform: translateY(-180%);
+  transform: translateY(calc(-100% - 24px));
   transition: transform 140ms ease;
 }
 

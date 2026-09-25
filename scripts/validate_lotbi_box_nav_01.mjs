@@ -12,7 +12,11 @@ const css = read('site-conversation.css');
 const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 
 assert.equal((html.match(/data-lotbi-box-open/g) || []).length, 2, 'Desktop and mobile must both expose LOTBI Box');
-assert.equal((html.match(/aria-label="롯비함 열기"/g) || []).length, 2, 'LOTBI Box navigation must be labelled');
+assert.equal(
+  (html.match(/aria-label="저장한 항목, 롯비함 열기"/g) || []).length,
+  2,
+  'LOTBI Box navigation keeps its product identity inside a user-facing saved-items label',
+);
 assert.ok(html.includes(`site-calendar.css?v=${assetVersion}`), 'real Calendar CSS must remain preserved at the generated asset-set version');
 assert.match(html, /site-conversation\.js\?v=[A-Za-z0-9._-]+/, 'LOTBI Box must remain on a cache-busted combined conversation runtime');
 assert.ok(html.indexOf('data-new-conversation') < html.indexOf('data-lotbi-box-open'), 'LOTBI Box follows new conversation');
