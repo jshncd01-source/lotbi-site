@@ -123,7 +123,7 @@ assert.ok(!css.includes('grid-template-columns: 12px minmax(0, 34px);'));
 // The narrow 17px rule needs the header class too (0,2,1), otherwise the
 // later desktop dimensions overflow the icon track and crowd the temperature.
 assert.ok(
-  /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*>\s*svg\.calendar-weather-icon\s*\{[^}]*width:\s*12px;[^}]*height:\s*12px;/.test(css),
+  /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*>\s*svg\.calendar-weather-icon\s*\{[^}]*width:\s*17px;[^}]*height:\s*17px;/.test(css),
   'narrow Month weather dimensions must outrank the later svg.calendar-weather-icon rule'
 );
 
