@@ -64,6 +64,11 @@ on:
       - 'scripts/validate_calendar_system_dark_01.mjs'
       - 'scripts/generate_calendar_system_dark.mjs'
       - 'scripts/validate_calendar_add_from_image_01.mjs'
+      - 'scripts/validate_calendar_week_timegrid_model_01.mjs'
+      - 'scripts/validate_calendar_week_timegrid_ui_01.mjs'
+      - 'site-calendar-lunar.js'
+      - 'scripts/validate_calendar_lunar_model_01.mjs'
+      - 'scripts/validate_calendar_lunar_settings_ui_01.mjs'
       - 'site-calendar-draft-write.js'
       - 'scripts/validate_conversation_calendar_auto_suggest_01.mjs'
       - 'scripts/validate_conversation_calendar_card_02.mjs'
@@ -174,3 +179,12 @@ jobs:
           node scripts/validate_calendar_compact_editor_01.mjs
       - name: The default theme preference follows a dark OS, measured not asserted
         run: node scripts/validate_calendar_system_dark_01.mjs
+      - name: Week is a real time-grid, not the former agenda list
+        run: |
+          node scripts/validate_calendar_week_timegrid_model_01.mjs
+          node scripts/validate_calendar_week_timegrid_ui_01.mjs
+      - name: 음력 (lunar date) display setting
+        run: |
+          node --check site-calendar-lunar.js
+          node scripts/validate_calendar_lunar_model_01.mjs
+          node scripts/validate_calendar_lunar_settings_ui_01.mjs

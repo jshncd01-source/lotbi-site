@@ -1,7 +1,7 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-2d31b05088c1';
-import {weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-2d31b05088c1';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-896d6fb3a184';
+import {weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-896d6fb3a184';
 
 function weekStartDate(date, weekStart) {
   const {year, month, day} = civilDateParts(date);
@@ -136,6 +136,102 @@ export function filterScheduleItems(items, scope, {today, weekStart = 0} = {}) {
     if (scope === 'today') return date === today;
     if (scope === 'week') return date >= first && date <= last;
     return date.slice(0, 7) === `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`;
+  }));
+}
+
+const DEFAULT_TIMED_EVENT_MINUTES = 60;
+const MIN_TIMED_EVENT_MINUTES = 30;
+const MINUTES_PER_DAY = 24 * 60;
+
+function minutesFromDatetime(value) {
+  const match = typeof value === 'string' ? /^\d{4}-\d\d-\d\dT(\d\d):(\d\d)/.exec(value) : null;
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+function isAllDayItem(item) {
+  return item?.all_day === true || typeof item?.local_datetime !== 'string';
+}
+
+function eventDateSpan(item) {
+  const startDate = item?.local_date;
+  const endDateRaw = validCivilDate(item?.local_end_date)
+    ? item.local_end_date : String(item?.local_end_datetime || '').slice(0, 10);
+  const endDate = validCivilDate(endDateRaw) ? endDateRaw : startDate;
+  return {startDate, endDate};
+}
+
+// Packs a day's overlapping timed events into side-by-side lanes: a standard
+// greedy interval layout. Entries are handled in start order and a cluster of
+// mutually-overlapping entries shares one lane count, so two events that only
+// touch (one ends exactly when the other starts) land in separate clusters
+// and each keeps the full column width instead of splitting for no reason.
+export function layoutTimedEvents(entries) {
+  const sorted = [...entries].sort((a, b) => a.start - b.start || a.end - b.end);
+  const clusters = [];
+  let current = [];
+  let currentEnd = -Infinity;
+  for (const entry of sorted) {
+    if (current.length && entry.start >= currentEnd) {
+      clusters.push(current);
+      current = [];
+      currentEnd = -Infinity;
+    }
+    current.push(entry);
+    currentEnd = Math.max(currentEnd, entry.end);
+  }
+  if (current.length) clusters.push(current);
+
+  const placed = [];
+  for (const cluster of clusters) {
+    const laneEnds = [];
+    for (const entry of cluster) {
+      let lane = laneEnds.findIndex(end => end <= entry.start);
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(entry.end); }
+      else laneEnds[lane] = entry.end;
+      placed.push({...entry, lane, laneCount: 0});
+    }
+    for (let index = placed.length - cluster.length; index < placed.length; index += 1) {
+      placed[index] = {...placed[index], laneCount: laneEnds.length};
+    }
+  }
+  return Object.freeze(placed);
+}
+
+// Per-day all-day/timed split for a time-grid Week view. All-day items
+// (including a multi-day span with no clock time) go in `allDay` for every
+// date they cover; a timed item gets a start/end clipped to this day's
+// 0..1440 minute range, plus a lane from layoutTimedEvents so events that
+// truly overlap render side by side instead of stacking illegibly.
+export function calendarWeekTimeGrid(date, items, weekStart = 0) {
+  const source = Array.isArray(items) ? items : [];
+  return Object.freeze(calendarWeekDays(date, weekStart).map(day => {
+    const allDay = [];
+    const timedEntries = [];
+    for (const item of source) {
+      if (!validCivilDate(item?.local_date)) continue;
+      const {startDate, endDate} = eventDateSpan(item);
+      if (!validCivilDate(startDate) || !validCivilDate(endDate)) continue;
+      if (day.date < startDate || day.date > endDate) continue;
+      if (isAllDayItem(item)) { allDay.push(item); continue; }
+      const start = day.date === startDate ? (minutesFromDatetime(item.local_datetime) ?? 0) : 0;
+      // A day that is not the end date always runs to midnight here, even
+      // when it is also the start date -- only a truly single-day item (no
+      // separate end date at all) falls back to a default duration.
+      let end;
+      if (day.date === endDate) {
+        end = minutesFromDatetime(item.local_end_datetime);
+        if (end === null) end = startDate === endDate ? start + DEFAULT_TIMED_EVENT_MINUTES : MINUTES_PER_DAY;
+      } else {
+        end = MINUTES_PER_DAY;
+      }
+      end = Math.min(MINUTES_PER_DAY, Math.max(end, start + MIN_TIMED_EVENT_MINUTES));
+      timedEntries.push({item, start, end});
+    }
+    return Object.freeze({
+      ...day,
+      allDay: Object.freeze(sortCalendarEvents(allDay)),
+      timed: Object.freeze(layoutTimedEvents(timedEntries)),
+    });
   }));
 }
 
