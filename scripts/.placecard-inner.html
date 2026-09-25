@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
+  <base href="/">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
@@ -27,7 +28,7 @@
   <meta name="twitter:title" content="LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI" />
   <meta name="twitter:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
   <meta name="twitter:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
-  <title>LOTBI | 일상을 이해하고 계획하고 실행하는 AI</title>
+  <title>LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI</title>
   <!-- SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — this is the authoritative theme
        bootstrap and it has to stay here: inline, blocking, and above every
        stylesheet. site-theme-tokens.css keys its pre-paint rules on
@@ -57,22 +58,22 @@
       }
     } catch (error) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="home-chat.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-hardening.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-avatar.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-calendar.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-pet.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="footer-business-info.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="mobile-entry.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="home-bare-white.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-a2d974c2fcfd" />
-  <link rel="stylesheet" href="site-conversation.css?v=aset-a2d974c2fcfd" />
+  <link rel="stylesheet" href="styles.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-7db3f5c4ae8d" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-7db3f5c4ae8d" />
   <style>
     body[data-conversation-restore="pending"] [data-home-avatar-anchor] {
       visibility: hidden;
@@ -86,12 +87,78 @@
     }
   }
   </script>
-  <script src="home-shell.js?v=aset-a2d974c2fcfd" defer></script>
-  <script src="mobile-entry.js?v=aset-a2d974c2fcfd" defer></script>
-  <script type="module" src="site-avatar.js?v=aset-a2d974c2fcfd"></script>
-  <script type="module" src="site-conversation.js?v=aset-a2d974c2fcfd"></script>
-  <script type="module" src="site-continuity.js?v=aset-a2d974c2fcfd"></script>
-  <script type="module" src="site-footer-legal.js?v=aset-a2d974c2fcfd"></script>
+  <script src="home-shell.js?v=aset-7db3f5c4ae8d" defer></script>
+  <script src="mobile-entry.js?v=aset-7db3f5c4ae8d" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-7db3f5c4ae8d"></script>
+  <script type="module">
+const PLACE_RESULT = {"contract_id":"CORE-PLACE-RESULT-01","schema_version":1,"result_set_id":"plrs_0c0a0d0e0f0102030405","provider_code":"NAVER","source":"NAVER_LOCAL_SEARCH","query":"전주 맛집","results":[{"result_id":"place-1","place_id":"naver:one","name":"진원소우 전주신시가지점","category":"음식점>한식>소고기구이","road_address":"전북특별자치도 전주시 완산구 홍산중앙로 26 3층","latitude":35.8159596,"longitude":127.1093458,"coordinate_system":"WGS84","coordinate_authority":"NAVER_MAPS_GEOCODING","navigation_capability":true,"phone":"063-000-0000","phone_verified":true,"image_url":null,"photo_evidence":null,"food_license_verification":{"state":"CONFLICTING","source":"MOIS_FOOD_LICENSE","ai_calls":0}},{"result_id":"place-2","place_id":"naver:two","name":"호시마츠생라멘","category":"음식점>일식","road_address":"전북특별자치도 전주시 완산구 전주객사2길 46-12","latitude":35.8189944,"longitude":127.1412996,"coordinate_system":"WGS84","coordinate_authority":"NAVER_MAPS_GEOCODING","navigation_capability":true,"phone":null,"phone_verified":false,"image_url":null,"photo_evidence":null,"food_license_verification":{"state":"VERIFIED","source":"MOIS_FOOD_LICENSE","administrative_status":"영업/정상","ai_calls":0}}]};
+const out = document.getElementById('placecard-result');
+const fail = e => { out.textContent = JSON.stringify({ok:false,error:String((e&&e.stack)||e)}); };
+setTimeout(() => { if (out.textContent === 'pending') fail('watchdog'); }, 50000);
+try {
+  localStorage.clear();
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  const json = body => Promise.resolve(new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}}));
+  globalThis.fetch = (url, init) => {
+    let parsed;
+    try { parsed = new URL(String((url&&url.url)||url), location.origin); } catch { return nativeFetch(url, init); }
+    if (parsed.pathname === '/v2/conversation/guest/sessions') return json({
+      contract_id:'CORE-GUEST-SESSION-01',schema_version:1,guest_token:'g'.repeat(43),
+      expires_at:new Date(Date.now()+3600000).toISOString(),
+    });
+    if (parsed.pathname === '/v2/conversation/guest/messages') return json({
+      contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
+      assistant_text:'전주에서 확인한 후보 2곳이에요. 아래 카드에서 전화나 지도를 바로 열 수 있어요.',
+      response_mode:'PLACE_PROVIDER_READONLY',correlation_id:'req_placecardfinal01',
+      intent:{action:'PLACE_SEARCH',domain:'PLACE'},
+      follow_up:{required:false,action:'PLACE_SEARCH',automatic_execution:false},
+      safety:{execution_authority:false,external_side_effect:false,transaction_created:false,
+        order_created:false,payment_attempted:false,reservation_created:false,merchant_execution_started:false},
+      place_result:PLACE_RESULT,retry_safe:true,
+    });
+    if (parsed.origin !== location.origin) return json({items:[]});
+    return nativeFetch(url, init);
+  };
+  const conversation = await import('/site-conversation.js?v=placecardfinal01');
+  if (!conversation.mountConversation()) throw new Error('mount');
+  const wait = async (fn, label) => {
+    for (let i=0;i<500;i+=1) { const value=fn(); if(value) return value; await new Promise(r=>setTimeout(r,25)); }
+    throw new Error('timeout '+label);
+  };
+  const field=document.getElementById('lotbi-prompt');
+  field.value='전주 맛집 추천해줘';
+  field.dispatchEvent(new Event('input',{bubbles:true}));
+  document.querySelector('.send-button').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+  const rail=await wait(()=>document.querySelector('.lotbi-place-orbit'),'rail');
+  const center=await wait(()=>rail.querySelector('[data-orbit-slot="CENTER"]'),'center');
+  await new Promise(r=>setTimeout(r,250));
+  const side=rail.querySelector('.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"])');
+  const box=node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};
+  const actions=[...center.querySelectorAll('.lotbi-rich-card-action')];
+  out.textContent=JSON.stringify({
+    ok:true,
+    rail:box(rail),
+    card:box(center),
+    actions:actions.map(node=>({
+      action:node.dataset.action,
+      text:(node.textContent||'').trim(),
+      aria:node.getAttribute('aria-label')||'',
+      target:node.getAttribute('target')||'',
+      rel:node.getAttribute('rel')||'',
+      ...box(node),
+    })),
+    mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
+    sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
+    sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
+    sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
+    consumerText:rail.textContent||'',
+    noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
+    assistantText:document.querySelector('.chat-message-assistant .chat-message-body')?.textContent||'',
+  });
+} catch(e) { fail(e); }
+</script><pre id="placecard-result">pending</pre>
+  <script type="module" src="site-continuity.js?v=aset-7db3f5c4ae8d"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-7db3f5c4ae8d"></script>
 </head>
 <body class="chat-home-page" data-conversation-restore="pending">
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>

@@ -143,6 +143,7 @@ try {
     actions:actions.map(node=>({
       action:node.dataset.action,
       text:(node.textContent||'').trim(),
+      iconSrc:node.querySelector('.lotbi-place-action-icon-image')?.getAttribute('src')||'',
       aria:node.getAttribute('aria-label')||'',
       target:node.getAttribute('target')||'',
       rel:node.getAttribute('rel')||'',
@@ -205,13 +206,13 @@ try {
   waitServer();
   for (const testCase of CASES) {
     const reading=run(browser,testCase);
-    const expected=testCase.mobile
-      ? ['phone','naver-map','kakao-navi','tmap','google-maps']
-      : ['phone','naver-map','kakao-navi','google-maps'];
+    const expected=['phone','naver-map','kakao-navi','tmap','google-maps'];
     assert.deepEqual(reading.actions.map(x=>x.action),expected,`${testCase.label}: actions`);
     for(const action of reading.actions) {
       assert.ok(action.w>=44&&action.h>=44,`${testCase.label}: ${action.action} ${action.w}x${action.h}`);
-      assert.ok(action.text,`${testCase.label}: ${action.action} label`);
+      assert.equal(action.text,'',`${testCase.label}: ${action.action} visible label`);
+      assert.match(action.iconSrc,/^\/assets\/place-actions\/[a-z-]+\.png\?v=place-icons-20260925$/u,
+        `${testCase.label}: ${action.action} icon`);
       assert.ok(action.aria.includes(PLACE_RESULT.results[0].name),`${testCase.label}: aria`);
       if(action.action!=='phone'&&action.action!=='tmap') {
         assert.equal(action.target,'_blank');

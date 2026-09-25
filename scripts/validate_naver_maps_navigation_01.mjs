@@ -195,8 +195,8 @@ const rendererEnd = conversationSource.indexOf('const normalizeConversationCalen
 assert.ok(rendererStart >= 0 && rendererEnd > rendererStart);
 const renderer = conversationSource.slice(rendererStart, rendererEnd);
 
-// Consumer card contract: no administrative diagnostics, no dead phone/TMAP controls,
-// and all supported navigation leaves the LOTBI tab intact.
+// Consumer card contract: no administrative diagnostics, phone appears only when verified,
+// every map action remains visible as an icon, and handoffs leave the LOTBI tab intact.
 for (const forbidden of [
   '인허가 대조', '인허가 정보 불일치', '공공 인허가', '행정 인허가',
   'WGS84 확인', 'NAVER Maps Geocoding · WGS84 확인', '사진 정보 없음',
@@ -205,16 +205,17 @@ for (const forbidden of [
 }
 assert.match(renderer, /if \(phoneHref\) \{/u);
 assert.doesNotMatch(renderer, /전화번호 정보 없음/u);
-assert.match(renderer, /if \(tmapReady\) \{/u);
+assert.match(renderer, /dataset\.tmapState = isTmapHandoffAvailable\(\) \? 'MOBILE_APP' : 'INSTALL_GUIDE'/u);
 assert.doesNotMatch(renderer, /TMAP_MOBILE_ONLY/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
 assert.match(renderer, /navigate\.target = '_blank'/u);
 assert.match(renderer, /navigate\.rel = 'noopener noreferrer'/u);
 assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
 assert.match(renderer, /dataset\.action = 'google-maps'/u);
-for (const label of ['전화', '네이버', '카카오', 'T맵', 'Google']) {
-  assert.match(renderer, new RegExp(`addActionLabel\\([^,]+, '${label}'\\)`, 'u'));
+for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps']) {
+  assert.match(renderer, new RegExp(`addActionIcon\\([^,]+, '${iconName}'\\)`, 'u'));
 }
+assert.doesNotMatch(renderer, /addActionLabel|lotbi-place-action-label/u);
 
 // Carousel interaction and inactive-card accessibility remain part of the NAVER place surface.
 assert.match(renderer, /aria-roledescription', 'carousel'/u);

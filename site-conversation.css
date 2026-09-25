@@ -2371,55 +2371,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   background: #f7f8fa;
 }
 
-.lotbi-phone-action::before {
-  content: "☎";
-  font-size: 20px;
-  line-height: 1;
-  font-weight: 700;
-}
-
 .lotbi-phone-action[data-phone-state="UNAVAILABLE"] {
-  opacity: .48;
-}
-
-.lotbi-naver-map-action {
-  overflow: hidden;
-}
-
-.lotbi-naver-map-icon {
-  display: block;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  object-fit: cover;
-}
-
-.lotbi-naver-map-action.is-icon-fallback::before {
-  content: "↗";
-  font-size: 22px;
-  line-height: 1;
-  font-weight: 760;
-}
-
-/* SITE-PLACE-CARD-MAP-DEEPLINK-01 — 카카오맵·티맵 버튼.
-   두 곳 모두 로고 파일을 끌어다 쓰지 않고 글자 표시로 그린다. 네이버 아이콘이
-   못 뜰 때 쓰는 그 is-icon-fallback 자리를 그대로 쓰므로 규칙이 하나뿐이다.
-   지름 44px 터치 타깃은 .lotbi-rich-card-icon-action 이 이미 잡아 준다. */
-.lotbi-kakao-map-action.is-icon-fallback::before {
-  content: "카";
-  font-size: 17px;
-  line-height: 1;
-  font-weight: 800;
-}
-
-.lotbi-tmap-action.is-icon-fallback::before {
-  content: "T";
-  font-size: 21px;
-  line-height: 1;
-  font-weight: 820;
-}
-
-.lotbi-tmap-action[data-tmap-state="MOBILE_ONLY"] {
   opacity: .48;
 }
 
@@ -2703,89 +2655,35 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 .lotbi-place-card-actions .lotbi-rich-card-action {
   min-width: 0;
   min-height: 44px;
-  padding: 4px 1px 3px;
-  flex-direction: column;
-  gap: 2px;
+  padding: 4px;
+  flex-direction: row;
+  gap: 0;
   border-color: transparent;
   border-radius: 10px;
   background: transparent;
   color: var(--lotbi-text-secondary, #4d535d);
-  font-size: 9.5px;
   line-height: 1;
 }
 
 .lotbi-place-action-icon {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.lotbi-place-action-label {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   overflow: hidden;
-  max-width: 100%;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
-.lotbi-phone-action .lotbi-place-action-icon::before { content: "☎"; }
-.lotbi-naver-map-action .lotbi-place-action-icon::before { content: "N"; }
-.lotbi-kakao-navi-action .lotbi-place-action-icon::before { content: "K"; }
-.lotbi-tmap-action .lotbi-place-action-icon::before { content: "T"; }
-.lotbi-google-maps-action .lotbi-place-action-icon::before { content: "G"; }
-
-.lotbi-phone-action .lotbi-place-action-icon {
-  background: #dff3e6;
-  color: #267044;
-}
-
-.lotbi-naver-map-action .lotbi-place-action-icon {
-  background: #dcf6e8;
-  color: #087b45;
-}
-
-.lotbi-kakao-navi-action .lotbi-place-action-icon {
-  background: #fff1ba;
-  color: #5c4900;
-}
-
-.lotbi-tmap-action .lotbi-place-action-icon {
-  background: #e4edfb;
-  color: #245991;
-}
-
-.lotbi-google-maps-action .lotbi-place-action-icon {
-  background: #e8edf4;
-  color: #3c556e;
+.lotbi-place-action-icon-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .lotbi-place-card-actions .lotbi-rich-card-action:hover,
 .lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
   background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
-}
-
-body[data-site-theme="dark"] .lotbi-phone-action .lotbi-place-action-icon {
-  background: #213d2d;
-  color: #9fe0b8;
-}
-body[data-site-theme="dark"] .lotbi-naver-map-action .lotbi-place-action-icon {
-  background: #16392a;
-  color: #89ddb3;
-}
-body[data-site-theme="dark"] .lotbi-kakao-navi-action .lotbi-place-action-icon {
-  background: #433b1c;
-  color: #f6d977;
-}
-body[data-site-theme="dark"] .lotbi-tmap-action .lotbi-place-action-icon {
-  background: #23354c;
-  color: #a9c9f0;
-}
-body[data-site-theme="dark"] .lotbi-google-maps-action .lotbi-place-action-icon {
-  background: #303a48;
-  color: #d2d8e2;
 }
 
 @media (max-width: 760px) {
@@ -2837,5 +2735,3 @@ body[data-site-theme="dark"] .lotbi-google-maps-action .lotbi-place-action-icon 
     transition: none;
   }
 }
-
-
