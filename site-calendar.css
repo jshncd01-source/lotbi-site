@@ -622,6 +622,10 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-date-cell[data-today="true"][data-weekday="0"] .calendar-date-number,
 .calendar-date-cell[data-today="true"][data-weekday="6"] .calendar-date-number { color: #fff; }
 .calendar-date-number { font-size: 17px; font-weight: 850; font-variant-numeric: tabular-nums; }
+/* Only present when 음력 표시 is on (site-calendar-manager.js only appends
+   it then), so this never affects the geometry of the default cell. */
+.calendar-date-lunar { color: var(--lotbi-calendar-muted-ink); font-size: 9px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.calendar-date-cell[data-today="true"] .calendar-date-lunar { color: rgba(255, 255, 255, .82); }
 .calendar-mobile-event-count { display: none; color: #687180; font-size: 11px; font-weight: 800; }
 .calendar-weather-icon {
   flex: 0 0 auto;
@@ -822,6 +826,7 @@ body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color:
 }
 .calendar-week-day-weekday { color: var(--lotbi-calendar-weekday-ink); font-size: 11px; font-weight: 750; }
 .calendar-week-day-number { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 800; }
+.calendar-week-day-lunar { color: var(--lotbi-calendar-muted-ink); font-size: 9px; font-weight: 700; }
 .calendar-week-day[data-selected="true"] { border-radius: 10px; background: var(--lotbi-calendar-week-selected-surface); }
 .calendar-week-day[data-selected="true"] .calendar-week-day-number { color: var(--brand-navy, #182a46); }
 .calendar-week-day[data-holiday="true"] { background: var(--lotbi-calendar-holiday-surface); }

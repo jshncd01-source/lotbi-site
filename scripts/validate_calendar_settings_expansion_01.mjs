@@ -78,7 +78,7 @@ const {readCalendarDisplaySettings} = await import('../site-calendar-manager.js'
   const store = new Map();
   const storage = {getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, v)};
   const defaults = readCalendarDisplaySettings(storage);
-  assert.deepEqual({...defaults}, {showKoreaHolidays: true, showGridLines: true, weekStart: 0},
+  assert.deepEqual({...defaults}, {showKoreaHolidays: true, showGridLines: true, showLunarDates: false, weekStart: 0},
     'an empty store must render exactly the Calendar that shipped');
   // Anything unreadable falls all the way back rather than rendering a guess.
   for (const broken of ['{', '[]', 'null', '"nope"', '{"weekStart":9}', '{"weekStart":"1"}']) {
@@ -87,7 +87,7 @@ const {readCalendarDisplaySettings} = await import('../site-calendar-manager.js'
     assert.equal(read.weekStart, 0, `a week start of ${broken} must fall back to Sunday`);
     assert.equal(read.showGridLines, true, `${broken} must not silently hide the grid lines`);
   }
-  assert.deepEqual({...readCalendarDisplaySettings(null)}, {showKoreaHolidays: true, showGridLines: true, weekStart: 0},
+  assert.deepEqual({...readCalendarDisplaySettings(null)}, {showKoreaHolidays: true, showGridLines: true, showLunarDates: false, weekStart: 0},
     'no storage at all must not stop the Calendar');
 }
 
@@ -309,10 +309,13 @@ if (!manager.includes('격자선 표시') || !manager.includes('주 시작 요�
   throw new Error('both approved settings must be on screen');
 }
 // 보류 목록을 슬쩍 되살리지 않는다. 주 보기는 이제 제품의 primary view라서
-// 예전의 "주간 보기 보류" 조건에는 포함되지 않는다.
-for (const held of ['음력', '할 일', '24시간', '외부 캘린더']) {
+// 예전의 "주간 보기 보류" 조건에는 포함되지 않는다. 음력 표시도 마찬가지로
+// 의도적으로 만든 새 설정이라 이 보류 목록에서 뺐다 --
+// validate_calendar_lunar_settings_ui_01.mjs 가 그 기능 자체를 검증한다.
+for (const held of ['할 일', '24시간', '외부 캘린더']) {
   if (manager.includes(held)) throw new Error(`held setting must not appear: ${held}`);
 }
+if (!manager.includes('음력 표시')) throw new Error('음력 표시 setting must be on screen');
 if (!manager.includes("['week', '주']")) throw new Error('Week must remain a primary Calendar view');
 
 const browser = browserPath();
