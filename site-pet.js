@@ -168,6 +168,7 @@ const PET_ERROR_MESSAGES = Object.freeze({
   // something the owner can do next.
   PET_PHOTO_NOT_DOG_OR_CAT: '강아지와 고양이만 등록할 수 있어요. 반려동물이 화면에 꽉 차게 다시 찍어 주세요.',
   PET_PHOTO_SPECIES_UNCERTAIN: '강아지인지 고양이인지 또렷하게 보이지 않았어요. 밝은 곳에서 다른 각도로 다시 찍어 주세요.',
+  PET_PHOTO_SPECIES_MISMATCH: '선택한 반려동물 종류와 사진이 일치하지 않아요. 올바른 사진으로 다시 찍어 주세요.',
   PET_PHOTO_TOO_BLURRY: '사진이 흐려요. 초점을 맞추고 다시 찍어 주세요.',
   PET_PHOTO_TOO_SMALL: '사진이 너무 작아요. 줄이지 말고 원본 크기로 올려 주세요.',
   PET_PHOTO_ANCHOR_REQUIRED: '코·특징 사진은 얼굴이나 몸 전체 사진을 먼저 올린 뒤에 등록할 수 있어요.',
@@ -379,6 +380,7 @@ function normalizePetDraftPhoto(value) {
       ? value.inspection_state
       : 'PENDING',
     inspectionReasonCode: typeof value.inspection_reason_code === 'string' ? value.inspection_reason_code : '',
+    detectedSpecies: PET_SPECIES.includes(value.detected_species) ? value.detected_species : '',
   });
 }
 
@@ -410,6 +412,56 @@ function normalizePetRegistrationDraft(value) {
     completedPetId: typeof value.completed_pet_id === 'string' ? value.completed_pet_id : '',
     updatedAt: typeof value.updated_at === 'string' ? value.updated_at : '',
   });
+}
+
+export function petDraftPhotoProgression(draft) {
+  const photos = Array.isArray(draft?.photos) ? draft.photos : [];
+  const bySlot = new Map(
+    photos
+      .filter(photo => photo && PET_PHOTO_SLOT_CODES.includes(photo.slotCode))
+      .map(photo => [photo.slotCode, photo]),
+  );
+  const values = [...bySlot.values()];
+  const accepted = values.filter(photo => photo.inspectionState === 'ACCEPTED');
+  const rejectedSlots = values
+    .filter(photo => photo.inspectionState === 'REJECTED')
+    .map(photo => photo.slotCode);
+  const pendingSlots = values
+    .filter(photo => photo.inspectionState === 'PENDING')
+    .map(photo => photo.slotCode);
+  const species = PET_SPECIES.includes(draft?.species) ? draft.species : '';
+  const speciesMismatchSlots = accepted
+    .filter(photo => PET_PHOTO_ANCHOR_SLOT_CODES.includes(photo.slotCode)
+      && (!species || photo.detectedSpecies !== species))
+    .map(photo => photo.slotCode);
+  const requiredCount = PET_PHOTO_SLOT_CODES.length;
+  const presentCount = bySlot.size;
+  const acceptedCount = accepted.length;
+  const ready = Boolean(species)
+    && presentCount === requiredCount
+    && acceptedCount === requiredCount
+    && rejectedSlots.length === 0
+    && pendingSlots.length === 0
+    && speciesMismatchSlots.length === 0;
+
+  return Object.freeze({
+    requiredCount,
+    presentCount,
+    acceptedCount,
+    rejectedSlots: Object.freeze(rejectedSlots),
+    pendingSlots: Object.freeze(pendingSlots),
+    speciesMismatchSlots: Object.freeze(speciesMismatchSlots),
+    ready,
+  });
+}
+
+export function petDraftPhotoInspectionMessage(photo) {
+  if (!photo || typeof photo !== 'object') return '';
+  if (photo.inspectionState === 'ACCEPTED') return '사진 확인됨';
+  const reason = typeof photo.inspectionReasonCode === 'string' ? photo.inspectionReasonCode : '';
+  if (reason && PET_ERROR_MESSAGES[reason]) return PET_ERROR_MESSAGES[reason];
+  if (photo.inspectionState === 'REJECTED') return '다시 촬영이 필요한 사진입니다.';
+  return '사진 확인을 기다리고 있습니다.';
 }
 
 export async function getPetCatalog(fetchImpl = globalThis.fetch) {
