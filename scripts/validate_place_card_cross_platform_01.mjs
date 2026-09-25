@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
-  buildGoogleMapsDirectionsUrl,
   buildKakaoNaviSdkPayload,
   normalizePlaceResult,
-  openGoogleMapsPlace,
 } from '../site-navigation.js';
 
 const NAVER_PLACE = Object.freeze({
@@ -19,26 +17,12 @@ const NAVER_PLACE = Object.freeze({
   navigationCapable: true,
 });
 
-const googleUrl = buildGoogleMapsDirectionsUrl(NAVER_PLACE);
-assert.match(googleUrl, /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&/u);
-assert.match(googleUrl, /destination=34\.8850000%2C126\.0470000/u);
-assert.doesNotMatch(googleUrl, /(?:key|api_key|client_id)=/iu);
-
 assert.deepEqual(buildKakaoNaviSdkPayload(NAVER_PLACE), {
   name: NAVER_PLACE.name,
   x: NAVER_PLACE.longitude,
   y: NAVER_PLACE.latitude,
   coordType: 'wgs84',
 });
-
-const opened = [];
-const child = {opener: {}};
-const result = openGoogleMapsPlace(NAVER_PLACE, {
-  windowRef: {open: (...args) => { opened.push(args); return child; }},
-});
-assert.equal(result.mode, 'GOOGLE_MAPS_NEW_TAB');
-assert.deepEqual(opened[0].slice(1), ['_blank', 'noopener,noreferrer']);
-assert.equal(child.opener, null);
 
 const validPhoto = normalizePlaceResult({
   contract_id: 'CORE-PLACE-RESULT-01',
@@ -108,7 +92,7 @@ for (const forbidden of [
 ]) {
   assert.doesNotMatch(renderer, new RegExp(forbidden, 'u'));
 }
-for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps']) {
+for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap']) {
   assert.match(renderer, new RegExp(`addActionIcon\\([^,]+, '${iconName}'\\)`, 'u'));
   assert.equal(fs.existsSync(new URL(`../assets/place-actions/${iconName}.png`, import.meta.url)), true);
 }
@@ -116,7 +100,11 @@ assert.doesNotMatch(renderer, /lotbi-place-action-label/u);
 assert.doesNotMatch(renderer, /addActionLabel/u);
 assert.match(renderer, /dataset\.tmapState = isTmapHandoffAvailable\(\) \? 'MOBILE_APP' : 'INSTALL_GUIDE'/u);
 assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
-assert.match(renderer, /dataset\.action = 'google-maps'/u);
+assert.doesNotMatch(renderer, /dataset\.action = 'google-maps'/u);
+assert.doesNotMatch(renderer, /addActionIcon\([^,]+, 'google-maps'\)/u);
+assert.match(renderer, /lotbi-place-card-phone-actions/u);
+assert.match(renderer, /lotbi-place-card-navigation-actions/u);
+assert.match(source, /photo_evidence: place\.photoEvidence \?/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
 
 console.log('Cross-platform Place Card product contract: PASS');
