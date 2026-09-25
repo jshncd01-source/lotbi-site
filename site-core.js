@@ -473,6 +473,64 @@ function normalizeConversationCompletion(value, status, responseMode) {
 }
 
 
+const REUSABLE_OUTPUT_SURFACES = new Set(['EMAIL', 'MESSAGE', 'SOCIAL', 'DOCUMENT', 'COMMAND', 'OTHER']);
+const REUSABLE_OUTPUT_ID_RE = /^[A-Za-z0-9._-]{1,64}$/;
+
+export function normalizeReusableOutput(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new SiteCoreError('LOTBI 결과물 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const keys = Object.keys(value).sort();
+  if (keys.join(',') !== ['surface', 'title', 'type', 'variants'].sort().join(',')) {
+    throw new SiteCoreError('LOTBI 결과물 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const surface = typeof value.surface === 'string' ? value.surface.trim().toUpperCase() : '';
+  const title = typeof value.title === 'string' ? value.title.trim() : '';
+  const variants = value.variants;
+  if (
+    value.type !== 'TEXT'
+    || !REUSABLE_OUTPUT_SURFACES.has(surface)
+    || !title || title.length > 120
+    || !Array.isArray(variants) || variants.length < 1 || variants.length > 3
+  ) {
+    throw new SiteCoreError('LOTBI 결과물 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
+  const seen = new Set();
+  let totalText = 0;
+  const normalized = variants.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new SiteCoreError('LOTBI 결과물 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+    }
+    if (Object.keys(item).sort().join(',') !== ['id', 'label', 'text'].sort().join(',')) {
+      throw new SiteCoreError('LOTBI 결과물 응답 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+    }
+    const id = typeof item.id === 'string' ? item.id.trim() : '';
+    const label = typeof item.label === 'string' ? item.label.trim() : '';
+    const text = typeof item.text === 'string' ? item.text.trim() : '';
+    if (
+      !REUSABLE_OUTPUT_ID_RE.test(id) || seen.has(id)
+      || !label || label.length > 40
+      || !text || text.length > 8000
+    ) {
+      throw new SiteCoreError(`LOTBI 결과물 ${index + 1}번 응답 형식이 올바르지 않습니다.`, {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+    }
+    totalText += text.length;
+    if (totalText > 12000) {
+      throw new SiteCoreError('LOTBI 결과물 응답이 너무 깁니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+    }
+    seen.add(id);
+    return Object.freeze({id, label, text});
+  });
+  return Object.freeze({
+    type: 'TEXT',
+    surface,
+    title,
+    variants: Object.freeze(normalized),
+  });
+}
+
+
 function normalizeConversationSources(value) {
   if (value == null) return Object.freeze([]);
   if (!Array.isArray(value) || value.length > 12) {
@@ -768,6 +826,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
+    reusableOutput: normalizeReusableOutput(payload.reusable_output),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
@@ -945,6 +1004,7 @@ export async function sendGuestConversationMessage({
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
+    reusableOutput: normalizeReusableOutput(payload.reusable_output),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
