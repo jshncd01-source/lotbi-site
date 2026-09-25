@@ -1,19 +1,19 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-513f337dc1da';
-import * as siteCore from './site-core.js?v=aset-513f337dc1da';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-513f337dc1da';
-import * as siteAttachments from './site-attachments.js?v=aset-513f337dc1da';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-513f337dc1da';
-import {deterministicReply} from './site-deterministic.js?v=aset-513f337dc1da';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-513f337dc1da';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-513f337dc1da';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-513f337dc1da';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-513f337dc1da';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-513f337dc1da';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-513f337dc1da';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-513f337dc1da';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-513f337dc1da';
-import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-513f337dc1da';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-513f337dc1da';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-6381989b8794';
+import * as siteCore from './site-core.js?v=aset-6381989b8794';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-6381989b8794';
+import * as siteAttachments from './site-attachments.js?v=aset-6381989b8794';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-6381989b8794';
+import {deterministicReply} from './site-deterministic.js?v=aset-6381989b8794';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-6381989b8794';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-6381989b8794';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6381989b8794';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-6381989b8794';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-6381989b8794';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-6381989b8794';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-6381989b8794';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-6381989b8794';
+import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-6381989b8794';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-6381989b8794';
 
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
@@ -165,7 +165,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-513f337dc1da';
+  link.href = '/site-conversation.css?v=aset-6381989b8794';
   link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);
 }
@@ -1708,17 +1708,37 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const stateName = String(value.state || 'REGISTERED').trim().toUpperCase();
     const title = typeof value.title === 'string' ? value.title.trim() : '';
     const dateHint = typeof value.dateHint === 'string' ? value.dateHint.trim() : '';
+    const rawTimeHint = typeof value.timeHint === 'string' ? value.timeHint.trim() : '';
+    const timeHint = /^([01]\d|2[0-3]):([0-5]\d)$/.test(rawTimeHint) ? rawTimeHint : '';
     const timezoneName = typeof value.timezone === 'string' ? value.timezone.trim() : '';
     if (!['AUTH', 'GUEST'].includes(scope) || !['REGISTERED', 'DELETED'].includes(stateName) || !title || !/^\d{4}-\d{2}-\d{2}$/.test(dateHint) || !timezoneName) return null;
     if (scope === 'AUTH') {
       const activityId = typeof value.activityId === 'string' ? value.activityId.trim() : '';
       const occurrenceId = typeof value.occurrenceId === 'string' ? value.occurrenceId.trim() : '';
       if (!/^activity_[0-9a-f]{32}$/.test(activityId) || !/^occurrence_[0-9a-f]{32}$/.test(occurrenceId)) return null;
-      return Object.freeze({scope, state: stateName, title, dateHint, timezone: timezoneName, activityId, occurrenceId});
+      return Object.freeze({scope, state: stateName, title, dateHint, timeHint, timezone: timezoneName, activityId, occurrenceId});
     }
     const guestEventId = typeof value.guestEventId === 'string' ? value.guestEventId.trim() : '';
     if (!/^guest_[0-9a-f-]{36}$/i.test(guestEventId)) return null;
-    return Object.freeze({scope, state: stateName, title, dateHint, timezone: timezoneName, guestEventId});
+    return Object.freeze({scope, state: stateName, title, dateHint, timeHint, timezone: timezoneName, guestEventId});
+  };
+
+  // The registered card only ever carried the date: dateHint is date-only by
+  // contract (it also drives the Calendar deep-link), so a 오후 2시 command
+  // rendered with no time at all. timeHint is the HH:MM sibling, shown but
+  // never used for navigation, so a missing/invalid value just falls back to
+  // the all-day look this card has always had.
+  const formatCalendarResultWhen = (dateHint, timeHint) => {
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateHint || '');
+    if (!dateMatch) return dateHint || '';
+    const dateLabel = `${Number(dateMatch[1])}년 ${Number(dateMatch[2])}월 ${Number(dateMatch[3])}일`;
+    const timeMatch = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(timeHint || '');
+    if (!timeMatch) return dateLabel;
+    const hour = Number(timeMatch[1]);
+    const period = hour < 12 ? '오전' : '오후';
+    const displayHour = hour % 12 || 12;
+    const minute = Number(timeMatch[2]);
+    return `${dateLabel} ${period} ${displayHour}시${minute ? ` ${minute}분` : ''}`;
   };
 
   const calendarResultKey = result => result?.scope === 'AUTH' ? `AUTH:${result.activityId}` : `GUEST:${result?.guestEventId || ''}`;
@@ -2209,7 +2229,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const copy = document.createElement('div');
       copy.className = 'conversation-calendar-action-copy';
       const title = document.createElement('strong'); title.textContent = result.title;
-      const when = document.createElement('span'); when.textContent = result.dateHint;
+      const when = document.createElement('span'); when.textContent = formatCalendarResultWhen(result.dateHint, result.timeHint);
       const zone = document.createElement('small'); zone.textContent = result.timezone;
       copy.append(title, when, zone);
       summary.append(icon, copy);
@@ -2752,7 +2772,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-513f337dc1da');
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6381989b8794');
       const mounted = await mountPetFamilyManager({
         sessionToken,
         root: content,
@@ -3748,6 +3768,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
             guestEventId: event.id,
             title: event.title,
             dateHint: event.local_date,
+            timeHint: typeof preview.temporal.local_datetime === 'string' && preview.temporal.local_datetime.length >= 16
+              ? preview.temporal.local_datetime.slice(11, 16)
+              : '',
             timezone: preview.temporal.timezone_name,
           },
         };
@@ -3871,6 +3894,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
             occurrenceId: calendar.activity.occurrenceId,
             title: calendar.activity.title,
             dateHint: String(calendar.activity.temporal.local_datetime || calendar.activity.temporal.local_date || '').slice(0, 10),
+            timeHint: typeof calendar.activity.temporal.local_datetime === 'string' && calendar.activity.temporal.local_datetime.length >= 16
+              ? calendar.activity.temporal.local_datetime.slice(11, 16)
+              : '',
             timezone: calendar.activity.temporal.timezone_name || (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul'),
           },
         };
