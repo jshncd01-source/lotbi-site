@@ -36,6 +36,8 @@ import {
   OFFICIAL_REGISTRATION_LABEL,
   lotbiPetNumber,
   maskOfficialRegistrationNumber,
+  petDraftPhotoInspectionMessage,
+  petDraftPhotoProgression,
   petPhotoNextActionLabel,
   petPhotoRejection,
   PET_PHOTO_ANCHOR_SLOT_CODES,
@@ -75,6 +77,19 @@ function el(tag, className = '', text = '') {
 
 function photoProgressLabel(filled) {
   return `사진 ${filled}/${PET_PHOTO_SLOT_CODES.length}`;
+}
+
+function draftPhotoProgressMessage(summary) {
+  if (summary.presentCount < summary.requiredCount) {
+    return `사진 ${summary.requiredCount - summary.presentCount}장을 더 올려 주세요.`;
+  }
+  if (summary.rejectedSlots.length || summary.speciesMismatchSlots.length) {
+    return '다시 촬영이 필요한 사진을 바꾼 뒤 기본 정보로 이동할 수 있어요.';
+  }
+  if (summary.pendingSlots.length) {
+    return '사진 확인이 끝나지 않았어요. 확인 대기 사진이 모두 통과한 뒤 기본 정보로 이동할 수 있어요.';
+  }
+  return summary.ready ? '사진 10장 확인이 모두 완료됐어요.' : '사진 확인 상태를 다시 확인해 주세요.';
 }
 
 function consentLabel(state) {
@@ -1531,8 +1546,13 @@ export async function mountPetFamilyManager({
         el('p', 'pet-empty-copy', '10장은 모두 비공개 초안에 저장됩니다. 얼굴·몸 전체 사진보다 코나 특징 사진을 먼저 올려도 지우지 않고 보관했다가 다시 확인합니다.'),
       );
       const photosBySlot = new Map(registrationDraft.photos.map(photo => [photo.slotCode, photo]));
-      const count = el('p', 'pet-photo-count', `${photosBySlot.size}/${PET_PHOTO_SLOT_CODES.length}`);
-      body.appendChild(count);
+      const progression = petDraftPhotoProgression(registrationDraft);
+      const count = el(
+        'p',
+        'pet-photo-count',
+        `사진 ${progression.presentCount}/${progression.requiredCount} · 확인 완료 ${progression.acceptedCount}/${progression.requiredCount}`,
+      );
+      body.append(count, el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression)));
       const grid = el('div', 'pet-slot-grid');
       grid.dataset.petDraftSlotGrid = '';
 
@@ -1559,9 +1579,7 @@ export async function mountPetFamilyManager({
         caption.append(el('span', 'pet-slot-index', String(index + 1)), el('span', 'pet-slot-label', petPhotoSlotLabel(slotCode)));
         tile.append(caption, el('p', 'pet-slot-hint', petPhotoSlotHint(slotCode)));
         if (photo) {
-          const stateCopy = photo.inspectionState === 'ACCEPTED'
-            ? '사진 확인됨'
-            : (photo.inspectionState === 'REJECTED' ? '다시 촬영 필요' : '초안 보관 · 확인 대기');
+          const stateCopy = petDraftPhotoInspectionMessage(photo);
           tile.appendChild(el('p', `pet-draft-photo-state pet-draft-photo-state-${photo.inspectionState.toLowerCase()}`, stateCopy));
         }
         const slotError = formError();
@@ -1670,10 +1688,13 @@ export async function mountPetFamilyManager({
       const next = el('button', 'site-button site-button-primary', '기본 정보 입력');
       next.type = 'button';
       next.dataset.petDraftNext = 'BASIC';
+      next.disabled = !progression.ready;
+      next.setAttribute('aria-disabled', progression.ready ? 'false' : 'true');
       next.addEventListener('click', async () => {
         if (busy) return;
-        if (registrationDraft.photos.length !== PET_PHOTO_SLOT_CODES.length) {
-          error.textContent = '사진 10장을 모두 올려 주세요.';
+        const latestProgression = petDraftPhotoProgression(registrationDraft);
+        if (!latestProgression.ready) {
+          error.textContent = draftPhotoProgressMessage(latestProgression);
           return;
         }
         setBusy(true);
