@@ -107,13 +107,19 @@ try {
   localStorage.clear();
   const nativeFetch = globalThis.fetch.bind(globalThis);
   const json = body => Promise.resolve(new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}}));
+  const nativeImageSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
   const mockImageSrc = new WeakMap();
   Object.defineProperty(HTMLImageElement.prototype, 'src', {
     configurable: true,
-    get() { return mockImageSrc.get(this) || ''; },
+    get() { return mockImageSrc.get(this) || nativeImageSrc?.get?.call(this) || ''; },
     set(value) {
-      mockImageSrc.set(this, String(value));
-      queueMicrotask(() => this.dispatchEvent(new Event('load')));
+      const next = String(value);
+      if (next.startsWith('https://lh3.googleusercontent.com/')) {
+        mockImageSrc.set(this, next);
+        queueMicrotask(() => this.dispatchEvent(new Event('load')));
+        return;
+      }
+      nativeImageSrc?.set?.call(this, next);
     },
   });
   globalThis.fetch = (url, init) => {
