@@ -150,6 +150,7 @@ try {
       ...box(node),
     })),
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
+    mediaState:center.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
     sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
@@ -220,7 +221,8 @@ try {
         assert.match(action.rel,/noreferrer/u);
       }
     }
-    assert.equal(reading.mediaHidden,true,`${testCase.label}: no-photo media`);
+    assert.equal(reading.mediaHidden,false,`${testCase.label}: no-photo banner remains visible`);
+    assert.equal(reading.mediaState,'empty-no-photo',`${testCase.label}: no-photo media state`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
     assert.ok(reading.card.w<=Math.min(testCase.width*.82,286)+2,`${testCase.label}: card width ${reading.card.w}`);
     assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);
