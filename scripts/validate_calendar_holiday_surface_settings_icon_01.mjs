@@ -288,7 +288,7 @@ try {
     if (!icon.hasSvg) throw new Error(`${where}: the settings control must render an inline SVG icon`);
     if (!icon.strokeOnly) throw new Error(`${where}: the settings icon must follow the stroke-only icon language`);
     if (icon.width < 14 || icon.height < 14) throw new Error(`${where}: the settings icon rendered at ${icon.width}x${icon.height}`);
-    if (icon.textContent !== '') throw new Error(`${where}: the settings control must carry no glyph text, got ${JSON.stringify(icon.textContent)}`);
+    if (icon.textContent !== '설정') throw new Error(`${where}: the settings control must visibly say 설정, got ${JSON.stringify(icon.textContent)}`);
     if (icon.ariaLabel !== '캘린더 설정' || icon.title !== '캘린더 설정') {
       throw new Error(`${where}: the settings control must keep its accessible name`);
     }

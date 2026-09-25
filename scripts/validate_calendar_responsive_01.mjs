@@ -51,8 +51,8 @@ for (const weeks of [4, 5, 6]) {
 }
 assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) minmax(290px, 340px)'), 'desktop Month must reserve a side detail column when open');
 assert.ok(css.includes('.calendar-day-panel[data-presentation="SIDE"] {\n    position: sticky;'), 'desktop selected-day detail must remain beside the grid');
-assert.ok(css.includes('grid-template-columns: 44px minmax(80px, 1fr) 44px 52px 44px'), 'mobile toolbar first row contract missing');
-assert.ok(css.includes('grid-template-columns: 44px minmax(0, 1fr) 44px 48px 44px'), 'narrow mobile toolbar must keep 44px controls without horizontal scrolling');
+assert.ok(css.includes('grid-template-columns: 44px minmax(80px, 1fr) 44px 52px 68px'), 'mobile toolbar must reserve room for the visible Settings label');
+assert.ok(css.includes('grid-template-columns: 44px minmax(0, 1fr) 44px 48px 64px'), 'narrow mobile toolbar must keep touch targets and the Settings label without horizontal scrolling');
 assert.ok(css.includes('grid-template-columns: repeat(4, minmax(0, 1fr))'), 'mobile view controls must be discoverable without horizontal scrolling');
 assert.ok(css.includes('.calendar-event-stack { display: none; }'), 'touch Month should prefer bounded density plus selected-day list');
 assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"] {\n    position: static;'), 'mobile selected-day detail must remain in flow rather than cover the month');
