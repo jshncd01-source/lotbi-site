@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 50049)
-Total output lines: 4135
-
 import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-6c31fddb37a5';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6c31fddb37a5';
 import {
@@ -814,7 +811,2465 @@ export function createCalendarMutationController({
       },
     };
   };
-  const guestPayload = (value, temporal) =>…30049 tokens truncated…in -- but waiting for it here
+  const guestPayload = (value, temporal) => ({
+    title: value.title,
+    local_date: value.localDate || null,
+    local_datetime: temporal.kind === 'LOCAL_DATE_TIME' ? temporal.local_datetime : temporal.kind === 'TIME_WINDOW' ? temporal.window_start : null,
+    local_end_datetime: temporal.kind === 'TIME_WINDOW' ? temporal.window_end : null,
+    local_end_date: temporal.kind === 'TIME_WINDOW' ? temporal.window_end.slice(0, 10) : temporal.kind === 'DATE_RANGE' ? temporal.date_end : null,
+    all_day: temporal.kind === 'DATE_ONLY' || temporal.kind === 'DATE_RANGE',
+    entry: value.entry,
+  });
+  return Object.freeze({
+    async create(input) {
+      const value = normalized(input);
+      const temporal = buildCalendarTemporal({...value, timezone});
+      if (!authenticated) return guestRepository.create(guestPayload(value, temporal));
+      return createLifeActivity(sessionToken, {
+        logicalRequestId: requestId('create'), title: value.title, temporal,
+        temporalSemantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', entry: value.entry,
+      }, fetchImpl);
+    },
+    async update(item, input) {
+      if (!calendarItemActionPolicy(item).canUpdate) {
+        throw new SiteCoreError('읽기 전용 일정은 수정할 수 없습니다.', {
+          code: 'LIFE_ACTION_NOT_ALLOWED',
+          status: 403,
+        });
+      }
+      const value = normalized(input);
+      const temporal = buildCalendarTemporal({...value, timezone});
+      if (!authenticated) return guestRepository.update(item.id, guestPayload(value, temporal));
+      return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
+        logicalRequestId: requestId('edit'),
+        expectedActivityRevision: item.activity_revision ?? item.activityRevision,
+        expectedOccurrenceRevision: item.occurrence_revision ?? item.occurrenceRevision,
+        title: value.title,
+        temporal,
+        temporalSemantics: 'USER_PLANNED_TIME',
+        busy: 'UNKNOWN',
+        entry: value.entry,
+      }, fetchImpl);
+    },
+    async remove(item) {
+      if (!calendarItemActionPolicy(item).canRemove) {
+        throw new SiteCoreError('읽기 전용 일정은 삭제할 수 없습니다.', {
+          code: 'LIFE_ACTION_NOT_ALLOWED',
+          status: 403,
+        });
+      }
+      if (!authenticated) return guestRepository.remove(item.id);
+      return removeLifeActivity(sessionToken, item.activity_id || item.activityId, {
+        logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision ?? item.activityRevision,
+      }, fetchImpl);
+    },
+  });
+}
+
+function withCalendarShape(item) {
+  return Object.freeze({...item, all_day: isAllDay(item)});
+}
+
+function withUnscheduledShape(item) {
+  return Object.freeze({
+    activity_id: item.activityId,
+    occurrence_id: item.occurrenceId,
+    title: item.title,
+    activity_revision: item.activityRevision,
+    occurrence_revision: item.occurrenceRevision,
+    temporal: item.temporal,
+    temporal_kind: item.temporal?.kind || 'UNSCHEDULED',
+    temporal_semantics: item.temporalSemantics,
+    busy: item.busy,
+    confirmation_level: item.confirmationLevel,
+    provider_verified: item.providerVerified === true,
+    source_kind: 'USER_INPUT',
+    entry: item.entry || {},
+    local_date: null,
+    local_datetime: null,
+    all_day: false,
+  });
+}
+
+export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false, weather = null, holiday = null} = {}) {
+  const {year, month, day} = civilDateParts(cell.date);
+  const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`];
+  // Outside the month on screen the date recedes visually; a screen reader must
+  // be told the same thing rather than left to infer it from the spoken month.
+  if (cell.inCurrentMonth === false) parts.push('다른 달');
+  if (today) parts.push('오늘');
+  if (selected) parts.push('선택됨');
+  if (attention) parts.push('확인 필요 일정 있음');
+  if (holiday?.name) parts.push(`대한민국 공휴일 ${holiday.name}`);
+  if (weather?.label) parts.push(`날씨 ${weather.label}`);
+  return parts.join(', ');
+}
+
+export function countCalendarEventsByMonth(items, year) {
+  const counts = Array(12).fill(0);
+  for (const item of Array.isArray(items) ? items : []) {
+    if (!validCivilDate(item?.local_date)) continue;
+    const parts = civilDateParts(item.local_date);
+    if (parts.year === year) counts[parts.month - 1] += 1;
+  }
+  return counts;
+}
+
+// Core serves Calendar weather for a bounded forward window: it rejects a span
+// wider than 15 inclusive days with WEATHER_DATE_WINDOW_INVALID, and a forecast
+// exists only from today onward. The month grid covers 42 cells, so sending the
+// grid range straight through asks for ~35 days and is refused every time.
+//
+// Clamp to the part of the visible grid a forecast can actually cover: never
+// before today, never more than 14 days ahead. A month with no such overlap -- a
+// past month, or one starting beyond the horizon -- yields no window at all, and
+// the caller skips the request rather than asking for days that cannot exist.
+const WEATHER_FORECAST_HORIZON_DAYS = 14;
+
+function forecastWindow(range, today) {
+  if (!range || !validCivilDate(today)) return null;
+  const start = range.start > today ? range.start : today;
+  const horizon = addCivilDays(today, WEATHER_FORECAST_HORIZON_DAYS);
+  const end = range.end < horizon ? range.end : horizon;
+  if (end < start) return null;
+  return {start, end};
+}
+
+function calendarRangeYears(range) {
+  if (!validCivilDate(range?.start) || !validCivilDate(range?.end) || range.end < range.start) return [];
+  const startYear = civilDateParts(range.start).year;
+  const endYear = civilDateParts(range.end).year;
+  return Array.from({length: endYear - startYear + 1}, (_, index) => startYear + index);
+}
+
+export async function loadKoreaHolidaysForRange(range, fetchImpl = globalThis.fetch) {
+  const years = calendarRangeYears(range);
+  if (!years.length) return Object.freeze({coverageStatus: 'UNAVAILABLE', items: Object.freeze([])});
+  const results = await Promise.all(years.map(async year => {
+    try {
+      return await getKoreaHolidays(year, fetchImpl);
+    } catch (error) {
+      console.warn('[LOTBI 캘린더] 대한민국 공휴일을 불러오지 못했습니다.', error);
+      return {coverageStatus: 'UNAVAILABLE', items: []};
+    }
+  }));
+  const unique = new Map();
+  for (const item of results.flatMap(result => result?.items || [])) {
+    const key = [item.date, item.name, item.holidayType, String(item.isSubstitute)].join('\u0000');
+    if (!unique.has(key)) unique.set(key, item);
+  }
+  const items = [...unique.values()].sort((left, right) =>
+    left.date.localeCompare(right.date)
+      || left.name.localeCompare(right.name)
+      || String(left.holidayType).localeCompare(String(right.holidayType))
+      || Number(left.isSubstitute) - Number(right.isSubstitute));
+  return Object.freeze({
+    coverageStatus: results.every(result => result?.coverageStatus === 'VERIFIED') ? 'VERIFIED' : 'UNAVAILABLE',
+    items: Object.freeze(items),
+  });
+}
+
+// 날씨 자리에 둘 조용한 안내. 없는 날씨를 그럴듯한 값으로 메우지 않고, 실패를
+// 실패라고만 적는다.
+function weatherFailureCopy(error) {
+  if (!error) return '';
+  if (error instanceof SiteCoreError && (error.status === 401 || error.status === 403)) {
+    return '날씨는 로그인 상태에서 불러옵니다. 일정은 그대로 표시됩니다.';
+  }
+  if (error instanceof SiteCoreError && error.retryable) {
+    return '날씨를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+  }
+  return '날씨를 지금 표시할 수 없어요. 일정은 그대로 표시됩니다.';
+}
+
+export async function loadLifeCalendarManagerView(
+  sessionToken,
+  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null, weekStart = 0} = {},
+) {
+  const selectedDate = validCivilDate(date) ? date : dateInTimezone(now, timezone);
+  const key = normalizeMode(view);
+  const range = key === 'year'
+    ? yearBounds(selectedDate)
+    : key === 'week'
+      ? {...weekBounds(selectedDate, weekStart), ...civilDateParts(selectedDate)}
+      : monthBounds(selectedDate);
+  const weatherWindow = key === 'month' || key === 'week'
+    ? forecastWindow(range, dateInTimezone(now, timezone))
+    : null;
+  const weatherRequest = weatherWindow
+    ? getCalendarWeather(sessionToken, {
+        start: weatherWindow.start,
+        end: weatherWindow.end,
+        timezone,
+        latitude: weatherLocation?.latitude,
+        longitude: weatherLocation?.longitude,
+        midRegionCode: weatherLocation?.midRegionCode || '',
+      }, fetchImpl).catch(error => {
+        // 방어는 그대로 둔다 -- 날씨가 실패해도 일정·공휴일·가계부는 나와야 한다.
+        // 고치는 것은 침묵이다: 원인을 콘솔에 남기고, 실패했다는 사실을 화면까지
+        // 들고 올라간다. 빈 결과와 실패는 서로 다른 일이다.
+        console.warn('[LOTBI 캘린더] 날씨를 불러오지 못했습니다.', error);
+        return {providerReady: false, items: [], aiCalls: 0, failure: error};
+      })
+    : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
+  const holidayRequest = (key === 'month' || key === 'week' || key === 'year')
+    ? loadKoreaHolidaysForRange(range, fetchImpl)
+    : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
+  const [response, monthAttention, unscheduled, weather, holidays] = await Promise.all([
+    getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
+    // 일정 보기도 함께 읽는다: 확인 필요 탭이 사라진 뒤 지금 달에 없는 지난 기한을
+    // 보여줄 유일한 자리가 그곳이다.
+    key === 'month' || key === 'week' || key === 'agenda'
+      ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
+      : Promise.resolve(null),
+    key === 'agenda'
+      ? getLifeUnscheduled(sessionToken, fetchImpl)
+      : Promise.resolve(null),
+    weatherRequest,
+    holidayRequest,
+  ]);
+  return Object.freeze({
+    key,
+    date: selectedDate,
+    year: range.year,
+    month: range.month,
+    range: Object.freeze({start: range.start, end: range.end}),
+    kind: 'agenda',
+    items: Object.freeze(response.items.map(withCalendarShape)),
+    attention: Object.freeze(monthAttention?.items || []),
+    unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
+    weather: Object.freeze(weather?.items || []),
+    weatherProviderReady: weather?.providerReady === true,
+    weatherFailureMessage: weatherFailureCopy(weather?.failure),
+    holidays: Object.freeze(holidays?.items || []),
+    holidayCoverageStatus: holidays?.coverageStatus || 'UNAVAILABLE',
+  });
+}
+
+// Toolbar icons are inline SVG, not emoji: an emoji renders as a different
+// shape on every OS (the gear read as a sun on the reporter's screen, which is
+// why the settings control was mistaken for a weather button). Inline rather
+// than a <use> reference because the sprite lives in index.html and the
+// Calendar also mounts from auth/callback/, which has no sprite.
+// Shape language is the sidebar's: 24x24 box, stroke-only, 1.8 weight,
+// round caps and joins.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function toolbarIcon(shapes) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'calendar-toolbar-icon');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  for (const [tag, attrs] of shapes) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+    svg.appendChild(node);
+  }
+  return svg;
+}
+
+// Sliders, not a gear. A gear is a circle with radial spokes, and at 19px that
+// is the same figure as a sun -- which is precisely the confusion being fixed
+// here, and it would collide head-on with the weather glyphs the day cells
+// carry. Two tracks with offset handles read as "controls" at this size and
+// cannot be mistaken for weather.
+const SETTINGS_ICON_SHAPES = Object.freeze([
+  ['path', {d: 'M4 9h16M4 15h16'}],
+  ['path', {d: 'M9.5 6.5v5M15.5 12.5v5'}],
+]);
+
+function button(label, className) {
+  const value = document.createElement('button');
+  value.type = 'button';
+  value.className = className;
+  value.textContent = label;
+  return value;
+}
+
+export function rovingTabTargetIndex(key, currentIndex, length) {
+  if (!Number.isInteger(currentIndex) || currentIndex < 0 || currentIndex >= length || length < 1) return null;
+  if (key === 'ArrowRight') return (currentIndex + 1) % length;
+  if (key === 'ArrowLeft') return (currentIndex - 1 + length) % length;
+  if (key === 'Home') return 0;
+  if (key === 'End') return length - 1;
+  return null;
+}
+
+export function monthGridKeyboardTargetDate(date, key, weekStart = 0) {
+  if (!validCivilDate(date)) return null;
+  if (key !== 'Home' && key !== 'End') return null;
+  const {year, month, day} = civilDateParts(date);
+  const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+  const rowOffset = (weekday - normalizeWeekStart(weekStart) + 7) % 7;
+  return addCivilDays(date, key === 'Home' ? -rowOffset : 6 - rowOffset);
+}
+
+function bindRovingTablist(container, controls) {
+  const tabs = Array.from(controls);
+  container.addEventListener('keydown', event => {
+    const current = event.target instanceof Element ? event.target.closest('[role="tab"]') : null;
+    const currentIndex = tabs.indexOf(current);
+    const targetIndex = rovingTabTargetIndex(event.key, currentIndex, tabs.length);
+    if (targetIndex === null) return;
+    event.preventDefault();
+    const target = tabs[targetIndex];
+    for (const tab of tabs) {
+      const selected = tab === target;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+    }
+    target.focus();
+    target.click();
+  });
+}
+
+function emptyMessage(text) {
+  const value = document.createElement('p');
+  value.className = 'life-calendar-empty';
+  value.textContent = text;
+  return value;
+}
+
+function attentionStateLabel(value) {
+  if (value === 'UPCOMING') return '기한 예정';
+  if (value === 'DUE_TODAY') return '오늘 기한';
+  if (value === 'OVERDUE') return '기한 지남';
+  return '';
+}
+
+// 09/12 15:00 → 09/13 11:00. A stay, a flight and a rental are one entry with
+// two ends, and showing only the check-in reads as if the owner never leaves.
+// Core sends an ending only when the booking stated one, so an ordinary
+// appointment is untouched and keeps showing its single time in the left column.
+export function eventSpanText(item) {
+  const endDate = typeof item?.local_end_date === 'string' ? item.local_end_date : '';
+  const endDatetime = typeof item?.local_end_datetime === 'string' ? item.local_end_datetime : '';
+  const resolvedEnd = validCivilDate(endDate) ? endDate : endDatetime.slice(0, 10);
+  if (!validCivilDate(item?.local_date) || !validCivilDate(resolvedEnd)) return '';
+  const stamp = (date, datetime) => {
+    const day = `${date.slice(5, 7)}/${date.slice(8, 10)}`;
+    const clock = typeof datetime === 'string' && datetime.length >= 16 ? datetime.slice(11, 16) : '';
+    return clock ? `${day} ${clock}` : day;
+  };
+  const start = stamp(item.local_date, item.local_datetime);
+  const finish = stamp(resolvedEnd, endDatetime);
+  return start === finish ? '' : `${start} → ${finish}`;
+}
+
+function eventMetaText(item) {
+  const parts = [];
+  const span = eventSpanText(item);
+  if (span) parts.push(span);
+  const attention = attentionStateLabel(item?.calendar_attention_state || item?.state);
+  if (attention) parts.push(attention);
+  if (String(item?.id || '').startsWith('guest_')) parts.push('이 기기에 저장');
+  else if (item?.provider_verified === true && item?.confirmation_level === 'PROVIDER_VERIFIED') parts.push('외부 확인됨');
+  else if (item?.source_kind === 'USER_INPUT' || item?.confirmation_level === 'USER_ATTESTED') parts.push('직접 입력');
+  return parts.join(' · ');
+}
+
+function eventList(items, {onSelect} = {}) {
+  const list = document.createElement('ul');
+  list.className = 'calendar-day-list';
+  for (const item of sortCalendarEvents(items)) {
+    const presentation = calendarEventPresentation(item);
+    const li = document.createElement('li');
+    li.className = 'calendar-day-event';
+    li.dataset.eventKind = presentation.kind;
+    li.dataset.calendarEventId = item.id || item.activity_id || '';
+    const time = document.createElement('time');
+    time.textContent = eventTime(item);
+    const copy = document.createElement('span');
+    const title = document.createElement('strong');
+    title.textContent = item.title;
+    const badges = document.createElement('span');
+    badges.className = 'calendar-event-badges';
+    const type = document.createElement('span');
+    type.className = 'calendar-event-type';
+    type.textContent = presentation.typeLabel;
+    badges.appendChild(type);
+    if (presentation.statusLabel) {
+      const status = document.createElement('span');
+      status.className = 'calendar-event-status';
+      status.textContent = presentation.statusLabel;
+      badges.appendChild(status);
+    }
+    const meta = document.createElement('small');
+    meta.textContent = presentation.metaText || eventMetaText(item);
+    copy.append(title, badges);
+    if (meta.textContent) copy.append(meta);
+    li.append(time, copy);
+    if (onSelect) {
+      li.tabIndex = 0;
+      li.setAttribute('role', 'button');
+      li.setAttribute('aria-label', `${eventTime(item)} ${item.title}${meta.textContent ? `, ${meta.textContent}` : ""}`);
+      li.addEventListener('click', event => onSelect(item, event.currentTarget));
+      li.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item, event.currentTarget); }
+      });
+    }
+    list.appendChild(li);
+  }
+  return list;
+}
+
+function dayPanel(state, groups, actions) {
+  const panel = document.createElement('aside');
+  panel.className = 'calendar-day-panel';
+  panel.dataset.selectedDate = state.selectedDate;
+  panel.dataset.collapsed = String(state.dayCollapsed);
+  panel.dataset.presentation = dayDetailPresentation();
+  panel.dataset.reducedMotion = String(prefersReducedMotion());
+  panel.hidden = !state.detailOpen;
+
+  const head = document.createElement('div');
+  head.className = 'calendar-day-panel-head';
+  const heading = document.createElement('h3');
+  heading.className = 'calendar-day-heading';
+  const selectedParts = civilDateParts(state.selectedDate);
+  const selectedWeekday = new Date(Date.UTC(selectedParts.year, selectedParts.month - 1, selectedParts.day, 12)).getUTCDay();
+  heading.textContent = `${selectedParts.month}월 ${selectedParts.day}일 ${WEEKDAY_INITIALS[selectedWeekday]}`;
+  const controls = document.createElement('div');
+  controls.className = 'calendar-day-panel-actions';
+  const close = button('×', 'calendar-day-close');
+  close.setAttribute('aria-label', '선택한 날짜 일정 닫기');
+  close.addEventListener('click', () => actions.closeDay());
+  controls.append(close);
+  head.append(heading, controls);
+
+  const body = document.createElement('div');
+  body.className = 'calendar-day-body';
+  body.hidden = state.dayCollapsed;
+  const selectedHoliday = state.showKoreaHolidays
+    ? holidaysByDate(state.holidays).get(state.selectedDate)
+    : null;
+  if (selectedHoliday) {
+    const holiday = document.createElement('div');
+    holiday.className = 'calendar-day-holiday';
+    holiday.setAttribute('role', 'note');
+    holiday.textContent = `${selectedHoliday.name} · 대한민국 공휴일`;
+    body.appendChild(holiday);
+  }
+  const items = groups.get(state.selectedDate) || [];
+  // Entries first when there are any: what is already on the day is what the
+  // owner opened it to see. The line that adds one sits under them either way.
+  if (items.length) body.appendChild(eventList(items, {onSelect: actions.onEvent}));
+  // Neither control repeats the date: the selected day is already in the panel
+  // heading, the toolbar title and the highlighted cell. It stays in each
+  // accessible name so a screen reader still hears which day.
+  const {month: addMonth, day: addDay} = civilDateParts(state.selectedDate);
+
+  if (state.imageMessage) {
+    const message = document.createElement('p');
+    message.className = 'calendar-add-message';
+    message.dataset.calendarAddMessage = '';
+    message.setAttribute('role', 'status');
+    message.textContent = state.imageMessage;
+    body.appendChild(message);
+  }
+
+  // The two ways in, and the only controls the panel offers: a picture, or the
+  // full form. On an empty day the "nothing here" sentence shares their row
+  // rather than taking one of its own -- the panel is small enough that a
+  // spare line is felt.
+  const addRow = document.createElement('div');
+  addRow.className = 'calendar-add-actions';
+  if (!items.length) addRow.appendChild(emptyMessage('등록된 일정이 없어요.'));
+
+  const addImage = button('사진에서 일정 추가', 'calendar-add-button calendar-add-image-button');
+  addImage.dataset.calendarAddImage = '';
+  addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
+  addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
+
+  const add = button('+ 일정 추가', 'calendar-add-button calendar-add-detail-button');
+  add.dataset.calendarAdd = '';
+  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정을 직접 입력해서 등록`);
+  add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
+
+  addRow.append(addImage, add);
+  body.appendChild(addRow);
+  // What the compact one-row layout keys off: nothing in the body but this row.
+  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage);
+  panel.append(head, body);
+  return panel;
+}
+
+function monthEventRow(item, onSelect) {
+  const row = button('', 'calendar-event-chip');
+  row.dataset.eventChip = '';
+  row.dataset.calendarEventId = item.id || item.activity_id || '';
+  if (!isAllDay(item)) {
+    const time = document.createElement('span');
+    time.className = 'calendar-event-time';
+    time.textContent = eventTime(item);
+    row.appendChild(time);
+  }
+  const title = document.createElement('span');
+  title.className = 'calendar-event-title';
+  title.textContent = item.title;
+  row.appendChild(title);
+  row.setAttribute('aria-label', `${isAllDay(item) ? "" : `${eventTime(item)} `}${item.title}`);
+  row.addEventListener('click', event => {
+    event.stopPropagation();
+    onSelect(item, event.currentTarget);
+  });
+  return row;
+}
+
+function fitMonthEventDensity(layout) {
+  // monthCellSummary() already caps every cell at two event rows and one +N
+  // control. Marking the settled layout keeps the existing render hook stable
+  // without measuring every event in a dense month.
+  layout.dataset.monthDensity = 'bounded';
+}
+
+function syncMonthLayout(layout) {
+  fitMonthEventDensity(layout);
+}
+
+function renderWeek(state, actions, weatherCredit = null) {
+  const section = document.createElement('section');
+  section.className = 'calendar-week-agenda';
+  section.setAttribute('aria-label', '주간 일정');
+  const groups = weekAgendaGroups(state.selectedDate, state.items, state.weekStart);
+  const weatherByDate = calendarWeatherByDate(state.weather);
+  const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
+
+  const strip = document.createElement('div');
+  strip.className = 'calendar-week-strip';
+  strip.setAttribute('role', 'tablist');
+  strip.setAttribute('aria-label', '이번 주 날짜');
+  const weekControls = [];
+  for (const day of calendarWeekDays(state.selectedDate, state.weekStart)) {
+    const selected = day.date === state.selectedDate;
+    const control = button('', 'calendar-week-date');
+    control.dataset.calendarWeekDate = day.date;
+    control.dataset.selected = String(selected);
+    control.setAttribute('role', 'tab');
+    control.setAttribute('aria-selected', String(selected));
+    control.setAttribute('aria-label', koreanDate(day.date));
+    control.tabIndex = selected ? 0 : -1;
+    const weekday = document.createElement('span');
+    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    const number = document.createElement('strong');
+    number.textContent = String(day.day);
+    control.append(weekday, number);
+    control.addEventListener('click', () => { void actions.selectDate(day.date); });
+    weekControls.push(control);
+    strip.appendChild(control);
+  }
+  bindRovingTablist(strip, weekControls);
+  section.appendChild(strip);
+
+  const agenda = document.createElement('div');
+  agenda.className = 'calendar-week-days';
+  const hasAny = groups.some(group => group.items.length > 0);
+  if (!hasAny) agenda.appendChild(emptyMessage('이번 주에는 일정이 없어요.'));
+
+  for (const day of groups) {
+    const group = document.createElement('section');
+    group.className = 'calendar-week-day';
+    group.dataset.calendarWeekGroup = day.date;
+    group.dataset.selected = String(day.date === state.selectedDate);
+    const head = document.createElement('div');
+    head.className = 'calendar-week-day-head';
+    const heading = document.createElement('h3');
+    const headingButton = button(koreanDate(day.date).replace(`${day.year}년 `, ''), 'calendar-week-day-title');
+    headingButton.addEventListener('click', () => { void actions.selectDate(day.date); });
+    heading.appendChild(headingButton);
+    head.appendChild(heading);
+    const weather = weatherByDate.get(day.date);
+    if (weather) {
+      const weatherLine = document.createElement('span');
+      weatherLine.className = 'calendar-week-weather';
+      const temperature = calendarWeatherPresentation(weather).weekLabel;
+      weatherLine.textContent = [weather.label, temperature].filter(Boolean).join(' · ');
+      weatherLine.setAttribute('aria-label', `날씨 ${weatherLine.textContent}`);
+      const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
+      if (weatherIcon) weatherLine.prepend(weatherIcon);
+      head.appendChild(weatherLine);
+    }
+    const holiday = holidayMap.get(day.date);
+    if (holiday) {
+      const holidayLine = document.createElement('span');
+      holidayLine.className = 'calendar-week-holiday';
+      holidayLine.textContent = holiday.name;
+      head.appendChild(holidayLine);
+    }
+    group.appendChild(head);
+    if (day.items.length) group.appendChild(eventList(day.items, {onSelect: actions.onEvent}));
+    else group.appendChild(emptyMessage('일정 없음'));
+    agenda.appendChild(group);
+  }
+  section.appendChild(agenda);
+
+  const addActions = document.createElement('div');
+  addActions.className = 'calendar-week-add-actions';
+  const add = button('+ 일정 추가', 'calendar-add-button');
+  add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
+  const addImage = button('사진에서 일정 추가', 'calendar-add-button calendar-add-image-button');
+  addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
+  addActions.append(add, addImage);
+  section.appendChild(addActions);
+
+  if (weatherCredit) {
+    const credit = document.createElement('p');
+    credit.className = 'calendar-weather-credit';
+    credit.textContent = weatherCredit.text;
+    section.appendChild(credit);
+  } else if (state.weatherMessage) {
+    const notice = document.createElement('p');
+    notice.className = 'calendar-weather-credit';
+    notice.setAttribute('role', 'status');
+    notice.textContent = state.weatherMessage;
+    section.appendChild(notice);
+  }
+  return section;
+}
+
+function renderMonth(state, actions, weatherCredit = null) {
+  const layout = document.createElement('div');
+  layout.className = 'calendar-month-layout';
+  layout.dataset.detailOpen = String(state.detailOpen);
+  // The stylesheet needs to know which presentation is in play from the layout
+  // itself: the month has to be raised above the sheet's dismiss layer, and
+  // that rule cannot reach up from the panel to its parent.
+  layout.dataset.dayDetail = dayDetailPresentation();
+  const calendar = document.createElement('section');
+  calendar.className = 'calendar-month';
+  const weekdays = document.createElement('div');
+  weekdays.className = 'calendar-weekdays';
+  weekdays.setAttribute('aria-hidden', 'true');
+  for (const weekday of weekdayOrder(state.weekStart)) {
+    const day = document.createElement('span');
+    day.textContent = WEEKDAY_INITIALS[weekday];
+    // The heading carries its weekday rather than relying on being first or
+    // last in the row: with a Monday start those positions hold 월 and 일.
+    day.dataset.weekday = String(weekday);
+    weekdays.appendChild(day);
+  }
+  const grid = document.createElement('div');
+  grid.className = 'calendar-month-grid';
+  grid.dataset.gridLines = String(state.showGridLines !== false);
+  grid.dataset.weekStart = String(state.weekStart);
+  grid.setAttribute('role', 'grid');
+  grid.setAttribute('aria-label', `${state.year}년 ${state.month}월`);
+  const groups = groupCalendarEvents(state.items);
+  const attentionDates = new Set(state.attention.map(item => item?.due_date).filter(validCivilDate));
+  const weatherByDate = calendarWeatherByDate(state.weather);
+  const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
+  const cells = calendarMonthGrid(state.year, state.month, state.weekStart);
+  grid.dataset.weekCount = String(cells.length / 7);
+
+  for (const cell of cells) {
+    const events = groups.get(cell.date) || [];
+    const selected = cell.date === state.selectedDate;
+    const today = cell.date === state.todayDate;
+    const hasAttention = attentionDates.has(cell.date);
+    const weather = weatherByDate.get(cell.date) || null;
+    const holiday = holidayMap.get(cell.date) || null;
+
+    const cellNode = document.createElement('div');
+    cellNode.className = 'calendar-date-cell';
+    cellNode.dataset.calendarDate = cell.date;
+    cellNode.dataset.currentMonth = String(cell.inCurrentMonth);
+    // Weekend colour keys off the real weekday, not the cell's position in the
+    // row. Position only meant Sunday and Saturday while the week could not
+    // start anywhere else; with a Monday start it would paint 월 and 일.
+    cellNode.dataset.weekday = String(cell.weekday);
+    cellNode.dataset.selected = String(selected);
+    cellNode.dataset.today = String(today);
+    cellNode.dataset.attention = String(hasAttention);
+    cellNode.dataset.holiday = String(Boolean(holiday));
+    cellNode.setAttribute('role', 'gridcell');
+    cellNode.setAttribute('aria-selected', String(selected));
+
+    const header = document.createElement('div');
+    header.className = 'calendar-date-header';
+    const date = button(String(cell.day), 'calendar-date-trigger');
+    date.dataset.calendarDateTrigger = cell.date;
+    date.dataset.selected = String(selected);
+    date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention, weather, holiday}));
+    if (today) date.setAttribute('aria-current', 'date');
+    date.tabIndex = selected ? 0 : -1;
+    const number = document.createElement('span');
+    number.className = 'calendar-date-number';
+    number.textContent = String(cell.day);
+    date.textContent = '';
+    date.appendChild(number);
+    date.addEventListener('click', event => {
+      event.stopPropagation();
+      void actions.selectDate(cell.date, {openDetail: true});
+    });
+    date.addEventListener('keydown', event => actions.onDateKey(event, cell.date));
+
+    const count = document.createElement('span');
+    count.className = 'calendar-mobile-event-count';
+    count.textContent = events.length ? `${events.length}개` : '';
+    count.setAttribute('aria-hidden', 'true');
+    header.append(date, count);
+    if (weather) {
+      // 이모지 대신 인라인 SVG. 같은 이모지가 OS 마다 다른 모양·다른 색으로
+      // 나오는 것이 흐리게 보이던 근본 원인이었다. 글리프 자체는
+      // site-calendar-weather.js 가 그린다 — Core 가 보내는 weather_icon
+      // 이모지는 전송 계약으로 계속 검증된다.
+      const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
+      if (weatherIcon) {
+        const weatherTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        weatherTitle.textContent = weather.label;
+        weatherIcon.appendChild(weatherTitle);
+        header.appendChild(weatherIcon);
+      }
+      const temperatureLabel = calendarWeatherPresentation(weather).monthLabel;
+      if (temperatureLabel) {
+        const temperature = document.createElement('span');
+        temperature.className = 'calendar-weather-temperature';
+        temperature.textContent = temperatureLabel;
+        temperature.dataset.compactTemperature = temperatureLabel.replace(/\s+/g, '');
+        temperature.setAttribute('aria-hidden', 'true');
+        header.appendChild(temperature);
+      }
+    }
+    if (hasAttention) {
+      const marker = document.createElement('span');
+      marker.className = 'calendar-attention-marker';
+      marker.textContent = '확인 필요';
+      marker.setAttribute('aria-hidden', 'true');
+      header.appendChild(marker);
+    }
+
+    let holidayLabel = null;
+    if (holiday) {
+      holidayLabel = document.createElement('div');
+      holidayLabel.className = 'calendar-holiday-label';
+      holidayLabel.dataset.calendarHoliday = holiday.date;
+      holidayLabel.textContent = holiday.name;
+      holidayLabel.title = `${holiday.name} · 대한민국 공휴일`;
+      holidayLabel.setAttribute('aria-hidden', 'true');
+    }
+
+    const stack = document.createElement('div');
+    stack.className = 'calendar-event-stack';
+    const summary = monthCellSummary(events);
+    for (const item of summary.visible) stack.appendChild(monthEventRow(item, actions.onEvent));
+    const more = button('', 'calendar-event-overflow');
+    more.dataset.eventOverflow = '';
+    more.hidden = !summary.moreLabel;
+    more.textContent = summary.moreLabel;
+    more.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 일정 ${summary.remaining}개 더 보기`);
+    more.addEventListener('click', event => {
+      event.stopPropagation();
+      void actions.selectDate(cell.date, {openDetail: true});
+    });
+    stack.appendChild(more);
+
+    cellNode.addEventListener('click', event => {
+      if (event.target.closest('button')) return;
+      void actions.selectDate(cell.date, {openDetail: true});
+    });
+    cellNode.appendChild(header);
+    if (holidayLabel) cellNode.appendChild(holidayLabel);
+    cellNode.appendChild(stack);
+    grid.appendChild(cellNode);
+  }
+
+  calendar.append(weekdays, grid);
+  // 기상청 출처표시는 날짜 칸에 예보가 실제로 그려졌을 때만, 그 그리드 바로
+  // 아래에 붙는다. 셸의 행으로 두면 휴대폰에서 기본으로 열려 있는 날짜 시트에
+  // 통째로 가려져서, 의무인 표기가 화면에 없는 것과 같아진다.
+  // .calendar-month 의 grid-template-rows(데스크톱)는 건드리지 않는다:
+  // 명시적으로 3행에 놓아 암시적 행을 만들어 쓴다.
+  if (weatherCredit) {
+    const creditLine = document.createElement('p');
+    creditLine.className = 'calendar-weather-credit';
+    creditLine.dataset.calendarWeatherCredit = '';
+    creditLine.textContent = weatherCredit.text;
+    calendar.appendChild(creditLine);
+  }
+  // 날씨를 못 불러왔으면 그 자리에 그렇게 적는다. 출처 줄과 같은 자리·같은 톤:
+  // 일정 위로 올라와 달력을 밀어내지 않고, 빈 칸이 원인 없이 남지도 않는다.
+  if (!weatherCredit && state.weatherMessage) {
+    const notice = document.createElement('p');
+    notice.className = 'calendar-weather-credit';
+    notice.dataset.calendarWeatherNotice = '';
+    notice.setAttribute('role', 'status');
+    notice.textContent = state.weatherMessage;
+    calendar.appendChild(notice);
+  }
+  const panel = dayPanel(state, groups, actions);
+  // Order matters: existing runtime checks read layout.children[0] as the month and
+  // layout.children[1] as the selected-day surface. The sheet backdrop is appended
+  // after both so that contract is preserved.
+  layout.append(calendar, panel);
+  if (usesFlowingDayDetail()) {
+    bindMonthSwipe(calendar, {
+      onPrevious: () => void actions.shiftMonth?.(-1),
+      onNext: () => void actions.shiftMonth?.(1),
+      isBusy: () => Boolean(state.loading),
+    });
+  }
+  const schedule = globalThis.requestAnimationFrame || (callback => globalThis.setTimeout(callback, 0));
+  schedule(() => { if (layout.isConnected) syncMonthLayout(layout); });
+  return layout;
+}
+
+function renderYear(state, actions) {
+  const grid = document.createElement('div');
+  grid.className = 'calendar-year-grid';
+  grid.setAttribute('aria-label', `${state.year}년 연간 달력`);
+  const counts = countCalendarEventsByMonth(state.items, state.year);
+  for (const month of calendarYearOverview(state.year, state.weekStart)) {
+    const card = button('', 'calendar-year-month');
+    card.dataset.yearMonth = String(month.month);
+    card.dataset.current = String(state.year === civilDateParts(state.todayDate).year && month.month === civilDateParts(state.todayDate).month);
+    const title = document.createElement('strong'); title.textContent = month.label;
+    const weekdays = document.createElement('span'); weekdays.className = 'calendar-mini-weekdays'; weekdays.textContent = weekdayOrder(state.weekStart).map(weekday => WEEKDAY_INITIALS[weekday]).join(' ');
+    const dates = document.createElement('span'); dates.className = 'calendar-mini-grid';
+    for (const cell of month.cells) {
+      const day = document.createElement('span'); day.textContent = cell.inCurrentMonth ? String(cell.day) : ''; dates.appendChild(day);
+    }
+    const count = document.createElement('span'); count.className = 'calendar-year-event-count'; count.textContent = `일정 ${counts[month.month - 1]}개`;
+    card.append(title, weekdays, dates, count);
+    card.setAttribute('aria-label', `${state.year}년 ${month.month}월, 일정 ${counts[month.month - 1]}개, 월간 보기`);
+    card.addEventListener('click', () => actions.selectMonth(month.month));
+    grid.appendChild(card);
+  }
+  return grid;
+}
+
+function renderAgenda(state, actions) {
+  const section = document.createElement('section');
+  section.className = 'calendar-agenda-view';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'calendar-agenda-toolbar';
+  toolbar.setAttribute('aria-label', '일정 필터');
+  for (const [scope, label] of [
+    ['all', '전체'],
+    ['today', '오늘'],
+    ['week', '이번 주'],
+    ['month', '이번 달'],
+    ['reservation', '예약'],
+    ['payment', '결제'],
+    ['schedule', '일정'],
+  ]) {
+    const control = button(label, 'calendar-agenda-range');
+    control.dataset.agendaScope = scope;
+    control.setAttribute('aria-pressed', String(state.agendaScope === scope));
+    control.addEventListener('click', () => actions.setAgendaScope(scope));
+    toolbar.appendChild(control);
+  }
+  section.appendChild(toolbar);
+
+  const filterAnchor = state.agendaScope === 'month'
+    ? `${state.year}-${String(state.month).padStart(2, '0')}-01`
+    : state.todayDate;
+  const items = filterScheduleItems(state.items, state.agendaScope, {
+    today: filterAnchor,
+    weekStart: state.weekStart,
+  });
+
+  // 확인 필요 탭이 유일하게 하던 일 -- 지금 달에 없는 지난 기한 -- 을 여기서
+  // 이어받는다. 달력 칸의 기한 표시(attentionDates)는 그대로 두고, 이 묶음은
+  // 이번 달 범위에서만 나온다: '오늘'·'이번 주' 는 그 날짜의 일정을 보는 자리다.
+  const overdue = (state.agendaScope === 'month' || state.agendaScope === 'all')
+    ? (state.attention || []).filter(item => item?.state === 'OVERDUE' && validCivilDate(item.due_date))
+    : [];
+  const showUnscheduled = ['all', 'month', 'schedule'].includes(state.agendaScope) && state.unscheduled.length > 0;
+  if (overdue.length) {
+    const group = document.createElement('section');
+    group.className = 'calendar-overdue-group';
+    group.dataset.calendarOverdueGroup = '';
+    const heading = document.createElement('h3');
+    heading.textContent = '기한 지남';
+    const note = document.createElement('p');
+    note.className = 'calendar-unscheduled-note';
+    note.textContent = '기한이 지난 일입니다. 이번 달 달력에 없는 것도 여기 남습니다.';
+    group.append(heading, note, eventList(overdue.map(item => ({
+      ...item,
+      local_date: item.due_date,
+      local_datetime: null,
+      calendar_attention_state: item.state,
+    }))));
+    section.appendChild(group);
+  }
+  if (!items.length && !showUnscheduled && !overdue.length) {
+    section.appendChild(emptyMessage('이 기간에는 일정이 없어요.'));
+    return section;
+  }
+
+  const groups = groupCalendarEvents(items);
+  for (const [date, values] of groups) {
+    const group = document.createElement('section');
+    const heading = document.createElement('h3');
+    heading.textContent = koreanDate(date);
+    group.append(heading, eventList(values, {onSelect: actions.onEvent}));
+    section.appendChild(group);
+  }
+  if (showUnscheduled) {
+    const group = document.createElement('section');
+    group.className = 'calendar-unscheduled-group';
+    const heading = document.createElement('h3');
+    heading.textContent = '날짜 미정';
+    const note = document.createElement('p');
+    note.className = 'calendar-unscheduled-note';
+    note.textContent = '날짜를 정하지 않은 일정입니다. 열어서 날짜를 추가하거나 그대로 둘 수 있어요.';
+    group.append(heading, note, eventList(state.unscheduled, {onSelect: actions.onEvent}));
+    section.appendChild(group);
+  }
+  return section;
+}
+
+function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () => {}, onWeatherRegionChange, buildLocationRow, getWeatherLocationPresentation, authenticated, sessionToken, fetchImpl}) {
+  const opener = document.activeElement;
+  root.querySelector('.calendar-settings-backdrop')?.remove();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-settings-backdrop';
+  const dialog = document.createElement('section');
+  dialog.className = 'calendar-settings-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'calendar-settings-heading');
+
+  const header = document.createElement('div');
+  header.className = 'calendar-settings-header';
+  const heading = document.createElement('h3');
+  heading.id = 'calendar-settings-heading';
+  heading.textContent = '캘린더 설정';
+  const close = button('×', 'calendar-settings-close');
+  close.setAttribute('aria-label', '캘린더 설정 닫기');
+  header.append(heading, close);
+
+  const body = document.createElement('div');
+  body.className = 'calendar-settings-body';
+  const section = document.createElement('section');
+  const sectionTitle = document.createElement('h4');
+  sectionTitle.textContent = '표시';
+  const row = document.createElement('label');
+  row.className = 'calendar-settings-toggle-row';
+  const copy = document.createElement('span');
+  const label = document.createElement('strong');
+  label.textContent = '대한민국 공휴일 표시';
+  const description = document.createElement('small');
+  description.textContent = '대한민국 공휴일을 개인 일정과 구분해 표시합니다.';
+  copy.append(label, description);
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.checked = state.showKoreaHolidays;
+  toggle.setAttribute('aria-label', '대한민국 공휴일 표시');
+  row.append(copy, toggle);
+
+  // 격자선: the lines are already on today, so this switch turns them OFF for a
+  // flatter month. Framed that way on screen too -- a setting that claims to add
+  // something already there reads as broken the first time it is toggled.
+  const gridRow = document.createElement('label');
+  gridRow.className = 'calendar-settings-toggle-row';
+  const gridCopy = document.createElement('span');
+  const gridLabel = document.createElement('strong');
+  gridLabel.textContent = '격자선 표시';
+  const gridDescription = document.createElement('small');
+  gridDescription.textContent = '날짜 칸 사이의 선을 표시합니다. 끄면 달력이 더 단순해 보여요.';
+  gridCopy.append(gridLabel, gridDescription);
+  const gridToggle = document.createElement('input');
+  gridToggle.type = 'checkbox';
+  gridToggle.checked = state.showGridLines !== false;
+  gridToggle.setAttribute('aria-label', '격자선 표시');
+  gridRow.append(gridCopy, gridToggle);
+
+  const weekStartRow = document.createElement('div');
+  weekStartRow.className = 'calendar-settings-select-row';
+  const weekStartCopy = document.createElement('span');
+  const weekStartLabel = document.createElement('strong');
+  weekStartLabel.textContent = '주 시작 요일';
+  const weekStartDescription = document.createElement('small');
+  weekStartDescription.textContent = '달력의 첫 칸을 어느 요일로 둘지 정합니다.';
+  weekStartCopy.append(weekStartLabel, weekStartDescription);
+  const weekStartSelect = document.createElement('select');
+  weekStartSelect.className = 'calendar-settings-select';
+  weekStartSelect.id = 'calendar-settings-week-start';
+  weekStartSelect.setAttribute('aria-label', '주 시작 요일');
+  for (const option of CALENDAR_WEEK_STARTS) {
+    const node = document.createElement('option');
+    node.value = String(option.value);
+    node.textContent = option.label;
+    weekStartSelect.appendChild(node);
+  }
+  weekStartSelect.value = String(state.weekStart);
+  weekStartLabel.id = 'calendar-settings-week-start-label';
+  weekStartRow.append(weekStartCopy, weekStartSelect);
+
+  section.append(sectionTitle, row, gridRow, weekStartRow);
+  body.appendChild(section);
+
+  const weatherSection = document.createElement('section');
+  weatherSection.className = 'calendar-settings-section';
+  const weatherTitle = document.createElement('h4');
+  weatherTitle.textContent = '날씨';
+  const weatherOverview = document.createElement('div');
+  weatherOverview.className = 'calendar-settings-weather-overview';
+  const weatherRegionSummary = document.createElement('strong');
+  const weatherRelationship = document.createElement('small');
+  const syncWeatherOverview = () => {
+    const presentation = typeof getWeatherLocationPresentation === 'function'
+      ? getWeatherLocationPresentation()
+      : calendarWeatherLocationPresentation({
+        manualWeatherRegion: state.manualWeatherRegion,
+        weatherRegionOrigin: state.weatherRegionOrigin,
+      });
+    weatherRegionSummary.textContent = presentation.manualSummary;
+    weatherRelationship.textContent = presentation.relationship;
+  };
+  weatherOverview.append(weatherRegionSummary, weatherRelationship);
+  syncWeatherOverview();
+  // Current location first, manual region as its fallback: the same order the
+  // weather read applies them in.
+  const locationRow = typeof buildLocationRow === 'function' ? buildLocationRow() : null;
+
+  // 직접 입력은 없앴다. 자기 위치를 문장으로 적어 넣는 사람은 없고, 오타 하나가
+  // 날씨를 통째로 사라지게 만들었다. 대신 Core 가 내려주는 목록 그대로
+  // 광역시·도 → 시·군·구 두 단계로 고른다: 2단계에는 1단계에 속한 것만 나온다.
+  const provinceRow = document.createElement('div');
+  provinceRow.className = 'calendar-settings-select-row';
+  const provinceCopy = document.createElement('span');
+  const provinceLabel = document.createElement('strong');
+  provinceLabel.textContent = '광역시·도';
+  const provinceDescription = document.createElement('small');
+  provinceDescription.textContent = '먼저 광역시·도를 고르세요.';
+  provinceCopy.append(provinceLabel, provinceDescription);
+  const provinceSelect = document.createElement('select');
+  provinceSelect.className = 'calendar-settings-select';
+  provinceSelect.setAttribute('aria-label', '날씨 지역 광역시·도');
+  provinceRow.append(provinceCopy, provinceSelect);
+
+  const cityRow = document.createElement('div');
+  cityRow.className = 'calendar-settings-select-row';
+  const cityCopy = document.createElement('span');
+  const cityLabel = document.createElement('strong');
+  cityLabel.textContent = '시·군·구';
+  const cityDescription = document.createElement('small');
+  cityDescription.textContent = '고른 광역시·도에 속한 지역만 나옵니다.';
+  cityCopy.append(cityLabel, cityDescription);
+  const citySelect = document.createElement('select');
+  citySelect.className = 'calendar-settings-select';
+  citySelect.setAttribute('aria-label', '날씨 지역 시·군·구');
+  cityRow.append(cityCopy, citySelect);
+
+  const weatherRow = document.createElement('div');
+  weatherRow.className = 'calendar-settings-region-row';
+  const weatherClear = button('수동 지역 해제', 'calendar-settings-action-button');
+  weatherClear.dataset.calendarWeatherManualClear = '';
+  weatherClear.hidden = !state.manualWeatherRegion;
+  const weatherRetry = button('지역 목록 다시 불러오기', 'calendar-settings-action-button');
+  weatherRetry.hidden = true;
+  weatherRow.append(weatherClear, weatherRetry);
+  const weatherStatus = document.createElement('small');
+  weatherStatus.className = 'calendar-settings-status';
+  const storedRegionStatusText = () => (typeof getWeatherLocationPresentation === 'function'
+    ? getWeatherLocationPresentation()
+    : calendarWeatherLocationPresentation({
+      manualWeatherRegion: state.manualWeatherRegion,
+      weatherRegionOrigin: state.weatherRegionOrigin,
+    })).manualSummary;
+  weatherStatus.textContent = storedRegionStatusText();
+  weatherSection.append(weatherTitle, weatherOverview);
+  if (locationRow) weatherSection.appendChild(locationRow);
+  weatherSection.append(provinceRow, cityRow, weatherRow, weatherStatus);
+  body.appendChild(weatherSection);
+
+  const setOptions = (select, options, placeholder) => {
+    select.replaceChildren();
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = placeholder;
+    select.appendChild(first);
+    for (const option of options) {
+      const node = document.createElement('option');
+      node.value = option.value;
+      node.textContent = option.label;
+      select.appendChild(node);
+    }
+    select.value = '';
+  };
+
+  setOptions(provinceSelect, [], '불러오는 중…');
+  setOptions(citySelect, [], '광역시·도를 먼저 고르세요');
+  provinceSelect.disabled = true;
+  citySelect.disabled = true;
+
+  let regionCatalog = null;
+  const fillCities = province => {
+    const items = (regionCatalog?.items || []).filter(item => item.province === province);
+    if (!province || !items.length) {
+      setOptions(citySelect, [], '광역시·도를 먼저 고르세요');
+      citySelect.disabled = true;
+      return;
+    }
+    setOptions(citySelect, items.map(item => ({value: item.code, label: item.label})), '시·군·구 선택');
+    citySelect.disabled = false;
+    const selected = (regionCatalog?.items || []).find(item => item.displayLabel === state.manualWeatherRegion?.label);
+    if (selected && selected.province === province) citySelect.value = selected.code;
+  };
+
+  const showProvinceOptions = () => {
+    setOptions(
+      provinceSelect,
+      regionCatalog.provinces.map(province => ({value: province, label: province})),
+      '광역시·도 선택',
+    );
+    provinceSelect.disabled = false;
+    // 이미 저장된 지역이 있으면 그것이 어디에 속한 것인지 그대로 보여준다.
+    const selected = regionCatalog.items.find(item => item.displayLabel === state.manualWeatherRegion?.label);
+    if (selected) {
+      provinceSelect.value = selected.province;
+      fillCities(selected.province);
+    } else {
+      fillCities('');
+    }
+  };
+
+  // 현재 위치가 해결되는 동안에도 Settings는 열린 채로 남는다. 그 경우 overview
+  // 문구만 바꾸면 아래 두 선택칸은 빈 값으로 남아, 위치가 적용되지 않은 것처럼
+  // 보인다. 같은 catalog 항목을 찾아 두 칸도 즉시 현재 지역으로 맞춘다.
+  const syncWeatherRegionSelects = () => {
+    if (!regionCatalog) return;
+    const selected = regionCatalog.items.find(
+      item => item.displayLabel === state.manualWeatherRegion?.label,
+    );
+    if (!selected) return;
+    provinceSelect.value = selected.province;
+    fillCities(selected.province);
+    citySelect.value = selected.code;
+    weatherStatus.textContent = storedRegionStatusText();
+  };
+  root.addEventListener(CALENDAR_WEATHER_REGION_SYNC_EVENT, syncWeatherRegionSelects);
+
+  const loadRegionOptions = async () => {
+    weatherRetry.hidden = true;
+    provinceSelect.disabled = true;
+    citySelect.disabled = true;
+    setOptions(provinceSelect, [], '불러오는 중…');
+    const {catalog, failure} = await readCalendarWeatherRegions(fetchImpl);
+    if (!backdrop.isConnected) return;
+    if (catalog) {
+      regionCatalog = catalog;
+      writeCalendarWeatherRegionList(storage, catalog);
+      showProvinceOptions();
+      weatherStatus.textContent = storedRegionStatusText();
+      return;
+    }
+    // 서버가 답하지 않는다고 해서 고를 것이 하나도 없는 빈 상자를 내밀지는 않는다.
+    // 전에 받아 둔 목록이 있으면 그것으로 고를 수 있게 하고, 그것이 어제 것임을
+    // 숨기지 않는다.
+    const cached = readCalendarWeatherRegionList(storage);
+    if (cached) {
+      regionCatalog = cached;
+      showProvinceOptions();
+      weatherRetry.hidden = false;
+      weatherStatus.textContent = `${weatherRegionListFailureCopy(failure)} 지금은 전에 받아 둔 목록으로 고를 수 있어요.`;
+      return;
+    }
+    setOptions(provinceSelect, [], '목록을 불러오지 못했어요');
+    weatherRetry.hidden = false;
+    weatherStatus.textContent = `${weatherRegionListFailureCopy(failure)} 다시 불러오거나 현재 위치를 사용해 주세요.`;
+  };
+
+  provinceSelect.addEventListener('change', () => { fillCities(provinceSelect.value); });
+  weatherRetry.addEventListener('click', () => { void loadRegionOptions(); });
+
+  // 설정창을 연 것은 사용자의 명시적인 동작이다. 목록은 그때 읽고, 좌표를 묻는
+  // 지오코딩은 사용자가 시·군·구를 고른 뒤에만 한다 -- 마운트에서는 어느 것도 없다.
+  void loadRegionOptions();
+
+  citySelect.addEventListener('change', async () => {
+    const chosen = (regionCatalog?.items || []).find(item => item.code === citySelect.value);
+    if (!chosen) return;
+    provinceSelect.disabled = true;
+    citySelect.disabled = true;
+    weatherStatus.textContent = '지역을 확인하는 중…';
+    try {
+      // 목록이 좌표를 들고 왔으면 그것이 곧 답이다. 같은 좌표를 지오코더에게 다시
+      // 묻는 것은 왕복 한 번을 더 쓰는 일이고, 그 왕복은 날씨 조회와 분당 한도를
+      // 나눠 쓴다.
+      const listed = Number.isFinite(chosen.latitude) && Number.isFinite(chosen.longitude)
+        ? {latitude: chosen.latitude, longitude: chosen.longitude, midRegionCode: null}
+        : null;
+      const result = listed
+        ? {providerReady: true, found: true, region: listed}
+        : await resolvePublicWeatherRegion(chosen.displayLabel, fetchImpl);
+      if (!result.providerReady) {
+        weatherStatus.textContent = '현재 지역 검색 기능을 준비 중이에요.';
+        return;
+      }
+      if (!result.found || !result.region) {
+        weatherStatus.textContent = '이 지역의 좌표를 확인하지 못했어요. 다른 지역을 골라 주세요.';
+        return;
+      }
+      // 이름은 우리가 보여준 목록의 이름을 그대로 쓴다. 지오코더가 돌려주는 이름은
+      // 사용자가 고르지 않은 이름일 수 있고, 고른 것과 다른 이름을 적으면 거짓말이다.
+      const region = {
+        label: chosen.displayLabel,
+        latitude: result.region.latitude,
+        longitude: result.region.longitude,
+        midRegionCode: result.region.midRegionCode || null,
+      };
+      if (!writeCalendarManualWeatherRegion(region, storage)) {
+        weatherStatus.textContent = '이 브라우저에 지역 설정을 저장하지 못했어요.';
+        return;
+      }
+      writeWeatherRegionOrigin(storage, WEATHER_REGION_ORIGIN.MANUAL);
+      state.manualWeatherRegion = region;
+      state.weatherRegionOrigin = WEATHER_REGION_ORIGIN.MANUAL;
+      weatherClear.hidden = false;
+      syncWeatherOverview();
+      weatherStatus.textContent = storedRegionStatusText();
+      await onWeatherRegionChange(region);
+    } catch (error) {
+      console.warn('[LOTBI 캘린더] 날씨 지역을 확인하지 못했습니다.', error);
+      weatherStatus.textContent = error instanceof SiteCoreError
+        ? error.message
+        : '날씨 지역을 확인하지 못했어요.';
+    } finally {
+      if (backdrop.isConnected) {
+        provinceSelect.disabled = false;
+        citySelect.disabled = false;
+      }
+    }
+  });
+
+  weatherClear.addEventListener('click', async () => {
+    clearCalendarManualWeatherRegion(storage);
+    writeWeatherRegionOrigin(storage, null);
+    state.manualWeatherRegion = null;
+    state.weatherRegionOrigin = null;
+    citySelect.value = '';
+    weatherClear.hidden = true;
+    syncWeatherOverview();
+    weatherStatus.textContent = '저장된 지역을 해제했습니다. 현재 위치를 다시 사용할 수 있어요.';
+    await onWeatherRegionChange(null);
+  });
+
+  const notificationSection = document.createElement('section');
+  notificationSection.className = 'calendar-settings-section';
+  const notificationTitle = document.createElement('h4');
+  notificationTitle.textContent = '알림';
+  const notificationRow = document.createElement('div');
+  notificationRow.className = 'calendar-settings-action-row';
+  const notificationCopy = document.createElement('span');
+  const notificationLabel = document.createElement('strong');
+  notificationLabel.textContent = '일정 알림';
+  const notificationStatus = document.createElement('small');
+  notificationStatus.className = 'calendar-settings-status';
+  const notificationButton = button('알림 사용', 'calendar-settings-action-button');
+  notificationButton.setAttribute('aria-label', '일정 알림 사용');
+  notificationCopy.append(notificationLabel, notificationStatus);
+  notificationRow.append(notificationCopy, notificationButton);
+  notificationSection.append(notificationTitle, notificationRow);
+  // 이 절은 아직 화면에 붙이지 않는다. 서버에 알림 서명 키가 없으면 버튼은
+  // 껍데기이고, 껍데기를 비활성 상태로 남겨 두는 것도 설명이 필요한 잔재다.
+  // 붙일지는 아래에서 config 를 읽어 결정한다 -- 지우는 것이 아니라 조건부 렌더링이므로
+  // 서버가 켜지면 이 코드가 그대로 다시 항목을 그린다.
+
+  const currentNotificationPermission = () => getBrowserNotificationPermissionState();
+  const renderNotificationState = (message = '') => {
+    const permission = currentNotificationPermission();
+    notificationButton.disabled = !authenticated
+      || permission === BROWSER_NOTIFICATION_PERMISSION.DENIED
+      || permission === BROWSER_NOTIFICATION_PERMISSION.UNAVAILABLE;
+    if (!authenticated) {
+      notificationButton.textContent = '로그인 후 사용';
+      notificationStatus.textContent = '로그인된 계정에서 일정 알림을 연결할 수 있어요.';
+      return;
+    }
+    if (message) {
+      notificationStatus.textContent = message;
+    } else if (permission === BROWSER_NOTIFICATION_PERMISSION.GRANTED) {
+      notificationStatus.textContent = '브라우저 알림 권한이 허용되어 있어요.';
+    } else if (permission === BROWSER_NOTIFICATION_PERMISSION.DENIED) {
+      notificationStatus.textContent = '브라우저 사이트 설정에서 알림을 허용해 주세요.';
+    } else if (permission === BROWSER_NOTIFICATION_PERMISSION.UNAVAILABLE) {
+      notificationStatus.textContent = '이 브라우저에서는 알림 기능을 사용할 수 없어요.';
+    } else {
+      notificationStatus.textContent = '버튼을 누를 때만 브라우저가 알림 권한을 요청합니다.';
+    }
+    notificationButton.textContent = permission === BROWSER_NOTIFICATION_PERMISSION.GRANTED
+      ? '알림 연결'
+      : '알림 사용';
+  };
+
+  notificationButton.addEventListener('click', async () => {
+    if (!authenticated || notificationButton.disabled) return;
+    notificationButton.disabled = true;
+    notificationStatus.textContent = '알림 준비 상태를 확인하는 중…';
+    try {
+      const config = await getCalendarPushConfig(fetchImpl);
+      if (!config.ready || !config.dispatchReady) {
+        renderNotificationState('현재 알림 전송 기능을 준비 중이에요.');
+        return;
+      }
+      const permission = await requestBrowserNotificationPermissionForFeature();
+      if (permission !== BROWSER_NOTIFICATION_PERMISSION.GRANTED) {
+        renderNotificationState(
+          permission === BROWSER_NOTIFICATION_PERMISSION.DENIED
+            ? '브라우저 사이트 설정에서 알림을 허용해 주세요.'
+            : '알림 권한을 사용할 수 없어요.',
+        );
+        return;
+      }
+      const registration = await registerCalendarPushWorker();
+      const subscription = await subscribeCalendarPush({
+        registration,
+        vapidPublicKey: config.vapidPublicKey,
+      });
+      const coreSubscription = await registerCalendarPushSubscriptionWithCore({
+        sessionToken,
+        subscription,
+        fetchImpl,
+      });
+      try {
+        storage?.setItem?.(CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY, JSON.stringify({
+          pushSubscriptionId: coreSubscription.push_subscription_id,
+          updatedAt: new Date().toISOString(),
+        }));
+      } catch {
+        // Push registration remains authoritative even when local metadata cannot be persisted.
+      }
+      renderNotificationState('일정 알림을 사용할 준비가 됐어요.');
+    } catch (error) {
+      const copy = error instanceof SiteCoreError && error.retryable
+        ? '알림 연결을 완료하지 못했어요. 다시 시도해 주세요.'
+        : '알림 연결을 완료하지 못했어요.';
+      renderNotificationState(copy);
+    } finally {
+      if (backdrop.isConnected && currentNotificationPermission() !== BROWSER_NOTIFICATION_PERMISSION.DENIED) {
+        notificationButton.disabled = false;
+      }
+    }
+  });
+
+  // 알림 항목은 서버가 실제로 보낼 수 있을 때만 존재한다. web_push 가 꺼져 있거나
+  // 서명 키가 없으면 제목·버튼·설명문 전체를 그리지 않는다. 조회가 실패해도 감춘다:
+  // 보낼 수 있는지 모르는 상태에서 "알림 사용" 을 내밀면 약속이 된다.
+  void (async () => {
+    let dispatchable = false;
+    try {
+      const config = await getCalendarPushConfig(fetchImpl);
+      dispatchable = config.enabled === true && config.ready === true && config.dispatchReady === true;
+    } catch (error) {
+      console.warn('[LOTBI 캘린더] 알림 준비 상태를 확인하지 못해 알림 항목을 감춥니다.', error);
+      dispatchable = false;
+    }
+    if (!dispatchable || !backdrop.isConnected) return;
+    body.appendChild(notificationSection);
+    renderNotificationState();
+  })();
+
+  dialog.append(header, body);
+  backdrop.appendChild(dialog);
+
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    root.removeEventListener(CALENDAR_WEATHER_REGION_SYNC_EVENT, syncWeatherRegionSelects);
+    backdrop.remove();
+    const focusTarget = opener instanceof HTMLElement && opener.isConnected
+      ? opener
+      : root.querySelector('.calendar-settings-button');
+    focusTarget?.focus();
+  };
+  close.addEventListener('click', dismiss);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      dismiss();
+      return;
+    }
+    if (event.key === 'Tab') {
+      const focusable = [...dialog.querySelectorAll('button, input, select, summary')]
+        .filter(control => !control.disabled && !control.hidden && !control.closest('[hidden]'));
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  });
+  toggle.addEventListener('change', () => {
+    state.showKoreaHolidays = toggle.checked;
+    writeCalendarDisplaySettings(storage, state);
+    void onChange(toggle.checked);
+  });
+
+  // Neither of these needs new data, so they repaint rather than refetch. If the
+  // write fails the screen still follows the switch -- the setting is lost on
+  // the next load, the Calendar is not lost now.
+  gridToggle.addEventListener('change', () => {
+    state.showGridLines = gridToggle.checked;
+    writeCalendarDisplaySettings(storage, state);
+    onRedraw();
+  });
+
+  weekStartSelect.addEventListener('change', () => {
+    state.weekStart = normalizeWeekStart(Number(weekStartSelect.value));
+    weekStartSelect.value = String(state.weekStart);
+    writeCalendarDisplaySettings(storage, state);
+    onRedraw();
+  });
+
+  root.appendChild(backdrop);
+  queueMicrotask(() => toggle.focus());
+}
+
+function calendarReadonlyDetailDialog({root, item, opener = null, onClose = () => {}}) {
+  root.querySelector('.calendar-readonly-backdrop')?.remove();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-readonly-backdrop';
+  const dialog = document.createElement('section');
+  dialog.className = 'calendar-readonly-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'calendar-readonly-heading');
+
+  const header = document.createElement('div');
+  header.className = 'calendar-readonly-header';
+  const heading = document.createElement('h3');
+  heading.id = 'calendar-readonly-heading';
+  heading.textContent = '일정 상세';
+  const close = button('×', 'calendar-readonly-close');
+  close.setAttribute('aria-label', '읽기 전용 일정 닫기');
+  header.append(heading, close);
+
+  const title = document.createElement('strong');
+  title.className = 'calendar-readonly-title';
+  title.textContent = item?.title || '일정';
+  const notice = document.createElement('p');
+  notice.className = 'calendar-readonly-notice';
+  notice.textContent = '읽기 전용 일정';
+  const details = document.createElement('dl');
+  details.className = 'calendar-readonly-details';
+  const presentation = calendarEventPresentation(item);
+  const entry = item?.entry && typeof item.entry === 'object' ? item.entry : {};
+  const rows = [
+    ['시간', eventTime(item)],
+    ['종류 · 상태', [presentation.typeLabel, presentation.statusLabel].filter(Boolean).join(' · ')],
+    ['장소', entry.place || ''],
+    ['예약처', entry.merchant || ''],
+    ['메모', entry.memo || ''],
+    ['출처', item?.source_kind === 'LIFE_RESULT' ? '연결된 결과' : '직접 입력'],
+  ];
+  for (const [label, value] of rows) {
+    if (!value) continue;
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const description = document.createElement('dd');
+    description.textContent = String(value);
+    details.append(term, description);
+  }
+
+  const footer = document.createElement('div');
+  footer.className = 'calendar-readonly-actions';
+  const done = button('닫기', 'calendar-readonly-done');
+  footer.append(done);
+  dialog.append(header, title, notice, details, footer);
+  backdrop.append(dialog);
+  root.append(backdrop);
+
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    backdrop.remove();
+    if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    else onClose();
+  };
+  close.addEventListener('click', dismiss);
+  done.addEventListener('click', dismiss);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      dismiss();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [close, done].filter(control => !control.disabled);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  queueMicrotask(() => close.focus());
+  return dialog;
+}
+
+function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
+  root.querySelector('.calendar-editor-backdrop')?.remove();
+  document.body.classList.remove('calendar-editor-open');
+
+  const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
+  const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
+  dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
+  const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
+  const itemPolicy = calendarItemActionPolicy(item);
+  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 등록');
+  const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
+  const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
+  editorHeader.append(heading, closeButton);
+  const form = document.createElement('form'); form.className = 'calendar-editor-form';
+  const editorBody = document.createElement('div'); editorBody.className = 'calendar-editor-body';
+
+  document.body.classList.add('calendar-editor-open');
+  let viewportCleanup = () => {};
+  if (usesFlowingDayDetail()) {
+    viewportCleanup = bindVisualViewport(backdrop, {
+      heightVar: '--calendar-editor-visual-height',
+      topVar: '--calendar-editor-visual-top',
+    });
+  }
+  let editorEnvironmentReleased = false;
+  const releaseEditorEnvironment = () => {
+    if (editorEnvironmentReleased) return;
+    editorEnvironmentReleased = true;
+    viewportCleanup();
+    document.body.classList.remove('calendar-editor-open');
+  };
+
+  const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목 *';
+  const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || draft?.title || '';
+  titleLabel.appendChild(titleInput);
+  const titleNote = document.createElement('small'); titleNote.id = 'calendar-editor-title-note'; titleNote.textContent = '제목만 있으면 저장할 수 있어요. 나머지는 선택 사항입니다.';
+
+  const dateLabel = document.createElement('label'); dateLabel.textContent = '날짜';
+  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.value = item?.local_date || canonicalActivityLocalDate(item) || (draft ? (draft.localDate || '') : (selectedDate || '')); dateLabel.appendChild(dateInput);
+
+  const allDayLabel = document.createElement('label'); allDayLabel.className = 'calendar-editor-all-day';
+  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = item ? isAllDay(item) : !draft?.localTime; allDayLabel.append(allDayInput, document.createTextNode('종일'));
+
+  const primary = document.createElement('div'); primary.className = 'calendar-editor-primary';
+  const details = document.createElement('details'); details.className = 'calendar-editor-details';
+  const detailsSummary = document.createElement('summary'); detailsSummary.textContent = '상세 입력 (선택)';
+  details.append(detailsSummary);
+
+  const timeControl = document.createElement('div'); timeControl.className = 'calendar-editor-time-control';
+  const timeLabel = document.createElement('span'); timeLabel.textContent = '시작 시간';
+  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'text'; timeInput.inputMode = 'numeric'; timeInput.maxLength = 5; timeInput.placeholder = 'HH:mm'; timeInput.setAttribute('aria-label', '시작 시간 네 자리 숫자 또는 HH:mm'); timeInput.value = item?.local_datetime?.slice(11, 16) || draft?.localTime || '';
+  const endTimeInput = document.createElement('input'); endTimeInput.className = 'calendar-editor-end-time'; endTimeInput.type = 'text'; endTimeInput.inputMode = 'numeric'; endTimeInput.maxLength = 5; endTimeInput.placeholder = 'HH:mm'; endTimeInput.setAttribute('aria-label', '종료 시간 네 자리 숫자 또는 HH:mm'); endTimeInput.value = item?.local_end_datetime?.slice(11, 16) || draft?.endLocalTime || '';
+  const existingEndDate = item?.local_end_date || item?.local_end_datetime?.slice(0, 10) || draft?.endLocalDate || '';
+  const hasMultiDayEnd = Boolean(existingEndDate && existingEndDate !== dateInput.value);
+  const endDateLabel = document.createElement('label'); endDateLabel.className = 'calendar-editor-end-date-label'; endDateLabel.textContent = '종료 날짜';
+  const endDateInput = document.createElement('input'); endDateInput.className = 'calendar-editor-end-date'; endDateInput.type = 'date'; endDateInput.value = hasMultiDayEnd ? existingEndDate : '';
+  endDateLabel.append(endDateInput);
+  endDateLabel.hidden = !hasMultiDayEnd;
+  const timeTrigger = button('', 'calendar-editor-time-trigger');
+  const endTimeTrigger = button('', 'calendar-editor-end-time-trigger');
+  const timeSheet = document.createElement('div'); timeSheet.className = 'calendar-editor-time-sheet'; timeSheet.hidden = true; timeSheet.setAttribute('role', 'group'); timeSheet.setAttribute('aria-label', '시간 선택');
+  timeSheet.id = 'calendar-editor-time-sheet';
+  for (const trigger of [timeTrigger, endTimeTrigger]) {
+    trigger.setAttribute('aria-controls', timeSheet.id);
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+  const quickTimes = document.createElement('div'); quickTimes.className = 'calendar-editor-time-quick';
+  for (const time of ['09:00', '12:00', '18:00']) {
+    const quick = button(time, 'calendar-editor-time-quick-choice'); quick.dataset.quickTime = time; quickTimes.appendChild(quick);
+  }
+  const clearTime = button('시간 지우기', 'calendar-editor-time-clear');
+  const doneTime = button('완료', 'calendar-editor-time-done');
+  const sheetActions = document.createElement('div'); sheetActions.className = 'calendar-editor-time-actions'; sheetActions.append(clearTime, doneTime);
+  timeSheet.append(quickTimes, timeInput, endTimeInput, sheetActions);
+  timeControl.append(timeLabel, timeTrigger, endTimeTrigger, timeSheet);
+  let activeTimeInput = timeInput;
+  let activeTimeTrigger = timeTrigger;
+  const refreshTimeLabels = () => {
+    timeTrigger.textContent = timeInput.value || '시작 시간 선택';
+    endTimeTrigger.textContent = endTimeInput.value ? `종료 ${endTimeInput.value}` : '종료 시간 추가 (선택)';
+  };
+  const closeTimeSheet = ({restoreFocus = true} = {}) => {
+    timeSheet.hidden = true;
+    timeTrigger.setAttribute('aria-expanded', 'false'); endTimeTrigger.setAttribute('aria-expanded', 'false');
+    timeInput.setAttribute('aria-invalid', 'false'); endTimeInput.setAttribute('aria-invalid', 'false');
+    refreshTimeLabels();
+    if (restoreFocus) activeTimeTrigger.focus();
+  };
+  const openTimeSheet = (input, trigger) => {
+    closeCategorySheet({restoreFocus: false});
+    activeTimeInput = input; activeTimeTrigger = trigger;
+    timeInput.hidden = input !== timeInput; endTimeInput.hidden = input !== endTimeInput;
+    timeSheet.hidden = false;
+    timeTrigger.setAttribute('aria-expanded', String(trigger === timeTrigger));
+    endTimeTrigger.setAttribute('aria-expanded', String(trigger === endTimeTrigger));
+    input.focus();
+  };
+  timeTrigger.addEventListener('click', () => openTimeSheet(timeInput, timeTrigger));
+  endTimeTrigger.addEventListener('click', () => openTimeSheet(endTimeInput, endTimeTrigger));
+  quickTimes.addEventListener('click', event => {
+    const quick = event.target.closest('[data-quick-time]');
+    if (!quick) return;
+    activeTimeInput.value = quick.dataset.quickTime;
+    activeTimeInput.setAttribute('aria-invalid', 'false');
+    activeTimeInput.focus();
+  });
+  clearTime.addEventListener('click', () => {
+    activeTimeInput.value = '';
+    if (activeTimeInput === timeInput) endTimeInput.value = '';
+    closeTimeSheet();
+  });
+  doneTime.addEventListener('click', () => {
+    const normalized = normalizeCalendarClockInput(activeTimeInput.value);
+    if (normalized === null) {
+      activeTimeInput.setAttribute('aria-invalid', 'true'); activeTimeInput.focus(); return;
+    }
+    activeTimeInput.value = normalized;
+    closeTimeSheet();
+  });
+  refreshTimeLabels();
+
+  const syncTemporalControls = () => {
+    const hasDate = Boolean(dateInput.value);
+    allDayInput.disabled = !hasDate;
+    timeControl.hidden = !hasDate || allDayInput.checked;
+    timeInput.disabled = !hasDate || allDayInput.checked;
+    endTimeInput.disabled = !hasDate || allDayInput.checked;
+    timeTrigger.disabled = !hasDate || allDayInput.checked;
+    endTimeTrigger.disabled = !hasDate || allDayInput.checked;
+    if (timeControl.hidden) closeTimeSheet({restoreFocus: false});
+    if (!hasDate) {timeInput.value = ''; endTimeInput.value = ''; refreshTimeLabels();}
+  };
+  dateInput.addEventListener('change', syncTemporalControls);
+  allDayInput.addEventListener('change', syncTemporalControls);
+  syncTemporalControls();
+
+  const entry = item?.entry && typeof item.entry === 'object'
+    ? item.entry
+    : draft?.entry && typeof draft.entry === 'object'
+      ? {
+          amount_minor: draft.entry.amountMinor,
+          currency: draft.entry.currency,
+          expense_category: draft.entry.expenseCategory,
+          memo: draft.entry.memo,
+          place: draft.entry.place,
+          merchant: draft.entry.merchant,
+        }
+      : {};
+  // Not placeholder="0": an empty box showing a grey 0 reads as "0원 recorded"
+  // when it actually means "no amount recorded", and the two are different
+  // things in the totals bar — one is a zero, the other is excluded and
+  // counted. The 대표 read a blank 여행 entry as a saved 0 because of it.
+  const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
+  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
+
+  const categoryLabel = document.createElement('div'); categoryLabel.className = 'calendar-editor-category-field';
+  const categoryHeading = document.createElement('span'); categoryHeading.textContent = '비용 종류'; categoryLabel.append(categoryHeading);
+  const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';
+  categoryInput.hidden = true; categoryInput.setAttribute('aria-hidden', 'true'); categoryInput.tabIndex = -1;
+  for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; categoryInput.appendChild(option);
+  }
+  categoryInput.value = entry.expense_category === 'UNCLASSIFIED' ? '' : (entry.expense_category || '');
+  categoryLabel.appendChild(categoryInput);
+  const categoryTrigger = button('', 'calendar-editor-category-trigger');
+  const categorySheet = document.createElement('div'); categorySheet.className = 'calendar-editor-category-sheet'; categorySheet.hidden = true;
+  categorySheet.setAttribute('role', 'group'); categorySheet.setAttribute('aria-label', '비용 종류 선택');
+  categorySheet.id = 'calendar-editor-category-sheet';
+  categoryTrigger.setAttribute('aria-controls', categorySheet.id); categoryTrigger.setAttribute('aria-expanded', 'false');
+  const closeCategorySheet = ({restoreFocus = true} = {}) => {
+    categorySheet.hidden = true;
+    categoryTrigger.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) categoryTrigger.focus();
+  };
+  const refreshCategoryLabel = () => {
+    categoryTrigger.textContent = EXPENSE_CATEGORY_CHOICES.find(([value]) => value === categoryInput.value)?.[1] || '비용 종류 선택';
+  };
+  for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
+    const choice = button(label, 'calendar-editor-category-choice'); choice.dataset.category = value;
+    choice.addEventListener('click', () => {
+      categoryInput.value = value; closeCategorySheet(); refreshCategoryLabel();
+    });
+    categorySheet.append(choice);
+  }
+  categoryTrigger.addEventListener('click', () => {
+    closeTimeSheet({restoreFocus: false});
+    categorySheet.hidden = false; categoryTrigger.setAttribute('aria-expanded', 'true'); categorySheet.querySelector('button')?.focus();
+  });
+  detailsSummary.addEventListener('click', () => {
+    if (details.open) {
+      const categoryHadFocus = categorySheet.contains(document.activeElement);
+      closeCategorySheet({restoreFocus: false});
+      if (categoryHadFocus) detailsSummary.focus();
+    }
+  });
+  details.addEventListener('toggle', () => {
+    if (!details.open) {
+      const categoryHadFocus = categorySheet.contains(document.activeElement);
+      closeCategorySheet({restoreFocus: false});
+      if (categoryHadFocus) detailsSummary.focus();
+    }
+  });
+  categoryLabel.append(categoryTrigger, categorySheet);
+  refreshCategoryLabel();
+
+  const memoLabel = document.createElement('label'); memoLabel.className = 'calendar-editor-wide'; memoLabel.textContent = '메모';
+  const memoInput = document.createElement('textarea'); memoInput.className = 'calendar-editor-memo'; memoInput.maxLength = 2000; memoInput.rows = 3; memoInput.value = entry.memo || ''; memoLabel.appendChild(memoInput);
+
+  const placeLabel = document.createElement('label'); placeLabel.className = 'calendar-editor-wide'; placeLabel.textContent = '장소';
+  const placeInput = document.createElement('input'); placeInput.className = 'calendar-editor-place'; placeInput.maxLength = 240; placeInput.value = entry.place || ''; placeLabel.appendChild(placeInput);
+
+  const merchantLabel = document.createElement('label'); merchantLabel.className = 'calendar-editor-wide'; merchantLabel.textContent = '상점 · 예약처';
+  const merchantInput = document.createElement('input'); merchantInput.className = 'calendar-editor-merchant'; merchantInput.maxLength = 240; merchantInput.value = entry.merchant || ''; merchantLabel.appendChild(merchantInput);
+
+  const error = document.createElement('p'); error.className = 'calendar-editor-error'; error.setAttribute('role', 'alert');
+  const actions = document.createElement('div'); actions.className = 'calendar-editor-actions';
+  const cancel = button('취소', 'calendar-editor-cancel');
+  const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
+  actions.append(cancel);
+  if (!item || itemPolicy.canUpdate) actions.prepend(save);
+
+  let cleanupDeleteConfirmation = () => {};
+  let deleteRequestInFlight = false;
+
+  if (item && itemPolicy.canRemove) {
+    const remove = button('삭제', 'calendar-editor-delete');
+    actions.prepend(remove);
+    remove.addEventListener('click', () => {
+      const existing = root.querySelector('.calendar-delete-confirm-backdrop');
+      if (existing) {
+        existing.querySelector('.calendar-delete-confirm-cancel')?.focus();
+        return;
+      }
+
+      const confirmationBackdrop = document.createElement('div');
+      confirmationBackdrop.className = 'calendar-delete-confirm-backdrop';
+      const confirmationDialog = document.createElement('section');
+      confirmationDialog.className = 'calendar-delete-confirm-dialog';
+      confirmationDialog.setAttribute('role', 'dialog');
+      confirmationDialog.setAttribute('aria-modal', 'true');
+      confirmationDialog.setAttribute('aria-labelledby', 'calendar-delete-confirm-title');
+      confirmationDialog.setAttribute('aria-describedby', 'calendar-delete-confirm-description');
+
+      const confirmationTitle = document.createElement('h4');
+      confirmationTitle.id = 'calendar-delete-confirm-title';
+      confirmationTitle.textContent = '이 일정을 삭제하시겠습니까?';
+      const confirmationDescription = document.createElement('p');
+      confirmationDescription.id = 'calendar-delete-confirm-description';
+      confirmationDescription.textContent = '삭제한 일정은 복구할 수 없습니다.';
+      const confirmationError = document.createElement('p');
+      confirmationError.className = 'calendar-delete-confirm-error';
+      confirmationError.setAttribute('role', 'alert');
+
+      const confirmationActions = document.createElement('div');
+      confirmationActions.className = 'calendar-delete-confirm-actions';
+      const cancelDelete = button('취소', 'calendar-delete-confirm-cancel');
+      const confirmDelete = button('삭제', 'calendar-delete-confirm-submit');
+      confirmationActions.append(cancelDelete, confirmDelete);
+      confirmationDialog.append(confirmationTitle, confirmationDescription, confirmationError, confirmationActions);
+      confirmationBackdrop.appendChild(confirmationDialog);
+
+      dialog.inert = true;
+      dialog.setAttribute('aria-hidden', 'true');
+
+      cleanupDeleteConfirmation = ({restoreFocus = true} = {}) => {
+        confirmationBackdrop.remove();
+        dialog.inert = false;
+        dialog.removeAttribute('aria-hidden');
+        deleteRequestInFlight = false;
+        cleanupDeleteConfirmation = () => {};
+        if (restoreFocus && remove.isConnected) remove.focus();
+      };
+
+      const cancelConfirmation = () => {
+        if (deleteRequestInFlight) return;
+        cleanupDeleteConfirmation();
+      };
+
+      cancelDelete.addEventListener('click', cancelConfirmation);
+      confirmationBackdrop.addEventListener('click', event => {
+        if (event.target === confirmationBackdrop) cancelConfirmation();
+      });
+      confirmationDialog.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelConfirmation();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = [cancelDelete, confirmDelete].filter(control => !control.disabled);
+        if (!focusable.length) {
+          event.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      });
+
+      confirmDelete.addEventListener('click', async () => {
+        if (deleteRequestInFlight) return;
+        deleteRequestInFlight = true;
+        confirmationError.textContent = '';
+        remove.disabled = true;
+        cancelDelete.disabled = true;
+        confirmDelete.disabled = true;
+        try {
+          await controller.remove(item);
+          cleanupDeleteConfirmation({restoreFocus: false});
+          releaseEditorEnvironment();
+          backdrop.remove();
+          await onSaved();
+        } catch (caught) {
+          deleteRequestInFlight = false;
+          remove.disabled = false;
+          cancelDelete.disabled = false;
+          confirmDelete.disabled = false;
+          confirmationError.textContent = caught?.code === 'STALE_REVISION'
+            ? '일정이 변경되었습니다. 저장 상태를 확인한 뒤 다시 시도해주세요.'
+            : '일정을 삭제하지 못했습니다. 다시 시도해주세요.';
+          confirmDelete.focus();
+        }
+      });
+
+      root.appendChild(confirmationBackdrop);
+      queueMicrotask(() => cancelDelete.focus());
+    });
+  }
+
+  primary.append(titleLabel, titleNote, dateLabel, allDayLabel, timeControl);
+  details.append(placeLabel, merchantLabel, memoLabel, amountLabel, categoryLabel);
+  if (hasMultiDayEnd) detailsSummary.after(endDateLabel);
+  editorBody.append(primary, details, error);
+  form.append(editorBody, actions);
+  dialog.append(editorHeader, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
+
+  const close = () => {
+    cleanupDeleteConfirmation({restoreFocus: false});
+    releaseEditorEnvironment();
+    backdrop.remove();
+    onClose();
+  };
+  closeButton.addEventListener('click', close);
+  cancel.addEventListener('click', close);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
+  dialog.addEventListener('keydown', event => {
+    if (!details.open && !categorySheet.hidden) closeCategorySheet({restoreFocus: false});
+    const activeSheet = !timeSheet.hidden && !timeControl.hidden ? timeSheet
+      : !categorySheet.hidden && details.open ? categorySheet : dialog;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (activeSheet === timeSheet) {closeTimeSheet(); return;}
+      if (activeSheet === categorySheet) {closeCategorySheet(); return;}
+      close();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [...activeSheet.querySelectorAll('button, input, select, textarea, summary')]
+      .filter(control => !control.disabled && !control.hidden && control.getClientRects().length && control.tabIndex !== -1);
+    if (!focusable.length) {event.preventDefault(); return;}
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
+    else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
+    else if (!activeSheet.contains(document.activeElement)) {event.preventDefault(); first.focus();}
+  });
+  form.addEventListener('focusin', event => {
+    if (!usesFlowingDayDetail()) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || typeof target.scrollIntoView !== 'function') return;
+    const reveal = () => target.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(reveal);
+    else setTimeout(reveal, 0);
+  });
+  form.addEventListener('submit', async event => {
+    event.preventDefault(); error.textContent = '';
+    if (item && !itemPolicy.canUpdate) {
+      error.textContent = '읽기 전용 일정은 수정할 수 없습니다.';
+      return;
+    }
+    const startClock = normalizeCalendarClockInput(timeInput.value);
+    const endClock = normalizeCalendarClockInput(endTimeInput.value);
+    if (!allDayInput.checked && (startClock === null || endClock === null)) {
+      error.textContent = '시간을 HH:mm 형식으로 입력해 주세요.';
+      openTimeSheet(startClock === null ? timeInput : endTimeInput,
+        startClock === null ? timeTrigger : endTimeTrigger);
+      return;
+    }
+    if (!allDayInput.checked) { timeInput.value = startClock; endTimeInput.value = endClock; refreshTimeLabels(); }
+    const value = {
+      title: titleInput.value,
+      localDate: dateInput.value,
+      time: timeInput.value,
+      endTime: endTimeInput.value,
+      endDate: endDateInput.value,
+      allDay: allDayInput.checked,
+      amountMinor: amountInput.value,
+      expenseCategory: categoryInput.value || null,
+      memo: memoInput.value,
+      place: placeInput.value,
+      merchant: merchantInput.value,
+    };
+    save.disabled = true;
+    try {
+      if (item) await controller.update(item, value); else await controller.create(value);
+      cleanupDeleteConfirmation({restoreFocus: false});
+      releaseEditorEnvironment();
+      backdrop.remove(); await onSaved();
+    } catch (caught) {
+      if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
+      else error.textContent = caught instanceof Error ? caught.message : '일정을 저장하지 못했습니다.';
+      save.disabled = false;
+    }
+  });
+  queueMicrotask(() => titleInput.focus());
+}
+
+export async function mountLifeCalendarManager({
+  sessionToken,
+  root,
+  initialView = 'month',
+  timezone = resolvedTimezone(),
+  now,
+  fetchImpl = globalThis.fetch,
+  guestRepository,
+  deepOpen,
+  initialDraft = null,
+  weatherLocation = null,
+  locationProvider = globalThis.navigator?.geolocation,
+  locationPermissions = globalThis.navigator?.permissions,
+  locationNow = Date.now,
+  settingsStorage = globalThis.localStorage,
+} = {}) {
+  if (!(root instanceof HTMLElement)) return false;
+  const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
+  const clock = typeof now === 'function'
+    ? now
+    : now instanceof Date
+      ? () => now
+      : () => new Date();
+  const currentNow = () => {
+    const value = clock();
+    return value instanceof Date ? value : new Date(value);
+  };
+  const todayDate = dateInTimezone(currentNow(), timezone);
+  const deepOpenTarget = normalizedDeepOpen(deepOpen);
+  const initialDate = deepOpenTarget?.dateHint || initialDraft?.localDate || todayDate;
+  const initialParts = civilDateParts(initialDate);
+  const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
+  const mutationController = createCalendarMutationController({sessionToken, timezone, guestRepository: repository, fetchImpl});
+  const storedManualWeatherRegion = readCalendarManualWeatherRegion(settingsStorage);
+  const storedWeatherRegionOrigin = storedManualWeatherRegion
+    ? (readWeatherRegionOrigin(settingsStorage) || WEATHER_REGION_ORIGIN.MANUAL)
+    : null;
+  // 저장된 지역은 사용자가 직접 고른 것일 수도, 현재 위치에서 옮겨 적은 것일 수도
+  // 있다. 날씨를 부르는 방식은 둘이 같으므로 source 는 하나로 두고(MANUAL_REGION =
+  // 이 브라우저에 저장된 지역), 어느 쪽인지는 weatherRegionOrigin 이 들고 있다.
+  // 화면 문구가 갈리는 곳이 그 하나다.
+  let currentWeatherLocation = weatherLocation || (storedManualWeatherRegion
+    ? {
+        ...storedManualWeatherRegion,
+        source: 'MANUAL_REGION',
+      }
+    : null);
+  const displaySettings = readCalendarDisplaySettings(settingsStorage);
+  const state = {
+    mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
+    year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], holidays: [], loading: false,
+    showKoreaHolidays: displaySettings.showKoreaHolidays,
+    showGridLines: displaySettings.showGridLines,
+    weekStart: displaySettings.weekStart,
+    manualWeatherRegion: storedManualWeatherRegion,
+    weatherRegionOrigin: storedWeatherRegionOrigin,
+    // 날씨 읽기가 실패했을 때 날씨 자리에 남기는 한 줄. 빈 문자열이면 아무 말도 없다.
+    weatherMessage: '',
+    // Closed on mount, on every width. A phone used to open the Calendar with
+    // the day panel already up for whatever date happened to be selected --
+    // a window for a date nobody had pressed. Opening the Calendar shows the
+    // Calendar; only selectDate({openDetail: true}) raises this panel.
+    detailOpen: false, dayCollapsed: false, agendaScope: 'month',
+    locationInFlight: false,
+    locationPermission: LOCATION_PERMISSION.UNKNOWN,
+    locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
+    locationMessage: '',
+    // Owned by the 이미지로 등록 flow. It renders in the day panel rather than the
+    // status strip because the location flow rewrites that strip on its own
+    // schedule and swallowed this message a moment after it appeared.
+    imageMessage: '',
+    expense: {
+      // Signed out there is nothing to wait for: the entries are already here,
+      // so the first paint computes rather than showing a loader.
+      status: 'loading',
+      summary: null,
+      message: '',
+      monthKey: '',
+      local: !authenticated,
+    },
+  };
+
+  const shell = document.createElement('div'); shell.className = 'calendar-product-shell';
+  const toolbar = document.createElement('header'); toolbar.className = 'calendar-toolbar';
+  const previous = button('이전', 'calendar-nav-button'); previous.setAttribute('aria-label', '이전 달');
+  previous.dataset.calendarNavigation = 'previous';
+  const title = button('', 'calendar-title-button');
+  const next = button('다음', 'calendar-nav-button'); next.setAttribute('aria-label', '다음 달');
+  next.dataset.calendarNavigation = 'next';
+  const today = button('오늘', 'calendar-today-button');
+  const settingsButton = button('', 'calendar-settings-button');
+  settingsButton.appendChild(toolbarIcon(SETTINGS_ICON_SHAPES));
+  const settingsLabel = document.createElement('span');
+  settingsLabel.className = 'calendar-settings-label';
+  settingsLabel.textContent = '설정';
+  settingsButton.appendChild(settingsLabel);
+  settingsButton.setAttribute('aria-label', '캘린더 설정');
+  settingsButton.title = '캘린더 설정';
+  const modes = document.createElement('div'); modes.className = 'calendar-mode-tabs'; modes.setAttribute('role', 'tablist'); modes.setAttribute('aria-label', '캘린더 보기');
+  const modeButtons = new Map();
+  for (const [mode, label] of MODES) {
+    const control = button(label, 'calendar-mode-tab'); control.dataset.calendarMode = mode; control.setAttribute('role', 'tab'); modeButtons.set(mode, control); modes.appendChild(control);
+  }
+  bindRovingTablist(modes, modeButtons.values());
+  toolbar.append(previous, title, next, today, settingsButton, modes);
+  const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
+  const locationButton = button('현재 위치 사용', 'calendar-today-button');
+  locationButton.dataset.calendarCurrentLocation = 'true';
+  locationButton.setAttribute('aria-label', '현재 위치를 캘린더 날씨에 사용');
+  const viewport = document.createElement('div'); viewport.className = 'calendar-viewport';
+  // The expense bar is a shell row, not a viewport child: the month view clips
+  // its content box, so anything trailing the month grid inside the viewport is
+  // invisible on desktop.
+  const expenseSlot = document.createElement('div'); expenseSlot.className = 'calendar-expense-slot';
+  shell.append(toolbar, status, viewport, expenseSlot); root.replaceChildren(shell);
+
+  const updateChrome = () => {
+    if (state.mode === 'year') {
+      title.textContent = `${state.year}년`;
+      title.setAttribute('aria-label', `${state.year}년 연간 보기`);
+    } else if (state.mode === 'week') {
+      const days = calendarWeekDays(state.selectedDate, state.weekStart);
+      const first = days[0];
+      const last = days.at(-1);
+      title.textContent = `${first.month}월 ${first.day}일–${last.month}월 ${last.day}일`;
+      title.setAttribute('aria-label', `${first.year}년 ${first.month}월 ${first.day}일부터 ${last.month}월 ${last.day}일까지 주간 보기`);
+    } else {
+      title.textContent = `${state.year}년 ${state.month}월`;
+      title.setAttribute('aria-label', `${state.year}년 ${state.month}월 월간 보기`);
+    }
+    const navigationUnit = state.mode === 'year' ? '해' : state.mode === 'week' ? '주' : '달';
+    previous.setAttribute('aria-label', `이전 ${navigationUnit}`);
+    next.setAttribute('aria-label', `다음 ${navigationUnit}`);
+    for (const [mode, control] of modeButtons) {
+      const selected = state.mode === mode; control.setAttribute('aria-selected', String(selected)); control.tabIndex = selected ? 0 : -1;
+    }
+    root.dataset.calendarManagerView = state.mode;
+    root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest';
+  };
+
+  function focusSelectedCalendarTarget({detail = false, date = state.selectedDate} = {}) {
+    queueMicrotask(() => {
+      let selector = '';
+      let preventFocusScroll = false;
+      if (detail && state.mode === 'month') {
+        const panel = root.querySelector('.calendar-day-panel');
+        if (panel instanceof HTMLElement && panel.dataset.presentation === DAY_DETAIL_PRESENTATION.FLOW) {
+          panel.scrollIntoView({block: 'nearest', inline: 'nearest'});
+          preventFocusScroll = true;
+        }
+        selector = '.calendar-day-close';
+      } else if (state.mode === 'week') {
+        selector = `[data-calendar-week-date="${date}"]`;
+      } else if (state.mode === 'month') {
+        selector = `[data-calendar-date-trigger="${date}"]`;
+      }
+      if (!selector) return;
+      const target = root.querySelector(selector);
+      if (target instanceof HTMLElement) target.focus(preventFocusScroll ? {preventScroll: true} : undefined);
+    });
+  }
+
+  let openEditor = () => {};
+  // Guards month navigation so a burst of fast swipes cannot skip months.
+  let monthShiftInFlight = false;
+  // State equality cannot distinguish "never moved" from "moved away and
+  // returned" while an editor save waits for an accessory request. User-owned
+  // Calendar navigation advances this token; renders and data refreshes do not.
+  let calendarContextGeneration = 0;
+  const markCalendarContextNavigation = () => { calendarContextGeneration += 1; };
+  const actions = {
+    selectDate: async (date, {openDetail = false} = {}) => {
+      markCalendarContextNavigation();
+      const parts = civilDateParts(date);
+      const monthChanged = parts.year !== state.year || parts.month !== state.month;
+      state.selectedDate = date;
+      state.year = parts.year;
+      state.month = parts.month;
+      state.detailOpen = openDetail;
+      state.dayCollapsed = false;
+      if (monthChanged) await afterMonthChange(); else render();
+      focusSelectedCalendarTarget({detail: openDetail, date});
+    },
+    selectMonth: async month => {
+      markCalendarContextNavigation();
+      state.month = month;
+      state.selectedDate = `${state.year}-${String(month).padStart(2, "0")}-01`;
+      state.mode = 'month';
+      state.detailOpen = false;
+      await refresh();
+    },
+    onDateKey: (event, date) => {
+      const offsets = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7};
+      switch (event.key) {
+        case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown':
+          event.preventDefault(); void actions.selectDate(addCivilDays(date, offsets[event.key])); break;
+        case 'Home': case 'End': {
+          const targetDate = monthGridKeyboardTargetDate(date, event.key, state.weekStart);
+          if (!targetDate) break;
+          event.preventDefault();
+          void actions.selectDate(targetDate);
+          break;
+        }
+        case 'PageUp':
+          event.preventDefault(); void actions.selectDate(shiftCivilMonth(date, -1)); break;
+        case 'PageDown':
+          event.preventDefault(); void actions.selectDate(shiftCivilMonth(date, 1)); break;
+        case 'Enter': case ' ':
+          event.preventDefault(); void actions.selectDate(date, {openDetail: true}); break;
+        case 'Escape':
+          if (state.detailOpen) { event.preventDefault(); actions.closeDay(); }
+          break;
+        default: break;
+      }
+    },
+    closeDay: () => {
+      markCalendarContextNavigation();
+      const date = state.selectedDate;
+      state.detailOpen = false;
+      state.dayCollapsed = false;
+      render();
+      focusSelectedCalendarTarget({date});
+    },
+    toggleDay: () => {
+      markCalendarContextNavigation();
+      state.dayCollapsed = !state.dayCollapsed;
+      render();
+      queueMicrotask(() => root.querySelector('.calendar-day-toggle')?.focus());
+    },
+    setAgendaScope: async scope => {
+      markCalendarContextNavigation();
+      state.agendaScope = ['all', 'month', 'today', 'week', 'reservation', 'payment', 'schedule'].includes(scope) ? scope : 'month';
+      if (state.agendaScope === 'today' || state.agendaScope === 'week') {
+        const parts = civilDateParts(state.todayDate);
+        const monthChanged = parts.year !== state.year || parts.month !== state.month;
+        state.selectedDate = state.todayDate;
+        state.year = parts.year;
+        state.month = parts.month;
+        if (monthChanged) await afterMonthChange();
+        else render();
+      } else {
+        render();
+      }
+      queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
+    },
+    // 직접 등록 opens the full form on the day the panel is showing; the picture
+    // route and an existing entry go to the same dialog.
+    onAdd: date => openEditor(null, date),
+    onAddFromImage: date => { void addFromImage(date); },
+    onEvent: (item, opener) => openEditor(item, item.local_date || item.due_date || '', null, opener),
+    openSettings: () => calendarSettingsDialog({
+      root,
+      state,
+      storage: settingsStorage,
+      authenticated,
+      sessionToken,
+      fetchImpl,
+      buildLocationRow: buildLocationSettingsRow,
+      getWeatherLocationPresentation: weatherLocationPresentation,
+      onWeatherRegionChange: async region => {
+        // 지역을 직접 고르면 그것이 화면의 권위다: 방금 잡아 둔 현재 위치 좌표보다
+        // 사용자가 고른 지역이 앞선다. 해제하면 좌표가 없는 상태로 돌아간다.
+        currentWeatherLocation = region
+          ? {...region, source: 'MANUAL_REGION'}
+          : null;
+        clearBrowserLocationProvenance();
+        if (state.locationResolution === LOCATION_RESOLUTION.RESOLVED) {
+          state.locationResolution = LOCATION_RESOLUTION.IDLE;
+        }
+        if (region) {
+          state.locationMessage = '';
+        }
+        await refresh();
+      },
+      onChange: async enabled => {
+        if (enabled) await refresh();
+        else render();
+      },
+      onRedraw: () => { render(); },
+    }),
+  };
+
+  root.addEventListener('keydown', event => {
+    // Settings is the top layer. This listener runs in capture phase, before
+    // the Settings dialog can consume Escape itself, so explicitly defer to it
+    // instead of closing the selected-day detail underneath.
+    if (event.key === 'Escape' && root.querySelector('.calendar-settings-dialog')) return;
+    if (
+      event.key === 'Escape'
+      && state.mode === 'month'
+      && state.detailOpen
+      && !root.querySelector('.calendar-editor-dialog')
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      actions.closeDay();
+    }
+  }, true);
+
+  let refreshGeneration = 0;
+  let locationRequestGeneration = 0;
+  // 위치 요청이 하나라도 돌고 있는지. state.locationInFlight 은 "사용자가 누른 것이
+  // 진행 중" 이라는 화면용 상태이고, 이쪽은 자동 호출까지 포함한다. 두 개가 필요한
+  // 이유는 하나다: 화면이 스스로 부른 요청이 사용자가 누른 요청을 밀어내서는 안 된다.
+  // 자동은 진행 중인 요청을 보면 물러나고, 사용자의 요청은 자동을 밀어낸다.
+  let locationRequestActive = false;
+
+  // 저장된 지역으로 돌아갈 자리. 현재 위치가 만료되거나 권한이 꺼져도 날씨가
+  // 통째로 사라지지 않게 하는 것이 이 함수의 전부다.
+  function storedRegionWeatherLocation() {
+    return state.manualWeatherRegion
+      ? {...state.manualWeatherRegion, source: 'MANUAL_REGION'}
+      : null;
+  }
+
+  async function syncLocationPermission() {
+    const permission = await getBrowserLocationPermissionState({
+      permissions: locationPermissions,
+      geolocation: locationProvider,
+    });
+    if (!root.isConnected) return;
+    state.locationPermission = permission;
+    if (permission === LOCATION_PERMISSION.DENIED) {
+      if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
+        currentWeatherLocation = storedRegionWeatherLocation();
+        clearBrowserLocationProvenance();
+      }
+      state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      state.locationMessage = state.manualWeatherRegion ? '' : '위치 권한이 꺼져 있어요.';
+    } else if (permission === LOCATION_PERMISSION.UNAVAILABLE) {
+      if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
+        currentWeatherLocation = storedRegionWeatherLocation();
+        clearBrowserLocationProvenance();
+      }
+      state.locationResolution = state.manualWeatherRegion ? LOCATION_RESOLUTION.IDLE : LOCATION_RESOLUTION.ERROR;
+      state.locationMessage = state.manualWeatherRegion ? '' : '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+    } else if (
+      state.locationMessage === '위치 권한이 꺼져 있어요.'
+      || state.locationMessage === '이 브라우저에서는 현재 위치를 사용할 수 없어요.'
+    ) {
+      state.locationMessage = '';
+      if (state.locationResolution === LOCATION_RESOLUTION.ERROR) {
+        state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      }
+    }
+    await maybeUseGrantedCurrentLocation();
+  }
+
+  // 권한이 이미 허용돼 있으면 버튼을 누르게 하지 않는다. 다만 허용일 때만이다.
+  //
+  // PROMPT_REQUIRED(미결정)·UNKNOWN(Safari 처럼 권한 상태를 알려주지 않는 브라우저)
+  // 에서는 절대 호출하지 않는다: getCurrentPosition 을 부르는 순간 권한 팝업이 뜨고,
+  // 화면에 적어 둔 "버튼을 누를 때만 브라우저가 위치 권한을 요청합니다" 가 거짓이 된다.
+  async function maybeUseGrantedCurrentLocation() {
+    if (state.locationPermission !== LOCATION_PERMISSION.GRANTED) return;
+    if (state.locationInFlight) return;
+    // 사용자가 설정에서 직접 고른 지역은 자동으로 덮어쓰지 않는다.
+    if (state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.MANUAL) return;
+    if (
+      currentWeatherLocation?.source === 'BROWSER_CURRENT'
+      && isFreshBrowserCurrentLocation(currentWeatherLocation, {now: locationNow})
+    ) return;
+    await useCurrentLocation({auto: true});
+  }
+
+  function clearBrowserLocationProvenance() {
+    delete root.dataset.locationSource;
+    delete root.dataset.locationAccuracyMeters;
+    delete root.dataset.locationApproximation;
+    delete root.dataset.locationTimestamp;
+  }
+
+  function locationErrorCopy(error) {
+    if (!(error instanceof BrowserLocationError)) return '현재 위치를 확인하지 못했어요.';
+    if (error.code === 'BROWSER_LOCATION_DENIED') return '위치 권한이 꺼져 있어요.';
+    if (error.code === 'BROWSER_LOCATION_TIMEOUT') return '현재 위치를 확인하지 못했어요.';
+    if (error.code === 'BROWSER_LOCATION_UNSUPPORTED') return '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
+    if (error.code === 'BROWSER_LOCATION_STALE') return '현재 위치가 오래되어 다시 확인이 필요해요.';
+    return '현재 위치를 확인할 수 없어요.';
+  }
+
+  // A transient, non-blocking notice. Deliberately not the bottom-sheet
+  // primitive: a one-line confirmation must not take focus, trap it, or dim the
+  // Calendar behind a backdrop.
+  const toastHost = document.createElement('div');
+  toastHost.className = 'calendar-toast-host';
+  toastHost.setAttribute('role', 'status');
+  toastHost.setAttribute('aria-live', 'polite');
+  shell.appendChild(toastHost);
+  let toastTimer = null;
+
+  function announceLocation(message) {
+    if (!message) return;
+    try {
+      const node = document.createElement('p');
+      node.className = 'calendar-toast';
+      node.dataset.reducedMotion = String(prefersReducedMotion());
+      node.textContent = message;
+      toastHost.replaceChildren(node);
+      if (toastTimer) globalThis.clearTimeout(toastTimer);
+      toastTimer = globalThis.setTimeout(() => {
+        toastTimer = null;
+        if (toastHost.isConnected) toastHost.replaceChildren();
+      }, 3600);
+    } catch {
+      // A missing toast must never cost the Calendar anything.
+    }
+  }
+
+  // The Settings dialog is rebuilt on every open, so this holds only the live
+  // status node; a detached one is simply written to and dropped.
+  let locationStatusNode = null;
+  let locationHelpNode = null;
+
+  function weatherLocationPresentation() {
+    return calendarWeatherLocationPresentation({
+      manualWeatherRegion: state.manualWeatherRegion,
+      weatherRegionOrigin: state.weatherRegionOrigin,
+      usingBrowserLocation: currentWeatherLocation?.source === 'BROWSER_CURRENT'
+        && state.locationResolution === LOCATION_RESOLUTION.RESOLVED,
+      locationPermission: state.locationPermission,
+      locationResolution: state.locationResolution,
+      locationInFlight: state.locationInFlight,
+      locationMessage: state.locationMessage,
+    });
+  }
+
+  function syncOpenWeatherLocationSettings() {
+    const presentation = weatherLocationPresentation();
+    const overview = root.querySelector('.calendar-settings-weather-overview');
+    if (overview) {
+      const summary = overview.querySelector('strong');
+      const relationship = overview.querySelector('small');
+      if (summary) summary.textContent = presentation.manualSummary;
+      if (relationship) relationship.textContent = presentation.relationship;
+    }
+    const manualClear = root.querySelector('[data-calendar-weather-manual-clear]');
+    if (manualClear) manualClear.hidden = !state.manualWeatherRegion;
+  }
+
+  function locationSettingsStatusText() {
+    const presentation = weatherLocationPresentation();
+    if (state.manualWeatherRegion && !presentation.currentStatus.includes('현재 위치로 날씨')) {
+      return `${presentation.currentStatus} ${presentation.manualSummary}`;
+    }
+    return presentation.currentStatus;
+  }
+
+  function syncLocationSettingsControl() {
+    const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
+      && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
+    const blocked = state.locationPermission === LOCATION_PERMISSION.DENIED
+      || state.locationPermission === LOCATION_PERMISSION.UNAVAILABLE;
+    locationButton.disabled = state.locationInFlight || blocked;
+    locationButton.textContent = weatherLocationPresentation().currentAction;
+    syncOpenWeatherLocationSettings();
+    locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
+    if (locationStatusNode) locationStatusNode.textContent = locationSettingsStatusText();
+    // 브라우저가 아예 위치를 제공하지 않는 경우(UNAVAILABLE)에는 사이트 권한을
+    // 바꿔도 달라지는 것이 없다. 안내는 거부된 상태에서만 내민다.
+    if (locationHelpNode) locationHelpNode.hidden = state.locationPermission !== LOCATION_PERMISSION.DENIED;
+  }
+
+  // The Calendar owns this control; Settings only hosts it. Building it here
+  // keeps every location transition in one scope.
+  function buildLocationSettingsRow() {
+    const row = document.createElement('div');
+    row.className = 'calendar-settings-action-row';
+    row.dataset.calendarLocationRow = 'true';
+    const copy = document.createElement('span');
+    const label = document.createElement('strong');
+    label.textContent = '현재 위치';
+    const status = document.createElement('small');
+    status.className = 'calendar-settings-status';
+    // "브라우저 사이트 설정에서 허용해 주세요" 만으로는 어디를 눌러야 하는지 아무도
+    // 모른다. 권한이 막혀 있을 때만, 실제로 누를 것의 이름으로 적어 둔다.
+    const help = document.createElement('details');
+    help.className = 'calendar-settings-location-help';
+    help.hidden = true;
+    const helpSummary = document.createElement('summary');
+    helpSummary.textContent = '위치 권한, 어디서 허용하나요?';
+    const helpList = document.createElement('ul');
+    for (const line of LOCATION_PERMISSION_STEPS) {
+      const item = document.createElement('li');
+      item.textContent = line;
+      helpList.appendChild(item);
+    }
+    help.append(helpSummary, helpList);
+    copy.append(label, status, help);
+    row.append(copy, locationButton);
+    locationStatusNode = status;
+    locationHelpNode = help;
+    syncLocationSettingsControl();
+    return row;
+  }
+
+
+  function render() {
+    updateChrome();
+    // Release the previous day-sheet visualViewport listeners before the node is
+    // replaced, so repeated renders cannot accumulate them.
+    const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"], .calendar-day-panel[data-day-panel-bound="true"]');
+    if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
+    status.replaceChildren();
+    if (state.loading) {
+      const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
+    } else {
+      // Weather location is an accessory of an accessory. Once the browser has
+      // granted it, repeating that on every open is noise that sits above the
+      // user's own schedule, so nothing about location is drawn in this row any
+      // more: the durable state and both controls live in Settings, and a change
+      // is announced once as a toast. The dataset attributes stay -- they are the
+      // location contract other surfaces read.
+      root.dataset.locationPermission = state.locationPermission;
+      root.dataset.locationResolution = state.locationResolution;
+      syncLocationSettingsControl();
+    }
+    if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
+    else if (state.mode === 'week') viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
+    else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
+    else {
+      const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));
+      viewport.replaceChildren(layout);
+      // Synchronously, before this frame is painted. renderMonth also schedules
+      // the same sync on an animation frame -- that one is for metrics that
+      // settle later, such as a webfont swapping in -- but waiting for it here
       // meant the panel drew once wherever the flow put it and then jumped to
       // the date it belongs to. One frame on a phone; enough to be seen, and
       // enough to make a geometry check land on the wrong box.
