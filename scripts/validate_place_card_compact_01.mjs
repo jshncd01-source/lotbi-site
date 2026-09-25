@@ -107,12 +107,12 @@ try {
   localStorage.clear();
   const nativeFetch = globalThis.fetch.bind(globalThis);
   const json = body => Promise.resolve(new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}}));
-  const nativeImageSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  const mockImageSrc = new WeakMap();
   Object.defineProperty(HTMLImageElement.prototype, 'src', {
     configurable: true,
-    get() { return this.getAttribute('src') || nativeImageSrc?.get?.call(this) || ''; },
+    get() { return mockImageSrc.get(this) || ''; },
     set(value) {
-      this.setAttribute('src', String(value));
+      mockImageSrc.set(this, String(value));
       queueMicrotask(() => this.dispatchEvent(new Event('load')));
     },
   });
@@ -167,7 +167,7 @@ try {
     })),
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     mediaState:center.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
-    photoSrc:center.querySelector('.lotbi-place-photo')?.getAttribute('src')||'',
+    photoSrc:center.querySelector('.lotbi-place-photo')?.src||'',
     sideMediaHidden:side.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     sideMediaState:side.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
