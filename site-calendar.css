@@ -39,6 +39,8 @@
   /* 오늘 칸을 감싸는 링. 대표님이 삼성 캘린더의 "선택된 날짜" 테두리(색
      없는 무채색)를 보여주며 지시 — 틸 등 색을 넣지 말고 이 회색/검정 계열로. */
   --lotbi-calendar-today-ring: #33404f;
+  /* 강수확률 물방울 줄. 온도(무채색)와 구분되게 파란 계열 하나만 쓴다. */
+  --lotbi-calendar-precip-ink: #0b6fb8;
 }
 
 body[data-site-theme="dark"] {
@@ -55,6 +57,7 @@ body[data-site-theme="dark"] {
   --lotbi-calendar-sheet-surface: #121720;
   --lotbi-calendar-week-selected-surface: #222b38;
   --lotbi-calendar-today-ring: #c7cdd6;
+  --lotbi-calendar-precip-ink: #6cb6f2;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -73,6 +76,7 @@ body[data-site-theme="dark"] {
     --lotbi-calendar-sheet-surface: #121720;
     --lotbi-calendar-week-selected-surface: #222b38;
     --lotbi-calendar-today-ring: #c7cdd6;
+    --lotbi-calendar-precip-ink: #6cb6f2;
   }
 }
 
@@ -713,6 +717,19 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-weather-temperature-max { position: absolute; top: 0; right: 0; color: #d43b32; }
 .calendar-weather-temperature-separator { position: absolute; top: 50%; left: 50%; color: #818a98; font-size: 13px; transform: translate(-50%, -50%) rotate(-8deg); }
 .calendar-weather-temperature-value { display: block; padding-top: 6px; color: #3f5067; text-align: right; }
+/* 강수확률. 온도 칸(24px 아이콘 + 46px 온도, 암묵 1행)에 3번째 자식으로 그냥
+   붙이면 24px짜리 아이콘 칸에 눌려 들어간다 -- 두 칸을 모두 가로질러 새
+   줄로 내려오게 명시한다. weatherPrecipitationLabel()이 0%나 데이터 없음일
+   땐 빈 문자열을 주므로 이 요소 자체가 안 만들어진다(항상 존재하지 않음). */
+.calendar-weather-precip {
+  grid-column: 1 / -1;
+  margin-top: 1px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--lotbi-calendar-precip-ink);
+  text-align: right;
+  white-space: nowrap;
+}
 .calendar-holiday-label {
   min-width: 0;
   overflow: hidden;
@@ -1799,6 +1816,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-weather-temperature { grid-row: 2; width: 27px; height: 21px; font-size: 7px; line-height: 1; }
   .calendar-weather-temperature-separator { font-size: 9px; }
   .calendar-weather-temperature-value { padding-top: 4px; font-size: 8px; text-align: center; }
+  .calendar-weather-precip { grid-row: 3; margin-top: 0; font-size: 6.5px; text-align: center; }
   .calendar-holiday-label { font-size: 8px; }
   .calendar-attention-marker { position: absolute; top: 3px; right: 2px; width: 6px; height: 6px; margin: 0; border-radius: 999px; background: #a56720; font-size: 0; }
 

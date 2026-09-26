@@ -20,7 +20,8 @@ assert.ok(manager.includes('monthCellSummary(events)'));
 assert.ok(manager.includes('summary.visible'));
 assert.ok(manager.includes('summary.moreLabel'));
 assert.ok(manager.includes("temperature.className = 'calendar-weather-temperature'"));
-assert.ok(manager.includes('calendarWeatherPresentation(weather).monthLabel'));
+assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentation(weather)'));
+assert.ok(manager.includes('const temperatureLabel = weatherPresentation.monthLabel'));
 
 // The selected day belongs in the page on a phone and in a stable side rail on
 // desktop. The removed floating pointer must not survive in active CSS.
