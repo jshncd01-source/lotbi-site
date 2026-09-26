@@ -3660,30 +3660,22 @@ export async function mountLifeCalendarManager({
         state.loading = false;
         render();
 
-        const todayParts = civilDateParts(state.todayDate);
-        const currentMonthVisible = state.mode === 'month'
-          && state.year === todayParts.year
-          && state.month === todayParts.month;
-        const selectedWeekRange = state.mode === 'week' ? weekBounds(state.selectedDate, state.weekStart) : null;
-        const forecastHorizon = addCivilDays(state.todayDate, 14);
-        const weekForecastVisible = selectedWeekRange
-          && selectedWeekRange.end >= state.todayDate
-          && selectedWeekRange.start <= forecastHorizon;
-        const visibleWeatherRange = currentMonthVisible
+        // Which dates the guest month/week grid can show weather for is a
+        // property of the visible date range intersected with the forecast
+        // horizon (see forecastWindow above), never of whether that range
+        // happens to fall in "the current month" -- a month grid's spillover
+        // days, or an entirely future month within the horizon, are just as
+        // visible and just as forecastable.
+        const rawWeatherRange = state.mode === 'month'
           ? monthBounds(state.selectedDate)
-          : weekForecastVisible
-            ? selectedWeekRange
+          : state.mode === 'week'
+            ? weekBounds(state.selectedDate, state.weekStart)
             : null;
-        const guestWeatherStart = visibleWeatherRange
-          ? [visibleWeatherRange.start, state.todayDate].sort().at(-1)
-          : null;
-        const guestWeatherEnd = visibleWeatherRange
-          ? [visibleWeatherRange.end, forecastHorizon].sort()[0]
-          : null;
+        const visibleWeatherRange = forecastWindow(rawWeatherRange, state.todayDate);
         const weatherRequest = visibleWeatherRange && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
           ? getPublicCalendarWeather({
-              start: guestWeatherStart,
-              end: guestWeatherEnd,
+              start: visibleWeatherRange.start,
+              end: visibleWeatherRange.end,
               timezone,
               latitude: currentWeatherLocation.latitude,
               longitude: currentWeatherLocation.longitude,

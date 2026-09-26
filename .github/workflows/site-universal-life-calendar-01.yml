@@ -54,6 +54,7 @@ on:
       - 'scripts/validate_calendar_expense_summary_01.mjs'
       - 'scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs'
       - 'scripts/validate_calendar_quiet_location_01.mjs'
+      - 'scripts/validate_calendar_guest_month_weather_forecast_window_01.mjs'
       - 'scripts/validate_calendar_weather_region_province_01.mjs'
       - 'scripts/validate_calendar_holiday_surface_settings_icon_01.mjs'
       - 'scripts/validate_calendar_outside_month_01.mjs'
@@ -164,6 +165,8 @@ jobs:
         run: node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
       - name: Weather location stays quiet once it is settled
         run: node scripts/validate_calendar_quiet_location_01.mjs
+      - name: Guest month/week weather follows the visible range, not "the current month"
+        run: node scripts/validate_calendar_guest_month_weather_forecast_window_01.mjs
       # 날씨 위치의 반복이 끝났는지: 허용된 권한이면 누르지 않아도 뜨고, 새로고침을
       # 넘기고, 미결정 상태에서는 어떤 팝업도 저절로 뜨지 않는다.
       - name: Weather location survives a reload, and asks for nothing on its own
