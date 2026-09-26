@@ -51,11 +51,11 @@ assert.equal(solarToLunar('0999-01-01'), null); // before the library's 1000-02-
 assert.equal(solarToLunar(''), null);
 assert.equal(solarToLunar(undefined), null);
 
-// Label formatting: leap month is marked only on the day the lunar month
-// starts, an ordinary day just shows its lunar day number, and an invalid
-// lunar date renders as nothing rather than "undefined".
+// Label formatting: every day carries its lunar month (대표님 요청 — 월 없이
+// 일만 나오면 어느 달인지 알 수 없다는 지적), leap month is marked 윤, and an
+// invalid lunar date renders as nothing rather than "undefined".
 assert.equal(lunarDateLabel(solarToLunar('2023-03-22')), '윤2월 1일');
-assert.equal(lunarDateLabel(solarToLunar('2025-10-06')), '15일');
+assert.equal(lunarDateLabel(solarToLunar('2025-10-06')), '8월 15일');
 assert.equal(lunarDateLabel(solarToLunar('2026-02-17')), '1월 1일');
 assert.equal(lunarDateLabel(null), '');
 assert.equal(lunarDateLabel(solarToLunar('not-a-date')), '');

@@ -172,10 +172,10 @@ try {
   if (!v.toggleFoundInSettings) throw new Error('음력 표시 toggle missing from Settings');
   if (!v.toggleUncheckedByDefault) throw new Error('음력 표시 toggle must start unchecked');
   if (v.onCount <= 0) throw new Error('turning the toggle on must render lunar text in the Month grid');
-  if (v.chuseokLabel !== '15일') throw new Error(`2025-10-06 (음력 8/15, 추석) must read 15일, got "${v.chuseokLabel}"`);
-  if (v.oct7Label !== '16일') throw new Error(`2025-10-07 (음력 8/16) must read 16일, not repeat 15일 -- got "${v.oct7Label}"`);
+  if (v.chuseokLabel !== '8월 15일') throw new Error(`2025-10-06 (음력 8/15, 추석) must read 8월 15일, got "${v.chuseokLabel}"`);
+  if (v.oct7Label !== '8월 16일') throw new Error(`2025-10-07 (음력 8/16) must read 8월 16일, not repeat 8월 15일 -- got "${v.oct7Label}"`);
   if (v.storedAfterToggle !== true) throw new Error(`the setting must persist to localStorage, got ${v.storedAfterToggle}`);
-  if (v.weekLunarLabel !== '15일') throw new Error(`Week view must show the same conversion for 2025-10-06, got "${v.weekLunarLabel}"`);
+  if (v.weekLunarLabel !== '8월 15일') throw new Error(`Week view must show the same conversion for 2025-10-06, got "${v.weekLunarLabel}"`);
   if (v.weekOffAfterToggle !== 0) throw new Error('turning the toggle back off must remove the Week lunar text, not just hide it');
   console.log('CALENDAR LUNAR SETTINGS UI PASS', JSON.stringify(v));
 } finally {
