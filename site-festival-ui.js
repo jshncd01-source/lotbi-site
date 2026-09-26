@@ -1,12 +1,18 @@
-// FESTIVAL-EVENT-08 — public "축제" browse + detail/program UI.
+// FESTIVAL-EVENT-07/08 — public "축제·행사" browse + detail/program UI.
 //
 // Mounted on demand into the shared site modal shell (see openFestival() in
 // site-conversation.js), exactly like mountPetFamilyManager() is mounted for
-// the 반려동물 panel. Renders only what listPublishedFestivals()/
-// getPublishedFestival() (site-festival-client.js) return — those two
-// functions are the only way this file ever touches festival data, and they
-// are the enforced PUBLISHED-only boundary (see the allowlist normalizer
-// there). This module never calls any private/internal Core API directly.
+// the 반려동물 panel. Renders only what site-festival-client.js returns — that
+// module is the only way this file ever touches festival data, and it is the
+// enforced PUBLISHED-only boundary (see its allowlist normalizers). This
+// module never calls any private/internal Core API directly.
+//
+// List/location/filter responsibilities (FESTIVAL-EVENT-07) vs. detail/
+// program (FESTIVAL-EVENT-08, which owns the final consumer detail design):
+// the browseFestivals()-backed list state lives in mountFestivalManager's
+// opening section below; openDetail() onward (detail header, CTA row,
+// program date tabs, weather) is FESTIVAL-EVENT-08/09's surface, left exactly
+// as that room built it.
 //
 // Detail screen principle: a quick "언제/어디서/무슨 프로그램/체험·신청
 // 가능여부" answer, not a copy of an official info page. At most two primary
@@ -17,6 +23,11 @@
 // normalized Site model any more (see site-festival-client.js), so there is
 // nothing left here that could render them.
 import {
+  FESTIVAL_STATUS,
+  FESTIVAL_STATUS_LABEL,
+  FESTIVAL_TIME_FILTER,
+  FESTIVAL_TIME_FILTER_LABEL,
+  browseFestivals,
   computeFestivalStatus,
   formatFestivalDateLabel,
   formatFestivalDateTabLabel,
@@ -25,11 +36,16 @@ import {
   getPublishedFestival,
   groupProgramsByDate,
   listFestivalRegions,
-  listPublishedFestivals,
+  resolveCurrentRegionLabel,
   selectInitialProgramDate,
-  FESTIVAL_STATUS,
-  FESTIVAL_STATUS_LABEL,
-} from './site-festival-client.js?v=aset-3de014d32463';
+} from './site-festival-client.js?v=aset-fa32b58762d1';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-fa32b58762d1';
+import {
+  BrowserLocationError,
+  LOCATION_PERMISSION,
+  getBrowserLocationPermissionState,
+  requestBrowserCurrentLocation,
+} from './site-current-location.js?v=aset-fa32b58762d1';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -39,19 +55,21 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-3de014d32463';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-3de014d32463';
+} from './site-festival-calendar.js?v=aset-fa32b58762d1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-fa32b58762d1';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-3de014d32463';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-fa32b58762d1';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-3de014d32463';
+} from './site-calendar-weather.js?v=aset-fa32b58762d1';
+
+const PAGE_SIZE = 20;
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -98,7 +116,7 @@ function heroImage(festival, {compact = false} = {}) {
   return wrap;
 }
 
-function buildCard(festival, now, {onOpen}) {
+function buildCard(festival, now, {onOpen, showDistance = false}) {
   const status = computeFestivalStatus(festival, now);
   const card = el('article', 'festival-card');
   const button = document.createElement('button');
@@ -114,6 +132,12 @@ function buildCard(festival, now, {onOpen}) {
   body.appendChild(el('p', 'festival-card-period', formatFestivalPeriod(festival)));
   const location = formatFestivalLocation(festival);
   if (location) body.appendChild(el('p', 'festival-card-location', location));
+  // Distance only in current-location mode, and only when Core actually
+  // returned a number — never a guessed/recomputed value, and hidden
+  // (not a placeholder string) when Core did not send one.
+  if (showDistance && typeof festival.distanceKm === 'number') {
+    body.appendChild(el('p', 'festival-card-distance', `${festival.distanceKm}km`));
+  }
   button.appendChild(body);
   card.appendChild(button);
   return card;
@@ -423,32 +447,66 @@ export async function mountFestivalManager({
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
   const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
 
-  const state = {region: '', ongoing: false, weekend: false, dateMode: '', customDate: ''};
+  const state = {
+    region: '',
+    time: FESTIVAL_TIME_FILTER.ALL,
+    customDate: '',
+    locationMode: 'NONE', // 'NONE' | 'CURRENT'
+    currentPosition: null,
+    currentRegionLabel: '',
+    locationPermission: LOCATION_PERMISSION.UNKNOWN,
+    locationBusy: false,
+  };
   let regionProvinces = [];
+  let regionProvincesPromise = null;
   let requestToken = 0;
+  let currentAbort = null;
+  let nextOffset = 0;
+  let hasMore = false;
+  let regionSheetRef = null;
 
   const container = el('div', 'festival-manager');
+  const locationBanner = el('div', 'festival-location-banner');
   const filterBar = el('div', 'festival-filter-bar');
   filterBar.setAttribute('role', 'group');
-  filterBar.setAttribute('aria-label', '축제 필터');
-  const quickRow = el('div', 'festival-chip-row festival-quick-row');
-  const regionRow = el('div', 'festival-chip-row festival-region-row');
-  regionRow.setAttribute('role', 'group');
-  regionRow.setAttribute('aria-label', '지역별 필터');
-  const dateRow = el('div', 'festival-date-row');
-  filterBar.append(quickRow, regionRow, dateRow);
+  filterBar.setAttribute('aria-label', '시간 필터');
+  const timeRow = el('div', 'festival-chip-row festival-time-row');
+  timeRow.setAttribute('role', 'group');
+  timeRow.setAttribute('aria-label', '시간 필터');
+  const dateField = document.createElement('label');
+  dateField.className = 'festival-date-field';
+  dateField.hidden = true;
+  dateField.append(el('span', '', '날짜 선택'));
+  const dateInput = document.createElement('input');
+  dateInput.type = 'date';
+  dateField.appendChild(dateInput);
+  filterBar.append(timeRow, dateField);
 
+  const liveRegion = el('p', 'sr-only');
+  liveRegion.setAttribute('role', 'status');
+  liveRegion.setAttribute('aria-live', 'polite');
   const status = el('p', 'festival-status');
   status.setAttribute('role', 'status');
   const error = el('p', 'festival-error');
   error.setAttribute('role', 'alert');
   error.hidden = true;
+  const retryButton = document.createElement('button');
+  retryButton.type = 'button';
+  retryButton.className = 'festival-retry-button';
+  retryButton.textContent = '다시 시도';
+  retryButton.hidden = true;
+  retryButton.addEventListener('click', () => fetchAndRender({reset: true}));
   const empty = el('p', 'festival-empty');
   empty.hidden = true;
-  empty.textContent = '조건에 맞는 축제가 없습니다.';
   const grid = el('div', 'festival-card-grid');
+  const loadMoreButton = document.createElement('button');
+  loadMoreButton.type = 'button';
+  loadMoreButton.className = 'festival-load-more';
+  loadMoreButton.textContent = '더 보기';
+  loadMoreButton.hidden = true;
+  loadMoreButton.addEventListener('click', () => fetchAndRender({reset: false}));
   const listSurface = el('div', 'festival-list-surface');
-  listSurface.append(filterBar, status, error, empty, grid);
+  listSurface.append(locationBanner, filterBar, liveRegion, status, error, retryButton, empty, grid, loadMoreButton);
 
   const detailSurface = el('div', 'festival-detail-surface');
   detailSurface.hidden = true;
@@ -459,76 +517,181 @@ export async function mountFestivalManager({
   container.append(listSurface, detailSurface, programSurface);
   root.appendChild(container);
 
-  const weekendChip = chipButton('이번주말', {
-    onClick: () => { state.weekend = !state.weekend; weekendChip.setAttribute('aria-pressed', String(state.weekend)); loadList(); },
-  });
-  const ongoingChip = chipButton('진행중', {
-    onClick: () => { state.ongoing = !state.ongoing; ongoingChip.setAttribute('aria-pressed', String(state.ongoing)); loadList(); },
-  });
-  quickRow.append(weekendChip, ongoingChip);
+  function ensureRegionProvinces() {
+    if (!regionProvincesPromise) {
+      regionProvincesPromise = listFestivalRegions(fetchImpl).then(result => {
+        regionProvinces = result.provinces;
+        return regionProvinces;
+      });
+    }
+    return regionProvincesPromise;
+  }
+  void ensureRegionProvinces();
 
-  const todayButton = chipButton('오늘', {
-    onClick: () => {
-      state.dateMode = state.dateMode === 'today' ? '' : 'today';
-      state.customDate = '';
-      dateInput.value = '';
-      todayButton.setAttribute('aria-pressed', String(state.dateMode === 'today'));
-      loadList();
-    },
-  });
-  const dateLabel = document.createElement('label');
-  dateLabel.className = 'festival-date-field';
-  dateLabel.append(el('span', '', '날짜 선택'));
-  const dateInput = document.createElement('input');
-  dateInput.type = 'date';
+  function renderLocationBanner() {
+    locationBanner.replaceChildren();
+    const label = el('span', 'festival-location-label');
+    if (state.region) {
+      label.textContent = `📍 ${state.region}`;
+    } else if (state.locationMode === 'CURRENT') {
+      label.textContent = state.currentRegionLabel
+        ? `📍 현재 위치 기준 · ${state.currentRegionLabel}`
+        : '📍 현재 위치 기준';
+    } else {
+      label.textContent = '📍 전국';
+    }
+    locationBanner.appendChild(label);
+
+    const actions = el('div', 'festival-location-actions');
+    if (state.locationBusy) {
+      actions.appendChild(el('span', 'festival-location-busy', '현재 위치 확인 중...'));
+    } else {
+      if (state.locationMode !== 'CURRENT' && state.locationPermission !== LOCATION_PERMISSION.DENIED) {
+        const useLocationButton = document.createElement('button');
+        useLocationButton.type = 'button';
+        useLocationButton.className = 'festival-location-button';
+        useLocationButton.textContent = '현재 위치로 보기';
+        useLocationButton.addEventListener('click', () => void useCurrentLocation({auto: false}));
+        actions.appendChild(useLocationButton);
+      }
+      const regionButton = document.createElement('button');
+      regionButton.type = 'button';
+      regionButton.className = 'festival-location-button';
+      regionButton.textContent = '지역 변경';
+      regionButton.addEventListener('click', () => void openRegionSheet());
+      actions.appendChild(regionButton);
+    }
+    locationBanner.appendChild(actions);
+  }
+
+  async function openRegionSheet() {
+    await ensureRegionProvinces();
+    regionSheetRef = createBottomSheet({
+      label: '지역 변경',
+      content: () => buildRegionSheetBody(),
+      onClose: () => { regionSheetRef = null; },
+    });
+    regionSheetRef.open();
+  }
+
+  function buildRegionSheetBody() {
+    const wrap = el('div', 'festival-region-sheet');
+    wrap.appendChild(el('h3', 'festival-region-sheet-title', '지역 변경'));
+    const list = el('div', 'festival-region-list');
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', '광역시·도 선택');
+    for (const province of regionProvinces) {
+      const optionButton = document.createElement('button');
+      optionButton.type = 'button';
+      optionButton.className = 'festival-region-option';
+      optionButton.setAttribute('role', 'option');
+      const selected = state.region === province;
+      optionButton.setAttribute('aria-selected', String(selected));
+      if (selected) optionButton.classList.add('is-selected');
+      optionButton.textContent = province;
+      optionButton.addEventListener('click', () => {
+        selectManualRegion(province);
+        regionSheetRef?.close();
+      });
+      list.appendChild(optionButton);
+    }
+    wrap.appendChild(list);
+    if (state.locationPermission !== LOCATION_PERMISSION.DENIED) {
+      const backButton = document.createElement('button');
+      backButton.type = 'button';
+      backButton.className = 'festival-region-current-button';
+      backButton.textContent = '현재 위치로 돌아가기';
+      backButton.addEventListener('click', () => {
+        regionSheetRef?.close();
+        void useCurrentLocation({auto: false});
+      });
+      wrap.appendChild(backButton);
+    }
+    return wrap;
+  }
+
+  function selectManualRegion(province) {
+    state.region = province;
+    state.locationMode = 'NONE';
+    state.currentPosition = null;
+    state.currentRegionLabel = '';
+    renderLocationBanner();
+    void fetchAndRender({reset: true});
+  }
+
+  async function useCurrentLocation({auto = false} = {}) {
+    state.locationBusy = true;
+    renderLocationBanner();
+    try {
+      const position = await requestBrowserCurrentLocation();
+      state.currentPosition = {latitude: position.latitude, longitude: position.longitude};
+      state.region = '';
+      state.locationMode = 'CURRENT';
+      state.currentRegionLabel = resolveCurrentRegionLabel(position.latitude, position.longitude);
+      state.locationPermission = LOCATION_PERMISSION.GRANTED;
+    } catch (locationError) {
+      if (locationError instanceof BrowserLocationError && locationError.code === 'BROWSER_LOCATION_DENIED') {
+        state.locationPermission = LOCATION_PERMISSION.DENIED;
+      }
+      state.locationMode = 'NONE';
+      state.currentPosition = null;
+      state.currentRegionLabel = '';
+      if (auto) console.warn('[LOTBI 축제·행사] 허용된 위치 권한으로 현재 위치를 확인하지 못했습니다.', locationError);
+    } finally {
+      state.locationBusy = false;
+      renderLocationBanner();
+    }
+    await fetchAndRender({reset: true});
+  }
+
+  function selectTimeFilter(key) {
+    state.time = key;
+    for (const [value, button] of timeButtons) button.setAttribute('aria-pressed', String(value === key));
+    dateField.hidden = key !== FESTIVAL_TIME_FILTER.DATE;
+    if (key === FESTIVAL_TIME_FILTER.DATE) {
+      if (state.customDate) void fetchAndRender({reset: true});
+      return;
+    }
+    void fetchAndRender({reset: true});
+  }
+
+  const timeButtons = new Map();
+  for (const key of Object.values(FESTIVAL_TIME_FILTER)) {
+    const button = chipButton(FESTIVAL_TIME_FILTER_LABEL[key], {
+      pressed: state.time === key,
+      onClick: () => selectTimeFilter(key),
+    });
+    timeButtons.set(key, button);
+    timeRow.appendChild(button);
+  }
   dateInput.addEventListener('change', () => {
     state.customDate = dateInput.value || '';
-    state.dateMode = state.customDate ? 'custom' : '';
-    todayButton.setAttribute('aria-pressed', 'false');
-    loadList();
+    if (state.customDate) void fetchAndRender({reset: true});
   });
-  dateLabel.appendChild(dateInput);
-  dateRow.append(todayButton, dateLabel);
 
-  function activeFilters() {
-    const filters = {};
-    if (state.region) filters.region = state.region;
-    if (state.ongoing) filters.status = 'ONGOING';
-    if (state.weekend) filters.weekend = true;
-    if (state.dateMode === 'today') filters.date = 'today';
-    else if (state.dateMode === 'custom' && state.customDate) filters.date = state.customDate;
-    return filters;
+  function buildQuery(offset) {
+    const query = {time: state.time, limit: PAGE_SIZE, offset};
+    if (state.time === FESTIVAL_TIME_FILTER.DATE && state.customDate) query.date = state.customDate;
+    if (state.region) {
+      query.region = state.region;
+    } else if (state.locationMode === 'CURRENT' && state.currentPosition) {
+      query.latitude = state.currentPosition.latitude;
+      query.longitude = state.currentPosition.longitude;
+    }
+    return query;
   }
 
-  function renderRegionChips() {
-    regionRow.replaceChildren();
-    const allChip = chipButton('전체', {
-      pressed: !state.region,
-      onClick: () => selectRegion(''),
-    });
-    regionRow.appendChild(allChip);
-    for (const province of regionProvinces) {
-      const chip = chipButton(province, {
-        pressed: state.region === province,
-        onClick: () => selectRegion(province),
-      });
-      regionRow.appendChild(chip);
-    }
-  }
-
-  function selectRegion(province) {
-    state.region = province;
-    for (const chip of regionRow.querySelectorAll('.festival-chip')) {
-      chip.setAttribute('aria-pressed', chip.textContent === (province || '전체') ? 'true' : 'false');
-    }
-    loadList();
+  function emptyMessageFor() {
+    if (state.region) return `현재 조건에 맞는 축제·행사가 없어요 (${state.region})`;
+    if (state.locationMode === 'CURRENT') return '현재 위치 주변에 조건에 맞는 축제·행사가 없어요';
+    return '현재 조건에 맞는 축제·행사가 없어요';
   }
 
   function showList() {
     programSurface.hidden = true;
     detailSurface.hidden = true;
     listSurface.hidden = false;
-    if (!listLoaded) void loadList();
+    if (!listLoaded) void fetchAndRender({reset: true});
   }
 
   function openDetail(id) {
@@ -536,35 +699,58 @@ export async function mountFestivalManager({
   }
 
   let listLoaded = false;
-  async function loadList() {
+  async function fetchAndRender({reset}) {
     listLoaded = true;
     const token = ++requestToken;
-    status.hidden = false;
-    status.textContent = '축제 정보를 불러오는 중입니다.';
-    error.hidden = true;
-    empty.hidden = true;
-    grid.replaceChildren();
+    if (currentAbort) currentAbort.abort();
+    const controller = new AbortController();
+    currentAbort = controller;
+
+    if (reset) {
+      nextOffset = 0;
+      grid.replaceChildren();
+      status.hidden = false;
+      status.textContent = '축제·행사를 불러오는 중이에요';
+      error.hidden = true;
+      retryButton.hidden = true;
+      empty.hidden = true;
+      loadMoreButton.hidden = true;
+    } else {
+      loadMoreButton.disabled = true;
+      loadMoreButton.textContent = '불러오는 중...';
+    }
+
+    const query = buildQuery(reset ? 0 : nextOffset);
+    const scopedFetch = (input, init) => fetchImpl(input, {...init, signal: controller.signal});
+
     try {
-      const [festivals, regions] = await Promise.all([
-        listPublishedFestivals(activeFilters(), fetchImpl),
-        regionProvinces.length ? Promise.resolve({provinces: regionProvinces}) : listFestivalRegions(fetchImpl),
-      ]);
+      const result = await browseFestivals(query, scopedFetch);
       if (token !== requestToken) return;
-      if (!regionProvinces.length) {
-        regionProvinces = regions.provinces;
-        renderRegionChips();
-      }
       status.hidden = true;
-      if (!festivals.length) {
+      if (reset && !result.festivals.length) {
         empty.hidden = false;
-        return;
+        empty.textContent = emptyMessageFor();
       }
-      for (const festival of festivals) grid.appendChild(buildCard(festival, now, {onOpen: openDetail}));
-    } catch {
+      const showDistance = state.locationMode === 'CURRENT';
+      for (const festival of result.festivals) grid.appendChild(buildCard(festival, now, {onOpen: openDetail, showDistance}));
+      hasMore = result.hasMore;
+      nextOffset = result.nextOffset ?? nextOffset + result.festivals.length;
+      loadMoreButton.hidden = !hasMore;
+      liveRegion.textContent = result.festivals.length
+        ? `축제·행사 ${result.totalCount}건 중 ${grid.children.length}건을 보여주고 있어요.`
+        : emptyMessageFor();
+    } catch (fetchError) {
       if (token !== requestToken) return;
+      if (fetchError?.name === 'AbortError') return;
       status.hidden = true;
       error.hidden = false;
-      error.textContent = '축제 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      error.textContent = '축제·행사 정보를 불러오지 못했어요.';
+      retryButton.hidden = false;
+    } finally {
+      if (token === requestToken) {
+        loadMoreButton.disabled = false;
+        loadMoreButton.textContent = '더 보기';
+      }
     }
   }
 
@@ -648,7 +834,7 @@ export async function mountFestivalManager({
     loading.setAttribute('role', 'status');
     detailSurface.appendChild(loading);
 
-    // Shares loadList()'s own requestToken: opening festival B's detail
+    // Shares fetchAndRender()'s own requestToken: opening festival B's detail
     // before festival A's fetch (or A's later program-weather read) resolves
     // must never let A's late response land on B's now-visible screen.
     const detailToken = ++requestToken;
@@ -718,12 +904,24 @@ export async function mountFestivalManager({
     if (autoOpenProgram && festival.programs.length) openProgramSurface(festival, detailToken);
   }
 
-  if (initialFestivalId) await renderDetail(initialFestivalId, {autoOpenProgram: true});
-  else await loadList();
+  if (initialFestivalId) {
+    await renderDetail(initialFestivalId, {autoOpenProgram: true});
+  } else {
+    renderLocationBanner();
+    state.locationPermission = await getBrowserLocationPermissionState();
+    if (state.locationPermission === LOCATION_PERMISSION.GRANTED) {
+      await useCurrentLocation({auto: true});
+    } else {
+      renderLocationBanner();
+      await fetchAndRender({reset: true});
+    }
+  }
 
   return {
     dispose() {
       requestToken += 1;
+      currentAbort?.abort();
+      regionSheetRef?.close();
     },
   };
 }

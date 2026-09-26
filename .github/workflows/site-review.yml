@@ -282,16 +282,17 @@ jobs:
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
-      # FESTIVAL-EVENT-08: consumer 축제 detail/program screen — real Core
-      # snake_case normalization, PUBLISHED-only boundary, CTA visibility,
-      # date-tab grouping and KST weekday, legacy-section removal, and nav
-      # wiring/external-link hygiene. FESTIVAL-EVENT-09's venue-coordinate
-      # program-date weather (site-festival-weather.js) is folded into the
-      # same date tabs. FESTIVAL-EVENT-10 adds "내 캘린더에 추가" (visit-date
+      # 축제·행사: consumer browse (FESTIVAL-EVENT-07: location/region/time-
+      # filter browse, real Core browse/regions contract, current-location
+      # permission reuse, pagination/card rendering) + detail/program screen
+      # (FESTIVAL-EVENT-08: real Core snake_case normalization, CTA
+      # visibility, date-tab grouping, legacy-section removal) +
+      # FESTIVAL-EVENT-09's venue-coordinate program-date weather folded into
+      # the same date tabs + FESTIVAL-EVENT-10's "내 캘린더에 추가" (visit-date
       # picker -> the existing LOTBI Calendar) and Calendar -> Festival
-      # re-entry. (FESTIVAL-07's browse UI shipped these scripts in PR #322
-      # without ever wiring them into this gate; this closes that gap.)
-      - name: Validate 축제·행사 public boundary, detail/program screen, weather, and Calendar link
+      # re-entry. No fixture may ever reach Production — these gates enforce
+      # that end to end.
+      - name: Validate 축제·행사 nav wiring, modal shell and public boundary
         run: |
           node --check site-festival-client.js
           node --check site-festival-ui.js
@@ -300,8 +301,17 @@ jobs:
           node --check site-calendar-guest.js
           node --check site-calendar-manager.js
           node --check site-conversation.js
-          node scripts/validate_festival_public_boundary_01.mjs
           node scripts/validate_festival_nav_wiring_01.mjs
+          node scripts/validate_festival_public_boundary_01.mjs
+
+      - name: Validate 축제·행사 location permission reuse and manual region
+        run: node scripts/validate_festival_location_manual_region_01.mjs
+
+      - name: Validate 축제·행사 time filters, pagination and card rendering
+        run: node scripts/validate_festival_list_filters_pagination_01.mjs
+
+      - name: Validate 축제·행사 detail/program screen and weather
+        run: |
           node scripts/validate_festival_event_08_detail_01.mjs
           node scripts/validate_festival_event_08_responsive_a11y_01.mjs
           node scripts/validate_festival_weather_01.mjs
@@ -488,7 +498,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 
