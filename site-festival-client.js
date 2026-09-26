@@ -294,6 +294,14 @@ export function normalizePublishedFestival(raw, {includePrograms = false} = {}) 
     address: text(raw.address),
     imageUrl: httpsUrl(raw.imageUrl),
     summary: text(raw.summary),
+    // Venue coordinates for FESTIVAL-EVENT-09 (program-date weather), read the
+    // same way Core's public festival DTO carries them (float|null on the
+    // record — see lotbi-core app/festival_review.py festival_public_view()).
+    // Never derived from region/address text and never a browser/user
+    // location fallback — null here must mean "no venue weather", not "use
+    // something else".
+    latitude: finiteNumber(raw.latitude),
+    longitude: finiteNumber(raw.longitude),
   };
   if (!includePrograms) return Object.freeze(base);
   return Object.freeze({
@@ -418,6 +426,8 @@ function FESTIVAL_FIXTURES(now, timezone) {
       region: '서울특별시',
       venueName: '여의도 한강공원',
       address: '서울특별시 영등포구 여의동로 330',
+      latitude: 37.5283,
+      longitude: 126.9336,
       summary: '해질녘 한강변을 따라 억새와 조명 설치가 이어지는 가을 축제.',
       programs: [
         {id: 'prog_river_1', date: at(0), startTime: '19:00', endTime: '21:00', title: '야간 조명 점등식', category: '공연', venue: '한강공원 중앙광장'},
@@ -436,6 +446,8 @@ function FESTIVAL_FIXTURES(now, timezone) {
       region: '경기도',
       venueName: '수원 화성행궁 광장',
       address: '경기도 수원시 팔달구 정조로 825',
+      latitude: 37.2836,
+      longitude: 127.0187,
       summary: '이번 주말 이틀간 열리는 야시장·공연 페스티벌.',
       programs: [
         {id: 'prog_night_1', date: weekendStart, startTime: '18:00', endTime: '22:00', title: '개막 공연', category: '공연'},
@@ -466,7 +478,9 @@ function FESTIVAL_FIXTURES(now, timezone) {
       endDate: at(22),
       region: '전북특별자치도',
       venueName: '전주 한옥마을 일원',
-      summary: '한지 공예와 전통 체험 위주의 3일간 축제.',
+      latitude: 35.8151,
+      longitude: 127.1535,
+      summary: '한지 공예와 전통 체험 위주의 3일간 축제. 축제장 좌표 기준으로 날씨를 표시하는 예시 — 사용자의 현재 위치가 아니라 이 좌표를 씁니다.',
       programs: [
         {id: 'prog_hanji_1', date: at(20), startTime: '10:00', endTime: '18:00', title: '한지 공예 체험', category: '체험', price: {amount: 8000, currency: 'KRW', unit: '1인'}},
         {id: 'prog_hanji_2', date: at(21), startTime: '13:00', endTime: '15:00', title: '어린이 한지 놀이터', category: '가족'},

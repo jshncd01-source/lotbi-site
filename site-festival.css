@@ -297,11 +297,39 @@
   gap: 14px;
 }
 
-.festival-program-date {
+.festival-program-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
   margin: 0 0 6px;
+}
+
+.festival-program-date {
+  margin: 0;
   font-size: 13px;
   font-weight: 700;
   color: var(--lotbi-text-secondary);
+}
+
+.festival-program-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--lotbi-text-secondary);
+  white-space: nowrap;
+}
+
+.festival-program-weather-text {
+  white-space: nowrap;
+}
+
+.festival-weather-attribution {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--lotbi-text-muted);
 }
 
 .festival-program-list {

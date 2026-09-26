@@ -17,7 +17,13 @@ import {
   listFestivalRegions,
   listPublishedFestivals,
   sortFestivalPrograms,
-} from './site-festival-client.js?v=aset-19a32133d76b';
+} from './site-festival-client.js?v=aset-fc9bce2f643e';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-fc9bce2f643e';
+import {
+  calendarWeatherAttribution,
+  calendarWeatherIconNode,
+  weatherTemperatureLabel,
+} from './site-calendar-weather.js?v=aset-fc9bce2f643e';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -114,21 +120,73 @@ function buildCard(festival, now, {onOpen}) {
   return card;
 }
 
+// Full Korean weekday date label for the date-group accessible name, e.g.
+// "10월 10일 토요일" — independent of formatFestivalDateLabel()'s short visual
+// "10.10", which drops the weekday a screen reader still needs.
+function weekdayDateLabelKo(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
+  if (!match) return '';
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  try {
+    return new Intl.DateTimeFormat('ko-KR', {timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long'}).format(date);
+  } catch {
+    return '';
+  }
+}
+
+// One accessible sentence per date group so a screen reader gets the full
+// forecast once, instead of the visual icon (aria-hidden) being read as a
+// separate, meaningless glyph. A date with no weather (no forecast yet, or
+// out of range) never claims a percentage or temperature it does not have.
+function buildProgramDateAriaLabel(dateString, weatherItem) {
+  const dateLabel = weekdayDateLabelKo(dateString);
+  if (!weatherItem) return dateLabel;
+  const segments = [dateLabel];
+  if (weatherItem.label) segments.push(weatherItem.label);
+  const hasMin = Number.isFinite(weatherItem.minTemperature);
+  const hasMax = Number.isFinite(weatherItem.maxTemperature);
+  if (hasMin && hasMax) segments.push(`최저 ${Math.round(weatherItem.minTemperature)}도 최고 ${Math.round(weatherItem.maxTemperature)}도`);
+  else if (hasMax) segments.push(`최고 ${Math.round(weatherItem.maxTemperature)}도`);
+  else if (hasMin) segments.push(`최저 ${Math.round(weatherItem.minTemperature)}도`);
+  else if (Number.isFinite(weatherItem.temperature)) segments.push(`${Math.round(weatherItem.temperature)}도`);
+  if (Number.isInteger(weatherItem.precipitationProbability)) segments.push(`강수확률 ${weatherItem.precipitationProbability}퍼센트`);
+  return segments.join(', ');
+}
+
+// Visual-only weather badge next to a date-group heading. precipitationProbability
+// is only ever rendered when Core actually sent an integer — a missing value
+// hides the "강수 N%" segment entirely rather than showing a fabricated 0%.
+function buildProgramDateWeatherBadge(weatherItem) {
+  const badge = el('span', 'festival-program-weather');
+  badge.setAttribute('aria-hidden', 'true');
+  const icon = calendarWeatherIconNode(weatherItem.weatherKind, document);
+  if (icon) badge.appendChild(icon);
+  const parts = [];
+  const tempLabel = weatherTemperatureLabel(weatherItem);
+  if (tempLabel) parts.push(tempLabel);
+  if (Number.isInteger(weatherItem.precipitationProbability)) parts.push(`강수 ${weatherItem.precipitationProbability}%`);
+  if (parts.length) badge.appendChild(el('span', 'festival-program-weather-text', parts.join(' · ')));
+  return badge;
+}
+
 function buildProgramSection(festival) {
   const section = el('section', 'festival-section festival-programs');
   section.appendChild(el('h4', 'festival-section-title', '주요 프로그램'));
   if (!festival.programs.length) {
     section.appendChild(el('p', 'festival-empty-note', '등록된 프로그램 정보가 없습니다.'));
-    return section;
+    return {section, applyWeather() {}};
   }
 
   const categoryRow = el('div', 'festival-chip-row');
   categoryRow.setAttribute('role', 'group');
   categoryRow.setAttribute('aria-label', '프로그램 카테고리 필터');
   const list = el('div', 'festival-program-groups');
-  section.append(categoryRow, list);
+  const weatherAttribution = el('p', 'festival-weather-attribution');
+  weatherAttribution.hidden = true;
+  section.append(categoryRow, list, weatherAttribution);
 
   let activeCategory = '';
+  let weatherByDate = null;
   const categories = ['전체', ...FESTIVAL_PROGRAM_CATEGORIES];
   const chips = new Map();
 
@@ -141,7 +199,13 @@ function buildProgramSection(festival) {
     }
     for (const group of groupProgramsByDate(filtered)) {
       const groupEl = el('div', 'festival-program-group');
-      groupEl.appendChild(el('h5', 'festival-program-date', formatFestivalDateLabel(group.date)));
+      const dateRow = el('div', 'festival-program-date-row');
+      const dateHeading = el('h5', 'festival-program-date', formatFestivalDateLabel(group.date));
+      const weatherItem = weatherByDate?.get(group.date) || null;
+      dateHeading.setAttribute('aria-label', buildProgramDateAriaLabel(group.date, weatherItem));
+      dateRow.appendChild(dateHeading);
+      if (weatherItem) dateRow.appendChild(buildProgramDateWeatherBadge(weatherItem));
+      groupEl.appendChild(dateRow);
       const ul = document.createElement('ul');
       ul.className = 'festival-program-list';
       for (const program of group.programs) {
@@ -178,7 +242,22 @@ function buildProgramSection(festival) {
     categoryRow.appendChild(chip);
   }
   renderPrograms();
-  return section;
+
+  return {
+    section,
+    // Called once the async weather read (site-festival-weather.js) resolves.
+    // The program list is already visible by then; this only re-renders the
+    // date-group headings with the now-available weather and shows the
+    // 기상청 attribution line once, at the bottom of this section — never per
+    // date group.
+    applyWeather({byDate, items} = {}) {
+      weatherByDate = byDate instanceof Map && byDate.size ? byDate : null;
+      renderPrograms();
+      const attribution = weatherByDate ? calendarWeatherAttribution(items) : null;
+      weatherAttribution.hidden = !attribution;
+      weatherAttribution.textContent = attribution ? attribution.text : '';
+    },
+  };
 }
 
 function buildReservationSection(festival) {
@@ -367,6 +446,10 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
   }
 
   async function renderDetail(id) {
+    // Shares requestToken with loadList(): opening festival B's detail before
+    // festival A's weather read resolves must never let A's late response
+    // land on B's now-visible date groups.
+    const detailToken = ++requestToken;
     listSurface.hidden = true;
     detailSurface.hidden = false;
     detailSurface.replaceChildren();
@@ -379,6 +462,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     } catch {
       festival = null;
     }
+    if (detailToken !== requestToken) return;
     detailSurface.replaceChildren();
     const back = document.createElement('button');
     back.type = 'button';
@@ -408,12 +492,25 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     if (festival.summary) header.appendChild(el('p', 'festival-detail-summary', festival.summary));
     detailSurface.appendChild(header);
 
-    detailSurface.appendChild(buildProgramSection(festival));
+    const programSection = buildProgramSection(festival);
+    detailSurface.appendChild(programSection.section);
     detailSurface.appendChild(buildReservationSection(festival));
     const parkingShuttle = buildParkingShuttleSection(festival);
     if (parkingShuttle) detailSurface.appendChild(parkingShuttle);
     const officialSource = buildOfficialSourceSection(festival);
     if (officialSource) detailSurface.appendChild(officialSource);
+
+    // Program stays visible immediately; weather (venue coordinates only,
+    // never the visitor's own location) fills in the date-group headings once
+    // it resolves, or never, if there is no usable venue coordinate, no
+    // program, or the read fails — the program section is never blocked or
+    // hidden on this.
+    if (festival.programs.length && Number.isFinite(festival.latitude) && Number.isFinite(festival.longitude)) {
+      getFestivalProgramWeather({festival, fetchImpl}).then(result => {
+        if (detailToken !== requestToken) return;
+        if (result.ok) programSection.applyWeather(result);
+      });
+    }
   }
 
   await loadList();
