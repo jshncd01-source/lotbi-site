@@ -17,7 +17,7 @@ import {
   listFestivalRegions,
   listPublishedFestivals,
   sortFestivalPrograms,
-} from './site-festival-client.js?v=aset-b40ae6657251';
+} from './site-festival-client.js?v=aset-023c9f5e3e81';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);

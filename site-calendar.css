@@ -651,22 +651,21 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
    대표님 요청으로 3px에서 20% 줄여 2.4px. */
 .calendar-date-cell[data-today="true"] { z-index: 1; box-shadow: inset 0 0 0 2.4px var(--lotbi-calendar-today-ring); }
 /* 링만으로는 눈에 덜 띌 수 있어, 날짜 숫자 옆에 작은 점 하나를 더 찍는다 —
-   숫자를 감싸는 큰 원은 아니고, 존재만 알리는 보조 표시. trigger 기준으로
-   찍으면 트리거 박스가 44px 정사각형이라 데스크톱(가운데 정렬)과 모바일(위
-   왼쪽 정렬)에서 숫자와 점 사이 거리가 달라진다 — 숫자(.calendar-date-number)
-   자신을 기준으로 찍어 두 표면 모두 숫자 바로 아래 붙게 한다. */
-.calendar-date-cell[data-today="true"] .calendar-date-number { position: relative; }
+   숫자를 감싸는 큰 원은 아니고, 존재만 알리는 보조 표시. 숫자 "아래"에
+   absolute로 찍었더니 음력 표시를 켰을 때 그 자리에 음력 날짜 텍스트가
+   나와서 점과 겹쳤다(실제 확인됨) — 아래가 아니라 숫자 오른쪽에 inline으로
+   붙여서, 그 밑에 뭐가 오든(음력 날짜, 공휴일 라벨) 겹칠 자리 자체가 없게
+   한다. */
 .calendar-date-cell[data-today="true"] .calendar-date-number::after {
   content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-top: 1px;
-  transform: translateX(-50%);
+  display: inline-block;
   width: 5px;
   height: 5px;
+  margin-left: 4px;
+  margin-bottom: 3px;
   border-radius: 999px;
   background: var(--lotbi-calendar-today-ring);
+  vertical-align: middle;
 }
 .calendar-date-header { min-width: 0; min-height: 44px; display: flex; align-items: flex-start; gap: 4px; }
 .calendar-date-trigger {
