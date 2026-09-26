@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-bb8131a1c21b';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-03eb88035482';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
@@ -460,8 +460,12 @@ export function petDraftPhotoInspectionMessage(photo) {
   if (photo.inspectionState === 'ACCEPTED') return '사진 확인됨';
   const reason = typeof photo.inspectionReasonCode === 'string' ? photo.inspectionReasonCode : '';
   if (reason && PET_ERROR_MESSAGES[reason]) return PET_ERROR_MESSAGES[reason];
-  if (photo.inspectionState === 'REJECTED') return '다시 촬영이 필요한 사진입니다.';
-  return '사진 확인을 기다리고 있습니다.';
+  // No specific reason yet: the row was saved to the draft the moment it was
+  // uploaded, so the copy says so instead of leaving the save state unstated.
+  if (photo.inspectionState === 'REJECTED') {
+    return '사진은 초안에 저장됐지만 확인을 통과하지 못했어요. 다시 찍어 교체해 주세요.';
+  }
+  return '사진은 저장됐어요. 확인이 끝나면 상태가 바뀝니다.';
 }
 
 export async function getPetCatalog(fetchImpl = globalThis.fetch) {
@@ -873,11 +877,20 @@ async function petPhotoQuickLook(file) {
 export async function inspectPetPhotoLocally(file) {
   const looked = await petPhotoQuickLook(file);
   if (!looked) return null;
+  // These reject before any network request, so the photo was never uploaded
+  // — the copy says "did not save" because that is always true here, unlike
+  // a server-side rejection where the draft row is already saved.
   if (looked.tooSmall) {
-    return {code: 'PET_PHOTO_TOO_SMALL', message: PET_ERROR_MESSAGES.PET_PHOTO_TOO_SMALL};
+    return {
+      code: 'PET_PHOTO_TOO_SMALL',
+      message: '사진이 너무 작아 저장하지 않았어요. 원본 크기로 다시 찍어 주세요.',
+    };
   }
   if (looked.sharpness < LOCAL_SHARPNESS_FLOOR) {
-    return {code: 'PET_PHOTO_TOO_BLURRY', message: PET_ERROR_MESSAGES.PET_PHOTO_TOO_BLURRY};
+    return {
+      code: 'PET_PHOTO_TOO_BLURRY',
+      message: '사진이 흐려 저장하지 않았어요. 초점을 맞춰 다시 찍어 주세요.',
+    };
   }
   return null;
 }
