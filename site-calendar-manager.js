@@ -1,5 +1,5 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-cdfb642c3b79';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-cdfb642c3b79';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-2f82dac3fda2';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2f82dac3fda2';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-cdfb642c3b79';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-cdfb642c3b79';
+} from './site-calendar-model.js?v=aset-2f82dac3fda2';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-2f82dac3fda2';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-cdfb642c3b79';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-cdfb642c3b79';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-cdfb642c3b79';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-2f82dac3fda2';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-2f82dac3fda2';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-2f82dac3fda2';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -26,12 +26,12 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-cdfb642c3b79';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-cdfb642c3b79';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-cdfb642c3b79';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-cdfb642c3b79';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-cdfb642c3b79';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-cdfb642c3b79';
+} from './site-calendar-product.js?v=aset-2f82dac3fda2';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-2f82dac3fda2';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-2f82dac3fda2';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-2f82dac3fda2';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-2f82dac3fda2';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-2f82dac3fda2';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1442,8 +1442,8 @@ function renderWeek(state, actions, weatherCredit = null) {
     if (weather) {
       const weatherLine = document.createElement('span');
       weatherLine.className = 'calendar-week-weather';
-      const temperature = calendarWeatherPresentation(weather).weekLabel;
-      weatherLine.textContent = [weather.label, temperature].filter(Boolean).join(' · ');
+      const presentation = calendarWeatherPresentation(weather);
+      weatherLine.textContent = [weather.label, presentation.weekLabel, presentation.precipLabel].filter(Boolean).join(' · ');
       weatherLine.setAttribute('aria-label', `날씨 ${weatherLine.textContent}`);
       const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
       if (weatherIcon) weatherLine.prepend(weatherIcon);
@@ -1636,7 +1636,8 @@ function renderMonth(state, actions, weatherCredit = null) {
         weatherIcon.title = weather.label;
         weatherSummary.appendChild(weatherIcon);
       }
-      const temperatureLabel = calendarWeatherPresentation(weather).monthLabel;
+      const weatherPresentation = calendarWeatherPresentation(weather);
+      const temperatureLabel = weatherPresentation.monthLabel;
       if (temperatureLabel) {
         const temperature = document.createElement('span');
         temperature.className = 'calendar-weather-temperature';
@@ -1660,6 +1661,14 @@ function renderMonth(state, actions, weatherCredit = null) {
           temperature.appendChild(value);
         }
         weatherSummary.appendChild(temperature);
+      }
+      // 강수확률은 있을 때만(0%는 표시 안 함) 온도 줄 아래에 한 줄 더 붙는다
+      // — 강수 없는 대부분의 날은 지금 화면 그대로 유지된다.
+      if (weatherPresentation.precipLabel) {
+        const precip = document.createElement('span');
+        precip.className = 'calendar-weather-precip';
+        precip.textContent = weatherPresentation.precipLabel;
+        weatherSummary.appendChild(precip);
       }
       if (weatherSummary.childElementCount) header.appendChild(weatherSummary);
     }

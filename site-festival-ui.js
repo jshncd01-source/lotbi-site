@@ -28,18 +28,18 @@ import {
   listPublishedFestivals,
   selectInitialProgramDate,
   FESTIVAL_STATUS_LABEL,
-} from './site-festival-client.js?v=aset-cdfb642c3b79';
+} from './site-festival-client.js?v=aset-2f82dac3fda2';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-cdfb642c3b79';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-2f82dac3fda2';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-cdfb642c3b79';
+} from './site-calendar-weather.js?v=aset-2f82dac3fda2';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
