@@ -23,6 +23,7 @@
 // normalized Site model any more (see site-festival-client.js), so there is
 // nothing left here that could render them.
 import {
+  FESTIVAL_STATUS,
   FESTIVAL_STATUS_LABEL,
   FESTIVAL_TIME_FILTER,
   FESTIVAL_TIME_FILTER_LABEL,
@@ -37,25 +38,36 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-59f937b762d5';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-59f937b762d5';
+} from './site-festival-client.js?v=aset-5cf91ee9df1d';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-5cf91ee9df1d';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   requestBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-59f937b762d5';
+} from './site-current-location.js?v=aset-5cf91ee9df1d';
+// FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
+// end to end (createLifeActivity() for authenticated users, the Guest
+// Calendar repository's idempotency contract for signed-out visitors) — see
+// site-festival-calendar.js's module header for why an authenticated user's
+// festival link is a same-browser interim index rather than a Core field.
+import {
+  VISIT_SCOPE,
+  addFestivalVisitToCalendar,
+  festivalVisitDateOptions,
+} from './site-festival-calendar.js?v=aset-5cf91ee9df1d';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-5cf91ee9df1d';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-59f937b762d5';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-5cf91ee9df1d';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-59f937b762d5';
+} from './site-calendar-weather.js?v=aset-5cf91ee9df1d';
 
 const PAGE_SIZE = 20;
 
@@ -279,12 +291,161 @@ function buildProgramPanel(tab) {
   return panel;
 }
 
+// ---------------------------------------------- "내 캘린더에 추가" (utility) --
+
+// PUBLISHED-only is already structural (every festival here came through
+// getPublishedFestival()/listPublishedFestivals()). ENDED/CANCELLED never
+// offer a *new* visit registration — the visit already happened, or the
+// event will not.
+function festivalCalendarAddEligible(festival, now) {
+  const status = computeFestivalStatus(festival, now);
+  return status !== FESTIVAL_STATUS.ENDED && status !== FESTIVAL_STATUS.CANCELLED;
+}
+
+// A deliberate personalization utility action, never folded into
+// buildCtaRow()'s [프로그램]/[체험·신청] primary pair — it writes through the
+// existing LOTBI Calendar (site-festival-calendar.js), never a new store.
+function buildCalendarAddSection(root, festival, {authenticated, sessionToken, guestRepository, now = new Date()}) {
+  const wrap = el('div', 'festival-calendar-add');
+  if (!festivalCalendarAddEligible(festival, now)) return wrap;
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'festival-calendar-add-trigger';
+  trigger.textContent = '+ 내 캘린더에 추가';
+  wrap.appendChild(trigger);
+
+  const feedback = el('p', 'festival-calendar-add-feedback');
+  feedback.hidden = true;
+  wrap.appendChild(feedback);
+
+  const announce = (message, {isError = false} = {}) => {
+    feedback.hidden = false;
+    feedback.textContent = message;
+    feedback.setAttribute('role', isError ? 'alert' : 'status');
+  };
+
+  let disposeSheet = null;
+  const closeSheet = ({restoreFocus = true} = {}) => {
+    if (!disposeSheet) return;
+    const dispose = disposeSheet;
+    disposeSheet = null;
+    dispose();
+    if (restoreFocus) trigger.focus();
+  };
+
+  const submit = async (visitScope, visitDate) => {
+    trigger.disabled = true;
+    try {
+      const result = await addFestivalVisitToCalendar({festival, visitDate, visitScope, authenticated, sessionToken, guestRepository});
+      if (result.status === 'CREATED') {
+        announce('캘린더에 추가했어요.');
+        closeSheet();
+      } else if (result.status === 'DUPLICATE') {
+        announce('이미 캘린더에 추가되어 있어요.');
+        closeSheet();
+      } else {
+        announce('캘린더에 추가하지 못했어요. 다시 시도해 주세요.', {isError: true});
+      }
+    } catch {
+      announce('캘린더에 추가하지 못했어요. 다시 시도해 주세요.', {isError: true});
+    } finally {
+      trigger.disabled = false;
+    }
+  };
+
+  const openSheet = () => {
+    closeSheet({restoreFocus: false});
+    const backdrop = el('div', 'festival-visit-sheet-backdrop');
+    const dialog = el('div', 'festival-visit-sheet');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'festival-visit-sheet-title');
+
+    const header = el('div', 'festival-visit-sheet-header');
+    const title = el('h4', 'festival-visit-sheet-title', '방문할 날짜를 선택하세요');
+    title.id = 'festival-visit-sheet-title';
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'festival-visit-sheet-close';
+    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', '닫기');
+    header.append(title, closeButton);
+
+    const optionsList = el('div', 'festival-visit-sheet-options');
+    optionsList.setAttribute('role', 'radiogroup');
+    optionsList.setAttribute('aria-label', '방문 날짜');
+    const optionButtons = [];
+    let selected = null;
+
+    const confirmButton = document.createElement('button');
+    confirmButton.type = 'button';
+    confirmButton.className = 'festival-visit-sheet-confirm';
+    confirmButton.textContent = '추가';
+    confirmButton.disabled = true;
+
+    const selectOption = (node, value) => {
+      selected = value;
+      for (const optionNode of optionButtons) optionNode.setAttribute('aria-checked', String(optionNode === node));
+      confirmButton.disabled = false;
+    };
+
+    const addOption = (label, value, className = 'festival-visit-option') => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = className;
+      option.setAttribute('role', 'radio');
+      option.setAttribute('aria-checked', 'false');
+      option.textContent = label;
+      option.addEventListener('click', () => selectOption(option, value));
+      optionButtons.push(option);
+      optionsList.appendChild(option);
+      return option;
+    };
+
+    for (const date of festivalVisitDateOptions(festival)) {
+      addOption(formatFestivalDateLabel(date), {scope: VISIT_SCOPE.DATE, date});
+    }
+    addOption('전체 기간', {scope: VISIT_SCOPE.FULL_RANGE, date: null}, 'festival-visit-option festival-visit-option-full');
+
+    confirmButton.addEventListener('click', () => {
+      if (!selected) return;
+      void submit(selected.scope, selected.date);
+    });
+
+    const onKeydown = event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeSheet(); }
+    };
+    closeButton.addEventListener('click', () => closeSheet());
+    backdrop.addEventListener('click', event => { if (event.target === backdrop) closeSheet(); });
+    dialog.addEventListener('keydown', onKeydown);
+
+    dialog.append(header, optionsList, confirmButton);
+    backdrop.appendChild(dialog);
+    root.appendChild(backdrop);
+    disposeSheet = () => backdrop.remove();
+    (optionButtons[0] || closeButton).focus();
+  };
+
+  trigger.addEventListener('click', openSheet);
+  return wrap;
+}
+
 /**
- * @param {{root: HTMLElement, fetchImpl?: typeof fetch, now?: Date, selectedDate?: string}} options
+ * @param {{
+ *   root: HTMLElement, fetchImpl?: typeof fetch, now?: Date, selectedDate?: string,
+ *   sessionToken?: string, guestRepository?: object, initialFestivalId?: string,
+ * }} options
  */
-export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, now = new Date(), selectedDate} = {}) {
+export async function mountFestivalManager({
+  root, fetchImpl = globalThis.fetch, now = new Date(), selectedDate,
+  sessionToken = '', guestRepository = null, initialFestivalId = '',
+} = {}) {
   if (!(root instanceof HTMLElement)) throw new TypeError('root is required');
   root.replaceChildren();
+
+  const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
+  const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
 
   const state = {
     region: '',
@@ -530,13 +691,16 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     programSurface.hidden = true;
     detailSurface.hidden = true;
     listSurface.hidden = false;
+    if (!listLoaded) void fetchAndRender({reset: true});
   }
 
   function openDetail(id) {
     void renderDetail(id);
   }
 
+  let listLoaded = false;
   async function fetchAndRender({reset}) {
+    listLoaded = true;
     const token = ++requestToken;
     if (currentAbort) currentAbort.abort();
     const controller = new AbortController();
@@ -660,7 +824,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     renderProgramSurface(festival, detailToken);
   }
 
-  async function renderDetail(id) {
+  async function renderDetail(id, {autoOpenProgram = false} = {}) {
     listSurface.hidden = true;
     programSurface.hidden = true;
     detailSurface.hidden = false;
@@ -670,7 +834,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     loading.setAttribute('role', 'status');
     detailSurface.appendChild(loading);
 
-    // Shares loadList()'s own requestToken: opening festival B's detail
+    // Shares fetchAndRender()'s own requestToken: opening festival B's detail
     // before festival A's fetch (or A's later program-weather read) resolves
     // must never let A's late response land on B's now-visible screen.
     const detailToken = ++requestToken;
@@ -730,15 +894,27 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
 
     const ctaRow = buildCtaRow(festival, {onOpenPrograms: () => openProgramSurface(festival, detailToken)});
     if (ctaRow) detailSurface.appendChild(ctaRow);
+    detailSurface.appendChild(buildCalendarAddSection(detailSurface, festival, {authenticated, sessionToken, guestRepository: repository, now}));
+
+    // Calendar re-entry (FESTIVAL-EVENT-10): landing on the detail alone is
+    // not the contract — a visit saved from the Calendar reopens straight
+    // into the program screen, on the visited date's tab when there is one
+    // (selectInitialProgramDate, via the outer selectedDate closure), or
+    // Room08's own default policy for a 전체 기간 visit with no single date.
+    if (autoOpenProgram && festival.programs.length) openProgramSurface(festival, detailToken);
   }
 
-  renderLocationBanner();
-  state.locationPermission = await getBrowserLocationPermissionState();
-  if (state.locationPermission === LOCATION_PERMISSION.GRANTED) {
-    await useCurrentLocation({auto: true});
+  if (initialFestivalId) {
+    await renderDetail(initialFestivalId, {autoOpenProgram: true});
   } else {
     renderLocationBanner();
-    await fetchAndRender({reset: true});
+    state.locationPermission = await getBrowserLocationPermissionState();
+    if (state.locationPermission === LOCATION_PERMISSION.GRANTED) {
+      await useCurrentLocation({auto: true});
+    } else {
+      renderLocationBanner();
+      await fetchAndRender({reset: true});
+    }
   }
 
   return {

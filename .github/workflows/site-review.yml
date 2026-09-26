@@ -288,13 +288,19 @@ jobs:
       # (FESTIVAL-EVENT-08: real Core snake_case normalization, CTA
       # visibility, date-tab grouping, legacy-section removal) +
       # FESTIVAL-EVENT-09's venue-coordinate program-date weather folded into
-      # the same date tabs. No fixture may ever reach Production — these
-      # gates enforce that end to end.
+      # the same date tabs + FESTIVAL-EVENT-10's "내 캘린더에 추가" (visit-date
+      # picker -> the existing LOTBI Calendar) and Calendar -> Festival
+      # re-entry. No fixture may ever reach Production — these gates enforce
+      # that end to end.
       - name: Validate 축제·행사 nav wiring, modal shell and public boundary
         run: |
           node --check site-festival-client.js
           node --check site-festival-ui.js
           node --check site-festival-weather.js
+          node --check site-festival-calendar.js
+          node --check site-calendar-guest.js
+          node --check site-calendar-manager.js
+          node --check site-conversation.js
           node scripts/validate_festival_nav_wiring_01.mjs
           node scripts/validate_festival_public_boundary_01.mjs
 
@@ -309,6 +315,8 @@ jobs:
           node scripts/validate_festival_event_08_detail_01.mjs
           node scripts/validate_festival_event_08_responsive_a11y_01.mjs
           node scripts/validate_festival_weather_01.mjs
+          node scripts/validate_festival_calendar_link_01.mjs
+          node scripts/validate_festival_calendar_add_ui_01.mjs
 
       - name: Validate PET FAMILY web surface
         run: |

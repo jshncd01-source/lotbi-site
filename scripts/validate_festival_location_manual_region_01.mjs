@@ -104,11 +104,20 @@ assert.match(ui, /listFestivalRegions\(fetchImpl\)/, 'the region catalog must co
 
 // ------------------------------------------------------- coordinate privacy
 // Precise coordinates must never be persisted or logged — only ever passed
-// straight into a query.
-for (const source of [ui, client]) {
-  assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB/i,
-    'festival location handling must never touch browser storage — precise coordinates are query-only');
-}
+// straight into a query. (FESTIVAL-EVENT-10's Guest Calendar repository
+// legitimately uses localStorage for saved visit dates — a different,
+// unrelated feature — so this checks specifically for a stored/logged
+// coordinate, not for browser-storage usage in general.)
+assert.doesNotMatch(
+  ui,
+  /(?:localStorage|sessionStorage|indexedDB)[^\n;]*(?:latitude|longitude|currentPosition)/i,
+  'precise GPS coordinates must never be written to browser storage — query-only',
+);
+assert.doesNotMatch(
+  client,
+  /(?:localStorage|sessionStorage|indexedDB)[^\n;]*(?:latitude|longitude)/i,
+  'precise GPS coordinates must never be written to browser storage — query-only',
+);
 assert.doesNotMatch(ui, /console\.\w+\([^)]*\.latitude/, 'latitude must never be logged');
 assert.doesNotMatch(ui, /console\.\w+\([^)]*\.longitude/, 'longitude must never be logged');
 assert.doesNotMatch(ui, /textContent = `.*\$\{[^}]*latitude/i,
