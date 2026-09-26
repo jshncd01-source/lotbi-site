@@ -131,7 +131,6 @@ function inspect(name, node) {
 setTimeout(() => {
   const results = [
     inspect('value proposition detail', doc.querySelector('.home-value-proposition > p')),
-    ...Array.from(doc.querySelectorAll('.home-example-prompts button'), (node, index) => inspect('example prompt ' + (index + 1), node)),
     inspect('safety copy', doc.querySelector('.chat-safety-copy')),
   ];
   document.getElementById('home-small-text-result').textContent = JSON.stringify({
@@ -190,7 +189,7 @@ for (const [label, theme, width, height] of cases) {
   if (Math.abs(rendered.viewport.width - width) > 3 || Math.abs(rendered.viewport.height - height) > 3) {
     throw new Error(`${label}: exact iframe viewport mismatch ${rendered.viewport.width}x${rendered.viewport.height}`);
   }
-  if (rendered.results.length !== 5) throw new Error(`${label}: expected 5 rendered text targets`);
+  if (rendered.results.length !== 2) throw new Error(`${label}: expected 2 rendered text targets`);
   for (const result of rendered.results) {
     if (!result.text) throw new Error(`${label} ${result.name}: visible text is empty`);
     if (result.ratio < 4.5) {

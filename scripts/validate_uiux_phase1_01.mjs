@@ -7,15 +7,12 @@ const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const index = read('index.html');
 const homeCss = read('home-bare-white.css');
 const publicCss = read('styles.css');
-const conversation = read('site-conversation.js');
 const about = read('about.html');
 
 assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
 assert.match(index, /찾고, 계획하고, 기록하는 일상을 LOTBI와 대화로 해결하세요/u);
 assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
-assert.equal((index.match(/data-home-prompt=/gu) || []).length, 3, 'Home must expose exactly three example prompts');
-assert.match(conversation, /closest\('\[data-home-prompt\]'\)/u, 'example prompts must be wired to the composer');
-assert.match(conversation, /prompt\.focus\(\)/u, 'example prompts must return focus to the composer');
+assert.equal((index.match(/data-home-prompt=/gu) || []).length, 0, 'Home quick-action example prompts must be removed');
 assert.match(homeCss, /\.conversation-active \.home-value-proposition\s*\{\s*display:\s*none;/u, 'value proposition must leave once a conversation starts');
 
 const hiddenInputs = [...index.matchAll(/<input class="sr-only" type="file"[^>]*data-attachment-input="[^"]+"[^>]*>/gu)].map(match => match[0]);
