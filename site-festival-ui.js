@@ -1,4 +1,4 @@
-// FESTIVAL-07 — public "축제" browse UI.
+// FESTIVAL-EVENT-08 — public "축제" browse + detail/program UI.
 //
 // Mounted on demand into the shared site modal shell (see openFestival() in
 // site-conversation.js), exactly like mountPetFamilyManager() is mounted for
@@ -6,18 +6,29 @@
 // getPublishedFestival() (site-festival-client.js) return — those two
 // functions are the only way this file ever touches festival data, and they
 // are the enforced PUBLISHED-only boundary (see the allowlist normalizer
-// there). This module never calls FESTIVAL-04 or any other private/internal
-// API directly.
+// there). This module never calls any private/internal Core API directly.
+//
+// Detail screen principle: a quick "언제/어디서/무슨 프로그램/체험·신청
+// 가능여부" answer, not a copy of an official info page. At most two primary
+// CTAs — [프로그램] (LOTBI's own internal date-tab program screen, never an
+// external PROGRAM_PAGE handoff) and [체험·신청] (one unified external
+// handoff). The legacy 공식홈페이지/예약안내/주차·셔틀/공식출처 sections are
+// gone: homepage_url/transport/notices/telephone are not even present on the
+// normalized Site model any more (see site-festival-client.js), so there is
+// nothing left here that could render them.
 import {
-  FESTIVAL_PROGRAM_CATEGORIES,
-  FESTIVAL_RESERVATION_TYPE_LABEL,
-  FESTIVAL_STATUS_LABEL,
   computeFestivalStatus,
+  formatFestivalDateLabel,
+  formatFestivalDateTabLabel,
+  formatFestivalLocation,
+  formatFestivalPeriod,
   getPublishedFestival,
+  groupProgramsByDate,
   listFestivalRegions,
   listPublishedFestivals,
-  sortFestivalPrograms,
-} from './site-festival-client.js?v=aset-0600df240b82';
+  selectInitialProgramDate,
+  FESTIVAL_STATUS_LABEL,
+} from './site-festival-client.js?v=aset-c4450fb313c4';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -36,54 +47,25 @@ function chipButton(label, {pressed = false, onClick} = {}) {
   return button;
 }
 
-export function formatFestivalDateLabel(dateString) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
-  if (!match) return '';
-  return `${Number(match[2])}.${Number(match[3])}`;
-}
-
-export function formatFestivalPeriod(festival) {
-  if (!festival?.startDate || !festival?.endDate) return '';
-  if (festival.startDate === festival.endDate) return formatFestivalDateLabel(festival.startDate);
-  return `${formatFestivalDateLabel(festival.startDate)} ~ ${formatFestivalDateLabel(festival.endDate)}`;
-}
-
-export function formatFestivalLocation(festival) {
-  return [festival?.region, festival?.venueName].filter(Boolean).join(' · ');
-}
-
-export function groupProgramsByDate(programs) {
-  const sorted = sortFestivalPrograms(programs);
-  const groups = [];
-  const byDate = new Map();
-  for (const program of sorted) {
-    if (!byDate.has(program.date)) {
-      const group = {date: program.date, programs: []};
-      byDate.set(program.date, group);
-      groups.push(group);
-    }
-    byDate.get(program.date).programs.push(program);
-  }
-  return groups;
-}
-
-export function filterProgramsByCategory(programs, category) {
-  if (!category) return programs;
-  return programs.filter(program => program.category === category);
-}
-
 function statusBadge(status) {
-  const badge = el('span', `festival-status-badge festival-status-${status.toLowerCase()}`, FESTIVAL_STATUS_LABEL[status] || status);
-  return badge;
+  return el('span', `festival-status-badge festival-status-${status.toLowerCase()}`, FESTIVAL_STATUS_LABEL[status] || status);
 }
 
-function heroImage(festival) {
-  const wrap = el('div', 'festival-hero');
+function heroImage(festival, {compact = false} = {}) {
+  const wrap = el('div', compact ? 'festival-hero' : 'festival-hero festival-hero-detail');
   if (festival.imageUrl) {
     const img = document.createElement('img');
     img.src = festival.imageUrl;
     img.alt = `${festival.name} 대표 이미지`;
     img.loading = 'lazy';
+    img.addEventListener('error', () => {
+      // A registered image_url that fails to actually load must degrade to
+      // the same neutral placeholder as "no image", never a broken-image icon.
+      img.remove();
+      wrap.classList.add('festival-hero-placeholder');
+      wrap.setAttribute('role', 'img');
+      wrap.setAttribute('aria-label', `${festival.name} 대표 이미지 없음`);
+    }, {once: true});
     wrap.appendChild(img);
   } else {
     wrap.classList.add('festival-hero-placeholder');
@@ -102,7 +84,7 @@ function buildCard(festival, now, {onOpen}) {
   button.setAttribute('aria-label', `${festival.name} 상세 보기`);
   button.addEventListener('click', () => onOpen(festival.id));
 
-  button.appendChild(heroImage(festival));
+  button.appendChild(heroImage(festival, {compact: true}));
   const body = el('div', 'festival-card-body');
   body.appendChild(statusBadge(status));
   body.appendChild(el('h3', 'festival-card-name', festival.name));
@@ -114,122 +96,104 @@ function buildCard(festival, now, {onOpen}) {
   return card;
 }
 
-function buildProgramSection(festival) {
-  const section = el('section', 'festival-section festival-programs');
-  section.appendChild(el('h4', 'festival-section-title', '주요 프로그램'));
-  if (!festival.programs.length) {
-    section.appendChild(el('p', 'festival-empty-note', '등록된 프로그램 정보가 없습니다.'));
-    return section;
+// -------------------------------------------------------------- CTA row ---
+
+function buildCtaRow(festival, {onOpenPrograms}) {
+  const hasPrograms = Array.isArray(festival.programs) && festival.programs.length > 0;
+  const hasParticipation = Boolean(festival.participationUrl);
+  if (!hasPrograms && !hasParticipation) return null; // no CTA row at all — never an empty shell
+
+  const row = el('div', 'festival-cta-row');
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-label', '축제 주요 액션');
+
+  if (hasPrograms) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'festival-cta-button festival-cta-program';
+    button.textContent = '프로그램';
+    button.addEventListener('click', onOpenPrograms);
+    row.appendChild(button);
   }
 
-  const categoryRow = el('div', 'festival-chip-row');
-  categoryRow.setAttribute('role', 'group');
-  categoryRow.setAttribute('aria-label', '프로그램 카테고리 필터');
-  const list = el('div', 'festival-program-groups');
-  section.append(categoryRow, list);
-
-  let activeCategory = '';
-  const categories = ['전체', ...FESTIVAL_PROGRAM_CATEGORIES];
-  const chips = new Map();
-
-  const renderPrograms = () => {
-    list.replaceChildren();
-    const filtered = filterProgramsByCategory(festival.programs, activeCategory);
-    if (!filtered.length) {
-      list.appendChild(el('p', 'festival-empty-note', '선택한 카테고리의 프로그램이 없습니다.'));
-      return;
-    }
-    for (const group of groupProgramsByDate(filtered)) {
-      const groupEl = el('div', 'festival-program-group');
-      groupEl.appendChild(el('h5', 'festival-program-date', formatFestivalDateLabel(group.date)));
-      const ul = document.createElement('ul');
-      ul.className = 'festival-program-list';
-      for (const program of group.programs) {
-        const li = document.createElement('li');
-        li.className = 'festival-program-item';
-        const time = [program.startTime, program.endTime].filter(Boolean).join(' ~ ');
-        if (time) li.appendChild(el('span', 'festival-program-time', time));
-        li.appendChild(el('span', 'festival-program-category', program.category));
-        li.appendChild(el('span', 'festival-program-title', program.title));
-        if (program.venue) li.appendChild(el('span', 'festival-program-venue', program.venue));
-        if (program.price) {
-          li.appendChild(el('span', 'festival-program-price',
-            `${program.price.amount.toLocaleString('ko-KR')}${program.price.currency === 'KRW' ? '원' : ` ${program.price.currency}`} (${program.price.unit})`));
-        }
-        if (program.note) li.appendChild(el('p', 'festival-program-note', program.note));
-        ul.appendChild(li);
-      }
-      groupEl.appendChild(ul);
-      list.appendChild(groupEl);
-    }
-  };
-
-  for (const category of categories) {
-    const value = category === '전체' ? '' : category;
-    const chip = chipButton(category, {
-      pressed: value === activeCategory,
-      onClick: () => {
-        activeCategory = value;
-        for (const [chipValue, chipNode] of chips) chipNode.setAttribute('aria-pressed', chipValue === value ? 'true' : 'false');
-        renderPrograms();
-      },
-    });
-    chips.set(value, chip);
-    categoryRow.appendChild(chip);
-  }
-  renderPrograms();
-  return section;
-}
-
-function buildReservationSection(festival) {
-  const section = el('section', 'festival-section festival-reservation');
-  section.appendChild(el('h4', 'festival-section-title', '예약 안내'));
-  const typeLine = el('p', 'festival-reservation-type', FESTIVAL_RESERVATION_TYPE_LABEL[festival.reservation.type] || '확인필요');
-  section.appendChild(typeLine);
-  if (festival.reservation.note) section.appendChild(el('p', 'festival-reservation-note', festival.reservation.note));
-  if (festival.reservation.reservationUrl) {
+  if (hasParticipation) {
     const link = document.createElement('a');
-    link.className = 'festival-reservation-link';
-    link.href = festival.reservation.reservationUrl;
+    link.className = 'festival-cta-button festival-cta-participation';
+    link.href = festival.participationUrl;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.referrerPolicy = 'no-referrer';
-    link.append('공식예약', el('span', 'festival-external-note', ' (외부 사이트 새 창으로 이동)'));
-    link.setAttribute('aria-label', '공식 예약 페이지로 이동, 외부 사이트가 새 창에서 열립니다');
-    section.appendChild(link);
+    link.textContent = '체험·신청';
+    link.setAttribute('aria-label', '체험·신청, 공식 외부 사이트가 새 창에서 열립니다');
+    row.appendChild(link);
   }
-  return section;
+
+  return row;
 }
 
-function buildParkingShuttleSection(festival) {
-  if (!festival.parkingShuttle) return null;
-  const section = el('section', 'festival-section festival-parking-shuttle');
-  section.appendChild(el('h4', 'festival-section-title', '주차·셔틀'));
-  if (festival.parkingShuttle.parkingNote) section.appendChild(el('p', 'festival-parking-note', festival.parkingShuttle.parkingNote));
-  if (festival.parkingShuttle.shuttleNote) section.appendChild(el('p', 'festival-shuttle-note', festival.parkingShuttle.shuttleNote));
-  return section;
+// ---------------------------------------------------------- program view --
+
+function buildDateTabs(dateTabs, {selected, onSelect}) {
+  const nav = el('div', 'festival-date-tabs');
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', '프로그램 날짜 선택');
+
+  dateTabs.forEach((tab, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'festival-date-tab';
+    button.id = `festival-date-tab-${tab.date}`;
+    button.setAttribute('role', 'tab');
+    // Stable per-date identity for a later room (weather) to join
+    // date -> weatherByDate on; never used for KMA/precipitation logic here.
+    button.setAttribute('data-festival-program-date', tab.date);
+    button.textContent = formatFestivalDateTabLabel(tab.date);
+    const isSelected = tab.date === selected;
+    button.setAttribute('aria-selected', String(isSelected));
+    button.tabIndex = isSelected ? 0 : -1;
+    button.addEventListener('click', () => onSelect(tab.date));
+    button.addEventListener('keydown', event => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const delta = event.key === 'ArrowRight' ? 1 : -1;
+      const nextIndex = (index + delta + dateTabs.length) % dateTabs.length;
+      onSelect(dateTabs[nextIndex].date, {focus: true});
+    });
+    nav.appendChild(button);
+  });
+
+  return nav;
 }
 
-function buildOfficialSourceSection(festival) {
-  if (!festival.officialSource) return null;
-  const section = el('section', 'festival-section festival-official-source');
-  section.appendChild(el('h4', 'festival-section-title', '공식 출처'));
-  const link = document.createElement('a');
-  link.className = 'festival-official-source-link';
-  link.href = festival.officialSource.url;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  link.referrerPolicy = 'no-referrer';
-  link.append(festival.officialSource.label, el('span', 'festival-external-note', ' (외부 사이트 새 창으로 이동)'));
-  link.setAttribute('aria-label', `${festival.officialSource.label}, 외부 사이트가 새 창에서 열립니다`);
-  section.appendChild(link);
-  return section;
+function buildProgramPanel(tab) {
+  const panel = el('div', 'festival-program-day-panel');
+  panel.setAttribute('role', 'tabpanel');
+  panel.setAttribute('aria-labelledby', `festival-date-tab-${tab.date}`);
+
+  const ul = document.createElement('ul');
+  ul.className = 'festival-program-list';
+  for (const program of tab.programs) {
+    const li = document.createElement('li');
+    li.className = 'festival-program-item';
+    const timeText = program.startTime
+      ? (program.endTime ? `${program.startTime} ~ ${program.endTime}` : program.startTime)
+      : '';
+    if (timeText) li.appendChild(el('span', 'festival-program-time', timeText));
+    li.appendChild(el('span', 'festival-program-title', program.title));
+    if (program.venue) li.appendChild(el('span', 'festival-program-venue', program.venue));
+    if (program.category) li.appendChild(el('span', 'festival-program-category', program.category));
+    if (program.price) li.appendChild(el('span', 'festival-program-price', program.price));
+    if (program.notes) li.appendChild(el('p', 'festival-program-note', program.notes));
+    ul.appendChild(li);
+  }
+  panel.appendChild(ul);
+  return panel;
 }
 
 /**
- * @param {{root: HTMLElement, fetchImpl?: typeof fetch, now?: Date}} options
+ * @param {{root: HTMLElement, fetchImpl?: typeof fetch, now?: Date, selectedDate?: string}} options
  */
-export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, now = new Date()} = {}) {
+export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, now = new Date(), selectedDate} = {}) {
   if (!(root instanceof HTMLElement)) throw new TypeError('root is required');
   root.replaceChildren();
 
@@ -263,7 +227,10 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
   const detailSurface = el('div', 'festival-detail-surface');
   detailSurface.hidden = true;
 
-  container.append(listSurface, detailSurface);
+  const programSurface = el('div', 'festival-program-surface');
+  programSurface.hidden = true;
+
+  container.append(listSurface, detailSurface, programSurface);
   root.appendChild(container);
 
   const weekendChip = chipButton('이번주말', {
@@ -331,6 +298,12 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     loadList();
   }
 
+  function showList() {
+    programSurface.hidden = true;
+    detailSurface.hidden = true;
+    listSurface.hidden = false;
+  }
+
   function openDetail(id) {
     void renderDetail(id);
   }
@@ -366,54 +339,119 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     }
   }
 
+  function renderProgramSurface(festival) {
+    programSurface.replaceChildren();
+
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'festival-back-button';
+    back.textContent = '← 행사 정보로';
+    back.addEventListener('click', () => {
+      programSurface.hidden = true;
+      detailSurface.hidden = false;
+    });
+    programSurface.appendChild(back);
+
+    const dateTabs = groupProgramsByDate(festival.programs);
+    if (!dateTabs.length) {
+      programSurface.appendChild(el('p', 'festival-empty-note', '등록된 프로그램 정보가 없습니다.'));
+      return;
+    }
+
+    const body = el('div', 'festival-program-body');
+    programSurface.appendChild(body);
+
+    let selected = selectInitialProgramDate(dateTabs, {selectedDate, now});
+
+    function paint(focusDate) {
+      body.replaceChildren();
+      const tabsNav = buildDateTabs(dateTabs, {
+        selected,
+        onSelect: (date, options = {}) => {
+          selected = date;
+          paint(options.focus ? date : undefined);
+        },
+      });
+      body.appendChild(tabsNav);
+      const activeTab = dateTabs.find(tab => tab.date === selected) || dateTabs[0];
+      body.appendChild(buildProgramPanel(activeTab));
+      if (focusDate) tabsNav.querySelector(`[data-festival-program-date="${focusDate}"]`)?.focus();
+    }
+
+    paint();
+  }
+
+  function openProgramSurface(festival) {
+    listSurface.hidden = true;
+    detailSurface.hidden = true;
+    programSurface.hidden = false;
+    renderProgramSurface(festival);
+  }
+
   async function renderDetail(id) {
     listSurface.hidden = true;
+    programSurface.hidden = true;
     detailSurface.hidden = false;
     detailSurface.replaceChildren();
-    const loading = el('p', 'festival-status', '축제 정보를 불러오는 중입니다.');
+
+    const loading = el('p', 'festival-status', '축제·행사 정보를 불러오는 중이에요.');
     loading.setAttribute('role', 'status');
     detailSurface.appendChild(loading);
-    let festival;
+
+    let festival = null;
+    let failed = false;
     try {
       festival = await getPublishedFestival(id, fetchImpl);
     } catch {
-      festival = null;
+      failed = true;
     }
+
     detailSurface.replaceChildren();
+
     const back = document.createElement('button');
     back.type = 'button';
     back.className = 'festival-back-button';
     back.textContent = '← 목록으로';
-    back.addEventListener('click', () => {
-      detailSurface.hidden = true;
-      listSurface.hidden = false;
-    });
+    back.addEventListener('click', showList);
     detailSurface.appendChild(back);
 
+    if (failed) {
+      const message = el('p', 'festival-error', '축제·행사 정보를 불러오지 못했어요.');
+      message.setAttribute('role', 'alert');
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'festival-retry-button';
+      retry.textContent = '다시 시도';
+      retry.addEventListener('click', () => renderDetail(id));
+      detailSurface.append(message, retry);
+      return;
+    }
+
     if (!festival) {
-      const notFound = el('p', 'festival-error', '축제 정보를 찾을 수 없습니다.');
-      notFound.setAttribute('role', 'alert');
-      detailSurface.appendChild(notFound);
+      const message = el('p', 'festival-error', '축제·행사 정보를 찾을 수 없어요.');
+      message.setAttribute('role', 'alert');
+      const toList = document.createElement('button');
+      toList.type = 'button';
+      toList.className = 'festival-retry-button';
+      toList.textContent = '목록으로 돌아가기';
+      toList.addEventListener('click', showList);
+      detailSurface.append(message, toList);
       return;
     }
 
     detailSurface.appendChild(heroImage(festival));
+
     const header = el('div', 'festival-detail-header');
     header.appendChild(statusBadge(computeFestivalStatus(festival, now)));
     header.appendChild(el('h3', 'festival-detail-name', festival.name));
     header.appendChild(el('p', 'festival-detail-period', formatFestivalPeriod(festival)));
     const location = formatFestivalLocation(festival);
     if (location) header.appendChild(el('p', 'festival-detail-location', location));
-    if (festival.address) header.appendChild(el('p', 'festival-detail-address', festival.address));
     if (festival.summary) header.appendChild(el('p', 'festival-detail-summary', festival.summary));
     detailSurface.appendChild(header);
 
-    detailSurface.appendChild(buildProgramSection(festival));
-    detailSurface.appendChild(buildReservationSection(festival));
-    const parkingShuttle = buildParkingShuttleSection(festival);
-    if (parkingShuttle) detailSurface.appendChild(parkingShuttle);
-    const officialSource = buildOfficialSourceSection(festival);
-    if (officialSource) detailSurface.appendChild(officialSource);
+    const ctaRow = buildCtaRow(festival, {onOpenPrograms: () => openProgramSurface(festival)});
+    if (ctaRow) detailSurface.appendChild(ctaRow);
   }
 
   await loadList();
@@ -424,3 +462,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     },
   };
 }
+
+// Exported for tests / potential reuse; kept out of the main render path
+// above where not needed directly.
+export {formatFestivalDateLabel};

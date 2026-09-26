@@ -1,31 +1,33 @@
-// FESTIVAL-07 — public "축제" browse client.
+// FESTIVAL-EVENT-08 — public "축제" browse/detail client.
 //
-// FESTIVAL-06 (Public Festival read API) does not exist yet — confirmed by
-// scanning lotbi-core for any festival read endpoint, PR, or branch (only
-// FESTIVAL-01's TourAPI source adapter exists, unmerged, and it only ingests
-// candidate rows, it does not serve them). Until FESTIVAL-06 ships, the two
-// exported functions below (listPublishedFestivals / getPublishedFestival)
-// are backed by the fixture set at the bottom of this file instead of a
-// network call.
+// Wired to the real, merged Core contract: `GET /festivals` (list) and
+// `GET /festivals/{festival_id}` (detail), both served by
+// `app.festival_review.festival_public_view` in lotbi-core — confirmed by
+// reading that module directly (2026-09-26, lotbi-core main
+// 7c143469b3c371f18829738e4f49e3f67e2b2cb8). That view is PUBLISHED/ENDED/
+// CANCELLED-only and returns snake_case fields; there is no fixture layer
+// left in this client — every record, list or detail, goes through the
+// fetch + normalize path below.
 //
-// The call sites in site-festival-ui.js only ever go through these two
-// functions and never touch the fixture shape directly, so wiring the real
-// API later is a body-only change here: swap FESTIVAL_API_ENABLED to true and
-// fill in the fetch call, following the exact pattern
-// getPublicCalendarWeather() already uses in site-calendar-public-weather.js
-// (`${CORE_ORIGIN}/v2/...`, GET, `credentials: 'omit'`, `mode: 'cors'`).
+// Both exported read functions (listPublishedFestivals / getPublishedFestival)
+// run every record through normalizePublishedFestival() / normalizeFestivalProgram(),
+// an allowlist normalizer: even if a future response ever carried a stray
+// internal field (a DRAFT/REVIEW status, a candidate/admin id, confidence, an
+// AI prompt, a private PDF/storage URL, an audit note, homepage_url,
+// telephone, transport, notices), this client only ever reads the named
+// public fields below and drops everything else.
 //
-// Both functions run every record through normalizePublishedFestival() /
-// normalizeFestivalProgram(), an allowlist normalizer. That allowlist is the
-// public/private boundary: even if a future FESTIVAL-06 response ever carried
-// a stray internal field (status: DRAFT/REVIEW_REQUIRED, a candidate or admin
-// id, confidence, an AI prompt, a private PDF/storage URL, an audit note),
-// this client only ever reads the named public fields below and drops
-// everything else — nothing else can reach the UI through this module.
-import {CORE_ORIGIN} from './site-core.js?v=aset-0600df240b82';
+// Two Core fields intentionally never reach the Site model at all:
+// `homepage_url` (an official-homepage button is legacy UI this room
+// removes) and `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
+// sections this room removes) — dropping them at the normalizer means no
+// later UI code can accidentally resurrect them.
+import {CORE_ORIGIN} from './site-core.js?v=aset-c4450fb313c4';
 
-const FESTIVAL_API_ENABLED = false;
+const FESTIVAL_API_ENABLED = true;
 const REGION_CATALOG_PATH = '/v2/life/weather/regions';
+const FESTIVAL_LIST_PATH = '/festivals';
+const FESTIVAL_LIST_LIMIT = 100;
 
 export const FESTIVAL_STATUS = Object.freeze({
   ONGOING: 'ONGOING',
@@ -41,17 +43,6 @@ export const FESTIVAL_STATUS_LABEL = Object.freeze({
   UPCOMING: '예정',
   ENDED: '종료',
   CANCELLED: '취소',
-});
-
-export const FESTIVAL_PROGRAM_CATEGORIES = Object.freeze(['공연', '체험', '먹거리', '가족', '기타']);
-
-export const FESTIVAL_RESERVATION_TYPES = Object.freeze(['ADVANCE', 'ONSITE', 'NONE', 'CHECK_REQUIRED']);
-
-export const FESTIVAL_RESERVATION_TYPE_LABEL = Object.freeze({
-  ADVANCE: '사전예약',
-  ONSITE: '현장접수',
-  NONE: '예약없음',
-  CHECK_REQUIRED: '확인필요',
 });
 
 // Same 17 시·도 the live Core region contract returns from
@@ -94,6 +85,40 @@ function httpsUrl(value) {
   } catch {
     return '';
   }
+}
+
+function isValidYMD(year, month, day) {
+  if (![year, month, day].every(Number.isInteger)) return false;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const stamp = new Date(Date.UTC(year, month - 1, day));
+  return stamp.getUTCFullYear() === year && stamp.getUTCMonth() === month - 1 && stamp.getUTCDate() === day;
+}
+
+function isoFromYMD(year, month, day) {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// The canonical Core schema stores whatever a source adapter wrote verbatim
+// (app.festival_ingest does not normalize format): TourAPI's own adapter
+// uses raw YYYYMMDD; ISO YYYY-MM-DD (what staff review writes) is also
+// accepted. Mirrors lotbi-core's app.festival_read.parse_festival_date so a
+// PUBLISHED row with either shape still produces a real, KST-stable civil
+// date rather than an empty/garbled one. An unparseable or impossible date
+// (e.g. month 13) resolves to '' rather than a guessed value.
+export function parseFestivalDateToISO(value) {
+  const raw = text(value);
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length >= 8) {
+    const year = Number(digits.slice(0, 4));
+    const month = Number(digits.slice(4, 6));
+    const day = Number(digits.slice(6, 8));
+    return isValidYMD(year, month, day) ? isoFromYMD(year, month, day) : '';
+  }
+  const candidate = raw.slice(0, 10);
+  if (!CIVIL_DATE_RE.test(candidate)) return '';
+  const [year, month, day] = candidate.split('-').map(Number);
+  return isValidYMD(year, month, day) ? candidate : '';
 }
 
 function resolvedTimezone() {
@@ -142,6 +167,26 @@ export function addLocalDays(dateString, days, now = new Date(), timezone = reso
   const base = civilDate(dateString) || todayLocalDate(now, timezone);
   const [year, month, day] = base.split('-').map(Number);
   return addDaysDateString({year, month, day}, days);
+}
+
+// A plain calendar date's weekday never depends on timezone conversion of an
+// instant — it is pure Y/M/D arithmetic. This is what keeps date-tab weekday
+// labels correct regardless of the viewer's browser timezone (the "KST civil
+// date" requirement is about not deriving the date itself from a UTC
+// instant, which addLocalDays/todayLocalDate already handle upstream).
+export function festivalWeekdayKST(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
+  if (!match) return '';
+  const [, y, m, d] = match.map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return ['일', '월', '화', '수', '목', '금', '토'][day];
+}
+
+export function formatFestivalDateTabLabel(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
+  if (!match) return '';
+  const weekday = festivalWeekdayKST(dateString);
+  return `${Number(match[2])}/${Number(match[3])}${weekday ? ` ${weekday}` : ''}`;
 }
 
 // The Sat/Sun pair "이번주말" refers to: if today already is that Saturday or
@@ -201,108 +246,180 @@ function sortFestivals(festivals, now, timezone) {
   });
 }
 
-// Sorted date -> start time, per FESTIVAL-07 program-list requirement.
+// Global date+time ordering across an arbitrary set of programs (used by
+// callers that want a single flat, deterministic order; date-tab grouping
+// below uses its own within-day time-only stable sort instead, since a
+// multi-day program's own startDate would otherwise misorder same-day peers).
 export function sortFestivalPrograms(programs) {
-  return [...(Array.isArray(programs) ? programs : [])].sort((left, right) => {
-    if (left.date !== right.date) return left.date < right.date ? -1 : 1;
-    const leftTime = left.startTime || '99:99';
-    const rightTime = right.startTime || '99:99';
-    if (leftTime !== rightTime) return leftTime < rightTime ? -1 : 1;
-    return left.title.localeCompare(right.title, 'ko');
-  });
+  const list = Array.isArray(programs) ? programs.slice() : [];
+  return list
+    .map((program, index) => ({program, index}))
+    .sort((left, right) => {
+      const leftDate = left.program.startDate || '9999-99-99';
+      const rightDate = right.program.startDate || '9999-99-99';
+      if (leftDate !== rightDate) return leftDate < rightDate ? -1 : 1;
+      const leftTime = left.program.startTime || '99:99';
+      const rightTime = right.program.startTime || '99:99';
+      if (leftTime !== rightTime) return leftTime < rightTime ? -1 : 1;
+      return left.index - right.index; // stable: never re-derive order from title
+    })
+    .map(entry => entry.program);
 }
 
-function normalizeProgramPrice(raw) {
-  if (!raw || typeof raw !== 'object') return null;
-  const amount = finiteNumber(raw.amount);
-  const unit = text(raw.unit);
-  if (amount === null || amount < 0 || !unit) return null;
-  const currency = text(raw.currency) || 'KRW';
-  // A single program's own price, scoped to its own unit ("1인", "1가족" ...).
-  // Never combined with any other program's price into a total anywhere in
-  // this client or in site-festival-ui.js — programs can use different units
-  // and a summed number would silently misrepresent what it costs.
-  return Object.freeze({amount, currency, unit});
+// A program's [start_date, end_date] range, expanded to every civil date it
+// covers (bounded to 62 days so a malformed multi-year range can never hang
+// the UI) — this is what lets a multi-day program appear under every date
+// tab it actually runs on, not just its first day.
+export function expandProgramDateRange(program) {
+  if (!program?.startDate) return [];
+  const end = program.endDate && program.endDate >= program.startDate ? program.endDate : program.startDate;
+  const dates = [];
+  let cursor = program.startDate;
+  let guard = 0;
+  while (cursor <= end && guard < 62) {
+    dates.push(cursor);
+    if (cursor === end) break;
+    cursor = addLocalDays(cursor, 1);
+    guard += 1;
+  }
+  return dates;
 }
 
-// Exported for validate_festival_public_boundary_01.mjs and for the real
-// FESTIVAL-06 fetch path to reuse once wired in (any raw API payload should
-// go through the same allowlist normalizer, not just the fixtures).
-export function normalizeFestivalProgram(raw) {
+function sortByStartTimeStable(programs) {
+  return programs
+    .map((program, index) => ({program, index}))
+    .sort((left, right) => {
+      const leftTime = left.program.startTime || '99:99';
+      const rightTime = right.program.startTime || '99:99';
+      if (leftTime !== rightTime) return leftTime < rightTime ? -1 : 1;
+      return left.index - right.index;
+    })
+    .map(entry => entry.program);
+}
+
+// Real dates only: a date tab exists if and only if at least one program's
+// [start_date, end_date] range actually covers it. A program with no
+// start_date at all cannot be placed on any tab (no fake tabs either way).
+export function groupProgramsByDate(programs) {
+  const list = Array.isArray(programs) ? programs : [];
+  const byDate = new Map();
+  for (const program of list) {
+    for (const date of expandProgramDateRange(program)) {
+      if (!byDate.has(date)) byDate.set(date, []);
+      byDate.get(date).push(program);
+    }
+  }
+  return [...byDate.keys()].sort().map(date => ({date, programs: sortByStartTimeStable(byDate.get(date))}));
+}
+
+// Selection priority (structure only — no live Calendar/weather wiring here):
+//   1. an explicit selectedDate handed in (FESTIVAL-EVENT-10's visit-date hook)
+//   2. today, if the festival is running today AND today has a program
+//   3. otherwise the earliest date that actually has a program
+export function selectInitialProgramDate(dateTabs, {selectedDate, now = new Date(), timezone = resolvedTimezone()} = {}) {
+  if (!dateTabs.length) return '';
+  const dates = dateTabs.map(tab => tab.date);
+  const explicit = civilDate(selectedDate);
+  if (explicit && dates.includes(explicit)) return explicit;
+  const today = todayLocalDate(now, timezone);
+  if (dates.includes(today)) return today;
+  return dates[0];
+}
+
+export function formatFestivalDateLabel(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
+  if (!match) return '';
+  return `${Number(match[2])}.${Number(match[3])}`;
+}
+
+export function formatFestivalPeriod(festival) {
+  if (!festival?.startDate || !festival?.endDate) return '';
+  if (festival.startDate === festival.endDate) return formatFestivalDateLabel(festival.startDate);
+  return `${formatFestivalDateLabel(festival.startDate)} ~ ${formatFestivalDateLabel(festival.endDate)}`;
+}
+
+export function formatFestivalLocation(festival) {
+  // Core's canonical schema has no separate venue-name column at the
+  // festival level (see app/festival_models.py) — region + address is the
+  // real available location signal.
+  return [festival?.region, festival?.address].filter(Boolean).join(' · ');
+}
+
+// Allowlist normalizer for one program row from `festival.programs[]`
+// (app.festival_review.festival_public_view). Core does not send a program
+// identifier, so `key` here is a DOM-only synthetic value, never sent
+// anywhere. `participationUrl` is this program's own reservation_url; the
+// festival-level participation CTA (below) picks the first one in Core's own
+// order. `reservation_type`/`reservation_start`/`reservation_end`/`capacity`
+// are read nowhere — this room never exposes the internal reservation-type
+// enum to consumers (that legacy UI is removed).
+export function normalizeFestivalProgram(raw, index = 0) {
   if (!raw || typeof raw !== 'object') return null;
-  const id = text(raw.id);
-  const title = text(raw.title);
-  const date = civilDate(raw.date);
-  if (!id || !title || !date) return null;
-  const category = FESTIVAL_PROGRAM_CATEGORIES.includes(raw.category) ? raw.category : '기타';
+  const title = text(raw.program_name);
+  if (!title) return null;
+  const startDate = parseFestivalDateToISO(raw.start_date);
+  const endDateRaw = parseFestivalDateToISO(raw.end_date);
   return Object.freeze({
-    id,
+    key: `festival-program-${index}-${startDate || 'nodate'}-${text(raw.start_time) || 'notime'}`,
     title,
-    date,
-    startTime: clockTime(raw.startTime),
-    endTime: clockTime(raw.endTime),
-    category,
+    category: text(raw.category),
+    startDate,
+    endDate: endDateRaw || startDate,
+    startTime: clockTime(raw.start_time),
+    endTime: clockTime(raw.end_time),
     venue: text(raw.venue),
-    note: text(raw.note),
-    price: normalizeProgramPrice(raw.price),
+    price: text(raw.price),
+    notes: text(raw.notes),
+    participationUrl: httpsUrl(raw.reservation_url),
   });
 }
 
-function normalizeReservation(raw) {
-  const type = FESTIVAL_RESERVATION_TYPES.includes(raw?.type) ? raw.type : 'CHECK_REQUIRED';
-  return Object.freeze({
-    type,
-    note: text(raw?.note),
-    reservationUrl: httpsUrl(raw?.reservationUrl),
-  });
-}
-
-function normalizeParkingShuttle(raw) {
-  const parkingNote = text(raw?.parkingNote);
-  const shuttleNote = text(raw?.shuttleNote);
-  if (!parkingNote && !shuttleNote) return null;
-  return Object.freeze({parkingNote, shuttleNote});
-}
-
-function normalizeOfficialSource(raw) {
-  const url = httpsUrl(raw?.url);
-  if (!url) return null;
-  return Object.freeze({label: text(raw?.label) || '공식 출처', url});
+// The single [체험·신청] CTA maps to whichever program (in Core's own
+// start_date/id order — festival_public_view already orders programs that
+// way) carries a real https reservation_url first. Never fabricated: if no
+// ACTIVE program has one, this is '' and the CTA is hidden entirely.
+function firstParticipationUrl(programs) {
+  for (const program of programs) {
+    if (program.participationUrl) return program.participationUrl;
+  }
+  return '';
 }
 
 // Allowlist normalizer — the public/private boundary for this feature. Only
 // the fields named here can ever reach site-festival-ui.js; an unlisted key
-// on the input (a DRAFT/REVIEW_REQUIRED status, a candidate_id, admin_id,
-// confidence score, ai_prompt, a private PDF/storage URL, an internal audit
-// note) is read nowhere below and is therefore dropped, not merely unused.
+// on the input (a DRAFT/REVIEW status, a candidate_id, admin_id, confidence
+// score, ai_prompt, a private PDF/storage URL, an internal audit note) is
+// read nowhere below and is therefore dropped, not merely unused.
+// `homepage_url`/`telephone`/`transport`/`notices` are also intentionally
+// never read here — this room removes the legacy 공식홈페이지/예약안내/
+// 주차셔틀/출처 sections built on top of them.
 export function normalizePublishedFestival(raw, {includePrograms = false} = {}) {
   if (!raw || typeof raw !== 'object') return null;
-  const id = text(raw.id);
+  const id = text(raw.festival_id);
   const name = text(raw.name);
-  const startDate = civilDate(raw.startDate);
-  const endDate = civilDate(raw.endDate);
-  const region = text(raw.region);
-  if (!id || !name || !startDate || !endDate || !region || startDate > endDate) return null;
+  const startDate = parseFestivalDateToISO(raw.start_date);
+  const endDate = parseFestivalDateToISO(raw.end_date);
+  if (!id || !name || !startDate || !endDate || startDate > endDate) return null;
   const base = {
     id,
     name,
     startDate,
     endDate,
-    cancelled: raw.cancelled === true,
-    region,
-    venueName: text(raw.venueName),
+    cancelled: raw.status === 'CANCELLED',
+    region: text(raw.region_name),
     address: text(raw.address),
-    imageUrl: httpsUrl(raw.imageUrl),
-    summary: text(raw.summary),
+    latitude: finiteNumber(raw.latitude),
+    longitude: finiteNumber(raw.longitude),
+    imageUrl: httpsUrl(raw.image_url),
+    summary: text(raw.short_description),
   };
   if (!includePrograms) return Object.freeze(base);
+  const programs = Object.freeze((Array.isArray(raw.programs) ? raw.programs : [])
+    .map((item, index) => normalizeFestivalProgram(item, index)).filter(Boolean));
   return Object.freeze({
     ...base,
-    programs: Object.freeze((Array.isArray(raw.programs) ? raw.programs : [])
-      .map(normalizeFestivalProgram).filter(Boolean)),
-    reservation: normalizeReservation(raw.reservation),
-    parkingShuttle: normalizeParkingShuttle(raw.parkingShuttle),
-    officialSource: normalizeOfficialSource(raw.officialSource),
+    programs,
+    participationUrl: firstParticipationUrl(programs),
   });
 }
 
@@ -327,8 +444,36 @@ function hasExplicitFilter(filters) {
   return Boolean(filters.region || filters.status || filters.weekend || filters.date);
 }
 
-async function fixtureListPublishedFestivals(filters, now, timezone) {
-  const normalized = FESTIVAL_FIXTURES(now, timezone).map(item => normalizePublishedFestival(item)).filter(Boolean);
+async function coreFetchJson(pathAndQuery, fetchImpl) {
+  if (typeof fetchImpl !== 'function') return {ok: false, status: 0, data: null};
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${pathAndQuery}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {'Accept': 'application/json'},
+    });
+  } catch {
+    return {ok: false, status: 0, data: null};
+  }
+  if (!response) return {ok: false, status: 0, data: null};
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+  return {ok: Boolean(response.ok), status: Number(response.status) || 0, data};
+}
+
+async function apiListPublishedFestivals(filters, now, timezone, fetchImpl) {
+  const result = await coreFetchJson(`${FESTIVAL_LIST_PATH}?limit=${FESTIVAL_LIST_LIMIT}`, fetchImpl);
+  if (!result.ok) throw new Error('FESTIVAL_LIST_FETCH_FAILED');
+  const rawList = Array.isArray(result.data?.festivals) ? result.data.festivals : [];
+  const normalized = rawList.map(item => normalizePublishedFestival(item)).filter(Boolean);
   const explicit = hasExplicitFilter(filters);
   const matched = normalized.filter(festival => {
     if (!matchesFilters(festival, filters, now, timezone)) return false;
@@ -341,9 +486,13 @@ async function fixtureListPublishedFestivals(filters, now, timezone) {
   return sortFestivals(matched, now, timezone);
 }
 
-async function fixtureGetPublishedFestival(id) {
-  const raw = FESTIVAL_FIXTURES(new Date(), resolvedTimezone()).find(item => item.id === text(id));
-  return raw ? normalizePublishedFestival(raw, {includePrograms: true}) : null;
+async function apiGetPublishedFestival(id, fetchImpl) {
+  const result = await coreFetchJson(`${FESTIVAL_LIST_PATH}/${encodeURIComponent(text(id))}`, fetchImpl);
+  if (result.status === 404) return null; // real 404 — not a fetch failure
+  if (!result.ok) throw new Error('FESTIVAL_DETAIL_FETCH_FAILED');
+  const raw = result.data?.festival;
+  if (!raw) return null;
+  return normalizePublishedFestival(raw, {includePrograms: true});
 }
 
 /**
@@ -354,11 +503,8 @@ async function fixtureGetPublishedFestival(id) {
 export async function listPublishedFestivals(filters = {}, fetchImpl = globalThis.fetch) {
   const now = new Date();
   const timezone = resolvedTimezone();
-  if (!FESTIVAL_API_ENABLED) return fixtureListPublishedFestivals(filters, now, timezone);
-  // FESTIVAL-06 연동 지점 — site-calendar-public-weather.js 의
-  // getPublicCalendarWeather() 와 동일한 형태로 fetchImpl 호출을 채워 넣는다.
-  void fetchImpl;
-  return fixtureListPublishedFestivals(filters, now, timezone);
+  void FESTIVAL_API_ENABLED;
+  return apiListPublishedFestivals(filters, now, timezone, fetchImpl);
 }
 
 /**
@@ -367,9 +513,7 @@ export async function listPublishedFestivals(filters = {}, fetchImpl = globalThi
  * @returns {Promise<object|null>} full PUBLISHED festival detail, or null if not found/not public.
  */
 export async function getPublishedFestival(id, fetchImpl = globalThis.fetch) {
-  if (!FESTIVAL_API_ENABLED) return fixtureGetPublishedFestival(id);
-  void fetchImpl;
-  return fixtureGetPublishedFestival(id);
+  return apiGetPublishedFestival(id, fetchImpl);
 }
 
 /**
@@ -395,127 +539,4 @@ export async function listFestivalRegions(fetchImpl = globalThis.fetch) {
   } catch {
     return {provinces: REGION_FALLBACK_PROVINCES, source: 'FALLBACK'};
   }
-}
-
-// ---------------------------------------------------------------- fixtures --
-// Placeholder PUBLISHED-shaped festival records standing in for FESTIVAL-06.
-// Dates are generated relative to "now" so the demo always shows a sane mix
-// of 진행중/이번주말/예정/종료/취소 regardless of when this is opened.
-// imageUrl is intentionally left blank — this fixture set does not have a
-// licensed representative photo for any of these, and the card/detail views
-// render a neutral placeholder whenever imageUrl is empty, which is also the
-// correct behavior for a real PUBLISHED record with no image_url.
-function FESTIVAL_FIXTURES(now, timezone) {
-  const today = todayLocalDate(now, timezone);
-  const at = days => addLocalDays(today, days, now, timezone);
-  const {start: weekendStart, end: weekendEnd} = thisWeekendRange(now, timezone);
-  return [
-    {
-      id: 'fest_ongoing_river',
-      name: '한강 억새 빛 축제',
-      startDate: at(-3),
-      endDate: at(4),
-      region: '서울특별시',
-      venueName: '여의도 한강공원',
-      address: '서울특별시 영등포구 여의동로 330',
-      summary: '해질녘 한강변을 따라 억새와 조명 설치가 이어지는 가을 축제.',
-      programs: [
-        {id: 'prog_river_1', date: at(0), startTime: '19:00', endTime: '21:00', title: '야간 조명 점등식', category: '공연', venue: '한강공원 중앙광장'},
-        {id: 'prog_river_2', date: at(0), startTime: '14:00', endTime: '17:00', title: '가족 갈대공예 체험', category: '체험', venue: '체험존', price: {amount: 5000, currency: 'KRW', unit: '1인'}},
-        {id: 'prog_river_3', date: at(1), startTime: '11:00', endTime: '20:00', title: '한강 푸드트럭 존', category: '먹거리', venue: '푸드트럭 존'},
-      ],
-      reservation: {type: 'NONE', note: '현장 자유 관람, 별도 예약이 필요하지 않습니다.'},
-      parkingShuttle: {parkingNote: '여의도 한강공원 제2주차장 이용(유료).', shuttleNote: '여의나루역 5번 출구에서 도보 10분.'},
-      officialSource: {label: '서울시 공식 문화행사 안내', url: 'https://culture.seoul.go.kr/festival/hangang-reed-2026'},
-    },
-    {
-      id: 'fest_weekend_night_market',
-      name: '수원 야시장 페스티벌',
-      startDate: weekendStart,
-      endDate: weekendEnd,
-      region: '경기도',
-      venueName: '수원 화성행궁 광장',
-      address: '경기도 수원시 팔달구 정조로 825',
-      summary: '이번 주말 이틀간 열리는 야시장·공연 페스티벌.',
-      programs: [
-        {id: 'prog_night_1', date: weekendStart, startTime: '18:00', endTime: '22:00', title: '개막 공연', category: '공연'},
-        {id: 'prog_night_2', date: weekendEnd, startTime: '12:00', endTime: '20:00', title: '전통 먹거리 장터', category: '먹거리'},
-      ],
-      reservation: {type: 'ADVANCE', note: '주요 공연 좌석은 사전예약자에게 우선 배정됩니다.', reservationUrl: 'https://festival.suwon.go.kr/night-market/reserve'},
-      parkingShuttle: {shuttleNote: '수원역 앞에서 30분 간격 셔틀버스 운행.'},
-      officialSource: {label: '수원시 축제 공식 페이지', url: 'https://festival.suwon.go.kr/night-market'},
-    },
-    {
-      id: 'fest_ongoing_weekend_overlap',
-      name: '경주 벚꽃 야행',
-      startDate: at(-1),
-      endDate: at(10),
-      region: '경상북도',
-      venueName: '경주 동궁과 월지',
-      summary: '진행 중이면서 이번 주말도 포함하는 장기 야간 개장 행사.',
-      programs: [
-        {id: 'prog_gyeongju_1', date: weekendStart, startTime: '19:30', endTime: '21:30', title: '월지 야간 음악회', category: '공연', price: {amount: 10000, currency: 'KRW', unit: '1인'}},
-      ],
-      reservation: {type: 'ONSITE', note: '매표소 현장 접수, 회차별 인원 제한이 있습니다.'},
-      officialSource: {label: '경주시 문화관광 공식 페이지', url: 'https://tour.gyeongju.go.kr/donggung-night'},
-    },
-    {
-      id: 'fest_upcoming_soon',
-      name: '전주 한지문화 축제',
-      startDate: at(20),
-      endDate: at(22),
-      region: '전북특별자치도',
-      venueName: '전주 한옥마을 일원',
-      summary: '한지 공예와 전통 체험 위주의 3일간 축제.',
-      programs: [
-        {id: 'prog_hanji_1', date: at(20), startTime: '10:00', endTime: '18:00', title: '한지 공예 체험', category: '체험', price: {amount: 8000, currency: 'KRW', unit: '1인'}},
-        {id: 'prog_hanji_2', date: at(21), startTime: '13:00', endTime: '15:00', title: '어린이 한지 놀이터', category: '가족'},
-      ],
-      reservation: {type: 'CHECK_REQUIRED', note: '프로그램별 예약 방식이 달라 공식 페이지 확인이 필요합니다.'},
-      officialSource: {label: '전주문화재단', url: 'https://jjcf.or.kr/hanji-festival'},
-    },
-    {
-      id: 'fest_upcoming_far',
-      name: '부산 바다빛 축제',
-      startDate: at(75),
-      endDate: at(77),
-      region: '부산광역시',
-      venueName: '해운대 해수욕장',
-      summary: '두 달 이상 남은 예정 축제 — 기본 목록의 "가까운 예정" 창에서는 제외되고 지역/날짜 필터로만 조회됨.',
-      programs: [
-        {id: 'prog_busan_1', date: at(75), startTime: '20:00', endTime: '20:40', title: '해변 불꽃 공연', category: '공연'},
-      ],
-      reservation: {type: 'NONE'},
-      officialSource: {label: '부산관광공사', url: 'https://bto.or.kr/haeundae-light'},
-    },
-    {
-      id: 'fest_ended_recent',
-      name: '인천 개항장 거리 축제',
-      startDate: at(-12),
-      endDate: at(-5),
-      region: '인천광역시',
-      venueName: '인천 개항장 거리',
-      summary: '최근 종료된 축제 — 기본 목록에서 제외되고 지역/날짜 필터로만 조회됨.',
-      programs: [
-        {id: 'prog_incheon_1', date: at(-7), startTime: '15:00', endTime: '17:00', title: '근대 거리 공연', category: '공연'},
-      ],
-      reservation: {type: 'NONE'},
-      officialSource: {label: '인천 중구청 문화관광과', url: 'https://tour.icjg.go.kr/gaehangjang-street'},
-    },
-    {
-      id: 'fest_cancelled_near',
-      name: '제주 유채꽃 걷기 축제',
-      startDate: at(6),
-      endDate: at(8),
-      region: '제주특별자치도',
-      venueName: '제주 서귀포 유채꽃프라자',
-      cancelled: true,
-      summary: '기상 사정으로 취소된 축제. 근접한 일정이라 기본 목록에서도 취소 표시로 노출됨.',
-      programs: [
-        {id: 'prog_jeju_1', date: at(6), startTime: '10:00', endTime: '12:00', title: '유채꽃밭 걷기 프로그램', category: '가족'},
-      ],
-      reservation: {type: 'NONE', note: '행사가 취소되어 예약이 발생하지 않습니다.'},
-      officialSource: {label: '서귀포시 공식 공지', url: 'https://seogwipo.go.kr/notice/canola-walk-cancel'},
-    },
-  ];
 }
