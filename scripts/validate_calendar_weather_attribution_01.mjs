@@ -316,9 +316,11 @@ try {
       throw new Error(`${label}: the credit must be no more covered than the forecast it credits — credit sits under "${value.topmostAtCredit}" while the icon sits under "${value.topmostAtIcon}"`);
     }
 
-    // 공공누리 제1유형 — the obligation itself.
+    // 공공누리 제1유형의 이용조건은 출처표시이고, 공공누리 스스로 기관명만
+    // 적는 간략 표기도 인정한다 — 대표님 지시로 화면에서는 라이선스 유형명
+    // 없이 기관명만 보여준다.
     if (!value.text.includes('기상청')) throw new Error(`${label}: the credit must name 기상청, got "${value.text}"`);
-    if (!value.text.includes('공공누리 제1유형')) throw new Error(`${label}: the credit must name the licence, got "${value.text}"`);
+    if (value.text.includes('공공누리')) throw new Error(`${label}: the credit must not spell out the licence type on screen anymore, got "${value.text}"`);
 
     // ...and the opposite failure: a credit bigger than the weather.
     if (!value.iconPresent) throw new Error(`${label}: the fixture must actually render weather for the credit to sit under`);

@@ -143,9 +143,12 @@ export function calendarWeatherAttribution(items, {timezone = 'Asia/Seoul'} = {}
     provider: WEATHER_PROVIDER_NAME,
     license: WEATHER_LICENSE_NAME,
     issuedLabel,
+    // 대표님 지시로 화면 문구에서 라이선스 유형명을 뺐다 — 공공누리 제1유형의
+    // 이용조건은 "출처표시"이고, 공공누리 스스로 기관명만 적는 간략 표기도
+    // 인정하므로(위 주석의 근거 링크) 기관명만 남겨도 의무는 그대로 충족된다.
     text: issuedLabel
-      ? `날씨 출처: ${WEATHER_PROVIDER_NAME} · ${issuedLabel} 발표 (${WEATHER_LICENSE_NAME})`
-      : `날씨 출처: ${WEATHER_PROVIDER_NAME} (${WEATHER_LICENSE_NAME})`,
+      ? `날씨 출처: ${WEATHER_PROVIDER_NAME} · ${issuedLabel} 발표`
+      : `날씨 출처: ${WEATHER_PROVIDER_NAME}`,
   });
 }
 
