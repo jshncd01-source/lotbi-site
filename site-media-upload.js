@@ -10,7 +10,7 @@
 // pointed at the real thing the day that contract ships, and at
 // `createMockCoreApi()` (site-media-upload-mock-core.js) until then.
 //
-//   import {createMediaUploadClient, MEDIA_UPLOAD_STATE} from './site-media-upload.js?v=aset-5affefb9c2a8';
+//   import {createMediaUploadClient, MEDIA_UPLOAD_STATE} from './site-media-upload.js?v=aset-e8f1efd3a007';
 //
 //   const client = createMediaUploadClient({api, transport: createXhrTransport()});
 //   client.onEvent((event) => { ... });
@@ -57,6 +57,15 @@ export const MEDIA_UPLOAD_STATE = Object.freeze({
 });
 
 const MAX_PUT_RETRIES = 2;
+
+const TERMINAL_STATES = new Set([
+  MEDIA_UPLOAD_STATE.IDLE,
+  MEDIA_UPLOAD_STATE.ACCEPTED,
+  MEDIA_UPLOAD_STATE.REJECTED,
+  MEDIA_UPLOAD_STATE.EXPIRED,
+  MEDIA_UPLOAD_STATE.CANCELLED,
+  MEDIA_UPLOAD_STATE.FAILED,
+]);
 
 export class MediaUploadError extends Error {
   constructor(code, message, cause) {
@@ -154,6 +163,7 @@ export function createMediaUploadClient({api, transport, maxBytes, allowedTypes,
   let file = null;
   let checksum = null;
   let abortController = null;
+  let cancelled = false;
 
   function emit(event) {
     for (const listener of listeners) listener(event);
@@ -212,6 +222,7 @@ export function createMediaUploadClient({api, transport, maxBytes, allowedTypes,
   }
 
   async function completeAndPoll() {
+    if (cancelled) return setState(MEDIA_UPLOAD_STATE.CANCELLED);
     let completed;
     try {
       completed = await api.completeSession(session.upload_id, {checksum});
@@ -219,14 +230,17 @@ export function createMediaUploadClient({api, transport, maxBytes, allowedTypes,
       fail(MEDIA_UPLOAD_ERROR.UPLOAD_FAILED, '업로드 완료 처리에 실패했습니다.', cause);
       return;
     }
+    if (cancelled) return setState(MEDIA_UPLOAD_STATE.CANCELLED);
     session = completed;
     setState(MEDIA_UPLOAD_STATE.VERIFYING);
     for (;;) {
+      if (cancelled) return setState(MEDIA_UPLOAD_STATE.CANCELLED);
       if (session.state === 'ACCEPTED') return setState(MEDIA_UPLOAD_STATE.ACCEPTED, {result: session.result});
       if (session.state === 'REJECTED') return setState(MEDIA_UPLOAD_STATE.REJECTED, {reason: session.reason});
       if (session.state === 'EXPIRED') return setState(MEDIA_UPLOAD_STATE.EXPIRED);
       if (session.state !== 'VERIFYING') return fail(classifySessionState(session), '검사 상태를 확인하지 못했습니다.');
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      if (cancelled) return setState(MEDIA_UPLOAD_STATE.CANCELLED);
       session = await api.getStatus(session.upload_id);
     }
   }
@@ -241,6 +255,7 @@ export function createMediaUploadClient({api, transport, maxBytes, allowedTypes,
 
     async start(inputFile) {
       file = inputFile;
+      cancelled = false;
       setState(MEDIA_UPLOAD_STATE.VALIDATING);
       try {
         validateLocalMedia(file, {maxBytes, allowedTypes});
@@ -273,8 +288,12 @@ export function createMediaUploadClient({api, transport, maxBytes, allowedTypes,
     },
 
     cancel() {
-      if (abortController) abortController.abort();
-      else setState(MEDIA_UPLOAD_STATE.CANCELLED);
+      cancelled = true;
+      if (state === MEDIA_UPLOAD_STATE.UPLOADING && abortController) {
+        abortController.abort();
+      } else if (!TERMINAL_STATES.has(state)) {
+        setState(MEDIA_UPLOAD_STATE.CANCELLED);
+      }
     },
 
     // Re-enter after a reload/reopen: never re-derives a new file, only asks
@@ -290,6 +309,7 @@ export function createMediaUploadClient({api, transport, maxBytes, allowedTypes,
 
     async retry() {
       if (!session) return;
+      cancelled = false;
       const latest = await api.getStatus(session.upload_id);
       session = latest;
       if (latest.state === 'EXPIRED') return fail(MEDIA_UPLOAD_ERROR.SESSION_EXPIRED, '업로드 인증이 만료되었습니다. 새로 시작해 주세요.');

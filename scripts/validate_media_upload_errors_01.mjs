@@ -65,6 +65,28 @@ function okTransport() {
   assert.equal(client.getState(), MEDIA_UPLOAD_STATE.CANCELLED);
 }
 
+// Cancel during VERIFYING (after the PUT already succeeded) must actually
+// stop the completion poll loop and land on CANCELLED — not silently keep
+// polling to ACCEPTED/REJECTED behind the caller's back.
+{
+  const core = createMockCoreApi({verifyDelayMs: 200});
+  const client = createMediaUploadClient({api: core.api, transport: okTransport(), pollIntervalMs: 20});
+  const states = [];
+  client.onEvent((e) => { if (e.type === 'state') states.push(e.state); });
+  const started = client.start(jpeg());
+  while (client.getState() !== MEDIA_UPLOAD_STATE.VERIFYING) {
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  client.cancel();
+  await started;
+  assert.equal(client.getState(), MEDIA_UPLOAD_STATE.CANCELLED);
+  // Wait past when verification would otherwise have resolved, to prove the
+  // poll loop actually stopped rather than overwriting CANCELLED later.
+  await new Promise((r) => setTimeout(r, 250));
+  assert.equal(client.getState(), MEDIA_UPLOAD_STATE.CANCELLED, 'a stopped poll loop must not resurface later as ACCEPTED/REJECTED');
+  assert.equal(states.at(-1), MEDIA_UPLOAD_STATE.CANCELLED);
+}
+
 // Retry contract: a transient network failure re-checks status first; if the
 // session is still valid it retries the PUT and succeeds.
 {
