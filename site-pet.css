@@ -838,6 +838,65 @@
   cursor: not-allowed;
 }
 
+/* SITE-PET-PHOTO-SOURCE-01 — the Camera / Gallery / File choice shown inside
+   the shared bottom sheet (site-bottom-sheet.css) on Mobile Web only. */
+.pet-photo-source-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 4px 2px 2px;
+}
+
+.pet-photo-source-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 76px;
+  padding: 10px 6px;
+  border: 1px solid #dbe1ea;
+  border-radius: 14px;
+  background: #fff;
+  color: #202734;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pet-photo-source-option:hover,
+.pet-photo-source-option:focus-visible {
+  border-color: #b9c2d2;
+  background: #f3f5f9;
+}
+
+.pet-photo-source-option:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .34);
+  outline-offset: 2px;
+}
+
+.pet-photo-source-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.pet-photo-source-label {
+  font-size: 12px;
+  text-align: center;
+}
+
+body[data-site-theme="dark"] .pet-photo-source-option {
+  border-color: #465162;
+  background: #171c25;
+  color: #edf0f5;
+}
+
+body[data-site-theme="dark"] .pet-photo-source-option:hover,
+body[data-site-theme="dark"] .pet-photo-source-option:focus-visible {
+  border-color: #5a6577;
+  background: #1d2430;
+}
+
 .pet-slot-error[hidden] {
   display: none;
 }

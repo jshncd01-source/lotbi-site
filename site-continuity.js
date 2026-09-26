@@ -1,5 +1,5 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=aset-accae87fd3ec';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-accae87fd3ec';
+import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=aset-bc1900b95b20';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-bc1900b95b20';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
