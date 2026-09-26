@@ -97,7 +97,7 @@ const DISTINCTIVE_PATHS = [
 const GUIDES = Object.freeze({
   NOSE_FRONT: {
     label: '코 정면',
-    hint: '코를 정면에서. 코주름이 화면에 가득 차게 가까이.',
+    hint: '코 전체와 양쪽 콧구멍이 또렷하게 보이게 찍어 주세요. 너무 가까이 붙이지 않아도 돼요.',
     draw: {
       paths: [...NOSE_HEAD_PATHS, ...NOSE_CALLOUT_PATHS, ...NOSE_ZOOM_PATHS],
       circles: [[21, 23.2, 1, 1], [29, 23.2, 1, 1], [54, 27.5, 12, 12]],
@@ -105,7 +105,7 @@ const GUIDES = Object.freeze({
   },
   NOSE_LEFT: {
     label: '코 왼쪽',
-    hint: '코의 왼쪽 면이 보이도록 비스듬히.',
+    hint: '코 전체가 보이는 거리에서 왼쪽 면이 조금 보이게 찍어 주세요.',
     draw: {
       paths: [...NOSE_CALLOUT_PATHS, ...NOSE_ARROW],
       circles: [[54, 27.5, 12, 12]],
@@ -116,7 +116,7 @@ const GUIDES = Object.freeze({
   },
   NOSE_RIGHT: {
     label: '코 오른쪽',
-    hint: '코의 오른쪽 면이 보이도록 비스듬히.',
+    hint: '코 전체가 보이는 거리에서 오른쪽 면이 조금 보이게 찍어 주세요.',
     draw: {
       paths: [...NOSE_CALLOUT_PATHS, ...NOSE_ARROW],
       circles: [[54, 27.5, 12, 12]],
