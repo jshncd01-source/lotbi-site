@@ -1,4 +1,4 @@
-import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-2f82dac3fda2';
+import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-38aa6c6d9e2a';
 
 export const GUEST_CALENDAR_STORAGE_KEY = 'lotbi.guest.calendar.v1';
 const SCHEMA_VERSION = 2;
@@ -38,6 +38,29 @@ function optionalText(value, maxLength) {
   if (!normalized) return null;
   if (normalized.length > maxLength) throw invalidInput();
   return normalized;
+}
+
+// Optional festival source-link fields (FESTIVAL-EVENT-10). Additive and
+// off by default — an ordinary guest entry carries none of these keys, so
+// existing stored events and every other creator (createForAction,
+// createForRequest without these fields, update()) are unaffected. See
+// site-festival-calendar.js for the writer.
+const FESTIVAL_VISIT_SCOPES = new Set(['DATE', 'FULL_RANGE']);
+
+function normalizeFestivalLink(source) {
+  const sourceKind = typeof source.source_kind === 'string' && source.source_kind ? source.source_kind : null;
+  if (sourceKind !== null && sourceKind !== 'FESTIVAL') throw invalidInput();
+  const sourceRef = optionalText(source.source_ref, 120);
+  const visitScope = typeof source.visit_scope === 'string' && source.visit_scope ? source.visit_scope : null;
+  const visitDate = typeof source.visit_date === 'string' && source.visit_date ? source.visit_date : null;
+  if (!sourceKind) {
+    if (sourceRef || visitScope || visitDate) throw invalidInput();
+    return {};
+  }
+  if (!sourceRef || !FESTIVAL_VISIT_SCOPES.has(visitScope)) throw invalidInput();
+  if (visitScope === 'DATE' && (!visitDate || !validCivilDate(visitDate))) throw invalidInput();
+  if (visitScope === 'FULL_RANGE' && visitDate) throw invalidInput();
+  return {source_kind: sourceKind, source_ref: sourceRef, visit_scope: visitScope, ...(visitDate ? {visit_date: visitDate} : {})};
 }
 
 function normalizeEntry(input) {
@@ -87,6 +110,7 @@ function normalizeEventInput(input) {
     local_end_date: localEndDate,
     all_day: allDay,
     entry: normalizeEntry(input?.entry),
+    ...normalizeFestivalLink(input && typeof input === 'object' ? input : {}),
   };
 }
 
