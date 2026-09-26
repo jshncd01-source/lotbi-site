@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-5f807365a029';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-accae87fd3ec';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
@@ -459,6 +459,16 @@ export function petDraftPhotoInspectionMessage(photo) {
   if (!photo || typeof photo !== 'object') return '';
   if (photo.inspectionState === 'ACCEPTED') return '사진 확인됨';
   const reason = typeof photo.inspectionReasonCode === 'string' ? photo.inspectionReasonCode : '';
+  // A close-up that arrives before its anchor is still a successful save —
+  // Core holds it PENDING and re-inspects it automatically once an anchor
+  // (face/body) photo is accepted. PET_ERROR_MESSAGES.PET_PHOTO_ANCHOR_REQUIRED
+  // is the generic, save-agnostic sentence used elsewhere (e.g. the completed
+  // Pet photo screen's hard rejection); reusing it here for a row that is
+  // PENDING, not rejected, never says the photo was saved and reads as a
+  // failed upload, so this state gets its own draft-only sentence instead.
+  if (photo.inspectionState === 'PENDING' && reason === 'PET_PHOTO_ANCHOR_REQUIRED') {
+    return '사진은 저장됐어요. 얼굴 정면 사진이 확인되면 자동으로 다시 확인할게요.';
+  }
   if (reason && PET_ERROR_MESSAGES[reason]) return PET_ERROR_MESSAGES[reason];
   // No specific reason yet: the row was saved to the draft the moment it was
   // uploaded, so the copy says so instead of leaving the save state unstated.

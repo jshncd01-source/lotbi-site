@@ -87,10 +87,22 @@ assert.equal(active.draftId, draftPayload.draft_id);
 assert.equal(active.photos[0].inspectionState, 'PENDING');
 assert.equal(active.photos[0].inspectionReasonCode, 'PET_PHOTO_ANCHOR_REQUIRED');
 assert.ok(!('petId' in active), 'a private registration draft must not allocate a stable Pet ID');
+// PET-PHOTO-FLOW-01: a close-up saved PENDING with PET_PHOTO_ANCHOR_REQUIRED
+// is a successful save awaiting an anchor photo, not a rejection — the copy
+// must say so, and must not read like a failed upload.
+const anchorPendingMessage = client.petDraftPhotoInspectionMessage(active.photos[0]);
+assert.match(anchorPendingMessage, /저장됐어요/, 'a PENDING anchor-required row must say it was saved');
+assert.doesNotMatch(anchorPendingMessage, /저장하지 않았|실패/, 'a saved PENDING row must not read as a failed upload');
+
+assert.equal(
+  client.petDraftPhotoInspectionMessage({inspectionState: 'ACCEPTED', inspectionReasonCode: ''}),
+  '사진 확인됨',
+  'an accepted photo must say so',
+);
 assert.match(
-  client.petDraftPhotoInspectionMessage(active.photos[0]),
-  /얼굴이나 몸 전체/,
-  'pending close-ups must explain the anchor requirement',
+  client.petDraftPhotoInspectionMessage({inspectionState: 'REJECTED', inspectionReasonCode: ''}),
+  /저장됐지만.*통과하지 못했/,
+  'a rejected draft row must still say it was saved, distinct from the anchor-pending case',
 );
 
 const acceptedDogPhotos = client.PET_PHOTO_SLOT_CODES.map((slotCode, index) => ({
