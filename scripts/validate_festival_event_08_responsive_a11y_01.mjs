@@ -94,10 +94,21 @@ function coreFestival() {
 window.fetch = async (url) => {
   const target = String(url);
   if (target.includes('/festivals/regions')) {
-    return new Response(JSON.stringify({provinces: ['서울특별시']}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    return new Response(JSON.stringify({regions: [{region_name: '서울특별시'}]}), {status: 200, headers: {'Content-Type': 'application/json'}});
   }
   if (/\\/festivals\\/fest_demo$/.test(target)) {
     return new Response(JSON.stringify({festival: coreFestival()}), {status: 200, headers: {'Content-Type': 'application/json'}});
+  }
+  if (target.includes('/festivals/browse')) {
+    const f = coreFestival();
+    return new Response(JSON.stringify({
+      festivals: [{
+        festival_id: f.festival_id, name: f.name, start_date: f.start_date, end_date: f.end_date,
+        region_name: f.region_name, address: f.address, latitude: f.latitude, longitude: f.longitude,
+        distance_km: null, status: f.status,
+      }],
+      result_count: 1, total_count: 1, limit: 20, offset: 0, next_offset: null, has_more: false,
+    }), {status: 200, headers: {'Content-Type': 'application/json'}});
   }
   if (target.includes('/festivals?')) {
     return new Response(JSON.stringify({festivals: [coreFestival()], result_count: 1}), {status: 200, headers: {'Content-Type': 'application/json'}});
