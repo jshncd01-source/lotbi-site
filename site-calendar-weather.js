@@ -102,6 +102,18 @@ export function weatherTemperatureLabel(item) {
   return '';
 }
 
+// 강수확률. Core가 보내오는 값은 이미 계약으로 검증돼 있었지만(정규화 함수의
+// precipitation()), 그 값을 화면에 쓰는 곳이 없어서 있는 데이터가 안 보이고
+// 있었다("코어에 강수확률 넣었는데 왜 표시가 안 되나요?"). 0%는 "비 안 옴"
+// 이지 "정보 없음"이 아니라서 굳이 보여줄 필요가 없다 — 흐림/맑음이 대부분인
+// 날에 매 칸마다 "0%"가 뜨면 날씨보다 강수확률이 더 크게 읽힌다. 실제로
+// 비/눈이 올 가능성이 있는 날만 표시한다.
+export function weatherPrecipitationLabel(item) {
+  const value = item?.precipitationProbability;
+  if (!Number.isFinite(value) || value <= 0) return '';
+  return `💧${value}%`;
+}
+
 // 기상청 예보는 공공누리 제1유형으로 개방된 공공저작물이고, 제1유형의 유일한
 // 이용조건이 출처표시다. 공공누리는 출처표시를 "유형마크를 붙이는 것"이 아니라
 // 제공 기관과 출처를 적는 것으로 정의하고, 기관명만 적는 간략 표기도 인정한다.

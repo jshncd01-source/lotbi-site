@@ -53,8 +53,15 @@ assert.match(conversationJs, /onOpenFestival: \(\{festivalId, visitDate\}\) => \
   'openCalendar must wire Calendar -> Festival re-entry (FESTIVAL-EVENT-10) through mountLifeCalendarManager');
 
 // FESTIVAL-04 (private API) must never be imported by the public browse UI —
-// only these festival-named modules may be imported by site-festival-ui.js.
-const FESTIVAL_UI_ALLOWED_FESTIVAL_IMPORTS = new Set(['./site-festival-client.js', './site-festival-calendar.js']);
+// only these festival-named modules may be imported by site-festival-ui.js:
+// site-festival-client.js (festival data), site-festival-weather.js
+// (FESTIVAL-EVENT-09 program-date weather, itself only reusing the existing
+// Calendar weather client/normalizer), and site-festival-calendar.js
+// (FESTIVAL-EVENT-10 Calendar bridge, itself only reusing the existing
+// Calendar create/guest-repository client).
+const FESTIVAL_UI_ALLOWED_FESTIVAL_IMPORTS = new Set([
+  './site-festival-client.js', './site-festival-weather.js', './site-festival-calendar.js',
+]);
 assert.doesNotMatch(festivalUiJs, /^import[^;]*festival_sources[^;]*;/m);
 for (const match of festivalUiJs.matchAll(/^import[^;]*from ['"]([^'"]*festival[^'"]*)['"];/gmi)) {
   const importPath = match[1].split('?')[0];
