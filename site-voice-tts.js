@@ -28,10 +28,21 @@ export function scoreKoreanVoice(voice) {
   return score;
 }
 
-export function pickBestKoreanVoice(voices) {
+// selectKoreanVoice is pickBestKoreanVoice plus an optional exclusion set —
+// SITE-VOICE-READ-ALOUD-RELIABILITY-02's bounded voice fallback uses it to
+// ask "the best Korean voice other than the one that just failed", without
+// duplicating the scoring/lang-matching rules here.
+export function selectKoreanVoice(voices, {avoidNames} = {}) {
   const korean = (voices || []).filter(voice => /^ko([-_]|$)/iu.test(voice.lang || ''));
   if (!korean.length) return undefined;
-  return korean.reduce((best, voice) => (scoreKoreanVoice(voice) > scoreKoreanVoice(best) ? voice : best));
+  const avoid = avoidNames instanceof Set ? avoidNames : new Set(avoidNames || []);
+  const eligible = avoid.size ? korean.filter(voice => !avoid.has(voice.name)) : korean;
+  const pool = eligible.length ? eligible : korean;
+  return pool.reduce((best, voice) => (scoreKoreanVoice(voice) > scoreKoreanVoice(best) ? voice : best));
+}
+
+export function pickBestKoreanVoice(voices) {
+  return selectKoreanVoice(voices);
 }
 
 // Chrome (and some Android WebViews) load the voice list asynchronously: the
