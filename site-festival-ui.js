@@ -17,13 +17,13 @@ import {
   listFestivalRegions,
   listPublishedFestivals,
   sortFestivalPrograms,
-} from './site-festival-client.js?v=aset-fc9bce2f643e';
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-fc9bce2f643e';
+} from './site-festival-client.js?v=aset-e4fdf9fa725e';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-e4fdf9fa725e';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-fc9bce2f643e';
+} from './site-calendar-weather.js?v=aset-e4fdf9fa725e';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
