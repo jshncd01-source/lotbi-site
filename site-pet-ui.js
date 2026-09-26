@@ -52,21 +52,45 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-fa32b58762d1';
+} from './site-pet.js?v=aset-0121bef98c45';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-fa32b58762d1';
+} from './site-pet-guides.js?v=aset-0121bef98c45';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-fa32b58762d1';
+} from './site-pet-gate.js?v=aset-0121bef98c45';
 
 const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
+
+// PET-PHOTO-UX-03 — the registration screen's own reading order. This is a
+// display concern only: PET_PHOTO_SLOT_CODES stays the slot-index contract
+// Core and the found-pet semantic mapping rely on, and every slot's identity
+// (its slotCode) is unchanged — only the order tiles are laid out in differs
+// from the order they appear in that array.
+const PET_PHOTO_DISPLAY_ORDER = Object.freeze([
+  'FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT',
+  'BODY_LEFT', 'BODY_RIGHT', 'BACK_REAR',
+  'NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT',
+  'DISTINCTIVE',
+]);
+
+// The first photo the owner ever takes is a face, and every closeup guide
+// below assumes the owner already knows what "left" and "right" mean for
+// this particular animal, which only a confirmed face photo settles. So the
+// screen asks for FACE_FRONT alone first and unlocks the other nine — in
+// whatever order the animal cooperates with — only once it is accepted and
+// the detected species has not turned out to disagree with the one chosen.
+function petDraftFaceFrontConfirmed(draft, faceFrontPhoto) {
+  if (!faceFrontPhoto || faceFrontPhoto.inspectionState !== 'ACCEPTED') return false;
+  if (!draft?.species || !faceFrontPhoto.detectedSpecies) return true;
+  return faceFrontPhoto.detectedSpecies === draft.species;
+}
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -1392,6 +1416,7 @@ export async function mountPetFamilyManager({
     const cancel = el('button', 'site-button site-button-secondary', '나중에 계속');
     cancel.type = 'button';
     cancel.addEventListener('click', () => {
+      stopPoll();
       detailSection.hidden = true;
       detailSection.replaceChildren();
       addButton.hidden = false;
@@ -1418,6 +1443,33 @@ export async function mountPetFamilyManager({
     const stepNames = Object.freeze({PHOTOS: '사진', BASIC: '기본 정보', ADDITIONAL: '추가 정보', REVIEW: '검토'});
     let finalizeRequestId = '';
     let autosaveTimer = 0;
+
+    // Inspection runs after the upload responds, so a PENDING row needs a
+    // second look to ever become ACCEPTED/REJECTED on screen without the
+    // owner reloading the page. Only runs while the PHOTOS step is showing
+    // and only while a row is actually waiting; stops itself otherwise.
+    let draftPollTimer = 0;
+    const stopPoll = () => {
+      clearTimeout(draftPollTimer);
+      draftPollTimer = 0;
+    };
+    const schedulePoll = () => {
+      stopPoll();
+      if (petDraftPhotoProgression(registrationDraft).pendingSlots.length === 0) return;
+      draftPollTimer = setTimeout(async () => {
+        if (!body.isConnected || busy) {
+          schedulePoll();
+          return;
+        }
+        try {
+          registrationDraft = await getActivePetRegistrationDraft(sessionToken) || registrationDraft;
+          renderDraftPhotos();
+        } catch {
+          // A refresh failure is not a save failure; try again on the same clock.
+          schedulePoll();
+        }
+      }, 4000);
+    };
 
     const replaceDraftPhoto = photo => {
       const photos = registrationDraft.photos.filter(item => item.slotCode !== photo.slotCode);
@@ -1552,16 +1604,27 @@ export async function mountPetFamilyManager({
         'pet-photo-count',
         `사진 ${progression.presentCount}/${progression.requiredCount} · 확인 완료 ${progression.acceptedCount}/${progression.requiredCount}`,
       );
-      body.append(count, el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression)));
+      const faceFrontConfirmed = petDraftFaceFrontConfirmed(registrationDraft, photosBySlot.get('FACE_FRONT'));
+      const gateBanner = el(
+        'p',
+        'pet-draft-gate-banner',
+        faceFrontConfirmed
+          ? '이제 나머지 사진은 반려동물이 편한 자세에 맞춰 순서와 관계없이 등록할 수 있어요.'
+          : '먼저 얼굴 정면 사진을 확인해 주세요. 확인이 끝나면 나머지 사진을 자유로운 순서로 등록할 수 있어요.',
+      );
+      gateBanner.setAttribute('aria-live', 'polite');
+      body.append(count, gateBanner, el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression)));
       const grid = el('div', 'pet-slot-grid');
       grid.dataset.petDraftSlotGrid = '';
 
-      PET_PHOTO_SLOT_CODES.forEach((slotCode, index) => {
+      PET_PHOTO_DISPLAY_ORDER.forEach((slotCode, index) => {
         const photo = photosBySlot.get(slotCode);
+        const locked = slotCode !== 'FACE_FRONT' && !faceFrontConfirmed;
         const tile = el('figure', 'pet-slot');
         tile.dataset.petDraftSlot = slotCode;
         tile.dataset.petSlotFilled = photo ? 'true' : 'false';
         tile.dataset.petPhotoInspection = photo?.inspectionState || '';
+        tile.dataset.petDraftSlotLocked = locked ? 'true' : 'false';
         const media = el('div', 'pet-slot-media');
         const key = previewKey(registrationDraft.draftId, slotCode);
         const cached = photoPreviews.get(key);
@@ -1578,9 +1641,25 @@ export async function mountPetFamilyManager({
         const caption = el('figcaption', 'pet-slot-caption');
         caption.append(el('span', 'pet-slot-index', String(index + 1)), el('span', 'pet-slot-label', petPhotoSlotLabel(slotCode)));
         tile.append(caption, el('p', 'pet-slot-hint', petPhotoSlotHint(slotCode)));
+        // Always present so an in-flight upload can write into it without a
+        // full rebuild of this one tile; empty and hidden until there is
+        // something to say.
+        const stateNode = el('p', 'pet-draft-photo-state');
+        stateNode.setAttribute('role', 'status');
+        stateNode.hidden = true;
         if (photo) {
-          const stateCopy = petDraftPhotoInspectionMessage(photo);
-          tile.appendChild(el('p', `pet-draft-photo-state pet-draft-photo-state-${photo.inspectionState.toLowerCase()}`, stateCopy));
+          stateNode.hidden = false;
+          stateNode.classList.add(`pet-draft-photo-state-${photo.inspectionState.toLowerCase()}`);
+          stateNode.textContent = petDraftPhotoInspectionMessage(photo);
+        }
+        tile.appendChild(stateNode);
+        if (locked) {
+          const lockHint = el(
+            'p',
+            'pet-draft-photo-locked-hint',
+            '얼굴 정면 사진이 확인되면 촬영할 수 있어요.',
+          );
+          tile.appendChild(lockHint);
         }
         const slotError = formError();
         slotError.hidden = true;
@@ -1591,13 +1670,20 @@ export async function mountPetFamilyManager({
         const actions = el('div', 'pet-slot-actions');
         const choose = el('button', 'site-button site-button-secondary', photo ? '다시 올리기' : '사진 올리기');
         choose.type = 'button';
-        choose.addEventListener('click', () => input.click());
+        choose.disabled = locked;
+        choose.setAttribute('aria-disabled', locked ? 'true' : 'false');
+        choose.addEventListener('click', () => {
+          if (locked) return;
+          input.click();
+        });
         actions.appendChild(choose);
         if (photo) {
           const remove = el('button', 'pet-slot-remove', '삭제');
           remove.type = 'button';
+          remove.disabled = locked;
+          remove.setAttribute('aria-disabled', locked ? 'true' : 'false');
           remove.addEventListener('click', async () => {
-            if (busy) return;
+            if (busy || locked) return;
             setBusy(true);
             try {
               await deletePetRegistrationDraftPhoto(sessionToken, registrationDraft.draftId, slotCode);
@@ -1619,7 +1705,7 @@ export async function mountPetFamilyManager({
         input.addEventListener('change', async () => {
           const file = input.files?.[0];
           input.value = '';
-          if (!file || busy) return;
+          if (!file || busy || locked) return;
           const rejection = petPhotoRejection(file);
           if (rejection) {
             slotError.textContent = rejection;
@@ -1634,6 +1720,10 @@ export async function mountPetFamilyManager({
           }
           setBusy(true);
           slotError.hidden = true;
+          tile.dataset.petSlotWorking = 'true';
+          stateNode.hidden = false;
+          stateNode.className = 'pet-draft-photo-state pet-draft-photo-state-uploading';
+          stateNode.textContent = '사진을 저장하고 있어요.';
           try {
             const saved = await uploadPetRegistrationDraftPhoto(
               sessionToken,
@@ -1655,6 +1745,10 @@ export async function mountPetFamilyManager({
             renderDraftPhotos();
             status.textContent = `${petPhotoSlotLabel(slotCode)} 사진을 초안에 저장했습니다.`;
           } catch (value) {
+            tile.dataset.petSlotWorking = 'false';
+            stateNode.hidden = !photo;
+            stateNode.className = photo ? `pet-draft-photo-state pet-draft-photo-state-${photo.inspectionState.toLowerCase()}` : 'pet-draft-photo-state';
+            stateNode.textContent = photo ? petDraftPhotoInspectionMessage(photo) : '';
             slotError.textContent = errorMessage(value, '초안 사진을 저장하지 못했습니다.');
             slotError.hidden = false;
           } finally {
@@ -1665,6 +1759,7 @@ export async function mountPetFamilyManager({
         grid.appendChild(tile);
       });
       body.appendChild(grid);
+      schedulePoll();
 
       for (const photo of registrationDraft.photos) {
         const key = previewKey(registrationDraft.draftId, photo.slotCode);
@@ -2114,6 +2209,7 @@ export async function mountPetFamilyManager({
     };
 
     const renderStep = () => {
+      stopPoll();
       if (registrationDraft.currentStep === 'BASIC') renderBasic();
       else if (registrationDraft.currentStep === 'ADDITIONAL') renderAdditional();
       else if (registrationDraft.currentStep === 'REVIEW') renderReview();
