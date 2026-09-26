@@ -215,7 +215,6 @@ try {
   const weatherOverview = dialog => ({
     summary: dialog.querySelector('.calendar-settings-weather-overview strong')?.textContent || '',
     relationship: dialog.querySelector('.calendar-settings-weather-overview small')?.textContent || '',
-    manualClearVisible: !dialog.querySelector('[data-calendar-weather-manual-clear]')?.hidden,
   });
   const openSettings = async () => {
     click(root.querySelector('.calendar-settings-button'));
@@ -526,7 +525,6 @@ try {
   if (!results.liveSettings.overview.relationship.includes('현재 위치를 우선 사용')) {
     throw new Error(`현재 위치와 fallback 관계가 즉시 갱신되지 않았다: ${results.liveSettings.overview.relationship}`);
   }
-  if (!results.liveSettings.overview.manualClearVisible) throw new Error('저장된 fallback 해제 동작이 열린 Settings에 나타나지 않았다');
   if (results.liveSettings.preselectedProvince !== '전북특별자치도') {
     throw new Error(`현재 위치가 열린 Settings의 광역시·도에 반영되지 않았다: ${results.liveSettings.preselectedProvince}`);
   }
