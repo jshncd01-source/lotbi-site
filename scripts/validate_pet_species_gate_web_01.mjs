@@ -23,6 +23,42 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const petClient = read('site-pet.js');
 const petUi = read('site-pet-ui.js');
 const petCss = read('site-pet.css');
+const petGuides = read('site-pet-guides.js');
+
+// --------------------------------- PET-NOSE-VISION-02: realistic nose capture
+
+// The extreme-closeup instruction is gone, and nothing that replaced it may
+// reintroduce "fill the screen" or a fixed physical distance.
+assert.ok(!petGuides.includes('코주름'), 'the nose wrinkle close-up instruction must be gone');
+assert.ok(!petGuides.includes('가득 차게'), 'no nose guide may ask the frame to be filled');
+assert.ok(!/\d+\s*cm/.test(petGuides), 'no nose guide may demand a fixed centimetre distance');
+
+const noseFrontHint = petGuides.match(/NOSE_FRONT: \{[\s\S]*?hint: '([^']+)'/)?.[1];
+assert.ok(noseFrontHint, 'NOSE_FRONT hint missing');
+assert.ok(noseFrontHint.includes('전체') && noseFrontHint.includes('콧구멍'), noseFrontHint);
+assert.ok(noseFrontHint.includes('가까이 붙이지 않아도'), 'NOSE_FRONT must say closeness is not required');
+
+for (const slot of ['NOSE_LEFT', 'NOSE_RIGHT']) {
+  const hint = petGuides.match(new RegExp(`${slot}: \\{[\\s\\S]*?hint: '([^']+)'`))?.[1];
+  assert.ok(hint, `${slot} hint missing`);
+  assert.ok(hint.includes('코 전체가 보이는 거리'), `${slot} must anchor on seeing the whole nose, not a fixed distance: ${hint}`);
+  assert.ok(!/[A-Za-z]{4,}/.test(hint), `${slot} hint must not leak English: ${hint}`);
+}
+
+// Local pre-upload rejection never reaches the network, so the copy must say
+// the photo was not saved; the draft row (server-saved) copy must not.
+assert.match(petClient, /사진이 흐려 저장하지 않았어요/, 'local blur rejection must say it was not saved');
+assert.match(petClient, /사진이 너무 작아 저장하지 않았어요/, 'local too-small rejection must say it was not saved');
+assert.match(
+  petClient,
+  /사진은 초안에 저장됐지만 확인을 통과하지 못했어요/,
+  'a rejected draft photo row is still saved, and the copy must say so',
+);
+assert.match(
+  petClient,
+  /사진은 저장됐어요\. 확인이 끝나면 상태가 바뀝니다/,
+  'a pending draft photo row is saved and awaiting a verdict, and the copy must say so',
+);
 
 // ------------------------------------------------------- Core's own contract
 
@@ -339,6 +375,8 @@ assert.equal(seen.localBlur.code, 'PET_PHOTO_TOO_BLURRY', 'a blurred frame must 
 assert.equal(seen.localTiny.code, 'PET_PHOTO_TOO_SMALL', 'a tiny frame must fail on the screen');
 assert.equal(seen.localBlur.retryShown, true);
 assert.equal(seen.localTiny.retryShown, true);
+assert.ok(seen.localBlur.message.includes('저장하지 않았'), seen.localBlur.message);
+assert.ok(seen.localTiny.message.includes('저장하지 않았'), seen.localTiny.message);
 assert.equal(
   seen.requestsDuringLocalChecks,
   0,
