@@ -1,21 +1,20 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-fe97a0fe9c8c';
-import * as siteCore from './site-core.js?v=aset-fe97a0fe9c8c';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-fe97a0fe9c8c';
-import * as siteAttachments from './site-attachments.js?v=aset-fe97a0fe9c8c';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-fe97a0fe9c8c';
-import {deterministicReply} from './site-deterministic.js?v=aset-fe97a0fe9c8c';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-fe97a0fe9c8c';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-fe97a0fe9c8c';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-fe97a0fe9c8c';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-fe97a0fe9c8c';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-fe97a0fe9c8c';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-fe97a0fe9c8c';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-fe97a0fe9c8c';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-fe97a0fe9c8c';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-fe97a0fe9c8c';
-import {pickBestKoreanVoice, waitForVoices} from './site-voice-tts.js?v=aset-fe97a0fe9c8c';
-import {createSpeechPlaybackOwner} from './site-voice-playback.js?v=aset-fe97a0fe9c8c';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-fe97a0fe9c8c';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-9a0b76d10736';
+import * as siteCore from './site-core.js?v=aset-9a0b76d10736';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-9a0b76d10736';
+import * as siteAttachments from './site-attachments.js?v=aset-9a0b76d10736';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-9a0b76d10736';
+import {deterministicReply} from './site-deterministic.js?v=aset-9a0b76d10736';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-9a0b76d10736';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-9a0b76d10736';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9a0b76d10736';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-9a0b76d10736';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-9a0b76d10736';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-9a0b76d10736';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-9a0b76d10736';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-9a0b76d10736';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-9a0b76d10736';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-9a0b76d10736';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-9a0b76d10736';
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -166,7 +165,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-fe97a0fe9c8c';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-9a0b76d10736';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -269,19 +268,42 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 // queue, which keeps the stop control honest.
 const SPEECH_CHUNK_LIMIT = 180;
 
-// One owner for the whole page: window.speechSynthesis is a single queue no
-// matter how many "읽어주기" buttons exist, so only one of them may claim it
-// at a time. See site-voice-playback.js for why this cannot just be each
-// button resetting itself from its own utterance callback. Created in
-// mountConversation(), not here — this sits inside a source range a
-// standalone regression test (validate_home_refresh_persistence_01.mjs)
-// evaluates in isolation, without the module's imports available.
-let speechPlayback;
-
 function speechSupported() {
   return typeof globalThis.speechSynthesis !== 'undefined'
     && typeof globalThis.SpeechSynthesisUtterance === 'function';
 }
+
+// Privacy-safe read-aloud telemetry: event name, playbackId, chunk index and
+// error/fallback reason codes only — never the answer text, never a voice
+// name, never anything that could sit alongside a session token or a full
+// voice list. Reuses the same performance.mark-as-diagnostics idiom
+// site-continuity.js already uses for auth timing, rather than inventing a
+// second telemetry channel for one feature.
+function reportReadAloudTelemetry(event, detail) {
+  try {
+    globalThis.performance?.mark?.(`lotbi-read-aloud:${event}`, {detail: Object.freeze({...detail})});
+  } catch { /* diagnostic-only, must never affect playback */ }
+}
+
+// One playback owner for the whole page — SITE-VOICE-READ-ALOUD-RELIABILITY-02
+// (folding in SITE-VOICE-READALOUD-PLAYBACK-OWNER-01's single-owner fix:
+// window.speechSynthesis is one queue no matter how many "읽어주기" buttons
+// exist, so starting answer B must force answer A's own button back to idle
+// immediately, without waiting for A's onend/onerror — Chrome does not
+// reliably fire either after cancel()). Created in mountConversation(), not
+// here — this sits inside a source range a standalone regression test
+// (validate_home_refresh_persistence_01.mjs) evaluates in isolation, without
+// the module's imports available.
+let readAloud;
+
+const READ_ALOUD_ERROR_MESSAGE = {
+  VOICES_NOT_READY: '음성을 준비하지 못했습니다. 다시 눌러 주세요.',
+  NO_KOREAN_VOICE: '이 기기에 설치된 한국어 음성이 없어 읽어 드릴 수 없습니다.',
+  NETWORK_ERROR: '네트워크 음성을 불러오지 못해 읽어 드리지 못했습니다.',
+  VOICE_UNAVAILABLE: '선택된 음성을 사용할 수 없어 읽어 드리지 못했습니다.',
+  INTERRUPTED: '읽기가 중단되었습니다.',
+};
+const READ_ALOUD_ERROR_MESSAGE_DEFAULT = '읽어 드리지 못했습니다.';
 
 // Picking the best of whatever ko-KR voices the device already has —
 // SITE-VOICE-BROWSER-TTS-QUALITY-01, see site-voice-tts.js for why.
@@ -398,12 +420,13 @@ function createMessageActions(text, announce) {
 
   // Built only where the browser can actually speak. No dialog, no disabled
   // button, no promise the page cannot keep — just the copy and share tools.
-  if (speechSupported()) {
+  if (speechSupported() && readAloud) {
     const speak = createIconButton({className: 'chat-message-action', label: '읽어주기', iconPath: MESSAGE_ACTION_ICON_SPEAK, dataset: {messageAction: 'speak'}});
     const speakIcon = speak.querySelector('path');
-    let speaking = false;
+    // Plain action-button semantics with a live label: this toggles between
+    // two genuinely different actions (start reading / stop reading), which
+    // is exactly what aria-pressed on a button describes, so it stays.
     const setSpeakUi = active => {
-      speaking = active;
       speak.setAttribute('aria-label', active ? '읽기 멈추기' : '읽어주기');
       speak.title = active ? '읽기 멈추기' : '읽어주기';
       speak.setAttribute('aria-pressed', String(active));
@@ -411,42 +434,35 @@ function createMessageActions(text, announce) {
       if (active) speak.dataset.speaking = 'true'; else delete speak.dataset.speaking;
     };
     setSpeakUi(false);
-    const resetThisSpeech = () => setSpeakUi(false);
-    let loadingVoices = false;
-    speak.addEventListener('click', async () => {
-      // The button is the stop control from the first click onward. Nobody has
-      // to sit through a long answer to get it back.
-      if (speaking) { speechPlayback.stop(globalThis.speechSynthesis); report('읽기를 멈췄습니다.'); return; }
-      if (loadingVoices) return;
+
+    // This button's identity within the single shared controller — referential
+    // equality only, never persisted, never sent anywhere.
+    const token = Symbol('read-aloud-token');
+    readAloud.onStateChange(({state, token: activeToken, reason}) => {
+      const mine = activeToken === token;
+      if (mine && state === READ_ALOUD_STATE.ERROR) {
+        report(READ_ALOUD_ERROR_MESSAGE[reason] || READ_ALOUD_ERROR_MESSAGE_DEFAULT, 'error');
+      }
+      setSpeakUi(mine && (state === READ_ALOUD_STATE.PLAYING || state === READ_ALOUD_STATE.PREPARING));
+    });
+
+    speak.addEventListener('click', () => {
+      // PREPARING or PLAYING, and this button's own request: the button is the
+      // stop/cancel control from the first click onward — no waiting for a
+      // long answer to get it back.
+      const current = readAloud.getState();
+      if (current.token === token && current.state !== READ_ALOUD_STATE.IDLE) {
+        readAloud.stop();
+        report('읽기를 멈췄습니다.');
+        return;
+      }
       const chunks = splitForSpeech(value);
       if (!chunks.length) { report('읽을 내용이 없습니다.', 'error'); return; }
-      // The API can be present on a device that has no installed voice at all —
-      // headless Linux is the obvious one, but it happens on stripped-down
-      // handsets too. Saying which thing is missing beats a bare failure.
-      // The list can also arrive a moment after page load (Chrome fires
-      // 'voiceschanged' once it is ready), so this waits briefly rather than
-      // failing on a call that landed before the browser was ready.
-      loadingVoices = true;
-      let voices = [];
-      try { voices = await waitForVoices(); } catch { voices = []; }
-      loadingVoices = false;
-      if (!voices.length) { report('이 기기에 설치된 음성이 없어 읽어 드릴 수 없습니다.', 'error'); return; }
-      const voice = pickBestKoreanVoice(voices);
-      // Whatever else was being read stops first — including forcing its own
-      // button back to idle, not just clearing the engine queue: two answers
-      // at once is noise, and a stuck "reading" button is worse.
-      speechPlayback.stop(globalThis.speechSynthesis);
-      setSpeakUi(true);
-      speechPlayback.claim(resetThisSpeech);
       report('답변을 읽어 드립니다.');
-      chunks.forEach((chunk, index) => {
-        const utterance = new globalThis.SpeechSynthesisUtterance(chunk);
-        utterance.lang = 'ko-KR';
-        if (voice) utterance.voice = voice;
-        if (index === chunks.length - 1) utterance.onend = () => { speechPlayback.release(resetThisSpeech); setSpeakUi(false); };
-        utterance.onerror = () => { speechPlayback.release(resetThisSpeech); setSpeakUi(false); report('읽어 드리지 못했습니다.', 'error'); };
-        globalThis.speechSynthesis.speak(utterance);
-      });
+      // Starting this request unconditionally stops whatever else the page
+      // was reading — two answers at once is noise, and this controller is
+      // the page's only playback owner.
+      void readAloud.play(chunks, {lang: 'ko-KR', token});
     });
     actions.append(copy, share, speak, feedback);
     return actions;
@@ -758,7 +774,7 @@ function trapFocus(container, event) {
 }
 
 function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
-  speechPlayback = createSpeechPlaybackOwner();
+  readAloud = speechSupported() ? createReadAloudController({onTelemetry: reportReadAloudTelemetry}) : null;
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
@@ -2831,7 +2847,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-fe97a0fe9c8c');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-9a0b76d10736');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2858,7 +2874,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-fe97a0fe9c8c');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-9a0b76d10736');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3215,7 +3231,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // Leaving the tab must stop a "읽어주기" reading in progress — nobody
     // asked for it to keep talking once they can no longer see which answer
     // it is, and coming back must not resume it either.
-    speechPlayback.stop(globalThis.speechSynthesis);
+    readAloud?.stop('PAGE_HIDDEN');
   });
 
   const openLotbiBox = trigger => {
@@ -4318,7 +4334,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // previews so a back-navigation does not restore broken images.
   window.addEventListener('pagehide', event => {
     cancelActiveTurn('pagehide');
-    speechPlayback.stop(globalThis.speechSynthesis);
+    readAloud?.stop('PAGE_HIDDEN');
     if (event instanceof PageTransitionEvent && event.persisted) return;
     releaseAllAttachmentPreviewUrls();
   });
