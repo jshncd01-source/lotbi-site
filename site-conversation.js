@@ -262,6 +262,12 @@ const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 
 const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
 const MESSAGE_ACTION_ICON_SPEAK = 'M4 9v6h4l5 4V5L8 9H4Zm11.5 3a4 4 0 0 0-2-3.46v6.92A4 4 0 0 0 15.5 12Zm-2-7.77v2.06A6 6 0 0 1 13.5 18.3v2.06a8 8 0 0 0 0-15.6Z';
 const MESSAGE_ACTION_ICON_STOP = 'M6 6h12v12H6V6Z';
+// SITE-MESSAGE-CALENDAR-ACTION-01 — a footer shortcut into the same editor
+// every other Calendar entry point already opens through (openCalendar with
+// initialDraft). It never registers by itself: only fields already known to
+// this message (a settled calendarDraft, or the first place result's name and
+// address) are pre-filled, and a message with neither opens a blank entry.
+const MESSAGE_ACTION_ICON_CALENDAR = 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5c0-1.1-.9-2-2-2Zm0 16H5V8h14v11Z';
 const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 // Chrome stops a long utterance partway through, so answers are read in
 // sentence-sized pieces queued back to back. cancel() still clears the whole
@@ -336,7 +342,7 @@ async function shareMessageText(text, {includeUrl = true} = {}) {
   return 'copied';
 }
 
-function createMessageActions(text, announce) {
+function createMessageActions(text, announce, {calendarDraft = null, openCalendarDraft} = {}) {
   const value = typeof text === 'string' ? text.trim() : '';
   if (!value) return undefined;
 
@@ -384,6 +390,16 @@ function createMessageActions(text, announce) {
       }
       report('공유 앱으로 보냈습니다.');
     }).catch(() => report('공유를 완료하지 못했습니다.', 'error'));
+  });
+
+  // Calendar is a launcher, never a writer: it always opens the same editor
+  // dialog every other Calendar entry point uses, pre-filled with only the
+  // fields this message already carries, and it never calls a register/save
+  // function directly from here.
+  const calendar = createIconButton({className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: {messageAction: 'calendar'}});
+  calendar.addEventListener('click', () => {
+    if (typeof openCalendarDraft !== 'function') return;
+    void openCalendarDraft(calendarDraft).catch(() => report('캘린더를 열지 못했습니다.', 'error'));
   });
 
   // Built only where the browser can actually speak. No dialog, no disabled
@@ -434,12 +450,28 @@ function createMessageActions(text, announce) {
         globalThis.speechSynthesis.speak(utterance);
       });
     });
-    actions.append(copy, share, speak, feedback);
+    actions.append(copy, share, speak, calendar, feedback);
     return actions;
   }
 
-  actions.append(copy, share, feedback);
+  actions.append(copy, share, calendar, feedback);
   return actions;
+}
+
+// Only fields this message already has, never a guess: a settled calendar
+// draft wins outright (it already went through CHATPERF-05's own contract),
+// otherwise the first place result lends its name and address and nothing
+// else — no date, no time, nothing this message never said.
+function calendarDraftHintFromMessage(message, place) {
+  const draft = message?.meta?.calendarDraft;
+  if (draft && typeof draft === 'object' && (draft.title || draft.localDate)) {
+    return {title: draft.title, localDate: draft.localDate, localTime: draft.localTime, entry: draft.entry};
+  }
+  const primaryPlace = place?.results?.[0];
+  if (primaryPlace?.name) {
+    return {title: primaryPlace.name, entry: primaryPlace.address ? {place: primaryPlace.address} : undefined};
+  }
+  return null;
 }
 
 function createAttachmentIcon(attachment) {
@@ -2462,7 +2494,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       node.appendChild(action);
     }
     if (message.role === 'assistant' && !reusableOutput) {
-      const actions = createMessageActions(message.text, setStatus);
+      const actions = createMessageActions(message.text, setStatus, {
+        calendarDraft: calendarDraftHintFromMessage(message, place),
+        openCalendarDraft: draft => openCalendar(draft?.localDate ? 'month' : 'agenda', {initialDraft: draft, restoreConversation: true}),
+      });
       if (actions) node.appendChild(actions);
     }
     return node;
