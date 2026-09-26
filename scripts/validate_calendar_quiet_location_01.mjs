@@ -202,13 +202,13 @@ try {
     if (!v.settingsHasManualRegion) throw new Error(`${where}: Settings must keep the manual region control beside it`);
     // Permission granted is not the same as coordinates in hand: until the user
     // asks once, the control still offers to fetch them.
-    if (v.locationButtonLabel !== '현재 위치 사용') throw new Error(`${where}: an unresolved location must offer 현재 위치 사용, got ${v.locationButtonLabel}`);
+    if (v.locationButtonLabel !== '갱신') throw new Error(`${where}: an unresolved location must offer 갱신, got ${v.locationButtonLabel}`);
     if (v.toastText !== '현재 위치로 날씨를 표시합니다.') throw new Error(`${where}: unexpected toast copy ${v.toastText}`);
     if (!v.toastFixed || !v.toastBelowGrid || !v.gridDidNotMove) throw new Error(`${where}: the toast must not take layout from the date grid (fixed=${v.toastFixed} below=${v.toastBelowGrid} gridStill=${v.gridDidNotMove} toastTop=${v.toastTop} gridTop=${v.gridTop})`);
     if (!v.toastHostIsShellChild) throw new Error(`${where}: the toast host must belong to the Calendar shell`);
     if (!v.toastAutoDismissed) throw new Error(`${where}: the toast must dismiss itself`);
     if (!v.stillNoStatusRow) throw new Error(`${where}: the status row must stay empty after the change`);
-    if (v.changeLabel !== '변경') throw new Error(`${where}: a resolved location must settle on 변경, got ${v.changeLabel}`);
+    if (v.changeLabel !== '갱신') throw new Error(`${where}: a resolved location must settle on 갱신, got ${v.changeLabel}`);
     if (!v.calendarSurvivesDenial) throw new Error(`${where}: a denied location must not cost the Calendar`);
     if (!v.deniedStaysOutOfGrid) throw new Error(`${where}: a denial must not reclaim the row above the date grid`);
     if (!v.deniedStatusInSettings) throw new Error(`${where}: a denial must be readable in Settings`);
