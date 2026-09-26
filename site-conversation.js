@@ -1,20 +1,20 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-81c2d93709bd';
-import * as siteCore from './site-core.js?v=aset-81c2d93709bd';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-81c2d93709bd';
-import * as siteAttachments from './site-attachments.js?v=aset-81c2d93709bd';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-81c2d93709bd';
-import {deterministicReply} from './site-deterministic.js?v=aset-81c2d93709bd';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-81c2d93709bd';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-81c2d93709bd';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-81c2d93709bd';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-81c2d93709bd';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-81c2d93709bd';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-81c2d93709bd';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-81c2d93709bd';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-81c2d93709bd';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-81c2d93709bd';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-81c2d93709bd';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-81c2d93709bd';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-9a0b76d10736';
+import * as siteCore from './site-core.js?v=aset-9a0b76d10736';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-9a0b76d10736';
+import * as siteAttachments from './site-attachments.js?v=aset-9a0b76d10736';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-9a0b76d10736';
+import {deterministicReply} from './site-deterministic.js?v=aset-9a0b76d10736';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-9a0b76d10736';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-9a0b76d10736';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9a0b76d10736';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-9a0b76d10736';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-9a0b76d10736';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-9a0b76d10736';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-9a0b76d10736';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-9a0b76d10736';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-9a0b76d10736';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-9a0b76d10736';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-9a0b76d10736';
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -165,7 +165,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-81c2d93709bd';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-9a0b76d10736';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -285,11 +285,16 @@ function reportReadAloudTelemetry(event, detail) {
   } catch { /* diagnostic-only, must never affect playback */ }
 }
 
-// One playback owner for the whole page — SITE-VOICE-READ-ALOUD-RELIABILITY-02.
-// Every message's speak button shares this controller instead of owning its
-// own speechSynthesis state, so starting answer B always and unconditionally
-// stops answer A rather than racing it.
-const readAloud = speechSupported() ? createReadAloudController({onTelemetry: reportReadAloudTelemetry}) : null;
+// One playback owner for the whole page — SITE-VOICE-READ-ALOUD-RELIABILITY-02
+// (folding in SITE-VOICE-READALOUD-PLAYBACK-OWNER-01's single-owner fix:
+// window.speechSynthesis is one queue no matter how many "읽어주기" buttons
+// exist, so starting answer B must force answer A's own button back to idle
+// immediately, without waiting for A's onend/onerror — Chrome does not
+// reliably fire either after cancel()). Created in mountConversation(), not
+// here — this sits inside a source range a standalone regression test
+// (validate_home_refresh_persistence_01.mjs) evaluates in isolation, without
+// the module's imports available.
+let readAloud;
 
 const READ_ALOUD_ERROR_MESSAGE = {
   VOICES_NOT_READY: '음성을 준비하지 못했습니다. 다시 눌러 주세요.',
@@ -769,6 +774,7 @@ function trapFocus(container, event) {
 }
 
 function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
+  readAloud = speechSupported() ? createReadAloudController({onTelemetry: reportReadAloudTelemetry}) : null;
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
@@ -2841,7 +2847,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-81c2d93709bd');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-9a0b76d10736');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2868,7 +2874,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-81c2d93709bd');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-9a0b76d10736');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3221,7 +3227,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   window.addEventListener('lotbi:life-calendar-refresh', onNavigationCalendarRefresh);
   window.addEventListener('pageshow', onNavigationCalendarRefresh);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void refreshNavigationCalendarStatus();
+    if (document.visibilityState === 'visible') { void refreshNavigationCalendarStatus(); return; }
+    // Leaving the tab must stop a "읽어주기" reading in progress — nobody
+    // asked for it to keep talking once they can no longer see which answer
+    // it is, and coming back must not resume it either.
+    readAloud?.stop('PAGE_HIDDEN');
   });
 
   const openLotbiBox = trigger => {
@@ -4324,6 +4334,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // previews so a back-navigation does not restore broken images.
   window.addEventListener('pagehide', event => {
     cancelActiveTurn('pagehide');
+    readAloud?.stop('PAGE_HIDDEN');
     if (event instanceof PageTransitionEvent && event.persisted) return;
     releaseAllAttachmentPreviewUrls();
   });

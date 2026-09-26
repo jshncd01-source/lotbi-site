@@ -147,6 +147,35 @@ function createRecorder() {
   assert.ok(events.some(e => e.event === 'STALE_PLAYBACK'), 'A must be recorded as a stale/superseded playback');
 }
 
+// --- 6b. SITE-VOICE-READALOUD-PLAYBACK-OWNER-01's exact defect, folded in -
+// here as the canonical controller's contract: A's engine callback is never
+// simulated at all (matching Chrome's documented failure to always fire
+// onend/onerror after cancel()), yet a UI subscriber bound to A's token must
+// still see itself go inactive the instant B starts — synchronously, with no
+// wait for any engine callback and no tick needed.
+{
+  const synth = createFakeSynth([KOREAN_VOICE_A]);
+  const controller = createReadAloudController({synth, voiceReadyTimeoutMs: 500});
+  let aActive = null;
+  let bActive = null;
+  controller.onStateChange(({state, token}) => {
+    aActive = token === 'A' && (state === READ_ALOUD_STATE.PLAYING || state === READ_ALOUD_STATE.PREPARING);
+    bActive = token === 'B' && (state === READ_ALOUD_STATE.PLAYING || state === READ_ALOUD_STATE.PREPARING);
+  });
+  void controller.play(['A의 답변'], {token: 'A'});
+  assert.equal(aActive, true, "A's own button must show active the moment it starts");
+  const aUtterance = synth.current(); // captured before B ever touches the engine
+  void controller.play(['B의 답변'], {token: 'B'}); // B clicked; A's own utterance never calls back
+  assert.equal(aActive, false, "A's button must flip to idle synchronously when B starts, with no engine callback from A at all");
+  assert.equal(bActive, true, "B's button must show active immediately");
+  // A's own utterance object finally fires its stale callback, late — it must
+  // be inert (site-conversation.js's setSpeakUi(false) idempotently no-ops on
+  // an already-idle button), never touching B's now-live playback.
+  aUtterance?.onend?.();
+  await tick(); await tick();
+  assert.equal(bActive, true, "A's late, stale callback must never reset B");
+}
+
 // --- 7/8/9. stale onend / onerror / readiness-timeout from an old request -
 // are covered by tests 3 and 6 above via the playbackId/AbortSignal guard:
 // once superseded, no callback belonging to the old request can change
@@ -260,6 +289,26 @@ function createRecorder() {
   synth.current().onend();
   await tick(); await tick();
   assert.deepEqual(synth.speakLog, mixed, 'numbers, phone numbers and English text must reach the engine unmodified');
+}
+
+// --- 22. site-conversation.js must actually wire this controller in -------
+// A controller this correct is worthless if the page keeps its own state
+// alongside it. This guards the integration itself, not just the module.
+{
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const source = fs.readFileSync(path.join(import.meta.dirname, '..', 'site-conversation.js'), 'utf8');
+  assert.match(source, /import\s*\{createReadAloudController,\s*READ_ALOUD_STATE\}\s*from\s*'\.\/site-read-aloud-controller\.js/);
+  // Declared, not called, at module scope — a standalone regression test
+  // (validate_home_refresh_persistence_01.mjs) evaluates an isolated source
+  // range of this file without the module's imports available; a top-level
+  // factory call there throws ReferenceError. The real instance is created
+  // once mountConversation() actually runs.
+  assert.match(source, /\nlet readAloud;\n/);
+  assert.match(source, /function mountConversation\([\s\S]{0,200}?\{\n\s*readAloud = speechSupported\(\) \? createReadAloudController\(\{onTelemetry: reportReadAloudTelemetry\}\) : null;/);
+  assert.match(source, /visibilitychange'[\s\S]*?readAloud\?\.stop\('PAGE_HIDDEN'\)/);
+  assert.match(source, /'pagehide'[\s\S]*?readAloud\?\.stop\('PAGE_HIDDEN'\)/);
+  assert.ok(!source.includes('site-voice-playback.js'), 'the superseded single-purpose ownership module must not be re-imported');
 }
 
 console.log('SITE-VOICE-READ-ALOUD-RELIABILITY-02 CONTRACT PASS');
