@@ -647,8 +647,27 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
    지시, 삼성 캘린더 참고). box-shadow(inset)를 쓰는 이유는 위 선택 칸과 같다:
    border 였다면 칸이 커져 month-density 그리드 계측이 흔들린다. 선택 칸과
    같은 속성 특이도라 소스 순서가 우선순위를 정하므로, 이 규칙을 선택 규칙
-   "뒤에" 둬서 오늘이면서 선택된 칸에서도 오늘 링이 보이게 한다. */
-.calendar-date-cell[data-today="true"] { z-index: 1; box-shadow: inset 0 0 0 3px var(--lotbi-calendar-today-ring); }
+   "뒤에" 둬서 오늘이면서 선택된 칸에서도 오늘 링이 보이게 한다. 링 굵기는
+   대표님 요청으로 3px에서 20% 줄여 2.4px. */
+.calendar-date-cell[data-today="true"] { z-index: 1; box-shadow: inset 0 0 0 2.4px var(--lotbi-calendar-today-ring); }
+/* 링만으로는 눈에 덜 띌 수 있어, 날짜 숫자 옆에 작은 점 하나를 더 찍는다 —
+   숫자를 감싸는 큰 원은 아니고, 존재만 알리는 보조 표시. trigger 기준으로
+   찍으면 트리거 박스가 44px 정사각형이라 데스크톱(가운데 정렬)과 모바일(위
+   왼쪽 정렬)에서 숫자와 점 사이 거리가 달라진다 — 숫자(.calendar-date-number)
+   자신을 기준으로 찍어 두 표면 모두 숫자 바로 아래 붙게 한다. */
+.calendar-date-cell[data-today="true"] .calendar-date-number { position: relative; }
+.calendar-date-cell[data-today="true"] .calendar-date-number::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 1px;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--lotbi-calendar-today-ring);
+}
 .calendar-date-header { min-width: 0; min-height: 44px; display: flex; align-items: flex-start; gap: 4px; }
 .calendar-date-trigger {
   flex: 0 0 auto;
