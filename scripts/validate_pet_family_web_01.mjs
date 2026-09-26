@@ -354,6 +354,7 @@ const FIXTURE_PETS = {
   ],
 };
 
+
 function innerFixtureHtml() {
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8" />
 <link rel="stylesheet" href="/site-theme-tokens.css" />
@@ -369,6 +370,14 @@ function innerFixtureHtml() {
 <script>
   // Stand in for Core so the surface is exercised without the network.
   const PETS = ${JSON.stringify(JSON.stringify(FIXTURE_PETS))};
+  // The draft-photo gate steps below upload a throwaway buffer through the
+  // screen's own local quick-look, whose decode step (createImageBitmap)
+  // is real async work a headless run under --virtual-time-budget cannot
+  // make deterministic. Production already treats a missing
+  // createImageBitmap as "cannot analyse here, let Core decide" (see
+  // petPhotoQuickLook's own guard) — this fixture takes that same, already
+  // real, code path so the gate assertions test the gate, not decode timing.
+  globalThis.createImageBitmap = undefined;
   let draftPhotos = [];
   let draftSpecies = '';
   globalThis.fetch = async (url, options = {}) => {
@@ -607,10 +616,9 @@ function innerFixtureHtml() {
     input.files = transfer.files;
     input.dispatchEvent(new Event('change', {bubbles: true}));
   };
-  // Local image inspection (createImageBitmap on a throwaway buffer) runs in
-  // real time even under a virtual clock, so a fixed sleep after dispatching
-  // an upload is not reliable — wait for the actual outcome instead, bounded
-  // so a genuine failure still surfaces quickly.
+  // Each upload still crosses the mocked fetch's own promise chain, so wait
+  // for the actual outcome rather than a fixed sleep — bounded so a genuine
+  // failure still surfaces quickly instead of hanging.
   const waitFor = async (check, maxMs = 4000) => {
     const step = 100;
     let waited = 0;
@@ -728,7 +736,7 @@ async function render(width, height) {
     }
     const run = spawnSync(browserPath(), [
       '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-      '--window-size=1600,1100', '--virtual-time-budget=14000', '--dump-dom',
+      '--window-size=1600,1100', '--virtual-time-budget=8000', '--dump-dom',
       `http://127.0.0.1:${port}/${outerName}`,
     ], {encoding: 'utf8', timeout: 60000, maxBuffer: 8 * 1024 * 1024});
     if (run.error) throw run.error;
