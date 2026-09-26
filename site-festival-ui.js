@@ -11,13 +11,21 @@
 import {
   FESTIVAL_PROGRAM_CATEGORIES,
   FESTIVAL_RESERVATION_TYPE_LABEL,
+  FESTIVAL_STATUS,
   FESTIVAL_STATUS_LABEL,
   computeFestivalStatus,
   getPublishedFestival,
   listFestivalRegions,
   listPublishedFestivals,
   sortFestivalPrograms,
-} from './site-festival-client.js?v=aset-0600df240b82';
+} from './site-festival-client.js?v=aset-9d9140cd76ac';
+import {
+  VISIT_SCOPE,
+  addFestivalVisitToCalendar,
+  defaultProgramSelectedDate,
+  festivalVisitDateOptions,
+} from './site-festival-calendar.js?v=aset-9d9140cd76ac';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9d9140cd76ac';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -114,7 +122,42 @@ function buildCard(festival, now, {onOpen}) {
   return card;
 }
 
-function buildProgramSection(festival) {
+// FESTIVAL-EVENT-08 gap-fill: a date-tab bar, not a plain heading list, so a
+// visit-date selection (from Calendar re-entry, or picked here directly) can
+// jump straight to that day's programs. Arrow-key roving tabindex, one tab
+// stop for the whole bar — the standard tablist keyboard contract.
+function buildDateTabBar(dates, {selectedDate, onSelect}) {
+  const tabs = el('div', 'festival-date-tabs');
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', '프로그램 날짜 선택');
+  const nodes = new Map();
+  dates.forEach((date, index) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'festival-date-tab';
+    tab.id = `festival-date-tab-${date}`;
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', String(date === selectedDate));
+    tab.tabIndex = date === selectedDate ? 0 : -1;
+    tab.textContent = formatFestivalDateLabel(date);
+    tab.addEventListener('click', () => onSelect(date));
+    tab.addEventListener('keydown', event => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft' && event.key !== 'Home' && event.key !== 'End') return;
+      event.preventDefault();
+      const nextIndex = event.key === 'ArrowRight' ? (index + 1) % dates.length
+        : event.key === 'ArrowLeft' ? (index - 1 + dates.length) % dates.length
+        : event.key === 'Home' ? 0 : dates.length - 1;
+      const nextDate = dates[nextIndex];
+      onSelect(nextDate);
+      nodes.get(nextDate)?.focus();
+    });
+    nodes.set(date, tab);
+    tabs.appendChild(tab);
+  });
+  return tabs;
+}
+
+function buildProgramSection(festival, {initialSelectedDate = '', now = new Date()} = {}) {
   const section = el('section', 'festival-section festival-programs');
   section.appendChild(el('h4', 'festival-section-title', '주요 프로그램'));
   if (!festival.programs.length) {
@@ -122,46 +165,61 @@ function buildProgramSection(festival) {
     return section;
   }
 
+  const programDates = [...new Set(sortFestivalPrograms(festival.programs).map(program => program.date))];
+  let selectedDate = defaultProgramSelectedDate(programDates, {initialSelectedDate, now});
+
+  const tabHost = el('div', 'festival-date-tab-host');
   const categoryRow = el('div', 'festival-chip-row');
   categoryRow.setAttribute('role', 'group');
   categoryRow.setAttribute('aria-label', '프로그램 카테고리 필터');
   const list = el('div', 'festival-program-groups');
-  section.append(categoryRow, list);
+  list.setAttribute('role', 'tabpanel');
+  section.append(tabHost, categoryRow, list);
 
   let activeCategory = '';
   const categories = ['전체', ...FESTIVAL_PROGRAM_CATEGORIES];
   const chips = new Map();
 
+  const renderTabs = () => {
+    const bar = buildDateTabBar(programDates, {
+      selectedDate,
+      onSelect: date => {
+        if (date === selectedDate) return;
+        selectedDate = date;
+        renderTabs();
+        renderPrograms();
+      },
+    });
+    list.setAttribute('aria-labelledby', `festival-date-tab-${selectedDate}`);
+    tabHost.replaceChildren(bar);
+  };
+
   const renderPrograms = () => {
     list.replaceChildren();
-    const filtered = filterProgramsByCategory(festival.programs, activeCategory);
+    const onDate = festival.programs.filter(program => program.date === selectedDate);
+    const filtered = filterProgramsByCategory(onDate, activeCategory);
     if (!filtered.length) {
-      list.appendChild(el('p', 'festival-empty-note', '선택한 카테고리의 프로그램이 없습니다.'));
+      list.appendChild(el('p', 'festival-empty-note', '선택한 날짜·카테고리의 프로그램이 없습니다.'));
       return;
     }
-    for (const group of groupProgramsByDate(filtered)) {
-      const groupEl = el('div', 'festival-program-group');
-      groupEl.appendChild(el('h5', 'festival-program-date', formatFestivalDateLabel(group.date)));
-      const ul = document.createElement('ul');
-      ul.className = 'festival-program-list';
-      for (const program of group.programs) {
-        const li = document.createElement('li');
-        li.className = 'festival-program-item';
-        const time = [program.startTime, program.endTime].filter(Boolean).join(' ~ ');
-        if (time) li.appendChild(el('span', 'festival-program-time', time));
-        li.appendChild(el('span', 'festival-program-category', program.category));
-        li.appendChild(el('span', 'festival-program-title', program.title));
-        if (program.venue) li.appendChild(el('span', 'festival-program-venue', program.venue));
-        if (program.price) {
-          li.appendChild(el('span', 'festival-program-price',
-            `${program.price.amount.toLocaleString('ko-KR')}${program.price.currency === 'KRW' ? '원' : ` ${program.price.currency}`} (${program.price.unit})`));
-        }
-        if (program.note) li.appendChild(el('p', 'festival-program-note', program.note));
-        ul.appendChild(li);
+    const ul = document.createElement('ul');
+    ul.className = 'festival-program-list';
+    for (const program of sortFestivalPrograms(filtered)) {
+      const li = document.createElement('li');
+      li.className = 'festival-program-item';
+      const time = [program.startTime, program.endTime].filter(Boolean).join(' ~ ');
+      if (time) li.appendChild(el('span', 'festival-program-time', time));
+      li.appendChild(el('span', 'festival-program-category', program.category));
+      li.appendChild(el('span', 'festival-program-title', program.title));
+      if (program.venue) li.appendChild(el('span', 'festival-program-venue', program.venue));
+      if (program.price) {
+        li.appendChild(el('span', 'festival-program-price',
+          `${program.price.amount.toLocaleString('ko-KR')}${program.price.currency === 'KRW' ? '원' : ` ${program.price.currency}`} (${program.price.unit})`));
       }
-      groupEl.appendChild(ul);
-      list.appendChild(groupEl);
+      if (program.note) li.appendChild(el('p', 'festival-program-note', program.note));
+      ul.appendChild(li);
     }
+    list.appendChild(ul);
   };
 
   for (const category of categories) {
@@ -177,6 +235,7 @@ function buildProgramSection(festival) {
     chips.set(value, chip);
     categoryRow.appendChild(chip);
   }
+  renderTabs();
   renderPrograms();
   return section;
 }
@@ -226,12 +285,162 @@ function buildOfficialSourceSection(festival) {
   return section;
 }
 
+// PUBLISHED-only is already structural (every festival here came through
+// getPublishedFestival()/listPublishedFestivals()). This gate is the other
+// half of rule 33: ENDED/CANCELLED never offer a *new* visit registration —
+// the visit already happened, or the event will not.
+function festivalCalendarAddEligible(festival, now) {
+  const status = computeFestivalStatus(festival, now);
+  return status !== FESTIVAL_STATUS.ENDED && status !== FESTIVAL_STATUS.CANCELLED;
+}
+
+// "내 캘린더에 추가" — a personalization utility action, deliberately not a
+// third primary CTA alongside [프로그램]/[체험·신청]. It writes through the
+// existing LOTBI Calendar (site-festival-calendar.js -> site-calendar.js /
+// site-calendar-guest.js); this module never stores a festival visit itself.
+function buildCalendarAddSection(root, festival, {authenticated, sessionToken, guestRepository, now = new Date()}) {
+  const wrap = el('div', 'festival-calendar-add');
+  if (!festivalCalendarAddEligible(festival, now)) return wrap;
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'festival-calendar-add-trigger';
+  trigger.textContent = '+ 내 캘린더에 추가';
+  wrap.appendChild(trigger);
+
+  const feedback = el('p', 'festival-calendar-add-feedback');
+  feedback.hidden = true;
+  wrap.appendChild(feedback);
+
+  const announce = (message, {isError = false} = {}) => {
+    feedback.hidden = false;
+    feedback.textContent = message;
+    feedback.setAttribute('role', isError ? 'alert' : 'status');
+  };
+
+  let disposeSheet = null;
+  const closeSheet = ({restoreFocus = true} = {}) => {
+    if (!disposeSheet) return;
+    const dispose = disposeSheet;
+    disposeSheet = null;
+    dispose();
+    if (restoreFocus) trigger.focus();
+  };
+
+  const submit = async (visitScope, visitDate) => {
+    trigger.disabled = true;
+    try {
+      const result = await addFestivalVisitToCalendar({festival, visitDate, visitScope, authenticated, sessionToken, guestRepository});
+      if (result.status === 'CREATED') {
+        announce('캘린더에 추가했어요.');
+        closeSheet();
+      } else if (result.status === 'DUPLICATE') {
+        announce('이미 캘린더에 추가되어 있어요.');
+        closeSheet();
+      } else {
+        announce('캘린더에 추가하지 못했어요. 다시 시도해 주세요.', {isError: true});
+      }
+    } catch {
+      announce('캘린더에 추가하지 못했어요. 다시 시도해 주세요.', {isError: true});
+    } finally {
+      trigger.disabled = false;
+    }
+  };
+
+  const openSheet = () => {
+    closeSheet({restoreFocus: false});
+    const backdrop = el('div', 'festival-visit-sheet-backdrop');
+    const dialog = el('div', 'festival-visit-sheet');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'festival-visit-sheet-title');
+
+    const header = el('div', 'festival-visit-sheet-header');
+    const title = el('h4', 'festival-visit-sheet-title', '방문할 날짜를 선택하세요');
+    title.id = 'festival-visit-sheet-title';
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'festival-visit-sheet-close';
+    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', '닫기');
+    header.append(title, closeButton);
+
+    const optionsList = el('div', 'festival-visit-sheet-options');
+    optionsList.setAttribute('role', 'radiogroup');
+    optionsList.setAttribute('aria-label', '방문 날짜');
+    const optionButtons = [];
+    let selected = null;
+
+    const confirmButton = document.createElement('button');
+    confirmButton.type = 'button';
+    confirmButton.className = 'festival-visit-sheet-confirm';
+    confirmButton.textContent = '추가';
+    confirmButton.disabled = true;
+
+    const selectOption = (node, value) => {
+      selected = value;
+      for (const optionNode of optionButtons) optionNode.setAttribute('aria-checked', String(optionNode === node));
+      confirmButton.disabled = false;
+    };
+
+    const addOption = (label, value, className = 'festival-visit-option') => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = className;
+      option.setAttribute('role', 'radio');
+      option.setAttribute('aria-checked', 'false');
+      option.textContent = label;
+      option.addEventListener('click', () => selectOption(option, value));
+      optionButtons.push(option);
+      optionsList.appendChild(option);
+      return option;
+    };
+
+    for (const date of festivalVisitDateOptions(festival)) {
+      addOption(formatFestivalDateLabel(date), {scope: VISIT_SCOPE.DATE, date});
+    }
+    addOption('전체 기간', {scope: VISIT_SCOPE.FULL_RANGE, date: null}, 'festival-visit-option festival-visit-option-full');
+
+    confirmButton.addEventListener('click', () => {
+      if (!selected) return;
+      void submit(selected.scope, selected.date);
+    });
+
+    const onKeydown = event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeSheet(); }
+    };
+    closeButton.addEventListener('click', () => closeSheet());
+    backdrop.addEventListener('click', event => { if (event.target === backdrop) closeSheet(); });
+    dialog.addEventListener('keydown', onKeydown);
+
+    dialog.append(header, optionsList, confirmButton);
+    backdrop.appendChild(dialog);
+    root.appendChild(backdrop);
+    disposeSheet = () => backdrop.remove();
+    (optionButtons[0] || closeButton).focus();
+  };
+
+  trigger.addEventListener('click', openSheet);
+  return wrap;
+}
+
 /**
- * @param {{root: HTMLElement, fetchImpl?: typeof fetch, now?: Date}} options
+ * @param {{
+ *   root: HTMLElement, fetchImpl?: typeof fetch, now?: Date,
+ *   sessionToken?: string, guestRepository?: object,
+ *   initialFestivalId?: string, initialSelectedDate?: string,
+ * }} options
  */
-export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, now = new Date()} = {}) {
+export async function mountFestivalManager({
+  root, fetchImpl = globalThis.fetch, now = new Date(),
+  sessionToken = '', guestRepository = null,
+  initialFestivalId = '', initialSelectedDate = '',
+} = {}) {
   if (!(root instanceof HTMLElement)) throw new TypeError('root is required');
   root.replaceChildren();
+
+  const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
+  const repository = authenticated ? null : (guestRepository || createGuestCalendarRepository(globalThis.localStorage));
 
   const state = {region: '', ongoing: false, weekend: false, dateMode: '', customDate: ''};
   let regionProvinces = [];
@@ -331,11 +540,13 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     loadList();
   }
 
-  function openDetail(id) {
-    void renderDetail(id);
+  function openDetail(id, selectedDate = '') {
+    void renderDetail(id, selectedDate);
   }
 
+  let listLoaded = false;
   async function loadList() {
+    listLoaded = true;
     const token = ++requestToken;
     status.hidden = false;
     status.textContent = '축제 정보를 불러오는 중입니다.';
@@ -366,7 +577,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     }
   }
 
-  async function renderDetail(id) {
+  async function renderDetail(id, selectedDate = '') {
     listSurface.hidden = true;
     detailSurface.hidden = false;
     detailSurface.replaceChildren();
@@ -387,6 +598,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     back.addEventListener('click', () => {
       detailSurface.hidden = true;
       listSurface.hidden = false;
+      if (!listLoaded) void loadList();
     });
     detailSurface.appendChild(back);
 
@@ -407,8 +619,9 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     if (festival.address) header.appendChild(el('p', 'festival-detail-address', festival.address));
     if (festival.summary) header.appendChild(el('p', 'festival-detail-summary', festival.summary));
     detailSurface.appendChild(header);
+    detailSurface.appendChild(buildCalendarAddSection(detailSurface, festival, {authenticated, sessionToken, guestRepository: repository, now}));
 
-    detailSurface.appendChild(buildProgramSection(festival));
+    detailSurface.appendChild(buildProgramSection(festival, {initialSelectedDate: selectedDate, now}));
     detailSurface.appendChild(buildReservationSection(festival));
     const parkingShuttle = buildParkingShuttleSection(festival);
     if (parkingShuttle) detailSurface.appendChild(parkingShuttle);
@@ -416,7 +629,8 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     if (officialSource) detailSurface.appendChild(officialSource);
   }
 
-  await loadList();
+  if (initialFestivalId) await renderDetail(initialFestivalId, initialSelectedDate);
+  else await loadList();
 
   return {
     dispose() {

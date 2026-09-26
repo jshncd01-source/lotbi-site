@@ -1,5 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-0600df240b82';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-0600df240b82';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-9d9140cd76ac';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-9d9140cd76ac';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9d9140cd76ac';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-0600df240b82';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-0600df240b82';
+} from './site-calendar-model.js?v=aset-9d9140cd76ac';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-9d9140cd76ac';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-0600df240b82';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-0600df240b82';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-0600df240b82';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-9d9140cd76ac';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-9d9140cd76ac';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-9d9140cd76ac';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -26,12 +27,12 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-0600df240b82';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-0600df240b82';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-0600df240b82';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-0600df240b82';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-0600df240b82';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-0600df240b82';
+} from './site-calendar-product.js?v=aset-9d9140cd76ac';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-9d9140cd76ac';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-9d9140cd76ac';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-9d9140cd76ac';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-9d9140cd76ac';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-9d9140cd76ac';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -2474,7 +2475,7 @@ function calendarReadonlyDetailDialog({root, item, opener = null, onClose = () =
   return dialog;
 }
 
-function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onClose = () => {}}) {
+function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onOpenFestival = null, onClose = () => {}}) {
   root.querySelector('.calendar-editor-backdrop')?.remove();
   document.body.classList.remove('calendar-editor-open');
 
@@ -2810,6 +2811,15 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     });
   }
 
+  if (onOpenFestival) {
+    const viewFestival = button('축제·행사 보기', 'calendar-editor-view-festival');
+    actions.prepend(viewFestival);
+    viewFestival.addEventListener('click', () => {
+      close();
+      onOpenFestival();
+    });
+  }
+
   primary.append(titleLabel, titleNote, dateLabel, allDayLabel, timeControl);
   details.append(placeLabel, merchantLabel, memoLabel, amountLabel, categoryLabel);
   if (hasMultiDayEnd) detailsSummary.after(endDateLabel);
@@ -2913,6 +2923,7 @@ export async function mountLifeCalendarManager({
   locationPermissions = globalThis.navigator?.permissions,
   locationNow = Date.now,
   settingsStorage = globalThis.localStorage,
+  onOpenFestival = null,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
@@ -3781,8 +3792,10 @@ export async function mountLifeCalendarManager({
         onClose: () => focusCalendarContext(origin, item),
       });
     }
+    const festivalLink = item ? festivalLinkFromCalendarItem(item, settingsStorage) : null;
     return calendarEditorDialog({
       root, item, selectedDate: date, initialDraft: draft, authenticated, controller: mutationController,
+      onOpenFestival: festivalLink && typeof onOpenFestival === 'function' ? () => onOpenFestival(festivalLink) : null,
       onSaved: async () => {
         state.mode = origin.mode;
         state.selectedDate = origin.selectedDate;
