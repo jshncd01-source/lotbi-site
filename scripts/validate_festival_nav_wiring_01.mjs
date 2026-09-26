@@ -1,4 +1,4 @@
-// FESTIVAL-07 — nav entry, modal wiring, and external-link hygiene.
+// FESTIVAL-EVENT-08 — nav entry, modal wiring, and external-link hygiene.
 //
 // Static file assertions, no browser — the same style as
 // scripts/validate_brand_official_logo_01.mjs.
@@ -68,14 +68,16 @@ assert.doesNotMatch(festivalCss, /\.festival-region-row\s*\{[^}]*flex-direction:
   'the region row must not be forced into a vertical column layout');
 
 // ------------------------------------------------------- external links ---
-// Every target="_blank" anchor built in site-festival-ui.js must carry
-// rel="noopener noreferrer" and something readable that marks it external.
-const anchorBlocks = [...festivalUiJs.matchAll(/link\.target = '_blank';[\s\S]{0,400}?(?=\n\s*(?:if |return|\}))/g)]
+// The only external, new-tab link this UI ever builds is [체험·신청]; it must
+// carry rel="noopener noreferrer" and an accessible label that marks it
+// external. There must be exactly one such link — a second one would mean a
+// legacy 공식예약/공식출처-style external CTA crept back in.
+const anchorBlocks = [...festivalUiJs.matchAll(/link\.target = '_blank';[\s\S]{0,400}?(?=\n\s*(?:if |return|\}|row\.appendChild))/g)]
   .map(match => match[0]);
-assert.ok(anchorBlocks.length >= 2, 'expected reservation and official-source external links');
+assert.equal(anchorBlocks.length, 1, 'expected exactly one external-link CTA ([체험·신청]) — a second one would be a reintroduced legacy external link');
 for (const block of anchorBlocks) {
   assert.match(block, /link\.rel = 'noopener noreferrer'/, 'external link missing rel=noopener noreferrer');
-  assert.match(block, /외부 사이트/, 'external link must tell the user it leaves the site');
+  assert.match(block, /aria-label/, 'external link must have an accessible label announcing the external handoff');
 }
 
 // -------------------------------------------------- price non-aggregation --
@@ -83,4 +85,31 @@ assert.doesNotMatch(festivalUiJs, /totalPrice|priceTotal|sumPrice|합계.*가격
   'the UI must never compute or display a summed/total price across programs');
 assert.doesNotMatch(festivalClientJs, /totalPrice|priceTotal|sumPrice/);
 
-console.log('FESTIVAL NAV WIRING VALIDATION PASS — nav entry (desktop+mobile), modal wiring, private-API isolation, chip layout, and external-link hygiene verified.');
+// ------------------------------------------------------ legacy UI removed --
+// FESTIVAL-EVENT-08 removes the legacy 공식홈페이지/예약안내/주차·셔틀/공식출처
+// sections entirely — not just visually, but as dead code, so nothing can
+// resurrect them by re-adding a call site.
+// Code-usage patterns only (not doc-comment prose, which may still name the
+// removed Core field for context): a function call/definition or an actual
+// property read/assignment.
+const REMOVED_CODE_PATTERNS = [
+  [/buildReservationSection\s*\(/, 'buildReservationSection() call/definition'],
+  [/buildParkingShuttleSection\s*\(/, 'buildParkingShuttleSection() call/definition'],
+  [/buildOfficialSourceSection\s*\(/, 'buildOfficialSourceSection() call/definition'],
+  [/\.homepage_url\b/, '.homepage_url property read'],
+  [/\bhomepageUrl\s*[:=]/, 'homepageUrl assignment/property'],
+  [/FESTIVAL_RESERVATION_TYPE\w*/, 'the legacy reservation-type enum'],
+];
+for (const [pattern, label] of REMOVED_CODE_PATTERNS) {
+  assert.doesNotMatch(festivalUiJs, pattern, `legacy ${label} must not remain in site-festival-ui.js`);
+  assert.doesNotMatch(festivalClientJs, pattern, `legacy ${label} must not remain in site-festival-client.js`);
+}
+
+// At most two primary CTAs, and the internal program screen must never be an
+// external handoff to Core's admin-curated source package.
+assert.match(festivalUiJs, /festival-cta-program/, 'a [프로그램] CTA must exist');
+assert.match(festivalUiJs, /festival-cta-participation/, 'a [체험·신청] CTA must exist');
+assert.doesNotMatch(festivalUiJs, /festival_sources|source_service|admin_festival/i,
+  '[프로그램] must open the internal date-tab screen, never call an admin source-package API');
+
+console.log('FESTIVAL NAV WIRING VALIDATION PASS — nav entry (desktop+mobile), modal wiring, private-API isolation, chip layout, external-link hygiene, and legacy-section removal verified.');
