@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-38aa6c6d9e2a';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-38aa6c6d9e2a';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-38aa6c6d9e2a';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-bb8131a1c21b';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-bb8131a1c21b';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-bb8131a1c21b';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -11,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-38aa6c6d9e2a';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-38aa6c6d9e2a';
+} from './site-calendar-model.js?v=aset-bb8131a1c21b';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-bb8131a1c21b';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-38aa6c6d9e2a';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-38aa6c6d9e2a';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-38aa6c6d9e2a';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-bb8131a1c21b';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-bb8131a1c21b';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-bb8131a1c21b';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -27,12 +27,12 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-38aa6c6d9e2a';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-38aa6c6d9e2a';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-38aa6c6d9e2a';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-38aa6c6d9e2a';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-38aa6c6d9e2a';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-38aa6c6d9e2a';
+} from './site-calendar-product.js?v=aset-bb8131a1c21b';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-bb8131a1c21b';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-bb8131a1c21b';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-bb8131a1c21b';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-bb8131a1c21b';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-bb8131a1c21b';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -104,14 +104,15 @@ export function calendarWeatherLocationPresentation({
   const label = typeof manualWeatherRegion?.label === 'string'
     ? manualWeatherRegion.label.trim()
     : '';
+  // 대표님 지시로 '현재 위치 사용'과 '변경'을 하나로 합쳤다 -- 권한이 없으면
+  // 버튼을 눌렀을 때 브라우저 자체 권한 요청 문구가 뜨니, 버튼 문구가 굳이
+  // "사용"과 "변경"을 구분할 필요가 없다. 둘 다 같은 동작(다시 읽기)이다.
   const currentAction = locationInFlight
     ? '위치 확인 중…'
-    : usingBrowserLocation
-      ? '변경'
-      : [LOCATION_RESOLUTION.TIMEOUT, LOCATION_RESOLUTION.ERROR].includes(locationResolution)
-        && ![LOCATION_PERMISSION.DENIED, LOCATION_PERMISSION.UNAVAILABLE].includes(locationPermission)
-        ? '다시 시도'
-        : '현재 위치 사용';
+    : [LOCATION_RESOLUTION.TIMEOUT, LOCATION_RESOLUTION.ERROR].includes(locationResolution)
+      && ![LOCATION_PERMISSION.DENIED, LOCATION_PERMISSION.UNAVAILABLE].includes(locationPermission)
+      ? '다시 시도'
+      : '갱신';
 
   let currentStatus = '버튼을 누를 때만 위치 권한을 요청합니다.';
   if (locationInFlight) currentStatus = '현재 위치를 확인하는 중…';
@@ -494,6 +495,9 @@ export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
     // every cell rather than a correction to something already shown, so
     // this one ships off until the owner asks for it.
     showLunarDates: stored.showLunarDates === true,
+    // Precipitation already shipped on, so it follows showKoreaHolidays/
+    // showGridLines rather than showLunarDates: an empty store keeps it on.
+    showPrecipitation: stored.showPrecipitation !== false,
     weekStart: normalizeWeekStart(stored.weekStart),
   });
 }
@@ -509,6 +513,7 @@ function writeCalendarDisplaySettings(storage, settings) {
       showKoreaHolidays: settings?.showKoreaHolidays !== false,
       showGridLines: settings?.showGridLines !== false,
       showLunarDates: settings?.showLunarDates === true,
+      showPrecipitation: settings?.showPrecipitation !== false,
       weekStart: normalizeWeekStart(settings?.weekStart),
     }));
   } catch {
@@ -1444,7 +1449,8 @@ function renderWeek(state, actions, weatherCredit = null) {
       const weatherLine = document.createElement('span');
       weatherLine.className = 'calendar-week-weather';
       const presentation = calendarWeatherPresentation(weather);
-      weatherLine.textContent = [weather.label, presentation.weekLabel, presentation.precipLabel].filter(Boolean).join(' · ');
+      const weekPrecipLabel = state.showPrecipitation !== false ? presentation.precipLabel : '';
+      weatherLine.textContent = [weather.label, presentation.weekLabel, weekPrecipLabel].filter(Boolean).join(' · ');
       weatherLine.setAttribute('aria-label', `날씨 ${weatherLine.textContent}`);
       const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
       if (weatherIcon) weatherLine.prepend(weatherIcon);
@@ -1664,8 +1670,9 @@ function renderMonth(state, actions, weatherCredit = null) {
         weatherSummary.appendChild(temperature);
       }
       // 강수확률은 있을 때만(0%는 표시 안 함) 온도 줄 아래에 한 줄 더 붙는다
-      // — 강수 없는 대부분의 날은 지금 화면 그대로 유지된다.
-      if (weatherPresentation.precipLabel) {
+      // — 강수 없는 대부분의 날은 지금 화면 그대로 유지된다. 설정에서 끄면
+      // 값이 있어도 이 줄 자체를 만들지 않는다.
+      if (state.showPrecipitation !== false && weatherPresentation.precipLabel) {
         const precip = document.createElement('span');
         precip.className = 'calendar-weather-precip';
         precip.textContent = weatherPresentation.precipLabel;
@@ -1980,6 +1987,28 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   };
   weatherOverview.append(weatherRegionSummary, weatherRelationship);
   syncWeatherOverview();
+
+  // Pure display, like 격자선/음력 above: the value is already fetched and
+  // normalized regardless of this switch, so toggling it only ever repaints.
+  const precipRow = document.createElement('label');
+  precipRow.className = 'calendar-settings-toggle-row';
+  const precipCopy = document.createElement('span');
+  const precipLabel = document.createElement('strong');
+  precipLabel.textContent = '강수확률 표시';
+  const precipDescription = document.createElement('small');
+  precipDescription.textContent = '온도 아래에 강수확률을 표시합니다. 비/눈 확률이 0%인 날은 원래부터 표시하지 않습니다.';
+  precipCopy.append(precipLabel, precipDescription);
+  const precipToggle = document.createElement('input');
+  precipToggle.type = 'checkbox';
+  precipToggle.checked = state.showPrecipitation !== false;
+  precipToggle.setAttribute('aria-label', '강수확률 표시');
+  precipRow.append(precipCopy, precipToggle);
+  precipToggle.addEventListener('change', () => {
+    state.showPrecipitation = precipToggle.checked;
+    writeCalendarDisplaySettings(storage, state);
+    onRedraw();
+  });
+
   // Current location first, manual region as its fallback: the same order the
   // weather read applies them in.
   const locationRow = typeof buildLocationRow === 'function' ? buildLocationRow() : null;
@@ -2015,12 +2044,9 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
 
   const weatherRow = document.createElement('div');
   weatherRow.className = 'calendar-settings-region-row';
-  const weatherClear = button('수동 지역 해제', 'calendar-settings-action-button');
-  weatherClear.dataset.calendarWeatherManualClear = '';
-  weatherClear.hidden = !state.manualWeatherRegion;
   const weatherRetry = button('지역 목록 다시 불러오기', 'calendar-settings-action-button');
   weatherRetry.hidden = true;
-  weatherRow.append(weatherClear, weatherRetry);
+  weatherRow.append(weatherRetry);
   const weatherStatus = document.createElement('small');
   weatherStatus.className = 'calendar-settings-status';
   const storedRegionStatusText = () => (typeof getWeatherLocationPresentation === 'function'
@@ -2030,7 +2056,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
       weatherRegionOrigin: state.weatherRegionOrigin,
     })).manualSummary;
   weatherStatus.textContent = storedRegionStatusText();
-  weatherSection.append(weatherTitle, weatherOverview);
+  weatherSection.append(weatherTitle, weatherOverview, precipRow);
   if (locationRow) weatherSection.appendChild(locationRow);
   weatherSection.append(provinceRow, cityRow, weatherRow, weatherStatus);
   body.appendChild(weatherSection);
@@ -2178,7 +2204,6 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
       writeWeatherRegionOrigin(storage, WEATHER_REGION_ORIGIN.MANUAL);
       state.manualWeatherRegion = region;
       state.weatherRegionOrigin = WEATHER_REGION_ORIGIN.MANUAL;
-      weatherClear.hidden = false;
       syncWeatherOverview();
       weatherStatus.textContent = storedRegionStatusText();
       await onWeatherRegionChange(region);
@@ -2193,18 +2218,6 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
         citySelect.disabled = false;
       }
     }
-  });
-
-  weatherClear.addEventListener('click', async () => {
-    clearCalendarManualWeatherRegion(storage);
-    writeWeatherRegionOrigin(storage, null);
-    state.manualWeatherRegion = null;
-    state.weatherRegionOrigin = null;
-    citySelect.value = '';
-    weatherClear.hidden = true;
-    syncWeatherOverview();
-    weatherStatus.textContent = '저장된 지역을 해제했습니다. 현재 위치를 다시 사용할 수 있어요.';
-    await onWeatherRegionChange(null);
   });
 
   const notificationSection = document.createElement('section');
@@ -2972,6 +2985,7 @@ export async function mountLifeCalendarManager({
     showKoreaHolidays: displaySettings.showKoreaHolidays,
     showGridLines: displaySettings.showGridLines,
     showLunarDates: displaySettings.showLunarDates,
+    showPrecipitation: displaySettings.showPrecipitation,
     weekStart: displaySettings.weekStart,
     manualWeatherRegion: storedManualWeatherRegion,
     weatherRegionOrigin: storedWeatherRegionOrigin,
@@ -3355,8 +3369,6 @@ export async function mountLifeCalendarManager({
       if (summary) summary.textContent = presentation.manualSummary;
       if (relationship) relationship.textContent = presentation.relationship;
     }
-    const manualClear = root.querySelector('[data-calendar-weather-manual-clear]');
-    if (manualClear) manualClear.hidden = !state.manualWeatherRegion;
   }
 
   function locationSettingsStatusText() {
