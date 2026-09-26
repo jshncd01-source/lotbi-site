@@ -66,7 +66,10 @@ const response = {
   activity_id: 'activity_0123456789abcdef0123456789abcdef', occurrence_id: 'occurrence_0123456789abcdef0123456789abcdef',
   activity_revision: 3, occurrence_revision: 4, title: '회의', activity_state: 'ACTIVE',
   temporal: {kind: 'TIME_WINDOW', window_start: `${day}T09:00:00`, window_end: `${day}T12:00:00`, timezone_name: zone},
-  entry: {amount_minor: 12000, currency: 'KRW', expense_category: 'FOOD', memo: '메모', place: '서울', merchant: '가게'},
+  entry: {
+    amount_minor: 12000, currency: 'KRW', expense_category: 'FOOD', memo: '메모', place: '서울', merchant: '가게',
+    source_kind: null, source_ref: null, visit_scope: null, visit_date: null,
+  },
   temporal_semantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', confirmation_level: 'USER_ATTESTED', provider_verified: false, read_your_writes: true,
 };
 const fetchImpl = async (url, init) => {

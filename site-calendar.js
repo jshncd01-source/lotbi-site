@@ -1,5 +1,5 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-bcbcf2242dc3';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-bcbcf2242dc3';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-5f807365a029';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-5f807365a029';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -89,6 +89,39 @@ function calendarEntryDetails(value = {}) {
   if (!/^[A-Z]{3}$/.test(currency)) {
     throw new SiteCoreError('통화가 올바르지 않습니다.', {code: 'LIFE_ENTRY_CURRENCY_INVALID', status: 422});
   }
+  // Festival source link (FESTIVAL-EVENT-10/12): mirrors lotbi-core's
+  // app.smart_calendar_entry.CalendarEntryDetails pairing rules exactly, so a
+  // malformed combination fails the same way on both sides. source_kind is a
+  // closed set of one value today; widen only when a second real caller
+  // exists.
+  const sourceKindRaw = typeof value?.source_kind === 'string' ? value.source_kind : null;
+  if (sourceKindRaw !== null && sourceKindRaw !== 'FESTIVAL') {
+    throw new SiteCoreError('일정 원본 정보가 올바르지 않습니다.', {code: 'LIFE_ENTRY_SOURCE_KIND_INVALID', status: 422});
+  }
+  const sourceRef = optionalText(value?.source_ref, 120);
+  const visitScopeRaw = typeof value?.visit_scope === 'string' ? value.visit_scope : null;
+  if (visitScopeRaw !== null && visitScopeRaw !== 'DATE' && visitScopeRaw !== 'FULL_RANGE') {
+    throw new SiteCoreError('일정 원본 정보가 올바르지 않습니다.', {code: 'LIFE_ENTRY_VISIT_SCOPE_INVALID', status: 422});
+  }
+  const visitDateRaw = typeof value?.visit_date === 'string' && DATE_PATTERN.test(value.visit_date) ? value.visit_date : null;
+  if (typeof value?.visit_date === 'string' && value.visit_date && visitDateRaw === null) {
+    throw new SiteCoreError('일정 원본 정보가 올바르지 않습니다.', {code: 'LIFE_ENTRY_VISIT_DATE_INVALID', status: 422});
+  }
+  if (sourceKindRaw === null) {
+    if (sourceRef !== null || visitScopeRaw !== null || visitDateRaw !== null) {
+      throw new SiteCoreError('일정 원본 정보가 올바르지 않습니다.', {code: 'LIFE_ENTRY_SOURCE_LINK_INVALID', status: 422});
+    }
+  } else {
+    if (sourceRef === null || visitScopeRaw === null) {
+      throw new SiteCoreError('일정 원본 정보가 올바르지 않습니다.', {code: 'LIFE_ENTRY_SOURCE_LINK_INVALID', status: 422});
+    }
+    if (visitScopeRaw === 'DATE' && visitDateRaw === null) {
+      throw new SiteCoreError('일정 원본 정보가 올바르지 않습니다.', {code: 'LIFE_ENTRY_SOURCE_LINK_INVALID', status: 422});
+    }
+    if (visitScopeRaw === 'FULL_RANGE' && visitDateRaw !== null) {
+      throw new SiteCoreError('일정 원본 정보가 올바르지 않습니다.', {code: 'LIFE_ENTRY_SOURCE_LINK_INVALID', status: 422});
+    }
+  }
   return Object.freeze({
     amount_minor: amount,
     currency,
@@ -96,6 +129,10 @@ function calendarEntryDetails(value = {}) {
     memo: optionalText(value?.memo, 2000),
     place: optionalText(value?.place, 240),
     merchant: optionalText(value?.merchant, 240),
+    source_kind: sourceKindRaw,
+    source_ref: sourceRef,
+    visit_scope: visitScopeRaw,
+    visit_date: visitDateRaw,
   });
 }
 
@@ -104,7 +141,8 @@ function hasCalendarEntryDetails(entry) {
     || entry.expense_category !== null
     || entry.memo !== null
     || entry.place !== null
-    || entry.merchant !== null;
+    || entry.merchant !== null
+    || entry.source_kind !== null;
 }
 
 async function readPayload(response) {

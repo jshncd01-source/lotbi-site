@@ -5,23 +5,22 @@
 // (site-calendar-guest.js, via its createForRequest() idempotency contract)
 // for signed-out visitors. No new Calendar storage and no new Core endpoint.
 //
-// Core's activity `entry` schema (amount_minor/currency/expense_category/
-// memo/place/merchant) has no field for a durable festival source reference,
-// `source_kind` on a read activity is server-decided (USER_INPUT/LIFE_RESULT)
-// and not settable here, and `logical_request_id` is never returned by any
-// read endpoint. So an authenticated user's Calendar item cannot yet carry
-// its festival identity on the server — that needs an additive lotbi-core
-// change this session cannot make (lotbi-core is outside this session's
-// repository scope). Until that lands, FESTIVAL_CALENDAR_LINK_INDEX_KEY below
-// keeps a same-browser localStorage index from activity_id -> {festivalId,
-// visitDate, visitScope} so re-entry and duplicate detection still work on
-// the browser that created the entry. It is a transparent client-side
-// stand-in, not a hidden marker inside a user-owned field: memo/place stay
-// exactly what the user typed or the venue's own name. Guest entries need no
-// such index — site-calendar-guest.js persists source_kind/source_ref/
+// Core's activity `entry` (amount_minor/currency/expense_category/memo/
+// place/merchant) now also carries source_kind/source_ref/visit_scope/
+// visit_date (lotbi-core FESTIVAL-EVENT-12 follow-up, entry.source_kind --
+// not to be confused with the item's own top-level `source_kind`, an
+// unrelated pre-existing field with values USER_INPUT/LIFE_RESULT). An
+// authenticated user's Calendar item carries its festival identity on the
+// server the same way a Guest entry always has. FESTIVAL_CALENDAR_LINK_INDEX_KEY
+// below is kept as a same-browser fallback only, for entries an older client
+// build created before the server field existed, or if a network read
+// somehow omits `entry`: readFestivalCalendarLink()/festivalLinkFromCalendarItem()
+// still consult it, but every new authenticated write goes straight to the
+// server field and no longer depends on it. Guest entries need no such
+// index — site-calendar-guest.js persists source_kind/source_ref/
 // visit_scope/visit_date on the entry itself.
-import {createLifeActivity} from './site-calendar.js?v=aset-bcbcf2242dc3';
-import {addLocalDays} from './site-festival-client.js?v=aset-bcbcf2242dc3';
+import {createLifeActivity} from './site-calendar.js?v=aset-5f807365a029';
+import {addLocalDays} from './site-festival-client.js?v=aset-5f807365a029';
 export const FESTIVAL_CALENDAR_LINK_INDEX_KEY = 'lotbi.festival.calendar-link.v1';
 const LINK_INDEX_LIMIT = 200;
 
@@ -117,16 +116,23 @@ function findExistingLinkedActivityId(festivalId, visitDate, visitScope, storage
 
 /**
  * @param {object} item A Calendar item as rendered by site-calendar-manager.js
- *   (a guest event, or a Core activity/occurrence shape).
+ *   (a guest event, which carries source_kind/source_ref/visit_scope/
+ *   visit_date flat on the event, or a Core activity/occurrence shape, where
+ *   the same four fields live nested under `item.entry` -- Core's top-level
+ *   `source_kind` is an unrelated, pre-existing field with values
+ *   USER_INPUT/LIFE_RESULT, never FESTIVAL).
  * @returns {{festivalId: string, visitDate: string|null, visitScope: string}|null}
  */
 export function festivalLinkFromCalendarItem(item, storage = globalThis.localStorage) {
   if (!item || typeof item !== 'object') return null;
-  if (item.source_kind === 'FESTIVAL' && typeof item.source_ref === 'string' && item.source_ref) {
+  const flat = item.source_kind === 'FESTIVAL' ? item : null;
+  const nested = !flat && item.entry && item.entry.source_kind === 'FESTIVAL' ? item.entry : null;
+  const source = flat || nested;
+  if (source && typeof source.source_ref === 'string' && source.source_ref) {
     return Object.freeze({
-      festivalId: item.source_ref,
-      visitDate: civilDate(item.visit_date) || null,
-      visitScope: item.visit_scope === VISIT_SCOPE.FULL_RANGE ? VISIT_SCOPE.FULL_RANGE : VISIT_SCOPE.DATE,
+      festivalId: source.source_ref,
+      visitDate: civilDate(source.visit_date) || null,
+      visitScope: source.visit_scope === VISIT_SCOPE.FULL_RANGE ? VISIT_SCOPE.FULL_RANGE : VISIT_SCOPE.DATE,
     });
   }
   const activityId = item.activity_id || item.activityId || '';
@@ -215,9 +221,17 @@ export async function addFestivalVisitToCalendar({
       temporal,
       temporalSemantics: 'USER_PLANNED_TIME',
       busy: 'UNKNOWN',
-      entry,
+      entry: {
+        ...entry,
+        source_kind: 'FESTIVAL',
+        source_ref: festival.id,
+        visit_scope: visitScope,
+        ...(normalizedVisitDate ? {visit_date: normalizedVisitDate} : {}),
+      },
     }, fetchImpl);
     const activityId = response?.activity_id || response?.activityId || '';
+    // Kept as a same-browser fast-path cache alongside the now-authoritative
+    // server field -- see module header. Harmless if it later goes stale.
     if (activityId) writeFestivalCalendarLink(activityId, {festivalId: festival.id, visitDate: normalizedVisitDate, visitScope}, storage);
     return Object.freeze({status: 'CREATED', item: response});
   } catch (error) {
