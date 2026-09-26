@@ -1,5 +1,5 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-a8a5e6584e22';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-a8a5e6584e22';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-0600df240b82';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-0600df240b82';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-a8a5e6584e22';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-a8a5e6584e22';
+} from './site-calendar-model.js?v=aset-0600df240b82';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-0600df240b82';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-a8a5e6584e22';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-a8a5e6584e22';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-a8a5e6584e22';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-0600df240b82';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-0600df240b82';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-0600df240b82';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -26,12 +26,12 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-a8a5e6584e22';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-a8a5e6584e22';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-a8a5e6584e22';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-a8a5e6584e22';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-a8a5e6584e22';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-a8a5e6584e22';
+} from './site-calendar-product.js?v=aset-0600df240b82';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-0600df240b82';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-0600df240b82';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-0600df240b82';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-0600df240b82';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-0600df240b82';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -3660,30 +3660,22 @@ export async function mountLifeCalendarManager({
         state.loading = false;
         render();
 
-        const todayParts = civilDateParts(state.todayDate);
-        const currentMonthVisible = state.mode === 'month'
-          && state.year === todayParts.year
-          && state.month === todayParts.month;
-        const selectedWeekRange = state.mode === 'week' ? weekBounds(state.selectedDate, state.weekStart) : null;
-        const forecastHorizon = addCivilDays(state.todayDate, 14);
-        const weekForecastVisible = selectedWeekRange
-          && selectedWeekRange.end >= state.todayDate
-          && selectedWeekRange.start <= forecastHorizon;
-        const visibleWeatherRange = currentMonthVisible
+        // Which dates the guest month/week grid can show weather for is a
+        // property of the visible date range intersected with the forecast
+        // horizon (see forecastWindow above), never of whether that range
+        // happens to fall in "the current month" -- a month grid's spillover
+        // days, or an entirely future month within the horizon, are just as
+        // visible and just as forecastable.
+        const rawWeatherRange = state.mode === 'month'
           ? monthBounds(state.selectedDate)
-          : weekForecastVisible
-            ? selectedWeekRange
+          : state.mode === 'week'
+            ? weekBounds(state.selectedDate, state.weekStart)
             : null;
-        const guestWeatherStart = visibleWeatherRange
-          ? [visibleWeatherRange.start, state.todayDate].sort().at(-1)
-          : null;
-        const guestWeatherEnd = visibleWeatherRange
-          ? [visibleWeatherRange.end, forecastHorizon].sort()[0]
-          : null;
+        const visibleWeatherRange = forecastWindow(rawWeatherRange, state.todayDate);
         const weatherRequest = visibleWeatherRange && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
           ? getPublicCalendarWeather({
-              start: guestWeatherStart,
-              end: guestWeatherEnd,
+              start: visibleWeatherRange.start,
+              end: visibleWeatherRange.end,
               timezone,
               latitude: currentWeatherLocation.latitude,
               longitude: currentWeatherLocation.longitude,
