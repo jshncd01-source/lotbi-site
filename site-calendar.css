@@ -1810,7 +1810,12 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   }
   .calendar-date-trigger { grid-column: 1; grid-row: 1; min-width: 44px; min-height: 44px; place-items: start; padding: 5px 0 0 4px; justify-self: start; }
   .calendar-date-number { font-size: 12px; }
-  .calendar-mobile-event-count { grid-column: 1; grid-row: 2; justify-self: center; font-size: 9px; line-height: 12px; }
+  /* justify-self: start, not center -- centered put this under the weather
+     corner's own column, so a 3rd (precip) row there ran the "N개" badge
+     straight into the "💧NN%" text. Left, under the date number, has no
+     weather content sharing its column regardless of how many rows the
+     weather corner grows to. */
+  .calendar-mobile-event-count { grid-column: 1; grid-row: 2; justify-self: start; margin-left: 4px; font-size: 9px; line-height: 12px; }
   .calendar-weather-summary { position: absolute; top: 2px; right: 1px; margin: 0; display: grid; grid-template-columns: 28px; grid-template-rows: 15px 22px; justify-items: center; gap: 0; }
   .calendar-weather-summary > .calendar-weather-icon { grid-row: 1; width: 15px; height: 15px; font-size: 15px; }
   .calendar-weather-temperature { grid-row: 2; width: 27px; height: 21px; font-size: 7px; line-height: 1; }
