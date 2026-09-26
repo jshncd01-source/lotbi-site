@@ -27,7 +27,7 @@
 // no later UI code can accidentally resurrect them. List ordering/filtering
 // (region, time window, distance) is Core-authoritative via browseFestivals;
 // nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-fe97a0fe9c8c';
+import {CORE_ORIGIN} from './site-core.js?v=aset-4c26a768dd20';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';

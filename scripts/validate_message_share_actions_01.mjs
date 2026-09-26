@@ -30,7 +30,11 @@ assert.match(index, /<script type="module" src="site-conversation\.js\?v=[^"]+">
 // Ordinary LOTBI answers keep the approved message action row. A reusable-output
 // answer does not duplicate copy/share on its short lead-in because the result
 // card owns current-variant copy/share/edit actions instead.
-assert.match(conversation, /if \(message\.role === 'assistant' && !reusableOutput\) \{\s*\n\s*const actions = createMessageActions\(message\.text, setStatus\);/);
+//
+// CHATPERF-07 — createMessageActions now also takes the message's own meta, so
+// the share button can offer the content-specific link a place card already
+// carries instead of always falling back to the generic homepage.
+assert.match(conversation, /if \(message\.role === 'assistant' && !reusableOutput\) \{\s*\n\s*const actions = createMessageActions\(message\.text, setStatus, message\.meta\);/);
 assert.match(conversation, /if \(actions\) node\.appendChild\(actions\);/);
 assert.match(conversation, /const reusableOutput = message\.role === 'assistant' \? message\.meta\?\.reusableOutput : null;/);
 assert.match(conversation, /const actions = document\.createElement\('div'\);/);
@@ -75,13 +79,27 @@ assert.match(conversation, /report\('복사하지 못했습니다[^']*', 'error'
 // Share must enter the helper synchronously from the click handler. The helper
 // calls navigator.share before its first await completes, preserving the mobile
 // user gesture; unsupported/failed sheets fall back to canonical clipboard text.
-assert.match(conversation, /async function shareMessageText\(text, \{includeUrl = true\} = \{\}\)/);
+//
+// CHATPERF-07 — shareMessageText takes an optional content-specific `url`
+// (default still the generic homepage), and the click handler reads it from a
+// cache that a background prepare step already resolved -- never awaited here,
+// so the gesture requirement above still holds. See prepareStructuredShareUrl.
+assert.match(conversation, /async function shareMessageText\(text, \{includeUrl = true, url = MESSAGE_ACTION_SHARE_URL\} = \{\}\)/);
 assert.match(conversation, /if \(typeof navigator\.share === 'function'\) \{[\s\S]*?await navigator\.share\(shareData\);/);
-assert.match(conversation, /share\.addEventListener\('click', \(\) => \{[\s\S]*?void shareMessageText\(value\)/);
+assert.match(conversation, /share\.addEventListener\('click', \(\) => \{[\s\S]*?const structuredUrl = readyStructuredShareUrl\(meta\);[\s\S]*?void shareMessageText\(value, structuredUrl \? \{url: structuredUrl\} : undefined\)/);
 // A cancelled sheet is not a failure and must not fall back to copying.
 assert.match(conversation, /if \(error && error\.name === 'AbortError'\) return 'cancelled';/);
-assert.match(conversation, /await writeMessageTextToClipboard\(includeUrl \? `\$\{value\}\\n\\n\$\{MESSAGE_ACTION_SHARE_URL\}` : value\)/);
+assert.match(conversation, /await writeMessageTextToClipboard\(includeUrl \? `\$\{value\}\\n\\n\$\{url\}` : value\)/);
 assert.match(conversation, /const MESSAGE_ACTION_SHARE_URL = 'https:\/\/lotbiai\.com\/';/);
+// A place (or its result list) attached to this answer never reaches the
+// click handler cold: the link is prepared in the background as soon as the
+// place rail renders, so the click itself only ever reads a cache.
+assert.match(conversation, /function prepareStructuredShareUrl\(meta, sessionToken\) \{/);
+assert.match(conversation, /function readyStructuredShareUrl\(meta\) \{/);
+assert.match(conversation, /prepareStructuredShareUrl\(message\.meta, sessionToken\);/);
+// Never trusts the client's own idea of what type it created: creation goes
+// through Core's POST /v2/shares, which resolves and re-serializes server-side.
+assert.match(conversation, /siteCore\.createShare\(sessionToken, \{/);
 
 // No Kakao SDK, app key or third-party origin rides in with this row.
 for (const forbidden of ['kakaocdn.net', 'Kakao.init', 'Kakao.Share', 'javascriptKey', 'sharer.kakao.com']) {

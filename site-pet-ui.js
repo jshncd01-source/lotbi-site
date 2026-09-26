@@ -52,19 +52,19 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-fe97a0fe9c8c';
+} from './site-pet.js?v=aset-4c26a768dd20';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-fe97a0fe9c8c';
+} from './site-pet-guides.js?v=aset-4c26a768dd20';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-fe97a0fe9c8c';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-fe97a0fe9c8c';
+} from './site-pet-gate.js?v=aset-4c26a768dd20';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-4c26a768dd20';
 
 const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';

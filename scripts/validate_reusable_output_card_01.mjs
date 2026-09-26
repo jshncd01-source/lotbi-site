@@ -12,7 +12,7 @@ assert.match(core, /reusableOutput: normalizeReusableOutput\(payload\.reusable_o
 assert.match(conversation, /meta\.reusableOutput = response\.reusableOutput/);
 assert.match(conversation, /const reusableOutput = message\.role === 'assistant' \? message\.meta\?\.reusableOutput : null;/);
 assert.match(conversation, /createReusableOutputCard\(reusableOutput,/);
-assert.match(conversation, /shareMessageText\(text, \{includeUrl = true\}/);
+assert.match(conversation, /shareMessageText\(text, \{includeUrl = true, url = MESSAGE_ACTION_SHARE_URL\}/);
 assert.match(card, /createSafeMessageBody\(variant\.text\)/);
 assert.match(card, /variants\[index\]\.text/);
 assert.match(card, /variants\.length > 1/);

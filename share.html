@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="LOTBI에서 누군가 공유한 장소 또는 축제 정보를 확인해요." />
+  <!-- Ephemeral/point-in-time content, not a page meant to be indexed on its own. -->
+  <meta name="robots" content="noindex,follow" />
+  <title>공유한 내용 | LOTBI</title>
+  <!-- CHATPERF-07 — generic, LOTBI-branded preview only. A crawler (KakaoTalk's
+       own link-preview fetcher included) reads these tags from the raw HTML
+       response, before any script below runs, so they cannot be made
+       target-specific without a server that renders per-share HTML. This
+       site is static hosting with no such server today; the JS below still
+       updates the visible title/heading for a human who opens the link, and
+       for engines that do execute JS, but the crawler preview itself stays
+       generic until that infrastructure exists. Documented as a known
+       follow-up, not silently accepted as "done". -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LOTBI" />
+  <meta property="og:title" content="공유한 내용 | LOTBI" />
+  <meta property="og:description" content="LOTBI에서 누군가 공유한 장소 또는 축제 정보를 확인해요." />
+  <meta property="og:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script>
+    try {
+      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+      if (lotbiSavedTheme === 'auto') {
+        var lotbiHour = new Date().getHours();
+        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+      }
+      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+      }
+    } catch (error) {}
+  </script>
+  <link rel="stylesheet" href="/styles.css?v=aset-4c26a768dd20" />
+  <link rel="stylesheet" href="/mobile-entry.css?v=aset-4c26a768dd20" />
+  <link rel="stylesheet" href="/site-static-theme.css?v=aset-4c26a768dd20" />
+  <script src="/mobile-entry.js?v=aset-4c26a768dd20" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <main id="main-content" class="wrap legal">
+    <header class="topbar">
+      <a class="brand lotbi-official-brand" href="/" aria-label="LOTBI 홈"><img class="lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /></a>
+      <nav aria-label="주요 메뉴"><a href="/">홈</a><a href="/contact.html">문의</a></nav>
+    </header>
+
+    <section class="section" id="share-status" aria-live="polite">
+      <p class="kicker">LOTBI</p>
+      <h1 id="share-heading">공유한 내용을 불러오는 중이에요.</h1>
+      <p class="lead-small" id="share-detail">잠시만 기다려 주세요.</p>
+    </section>
+
+    <section class="section" id="share-results" hidden></section>
+
+    <footer class="lotbi-footer">
+      <div class="footer-links">
+        <a href="/">LOTBI © 2026</a>
+        <a href="/about.html">회사 소개</a>
+        <a href="/privacy.html">개인정보처리방침</a>
+        <a href="/terms.html">이용안내</a>
+        <a href="/contact.html">문의하기</a>
+      </div>
+      <div class="footer-service">LOTBI (롯비) · AI Voice Commerce Agent</div>
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+      var CORE_ORIGIN = 'https://api.lotbiai.com';
+      var params = new URLSearchParams(window.location.search);
+      var type = params.get('type');
+      var id = params.get('id');
+      var heading = document.getElementById('share-heading');
+      var detail = document.getElementById('share-detail');
+      var results = document.getElementById('share-results');
+
+      function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+          return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch];
+        });
+      }
+
+      function showUnavailable(message) {
+        heading.textContent = '이 공유 내용을 더 이상 볼 수 없어요.';
+        detail.innerHTML = escapeHtml(message) + ' <a class="primary-link" href="/">LOTBI 홈으로 이동</a>';
+      }
+
+      function naverSearchUrl(name, address) {
+        var query = [name, address].filter(Boolean).join(' ');
+        return 'https://map.naver.com/p/search/' + encodeURIComponent(query);
+      }
+
+      function placeCardHtml(place) {
+        var name = escapeHtml(place.name || '이름 없는 장소');
+        var address = escapeHtml(place.address || place.road_address || '');
+        var phone = place.phone ? '<p>전화: ' + escapeHtml(place.phone) + '</p>' : '';
+        var image = place.image_url
+          ? '<img src="' + escapeHtml(place.image_url) + '" alt="' + name + '" loading="lazy" width="320" height="180" style="max-width:100%;height:auto;border-radius:12px;" />'
+          : '';
+        var mapLink = (place.name || place.address)
+          ? '<a class="primary-link" href="' + naverSearchUrl(place.name, place.address) + '" rel="noopener">네이버지도에서 보기</a>'
+          : '';
+        return (
+          '<article class="share-place-card" style="margin-bottom:24px;">' +
+          image + '<h2>' + name + '</h2>' +
+          (address ? '<p>' + address + '</p>' : '') +
+          phone + mapLink +
+          '</article>'
+        );
+      }
+
+      function renderPlacePayload(payload) {
+        var isList = payload.share_type === 'PLACE_RESULT_SET';
+        var places = isList ? (payload.payload.results || []) : [payload.payload];
+        heading.textContent = isList
+          ? escapeHtml(payload.payload.title || '공유한 검색 결과')
+          : (places[0] && places[0].name ? places[0].name + ' | LOTBI' : '공유한 장소 | LOTBI');
+        detail.textContent = isList ? places.length + '곳을 공유했어요.' : '누군가 공유한 장소예요.';
+        document.title = (isList ? (payload.payload.title || '공유한 검색 결과') : (places[0] && places[0].name) || '공유한 장소') + ' | LOTBI';
+        results.innerHTML = places.map(placeCardHtml).join('');
+        results.hidden = false;
+      }
+
+      function renderFestivalPayload(festival) {
+        heading.textContent = (festival.name || '공유한 축제') + ' | LOTBI';
+        document.title = heading.textContent;
+        var when = [festival.start_date, festival.end_date].filter(Boolean).join(' ~ ');
+        detail.textContent = when || '누군가 공유한 축제예요.';
+        var image = festival.image_url
+          ? '<img src="' + escapeHtml(festival.image_url) + '" alt="' + escapeHtml(festival.name || '') + '" loading="lazy" width="320" height="180" style="max-width:100%;height:auto;border-radius:12px;" />'
+          : '';
+        var address = festival.address ? '<p>' + escapeHtml(festival.address) + '</p>' : '';
+        var mapLink = (festival.name || festival.address)
+          ? '<a class="primary-link" href="' + naverSearchUrl(festival.name, festival.address) + '" rel="noopener">네이버지도에서 보기</a>'
+          : '';
+        results.innerHTML = '<article class="share-place-card">' + image + address + mapLink + '</article>';
+        results.hidden = false;
+      }
+
+      if (!id || (type !== 'place' && type !== 'place-list' && type !== 'festival')) {
+        showUnavailable('공유 주소가 올바르지 않아요.');
+        return;
+      }
+
+      var endpoint = type === 'festival'
+        ? CORE_ORIGIN + '/festivals/' + encodeURIComponent(id)
+        : CORE_ORIGIN + '/v2/shares/' + encodeURIComponent(id);
+
+      fetch(endpoint, {mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'})
+        .then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (body) {
+            if (!response.ok) {
+              var reason = type === 'festival'
+                ? '이 축제 정보를 찾을 수 없어요.'
+                : (body.detail && body.detail.code === 'SHARE_EXPIRED'
+                  ? '공유 링크가 만료되었어요.'
+                  : body.detail && body.detail.code === 'SHARE_REVOKED'
+                    ? '더 이상 제공되지 않는 공유예요.'
+                    : '공유한 내용을 찾을 수 없어요.');
+              throw new Error(reason);
+            }
+            return body;
+          });
+        })
+        .then(function (body) {
+          if (type === 'festival') {
+            if (!body.festival) throw new Error('이 축제 정보를 찾을 수 없어요.');
+            renderFestivalPayload(body.festival);
+          } else {
+            renderPlacePayload(body);
+          }
+        })
+        .catch(function (error) {
+          showUnavailable(error && error.message ? error.message : '공유한 내용을 불러오지 못했어요.');
+        });
+    })();
+  </script>
+</body>
+</html>
