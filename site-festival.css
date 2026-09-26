@@ -54,6 +54,7 @@
 }
 
 .festival-chip {
+  min-height: 44px;
   border: 1px solid var(--lotbi-border-default);
   border-radius: 999px;
   padding: 6px 14px;
@@ -80,13 +81,6 @@
   outline-offset: 2px;
 }
 
-.festival-date-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
 .festival-date-field {
   display: flex;
   align-items: center;
@@ -109,6 +103,125 @@
   outline-offset: 2px;
 }
 
+/* --------------------------------------------------- location banner ---- */
+.festival-location-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--lotbi-surface-subtle);
+}
+
+.festival-location-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-location-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.festival-location-busy {
+  font-size: 12px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-location-button {
+  min-height: 36px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-secondary);
+  cursor: pointer;
+}
+
+.festival-location-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-location-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------ region sheet ---- */
+.festival-region-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.festival-region-sheet-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-region-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.festival-region-option {
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-secondary);
+  cursor: pointer;
+}
+
+.festival-region-option:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-region-option.is-selected {
+  background: var(--lotbi-brand-solid-bg);
+  border-color: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+}
+
+.festival-region-option:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-region-current-button {
+  align-self: flex-start;
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-strong);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-link-primary);
+  cursor: pointer;
+}
+
+.festival-region-current-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-region-current-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
 /* ---------------------------------------------------------- list state -- */
 .festival-status,
 .festival-error,
@@ -127,11 +240,93 @@
   display: none;
 }
 
-/* -------------------------------------------------------------- cards --- */
+.festival-retry-button {
+  align-self: flex-start;
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-strong);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  cursor: pointer;
+}
+
+.festival-retry-button[hidden] {
+  display: none;
+}
+
+.festival-retry-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-retry-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------- representative-photo list */
+/* Photo-first vertical slots, top-to-bottom scroll — mobile is always one
+   column; desktop widens to two only when there is real room for it. */
 .festival-card-grid {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .festival-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.festival-load-more {
+  align-self: center;
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-secondary);
+  cursor: pointer;
+}
+
+.festival-load-more[hidden] {
+  display: none;
+}
+
+.festival-load-more:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-load-more:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-hero {
+  aspect-ratio: 16 / 9;
+  background: var(--lotbi-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.festival-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.festival-hero-placeholder::before {
+  content: "축제·행사";
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lotbi-text-disabled);
 }
 
 .festival-card {
@@ -158,28 +353,6 @@
   outline-offset: -2px;
 }
 
-.festival-hero {
-  aspect-ratio: 16 / 9;
-  background: var(--lotbi-surface-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.festival-hero img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.festival-hero-placeholder::before {
-  content: "축제";
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--lotbi-text-disabled);
-}
-
 .festival-card-body {
   display: flex;
   flex-direction: column;
@@ -189,13 +362,14 @@
 
 .festival-card-name {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--lotbi-text-primary);
 }
 
 .festival-card-period,
-.festival-card-location {
+.festival-card-location,
+.festival-card-distance {
   margin: 0;
   font-size: 13px;
   color: var(--lotbi-text-muted);
@@ -456,26 +630,6 @@
   color: var(--lotbi-text-muted);
 }
 
-.festival-retry-button {
-  align-self: flex-start;
-  border: 1px solid var(--lotbi-border-strong);
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 700;
-  background: var(--lotbi-surface-primary);
-  color: var(--lotbi-text-primary);
-  cursor: pointer;
-}
-
-.festival-retry-button:hover {
-  background: var(--lotbi-surface-hover);
-}
-
-.festival-retry-button:focus-visible {
-  outline: 2px solid var(--lotbi-focus-ring);
-  outline-offset: 2px;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .festival-chip,

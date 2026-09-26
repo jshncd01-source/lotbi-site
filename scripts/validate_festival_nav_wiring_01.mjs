@@ -19,15 +19,22 @@ const sidebarCss = read('site-sidebar-nav.css');
 
 // ------------------------------------------------------------------- nav --
 const festivalTriggers = [...indexHtml.matchAll(/data-festival-open/g)];
-assert.equal(festivalTriggers.length, 2, 'the 축제 nav button must exist once in the desktop sidebar and once in the mobile drawer');
+assert.equal(festivalTriggers.length, 2, 'the 축제·행사 nav button must exist once in the desktop sidebar and once in the mobile drawer');
 
 const festivalButtonRe = /<button[^>]*data-festival-open[^>]*>[\s\S]*?<\/button>/g;
 const festivalButtons = [...indexHtml.matchAll(festivalButtonRe)];
 assert.equal(festivalButtons.length, 2);
 for (const [button] of festivalButtons) {
-  assert.match(button, /aria-label="축제"/, 'the 축제 button must have an accessible label');
-  assert.match(button, /lotbi-icon-festival/, 'the 축제 button must use the festival icon symbol');
-  assert.match(button, /nav-item-label">축제</, 'the 축제 button must show the short "축제" label');
+  assert.match(button, /aria-label="축제·행사"/, 'the 축제·행사 button must have an accessible label using the renamed category');
+  assert.match(button, /lotbi-icon-festival/, 'the 축제·행사 button must use the festival icon symbol (internal id unchanged by the rename)');
+  assert.match(button, /nav-item-label">축제·행사</, 'the 축제·행사 button must show the renamed "축제·행사" label');
+}
+
+const festivalGroupRe = /<div class="sidebar-festival-nav"[^>]*>/g;
+const festivalGroups = [...indexHtml.matchAll(festivalGroupRe)];
+assert.equal(festivalGroups.length, 2);
+for (const [group] of festivalGroups) {
+  assert.match(group, /aria-label="축제·행사"/, 'the nav group must carry the renamed accessible label');
 }
 
 const symbolMatches = [...indexHtml.matchAll(/id="lotbi-icon-festival"/g)];
@@ -49,6 +56,10 @@ assert.match(conversationJs, /festivalTrigger = target\?\.closest\('\[data-festi
   'the delegated click handler for [data-festival-open] must exist');
 assert.match(conversationJs, /panel\.classList\.add\('site-festival-modal'\)/,
   'the festival modal must carry its sizing modifier class');
+assert.match(conversationJs, /modalShell\('축제·행사',/,
+  'the festival modal title must use the renamed "축제·행사" category, not the old bare "축제"');
+assert.match(conversationJs, /내 주변부터 이번 주말·이번 달 전국 축제와 행사를 찾아보세요/,
+  'the festival modal subtitle must point at nearby/this-weekend/this-month browsing');
 assert.match(conversationJs, /onOpenFestival: \(\{festivalId, visitDate\}\) => \{ void openFestival\(\{festivalId, selectedDate: visitDate \|\| ''\}\); \}/,
   'openCalendar must wire Calendar -> Festival re-entry (FESTIVAL-EVENT-10) through mountLifeCalendarManager');
 
@@ -72,9 +83,21 @@ assert.doesNotMatch(festivalClientJs, /^import[^;]*festival_sources[^;]*;/m);
 // --------------------------------------------------------------- CSS ------
 assert.match(festivalCss, /\.site-modal\.site-festival-modal\s*\{/, 'the festival modal must have its own sizing rule');
 assert.match(festivalCss, /\.festival-chip-row\s*\{[^}]*flex-wrap:\s*wrap/,
-  'chip rows (used for the 17-region filter) must wrap, never a vertical list');
-assert.doesNotMatch(festivalCss, /\.festival-region-row\s*\{[^}]*flex-direction:\s*column/,
-  'the region row must not be forced into a vertical column layout');
+  'chip rows (time filter, program category) must wrap, never a vertical list');
+assert.doesNotMatch(festivalCss, /\.festival-region-row\s*\{/,
+  'a permanent always-on region chip row must not exist — region choice lives inside the "지역 변경" sheet');
+
+// ---------------------------------------------------- FESTIVAL-EVENT-07 ---
+// Real Core browse/regions contract, current-location permission reuse
+// (no new geolocation contract), and no fixture path in production.
+assert.match(festivalClientJs, /\/festivals\/browse/, 'the client must target the real Core browse endpoint');
+assert.match(festivalClientJs, /\/festivals\/regions/, 'the client must target the real Core region catalog endpoint');
+assert.doesNotMatch(festivalClientJs, /FESTIVAL_FIXTURES|FESTIVAL_API_ENABLED\s*=\s*false/,
+  'no fixture generator or disabled-API flag may remain in the production client');
+assert.match(festivalUiJs, /from '\.\/site-current-location\.js(?:\?v=[A-Za-z0-9._-]+)?'/,
+  'site-festival-ui.js must reuse the shared location permission primitives, not a new geolocation contract');
+assert.match(festivalUiJs, /from '\.\/site-bottom-sheet\.js(?:\?v=[A-Za-z0-9._-]+)?'/,
+  'the region-change interaction must reuse the shared bottom-sheet primitive');
 
 // ------------------------------------------------------- external links ---
 // The only external, new-tab link this UI ever builds is [체험·신청]; it must
