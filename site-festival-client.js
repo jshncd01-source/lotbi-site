@@ -22,7 +22,7 @@
 // id, confidence, an AI prompt, a private PDF/storage URL, an audit note),
 // this client only ever reads the named public fields below and drops
 // everything else — nothing else can reach the UI through this module.
-import {CORE_ORIGIN} from './site-core.js?v=aset-4d79b7c8386f';
+import {CORE_ORIGIN} from './site-core.js?v=aset-b40ae6657251';
 
 const FESTIVAL_API_ENABLED = false;
 const REGION_CATALOG_PATH = '/v2/life/weather/regions';
