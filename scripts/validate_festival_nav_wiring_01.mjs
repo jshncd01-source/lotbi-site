@@ -50,9 +50,14 @@ assert.match(conversationJs, /panel\.classList\.add\('site-festival-modal'\)/,
   'the festival modal must carry its sizing modifier class');
 
 // FESTIVAL-04 (private API) must never be imported by the public browse UI —
-// only site-festival-client.js may be imported for festival data.
+// only site-festival-client.js (festival data) and site-festival-weather.js
+// (FESTIVAL-EVENT-09 program-date weather orchestration, itself only ever
+// reusing the existing Calendar weather client/normalizer) may be imported.
 assert.doesNotMatch(festivalUiJs, /^import[^;]*festival_sources[^;]*;/m);
-assert.doesNotMatch(festivalUiJs, /^import[^;]*from ['"](?!\.\/site-festival-client\.js)[^'"]*festival[^'"]*['"];/mi);
+assert.doesNotMatch(
+  festivalUiJs,
+  /^import[^;]*from ['"](?!\.\/site-festival-client\.js|\.\/site-festival-weather\.js)[^'"]*festival[^'"]*['"];/mi,
+);
 assert.doesNotMatch(festivalClientJs, /^import[^;]*festival_sources[^;]*;/m);
 
 // --------------------------------------------------------------- CSS ------

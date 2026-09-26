@@ -241,6 +241,15 @@ jobs:
           node scripts/validate_conversation_calendar_card_02.mjs
           node scripts/validate_calendar_day_list_range_01.mjs
 
+      - name: Validate 축제 (Festival) browse UI and program-date weather
+        run: |
+          node --check site-festival-client.js
+          node --check site-festival-ui.js
+          node --check site-festival-weather.js
+          node scripts/validate_festival_nav_wiring_01.mjs
+          node scripts/validate_festival_public_boundary_01.mjs
+          node scripts/validate_festival_weather_01.mjs
+
       - name: Validate voice wake phrase matching
         run: |
           node --check site-voice-wake.js
