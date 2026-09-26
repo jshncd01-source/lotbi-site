@@ -22,7 +22,7 @@
 // removes) and `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
 // sections this room removes) — dropping them at the normalizer means no
 // later UI code can accidentally resurrect them.
-import {CORE_ORIGIN} from './site-core.js?v=aset-c4450fb313c4';
+import {CORE_ORIGIN} from './site-core.js?v=aset-cdfb642c3b79';
 
 const FESTIVAL_API_ENABLED = true;
 const REGION_CATALOG_PATH = '/v2/life/weather/regions';

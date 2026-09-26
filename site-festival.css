@@ -349,6 +349,9 @@
 }
 
 .festival-date-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex: 0 0 auto;
   border: 1px solid var(--lotbi-border-default);
   border-radius: 999px;
@@ -371,6 +374,28 @@
 .festival-date-tab:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: 2px;
+}
+
+/* FESTIVAL-EVENT-09: venue-coordinate program-date weather badge, reused
+   from the original flat program-list placement (site-calendar-weather.js
+   icon/temperature helpers) and folded into each date tab instead. */
+.festival-program-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.festival-program-weather-text {
+  white-space: nowrap;
+}
+
+.festival-weather-attribution {
+  margin: 0;
+  font-size: 11px;
+  color: var(--lotbi-text-muted);
 }
 
 .festival-program-day-panel {

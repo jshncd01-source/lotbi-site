@@ -28,7 +28,18 @@ import {
   listPublishedFestivals,
   selectInitialProgramDate,
   FESTIVAL_STATUS_LABEL,
-} from './site-festival-client.js?v=aset-c4450fb313c4';
+} from './site-festival-client.js?v=aset-cdfb642c3b79';
+// FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
+// main (PR #337) against the previous flat program list; this reuses that
+// same orchestration helper and the existing Calendar weather presentation
+// helpers unchanged, now folded into this room's date tabs instead of a
+// per-date-group heading. No new HTTP client, no re-normalization here.
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-cdfb642c3b79';
+import {
+  calendarWeatherAttribution,
+  calendarWeatherIconNode,
+  weatherTemperatureLabel,
+} from './site-calendar-weather.js?v=aset-cdfb642c3b79';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -133,7 +144,58 @@ function buildCtaRow(festival, {onOpenPrograms}) {
 
 // ---------------------------------------------------------- program view --
 
-function buildDateTabs(dateTabs, {selected, onSelect}) {
+// Full Korean weekday date label for a tab's accessible name, e.g. "10월 10일
+// 토요일" — independent of formatFestivalDateTabLabel()'s short visual "10/8
+// 목", which a screen reader can read fine on its own but which reads better
+// combined with the weather sentence below when weather is present.
+function weekdayDateLabelKo(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
+  if (!match) return '';
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  try {
+    return new Intl.DateTimeFormat('ko-KR', {timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long'}).format(date);
+  } catch {
+    return '';
+  }
+}
+
+// One accessible sentence per date tab so a screen reader gets the full
+// forecast once, instead of the visual weather badge (aria-hidden) being
+// read as a separate, meaningless glyph. A date with no weather yet never
+// claims a percentage or temperature it does not have.
+function buildProgramDateAriaLabel(dateString, weatherItem) {
+  const dateLabel = weekdayDateLabelKo(dateString);
+  if (!weatherItem) return dateLabel;
+  const segments = [dateLabel];
+  if (weatherItem.label) segments.push(weatherItem.label);
+  const hasMin = Number.isFinite(weatherItem.minTemperature);
+  const hasMax = Number.isFinite(weatherItem.maxTemperature);
+  if (hasMin && hasMax) segments.push(`최저 ${Math.round(weatherItem.minTemperature)}도 최고 ${Math.round(weatherItem.maxTemperature)}도`);
+  else if (hasMax) segments.push(`최고 ${Math.round(weatherItem.maxTemperature)}도`);
+  else if (hasMin) segments.push(`최저 ${Math.round(weatherItem.minTemperature)}도`);
+  else if (Number.isFinite(weatherItem.temperature)) segments.push(`${Math.round(weatherItem.temperature)}도`);
+  if (Number.isInteger(weatherItem.precipitationProbability)) segments.push(`강수확률 ${weatherItem.precipitationProbability}퍼센트`);
+  return segments.join(', ');
+}
+
+// Visual-only weather badge appended inside a date-tab button.
+// precipitationProbability is only ever rendered when Core actually sent an
+// integer — a missing value hides the "강수 N%" segment entirely rather than
+// showing a fabricated 0%.
+function buildProgramDateWeatherBadge(weatherItem) {
+  const badge = el('span', 'festival-program-weather');
+  badge.setAttribute('aria-hidden', 'true');
+  const icon = calendarWeatherIconNode(weatherItem.weatherKind, document);
+  if (icon) badge.appendChild(icon);
+  const parts = [];
+  const tempLabel = weatherTemperatureLabel(weatherItem);
+  if (tempLabel) parts.push(tempLabel);
+  if (Number.isInteger(weatherItem.precipitationProbability)) parts.push(`강수 ${weatherItem.precipitationProbability}%`);
+  if (parts.length) badge.appendChild(el('span', 'festival-program-weather-text', parts.join(' · ')));
+  return badge;
+}
+
+function buildDateTabs(dateTabs, {selected, onSelect, weatherByDate}) {
   const nav = el('div', 'festival-date-tabs');
   nav.setAttribute('role', 'tablist');
   nav.setAttribute('aria-label', '프로그램 날짜 선택');
@@ -147,7 +209,10 @@ function buildDateTabs(dateTabs, {selected, onSelect}) {
     // Stable per-date identity for a later room (weather) to join
     // date -> weatherByDate on; never used for KMA/precipitation logic here.
     button.setAttribute('data-festival-program-date', tab.date);
-    button.textContent = formatFestivalDateTabLabel(tab.date);
+    button.appendChild(document.createTextNode(formatFestivalDateTabLabel(tab.date)));
+    const weatherItem = weatherByDate?.get(tab.date) || null;
+    if (weatherItem) button.appendChild(buildProgramDateWeatherBadge(weatherItem));
+    button.setAttribute('aria-label', buildProgramDateAriaLabel(tab.date, weatherItem));
     const isSelected = tab.date === selected;
     button.setAttribute('aria-selected', String(isSelected));
     button.tabIndex = isSelected ? 0 : -1;
@@ -339,7 +404,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     }
   }
 
-  function renderProgramSurface(festival) {
+  function renderProgramSurface(festival, detailToken) {
     programSurface.replaceChildren();
 
     const back = document.createElement('button');
@@ -359,14 +424,18 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     }
 
     const body = el('div', 'festival-program-body');
-    programSurface.appendChild(body);
+    const weatherAttribution = el('p', 'festival-weather-attribution');
+    weatherAttribution.hidden = true;
+    programSurface.append(body, weatherAttribution);
 
     let selected = selectInitialProgramDate(dateTabs, {selectedDate, now});
+    let weatherByDate = null;
 
     function paint(focusDate) {
       body.replaceChildren();
       const tabsNav = buildDateTabs(dateTabs, {
         selected,
+        weatherByDate,
         onSelect: (date, options = {}) => {
           selected = date;
           paint(options.focus ? date : undefined);
@@ -379,13 +448,30 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     }
 
     paint();
+
+    // Program stays visible immediately; weather (venue coordinates only,
+    // never the visitor's own location) fills the date-tab badges in once it
+    // resolves, or never, if there is no usable venue coordinate, no
+    // program, or the read fails — the program surface is never blocked on
+    // this. Called from exactly this one place, never per tab click.
+    if (festival.programs.length && Number.isFinite(festival.latitude) && Number.isFinite(festival.longitude)) {
+      getFestivalProgramWeather({festival, fetchImpl}).then(result => {
+        if (detailToken !== requestToken) return;
+        if (!result.ok) return;
+        weatherByDate = result.byDate.size ? result.byDate : null;
+        paint();
+        const attribution = weatherByDate ? calendarWeatherAttribution(result.items) : null;
+        weatherAttribution.hidden = !attribution;
+        weatherAttribution.textContent = attribution ? attribution.text : '';
+      });
+    }
   }
 
-  function openProgramSurface(festival) {
+  function openProgramSurface(festival, detailToken) {
     listSurface.hidden = true;
     detailSurface.hidden = true;
     programSurface.hidden = false;
-    renderProgramSurface(festival);
+    renderProgramSurface(festival, detailToken);
   }
 
   async function renderDetail(id) {
@@ -398,6 +484,11 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     loading.setAttribute('role', 'status');
     detailSurface.appendChild(loading);
 
+    // Shares loadList()'s own requestToken: opening festival B's detail
+    // before festival A's fetch (or A's later program-weather read) resolves
+    // must never let A's late response land on B's now-visible screen.
+    const detailToken = ++requestToken;
+
     let festival = null;
     let failed = false;
     try {
@@ -405,6 +496,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     } catch {
       failed = true;
     }
+    if (detailToken !== requestToken) return;
 
     detailSurface.replaceChildren();
 
@@ -450,7 +542,7 @@ export async function mountFestivalManager({root, fetchImpl = globalThis.fetch, 
     if (festival.summary) header.appendChild(el('p', 'festival-detail-summary', festival.summary));
     detailSurface.appendChild(header);
 
-    const ctaRow = buildCtaRow(festival, {onOpenPrograms: () => openProgramSurface(festival)});
+    const ctaRow = buildCtaRow(festival, {onOpenPrograms: () => openProgramSurface(festival, detailToken)});
     if (ctaRow) detailSurface.appendChild(ctaRow);
   }
 
