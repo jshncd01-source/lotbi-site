@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-bcbcf2242dc3';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-bcbcf2242dc3';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-bcbcf2242dc3';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-5f807365a029';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-5f807365a029';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-5f807365a029';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -11,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-bcbcf2242dc3';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-bcbcf2242dc3';
+} from './site-calendar-model.js?v=aset-5f807365a029';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-5f807365a029';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-bcbcf2242dc3';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-bcbcf2242dc3';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-bcbcf2242dc3';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-5f807365a029';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-5f807365a029';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-5f807365a029';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -27,13 +27,13 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-bcbcf2242dc3';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-bcbcf2242dc3';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-bcbcf2242dc3';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-bcbcf2242dc3';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-bcbcf2242dc3';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-bcbcf2242dc3';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-bcbcf2242dc3';
+} from './site-calendar-product.js?v=aset-5f807365a029';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-5f807365a029';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-5f807365a029';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-5f807365a029';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-5f807365a029';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-5f807365a029';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-5f807365a029';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -852,7 +852,22 @@ export function createCalendarMutationController({
       }
       const value = normalized(input);
       const temporal = buildCalendarTemporal({...value, timezone});
-      if (!authenticated) return guestRepository.update(item.id, guestPayload(value, temporal));
+      // Editing title/date/memo has no UI for the festival source link, and
+      // both Core and the Guest repository replace the whole entry/event on
+      // update rather than merging -- so an edit that omitted it would
+      // silently unlink an already-linked item. Carry the existing link
+      // forward unchanged (Guest keeps it flat on the event; Core keeps it
+      // nested in `entry` -- see festivalLinkFromCalendarItem).
+      const existingLink = item.entry && item.entry.source_kind === 'FESTIVAL'
+        ? item.entry
+        : item.source_kind === 'FESTIVAL' ? item : null;
+      const sourceLink = existingLink ? {
+        source_kind: existingLink.source_kind,
+        source_ref: existingLink.source_ref,
+        visit_scope: existingLink.visit_scope,
+        ...(existingLink.visit_date ? {visit_date: existingLink.visit_date} : {}),
+      } : {};
+      if (!authenticated) return guestRepository.update(item.id, {...guestPayload(value, temporal), ...sourceLink});
       return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
         logicalRequestId: requestId('edit'),
         expectedActivityRevision: item.activity_revision ?? item.activityRevision,
@@ -861,7 +876,7 @@ export function createCalendarMutationController({
         temporal,
         temporalSemantics: 'USER_PLANNED_TIME',
         busy: 'UNKNOWN',
-        entry: value.entry,
+        entry: {...value.entry, ...sourceLink},
       }, fetchImpl);
     },
     async remove(item) {
