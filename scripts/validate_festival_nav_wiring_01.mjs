@@ -39,25 +39,34 @@ assert.match(indexHtml, /<link rel="stylesheet" href="site-festival\.css(?:\?v=[
 assert.match(sidebarCss, /\.sidebar-festival-nav\s*\{/, 'site-sidebar-nav.css must style .sidebar-festival-nav');
 
 // -------------------------------------------------------------- app shell --
-assert.match(conversationJs, /const openFestival = async \(\) => \{/, 'site-conversation.js must define openFestival()');
+assert.match(conversationJs, /const openFestival = async \(\{festivalId = '', selectedDate = ''\} = \{\}\) => \{/,
+  'site-conversation.js must define openFestival(), and (FESTIVAL-EVENT-10) accept a festivalId/selectedDate re-entry target');
 assert.match(conversationJs, /import\(['"]\.\/site-festival-ui\.js(?:\?v=[A-Za-z0-9._-]+)?['"]\)/,
   'openFestival must lazy-load site-festival-ui.js, matching the 반려동물 panel pattern');
-assert.match(conversationJs, /mountFestivalManager\(\{root: content\}\)/,
-  'openFestival must mount into the shared modal content node');
+assert.match(conversationJs, /mountFestivalManager\(\{\s*root: content,\s*sessionToken,\s*initialFestivalId: festivalId,\s*selectedDate,\s*\}\)/,
+  'openFestival must mount into the shared modal content node and forward the Calendar re-entry target');
 assert.match(conversationJs, /festivalTrigger = target\?\.closest\('\[data-festival-open\]'\)/,
   'the delegated click handler for [data-festival-open] must exist');
 assert.match(conversationJs, /panel\.classList\.add\('site-festival-modal'\)/,
   'the festival modal must carry its sizing modifier class');
+assert.match(conversationJs, /onOpenFestival: \(\{festivalId, visitDate\}\) => \{ void openFestival\(\{festivalId, selectedDate: visitDate \|\| ''\}\); \}/,
+  'openCalendar must wire Calendar -> Festival re-entry (FESTIVAL-EVENT-10) through mountLifeCalendarManager');
 
 // FESTIVAL-04 (private API) must never be imported by the public browse UI —
-// only site-festival-client.js (festival data) and site-festival-weather.js
-// (FESTIVAL-EVENT-09 program-date weather orchestration, itself only ever
-// reusing the existing Calendar weather client/normalizer) may be imported.
+// only these festival-named modules may be imported by site-festival-ui.js:
+// site-festival-client.js (festival data), site-festival-weather.js
+// (FESTIVAL-EVENT-09 program-date weather, itself only reusing the existing
+// Calendar weather client/normalizer), and site-festival-calendar.js
+// (FESTIVAL-EVENT-10 Calendar bridge, itself only reusing the existing
+// Calendar create/guest-repository client).
+const FESTIVAL_UI_ALLOWED_FESTIVAL_IMPORTS = new Set([
+  './site-festival-client.js', './site-festival-weather.js', './site-festival-calendar.js',
+]);
 assert.doesNotMatch(festivalUiJs, /^import[^;]*festival_sources[^;]*;/m);
-assert.doesNotMatch(
-  festivalUiJs,
-  /^import[^;]*from ['"](?!\.\/site-festival-client\.js|\.\/site-festival-weather\.js)[^'"]*festival[^'"]*['"];/mi,
-);
+for (const match of festivalUiJs.matchAll(/^import[^;]*from ['"]([^'"]*festival[^'"]*)['"];/gmi)) {
+  const importPath = match[1].split('?')[0];
+  assert.ok(FESTIVAL_UI_ALLOWED_FESTIVAL_IMPORTS.has(importPath), `unexpected festival-named import in site-festival-ui.js: ${importPath}`);
+}
 assert.doesNotMatch(festivalClientJs, /^import[^;]*festival_sources[^;]*;/m);
 
 // --------------------------------------------------------------- CSS ------
