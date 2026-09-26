@@ -505,16 +505,14 @@ const LUNAR_MONTH_LABEL = Object.freeze([
 ]);
 
 /**
- * A short label for a date cell, e.g. "1일" for an ordinary day or "윤4월
- * 15일" on the first day of a lunar month (leap months are marked 윤, the
- * standard Korean prefix, only where they start -- every other day in the
- * month just shows its lunar day number, matching how printed Korean
- * calendars mark 음력 dates).
+ * A short label for a date cell, e.g. "8월 15일", always carrying the lunar
+ * month so a date cell reads on its own without having to scan back to the
+ * month's first day to know which month it's in (leap months are marked 윤,
+ * the standard Korean prefix).
  * @param {{year: number, month: number, day: number, intercalation: boolean} | null} lunar
  * @returns {string}
  */
 export function lunarDateLabel(lunar) {
   if (!lunar || !lunar.month || !lunar.day) return '';
-  if (lunar.day !== 1) return `${lunar.day}일`;
   return `${lunar.intercalation ? '윤' : ''}${LUNAR_MONTH_LABEL[lunar.month]} ${lunar.day}일`;
 }
