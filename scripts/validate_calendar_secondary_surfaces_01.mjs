@@ -72,7 +72,7 @@ assert.deepEqual(calendarWeatherLocationPresentation({
   locationInFlight: false,
   locationMessage: '',
 }), {
-  currentAction: '현재 위치 사용',
+  currentAction: '갱신',
   currentStatus: '버튼을 누를 때만 위치 권한을 요청합니다.',
   manualSummary: '수동 지역 · 전북특별자치도 전주시',
   relationship: '현재 위치를 사용할 수 없으면 수동 지역의 날씨를 표시합니다.',
@@ -87,7 +87,7 @@ assert.deepEqual(calendarWeatherLocationPresentation({
   locationInFlight: false,
   locationMessage: '',
 }), {
-  currentAction: '변경',
+  currentAction: '갱신',
   currentStatus: '현재 위치로 날씨를 표시합니다.',
   manualSummary: '현재 지역 · 전북특별자치도 전주시',
   relationship: '현재 위치를 우선 사용하고, 사용할 수 없으면 저장된 지역으로 전환합니다.',
@@ -102,7 +102,7 @@ assert.deepEqual(calendarWeatherLocationPresentation({
   locationInFlight: false,
   locationMessage: '',
 }), {
-  currentAction: '현재 위치 사용',
+  currentAction: '갱신',
   currentStatus: '이 브라우저에서는 현재 위치를 사용할 수 없어요.',
   manualSummary: '수동 지역이 선택되지 않았습니다.',
   relationship: '아래에서 광역시·도와 시·군·구를 선택할 수 있습니다.',
@@ -242,8 +242,10 @@ assert.match(manager, /function syncOpenWeatherLocationSettings\(\)/,
   'open Settings weather controls need one live synchronization path');
 assert.match(manager, /calendar-settings-weather-overview[\s\S]*manualSummary[\s\S]*relationship/,
   'live synchronization must refresh both overview lines');
-assert.match(manager, /data-calendar-weather-manual-clear[\s\S]*hidden = !state\.manualWeatherRegion/,
-  'live synchronization must refresh manual-clear visibility');
+// 대표님 지시로 수동 지역 해제 버튼을 없앴다: 갱신을 누르면 현재 위치가 우선
+// 적용되니, 저장된 지역을 지우는 별도 동작과 그 동작의 실시간 동기화도 함께 없어진다.
+assert.doesNotMatch(manager, /data-calendar-weather-manual-clear/,
+  '수동 지역 해제 버튼의 동기화 코드는 되돌아오지 않는다');
 assert.match(manager, /syncOpenWeatherLocationSettings\(\);[\s\S]*locationButton\.setAttribute/,
   'every location control sync must refresh the open overview too');
 
