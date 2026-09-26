@@ -63,15 +63,17 @@ assert.match(ui, elseBranch, 'PROMPT_REQUIRED/UNKNOWN must render nationwide/def
 // browser prompts), while 지역 변경 stays available (usage is never blocked).
 assert.match(
   ui,
-  /state\.locationMode !== 'CURRENT' && state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{\s*actions\.appendChild\(actionButton\('현재 위치로 보기'/,
-  'the "현재 위치로 보기" action must be hidden once permission is DENIED',
+  /state\.locationMode !== 'CURRENT' && state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{/,
+  'the "현재 위치로 보기" action must be gated on permission not being DENIED',
 );
-assert.match(ui, /actions\.appendChild\(actionButton\('지역 변경'/, '지역 변경 must always be offered regardless of permission state');
+assert.match(ui, /useLocationButton\.textContent = '현재 위치로 보기'/, 'a "현재 위치로 보기" action must exist');
+assert.match(ui, /regionButton\.textContent = '지역 변경'/, '지역 변경 must always be offered regardless of permission state');
 assert.match(
   ui,
-  /if \(state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{\s*wrap\.appendChild\(actionButton\('현재 위치로 돌아가기'/,
-  '"현재 위치로 돌아가기" inside the region sheet must also be hidden once permission is DENIED',
+  /if \(state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{\s*const backButton/,
+  '"현재 위치로 돌아가기" inside the region sheet must also be gated on permission not being DENIED',
 );
+assert.match(ui, /backButton\.textContent = '현재 위치로 돌아가기'/);
 
 // -------------------------------------------------------- manual region --
 // Selecting a region must clear current-location mode so a later GPS fix

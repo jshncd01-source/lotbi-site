@@ -59,10 +59,16 @@ assert.doesNotMatch(clientJs, /function sortFestivals\(/, 'the fixture-era clien
 assert.doesNotMatch(ui, /\.sort\(/, 'site-festival-ui.js must never re-sort a browse page — Core\'s order is authoritative');
 
 // --------------------------------------------------------- card rendering --
-assert.match(ui, /img\.addEventListener\('error', showPlaceholder/, 'a broken representative-photo load must fall back to the placeholder, not a dead broken-image icon');
+// A registered image_url that fails to load must degrade to the neutral
+// placeholder, never a dead broken-image icon.
 assert.match(
   ui,
-  /if \(showDistance && typeof festival\.distanceKm === 'number'\) \{\s*body\.appendChild\(el\('p', 'festival-list-card-distance', `\$\{festival\.distanceKm\}km`\)\);\s*\}/,
+  /img\.addEventListener\('error', \(\) => \{[\s\S]{0,300}?wrap\.classList\.add\('festival-hero-placeholder'\)/,
+  'a broken representative-photo load must fall back to the placeholder, not a dead broken-image icon',
+);
+assert.match(
+  ui,
+  /if \(showDistance && typeof festival\.distanceKm === 'number'\) \{\s*body\.appendChild\(el\('p', 'festival-card-distance', `\$\{festival\.distanceKm\}km`\)\);\s*\}/,
   'distance must render only in current-location mode and only when Core actually returned a number',
 );
 assert.doesNotMatch(ui, /알수없음|거리 정보 없음|0km/, 'no fake/placeholder distance text may ever be shown');
@@ -72,10 +78,10 @@ assert.doesNotMatch(`${ui}\n${clientJs}`, /unsplash\.com|picsum\.photos|placehol
 // A list card must stay list-scoped: it must not render program/reservation/
 // parking/official-source detail sections (those are FESTIVAL-EVENT-08's
 // detail surface, not the card).
-const buildListCardBody = /function buildListCard\([\s\S]*?\n\}\n/.exec(ui)?.[0] || '';
-assert.ok(buildListCardBody, 'buildListCard must exist');
-for (const forbidden of ['buildProgramSection', 'buildReservationSection', 'buildParkingShuttleSection', 'buildOfficialSourceSection']) {
-  assert.ok(!buildListCardBody.includes(forbidden), `the list card must not render ${forbidden} — that belongs to the detail surface only`);
+const buildCardBody = /function buildCard\([\s\S]*?\n\}\n/.exec(ui)?.[0] || '';
+assert.ok(buildCardBody, 'buildCard must exist');
+for (const forbidden of ['buildProgramSection', 'buildReservationSection', 'buildParkingShuttleSection', 'buildOfficialSourceSection', 'buildCtaRow']) {
+  assert.ok(!buildCardBody.includes(forbidden), `the list card must not render ${forbidden} — that belongs to the detail surface only`);
 }
 
 // -------------------------------------------------- no-fixture-in-production
@@ -87,7 +93,7 @@ assert.match(clientJs, /\/festivals\/regions/, 'the client must target the real 
 assert.match(ui, /축제·행사를 불러오는 중이에요/, 'loading copy must use the renamed 축제·행사 category');
 assert.match(ui, /축제·행사 정보를 불러오지 못했어요/, 'error copy must use the renamed category and must not mention a fixture fallback');
 assert.match(ui, /'다시 시도'/, 'a Core fetch failure must offer an explicit retry, never a silent fixture substitution');
-assert.match(ui, /function emptyMessageFor\(state\)/);
+assert.match(ui, /function emptyMessageFor\(\)/);
 
 // --------------------------------------------------------- accessibility --
 assert.match(ui, /liveRegion\.setAttribute\('role', 'status'\);/);
@@ -103,9 +109,9 @@ assert.match(css, /\.festival-region-option \{[^}]*min-height:\s*44px/);
 assert.match(css, /\.festival-load-more \{[^}]*min-height:\s*44px/);
 assert.match(css, /\.festival-date-field input\[type="date"\][^{]*\{[^}]*font-size:\s*16px/, 'the date input must stay >=16px to avoid iOS Safari zoom');
 
-// Responsive: the list grid must default to a single column (no fixed
+// Responsive: the card grid must default to a single column (no fixed
 // minmax() width that could overflow at 320px) and only widen on desktop.
-assert.match(css, /\.festival-list-grid \{[^}]*grid-template-columns:\s*1fr;/);
-assert.match(css, /@media \(min-width: 640px\) \{\s*\.festival-list-grid \{\s*grid-template-columns:\s*repeat\(2, 1fr\);/);
+assert.match(css, /\.festival-card-grid \{[^}]*grid-template-columns:\s*1fr;/);
+assert.match(css, /@media \(min-width: 640px\) \{\s*\.festival-card-grid \{\s*grid-template-columns:\s*repeat\(2, 1fr\);/);
 
 console.log('FESTIVAL FILTERS/PAGINATION/CARD/ACCESSIBILITY VALIDATION PASS — 5-filter time bar, DATE gating, request-token+AbortController race safety, Core-authoritative ordering, card rendering rules, no-fixture-in-production, and accessibility/responsive contracts verified.');

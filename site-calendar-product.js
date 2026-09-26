@@ -1,7 +1,7 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-625724e05994';
-import {weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-625724e05994';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-59f937b762d5';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-59f937b762d5';
 
 function weekStartDate(date, weekStart) {
   const {year, month, day} = civilDateParts(date);
@@ -241,5 +241,6 @@ export function calendarWeatherPresentation(weather) {
   const max = weather?.maxTemperature;
   const weekLabel = Number.isFinite(min) && Number.isFinite(max)
     ? `${Math.round(min)}° / ${Math.round(max)}°` : monthLabel;
-  return Object.freeze({monthLabel, weekLabel});
+  const precipLabel = weatherPrecipitationLabel(weather);
+  return Object.freeze({monthLabel, weekLabel, precipLabel});
 }

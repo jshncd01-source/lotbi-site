@@ -289,8 +289,8 @@ for (const token of [
   "doc.createElement('span')",
 ]) assert.ok(weatherModuleSource.includes(token), `missing weather glyph contract: ${token}`);
 assert.ok(css.includes('.calendar-weather-icon'), 'weather icon CSS missing');
-assert.ok(manager.includes('calendarWeatherPresentation(weather).monthLabel'), 'Month must render normalized temperature when Core supplies it');
-assert.ok(manager.includes('calendarWeatherPresentation(weather).weekLabel'), 'Week must render the available temperature range');
+assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentation(weather)') && manager.includes('weatherPresentation.monthLabel'), 'Month must render normalized temperature when Core supplies it');
+assert.ok(manager.includes('const presentation = calendarWeatherPresentation(weather)') && manager.includes('presentation.weekLabel'), 'Week must render the available temperature range');
 assert.ok(manager.includes("temperature.className = 'calendar-weather-temperature'"), 'temperature needs a distinct compact visual slot');
 assert.ok(manager.includes("locationButton.addEventListener('click'"), 'current location must be a user action');
 assert.ok(manager.includes('requestBrowserCurrentLocation({'), 'Calendar must request location only from the explicit button path');
