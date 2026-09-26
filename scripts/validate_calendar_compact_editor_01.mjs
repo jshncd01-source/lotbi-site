@@ -112,8 +112,19 @@ assert.match(navigationSource, /selectDate: async \(date, \{openDetail = false\}
   'date navigation must advance the Calendar context generation');
 assert.match(focusSource, /queueMicrotask\(\(\) => \{\s*if \(!isCurrent\(\)\) return;/,
   'deferred final focus must recheck freshness after the save continuation');
-assert.match(expenseSource, /const focusedDayDetail = state\.mode === 'month'[\s\S]*document\.activeElement\?\.closest\?\.\('\.calendar-day-panel'\)[\s\S]*render\(\);[\s\S]*focusedDayDetail && state\.mode === 'month' && state\.detailOpen[\s\S]*querySelector\('\.calendar-day-close'\)[\s\S]*\.focus\(\)/,
-  'delayed expense rendering must reconnect focus to the active day detail');
+// CALENDAR-SPEED-02: the same delayed-render focus restoration is now shared
+// with the background weather/holiday render (renderPreservingFocus), so it
+// lives once, above refreshExpenseSummary, rather than duplicated in it.
+assert.match(expenseSource, /renderPreservingFocus\(\);/,
+  'delayed expense rendering must reuse the shared focus-preserving render');
+const renderPreservingFocusSource = managerSource.slice(
+  managerSource.indexOf('function renderPreservingFocus()'),
+  managerSource.indexOf('async function refreshWeatherOnly'),
+);
+assert.match(renderPreservingFocusSource, /document\.activeElement\?\.closest\?\.\('\.calendar-day-panel'\)[\s\S]*render\(\);[\s\S]*focusedDayDetail && state\.mode === 'month' && state\.detailOpen[\s\S]*querySelector\('\.calendar-day-close'\)[\s\S]*\.focus\(\)/,
+  'shared focus-preserving render must reconnect focus to the active day detail');
+assert.match(renderPreservingFocusSource, /root\.contains\(document\.activeElement\)/,
+  'shared focus-preserving render must not adopt focus belonging to a different Calendar instance');
 
 if (process.argv.includes('--contracts-only')) {
   console.log('LOTBI Calendar compact editor contracts: PASS (browser UI not run)');

@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-0121bef98c45';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-0121bef98c45';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-0121bef98c45';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-bcbcf2242dc3';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-bcbcf2242dc3';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-bcbcf2242dc3';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -11,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-0121bef98c45';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-0121bef98c45';
+} from './site-calendar-model.js?v=aset-bcbcf2242dc3';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-bcbcf2242dc3';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-0121bef98c45';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-0121bef98c45';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-0121bef98c45';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-bcbcf2242dc3';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-bcbcf2242dc3';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-bcbcf2242dc3';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -27,12 +27,13 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-0121bef98c45';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-0121bef98c45';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-0121bef98c45';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-0121bef98c45';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-0121bef98c45';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-0121bef98c45';
+} from './site-calendar-product.js?v=aset-bcbcf2242dc3';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-bcbcf2242dc3';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-bcbcf2242dc3';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-bcbcf2242dc3';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-bcbcf2242dc3';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-bcbcf2242dc3';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-bcbcf2242dc3';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -994,10 +995,7 @@ function weatherFailureCopy(error) {
   return '날씨를 지금 표시할 수 없어요. 일정은 그대로 표시됩니다.';
 }
 
-export async function loadLifeCalendarManagerView(
-  sessionToken,
-  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null, weekStart = 0} = {},
-) {
+function calendarViewWindow(view, date, timezone, now, weekStart) {
   const selectedDate = validCivilDate(date) ? date : dateInTimezone(now, timezone);
   const key = normalizeMode(view);
   const range = key === 'year'
@@ -1005,6 +1003,52 @@ export async function loadLifeCalendarManagerView(
     : key === 'week'
       ? {...weekBounds(selectedDate, weekStart), ...civilDateParts(selectedDate)}
       : monthBounds(selectedDate);
+  return {selectedDate, key, range};
+}
+
+// Critical path only: the schedule itself, plus the two reads that share its
+// range (지난 기한/미정 일정). Never awaits weather or holidays -- CALENDAR-
+// SPEED-02 exists because a slow forecast used to hold the schedule hostage
+// inside one Promise.all. This function cannot regress that: it has nothing
+// to do with weather.
+export async function loadLifeCalendarAgenda(
+  sessionToken,
+  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weekStart = 0} = {},
+) {
+  const {selectedDate, key, range} = calendarViewWindow(view, date, timezone, now, weekStart);
+  const [response, monthAttention, unscheduled] = await Promise.all([
+    getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
+    // 일정 보기도 함께 읽는다: 확인 필요 탭이 사라진 뒤 지금 달에 없는 지난 기한을
+    // 보여줄 유일한 자리가 그곳이다.
+    key === 'month' || key === 'week' || key === 'agenda'
+      ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
+      : Promise.resolve(null),
+    key === 'agenda'
+      ? getLifeUnscheduled(sessionToken, fetchImpl)
+      : Promise.resolve(null),
+  ]);
+  return Object.freeze({
+    key,
+    date: selectedDate,
+    year: range.year,
+    month: range.month,
+    range: Object.freeze({start: range.start, end: range.end}),
+    kind: 'agenda',
+    items: Object.freeze(response.items.map(withCalendarShape)),
+    attention: Object.freeze(monthAttention?.items || []),
+    unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
+  });
+}
+
+// Enrichment only: weather + Korea holidays for the same window. Kept out of
+// loadLifeCalendarAgenda so one being slow or failing can never delay or fail
+// the other -- see refresh() in mountLifeCalendarManager, which awaits the two
+// independently rather than as one unit.
+export async function loadLifeCalendarEnrichment(
+  sessionToken,
+  {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null, weekStart = 0} = {},
+) {
+  const {key, range} = calendarViewWindow(view, date, timezone, now, weekStart);
   const weatherWindow = key === 'month' || key === 'week'
     ? forecastWindow(range, dateInTimezone(now, timezone))
     : null;
@@ -1027,35 +1071,25 @@ export async function loadLifeCalendarManagerView(
   const holidayRequest = (key === 'month' || key === 'week' || key === 'year')
     ? loadKoreaHolidaysForRange(range, fetchImpl)
     : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
-  const [response, monthAttention, unscheduled, weather, holidays] = await Promise.all([
-    getLifeAgenda(sessionToken, {timezone, start: range.start, end: range.end}, fetchImpl),
-    // 일정 보기도 함께 읽는다: 확인 필요 탭이 사라진 뒤 지금 달에 없는 지난 기한을
-    // 보여줄 유일한 자리가 그곳이다.
-    key === 'month' || key === 'week' || key === 'agenda'
-      ? getLifeAttention(sessionToken, {timezone, horizonDays: 365}, fetchImpl)
-      : Promise.resolve(null),
-    key === 'agenda'
-      ? getLifeUnscheduled(sessionToken, fetchImpl)
-      : Promise.resolve(null),
-    weatherRequest,
-    holidayRequest,
-  ]);
+  const [weather, holidays] = await Promise.all([weatherRequest, holidayRequest]);
   return Object.freeze({
     key,
-    date: selectedDate,
-    year: range.year,
-    month: range.month,
-    range: Object.freeze({start: range.start, end: range.end}),
-    kind: 'agenda',
-    items: Object.freeze(response.items.map(withCalendarShape)),
-    attention: Object.freeze(monthAttention?.items || []),
-    unscheduled: Object.freeze((unscheduled?.items || []).map(withUnscheduledShape)),
     weather: Object.freeze(weather?.items || []),
     weatherProviderReady: weather?.providerReady === true,
     weatherFailureMessage: weatherFailureCopy(weather?.failure),
     holidays: Object.freeze(holidays?.items || []),
     holidayCoverageStatus: holidays?.coverageStatus || 'UNAVAILABLE',
   });
+}
+
+// Standalone callers (tests, and any surface that has not split its loading
+// into a fast/critical path) still get everything in one call.
+export async function loadLifeCalendarManagerView(sessionToken, options = {}) {
+  const [agenda, enrichment] = await Promise.all([
+    loadLifeCalendarAgenda(sessionToken, options),
+    loadLifeCalendarEnrichment(sessionToken, options),
+  ]);
+  return Object.freeze({...agenda, ...enrichment});
 }
 
 // Toolbar icons are inline SVG, not emoji: an emoji renders as a different
@@ -3205,10 +3239,14 @@ export async function mountLifeCalendarManager({
         if (region) {
           state.locationMessage = '';
         }
-        await refresh();
+        // 수동 지역 변경은 날씨만 다시 부른다 -- 일정·확인 필요·공휴일·가계부는
+        // 이 변화와 무관하다.
+        await refreshWeatherOnly();
       },
       onChange: async enabled => {
-        if (enabled) await refresh();
+        // 공휴일 표시를 켜는 것도 공휴일만 다시 부른다 -- 이미 있는 일정·날씨를
+        // 다시 부를 이유가 없다.
+        if (enabled) await refreshHolidaysOnly();
         else render();
       },
       onRedraw: () => { render(); },
@@ -3239,6 +3277,12 @@ export async function mountLifeCalendarManager({
   // 이유는 하나다: 화면이 스스로 부른 요청이 사용자가 누른 요청을 밀어내서는 안 된다.
   // 자동은 진행 중인 요청을 보면 물러나고, 사용자의 요청은 자동을 밀어낸다.
   let locationRequestActive = false;
+  // 날씨·공휴일은 일정과 별도의 세대를 가진다. refresh()의 enrichment 조회,
+  // 위치/지역 변경의 날씨 단독 조회, 공휴일 토글의 공휴일 단독 조회가 모두 이
+  // 카운터를 다투고, 가장 나중에 시작된 것만 화면에 반영된다 -- 서로 다른 종류의
+  // 요청이 서로를 밀어내는 일 없이, 같은 종류 안에서만 최신이 이긴다.
+  let weatherGeneration = 0;
+  let holidayGeneration = 0;
 
   // 저장된 지역으로 돌아갈 자리. 현재 위치가 만료되거나 권한이 꺼져도 날씨가
   // 통째로 사라지지 않게 하는 것이 이 함수의 전부다.
@@ -3246,6 +3290,107 @@ export async function mountLifeCalendarManager({
     return state.manualWeatherRegion
       ? {...state.manualWeatherRegion, source: 'MANUAL_REGION'}
       : null;
+  }
+
+  // 보이는 달/주 범위 중 예보 가능한 부분. 년 보기에는 날씨가 없다.
+  function visibleWeatherWindow() {
+    if (state.mode === 'month') return forecastWindow(monthBounds(state.selectedDate), state.todayDate);
+    if (state.mode === 'week') return forecastWindow(weekBounds(state.selectedDate, state.weekStart), state.todayDate);
+    return null;
+  }
+
+  // 재진입 즉시 표시할 기존 날씨. 겹치는 날짜만 쓰고(부분 재사용), 지역이 없거나
+  // 캐시가 없거나 이미 오래된 항목은 그대로 둔다 -- readCalendarWeatherCache가
+  // 신선도를 걸러내므로 여기 도착하는 것은 이미 유효기간 안의 값뿐이다.
+  function seedCachedWeatherForVisibleRange() {
+    // 이전 화면(다른 달/주)의 날씨를 그대로 들고 있다가 새 범위의 일정과 함께
+    // 잘못 그려지는 일이 없도록, 캐시가 없으면 먼저 비운다.
+    state.weather = [];
+    state.weatherMessage = '';
+    const range = visibleWeatherWindow();
+    if (!range || !currentWeatherLocation) return;
+    const regionKey = calendarWeatherRegionCacheKey(currentWeatherLocation);
+    if (!regionKey) return;
+    const cached = readCalendarWeatherCache(regionKey, {storage: settingsStorage, now: locationNow()});
+    if (!cached) return;
+    const inRange = cached.items.filter(item => item.date >= range.start && item.date <= range.end);
+    if (inRange.length) state.weather = inRange;
+  }
+
+  function persistCalendarWeatherCache(items) {
+    if (!currentWeatherLocation || !Array.isArray(items) || !items.length) return;
+    const regionKey = calendarWeatherRegionCacheKey(currentWeatherLocation);
+    if (regionKey) writeCalendarWeatherCache(regionKey, items, {storage: settingsStorage});
+  }
+
+  // 배경 갱신(날씨·공휴일·가계부)이 화면을 다시 그릴 때 쓴다. 이미 열려 있던
+  // 날짜 상세 패널의 닫기 버튼이나, 선택돼 있던 날짜 칸의 포커스를 그대로
+  // 되돌려 놓는다 -- refreshExpenseSummary가 이미 하던 것과 같은 방식이다.
+  function renderPreservingFocus() {
+    // 포커스가 지금 이 root 안에 있을 때만 "보존할 것"으로 본다 -- 다른 Calendar
+    // 인스턴스(예: 같은 페이지의 Guest/Auth 두 벌)에 포커스가 있는 상태에서 이
+    // 배경 갱신이 실행되면, data-calendar-date-trigger 값만 보고 이 root 안의
+    // 같은 날짜 칸으로 포커스를 끌어오는 잘못을 막는다.
+    const focusedWithinRoot = root.contains(document.activeElement);
+    const focusedDayDetail = focusedWithinRoot
+      && state.mode === 'month'
+      && state.detailOpen
+      && Boolean(document.activeElement?.closest?.('.calendar-day-panel'));
+    const focusedCalendarDate = focusedWithinRoot ? document.activeElement?.getAttribute('data-calendar-date-trigger') : null;
+    render();
+    if (focusedDayDetail && state.mode === 'month' && state.detailOpen) {
+      root.querySelector('.calendar-day-close')?.focus();
+    } else if (focusedCalendarDate && state.mode === 'month' && focusedCalendarDate === state.selectedDate) {
+      root.querySelector(`[data-calendar-date-trigger="${focusedCalendarDate}"]`)?.focus();
+    }
+  }
+
+  // 위치·수동 지역이 바뀌었을 때만 쓴다: 일정·확인 필요·공휴일·가계부는 그
+  // 변화와 무관하므로 다시 부르지 않는다. currentWeatherLocation을 부르기 전에
+  // 최신으로 맞춰 두는 것은 호출하는 쪽의 책임이다.
+  async function refreshWeatherOnly() {
+    const requestGeneration = ++weatherGeneration;
+    seedCachedWeatherForVisibleRange();
+    renderPreservingFocus();
+    const weather = authenticated
+      ? await loadLifeCalendarEnrichment(sessionToken, {
+          view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl,
+          weatherLocation: currentWeatherLocation, weekStart: state.weekStart,
+        }).then(enrichment => ({items: enrichment.weather, providerReady: enrichment.weatherProviderReady}), () => null)
+      : await (async () => {
+          const range = visibleWeatherWindow();
+          if (!range || currentWeatherLocation?.latitude == null || currentWeatherLocation?.longitude == null) {
+            return {providerReady: false, items: []};
+          }
+          return getPublicCalendarWeather({
+            start: range.start, end: range.end, timezone,
+            latitude: currentWeatherLocation.latitude, longitude: currentWeatherLocation.longitude,
+          }, fetchImpl).catch(error => {
+            console.warn('[LOTBI 캘린더] 날씨를 불러오지 못했습니다.', error);
+            return {providerReady: false, items: [], failure: error};
+          });
+        })();
+    if (!root.isConnected || requestGeneration !== weatherGeneration) return;
+    if (!weather) return;
+    state.weather = weather.items || [];
+    state.weatherMessage = weatherFailureCopy(weather.failure);
+    persistCalendarWeatherCache(weather.items);
+    renderPreservingFocus();
+  }
+
+  // 공휴일 표시를 켰을 때만 쓴다: 이미 있는 지역·날씨·일정을 다시 부르지 않는다.
+  async function refreshHolidaysOnly() {
+    const requestGeneration = ++holidayGeneration;
+    const range = state.mode === 'year'
+      ? yearBounds(state.selectedDate)
+      : state.mode === 'week'
+        ? weekBounds(state.selectedDate, state.weekStart)
+        : monthBounds(state.selectedDate);
+    if (!(state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) return;
+    const holidays = await loadKoreaHolidaysForRange(range, fetchImpl);
+    if (!root.isConnected || requestGeneration !== holidayGeneration) return;
+    state.holidays = holidays.items || [];
+    renderPreservingFocus();
   }
 
   async function syncLocationPermission() {
@@ -3630,16 +3775,7 @@ export async function mountLifeCalendarManager({
     // by someone who navigated while an editor save was waiting for it. An open
     // day detail owns focus through its close control; a closed detail uses the
     // selected date trigger.
-    const focusedDayDetail = state.mode === 'month'
-      && state.detailOpen
-      && Boolean(document.activeElement?.closest?.('.calendar-day-panel'));
-    const focusedCalendarDate = document.activeElement?.getAttribute('data-calendar-date-trigger');
-    render();
-    if (focusedDayDetail && state.mode === 'month' && state.detailOpen) {
-      root.querySelector('.calendar-day-close')?.focus();
-    } else if (state.mode === 'month' && focusedCalendarDate === state.selectedDate) {
-      root.querySelector(`[data-calendar-date-trigger="${focusedCalendarDate}"]`)?.focus();
-    }
+    renderPreservingFocus();
   }
 
   async function refresh({settleExpense = false} = {}) {
@@ -3660,37 +3796,57 @@ export async function mountLifeCalendarManager({
         state.locationMessage = currentWeatherLocation ? '' : '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
-        const result = await loadLifeCalendarManagerView(sessionToken, {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weatherLocation: currentWeatherLocation, weekStart: state.weekStart});
+        seedCachedWeatherForVisibleRange();
+        const viewOptions = {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weekStart: state.weekStart};
+        const weatherToken = ++weatherGeneration;
+        const holidayToken = ++holidayGeneration;
+        const enrichmentPromise = loadLifeCalendarEnrichment(sessionToken, {...viewOptions, weatherLocation: currentWeatherLocation}).catch(() => null);
+        const result = await loadLifeCalendarAgenda(sessionToken, viewOptions);
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
         state.items = result.items;
         state.unscheduled = result.unscheduled || [];
         if (result.key === 'month' || result.key === 'week' || result.key === 'agenda') {
           state.attention = result.attention || [];
         }
-        if (result.key === 'month' || result.key === 'week') {
-          state.weather = result.weather || [];
-          state.weatherMessage = result.weatherFailureMessage || '';
-        } else {
-          state.weather = [];
-          state.weatherMessage = '';
-        }
-        if (result.key === 'month' || result.key === 'week' || result.key === 'year') {
-          state.holidays = result.holidays || [];
-        }
+        // 일정은 여기서 이미 화면에 오른다 -- 날씨·공휴일은 기다리지 않는다.
+        state.loading = false; render();
+        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        // 날씨·공휴일은 따로 도착한다. 그 사이 다른 달로 넘어갔거나(새
+        // refreshGeneration) 위치/지역이 다시 바뀌었으면(새 weatherGeneration) 이
+        // 응답은 조용히 버려진다 -- 화면은 이미 최신 요청이 맡고 있다.
+        void enrichmentPromise.then(enrichment => {
+          if (!enrichment || !root.isConnected || requestGeneration !== refreshGeneration) return;
+          const applyWeather = weatherToken === weatherGeneration;
+          const applyHolidays = holidayToken === holidayGeneration;
+          if (applyWeather) {
+            if (result.key === 'month' || result.key === 'week') {
+              state.weather = enrichment.weather || [];
+              state.weatherMessage = enrichment.weatherFailureMessage || '';
+              persistCalendarWeatherCache(enrichment.weather);
+            } else {
+              state.weather = [];
+              state.weatherMessage = '';
+            }
+          }
+          if (applyHolidays && (result.key === 'month' || result.key === 'week' || result.key === 'year')) {
+            state.holidays = enrichment.holidays || [];
+          }
+          if (applyWeather || applyHolidays) renderPreservingFocus();
+        });
       } else {
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+        seedCachedWeatherForVisibleRange();
         const guestItems = repository.list();
         state.items = guestItems.filter(item => validCivilDate(item.local_date));
         state.unscheduled = guestItems.filter(item => !validCivilDate(item.local_date));
         state.attention = [];
-        state.weather = [];
-        state.weatherMessage = '';
 
         // Guest Calendar is device-local and must remain immediately usable even
         // when public enrichment is slow or unavailable. Render local data first,
         // then decorate it with weather/holiday data fail-soft.
         state.loading = false;
         render();
+        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
 
         // Which dates the guest month/week grid can show weather for is a
         // property of the visible date range intersected with the forecast
@@ -3698,12 +3854,9 @@ export async function mountLifeCalendarManager({
         // happens to fall in "the current month" -- a month grid's spillover
         // days, or an entirely future month within the horizon, are just as
         // visible and just as forecastable.
-        const rawWeatherRange = state.mode === 'month'
-          ? monthBounds(state.selectedDate)
-          : state.mode === 'week'
-            ? weekBounds(state.selectedDate, state.weekStart)
-            : null;
-        const visibleWeatherRange = forecastWindow(rawWeatherRange, state.todayDate);
+        const visibleWeatherRange = visibleWeatherWindow();
+        const weatherToken = ++weatherGeneration;
+        const holidayToken = ++holidayGeneration;
         const weatherRequest = visibleWeatherRange && currentWeatherLocation?.latitude != null && currentWeatherLocation?.longitude != null
           ? getPublicCalendarWeather({
               start: visibleWeatherRange.start,
@@ -3724,16 +3877,21 @@ export async function mountLifeCalendarManager({
         const holidayRequest = (state.mode === 'month' || state.mode === 'week' || state.mode === 'year') && state.showKoreaHolidays
           ? loadKoreaHolidaysForRange(holidayRange, fetchImpl)
           : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
-        const [guestWeather, holidayResult] = await Promise.all([weatherRequest, holidayRequest]);
-        if (!root.isConnected || requestGeneration !== refreshGeneration) return;
-        state.weather = guestWeather.items || [];
-        state.weatherMessage = weatherFailureCopy(guestWeather.failure);
-        if (state.mode === 'month' || state.mode === 'week' || state.mode === 'year') {
-          state.holidays = holidayResult.items || [];
-        }
+        void Promise.all([weatherRequest, holidayRequest]).then(([guestWeather, holidayResult]) => {
+          if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+          const applyWeather = weatherToken === weatherGeneration;
+          const applyHolidays = holidayToken === holidayGeneration;
+          if (applyWeather) {
+            state.weather = guestWeather.items || [];
+            state.weatherMessage = weatherFailureCopy(guestWeather.failure);
+            persistCalendarWeatherCache(guestWeather.items);
+          }
+          if (applyHolidays && (state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) {
+            state.holidays = holidayResult.items || [];
+          }
+          if (applyWeather || applyHolidays) renderPreservingFocus();
+        });
       }
-      state.loading = false; render();
-      if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
     } catch (error) {
       if (!root.isConnected || requestGeneration !== refreshGeneration) return;
       state.loading = false; render();
@@ -3920,7 +4078,9 @@ export async function mountLifeCalendarManager({
           currentWeatherLocation = {...region, source: 'MANUAL_REGION'};
           clearBrowserLocationProvenance();
           state.locationMessage = '';
-          await refresh();
+          // 위치가 바뀐 것은 날씨에만 영향을 준다 -- 일정·확인 필요·공휴일·가계부는
+          // 그대로 두고 날씨만 다시 부른다.
+          await refreshWeatherOnly();
         }
         return;
       }
@@ -3934,7 +4094,7 @@ export async function mountLifeCalendarManager({
       state.locationMessage = '';
       // Said once, when it changes. Never again on reopen.
       announceLocation('현재 위치로 날씨를 표시합니다.');
-      await refresh();
+      await refreshWeatherOnly();
       // 새로고침 뒤에도 날씨가 남아 있게 하는 유일한 장치. 좌표는 저장하지 않는다:
       // 정밀 좌표는 개인정보이고, 날씨에는 시·군·구면 충분하다.
       void persistRegionForCurrentLocation(location, requestGeneration);
@@ -3972,7 +4132,9 @@ export async function mountLifeCalendarManager({
       } else {
         announceLocation(state.locationMessage);
       }
-      await refresh();
+      // 위치 확인 실패도 날씨에만 영향을 준다 -- 저장된 지역으로 내려앉는 것도
+      // 날씨 자리의 일이다.
+      await refreshWeatherOnly();
     } finally {
       if (!auto && requestGeneration === locationRequestGeneration) {
         state.locationInFlight = false;
