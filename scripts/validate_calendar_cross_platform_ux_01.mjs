@@ -129,7 +129,7 @@ assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*\{
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-trigger\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*1;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-mobile-event-count\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-summary\s*\{[^}]*position:\s*absolute;[^}]*top:\s*2px;[^}]*right:\s*1px;[^}]*grid-template-columns:\s*28px;[^}]*grid-template-rows:\s*15px 22px;/);
-assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-summary\s*>\s*svg\.calendar-weather-icon\s*\{[^}]*grid-row:\s*1;[^}]*width:\s*15px;[^}]*height:\s*15px;/);
+assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-summary\s*>\s*\.calendar-weather-icon\s*\{[^}]*grid-row:\s*1;[^}]*width:\s*15px;[^}]*height:\s*15px;[^}]*font-size:\s*15px;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-weather-temperature\s*\{[^}]*grid-row:\s*2;[^}]*width:\s*27px;[^}]*height:\s*21px;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.site-modal\.site-calendar-modal > \.site-modal-content\s*\{[^}]*padding-inline:\s*8px;/);
 assert.ok(!css.includes('grid-template-columns: 12px minmax(0, 34px);'));

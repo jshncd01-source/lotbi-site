@@ -1,5 +1,5 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-6f9c7d5a6b67';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6f9c7d5a6b67';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-7e9fbc554b99';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7e9fbc554b99';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-6f9c7d5a6b67';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-6f9c7d5a6b67';
+} from './site-calendar-model.js?v=aset-7e9fbc554b99';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-7e9fbc554b99';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-6f9c7d5a6b67';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-6f9c7d5a6b67';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-6f9c7d5a6b67';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-7e9fbc554b99';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-7e9fbc554b99';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-7e9fbc554b99';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -26,12 +26,12 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-6f9c7d5a6b67';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-6f9c7d5a6b67';
-import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-6f9c7d5a6b67';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-6f9c7d5a6b67';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-6f9c7d5a6b67';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-6f9c7d5a6b67';
+} from './site-calendar-product.js?v=aset-7e9fbc554b99';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-7e9fbc554b99';
+import {clearCalendarManualWeatherRegion, readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-7e9fbc554b99';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-7e9fbc554b99';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-7e9fbc554b99';
+import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-7e9fbc554b99';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1629,15 +1629,11 @@ function renderMonth(state, actions, weatherCredit = null) {
       const weatherSummary = document.createElement('span');
       weatherSummary.className = 'calendar-weather-summary';
       weatherSummary.setAttribute('aria-hidden', 'true');
-      // 이모지 대신 인라인 SVG. 같은 이모지가 OS 마다 다른 모양·다른 색으로
-      // 나오는 것이 흐리게 보이던 근본 원인이었다. 글리프 자체는
-      // site-calendar-weather.js 가 그린다 — Core 가 보내는 weather_icon
-      // 이모지는 전송 계약으로 계속 검증된다.
+      // 글리프 자체는 site-calendar-weather.js 가 만든다 — Core 가 보내는
+      // weather_icon 이모지를 그대로 쓴다.
       const weatherIcon = calendarWeatherIconNode(weather.weatherKind);
       if (weatherIcon) {
-        const weatherTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-        weatherTitle.textContent = weather.label;
-        weatherIcon.appendChild(weatherTitle);
+        weatherIcon.title = weather.label;
         weatherSummary.appendChild(weatherIcon);
       }
       const temperatureLabel = calendarWeatherPresentation(weather).monthLabel;
