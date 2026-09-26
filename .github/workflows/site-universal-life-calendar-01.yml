@@ -13,6 +13,8 @@ on:
       - 'site-calendar-product.js'
       - 'site-calendar-guest.js'
       - 'site-calendar.css'
+      - 'site-calendar-weather.css'
+      - 'scripts/validate_calendar_weather_glyph_legibility_01.mjs'
       - 'site-calendar-weather.js'
       - 'site-calendar-expense.js'
       - 'site-calendar-expense.css'
@@ -125,6 +127,7 @@ jobs:
         run: |
           node scripts/validate_calendar_real_ui_01.mjs
           node scripts/validate_calendar_weather_icons_01.mjs
+          node scripts/validate_calendar_weather_glyph_legibility_01.mjs
           node scripts/validate_calendar_guest_weather_client_01.mjs
           node scripts/validate_calendar_korea_holidays_01.mjs
           node scripts/validate_calendar_notification_permission_01.mjs

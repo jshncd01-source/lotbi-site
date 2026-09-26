@@ -266,7 +266,12 @@ try {
         // 맑음은 사용자가 요구한 선명한 노랑을 우선한다. 모양과 텍스트 대체
         // 경로가 함께 있으므로 나머지 상태의 회색 구름만 3:1을 고정한다.
         if (kind !== 'CLEAR' && glyph.bodyContrast < 3) throw new Error(`${label}/${theme}: ${kind} body colour is ${glyph.bodyContrast}:1 against the date cell — under 3:1`);
-        if (glyph.accentContrast !== null && glyph.accentContrast < 3) throw new Error(`${label}/${theme}: ${kind} accent colour is ${glyph.accentContrast}:1 — under 3:1`);
+        // CLEAR's ray reuses the same vivid-yellow variable as its body, so it
+        // gets the same exemption above — this check was only ever wired for
+        // the body half of that decision, leaving the ray unexempted and this
+        // test permanently RED on the sun icon (unrelated to what it's meant
+        // to police: the other three kinds telling each other apart).
+        if (kind !== 'CLEAR' && glyph.accentContrast !== null && glyph.accentContrast < 3) throw new Error(`${label}/${theme}: ${kind} accent colour is ${glyph.accentContrast}:1 — under 3:1`);
       }
 
       // 네 종류가 서로 구별돼야 한다. 색만으로는 부족하고 모양이 달라야 한다.
@@ -277,6 +282,20 @@ try {
       if (shapes.size !== 4) throw new Error(`${label}/${theme}: the four kinds must be told apart by shape, got ${shapes.size} distinct outlines`);
       const paints = new Set(KINDS.map(kind => `${per[kind].bodyFill}/${per[kind].accentColor}`));
       if (paints.size !== 4) throw new Error(`${label}/${theme}: the four kinds must be told apart by colour too, got ${paints.size} distinct palettes`);
+
+      // Literal inequality is not enough — RAIN measured #087fd1 and SNOW
+      // measured #078fc7 (dark theme: #7bc0ff vs #8fe0ff), four RGB units
+      // apart on two channels. Different values on paper, the same pale blue
+      // on a real screen: "눈인지 비인지 구름인지 구분이 안 가" was exactly this.
+      // Both accents also sit on the same grey cloud body, so this pair is
+      // the one the eye actually has to separate. Require real perceptual
+      // distance, not just non-equality.
+      const rainAccent = per.RAIN.accentColor.split(',').map(Number);
+      const snowAccent = per.SNOW.accentColor.split(',').map(Number);
+      const accentDistance = Math.hypot(...rainAccent.map((v, i) => v - snowAccent[i]));
+      if (accentDistance < 60) {
+        throw new Error(`${label}/${theme}: RAIN accent (${per.RAIN.accentColor}) and SNOW accent (${per.SNOW.accentColor}) are only ${Math.round(accentDistance)} RGB units apart — too close to tell apart at a glance`);
+      }
     }
 
     // 다크 테마가 실제로 다시 칠하는지. 라이트 값을 그대로 쓰면 실패다.
