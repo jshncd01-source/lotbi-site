@@ -274,7 +274,10 @@ const weatherModuleSource = fs.readFileSync(path.join(ROOT, 'site-calendar-weath
 for (const token of [
   'const weatherIcon = calendarWeatherIconNode(weather.weatherKind)',
   'calendarWeatherIconNode',
-  'state.weather = result.weather || []',
+  // CALENDAR-SPEED-02: weather no longer arrives bundled with the schedule
+  // (loadLifeCalendarManagerView) -- it lands separately, from the enrichment
+  // half of loadLifeCalendarEnrichment, once the agenda is already on screen.
+  'state.weather = enrichment.weather || []',
 ]) assert.ok(manager.includes(token), `missing weather icon UI contract: ${token}`);
 // 대표님 지시로 커스텀 SVG 대신 실제 provider emoji를 다시 쓴다. 날짜 셀이
 // 그리는 문자가 weather.weatherIcon(Core 원문)을 직접 신뢰하는 대신 이미

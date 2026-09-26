@@ -33,6 +33,8 @@ on:
       - 'index.html'
       - 'auth/callback/index.html'
       - 'auth-callback.js'
+      - 'scripts/validate_calendar_speed_02_instant_render_01.mjs'
+      - 'site-calendar-weather-cache.js'
       - 'scripts/validate_life_calendar_client_01.mjs'
       - 'scripts/validate_conversation_calendar_actions_01.mjs'
       - 'scripts/validate_life_calendar_ui_01.mjs'
@@ -163,6 +165,11 @@ jobs:
           node scripts/validate_calendar_day_list_range_01.mjs
       - name: Auxiliary Calendar reads never tear the Calendar down
         run: node scripts/validate_calendar_auxiliary_read_blast_radius_01.mjs
+      # CALENDAR-SPEED-02: the schedule renders while weather is still in
+      # flight, and a location-only change never re-fetches agenda/attention/
+      # holidays a second time.
+      - name: The schedule renders instantly and a location change never re-fetches it
+        run: node scripts/validate_calendar_speed_02_instant_render_01.mjs
       - name: Weather location stays quiet once it is settled
         run: node scripts/validate_calendar_quiet_location_01.mjs
       - name: Guest month/week weather follows the visible range, not "the current month"
