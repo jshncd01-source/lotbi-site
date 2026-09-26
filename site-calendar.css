@@ -36,6 +36,9 @@
   /* The pale navy tint behind a selected week date/column and an all-day
      chip. It was three separate #e9eef7 literals before this token existed. */
   --lotbi-calendar-week-selected-surface: #e9eef7;
+  /* 오늘 칸을 감싸는 링. 남색(요일 헤더·토요일과 같은 계열)과 겹치지 않고,
+     일요일/공휴일의 빨강과도 안 겹치는 틸 계열 — SNOW 글리프와 같은 축. */
+  --lotbi-calendar-today-ring: #0f766e;
 }
 
 body[data-site-theme="dark"] {
@@ -51,6 +54,7 @@ body[data-site-theme="dark"] {
   --lotbi-calendar-muted-ink: #a8b2c0;
   --lotbi-calendar-sheet-surface: #121720;
   --lotbi-calendar-week-selected-surface: #222b38;
+  --lotbi-calendar-today-ring: #5eead4;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -68,6 +72,7 @@ body[data-site-theme="dark"] {
     --lotbi-calendar-muted-ink: #a8b2c0;
     --lotbi-calendar-sheet-surface: #121720;
     --lotbi-calendar-week-selected-surface: #222b38;
+    --lotbi-calendar-today-ring: #5eead4;
   }
 }
 
@@ -638,6 +643,12 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-date-cell[data-current-month="true"][data-weekday="0"] .calendar-date-number { color: var(--lotbi-calendar-weekend-sun); }
 .calendar-date-cell[data-current-month="true"][data-weekday="6"] .calendar-date-number { color: var(--lotbi-calendar-weekend-sat); }
 .calendar-date-cell[data-selected="true"] { z-index: 1; box-shadow: inset 0 0 0 1px rgba(24, 42, 70, .42); background: #f6f8fb; }
+/* 오늘 표시 — 숫자를 원으로 채우는 대신 칸 전체를 굵은 링으로 감싼다(대표님
+   지시, 삼성 캘린더 참고). box-shadow(inset)를 쓰는 이유는 위 선택 칸과 같다:
+   border 였다면 칸이 커져 month-density 그리드 계측이 흔들린다. 선택 칸과
+   같은 속성 특이도라 소스 순서가 우선순위를 정하므로, 이 규칙을 선택 규칙
+   "뒤에" 둬서 오늘이면서 선택된 칸에서도 오늘 링이 보이게 한다. */
+.calendar-date-cell[data-today="true"] { z-index: 1; box-shadow: inset 0 0 0 3px var(--lotbi-calendar-today-ring); }
 .calendar-date-header { min-width: 0; min-height: 44px; display: flex; align-items: flex-start; gap: 4px; }
 .calendar-date-trigger {
   flex: 0 0 auto;
@@ -653,7 +664,6 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   cursor: pointer;
   font: inherit;
 }
-.calendar-date-cell[data-today="true"] .calendar-date-trigger { border-radius: 999px; background: #3568a8; color: #fff; }
 /* The day-off block. Scoped through .calendar-month-grid so it outranks the
    dark theme's flat cell background without needing a dark twin of its own, and
    it paints background only -- no border, no padding, so the grid geometry the
@@ -667,15 +677,11 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-month-grid .calendar-date-cell[data-holiday="true"][data-current-month="false"] {
   background: var(--lotbi-calendar-holiday-surface-outside);
 }
-.calendar-date-cell[data-current-month="true"][data-holiday="true"]:not([data-today="true"]) .calendar-date-number { color: var(--lotbi-calendar-holiday-ink); }
-.calendar-date-cell[data-today="true"] .calendar-date-number,
-.calendar-date-cell[data-today="true"][data-weekday="0"] .calendar-date-number,
-.calendar-date-cell[data-today="true"][data-weekday="6"] .calendar-date-number { color: #fff; }
+.calendar-date-cell[data-current-month="true"][data-holiday="true"] .calendar-date-number { color: var(--lotbi-calendar-holiday-ink); }
 .calendar-date-number { font-size: 17px; font-weight: 850; font-variant-numeric: tabular-nums; }
 /* Only present when 음력 표시 is on (site-calendar-manager.js only appends
    it then), so this never affects the geometry of the default cell. */
 .calendar-date-lunar { color: var(--lotbi-calendar-muted-ink); font-size: 9px; font-weight: 700; line-height: 1; white-space: nowrap; }
-.calendar-date-cell[data-today="true"] .calendar-date-lunar { color: rgba(255, 255, 255, .82); }
 .calendar-mobile-event-count { display: none; color: #687180; font-size: 11px; font-weight: 800; }
 .calendar-weather-icon {
   flex: 0 0 auto;
@@ -1769,8 +1775,6 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   }
   .calendar-date-trigger { grid-column: 1; grid-row: 1; min-width: 44px; min-height: 44px; place-items: start; padding: 5px 0 0 4px; justify-self: start; }
   .calendar-date-number { font-size: 12px; }
-  .calendar-date-cell[data-today="true"] .calendar-date-trigger { background: transparent; }
-  .calendar-date-cell[data-today="true"] .calendar-date-number { display: inline-grid; width: 26px; height: 26px; place-items: center; border-radius: 999px; background: #3568a8; }
   .calendar-mobile-event-count { grid-column: 1; grid-row: 2; justify-self: center; font-size: 9px; line-height: 12px; }
   .calendar-weather-summary { position: absolute; top: 2px; right: 1px; margin: 0; display: grid; grid-template-columns: 28px; grid-template-rows: 15px 22px; justify-items: center; gap: 0; }
   .calendar-weather-summary > .calendar-weather-icon { grid-row: 1; width: 15px; height: 15px; font-size: 15px; }
