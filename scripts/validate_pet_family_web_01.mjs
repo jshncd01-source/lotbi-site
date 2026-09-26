@@ -31,6 +31,16 @@ const CORE_SLOT_CODES = [
   'DISTINCTIVE',
 ];
 
+// PET-PHOTO-UX-03: the registration screen's own reading order. This is a
+// display concern layered on top of the contract above, not a replacement
+// for it — CORE_SLOT_CODES stays what slot_index is derived from.
+const DRAFT_DISPLAY_ORDER = [
+  'FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT',
+  'BODY_LEFT', 'BODY_RIGHT', 'BACK_REAR',
+  'NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT',
+  'DISTINCTIVE',
+];
+
 // ---------------------------------------------------------------- navigation
 
 assert.match(
@@ -359,6 +369,8 @@ function innerFixtureHtml() {
 <script>
   // Stand in for Core so the surface is exercised without the network.
   const PETS = ${JSON.stringify(JSON.stringify(FIXTURE_PETS))};
+  let draftPhotos = [];
+  let draftSpecies = '';
   globalThis.fetch = async (url, options = {}) => {
     const target = String(url);
     if (/\\/v2\\/pet-catalog$/.test(target)) {
@@ -375,6 +387,8 @@ function innerFixtureHtml() {
       return new Response(JSON.stringify({draft: null}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
     if (/\\/v2\\/pet-registration-drafts$/.test(target) && options.method === 'POST') {
+      draftPhotos = [];
+      draftSpecies = '';
       return new Response(JSON.stringify({draft: {
         draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee',
         status: 'ACTIVE', current_step: 'PHOTOS', revision: 1,
@@ -383,11 +397,34 @@ function innerFixtureHtml() {
     }
     if (/\\/v2\\/pet-registration-drafts\\/pdraft_eeeeeeeeeeeeeeeeeeee$/.test(target) && options.method === 'PATCH') {
       const update = JSON.parse(options.body || '{}');
+      if (typeof update.species === 'string') draftSpecies = update.species;
       return new Response(JSON.stringify({draft: {
         draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee',
         status: 'ACTIVE', current_step: update.current_step || 'PHOTOS', revision: 2,
-        species: update.species || 'DOG', matching_consent_state: 'NOT_GRANTED', photos: [],
+        species: draftSpecies || 'DOG', matching_consent_state: 'NOT_GRANTED', photos: draftPhotos,
       }}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
+    // PET-PHOTO-UX-03: FACE_FRONT is the one slot this fixture inspects
+    // synchronously (ACCEPTED, species matched); every other slot lands
+    // PENDING, the same as a real async classifier would leave it — so the
+    // test can tell "gate opened by an accepted face photo" apart from
+    // "everything just happens to be filled".
+    const draftPhotoMatch = target.match(/\\/v2\\/pet-registration-drafts\\/pdraft_eeeeeeeeeeeeeeeeeeee\\/photos\\/([A-Z_]+)$/);
+    if (draftPhotoMatch && options.method === 'PUT') {
+      const slotCode = draftPhotoMatch[1];
+      const photo = {
+        slot_code: slotCode,
+        slot_index: 0,
+        revision: 1,
+        inspection_state: slotCode === 'FACE_FRONT' ? 'ACCEPTED' : 'PENDING',
+        detected_species: slotCode === 'FACE_FRONT' ? draftSpecies : '',
+      };
+      draftPhotos = [...draftPhotos.filter(item => item.slot_code !== slotCode), photo];
+      return new Response(JSON.stringify({photo}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
+    if (draftPhotoMatch && options.method === 'DELETE') {
+      draftPhotos = draftPhotos.filter(item => item.slot_code !== draftPhotoMatch[1]);
+      return new Response(JSON.stringify({}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
     if (/\\/content$/.test(target)) {
       // 1x1 PNG, enough to prove the bytes become a blob: preview.
@@ -545,6 +582,55 @@ function innerFixtureHtml() {
   document.querySelector('input[name="pet-species"][value="DOG"]').click();
   await new Promise(resolve => setTimeout(resolve, 100));
   const draftSlots = [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => tile.dataset.petDraftSlot);
+
+  // PET-PHOTO-UX-03: FACE_FRONT is the one photo the owner must confirm
+  // before anything else in the registration screen unlocks, and once it
+  // does, the remaining nine take any order the animal cooperates with.
+  const draftGate = () => ({
+    banner: document.querySelector('.pet-draft-gate-banner')?.textContent || '',
+    tiles: [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => ({
+      code: tile.dataset.petDraftSlot,
+      locked: tile.dataset.petDraftSlotLocked,
+      chooseDisabled: tile.querySelector('.pet-slot-actions button')?.disabled ?? null,
+      lockHint: tile.querySelector('.pet-draft-photo-locked-hint')?.textContent || '',
+      stateText: tile.querySelector('.pet-draft-photo-state')?.textContent || '',
+      filled: tile.dataset.petSlotFilled,
+    })),
+  });
+  const setDraftFile = slotCode => {
+    const tile = [...document.querySelectorAll('[data-pet-draft-slot]')]
+      .find(item => item.dataset.petDraftSlot === slotCode);
+    const input = tile.querySelector('input[type="file"]');
+    const file = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], slotCode + '.png', {type: 'image/png'});
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', {bubbles: true}));
+  };
+  // Local image inspection (createImageBitmap on a throwaway buffer) runs in
+  // real time even under a virtual clock, so a fixed sleep after dispatching
+  // an upload is not reliable — wait for the actual outcome instead, bounded
+  // so a genuine failure still surfaces quickly.
+  const waitFor = async (check, maxMs = 4000) => {
+    const step = 100;
+    let waited = 0;
+    while (!check() && waited < maxMs) {
+      await new Promise(resolve => setTimeout(resolve, step));
+      waited += step;
+    }
+    return check();
+  };
+
+  const gateBeforeFaceFront = draftGate();
+  setDraftFile('FACE_FRONT');
+  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'FACE_FRONT').stateText === '사진 확인됨');
+  const gateAfterFaceFront = draftGate();
+  // A closeup slot far from FACE_FRONT in the display order accepts an
+  // upload immediately: no forced 2 -> 3 -> 4 sequence through the middle.
+  setDraftFile('NOSE_RIGHT');
+  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'NOSE_RIGHT').filled === 'true');
+  const noseRightAfterFreeOrder = draftGate().tiles.find(item => item.code === 'NOSE_RIGHT');
+
   const registrationProgress = document.querySelector('.pet-draft-progress-label')?.textContent || '';
   const registrationSteps = [...document.querySelectorAll('.pet-draft-step')].map(item => ({
     number: item.querySelector('.pet-draft-step-number')?.textContent || '',
@@ -579,6 +665,9 @@ function innerFixtureHtml() {
     homeTabs,
     draftSlots,
     draftSlotsBeforeSpecies,
+    gateBeforeFaceFront,
+    gateAfterFaceFront,
+    noseRightAfterFreeOrder,
     speciesChoices,
     registrationProgress,
     registrationSteps,
@@ -639,7 +728,7 @@ async function render(width, height) {
     }
     const run = spawnSync(browserPath(), [
       '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-      '--window-size=1600,1100', '--virtual-time-budget=8000', '--dump-dom',
+      '--window-size=1600,1100', '--virtual-time-budget=14000', '--dump-dom',
       `http://127.0.0.1:${port}/${outerName}`,
     ], {encoding: 'utf8', timeout: 60000, maxBuffer: 8 * 1024 * 1024});
     if (run.error) throw run.error;
@@ -754,8 +843,40 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.homeTabs.found.sos, 0, `${label}: found tab must hide the SOS surface`);
   assert.ok(result.homeTabs.found.found > 0 && result.homeTabs.found.foundAction > 0,
     `${label}: found tab must show only the found surface and action`);
-  assert.deepEqual(result.draftSlots, CORE_SLOT_CODES, `${label}: registration must begin with all ten photo slots`);
+  assert.deepEqual(result.draftSlots, DRAFT_DISPLAY_ORDER,
+    `${label}: registration must show all ten slots face-first (PET-PHOTO-UX-03), not Core's storage order`);
   assert.equal(result.draftSlotsBeforeSpecies, 0, `${label}: photo slots must wait for one species selection`);
+
+  // PET-PHOTO-UX-03: only FACE_FRONT is open at first; the other nine are
+  // locked with a stated, disabled reason until it is accepted, then all
+  // nine open at once in any order.
+  const faceFrontBefore = result.gateBeforeFaceFront.tiles.find(tile => tile.code === 'FACE_FRONT');
+  assert.equal(faceFrontBefore.locked, 'false', `${label}: FACE_FRONT must be open before anything is confirmed`);
+  assert.equal(faceFrontBefore.chooseDisabled, false, `${label}: FACE_FRONT's upload action must not be disabled`);
+  for (const tile of result.gateBeforeFaceFront.tiles.filter(item => item.code !== 'FACE_FRONT')) {
+    assert.equal(tile.locked, 'true', `${label}: ${tile.code} must be locked before FACE_FRONT is confirmed`);
+    assert.equal(tile.chooseDisabled, true, `${label}: ${tile.code}'s upload action must be disabled while locked`);
+    assert.ok(tile.lockHint.length > 0, `${label}: ${tile.code} must state why it is locked`);
+    assert.ok(!/^[A-Z_]+$/.test(tile.lockHint), `${label}: ${tile.code}'s lock reason must not be a bare internal code`);
+  }
+  assert.match(result.gateBeforeFaceFront.banner, /먼저 얼굴 정면/,
+    `${label}: the banner must say to confirm the face-front photo first`);
+
+  assert.equal(
+    result.gateAfterFaceFront.tiles.find(tile => tile.code === 'FACE_FRONT').stateText,
+    '사진 확인됨',
+    `${label}: an accepted FACE_FRONT photo must say so`,
+  );
+  for (const tile of result.gateAfterFaceFront.tiles.filter(item => item.code !== 'FACE_FRONT')) {
+    assert.equal(tile.locked, 'false', `${label}: ${tile.code} must unlock once FACE_FRONT is confirmed`);
+    assert.equal(tile.chooseDisabled, false, `${label}: ${tile.code}'s upload action must re-enable once unlocked`);
+  }
+  assert.match(result.gateAfterFaceFront.banner, /순서와 관계없이/,
+    `${label}: the banner must say the remaining photos are free order once unlocked`);
+  assert.equal(result.noseRightAfterFreeOrder.locked, 'false',
+    `${label}: a closeup slot must accept an upload out of display order once unlocked`);
+  assert.ok(result.noseRightAfterFreeOrder.stateText.length > 0,
+    `${label}: NOSE_RIGHT must show a saved/inspection state once uploaded out of order`);
   assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: the first step must offer dog or cat before photos`);
   assert.equal(result.registrationProgress, '반려동물 등록 1단계 / 4단계',
     `${label}: registration must identify the current numbered step`);

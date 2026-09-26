@@ -458,6 +458,21 @@
   color: var(--lotbi-error-text, #a02645);
 }
 
+.pet-draft-photo-state-uploading {
+  color: var(--lotbi-text-secondary, #495264);
+}
+
+.pet-draft-gate-banner {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+  color: var(--lotbi-text-primary, #262c38);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
 .pet-draft-species-field {
   padding: 12px;
   border: 1px solid var(--lotbi-border-default, #e2e6ee);
@@ -682,6 +697,18 @@
   opacity: .6;
 }
 
+.pet-slot[data-pet-draft-slot-locked="true"] {
+  opacity: .8;
+}
+
+.pet-draft-photo-locked-hint {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
 .pet-slot-media {
   position: relative;
   aspect-ratio: 72 / 52;
@@ -803,6 +830,12 @@
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.pet-slot-actions .site-button:disabled,
+.pet-slot-remove:disabled {
+  opacity: .55;
+  cursor: not-allowed;
 }
 
 .pet-slot-error[hidden] {
