@@ -276,15 +276,17 @@ for (const token of [
   'calendarWeatherIconNode',
   'state.weather = result.weather || []',
 ]) assert.ok(manager.includes(token), `missing weather icon UI contract: ${token}`);
-// 이모지 회귀 방지. 같은 코드포인트가 OS 마다 다른 모양·색으로 렌더되는 것이
-// "날씨가 흐리게 보인다"의 근본 원인이었다.
+// 대표님 지시로 커스텀 SVG 대신 실제 provider emoji를 다시 쓴다. 날짜 셀이
+// 그리는 문자가 weather.weatherIcon(Core 원문)을 직접 신뢰하는 대신 이미
+// 전송 계약으로 검증된 WEATHER_ICONS[kind]에서 나오는지 확인한다 — 같은
+// 값이지만 계약을 통과한 값이라는 보장이 있다.
 assert.ok(
-  !manager.includes('weatherIcon.textContent = weather.weatherIcon'),
-  'the date cell must draw the SVG glyph, not the provider emoji',
+  weatherModuleSource.includes('span.textContent = glyph') && weatherModuleSource.includes('const glyph = WEATHER_ICONS['),
+  'the date cell must draw the real weather emoji from the validated WEATHER_ICONS map',
 );
 for (const token of [
-  "svg.setAttribute('aria-hidden', 'true')",
-  "doc.createElementNS(SVG_NS, 'svg')",
+  "span.setAttribute('aria-hidden', 'true')",
+  "doc.createElement('span')",
 ]) assert.ok(weatherModuleSource.includes(token), `missing weather glyph contract: ${token}`);
 assert.ok(css.includes('.calendar-weather-icon'), 'weather icon CSS missing');
 assert.ok(manager.includes('calendarWeatherPresentation(weather).monthLabel'), 'Month must render normalized temperature when Core supplies it');

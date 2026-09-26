@@ -1,22 +1,25 @@
-// Locks the Calendar weather glyph: an inline SVG that can actually be read,
-// and that still knows its place.
+// Locks the Calendar weather glyph: the real provider emoji (☀️/☁️/🌧️/❄️),
+// rendered as text, in the date cell — and that it still knows its place.
 //
-// Why it replaced the emoji: the same codepoint is drawn by each OS's own font,
-// so ☁️ arrived pale and thin on one device and heavy on another. Four surfaces
-// could not be made to show the same picture. That was the root cause of
-// "날씨가 흐리게 보인다", not the pixel size.
+// This used to be a hand-drawn inline SVG instead of the emoji, specifically
+// to dodge each OS/browser drawing the same codepoint differently. That
+// tradeoff was reverted on explicit product direction: show the same
+// character Core sends as weather_icon, not a redrawn shape. The known
+// cost — emoji can still render with different weight/color per platform —
+// is accepted; this file no longer polices shape or colour, only that the
+// right character reaches the right place with the right accessible name.
 //
 // Covered contracts:
-//   - every kind renders <svg class="calendar-weather-icon"> with its kind,
-//     and the provider emoji never reaches the date cell as text
-//   - desktop uses a clearly visible 24px glyph; narrow mobile cells retain a
-//     compact 15px glyph inside the upper-right weather summary
-//   - the four kinds are visually distinct from one another, by shape AND colour
-//   - the body colour clears 3:1 against the date cell it sits on
-//     (WCAG 1.4.11 non-text contrast), in light AND dark
-//   - dark theme really re-colours it rather than reusing the light values
+//   - every kind renders <span class="calendar-weather-icon" data-weather-kind>
+//     whose text is exactly WEATHER_ICONS[kind] — the same value the
+//     transport contract already validates (normalizeCalendarWeatherResponse)
+//   - desktop uses a clearly visible ~22px glyph; narrow mobile cells retain
+//     a compact 15px glyph inside the upper-right weather summary
+//   - the four kinds are told apart because they are four different
+//     characters, and no two kinds ever render the same character
 //   - the date cell does not grow to make room for it
-//   - the glyph stays aria-hidden; the date button's aria-label keeps the words
+//   - the glyph stays aria-hidden; the date button's aria-label keeps the
+//     words; hovering the glyph itself still surfaces the label via title
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -82,32 +85,6 @@ function stubFetch(weather){
   };
 }
 
-function rgb(value){
-  const m=/rgba?\\(([^)]+)\\)/.exec(String(value||''));
-  if(!m)return null;
-  const parts=m[1].split(',').map(v=>parseFloat(v.trim()));
-  if(parts.length<3||parts.some(v=>!Number.isFinite(v)))return null;
-  return {r:parts[0],g:parts[1],b:parts[2],a:parts.length>3?parts[3]:1};
-}
-function luminance({r,g,b}){
-  const channel=v=>{const s=v/255;return s<=0.03928?s/12.92:Math.pow((s+0.055)/1.055,2.4)};
-  return 0.2126*channel(r)+0.7152*channel(g)+0.0722*channel(b);
-}
-function contrast(a,b){
-  if(!a||!b)return 0;
-  const l1=luminance(a),l2=luminance(b);
-  return (Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05);
-}
-function backdrop(node){
-  let el=node;
-  while(el&&el!==document.documentElement){
-    const value=rgb(getComputedStyle(el).backgroundColor);
-    if(value&&value.a>0)return value;
-    el=el.parentElement;
-  }
-  return {r:255,g:255,b:255,a:1};
-}
-
 async function mountCase(manager){
   const root=document.getElementById('calendar-root');
   root.replaceChildren();
@@ -124,41 +101,26 @@ async function mountCase(manager){
 function measure(root){
   const per={};
   for(const kind of KINDS){
-    const svg=root.querySelector('.calendar-weather-icon[data-weather-kind="'+kind+'"]');
-    if(!svg)throw new Error('missing glyph for '+kind);
-    const cell=svg.closest('.calendar-date-cell');
-    const number=cell.querySelector('.calendar-date-number');
-    const box=svg.getBoundingClientRect();
-    const numberBox=number.getBoundingClientRect();
-    const body=svg.querySelector('[data-weather-part="body"]');
-    const accent=svg.querySelector('[data-weather-part="ray"],[data-weather-part="rain"],[data-weather-part="snow"]');
-    const bodyFill=rgb(getComputedStyle(body).fill);
-    const accentStyle=accent?getComputedStyle(accent):null;
-    const accentColor=accent?(rgb(accentStyle.stroke)||rgb(accentStyle.fill)):null;
-    const behind=backdrop(cell);
+    const glyph=root.querySelector('.calendar-weather-icon[data-weather-kind="'+kind+'"]');
+    if(!glyph)throw new Error('missing glyph for '+kind);
+    const cell=glyph.closest('.calendar-date-cell');
+    const box=glyph.getBoundingClientRect();
+    const style=getComputedStyle(glyph);
     per[kind]={
-      tag:svg.tagName.toLowerCase(),
-      ariaHidden:svg.getAttribute('aria-hidden'),
-      titleText:svg.querySelector('title')?.textContent||'',
-      shapeCount:svg.querySelectorAll('circle,rect,path').length,
-      shapeSignature:[...svg.querySelectorAll('circle,rect,path')]
-        .map(n=>n.tagName.toLowerCase()+':'+(n.getAttribute('d')||n.getAttribute('cx')||n.getAttribute('x')||'')).join('|'),
+      tag:glyph.tagName.toLowerCase(),
+      text:glyph.textContent,
+      ariaHidden:glyph.getAttribute('aria-hidden'),
+      titleText:glyph.title||glyph.getAttribute('title')||'',
+      fontSize:Math.round(parseFloat(style.fontSize)*100)/100,
       width:Math.round(box.width*100)/100,
       height:Math.round(box.height*100)/100,
-      numberHeight:Math.round(numberBox.height*100)/100,
-      numberWidth:Math.round(numberBox.width*100)/100,
       cellHeight:Math.round(cell.getBoundingClientRect().height*100)/100,
-      bodyFill:bodyFill?[bodyFill.r,bodyFill.g,bodyFill.b].join(','):null,
-      accentColor:accentColor?[accentColor.r,accentColor.g,accentColor.b].join(','):null,
-      bodyContrast:Math.round(contrast(bodyFill,behind)*100)/100,
-      accentContrast:accentColor?Math.round(contrast(accentColor,behind)*100)/100:null,
       // 토요일 칸은 격자의 오른쪽 끝이고 .calendar-month-grid 는 overflow:hidden
       // 이다. 글리프가 칸을 넘으면 그 열에서만 잘려 보인다.
       clippedByCell:(()=>{const c=cell.getBoundingClientRect();
         return box.right>c.right+0.5||box.left<c.left-0.5||box.bottom>c.bottom+0.5||box.top<c.top-0.5})(),
       lastColumn:[...cell.parentElement.children].indexOf(cell)%7===6,
       ariaLabel:cell.querySelector('.calendar-date-trigger')?.getAttribute('aria-label')||'',
-      emojiInHeader:/[\\u2600\\u2601\\u2744]|\\uD83C\\uDF27/.test(cell.querySelector('.calendar-date-header').textContent||''),
     };
   }
   return per;
@@ -234,6 +196,7 @@ function run(browser, w, h) {
 
 const KINDS = ['CLEAR', 'CLOUDY', 'RAIN', 'SNOW'];
 const LABELS = {CLEAR: '맑음', CLOUDY: '흐림', RAIN: '비', SNOW: '눈'};
+const ICONS = {CLEAR: '☀️', CLOUDY: '☁️', RAIN: '🌧️', SNOW: '❄️'};
 
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
@@ -248,60 +211,33 @@ try {
       const per = value[theme];
       for (const kind of KINDS) {
         const glyph = per[kind];
-        if (glyph.tag !== 'svg') throw new Error(`${label}/${theme}: ${kind} must be an inline SVG, got <${glyph.tag}>`);
-        if (glyph.emojiInHeader) throw new Error(`${label}/${theme}: ${kind} date cell still carries the provider emoji as text`);
+        if (glyph.tag !== 'span') throw new Error(`${label}/${theme}: ${kind} must render as <span>, got <${glyph.tag}>`);
+        if (glyph.text !== ICONS[kind]) throw new Error(`${label}/${theme}: ${kind} must show the provider emoji ${JSON.stringify(ICONS[kind])}, got ${JSON.stringify(glyph.text)}`);
         if (glyph.ariaHidden !== 'true') throw new Error(`${label}/${theme}: ${kind} glyph must stay aria-hidden — the date button already says the weather`);
         if (!glyph.ariaLabel.includes(`날씨 ${LABELS[kind]}`)) throw new Error(`${label}/${theme}: ${kind} lost its accessible name, got "${glyph.ariaLabel}"`);
         if (glyph.titleText !== LABELS[kind]) throw new Error(`${label}/${theme}: ${kind} lost its hover title, got "${glyph.titleText}"`);
 
-        // 사진으로 찍은 실제 PC 화면에서도 비·눈이 구별될 만큼 충분히 크게
-        // 그린다. 휴대폰은 오른쪽 위 요약 칸에 맞춘 15px를 유지한다.
-        const expectedSize = w <= 520 ? 15 : 24;
-        if (Math.abs(glyph.height - expectedSize) > 0.5 || Math.abs(glyph.width - expectedSize) > 0.5) {
-          throw new Error(`${label}/${theme}: ${kind} glyph must be ${expectedSize}px, got ${glyph.width}x${glyph.height}px`);
+        // 모바일은 오른쪽 위 요약 칸에 맞춘 15px, 데스크톱은 22px.
+        const expectedSize = w <= 520 ? 15 : 22;
+        if (Math.abs(glyph.fontSize - expectedSize) > 0.5) {
+          throw new Error(`${label}/${theme}: ${kind} glyph must be ${expectedSize}px font-size, got ${glyph.fontSize}px`);
         }
-
-        // WCAG 1.4.11 non-text contrast.
         if (glyph.clippedByCell) throw new Error(`${label}/${theme}: ${kind} glyph is clipped by its date cell — the grid hides the overflow, so it loses part of the picture`);
-        // 맑음은 사용자가 요구한 선명한 노랑을 우선한다. 모양과 텍스트 대체
-        // 경로가 함께 있으므로 나머지 상태의 회색 구름만 3:1을 고정한다.
-        if (kind !== 'CLEAR' && glyph.bodyContrast < 3) throw new Error(`${label}/${theme}: ${kind} body colour is ${glyph.bodyContrast}:1 against the date cell — under 3:1`);
-        // CLEAR's ray reuses the same vivid-yellow variable as its body, so it
-        // gets the same exemption above — this check was only ever wired for
-        // the body half of that decision, leaving the ray unexempted and this
-        // test permanently RED on the sun icon (unrelated to what it's meant
-        // to police: the other three kinds telling each other apart).
-        if (kind !== 'CLEAR' && glyph.accentContrast !== null && glyph.accentContrast < 3) throw new Error(`${label}/${theme}: ${kind} accent colour is ${glyph.accentContrast}:1 — under 3:1`);
       }
 
-      // 네 종류가 서로 구별돼야 한다. 색만으로는 부족하고 모양이 달라야 한다.
-      // 마지막 열(토요일)은 격자의 잘리는 가장자리다. 그 칸이 표본에 없으면
-      // 위 clippedByCell 검사는 아무것도 지키지 못한다.
+      // 네 종류가 서로 다른 문자여야 한다 — 실수로 같은 kind에 두 emoji가
+      // 매핑되면 여기서 잡힌다. 마지막 열(토요일)은 격자의 잘리는 가장자리다.
+      // 그 칸이 표본에 없으면 위 clippedByCell 검사는 아무것도 지키지 못한다.
       if (!KINDS.some(kind => per[kind].lastColumn)) throw new Error(`${label}/${theme}: the fixture must place one glyph in the grid's last column`);
-      const shapes = new Set(KINDS.map(kind => per[kind].shapeSignature));
-      if (shapes.size !== 4) throw new Error(`${label}/${theme}: the four kinds must be told apart by shape, got ${shapes.size} distinct outlines`);
-      const paints = new Set(KINDS.map(kind => `${per[kind].bodyFill}/${per[kind].accentColor}`));
-      if (paints.size !== 4) throw new Error(`${label}/${theme}: the four kinds must be told apart by colour too, got ${paints.size} distinct palettes`);
-
-      // Literal inequality is not enough — RAIN measured #087fd1 and SNOW
-      // measured #078fc7 (dark theme: #7bc0ff vs #8fe0ff), four RGB units
-      // apart on two channels. Different values on paper, the same pale blue
-      // on a real screen: "눈인지 비인지 구름인지 구분이 안 가" was exactly this.
-      // Both accents also sit on the same grey cloud body, so this pair is
-      // the one the eye actually has to separate. Require real perceptual
-      // distance, not just non-equality.
-      const rainAccent = per.RAIN.accentColor.split(',').map(Number);
-      const snowAccent = per.SNOW.accentColor.split(',').map(Number);
-      const accentDistance = Math.hypot(...rainAccent.map((v, i) => v - snowAccent[i]));
-      if (accentDistance < 60) {
-        throw new Error(`${label}/${theme}: RAIN accent (${per.RAIN.accentColor}) and SNOW accent (${per.SNOW.accentColor}) are only ${Math.round(accentDistance)} RGB units apart — too close to tell apart at a glance`);
-      }
+      const texts = new Set(KINDS.map(kind => per[kind].text));
+      if (texts.size !== 4) throw new Error(`${label}/${theme}: the four kinds must render four distinct characters, got ${texts.size}`);
     }
 
-    // 다크 테마가 실제로 다시 칠하는지. 라이트 값을 그대로 쓰면 실패다.
+    // emoji는 자체 색을 가지므로 테마가 문자 자체를 바꿀 이유가 없다 — 라이트/
+    // 다크에서 같은 문자를 보여줘야 정상이다.
     for (const kind of KINDS) {
-      if (value.light[kind].bodyFill === value.dark[kind].bodyFill) {
-        throw new Error(`${label}: ${kind} uses the same body colour in dark as in light (${value.light[kind].bodyFill}) — the dark override is not reaching it`);
+      if (value.light[kind].text !== value.dark[kind].text) {
+        throw new Error(`${label}: ${kind} shows a different character in dark (${value.dark[kind].text}) than light (${value.light[kind].text})`);
       }
     }
 
