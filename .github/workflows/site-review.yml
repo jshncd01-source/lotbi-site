@@ -366,6 +366,11 @@ jobs:
       - name: Validate message copy and share actions
         run: node scripts/validate_message_share_actions_01.mjs
 
+      # CHATPERF-08 — a chat photo is analysis input, never a thing this Site
+      # offers to save to the gallery or forces into a memory/calendar prompt.
+      - name: Validate chat photo has no forced gallery/memory actions
+        run: node scripts/validate_chat_photo_no_forced_actions_01.mjs
+
       - name: Validate reusable output cards
         run: node scripts/validate_reusable_output_card_01.mjs
 

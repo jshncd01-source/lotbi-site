@@ -38,14 +38,14 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-fe97a0fe9c8c';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-fe97a0fe9c8c';
+} from './site-festival-client.js?v=aset-2fe4893da62e';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-2fe4893da62e';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   requestBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-fe97a0fe9c8c';
+} from './site-current-location.js?v=aset-2fe4893da62e';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -55,19 +55,19 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-fe97a0fe9c8c';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-fe97a0fe9c8c';
+} from './site-festival-calendar.js?v=aset-2fe4893da62e';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2fe4893da62e';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-fe97a0fe9c8c';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-2fe4893da62e';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-fe97a0fe9c8c';
+} from './site-calendar-weather.js?v=aset-2fe4893da62e';
 
 const PAGE_SIZE = 20;
 
