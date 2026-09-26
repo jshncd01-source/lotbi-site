@@ -102,4 +102,4 @@ svg.calendar-weather-icon {
 .calendar-weather-icon[data-weather-kind="RAIN"] [data-weather-part="body"] { fill: var(--lotbi-weather-cloud); }
 .calendar-weather-icon[data-weather-kind="RAIN"] [data-weather-part="rain"] { stroke: var(--lotbi-weather-rain); stroke-width: 3.1; }
 .calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="body"] { fill: var(--lotbi-weather-cloud); }
-.calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="snow"] { stroke: var(--lotbi-weather-snow); stroke-width: 2.1; }
+.calendar-weather-icon[data-weather-kind="SNOW"] [data-weather-part="snow"] { stroke: var(--lotbi-weather-snow); stroke-width: 2.4; }

@@ -157,7 +157,10 @@ export function calendarWeatherAttribution(items, {timezone = 'Asia/Seoul'} = {}
 //
 // 구름은 원 둘 + 둥근 사각형의 합집합이다. 한 덩어리 path 보다 작은 크기에서
 // 뭉개지지 않고, 각 조각이 독립적이라 비/눈을 붙일 때 구름을 다시 그리지 않는다.
-// 비는 기울어진 선, 눈은 점 — 14px 에서 둘을 구별하는 건 색이 아니라 모양이다.
+// 비는 기울어진 선, 눈은 하나의 눈꽃(6방향 별표) — 14px 에서 셋을 구별하는 건
+// 색이 아니라 모양이다. 눈을 작은 점 뭉치 두 개로 그렸던 이전 버전은 실제
+// 크기에서 얼룩처럼 보여 "구름/비/눈 구분이 안 간다"는 지적을 다시 받았다.
+// 눈송이를 하나로 합치고 키워 ❄ 이모지처럼 한눈에 읽히게 한다.
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const CLOUD_LOW = Object.freeze([
@@ -189,7 +192,7 @@ const WEATHER_GLYPHS = Object.freeze({
   ]),
   SNOW: Object.freeze([
     ...CLOUD_HIGH,
-    ['path', {d: 'M8.4 18.2v4M6.7 19.2l3.4 2M10.1 19.2l-3.4 2M15.6 18.2v4M13.9 19.2l3.4 2M17.3 19.2l-3.4 2', 'data-weather-part': 'snow'}],
+    ['path', {d: 'M12 17.1v5.2M9.75 18.4l4.5 2.6M14.25 18.4l-4.5 2.6', 'data-weather-part': 'snow'}],
   ]),
 });
 
