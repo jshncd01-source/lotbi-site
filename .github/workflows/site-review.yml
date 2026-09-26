@@ -241,7 +241,16 @@ jobs:
           node scripts/validate_conversation_calendar_card_02.mjs
           node scripts/validate_calendar_day_list_range_01.mjs
 
-      - name: Validate 축제 (Festival) browse UI, program-date weather, and Calendar link (FESTIVAL-EVENT-10)
+      # FESTIVAL-EVENT-08: consumer 축제 detail/program screen — real Core
+      # snake_case normalization, PUBLISHED-only boundary, CTA visibility,
+      # date-tab grouping and KST weekday, legacy-section removal, and nav
+      # wiring/external-link hygiene. FESTIVAL-EVENT-09's venue-coordinate
+      # program-date weather (site-festival-weather.js) is folded into the
+      # same date tabs. FESTIVAL-EVENT-10 adds "내 캘린더에 추가" (visit-date
+      # picker -> the existing LOTBI Calendar) and Calendar -> Festival
+      # re-entry. (FESTIVAL-07's browse UI shipped these scripts in PR #322
+      # without ever wiring them into this gate; this closes that gap.)
+      - name: Validate 축제·행사 public boundary, detail/program screen, weather, and Calendar link
         run: |
           node --check site-festival-client.js
           node --check site-festival-ui.js
@@ -250,8 +259,10 @@ jobs:
           node --check site-calendar-guest.js
           node --check site-calendar-manager.js
           node --check site-conversation.js
-          node scripts/validate_festival_nav_wiring_01.mjs
           node scripts/validate_festival_public_boundary_01.mjs
+          node scripts/validate_festival_nav_wiring_01.mjs
+          node scripts/validate_festival_event_08_detail_01.mjs
+          node scripts/validate_festival_event_08_responsive_a11y_01.mjs
           node scripts/validate_festival_weather_01.mjs
           node scripts/validate_festival_calendar_link_01.mjs
           node scripts/validate_festival_calendar_add_ui_01.mjs

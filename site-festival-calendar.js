@@ -20,8 +20,8 @@
 // exactly what the user typed or the venue's own name. Guest entries need no
 // such index — site-calendar-guest.js persists source_kind/source_ref/
 // visit_scope/visit_date on the entry itself.
-import {createLifeActivity} from './site-calendar.js?v=aset-2f90dab9cd4a';
-import {addLocalDays, todayLocalDate} from './site-festival-client.js?v=aset-2f90dab9cd4a';
+import {createLifeActivity} from './site-calendar.js?v=aset-38aa6c6d9e2a';
+import {addLocalDays} from './site-festival-client.js?v=aset-38aa6c6d9e2a';
 
 export const FESTIVAL_CALENDAR_LINK_INDEX_KEY = 'lotbi.festival.calendar-link.v1';
 const LINK_INDEX_LIMIT = 200;
@@ -148,7 +148,7 @@ function calendarTitle(festival) {
 }
 
 function calendarPlace(festival) {
-  return festival?.venueName || festival?.address || '';
+  return festival?.address || festival?.region || '';
 }
 
 /**
@@ -224,23 +224,4 @@ export async function addFestivalVisitToCalendar({
   } catch (error) {
     return Object.freeze({status: 'ERROR', error});
   }
-}
-
-// ------------------------------------------ program date-tab default policy --
-
-/**
- * Which program date tab opens first (FESTIVAL-EVENT-08 gap-fill). Prefers a
- * caller-supplied initialSelectedDate (Calendar re-entry) when that date
- * actually has programs, then today when today has programs, then the
- * nearest upcoming programmed date, then the earliest programmed date.
- * Never invents a date with no programs, and returns '' when there are none.
- */
-export function defaultProgramSelectedDate(programDates, {initialSelectedDate = '', now = new Date(), timezone} = {}) {
-  if (!Array.isArray(programDates) || !programDates.length) return '';
-  const sorted = [...new Set(programDates)].sort();
-  if (initialSelectedDate && sorted.includes(initialSelectedDate)) return initialSelectedDate;
-  const today = todayLocalDate(now, timezone);
-  if (sorted.includes(today)) return today;
-  const upcoming = sorted.find(date => date > today);
-  return upcoming || sorted[0];
 }

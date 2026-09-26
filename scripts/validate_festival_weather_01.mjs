@@ -181,22 +181,24 @@ for (const failing of [
 
 // J. normalizePublishedFestival carries venue coordinates through, never
 // fabricates them, and never substitutes anything when they are absent ------
+// (Real Core contract, snake_case — see FESTIVAL-EVENT-08's rewrite of this
+// normalizer against app.festival_review.festival_public_view.)
 {
   const withCoords = normalizePublishedFestival({
-    id: 'f1', name: '테스트 축제', startDate: '2026-10-08', endDate: '2026-10-10', region: '전북특별자치도',
+    festival_id: 'f1', name: '테스트 축제', start_date: '2026-10-08', end_date: '2026-10-10', region_name: '전북특별자치도',
     latitude: 35.8151, longitude: 127.1535,
   });
   assert.equal(withCoords.latitude, 35.8151);
   assert.equal(withCoords.longitude, 127.1535);
 
   const withoutCoords = normalizePublishedFestival({
-    id: 'f2', name: '좌표없음', startDate: '2026-10-08', endDate: '2026-10-10', region: '전북특별자치도',
+    festival_id: 'f2', name: '좌표없음', start_date: '2026-10-08', end_date: '2026-10-10', region_name: '전북특별자치도',
   });
   assert.equal(withoutCoords.latitude, null);
   assert.equal(withoutCoords.longitude, null);
 
   const garbageCoords = normalizePublishedFestival({
-    id: 'f3', name: '이상한값', startDate: '2026-10-08', endDate: '2026-10-10', region: '전북특별자치도',
+    festival_id: 'f3', name: '이상한값', start_date: '2026-10-08', end_date: '2026-10-10', region_name: '전북특별자치도',
     latitude: 'north', longitude: Number.NaN,
   });
   assert.equal(garbageCoords.latitude, null, 'a non-numeric coordinate must normalize to null, never 0 or a fabricated number');
@@ -205,6 +207,13 @@ for (const failing of [
 
 // ---------------------------------------------------------------------------
 // K. UI wiring structural + accessibility contracts (site-festival-ui.js) ---
+//
+// FESTIVAL-EVENT-08 rebuilt the flat program list this weather feature
+// originally hung off of into date tabs; the weather badge/attribution/
+// stale-nav-guard contracts below are the same ones this section always
+// checked, re-pointed at the tab-based call sites (buildDateTabs /
+// renderProgramSurface) instead of the old renderPrograms/date-group-heading
+// ones.
 const festivalUiJs = read('site-festival-ui.js');
 
 assert.ok(festivalUiJs.includes("import {getFestivalProgramWeather} from './site-festival-weather.js"),
@@ -216,17 +225,21 @@ assert.doesNotMatch(festivalUiJs, /normalizeCalendarWeatherResponse|calendarWeat
   'the festival UI must not re-normalize or re-join weather itself — that belongs to site-festival-weather.js alone');
 
 // Rate-limit protection: the list card must never fetch or render weather —
-// only the detail screen may.
+// only the program screen (behind [프로그램]) may.
 const cardBuilderMatch = /function buildCard\([\s\S]*?\n\}\n/.exec(festivalUiJs);
 assert.ok(cardBuilderMatch, 'buildCard() must exist');
 assert.doesNotMatch(cardBuilderMatch[0], /getFestivalProgramWeather|[Ww]eather/,
   'the festival list card must never fetch or render weather');
 
-// Weather must be requested from exactly one call site (detail open), never
-// per category-chip click or per date group.
+// Weather must be requested from exactly one call site (opening the program
+// date-tab screen), never per tab click.
 const weatherCallSites = [...festivalUiJs.matchAll(/getFestivalProgramWeather\(\{/g)];
 assert.equal(weatherCallSites.length, 1,
-  'getFestivalProgramWeather must be called from exactly one place (detail open), never per tab/category click');
+  'getFestivalProgramWeather must be called from exactly one place (opening the program screen), never per tab click');
+const buildDateTabsMatch = /function buildDateTabs\([\s\S]*?\n\}\n/.exec(festivalUiJs);
+assert.ok(buildDateTabsMatch, 'buildDateTabs() must exist');
+assert.doesNotMatch(buildDateTabsMatch[0], /getFestivalProgramWeather/,
+  'buildDateTabs() must only ever render an already-resolved weatherByDate — never fetch on its own, e.g. per tab click');
 
 // Null/absent/invalid venue coordinates must gate the request off entirely —
 // never a browser/user location fallback.
@@ -245,34 +258,29 @@ assert.equal(detailTokenGuards.length, 2,
 
 // Precipitation must only ever render when Core actually sent an integer —
 // never a fabricated 0% for a null/missing value, in either the visual badge
-// or the accessible date label.
+// or the accessible date-tab label.
 const precipitationGuards = [...festivalUiJs.matchAll(/Number\.isInteger\(weatherItem\.precipitationProbability\)/g)];
 assert.equal(precipitationGuards.length, 2,
-  'both the visual weather badge and the accessible date label must guard precipitation with Number.isInteger, never assume 0');
+  'both the visual weather badge and the accessible date-tab label must guard precipitation with Number.isInteger, never assume 0');
 
-// The weather glyph is decorative; the accessible sentence lives on the
-// selected date's aria-label so a screen reader never hears the icon twice.
-// (FESTIVAL-EVENT-10 moved this from a per-date-group heading to a
-// per-selected-date row once the program list became a one-date-at-a-time
-// tab panel — see buildDateTabBar/renderPrograms.)
+// The weather glyph is decorative; the accessible sentence lives on the date
+// tab's aria-label so a screen reader never hears the icon twice.
 assert.ok(festivalUiJs.includes("badge.setAttribute('aria-hidden', 'true')"));
-assert.ok(festivalUiJs.includes("dateRow.setAttribute('aria-label', buildProgramDateAriaLabel(selectedDate, weatherItem))"));
+assert.ok(festivalUiJs.includes("button.setAttribute('aria-label', buildProgramDateAriaLabel(tab.date, weatherItem))"));
 
-// Attribution is built once per detail (section-level applyWeather), never
-// once per date group inside the render loop.
+// Attribution is built once per program screen (renderProgramSurface's own
+// weather callback), never once per date tab inside buildDateTabs.
 const ariaLabelBuilderMatch = /function buildProgramDateAriaLabel\([\s\S]*?\n\}\n/.exec(festivalUiJs);
 assert.ok(ariaLabelBuilderMatch, 'buildProgramDateAriaLabel() must exist');
 assert.doesNotMatch(ariaLabelBuilderMatch[0], /calendarWeatherAttribution/,
-  'attribution must not be built per date group');
-const renderProgramsMatch = /const renderPrograms = \(\) => \{[\s\S]*?\n  \};/.exec(festivalUiJs);
-assert.ok(renderProgramsMatch, 'renderPrograms() must exist');
-assert.doesNotMatch(renderProgramsMatch[0], /calendarWeatherAttribution/,
-  'attribution must not be built inside the per-date-group render loop');
+  'attribution must not be built per date tab');
+assert.doesNotMatch(buildDateTabsMatch[0], /calendarWeatherAttribution/,
+  'attribution must not be built inside the per-tab render loop');
 assert.ok(festivalUiJs.includes('weatherAttribution.hidden = !attribution;'));
 
-// A festival with no programs never triggers a weather read or shows a
-// weather section at all — the early-return applyWeather() stub is a no-op.
-assert.ok(festivalUiJs.includes("return {section, applyWeather() {}};"),
-  'a festival with no programs must return a no-op applyWeather(), never build a weather section');
+// A festival whose program date range yields no coordinates/programs never
+// triggers a weather read at all — the gate above is the only path in.
+assert.ok(festivalUiJs.includes('if (festival.programs.length && Number.isFinite(festival.latitude) && Number.isFinite(festival.longitude)) {'),
+  'a festival with no programs or no usable venue coordinates must never call getFestivalProgramWeather at all');
 
-console.log('FESTIVAL EVENT-09 WEATHER VALIDATION PASS — venue-coordinate gating, single-request date-range join, 15-day clamp, precipitation/temperature/icon presentation, null-safety, fail-soft (network/429/500/malformed), provider_ready passthrough, partial forecast, in-flight dedupe without long-term caching, stale-navigation guard, rate-limit isolation from list cards, and accessibility contracts verified.');
+console.log('FESTIVAL EVENT-09 WEATHER VALIDATION PASS — venue-coordinate gating, single-request date-range join, 15-day clamp, precipitation/temperature/icon presentation, null-safety, fail-soft (network/429/500/malformed), provider_ready passthrough, partial forecast, in-flight dedupe without long-term caching, stale-navigation guard, rate-limit isolation from list cards, and accessibility contracts verified against the FESTIVAL-EVENT-08 date-tab UI.');

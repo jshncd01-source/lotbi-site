@@ -14,7 +14,6 @@ const guestModule = await import(path.join(ROOT, 'site-calendar-guest.js'));
 const {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
-  defaultProgramSelectedDate,
   festivalLinkFromCalendarItem,
   festivalVisitDateOptions,
   readFestivalCalendarLink,
@@ -31,9 +30,14 @@ function memoryStorage() {
   };
 }
 
-const FESTIVAL_3D = Object.freeze({id: 'fest_gimje_horizon', name: '김제 지평선축제', startDate: '2026-10-07', endDate: '2026-10-09', venueName: '김제 벽골제'});
-const FESTIVAL_5D = Object.freeze({id: 'fest_five_day', name: '5일 축제', startDate: '2026-10-07', endDate: '2026-10-11', venueName: '테스트 광장'});
-const FESTIVAL_1D = Object.freeze({id: 'fest_one_day', name: '하루 축제', startDate: '2026-11-01', endDate: '2026-11-01', address: '테스트 주소'});
+// Room08 (FESTIVAL-EVENT-08, merged) dropped the fixture-era venueName field
+// from the normalized model entirely — place is region + address now (see
+// site-festival-client.js's formatFestivalLocation()). calendarPlace() below
+// follows the same fields.
+const FESTIVAL_3D = Object.freeze({id: 'fest_gimje_horizon', name: '김제 지평선축제', startDate: '2026-10-07', endDate: '2026-10-09', region: '전북특별자치도', address: '전북특별자치도 김제시 벽골제로 442'});
+const FESTIVAL_5D = Object.freeze({id: 'fest_five_day', name: '5일 축제', startDate: '2026-10-07', endDate: '2026-10-11', region: '테스트', address: '테스트 광장'});
+const FESTIVAL_1D = Object.freeze({id: 'fest_one_day', name: '하루 축제', startDate: '2026-11-01', endDate: '2026-11-01', region: '테스트', address: '테스트 주소'});
+const FESTIVAL_NO_ADDRESS = Object.freeze({id: 'fest_no_address', name: '주소없음 축제', startDate: '2026-12-01', endDate: '2026-12-01', region: '테스트지역', address: ''});
 
 // ------------------------------------------------------- visit date options --
 assert.deepEqual(festivalVisitDateOptions(FESTIVAL_3D), ['2026-10-07', '2026-10-08', '2026-10-09'], '3-day festival must offer exactly 3 visit dates');
@@ -41,29 +45,6 @@ assert.deepEqual(festivalVisitDateOptions(FESTIVAL_5D), ['2026-10-07', '2026-10-
 assert.deepEqual(festivalVisitDateOptions(FESTIVAL_1D), ['2026-11-01']);
 assert.deepEqual(festivalVisitDateOptions({startDate: '2026-10-09', endDate: '2026-10-07'}), [], 'an inverted range must never produce dates');
 assert.deepEqual(festivalVisitDateOptions({}), []);
-
-// -------------------------------------------------- program default policy --
-assert.equal(defaultProgramSelectedDate([]), '', 'no program dates must never invent a selected date');
-assert.equal(
-  defaultProgramSelectedDate(['2026-10-08', '2026-10-07'], {initialSelectedDate: '2026-10-08', now: new Date('2026-10-07T03:00:00+09:00')}),
-  '2026-10-08',
-  'a valid initialSelectedDate (Calendar re-entry) must win even when today also has a program',
-);
-assert.equal(
-  defaultProgramSelectedDate(['2026-10-07', '2026-10-08'], {initialSelectedDate: '2026-12-25', now: new Date('2026-10-07T03:00:00+09:00')}),
-  '2026-10-07',
-  'an initialSelectedDate with no programs must fall back to today',
-);
-assert.equal(
-  defaultProgramSelectedDate(['2026-10-09', '2026-10-10'], {now: new Date('2026-10-07T03:00:00+09:00')}),
-  '2026-10-09',
-  'no usable initial date and today has no program must pick the nearest upcoming programmed date',
-);
-assert.equal(
-  defaultProgramSelectedDate(['2026-09-01'], {now: new Date('2026-10-07T03:00:00+09:00')}),
-  '2026-09-01',
-  'no upcoming programmed date must fall back to the earliest one, never today',
-);
 
 // --------------------------------------------------------------- Guest path --
 {
@@ -78,7 +59,7 @@ assert.equal(
   assert.equal(created.item.source_ref, FESTIVAL_3D.id);
   assert.equal(created.item.visit_scope, VISIT_SCOPE.DATE);
   assert.equal(created.item.visit_date, '2026-10-08');
-  assert.equal(created.item.entry.place, FESTIVAL_3D.venueName, 'the venue name must be stored as the Calendar place');
+  assert.equal(created.item.entry.place, FESTIVAL_3D.address, 'the venue address must be stored as the Calendar place');
   assert.equal(created.item.entry.amount_minor, null, 'a festival visit must never auto-record an expense');
   assert.ok(!('place_latitude' in created.item) && !('latitude' in created.item), 'no fabricated coordinate must ever be stored');
 
@@ -123,6 +104,11 @@ assert.equal(
   const link = festivalLinkFromCalendarItem(stored);
   assert.deepEqual(link, {festivalId: FESTIVAL_3D.id, visitDate: '2026-10-08', visitScope: VISIT_SCOPE.DATE});
   assert.equal(festivalLinkFromCalendarItem(plain), null, 'an ordinary entry must never resolve to a festival link');
+
+  // A festival with no address at all falls back to its region, never a
+  // blank/undefined place.
+  const noAddress = await addFestivalVisitToCalendar({festival: FESTIVAL_NO_ADDRESS, visitDate: '2026-12-01', visitScope: VISIT_SCOPE.DATE, authenticated: false, guestRepository: repo});
+  assert.equal(noAddress.item.entry.place, FESTIVAL_NO_ADDRESS.region);
 }
 
 // -------------------------------------------------------- Guest schema guard --
@@ -170,7 +156,7 @@ assert.equal(
   assert.equal(created.status, 'CREATED');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].body.logical_request_id, `festival.${FESTIVAL_1D.id}.2026-11-01`, 'the idempotency key must be deterministic per festival+date');
-  assert.equal(calls[0].body.entry.place, FESTIVAL_1D.address, 'without a venueName the address must be used as the Calendar place');
+  assert.equal(calls[0].body.entry.place, FESTIVAL_1D.address, 'the festival address must be used as the Calendar place');
   assert.equal(calls[0].body.entry.amount_minor, null);
   assert.equal(calls[0].body.temporal.kind, 'DATE_ONLY');
 
@@ -211,4 +197,4 @@ assert.equal(
   assert.equal(readFestivalCalendarLink('activity_missing', storage), null);
 }
 
-console.log('FESTIVAL CALENDAR LINK VALIDATION PASS — visit-date options, program default-date policy, Guest create/duplicate/full-range, Guest schema guards, authenticated create/duplicate/re-entry/error, and link-index round-trip verified.');
+console.log('FESTIVAL CALENDAR LINK VALIDATION PASS — visit-date options, Guest create/duplicate/full-range/no-address-fallback, Guest schema guards, authenticated create/duplicate/error/re-entry-link round-trip verified.');
