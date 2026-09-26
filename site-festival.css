@@ -256,8 +256,7 @@
 }
 
 .festival-detail-period,
-.festival-detail-location,
-.festival-detail-address {
+.festival-detail-location {
   margin: 0;
   font-size: 14px;
   color: var(--lotbi-text-muted);
@@ -270,19 +269,8 @@
   line-height: 1.5;
 }
 
-.festival-section {
-  border-top: 1px solid var(--lotbi-border-default);
-  padding-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.festival-section-title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--lotbi-text-primary);
+.festival-hero-detail {
+  border-radius: 14px;
 }
 
 .festival-empty-note {
@@ -291,34 +279,112 @@
   color: var(--lotbi-text-muted);
 }
 
-.festival-program-groups {
+/* --------------------------------------------------------------- CTAs --- */
+/* At most two primary actions — [프로그램] and [체험·신청] — never more. */
+.festival-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.festival-cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  min-height: 44px; /* touch target */
+  border: 1px solid transparent;
+}
+
+.festival-cta-program {
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+}
+
+.festival-cta-program:hover {
+  filter: brightness(0.96);
+}
+
+.festival-cta-participation {
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  border-color: var(--lotbi-border-strong);
+}
+
+.festival-cta-participation:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-cta-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------- program view -- */
+.festival-program-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.festival-program-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.festival-program-date-row {
+/* One row, or a safe horizontal scroll on narrow viewports — the page itself
+   never gains horizontal overflow from this, only this inner strip. */
+.festival-date-tabs {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 10px;
-  margin: 0 0 6px;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
 }
 
-.festival-program-date {
-  margin: 0;
+.festival-date-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 40px;
   font-size: 13px;
   font-weight: 700;
+  background: var(--lotbi-surface-primary);
   color: var(--lotbi-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
 }
 
+.festival-date-tab[aria-selected="true"] {
+  background: var(--lotbi-brand-solid-bg);
+  border-color: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+}
+
+.festival-date-tab:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+/* FESTIVAL-EVENT-09: venue-coordinate program-date weather badge, reused
+   from the original flat program-list placement (site-calendar-weather.js
+   icon/temperature helpers) and folded into each date tab instead. */
 .festival-program-weather {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--lotbi-text-secondary);
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -327,9 +393,15 @@
 }
 
 .festival-weather-attribution {
-  margin: 10px 0 0;
+  margin: 0;
   font-size: 11px;
   color: var(--lotbi-text-muted);
+}
+
+.festival-program-day-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .festival-program-list {
@@ -384,57 +456,32 @@
   color: var(--lotbi-text-muted);
 }
 
-.festival-reservation-type {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--lotbi-text-primary);
-}
-
-.festival-reservation-note,
-.festival-parking-note,
-.festival-shuttle-note {
-  margin: 0;
-  font-size: 13px;
-  color: var(--lotbi-text-muted);
-}
-
-.festival-reservation-link,
-.festival-official-source-link {
+.festival-retry-button {
   align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
   border: 1px solid var(--lotbi-border-strong);
   border-radius: 10px;
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--lotbi-link-primary);
-  text-decoration: none;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  cursor: pointer;
 }
 
-.festival-reservation-link:hover,
-.festival-official-source-link:hover {
+.festival-retry-button:hover {
   background: var(--lotbi-surface-hover);
-  color: var(--lotbi-link-hover);
 }
 
-.festival-reservation-link:focus-visible,
-.festival-official-source-link:focus-visible {
+.festival-retry-button:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: 2px;
-}
-
-.festival-external-note {
-  font-weight: 400;
-  color: var(--lotbi-text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .festival-chip,
   .festival-card-open,
-  .festival-reservation-link,
-  .festival-official-source-link {
+  .festival-cta-button,
+  .festival-date-tab {
     transition: none;
   }
 }
