@@ -52,18 +52,19 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-accae87fd3ec';
+} from './site-pet.js?v=aset-bc1900b95b20';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-accae87fd3ec';
+} from './site-pet-guides.js?v=aset-bc1900b95b20';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-accae87fd3ec';
+} from './site-pet-gate.js?v=aset-bc1900b95b20';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-bc1900b95b20';
 
 const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -97,6 +98,89 @@ function el(tag, className = '', text = '') {
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
+}
+
+// SITE-PET-PHOTO-SOURCE-01 — a photo button never sends the owner straight
+// into a single OS photo provider. Mobile Web asks LOTBI's own Camera /
+// Gallery / File question first; Desktop keeps the plain file dialog every
+// slot already had, unchanged.
+function isMobilePetPhotoViewport() {
+  if (typeof globalThis.matchMedia === 'function') return globalThis.matchMedia('(max-width: 900px)').matches;
+  return (globalThis.innerWidth || 0) <= 900;
+}
+
+function petPhotoGalleryLabel() {
+  const ua = typeof navigator !== 'undefined' && typeof navigator.userAgent === 'string' ? navigator.userAgent : '';
+  return /iPhone|iPad|iPod/iu.test(ua) ? '사진 보관함' : '갤러리';
+}
+
+// Three inputs, not one: a single input whose accept lists the exact JPEG/PNG
+// mime types is what Android's Chrome resolves straight into one photo
+// provider, with no way left to reach the camera or a Files app. Gallery and
+// File both drop that exact list; petPhotoRejection() still enforces JPG/PNG
+// after the owner has chosen a file, so nothing here weakens validation.
+function buildPetPhotoSourceInputs() {
+  const camera = el('input');
+  camera.type = 'file';
+  camera.accept = 'image/jpeg,image/png';
+  camera.hidden = true;
+  camera.setAttribute('capture', 'environment');
+  camera.dataset.petPhotoSourceInput = 'camera';
+
+  const gallery = el('input');
+  gallery.type = 'file';
+  gallery.accept = 'image/*';
+  gallery.hidden = true;
+  gallery.dataset.petPhotoSourceInput = 'gallery';
+
+  const file = el('input');
+  file.type = 'file';
+  file.hidden = true;
+  file.dataset.petPhotoSourceInput = 'file';
+
+  return {camera, gallery, file, all: [camera, gallery, file]};
+}
+
+function bindPetPhotoSourceChange(sourceInputs, onFile) {
+  for (const input of sourceInputs.all) {
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      input.value = '';
+      if (file) onFile(file);
+    });
+  }
+}
+
+// Opens LOTBI's own Camera / Gallery / File sheet on Mobile Web. Desktop never
+// sees this sheet at all: the button goes straight to the file dialog, same as
+// before this control existed — PC canonically uses plain file upload.
+function openPetPhotoSource(sourceInputs) {
+  if (!isMobilePetPhotoViewport()) {
+    sourceInputs.gallery.click();
+    return;
+  }
+  const body = el('div', 'pet-photo-source-menu');
+  body.setAttribute('role', 'menu');
+  body.setAttribute('aria-label', '사진 가져오기');
+  const sheet = createBottomSheet({label: '사진 가져오기', content: body});
+  const options = [
+    ['camera', '카메라', '📷', sourceInputs.camera],
+    ['gallery', petPhotoGalleryLabel(), '🖼️', sourceInputs.gallery],
+    ['file', '파일', '📁', sourceInputs.file],
+  ];
+  for (const [key, label, icon, input] of options) {
+    const option = el('button', 'pet-photo-source-option');
+    option.type = 'button';
+    option.setAttribute('role', 'menuitem');
+    option.dataset.petPhotoSourceOption = key;
+    option.append(el('span', 'pet-photo-source-icon', icon), el('span', 'pet-photo-source-label', label));
+    option.addEventListener('click', () => {
+      sheet.close();
+      input.click();
+    });
+    body.appendChild(option);
+  }
+  sheet.open();
 }
 
 function photoProgressLabel(filled) {
@@ -541,18 +625,15 @@ export async function mountPetFamilyManager({
         retry.hidden = false;
       };
 
-      const input = el('input');
-      input.type = 'file';
-      input.accept = 'image/jpeg,image/png';
-      input.hidden = true;
-      input.dataset.petSlotInput = slotCode;
+      const sourceInputs = buildPetPhotoSourceInputs();
+      for (const input of sourceInputs.all) input.dataset.petSlotInput = slotCode;
 
       const actions = el('div', 'pet-slot-actions');
       const choose = el('button', 'site-button site-button-secondary pet-slot-choose',
         filled.has(slotCode) ? '다시 올리기' : '사진 올리기');
       choose.type = 'button';
       choose.dataset.petSlotChoose = slotCode;
-      choose.addEventListener('click', () => input.click());
+      choose.addEventListener('click', () => openPetPhotoSource(sourceInputs));
       actions.appendChild(choose);
 
       if (filled.has(slotCode)) {
@@ -583,10 +664,8 @@ export async function mountPetFamilyManager({
         actions.appendChild(remove);
       }
 
-      input.addEventListener('change', async () => {
-        const file = input.files?.[0];
-        input.value = '';
-        if (!file || busy) return;
+      const handleChosenFile = async file => {
+        if (busy) return;
         const rejection = petPhotoRejection(file);
         if (rejection) {
           refuse(rejection, null);
@@ -623,7 +702,8 @@ export async function mountPetFamilyManager({
           tile.dataset.petSlotWorking = 'false';
           setBusy(false);
         }
-      });
+      };
+      bindPetPhotoSourceChange(sourceInputs, file => { void handleChosenFile(file); });
 
       retryAction.addEventListener('click', () => {
         if (busy) return;
@@ -639,10 +719,10 @@ export async function mountPetFamilyManager({
           anchorTile?.focus();
           return;
         }
-        input.click();
+        openPetPhotoSource(sourceInputs);
       });
 
-      tile.append(actions, slotError, retry, input);
+      tile.append(actions, slotError, retry, ...sourceInputs.all);
       grid.appendChild(tile);
     });
 
@@ -1663,10 +1743,7 @@ export async function mountPetFamilyManager({
         }
         const slotError = formError();
         slotError.hidden = true;
-        const input = el('input');
-        input.type = 'file';
-        input.accept = 'image/jpeg,image/png';
-        input.hidden = true;
+        const sourceInputs = buildPetPhotoSourceInputs();
         const actions = el('div', 'pet-slot-actions');
         const choose = el('button', 'site-button site-button-secondary', photo ? '다시 올리기' : '사진 올리기');
         choose.type = 'button';
@@ -1674,7 +1751,7 @@ export async function mountPetFamilyManager({
         choose.setAttribute('aria-disabled', locked ? 'true' : 'false');
         choose.addEventListener('click', () => {
           if (locked) return;
-          input.click();
+          openPetPhotoSource(sourceInputs);
         });
         actions.appendChild(choose);
         if (photo) {
@@ -1702,10 +1779,8 @@ export async function mountPetFamilyManager({
           });
           actions.appendChild(remove);
         }
-        input.addEventListener('change', async () => {
-          const file = input.files?.[0];
-          input.value = '';
-          if (!file || busy || locked) return;
+        const handleChosenFile = async file => {
+          if (busy || locked) return;
           const rejection = petPhotoRejection(file);
           if (rejection) {
             slotError.textContent = rejection;
@@ -1754,8 +1829,9 @@ export async function mountPetFamilyManager({
           } finally {
             setBusy(false);
           }
-        });
-        tile.append(actions, slotError, input);
+        };
+        bindPetPhotoSourceChange(sourceInputs, file => { void handleChosenFile(file); });
+        tile.append(actions, slotError, ...sourceInputs.all);
         grid.appendChild(tile);
       });
       body.appendChild(grid);

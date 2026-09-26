@@ -334,6 +334,12 @@ jobs:
       - name: Validate PET species gate web surface
         run: node scripts/validate_pet_species_gate_web_01.mjs
 
+      # Every Pet photo button used to send Android straight into one photo
+      # provider with no way to reach the camera or the Files app. LOTBI now
+      # asks Camera/Gallery/File first on Mobile Web; Desktop is unchanged.
+      - name: Validate PET photo source selector
+        run: node scripts/validate_pet_photo_source_selector_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
