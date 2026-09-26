@@ -47,18 +47,21 @@
    다른 굵기로 렌더돼서, 4개 표면에서 같은 그림을 보장할 수 없었습니다. */
 :root {
   /* 3:1(WCAG 1.4.11 비텍스트 대비)을 날짜 칸 배경 위에서 넘깁니다. 선택된
-     날짜 칸은 순백이 아니라 #f6f8fb 이므로 그 쪽이 기준입니다. */
+     날짜 칸은 순백이 아니라 #f6f8fb 이므로 그 쪽이 기준입니다.
+     SNOW는 원래 RAIN과 같은 파란 계열(#078fc7)이라 육안으로 거의 구분이
+     안 됐습니다("눈인지 비인지 구름인지 구분이 안가지 않아?") — teal 계열로
+     색상 축을 옮겨 실제로 구별되게 합니다. */
   --lotbi-weather-sun: #f2b600;
   --lotbi-weather-cloud: #66758a;
   --lotbi-weather-rain: #087fd1;
-  --lotbi-weather-snow: #078fc7;
+  --lotbi-weather-snow: #0f766e;
 }
 
 body[data-site-theme="dark"] {
   --lotbi-weather-sun: #ffc247;
   --lotbi-weather-cloud: #b6c1d1;
   --lotbi-weather-rain: #7bc0ff;
-  --lotbi-weather-snow: #8fe0ff;
+  --lotbi-weather-snow: #5eead4;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -67,7 +70,7 @@ body[data-site-theme="dark"] {
     --lotbi-weather-sun: #ffc247;
     --lotbi-weather-cloud: #b6c1d1;
     --lotbi-weather-rain: #7bc0ff;
-    --lotbi-weather-snow: #8fe0ff;
+    --lotbi-weather-snow: #5eead4;
   }
 }
 
