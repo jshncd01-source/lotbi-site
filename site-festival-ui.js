@@ -38,14 +38,14 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-2fe4893da62e';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-2fe4893da62e';
+} from './site-festival-client.js?v=aset-f0e5aad34939';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-f0e5aad34939';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
-  requestBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-2fe4893da62e';
+  acquireSharedBrowserCurrentLocation,
+} from './site-current-location.js?v=aset-f0e5aad34939';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -55,19 +55,19 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-2fe4893da62e';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2fe4893da62e';
+} from './site-festival-calendar.js?v=aset-f0e5aad34939';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-f0e5aad34939';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-2fe4893da62e';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-f0e5aad34939';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-2fe4893da62e';
+} from './site-calendar-weather.js?v=aset-f0e5aad34939';
 
 const PAGE_SIZE = 20;
 
@@ -623,7 +623,9 @@ export async function mountFestivalManager({
     state.locationBusy = true;
     renderLocationBanner();
     try {
-      const position = await requestBrowserCurrentLocation();
+      // 캘린더 날씨가 방금 현재 위치를 읽었다면 그 좌표를 그대로 쓴다 -- 같은
+      // 브라우저·같은 origin 의 권한이고 같은 위치다 (§2/§8).
+      const position = await acquireSharedBrowserCurrentLocation();
       state.currentPosition = {latitude: position.latitude, longitude: position.longitude};
       state.region = '';
       state.locationMode = 'CURRENT';
