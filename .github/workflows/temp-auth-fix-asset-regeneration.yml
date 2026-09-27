@@ -1,0 +1,36 @@
+name: TEMP Auth Fix Asset Regeneration
+
+on:
+  push:
+    branches:
+      - site-auth-unknown-continuity-fix-20260927
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: site-auth-unknown-continuity-fix-20260927
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Regenerate canonical asset-set version
+        run: node scripts/asset_cache_version.mjs --write
+      - name: Commit generated asset URLs to work branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site-asset-version.json '*.html' '*.js' '*.mjs' '*.css' auth avatar-runtime 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No asset regeneration changes."
+          else
+            git commit -m "chore(asset): regenerate canonical site asset version after latest-main merge"
+            git push origin HEAD:site-auth-unknown-continuity-fix-20260927
+          fi
