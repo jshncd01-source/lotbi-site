@@ -171,13 +171,14 @@ function capturingFetch(handler) {
   assert.equal(page.nextOffset, 20);
   assert.equal(page.totalCount, 42);
   const item = page.festivals[0];
-  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'region', 'municipality', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl', 'homepageUrl'];
+  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'alwaysOpen', 'region', 'municipality', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl', 'homepageUrl'];
   assert.deepEqual(Object.keys(item).sort(), allowedKeys.sort(), 'a browse item must only ever carry the allowlisted public fields');
   assert.equal(item.municipality, '', 'Core omitted municipality_name for this fixture -- must normalize to empty, never fabricated');
   assert.equal(item.distanceKm, 3.2);
   assert.equal(item.cancelled, false, 'browse only ever returns PUBLISHED rows');
   assert.equal(item.imageUrl, '', 'Core browse does not emit image_url today — must fall back to no-image, never a fabricated photo');
   assert.equal(item.homepageUrl, '', 'no homepage_url in this fixture -> the list card link must not be fabricated');
+  assert.equal(item.alwaysOpen, false, 'Core omitted is_always_open for this fixture -- must normalize to false, never true');
 
   // The browse card's own link-out target: https-only, same convention as
   // imageUrl/participationUrl — a non-https value must never reach the card.
@@ -187,6 +188,22 @@ function capturingFetch(handler) {
   const withInsecureHomepage = {...raw, festivals: [{...raw.festivals[0], homepage_url: 'http://example.com/festival'}]};
   const insecureHomepagePage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withInsecureHomepage));
   assert.equal(insecureHomepagePage.festivals[0].homepageUrl, '', 'a non-https homepage_url must never reach the card');
+
+  // 상시 운영 rows are the one shape allowed through with no real date range at
+  // all -- every other row is still rejected without both start/end dates.
+  const alwaysOpenNoDates = {
+    ...raw,
+    festivals: [{...raw.festivals[0], start_date: null, end_date: null, is_always_open: true}],
+  };
+  const alwaysOpenPage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(alwaysOpenNoDates));
+  assert.equal(alwaysOpenPage.festivals.length, 1, 'an is_always_open row with no dates must still normalize, never be dropped');
+  assert.equal(alwaysOpenPage.festivals[0].alwaysOpen, true);
+  assert.equal(alwaysOpenPage.festivals[0].startDate, '');
+  assert.equal(alwaysOpenPage.festivals[0].endDate, '');
+
+  const datedRowMissingEndDate = {...raw, festivals: [{...raw.festivals[0], end_date: null}]};
+  const droppedPage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(datedRowMissingEndDate));
+  assert.equal(droppedPage.festivals.length, 0, 'a non-always-open row missing either date must still be dropped, exactly as before');
 
   // Core omits distance_km (no coordinates in the query) -> must stay null, never 0/"알수없음"/fabricated.
   const noDistanceRaw = {...raw, festivals: [{...raw.festivals[0], distance_km: null}]};

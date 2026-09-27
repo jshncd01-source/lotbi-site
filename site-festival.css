@@ -81,6 +81,48 @@
   outline-offset: 2px;
 }
 
+/* 〈 2026년 9월 〉 월별 탐색 -- independent of the quick filter chips above;
+   is-active only mirrors the MONTH filter being selected. */
+.festival-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+}
+
+.festival-month-nav-button {
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 999px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.festival-month-nav-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-month-nav-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-month-nav-label {
+  min-width: 96px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-month-nav.is-active .festival-month-nav-label {
+  color: var(--lotbi-brand-solid-bg);
+}
+
 /* --------------------------------------------------- location banner ---- */
 .festival-location-banner {
   display: flex;
@@ -482,6 +524,7 @@
 .festival-status-upcoming { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-secondary); }
 .festival-status-ended { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-disabled); }
 .festival-status-cancelled { background: color-mix(in srgb, var(--lotbi-error-text) 18%, transparent); color: var(--lotbi-error-text); }
+.festival-status-always_open { background: color-mix(in srgb, var(--lotbi-brand-solid-bg) 18%, transparent); color: var(--lotbi-brand-solid-bg); }
 
 /* ------------------------------------------------------------- detail --- */
 .festival-detail-surface {

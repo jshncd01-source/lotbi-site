@@ -58,15 +58,15 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-1817bacadd42';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-1817bacadd42';
+} from './site-festival-client.js?v=aset-9e144cda219b';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-9e144cda219b';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-1817bacadd42';
+} from './site-current-location.js?v=aset-9e144cda219b';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -76,8 +76,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-1817bacadd42';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-1817bacadd42';
+} from './site-festival-calendar.js?v=aset-9e144cda219b';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9e144cda219b';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -87,18 +87,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-1817bacadd42';
+} from './site-navigation.js?v=aset-9e144cda219b';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-1817bacadd42';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-9e144cda219b';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-1817bacadd42';
+} from './site-calendar-weather.js?v=aset-9e144cda219b';
 
 const PAGE_SIZE = 20;
 
@@ -617,6 +617,10 @@ export async function mountFestivalManager({
     // 쓰지 않는다: 확인이 끝나기 전에 전국이라고 적으면 곧 지역으로 바뀌므로
     // 사용자가 처음 보는 화면이 사실과 다르다.
     locationResolving: false,
+    // The 〈 2026년 9월 〉 month navigator's own anchor -- independent of which
+    // quick-filter chip is active, always the month navigating would target
+    // next. Only actually applied to the query once state.time === MONTH.
+    monthAnchor: {year: now.getFullYear(), month: now.getMonth() + 1},
   };
   let regionProvinces = [];
   let regionProvincesPromise = null;
@@ -928,18 +932,22 @@ export async function mountFestivalManager({
   function selectTimeFilter(key) {
     state.time = key;
     for (const [value, button] of timeButtons) button.setAttribute('aria-pressed', String(value === key));
+    monthNav.classList.toggle('is-active', key === FESTIVAL_TIME_FILTER.MONTH);
     void fetchAndRender({reset: true});
   }
 
-  // User-facing time filters only -- 날짜 선택 (a custom date picker forcing
-  // one specific day before browsing at all) is removed from this screen.
-  // Core's own time=DATE contract is untouched (see site-festival-client.js);
-  // this UI simply never sends it any more.
+  // User-facing time filters -- 날짜 선택 (a custom date picker forcing one
+  // specific day before browsing at all) is removed from this screen. Core's
+  // own time=DATE contract is untouched (see site-festival-client.js); this
+  // UI simply never sends it any more. ALWAYS_OPEN (상시 운영) is additive:
+  // 상시 운영 행사는 이 필터를 직접 골랐을 때만 보이고 (Core가 다른 모든
+  // 필터에서 제외한다), 나머지 4개 필터의 동작은 그대로다.
   const USER_TIME_FILTERS = [
     FESTIVAL_TIME_FILTER.ALL,
     FESTIVAL_TIME_FILTER.ONGOING,
     FESTIVAL_TIME_FILTER.THIS_WEEKEND,
     FESTIVAL_TIME_FILTER.THIS_MONTH,
+    FESTIVAL_TIME_FILTER.ALWAYS_OPEN,
   ];
   const timeButtons = new Map();
   for (const key of USER_TIME_FILTERS) {
@@ -951,8 +959,49 @@ export async function mountFestivalManager({
     timeRow.appendChild(button);
   }
 
+  // 〈 2026년 9월 〉 월별 탐색: 이전/다음 달로 계속 이동할 수 있고, 이동할
+  // 때마다 그 달을 MONTH 필터로 조회한다. 빠른 필터 칩과는 별도로 항상 떠
+  // 있고, 현재 MONTH 필터가 선택되어 있을 때만 강조 표시된다.
+  const monthNav = el('div', 'festival-month-nav');
+  monthNav.setAttribute('role', 'group');
+  monthNav.setAttribute('aria-label', '월별 탐색');
+  const monthPrevButton = document.createElement('button');
+  monthPrevButton.type = 'button';
+  monthPrevButton.className = 'festival-month-nav-button festival-month-nav-prev';
+  monthPrevButton.textContent = '〈';
+  monthPrevButton.setAttribute('aria-label', '이전 달');
+  const monthLabel = el('span', 'festival-month-nav-label');
+  monthLabel.setAttribute('aria-live', 'polite');
+  const monthNextButton = document.createElement('button');
+  monthNextButton.type = 'button';
+  monthNextButton.className = 'festival-month-nav-button festival-month-nav-next';
+  monthNextButton.textContent = '〉';
+  monthNextButton.setAttribute('aria-label', '다음 달');
+
+  function renderMonthLabel() {
+    monthLabel.textContent = `${state.monthAnchor.year}년 ${state.monthAnchor.month}월`;
+  }
+  renderMonthLabel();
+
+  function shiftMonth(delta) {
+    let {year, month} = state.monthAnchor;
+    month += delta;
+    while (month < 1) { month += 12; year -= 1; }
+    while (month > 12) { month -= 12; year += 1; }
+    state.monthAnchor = {year, month};
+    renderMonthLabel();
+    selectTimeFilter(FESTIVAL_TIME_FILTER.MONTH);
+  }
+  monthPrevButton.addEventListener('click', () => shiftMonth(-1));
+  monthNextButton.addEventListener('click', () => shiftMonth(1));
+  monthNav.append(monthPrevButton, monthLabel, monthNextButton);
+  filterBar.append(monthNav);
+
   function buildQuery(offset) {
     const query = {time: state.time, limit: PAGE_SIZE, offset};
+    if (state.time === FESTIVAL_TIME_FILTER.MONTH) {
+      query.date = `${state.monthAnchor.year}-${String(state.monthAnchor.month).padStart(2, '0')}`;
+    }
     if (state.region) {
       query.region = state.region;
       if (state.municipality) query.municipality = state.municipality;

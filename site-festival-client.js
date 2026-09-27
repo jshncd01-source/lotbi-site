@@ -31,7 +31,7 @@
 // sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
 // ordering/filtering (region, time window, distance) is Core-authoritative
 // via browseFestivals; nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-1817bacadd42';
+import {CORE_ORIGIN} from './site-core.js?v=aset-9e144cda219b';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -47,6 +47,10 @@ export const FESTIVAL_STATUS = Object.freeze({
   UPCOMING: 'UPCOMING',
   ENDED: 'ENDED',
   CANCELLED: 'CANCELLED',
+  // 상시 운영 -- a standing exhibit/venue with no fixed end date. Distinct
+  // from every date-bound status above; computeFestivalStatus() short-
+  // circuits to this before ever looking at startDate/endDate.
+  ALWAYS_OPEN: 'ALWAYS_OPEN',
 });
 
 export const FESTIVAL_STATUS_LABEL = Object.freeze({
@@ -55,6 +59,7 @@ export const FESTIVAL_STATUS_LABEL = Object.freeze({
   UPCOMING: '곧 시작',
   ENDED: '종료',
   CANCELLED: '취소',
+  ALWAYS_OPEN: '상시 운영',
 });
 
 export const FESTIVAL_TIME_FILTER = Object.freeze({
@@ -62,6 +67,14 @@ export const FESTIVAL_TIME_FILTER = Object.freeze({
   ONGOING: 'ONGOING',
   THIS_WEEKEND: 'THIS_WEEKEND',
   THIS_MONTH: 'THIS_MONTH',
+  // MONTH is additive: an arbitrary caller-chosen year-month (`date=YYYY-MM`),
+  // for the 〈 2026년 9월 〉 month navigator -- distinct from THIS_MONTH, which
+  // stays hardcoded to the real current month.
+  MONTH: 'MONTH',
+  // 상시 운영(always-open, e.g. a standing exhibit with no fixed end date).
+  // Hidden from every other filter -- only ever visible when this one is
+  // explicitly selected (see app.festival_browse on the Core side).
+  ALWAYS_OPEN: 'ALWAYS_OPEN',
   DATE: 'DATE',
 });
 
@@ -70,6 +83,8 @@ export const FESTIVAL_TIME_FILTER_LABEL = Object.freeze({
   ONGOING: '진행 중',
   THIS_WEEKEND: '이번 주말',
   THIS_MONTH: '이번 달',
+  MONTH: '월별',
+  ALWAYS_OPEN: '상시 운영',
   DATE: '날짜 선택',
 });
 
@@ -282,6 +297,7 @@ export function festivalIncludesDate(festival, dateString) {
 // because today falls inside its original dates. ENDED only applies once the
 // whole run (including its original cancelled-or-not end date) is in the past.
 export function computeFestivalStatus(festival, now = new Date(), timezone = resolvedTimezone()) {
+  if (festival?.alwaysOpen) return FESTIVAL_STATUS.ALWAYS_OPEN;
   if (!festival || !festival.startDate || !festival.endDate) return FESTIVAL_STATUS.UPCOMING;
   if (festival.cancelled) return FESTIVAL_STATUS.CANCELLED;
   const today = todayLocalDate(now, timezone);
@@ -377,6 +393,7 @@ export function formatFestivalDateLabel(dateString) {
 }
 
 export function formatFestivalPeriod(festival) {
+  if (festival?.alwaysOpen) return '상시 운영';
   if (!festival?.startDate || !festival?.endDate) return '';
   if (festival.startDate === festival.endDate) return formatFestivalDateLabel(festival.startDate);
   return `${formatFestivalDateLabel(festival.startDate)} ~ ${formatFestivalDateLabel(festival.endDate)}`;
@@ -556,13 +573,18 @@ function normalizeBrowseItem(raw) {
   const name = text(raw.name);
   const startDate = parseFestivalDateToISO(raw.start_date);
   const endDate = parseFestivalDateToISO(raw.end_date);
-  if (!id || !name || !startDate || !endDate) return null;
+  const alwaysOpen = raw.is_always_open === true;
+  // 상시 운영 rows are the one case allowed to have no (or only a partial)
+  // date range -- every other row still requires both, exactly as before.
+  if (!id || !name) return null;
+  if (!alwaysOpen && (!startDate || !endDate)) return null;
   return Object.freeze({
     id,
     name,
     startDate,
     endDate,
     cancelled: false, // GET /festivals/browse only ever returns PUBLISHED rows
+    alwaysOpen,
     region: text(raw.region_name),
     municipality: text(raw.municipality_name),
     address: text(raw.address),
