@@ -137,6 +137,37 @@ await check('④ UNKNOWN 은 UNKNOWN 으로 남고, 절대 GRANTED 로 승격되
   assert.equal(geolocation.calls.length, 0, 'UNKNOWN 을 GRANTED 로 가정해 GPS 를 불러선 안 된다 (§18)');
 });
 
+// ④b 권한 질의에 답하지 않는 브라우저 (GitHub Actions 의 headless Chrome 에서 실측).
+//     지원하지 않는다고 말해 주지도, throw 하지도 않고 그냥 답이 없는 경우다.
+await check('④b 권한 질의에 답이 없어도 확인은 끝난다 — UNKNOWN, 무한 대기 아님', async () => {
+  const geolocation = geolocationStub();
+  const unanswering = {query: () => new Promise(() => {})};
+
+  const permission = await getBrowserLocationPermissionState({
+    permissions: unanswering, geolocation, permissionQueryTimeoutMs: 50,
+  });
+  assert.equal(permission, LOCATION_PERMISSION.UNKNOWN,
+    '답이 없다는 것은 알 수 없다는 뜻이지 허용이라는 뜻이 아니다');
+  assert.equal(geolocation.calls.length, 0);
+
+  // 그리고 기능은 멈추지 않는다: mount 경로가 IDLE 로 끝난다 (§23).
+  const outcome = await resolveSharedBrowserCurrentLocation({
+    permissions: unanswering, geolocation, now, permissionQueryTimeoutMs: 50,
+  });
+  assert.equal(outcome.permission, LOCATION_PERMISSION.UNKNOWN);
+  assert.equal(outcome.resolution, LOCATION_RESOLUTION.IDLE);
+  assert.equal(outcome.location, null);
+  assert.equal(geolocation.calls.length, 0, 'UNKNOWN 을 GRANTED 로 가정해선 안 된다');
+
+  // 정상 브라우저는 timeout 을 기다리지 않는다.
+  const started = Date.now();
+  assert.equal(
+    await getBrowserLocationPermissionState({permissions: permissionsStub('granted'), geolocation}),
+    LOCATION_PERMISSION.GRANTED,
+  );
+  assert.ok(Date.now() - started < 1_000, '응답하는 브라우저는 지연 없이 끝나야 한다');
+});
+
 // ⑤ current location success
 await check('⑤ 허용된 권한에서 현재 위치를 얻는다', async () => {
   const geolocation = geolocationStub();

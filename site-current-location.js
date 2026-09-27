@@ -44,9 +44,31 @@ function nowMillis(now) {
   return Number.isFinite(value) ? value : Date.now();
 }
 
+// 어떤 브라우저는 geolocation 권한 질의를 지원하지 않는다고 말하지도, 답하지도
+// 않는다 -- query() 가 돌려준 promise 가 그냥 끝나지 않는다 (GitHub Actions 의
+// headless Chrome 에서 실측). 그 경우에도 권한 확인은 끝나야 한다: 확인이 끝나지
+// 않으면 기능은 영원히 "확인 중" 에 머문다 (§23).
+const PERMISSION_QUERY_TIMEOUT_MS = 2_000;
+
+const PERMISSION_QUERY_UNANSWERED = Symbol('PERMISSION_QUERY_UNANSWERED');
+
+function queryWithinTimeout(permissions, timeoutMs) {
+  const bounded = Math.max(0, Number(timeoutMs) || 0);
+  if (!bounded) return permissions.query({name: 'geolocation'});
+  let timer;
+  return Promise.race([
+    permissions.query({name: 'geolocation'}),
+    new Promise(resolve => { timer = setTimeout(() => resolve(PERMISSION_QUERY_UNANSWERED), bounded); }),
+  ]).finally(() => {
+    // 남은 타이머가 페이지나 테스트 프로세스를 붙잡고 있지 않게 한다.
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
 export async function getBrowserLocationPermissionState({
   permissions = globalThis.navigator?.permissions,
   geolocation = globalThis.navigator?.geolocation,
+  permissionQueryTimeoutMs = PERMISSION_QUERY_TIMEOUT_MS,
 } = {}) {
   if (!geolocation || typeof geolocation.getCurrentPosition !== 'function') {
     clearRecentBrowserCurrentLocation();
@@ -56,7 +78,9 @@ export async function getBrowserLocationPermissionState({
     return LOCATION_PERMISSION.UNKNOWN;
   }
   try {
-    const result = await permissions.query({name: 'geolocation'});
+    const result = await queryWithinTimeout(permissions, permissionQueryTimeoutMs);
+    // 답이 오지 않았다는 것은 알 수 없다는 뜻이고, 허용이라는 뜻이 아니다 (§18).
+    if (result === PERMISSION_QUERY_UNANSWERED) return LOCATION_PERMISSION.UNKNOWN;
     if (result?.state === 'granted') return LOCATION_PERMISSION.GRANTED;
     if (result?.state === 'denied') {
       // 권한이 사라진 순간 캐시도 사라진다. 예전에 GPS 가 성공했다는 사실은
@@ -227,8 +251,11 @@ export async function resolveSharedBrowserCurrentLocation({
   timeoutMs = 8_000,
   maxAgeMs = BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
   allowPrompt = false,
+  permissionQueryTimeoutMs,
 } = {}) {
-  const permission = await getBrowserLocationPermissionState({permissions, geolocation});
+  const permission = await getBrowserLocationPermissionState({
+    permissions, geolocation, permissionQueryTimeoutMs,
+  });
 
   if (permission === LOCATION_PERMISSION.DENIED) {
     return Object.freeze({

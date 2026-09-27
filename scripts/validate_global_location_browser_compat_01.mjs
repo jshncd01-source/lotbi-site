@@ -5,8 +5,14 @@
 // 진짜 navigator.permissions / navigator.geolocation 을 상대로도 계약이 유지되는지
 // 측정한다.
 //
-// 측정 대상 (§18): navigator.permissions.query({name:'geolocation'}) 지원 여부와,
+// 측정 대상 (§18): navigator.permissions.query({name:'geolocation'}) 지원 수준과,
 // 권한이 없는 상태에서 공통 계층이 실제로 권한 팝업을 띄우지 않는지.
+//
+// 엔진마다 지원 수준이 실제로 다르다. 이 컨테이너의 Chromium 141 은 'prompt' 를
+// 돌려주고, GitHub Actions 의 headless Chrome 은 같은 질의에 아무 답도 하지 않는다.
+// 그래서 이 스크립트는 특정 권한 문자열을 요구하지 않는다: 허용이 아닌 상태로
+// 읽히는지, 그리고 그 상태에서 좌표를 묻지 않는지만 요구한다. 답하지 않는 엔진에서
+// 공통 계층은 UNKNOWN 으로 끝나야 하고(§23), 그것을 여기서 확인한다.
 //
 // 여기서 측정되는 엔진은 Chromium 하나다. Android Chrome / Samsung Internet /
 // iPhone Safari 는 이 컨테이너에 없으므로 이 스크립트가 PASS 를 주지 않는다 --
@@ -144,13 +150,11 @@ try {
   if (measured.permissionKeys.join(',') !== 'DENIED,GRANTED,PROMPT_REQUIRED,UNAVAILABLE,UNKNOWN') {
     throw new Error(`permission enum drifted: ${measured.permissionKeys.join(',')}`);
   }
-  // 이 엔진은 권한이 없다: UNAVAILABLE 이 아니어야 하고(geolocation 은 존재한다),
-  // GRANTED 로 읽혀서도 안 된다.
-  if (measured.permission === 'GRANTED') {
-    throw new Error('an unauthorized engine must never read as GRANTED (§18)');
-  }
-  if (measured.permission === 'UNAVAILABLE') {
-    throw new Error('Chromium exposes geolocation; UNAVAILABLE would mean the probe misread the engine');
+  // 이 엔진은 권한이 없다. 읽힐 수 있는 값은 PROMPT_REQUIRED(답하는 엔진) 또는
+  // UNKNOWN(답하지 않는 엔진)이다. GRANTED 로 읽히면 안 되고, geolocation 자체는
+  // 존재하므로 UNAVAILABLE 이어서도 안 된다.
+  if (!['PROMPT_REQUIRED', 'UNKNOWN'].includes(measured.permission)) {
+    throw new Error(`an unauthorized engine must read as PROMPT_REQUIRED or UNKNOWN, measured ${measured.permission} (§18)`);
   }
   // 핵심: 화면을 여는 것만으로 권한 팝업 경로가 열리지 않는다 (§5/§16).
   if (measured.callsAfterMount !== 0) {
@@ -164,12 +168,17 @@ try {
   if (measured.geolocationQueries !== 1) {
     throw new Error(`the shared layer must read the permission exactly once per call, measured ${measured.geolocationQueries}`);
   }
+  // 답하지 않는 엔진에서도 권한 확인이 끝났다는 뜻이다 -- 이 줄에 도달한 것 자체가
+  // 그 증거지만, 어느 쪽 엔진이었는지 보고에 남긴다.
+  if (measured.permission === 'UNKNOWN' && measured.rawQueryState !== null) {
+    throw new Error('UNKNOWN must mean the query never answered, not that a state was read and dropped');
+  }
 
-  console.log('GLOBAL LOCATION BROWSER COMPAT PASS (Chromium only)');
+  console.log('GLOBAL LOCATION BROWSER COMPAT PASS (this engine only)');
   console.log(JSON.stringify({
     engine: measured.userAgent,
     permissionsApiSupported: measured.permissionsApiSupported,
-    rawGeolocationQueryState: measured.rawQueryState,
+    rawGeolocationQueryState: measured.rawQueryState ?? 'never answered in this engine',
     rawGeolocationQueryThrew: measured.rawQueryThrew,
     sharedLayerReads: measured.permission,
     geolocationPermissionQueries: measured.geolocationQueries,
