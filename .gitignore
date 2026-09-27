@@ -2,6 +2,14 @@
 # Local screenshot output from scripts/shoot_calendar_expense_bar_01.mjs
 .calendar-shots/
 
+# Local browser-test scratch fixtures (each validate_*.mjs writes its own
+# .<name>-inner.html/.<name>-wrapper.html into scripts/ and normally cleans
+# them up, but a run stopped mid-flight can leave one behind). A handful of
+# these are checked in on purpose as deterministic fixtures — this pattern
+# only affects new, currently-untracked ones.
+scripts/.*-inner.html
+scripts/.*-wrapper.html
+
 # Python bytecode — a local import of a validator drops these into scripts/
 __pycache__/
 *.pyc
