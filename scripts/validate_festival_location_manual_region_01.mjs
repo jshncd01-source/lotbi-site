@@ -120,11 +120,13 @@ assert.match(
 assert.match(ui, /backButton\.textContent = '현재 위치로 돌아가기'/);
 
 // -------------------------------------------------------- manual region --
-// Selecting a region must clear current-location mode so a later GPS fix
-// cannot silently override the user's explicit choice.
+// FESTIVAL-EVENT-02 REGION-BROWSE: region selection is now a 2-step
+// province -> 시·군 flow (selectManualRegion(province, municipality)), but
+// selecting either step must still clear current-location mode so a later
+// GPS fix cannot silently override the user's explicit choice.
 assert.match(
   ui,
-  /function selectManualRegion\(province\) \{\s*state\.region = province;\s*state\.locationMode = 'NONE';\s*state\.currentPosition = null;/,
+  /function selectManualRegion\(province, municipality = ''\) \{\s*state\.region = province;\s*state\.locationMode = 'NONE';\s*state\.currentPosition = null;/,
   'selecting a manual region must clear locationMode/currentPosition so GPS cannot overwrite it',
 );
 // 그리고 이미 날아간 자동 요청이 늦게 도착해도 그 선택을 덮지 않는다 (§22).
@@ -134,15 +136,35 @@ assert.match(
   /if \(auto && state\.region\) return;/,
   'an auto location request that lands after the user picked a region must abandon its result, never overwrite it',
 );
+assert.match(ui, /state\.municipality = municipality;/, 'the selected 시·군 must be stored alongside the province');
 
 // Query construction must prefer an explicit region over coordinates, and
 // must never send both at once (also covered functionally in the public
-// boundary test's browseFestivals URL assertions).
+// boundary test's browseFestivals URL assertions). municipality is additive
+// and only ever sent alongside region, never on its own.
 assert.match(
   ui,
-  /if \(state\.region\) \{\s*query\.region = state\.region;\s*\} else if \(state\.locationMode === 'CURRENT' && state\.currentPosition\) \{/,
-  'a manual region must take precedence over any stored current-location coordinates',
+  /if \(state\.region\) \{\s*query\.region = state\.region;\s*if \(state\.municipality\) query\.municipality = state\.municipality;\s*\} else if \(state\.locationMode === 'CURRENT' && state\.currentPosition\) \{/,
+  'a manual region must take precedence over any stored current-location coordinates, and municipality must never be sent without region',
 );
+
+// ---------------------------------------------------- province -> 시·군 -----
+// Step 1 (province) must never apply+close by itself any more -- it must
+// advance to step 2 instead, and only step 2's options (either "OO 전체" or a
+// specific 시·군) may actually call selectManualRegion/close the sheet.
+assert.match(ui, /async function goToMunicipalityStep\(province\) \{/,
+  'clicking a province must advance to a 시·군 step, not immediately apply+close');
+const provinceStepBody = /function buildRegionSheetBody\(\) \{[\s\S]*?\n {2}\}\n/.exec(ui)?.[0] || '';
+assert.match(provinceStepBody, /addEventListener\('click', \(\) => void goToMunicipalityStep\(province\)\)/,
+  'a province row must go to the 시·군 step, never call selectManualRegion directly');
+assert.doesNotMatch(provinceStepBody, /selectManualRegion\(/, 'step 1 must never apply a region by itself');
+
+// No 구/읍/면/동/리 sub-division may ever be offered.
+assert.doesNotMatch(ui, /구선택|'\s*구\s*'|자치구|일반구/, 'no 구-level option may be rendered anywhere in the region sheet');
+assert.match(ui, /listFestivalMunicipalities\(province, fetchImpl\)/,
+  'the 시·군 catalog must come from the Core-backed listFestivalMunicipalities(), not a hand-maintained list');
+assert.match(ui, /`\$\{province\} 전체`/, 'step 2 must offer an "OO 전체" option for the whole province');
+assert.match(ui, /backToProvinceStep\(\)/, 'step 2 must support going back to step 1');
 
 // The 17-province list must only ever be rendered inside the region-change
 // sheet, lazily, never as a standing always-visible chip row.

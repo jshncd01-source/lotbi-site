@@ -431,7 +431,7 @@ await check('⑮ 기능별 수동 지역은 공통 위치 계층이 건드리지
   const festival = read('site-festival-ui.js');
   assert.match(
     festival,
-    /function selectManualRegion\(province\) \{\s*state\.region = province;\s*state\.locationMode = 'NONE';/,
+    /function selectManualRegion\(province, municipality = ''\) \{\s*state\.region = province;\s*state\.locationMode = 'NONE';/,
     '축제의 수동 지역 선택은 현재위치 모드를 해제해야 한다',
   );
   // 두 기능은 서로의 수동 지역 저장소를 읽지 않는다 (§1-B: 제주를 골라도 축제가 제주가 되지 않는다).

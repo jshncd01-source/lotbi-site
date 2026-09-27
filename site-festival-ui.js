@@ -55,17 +55,18 @@ import {
   getPublishedFestival,
   groupProgramsByDate,
   listFestivalRegions,
+  listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-1817bacadd42';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-1817bacadd42';
+} from './site-festival-client.js?v=aset-9e144cda219b';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-9e144cda219b';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-1817bacadd42';
+} from './site-current-location.js?v=aset-9e144cda219b';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -75,8 +76,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-1817bacadd42';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-1817bacadd42';
+} from './site-festival-calendar.js?v=aset-9e144cda219b';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9e144cda219b';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -86,18 +87,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-1817bacadd42';
+} from './site-navigation.js?v=aset-9e144cda219b';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-1817bacadd42';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-9e144cda219b';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-1817bacadd42';
+} from './site-calendar-weather.js?v=aset-9e144cda219b';
 
 const PAGE_SIZE = 20;
 
@@ -605,8 +606,8 @@ export async function mountFestivalManager({
 
   const state = {
     region: '',
+    municipality: '',
     time: FESTIVAL_TIME_FILTER.ALL,
-    customDate: '',
     locationMode: 'NONE', // 'NONE' | 'CURRENT'
     currentPosition: null,
     currentRegionLabel: '',
@@ -616,14 +617,22 @@ export async function mountFestivalManager({
     // 쓰지 않는다: 확인이 끝나기 전에 전국이라고 적으면 곧 지역으로 바뀌므로
     // 사용자가 처음 보는 화면이 사실과 다르다.
     locationResolving: false,
+    // The 〈 2026년 9월 〉 month navigator's own anchor -- independent of which
+    // quick-filter chip is active, always the month navigating would target
+    // next. Only actually applied to the query once state.time === MONTH.
+    monthAnchor: {year: now.getFullYear(), month: now.getMonth() + 1},
   };
   let regionProvinces = [];
   let regionProvincesPromise = null;
+  const municipalityPromisesByProvince = new Map();
+  let regionStep = 'PROVINCE'; // 'PROVINCE' | 'MUNICIPALITY' -- transient sheet navigation, not query state
+  let regionStepProvince = '';
   let requestToken = 0;
   let currentAbort = null;
   let nextOffset = 0;
   let hasMore = false;
   let regionSheetRef = null;
+  let regionSheetDesktopAnchor = null;
 
   const container = el('div', 'festival-manager');
   const locationBanner = el('div', 'festival-location-banner');
@@ -633,14 +642,7 @@ export async function mountFestivalManager({
   const timeRow = el('div', 'festival-chip-row festival-time-row');
   timeRow.setAttribute('role', 'group');
   timeRow.setAttribute('aria-label', '시간 필터');
-  const dateField = document.createElement('label');
-  dateField.className = 'festival-date-field';
-  dateField.hidden = true;
-  dateField.append(el('span', '', '날짜 선택'));
-  const dateInput = document.createElement('input');
-  dateInput.type = 'date';
-  dateField.appendChild(dateInput);
-  filterBar.append(timeRow, dateField);
+  filterBar.append(timeRow);
 
   const liveRegion = el('p', 'sr-only');
   liveRegion.setAttribute('role', 'status');
@@ -689,10 +691,15 @@ export async function mountFestivalManager({
   void ensureRegionProvinces();
 
   function renderLocationBanner() {
+    // A desktop (INLINE) region sheet is mounted as an extra child of this
+    // same banner (see openRegionSheet); replaceChildren() below would
+    // otherwise silently detach it from the page -- still "open" as far as
+    // regionSheetRef is concerned, but invisible -- if anything re-renders
+    // the banner (e.g. the outer "현재 위치로 보기" tap) while it is open.
     locationBanner.replaceChildren();
     const label = el('span', 'festival-location-label');
     if (state.region) {
-      label.textContent = `📍 ${state.region}`;
+      label.textContent = state.municipality ? `📍 ${state.region} · ${state.municipality}` : `📍 ${state.region}`;
     } else if (state.locationMode === 'CURRENT') {
       label.textContent = state.currentRegionLabel
         ? `📍 현재 위치 기준 · ${state.currentRegionLabel}`
@@ -727,18 +734,68 @@ export async function mountFestivalManager({
     regionButton.addEventListener('click', () => void openRegionSheet());
     actions.appendChild(regionButton);
     locationBanner.appendChild(actions);
+    if (regionSheetDesktopAnchor) locationBanner.appendChild(regionSheetDesktopAnchor);
   }
 
   async function openRegionSheet() {
     await ensureRegionProvinces();
+    regionStep = 'PROVINCE';
+    regionStepProvince = '';
+    const presentation = defaultPresentation();
+    // INLINE (desktop) must be mounted where the "지역 변경" button actually
+    // is -- createBottomSheet's own default host (document.body) put it at
+    // the very end of <body> with no positioning at all, so a desktop click
+    // looked like it did nothing. SHEET (mobile) keeps the existing default
+    // host: it is already a fixed-position overlay and must stay exactly as
+    // it was.
+    regionSheetDesktopAnchor = presentation === SHEET_PRESENTATION.INLINE
+      ? locationBanner.appendChild(el('div', 'festival-region-desktop-anchor'))
+      : null;
     regionSheetRef = createBottomSheet({
       label: '지역 변경',
       content: () => buildRegionSheetBody(),
-      onClose: () => { regionSheetRef = null; },
+      presentation,
+      root: regionSheetDesktopAnchor || undefined,
+      onClose: () => {
+        regionSheetRef = null;
+        regionSheetDesktopAnchor?.remove();
+        regionSheetDesktopAnchor = null;
+      },
     });
     regionSheetRef.open();
   }
 
+  function ensureMunicipalities(province) {
+    if (!municipalityPromisesByProvince.has(province)) {
+      municipalityPromisesByProvince.set(
+        province,
+        listFestivalMunicipalities(province, fetchImpl).then(result => result.municipalities).catch(() => []),
+      );
+    }
+    return municipalityPromisesByProvince.get(province);
+  }
+
+  async function goToMunicipalityStep(province) {
+    regionStep = 'MUNICIPALITY';
+    regionStepProvince = province;
+    regionSheetRef?.setContent(() => buildMunicipalityLoadingStep(province));
+    const municipalities = await ensureMunicipalities(province);
+    // The sheet may have been closed, or the user may have gone back/picked a
+    // different province, while this fetch was in flight.
+    if (regionStep !== 'MUNICIPALITY' || regionStepProvince !== province) return;
+    regionSheetRef?.setContent(() => buildMunicipalityStep(province, municipalities));
+  }
+
+  function backToProvinceStep() {
+    regionStep = 'PROVINCE';
+    regionStepProvince = '';
+    regionSheetRef?.setContent(() => buildRegionSheetBody());
+  }
+
+  // Step 1: 광역시·도. This is also the sheet's initial content (regionStep is
+  // always reset to 'PROVINCE' before the sheet is created) and what
+  // backToProvinceStep() returns to -- step 2 is reached only via
+  // goToMunicipalityStep()'s own setContent(), never through this function.
   function buildRegionSheetBody() {
     const wrap = el('div', 'festival-region-sheet');
     wrap.appendChild(el('h3', 'festival-region-sheet-title', '지역 변경'));
@@ -754,10 +811,7 @@ export async function mountFestivalManager({
       optionButton.setAttribute('aria-selected', String(selected));
       if (selected) optionButton.classList.add('is-selected');
       optionButton.textContent = province;
-      optionButton.addEventListener('click', () => {
-        selectManualRegion(province);
-        regionSheetRef?.close();
-      });
+      optionButton.addEventListener('click', () => void goToMunicipalityStep(province));
       list.appendChild(optionButton);
     }
     wrap.appendChild(list);
@@ -775,12 +829,70 @@ export async function mountFestivalManager({
     return wrap;
   }
 
-  function selectManualRegion(province) {
+  function buildMunicipalityLoadingStep(province) {
+    const wrap = el('div', 'festival-region-sheet');
+    wrap.appendChild(buildMunicipalityStepHeader(province));
+    wrap.appendChild(el('p', 'festival-region-loading', '불러오는 중...'));
+    return wrap;
+  }
+
+  function buildMunicipalityStepHeader(province) {
+    const header = el('div', 'festival-region-sheet-header');
+    const backButton = document.createElement('button');
+    backButton.type = 'button';
+    backButton.className = 'festival-region-back-button';
+    backButton.setAttribute('aria-label', '이전 화면 (지역 선택)으로');
+    backButton.textContent = '← 이전';
+    backButton.addEventListener('click', () => backToProvinceStep());
+    header.append(backButton, el('h3', 'festival-region-sheet-title', province));
+    return header;
+  }
+
+  // 시·군 only -- never 구/읍/면/동/리. A province with an empty catalog
+  // (서울/광주/대전/세종 today) renders only the "OO 전체" row, never a
+  // fabricated 구-level list.
+  function buildMunicipalityStep(province, municipalities) {
+    const wrap = el('div', 'festival-region-sheet');
+    wrap.appendChild(buildMunicipalityStepHeader(province));
+    const list = el('div', 'festival-region-list');
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', `${province} 시·군 선택`);
+
+    const allOption = document.createElement('button');
+    allOption.type = 'button';
+    allOption.className = 'festival-region-option';
+    allOption.setAttribute('role', 'option');
+    const allSelected = state.region === province && !state.municipality;
+    allOption.setAttribute('aria-selected', String(allSelected));
+    if (allSelected) allOption.classList.add('is-selected');
+    allOption.textContent = `${province} 전체`;
+    allOption.addEventListener('click', () => selectManualRegion(province, ''));
+    list.appendChild(allOption);
+
+    for (const municipality of municipalities) {
+      const optionButton = document.createElement('button');
+      optionButton.type = 'button';
+      optionButton.className = 'festival-region-option';
+      optionButton.setAttribute('role', 'option');
+      const selected = state.region === province && state.municipality === municipality;
+      optionButton.setAttribute('aria-selected', String(selected));
+      if (selected) optionButton.classList.add('is-selected');
+      optionButton.textContent = municipality;
+      optionButton.addEventListener('click', () => selectManualRegion(province, municipality));
+      list.appendChild(optionButton);
+    }
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  function selectManualRegion(province, municipality = '') {
     state.region = province;
     state.locationMode = 'NONE';
     state.currentPosition = null;
+    state.municipality = municipality;
     state.currentRegionLabel = '';
     renderLocationBanner();
+    regionSheetRef?.close();
     void fetchAndRender({reset: true});
   }
 
@@ -820,16 +932,25 @@ export async function mountFestivalManager({
   function selectTimeFilter(key) {
     state.time = key;
     for (const [value, button] of timeButtons) button.setAttribute('aria-pressed', String(value === key));
-    dateField.hidden = key !== FESTIVAL_TIME_FILTER.DATE;
-    if (key === FESTIVAL_TIME_FILTER.DATE) {
-      if (state.customDate) void fetchAndRender({reset: true});
-      return;
-    }
+    monthNav.classList.toggle('is-active', key === FESTIVAL_TIME_FILTER.MONTH);
     void fetchAndRender({reset: true});
   }
 
+  // User-facing time filters -- 날짜 선택 (a custom date picker forcing one
+  // specific day before browsing at all) is removed from this screen. Core's
+  // own time=DATE contract is untouched (see site-festival-client.js); this
+  // UI simply never sends it any more. ALWAYS_OPEN (상시 운영) is additive:
+  // 상시 운영 행사는 이 필터를 직접 골랐을 때만 보이고 (Core가 다른 모든
+  // 필터에서 제외한다), 나머지 4개 필터의 동작은 그대로다.
+  const USER_TIME_FILTERS = [
+    FESTIVAL_TIME_FILTER.ALL,
+    FESTIVAL_TIME_FILTER.ONGOING,
+    FESTIVAL_TIME_FILTER.THIS_WEEKEND,
+    FESTIVAL_TIME_FILTER.THIS_MONTH,
+    FESTIVAL_TIME_FILTER.ALWAYS_OPEN,
+  ];
   const timeButtons = new Map();
-  for (const key of Object.values(FESTIVAL_TIME_FILTER)) {
+  for (const key of USER_TIME_FILTERS) {
     const button = chipButton(FESTIVAL_TIME_FILTER_LABEL[key], {
       pressed: state.time === key,
       onClick: () => selectTimeFilter(key),
@@ -837,16 +958,53 @@ export async function mountFestivalManager({
     timeButtons.set(key, button);
     timeRow.appendChild(button);
   }
-  dateInput.addEventListener('change', () => {
-    state.customDate = dateInput.value || '';
-    if (state.customDate) void fetchAndRender({reset: true});
-  });
+
+  // 〈 2026년 9월 〉 월별 탐색: 이전/다음 달로 계속 이동할 수 있고, 이동할
+  // 때마다 그 달을 MONTH 필터로 조회한다. 빠른 필터 칩과는 별도로 항상 떠
+  // 있고, 현재 MONTH 필터가 선택되어 있을 때만 강조 표시된다.
+  const monthNav = el('div', 'festival-month-nav');
+  monthNav.setAttribute('role', 'group');
+  monthNav.setAttribute('aria-label', '월별 탐색');
+  const monthPrevButton = document.createElement('button');
+  monthPrevButton.type = 'button';
+  monthPrevButton.className = 'festival-month-nav-button festival-month-nav-prev';
+  monthPrevButton.textContent = '〈';
+  monthPrevButton.setAttribute('aria-label', '이전 달');
+  const monthLabel = el('span', 'festival-month-nav-label');
+  monthLabel.setAttribute('aria-live', 'polite');
+  const monthNextButton = document.createElement('button');
+  monthNextButton.type = 'button';
+  monthNextButton.className = 'festival-month-nav-button festival-month-nav-next';
+  monthNextButton.textContent = '〉';
+  monthNextButton.setAttribute('aria-label', '다음 달');
+
+  function renderMonthLabel() {
+    monthLabel.textContent = `${state.monthAnchor.year}년 ${state.monthAnchor.month}월`;
+  }
+  renderMonthLabel();
+
+  function shiftMonth(delta) {
+    let {year, month} = state.monthAnchor;
+    month += delta;
+    while (month < 1) { month += 12; year -= 1; }
+    while (month > 12) { month -= 12; year += 1; }
+    state.monthAnchor = {year, month};
+    renderMonthLabel();
+    selectTimeFilter(FESTIVAL_TIME_FILTER.MONTH);
+  }
+  monthPrevButton.addEventListener('click', () => shiftMonth(-1));
+  monthNextButton.addEventListener('click', () => shiftMonth(1));
+  monthNav.append(monthPrevButton, monthLabel, monthNextButton);
+  filterBar.append(monthNav);
 
   function buildQuery(offset) {
     const query = {time: state.time, limit: PAGE_SIZE, offset};
-    if (state.time === FESTIVAL_TIME_FILTER.DATE && state.customDate) query.date = state.customDate;
+    if (state.time === FESTIVAL_TIME_FILTER.MONTH) {
+      query.date = `${state.monthAnchor.year}-${String(state.monthAnchor.month).padStart(2, '0')}`;
+    }
     if (state.region) {
       query.region = state.region;
+      if (state.municipality) query.municipality = state.municipality;
     } else if (state.locationMode === 'CURRENT' && state.currentPosition) {
       query.latitude = state.currentPosition.latitude;
       query.longitude = state.currentPosition.longitude;
@@ -855,7 +1013,10 @@ export async function mountFestivalManager({
   }
 
   function emptyMessageFor() {
-    if (state.region) return `현재 조건에 맞는 축제·행사가 없어요 (${state.region})`;
+    if (state.region) {
+      const label = state.municipality ? `${state.region} ${state.municipality}` : state.region;
+      return `현재 조건에 맞는 축제·행사가 없어요 (${label})`;
+    }
     if (state.locationMode === 'CURRENT') return '현재 위치 주변에 조건에 맞는 축제·행사가 없어요';
     return '현재 조건에 맞는 축제·행사가 없어요';
   }
