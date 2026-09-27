@@ -166,7 +166,8 @@ export function requestBrowserCurrentLocation({
     BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
     Number(maxAgeMs) || BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
   ));
-  return new Promise((resolve, reject) => {
+  const browserTimeoutMs = Math.max(1_000, Math.min(20_000, Number(timeoutMs) || 8_000));
+  const position = new Promise((resolve, reject) => {
     geolocation.getCurrentPosition(
       position => {
         try {
@@ -178,10 +179,27 @@ export function requestBrowserCurrentLocation({
       error => reject(browserLocationFailure(error)),
       {
         enableHighAccuracy: false,
-        timeout: Math.max(1_000, Math.min(20_000, Number(timeoutMs) || 8_000)),
+        timeout: browserTimeoutMs,
         maximumAge: usableMaxAgeMs,
       },
     );
+  });
+
+  // 브라우저가 자기 timeout 을 지키지 않고 콜백을 아예 부르지 않는 경우에도 요청은
+  // 끝나야 한다 (§23: 무한 spinner 금지). 앱의 getCurrentLocationWithTimeout 과 같은
+  // 형태다. 브라우저에게 먼저 기회를 주고, 그보다 늦게서야 우리가 끊는다 -- 정상
+  // 동작하는 브라우저에서는 이 타이머가 쓰이지 않는다.
+  let timer;
+  return Promise.race([
+    position,
+    new Promise((_resolve, reject) => {
+      timer = setTimeout(
+        () => reject(new BrowserLocationError('BROWSER_LOCATION_TIMEOUT', '현재 위치 확인 시간이 초과되었습니다.')),
+        browserTimeoutMs + 2_000,
+      );
+    }),
+  ]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
   });
 }
 

@@ -168,6 +168,39 @@ await check('④b 권한 질의에 답이 없어도 확인은 끝난다 — UNKN
   assert.ok(Date.now() - started < 1_000, '응답하는 브라우저는 지연 없이 끝나야 한다');
 });
 
+// ④c 축제 진입이 기대는 불변식 (FESTIVAL-SHARED-FIX-16).
+//     UNKNOWN 은 "알 수 없다" 이지 "권한이 없다" 가 아니다. 그래서 이미 확보한
+//     좌표는 UNKNOWN 을 읽은 뒤에도 남아 있어야 한다 -- iPhone Safari 처럼 권한
+//     상태를 알려주지 않는 브라우저에서 기능들이 그 좌표를 재사용하는 근거다.
+//     반대로 DENIED/UNAVAILABLE 은 권한이 없다는 뜻이므로 좌표도 사라져야 한다.
+await check('④c UNKNOWN 은 확보한 좌표를 지우지 않고, DENIED 는 지운다', async () => {
+  const geolocation = geolocationStub();
+  await acquireSharedBrowserCurrentLocation({geolocation, now});
+  assert.notEqual(getRecentBrowserCurrentLocation({now}), null);
+
+  // 권한 상태를 알려주지 않는 브라우저: 좌표는 그대로 쓸 수 있어야 한다.
+  for (const permissions of [
+    undefined,
+    {query: async () => { throw new TypeError('unsupported'); }},
+    {query: () => new Promise(() => {})},
+  ]) {
+    const read = await getBrowserLocationPermissionState({
+      permissions, geolocation, permissionQueryTimeoutMs: 50,
+    });
+    assert.equal(read, LOCATION_PERMISSION.UNKNOWN);
+    assert.notEqual(getRecentBrowserCurrentLocation({now}), null,
+      'UNKNOWN 을 읽었다고 이미 확보한 좌표를 버리면 안 된다');
+  }
+
+  // 권한이 꺼진 것을 읽으면 좌표도 사라진다.
+  assert.equal(
+    await getBrowserLocationPermissionState({permissions: permissionsStub('denied'), geolocation}),
+    LOCATION_PERMISSION.DENIED,
+  );
+  assert.equal(getRecentBrowserCurrentLocation({now}), null,
+    'DENIED 를 읽은 뒤에는 좌표가 남아 있어서는 안 된다');
+});
+
 // ⑤ current location success
 await check('⑤ 허용된 권한에서 현재 위치를 얻는다', async () => {
   const geolocation = geolocationStub();
