@@ -213,6 +213,13 @@ const callbackContinuityVersion = callbackHtml.match(/type="module" src="\/site-
 assert.ok(homeContinuityVersion, 'Home continuity runtime must be cache-busted');
 assert.equal(callbackContinuityVersion, homeContinuityVersion, 'callback must load the same current continuity runtime');
 assert.match(index, /href="site-auth-continuity\.css\?v=aset-[^"]+"/);
+const httpsUpgrade = index.indexOf('SITE-AUTH-HTTPS-ORIGIN-01');
+const firstStylesheet = index.indexOf('<link rel="stylesheet"');
+assert.ok(httpsUpgrade > 0 && httpsUpgrade < firstStylesheet, 'HTTP→HTTPS upgrade must run before render/runtime assets');
+assert.ok(index.includes("window.location.protocol === 'https:'"));
+assert.ok(index.includes("secureUrl.protocol = 'https:'"));
+assert.ok(index.includes("secureUrl.hostname = 'lotbiai.com'"));
+assert.ok(index.includes("window.location.replace(secureUrl.href)"));
 assert.ok(index.includes('data-auth-state="checking" aria-busy="true"'));
 assert.equal((index.match(/data-sidebar-account data-auth-state="checking" aria-busy="true"/g) || []).length, 2, 'desktop/mobile Sidebar must reserve neutral checking slots');
 assert.equal((index.match(/class="sidebar-account-placeholder"/g) || []).length, 2);
@@ -288,6 +295,7 @@ for (const token of [
   "export const AUTH_STATE_AUTHENTICATED = 'authenticated'",
   "export const AUTH_STATE_UNAUTHENTICATED = 'unauthenticated'",
   "export const AUTH_STATE_UNKNOWN = 'unknown'",
+  'export const ACCOUNT_STATUS_RETRY_DELAYS_MS = Object.freeze([1000, 3000, 10000])',
   'markCheckingAccountUi',
   'markUnknownAccountUi',
   'markAuthenticatedAccountUi',
@@ -331,7 +339,7 @@ assert.ok(
   'authenticated Header must clear its reserved slot',
 );
 
-assert.equal((continuity.match(/installDirectLoginHandoff\(/g) || []).length, 3, 'one direct-login helper plus header/sidebar bindings are required');
+assert.equal((continuity.match(/installDirectLoginHandoff\(/g) || []).length, 4, 'direct-login helper must cover anonymous and UNKNOWN recovery links');
 assert.ok(continuity.includes('const login = installDirectLoginHandoff(sidebarAccountLink({'), 'sidebar login must use direct handoff');
 assert.ok(continuity.includes('installDirectLoginHandoff(login);'), 'header login must use direct handoff');
 const directStart = continuity.indexOf('function installDirectLoginHandoff(link)');
@@ -348,21 +356,31 @@ assert.ok(auth.includes('window.location.assign(ACCOUNT_SITE_FALLBACK_URL)'), 'c
 assert.ok(auth.includes("error.code === 'SITE_HANDOFF_CRYPTO_UNAVAILABLE'"));
 assert.ok(auth.includes("error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE'"));
 
-const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity()');
+const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity');
 const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStart);
 const syncBody = continuity.slice(syncStart, syncEnd);
-assert.ok(syncBody.indexOf('if (!hasLiveSiteSession()) markCheckingAccountUi();') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must remain neutral until Account status resolves');
+assert.ok(syncBody.indexOf('markCheckingAccountUi()') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must remain neutral until Account status resolves');
+assert.ok(syncBody.includes('preserveUnknownUi && document.body.dataset.siteAuthState === AUTH_STATE_UNKNOWN'), 'background retry must keep the actionable UNKNOWN UI mounted');
 assert.ok(!syncBody.includes('if (!hasLiveSiteSession()) markAnonymousAccountUi();'), 'normal boot must not paint anonymous actions before authoritative status');
 const syncCatch = syncBody.slice(syncBody.indexOf('} catch (error) {'), syncBody.indexOf('} finally {'));
 assert.ok(syncCatch.includes('redirecting = false;'), 'transient failure must release the redirect guard');
-assert.ok(syncCatch.includes('if (hasLiveSiteSession()) markAuthenticatedAccountUi();'), 'verified live Site session must survive Account transient failure');
-assert.ok(syncCatch.includes('else markUnknownAccountUi();'), 'unknown Account status must render UNKNOWN, not anonymous');
+assert.ok(syncCatch.includes('if (hasLiveSiteSession()) {'), 'verified live Site session must survive Account transient failure');
+assert.ok(syncCatch.includes('markAuthenticatedAccountUi();'), 'verified live Site session must remain authenticated');
+assert.ok(syncCatch.includes('markUnknownAccountUi();'), 'unknown Account status must render UNKNOWN, not anonymous');
+assert.ok(syncCatch.includes('scheduleUnknownRetry();'), 'UNKNOWN must schedule bounded automatic recovery');
 assert.ok(!syncCatch.includes('markAnonymousAccountUi();'), 'transient Account failure must never pretend the user is logged out');
 assert.ok(syncBody.includes('siteLogoutSuppressed || hasSiteLogoutSuppression()'), 'fresh Home must honor the tab-scoped logout suppression marker');
 assert.ok(syncBody.indexOf('siteLogoutSuppressed || hasSiteLogoutSuppression()') < syncBody.indexOf('await beginSiteHandoff()'), 'logout suppression must stop automatic handoff before it starts');
 assert.ok(syncBody.includes('clearSiteLogoutSuppression();'), 'confirmed anonymous Account state must clear logout suppression');
-assert.equal((continuity.match(/setTimeout\(/g) || []).length, 1, 'only the real Site-session expiry timer is allowed');
-assert.ok(continuity.includes('Math.min(delay, 2_147_000_000)'), 'the sole timer must remain bound to the actual session expiry');
+assert.equal((continuity.match(/setTimeout\(/g) || []).length, 2, 'only bounded UNKNOWN retry and real Site-session expiry timers are allowed');
+assert.ok(continuity.includes('ACCOUNT_STATUS_RETRY_DELAYS_MS = Object.freeze([1000, 3000, 10000])'));
+assert.ok(continuity.includes('unknownRetryAttempt >= ACCOUNT_STATUS_RETRY_DELAYS_MS.length'), 'UNKNOWN retry must stop after the bounded schedule');
+assert.ok(continuity.includes("recordTiming('account-status-auto-retry'"));
+assert.ok(continuity.includes("recordTiming('account-status-manual-retry'"));
+assert.ok(continuity.includes("button.textContent = '다시 확인'"));
+assert.ok(continuity.includes("link.textContent = '로그인'"));
+assert.ok(continuity.includes("'계정 상태를 확인하지 못했어요. 다시 확인하거나 로그인해 주세요.'"));
+assert.ok(continuity.includes('Math.min(delay, 2_147_000_000)'), 'session expiry must remain independently bounded');
 for (const forbiddenDelay of ['sleep(', 'retryDelay', 'AUTH_DELAY', '5000)', '5_000']) {
   assert.ok(!continuity.includes(forbiddenDelay), `fixed auth delay is forbidden: ${forbiddenDelay}`);
   assert.ok(!callback.includes(forbiddenDelay), `fixed callback delay is forbidden: ${forbiddenDelay}`);
@@ -373,6 +391,8 @@ assert.ok(continuityCss.includes('min-width: 174px'));
 assert.ok(continuityCss.includes('min-width: 132px'));
 assert.ok(continuityCss.includes('.account-auth-placeholder'));
 assert.ok(continuityCss.includes('.account-auth-unknown'));
+assert.ok(continuityCss.includes('.account-auth-retry'));
+assert.ok(continuityCss.includes('.account-auth-login'));
 assert.ok(continuityCss.includes('display: inline-flex'));
 assert.ok(!continuityCss.includes('visibility: hidden'), 'checking must not look like a missing header control');
 assert.ok(continuityCss.includes('body.auth-callback-page:not(.auth-callback-error-page)'));
