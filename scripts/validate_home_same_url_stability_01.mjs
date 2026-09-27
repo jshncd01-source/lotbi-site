@@ -16,6 +16,13 @@ const authCss=read('site-auth-continuity.css');
 const footerCss=read('footer-business-info.css');
 const footerJs=read('site-footer-legal.js');
 
+const httpsUpgrade=index.indexOf('SITE-AUTH-HTTPS-ORIGIN-01');
+const firstStylesheet=index.indexOf('<link rel="stylesheet"');
+assert.ok(httpsUpgrade > 0 && httpsUpgrade < firstStylesheet,'HTTP custom-domain entry must upgrade before Account continuity runtime');
+assert.ok(index.includes("secureUrl.protocol = 'https:'"));
+assert.ok(index.includes("secureUrl.hostname = 'lotbiai.com'"));
+assert.ok(index.includes("window.location.replace(secureUrl.href)"));
+
 const header=index.match(/<nav class="account-actions"[\s\S]*?<\/nav>/)?.[0]||'';
 assert.ok(header.includes('data-auth-state="checking"'));
 assert.ok(header.includes('계정 확인 중'),'first paint must not contain an invisible account hole');
@@ -31,6 +38,11 @@ assert.ok(auth.includes("credentials: 'include'"));
 assert.ok(auth.includes("cache: 'no-store'"));
 
 assert.ok(continuity.includes("export const AUTH_STATE_UNKNOWN = 'unknown'"));
+assert.ok(continuity.includes('ACCOUNT_STATUS_RETRY_DELAYS_MS = Object.freeze([1000, 3000, 10000])'));
+assert.ok(continuity.includes('scheduleUnknownRetry()'));
+assert.ok(continuity.includes("button.textContent = '다시 확인'"));
+assert.ok(continuity.includes("link.textContent = '로그인'"));
+assert.ok(continuity.includes('다시 확인하거나 로그인해 주세요.'));
 const syncStart=continuity.indexOf('export async function synchronizeAccountContinuity()');
 const syncEnd=continuity.indexOf('\nfunction handleSiteSessionState',syncStart);
 const sync=continuity.slice(syncStart,syncEnd);
@@ -38,7 +50,8 @@ const explicitFalse=sync.slice(sync.indexOf('if (authenticated === false) {'),sy
 assert.ok(explicitFalse.includes('markAnonymousAccountUi()'),'only explicit authenticated:false may establish logged-out presentation');
 const catchBody=sync.slice(sync.indexOf('} catch (error) {'),sync.indexOf('} finally {'));
 assert.ok(catchBody.includes('if (hasLiveSiteSession()) markAuthenticatedAccountUi()'));
-assert.ok(catchBody.includes('else markUnknownAccountUi()'));
+assert.ok(catchBody.includes('markUnknownAccountUi()'));
+assert.ok(catchBody.includes('scheduleUnknownRetry()'));
 assert.ok(!catchBody.includes('markAnonymousAccountUi()'),'network/timeout/5xx/contract errors must never become false logout');
 
 const details=index.match(/<details\b[^>]*data-footer-legal-disclosure[^>]*>/)?.[0]||'';
