@@ -46,6 +46,15 @@ def extract_theme_bootstrap(index: str) -> str | None:
     return index[start:end]
 
 
+def extract_https_origin_bootstrap(index: str) -> str | None:
+    marker = "SITE-AUTH-HTTPS-ORIGIN-01"
+    if marker not in index:
+        return None
+    start = index.index("<script>", index.index(marker))
+    end = index.index("</script>", start) + len("</script>")
+    return index[start:end]
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -285,9 +294,9 @@ def main() -> int:
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
-    # +1 for the sealed Avatar import map, +1 for the allowlisted inline theme
-    # bootstrap.
-    if text.lower().count("<script") != len(approved_scripts) + 2 or any(approved not in text for approved in approved_scripts):
+    # +1 sealed Avatar import map, +2 exact-purpose inline bootstraps:
+    # theme first-paint and HTTP→HTTPS custom-domain canonicalization.
+    if text.lower().count("<script") != len(approved_scripts) + 3 or any(approved not in text for approved in approved_scripts):
         errors.append(
             "index.html: only the approved import map and "
             "home/avatar/mobile/conversation/continuity/footer-legal scripts are allowed"
@@ -314,7 +323,14 @@ def main() -> int:
     theme_bootstrap = extract_theme_bootstrap(text)
     if theme_bootstrap is None:
         errors.append("index.html: the pre-paint theme bootstrap block is missing")
-    scanned_text = text.replace(theme_bootstrap, "") if theme_bootstrap else text
+    https_bootstrap = extract_https_origin_bootstrap(text)
+    if https_bootstrap is None:
+        errors.append("index.html: the HTTPS custom-domain bootstrap is missing")
+    scanned_text = text
+    if theme_bootstrap:
+        scanned_text = scanned_text.replace(theme_bootstrap, "")
+    if https_bootstrap:
+        scanned_text = scanned_text.replace(https_bootstrap, "")
     combined = f"{scanned_text}\n{script}".lower()
     for token in forbidden_shell_runtime:
         if token in combined:
