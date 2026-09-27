@@ -159,11 +159,21 @@ function capturingFetch(handler) {
   assert.equal(page.nextOffset, 20);
   assert.equal(page.totalCount, 42);
   const item = page.festivals[0];
-  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'region', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl'];
+  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'region', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl', 'homepageUrl'];
   assert.deepEqual(Object.keys(item).sort(), allowedKeys.sort(), 'a browse item must only ever carry the allowlisted public fields');
   assert.equal(item.distanceKm, 3.2);
   assert.equal(item.cancelled, false, 'browse only ever returns PUBLISHED rows');
   assert.equal(item.imageUrl, '', 'Core browse does not emit image_url today — must fall back to no-image, never a fabricated photo');
+  assert.equal(item.homepageUrl, '', 'no homepage_url in this fixture -> the list card link must not be fabricated');
+
+  // The browse card's own link-out target: https-only, same convention as
+  // imageUrl/participationUrl — a non-https value must never reach the card.
+  const withHomepage = {...raw, festivals: [{...raw.festivals[0], homepage_url: 'https://example.com/festival'}]};
+  const homepagePage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withHomepage));
+  assert.equal(homepagePage.festivals[0].homepageUrl, 'https://example.com/festival');
+  const withInsecureHomepage = {...raw, festivals: [{...raw.festivals[0], homepage_url: 'http://example.com/festival'}]};
+  const insecureHomepagePage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withInsecureHomepage));
+  assert.equal(insecureHomepagePage.festivals[0].homepageUrl, '', 'a non-https homepage_url must never reach the card');
 
   // Core omits distance_km (no coordinates in the query) -> must stay null, never 0/"알수없음"/fabricated.
   const noDistanceRaw = {...raw, festivals: [{...raw.festivals[0], distance_km: null}]};

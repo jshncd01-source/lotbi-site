@@ -100,13 +100,15 @@ assert.match(festivalUiJs, /from '\.\/site-bottom-sheet\.js(?:\?v=[A-Za-z0-9._-]
   'the region-change interaction must reuse the shared bottom-sheet primitive');
 
 // ------------------------------------------------------- external links ---
-// The only external, new-tab link this UI ever builds is [체험·신청]; it must
-// carry rel="noopener noreferrer" and an accessible label that marks it
-// external. There must be exactly one such link — a second one would mean a
-// legacy 공식예약/공식출처-style external CTA crept back in.
+// The only external, new-tab link markup this UI ever builds is [접수]'s
+// per-program reservation link (rendered once per program inside the
+// registration popup); it must carry rel="noopener noreferrer" and an
+// accessible label that marks it external. There must be exactly one such
+// link *pattern* in source — a second one would mean a legacy
+// 공식예약/공식출처-style external CTA crept back in.
 const anchorBlocks = [...festivalUiJs.matchAll(/link\.target = '_blank';[\s\S]{0,400}?(?=\n\s*(?:if |return|\}|row\.appendChild))/g)]
   .map(match => match[0]);
-assert.equal(anchorBlocks.length, 1, 'expected exactly one external-link CTA ([체험·신청]) — a second one would be a reintroduced legacy external link');
+assert.equal(anchorBlocks.length, 1, 'expected exactly one external-link CTA pattern ([접수]) — a second one would be a reintroduced legacy external link');
 for (const block of anchorBlocks) {
   assert.match(block, /link\.rel = 'noopener noreferrer'/, 'external link missing rel=noopener noreferrer');
   assert.match(block, /aria-label/, 'external link must have an accessible label announcing the external handoff');
@@ -118,18 +120,15 @@ assert.doesNotMatch(festivalUiJs, /totalPrice|priceTotal|sumPrice|합계.*가격
 assert.doesNotMatch(festivalClientJs, /totalPrice|priceTotal|sumPrice/);
 
 // ------------------------------------------------------ legacy UI removed --
-// FESTIVAL-EVENT-08 removes the legacy 공식홈페이지/예약안내/주차·셔틀/공식출처
-// sections entirely — not just visually, but as dead code, so nothing can
-// resurrect them by re-adding a call site.
-// Code-usage patterns only (not doc-comment prose, which may still name the
-// removed Core field for context): a function call/definition or an actual
-// property read/assignment.
+// FESTIVAL-EVENT-08 removes the legacy 예약안내/주차·셔틀/공식출처 sections
+// entirely — not just visually, but as dead code, so nothing can resurrect
+// them by re-adding a call site. Code-usage patterns only (not doc-comment
+// prose, which may still name the removed Core field for context): a
+// function call/definition or an actual property read/assignment.
 const REMOVED_CODE_PATTERNS = [
   [/buildReservationSection\s*\(/, 'buildReservationSection() call/definition'],
   [/buildParkingShuttleSection\s*\(/, 'buildParkingShuttleSection() call/definition'],
   [/buildOfficialSourceSection\s*\(/, 'buildOfficialSourceSection() call/definition'],
-  [/\.homepage_url\b/, '.homepage_url property read'],
-  [/\bhomepageUrl\s*[:=]/, 'homepageUrl assignment/property'],
   [/FESTIVAL_RESERVATION_TYPE\w*/, 'the legacy reservation-type enum'],
 ];
 for (const [pattern, label] of REMOVED_CODE_PATTERNS) {
@@ -137,10 +136,33 @@ for (const [pattern, label] of REMOVED_CODE_PATTERNS) {
   assert.doesNotMatch(festivalClientJs, pattern, `legacy ${label} must not remain in site-festival-client.js`);
 }
 
+// homepage_url has exactly one legitimate reader: normalizeBrowseItem (the
+// browse list card's own image/title link-out, which replaced opening the
+// internal detail screen). It must still never reach the detail/program
+// model (normalizePublishedFestival/normalizeFestivalProgram) or the
+// detail/CTA/program screens (buildCtaRow/renderProgramSurface) — that
+// boundary is what keeps a "공식 홈페이지" section from resurfacing inside
+// the internal screens FESTIVAL-EVENT-08 simplified.
+const browseItemBody = /function normalizeBrowseItem\([\s\S]*?\n\}\n/.exec(festivalClientJs)?.[0] || '';
+assert.match(browseItemBody, /\.homepage_url\b/, 'normalizeBrowseItem must read homepage_url for the list card\'s link-out');
+const publishedFestivalBody = /export function normalizePublishedFestival\([\s\S]*?\n\}\n/.exec(festivalClientJs)?.[0] || '';
+assert.ok(publishedFestivalBody, 'normalizePublishedFestival must exist');
+assert.doesNotMatch(publishedFestivalBody, /homepage_url|homepageUrl/, 'the detail model must never carry homepage_url/homepageUrl');
+const programNormalizerBody = /export function normalizeFestivalProgram\([\s\S]*?\n\}\n/.exec(festivalClientJs)?.[0] || '';
+assert.ok(programNormalizerBody, 'normalizeFestivalProgram must exist');
+assert.doesNotMatch(programNormalizerBody, /homepage_url|homepageUrl/);
+
+const ctaRowBody = /function buildCtaRow\([\s\S]*?\n\}\n/.exec(festivalUiJs)?.[0] || '';
+assert.ok(ctaRowBody, 'buildCtaRow must exist');
+assert.doesNotMatch(ctaRowBody, /homepageUrl/, 'the [접수]/[프로그램] CTA row must never read homepageUrl');
+const buildCardBody = /function buildCard\([\s\S]*?\n\}\n/.exec(festivalUiJs)?.[0] || '';
+assert.ok(buildCardBody, 'buildCard must exist');
+assert.match(buildCardBody, /festival\.homepageUrl/, 'the list card must read festival.homepageUrl for its own link-out');
+
 // At most two primary CTAs, and the internal program screen must never be an
 // external handoff to Core's admin-curated source package.
 assert.match(festivalUiJs, /festival-cta-program/, 'a [프로그램] CTA must exist');
-assert.match(festivalUiJs, /festival-cta-participation/, 'a [체험·신청] CTA must exist');
+assert.match(festivalUiJs, /festival-cta-registration/, 'a [접수] CTA must exist');
 assert.doesNotMatch(festivalUiJs, /festival_sources|source_service|admin_festival/i,
   '[프로그램] must open the internal date-tab screen, never call an admin source-package API');
 

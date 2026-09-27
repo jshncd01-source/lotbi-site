@@ -102,7 +102,7 @@ assert.match(ui, /error\.setAttribute\('role', 'alert'\);/);
 assert.match(ui, /list\.setAttribute\('role', 'listbox'\);/);
 assert.match(ui, /optionButton\.setAttribute\('role', 'option'\);/);
 assert.match(ui, /optionButton\.setAttribute\('aria-selected', String\(selected\)\);/);
-assert.match(ui, /aria-label=`\$\{festival\.name\} 상세 보기`|`\$\{festival\.name\} 상세 보기`/, 'each card must expose an accessible label including the festival name');
+assert.match(ui, /`\$\{festival\.name\} 공식 홈페이지, 새 창에서 열립니다`/, 'a card with a homepage link must expose an accessible label including the festival name and the new-tab handoff');
 
 assert.match(css, /\.festival-chip \{[^}]*min-height:\s*44px/, 'time-filter/region chips must meet the 44px touch-target minimum');
 assert.match(css, /\.festival-region-option \{[^}]*min-height:\s*44px/);

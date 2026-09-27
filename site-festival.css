@@ -346,11 +346,75 @@
   cursor: pointer;
   color: inherit;
   font: inherit;
+  text-decoration: none;
+}
+
+/* No homepage_url -> a plain, non-interactive container (never a dead click target). */
+.festival-card-open:not(a) {
+  cursor: default;
 }
 
 .festival-card-open:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: -2px;
+}
+
+/* ------------------------------------------------------ card action row -- */
+.festival-card-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+
+.festival-card-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.festival-card-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+  background: var(--lotbi-surface-primary);
+  cursor: pointer;
+}
+
+.festival-card-icon-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-card-icon-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-card-action-program,
+.festival-card-action-registration {
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+  border-color: transparent;
+}
+
+.festival-card-action-program:hover,
+.festival-card-action-registration:hover {
+  filter: brightness(0.96);
+}
+
+/* The reused "+ 내 캘린더에 추가" trigger sits among compact icon buttons here. */
+.festival-card-action-row .festival-calendar-add-trigger {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .festival-card-body {
@@ -454,7 +518,7 @@
 }
 
 /* --------------------------------------------------------------- CTAs --- */
-/* At most two primary actions — [프로그램] and [체험·신청] — never more. */
+/* At most two primary actions — [접수] and [프로그램] — never more. */
 .festival-cta-row {
   display: flex;
   flex-wrap: wrap;
@@ -484,19 +548,74 @@
   filter: brightness(0.96);
 }
 
-.festival-cta-participation {
+.festival-cta-registration {
   background: var(--lotbi-surface-primary);
   color: var(--lotbi-text-primary);
   border-color: var(--lotbi-border-strong);
 }
 
-.festival-cta-participation:hover {
+.festival-cta-registration:hover {
   background: var(--lotbi-surface-hover);
 }
 
 .festival-cta-button:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: 2px;
+}
+
+/* ------------------------------------------------- [접수] programs sheet -- */
+.festival-registration-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.festival-registration-sheet-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-registration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.festival-registration-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.festival-registration-link:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-registration-link:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-registration-program-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-registration-program-time,
+.festival-registration-program-venue {
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
 }
 
 /* --------------------------------------------------------- program view -- */
