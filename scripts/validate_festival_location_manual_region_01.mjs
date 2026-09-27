@@ -24,7 +24,7 @@ const currentLocation = read('site-current-location.js');
 // (already shipped for Calendar/weather) and never be re-implemented here.
 assert.match(ui, /from '\.\/site-current-location\.js(?:\?v=[A-Za-z0-9._-]+)?'/,
   'site-festival-ui.js must import the shared location primitives, not its own copy');
-for (const symbol of ['BrowserLocationError', 'LOCATION_PERMISSION', 'getBrowserLocationPermissionState', 'requestBrowserCurrentLocation']) {
+for (const symbol of ['BrowserLocationError', 'LOCATION_PERMISSION', 'getBrowserLocationPermissionState', 'acquireSharedBrowserCurrentLocation']) {
   assert.match(ui, new RegExp(symbol), `site-festival-ui.js must use the shared ${symbol}`);
 }
 assert.doesNotMatch(ui, /navigator\.geolocation\.getCurrentPosition/,
@@ -32,14 +32,22 @@ assert.doesNotMatch(ui, /navigator\.geolocation\.getCurrentPosition/,
 assert.doesNotMatch(ui, /LOCATION_PERMISSION\s*=\s*Object\.freeze/,
   'site-festival-ui.js must not redefine the LOCATION_PERMISSION enum');
 
-// requestBrowserCurrentLocation must be called from exactly one place
-// (inside useCurrentLocation) — never fired eagerly at mount regardless of
-// permission state, and never duplicated into a second ad hoc call site.
-const requestCalls = [...ui.matchAll(/requestBrowserCurrentLocation\(/g)];
-assert.equal(requestCalls.length, 1, 'requestBrowserCurrentLocation must be called from exactly one place');
+// The current location must be acquired from exactly one place (inside
+// useCurrentLocation) — never fired eagerly at mount regardless of permission
+// state, and never duplicated into a second ad hoc call site.
+//
+// GLOBAL-LOCATION-15: the acquisition now goes through the shared layer's
+// acquireSharedBrowserCurrentLocation, so a fix Calendar weather just took is
+// reused instead of asking the browser for coordinates a second time, and two
+// features mounting together produce one getCurrentPosition call, not two.
+// Festival must not keep its own private copy of that reuse logic.
+const requestCalls = [...ui.matchAll(/acquireSharedBrowserCurrentLocation\(/g)];
+assert.equal(requestCalls.length, 1, 'the current location must be acquired from exactly one place');
+assert.doesNotMatch(ui, /requestBrowserCurrentLocation\(/,
+  'festival must acquire through the shared cross-feature entry point, not the un-shared primitive');
 const useCurrentLocationBody = /async function useCurrentLocation\([\s\S]*?\n {2}\}\n/.exec(ui)?.[0] || '';
-assert.match(useCurrentLocationBody, /requestBrowserCurrentLocation\(\)/,
-  'the sole requestBrowserCurrentLocation() call must live inside useCurrentLocation()');
+assert.match(useCurrentLocationBody, /acquireSharedBrowserCurrentLocation\(\)/,
+  'the sole acquisition call must live inside useCurrentLocation()');
 
 // ------------------------------------------------------------- GRANTED path
 // Entry must check permission first, then auto-resolve only when GRANTED —
