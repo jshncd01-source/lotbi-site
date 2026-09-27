@@ -196,7 +196,11 @@ try{
 
   console.log('SITE-AUTH-UNKNOWN-RECOVERY-BROWSER-01 PASS');
 } finally {
-  if(chrome&&!chrome.killed)chrome.kill('SIGTERM');
+  if (chrome && chrome.exitCode === null) {
+    const exited = new Promise(resolve => chrome.once('exit', resolve));
+    chrome.kill('SIGTERM');
+    await Promise.race([exited, delay(2000)]);
+  }
   await new Promise(resolve=>server.close(resolve));
-  fs.rmSync(profile,{recursive:true,force:true});
+  fs.rmSync(profile,{recursive:true,force:true,maxRetries:5,retryDelay:100});
 }
