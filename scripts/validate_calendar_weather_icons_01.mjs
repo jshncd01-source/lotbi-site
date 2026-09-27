@@ -296,7 +296,11 @@ assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentat
 assert.ok(manager.includes('const presentation = calendarWeatherPresentation(weather)') && manager.includes('presentation.weekLabel'), 'Week must render the available temperature range');
 assert.ok(manager.includes("temperature.className = 'calendar-weather-temperature'"), 'temperature needs a distinct compact visual slot');
 assert.ok(manager.includes("locationButton.addEventListener('click'"), 'current location must be a user action');
-assert.ok(manager.includes('requestBrowserCurrentLocation({'), 'Calendar must request location only from the explicit button path');
+// GLOBAL-LOCATION-15: 획득은 공통 계층의 공유 진입점을 통한다 -- 축제가 방금 읽어 둔
+// 좌표를 재사용하고, 두 기능이 동시에 물어도 GPS 요청은 하나다. 의도는 그대로다:
+// 캘린더는 이 한 자리에서만 위치를 가져온다.
+assert.ok(manager.includes('acquireSharedBrowserCurrentLocation({'), 'Calendar must request location only from the explicit button path');
+assert.ok(!manager.includes('requestBrowserCurrentLocation('), 'Calendar must acquire through the shared cross-feature entry point, not the un-shared primitive');
 assert.ok(manager.includes('weatherLocation: currentWeatherLocation'), 'fresh browser location must feed only the Core weather fallback');
 assert.ok(manager.includes("currentWeatherLocation?.source === 'BROWSER_CURRENT'"), 'browser provenance must be explicit');
 assert.ok(manager.includes('isFreshBrowserCurrentLocation'), 'stale current location must be rejected before reuse');
