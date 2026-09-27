@@ -157,6 +157,16 @@ def extract_theme_bootstrap(index: str) -> str | None:
     return index[start:end]
 
 
+def extract_https_origin_bootstrap(index: str) -> str | None:
+    """Return the allowlisted custom-domain HTTP→HTTPS bootstrap, or None."""
+    marker = "SITE-AUTH-HTTPS-ORIGIN-01"
+    if marker not in index:
+        return None
+    start = index.index("<script>", index.index(marker))
+    end = index.index("</script>", start) + len("</script>")
+    return index[start:end]
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -221,9 +231,30 @@ def main() -> int:
         avatar_script.group(0) if avatar_script else "__missing_avatar_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
-    # +1 for the allowlisted inline theme bootstrap verified above.
-    if index.lower().count("<script") != len(approved_scripts) + 1 or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only approved one sealed Avatar import map plus approved home-shell.js, mobile-entry.js, site-conversation.js, site-continuity.js, site-avatar.js and site-footer-legal.js scripts")
+    # +2 for the exact-purpose inline theme and HTTPS-origin bootstraps verified below.
+    if index.lower().count("<script") != len(approved_scripts) + 2 or any(script not in index for script in approved_scripts):
+        errors.append("home page may run only the approved HTTPS/theme bootstraps, one sealed Avatar import map, and approved Home modules")
+
+    https_bootstrap = extract_https_origin_bootstrap(index)
+    if https_bootstrap is None:
+        errors.append("the HTTPS custom-domain bootstrap is missing from index.html")
+    else:
+        required_https_tokens = (
+            "hostname === 'lotbiai.com'",
+            "hostname === 'www.lotbiai.com'",
+            "window.location.protocol === 'https:'",
+            "secureUrl.protocol = 'https:'",
+            "secureUrl.hostname = 'lotbiai.com'",
+            "secureUrl.port = ''",
+            "window.location.replace(secureUrl.href)",
+        )
+        for token in required_https_tokens:
+            if token not in https_bootstrap:
+                errors.append(f"the HTTPS custom-domain bootstrap is missing: {token}")
+        for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon",
+                      "localstorage", "sessionstorage", "indexeddb", "document.cookie"):
+            if token in https_bootstrap.lower():
+                errors.append(f"the HTTPS custom-domain bootstrap must not reach for {token}")
 
     # SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — one inline block in <head> is allowed
     # to read localStorage, because the theme has to be known before the first
@@ -313,8 +344,8 @@ def main() -> int:
 
     if f'href="site-hardening.css?v={asset_version}"' not in index:
         errors.append("hardening stylesheet is not linked after approved home stylesheet")
-    if f'href="site-auth-continuity.css?v={asset_version}"' not in index:
-        errors.append("authenticated continuity stylesheet missing from home")
+    if not re.search(r'href="site-auth-continuity\.css\?v=aset-[A-Za-z0-9._-]+"', index):
+        errors.append("authenticated continuity stylesheet missing a cache-busted home link")
     if f'href="mobile-entry.css?v={asset_version}"' not in index:
         errors.append("mobile chooser stylesheet missing from home")
     if not conversation_script:

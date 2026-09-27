@@ -383,7 +383,39 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 
 .sidebar-account-unknown {
   cursor: default;
-  pointer-events: none;
+}
+
+.sidebar-account-unknown:hover {
+  background: transparent;
+}
+
+.sidebar-account-recovery-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.sidebar-account-recovery-action {
+  min-height: 32px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sidebar-account-recovery-action:hover,
+.sidebar-account-recovery-action:focus-visible {
+  background: #eceff5;
 }
 
 .sidebar-guest-actions {

@@ -2,6 +2,25 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
+  <!-- SITE-AUTH-HTTPS-ORIGIN-01 — Account session status is credentialed CORS
+       and intentionally trusts only https://lotbiai.com. Upgrade/canonicalize
+       the public custom-domain document before any runtime can issue the
+       Account request; never weaken the Account allowlist to accept HTTP. -->
+  <script>
+    (() => {
+      try {
+        const hostname = window.location.hostname.toLowerCase();
+        const isLotbiHost = hostname === 'lotbiai.com' || hostname === 'www.lotbiai.com';
+        if (!isLotbiHost) return;
+        if (window.location.protocol === 'https:' && hostname === 'lotbiai.com') return;
+        const secureUrl = new URL(window.location.href);
+        secureUrl.protocol = 'https:';
+        secureUrl.hostname = 'lotbiai.com';
+        secureUrl.port = '';
+        window.location.replace(secureUrl.href);
+      } catch {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
   <meta name="robots" content="index,follow" />
@@ -57,23 +76,23 @@
       }
     } catch (error) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="home-chat.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-hardening.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-avatar.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-calendar.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-pet.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-festival.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="footer-business-info.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="mobile-entry.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="home-bare-white.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-b048cecbbb5a" />
-  <link rel="stylesheet" href="site-conversation.css?v=aset-b048cecbbb5a" />  <style>
+  <link rel="stylesheet" href="styles.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-festival.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-3c8b3957000d" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-3c8b3957000d" />  <style>
     body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
     }
   </style>
@@ -85,12 +104,12 @@
     }
   }
   </script>
-  <script src="home-shell.js?v=aset-b048cecbbb5a" defer></script>
-  <script src="mobile-entry.js?v=aset-b048cecbbb5a" defer></script>
-  <script type="module" src="site-avatar.js?v=aset-b048cecbbb5a"></script>
-  <script type="module" src="site-conversation.js?v=aset-b048cecbbb5a"></script>
-  <script type="module" src="site-continuity.js?v=aset-b048cecbbb5a"></script>
-  <script type="module" src="site-footer-legal.js?v=aset-b048cecbbb5a"></script></head>
+  <script src="home-shell.js?v=aset-3c8b3957000d" defer></script>
+  <script src="mobile-entry.js?v=aset-3c8b3957000d" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-3c8b3957000d"></script>
+  <script type="module" src="site-conversation.js?v=aset-3c8b3957000d"></script>
+  <script type="module" src="site-continuity.js?v=aset-3c8b3957000d"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-3c8b3957000d"></script></head>
 <body class="chat-home-page" data-conversation-restore="pending">  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 
   <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
