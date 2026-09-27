@@ -81,28 +81,6 @@
   outline-offset: 2px;
 }
 
-.festival-date-field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--lotbi-text-secondary);
-}
-
-.festival-date-field input[type="date"] {
-  border: 1px solid var(--lotbi-border-default);
-  border-radius: 8px;
-  padding: 6px 8px;
-  background: var(--lotbi-surface-primary);
-  color: var(--lotbi-text-primary);
-  font-size: 16px; /* validate_ios_input_zoom_01: keep form inputs >=16px */
-}
-
-.festival-date-field input[type="date"]:focus-visible {
-  outline: 2px solid var(--lotbi-focus-ring);
-  outline-offset: 2px;
-}
-
 /* --------------------------------------------------- location banner ---- */
 .festival-location-banner {
   display: flex;
@@ -220,6 +198,58 @@
 .festival-region-current-button:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: 2px;
+}
+
+.festival-region-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.festival-region-back-button {
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-secondary);
+  cursor: pointer;
+}
+
+.festival-region-back-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-region-back-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-region-loading {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lotbi-text-secondary);
+}
+
+/* Desktop (INLINE) region sheet mount point, placed right where "지역 변경"
+   itself is -- the sheet primitive's own default host (document.body) has no
+   positioning for INLINE, so without this anchor a desktop click looked like
+   it did nothing (see site-festival-ui.js's openRegionSheet). Empty when no
+   sheet is open, so it never reserves layout space by itself. */
+.festival-region-desktop-anchor:empty {
+  display: none;
+}
+
+.festival-region-desktop-anchor {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--lotbi-surface-primary);
 }
 
 /* ---------------------------------------------------------- list state -- */

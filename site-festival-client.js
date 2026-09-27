@@ -37,6 +37,10 @@ const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
 const FESTIVAL_DETAIL_PATH = '/festivals';
 
+function municipalitiesPath(province) {
+  return `/festivals/regions/${encodeURIComponent(province)}/municipalities`;
+}
+
 export const FESTIVAL_STATUS = Object.freeze({
   ONGOING: 'ONGOING',
   THIS_WEEKEND: 'THIS_WEEKEND',
@@ -520,6 +524,26 @@ export async function listFestivalRegions(fetchImpl = globalThis.fetch) {
   return provinces?.length ? {provinces, source: 'LIVE'} : {provinces: REGION_FALLBACK_PROVINCES, source: 'FALLBACK'};
 }
 
+// 시·군 only -- never 구. A province with no 시·군 sub-division (서울/광주/대전/
+// 세종 today) or an unreachable Core call both resolve to an empty list: the
+// picker then shows only an "OO 전체" option, never a fabricated 구-level
+// fallback (there is no local fallback catalog for this call, unlike
+// listFestivalRegions -- 시·군 completeness genuinely lives in Core only).
+/**
+ * @param {string} province
+ * @returns {Promise<{municipalities: ReadonlyArray<string>, source: 'LIVE'|'UNAVAILABLE'}>}
+ */
+export async function listFestivalMunicipalities(province, fetchImpl = globalThis.fetch) {
+  const provinceText = text(province);
+  if (!provinceText || typeof fetchImpl !== 'function') return {municipalities: [], source: 'UNAVAILABLE'};
+  const result = await coreFetchJson(municipalitiesPath(provinceText), fetchImpl);
+  if (!result.ok) return {municipalities: [], source: 'UNAVAILABLE'};
+  const municipalities = Array.isArray(result.data?.municipalities)
+    ? Object.freeze(result.data.municipalities.map(row => text(row?.municipality_name)).filter(Boolean))
+    : [];
+  return {municipalities, source: 'LIVE'};
+}
+
 // Allowlist normalizer for one row of `GET /festivals/browse` (`festival_id`/
 // `start_date`/`region_name`/`distance_km`/... — see lotbi-core
 // app/festival_browse.py::browse_festivals). `image_url` is read here for
@@ -540,6 +564,7 @@ function normalizeBrowseItem(raw) {
     endDate,
     cancelled: false, // GET /festivals/browse only ever returns PUBLISHED rows
     region: text(raw.region_name),
+    municipality: text(raw.municipality_name),
     address: text(raw.address),
     latitude: finiteNumber(raw.latitude),
     longitude: finiteNumber(raw.longitude),
@@ -550,7 +575,7 @@ function normalizeBrowseItem(raw) {
 }
 
 /**
- * @param {{latitude?: number, longitude?: number, region?: string, time?: string, date?: string, limit?: number, offset?: number}} query
+ * @param {{latitude?: number, longitude?: number, region?: string, municipality?: string, time?: string, date?: string, limit?: number, offset?: number}} query
  * @param {typeof fetch} fetchImpl
  * @returns {Promise<{festivals: ReadonlyArray<object>, hasMore: boolean, nextOffset: number|null, totalCount: number}>}
  */
@@ -558,6 +583,7 @@ export async function browseFestivals({
   latitude,
   longitude,
   region,
+  municipality,
   time = FESTIVAL_TIME_FILTER.ALL,
   date,
   limit = 20,
@@ -572,6 +598,7 @@ export async function browseFestivals({
     params.set('longitude', String(longitude));
   }
   if (region) params.set('region', region);
+  if (region && municipality) params.set('municipality', municipality);
   params.set('time', time || FESTIVAL_TIME_FILTER.ALL);
   if (date) params.set('date', date);
   params.set('limit', String(Math.max(1, Math.min(100, Number(limit) || 20))));

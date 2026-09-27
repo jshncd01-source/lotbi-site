@@ -55,10 +55,11 @@ import {
   getPublishedFestival,
   groupProgramsByDate,
   listFestivalRegions,
+  listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
 } from './site-festival-client.js?v=aset-1817bacadd42';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-1817bacadd42';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-1817bacadd42';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
@@ -605,8 +606,8 @@ export async function mountFestivalManager({
 
   const state = {
     region: '',
+    municipality: '',
     time: FESTIVAL_TIME_FILTER.ALL,
-    customDate: '',
     locationMode: 'NONE', // 'NONE' | 'CURRENT'
     currentPosition: null,
     currentRegionLabel: '',
@@ -619,11 +620,15 @@ export async function mountFestivalManager({
   };
   let regionProvinces = [];
   let regionProvincesPromise = null;
+  const municipalityPromisesByProvince = new Map();
+  let regionStep = 'PROVINCE'; // 'PROVINCE' | 'MUNICIPALITY' -- transient sheet navigation, not query state
+  let regionStepProvince = '';
   let requestToken = 0;
   let currentAbort = null;
   let nextOffset = 0;
   let hasMore = false;
   let regionSheetRef = null;
+  let regionSheetDesktopAnchor = null;
 
   const container = el('div', 'festival-manager');
   const locationBanner = el('div', 'festival-location-banner');
@@ -633,14 +638,7 @@ export async function mountFestivalManager({
   const timeRow = el('div', 'festival-chip-row festival-time-row');
   timeRow.setAttribute('role', 'group');
   timeRow.setAttribute('aria-label', '시간 필터');
-  const dateField = document.createElement('label');
-  dateField.className = 'festival-date-field';
-  dateField.hidden = true;
-  dateField.append(el('span', '', '날짜 선택'));
-  const dateInput = document.createElement('input');
-  dateInput.type = 'date';
-  dateField.appendChild(dateInput);
-  filterBar.append(timeRow, dateField);
+  filterBar.append(timeRow);
 
   const liveRegion = el('p', 'sr-only');
   liveRegion.setAttribute('role', 'status');
@@ -689,10 +687,15 @@ export async function mountFestivalManager({
   void ensureRegionProvinces();
 
   function renderLocationBanner() {
+    // A desktop (INLINE) region sheet is mounted as an extra child of this
+    // same banner (see openRegionSheet); replaceChildren() below would
+    // otherwise silently detach it from the page -- still "open" as far as
+    // regionSheetRef is concerned, but invisible -- if anything re-renders
+    // the banner (e.g. the outer "현재 위치로 보기" tap) while it is open.
     locationBanner.replaceChildren();
     const label = el('span', 'festival-location-label');
     if (state.region) {
-      label.textContent = `📍 ${state.region}`;
+      label.textContent = state.municipality ? `📍 ${state.region} · ${state.municipality}` : `📍 ${state.region}`;
     } else if (state.locationMode === 'CURRENT') {
       label.textContent = state.currentRegionLabel
         ? `📍 현재 위치 기준 · ${state.currentRegionLabel}`
@@ -727,18 +730,68 @@ export async function mountFestivalManager({
     regionButton.addEventListener('click', () => void openRegionSheet());
     actions.appendChild(regionButton);
     locationBanner.appendChild(actions);
+    if (regionSheetDesktopAnchor) locationBanner.appendChild(regionSheetDesktopAnchor);
   }
 
   async function openRegionSheet() {
     await ensureRegionProvinces();
+    regionStep = 'PROVINCE';
+    regionStepProvince = '';
+    const presentation = defaultPresentation();
+    // INLINE (desktop) must be mounted where the "지역 변경" button actually
+    // is -- createBottomSheet's own default host (document.body) put it at
+    // the very end of <body> with no positioning at all, so a desktop click
+    // looked like it did nothing. SHEET (mobile) keeps the existing default
+    // host: it is already a fixed-position overlay and must stay exactly as
+    // it was.
+    regionSheetDesktopAnchor = presentation === SHEET_PRESENTATION.INLINE
+      ? locationBanner.appendChild(el('div', 'festival-region-desktop-anchor'))
+      : null;
     regionSheetRef = createBottomSheet({
       label: '지역 변경',
       content: () => buildRegionSheetBody(),
-      onClose: () => { regionSheetRef = null; },
+      presentation,
+      root: regionSheetDesktopAnchor || undefined,
+      onClose: () => {
+        regionSheetRef = null;
+        regionSheetDesktopAnchor?.remove();
+        regionSheetDesktopAnchor = null;
+      },
     });
     regionSheetRef.open();
   }
 
+  function ensureMunicipalities(province) {
+    if (!municipalityPromisesByProvince.has(province)) {
+      municipalityPromisesByProvince.set(
+        province,
+        listFestivalMunicipalities(province, fetchImpl).then(result => result.municipalities).catch(() => []),
+      );
+    }
+    return municipalityPromisesByProvince.get(province);
+  }
+
+  async function goToMunicipalityStep(province) {
+    regionStep = 'MUNICIPALITY';
+    regionStepProvince = province;
+    regionSheetRef?.setContent(() => buildMunicipalityLoadingStep(province));
+    const municipalities = await ensureMunicipalities(province);
+    // The sheet may have been closed, or the user may have gone back/picked a
+    // different province, while this fetch was in flight.
+    if (regionStep !== 'MUNICIPALITY' || regionStepProvince !== province) return;
+    regionSheetRef?.setContent(() => buildMunicipalityStep(province, municipalities));
+  }
+
+  function backToProvinceStep() {
+    regionStep = 'PROVINCE';
+    regionStepProvince = '';
+    regionSheetRef?.setContent(() => buildRegionSheetBody());
+  }
+
+  // Step 1: 광역시·도. This is also the sheet's initial content (regionStep is
+  // always reset to 'PROVINCE' before the sheet is created) and what
+  // backToProvinceStep() returns to -- step 2 is reached only via
+  // goToMunicipalityStep()'s own setContent(), never through this function.
   function buildRegionSheetBody() {
     const wrap = el('div', 'festival-region-sheet');
     wrap.appendChild(el('h3', 'festival-region-sheet-title', '지역 변경'));
@@ -754,10 +807,7 @@ export async function mountFestivalManager({
       optionButton.setAttribute('aria-selected', String(selected));
       if (selected) optionButton.classList.add('is-selected');
       optionButton.textContent = province;
-      optionButton.addEventListener('click', () => {
-        selectManualRegion(province);
-        regionSheetRef?.close();
-      });
+      optionButton.addEventListener('click', () => void goToMunicipalityStep(province));
       list.appendChild(optionButton);
     }
     wrap.appendChild(list);
@@ -775,12 +825,70 @@ export async function mountFestivalManager({
     return wrap;
   }
 
-  function selectManualRegion(province) {
+  function buildMunicipalityLoadingStep(province) {
+    const wrap = el('div', 'festival-region-sheet');
+    wrap.appendChild(buildMunicipalityStepHeader(province));
+    wrap.appendChild(el('p', 'festival-region-loading', '불러오는 중...'));
+    return wrap;
+  }
+
+  function buildMunicipalityStepHeader(province) {
+    const header = el('div', 'festival-region-sheet-header');
+    const backButton = document.createElement('button');
+    backButton.type = 'button';
+    backButton.className = 'festival-region-back-button';
+    backButton.setAttribute('aria-label', '이전 화면 (지역 선택)으로');
+    backButton.textContent = '← 이전';
+    backButton.addEventListener('click', () => backToProvinceStep());
+    header.append(backButton, el('h3', 'festival-region-sheet-title', province));
+    return header;
+  }
+
+  // 시·군 only -- never 구/읍/면/동/리. A province with an empty catalog
+  // (서울/광주/대전/세종 today) renders only the "OO 전체" row, never a
+  // fabricated 구-level list.
+  function buildMunicipalityStep(province, municipalities) {
+    const wrap = el('div', 'festival-region-sheet');
+    wrap.appendChild(buildMunicipalityStepHeader(province));
+    const list = el('div', 'festival-region-list');
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', `${province} 시·군 선택`);
+
+    const allOption = document.createElement('button');
+    allOption.type = 'button';
+    allOption.className = 'festival-region-option';
+    allOption.setAttribute('role', 'option');
+    const allSelected = state.region === province && !state.municipality;
+    allOption.setAttribute('aria-selected', String(allSelected));
+    if (allSelected) allOption.classList.add('is-selected');
+    allOption.textContent = `${province} 전체`;
+    allOption.addEventListener('click', () => selectManualRegion(province, ''));
+    list.appendChild(allOption);
+
+    for (const municipality of municipalities) {
+      const optionButton = document.createElement('button');
+      optionButton.type = 'button';
+      optionButton.className = 'festival-region-option';
+      optionButton.setAttribute('role', 'option');
+      const selected = state.region === province && state.municipality === municipality;
+      optionButton.setAttribute('aria-selected', String(selected));
+      if (selected) optionButton.classList.add('is-selected');
+      optionButton.textContent = municipality;
+      optionButton.addEventListener('click', () => selectManualRegion(province, municipality));
+      list.appendChild(optionButton);
+    }
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  function selectManualRegion(province, municipality = '') {
     state.region = province;
     state.locationMode = 'NONE';
     state.currentPosition = null;
+    state.municipality = municipality;
     state.currentRegionLabel = '';
     renderLocationBanner();
+    regionSheetRef?.close();
     void fetchAndRender({reset: true});
   }
 
@@ -820,16 +928,21 @@ export async function mountFestivalManager({
   function selectTimeFilter(key) {
     state.time = key;
     for (const [value, button] of timeButtons) button.setAttribute('aria-pressed', String(value === key));
-    dateField.hidden = key !== FESTIVAL_TIME_FILTER.DATE;
-    if (key === FESTIVAL_TIME_FILTER.DATE) {
-      if (state.customDate) void fetchAndRender({reset: true});
-      return;
-    }
     void fetchAndRender({reset: true});
   }
 
+  // User-facing time filters only -- 날짜 선택 (a custom date picker forcing
+  // one specific day before browsing at all) is removed from this screen.
+  // Core's own time=DATE contract is untouched (see site-festival-client.js);
+  // this UI simply never sends it any more.
+  const USER_TIME_FILTERS = [
+    FESTIVAL_TIME_FILTER.ALL,
+    FESTIVAL_TIME_FILTER.ONGOING,
+    FESTIVAL_TIME_FILTER.THIS_WEEKEND,
+    FESTIVAL_TIME_FILTER.THIS_MONTH,
+  ];
   const timeButtons = new Map();
-  for (const key of Object.values(FESTIVAL_TIME_FILTER)) {
+  for (const key of USER_TIME_FILTERS) {
     const button = chipButton(FESTIVAL_TIME_FILTER_LABEL[key], {
       pressed: state.time === key,
       onClick: () => selectTimeFilter(key),
@@ -837,16 +950,12 @@ export async function mountFestivalManager({
     timeButtons.set(key, button);
     timeRow.appendChild(button);
   }
-  dateInput.addEventListener('change', () => {
-    state.customDate = dateInput.value || '';
-    if (state.customDate) void fetchAndRender({reset: true});
-  });
 
   function buildQuery(offset) {
     const query = {time: state.time, limit: PAGE_SIZE, offset};
-    if (state.time === FESTIVAL_TIME_FILTER.DATE && state.customDate) query.date = state.customDate;
     if (state.region) {
       query.region = state.region;
+      if (state.municipality) query.municipality = state.municipality;
     } else if (state.locationMode === 'CURRENT' && state.currentPosition) {
       query.latitude = state.currentPosition.latitude;
       query.longitude = state.currentPosition.longitude;
@@ -855,7 +964,10 @@ export async function mountFestivalManager({
   }
 
   function emptyMessageFor() {
-    if (state.region) return `현재 조건에 맞는 축제·행사가 없어요 (${state.region})`;
+    if (state.region) {
+      const label = state.municipality ? `${state.region} ${state.municipality}` : state.region;
+      return `현재 조건에 맞는 축제·행사가 없어요 (${label})`;
+    }
     if (state.locationMode === 'CURRENT') return '현재 위치 주변에 조건에 맞는 축제·행사가 없어요';
     return '현재 조건에 맞는 축제·행사가 없어요';
   }

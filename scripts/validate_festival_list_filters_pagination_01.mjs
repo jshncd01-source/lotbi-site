@@ -16,24 +16,20 @@ const clientJs = read('site-festival-client.js');
 const css = read('site-festival.css');
 
 // ---------------------------------------------------------- time filters --
-assert.match(ui, /for \(const key of Object\.values\(FESTIVAL_TIME_FILTER\)\)/,
-  'the 5 time filter buttons must be generated from the shared enum, not hand-duplicated copy');
+// FESTIVAL-EVENT-02 REGION-BROWSE: 날짜 선택 (a custom date-picker filter
+// forcing one specific day before browsing at all) is removed from the
+// user-facing filter bar. Only 전체/진행 중/이번 주말/이번 달 remain, generated
+// from an explicit list (not the full FESTIVAL_TIME_FILTER enum, which still
+// carries DATE for Core's own unrelated contract — see
+// site-festival-client.js and validate_festival_public_boundary_01.mjs).
+assert.match(ui, /const USER_TIME_FILTERS = \[\s*FESTIVAL_TIME_FILTER\.ALL,\s*FESTIVAL_TIME_FILTER\.ONGOING,\s*FESTIVAL_TIME_FILTER\.THIS_WEEKEND,\s*FESTIVAL_TIME_FILTER\.THIS_MONTH,\s*\];/,
+  'the user-facing filter bar must render exactly 전체/진행 중/이번 주말/이번 달, and DATE must not be in that list');
+assert.match(ui, /for \(const key of USER_TIME_FILTERS\)/,
+  'the 4 time filter buttons must be generated from the explicit user-facing list, not hand-duplicated copy');
 assert.doesNotMatch(ui, /'오늘'|'날짜별'|'지역별'/, 'the old 오늘/지역별/날짜별 structure must be fully removed');
-
-// DATE must never fire a query before a date is chosen (Core requires it and
-// rejects FESTIVAL_DATE_REQUIRED otherwise) — both the tab click and the
-// date <input> change handler must gate on state.customDate.
-assert.match(
-  ui,
-  /if \(key === FESTIVAL_TIME_FILTER\.DATE\) \{\s*if \(state\.customDate\) void fetchAndRender\(\{reset: true\}\);\s*return;\s*\}/,
-  'selecting the 날짜 선택 tab must not query Core until a date is actually picked',
-);
-assert.match(
-  ui,
-  /dateInput\.addEventListener\('change', \(\) => \{\s*state\.customDate = dateInput\.value \|\| '';\s*if \(state\.customDate\) void fetchAndRender\(\{reset: true\}\);\s*\}\);/,
-  'picking a date must trigger exactly one reset fetch, scoped by state.customDate',
-);
-assert.match(ui, /dateInput\.type = 'date'/);
+assert.doesNotMatch(ui, /FESTIVAL_TIME_FILTER\.DATE/, 'the user-facing filter bar must never reference the DATE filter');
+assert.doesNotMatch(ui, /dateInput|dateField|customDate/,
+  'the 날짜 선택 date <input>/state must be fully removed from the festival browse screen');
 
 // ------------------------------------------------------- pagination/race --
 // A request-token + AbortController pair must guard every fetch: a filter
@@ -107,11 +103,11 @@ assert.match(ui, /`\$\{festival\.name\} 공식 홈페이지, 새 창에서 열�
 assert.match(css, /\.festival-chip \{[^}]*min-height:\s*44px/, 'time-filter/region chips must meet the 44px touch-target minimum');
 assert.match(css, /\.festival-region-option \{[^}]*min-height:\s*44px/);
 assert.match(css, /\.festival-load-more \{[^}]*min-height:\s*44px/);
-assert.match(css, /\.festival-date-field input\[type="date"\][^{]*\{[^}]*font-size:\s*16px/, 'the date input must stay >=16px to avoid iOS Safari zoom');
+assert.doesNotMatch(css, /\.festival-date-field/, 'the removed 날짜 선택 date-field CSS must not remain as dead code');
 
 // Responsive: the card grid must default to a single column (no fixed
 // minmax() width that could overflow at 320px) and only widen on desktop.
 assert.match(css, /\.festival-card-grid \{[^}]*grid-template-columns:\s*1fr;/);
 assert.match(css, /@media \(min-width: 640px\) \{\s*\.festival-card-grid \{\s*grid-template-columns:\s*repeat\(2, 1fr\);/);
 
-console.log('FESTIVAL FILTERS/PAGINATION/CARD/ACCESSIBILITY VALIDATION PASS — 5-filter time bar, DATE gating, request-token+AbortController race safety, Core-authoritative ordering, card rendering rules, no-fixture-in-production, and accessibility/responsive contracts verified.');
+console.log('FESTIVAL FILTERS/PAGINATION/CARD/ACCESSIBILITY VALIDATION PASS — 4-filter time bar (날짜 선택 removed, Core DATE contract untouched), request-token+AbortController race safety, Core-authoritative ordering, card rendering rules, no-fixture-in-production, and accessibility/responsive contracts verified.');
