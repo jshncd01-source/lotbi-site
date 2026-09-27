@@ -1,11 +1,12 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=aset-534b4639bfb7';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-534b4639bfb7';
+import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=aset-032ae4073072';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-032ae4073072';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
 export const AUTH_STATE_AUTHENTICATED = 'authenticated';
 export const AUTH_STATE_UNAUTHENTICATED = 'unauthenticated';
 export const AUTH_STATE_UNKNOWN = 'unknown';
+export const ACCOUNT_STATUS_RETRY_DELAYS_MS = Object.freeze([1000, 3000, 10000]);
 
 const LOGIN_URL = '/auth/start/';
 const SIGNUP_URL = 'https://account.lotbiai.com/signup';
@@ -15,6 +16,8 @@ let siteSessionExpiresAt = 0;
 let checking = false;
 let redirecting = false;
 let expiryTimer;
+let unknownRetryTimer;
+let unknownRetryAttempt = 0;
 let siteLogoutSuppressed = hasSiteLogoutSuppression();
 
 function performanceNow() {
@@ -168,6 +171,57 @@ function sidebarAccountLink({href, label, primary, secondary}) {
   return link;
 }
 
+function clearUnknownRetry({resetAttempt = true} = {}) {
+  if (unknownRetryTimer !== undefined) {
+    clearTimeout(unknownRetryTimer);
+    unknownRetryTimer = undefined;
+  }
+  if (resetAttempt) unknownRetryAttempt = 0;
+}
+
+function scheduleUnknownRetry() {
+  if (
+    !rootLocation()
+    || redirecting
+    || unknownRetryTimer !== undefined
+    || unknownRetryAttempt >= ACCOUNT_STATUS_RETRY_DELAYS_MS.length
+  ) return;
+
+  const attempt = unknownRetryAttempt + 1;
+  const delayMs = ACCOUNT_STATUS_RETRY_DELAYS_MS[unknownRetryAttempt];
+  unknownRetryAttempt = attempt;
+  unknownRetryTimer = setTimeout(() => {
+    unknownRetryTimer = undefined;
+    if (!rootLocation() || redirecting) return;
+    recordTiming('account-status-auto-retry', {attempt, delayMs});
+    void synchronizeAccountContinuity({preserveUnknownUi: true});
+  }, delayMs);
+}
+
+function requestAccountContinuityRetry() {
+  if (!rootLocation() || checking || redirecting) return;
+  clearUnknownRetry({resetAttempt: true});
+  recordTiming('account-status-manual-retry', {elapsedMs: Math.round(performanceNow())});
+  void synchronizeAccountContinuity();
+}
+
+function recoveryRetryButton(className) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.textContent = '다시 확인';
+  button.addEventListener('click', requestAccountContinuityRetry);
+  return button;
+}
+
+function recoveryLoginLink(className) {
+  const link = document.createElement('a');
+  link.className = className;
+  link.href = LOGIN_URL;
+  link.textContent = '로그인';
+  return installDirectLoginHandoff(link);
+}
+
 function markCheckingSidebarAccountUi(message = '계정 상태 확인 중') {
   for (const slot of sidebarAccountSlots()) {
     slot.replaceChildren(...sidebarCheckingNodes(message));
@@ -177,19 +231,26 @@ function markCheckingSidebarAccountUi(message = '계정 상태 확인 중') {
 
 function markUnknownSidebarAccountUi() {
   for (const slot of sidebarAccountSlots()) {
-    const state = document.createElement('span');
+    const state = document.createElement('div');
     state.className = 'sidebar-account-entry sidebar-account-unknown';
-    state.setAttribute('role', 'status');
 
     const primary = document.createElement('span');
     primary.className = 'sidebar-account-name';
-    primary.textContent = '계정 상태 확인 필요';
+    primary.textContent = '계정 상태를 확인하지 못했어요.';
 
     const detail = document.createElement('span');
     detail.className = 'sidebar-account-handle';
-    detail.textContent = '잠시 후 자동으로 다시 확인합니다.';
+    detail.setAttribute('role', 'status');
+    detail.textContent = '다시 확인하거나 로그인해 주세요.';
 
-    state.append(primary, detail);
+    const controls = document.createElement('span');
+    controls.className = 'sidebar-account-recovery-actions';
+    controls.append(
+      recoveryRetryButton('sidebar-account-recovery-action'),
+      recoveryLoginLink('sidebar-account-recovery-action sidebar-account-recovery-login'),
+    );
+
+    state.append(primary, detail, controls);
     slot.replaceChildren(state);
     setSidebarAuthState(slot, AUTH_STATE_UNKNOWN, false);
   }
@@ -261,8 +322,17 @@ export function markUnknownAccountUi() {
   if (actions) {
     const state = document.createElement('span');
     state.className = 'account-auth-unknown';
-    state.setAttribute('role', 'status');
-    state.textContent = '계정 확인 필요';
+
+    const status = document.createElement('span');
+    status.className = 'sr-only';
+    status.setAttribute('role', 'status');
+    status.textContent = '계정 상태를 확인하지 못했어요. 다시 확인하거나 로그인해 주세요.';
+
+    state.append(
+      status,
+      recoveryRetryButton('account-auth-retry'),
+      recoveryLoginLink('account-auth-login'),
+    );
     actions.replaceChildren(state);
     setAuthState(actions, AUTH_STATE_UNKNOWN, false);
     delete actions.dataset.siteAuthenticated;
@@ -345,10 +415,13 @@ function hasLiveSiteSession() {
     && (siteSessionExpiresAt === 0 || siteSessionExpiresAt > Date.now());
 }
 
-export async function synchronizeAccountContinuity() {
+export async function synchronizeAccountContinuity({preserveUnknownUi = false} = {}) {
   if (!rootLocation() || checking || redirecting) return;
   checking = true;
-  if (!hasLiveSiteSession()) markCheckingAccountUi();
+  if (
+    !hasLiveSiteSession()
+    && !(preserveUnknownUi && document.body.dataset.siteAuthState === AUTH_STATE_UNKNOWN)
+  ) markCheckingAccountUi();
   const statusStartedAt = performanceNow();
   try {
     const authenticated = await readAccountSessionStatus();
@@ -358,6 +431,7 @@ export async function synchronizeAccountContinuity() {
     });
 
     if (authenticated === false) {
+      clearUnknownRetry({resetAttempt: true});
       clearSiteLogoutSuppression();
       siteLogoutSuppressed = false;
       siteSessionActive = false;
@@ -368,6 +442,7 @@ export async function synchronizeAccountContinuity() {
     }
 
     if (siteLogoutSuppressed || hasSiteLogoutSuppression()) {
+      clearUnknownRetry({resetAttempt: true});
       siteLogoutSuppressed = true;
       siteSessionActive = false;
       siteSessionExpiresAt = 0;
@@ -377,10 +452,12 @@ export async function synchronizeAccountContinuity() {
     }
 
     if (hasLiveSiteSession()) {
+      clearUnknownRetry({resetAttempt: true});
       markAuthenticatedAccountUi();
       return;
     }
 
+    clearUnknownRetry({resetAttempt: true});
     redirecting = true;
     recordTiming('auth-start-transition', {elapsedMs: Math.round(performanceNow())});
     await beginSiteHandoff();
@@ -394,8 +471,13 @@ export async function synchronizeAccountContinuity() {
     // explicit UNKNOWN presentation. Only authenticated:false above is allowed
     // to render login/signup.
     redirecting = false;
-    if (hasLiveSiteSession()) markAuthenticatedAccountUi();
-    else markUnknownAccountUi();
+    if (hasLiveSiteSession()) {
+      clearUnknownRetry({resetAttempt: true});
+      markAuthenticatedAccountUi();
+    } else {
+      markUnknownAccountUi();
+      scheduleUnknownRetry();
+    }
   } finally {
     checking = false;
   }
@@ -406,6 +488,7 @@ function handleSiteSessionState(event) {
   if (!detail || typeof detail.authenticated !== 'boolean') return;
 
   if (detail.authenticated) {
+    clearUnknownRetry({resetAttempt: true});
     clearSiteLogoutSuppression();
     siteLogoutSuppressed = false;
     siteSessionActive = true;
@@ -417,6 +500,7 @@ function handleSiteSessionState(event) {
   siteSessionActive = false;
   siteSessionExpiresAt = 0;
   clearExpiryTimer();
+  clearUnknownRetry({resetAttempt: true});
   if (detail.reason === 'site-logout') {
     markSiteLogoutSuppression();
     siteLogoutSuppressed = true;
@@ -429,13 +513,19 @@ function handleSiteSessionState(event) {
 
 window.addEventListener(SITE_SESSION_STATE_EVENT, handleSiteSessionState);
 window.addEventListener('pageshow', () => {
-  if (rootLocation()) void synchronizeAccountContinuity();
+  if (!rootLocation()) return;
+  clearUnknownRetry({resetAttempt: true});
+  void synchronizeAccountContinuity();
 });
 window.addEventListener('focus', () => {
-  if (rootLocation()) void synchronizeAccountContinuity();
+  if (!rootLocation()) return;
+  clearUnknownRetry({resetAttempt: true});
+  void synchronizeAccountContinuity();
 });
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && rootLocation()) void synchronizeAccountContinuity();
+  if (document.hidden || !rootLocation()) return;
+  clearUnknownRetry({resetAttempt: true});
+  void synchronizeAccountContinuity();
 });
 
 if (document.readyState === 'loading') {
