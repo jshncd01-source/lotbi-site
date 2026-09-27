@@ -2,6 +2,25 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
+  <!-- SITE-AUTH-HTTPS-ORIGIN-01 — Account session status is credentialed CORS
+       and intentionally trusts only https://lotbiai.com. Upgrade/canonicalize
+       the public custom-domain document before any runtime can issue the
+       Account request; never weaken the Account allowlist to accept HTTP. -->
+  <script>
+    (() => {
+      try {
+        const hostname = window.location.hostname.toLowerCase();
+        const isLotbiHost = hostname === 'lotbiai.com' || hostname === 'www.lotbiai.com';
+        if (!isLotbiHost) return;
+        if (window.location.protocol === 'https:' && hostname === 'lotbiai.com') return;
+        const secureUrl = new URL(window.location.href);
+        secureUrl.protocol = 'https:';
+        secureUrl.hostname = 'lotbiai.com';
+        secureUrl.port = '';
+        window.location.replace(secureUrl.href);
+      } catch {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
   <meta name="robots" content="index,follow" />
@@ -62,7 +81,7 @@
   <link rel="stylesheet" href="site-hardening.css?v=aset-f0e5aad34939" />
   <link rel="stylesheet" href="site-avatar.css?v=aset-f0e5aad34939" />
   <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-f0e5aad34939" />
-  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-f0e5aad34939" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-6c8a27f1d4b9" />
   <link rel="stylesheet" href="site-calendar.css?v=aset-f0e5aad34939" />
   <link rel="stylesheet" href="site-calendar-expense.css?v=aset-f0e5aad34939" />
   <link rel="stylesheet" href="site-calendar-weather.css?v=aset-f0e5aad34939" />
@@ -89,7 +108,7 @@
   <script src="mobile-entry.js?v=aset-f0e5aad34939" defer></script>
   <script type="module" src="site-avatar.js?v=aset-f0e5aad34939"></script>
   <script type="module" src="site-conversation.js?v=aset-f0e5aad34939"></script>
-  <script type="module" src="site-continuity.js?v=aset-f0e5aad34939"></script>
+  <script type="module" src="site-continuity.js?v=aset-6c8a27f1d4b9"></script>
   <script type="module" src="site-footer-legal.js?v=aset-f0e5aad34939"></script></head>
 <body class="chat-home-page" data-conversation-restore="pending">  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 

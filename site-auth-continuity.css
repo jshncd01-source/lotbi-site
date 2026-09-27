@@ -8,8 +8,7 @@
 /* SITE-HOME-SAME-URL-STABILITY-01 — CHECKING must reserve the final geometry
    without looking like a missing/old header. The neutral text makes first paint
    truthful for both signed-in and signed-out users and never claims logout. */
-.account-auth-placeholder,
-.account-auth-unknown {
+.account-auth-placeholder {
   width: 164px;
   min-height: 42px;
   display: inline-flex;
@@ -25,7 +24,38 @@
 }
 
 .account-auth-unknown {
-  opacity: .82;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.account-auth-retry,
+.account-auth-login {
+  min-height: 32px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.account-auth-retry:hover,
+.account-auth-retry:focus-visible,
+.account-auth-login:hover,
+.account-auth-login:focus-visible {
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
 /* The callback must stay visually blank during the normal pending/success
@@ -47,10 +77,21 @@ body.auth-callback-page:not(.auth-callback-error-page) {
     min-height: 36px;
   }
 
-  .account-auth-placeholder,
-  .account-auth-unknown {
+  .account-auth-placeholder {
     width: 126px;
     min-height: 36px;
     font-size: 12px;
+  }
+
+  .account-auth-unknown {
+    min-height: 36px;
+    gap: 4px;
+  }
+
+  .account-auth-retry,
+  .account-auth-login {
+    min-height: 30px;
+    padding: 0 7px;
+    font-size: 11px;
   }
 }
