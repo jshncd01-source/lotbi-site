@@ -247,6 +247,18 @@ jobs:
           node --check site-conversation.js
           node scripts/validate_voice_wake_phrase_match_01.mjs
 
+      # SITE-VOICE-READ-ALOUD-RELIABILITY-02: single playback owner, bounded
+      # voice readiness/fallback, sequential chunk playback, page lifecycle,
+      # and privacy-safe telemetry for the "읽어주기" button.
+      - name: Validate read-aloud (읽어주기) reliability
+        run: |
+          node --check site-voice-tts.js
+          node --check site-read-aloud-speech.js
+          node --check site-read-aloud-controller.js
+          node --check site-conversation.js
+          node scripts/validate_voice_tts_quality_01.mjs
+          node scripts/validate_read_aloud_controller_01.mjs
+
       - name: Validate Universal Rich Product Cards
         run: |
           node --check site-core.js
