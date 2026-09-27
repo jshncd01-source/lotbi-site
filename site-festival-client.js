@@ -17,17 +17,21 @@
 // normalizePublishedFestival / normalizeFestivalProgram): even if a future
 // response ever carried a stray internal field (a DRAFT/REVIEW status, a
 // candidate/admin id, confidence, an AI prompt, a private PDF/storage URL, an
-// audit note, homepage_url, telephone, transport, notices), this client only
-// ever reads the named public fields below and drops everything else.
+// audit note, telephone, transport, notices), this client only ever reads
+// the named public fields below and drops everything else.
 //
-// Two Core fields intentionally never reach the Site model at all:
-// `homepage_url` (an official-homepage button is legacy UI FESTIVAL-EVENT-08
-// removes) and `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
-// sections FESTIVAL-EVENT-08 removes) — dropping them at the normalizer means
-// no later UI code can accidentally resurrect them. List ordering/filtering
-// (region, time window, distance) is Core-authoritative via browseFestivals;
-// nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-5a54591f38b3';
+// `homepage_url` reaches the Site model in exactly one place: the browse
+// list card's own image/title link (normalizeBrowseItem, below) — clicking
+// a list card opens the festival's official homepage in a new tab instead
+// of LOTBI's internal detail screen. It is still never read by
+// normalizePublishedFestival/normalizeFestivalProgram, so no "공식 홈페이지"
+// button/section can ever appear inside the internal detail/CTA/program
+// screens (see site-festival-ui.js's header comment) — that FESTIVAL-EVENT-08
+// removal stands. `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
+// sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
+// ordering/filtering (region, time window, distance) is Core-authoritative
+// via browseFestivals; nothing here re-sorts or re-filters a browse page.
+import {CORE_ORIGIN} from './site-core.js?v=aset-ce547aeec1e1';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -410,10 +414,11 @@ export function normalizeFestivalProgram(raw, index = 0) {
   });
 }
 
-// The single [체험·신청] CTA maps to whichever program (in Core's own
-// start_date/id order — festival_public_view already orders programs that
-// way) carries a real https reservation_url first. Never fabricated: if no
-// ACTIVE program has one, this is '' and the CTA is hidden entirely.
+// Festival-level convenience flag only, used to gate whether the [접수] CTA
+// renders at all (see buildCtaRow() in site-festival-ui.js, which lists
+// every program with its own reservation_url in the popup, not just this
+// one). Never fabricated: if no program has a real https reservation_url,
+// this is '' and the CTA is hidden entirely.
 function firstParticipationUrl(programs) {
   for (const program of programs) {
     if (program.participationUrl) return program.participationUrl;
@@ -540,6 +545,7 @@ function normalizeBrowseItem(raw) {
     longitude: finiteNumber(raw.longitude),
     distanceKm: finiteNumber(raw.distance_km),
     imageUrl: httpsUrl(raw.image_url),
+    homepageUrl: httpsUrl(raw.homepage_url),
   });
 }
 
