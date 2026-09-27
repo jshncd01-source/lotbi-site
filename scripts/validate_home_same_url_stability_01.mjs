@@ -43,7 +43,7 @@ assert.ok(continuity.includes('scheduleUnknownRetry()'));
 assert.ok(continuity.includes("button.textContent = '다시 확인'"));
 assert.ok(continuity.includes("link.textContent = '로그인'"));
 assert.ok(continuity.includes('다시 확인하거나 로그인해 주세요.'));
-const syncStart=continuity.indexOf('export async function synchronizeAccountContinuity()');
+const syncStart=continuity.indexOf('export async function synchronizeAccountContinuity');
 const syncEnd=continuity.indexOf('\nfunction handleSiteSessionState',syncStart);
 const sync=continuity.slice(syncStart,syncEnd);
 const explicitFalse=sync.slice(sync.indexOf('if (authenticated === false) {'),sync.indexOf('if (siteLogoutSuppressed'));

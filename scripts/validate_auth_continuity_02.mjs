@@ -356,7 +356,7 @@ assert.ok(auth.includes('window.location.assign(ACCOUNT_SITE_FALLBACK_URL)'), 'c
 assert.ok(auth.includes("error.code === 'SITE_HANDOFF_CRYPTO_UNAVAILABLE'"));
 assert.ok(auth.includes("error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE'"));
 
-const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity()');
+const syncStart = continuity.indexOf('export async function synchronizeAccountContinuity');
 const syncEnd = continuity.indexOf('\nfunction handleSiteSessionState', syncStart);
 const syncBody = continuity.slice(syncStart, syncEnd);
 assert.ok(syncBody.indexOf('markCheckingAccountUi()') < syncBody.indexOf('readAccountSessionStatus()'), 'revalidation must remain neutral until Account status resolves');
