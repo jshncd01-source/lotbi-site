@@ -54,16 +54,40 @@ assert.match(useCurrentLocationBody, /acquireSharedBrowserCurrentLocation\(\)/,
 // never call getCurrentPosition() unconditionally before knowing the state.
 assert.match(ui, /state\.locationPermission = await getBrowserLocationPermissionState\(\)/,
   'permission must be read before any location request is attempted');
+// FESTIVAL-SHARED-FIX-16: 자동으로 현재 위치를 쓸 수 있는 경우는 딱 두 가지다.
+//   (1) 권한이 GRANTED 로 읽힌다
+//   (2) 공통 계층이 이미 확보해 둔 신선한 좌표가 손에 있다 (새 요청이 아니므로
+//       권한 팝업이 뜰 수 없다 -- iPhone Safari 처럼 권한 상태를 알려주지 않는
+//       브라우저에서 캘린더 날씨가 읽어 둔 좌표를 재사용하는 근거)
+// 그 밖의 어떤 상태도 좌표를 새로 묻지 않는다.
 assert.match(
   ui,
-  /if \(state\.locationPermission === LOCATION_PERMISSION\.GRANTED\) \{\s*await useCurrentLocation\(\{auto: true\}\);\s*\} else \{/,
-  'only GRANTED may auto-trigger the current-location flow; every other state must fall through without a location prompt',
+  /if \(state\.locationPermission === LOCATION_PERMISSION\.GRANTED \|\| sharedPosition\) \{[\s\S]{0,200}?await useCurrentLocation\(\{auto: true, sharedPosition\}\);\s*\} else \{/,
+  'only GRANTED, or a fix already in hand, may auto-trigger the current-location flow; every other state must fall through without a location prompt',
 );
+// 그 "이미 가진 좌표" 는 권한을 읽은 다음에 조회해야 한다: 권한 읽기가 DENIED 를
+// 만나면 공통 계층이 좌표를 버리므로, 순서가 뒤바뀌면 권한이 꺼진 뒤의 좌표를
+// 쓰게 된다 (§8 캐시는 권한 우회 수단이 아니다).
+const permissionReadIndex = ui.indexOf('state.locationPermission = await getBrowserLocationPermissionState()');
+const sharedFixIndex = ui.indexOf('const sharedPosition = getRecentBrowserCurrentLocation()');
+assert.ok(permissionReadIndex > 0 && sharedFixIndex > permissionReadIndex,
+  'the already-held fix must be read AFTER the permission read, never before');
+
+// 확인이 끝나기 전에는 '전국' 이라고 적지 않는다. 허용해 둔 사용자는 곧 자기 지역으로
+// 바뀌므로, 그 사이에 전국을 보여주면 처음 보는 화면이 사실과 다르다.
+assert.match(ui, /state\.locationResolving \|\| state\.locationBusy\) \{\s*label\.textContent = '📍 현재 위치 확인 중…';/,
+  'while the current location is still being resolved the banner must say so, not claim 전국');
+assert.match(ui, /state\.locationResolving = true;\s*renderLocationBanner\(\);\s*\n\s*state\.locationPermission = await getBrowserLocationPermissionState/,
+  'the resolving state must be set before the first banner paint, so 전국 is never the first thing shown');
+assert.match(ui, /state\.locationBusy = false;\s*state\.locationResolving = false;/,
+  'the resolving state must be cleared once acquisition settles, so a failure falls back to 전국 instead of spinning forever');
 
 // ------------------------------------------------ PROMPT_REQUIRED / UNKNOWN
 // The else branch (covers PROMPT_REQUIRED and UNKNOWN) must go straight to a
 // normal fetch, never call useCurrentLocation/requestBrowserCurrentLocation.
-const elseBranch = /\} else \{\s*renderLocationBanner\(\);\s*await fetchAndRender\(\{reset: true\}\);\s*\}/;
+// 현재 위치로 열 수 없는 것이 확정된 경우(PROMPT_REQUIRED/UNKNOWN 이고 손에 좌표도
+// 없음)에만 전국 기본 목록을 그린다 -- 좌표를 새로 묻지 않는다.
+const elseBranch = /\} else \{[\s\S]{0,200}?state\.locationResolving = false;\s*renderLocationBanner\(\);\s*await fetchAndRender\(\{reset: true\}\);\s*\}/;
 assert.match(ui, elseBranch, 'PROMPT_REQUIRED/UNKNOWN must render nationwide/default browse without requesting location');
 
 // ---------------------------------------------------------------- DENIED --
@@ -76,6 +100,18 @@ assert.match(
 );
 assert.match(ui, /useLocationButton\.textContent = '현재 위치로 보기'/, 'a "현재 위치로 보기" action must exist');
 assert.match(ui, /regionButton\.textContent = '지역 변경'/, '지역 변경 must always be offered regardless of permission state');
+// FESTIVAL-SHARED-FIX-16: 지역 변경은 현재 위치를 확인하는 중에도 눌려야 한다.
+// 데스크톱에서는 위치 확인에 몇 초가 걸리고, 그 동안 버튼이 사라지면 고장으로 읽힌다.
+// 그래서 지역 버튼은 locationBusy 분기 안이 아니라 그 바깥에서 항상 붙는다.
+const busyBranch = /if \(state\.locationBusy\) \{[\s\S]*?\n {4}\}\n/.exec(ui)?.[0] || '';
+assert.ok(busyBranch, 'the banner must have a locationBusy branch');
+assert.doesNotMatch(busyBranch, /지역 변경/,
+  '지역 변경 must live outside the locationBusy branch so it stays clickable while the location resolves');
+assert.match(
+  ui,
+  /actions\.appendChild\(el\('span', 'festival-location-busy'[\s\S]{0,900}?regionButton\.textContent = '지역 변경';[\s\S]{0,200}?actions\.appendChild\(regionButton\);/,
+  '지역 변경 must be appended unconditionally, after the busy/use-location branch',
+);
 assert.match(
   ui,
   /if \(state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{\s*const backButton/,
@@ -90,6 +126,13 @@ assert.match(
   ui,
   /function selectManualRegion\(province\) \{\s*state\.region = province;\s*state\.locationMode = 'NONE';\s*state\.currentPosition = null;/,
   'selecting a manual region must clear locationMode/currentPosition so GPS cannot overwrite it',
+);
+// 그리고 이미 날아간 자동 요청이 늦게 도착해도 그 선택을 덮지 않는다 (§22).
+// 지역 변경이 확인 중에도 눌리게 된 뒤로는 이 경쟁이 실제로 일어날 수 있다.
+assert.match(
+  ui,
+  /if \(auto && state\.region\) return;/,
+  'an auto location request that lands after the user picked a region must abandon its result, never overwrite it',
 );
 
 // Query construction must prefer an explicit region over coordinates, and
