@@ -1,0 +1,43 @@
+/* Compact status chip for the Web Media Upload client. Deliberately small:
+   no full-width grey placeholder for a failed/unloaded photo. */
+
+.lotbi-media-upload-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: var(--lotbi-surface-subtle);
+  color: var(--lotbi-text-secondary);
+}
+
+.lotbi-media-upload-status__text {
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.lotbi-media-upload-status--success {
+  color: var(--lotbi-success-text);
+}
+
+.lotbi-media-upload-status--error {
+  color: var(--lotbi-error-text);
+}
+
+.lotbi-media-upload-status__bar {
+  width: 64px;
+  height: 4px;
+  accent-color: var(--lotbi-focus-ring);
+}
+
+@media (max-width: 480px) {
+  .lotbi-media-upload-status {
+    font-size: 13px;
+  }
+  .lotbi-media-upload-status__bar {
+    width: 48px;
+  }
+}
