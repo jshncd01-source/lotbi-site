@@ -1,5 +1,5 @@
-// FESTIVAL-EVENT-08 — live-render evidence for the detail/program screen:
-// real headless-Chromium checks (same convention as
+// FESTIVAL-EVENT-08 — live-render evidence for the festival list card and the
+// detail/program screen: real headless-Chromium checks (same convention as
 // scripts/validate_pet_family_web_01.mjs / validate_sidebar_viewports_04.mjs
 // — a tiny local http.server + `--dump-dom`, no npm/jsdom dependency) that
 // this repo does not otherwise have for this feature. Exercises the ACTUAL
@@ -7,13 +7,28 @@
 // shaped exactly like the real Core response (see
 // app.festival_review.festival_public_view in lotbi-core).
 //
-// Covers: CTA visibility across the three reachable real-data shapes
-// (0 programs -> no CTA row; programs but no reservation_url -> [프로그램]
-// only; a program with a reservation_url -> both CTAs), the internal
-// [프로그램] date-tab navigation (no external handoff), date-tab
-// keyboard (ArrowRight) semantics, back navigation across all three
-// surfaces, external-link security attributes, and 320/390/412/1280px
-// layout with no horizontal overflow.
+// Two entry points now share the same internal program/registration surfaces:
+//
+// 1. The list card itself (the primary path): its image/name link out to the
+//    festival's official homepage in a new tab (no more internal detail
+//    navigation), and [프로그램]/[접수]/캘린더/네이버지도/카카오내비/TMAP are
+//    direct actions on the card. [프로그램]/[접수] lazy-fetch the festival's
+//    programs on click (browse items never carry programs) and open the same
+//    internal surfaces the old detail screen used.
+// 2. Calendar re-entry (FESTIVAL-EVENT-10, `initialFestivalId`): still lands
+//    on the detail screen's CTA row and auto-opens the program surface when
+//    there are programs — this preserves the original CTA-visibility-matrix
+//    coverage (0/1/2 CTAs) and the detail->program->list back-navigation
+//    chain, entered via `initialFestivalId` instead of a now-removed card
+//    click.
+//
+// Covers: the list card's homepage link and map/calendar/program/registration
+// actions (with window.open stubbed to capture map handoffs instead of really
+// navigating), CTA visibility across the three reachable real-data shapes on
+// Calendar re-entry, the internal [프로그램] date-tab navigation (no external
+// handoff), date-tab keyboard (ArrowRight) semantics, back navigation across
+// all three surfaces, external-link security attributes, and 320/390/412/
+// 1280px layout with no horizontal overflow.
 import assert from 'node:assert/strict';
 import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -57,8 +72,8 @@ const D0 = BASE;
 const D1 = addDays(BASE, 1);
 const D2 = addDays(BASE, 2);
 
-function innerFixtureHtml(scenario) {
-  const programsByScenario = {
+function programsFor(scenario) {
+  const byScenario = {
     both: [
       {program_name: '개막식', category: '공연', start_date: D0, start_time: '19:00', end_time: '21:00', venue: '중앙광장'},
       {program_name: '체험 부스', category: '체험', start_date: D0, end_date: D2, start_time: '10:00', end_time: '18:00', venue: '체험존', reservation_url: 'https://example.com/join'},
@@ -69,20 +84,18 @@ function innerFixtureHtml(scenario) {
     ],
     none: [],
   };
-  const programs = JSON.stringify(programsByScenario[scenario] || []);
+  return byScenario[scenario] || [];
+}
 
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8" />
-<link rel="stylesheet" href="/site-theme-tokens.css" />
-<link rel="stylesheet" href="/site-festival.css" />
-<style>html,body{margin:0} #render-result{position:absolute;left:-99999px;top:0;visibility:hidden}</style>
-</head><body><div id="host"></div><pre id="render-result"></pre>
-<script type="module">
+function sharedFixtureScript(scenario) {
+  const programs = JSON.stringify(programsFor(scenario));
+  return `
 function coreFestival() {
   return {
     festival_id: 'fest_demo', name: '가을 억새 축제', start_date: ${JSON.stringify(D0)}, end_date: ${JSON.stringify(D2)},
     region_name: '서울특별시', address: '서울특별시 영등포구 여의동로 330',
     latitude: 37.52, longitude: 126.93,
-    homepage_url: 'https://official.example.com',
+    homepage_url: 'https://official.example.com/festival',
     telephone: '02-000-0000',
     status: 'PUBLISHED',
     programs: ${programs},
@@ -105,7 +118,7 @@ window.fetch = async (url) => {
       festivals: [{
         festival_id: f.festival_id, name: f.name, start_date: f.start_date, end_date: f.end_date,
         region_name: f.region_name, address: f.address, latitude: f.latitude, longitude: f.longitude,
-        distance_km: null, status: f.status,
+        distance_km: null, status: f.status, homepage_url: f.homepage_url,
       }],
       result_count: 1, total_count: 1, limit: 20, offset: 0, next_offset: null, has_more: false,
     }), {status: 200, headers: {'Content-Type': 'application/json'}});
@@ -115,51 +128,129 @@ window.fetch = async (url) => {
   }
   return new Response('{}', {status: 404, headers: {'Content-Type': 'application/json'}});
 };
+`;
+}
+
+// ------------------------------------------------------- list-card fixture --
+function cardFixtureHtml() {
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="/site-theme-tokens.css" />
+<link rel="stylesheet" href="/site-festival.css" />
+<style>html,body{margin:0} #render-result{position:absolute;left:-99999px;top:0;visibility:hidden}</style>
+</head><body><div id="host"></div><pre id="render-result"></pre>
+<script type="module">
+${sharedFixtureScript('both')}
+
+// Map handoffs each call window.open(uri, '_blank', 'noopener,noreferrer')
+// synchronously — stub it to capture the call instead of really navigating.
+const opened = [];
+window.open = (uri, target, features) => { opened.push({uri, target, features}); return null; };
 
 const {mountFestivalManager} = await import('/site-festival-ui.js');
 const host = document.getElementById('host');
 await mountFestivalManager({root: host, now: new Date('2026-10-08T02:00:00Z'), fetchImpl: window.fetch});
 await new Promise(resolve => setTimeout(resolve, 60));
 
-const card = host.querySelector('.festival-card-open');
+const card = host.querySelector('.festival-card');
 if (!card) throw new Error('festival card did not render');
-card.click();
+const media = card.querySelector('.festival-card-open');
+
+const naverBtn = card.querySelector('.festival-card-map-naver');
+naverBtn.click();
+const naverCall = opened.at(-1);
+opened.length = 0;
+
+const kakaoBtn = card.querySelector('.festival-card-map-kakao');
+kakaoBtn.click();
+const kakaoCall = opened.at(-1);
+opened.length = 0;
+
+const tmapBtnPresent = !!card.querySelector('.festival-card-map-tmap');
+
+const calendarTriggerPresent = !!card.querySelector('.festival-calendar-add-trigger');
+
+const registrationBtn = card.querySelector('.festival-card-action-registration');
+registrationBtn.click();
+await new Promise(resolve => setTimeout(resolve, 80));
+const sheet = document.querySelector('.lotbi-sheet');
+const regLinks = sheet ? [...sheet.querySelectorAll('.festival-registration-link')] : [];
+const registrationResult = {
+  sheetOpen: !!sheet,
+  linkCount: regLinks.length,
+  hrefs: regLinks.map(a => a.getAttribute('href')),
+  targets: regLinks.map(a => a.getAttribute('target')),
+  rels: regLinks.map(a => a.getAttribute('rel')),
+  titles: regLinks.map(a => a.textContent),
+};
+document.querySelector('.lotbi-sheet-dismiss')?.click();
 await new Promise(resolve => setTimeout(resolve, 60));
+registrationResult.sheetClosedAfterDismiss = !document.querySelector('.lotbi-sheet');
+
+const programBtn = card.querySelector('.festival-card-action-program');
+programBtn.click();
+await new Promise(resolve => setTimeout(resolve, 80));
+const programSurface = host.querySelector('.festival-program-surface');
+const tabs = [...programSurface.querySelectorAll('.festival-date-tab')];
+const programResult = {
+  surfaceVisible: !programSurface.hidden,
+  listHiddenWhileOpen: host.querySelector('.festival-list-surface').hidden,
+  tabCount: tabs.length,
+  tabDates: tabs.map(t => t.getAttribute('data-festival-program-date')),
+};
+programSurface.querySelector('.festival-back-button').click();
+await new Promise(resolve => setTimeout(resolve, 60));
+programResult.listVisibleAfterBack = !host.querySelector('.festival-list-surface').hidden;
+programResult.backButtonLabel = programSurface.querySelector('.festival-back-button')?.textContent;
+
+document.getElementById('render-result').textContent = JSON.stringify({
+  mediaTag: media.tagName,
+  mediaHref: media.getAttribute('href'),
+  mediaTarget: media.getAttribute('target'),
+  mediaRel: media.getAttribute('rel'),
+  mediaAriaLabel: media.getAttribute('aria-label'),
+  legacySectionPresent: /예약\\s*안내|주차|셔틀|공식\\s*출처|CHECK_REQUIRED|ADVANCE|ONSITE/.test(card.textContent),
+  naverUri: naverCall ? naverCall.uri : null,
+  naverTarget: naverCall ? naverCall.target : null,
+  naverFeatures: naverCall ? naverCall.features : null,
+  kakaoUri: kakaoCall ? kakaoCall.uri : null,
+  tmapBtnPresent,
+  calendarTriggerPresent,
+  registration: registrationResult,
+  program: programResult,
+  bodyScrollWidth: document.documentElement.scrollWidth,
+  bodyClientWidth: document.documentElement.clientWidth,
+});
+</script></body></html>`;
+}
+
+// -------------------------------------------------- Calendar re-entry fixture
+function reentryFixtureHtml(scenario) {
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="/site-theme-tokens.css" />
+<link rel="stylesheet" href="/site-festival.css" />
+<style>html,body{margin:0} #render-result{position:absolute;left:-99999px;top:0;visibility:hidden}</style>
+</head><body><div id="host"></div><pre id="render-result"></pre>
+<script type="module">
+${sharedFixtureScript(scenario)}
+
+const {mountFestivalManager} = await import('/site-festival-ui.js');
+const host = document.getElementById('host');
+await mountFestivalManager({root: host, now: new Date('2026-10-08T02:00:00Z'), fetchImpl: window.fetch, initialFestivalId: 'fest_demo'});
+await new Promise(resolve => setTimeout(resolve, 80));
 
 const detail = host.querySelector('.festival-detail-surface');
 const ctaButtons = [...detail.querySelectorAll('.festival-cta-button')];
 const ctaRowPresent = !!detail.querySelector('.festival-cta-row');
-const programBtn = detail.querySelector('.festival-cta-program');
-const registrationBtn = detail.querySelector('.festival-cta-registration');
 const homepageButtonPresent = /공식\\s*홈페이지/.test(detail.textContent);
 const legacySectionPresent = /예약\\s*안내|주차|셔틀|공식\\s*출처|CHECK_REQUIRED|ADVANCE|ONSITE/.test(detail.textContent);
 
-let registrationResult = null;
-if (registrationBtn) {
-  registrationBtn.click();
-  await new Promise(resolve => setTimeout(resolve, 60));
-  const sheet = document.querySelector('.lotbi-sheet');
-  const links = sheet ? [...sheet.querySelectorAll('.festival-registration-link')] : [];
-  registrationResult = {
-    sheetOpen: !!sheet,
-    linkCount: links.length,
-    hrefs: links.map(a => a.getAttribute('href')),
-    targets: links.map(a => a.getAttribute('target')),
-    rels: links.map(a => a.getAttribute('rel')),
-    ariaLabels: links.map(a => a.getAttribute('aria-label')),
-    titles: links.map(a => a.textContent),
-  };
-  const dismiss = document.querySelector('.lotbi-sheet-dismiss');
-  if (dismiss) dismiss.click();
-  await new Promise(resolve => setTimeout(resolve, 60));
-  registrationResult.sheetClosedAfterDismiss = !document.querySelector('.lotbi-sheet');
-}
+// Programs exist (both/program_only) -> FESTIVAL-EVENT-10 auto-open already
+// landed on the program surface; none -> stays on the detail screen.
+const programSurface = host.querySelector('.festival-program-surface');
+const autoOpenedProgram = !programSurface.hidden;
 
-let programResult = null;
-if (programBtn) {
-  programBtn.click();
-  await new Promise(resolve => setTimeout(resolve, 60));
-  const programSurface = host.querySelector('.festival-program-surface');
+let program = null;
+if (autoOpenedProgram) {
   const tabs = [...programSurface.querySelectorAll('.festival-date-tab')];
   const selectedBefore = tabs.find(t => t.getAttribute('aria-selected') === 'true');
   selectedBefore.focus();
@@ -168,7 +259,7 @@ if (programBtn) {
   const tabsAfter = [...programSurface.querySelectorAll('.festival-date-tab')];
   const selectedAfter = tabsAfter.find(t => t.getAttribute('aria-selected') === 'true');
   const panel = programSurface.querySelector('[role="tabpanel"]');
-  programResult = {
+  program = {
     tabCount: tabs.length,
     tabDates: tabs.map(t => t.getAttribute('data-festival-program-date')),
     tabRoles: tabs.map(t => t.getAttribute('role')),
@@ -179,13 +270,12 @@ if (programBtn) {
     panelRole: panel ? panel.getAttribute('role') : null,
     panelItemCount: panel ? panel.querySelectorAll('.festival-program-item').length : 0,
   };
-  const backToDetail = programSurface.querySelector('.festival-back-button');
-  backToDetail.click();
+  programSurface.querySelector('.festival-back-button').click();
   await new Promise(resolve => setTimeout(resolve, 40));
 }
 
-const detailVisibleAfterProgramBack = programBtn ? !host.querySelector('.festival-detail-surface').hidden : null;
-const programHiddenAfterBack = programBtn ? host.querySelector('.festival-program-surface').hidden : null;
+const detailVisibleAfterProgramBack = autoOpenedProgram ? !host.querySelector('.festival-detail-surface').hidden : null;
+const programHiddenAfterBack = autoOpenedProgram ? host.querySelector('.festival-program-surface').hidden : null;
 
 const backToList = host.querySelector('.festival-detail-surface .festival-back-button');
 backToList.click();
@@ -199,8 +289,8 @@ document.getElementById('render-result').textContent = JSON.stringify({
   ctaClasses: ctaButtons.map(b => b.className),
   homepageButtonPresent,
   legacySectionPresent,
-  registration: registrationResult,
-  program: programResult,
+  autoOpenedProgram,
+  program,
   detailVisibleAfterProgramBack,
   programHiddenAfterBack,
   listVisibleAfterBack,
@@ -230,11 +320,11 @@ poll();
 </script></body></html>`;
 }
 
-async function render(scenario, width, height) {
+async function render(innerHtml, {width, height, label}) {
   const port = await freePort();
-  const innerName = `.festival-08-inner-${process.pid}-${scenario}-${width}.html`;
-  const outerName = `.festival-08-outer-${process.pid}-${scenario}-${width}.html`;
-  fs.writeFileSync(path.join(ROOT, innerName), innerFixtureHtml(scenario), 'utf8');
+  const innerName = `.festival-08-inner-${process.pid}-${label}-${width}.html`;
+  const outerName = `.festival-08-outer-${process.pid}-${label}-${width}.html`;
+  fs.writeFileSync(path.join(ROOT, innerName), innerHtml, 'utf8');
   fs.writeFileSync(path.join(ROOT, outerName), outerFixtureHtml(innerName, width, height), 'utf8');
   const server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
   try {
@@ -253,9 +343,9 @@ async function render(scenario, width, height) {
     if (run.error) throw run.error;
     if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
     const match = run.stdout.match(/<pre id="render-result">([^<]*)<\/pre>/);
-    if (!match || !match[1].trim()) throw new Error(`FESTIVAL-EVENT-08 render produced no result (${scenario} ${width}px)`);
+    if (!match || !match[1].trim()) throw new Error(`FESTIVAL-EVENT-08 render produced no result (${label} ${width}px)`);
     const parsed = JSON.parse(match[1].replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>'));
-    if (parsed.error) throw new Error(`FESTIVAL-EVENT-08 render failed (${scenario} ${width}px): ${parsed.error}`);
+    if (parsed.error) throw new Error(`FESTIVAL-EVENT-08 render failed (${label} ${width}px): ${parsed.error}`);
     return parsed;
   } finally {
     server.kill();
@@ -264,39 +354,55 @@ async function render(scenario, width, height) {
   }
 }
 
-// ---------------------------------------------------- CTA visibility matrix
-const both = await render('both', 390, 900);
+// ================================================================ list card
+const card = await render(cardFixtureHtml(), {width: 390, height: 900, label: 'card'});
+
+assert.equal(card.mediaTag, 'A', 'a festival with homepage_url must render its card media as a real link, not a button');
+assert.equal(card.mediaHref, 'https://official.example.com/festival');
+assert.equal(card.mediaTarget, '_blank');
+assert.equal(card.mediaRel, 'noopener noreferrer');
+assert.match(card.mediaAriaLabel || '', /공식 홈페이지/);
+assert.match(card.mediaAriaLabel || '', /새 창/);
+assert.equal(card.legacySectionPresent, false, '예약안내/주차·셔틀/공식출처/내부 enum이 카드에 노출되면 안 된다');
+
+assert.ok(card.naverUri, '네이버지도 버튼은 window.open을 호출해야 한다');
+assert.equal(card.naverTarget, '_blank');
+assert.equal(card.naverFeatures, 'noopener,noreferrer');
+assert.ok(card.kakaoUri && card.kakaoUri.includes('/kakao-navi.html'), '카카오내비는 kakao-navi.html 핸드오프 페이지로 열려야 한다');
+assert.equal(card.tmapBtnPresent, false, 'TMAP은 모바일 전용이므로 데스크톱 UA에서는 렌더되지 않아야 한다');
+assert.equal(card.calendarTriggerPresent, true, '캘린더 추가 액션이 카드에 직접 있어야 한다');
+
+assert.ok(card.registration, '[접수] 클릭이 접수 가능한 프로그램 팝업을 열어야 한다');
+assert.equal(card.registration.sheetOpen, true);
+assert.equal(card.registration.linkCount, 1, 'reservation_url이 있는 프로그램은 1개뿐이므로 접수 팝업 링크도 1개여야 한다');
+assert.equal(card.registration.hrefs[0], 'https://example.com/join');
+assert.equal(card.registration.targets[0], '_blank');
+assert.equal(card.registration.rels[0], 'noopener noreferrer');
+assert.match(card.registration.titles[0] || '', /체험 부스/);
+assert.equal(card.registration.sheetClosedAfterDismiss, true);
+
+assert.ok(card.program, '[프로그램] 클릭이 내부 program surface를 열어야 한다');
+assert.equal(card.program.surfaceVisible, true);
+assert.equal(card.program.listHiddenWhileOpen, true, '프로그램 화면이 열리는 동안 목록은 숨겨져야 한다');
+assert.equal(card.program.tabCount, 3, `${D0}~${D2} 3일 범위의 실제 프로그램 -> 정확히 3개의 날짜 탭`);
+assert.deepEqual(card.program.tabDates, [D0, D1, D2]);
+assert.equal(card.program.listVisibleAfterBack, true, '카드에서 연 프로그램 화면의 뒤로가기는 상세화면이 아니라 목록으로 돌아가야 한다');
+assert.equal(card.program.backButtonLabel, '← 목록으로');
+
+assert.ok(card.bodyScrollWidth <= card.bodyClientWidth + 2, `390px: horizontal overflow ${card.bodyScrollWidth}px > ${card.bodyClientWidth}px`);
+
+// ========================================================== Calendar re-entry
+const both = await render(reentryFixtureHtml('both'), {width: 390, height: 900, label: 'reentry-both'});
 assert.equal(both.ctaRowPresent, true);
 assert.equal(both.ctaCount, 2, '프로그램 있음 + reservation_url 있는 프로그램 존재 -> 정확히 2개의 CTA');
 assert.ok(both.ctaClasses.some(c => c.includes('festival-cta-program')));
 assert.ok(both.ctaClasses.some(c => c.includes('festival-cta-registration')));
-assert.ok(both.registration, '[접수] 클릭이 접수 가능한 프로그램 팝업을 열어야 한다');
-assert.equal(both.registration.sheetOpen, true);
-assert.equal(both.registration.linkCount, 1, 'reservation_url이 있는 프로그램은 1개뿐이므로 접수 팝업 링크도 1개여야 한다');
-assert.equal(both.registration.hrefs[0], 'https://example.com/join');
-assert.equal(both.registration.targets[0], '_blank');
-assert.equal(both.registration.rels[0], 'noopener noreferrer');
-assert.match(both.registration.ariaLabels[0] || '', /접수/);
-assert.match(both.registration.ariaLabels[0] || '', /새 창/);
-assert.match(both.registration.titles[0] || '', /체험 부스/, '접수 팝업의 링크는 실제 reservation_url을 가진 프로그램(체험 부스)을 가리켜야 한다');
-assert.equal(both.registration.sheetClosedAfterDismiss, true, '닫기 버튼으로 접수 팝업을 닫을 수 있어야 한다');
-assert.equal(both.homepageButtonPresent, false, 'homepage_url이 내려와도 소비자 화면에 공식 홈페이지 버튼이 없어야 한다');
+assert.equal(both.homepageButtonPresent, false, 'homepage_url이 내려와도 상세화면에 공식 홈페이지 버튼이 없어야 한다');
 assert.equal(both.legacySectionPresent, false, '예약안내/주차·셔틀/공식출처/내부 enum이 노출되면 안 된다');
+assert.equal(both.autoOpenedProgram, true, '프로그램이 있으면 Calendar 재진입 시 자동으로 프로그램 화면이 열려야 한다');
 
-const programOnly = await render('program_only', 390, 900);
-assert.equal(programOnly.ctaRowPresent, true);
-assert.equal(programOnly.ctaCount, 1, '프로그램은 있지만 reservation_url이 없으면 [프로그램]만');
-assert.ok(programOnly.ctaClasses.some(c => c.includes('festival-cta-program')));
-assert.equal(programOnly.ctaClasses.some(c => c.includes('festival-cta-registration')), false);
-assert.equal(programOnly.registration, null, '접수 가능한 프로그램이 없으면 [접수] 버튼 자체가 없어야 한다');
-
-const none = await render('none', 390, 900);
-assert.equal(none.ctaRowPresent, false, '프로그램도 참가 URL도 없으면 CTA row 자체가 없어야 한다(빈 칸 금지)');
-assert.equal(none.ctaCount, 0);
-
-// --------------------------------------------------- [프로그램] navigation --
 const program = both.program;
-assert.ok(program, '[프로그램] 클릭이 내부 program surface를 열어야 한다');
+assert.ok(program, 'Calendar 재진입 시 프로그램 화면이 열려야 한다');
 assert.equal(program.tabCount, 3, `${D0}~${D2} 3일 범위의 실제 프로그램 -> 정확히 3개의 날짜 탭`);
 assert.deepEqual(program.tabDates, [D0, D1, D2]);
 assert.ok(program.tabRoles.every(role => role === 'tab'));
@@ -307,17 +413,28 @@ assert.equal(program.selectedAfterArrowDate, D1, 'ArrowRight는 다음 날짜 �
 assert.equal(program.focusedAfterArrowDate, D1, 'ArrowRight 이후 포커스도 새 탭으로 이동해야 한다(키보드 접근성)');
 assert.ok(program.panelItemCount >= 1);
 
-// --------------------------------------------------------- back navigation --
-assert.equal(both.detailVisibleAfterProgramBack, true, '프로그램 화면에서 뒤로가기는 상세 화면으로 돌아가야 한다');
+assert.equal(both.detailVisibleAfterProgramBack, true, 'Calendar 재진입 경로의 프로그램 화면에서 뒤로가기는 상세 화면으로 돌아가야 한다');
 assert.equal(both.programHiddenAfterBack, true);
 assert.equal(both.listVisibleAfterBack, true, '상세 화면에서 뒤로가기는 목록으로 돌아가야 한다');
 assert.equal(both.detailHiddenAfterListBack, true);
 
+const programOnly = await render(reentryFixtureHtml('program_only'), {width: 390, height: 900, label: 'reentry-program-only'});
+assert.equal(programOnly.ctaRowPresent, true);
+assert.equal(programOnly.ctaCount, 1, '프로그램은 있지만 reservation_url이 없으면 [프로그램]만');
+assert.ok(programOnly.ctaClasses.some(c => c.includes('festival-cta-program')));
+assert.equal(programOnly.ctaClasses.some(c => c.includes('festival-cta-registration')), false);
+assert.equal(programOnly.autoOpenedProgram, true);
+
+const none = await render(reentryFixtureHtml('none'), {width: 390, height: 900, label: 'reentry-none'});
+assert.equal(none.ctaRowPresent, false, '프로그램도 참가 URL도 없으면 CTA row 자체가 없어야 한다(빈 칸 금지)');
+assert.equal(none.ctaCount, 0);
+assert.equal(none.autoOpenedProgram, false, '프로그램이 없으면 자동으로 프로그램 화면을 열지 않아야 한다');
+
 // -------------------------------------------------------------- responsive
-for (const width of [320, 390, 412, 1280]) {
-  const result = width === 390 ? both : await render('both', width, 900);
+for (const width of [320, 412, 1280]) {
+  const result = await render(cardFixtureHtml(), {width, height: 900, label: `card-${width}`});
   assert.ok(result.bodyScrollWidth <= result.bodyClientWidth + 2,
     `${width}px: horizontal overflow ${result.bodyScrollWidth}px > ${result.bodyClientWidth}px`);
 }
 
-console.log('FESTIVAL-EVENT-08 RESPONSIVE/A11Y RENDER VALIDATION PASS — CTA visibility matrix (0/1/2), internal [프로그램] date-tab navigation with real tab/tablist/tabpanel roles, keyboard ArrowRight tab switch + focus, back navigation across all three surfaces, external-link security attributes, legacy-section/homepage-button absence, and 320/390/412/1280px layouts with no horizontal overflow — all verified against real headless-Chromium renders of the actual site-festival-ui.js/site-festival-client.js modules.');
+console.log('FESTIVAL-EVENT-08 RESPONSIVE/A11Y RENDER VALIDATION PASS — list card homepage link + program/registration/calendar/map actions (with map handoffs captured via a stubbed window.open), Calendar-re-entry CTA visibility matrix (0/1/2), internal [프로그램] date-tab navigation with real tab/tablist/tabpanel roles, keyboard ArrowRight tab switch + focus, back navigation across all three surfaces (card path returns to the list, re-entry path returns to the detail then the list), external-link security attributes, legacy-section/homepage-button absence inside the detail screen, and 320/390/412/1280px layouts with no horizontal overflow — all verified against real headless-Chromium renders of the actual site-festival-ui.js/site-festival-client.js modules.');

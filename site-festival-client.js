@@ -17,17 +17,21 @@
 // normalizePublishedFestival / normalizeFestivalProgram): even if a future
 // response ever carried a stray internal field (a DRAFT/REVIEW status, a
 // candidate/admin id, confidence, an AI prompt, a private PDF/storage URL, an
-// audit note, homepage_url, telephone, transport, notices), this client only
-// ever reads the named public fields below and drops everything else.
+// audit note, telephone, transport, notices), this client only ever reads
+// the named public fields below and drops everything else.
 //
-// Two Core fields intentionally never reach the Site model at all:
-// `homepage_url` (an official-homepage button is legacy UI FESTIVAL-EVENT-08
-// removes) and `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
-// sections FESTIVAL-EVENT-08 removes) — dropping them at the normalizer means
-// no later UI code can accidentally resurrect them. List ordering/filtering
-// (region, time window, distance) is Core-authoritative via browseFestivals;
-// nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-bd93de00fa22';
+// `homepage_url` reaches the Site model in exactly one place: the browse
+// list card's own image/title link (normalizeBrowseItem, below) — clicking
+// a list card opens the festival's official homepage in a new tab instead
+// of LOTBI's internal detail screen. It is still never read by
+// normalizePublishedFestival/normalizeFestivalProgram, so no "공식 홈페이지"
+// button/section can ever appear inside the internal detail/CTA/program
+// screens (see site-festival-ui.js's header comment) — that FESTIVAL-EVENT-08
+// removal stands. `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
+// sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
+// ordering/filtering (region, time window, distance) is Core-authoritative
+// via browseFestivals; nothing here re-sorts or re-filters a browse page.
+import {CORE_ORIGIN} from './site-core.js?v=aset-ce547aeec1e1';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -541,6 +545,7 @@ function normalizeBrowseItem(raw) {
     longitude: finiteNumber(raw.longitude),
     distanceKm: finiteNumber(raw.distance_km),
     imageUrl: httpsUrl(raw.image_url),
+    homepageUrl: httpsUrl(raw.homepage_url),
   });
 }
 
