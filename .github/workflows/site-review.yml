@@ -307,6 +307,17 @@ jobs:
       - name: Validate 축제·행사 location permission reuse and manual region
         run: node scripts/validate_festival_location_manual_region_01.mjs
 
+      # 공통 위치 권한/현재위치 획득 기반 (GLOBAL-LOCATION-15). 기능별로 권한 확인과
+      # GPS 읽기를 다시 개발하지 않는다는 계약을 한곳에서 지킨다: 권한 상태 판정,
+      # 좌표 검증, 기능 간 재사용, 동시 요청 1회, 미허용 mount 에서 팝업 없음.
+      - name: Validate shared location foundation (permission, reuse, no auto-prompt)
+        run: node scripts/validate_global_location_foundation_01.mjs
+
+      # 같은 계약을 실제 브라우저 엔진 안에서 측정한다. Android Chrome / Samsung
+      # Internet / iPhone Safari 는 실기기가 필요하므로 여기서 다루지 않는다.
+      - name: Measure shared location behavior in a real browser engine
+        run: node scripts/validate_global_location_browser_compat_01.mjs
+
       - name: Validate 축제·행사 time filters, pagination and card rendering
         run: node scripts/validate_festival_list_filters_pagination_01.mjs
 
