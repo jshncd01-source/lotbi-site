@@ -27,7 +27,7 @@
 // no later UI code can accidentally resurrect them. List ordering/filtering
 // (region, time window, distance) is Core-authoritative via browseFestivals;
 // nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-032ae4073072';
+import {CORE_ORIGIN} from './site-core.js?v=aset-bd93de00fa22';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -410,10 +410,11 @@ export function normalizeFestivalProgram(raw, index = 0) {
   });
 }
 
-// The single [체험·신청] CTA maps to whichever program (in Core's own
-// start_date/id order — festival_public_view already orders programs that
-// way) carries a real https reservation_url first. Never fabricated: if no
-// ACTIVE program has one, this is '' and the CTA is hidden entirely.
+// Festival-level convenience flag only, used to gate whether the [접수] CTA
+// renders at all (see buildCtaRow() in site-festival-ui.js, which lists
+// every program with its own reservation_url in the popup, not just this
+// one). Never fabricated: if no program has a real https reservation_url,
+// this is '' and the CTA is hidden entirely.
 function firstParticipationUrl(programs) {
   for (const program of programs) {
     if (program.participationUrl) return program.participationUrl;

@@ -100,13 +100,15 @@ assert.match(festivalUiJs, /from '\.\/site-bottom-sheet\.js(?:\?v=[A-Za-z0-9._-]
   'the region-change interaction must reuse the shared bottom-sheet primitive');
 
 // ------------------------------------------------------- external links ---
-// The only external, new-tab link this UI ever builds is [체험·신청]; it must
-// carry rel="noopener noreferrer" and an accessible label that marks it
-// external. There must be exactly one such link — a second one would mean a
-// legacy 공식예약/공식출처-style external CTA crept back in.
+// The only external, new-tab link markup this UI ever builds is [접수]'s
+// per-program reservation link (rendered once per program inside the
+// registration popup); it must carry rel="noopener noreferrer" and an
+// accessible label that marks it external. There must be exactly one such
+// link *pattern* in source — a second one would mean a legacy
+// 공식예약/공식출처-style external CTA crept back in.
 const anchorBlocks = [...festivalUiJs.matchAll(/link\.target = '_blank';[\s\S]{0,400}?(?=\n\s*(?:if |return|\}|row\.appendChild))/g)]
   .map(match => match[0]);
-assert.equal(anchorBlocks.length, 1, 'expected exactly one external-link CTA ([체험·신청]) — a second one would be a reintroduced legacy external link');
+assert.equal(anchorBlocks.length, 1, 'expected exactly one external-link CTA pattern ([접수]) — a second one would be a reintroduced legacy external link');
 for (const block of anchorBlocks) {
   assert.match(block, /link\.rel = 'noopener noreferrer'/, 'external link missing rel=noopener noreferrer');
   assert.match(block, /aria-label/, 'external link must have an accessible label announcing the external handoff');
@@ -140,7 +142,7 @@ for (const [pattern, label] of REMOVED_CODE_PATTERNS) {
 // At most two primary CTAs, and the internal program screen must never be an
 // external handoff to Core's admin-curated source package.
 assert.match(festivalUiJs, /festival-cta-program/, 'a [프로그램] CTA must exist');
-assert.match(festivalUiJs, /festival-cta-participation/, 'a [체험·신청] CTA must exist');
+assert.match(festivalUiJs, /festival-cta-registration/, 'a [접수] CTA must exist');
 assert.doesNotMatch(festivalUiJs, /festival_sources|source_service|admin_festival/i,
   '[프로그램] must open the internal date-tab screen, never call an admin source-package API');
 

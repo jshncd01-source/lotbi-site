@@ -130,9 +130,30 @@ const detail = host.querySelector('.festival-detail-surface');
 const ctaButtons = [...detail.querySelectorAll('.festival-cta-button')];
 const ctaRowPresent = !!detail.querySelector('.festival-cta-row');
 const programBtn = detail.querySelector('.festival-cta-program');
-const participationLink = detail.querySelector('.festival-cta-participation');
+const registrationBtn = detail.querySelector('.festival-cta-registration');
 const homepageButtonPresent = /공식\\s*홈페이지/.test(detail.textContent);
 const legacySectionPresent = /예약\\s*안내|주차|셔틀|공식\\s*출처|CHECK_REQUIRED|ADVANCE|ONSITE/.test(detail.textContent);
+
+let registrationResult = null;
+if (registrationBtn) {
+  registrationBtn.click();
+  await new Promise(resolve => setTimeout(resolve, 60));
+  const sheet = document.querySelector('.lotbi-sheet');
+  const links = sheet ? [...sheet.querySelectorAll('.festival-registration-link')] : [];
+  registrationResult = {
+    sheetOpen: !!sheet,
+    linkCount: links.length,
+    hrefs: links.map(a => a.getAttribute('href')),
+    targets: links.map(a => a.getAttribute('target')),
+    rels: links.map(a => a.getAttribute('rel')),
+    ariaLabels: links.map(a => a.getAttribute('aria-label')),
+    titles: links.map(a => a.textContent),
+  };
+  const dismiss = document.querySelector('.lotbi-sheet-dismiss');
+  if (dismiss) dismiss.click();
+  await new Promise(resolve => setTimeout(resolve, 60));
+  registrationResult.sheetClosedAfterDismiss = !document.querySelector('.lotbi-sheet');
+}
 
 let programResult = null;
 if (programBtn) {
@@ -178,10 +199,7 @@ document.getElementById('render-result').textContent = JSON.stringify({
   ctaClasses: ctaButtons.map(b => b.className),
   homepageButtonPresent,
   legacySectionPresent,
-  participationHref: participationLink ? participationLink.getAttribute('href') : null,
-  participationTarget: participationLink ? participationLink.getAttribute('target') : null,
-  participationRel: participationLink ? participationLink.getAttribute('rel') : null,
-  participationAriaLabel: participationLink ? participationLink.getAttribute('aria-label') : null,
+  registration: registrationResult,
   program: programResult,
   detailVisibleAfterProgramBack,
   programHiddenAfterBack,
@@ -251,12 +269,17 @@ const both = await render('both', 390, 900);
 assert.equal(both.ctaRowPresent, true);
 assert.equal(both.ctaCount, 2, '프로그램 있음 + reservation_url 있는 프로그램 존재 -> 정확히 2개의 CTA');
 assert.ok(both.ctaClasses.some(c => c.includes('festival-cta-program')));
-assert.ok(both.ctaClasses.some(c => c.includes('festival-cta-participation')));
-assert.equal(both.participationHref, 'https://example.com/join');
-assert.equal(both.participationTarget, '_blank');
-assert.equal(both.participationRel, 'noopener noreferrer');
-assert.match(both.participationAriaLabel || '', /체험·신청/);
-assert.match(both.participationAriaLabel || '', /새 창/);
+assert.ok(both.ctaClasses.some(c => c.includes('festival-cta-registration')));
+assert.ok(both.registration, '[접수] 클릭이 접수 가능한 프로그램 팝업을 열어야 한다');
+assert.equal(both.registration.sheetOpen, true);
+assert.equal(both.registration.linkCount, 1, 'reservation_url이 있는 프로그램은 1개뿐이므로 접수 팝업 링크도 1개여야 한다');
+assert.equal(both.registration.hrefs[0], 'https://example.com/join');
+assert.equal(both.registration.targets[0], '_blank');
+assert.equal(both.registration.rels[0], 'noopener noreferrer');
+assert.match(both.registration.ariaLabels[0] || '', /접수/);
+assert.match(both.registration.ariaLabels[0] || '', /새 창/);
+assert.match(both.registration.titles[0] || '', /체험 부스/, '접수 팝업의 링크는 실제 reservation_url을 가진 프로그램(체험 부스)을 가리켜야 한다');
+assert.equal(both.registration.sheetClosedAfterDismiss, true, '닫기 버튼으로 접수 팝업을 닫을 수 있어야 한다');
 assert.equal(both.homepageButtonPresent, false, 'homepage_url이 내려와도 소비자 화면에 공식 홈페이지 버튼이 없어야 한다');
 assert.equal(both.legacySectionPresent, false, '예약안내/주차·셔틀/공식출처/내부 enum이 노출되면 안 된다');
 
@@ -264,7 +287,8 @@ const programOnly = await render('program_only', 390, 900);
 assert.equal(programOnly.ctaRowPresent, true);
 assert.equal(programOnly.ctaCount, 1, '프로그램은 있지만 reservation_url이 없으면 [프로그램]만');
 assert.ok(programOnly.ctaClasses.some(c => c.includes('festival-cta-program')));
-assert.equal(programOnly.ctaClasses.some(c => c.includes('festival-cta-participation')), false);
+assert.equal(programOnly.ctaClasses.some(c => c.includes('festival-cta-registration')), false);
+assert.equal(programOnly.registration, null, '접수 가능한 프로그램이 없으면 [접수] 버튼 자체가 없어야 한다');
 
 const none = await render('none', 390, 900);
 assert.equal(none.ctaRowPresent, false, '프로그램도 참가 URL도 없으면 CTA row 자체가 없어야 한다(빈 칸 금지)');

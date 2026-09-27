@@ -14,14 +14,17 @@
 // program date tabs, weather) is FESTIVAL-EVENT-08/09's surface, left exactly
 // as that room built it.
 //
-// Detail screen principle: a quick "언제/어디서/무슨 프로그램/체험·신청
-// 가능여부" answer, not a copy of an official info page. At most two primary
-// CTAs — [프로그램] (LOTBI's own internal date-tab program screen, never an
-// external PROGRAM_PAGE handoff) and [체험·신청] (one unified external
-// handoff). The legacy 공식홈페이지/예약안내/주차·셔틀/공식출처 sections are
-// gone: homepage_url/transport/notices/telephone are not even present on the
+// Detail screen principle: a quick "언제/어디서/무슨 프로그램/접수 가능여부"
+// answer, not a copy of an official info page. At most two primary CTAs —
+// [접수] (a popup listing every program that carries its own official
+// reservation link, each opening separately) and [프로그램] (LOTBI's own
+// internal date-tab program screen, never an external PROGRAM_PAGE handoff).
+// The legacy 공식홈페이지/예약안내/주차·셔틀/공식출처 sections are gone:
+// homepage_url/transport/notices/telephone are not even present on the
 // normalized Site model any more (see site-festival-client.js), so there is
-// nothing left here that could render them.
+// nothing left here that could render them. Location/navigation actions
+// (네이버지도/카카오지도/TMAP) are intentionally out of scope for this
+// screen — that is the chat Place Card's surface, not this one.
 import {
   FESTIVAL_STATUS,
   FESTIVAL_STATUS_LABEL,
@@ -38,15 +41,15 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-032ae4073072';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-032ae4073072';
+} from './site-festival-client.js?v=aset-bd93de00fa22';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-bd93de00fa22';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-032ae4073072';
+} from './site-current-location.js?v=aset-bd93de00fa22';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -56,19 +59,19 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-032ae4073072';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-032ae4073072';
+} from './site-festival-calendar.js?v=aset-bd93de00fa22';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-bd93de00fa22';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-032ae4073072';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-bd93de00fa22';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-032ae4073072';
+} from './site-calendar-weather.js?v=aset-bd93de00fa22';
 
 const PAGE_SIZE = 20;
 
@@ -146,6 +149,35 @@ function buildCard(festival, now, {onOpen, showDistance = false}) {
 
 // -------------------------------------------------------------- CTA row ---
 
+// [접수] popup body: one row per program that actually carries its own
+// official reservation_url (never the festival-level "first one found"
+// shortcut) — a festival with several bookable programs must let a visitor
+// reach each program's own official link, not just the first.
+function buildRegistrationSheetBody(programs) {
+  const wrap = el('div', 'festival-registration-sheet');
+  wrap.appendChild(el('h3', 'festival-registration-sheet-title', '접수 가능한 프로그램'));
+  const list = document.createElement('ul');
+  list.className = 'festival-registration-list';
+  for (const program of programs) {
+    const li = document.createElement('li');
+    li.className = 'festival-registration-item';
+    const link = document.createElement('a');
+    link.className = 'festival-registration-link';
+    link.href = program.participationUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.referrerPolicy = 'no-referrer';
+    link.setAttribute('aria-label', `${program.title} 접수, 공식 외부 사이트가 새 창에서 열립니다`);
+    link.appendChild(el('span', 'festival-registration-program-title', program.title));
+    if (program.startTime) link.appendChild(el('span', 'festival-registration-program-time', program.startTime));
+    if (program.venue) link.appendChild(el('span', 'festival-registration-program-venue', program.venue));
+    li.appendChild(link);
+    list.appendChild(li);
+  }
+  wrap.appendChild(list);
+  return wrap;
+}
+
 function buildCtaRow(festival, {onOpenPrograms}) {
   const hasPrograms = Array.isArray(festival.programs) && festival.programs.length > 0;
   const hasParticipation = Boolean(festival.participationUrl);
@@ -155,6 +187,22 @@ function buildCtaRow(festival, {onOpenPrograms}) {
   row.setAttribute('role', 'group');
   row.setAttribute('aria-label', '축제 주요 액션');
 
+  if (hasParticipation) {
+    const registrablePrograms = festival.programs.filter(program => Boolean(program.participationUrl));
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'festival-cta-button festival-cta-registration';
+    button.textContent = '접수';
+    button.addEventListener('click', () => {
+      const sheet = createBottomSheet({
+        label: '접수 가능한 프로그램',
+        content: () => buildRegistrationSheetBody(registrablePrograms),
+      });
+      sheet.open();
+    });
+    row.appendChild(button);
+  }
+
   if (hasPrograms) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -162,18 +210,6 @@ function buildCtaRow(festival, {onOpenPrograms}) {
     button.textContent = '프로그램';
     button.addEventListener('click', onOpenPrograms);
     row.appendChild(button);
-  }
-
-  if (hasParticipation) {
-    const link = document.createElement('a');
-    link.className = 'festival-cta-button festival-cta-participation';
-    link.href = festival.participationUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.referrerPolicy = 'no-referrer';
-    link.textContent = '체험·신청';
-    link.setAttribute('aria-label', '체험·신청, 공식 외부 사이트가 새 창에서 열립니다');
-    row.appendChild(link);
   }
 
   return row;
@@ -304,7 +340,7 @@ function festivalCalendarAddEligible(festival, now) {
 }
 
 // A deliberate personalization utility action, never folded into
-// buildCtaRow()'s [프로그램]/[체험·신청] primary pair — it writes through the
+// buildCtaRow()'s [접수]/[프로그램] primary pair — it writes through the
 // existing LOTBI Calendar (site-festival-calendar.js), never a new store.
 function buildCalendarAddSection(root, festival, {authenticated, sessionToken, guestRepository, now = new Date()}) {
   const wrap = el('div', 'festival-calendar-add');
