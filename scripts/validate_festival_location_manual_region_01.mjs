@@ -100,6 +100,18 @@ assert.match(
 );
 assert.match(ui, /useLocationButton\.textContent = '현재 위치로 보기'/, 'a "현재 위치로 보기" action must exist');
 assert.match(ui, /regionButton\.textContent = '지역 변경'/, '지역 변경 must always be offered regardless of permission state');
+// FESTIVAL-SHARED-FIX-16: 지역 변경은 현재 위치를 확인하는 중에도 눌려야 한다.
+// 데스크톱에서는 위치 확인에 몇 초가 걸리고, 그 동안 버튼이 사라지면 고장으로 읽힌다.
+// 그래서 지역 버튼은 locationBusy 분기 안이 아니라 그 바깥에서 항상 붙는다.
+const busyBranch = /if \(state\.locationBusy\) \{[\s\S]*?\n {4}\}\n/.exec(ui)?.[0] || '';
+assert.ok(busyBranch, 'the banner must have a locationBusy branch');
+assert.doesNotMatch(busyBranch, /지역 변경/,
+  '지역 변경 must live outside the locationBusy branch so it stays clickable while the location resolves');
+assert.match(
+  ui,
+  /actions\.appendChild\(el\('span', 'festival-location-busy'[\s\S]{0,900}?regionButton\.textContent = '지역 변경';[\s\S]{0,200}?actions\.appendChild\(regionButton\);/,
+  '지역 변경 must be appended unconditionally, after the busy/use-location branch',
+);
 assert.match(
   ui,
   /if \(state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{\s*const backButton/,
@@ -114,6 +126,13 @@ assert.match(
   ui,
   /function selectManualRegion\(province\) \{\s*state\.region = province;\s*state\.locationMode = 'NONE';\s*state\.currentPosition = null;/,
   'selecting a manual region must clear locationMode/currentPosition so GPS cannot overwrite it',
+);
+// 그리고 이미 날아간 자동 요청이 늦게 도착해도 그 선택을 덮지 않는다 (§22).
+// 지역 변경이 확인 중에도 눌리게 된 뒤로는 이 경쟁이 실제로 일어날 수 있다.
+assert.match(
+  ui,
+  /if \(auto && state\.region\) return;/,
+  'an auto location request that lands after the user picked a region must abandon its result, never overwrite it',
 );
 
 // Query construction must prefer an explicit region over coordinates, and

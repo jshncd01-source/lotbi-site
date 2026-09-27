@@ -38,15 +38,15 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-4c1fabd03bc3';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-4c1fabd03bc3';
+} from './site-festival-client.js?v=aset-b048cecbbb5a';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-b048cecbbb5a';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-4c1fabd03bc3';
+} from './site-current-location.js?v=aset-b048cecbbb5a';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -56,19 +56,19 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-4c1fabd03bc3';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-4c1fabd03bc3';
+} from './site-festival-calendar.js?v=aset-b048cecbbb5a';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-b048cecbbb5a';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-4c1fabd03bc3';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-b048cecbbb5a';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-4c1fabd03bc3';
+} from './site-calendar-weather.js?v=aset-b048cecbbb5a';
 
 const PAGE_SIZE = 20;
 
@@ -551,23 +551,26 @@ export async function mountFestivalManager({
 
     const actions = el('div', 'festival-location-actions');
     if (state.locationBusy) {
+      // 확인 중에는 "현재 위치로 보기" 를 다시 누를 이유가 없으므로 그 자리에
+      // 진행 상태를 보여준다.
       actions.appendChild(el('span', 'festival-location-busy', '현재 위치 확인 중...'));
-    } else {
-      if (state.locationMode !== 'CURRENT' && state.locationPermission !== LOCATION_PERMISSION.DENIED) {
-        const useLocationButton = document.createElement('button');
-        useLocationButton.type = 'button';
-        useLocationButton.className = 'festival-location-button';
-        useLocationButton.textContent = '현재 위치로 보기';
-        useLocationButton.addEventListener('click', () => void useCurrentLocation({auto: false}));
-        actions.appendChild(useLocationButton);
-      }
-      const regionButton = document.createElement('button');
-      regionButton.type = 'button';
-      regionButton.className = 'festival-location-button';
-      regionButton.textContent = '지역 변경';
-      regionButton.addEventListener('click', () => void openRegionSheet());
-      actions.appendChild(regionButton);
+    } else if (state.locationMode !== 'CURRENT' && state.locationPermission !== LOCATION_PERMISSION.DENIED) {
+      const useLocationButton = document.createElement('button');
+      useLocationButton.type = 'button';
+      useLocationButton.className = 'festival-location-button';
+      useLocationButton.textContent = '현재 위치로 보기';
+      useLocationButton.addEventListener('click', () => void useCurrentLocation({auto: false}));
+      actions.appendChild(useLocationButton);
     }
+    // 지역 변경은 어떤 상태에서도 누를 수 있다. 현재 위치를 확인하는 중이라는 것이
+    // 사용자가 직접 지역을 고르는 것을 막을 이유는 되지 않는다 -- 데스크톱에서는
+    // 위치 확인에 몇 초가 걸리고, 그 동안 화면이 잠겨 있으면 고장으로 읽힌다 (§23).
+    const regionButton = document.createElement('button');
+    regionButton.type = 'button';
+    regionButton.className = 'festival-location-button';
+    regionButton.textContent = '지역 변경';
+    regionButton.addEventListener('click', () => void openRegionSheet());
+    actions.appendChild(regionButton);
     locationBanner.appendChild(actions);
   }
 
@@ -635,6 +638,9 @@ export async function mountFestivalManager({
       // 캘린더 날씨가 방금 현재 위치를 읽었다면 그 좌표를 그대로 쓴다 -- 같은
       // 브라우저·같은 origin 의 권한이고 같은 위치다 (§2/§8).
       const position = sharedPosition ?? await acquireSharedBrowserCurrentLocation();
+      // 좌표를 기다리는 동안 사용자가 직접 지역을 골랐다면 그 선택이 이긴다 (§22).
+      // 자동 경로는 아무도 누르지 않은 요청이므로, 사람이 고른 것을 덮지 않는다.
+      if (auto && state.region) return;
       state.currentPosition = {latitude: position.latitude, longitude: position.longitude};
       state.region = '';
       state.locationMode = 'CURRENT';
