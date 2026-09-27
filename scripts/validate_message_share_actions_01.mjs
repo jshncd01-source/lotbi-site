@@ -30,7 +30,7 @@ assert.match(index, /<script type="module" src="site-conversation\.js\?v=[^"]+">
 // Ordinary LOTBI answers keep the approved message action row. A reusable-output
 // answer does not duplicate copy/share on its short lead-in because the result
 // card owns current-variant copy/share/edit actions instead.
-assert.match(conversation, /if \(message\.role === 'assistant' && !reusableOutput\) \{\s*\n\s*const actions = createMessageActions\(message\.text, setStatus\);/);
+assert.match(conversation, /if \(message\.role === 'assistant' && !reusableOutput\) \{\s*\n\s*const actions = createMessageActions\(message\.text, setStatus, \{\s*\n\s*calendarDraft: calendarDraftHintFromMessage\(message, place\),\s*\n\s*openCalendarDraft: draft => openCalendar\(draft\?\.localDate \? 'month' : 'agenda', \{initialDraft: draft, restoreConversation: true\}\),\s*\n\s*\}\);/);
 assert.match(conversation, /if \(actions\) node\.appendChild\(actions\);/);
 assert.match(conversation, /const reusableOutput = message\.role === 'assistant' \? message\.meta\?\.reusableOutput : null;/);
 assert.match(conversation, /const actions = document\.createElement\('div'\);/);
@@ -45,6 +45,27 @@ assert.match(conversation, /const value = typeof text === 'string' \? text\.trim
 // drawn, not an emoji glyph, so they stay legible in Dark and forced-colors.
 assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '복사하기', iconPath: MESSAGE_ACTION_ICON_COPY, dataset: \{messageAction: 'copy'\}\}\)/);
 assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: \{messageAction: 'share'\}\}\)/);
+
+// CHATPERF-08 — the footer's fourth action is a Calendar launcher, not a
+// writer: it always shares the plain '.chat-message-action' styling (no
+// dedicated colour, unlike the primary "등록" button elsewhere) and it opens
+// the existing editor dialog rather than calling a register/save function.
+assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: \{messageAction: 'calendar'\}\}\)/);
+assert.match(conversation, /calendar\.addEventListener\('click', \(\) => \{\s*\n\s*if \(typeof openCalendarDraft !== 'function'\) return;\s*\n\s*void openCalendarDraft\(calendarDraft\)/);
+assert.match(conversation, /actions\.append\(copy, share, speak, calendar, feedback\);/);
+assert.match(conversation, /actions\.append\(copy, share, calendar, feedback\);/);
+// The launcher never calls a register/write function directly.
+assert.ok(!/calendar\.addEventListener\('click'[\s\S]{0,400}registerCalendarDraft/.test(conversation), 'the footer Calendar action must never register a draft itself');
+
+// The pre-fill helper may only reuse fields the message already carries — a
+// settled calendarDraft, or a place result's name/address — and must never
+// invent a date the message never stated.
+assert.match(conversation, /function calendarDraftHintFromMessage\(message, place\) \{/);
+assert.match(conversation, /const draft = message\?\.meta\?\.calendarDraft;/);
+assert.match(conversation, /const primaryPlace = place\?\.results\?\.\[0\];/);
+const calendarHintHelperSource = conversation.match(/function calendarDraftHintFromMessage\([\s\S]*?\n\}/)?.[0] || '';
+assert.ok(calendarHintHelperSource, 'calendarDraftHintFromMessage source must be found');
+assert.ok(!calendarHintHelperSource.includes('new Date('), 'the calendar hint helper must never synthesize a date');
 assert.match(conversation, /import \{createIconButton, createSafeMessageBody, enhanceExpandableUserMessage\} from '\.\/site-message-body\.js\?v=([^']+)';/);
 // The icon builder lives with the other message-node builders. The conversation
 // runtime must stay free of any http:// literal — validate_rich_product_cards_01
