@@ -397,6 +397,12 @@ jobs:
       - name: Validate chat photo has no forced gallery/memory actions
         run: node scripts/validate_chat_photo_no_forced_actions_01.mjs
 
+      # CHATPERF-08 — the footer 캘린더 button must always reach the "일정
+      # 등록"/"일정 초안 확인" editor, never the bare calendar view, even when
+      # the answer carries no place and no Core calendar_draft.
+      - name: Validate message calendar footer opens the editor
+        run: node scripts/validate_message_calendar_footer_editor_01.mjs
+
       - name: Validate reusable output cards
         run: node scripts/validate_reusable_output_card_01.mjs
 

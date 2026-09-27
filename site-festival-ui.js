@@ -58,15 +58,15 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-9e144cda219b';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-9e144cda219b';
+} from './site-festival-client.js?v=aset-cc25e00e3422';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-cc25e00e3422';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-9e144cda219b';
+} from './site-current-location.js?v=aset-cc25e00e3422';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -76,8 +76,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-9e144cda219b';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9e144cda219b';
+} from './site-festival-calendar.js?v=aset-cc25e00e3422';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-cc25e00e3422';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -87,18 +87,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-9e144cda219b';
+} from './site-navigation.js?v=aset-cc25e00e3422';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-9e144cda219b';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-cc25e00e3422';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-9e144cda219b';
+} from './site-calendar-weather.js?v=aset-cc25e00e3422';
 
 const PAGE_SIZE = 20;
 
