@@ -1,20 +1,20 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-bc98675b36b0';
-import * as siteCore from './site-core.js?v=aset-bc98675b36b0';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-bc98675b36b0';
-import * as siteAttachments from './site-attachments.js?v=aset-bc98675b36b0';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-bc98675b36b0';
-import {deterministicReply} from './site-deterministic.js?v=aset-bc98675b36b0';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-bc98675b36b0';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-bc98675b36b0';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-bc98675b36b0';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-bc98675b36b0';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-bc98675b36b0';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-bc98675b36b0';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-bc98675b36b0';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-bc98675b36b0';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-bc98675b36b0';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-bc98675b36b0';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-bc98675b36b0';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-5cc7891577bd';
+import * as siteCore from './site-core.js?v=aset-5cc7891577bd';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-5cc7891577bd';
+import * as siteAttachments from './site-attachments.js?v=aset-5cc7891577bd';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-5cc7891577bd';
+import {deterministicReply} from './site-deterministic.js?v=aset-5cc7891577bd';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-5cc7891577bd';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-5cc7891577bd';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-5cc7891577bd';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-5cc7891577bd';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-5cc7891577bd';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-5cc7891577bd';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-5cc7891577bd';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-5cc7891577bd';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-5cc7891577bd';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-5cc7891577bd';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-5cc7891577bd';
 const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -165,7 +165,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-bc98675b36b0';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-5cc7891577bd';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -356,11 +356,11 @@ async function writeMessageTextToClipboard(text) {
   if (!copied) throw new Error('복사를 완료하지 못했습니다.');
 }
 
-async function shareMessageText(text, {includeUrl = true} = {}) {
+async function shareMessageText(text, {includeUrl = true, url = MESSAGE_ACTION_SHARE_URL} = {}) {
   const value = typeof text === 'string' ? text.trim() : '';
   if (!value) throw new Error('공유할 내용이 없습니다.');
   const shareData = includeUrl
-    ? {title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL}
+    ? {title: 'LOTBI', text: value, url}
     : {text: value};
   if (typeof navigator.share === 'function') {
     try {
@@ -370,11 +370,49 @@ async function shareMessageText(text, {includeUrl = true} = {}) {
       if (error && error.name === 'AbortError') return 'cancelled';
     }
   }
-  await writeMessageTextToClipboard(includeUrl ? `${value}\n\n${MESSAGE_ACTION_SHARE_URL}` : value);
+  await writeMessageTextToClipboard(includeUrl ? `${value}\n\n${url}` : value);
   return 'copied';
 }
 
-function createMessageActions(text, announce, {calendarDraft = null, openCalendarDraft} = {}) {
+// CHATPERF-07 — a place (or the place result list) attached to an answer gets
+// its own content-specific link instead of the site's generic homepage, but
+// creating that link needs a network round trip to Core. navigator.share()
+// on mobile only works when called synchronously inside the click handler
+// (no await before it) or the browser silently refuses the share sheet — see
+// the comment above MESSAGE_ACTION_SHARE_URL. So this is prepared once, in
+// the background, as soon as the place card renders, and the click handler
+// below only ever reads the cached result -- it never awaits this itself.
+const structuredShareCache = new WeakMap();
+
+function prepareStructuredShareUrl(meta, sessionToken) {
+  const placeResult = meta?.placeResult;
+  const results = Array.isArray(placeResult?.results) ? placeResult.results : [];
+  if (!results.length || !sessionToken || structuredShareCache.has(meta)) return;
+  structuredShareCache.set(meta, {status: 'pending'});
+  void (async () => {
+    try {
+      const created = await siteCore.createShare(sessionToken, {
+        place_result: {query: placeResult.query, results: placeResult.results},
+      });
+      const typeParam = created.shareKind === 'PLACE_RESULT_SET' ? 'place-list' : 'place';
+      structuredShareCache.set(meta, {
+        status: 'ready',
+        url: `https://lotbiai.com/share.html?type=${typeParam}&id=${encodeURIComponent(created.shareId)}`,
+      });
+    } catch {
+      // No content-specific link this time -- the share button below simply
+      // falls back to the plain-text + generic-homepage share, same as today.
+      structuredShareCache.set(meta, {status: 'unavailable'});
+    }
+  })();
+}
+
+function readyStructuredShareUrl(meta) {
+  const entry = meta ? structuredShareCache.get(meta) : undefined;
+  return entry && entry.status === 'ready' ? entry.url : null;
+}
+
+function createMessageActions(text, announce, {calendarDraft = null, openCalendarDraft, meta} = {}) {
   const value = typeof text === 'string' ? text.trim() : '';
   if (!value) return undefined;
 
@@ -412,9 +450,12 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
 
   const share = createIconButton({className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: {messageAction: 'share'}});
   share.addEventListener('click', () => {
-    // shareMessageText calls navigator.share synchronously before its first await,
-    // preserving the user gesture required by mobile share sheets.
-    void shareMessageText(value).then(result => {
+    // Reads whatever prepareStructuredShareUrl already finished in the
+    // background -- see its comment. Never awaits anything here: that is
+    // what keeps shareMessageText's own navigator.share() call synchronous
+    // with this click, which mobile share sheets require.
+    const structuredUrl = readyStructuredShareUrl(meta);
+    void shareMessageText(value, structuredUrl ? {url: structuredUrl} : undefined).then(result => {
       if (result === 'cancelled') return;
       if (result === 'copied') {
         report('이 브라우저에는 공유 시트가 없어 답변과 링크를 복사했습니다. 카카오톡에 붙여넣어 주세요.');
@@ -2497,6 +2538,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     if (message.role === 'assistant' && place) {
       const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
+      prepareStructuredShareUrl(message.meta, sessionToken);
     }
     if (message.role === 'assistant' && Array.isArray(message.meta?.calendarItems)) {
       for (const rawItem of message.meta.calendarItems) {
@@ -2533,6 +2575,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const actions = createMessageActions(message.text, setStatus, {
         calendarDraft: calendarDraftHintFromMessage(message, place),
         openCalendarDraft: draft => openCalendar(draft?.localDate ? 'month' : 'agenda', {initialDraft: draft, restoreConversation: true}),
+        meta: message.meta,
       });
       if (actions) node.appendChild(actions);
     }
@@ -2887,7 +2930,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-bc98675b36b0');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-5cc7891577bd');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2914,7 +2957,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-bc98675b36b0');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-5cc7891577bd');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,

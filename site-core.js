@@ -41,6 +41,7 @@ const LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$
 const LOCAL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
 const TIMEZONE_RE = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
+const SHARE_PATH = '/v2/shares';
 const HANDOFF_REDEEM_PATH = '/v2/sessions/handoffs/redeem';
 const CURRENT_USER_PATH = '/v2/me';
 const SUBSCRIPTION_PATH = '/v2/subscription';
@@ -1378,6 +1379,32 @@ export async function getCurrentSubscription(sessionToken, fetchImpl = globalThi
     usedFreeUnits,
     remainingFreeUnits,
   });
+}
+
+// CHATPERF-07 — turn what the user actually shared (a place, or the search
+// result list attached to this answer) into a content-specific share link,
+// instead of the site's own generic homepage. ``structured`` is the same
+// shape Core's resolver expects: {selected_place} or {place_result} or
+// {festival_result}. Never throws for "nothing to share here" -- Core
+// answers that with 422 SHARE_TARGET_UNSUPPORTED, which the caller treats
+// as "fall back to the plain-text share" rather than an error banner.
+export async function createShare(sessionToken, structured, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(
+    SHARE_PATH,
+    sessionToken,
+    {method: 'POST', announceSessionFailure: false, body: structured && typeof structured === 'object' ? structured : {}},
+    fetchImpl,
+  );
+  if (payload.share_kind === 'FESTIVAL') {
+    if (typeof payload.festival_id !== 'string' || !payload.festival_id) {
+      throw new SiteCoreError('LOTBI 공유 응답 형식이 올바르지 않습니다.', {code: 'SHARE_CONTRACT_INVALID'});
+    }
+    return Object.freeze({shareKind: 'FESTIVAL', festivalId: payload.festival_id});
+  }
+  if (typeof payload.share_id !== 'string' || !payload.share_id) {
+    throw new SiteCoreError('LOTBI 공유 응답 형식이 올바르지 않습니다.', {code: 'SHARE_CONTRACT_INVALID'});
+  }
+  return Object.freeze({shareKind: payload.share_kind, shareId: payload.share_id});
 }
 
 export async function logoutSiteSession(sessionToken, fetchImpl = globalThis.fetch) {
