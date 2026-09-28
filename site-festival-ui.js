@@ -58,15 +58,20 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-cc25e00e3422';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-cc25e00e3422';
+} from './site-festival-client.js?v=aset-9822eba13542';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-9822eba13542';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-cc25e00e3422';
+} from './site-current-location.js?v=aset-9822eba13542';
+// The visit-date picker inside "일정 등록" is a compact month grid, not a
+// custom date engine -- calendarMonthGrid() is the exact same pure cell
+// generator (leading/trailing days, leap years, week length) the main
+// Calendar view itself uses, reused here read-only.
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-9822eba13542';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -76,8 +81,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-cc25e00e3422';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-cc25e00e3422';
+} from './site-festival-calendar.js?v=aset-9822eba13542';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9822eba13542';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -87,18 +92,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-cc25e00e3422';
+} from './site-navigation.js?v=aset-9822eba13542';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-cc25e00e3422';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-9822eba13542';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-cc25e00e3422';
+} from './site-calendar-weather.js?v=aset-9822eba13542';
 
 const PAGE_SIZE = 20;
 
@@ -459,6 +464,113 @@ function festivalCalendarAddEligible(festival, now) {
   return status !== FESTIVAL_STATUS.ENDED && status !== FESTIVAL_STATUS.CANCELLED;
 }
 
+// One valid visit date per grid cell, never a fabricated one: only dates
+// festivalVisitDateOptions() itself would accept are ever selectable, so the
+// popup can never hand addFestivalVisitToCalendar() something it would
+// reject with its own RangeError.
+function buildScheduleGridBody(festival, {onConfirm}) {
+  const validDates = festivalVisitDateOptions(festival);
+  const validDateSet = new Set(validDates);
+  const startDate = validDates[0];
+  const endDate = validDates[validDates.length - 1];
+  const [startYear, startMonth] = startDate.split('-').map(Number);
+  const [endYear, endMonth] = endDate.split('-').map(Number);
+
+  const wrap = el('div', 'festival-schedule-sheet');
+  wrap.appendChild(el('h3', 'festival-schedule-sheet-title', '일정 등록'));
+  wrap.appendChild(el('p', 'festival-schedule-sheet-name', festival.name));
+  wrap.appendChild(el('p', 'festival-schedule-sheet-period', formatFestivalPeriod(festival)));
+
+  let viewYear = startYear;
+  let viewMonth = startMonth;
+  let selectedDate = null;
+
+  const prevButton = document.createElement('button');
+  prevButton.type = 'button';
+  prevButton.className = 'festival-schedule-nav-button';
+  prevButton.textContent = '‹';
+  prevButton.setAttribute('aria-label', '이전 달');
+  const monthLabel = el('span', 'festival-schedule-month-label');
+  monthLabel.setAttribute('aria-live', 'polite');
+  const nextButton = document.createElement('button');
+  nextButton.type = 'button';
+  nextButton.className = 'festival-schedule-nav-button';
+  nextButton.textContent = '›';
+  nextButton.setAttribute('aria-label', '다음 달');
+  const nav = el('div', 'festival-schedule-nav');
+  nav.append(prevButton, monthLabel, nextButton);
+
+  const weekdayRow = el('div', 'festival-schedule-weekday-row');
+  for (const label of ['일', '월', '화', '수', '목', '금', '토']) {
+    weekdayRow.appendChild(el('span', 'festival-schedule-weekday', label));
+  }
+
+  const grid = el('div', 'festival-schedule-grid');
+  grid.setAttribute('role', 'grid');
+  grid.setAttribute('aria-label', '방문 날짜 선택');
+
+  const confirmButton = document.createElement('button');
+  confirmButton.type = 'button';
+  confirmButton.className = 'festival-schedule-confirm';
+  confirmButton.textContent = '등록';
+  confirmButton.disabled = true;
+
+  function paintGrid() {
+    monthLabel.textContent = `${viewYear}년 ${viewMonth}월`;
+    prevButton.disabled = viewYear === startYear && viewMonth === startMonth;
+    nextButton.disabled = viewYear === endYear && viewMonth === endMonth;
+    grid.replaceChildren();
+    for (const cell of calendarMonthGrid(viewYear, viewMonth)) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'festival-schedule-date-cell';
+      if (!cell.inCurrentMonth) button.classList.add('festival-schedule-date-outside-month');
+      button.textContent = String(cell.day);
+      button.setAttribute('role', 'gridcell');
+      const inRange = validDateSet.has(cell.date);
+      if (!inRange) {
+        button.disabled = true;
+        button.setAttribute('aria-disabled', 'true');
+      } else {
+        button.addEventListener('click', () => {
+          selectedDate = cell.date;
+          confirmButton.disabled = false;
+          for (const node of grid.children) node.setAttribute('aria-selected', String(node === button));
+          grid.querySelector('.is-selected')?.classList.remove('is-selected');
+          button.classList.add('is-selected');
+        });
+      }
+      button.setAttribute('aria-selected', String(cell.date === selectedDate));
+      if (cell.date === selectedDate) button.classList.add('is-selected');
+      grid.appendChild(button);
+    }
+  }
+
+  prevButton.addEventListener('click', () => {
+    viewMonth -= 1;
+    if (viewMonth < 1) { viewMonth = 12; viewYear -= 1; }
+    paintGrid();
+  });
+  nextButton.addEventListener('click', () => {
+    viewMonth += 1;
+    if (viewMonth > 12) { viewMonth = 1; viewYear += 1; }
+    paintGrid();
+  });
+  confirmButton.addEventListener('click', async () => {
+    if (!selectedDate) return;
+    confirmButton.disabled = true;
+    try {
+      await onConfirm(selectedDate);
+    } finally {
+      confirmButton.disabled = false;
+    }
+  });
+
+  paintGrid();
+  wrap.append(nav, weekdayRow, grid, confirmButton);
+  return wrap;
+}
+
 // A deliberate personalization utility action, never folded into
 // buildCtaRow()'s [접수]/[프로그램] primary pair — it writes through the
 // existing LOTBI Calendar (site-festival-calendar.js), never a new store.
@@ -469,7 +581,7 @@ function buildCalendarAddSection(root, festival, {authenticated, sessionToken, g
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'festival-calendar-add-trigger';
-  trigger.textContent = '+ 내 캘린더에 추가';
+  trigger.textContent = '📅 일정 등록';
   wrap.appendChild(trigger);
 
   const feedback = el('p', 'festival-calendar-add-feedback');
@@ -482,25 +594,18 @@ function buildCalendarAddSection(root, festival, {authenticated, sessionToken, g
     feedback.setAttribute('role', isError ? 'alert' : 'status');
   };
 
-  let disposeSheet = null;
-  const closeSheet = ({restoreFocus = true} = {}) => {
-    if (!disposeSheet) return;
-    const dispose = disposeSheet;
-    disposeSheet = null;
-    dispose();
-    if (restoreFocus) trigger.focus();
-  };
+  let sheetRef = null;
 
-  const submit = async (visitScope, visitDate) => {
+  const submit = async visitDate => {
     trigger.disabled = true;
     try {
-      const result = await addFestivalVisitToCalendar({festival, visitDate, visitScope, authenticated, sessionToken, guestRepository});
+      const result = await addFestivalVisitToCalendar({festival, visitDate, visitScope: VISIT_SCOPE.DATE, authenticated, sessionToken, guestRepository});
       if (result.status === 'CREATED') {
-        announce('캘린더에 추가했어요.');
-        closeSheet();
+        announce('일정을 등록했어요.');
+        sheetRef?.close();
       } else if (result.status === 'DUPLICATE') {
         announce('이미 캘린더에 추가되어 있어요.');
-        closeSheet();
+        sheetRef?.close();
       } else {
         announce('캘린더에 추가하지 못했어요. 다시 시도해 주세요.', {isError: true});
       }
@@ -511,80 +616,15 @@ function buildCalendarAddSection(root, festival, {authenticated, sessionToken, g
     }
   };
 
-  const openSheet = () => {
-    closeSheet({restoreFocus: false});
-    const backdrop = el('div', 'festival-visit-sheet-backdrop');
-    const dialog = el('div', 'festival-visit-sheet');
-    dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
-    dialog.setAttribute('aria-labelledby', 'festival-visit-sheet-title');
-
-    const header = el('div', 'festival-visit-sheet-header');
-    const title = el('h4', 'festival-visit-sheet-title', '방문할 날짜를 선택하세요');
-    title.id = 'festival-visit-sheet-title';
-    const closeButton = document.createElement('button');
-    closeButton.type = 'button';
-    closeButton.className = 'festival-visit-sheet-close';
-    closeButton.textContent = '×';
-    closeButton.setAttribute('aria-label', '닫기');
-    header.append(title, closeButton);
-
-    const optionsList = el('div', 'festival-visit-sheet-options');
-    optionsList.setAttribute('role', 'radiogroup');
-    optionsList.setAttribute('aria-label', '방문 날짜');
-    const optionButtons = [];
-    let selected = null;
-
-    const confirmButton = document.createElement('button');
-    confirmButton.type = 'button';
-    confirmButton.className = 'festival-visit-sheet-confirm';
-    confirmButton.textContent = '추가';
-    confirmButton.disabled = true;
-
-    const selectOption = (node, value) => {
-      selected = value;
-      for (const optionNode of optionButtons) optionNode.setAttribute('aria-checked', String(optionNode === node));
-      confirmButton.disabled = false;
-    };
-
-    const addOption = (label, value, className = 'festival-visit-option') => {
-      const option = document.createElement('button');
-      option.type = 'button';
-      option.className = className;
-      option.setAttribute('role', 'radio');
-      option.setAttribute('aria-checked', 'false');
-      option.textContent = label;
-      option.addEventListener('click', () => selectOption(option, value));
-      optionButtons.push(option);
-      optionsList.appendChild(option);
-      return option;
-    };
-
-    for (const date of festivalVisitDateOptions(festival)) {
-      addOption(formatFestivalDateLabel(date), {scope: VISIT_SCOPE.DATE, date});
-    }
-    addOption('전체 기간', {scope: VISIT_SCOPE.FULL_RANGE, date: null}, 'festival-visit-option festival-visit-option-full');
-
-    confirmButton.addEventListener('click', () => {
-      if (!selected) return;
-      void submit(selected.scope, selected.date);
+  trigger.addEventListener('click', () => {
+    sheetRef = createBottomSheet({
+      label: '일정 등록',
+      content: () => buildScheduleGridBody(festival, {onConfirm: visitDate => submit(visitDate)}),
+      onClose: () => { sheetRef = null; },
     });
+    sheetRef.open();
+  });
 
-    const onKeydown = event => {
-      if (event.key === 'Escape') { event.preventDefault(); closeSheet(); }
-    };
-    closeButton.addEventListener('click', () => closeSheet());
-    backdrop.addEventListener('click', event => { if (event.target === backdrop) closeSheet(); });
-    dialog.addEventListener('keydown', onKeydown);
-
-    dialog.append(header, optionsList, confirmButton);
-    backdrop.appendChild(dialog);
-    root.appendChild(backdrop);
-    disposeSheet = () => backdrop.remove();
-    (optionButtons[0] || closeButton).focus();
-  };
-
-  trigger.addEventListener('click', openSheet);
   return wrap;
 }
 

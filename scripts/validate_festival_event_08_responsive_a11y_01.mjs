@@ -202,6 +202,52 @@ await new Promise(resolve => setTimeout(resolve, 60));
 programResult.listVisibleAfterBack = !host.querySelector('.festival-list-surface').hidden;
 programResult.backButtonLabel = programSurface.querySelector('.festival-back-button')?.textContent;
 
+// [📅 일정 등록] — month-grid schedule picker: real cells, clamped nav,
+// disabled out-of-range dates, single-date confirm, dedupe on a second try.
+const calendarTrigger = card.querySelector('.festival-calendar-add-trigger');
+calendarTrigger.click();
+await new Promise(resolve => setTimeout(resolve, 80));
+const scheduleSheet = document.querySelector('.lotbi-sheet');
+const scheduleCells = () => [...scheduleSheet.querySelectorAll('.festival-schedule-date-cell')];
+const inMonthDisabledCount = scheduleCells().filter(b => b.disabled && !b.classList.contains('festival-schedule-date-outside-month')).length;
+const prevNav = scheduleSheet.querySelector('.festival-schedule-nav-button[aria-label="이전 달"]');
+const nextNav = scheduleSheet.querySelector('.festival-schedule-nav-button[aria-label="다음 달"]');
+const calendarResult = {
+  sheetOpen: !!scheduleSheet,
+  nameShown: scheduleSheet.querySelector('.festival-schedule-sheet-name')?.textContent,
+  periodShown: scheduleSheet.querySelector('.festival-schedule-sheet-period')?.textContent,
+  monthLabel: scheduleSheet.querySelector('.festival-schedule-month-label')?.textContent,
+  // D0..D2 (2026-10-08..10) all fall in October, so both boundaries start
+  // disabled -- there is nowhere valid to navigate to in either direction.
+  prevDisabledInitially: prevNav.disabled,
+  nextDisabledInitially: nextNav.disabled,
+  // 31-day October minus the 3 real festival days = 28 disabled in-month cells.
+  inMonthDisabledCount,
+  confirmDisabledBeforeSelect: scheduleSheet.querySelector('.festival-schedule-confirm').disabled,
+};
+const validCell = scheduleCells().find(b => !b.disabled && !b.classList.contains('festival-schedule-date-outside-month') && b.textContent === '9');
+validCell.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+const confirmButton = scheduleSheet.querySelector('.festival-schedule-confirm');
+calendarResult.confirmEnabledAfterSelect = !confirmButton.disabled;
+calendarResult.selectedCellMarked = validCell.classList.contains('is-selected') && validCell.getAttribute('aria-selected') === 'true';
+confirmButton.click();
+await new Promise(resolve => setTimeout(resolve, 120));
+calendarResult.sheetClosedAfterConfirm = !document.querySelector('.lotbi-sheet');
+calendarResult.successMessage = card.querySelector('.festival-calendar-add-feedback')?.textContent;
+
+// Same festival, same date again -> must dedupe, never a silent second entry.
+calendarTrigger.click();
+await new Promise(resolve => setTimeout(resolve, 80));
+const secondSheet = document.querySelector('.lotbi-sheet');
+const secondValidCell = [...secondSheet.querySelectorAll('.festival-schedule-date-cell')]
+  .find(b => !b.disabled && !b.classList.contains('festival-schedule-date-outside-month') && b.textContent === '9');
+secondValidCell.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+secondSheet.querySelector('.festival-schedule-confirm').click();
+await new Promise(resolve => setTimeout(resolve, 120));
+calendarResult.duplicateMessage = card.querySelector('.festival-calendar-add-feedback')?.textContent;
+
 document.getElementById('render-result').textContent = JSON.stringify({
   mediaTag: media.tagName,
   mediaHref: media.getAttribute('href'),
@@ -217,6 +263,7 @@ document.getElementById('render-result').textContent = JSON.stringify({
   calendarTriggerPresent,
   registration: registrationResult,
   program: programResult,
+  calendar: calendarResult,
   bodyScrollWidth: document.documentElement.scrollWidth,
   bodyClientWidth: document.documentElement.clientWidth,
 });
@@ -389,6 +436,21 @@ assert.deepEqual(card.program.tabDates, [D0, D1, D2]);
 assert.equal(card.program.listVisibleAfterBack, true, '카드에서 연 프로그램 화면의 뒤로가기는 상세화면이 아니라 목록으로 돌아가야 한다');
 assert.equal(card.program.backButtonLabel, '← 목록으로');
 
+assert.ok(card.calendar, '[📅 일정 등록] 클릭이 월간 달력 팝업을 열어야 한다');
+assert.equal(card.calendar.sheetOpen, true);
+assert.match(card.calendar.nameShown || '', /가을 억새 축제/, '축제명이 팝업에 자동 입력되어야 한다');
+assert.ok(card.calendar.periodShown, '축제기간이 팝업에 자동 입력되어야 한다');
+assert.equal(card.calendar.monthLabel, '2026년 10월');
+assert.equal(card.calendar.prevDisabledInitially, true, '축제 시작월보다 이전으로는 이동할 수 없어야 한다');
+assert.equal(card.calendar.nextDisabledInitially, true, '축제 종료월보다 다음으로는 이동할 수 없어야 한다(시작·종료가 같은 달)');
+assert.equal(card.calendar.inMonthDisabledCount, 28, `10월 31일 중 축제 기간 3일(${D0}~${D2})을 제외한 28일은 선택 불가여야 한다`);
+assert.equal(card.calendar.confirmDisabledBeforeSelect, true, '날짜를 고르기 전에는 등록 버튼이 비활성 상태여야 한다');
+assert.equal(card.calendar.confirmEnabledAfterSelect, true, '유효한 날짜를 고르면 등록 버튼이 활성화되어야 한다');
+assert.equal(card.calendar.selectedCellMarked, true, '고른 날짜는 시각적으로도 aria로도 선택 상태여야 한다');
+assert.equal(card.calendar.sheetClosedAfterConfirm, true, '등록 확정 후에는 팝업이 닫혀야 한다');
+assert.equal(card.calendar.successMessage, '일정을 등록했어요.');
+assert.equal(card.calendar.duplicateMessage, '이미 캘린더에 추가되어 있어요.', '같은 축제·같은 날짜를 다시 등록하면 중복으로 막아야 한다');
+
 assert.ok(card.bodyScrollWidth <= card.bodyClientWidth + 2, `390px: horizontal overflow ${card.bodyScrollWidth}px > ${card.bodyClientWidth}px`);
 
 // ========================================================== Calendar re-entry
@@ -437,4 +499,4 @@ for (const width of [320, 412, 1280]) {
     `${width}px: horizontal overflow ${result.bodyScrollWidth}px > ${result.bodyClientWidth}px`);
 }
 
-console.log('FESTIVAL-EVENT-08 RESPONSIVE/A11Y RENDER VALIDATION PASS — list card homepage link + program/registration/calendar/map actions (with map handoffs captured via a stubbed window.open), Calendar-re-entry CTA visibility matrix (0/1/2), internal [프로그램] date-tab navigation with real tab/tablist/tabpanel roles, keyboard ArrowRight tab switch + focus, back navigation across all three surfaces (card path returns to the list, re-entry path returns to the detail then the list), external-link security attributes, legacy-section/homepage-button absence inside the detail screen, and 320/390/412/1280px layouts with no horizontal overflow — all verified against real headless-Chromium renders of the actual site-festival-ui.js/site-festival-client.js modules.');
+console.log('FESTIVAL-EVENT-08 RESPONSIVE/A11Y RENDER VALIDATION PASS — list card homepage link + program/registration/calendar/map actions (with map handoffs captured via a stubbed window.open), the [📅 일정 등록] month-grid picker (real cells, clamped prev/next navigation, 28 disabled out-of-range days, single-date select+confirm, success copy, and same-date dedupe), Calendar-re-entry CTA visibility matrix (0/1/2), internal [프로그램] date-tab navigation with real tab/tablist/tabpanel roles, keyboard ArrowRight tab switch + focus, back navigation across all three surfaces (card path returns to the list, re-entry path returns to the detail then the list), external-link security attributes, legacy-section/homepage-button absence inside the detail screen, and 320/390/412/1280px layouts with no horizontal overflow — all verified against real headless-Chromium renders of the actual site-festival-ui.js/site-festival-client.js modules.');

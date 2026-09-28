@@ -691,6 +691,136 @@
   color: var(--lotbi-text-muted);
 }
 
+/* ------------------------------------------------- [📅 일정 등록] sheet -- */
+.festival-schedule-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.festival-schedule-sheet-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-schedule-sheet-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-schedule-sheet-period {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-schedule-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.festival-schedule-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.festival-schedule-nav-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.festival-schedule-nav-button:not(:disabled):hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-schedule-month-label {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-schedule-weekday-row,
+.festival-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.festival-schedule-weekday {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-schedule-date-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lotbi-text-primary);
+  cursor: pointer;
+}
+
+.festival-schedule-date-cell:disabled {
+  color: var(--lotbi-text-disabled);
+  cursor: default;
+}
+
+.festival-schedule-date-cell.festival-schedule-date-outside-month:not(:disabled) {
+  color: var(--lotbi-text-muted);
+}
+
+.festival-schedule-date-cell:not(:disabled):hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-schedule-date-cell.is-selected {
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+  border-color: transparent;
+}
+
+.festival-schedule-date-cell:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-schedule-confirm {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.festival-schedule-confirm:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* --------------------------------------------------------- program view -- */
 .festival-program-surface {
   display: flex;
