@@ -16,24 +16,32 @@ const clientJs = read('site-festival-client.js');
 const css = read('site-festival.css');
 
 // ---------------------------------------------------------- time filters --
-assert.match(ui, /for \(const key of Object\.values\(FESTIVAL_TIME_FILTER\)\)/,
-  'the 5 time filter buttons must be generated from the shared enum, not hand-duplicated copy');
-assert.doesNotMatch(ui, /'오늘'|'날짜별'|'지역별'/, 'the old 오늘/지역별/날짜별 structure must be fully removed');
+// FESTIVAL-EVENT-02 REGION-BROWSE: 날짜 선택 (a custom date-picker filter
+// forcing one specific day before browsing at all) is removed from the
+// user-facing filter bar. FESTIVAL-EVENT-11 adds ALWAYS_OPEN (상시 운영) as a
+// 5th chip -- 전체/진행 중/이번 주말/이번 달/상시 운영, generated from an explicit
+// list (not the full FESTIVAL_TIME_FILTER enum, which still carries DATE for
+// Core's own unrelated contract — see site-festival-client.js and
+// validate_festival_public_boundary_01.mjs).
+assert.match(ui, /const USER_TIME_FILTERS = \[\s*FESTIVAL_TIME_FILTER\.ALL,\s*FESTIVAL_TIME_FILTER\.ONGOING,\s*FESTIVAL_TIME_FILTER\.THIS_WEEKEND,\s*FESTIVAL_TIME_FILTER\.THIS_MONTH,\s*FESTIVAL_TIME_FILTER\.ALWAYS_OPEN,\s*\];/,
+  'the user-facing filter bar must render exactly 전체/진행 중/이번 주말/이번 달/상시 운영, and DATE must not be in that list');
+assert.match(ui, /for \(const key of USER_TIME_FILTERS\)/,
+  'the 5 time filter buttons must be generated from the explicit user-facing list, not hand-duplicated copy');
 
-// DATE must never fire a query before a date is chosen (Core requires it and
-// rejects FESTIVAL_DATE_REQUIRED otherwise) — both the tab click and the
-// date <input> change handler must gate on state.customDate.
-assert.match(
-  ui,
-  /if \(key === FESTIVAL_TIME_FILTER\.DATE\) \{\s*if \(state\.customDate\) void fetchAndRender\(\{reset: true\}\);\s*return;\s*\}/,
-  'selecting the 날짜 선택 tab must not query Core until a date is actually picked',
-);
-assert.match(
-  ui,
-  /dateInput\.addEventListener\('change', \(\) => \{\s*state\.customDate = dateInput\.value \|\| '';\s*if \(state\.customDate\) void fetchAndRender\(\{reset: true\}\);\s*\}\);/,
-  'picking a date must trigger exactly one reset fetch, scoped by state.customDate',
-);
-assert.match(ui, /dateInput\.type = 'date'/);
+// 〈 2026년 9월 〉 월별 탐색 (FESTIVAL-EVENT-11): a persistent prev/next month
+// navigator, independent of the quick-filter chips, that drives the MONTH
+// filter with an explicit date=YYYY-MM.
+assert.match(ui, /monthAnchor: \{year: now\.getFullYear\(\), month: now\.getMonth\(\) \+ 1\}/,
+  'the month navigator must anchor on the real current month, never a hardcoded one');
+assert.match(ui, /function shiftMonth\(delta\)/, 'prev/next must share one month-shifting function, not duplicated increment/decrement logic');
+assert.match(ui, /monthPrevButton\.addEventListener\('click', \(\) => shiftMonth\(-1\)\);/);
+assert.match(ui, /monthNextButton\.addEventListener\('click', \(\) => shiftMonth\(1\)\);/);
+assert.match(ui, /query\.date = `\$\{state\.monthAnchor\.year\}-\$\{String\(state\.monthAnchor\.month\)\.padStart\(2, '0'\)\}`;/,
+  'the MONTH query must send date=YYYY-MM built from the navigator\'s own anchor, never a re-derived one');
+assert.doesNotMatch(ui, /'오늘'|'날짜별'|'지역별'/, 'the old 오늘/지역별/날짜별 structure must be fully removed');
+assert.doesNotMatch(ui, /FESTIVAL_TIME_FILTER\.DATE/, 'the user-facing filter bar must never reference the DATE filter');
+assert.doesNotMatch(ui, /dateInput|dateField|customDate/,
+  'the 날짜 선택 date <input>/state must be fully removed from the festival browse screen');
 
 // ------------------------------------------------------- pagination/race --
 // A request-token + AbortController pair must guard every fetch: a filter
@@ -102,16 +110,16 @@ assert.match(ui, /error\.setAttribute\('role', 'alert'\);/);
 assert.match(ui, /list\.setAttribute\('role', 'listbox'\);/);
 assert.match(ui, /optionButton\.setAttribute\('role', 'option'\);/);
 assert.match(ui, /optionButton\.setAttribute\('aria-selected', String\(selected\)\);/);
-assert.match(ui, /aria-label=`\$\{festival\.name\} 상세 보기`|`\$\{festival\.name\} 상세 보기`/, 'each card must expose an accessible label including the festival name');
+assert.match(ui, /`\$\{festival\.name\} 공식 홈페이지, 새 창에서 열립니다`/, 'a card with a homepage link must expose an accessible label including the festival name and the new-tab handoff');
 
 assert.match(css, /\.festival-chip \{[^}]*min-height:\s*44px/, 'time-filter/region chips must meet the 44px touch-target minimum');
 assert.match(css, /\.festival-region-option \{[^}]*min-height:\s*44px/);
 assert.match(css, /\.festival-load-more \{[^}]*min-height:\s*44px/);
-assert.match(css, /\.festival-date-field input\[type="date"\][^{]*\{[^}]*font-size:\s*16px/, 'the date input must stay >=16px to avoid iOS Safari zoom');
+assert.doesNotMatch(css, /\.festival-date-field/, 'the removed 날짜 선택 date-field CSS must not remain as dead code');
 
 // Responsive: the card grid must default to a single column (no fixed
 // minmax() width that could overflow at 320px) and only widen on desktop.
 assert.match(css, /\.festival-card-grid \{[^}]*grid-template-columns:\s*1fr;/);
 assert.match(css, /@media \(min-width: 640px\) \{\s*\.festival-card-grid \{\s*grid-template-columns:\s*repeat\(2, 1fr\);/);
 
-console.log('FESTIVAL FILTERS/PAGINATION/CARD/ACCESSIBILITY VALIDATION PASS — 5-filter time bar, DATE gating, request-token+AbortController race safety, Core-authoritative ordering, card rendering rules, no-fixture-in-production, and accessibility/responsive contracts verified.');
+console.log('FESTIVAL FILTERS/PAGINATION/CARD/ACCESSIBILITY VALIDATION PASS — 5-filter time bar + month navigator (날짜 선택 removed, Core DATE contract untouched), request-token+AbortController race safety, Core-authoritative ordering, card rendering rules, no-fixture-in-production, and accessibility/responsive contracts verified.');

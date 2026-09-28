@@ -81,26 +81,46 @@
   outline-offset: 2px;
 }
 
-.festival-date-field {
+/* 〈 2026년 9월 〉 월별 탐색 -- independent of the quick filter chips above;
+   is-active only mirrors the MONTH filter being selected. */
+.festival-month-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--lotbi-text-secondary);
+  gap: 10px;
+  align-self: flex-start;
 }
 
-.festival-date-field input[type="date"] {
+.festival-month-nav-button {
+  min-width: 36px;
+  min-height: 36px;
   border: 1px solid var(--lotbi-border-default);
-  border-radius: 8px;
-  padding: 6px 8px;
+  border-radius: 999px;
   background: var(--lotbi-surface-primary);
-  color: var(--lotbi-text-primary);
-  font-size: 16px; /* validate_ios_input_zoom_01: keep form inputs >=16px */
+  color: var(--lotbi-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.festival-date-field input[type="date"]:focus-visible {
+.festival-month-nav-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-month-nav-button:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: 2px;
+}
+
+.festival-month-nav-label {
+  min-width: 96px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-month-nav.is-active .festival-month-nav-label {
+  color: var(--lotbi-brand-solid-bg);
 }
 
 /* --------------------------------------------------- location banner ---- */
@@ -220,6 +240,58 @@
 .festival-region-current-button:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: 2px;
+}
+
+.festival-region-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.festival-region-back-button {
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-secondary);
+  cursor: pointer;
+}
+
+.festival-region-back-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-region-back-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-region-loading {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lotbi-text-secondary);
+}
+
+/* Desktop (INLINE) region sheet mount point, placed right where "지역 변경"
+   itself is -- the sheet primitive's own default host (document.body) has no
+   positioning for INLINE, so without this anchor a desktop click looked like
+   it did nothing (see site-festival-ui.js's openRegionSheet). Empty when no
+   sheet is open, so it never reserves layout space by itself. */
+.festival-region-desktop-anchor:empty {
+  display: none;
+}
+
+.festival-region-desktop-anchor {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--lotbi-surface-primary);
 }
 
 /* ---------------------------------------------------------- list state -- */
@@ -346,11 +418,75 @@
   cursor: pointer;
   color: inherit;
   font: inherit;
+  text-decoration: none;
+}
+
+/* No homepage_url -> a plain, non-interactive container (never a dead click target). */
+.festival-card-open:not(a) {
+  cursor: default;
 }
 
 .festival-card-open:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: -2px;
+}
+
+/* ------------------------------------------------------ card action row -- */
+.festival-card-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+
+.festival-card-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.festival-card-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+  background: var(--lotbi-surface-primary);
+  cursor: pointer;
+}
+
+.festival-card-icon-button:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-card-icon-button:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-card-action-program,
+.festival-card-action-registration {
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+  border-color: transparent;
+}
+
+.festival-card-action-program:hover,
+.festival-card-action-registration:hover {
+  filter: brightness(0.96);
+}
+
+/* The reused "+ 내 캘린더에 추가" trigger sits among compact icon buttons here. */
+.festival-card-action-row .festival-calendar-add-trigger {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .festival-card-body {
@@ -388,6 +524,7 @@
 .festival-status-upcoming { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-secondary); }
 .festival-status-ended { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-disabled); }
 .festival-status-cancelled { background: color-mix(in srgb, var(--lotbi-error-text) 18%, transparent); color: var(--lotbi-error-text); }
+.festival-status-always_open { background: color-mix(in srgb, var(--lotbi-brand-solid-bg) 18%, transparent); color: var(--lotbi-brand-solid-bg); }
 
 /* ------------------------------------------------------------- detail --- */
 .festival-detail-surface {
@@ -454,7 +591,7 @@
 }
 
 /* --------------------------------------------------------------- CTAs --- */
-/* At most two primary actions — [프로그램] and [체험·신청] — never more. */
+/* At most two primary actions — [접수] and [프로그램] — never more. */
 .festival-cta-row {
   display: flex;
   flex-wrap: wrap;
@@ -484,19 +621,204 @@
   filter: brightness(0.96);
 }
 
-.festival-cta-participation {
+.festival-cta-registration {
   background: var(--lotbi-surface-primary);
   color: var(--lotbi-text-primary);
   border-color: var(--lotbi-border-strong);
 }
 
-.festival-cta-participation:hover {
+.festival-cta-registration:hover {
   background: var(--lotbi-surface-hover);
 }
 
 .festival-cta-button:focus-visible {
   outline: 2px solid var(--lotbi-focus-ring);
   outline-offset: 2px;
+}
+
+/* ------------------------------------------------- [접수] programs sheet -- */
+.festival-registration-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.festival-registration-sheet-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-registration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.festival-registration-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.festival-registration-link:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-registration-link:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-registration-program-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-registration-program-time,
+.festival-registration-program-venue {
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
+}
+
+/* ------------------------------------------------- [📅 일정 등록] sheet -- */
+.festival-schedule-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.festival-schedule-sheet-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-schedule-sheet-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-schedule-sheet-period {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-schedule-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.festival-schedule-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.festival-schedule-nav-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.festival-schedule-nav-button:not(:disabled):hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-schedule-month-label {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--lotbi-text-primary);
+}
+
+.festival-schedule-weekday-row,
+.festival-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.festival-schedule-weekday {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lotbi-text-muted);
+}
+
+.festival-schedule-date-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lotbi-text-primary);
+  cursor: pointer;
+}
+
+.festival-schedule-date-cell:disabled {
+  color: var(--lotbi-text-disabled);
+  cursor: default;
+}
+
+.festival-schedule-date-cell.festival-schedule-date-outside-month:not(:disabled) {
+  color: var(--lotbi-text-muted);
+}
+
+.festival-schedule-date-cell:not(:disabled):hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.festival-schedule-date-cell.is-selected {
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+  border-color: transparent;
+}
+
+.festival-schedule-date-cell:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.festival-schedule-confirm {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.festival-schedule-confirm:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* --------------------------------------------------------- program view -- */

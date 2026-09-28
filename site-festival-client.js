@@ -17,21 +17,29 @@
 // normalizePublishedFestival / normalizeFestivalProgram): even if a future
 // response ever carried a stray internal field (a DRAFT/REVIEW status, a
 // candidate/admin id, confidence, an AI prompt, a private PDF/storage URL, an
-// audit note, homepage_url, telephone, transport, notices), this client only
-// ever reads the named public fields below and drops everything else.
+// audit note, telephone, transport, notices), this client only ever reads
+// the named public fields below and drops everything else.
 //
-// Two Core fields intentionally never reach the Site model at all:
-// `homepage_url` (an official-homepage button is legacy UI FESTIVAL-EVENT-08
-// removes) and `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
-// sections FESTIVAL-EVENT-08 removes) — dropping them at the normalizer means
-// no later UI code can accidentally resurrect them. List ordering/filtering
-// (region, time window, distance) is Core-authoritative via browseFestivals;
-// nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-4c26a768dd20';
+// `homepage_url` reaches the Site model in exactly one place: the browse
+// list card's own image/title link (normalizeBrowseItem, below) — clicking
+// a list card opens the festival's official homepage in a new tab instead
+// of LOTBI's internal detail screen. It is still never read by
+// normalizePublishedFestival/normalizeFestivalProgram, so no "공식 홈페이지"
+// button/section can ever appear inside the internal detail/CTA/program
+// screens (see site-festival-ui.js's header comment) — that FESTIVAL-EVENT-08
+// removal stands. `transport`/`notices`/`telephone` (legacy 예약안내·주차셔틀
+// sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
+// ordering/filtering (region, time window, distance) is Core-authoritative
+// via browseFestivals; nothing here re-sorts or re-filters a browse page.
+import {CORE_ORIGIN} from './site-core.js?v=aset-91b74b1f86b4';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
 const FESTIVAL_DETAIL_PATH = '/festivals';
+
+function municipalitiesPath(province) {
+  return `/festivals/regions/${encodeURIComponent(province)}/municipalities`;
+}
 
 export const FESTIVAL_STATUS = Object.freeze({
   ONGOING: 'ONGOING',
@@ -39,6 +47,10 @@ export const FESTIVAL_STATUS = Object.freeze({
   UPCOMING: 'UPCOMING',
   ENDED: 'ENDED',
   CANCELLED: 'CANCELLED',
+  // 상시 운영 -- a standing exhibit/venue with no fixed end date. Distinct
+  // from every date-bound status above; computeFestivalStatus() short-
+  // circuits to this before ever looking at startDate/endDate.
+  ALWAYS_OPEN: 'ALWAYS_OPEN',
 });
 
 export const FESTIVAL_STATUS_LABEL = Object.freeze({
@@ -47,6 +59,7 @@ export const FESTIVAL_STATUS_LABEL = Object.freeze({
   UPCOMING: '곧 시작',
   ENDED: '종료',
   CANCELLED: '취소',
+  ALWAYS_OPEN: '상시 운영',
 });
 
 export const FESTIVAL_TIME_FILTER = Object.freeze({
@@ -54,6 +67,14 @@ export const FESTIVAL_TIME_FILTER = Object.freeze({
   ONGOING: 'ONGOING',
   THIS_WEEKEND: 'THIS_WEEKEND',
   THIS_MONTH: 'THIS_MONTH',
+  // MONTH is additive: an arbitrary caller-chosen year-month (`date=YYYY-MM`),
+  // for the 〈 2026년 9월 〉 month navigator -- distinct from THIS_MONTH, which
+  // stays hardcoded to the real current month.
+  MONTH: 'MONTH',
+  // 상시 운영(always-open, e.g. a standing exhibit with no fixed end date).
+  // Hidden from every other filter -- only ever visible when this one is
+  // explicitly selected (see app.festival_browse on the Core side).
+  ALWAYS_OPEN: 'ALWAYS_OPEN',
   DATE: 'DATE',
 });
 
@@ -62,6 +83,8 @@ export const FESTIVAL_TIME_FILTER_LABEL = Object.freeze({
   ONGOING: '진행 중',
   THIS_WEEKEND: '이번 주말',
   THIS_MONTH: '이번 달',
+  MONTH: '월별',
+  ALWAYS_OPEN: '상시 운영',
   DATE: '날짜 선택',
 });
 
@@ -274,6 +297,7 @@ export function festivalIncludesDate(festival, dateString) {
 // because today falls inside its original dates. ENDED only applies once the
 // whole run (including its original cancelled-or-not end date) is in the past.
 export function computeFestivalStatus(festival, now = new Date(), timezone = resolvedTimezone()) {
+  if (festival?.alwaysOpen) return FESTIVAL_STATUS.ALWAYS_OPEN;
   if (!festival || !festival.startDate || !festival.endDate) return FESTIVAL_STATUS.UPCOMING;
   if (festival.cancelled) return FESTIVAL_STATUS.CANCELLED;
   const today = todayLocalDate(now, timezone);
@@ -369,6 +393,7 @@ export function formatFestivalDateLabel(dateString) {
 }
 
 export function formatFestivalPeriod(festival) {
+  if (festival?.alwaysOpen) return '상시 운영';
   if (!festival?.startDate || !festival?.endDate) return '';
   if (festival.startDate === festival.endDate) return formatFestivalDateLabel(festival.startDate);
   return `${formatFestivalDateLabel(festival.startDate)} ~ ${formatFestivalDateLabel(festival.endDate)}`;
@@ -410,10 +435,11 @@ export function normalizeFestivalProgram(raw, index = 0) {
   });
 }
 
-// The single [체험·신청] CTA maps to whichever program (in Core's own
-// start_date/id order — festival_public_view already orders programs that
-// way) carries a real https reservation_url first. Never fabricated: if no
-// ACTIVE program has one, this is '' and the CTA is hidden entirely.
+// Festival-level convenience flag only, used to gate whether the [접수] CTA
+// renders at all (see buildCtaRow() in site-festival-ui.js, which lists
+// every program with its own reservation_url in the popup, not just this
+// one). Never fabricated: if no program has a real https reservation_url,
+// this is '' and the CTA is hidden entirely.
 function firstParticipationUrl(programs) {
   for (const program of programs) {
     if (program.participationUrl) return program.participationUrl;
@@ -515,6 +541,26 @@ export async function listFestivalRegions(fetchImpl = globalThis.fetch) {
   return provinces?.length ? {provinces, source: 'LIVE'} : {provinces: REGION_FALLBACK_PROVINCES, source: 'FALLBACK'};
 }
 
+// 시·군 only -- never 구. A province with no 시·군 sub-division (서울/광주/대전/
+// 세종 today) or an unreachable Core call both resolve to an empty list: the
+// picker then shows only an "OO 전체" option, never a fabricated 구-level
+// fallback (there is no local fallback catalog for this call, unlike
+// listFestivalRegions -- 시·군 completeness genuinely lives in Core only).
+/**
+ * @param {string} province
+ * @returns {Promise<{municipalities: ReadonlyArray<string>, source: 'LIVE'|'UNAVAILABLE'}>}
+ */
+export async function listFestivalMunicipalities(province, fetchImpl = globalThis.fetch) {
+  const provinceText = text(province);
+  if (!provinceText || typeof fetchImpl !== 'function') return {municipalities: [], source: 'UNAVAILABLE'};
+  const result = await coreFetchJson(municipalitiesPath(provinceText), fetchImpl);
+  if (!result.ok) return {municipalities: [], source: 'UNAVAILABLE'};
+  const municipalities = Array.isArray(result.data?.municipalities)
+    ? Object.freeze(result.data.municipalities.map(row => text(row?.municipality_name)).filter(Boolean))
+    : [];
+  return {municipalities, source: 'LIVE'};
+}
+
 // Allowlist normalizer for one row of `GET /festivals/browse` (`festival_id`/
 // `start_date`/`region_name`/`distance_km`/... — see lotbi-core
 // app/festival_browse.py::browse_festivals). `image_url` is read here for
@@ -527,24 +573,31 @@ function normalizeBrowseItem(raw) {
   const name = text(raw.name);
   const startDate = parseFestivalDateToISO(raw.start_date);
   const endDate = parseFestivalDateToISO(raw.end_date);
-  if (!id || !name || !startDate || !endDate) return null;
+  const alwaysOpen = raw.is_always_open === true;
+  // 상시 운영 rows are the one case allowed to have no (or only a partial)
+  // date range -- every other row still requires both, exactly as before.
+  if (!id || !name) return null;
+  if (!alwaysOpen && (!startDate || !endDate)) return null;
   return Object.freeze({
     id,
     name,
     startDate,
     endDate,
     cancelled: false, // GET /festivals/browse only ever returns PUBLISHED rows
+    alwaysOpen,
     region: text(raw.region_name),
+    municipality: text(raw.municipality_name),
     address: text(raw.address),
     latitude: finiteNumber(raw.latitude),
     longitude: finiteNumber(raw.longitude),
     distanceKm: finiteNumber(raw.distance_km),
     imageUrl: httpsUrl(raw.image_url),
+    homepageUrl: httpsUrl(raw.homepage_url),
   });
 }
 
 /**
- * @param {{latitude?: number, longitude?: number, region?: string, time?: string, date?: string, limit?: number, offset?: number}} query
+ * @param {{latitude?: number, longitude?: number, region?: string, municipality?: string, time?: string, date?: string, limit?: number, offset?: number}} query
  * @param {typeof fetch} fetchImpl
  * @returns {Promise<{festivals: ReadonlyArray<object>, hasMore: boolean, nextOffset: number|null, totalCount: number}>}
  */
@@ -552,6 +605,7 @@ export async function browseFestivals({
   latitude,
   longitude,
   region,
+  municipality,
   time = FESTIVAL_TIME_FILTER.ALL,
   date,
   limit = 20,
@@ -566,6 +620,7 @@ export async function browseFestivals({
     params.set('longitude', String(longitude));
   }
   if (region) params.set('region', region);
+  if (region && municipality) params.set('municipality', municipality);
   params.set('time', time || FESTIVAL_TIME_FILTER.ALL);
   if (date) params.set('date', date);
   params.set('limit', String(Math.max(1, Math.min(100, Number(limit) || 20))));

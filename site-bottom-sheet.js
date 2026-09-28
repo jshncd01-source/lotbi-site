@@ -3,7 +3,7 @@
 // Deliberately owns no product content: callers inject a body node, so the same
 // component backs the Calendar selected-day sheet and the account/profile sheet.
 //
-//   import {createBottomSheet} from './site-bottom-sheet.js?v=aset-4c26a768dd20';
+//   import {createBottomSheet} from './site-bottom-sheet.js?v=aset-91b74b1f86b4';
 //
 //   const sheet = createBottomSheet({
 //     label: '9월 2일 일정',
@@ -35,7 +35,11 @@ function prefersReducedMotion() {
   return globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function defaultPresentation() {
+// Exported so a caller that needs to route only the desktop (INLINE)
+// presentation to its own container (see site-festival-ui.js's region sheet)
+// can find out which presentation open() will actually use before calling
+// createBottomSheet, without re-implementing this same breakpoint check.
+export function defaultPresentation() {
   if (typeof globalThis.matchMedia === 'function') {
     return globalThis.matchMedia('(max-width: 900px)').matches
       ? SHEET_PRESENTATION.SHEET

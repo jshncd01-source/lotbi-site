@@ -26,6 +26,7 @@ const {
   browseFestivals,
   getPublishedFestival,
   listFestivalRegions,
+  listFestivalMunicipalities,
   normalizePublishedFestival,
   normalizeFestivalProgram,
   resolveCurrentRegionLabel,
@@ -136,6 +137,17 @@ function capturingFetch(handler) {
   await browseFestivals({time: FESTIVAL_TIME_FILTER.DATE, date: '2026-10-03'}, fetchImpl);
   assert.equal(url().searchParams.get('time'), 'DATE');
   assert.equal(url().searchParams.get('date'), '2026-10-03');
+
+  await browseFestivals({region: '경기도', municipality: '수원시', time: FESTIVAL_TIME_FILTER.ALL}, fetchImpl);
+  assert.equal(url().searchParams.get('region'), '경기도');
+  assert.equal(url().searchParams.get('municipality'), '수원시');
+
+  await browseFestivals({municipality: '수원시', time: FESTIVAL_TIME_FILTER.ALL}, fetchImpl);
+  assert.equal(url().searchParams.get('region'), null);
+  assert.equal(
+    url().searchParams.get('municipality'), null,
+    'municipality must never be sent without region -- Core rejects that combination',
+  );
 }
 
 // -------------------------------------------------- browseFestivals: results
@@ -159,16 +171,51 @@ function capturingFetch(handler) {
   assert.equal(page.nextOffset, 20);
   assert.equal(page.totalCount, 42);
   const item = page.festivals[0];
-  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'region', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl'];
+  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'alwaysOpen', 'region', 'municipality', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl', 'homepageUrl'];
   assert.deepEqual(Object.keys(item).sort(), allowedKeys.sort(), 'a browse item must only ever carry the allowlisted public fields');
+  assert.equal(item.municipality, '', 'Core omitted municipality_name for this fixture -- must normalize to empty, never fabricated');
   assert.equal(item.distanceKm, 3.2);
   assert.equal(item.cancelled, false, 'browse only ever returns PUBLISHED rows');
   assert.equal(item.imageUrl, '', 'Core browse does not emit image_url today — must fall back to no-image, never a fabricated photo');
+  assert.equal(item.homepageUrl, '', 'no homepage_url in this fixture -> the list card link must not be fabricated');
+  assert.equal(item.alwaysOpen, false, 'Core omitted is_always_open for this fixture -- must normalize to false, never true');
+
+  // The browse card's own link-out target: https-only, same convention as
+  // imageUrl/participationUrl — a non-https value must never reach the card.
+  const withHomepage = {...raw, festivals: [{...raw.festivals[0], homepage_url: 'https://example.com/festival'}]};
+  const homepagePage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withHomepage));
+  assert.equal(homepagePage.festivals[0].homepageUrl, 'https://example.com/festival');
+  const withInsecureHomepage = {...raw, festivals: [{...raw.festivals[0], homepage_url: 'http://example.com/festival'}]};
+  const insecureHomepagePage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withInsecureHomepage));
+  assert.equal(insecureHomepagePage.festivals[0].homepageUrl, '', 'a non-https homepage_url must never reach the card');
+
+  // 상시 운영 rows are the one shape allowed through with no real date range at
+  // all -- every other row is still rejected without both start/end dates.
+  const alwaysOpenNoDates = {
+    ...raw,
+    festivals: [{...raw.festivals[0], start_date: null, end_date: null, is_always_open: true}],
+  };
+  const alwaysOpenPage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(alwaysOpenNoDates));
+  assert.equal(alwaysOpenPage.festivals.length, 1, 'an is_always_open row with no dates must still normalize, never be dropped');
+  assert.equal(alwaysOpenPage.festivals[0].alwaysOpen, true);
+  assert.equal(alwaysOpenPage.festivals[0].startDate, '');
+  assert.equal(alwaysOpenPage.festivals[0].endDate, '');
+
+  const datedRowMissingEndDate = {...raw, festivals: [{...raw.festivals[0], end_date: null}]};
+  const droppedPage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(datedRowMissingEndDate));
+  assert.equal(droppedPage.festivals.length, 0, 'a non-always-open row missing either date must still be dropped, exactly as before');
 
   // Core omits distance_km (no coordinates in the query) -> must stay null, never 0/"알수없음"/fabricated.
   const noDistanceRaw = {...raw, festivals: [{...raw.festivals[0], distance_km: null}]};
   const noDistancePage = await browseFestivals({region: '서울특별시'}, jsonFetch(noDistanceRaw));
   assert.equal(noDistancePage.festivals[0].distanceKm, null);
+
+  const withMunicipalityRaw = {
+    ...raw,
+    festivals: [{...raw.festivals[0], region_name: '경기도', municipality_name: '수원시'}],
+  };
+  const withMunicipalityPage = await browseFestivals({region: '경기도', municipality: '수원시'}, jsonFetch(withMunicipalityRaw));
+  assert.equal(withMunicipalityPage.festivals[0].municipality, '수원시');
 
   // Ordering is Core-authoritative: browseFestivals must hand the page back
   // in exactly the order Core returned it, never re-sorted client-side.
@@ -218,6 +265,36 @@ const fallbackRegions = await listFestivalRegions(failingFetch());
 assert.equal(fallbackRegions.source, 'FALLBACK');
 assert.equal(fallbackRegions.provinces.length, 17, 'region fallback must carry all 17 시·도');
 assert.equal(new Set(fallbackRegions.provinces).size, 17, 'region fallback must not repeat a province');
+
+// -------------------------------------------- municipality contract (live) --
+const liveMunicipalities = await listFestivalMunicipalities(
+  '경기도',
+  jsonFetch({province: '경기도', municipalities: [{municipality_name: '수원시'}, {municipality_name: '가평군'}]}),
+);
+assert.deepEqual(liveMunicipalities, {municipalities: ['수원시', '가평군'], source: 'LIVE'});
+
+// 서울특별시 has no 시·군 sub-division -- Core returns an empty list, and the
+// client must pass that straight through (no fabricated 구-level fallback).
+const emptyMunicipalities = await listFestivalMunicipalities('서울특별시', jsonFetch({province: '서울특별시', municipalities: []}));
+assert.deepEqual(emptyMunicipalities, {municipalities: [], source: 'LIVE'});
+
+const unavailableMunicipalities = await listFestivalMunicipalities('경기도', failingFetch());
+assert.deepEqual(
+  unavailableMunicipalities, {municipalities: [], source: 'UNAVAILABLE'},
+  'a failed municipality call must resolve to an empty list, never a guessed/fabricated catalog',
+);
+
+const rejectedProvinceMunicipalities = await listFestivalMunicipalities(
+  '없는지역',
+  jsonFetch({detail: {code: 'FESTIVAL_REGION_UNKNOWN'}}, {status: 422}),
+);
+assert.deepEqual(rejectedProvinceMunicipalities, {municipalities: [], source: 'UNAVAILABLE'});
+
+assert.equal(
+  (await listFestivalMunicipalities('', jsonFetch({municipalities: [{municipality_name: 'X'}]}))).municipalities.length,
+  0,
+  'an empty province must never reach Core at all',
+);
 
 // ---------------------------------------------- PUBLISHED-only boundary ---
 // The allowlist normalizer is the enforced public/private boundary: an

@@ -2,6 +2,14 @@
 # Local screenshot output from scripts/shoot_calendar_expense_bar_01.mjs
 .calendar-shots/
 
+# Local browser-test scratch fixtures — each validate_*.mjs that renders a
+# page writes its own dotfile (.<name>-inner.html, -wrapper.html, -fixture.html,
+# -page.html, ...) into scripts/ and normally cleans it up, but a run stopped
+# mid-flight can leave one behind. A handful of these are checked in on
+# purpose as deterministic fixtures — this pattern only affects new,
+# currently-untracked ones.
+scripts/.*.html
+
 # Python bytecode — a local import of a validator drops these into scripts/
 __pycache__/
 *.pyc

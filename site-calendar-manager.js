@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-4c26a768dd20';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-4c26a768dd20';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-4c26a768dd20';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-91b74b1f86b4';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-91b74b1f86b4';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-91b74b1f86b4';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -11,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-4c26a768dd20';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-4c26a768dd20';
+} from './site-calendar-model.js?v=aset-91b74b1f86b4';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-91b74b1f86b4';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-4c26a768dd20';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-4c26a768dd20';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-4c26a768dd20';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-91b74b1f86b4';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-91b74b1f86b4';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-91b74b1f86b4';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -27,13 +27,13 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-4c26a768dd20';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-4c26a768dd20';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-4c26a768dd20';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-4c26a768dd20';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-4c26a768dd20';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-4c26a768dd20';
-import {BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION, requestBrowserCurrentLocation} from './site-current-location.js?v=aset-4c26a768dd20';
+} from './site-calendar-product.js?v=aset-91b74b1f86b4';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-91b74b1f86b4';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-91b74b1f86b4';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-91b74b1f86b4';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-91b74b1f86b4';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-91b74b1f86b4';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-91b74b1f86b4';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -2554,8 +2554,12 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
+  // An empty {} still opens this dialog (a caller with nothing to pre-fill
+  // must not silently skip the editor), but it is not a draft to confirm —
+  // only a draft carrying an actual field reads as one.
+  const hasDraftContent = Boolean(draft && (draft.title || draft.localDate));
   const itemPolicy = calendarItemActionPolicy(item);
-  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (draft ? '일정 초안 확인' : '일정 등록');
+  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (hasDraftContent ? '일정 초안 확인' : '일정 등록');
   const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
   const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
   editorHeader.append(heading, closeButton);
@@ -4072,7 +4076,9 @@ export async function mountLifeCalendarManager({
       render();
     }
     try {
-      const location = await requestBrowserCurrentLocation({
+      // 공통 계층을 통해 가져온다: 축제가 방금 읽어 둔 좌표가 아직 신선하면
+      // GPS 를 다시 부르지 않고, 두 기능이 같은 순간에 물어도 요청은 하나다 (§8/§9).
+      const location = await acquireSharedBrowserCurrentLocation({
         geolocation: locationProvider,
         now: locationNow,
       });
