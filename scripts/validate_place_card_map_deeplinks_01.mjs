@@ -93,4 +93,22 @@ const desktopTmap = openTmapPlace(PLACE, {windowRef: fakeWindow(), userAgent: DE
 assert.equal(desktopTmap.opened, false);
 assert.equal(desktopTmap.mode, 'TMAP_MOBILE_ONLY');
 
+// Without a verified coordinate, every search-based fallback must still
+// carry the destination's full address -- never a truncated leading
+// fragment ("전북 군산시") that can resolve to the wrong place.
+const NO_COORD_PLACE = Object.freeze({
+  name: '선유도 리조트',
+  address: '전북특별자치도 군산시 옥도면 선유북길 30',
+  latitude: null,
+  longitude: null,
+  navigationCapable: false,
+});
+const FULL_ADDRESS_PATTERN = /선유도 리조트 전북특별자치도 군산시 옥도면 선유북길 30/u;
+// URLSearchParams (used by the nmap://search branch) encodes spaces as "+",
+// not "%20" -- normalize before matching.
+const decodeQuery = uri => decodeURIComponent(uri).replace(/\+/gu, ' ');
+assert.match(decodeQuery(buildNaverMapsWebSearchUrl(NO_COORD_PLACE)), FULL_ADDRESS_PATTERN);
+assert.match(decodeQuery(buildNaverMapsMobileUri(NO_COORD_PLACE)), FULL_ADDRESS_PATTERN);
+assert.match(decodeQuery(buildTmapMobileUri(NO_COORD_PLACE)), FULL_ADDRESS_PATTERN);
+
 console.log('Place Card navigation handoff contract: PASS');
