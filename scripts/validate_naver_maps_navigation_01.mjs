@@ -136,7 +136,9 @@ assert.match(intent, /S\.browser_fallback_url=https%3A%2F%2Fmap\.naver\.com%2Fp%
 
 const desktop = nav.buildNaverMapsWebSearchUrl(place);
 assert.match(desktop, /^https:\/\/map\.naver\.com\/p\/search\//u);
-assert.match(decodeURIComponent(desktop), /전주 실제 카페 전북 전주시/u);
+// The full road address must reach the search query -- not a leading
+// two-word fragment ("전북 전주시") that can match the wrong place.
+assert.match(decodeURIComponent(desktop), /전주 실제 카페 전북 전주시 완산구 기린대로 1/u);
 
 function fakeWindow() {
   const calls = [];
@@ -184,7 +186,12 @@ const noEvidence = structuredClone(raw);
 delete noEvidence.results[0].coordinate_authority;
 const fallback = nav.normalizePlaceResult(noEvidence, {capturedAt: 1000}).results[0];
 assert.equal(fallback.navigationCapable, false);
-assert.match(nav.buildNaverMapsMobileUri(fallback), /^nmap:\/\/search\?/u);
+const fallbackUri = nav.buildNaverMapsMobileUri(fallback);
+assert.match(fallbackUri, /^nmap:\/\/search\?/u);
+// No coordinates -- the search fallback still must carry the full address,
+// not a truncated "전북 전주시" fragment. URLSearchParams encodes spaces as
+// "+", so normalize before matching.
+assert.match(decodeURIComponent(fallbackUri).replace(/\+/gu, ' '), /전주 실제 카페 전북 전주시 완산구 기린대로 1/u);
 
 // Static-map thumbnail and credential-bearing map requests remain deleted.
 assert.equal(typeof nav.buildNaverStaticMapThumbnailUrl, 'undefined');

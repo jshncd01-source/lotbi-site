@@ -173,14 +173,15 @@ export function isPlaceResultFresh(placeResult, now = Date.now()) {
     && now - placeResult.capturedAt <= NAVIGATION_TTL_MS;
 }
 
-function localityHint(address) {
-  return text(address).split(/\s+/u).filter(Boolean).slice(0, 2).join(' ');
-}
-
+// Full name + full address, never truncated to a leading fragment (e.g. a
+// "서울특별시 종로구"-only slice) — a partial address routinely matches the
+// wrong place in NAVER/TMAP search. The 120-char cap is a defensive upper
+// bound for the URL, not an address truncation; real Korean addresses stay
+// far under it even combined with a venue/festival name.
 function searchQuery(place) {
   const name = text(place?.name);
-  const locality = localityHint(place?.address);
-  return [name, locality].filter(Boolean).join(' ').slice(0, 120);
+  const address = text(place?.address);
+  return [name, address].filter(Boolean).join(' ').slice(0, 120);
 }
 
 function navigationParams(place, appname) {
