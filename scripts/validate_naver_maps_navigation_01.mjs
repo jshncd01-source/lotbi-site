@@ -193,6 +193,33 @@ assert.match(fallbackUri, /^nmap:\/\/search\?/u);
 // "+", so normalize before matching.
 assert.match(decodeURIComponent(fallbackUri).replace(/\+/gu, ' '), /전주 실제 카페 전북 전주시 완산구 기린대로 1/u);
 
+// Kakao MAP (not Navi): a verified coordinate routes directly via Kakao
+// Map's own /link/to/ URL -- never the Kakao Navi SDK/handoff page.
+const kakaoMapRoute = nav.buildKakaoMapUrl(place);
+assert.match(kakaoMapRoute, /^https:\/\/map\.kakao\.com\/link\/to\//u);
+assert.match(kakaoMapRoute, /35\.8242000/u);
+assert.match(kakaoMapRoute, /127\.1480000/u);
+assert.doesNotMatch(kakaoMapRoute, /kakao-navi\.html/u);
+
+// Without a coordinate, Kakao Map falls back to its own /link/search/ URL
+// with the full name+address -- never truncated, never a dead button (Kakao
+// Navi has no such fallback; Kakao Map does).
+const kakaoMapSearch = nav.buildKakaoMapUrl(fallback);
+assert.match(kakaoMapSearch, /^https:\/\/map\.kakao\.com\/link\/search\//u);
+assert.match(decodeURIComponent(kakaoMapSearch), /전주 실제 카페 전북 전주시 완산구 기린대로 1/u);
+
+const kakaoMapWindow = fakeWindow();
+const kakaoMapResult = nav.openKakaoMapPlace(place, {windowRef: kakaoMapWindow});
+assert.equal(kakaoMapResult.opened, true);
+assert.equal(kakaoMapResult.mode, 'KAKAO_MAP_ROUTE_NEW_TAB');
+assert.deepEqual(kakaoMapWindow.calls[0].slice(1), ['_blank', 'noopener,noreferrer']);
+assert.equal(kakaoMapWindow.children[0].opener, null);
+const kakaoMapSearchResult = nav.openKakaoMapPlace(fallback, {windowRef: fakeWindow()});
+assert.equal(kakaoMapSearchResult.mode, 'KAKAO_MAP_SEARCH_NEW_TAB');
+const blockedKakaoMap = nav.openKakaoMapPlace(place, {windowRef: {location: {href: 'x'}, open() { return null; }}});
+assert.equal(blockedKakaoMap.opened, false);
+assert.equal(blockedKakaoMap.mode, 'BLOCKED');
+
 // Static-map thumbnail and credential-bearing map requests remain deleted.
 assert.equal(typeof nav.buildNaverStaticMapThumbnailUrl, 'undefined');
 assert.doesNotMatch(navSource, /buildNaverStaticMapThumbnailUrl|maps\.apigw\.ntruss\.com|x-ncp-apigw-api-key/iu);
