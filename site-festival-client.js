@@ -31,7 +31,11 @@
 // sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
 // ordering/filtering (region, time window, distance) is Core-authoritative
 // via browseFestivals; nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-bc98675b36b0';
+// `has_programs`/`has_registration` (normalizeBrowseItem, below) are
+// booleans only, computed by Core over the same ACTIVE+HTTPS-safe programs
+// the detail endpoint already trusts -- they exist purely so the list card
+// can hide [프로그램]/[접수] before a click, never after one comes back empty.
+import {CORE_ORIGIN} from './site-core.js?v=aset-f376d99d0402';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -593,6 +597,12 @@ function normalizeBrowseItem(raw) {
     distanceKm: finiteNumber(raw.distance_km),
     imageUrl: httpsUrl(raw.image_url),
     homepageUrl: httpsUrl(raw.homepage_url),
+    // Lets the list card decide whether to render [프로그램]/[접수] at all
+    // without a per-card detail fetch (browse items never carry programs).
+    // Booleans only, straight from Core's own ACTIVE+safe-URL computation --
+    // never re-derived here.
+    hasPrograms: raw.has_programs === true,
+    hasRegistration: raw.has_registration === true,
   });
 }
 

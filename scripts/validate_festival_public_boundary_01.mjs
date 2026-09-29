@@ -171,7 +171,7 @@ function capturingFetch(handler) {
   assert.equal(page.nextOffset, 20);
   assert.equal(page.totalCount, 42);
   const item = page.festivals[0];
-  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'alwaysOpen', 'region', 'municipality', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl', 'homepageUrl'];
+  const allowedKeys = ['id', 'name', 'startDate', 'endDate', 'cancelled', 'alwaysOpen', 'region', 'municipality', 'address', 'latitude', 'longitude', 'distanceKm', 'imageUrl', 'homepageUrl', 'hasPrograms', 'hasRegistration'];
   assert.deepEqual(Object.keys(item).sort(), allowedKeys.sort(), 'a browse item must only ever carry the allowlisted public fields');
   assert.equal(item.municipality, '', 'Core omitted municipality_name for this fixture -- must normalize to empty, never fabricated');
   assert.equal(item.distanceKm, 3.2);
@@ -179,6 +179,19 @@ function capturingFetch(handler) {
   assert.equal(item.imageUrl, '', 'Core browse does not emit image_url today — must fall back to no-image, never a fabricated photo');
   assert.equal(item.homepageUrl, '', 'no homepage_url in this fixture -> the list card link must not be fabricated');
   assert.equal(item.alwaysOpen, false, 'Core omitted is_always_open for this fixture -- must normalize to false, never true');
+  assert.equal(item.hasPrograms, false, 'Core omitted has_programs for this fixture -- must normalize to false, never fabricated true');
+  assert.equal(item.hasRegistration, false, 'Core omitted has_registration for this fixture -- must normalize to false, never fabricated true');
+
+  // The card's [프로그램]/[접수] buttons decide whether to render at all from
+  // these two booleans -- must pass through exactly, never re-derived here.
+  const withHints = {...raw, festivals: [{...raw.festivals[0], has_programs: true, has_registration: true}]};
+  const hintsPage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withHints));
+  assert.equal(hintsPage.festivals[0].hasPrograms, true);
+  assert.equal(hintsPage.festivals[0].hasRegistration, true);
+  const partialHints = {...raw, festivals: [{...raw.festivals[0], has_programs: true, has_registration: false}]};
+  const partialHintsPage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(partialHints));
+  assert.equal(partialHintsPage.festivals[0].hasPrograms, true, 'has_programs=true with has_registration=false must be possible (programs with no reservation link)');
+  assert.equal(partialHintsPage.festivals[0].hasRegistration, false);
 
   // The browse card's own link-out target: https-only, same convention as
   // imageUrl/participationUrl — a non-https value must never reach the card.

@@ -14,6 +14,13 @@ const NAVIGATION_TTL_MS = 60 * 60 * 1000;
 // Core 에 있는 카카오내비 SDK 경로는 구 라이프플랜 전용이고 이 카드와 무관하다 —
 // 이번 작업은 딥링크지 내비 SDK 연동이 아니므로 그 경로를 켜지 않는다.
 const KAKAO_NAVI_HANDOFF_PATH = '/kakao-navi.html';
+// Kakao MAP's own public "simple link" scheme (map.kakao.com/link/...) — a
+// plain https URL, distinct from the Kakao Navi SDK/handoff page above. No
+// API key, no SDK: it opens the Kakao Map app on mobile (falling back to the
+// web map in a browser) directly on the place, unlike Navi which launches a
+// separate turn-by-turn app. Used only by the festival card's [카카오지도]
+// action -- the Place Card above keeps using Kakao Navi and is untouched.
+const KAKAO_MAP_LINK_BASE = 'https://map.kakao.com/link';
 const TMAP_SCHEME = 'tmap';
 const TMAP_ANDROID_PACKAGE = 'com.skt.tmap.ku';
 const TMAP_ANDROID_STORE_URL = `https://play.google.com/store/apps/details?id=${TMAP_ANDROID_PACKAGE}`;
@@ -258,6 +265,39 @@ export function buildKakaoNaviHandoffUrl(place, {origin = 'https://lotbiai.com'}
   url.searchParams.set('y', String(payload.y));
   url.searchParams.set('coordType', 'wgs84');
   return url.href;
+}
+
+// Kakao MAP (not Navi): a verified coordinate opens Kakao Map's own built-in
+// route search directly on that destination; without one, the full name +
+// full address (never truncated) searches Kakao Map by place instead. Either
+// way this is a plain https URL -- no SDK, no separate handoff page.
+export function buildKakaoMapUrl(place) {
+  if (!place || typeof place !== 'object') throw new TypeError('place is required');
+  const destination = destinationCoordinates(place);
+  if (destination) {
+    const name = encodeURIComponent(text(place.name));
+    return `${KAKAO_MAP_LINK_BASE}/to/${name},${destination.latitude},${destination.longitude}`;
+  }
+  const query = searchQuery(place);
+  if (!query) throw new TypeError('place search query is required');
+  return `${KAKAO_MAP_LINK_BASE}/search/${encodeURIComponent(query)}`;
+}
+
+export function openKakaoMapPlace(place, {windowRef = globalThis.window} = {}) {
+  let uri = '';
+  try {
+    uri = buildKakaoMapUrl(place);
+  } catch {
+    return Object.freeze({opened: false, mode: 'BLOCKED'});
+  }
+  const result = openNewBrowsingContext(windowRef, uri);
+  return Object.freeze({
+    opened: result.opened,
+    mode: result.opened
+      ? (place.navigationCapable ? 'KAKAO_MAP_ROUTE_NEW_TAB' : 'KAKAO_MAP_SEARCH_NEW_TAB')
+      : 'BLOCKED',
+    uri,
+  });
 }
 
 export function buildTmapMobileUri(place) {

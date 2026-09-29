@@ -58,20 +58,20 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-bc98675b36b0';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-bc98675b36b0';
+} from './site-festival-client.js?v=aset-f376d99d0402';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-f376d99d0402';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-bc98675b36b0';
+} from './site-current-location.js?v=aset-f376d99d0402';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-bc98675b36b0';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-f376d99d0402';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -81,29 +81,29 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-bc98675b36b0';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-bc98675b36b0';
+} from './site-festival-calendar.js?v=aset-f376d99d0402';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-f376d99d0402';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
 // context (window.open(..., '_blank', 'noopener,noreferrer')).
 import {
   isTmapHandoffAvailable,
-  openKakaoNaviPlace,
+  openKakaoMapPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-bc98675b36b0';
+} from './site-navigation.js?v=aset-f376d99d0402';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-bc98675b36b0';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-f376d99d0402';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-bc98675b36b0';
+} from './site-calendar-weather.js?v=aset-f376d99d0402';
 
 const PAGE_SIZE = 20;
 
@@ -160,12 +160,13 @@ function festivalNavigablePlace(festival) {
   return {name: festival.name, address: festival.address, latitude: festival.latitude, longitude: festival.longitude, navigationCapable};
 }
 
-// NAVER always renders (it falls back to a name+locality search when there is
-// no coordinate). Kakao Navi needs a real destination coordinate — it has no
-// search-by-name fallback, unlike NAVER/TMAP — so it is hidden without one.
-// TMAP is mobile-app-only: rendering it on desktop would be a button that
-// does nothing when pressed, which this codebase treats as worse than no
-// button at all (see site-navigation.js's isTmapHandoffAvailable() comment).
+// NAVER always renders (it falls back to a full-address search when there is
+// no coordinate). Kakao MAP also always renders -- unlike Kakao Navi, its
+// own /link/search/ fallback needs only a name+address, no coordinate -- so
+// it is never a dead button. TMAP is mobile-app-only: rendering it on
+// desktop would be a button that does nothing when pressed, which this
+// codebase treats as worse than no button at all (see site-navigation.js's
+// isTmapHandoffAvailable() comment).
 function buildMapActionButtons(festival) {
   const place = festivalNavigablePlace(festival);
   const wrap = el('div', 'festival-card-map-actions');
@@ -180,15 +181,13 @@ function buildMapActionButtons(festival) {
   naver.addEventListener('click', () => { openNaverMapsPlace(place); });
   wrap.appendChild(naver);
 
-  if (place.navigationCapable) {
-    const kakao = document.createElement('button');
-    kakao.type = 'button';
-    kakao.className = 'festival-card-icon-button festival-card-map-kakao';
-    kakao.textContent = '카카오내비';
-    kakao.setAttribute('aria-label', `${festival.name} 카카오내비, 새 창에서 열립니다`);
-    kakao.addEventListener('click', () => { openKakaoNaviPlace(place); });
-    wrap.appendChild(kakao);
-  }
+  const kakao = document.createElement('button');
+  kakao.type = 'button';
+  kakao.className = 'festival-card-icon-button festival-card-map-kakao';
+  kakao.textContent = '카카오지도';
+  kakao.setAttribute('aria-label', `${festival.name} 카카오지도, 새 창에서 열립니다`);
+  kakao.addEventListener('click', () => { openKakaoMapPlace(place); });
+  wrap.appendChild(kakao);
 
   if (isTmapHandoffAvailable()) {
     const tmap = document.createElement('button');
@@ -203,34 +202,40 @@ function buildMapActionButtons(festival) {
   return wrap;
 }
 
-function buildCardActionRow(festival, {
-  onOpenProgram, onOpenRegistration, authenticated, sessionToken, guestRepository, now,
-}) {
+// Final action order: [접수] [프로그램] 네이버지도 카카오지도 TMAP. 전화/Google
+// Maps/카드 내부 캘린더 CTA는 여기 없다 -- 캘린더는 챗 답변 공통 액션 영역의
+// 버튼(CHATPERF-08, site-conversation.js)만 쓴다. hasRegistration/hasPrograms
+// 는 Core가 이미 ACTIVE+안전한 URL만으로 계산해 주는 힌트라서, 클릭해서 빈
+// 팝업을 보여주는 대신 애초에 버튼 자체를 안 그린다.
+function buildCardActionRow(festival, {onOpenProgram, onOpenRegistration}) {
   const row = el('div', 'festival-card-action-row');
   row.setAttribute('role', 'group');
   row.setAttribute('aria-label', `${festival.name} 축제 액션`);
 
-  const programButton = document.createElement('button');
-  programButton.type = 'button';
-  programButton.className = 'festival-card-icon-button festival-card-action-program';
-  programButton.textContent = '프로그램';
-  programButton.addEventListener('click', () => onOpenProgram(festival.id));
-  row.appendChild(programButton);
+  if (festival.hasRegistration) {
+    const registrationButton = document.createElement('button');
+    registrationButton.type = 'button';
+    registrationButton.className = 'festival-card-icon-button festival-card-action-registration';
+    registrationButton.textContent = '접수';
+    registrationButton.addEventListener('click', () => onOpenRegistration(festival.id));
+    row.appendChild(registrationButton);
+  }
 
-  const registrationButton = document.createElement('button');
-  registrationButton.type = 'button';
-  registrationButton.className = 'festival-card-icon-button festival-card-action-registration';
-  registrationButton.textContent = '접수';
-  registrationButton.addEventListener('click', () => onOpenRegistration(festival.id));
-  row.appendChild(registrationButton);
+  if (festival.hasPrograms) {
+    const programButton = document.createElement('button');
+    programButton.type = 'button';
+    programButton.className = 'festival-card-icon-button festival-card-action-program';
+    programButton.textContent = '프로그램';
+    programButton.addEventListener('click', () => onOpenProgram(festival.id));
+    row.appendChild(programButton);
+  }
 
-  row.appendChild(buildCalendarAddSection(row, festival, {authenticated, sessionToken, guestRepository, now}));
   row.appendChild(buildMapActionButtons(festival));
   return row;
 }
 
 function buildCard(festival, now, {
-  showDistance = false, onOpenProgram, onOpenRegistration, authenticated, sessionToken, guestRepository,
+  showDistance = false, onOpenProgram, onOpenRegistration,
 } = {}) {
   const status = computeFestivalStatus(festival, now);
   const card = el('article', 'festival-card');
@@ -264,7 +269,7 @@ function buildCard(festival, now, {
   }
   media.appendChild(body);
   card.appendChild(media);
-  card.appendChild(buildCardActionRow(festival, {onOpenProgram, onOpenRegistration, authenticated, sessionToken, guestRepository, now}));
+  card.appendChild(buildCardActionRow(festival, {onOpenProgram, onOpenRegistration}));
   return card;
 }
 
@@ -973,6 +978,16 @@ export async function mountFestivalManager({
     state.time = key;
     for (const [value, button] of timeButtons) button.setAttribute('aria-pressed', String(value === key));
     monthNav.classList.toggle('is-active', key === FESTIVAL_TIME_FILTER.MONTH);
+    // Leaving MONTH mode for one of the quick-filter chips must snap the
+    // always-visible 〈 2026년 9월 〉 navigator back to the real current
+    // month. Otherwise it stays stuck wherever a previous 이전/다음 달 tap
+    // left it, so the label no longer matches what the chip is actually
+    // showing, and the very next 다음/이전 달 tap jumps from that stale
+    // month instead of from "now".
+    if (key !== FESTIVAL_TIME_FILTER.MONTH) {
+      state.monthAnchor = {year: now.getFullYear(), month: now.getMonth() + 1};
+      renderMonthLabel();
+    }
     void fetchAndRender({reset: true});
   }
 
@@ -1107,9 +1122,6 @@ export async function mountFestivalManager({
           showDistance,
           onOpenProgram: openProgramFromCard,
           onOpenRegistration: openRegistrationFromCard,
-          authenticated,
-          sessionToken,
-          guestRepository: repository,
         }));
       }
       hasMore = result.hasMore;

@@ -38,6 +38,17 @@ assert.match(ui, /monthPrevButton\.addEventListener\('click', \(\) => shiftMonth
 assert.match(ui, /monthNextButton\.addEventListener\('click', \(\) => shiftMonth\(1\)\);/);
 assert.match(ui, /query\.date = `\$\{state\.monthAnchor\.year\}-\$\{String\(state\.monthAnchor\.month\)\.padStart\(2, '0'\)\}`;/,
   'the MONTH query must send date=YYYY-MM built from the navigator\'s own anchor, never a re-derived one');
+// FESTIVAL-EVENT-11 fix: leaving MONTH for a quick-filter chip (전체/진행
+// 중/이번 주말/이번 달/상시 운영) must snap the navigator's own anchor back to
+// the real current month. Without this, the always-visible 〈 2026년 9월 〉
+// label stays stuck wherever a previous 이전/다음 달 tap left it even while a
+// quick chip is active, and the very next 다음/이전 달 tap then jumps from
+// that stale month instead of from "now".
+assert.match(
+  ui,
+  /if \(key !== FESTIVAL_TIME_FILTER\.MONTH\) \{\s*state\.monthAnchor = \{year: now\.getFullYear\(\), month: now\.getMonth\(\) \+ 1\};\s*renderMonthLabel\(\);\s*\}/,
+  'selecting any quick-filter chip must reset the month navigator anchor to the real current month, not leave it stuck on a previously-navigated month',
+);
 assert.doesNotMatch(ui, /'오늘'|'날짜별'|'지역별'/, 'the old 오늘/지역별/날짜별 structure must be fully removed');
 assert.doesNotMatch(ui, /FESTIVAL_TIME_FILTER\.DATE/, 'the user-facing filter bar must never reference the DATE filter');
 assert.doesNotMatch(ui, /dateInput|dateField|customDate/,
