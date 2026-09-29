@@ -248,6 +248,25 @@ secondSheet.querySelector('.festival-schedule-confirm').click();
 await new Promise(resolve => setTimeout(resolve, 120));
 calendarResult.duplicateMessage = card.querySelector('.festival-calendar-add-feedback')?.textContent;
 
+// FESTIVAL-EVENT-11 fix: the always-visible 〈 2026년 9월 〉 month navigator
+// must snap back to the real current month when a quick-filter chip is
+// picked -- not stay stuck on wherever a previous 다음/이전 달 tap left it.
+// The month navigator and quick-filter chips live in the filter bar, a
+// sibling of the card grid -- not inside the .festival-card element itself.
+const monthNavLabel = host.querySelector('.festival-month-nav-label');
+const monthNavNext = host.querySelector('.festival-month-nav-next');
+const monthNavResult = {labelInitial: monthNavLabel.textContent};
+monthNavNext.click();
+await new Promise(resolve => setTimeout(resolve, 60));
+monthNavResult.labelAfterNext = monthNavLabel.textContent; // expect 2026년 11월
+const allChip = [...host.querySelectorAll('.festival-chip')].find(b => b.textContent === '전체');
+allChip.click();
+await new Promise(resolve => setTimeout(resolve, 60));
+monthNavResult.labelAfterQuickFilter = monthNavLabel.textContent; // must reset to 2026년 10월, not stay at 11월
+monthNavNext.click();
+await new Promise(resolve => setTimeout(resolve, 60));
+monthNavResult.labelAfterNextAgain = monthNavLabel.textContent; // must be 2026년 11월, not 2026년 12월
+
 document.getElementById('render-result').textContent = JSON.stringify({
   mediaTag: media.tagName,
   mediaHref: media.getAttribute('href'),
@@ -264,6 +283,7 @@ document.getElementById('render-result').textContent = JSON.stringify({
   registration: registrationResult,
   program: programResult,
   calendar: calendarResult,
+  monthNav: monthNavResult,
   bodyScrollWidth: document.documentElement.scrollWidth,
   bodyClientWidth: document.documentElement.clientWidth,
 });
@@ -461,6 +481,22 @@ assert.equal(card.calendar.selectedCellMarked, true, '고른 날짜는 시각적
 assert.equal(card.calendar.sheetClosedAfterConfirm, true, '등록 확정 후에는 팝업이 닫혀야 한다');
 assert.equal(card.calendar.successMessage, '일정을 등록했어요.');
 assert.equal(card.calendar.duplicateMessage, '이미 캘린더에 추가되어 있어요.', '같은 축제·같은 날짜를 다시 등록하면 중복으로 막아야 한다');
+
+// FESTIVAL-EVENT-11 fix: 〈 2026년 9월 〉 월별 탐색 must snap back to the real
+// current month (2026-10-08 fixture -> 10월) when a quick-filter chip is
+// picked, instead of staying stuck on a previously-navigated month.
+assert.equal(card.monthNav.labelInitial, '2026년 10월');
+assert.equal(card.monthNav.labelAfterNext, '2026년 11월', '다음 달 탭 한 번으로 11월로 이동해야 한다');
+assert.equal(
+  card.monthNav.labelAfterQuickFilter,
+  '2026년 10월',
+  '전체 칩을 고르면 월별 탐색이 실제 현재 달(10월)로 되돌아가야 한다 -- 11월에 멈춰 있으면 안 된다',
+);
+assert.equal(
+  card.monthNav.labelAfterNextAgain,
+  '2026년 11월',
+  '되돌아간 10월에서 다시 다음 달을 누르면 11월이어야 한다 -- 자칫 12월로 건너뛰면 이전 상태가 남아있었다는 뜻이다',
+);
 
 assert.ok(card.bodyScrollWidth <= card.bodyClientWidth + 2, `390px: horizontal overflow ${card.bodyScrollWidth}px > ${card.bodyClientWidth}px`);
 
