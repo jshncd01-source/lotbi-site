@@ -21,13 +21,10 @@
 }
 
 .about-core-message {
-  max-width: 920px;
-  margin: 34px 0 0;
-  padding: 30px 32px;
-  border: 1px solid #dddff0;
-  border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(236, 102, 133, .06), rgba(123, 98, 187, .07) 48%, rgba(79, 120, 197, .07));
+  max-width: 760px;
+  margin: 42px 0 0;
+  padding-top: 28px;
+  border-top: 1px solid var(--brand-line);
 }
 
 .about-core-message strong {
@@ -68,21 +65,20 @@
 }
 
 .about-principles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 34px;
+  margin-top: 42px;
+  border-bottom: 1px solid var(--brand-line);
 }
 
 .about-principle {
-  padding: 28px;
-  border: 1px solid var(--brand-line);
-  border-radius: 20px;
-  background: #fff;
+  padding: 26px 0;
+  display: grid;
+  grid-template-columns: minmax(180px, .65fr) minmax(0, 1.35fr);
+  gap: 32px;
+  border-top: 1px solid var(--brand-line);
 }
 
 .about-principle h3 {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--brand-navy);
   font-size: 19px;
 }
@@ -111,8 +107,8 @@
   }
 
   .about-core-message {
-    padding: 24px 22px;
-    border-radius: 20px;
+    margin-top: 32px;
+    padding-top: 24px;
   }
 
   .about-core-message p,
@@ -125,6 +121,14 @@
   }
 
   .about-principles {
-    grid-template-columns: 1fr;
+    margin-top: 32px;
+  }
+
+  .about-principle {
+    display: block;
+  }
+
+  .about-principle p {
+    margin-top: 10px;
   }
 }

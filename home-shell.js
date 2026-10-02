@@ -5,6 +5,7 @@
   const backdrop = document.querySelector('[data-mobile-nav-backdrop]');
   const openButtons = Array.from(document.querySelectorAll('[data-mobile-nav-open]'));
   const closeButton = document.querySelector('[data-mobile-nav-close]');
+  const appShell = document.querySelector('.chat-app-shell');
   const prompt = document.getElementById('lotbi-prompt');
   const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
   const currentVisibleHeight = () => Math.max(
@@ -86,6 +87,9 @@
 
   if (drawer && backdrop && openButtons.length > 0 && closeButton) {
     let lastFocused = null;
+    const drawerFocusable = () => Array.from(drawer.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((node) => node instanceof HTMLElement && !node.hasAttribute('inert'));
 
     const setDrawerOpen = (open) => {
       document.body.classList.toggle('nav-drawer-open', open);
@@ -94,10 +98,12 @@
 
       if (open) {
         lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        appShell?.setAttribute('inert', '');
         drawer.removeAttribute('inert');
         closeButton.focus();
       } else {
         drawer.setAttribute('inert', '');
+        appShell?.removeAttribute('inert');
         if (lastFocused instanceof HTMLElement) {
           lastFocused.focus();
         }
@@ -110,8 +116,27 @@
     closeButton.addEventListener('click', () => setDrawerOpen(false));
     backdrop.addEventListener('click', () => setDrawerOpen(false));
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && document.body.classList.contains('nav-drawer-open')) {
+      if (!document.body.classList.contains('nav-drawer-open')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
         setDrawerOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = drawerFocusable();
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !drawer.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
       }
     });
   }

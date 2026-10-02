@@ -268,6 +268,9 @@ for (const href of homeStylesheets) {
 const sidebarStylesheet = homeStylesheets.find(href => href.startsWith('site-sidebar-nav.css?v='));
 assert.ok(sidebarStylesheet, 'home Sidebar stylesheet must be cache-busted');
 assert.ok(callbackStylesheets.includes(sidebarStylesheet), 'callback must share the current Home Sidebar stylesheet');
+const homeProductStylesheet = homeStylesheets.find(href => href.startsWith('home-product.css?v='));
+assert.ok(homeProductStylesheet, 'home product stylesheet must be cache-busted');
+assert.ok(callbackStylesheets.includes(homeProductStylesheet), 'callback must share the current Home product stylesheet');
 assert.ok(
   callbackStylesheets.findIndex(href => href.startsWith('site-hardening.css?v=')) < callbackStylesheets.indexOf(sidebarStylesheet)
     && callbackStylesheets.indexOf(sidebarStylesheet) < callbackStylesheets.findIndex(href => href.startsWith('site-auth-continuity.css?v=')),
@@ -285,6 +288,7 @@ assert.ok(callback.includes('showCallbackError'));
 assert.ok(callback.includes('recoverMissingSiteHandoffContext'));
 assert.ok(callback.includes("error.code === 'SITE_HANDOFF_CONTEXT_MISSING'"));
 assert.ok(callback.includes('if (await recoverMissingSiteHandoffContext(error)) return;'));
+assert.ok(callback.includes("await loadClassicScript('/home-product.js?v="), 'callback hydration must restore Home product interactions');
 assert.ok(callback.includes("document.body.classList.add('auth-callback-error-page')"));
 assert.ok(callback.includes('callbackShell.hidden = false'));
 assert.ok(callback.includes('retryLink.hidden = false'));

@@ -166,8 +166,8 @@
 }
 
 .mobile-menu-button {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   display: none;
   place-items: center;
@@ -419,8 +419,8 @@
   }
 
   .mobile-drawer-close {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border-radius: 10px;
     font-size: 26px;
@@ -451,8 +451,8 @@
   }
 
   .mobile-menu-button {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 
   .account-actions {
