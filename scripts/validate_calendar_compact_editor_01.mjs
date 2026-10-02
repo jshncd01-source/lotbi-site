@@ -339,7 +339,7 @@ try{
 const wrapper = `<!doctype html><iframe src="/scripts/.calendar-compact-editor-inner.html" width="390" height="844"></iframe><pre id="result">pending</pre><script>const t=setInterval(()=>{const x=document.querySelector('iframe').contentDocument?.querySelector('#result');if(x&&x.textContent!=='pending'){document.querySelector('#result').textContent=x.textContent;clearInterval(t)}},20);setTimeout(()=>{if(document.querySelector('#result').textContent==='pending')document.querySelector('#result').textContent=JSON.stringify({ok:false,error:'timeout'})},35000)</script>`;
 fs.writeFileSync(fixturePath, fixture);
 fs.writeFileSync(wrapperPath, wrapper);
-const server = spawn('python', ['-m', 'http.server', '4224', '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', '4224', '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   let ready = false;
   for (let i = 0; i < 50; i++) {

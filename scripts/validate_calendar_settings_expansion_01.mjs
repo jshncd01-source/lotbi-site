@@ -320,7 +320,7 @@ if (!manager.includes("['week', '주']")) throw new Error('Week must remain a pr
 
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
-const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
   const results = [[360, 900], [1280, 900]].map(([w, h]) => run(browser, w, h));

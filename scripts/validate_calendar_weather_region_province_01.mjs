@@ -437,7 +437,7 @@ function run(browser, profile, phase, width, height) {
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-weather-region-'));
-const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 const results = {};
 try {
   waitServer();
