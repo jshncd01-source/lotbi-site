@@ -48,7 +48,11 @@ const out=document.getElementById('image-result');
 let stage='init';
 setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},35000);
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
-const json=body=>Promise.resolve(new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}}));
+const settledImageMessage=root=>{
+  const message=root.querySelector('[data-calendar-add-message]');
+  return message&&message.textContent!=='이미지에서 일정을 읽는 중…'?message:null;
+};
+const json=body=>new Promise(resolve=>setTimeout(()=>resolve(new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}})),80));
 
 const DRAFT={contract_id:'CORE-SMART-CALENDAR-DRAFT-01',schema_version:1,
   source_kind:'ATTACHMENT_AI_DRAFT',requires_user_confirmation:true,automatic_write:false,
@@ -134,7 +138,7 @@ try{
   addImage.click();
   dropImage(root);
 
-  await wait(()=>document.querySelector('.calendar-editor-dialog')||root.querySelector('[data-calendar-add-message]'),'editor or message');
+  await wait(()=>document.querySelector('.calendar-editor-dialog')||settledImageMessage(root),'editor or settled message');
 
   const uploadCall=happy.calls.find(c=>c.method==='POST'&&c.path.endsWith('/attachments'));
   const chatCall=happy.calls.find(c=>c.method==='POST'&&!c.path.endsWith('/attachments'));
@@ -171,7 +175,7 @@ try{
   await wait(()=>root.querySelector('[data-calendar-add-image]'),'add-image button 2');
   root.querySelector('[data-calendar-add-image]').click();
   dropImage(root);
-  await wait(()=>root.querySelector('[data-calendar-add-message]'),'no-draft message');
+  await wait(()=>settledImageMessage(root),'no-draft message');
   result.noDraftText=root.querySelector('[data-calendar-add-message]')?.textContent||'';
   result.noDraftEditorOpened=Boolean(document.querySelector('.calendar-editor-dialog, dialog[data-calendar-editor], .calendar-editor'));
 
@@ -181,7 +185,7 @@ try{
   await wait(()=>root.querySelector('[data-calendar-add-image]'),'add-image button 3');
   root.querySelector('[data-calendar-add-image]').click();
   dropImage(root);
-  await wait(()=>root.querySelector('[data-calendar-add-message]'),'refused message');
+  await wait(()=>settledImageMessage(root),'refused message');
   result.refusedText=root.querySelector('[data-calendar-add-message]')?.textContent||'';
   result.refusedAskedChat=refused.calls.some(c=>c.method==='POST'&&!c.path.endsWith('/attachments'));
   // A 403 is this route being refused, never evidence the session died: the
