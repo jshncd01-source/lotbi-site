@@ -137,11 +137,12 @@ try{
   const [debugPort]=fs.readFileSync(activePort,'utf8').trim().split('\n');
 
   async function target(url){
-    const created=await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(url)}`,{method:'PUT'}).then(r=>r.json());
+    const created=await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`,{method:'PUT'}).then(r=>r.json());
     const c=await connect(created.webSocketDebuggerUrl);
     await c.send('Runtime.enable');
     await c.send('Page.enable');
     await c.send('Network.enable');
+    await c.send('Page.navigate',{url});
     return c;
   }
 
