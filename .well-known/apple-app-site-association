@@ -1,6 +1,13 @@
 {
   "applinks": {
     "apps": [],
-    "details": []
+    "details": [
+      {
+        "appID": "5H34TQ4BWB.com.lotbiai.app",
+        "paths": [
+          "/app/open/*"
+        ]
+      }
+    ]
   }
 }

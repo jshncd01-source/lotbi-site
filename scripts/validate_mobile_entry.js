@@ -203,14 +203,18 @@ function run() {
     assert.equal(item?.target?.namespace, 'android_app', 'Android association target namespace changed');
   }
   const appleAssociationPath = path.join(ROOT, '.well-known', 'apple-app-site-association');
-  if (fs.existsSync(appleAssociationPath)) {
-    const appleAssociation = JSON.parse(fs.readFileSync(appleAssociationPath, 'utf8'));
-    assert.deepEqual(
-      appleAssociation,
-      { applinks: { apps: [], details: [] } },
-      'Apple association must remain fail-closed until the real Apple application identifier prefix is verified',
-    );
-  }
+  assert.equal(fs.existsSync(appleAssociationPath), true, 'Production Apple association must be published');
+  const appleAssociation = JSON.parse(fs.readFileSync(appleAssociationPath, 'utf8'));
+  assert.deepEqual(
+    appleAssociation,
+    {
+      applinks: {
+        apps: [],
+        details: [{appID: '5H34TQ4BWB.com.lotbiai.app', paths: ['/app/open/*']}],
+      },
+    },
+    'Apple association must use the canonical Production appID and only /app/open/*',
+  );
   assert.equal(fs.existsSync(path.join(ROOT, 'apple-app-site-association')), false, 'must not publish guessed root AASA');
 
   for (const page of ['index.html', 'privacy.html', 'terms.html', 'account-deletion.html', 'contact.html', 'about.html', '404.html']) {

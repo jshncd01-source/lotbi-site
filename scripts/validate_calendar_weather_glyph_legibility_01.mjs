@@ -200,7 +200,7 @@ const ICONS = {CLEAR: '☀️', CLOUDY: '☁️', RAIN: '🌧️', SNOW: '❄️
 
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
-const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
   for (const [w, h] of [[360, 780], [390, 844], [768, 1024], [1280, 900]]) {

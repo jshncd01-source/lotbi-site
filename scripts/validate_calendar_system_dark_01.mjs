@@ -194,7 +194,7 @@ const lum = v => { const [r, g, b] = chan(v); return 0.2126 * lin(r) + 0.7152 * 
 const contrast = (a, b) => { const [h, l] = [lum(a), lum(b)].sort((x, y) => y - x); return (h + 0.05) / (l + 0.05); };
 
 const browser = browserPath();
-const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 const report = [];
 try {
   waitServer();

@@ -539,9 +539,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m http.server 4173 --bind 127.0.0.1 >/tmp/lotbi-site-http.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          docker build --tag lotbi-site-review .
+          docker run --detach --rm --name lotbi-site-review --publish 127.0.0.1:4173:10000 lotbi-site-review
+          trap 'docker logs lotbi-site-review 2>/dev/null || true; docker stop lotbi-site-review >/dev/null 2>&1 || true' EXIT
 
           ready=0
           for attempt in $(seq 1 30); do
@@ -552,13 +552,30 @@ jobs:
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
-            cat /tmp/lotbi-site-http.log || true
+            docker logs lotbi-site-review || true
             exit 1
           fi
 
           for path in / /about.html /privacy.html /terms.html /account-deletion.html /contact.html /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
+
+          root_fixture="$(mktemp)"
+          app_open_exact_fixture="$(mktemp)"
+          app_open_root_fixture="$(mktemp)"
+          app_open_nested_fixture="$(mktemp)"
+          curl --fail --silent --show-error 'http://127.0.0.1:4173/' --output "$root_fixture"
+          curl --fail --silent --show-error 'http://127.0.0.1:4173/app/open' --output "$app_open_exact_fixture"
+          curl --fail --silent --show-error 'http://127.0.0.1:4173/app/open/?next=a%2Fb%3Fc%3D1' --output "$app_open_root_fixture"
+          curl --fail --silent --show-error 'http://127.0.0.1:4173/app/open/product/123?ref=kakao&encoded=%252F' --output "$app_open_nested_fixture"
+          cmp "$root_fixture" "$app_open_exact_fixture"
+          cmp "$root_fixture" "$app_open_root_fixture"
+          cmp "$root_fixture" "$app_open_nested_fixture"
+
+          curl --fail --silent --show-error --head 'http://127.0.0.1:4173/.well-known/apple-app-site-association' \
+            | tr -d '\r' | grep --ignore-case --quiet '^Content-Type: application/json'
+          unknown_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/not-a-real-static-path')"
+          [[ "$unknown_status" == '404' ]] || { echo "unrelated static path must remain 404, got $unknown_status" >&2; exit 1; }
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }

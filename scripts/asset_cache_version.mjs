@@ -68,6 +68,12 @@ function rewriteRefs(source, version) {
     });
 }
 
+function canonicalText(source) {
+  // Git may materialize tracked LF files as CRLF on Windows. Hash the same
+  // logical text on every checkout while leaving each file's bytes untouched.
+  return source.replace(/\r\n?/g, '\n');
+}
+
 const allFiles = walk(ROOT);
 const targets = allFiles.filter(isRuntimeTarget).sort();
 const sources = allFiles.filter(isRuntimeSource).sort();
@@ -78,7 +84,8 @@ function expectedVersion() {
     const raw = fs.readFileSync(path.join(ROOT, rel), 'utf8');
     // Canonicalization both inserts missing versions and removes the current
     // version value from the hash input, avoiding a self-referential digest.
-    const canonical = rewriteRefs(raw, TOKEN_PLACEHOLDER);
+    // Line endings are normalized so Windows and Linux derive the same token.
+    const canonical = rewriteRefs(canonicalText(raw), TOKEN_PLACEHOLDER);
     hash.update(rel, 'utf8');
     hash.update('\0');
     hash.update(canonical, 'utf8');

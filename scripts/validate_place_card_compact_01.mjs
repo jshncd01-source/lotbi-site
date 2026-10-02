@@ -5,10 +5,6 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const INNER_REL = 'scripts/.placecard-inner.html';
-const WRAPPER_REL = 'scripts/.placecard-wrapper.html';
-const INNER = path.join(ROOT, INNER_REL);
-const WRAPPER = path.join(ROOT, WRAPPER_REL);
 const PORT = 4213;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36';
@@ -225,10 +221,17 @@ function run(browser, testCase) {
   return parsed;
 }
 
-fs.writeFileSync(INNER, buildInner(), 'utf8');
 const browser=browserPath();
-const server=spawn('python',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
+const FIXTURE_DIR=fs.mkdtempSync(path.join(ROOT,'scripts/.placecard-'));
+const FIXTURE_REL='scripts/'+path.basename(FIXTURE_DIR);
+const INNER_REL=FIXTURE_REL+'/inner.html';
+const WRAPPER_REL=FIXTURE_REL+'/wrapper.html';
+const INNER=path.join(ROOT,INNER_REL);
+const WRAPPER=path.join(ROOT,WRAPPER_REL);
+let server;
 try {
+  fs.writeFileSync(INNER, buildInner(), 'utf8');
+  server=spawn('python3',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
   waitServer();
   for (const testCase of CASES) {
     const reading=run(browser,testCase);
@@ -263,8 +266,8 @@ try {
     assert.ok(reading.assistantText.length<100,`${testCase.label}: verbose answer`);
   }
 } finally {
-  server.kill();
-  for(const file of[INNER,WRAPPER]){try{fs.unlinkSync(file)}catch{}}
+  server?.kill();
+  fs.rmSync(FIXTURE_DIR,{recursive:true,force:true});
 }
 
 console.log('Compact cross-platform Place Card browser contract: PASS');

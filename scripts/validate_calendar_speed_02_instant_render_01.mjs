@@ -170,7 +170,7 @@ function run(browser) {
 
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
-const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
   const v = run(browser);

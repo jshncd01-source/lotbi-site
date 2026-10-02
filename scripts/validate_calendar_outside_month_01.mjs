@@ -223,7 +223,7 @@ if (!manager.includes("cell.inCurrentMonth === false) parts.push('다른 달')")
 
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
-const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
   const results = [[360, 780], [1280, 860]].map(([w, h]) => run(browser, w, h));

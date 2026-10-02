@@ -212,7 +212,7 @@ function run(browser,w,h){
 
 const browser=browserPath();
 fs.writeFileSync(INNER,fixture,'utf8');
-const server=spawn('python',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
+const server=spawn('python3',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
 try{
   waitServer();
   const results=[[1280,900],[1440,900],[1440,1200]].map(([w,h])=>run(browser,w,h));

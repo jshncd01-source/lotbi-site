@@ -1,0 +1,27 @@
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location = /.well-known/apple-app-site-association {
+        default_type application/json;
+        try_files $uri =404;
+    }
+
+    # Universal/App Link requests keep their original URL and query while the
+    # root document loads the existing mobile-entry.js bridge fallback.
+    location = /app/open {
+        try_files /index.html =404;
+    }
+
+    location ^~ /app/open/ {
+        try_files /index.html =404;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

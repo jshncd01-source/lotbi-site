@@ -41,7 +41,7 @@ function browserPath() {
 function waitServer() {
   const deadline = Date.now() + 15_000;
   for (;;) {
-    const probe = spawnSync('python', ['-c',
+    const probe = spawnSync('python3', ['-c',
       `import socket,sys;s=socket.socket();s.settimeout(0.4)\ntry:\n s.connect(("127.0.0.1",${PORT}));sys.exit(0)\nexcept Exception:\n sys.exit(1)`,
     ]);
     if (probe.status === 0) return;
@@ -123,7 +123,7 @@ import('/site-current-location.js').then(async mod => {
 
 const browser = browserPath();
 fs.writeFileSync(PAGE, page, 'utf8');
-const server = spawn('python', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
   const r = spawnSync(browser, [
