@@ -64,7 +64,7 @@ function fixture({keyboard, theme}) {
 function render(width, height, {keyboard = false, theme = 'light', unstick = false} = {}) {
   const markup = JSON.stringify(fixture({keyboard, theme}));
   const override = unstick ? '<style>.chat-topbar{position:static !important;}</style>' : '';
-  const html = `<!doctype html><html><body><iframe id="f" style="display:block;width:${width}px;height:${height}px;border:0"></iframe><pre id="r"></pre><script>
+  const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><iframe id="f" style="display:block;width:${width}px;height:${height}px;border:0"></iframe><pre id="r"></pre><script>
 const frame=document.getElementById('f'); const doc=frame.contentDocument; doc.open(); doc.write(${markup}); doc.close();
 doc.head.insertAdjacentHTML('beforeend', ${JSON.stringify(override)});
 const win=frame.contentWindow;
