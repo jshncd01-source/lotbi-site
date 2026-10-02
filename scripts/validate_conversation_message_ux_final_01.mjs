@@ -95,7 +95,7 @@ function fixtureMarkup() {
 
 function htmlFor(width, height) {
   const markup = JSON.stringify(fixtureMarkup());
-  return `<!doctype html><html lang="ko"><body>
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"></head><body>
 <iframe id="fixture-frame" title="LOTBI message UX fixture" style="display:block;width:${width}px;height:${height}px;border:0"></iframe>
 <pre id="render-result"></pre>
 <script>
