@@ -279,12 +279,18 @@ def main() -> int:
         r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
         text,
     )
+    home_product_script = re.search(
+        r'<script type="module" src="home-product\.js\?v=[^"]+"></script>',
+        text,
+    )
     if not conversation_script:
         errors.append("index.html: current conversation module must be cache-busted")
     if not continuity_script:
         errors.append("index.html: current continuity module must be cache-busted")
     if not footer_legal_script:
         errors.append("index.html: current footer legal-sheet module must be cache-busted")
+    if not home_product_script:
+        errors.append("index.html: current home product module must be cache-busted")
 
     approved_scripts = (
         f'<script src="home-shell.js?v={asset_version}" defer></script>',
@@ -292,6 +298,7 @@ def main() -> int:
         f'<script type="module" src="site-avatar.js?v={asset_version}"></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
+        home_product_script.group(0) if home_product_script else "__missing_home_product_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +1 sealed Avatar import map, +2 exact-purpose inline bootstraps:
@@ -299,7 +306,7 @@ def main() -> int:
     if text.lower().count("<script") != len(approved_scripts) + 3 or any(approved not in text for approved in approved_scripts):
         errors.append(
             "index.html: only the approved import map and "
-            "home/avatar/mobile/conversation/continuity/footer-legal scripts are allowed"
+            "home/product/avatar/mobile/conversation/continuity/footer-legal scripts are allowed"
         )
     if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
         errors.append("index.html: sealed Three.js import map missing or changed")

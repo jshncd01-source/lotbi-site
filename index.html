@@ -76,23 +76,24 @@
       }
     } catch (error) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="home-chat.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-hardening.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-avatar.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-calendar.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-pet.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-festival.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="footer-business-info.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="mobile-entry.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="home-bare-white.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-bc98675b36b0" />
-  <link rel="stylesheet" href="site-conversation.css?v=aset-bc98675b36b0" />  <style>
+  <link rel="stylesheet" href="styles.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-festival.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-e7dd7428d242" />
+  <link rel="stylesheet" href="home-product.css?v=aset-e7dd7428d242" />  <style>
     body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
     }
   </style>
@@ -104,12 +105,13 @@
     }
   }
   </script>
-  <script src="home-shell.js?v=aset-bc98675b36b0" defer></script>
-  <script src="mobile-entry.js?v=aset-bc98675b36b0" defer></script>
-  <script type="module" src="site-avatar.js?v=aset-bc98675b36b0"></script>
-  <script type="module" src="site-conversation.js?v=aset-bc98675b36b0"></script>
-  <script type="module" src="site-continuity.js?v=aset-bc98675b36b0"></script>
-  <script type="module" src="site-footer-legal.js?v=aset-bc98675b36b0"></script></head>
+  <script src="home-shell.js?v=aset-e7dd7428d242" defer></script>
+  <script src="mobile-entry.js?v=aset-e7dd7428d242" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-e7dd7428d242"></script>
+  <script type="module" src="site-conversation.js?v=aset-e7dd7428d242"></script>
+  <script type="module" src="site-continuity.js?v=aset-e7dd7428d242"></script>
+  <script type="module" src="home-product.js?v=aset-e7dd7428d242"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-e7dd7428d242"></script></head>
 <body class="chat-home-page" data-conversation-restore="pending">  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 
   <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
@@ -204,7 +206,6 @@
          the blue lines down the edges of the content column. The offset is
          now negative for this one element, in site-theme-tokens.css. -->
     <main id="main-content" class="chat-home-shell" tabindex="0">
-      <h1 class="sr-only">LOTBI</h1>
       <header class="chat-topbar" aria-label="LOTBI 홈 헤더">
         <div class="topbar-left">
           <button
@@ -231,25 +232,33 @@
       </header>
 
       <section class="chat-hero" aria-label="LOTBI 대화 시작">
-        <div class="home-avatar-anchor" data-home-avatar-anchor>
-          <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
-            <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
-            <img
-              src="assets/lotbi-main-logo.png"
-              class="chat-character-logo"
-              data-lotbi-avatar-fallback
-              alt="웃으며 손을 흔드는 LOTBI 캐릭터"
-              width="1535"
-              height="697"
-              decoding="async"
-              fetchpriority="high"
-            />
+        <div class="home-product-hero">
+          <div class="home-product-copy">
+            <p class="home-product-eyebrow">일상을 돕는 AI 어시스턴트</p>
+            <h1>찾고, 계획하고, 기록하는 일상.<br />LOTBI와 대화로.</h1>
+            <p class="home-product-lead">갈 곳을 찾고, 필요한 상품을 살펴보고, 일정을 정리하세요. LOTBI가 다음 선택을 도와드립니다.</p>
+            <div class="home-product-actions" aria-label="LOTBI 시작하기">
+              <button class="home-product-primary" type="button" data-home-composer-focus>LOTBI와 대화하기</button>
+              <a class="home-product-secondary" href="#home-use-cases">활용 예 보기</a>
+            </div>
+          </div>
+
+          <div class="home-avatar-anchor" data-home-avatar-anchor>
+            <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
+              <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
+              <img
+                src="assets/lotbi-main-logo.png"
+                class="chat-character-logo"
+                data-lotbi-avatar-fallback
+                alt="웃으며 손을 흔드는 LOTBI 캐릭터"
+                width="1535"
+                height="697"
+                decoding="async"
+                fetchpriority="high"
+              />
+            </div>
           </div>
         </div>
-
-        <section class="home-value-proposition" aria-label="LOTBI 활용 안내">
-          <p>찾고, 계획하고, 기록하는 일상을 LOTBI와 대화로 해결하세요</p>
-        </section>
 
         <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
 
@@ -363,6 +372,52 @@
           <span data-chat-state="unavailable">LOTBI 로그인이 필요합니다.</span>
           <span data-chat-state="error">LOTBI 대화를 완료하지 못했습니다.</span>
         </template>
+      </section>
+
+      <section id="home-use-cases" class="home-use-cases" aria-labelledby="home-use-cases-title">
+        <div class="home-section-heading">
+          <p>대화에서 바로 이어지는 일</p>
+          <h2 id="home-use-cases-title">하루의 선택을 한곳에서 정리하세요</h2>
+        </div>
+        <div class="home-use-case-list">
+          <article class="home-use-case">
+            <span class="home-use-case-number" aria-hidden="true">01</span>
+            <div>
+              <h3>갈 곳을 찾을 때</h3>
+              <p>상황과 취향을 이야기하면 장소를 비교하고 지도에서 확인할 다음 선택을 정리합니다.</p>
+              <button type="button" data-home-product-prompt="전주에서 조용히 대화하기 좋은 저녁 식당을 찾아줘">장소 찾기 예문</button>
+            </div>
+          </article>
+          <article class="home-use-case">
+            <span class="home-use-case-number" aria-hidden="true">02</span>
+            <div>
+              <h3>필요한 것을 고를 때</h3>
+              <p>조건과 예산을 알려주면 상품과 정보를 살펴보고 결정에 필요한 기준을 보여드립니다.</p>
+              <button type="button" data-home-product-prompt="15만원 안에서 부모님 선물로 좋은 상품을 비교해줘">상품 비교 예문</button>
+            </div>
+          </article>
+          <article class="home-use-case">
+            <span class="home-use-case-number" aria-hidden="true">03</span>
+            <div>
+              <h3>일정을 정리할 때</h3>
+              <p>해야 할 일과 날짜를 대화로 정리하고 캘린더에서 다시 확인할 수 있습니다.</p>
+              <button type="button" data-home-product-prompt="다음 주 병원 예약과 준비할 일을 일정으로 정리해줘">일정 정리 예문</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="home-trust" aria-labelledby="home-trust-title">
+        <div>
+          <p class="home-product-eyebrow">필요한 만큼, 분명하게</p>
+          <h2 id="home-trust-title">대화의 맥락을 이어가고 중요한 결정은 다시 확인합니다.</h2>
+        </div>
+        <div class="home-trust-points" aria-label="LOTBI 사용 원칙">
+          <p><strong>바로 시작</strong><span>로그인 없이도 대화를 시작할 수 있습니다.</span></p>
+          <p><strong>내 기록</strong><span>필요할 때 대화와 일정을 이어서 확인합니다.</span></p>
+          <p><strong>최종 확인</strong><span>예약·구매 같은 중요한 내용은 결정 전에 확인합니다.</span></p>
+        </div>
+        <button class="home-product-primary" type="button" data-home-composer-focus>LOTBI에게 이야기하기</button>
       </section>
 
       <footer class="lotbi-footer chat-home-footer">

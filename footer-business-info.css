@@ -1,6 +1,7 @@
 /* SITE-FOOTER-BUSINESS-INFO-01 — main-site business information footer */
 .company-legal {
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .company-legal-row {
@@ -22,8 +23,8 @@
 
 @media (max-width: 760px) {
   .company-legal {
-    font-size: 11px;
-    line-height: 1.8;
+    font-size: 13px;
+    line-height: 1.75;
   }
 
   .company-separator {
@@ -71,7 +72,7 @@
     background: none;
     color: inherit;
     font: inherit;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.5;
     text-align: left;
     word-break: keep-all;
