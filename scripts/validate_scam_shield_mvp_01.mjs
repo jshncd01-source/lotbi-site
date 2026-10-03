@@ -22,4 +22,8 @@ assert.match(conversation, /analyzeScamShield\(sessionToken, detail\.formData\)/
 assert.match(ui, /왜 그렇게 보나요\?/);
 assert.match(ui, /아직 확인 안 된 내용/);
 assert.match(ui, /지금 할 일/);
+assert.match(ui, /typeof dialog\.showModal === 'function'/, 'native dialog support must remain the preferred path');
+assert.match(ui, /dialog\.setAttribute\('open', ''\)/, 'browsers without the dialog API must still open Scam Shield');
+assert.match(ui, /typeof dialog\.close === 'function'/, 'native dialog close must remain the preferred path');
+assert.match(ui, /dialog\.removeAttribute\('open'\)/, 'fallback dialog must be closable without the dialog API');
 console.log('SITE-SCAM-SHIELD-MVP-01 PASS');

@@ -75,14 +75,35 @@ function requestAnalysis(formData) {
   });
 }
 
-openers.forEach(button => button.addEventListener('click', () => {
-  if (!(dialog instanceof HTMLDialogElement)) return;
+function openDialog() {
+  if (!dialog) return;
   result.hidden = true;
   status.textContent = '문자, 주소 또는 파일을 보내 주세요.';
-  dialog.showModal();
-}));
+  if (typeof dialog.showModal === 'function') {
+    dialog.showModal();
+    return;
+  }
+  dialog.setAttribute('open', '');
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+}
 
-dialog?.querySelectorAll('[data-scam-close]').forEach(button => button.addEventListener('click', () => dialog.close()));
+function closeDialog() {
+  if (!dialog) return;
+  if (typeof dialog.close === 'function') {
+    dialog.close();
+    return;
+  }
+  dialog.removeAttribute('open');
+  dialog.removeAttribute('aria-modal');
+}
+
+openers.forEach(button => button.addEventListener('click', openDialog));
+
+dialog?.querySelectorAll('[data-scam-close]').forEach(button => button.addEventListener('click', closeDialog));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && dialog?.hasAttribute('open') && typeof dialog.close !== 'function') closeDialog();
+});
 form?.querySelectorAll('input[name="scam-input-kind"]').forEach(input => input.addEventListener('change', updateInputPanels));
 clicked?.addEventListener('change', () => { incident.hidden = !clicked.checked; });
 updateInputPanels();
