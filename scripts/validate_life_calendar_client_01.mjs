@@ -363,6 +363,7 @@ const mutation = {
         local_datetime: '2026-09-30T15:00:00',
         timezone_name: 'Asia/Seoul',
       },
+      usageType: 'SCHEDULE_AUTO',
     },
     async (url, init) => {
       request = {url, init};
@@ -370,7 +371,7 @@ const mutation = {
     },
   );
 
-  assert.equal(request.url, `${CORE_ORIGIN}/v2/life/activities`);
+  assert.equal(request.url, `${CORE_ORIGIN}/v2/life/activities/automated`);
   assert.equal(request.init.method, 'POST');
   assert.equal(request.init.headers.Authorization, 'Bearer site-token');
   assert.equal(request.init.headers['Content-Type'], 'application/json');
@@ -384,6 +385,7 @@ const mutation = {
     },
     temporal_semantics: 'USER_PLANNED_TIME',
     busy: 'UNKNOWN',
+    usage_type: 'SCHEDULE_AUTO',
   });
   assert.equal(result.activityId, 'activity_0123456789abcdef0123456789abcdef');
   assert.equal(result.providerVerified, false);

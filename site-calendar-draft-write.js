@@ -102,6 +102,15 @@ function entryPayload(draft) {
   return payload;
 }
 
+function usageTypeForDraft(draft) {
+  const relevance = String(draft?.calendarRelevance || '').toUpperCase();
+  const kind = String(draft?.documentKind || '').toUpperCase();
+  if (relevance === 'PAST_TRANSACTION_ONLY' || ['PAYMENT', 'ORDER', 'DELIVERY', 'RECEIPT'].includes(kind)) {
+    return 'RECEIPT_AUTO';
+  }
+  return 'SCHEDULE_AUTO';
+}
+
 function failure(code, message, state = CALENDAR_DRAFT_WRITE_STATE.FAILED) {
   return Object.freeze({
     state,
@@ -149,6 +158,7 @@ export async function registerCalendarDraft(draft, {
       temporalSemantics: 'USER_PLANNED_TIME',
       busy: 'UNKNOWN',
       entry: entryPayload(draft),
+      usageType: usageTypeForDraft(draft),
     }, fetchImpl);
     if (!result?.readYourWrites || !result.activityId || !result.occurrenceId) {
       return failure('LIFE_MUTATION_CONTRACT_INVALID', '일정 저장 결과를 확인하지 못했습니다.');

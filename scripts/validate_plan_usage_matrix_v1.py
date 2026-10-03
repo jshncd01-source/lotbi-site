@@ -5,6 +5,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 SUBSCRIBE = (ROOT / "subscribe.html").read_text(encoding="utf-8")
 TERMS = (ROOT / "terms.html").read_text(encoding="utf-8")
+STYLES = (ROOT / "subscribe.css").read_text(encoding="utf-8")
 
 
 for value in (
@@ -40,5 +41,8 @@ assert "로그인 및 계정 연결은 유료 사용량으로 차감하지 않�
 assert "9,900원·19,900원·39,900원" in TERMS
 assert "29,900" not in SUBSCRIBE
 assert "29,900" not in TERMS
+assert re.search(r"\.plan-picker\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;", STYLES, re.S), (
+    "fieldset min-content sizing must not overflow mobile review screens"
+)
 
 print("PLAN USAGE MATRIX V1 VALIDATION PASS")

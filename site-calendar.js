@@ -784,7 +784,7 @@ export async function getLifeActivity(sessionToken, activityId, fetchImpl = glob
 
 export async function createLifeActivity(
   sessionToken,
-  {logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN', entry = {}},
+  {logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN', entry = {}, usageType = null},
   fetchImpl = globalThis.fetch,
 ) {
   const normalizedTitle = typeof title === 'string' ? title.trim() : '';
@@ -793,7 +793,9 @@ export async function createLifeActivity(
   }
   const details = calendarEntryDetails(entry);
   const payload = await calendarRequest(
-    '/v2/life/activities',
+    usageType === 'SCHEDULE_AUTO' || usageType === 'RECEIPT_AUTO'
+      ? '/v2/life/activities/automated'
+      : '/v2/life/activities',
     sessionToken,
     {
       method: 'POST',
@@ -803,6 +805,7 @@ export async function createLifeActivity(
         temporal,
         temporal_semantics: temporalSemantics,
         busy,
+        ...(usageType === 'SCHEDULE_AUTO' || usageType === 'RECEIPT_AUTO' ? {usage_type: usageType} : {}),
         ...(hasCalendarEntryDetails(details) ? {entry: details} : {}),
       },
     },

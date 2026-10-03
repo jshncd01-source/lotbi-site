@@ -19,6 +19,8 @@
 /* 카드 슬롯 3 장. fieldset 을 쓰는 이유는 셋이 하나의 선택지 묶음이고,
    스크린리더가 legend 로 그 묶음의 이름을 읽어주기 때문이다. */
 .plan-picker {
+  min-width: 0;
+  width: 100%;
   margin: 0 0 34px;
   padding: 0;
   border: 0;
