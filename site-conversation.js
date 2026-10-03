@@ -1,21 +1,21 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-de9ccb2c9032';
-import * as siteCore from './site-core.js?v=aset-de9ccb2c9032';
-import './site-scam-shield.js?v=aset-de9ccb2c9032';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-de9ccb2c9032';
-import * as siteAttachments from './site-attachments.js?v=aset-de9ccb2c9032';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-de9ccb2c9032';
-import {deterministicReply} from './site-deterministic.js?v=aset-de9ccb2c9032';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-de9ccb2c9032';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-de9ccb2c9032';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-de9ccb2c9032';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-de9ccb2c9032';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-de9ccb2c9032';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-de9ccb2c9032';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-de9ccb2c9032';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-de9ccb2c9032';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-de9ccb2c9032';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-de9ccb2c9032';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-de9ccb2c9032';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-699a6e930e74';
+import * as siteCore from './site-core.js?v=aset-699a6e930e74';
+import './site-scam-shield.js?v=aset-699a6e930e74';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-699a6e930e74';
+import * as siteAttachments from './site-attachments.js?v=aset-699a6e930e74';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-699a6e930e74';
+import {deterministicReply} from './site-deterministic.js?v=aset-699a6e930e74';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-699a6e930e74';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-699a6e930e74';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-699a6e930e74';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-699a6e930e74';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-699a6e930e74';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-699a6e930e74';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-699a6e930e74';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-699a6e930e74';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-699a6e930e74';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-699a6e930e74';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-699a6e930e74';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -166,7 +166,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-de9ccb2c9032';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-699a6e930e74';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -2745,7 +2745,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     else { visual.textContent = initials(canonicalProfileName()); visual.setAttribute('aria-hidden', 'true'); }
     return visual;
   };
-  const profileButton = ({includePlan = false} = {}) => {
+  const profileButton = ({includePlan = true} = {}) => {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'sidebar-account-entry sidebar-profile-trigger';
     button.dataset.profileMenuTrigger = ''; button.setAttribute('aria-haspopup', 'menu'); button.setAttribute('aria-expanded', 'false');
@@ -2762,7 +2762,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (detailParts.length) {
       const detail = document.createElement('span'); detail.className = 'sidebar-account-handle'; detail.textContent = detailParts.join(' · '); copy.appendChild(detail);
     }
-    button.append(profileVisual(), copy); return button;
+    const chevron = document.createElement('span');
+    chevron.className = 'sidebar-profile-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    button.append(profileVisual(), copy, chevron); return button;
   };
   const profileSummary = () => {
     const summary = document.createElement('div'); summary.className = 'profile-popover-summary'; summary.setAttribute('role', 'presentation');
@@ -2782,12 +2785,35 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     summary.append(profileVisual(), copy); return summary;
   };
+  const profileMenuIcon = name => {
+    const svgNamespace = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
+    const paths = {
+      profile: ['M20 21a8 8 0 0 0-16 0', 'M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'],
+      theme: ['M12 3a9 9 0 1 0 9 9c0-1.1-.9-2-2-2h-1.2a2 2 0 0 1-2-2V6.8c0-1.1-.9-2-2-2H12Z', 'M7.5 11.5h.01', 'M10 7.5h.01', 'M7.5 16h.01'],
+      settings: ['M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z', 'M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.04 1.56V20.3h-3v-.08a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.04H5.3v-3h.14A1.7 1.7 0 0 0 7 9.92a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7V4.6h3v.1a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.04h.14v3h-.14A1.7 1.7 0 0 0 19.4 15Z'],
+      connected: ['M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1', 'M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1'],
+      help: ['M9.1 9a3 3 0 1 1 5.1 2.1c-1.2 1.2-2.2 1.6-2.2 3.4', 'M12 18h.01', 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z'],
+      logout: ['M10 17l5-5-5-5', 'M15 12H3', 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'],
+    };
+    const icon = document.createElementNS(svgNamespace, 'svg');
+    icon.classList.add('profile-menu-icon'); icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
+    for (const pathValue of paths[name] || []) {
+      const path = document.createElementNS(svgNamespace, 'path'); path.setAttribute('d', pathValue); icon.appendChild(path);
+    }
+    return icon;
+  };
+  const decorateProfileMenuItem = (item, label, iconName) => {
+    item.classList.add('profile-menu-item');
+    const text = document.createElement('span'); text.className = 'profile-menu-label'; text.textContent = label;
+    const chevron = document.createElement('span'); chevron.className = 'profile-menu-chevron'; chevron.setAttribute('aria-hidden', 'true');
+    item.replaceChildren(profileMenuIcon(iconName), text, chevron);
+  };
   const refreshAuthenticatedProfileSlots = () => {
     if (document.body.dataset.siteAuthState !== 'authenticated' && !sessionToken) return;
     for (const slot of document.querySelectorAll('[data-sidebar-account]')) {
       if (!(slot instanceof HTMLElement)) continue;
       const existingTrigger = slot.querySelector('[data-profile-menu-trigger]');
-      const button = profileButton({includePlan: Boolean(slot.closest('#mobile-nav-drawer'))});
+      const button = profileButton();
       if (openSurface?.classList?.contains('profile-popover-layer') && openSurfaceTrigger === existingTrigger) {
         button.setAttribute('aria-expanded', 'true');
         openSurfaceTrigger = button;
@@ -2909,7 +2935,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-de9ccb2c9032');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-699a6e930e74');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2936,7 +2962,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-de9ccb2c9032');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-699a6e930e74');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3405,24 +3431,25 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
     const menu = document.createElement('div'); menu.className = 'profile-popover'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '프로필 메뉴');
     menu.appendChild(profileSummary());
+    const menuIconNames = {프로필: 'profile', 개인테마: 'theme', 설정: 'settings'};
     for (const [label, action] of [['프로필', openProfile], ['개인테마', openPersonalTheme], ['설정', openSettings]]) {
-      const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); button.textContent = label;
+      const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); decorateProfileMenuItem(button, label, menuIconNames[label]);
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
     }
     const connectedServices = document.createElement('a');
     connectedServices.href = 'https://account.lotbiai.com/connected-services';
     connectedServices.setAttribute('role', 'menuitem');
-    connectedServices.textContent = '연결 서비스';
+    connectedServices.textContent = '연결 서비스'; decorateProfileMenuItem(connectedServices, '연결 서비스', 'connected');
     connectedServices.addEventListener('click', () => closeSurface());
     menu.appendChild(connectedServices);
-    const help = document.createElement('button'); help.type = 'button'; help.setAttribute('role', 'menuitem'); help.textContent = '도움말';
+    const help = document.createElement('button'); help.type = 'button'; help.setAttribute('role', 'menuitem'); help.textContent = '도움말'; decorateProfileMenuItem(help, '도움말', 'help');
     help.addEventListener('click', () => { closeSurface(); openHelp(); }); menu.appendChild(help);
     const logout = document.createElement('button'); logout.type = 'button'; logout.setAttribute('role', 'menuitem');
-    logout.className = 'profile-menu-logout'; logout.textContent = '로그아웃'; logout.disabled = !sessionToken;
+    logout.className = 'profile-menu-logout'; logout.textContent = '로그아웃'; decorateProfileMenuItem(logout, '로그아웃', 'logout'); logout.disabled = !sessionToken;
     if (!sessionToken) logout.title = 'Site child session 연결 후 사용할 수 있습니다.';
     logout.addEventListener('click', async () => {
       if (!sessionToken) return;
-      logout.disabled = true; logout.textContent = '로그아웃 중…';
+      logout.disabled = true; logout.querySelector('.profile-menu-label').textContent = '로그아웃 중…';
       try {
         discardPendingAttachments();
         await logoutSiteSession(sessionToken); sessionToken = undefined; serverIdentity = undefined; serverSubscription = undefined; closeSurface();
@@ -3431,11 +3458,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('LOTBI 계정 로그아웃을 마무리하고 있습니다.');
         beginAccountLogoutHandoff();
       } catch (error) {
-        logout.disabled = false; logout.textContent = '로그아웃';
+        logout.disabled = false; logout.querySelector('.profile-menu-label').textContent = '로그아웃';
         setStatus(error instanceof Error ? error.message : '로그아웃하지 못했습니다.');
       }
     });
-    menu.appendChild(logout); layer.appendChild(menu); trigger.setAttribute('aria-expanded', 'true'); installSurfaceBehavior(layer, menu, {trigger});
+    menu.appendChild(logout);
+    menu.addEventListener('keydown', event => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      const items = [...menu.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+      if (!items.length) return;
+      const current = items.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? items.length - 1
+        : event.key === 'ArrowUp' ? (current <= 0 ? items.length - 1 : current - 1)
+        : (current < 0 || current === items.length - 1 ? 0 : current + 1);
+      event.preventDefault(); items[next].focus();
+    });
+    layer.appendChild(menu); trigger.setAttribute('aria-expanded', 'true'); installSurfaceBehavior(layer, menu, {trigger});
   };
 
   let responseGradeOpen = false;
