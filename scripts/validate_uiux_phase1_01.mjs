@@ -5,16 +5,15 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const index = read('index.html');
-const homeCss = read('home-product.css');
+const homeCss = read('home-bare-white.css');
 const publicCss = read('styles.css');
 const about = read('about.html');
 
 assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
-assert.match(index, /<h1>찾고, 계획하고, 기록하는 일상\.<br \/>LOTBI와 대화로\.<\/h1>/u);
-assert.match(index, /<section id="home-use-cases" class="home-use-cases" aria-labelledby="home-use-cases-title">/u);
-assert.equal((index.match(/data-home-product-prompt=/gu) || []).length, 3, 'Home must expose the three approved product examples');
-assert.match(homeCss, /\.conversation-active \.home-use-cases,/u, 'product examples must leave once a conversation starts');
-assert.match(homeCss, /\.conversation-active \.home-trust\s*\{\s*display:\s*none;/u, 'trust section must leave once a conversation starts');
+assert.match(index, /찾고, 계획하고, 기록하는 일상을 LOTBI와 대화로 해결하세요/u);
+assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
+assert.equal((index.match(/data-home-prompt=/gu) || []).length, 0, 'Home quick-action example prompts must be removed');
+assert.match(homeCss, /\.conversation-active \.home-value-proposition\s*\{\s*display:\s*none;/u, 'value proposition must leave once a conversation starts');
 
 const hiddenInputs = [...index.matchAll(/<input class="sr-only" type="file"[^>]*data-attachment-input="[^"]+"[^>]*>/gu)].map(match => match[0]);
 assert.equal(hiddenInputs.length, 3, 'three internal attachment inputs must remain');

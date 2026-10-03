@@ -90,10 +90,8 @@ def main() -> int:
             errors.append(f"{rel}: target=_blank link missing noopener")
 
         if rel == "index.html":
-            if '<h1>찾고, 계획하고, 기록하는 일상.' not in text:
-                errors.append("index.html: visible product h1 is required")
-            if '<h1 class="sr-only"' in text:
-                errors.append("index.html: product h1 must remain visible")
+            if 'class="sr-only">LOTBI</h1>' not in text:
+                errors.append("index.html: accessible h1 must remain visually hidden")
             if 'href="#main-content"' not in text:
                 errors.append("index.html: skip link missing")
             if "lotbi-prompt" not in parser.labels_for:

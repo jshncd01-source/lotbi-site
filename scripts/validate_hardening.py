@@ -222,10 +222,6 @@ def main() -> int:
         r'<script type="module" src="site-avatar\.js\?v=[^"]+"></script>',
         index,
     )
-    home_product_script = re.search(
-        r'<script type="module" src="home-product\.js\?v=[^"]+"></script>',
-        index,
-    )
     approved_scripts = (
         '<script type="importmap">',
         f'<script src="home-shell.js?v={asset_version}" defer></script>',
@@ -233,7 +229,6 @@ def main() -> int:
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         avatar_script.group(0) if avatar_script else "__missing_avatar_module__",
-        home_product_script.group(0) if home_product_script else "__missing_home_product_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +2 for the exact-purpose inline theme and HTTPS-origin bootstraps verified below.
