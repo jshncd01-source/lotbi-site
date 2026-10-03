@@ -26,4 +26,6 @@ assert.match(ui, /typeof dialog\.showModal === 'function'/, 'native dialog suppo
 assert.match(ui, /dialog\.setAttribute\('open', ''\)/, 'browsers without the dialog API must still open Scam Shield');
 assert.match(ui, /typeof dialog\.close === 'function'/, 'native dialog close must remain the preferred path');
 assert.match(ui, /dialog\.removeAttribute\('open'\)/, 'fallback dialog must be closable without the dialog API');
+assert.match(ui, /lotbi:home-shell-hydrated/, 'login callback hydration must rebind Scam Shield to the replaced home DOM');
+assert.match(ui, /dataset\.scamBound/, 'hydration rebinding must remain idempotent');
 console.log('SITE-SCAM-SHIELD-MVP-01 PASS');
