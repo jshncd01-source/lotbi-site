@@ -49,6 +49,9 @@ jobs:
       - name: Validate public site
         run: python scripts/validate_site.py
 
+      - name: Validate iOS Social Auth return bridge
+        run: python scripts/validate_ios_social_return_01.py
+
       - name: Validate UI/UX Phase 1 contracts
         run: node scripts/validate_uiux_phase1_01.mjs
 
