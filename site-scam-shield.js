@@ -7,6 +7,8 @@ const clicked = document.querySelector('[data-scam-clicked]');
 const incident = document.querySelector('[data-scam-incident]');
 
 const escapeText = value => String(value ?? '');
+const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/html', 'application/xhtml+xml', 'application/pdf']);
+const maxFileBytes = 10 * 1024 * 1024;
 
 function selectedInput() {
   return form?.querySelector('input[name="scam-input-kind"]:checked')?.value || 'text';
@@ -93,6 +95,14 @@ form?.addEventListener('submit', async event => {
   if (kind === 'url') data.set('url', form.elements.scamUrl.value.trim());
   if (kind === 'file') {
     const file = form.elements.scamFile.files?.[0];
+    if (file && !allowedFileTypes.has(file.type)) {
+      status.textContent = 'JPEG, PNG, WEBP, HTML, PDF 파일만 확인할 수 있어요.';
+      return;
+    }
+    if (file && (file.size <= 0 || file.size > maxFileBytes)) {
+      status.textContent = '파일은 10MB 이하만 확인할 수 있어요.';
+      return;
+    }
     if (file) data.set('file', file);
   }
   if (![...data.values()].some(Boolean)) {
@@ -108,8 +118,9 @@ form?.addEventListener('submit', async event => {
   status.textContent = '파일을 실행하지 않고 안전하게 확인하는 중입니다.';
   result.hidden = true;
   try {
-    render(await requestAnalysis(data));
-    status.textContent = '안심확인이 끝났습니다.';
+    const payload = await requestAnalysis(data);
+    render(payload);
+    status.textContent = payload.riskLevel === 'UNVERIFIED' ? '확인이 더 필요해요. 아래의 확인 안 된 내용을 봐 주세요.' : '분석 결과가 나왔습니다.';
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : '안심확인을 완료하지 못했습니다.';
   } finally {
