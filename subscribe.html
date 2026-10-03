@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="LOTBI 구독 등급과 월 이용료 안내입니다. 기본 월 9,900원, 프리미엄 월 19,900원, 프리미엄 플러스 월 29,900원이며 영수증 자동 인식 건수와 반려동물 등록 수가 등급마다 다릅니다." />
+  <meta name="description" content="LOTBI 구독 등급과 월 이용료 안내입니다. Basic 월 9,900원, Plus 월 19,900원, Pro 월 39,900원이며 부가가치세를 포함합니다." />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://lotbiai.com/subscribe.html" />
   <meta property="og:type" content="website" />
@@ -56,7 +56,7 @@
     <section class="section">
       <p class="kicker">SUBSCRIPTION</p>
       <h1>LOTBI 구독 안내</h1>
-      <p class="plan-lead">LOTBI는 일정과 가계부, 영수증, 반려동물 기록을 대화로 정리해 주는 AI 서비스입니다. 구독은 월 단위이며, 등급에 따라 영수증을 자동으로 읽어주는 건수와 등록할 수 있는 반려동물 수가 달라집니다.</p>
+      <p class="plan-lead">LOTBI는 일정과 가계부, 영수증, 안심케어 기록을 대화로 정리해 주는 AI 서비스입니다. 구독은 월 단위이며 표시 금액은 부가가치세를 포함합니다.</p>
       <p class="plan-price-note">판매 주체는 유한회사 알에이디홀딩스이며, 표시 금액은 부가세를 포함한 원화 가격입니다. 결제 수단은 웹(모바일 웹·PC 웹)에서 제공합니다.</p>
 
       <form id="plan-form" novalidate>
@@ -65,47 +65,55 @@
 
           <div class="plan-grid">
             <label class="plan-card" data-plan-card data-selected="false">
-              <input type="radio" name="plan" value="basic" data-plan-name="기본" checked />
+              <input type="radio" name="plan" value="basic" data-plan-name="LOTBI Basic" checked />
               <span class="plan-card-head">
-                <span class="plan-name">기본</span>
+                <span class="plan-name">LOTBI Basic</span>
                 <span class="plan-check" aria-hidden="true">선택됨</span>
               </span>
               <span class="plan-price">9,900원<span class="plan-period"> / 월</span></span>
               <span class="plan-price-caption">부가세 포함, 매월 결제</span>
               <ul class="plan-features">
-                <li><span class="plan-feature-label">대화</span><span class="plan-feature-value">넉넉하게 이용</span></li>
-                <li><span class="plan-feature-label">영수증 자동 인식</span><span class="plan-feature-value">월 30건</span></li>
-                <li><span class="plan-feature-label">반려동물 등록</span><span class="plan-feature-value">2마리</span></li>
+                <li><span class="plan-feature-label">AI·음성</span><span class="plan-feature-value">기본 유료 사용량</span></li>
+                <li><span class="plan-feature-label">일정 자동등록</span><span class="plan-feature-value">월 50건</span></li>
+                <li><span class="plan-feature-label">영수증 자동인식</span><span class="plan-feature-value">월 50건</span></li>
+                <li><span class="plan-feature-label">안심케어</span><span class="plan-feature-value">1개</span></li>
+                <li><span class="plan-feature-label">진위확인 심층분석</span><span class="plan-feature-value">월 20건</span></li>
               </ul>
             </label>
 
             <label class="plan-card" data-plan-card data-selected="false">
-              <input type="radio" name="plan" value="premium" data-plan-name="프리미엄" />
+              <input type="radio" name="plan" value="plus" data-plan-name="LOTBI Plus" />
               <span class="plan-card-head">
-                <span class="plan-name">프리미엄</span>
+                <span class="plan-name">LOTBI Plus <span class="recommended-badge">추천</span></span>
                 <span class="plan-check" aria-hidden="true">선택됨</span>
               </span>
               <span class="plan-price">19,900원<span class="plan-period"> / 월</span></span>
               <span class="plan-price-caption">부가세 포함, 매월 결제</span>
               <ul class="plan-features">
-                <li><span class="plan-feature-label">대화</span><span class="plan-feature-value">기본보다 훨씬 넉넉하게 이용</span></li>
-                <li><span class="plan-feature-label">영수증 자동 인식</span><span class="plan-feature-value">월 200건</span></li>
-                <li><span class="plan-feature-label">반려동물 등록</span><span class="plan-feature-value">5마리</span></li>
+                <li><span class="plan-feature-label">AI·음성</span><span class="plan-feature-value">크게 확대</span></li>
+                <li><span class="plan-feature-label">일정 자동등록</span><span class="plan-feature-value">월 300건</span></li>
+                <li><span class="plan-feature-label">영수증 자동인식</span><span class="plan-feature-value">월 300건</span></li>
+                <li><span class="plan-feature-label">안심케어</span><span class="plan-feature-value">5개</span></li>
+                <li><span class="plan-feature-label">진위확인 심층분석</span><span class="plan-feature-value">월 100건</span></li>
+                <li><span class="plan-feature-label">메모리·자동화</span><span class="plan-feature-value">확대</span></li>
               </ul>
             </label>
 
             <label class="plan-card" data-plan-card data-selected="false">
-              <input type="radio" name="plan" value="premium-plus" data-plan-name="프리미엄 플러스" />
+              <input type="radio" name="plan" value="pro" data-plan-name="LOTBI Pro" />
               <span class="plan-card-head">
-                <span class="plan-name">프리미엄 플러스</span>
+                <span class="plan-name">LOTBI Pro</span>
                 <span class="plan-check" aria-hidden="true">선택됨</span>
               </span>
-              <span class="plan-price">29,900원<span class="plan-period"> / 월</span></span>
+              <span class="plan-price">39,900원<span class="plan-period"> / 월</span></span>
               <span class="plan-price-caption">부가세 포함, 매월 결제</span>
               <ul class="plan-features">
-                <li><span class="plan-feature-label">대화</span><span class="plan-feature-value">아주 높은 상한까지 이용</span></li>
-                <li><span class="plan-feature-label">영수증 자동 인식</span><span class="plan-feature-value">건수 제한 없음</span></li>
-                <li><span class="plan-feature-label">반려동물 등록</span><span class="plan-feature-value">15마리</span></li>
+                <li><span class="plan-feature-label">AI·음성</span><span class="plan-feature-value">가장 높은 사용량</span></li>
+                <li><span class="plan-feature-label">일정 자동등록</span><span class="plan-feature-value">월 500건</span></li>
+                <li><span class="plan-feature-label">영수증 자동인식</span><span class="plan-feature-value">월 500건</span></li>
+                <li><span class="plan-feature-label">안심케어</span><span class="plan-feature-value">15개</span></li>
+                <li><span class="plan-feature-label">진위확인 심층분석</span><span class="plan-feature-value">월 500건</span></li>
+                <li><span class="plan-feature-label">메모리·자동화</span><span class="plan-feature-value">최대 수준</span></li>
               </ul>
             </label>
           </div>

@@ -93,7 +93,9 @@
   <link rel="stylesheet" href="home-bare-white.css?v=aset-de93ea2b9a41" />
   <link rel="stylesheet" href="site-theme-tokens.css?v=aset-de93ea2b9a41" />
   <link rel="stylesheet" href="site-conversation.css?v=aset-de93ea2b9a41" />
-  <link rel="stylesheet" href="site-scam-shield.css?v=aset-de93ea2b9a41" />  <style>
+  <link rel="stylesheet" href="site-scam-shield.css?v=aset-de93ea2b9a41" />
+  <link rel="stylesheet" href="subscription-plan-banner.css?v=plan-banner-v1" />
+  <style>
     body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
     }
   </style>
@@ -257,6 +259,23 @@
 
         <section class="home-value-proposition" aria-label="LOTBI 활용 안내">
           <p>찾고, 계획하고, 기록하는 일상을 LOTBI와 대화로 해결하세요</p>
+        </section>
+
+        <section class="subscription-plan-banner" aria-labelledby="subscription-plan-banner-title">
+          <div class="subscription-plan-banner-copy">
+            <p class="subscription-plan-banner-eyebrow">LOTBI 유료 플랜</p>
+            <h2 id="subscription-plan-banner-title">필요한 만큼, 더 넉넉하게 이어가세요</h2>
+            <p>LOTBI Plus를 중심으로 일정·기록·안심 기능을 월 단위로 이용할 수 있어요.</p>
+          </div>
+          <div class="subscription-plan-banner-plans" aria-label="LOTBI 유료 플랜 가격">
+            <span>Basic <strong>9,900원</strong><small>/ 월</small></span>
+            <span class="is-recommended">Plus <strong>19,900원</strong><small>/ 월</small><b>추천</b></span>
+            <span>Pro <strong>39,900원</strong><small>/ 월</small></span>
+          </div>
+          <div class="subscription-plan-banner-action-row">
+            <a href="subscribe.html">플랜 자세히 보기</a>
+            <small>VAT 포함 · 월 정기결제</small>
+          </div>
         </section>
 
         <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
