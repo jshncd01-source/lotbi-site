@@ -32,6 +32,7 @@ const GUEST_SESSION_PATH = '/v2/conversation/guest/sessions';
 const GUEST_CONVERSATION_PATH = '/v2/conversation/guest/messages';
 const CONVERSATION_ATTACHMENT_PATH = '/v2/conversation/attachments';
 const GUEST_CONVERSATION_ATTACHMENT_PATH = '/v2/conversation/guest/attachments';
+const SCAM_SHIELD_CASE_PATH = '/v2/scam-shield/cases';
 const ATTACHMENT_ID_RE = /^att_[0-9a-f]{20}$/;
 const GUEST_IDEMPOTENCY_RE = /^[A-Za-z0-9._:-]{8,160}$/;
 const CALENDAR_CANDIDATE_ID_RE = /^calcand_[0-9a-f]{24}$/;
@@ -70,6 +71,70 @@ export class SiteCoreError extends Error {
     this.upgradeAction = upgradeAction;
     this.freeUnits = freeUnits;
   }
+}
+
+const SCAM_RISK_LEVELS = Object.freeze([
+  'CURRENTLY_NO_RISK_SIGNAL', 'UNVERIFIED', 'SUSPICIOUS', 'HIGH_RISK', 'CONFIRMED_MALICIOUS',
+]);
+
+function normalizeScamShieldResult(payload) {
+  const caseId = typeof payload?.case_id === 'string' ? payload.case_id.trim() : '';
+  const list = value => Array.isArray(value) && value.every(item => typeof item === 'string') ? [...value] : null;
+  const reasons = list(payload?.reasons);
+  const confirmedFacts = list(payload?.confirmed_facts);
+  const unverifiedItems = list(payload?.unverified_items);
+  const nextSafeAction = list(payload?.next_safe_action);
+  if (
+    payload?.contract_id !== 'LOTBI-SCAM-SHIELD-MVP-01'
+    || !/^scam_[0-9a-f]{20}$/.test(caseId)
+    || !SCAM_RISK_LEVELS.includes(payload?.risk_level)
+    || typeof payload?.headline !== 'string'
+    || !reasons || !confirmedFacts || !unverifiedItems || !nextSafeAction
+    || payload?.untrusted_file_execution !== false
+    || payload?.public_file_upload_to_third_party !== false
+  ) {
+    throw new SiteCoreError('안심확인 응답 형식이 올바르지 않습니다.', {code: 'SCAM_SHIELD_CONTRACT_INVALID'});
+  }
+  const evidence = Array.isArray(payload.evidence) ? payload.evidence.filter(item => item && typeof item === 'object').map(item => ({
+    type: typeof item.evidence_type === 'string' ? item.evidence_type : '',
+    severity: typeof item.severity === 'string' ? item.severity : '',
+    title: typeof item.title === 'string' ? item.title : '',
+    technicalDetail: typeof item.technical_detail === 'string' ? item.technical_detail : '',
+  })) : [];
+  return Object.freeze({
+    caseId,
+    riskLevel: payload.risk_level,
+    headline: payload.headline,
+    reasons: Object.freeze(reasons),
+    confirmedFacts: Object.freeze(confirmedFacts),
+    unverifiedItems: Object.freeze(unverifiedItems),
+    nextSafeAction: Object.freeze(nextSafeAction),
+    evidence: Object.freeze(evidence),
+    incidentTriage: payload.incident_triage && typeof payload.incident_triage === 'object' ? payload.incident_triage : null,
+  });
+}
+
+export async function analyzeScamShield(sessionToken, formData, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
+  if (!token) throw new SiteCoreError('안심확인은 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
+  if (!(formData instanceof FormData)) throw new SiteCoreError('확인할 내용을 선택해 주세요.', {code: 'SCAM_SHIELD_INPUT_REQUIRED', status: 422});
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${SCAM_SHIELD_CASE_PATH}`, {
+      method: 'POST', mode: 'cors', credentials: 'omit',
+      headers: {Authorization: `Bearer ${token}`}, body: formData,
+    });
+  } catch {
+    throw new SiteCoreError('안심확인 서버에 접속하지 못했습니다.', {code: 'SCAM_SHIELD_NETWORK_ERROR', retryable: true});
+  }
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = errorFromResponse(response, payload, '안심확인을 완료하지 못했습니다.');
+    announceInvalidSiteSession(error);
+    throw error;
+  }
+  return normalizeScamShieldResult(payload);
 }
 
 async function readPayload(response) {

@@ -93,7 +93,8 @@
   <link rel="stylesheet" href="home-bare-white.css?v=aset-abf6cce2e974" />
   <link rel="stylesheet" href="site-theme-tokens.css?v=aset-abf6cce2e974" />
   <link rel="stylesheet" href="site-conversation.css?v=aset-abf6cce2e974" />
-  <link rel="stylesheet" href="home-product.css?v=aset-abf6cce2e974" />  <style>
+  <link rel="stylesheet" href="home-product.css?v=aset-abf6cce2e974" />
+  <link rel="stylesheet" href="site-scam-shield.css?v=scam-shield-mvp-01" />  <style>
     body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
     }
   </style>
@@ -374,6 +375,15 @@
         </template>
       </section>
 
+      <section class="home-use-cases" aria-labelledby="scam-shield-title">
+        <article class="scam-shield-card">
+          <p class="home-product-eyebrow">LOTBI 안심확인</p>
+          <h2 id="scam-shield-title">“롯비야, 이거 진짜야?”</h2>
+          <p>받은 문자, 인터넷 주소, 캡처, HTML 또는 PDF를 파일 실행 없이 확인합니다. 무엇이 이상한지와 지금 할 일을 쉬운 말로 알려드려요.</p>
+          <button type="button" data-scam-open>안심확인 시작</button>
+        </article>
+      </section>
+
       <section id="home-use-cases" class="home-use-cases" aria-labelledby="home-use-cases-title">
         <div class="home-section-heading">
           <p>대화에서 바로 이어지는 일</p>
@@ -419,6 +429,50 @@
         </div>
         <button class="home-product-primary" type="button" data-home-composer-focus>LOTBI에게 이야기하기</button>
       </section>
+
+      <dialog class="scam-dialog" data-scam-dialog aria-labelledby="scam-dialog-title">
+        <div class="scam-dialog-inner">
+          <header class="scam-dialog-header">
+            <div>
+              <p class="home-product-eyebrow">LOTBI Scam Shield</p>
+              <h2 id="scam-dialog-title">안심확인</h2>
+            </div>
+            <button class="scam-dialog-close" type="button" aria-label="안심확인 닫기" data-scam-close>×</button>
+          </header>
+          <p>의심 파일은 열거나 실행하지 않고 정적으로만 살펴봅니다.</p>
+          <form data-scam-form>
+            <div class="scam-input-kinds" role="radiogroup" aria-label="확인할 내용 종류">
+              <label><input type="radio" name="scam-input-kind" value="text" checked />문자</label>
+              <label><input type="radio" name="scam-input-kind" value="url" />주소</label>
+              <label><input type="radio" name="scam-input-kind" value="file" />파일</label>
+            </div>
+            <div class="scam-input-panel" data-scam-input-panel="text">
+              <label class="sr-only" for="scam-text">받은 문자 내용</label>
+              <input id="scam-text" name="scamText" type="text" maxlength="20000" placeholder="받은 문자나 메신저 내용을 붙여넣어 주세요" />
+            </div>
+            <div class="scam-input-panel" data-scam-input-panel="url" hidden>
+              <label class="sr-only" for="scam-url">의심 인터넷 주소</label>
+              <input id="scam-url" name="scamUrl" type="url" placeholder="https://…" disabled />
+            </div>
+            <div class="scam-input-panel" data-scam-input-panel="file" hidden>
+              <label for="scam-file">캡처, HTML 또는 PDF</label>
+              <input id="scam-file" name="scamFile" type="file" accept="image/jpeg,image/png,.html,.htm,text/html,application/pdf" disabled />
+            </div>
+            <label class="scam-clicked"><input type="checkbox" data-scam-clicked /> 이미 눌렀거나 정보를 입력했어요</label>
+            <div class="scam-incident" data-scam-incident hidden>
+              <label>어느 기기인가요?
+                <select name="device"><option value="">선택해 주세요</option><option value="Galaxy">Android / Galaxy</option><option value="iPhone">iPhone</option><option value="Windows">Windows PC</option><option value="macOS">Mac</option></select>
+              </label>
+              <label>어디까지 했나요?
+                <select name="incidentLevel"><option value="1">링크나 파일을 열었어요</option><option value="2">개인정보 일부를 입력했어요</option><option value="3">비밀번호·OTP를 입력했어요</option><option value="4">앱·프로그램을 설치했어요</option><option value="5">접근성·원격제어 권한을 줬어요</option><option value="6">송금·결제가 발생했어요</option></select>
+              </label>
+            </div>
+            <button class="scam-submit" type="submit">파일을 열지 않고 확인</button>
+          </form>
+          <p class="scam-status" role="status" aria-live="polite" data-scam-status>문자, 주소 또는 파일을 보내 주세요.</p>
+          <div class="scam-result" data-scam-result aria-live="polite" hidden></div>
+        </div>
+      </dialog>
 
       <footer class="lotbi-footer chat-home-footer">
         <details class="footer-legal-disclosure" data-footer-legal-disclosure>

@@ -1,5 +1,6 @@
 import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-abf6cce2e974';
 import * as siteCore from './site-core.js?v=aset-abf6cce2e974';
+import './site-scam-shield.js?v=scam-shield-mvp-01';
 import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-abf6cce2e974';
 import * as siteAttachments from './site-attachments.js?v=aset-abf6cce2e974';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-abf6cce2e974';
@@ -15,7 +16,7 @@ import {createReusableOutputCard} from './site-output-card.js?v=aset-abf6cce2e97
 import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-abf6cce2e974';
 import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-abf6cce2e974';
 import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-abf6cce2e974';
-const {createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
+const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
@@ -901,6 +902,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch {}
     return issued.guestToken;
   };
+  window.addEventListener('lotbi:scam-shield-request', async event => {
+    const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object' ? event.detail : {};
+    const resolve = typeof detail.resolve === 'function' ? detail.resolve : () => {};
+    const reject = typeof detail.reject === 'function' ? detail.reject : () => {};
+    try {
+      if (!sessionToken) throw new SiteCoreError('안심확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
+      resolve(await analyzeScamShield(sessionToken, detail.formData));
+    } catch (error) {
+      if (error instanceof SiteCoreError && isSessionError(error)) sessionToken = undefined;
+      reject(error);
+    }
+  });
   const recentConversationContext = () => {
     const messages = threadRecord()?.messages;
     if (!Array.isArray(messages) || !messages.length) return [];
