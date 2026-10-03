@@ -127,6 +127,31 @@
   color: var(--muted);
 }
 
+.plan-positioning {
+  min-height: 44px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.plan-card-recommended {
+  border-width: 2px;
+  border-color: var(--brand-navy);
+}
+
+.recommended-badge {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--brand-navy);
+  color: #fff;
+  font-size: 11px;
+  vertical-align: middle;
+}
+
 .plan-features {
   margin: 18px 0 0;
   padding: 0;
@@ -154,6 +179,21 @@
   font-weight: 700;
   color: var(--text);
   word-break: keep-all;
+}
+
+.plan-card-cta {
+  display: block;
+  margin-top: auto;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--brand-navy);
+  color: #fff;
+  font-weight: 800;
+  text-align: center;
+}
+
+.plan-card-recommended .plan-card-cta {
+  box-shadow: 0 6px 18px rgba(24, 42, 70, .18);
 }
 
 .plan-actions {
@@ -225,6 +265,44 @@
   padding: 0;
   list-style: none;
   font-size: 15px;
+}
+
+.plan-comparison {
+  margin: 42px 0;
+}
+
+.comparison-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--brand-line);
+  border-radius: 16px;
+}
+
+.comparison-scroll:focus-visible {
+  outline: 3px solid var(--brand-blue);
+  outline-offset: 3px;
+}
+
+.plan-comparison table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  background: var(--panel);
+}
+
+.plan-comparison th,
+.plan-comparison td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+
+.plan-comparison th:first-child {
+  text-align: left;
+}
+
+.plan-comparison thead th {
+  color: var(--brand-navy);
+  background: var(--soft);
 }
 
 @media (max-width: 860px) {
