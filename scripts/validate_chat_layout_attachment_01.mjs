@@ -172,7 +172,7 @@ if (browser) try {
     assert.ok(value.initialGeometry.timestampToUser <= 32, `${width}x${height} timestamp-to-user gap must stay compact`);
     assert.ok(value.initialGeometry.userToAssistant <= 32, `${width}x${height} user-to-assistant gap must stay compact`);
     assert.equal(value.initialGeometry.userFontSize, value.initialGeometry.assistantFontSize, `${width}px user/assistant body sizes must match`);
-    assert.equal(value.initialGeometry.userFontSize, width <= 760 ? '16px' : '17px', `${width}px responsive body size`);
+    assert.equal(value.initialGeometry.userFontSize, value.viewport[0] <= 760 ? '16px' : '17px', `${width}px responsive body size`);
     assert.equal(value.initialGeometry.timestampWhiteSpace, 'nowrap', `${width}px timestamp must remain one line`);
     geometry.push({width, height, ...value.initialGeometry});
     assert.equal(value.bodyOverflow, 'hidden', `${width}px body must not create a second vertical scroll authority`);
@@ -186,7 +186,7 @@ if (browser) try {
     assert.equal(value.threadScrollTopAfterMainScroll, 0, `${width}px transcript scrollTop must remain zero while main scrolls`);
     assert.ok(Math.abs(value.composerBottomAfterScroll - value.mainBottom) < 4, `${width}px sticky composer must remain at the main viewport bottom after scroll`);
     if (width >= 1280) {
-      assert.ok(Math.abs(value.mainRight - width) < 2, `${width}px main scroll track must sit at the viewport right edge`);
+      assert.ok(Math.abs(value.mainRight - value.viewport[0]) < 2, `${width}px main scroll track must sit at the viewport right edge`);
       assert.ok(value.mainScrollbarThickness > 0, `${width}px desktop main scrollbar must expose draggable native chrome`);
     }
     assert.equal(value.recentOverflow, 'auto', `${width}px recent list must own sidebar scroll`);

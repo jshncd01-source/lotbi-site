@@ -211,8 +211,12 @@ assert.match(
   'an image-only turn must not grow a 더 보기 control for its hidden placeholder',
 );
 
-// Upload surface untouched: still JPEG/PNG + documents, still max 3.
-assert.doesNotMatch(html, /image\/webp/);
+// The ordinary chat upload surface stays JPEG/PNG + documents and max 3.
+// Dedicated product inputs (for example Scam Shield screenshot analysis) are
+// intentionally outside this boundary.
+const chatAttachmentInputs = [...html.matchAll(/<input\b[^>]*data-attachment-input[^>]*>/g)].map(match => match[0]);
+assert.equal(chatAttachmentInputs.length, 3, 'ordinary chat keeps exactly three attachment inputs');
+for (const input of chatAttachmentInputs) assert.doesNotMatch(input, /image\/webp/);
 assert.match(html, /accept="image\/jpeg,image\/png" capture="environment"/);
 assert.match(html, /accept="image\/jpeg,image\/png" multiple/);
 assert.match(html, /PDF·DOCX·TXT·CSV·JSON/);

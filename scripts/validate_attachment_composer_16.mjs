@@ -12,7 +12,8 @@ assert.match(html, /capture="environment"/);
 assert.match(html, /data-attachment-input="photos"/);
 assert.match(html, /data-attachment-input="files"/);
 assert.match(html, /PDF·DOCX·TXT·CSV·JSON/);
-assert.doesNotMatch(html, /image\/webp/);
+const chatAttachmentInputs = [...html.matchAll(/<input[^>]+data-attachment-input="[^"]+"[^>]*>/g)].map(match => match[0]).join('\n');
+assert.doesNotMatch(chatAttachmentInputs, /image\/webp/, 'general chat attachment allowlist must remain unchanged');
 
 for (const token of [
   'validateAttachmentFiles',
