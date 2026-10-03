@@ -16,8 +16,8 @@ require(
     (
         "noindex,nofollow,noarchive",
         "default-src 'none'",
-        'src="/app-social-return.js"',
-        'href="/app-social-return.css"',
+        'src="/app-social-return.js?v=',
+        'href="/app-social-return.css?v=',
     ),
 )
 require(
