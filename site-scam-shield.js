@@ -1,10 +1,9 @@
-const dialog = document.querySelector('[data-scam-dialog]');
-const openers = [...document.querySelectorAll('[data-scam-open]')];
-const form = document.querySelector('[data-scam-form]');
-const result = document.querySelector('[data-scam-result]');
-const status = document.querySelector('[data-scam-status]');
-const clicked = document.querySelector('[data-scam-clicked]');
-const incident = document.querySelector('[data-scam-incident]');
+let dialog;
+let form;
+let result;
+let status;
+let clicked;
+let incident;
 
 const escapeText = value => String(value ?? '');
 const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/html', 'application/xhtml+xml', 'application/pdf']);
@@ -98,17 +97,11 @@ function closeDialog() {
   dialog.removeAttribute('aria-modal');
 }
 
-openers.forEach(button => button.addEventListener('click', openDialog));
-
-dialog?.querySelectorAll('[data-scam-close]').forEach(button => button.addEventListener('click', closeDialog));
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && dialog?.hasAttribute('open') && typeof dialog.close !== 'function') closeDialog();
 });
-form?.querySelectorAll('input[name="scam-input-kind"]').forEach(input => input.addEventListener('change', updateInputPanels));
-clicked?.addEventListener('change', () => { incident.hidden = !clicked.checked; });
-updateInputPanels();
 
-form?.addEventListener('submit', async event => {
+async function submitAnalysis(event) {
   event.preventDefault();
   const data = new FormData();
   const kind = selectedInput();
@@ -147,4 +140,41 @@ form?.addEventListener('submit', async event => {
   } finally {
     submit.disabled = false;
   }
-});
+}
+
+function bindScamShield() {
+  dialog = document.querySelector('[data-scam-dialog]');
+  form = document.querySelector('[data-scam-form]');
+  result = document.querySelector('[data-scam-result]');
+  status = document.querySelector('[data-scam-status]');
+  clicked = document.querySelector('[data-scam-clicked]');
+  incident = document.querySelector('[data-scam-incident]');
+
+  document.querySelectorAll('[data-scam-open]').forEach(button => {
+    if (button.dataset.scamBound === 'true') return;
+    button.dataset.scamBound = 'true';
+    button.addEventListener('click', openDialog);
+  });
+  dialog?.querySelectorAll('[data-scam-close]').forEach(button => {
+    if (button.dataset.scamBound === 'true') return;
+    button.dataset.scamBound = 'true';
+    button.addEventListener('click', closeDialog);
+  });
+  form?.querySelectorAll('input[name="scam-input-kind"]').forEach(input => {
+    if (input.dataset.scamBound === 'true') return;
+    input.dataset.scamBound = 'true';
+    input.addEventListener('change', updateInputPanels);
+  });
+  if (clicked && clicked.dataset.scamBound !== 'true') {
+    clicked.dataset.scamBound = 'true';
+    clicked.addEventListener('change', () => { incident.hidden = !clicked.checked; });
+  }
+  if (form && form.dataset.scamBound !== 'true') {
+    form.dataset.scamBound = 'true';
+    form.addEventListener('submit', submitAnalysis);
+  }
+  updateInputPanels();
+}
+
+bindScamShield();
+window.addEventListener('lotbi:home-shell-hydrated', bindScamShield);
