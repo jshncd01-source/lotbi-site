@@ -17,7 +17,6 @@ const cssFiles = [
   'mobile-entry.css',
   'home-bare-white.css',
   'site-conversation.css',
-  'home-product.css',
 ];
 const css = cssFiles.map(file => `/* ${file} */\n${fs.readFileSync(file, 'utf8')}`).join('\n\n');
 
@@ -131,7 +130,7 @@ function inspect(name, node) {
 
 setTimeout(() => {
   const results = [
-    inspect('product lead', doc.querySelector('.home-product-lead')),
+    inspect('value proposition detail', doc.querySelector('.home-value-proposition > p')),
     inspect('safety copy', doc.querySelector('.chat-safety-copy')),
   ];
   document.getElementById('home-small-text-result').textContent = JSON.stringify({

@@ -1,6 +1,7 @@
 .scam-shield-card { border: 1px solid var(--line, #d8dee8); border-radius: 20px; padding: 24px; background: var(--surface, #fff); }
 .scam-shield-card h2 { margin: 0 0 8px; font-size: clamp(1.35rem, 3vw, 1.8rem); }
 .scam-shield-card p { margin: 0 0 16px; line-height: 1.6; }
+.scam-dialog-eyebrow { margin: 0 0 6px; color: #475467; font-size: .82rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .scam-shield-card button, .scam-dialog button { min-height: 44px; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
 .scam-shield-card > button { border: 0; padding: 0 18px; background: #1258d8; color: #fff; }
 .scam-dialog { width: min(680px, calc(100% - 24px)); max-height: calc(100dvh - 24px); border: 0; border-radius: 22px; padding: 0; color: #172033; background: #fff; box-shadow: 0 24px 80px #10182842; }

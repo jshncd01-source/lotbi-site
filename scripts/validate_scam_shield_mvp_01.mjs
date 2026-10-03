@@ -9,6 +9,8 @@ const ui = read('site-scam-shield.js');
 
 assert.match(html, /LOTBI 안심확인/);
 assert.match(html, /“롯비야, 이거 진짜야\?”/);
+assert.equal((html.match(/data-scam-open/gu) || []).length, 2, 'desktop and mobile navigation must expose one compact Scam Shield entry each');
+assert.doesNotMatch(html, /class="scam-shield-card"/, 'Scam Shield must not reintroduce a marketing section into White Home');
 assert.match(html, /accept="image\/jpeg,image\/png,image\/webp,\.html,\.htm,text\/html,application\/pdf"/);
 assert.match(html, /이미 눌렀거나 정보를 입력했어요/);
 assert.match(core, /\/v2\/scam-shield\/cases/);
