@@ -49,10 +49,12 @@ async function connect(url){
     pending.delete(message.id);
     message.error?job.reject(new Error(JSON.stringify(message.error))):job.resolve(message.result);
   });
-  const send=(method,params={})=>new Promise((resolve,reject)=>{
+  const send=(method,params={},sessionId)=>new Promise((resolve,reject)=>{
     const messageId=++id;
     pending.set(messageId,{resolve,reject});
-    ws.send(JSON.stringify({id:messageId,method,params}));
+    const message={id:messageId,method,params};
+    if(sessionId)message.sessionId=sessionId;
+    ws.send(JSON.stringify(message));
   });
   return{ws,send,events};
 }
@@ -134,16 +136,19 @@ try{
   ],{stdio:'ignore'});
   const activePort=path.join(profile,'DevToolsActivePort');
   await waitFor(()=>fs.existsSync(activePort),'DevTools port');
-  const [debugPort]=fs.readFileSync(activePort,'utf8').trim().split('\n');
+  const [debugPort,debugPath]=fs.readFileSync(activePort,'utf8').trim().split('\n');
+  assert.match(debugPort,/^[1-9][0-9]*$/,'DevTools port must be numeric');
+  assert.ok(debugPath?.startsWith('/devtools/browser/'),'DevTools browser endpoint missing');
 
   async function target(url){
-    const created=await waitFor(async()=>{
-      try{
-        const response=await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`,{method:'PUT'});
-        return response.ok ? await response.json() : false;
-      }catch{return false;}
-    },'DevTools target endpoint');
-    const c=await connect(created.webSocketDebuggerUrl);
+    const browser=await waitFor(async()=>{
+      try{return await connect(`ws://127.0.0.1:${debugPort}${debugPath}`);}
+      catch{return false;}
+    },'DevTools browser endpoint');
+    const created=await browser.send('Target.createTarget',{url:'about:blank'});
+    const attached=await browser.send('Target.attachToTarget',{targetId:created.targetId,flatten:true});
+    const send=(method,params={})=>browser.send(method,params,attached.sessionId);
+    const c={ws:browser.ws,send,events:browser.events};
     await c.send('Runtime.enable');
     await c.send('Page.enable');
     await c.send('Network.enable');
