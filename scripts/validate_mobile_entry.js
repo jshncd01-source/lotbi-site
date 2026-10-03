@@ -180,8 +180,11 @@ function run() {
   assert.ok(productionAndroidAssociation, 'production LOTBI Android association missing');
   assert.deepEqual(
     productionAndroidAssociation.target.sha256_cert_fingerprints,
-    ['56:E5:0D:D9:CD:25:BA:0C:47:80:65:64:2E:F6:B5:D2:55:90:19:9C:EC:02:BF:83:A0:62:37:19:18:F7:19:A2'],
-    'approved LOTBI Android release fingerprint must remain unchanged',
+    [
+      '56:E5:0D:D9:CD:25:BA:0C:47:80:65:64:2E:F6:B5:D2:55:90:19:9C:EC:02:BF:83:A0:62:37:19:18:F7:19:A2',
+      '14:49:E9:3F:B4:2D:FC:E4:80:3F:F9:37:78:8B:39:28:CF:00:27:43:DF:CB:6B:BB:D0:92:92:74:A5:02:4A:CC',
+    ],
+    'approved LOTBI upload and Play App Signing fingerprints must remain published',
   );
   assert.ok(
     productionAndroidAssociation.relation.includes('delegate_permission/common.get_login_creds'),
