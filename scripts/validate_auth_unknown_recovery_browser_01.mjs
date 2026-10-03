@@ -137,7 +137,12 @@ try{
   const [debugPort]=fs.readFileSync(activePort,'utf8').trim().split('\n');
 
   async function target(url){
-    const created=await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`,{method:'PUT'}).then(r=>r.json());
+    const created=await waitFor(async()=>{
+      try{
+        const response=await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`,{method:'PUT'});
+        return response.ok ? await response.json() : false;
+      }catch{return false;}
+    },'DevTools target endpoint');
     const c=await connect(created.webSocketDebuggerUrl);
     await c.send('Runtime.enable');
     await c.send('Page.enable');
