@@ -265,6 +265,8 @@ const callbackStylesheets = stylesheetHrefs(callbackHtml);
 for (const href of homeStylesheets) {
   assert.ok(callbackStylesheets.includes(href), `callback hydration missing home stylesheet: ${href}`);
 }
+assert.deepEqual(callbackStylesheets.filter(href => homeStylesheets.includes(href)), homeStylesheets,
+  'callback hydration must preserve the complete Home cascade, including consumer detail/layout overrides');
 const sidebarStylesheet = homeStylesheets.find(href => href.startsWith('site-sidebar-nav.css?v='));
 assert.ok(sidebarStylesheet, 'home Sidebar stylesheet must be cache-busted');
 assert.ok(callbackStylesheets.includes(sidebarStylesheet), 'callback must share the current Home Sidebar stylesheet');
