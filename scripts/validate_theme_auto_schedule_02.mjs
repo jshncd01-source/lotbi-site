@@ -21,7 +21,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
+const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8').replaceAll('\r\n', '\n');
 const conversation = read('site-conversation.js');
 const html = read('index.html');
 const tokens = read('site-theme-tokens.css');
@@ -115,8 +115,8 @@ const chooser = conversation.slice(
   conversation.indexOf('const openPersonalTheme = () => {'),
   conversation.indexOf('const openSettings = () =>'),
 );
-assert.ok(chooser.includes('for (const [value, label] of THEME_OPTIONS)'), '개인테마 창은 네 선택지를 모두 제공해야 합니다');
-assert.ok(chooser.includes('themeHelp'), '기기모드 와 자동모드 의 차이는 말로 적혀 있어야 합니다');
+assert.ok(chooser.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#personalization')"), 'theme editing must use the single Account settings owner');
+assert.ok(!chooser.includes('document.createElement'), 'Site must not duplicate the Account theme chooser');
 // #250 removed the colour picker from this window; 자동모드 must not bring it back.
 assert.ok(!chooser.includes('colorPicker()'), '개인테마 창에 대화 색상 선택이 돌아오면 안 됩니다');
 assert.ok(workflow.includes('node scripts/validate_theme_auto_schedule_02.mjs'), 'this gate must run in CI');
@@ -161,19 +161,15 @@ try{
 const conversation=await import('/site-conversation.js?v=20260924-chatmedia3');
 root.innerHTML=\`${SKELETON}\`;
 localStorage.clear();sessionStorage.clear();
+localStorage.setItem('lotbi.site.ux.v1.preferences.'+NS,JSON.stringify({theme:'auto'}));
+localStorage.setItem('lotbi.site.theme.bootstrap.v1','auto');
 document.body.dataset.siteAuthState='authenticated';
 if(!conversation.mountConversation({identityKey:NS}))throw new Error('mount failed');
 await wait(()=>document.body.dataset.siteTheme,'first theme');
 const trigger=document.querySelector('[data-profile-menu-trigger]');
 click(trigger);await wait(()=>document.querySelector('.profile-popover'),'menu');
 const items=[...document.querySelectorAll('.profile-popover [role="menuitem"]')];
-const labels=items.map(n=>n.textContent);
-click(items.find(n=>n.textContent==='개인테마'));
-await wait(()=>document.querySelector('select'),'theme modal');
-const select=document.querySelector('select');
-const offered=[...select.options].map(o=>o.value);
-const offeredLabels=[...select.options].map(o=>o.textContent);
-select.value='auto';select.dispatchEvent(new Event('change',{bubbles:true}));
+const labels=items.map(n=>n.textContent.trim());
 await wait(()=>document.body.dataset.siteThemePreference==='auto','auto applied');
 const hour=new Date().getHours();
 const expected=(hour>=18||hour<7)?'dark':'light';
@@ -183,10 +179,12 @@ const auto={preference:document.body.dataset.siteThemePreference,
   stored:localStorage.getItem('lotbi.site.theme.bootstrap.v1'),
   expected,hour,
   themeColor:document.querySelector('meta[name="theme-color"]').getAttribute('content')};
-select.value='dark';select.dispatchEvent(new Event('change',{bubbles:true}));
+localStorage.setItem('lotbi.site.ux.v1.preferences.'+NS+'-dark',JSON.stringify({theme:'dark'}));
+localStorage.setItem('lotbi.site.theme.bootstrap.v1','dark');
+window.dispatchEvent(new CustomEvent('lotbi:site-session-state',{detail:{authenticated:true,identityKey:NS+'-dark'}}));
 await wait(()=>document.body.dataset.siteTheme==='dark','dark applied');
 const dark={preference:document.body.dataset.siteThemePreference,applied:document.body.dataset.siteTheme,stored:localStorage.getItem('lotbi.site.theme.bootstrap.v1')};
-out.textContent=JSON.stringify({ok:true,report:{labels,offered,offeredLabels,auto,dark}});
+out.textContent=JSON.stringify({ok:true,report:{labels,auto,dark}});
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
 
@@ -226,15 +224,13 @@ assert.deepEqual(
   report.labels, ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'],
   '메뉴는 대표가 지시한 여섯 항목 그대로여야 합니다',
 );
-assert.deepEqual(report.offered, ['system', 'light', 'dark', 'auto'], '개인테마 창은 네 가지를 모두 제공해야 합니다');
-assert.deepEqual(report.offeredLabels, ['기기모드', '라이트모드', '다크모드', '자동모드'], '표기는 대표가 쓰신 대로여야 합니다');
 // '자동모드' is stored as the preference, and what paints is the resolved state.
 assert.equal(report.auto.preference, 'auto', '선택한 preference 는 자동으로 남아야 합니다');
 assert.equal(report.auto.stored, 'auto', 'pre-paint 키에는 자동이 그대로 저장되어야 합니다 — 해석은 부팅 시점에');
 assert.equal(report.auto.applied, report.auto.expected, `${report.auto.hour}시에는 ${report.auto.expected} 가 적용되어야 합니다`);
 assert.equal(report.auto.bootstrap, report.auto.expected, 'html 의 bootstrap 속성도 해석된 값이어야 합니다');
 assert.notEqual(report.auto.applied, 'auto', 'data-site-theme 에 auto 가 새어나가면 안 됩니다');
-assert.equal(report.auto.themeColor, report.auto.expected === 'dark' ? '#151922' : '#ffffff', '브라우저 상단 색도 따라가야 합니다');
+assert.equal(report.auto.themeColor, report.auto.expected === 'dark' ? '#212121' : '#ffffff', '브라우저 상단 색도 따라가야 합니다');
 assert.equal(report.dark.preference, 'dark', '자동을 껐다면 preference 도 바뀌어야 합니다');
 assert.equal(report.dark.stored, 'dark', '자동을 껐다면 pre-paint 키도 바뀌어야 합니다');
 

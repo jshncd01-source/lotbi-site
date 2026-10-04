@@ -13,7 +13,14 @@ for (const selector of ['calendar-settings-dialog', 'calendar-editor-dialog', 'c
 assert.match(css, /focus-visible/);
 assert.match(css, /prefers-reduced-motion/);
 assert.match(css, /font-size: 16px/);
-for (const page of ['auth/start/index.html', 'auth/callback/index.html', 'app/open/auth/social-return/index.html', 'kakao-navi.html']) assert.match(read(page), /site-consumer-transfer\.css/);
+for (const page of ['auth/callback/index.html', 'app/open/auth/social-return/index.html', 'kakao-navi.html']) assert.match(read(page), /site-consumer-transfer\.css/);
+// The normal login entry is a silent redirect; style its error inline only.
+const authStart = read('auth/start/index.html');
+assert.doesNotMatch(authStart, /rel="stylesheet"|<img/);
+assert.match(authStart, /color: #212121/);
+assert.match(authStart, /max-width: 460px/);
+assert.match(authStart, /a:focus-visible/);
+assert.match(authStart, /\[hidden\] \{ display: none !important/);
 assert.match(read('site-scam-shield.js'), /분석 근거 자세히 보기/);
 assert.match(read('site-consumer-sections.js'), /질문 준비하기/);
 assert.match(read('site-consumer-sections.js'), /확인 없이 진행하지 않습니다/);

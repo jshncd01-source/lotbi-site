@@ -10,9 +10,10 @@ const publicCss = read('styles.css');
 const about = read('about.html');
 
 assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
-assert.match(index, /찾고, 계획하고, 기록하는 일상을 LOTBI와 대화로 해결하세요/u);
+assert.match(index, /<h2>무엇을 도와드릴까요\?<\/h2>/u);
 assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
-assert.equal((index.match(/data-home-prompt=/gu) || []).length, 0, 'Home quick-action example prompts must be removed');
+assert.equal((index.match(/data-home-prompt=/gu) || []).length, 2, 'two short optional examples may prepare a draft, never auto-submit');
+assert.match(read('site-conversation.js'), /prompt\.value = String\(homePrompt\.dataset\.homePrompt \|\| ''\)\.slice\(0, 1000\)/);
 assert.match(homeCss, /\.conversation-active \.home-value-proposition\s*\{\s*display:\s*none;/u, 'value proposition must leave once a conversation starts');
 
 const hiddenInputs = [...index.matchAll(/<input class="sr-only" type="file"[^>]*data-attachment-input="[^"]+"[^>]*>/gu)].map(match => match[0]);
@@ -24,7 +25,8 @@ for (const input of hiddenInputs) {
 
 assert.match(publicCss, /\.skip-link\s*\{[^}]*position:\s*fixed;/su, 'skip link must be positioned against the viewport');
 assert.match(publicCss, /\.skip-link:focus\s*\{[^}]*transform:\s*translateY\(0\);/su, 'focused skip link must be fully returned into the viewport');
-assert.equal((index.match(/>저장한 항목<\/span>/gu) || []).length, 2, 'desktop and mobile navigation must use the understandable saved-items label');
+assert.equal((index.match(/>저장한 항목<\/span>/gu) || []).length, 0, 'saved items belong inside 생활정보, not a duplicate primary menu');
+assert.match(read('site-consumer-sections.js'), /action\('저장한 정보 다시 보기', onSaved/);
 
 assert.doesNotMatch(about, /개발·검증 중/u, 'public About copy must not advertise an internal development state');
 assert.match(about, /소비자 중심 AI 생활 서비스/u);

@@ -72,7 +72,7 @@ assert.equal((index.match(/data-new-conversation/g) || []).length, 4, 'desktop/m
 assert.match(index, /<a class="sidebar-brand"[^>]*data-new-conversation/, 'desktop LOTBI logo must reset to Home');
 assert.match(index, /<a class="chat-brand mobile-header-brand lotbi-official-brand"[^>]*data-new-conversation/, 'mobile LOTBI logo must reset to Home');
 assert.ok(conversation.includes("const newChat = target?.closest('[data-new-conversation]');"), 'delegated reset handler must remain active');
-assert.ok(conversation.includes('if (newChat) { event.preventDefault(); startNewConversation(); return; }'), 'logo/new-chat clicks must use startNewConversation');
+assert.match(conversation, /if \(newChat\)\s*\{[^}]*event\.preventDefault\(\);[^}]*startNewConversation\(\);[^}]*return;/, 'logo/new-chat clicks must use startNewConversation');
 const conversationRuntimeVersion = index.match(/src="site-conversation\.js\?v=([^"]+)"/)?.[1] || '';
 assert.ok(conversationRuntimeVersion, 'Production HTML must cache-bust the current conversation runtime');
 

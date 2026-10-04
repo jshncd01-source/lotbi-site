@@ -316,6 +316,7 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .lotbi-brand-
   display: block;
 }
 
+/* SITE-FOCUS-RING-CONTAINER-01: keep the scroll region ring inside the viewport. */
 #main-content:focus-visible {
   outline: 3px solid var(--lotbi-focus-ring, #454545);
   outline-offset: -3px;

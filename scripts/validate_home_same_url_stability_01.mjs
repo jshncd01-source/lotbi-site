@@ -56,7 +56,7 @@ assert.ok(catchBody.includes('scheduleUnknownRetry()'));
 assert.ok(!catchBody.includes('markAnonymousAccountUi()'),'network/timeout/5xx/contract errors must never become false logout');
 
 const details=index.match(/<details\b[^>]*data-footer-legal-disclosure[^>]*>/)?.[0]||'';
-const summary=index.match(/<summary\b[\s\S]*?data-footer-legal-toggle[\s\S]*?>/)?.[0]||'';
+const summary=index.match(/<summary\b[^>]*data-footer-legal-toggle[^>]*>/)?.[0]||'';
 assert.ok(details && summary);
 assert.ok(!/\bopen\b/.test(details),'mobile footer must be compact before any JS executes');
 assert.ok(!/\bhidden\b/.test(summary),'no-JS native disclosure must remain operable');

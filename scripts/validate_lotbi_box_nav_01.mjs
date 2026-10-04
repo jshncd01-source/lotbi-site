@@ -11,16 +11,17 @@ const conversation = read('site-conversation.js');
 const css = read('site-conversation.css');
 const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 
-assert.equal((html.match(/data-lotbi-box-open/g) || []).length, 2, 'Desktop and mobile must both expose LOTBI Box');
+assert.equal((html.match(/data-lotbi-box-open/g) || []).length, 0, 'saved items must not duplicate the primary menu');
 assert.equal(
   (html.match(/aria-label="저장한 항목, 롯비함 열기"/g) || []).length,
-  2,
+  0,
   'LOTBI Box navigation keeps its product identity inside a user-facing saved-items label',
 );
 assert.ok(html.includes(`site-calendar.css?v=${assetVersion}`), 'real Calendar CSS must remain preserved at the generated asset-set version');
 assert.match(html, /site-conversation\.js\?v=[A-Za-z0-9._-]+/, 'LOTBI Box must remain on a cache-busted combined conversation runtime');
-assert.ok(html.indexOf('data-new-conversation') < html.indexOf('data-lotbi-box-open'), 'LOTBI Box follows new conversation');
-assert.ok(html.indexOf('data-lotbi-box-open') < html.indexOf('data-calendar-view="all"'), 'LOTBI Box precedes Calendar');
+assert.equal((html.match(/data-consumer-section="life"/g) || []).length, 2, 'both nav surfaces expose 생활정보');
+assert.match(read('site-consumer-sections.js'), /action\('저장한 정보 다시 보기', onSaved/, 'saved items remain reachable inside 생활정보');
+assert.match(conversation, /onSaved: \(\) => \{ closeSurface\(\); openLotbiBox\(\); \}/, 'saved items use their original owner');
 
 for (const token of [
   "storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box')",
@@ -33,7 +34,7 @@ for (const token of [
   '롯비함에서 제거',
   "item.image_reference.startsWith('https://')",
   "value.startsWith('https://')",
-  "openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')",
+  "openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')",
   "new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date'])",
 ]) assert.ok(conversation.includes(token), 'missing LOTBI Box/Calendar preservation behavior: ' + token);
 

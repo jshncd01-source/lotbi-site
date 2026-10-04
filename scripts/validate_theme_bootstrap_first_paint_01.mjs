@@ -91,11 +91,11 @@ for (const selector of [
   const block = blockFor(selector);
   assert.ok(block, `missing pre-paint block: ${selector}`);
   assert.ok(
-    /background:\s*#151922/.test(block),
+    /background:\s*#212121/.test(block),
     `${selector} must paint its background — tokens alone leave the first frame white`,
   );
   assert.ok(
-    /color:\s*#f8fafc/.test(block),
+    /color:\s*#f5f5f5/.test(block),
     `${selector} must set its text colour alongside the background`,
   );
 }

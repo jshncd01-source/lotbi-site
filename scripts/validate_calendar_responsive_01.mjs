@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const read = file => fs.readFileSync(file, 'utf8');
+const read = file => fs.readFileSync(file, 'utf8').replaceAll('\r\n', '\n');
 const css = read('site-calendar.css');
 const index = read('index.html');
 const callback = read('auth/callback/index.html');
@@ -107,7 +107,7 @@ assert.ok(manager.includes('event.stopPropagation();'), 'Calendar Escape surface
 assert.ok(manager.includes('let refreshGeneration = 0;'), 'Calendar Manager stale-response generation guard missing');
 assert.ok(manager.includes('const requestGeneration = ++refreshGeneration;'), 'Calendar Manager must version each refresh');
 assert.ok(manager.includes('requestGeneration !== refreshGeneration'), 'Calendar Manager must reject stale refreshes');
-assert.ok(conversation.includes("openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')"), 'Calendar surface must close across Site identity changes');
+assert.ok(conversation.includes("openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')"), 'Calendar surface must close across Site identity changes');
 
 console.log('LOTBI Calendar responsive, navigation and cache contract: PASS');
 

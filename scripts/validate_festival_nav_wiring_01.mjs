@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
+const read = rel => readFileSync(path.join(ROOT, rel), 'utf8').replaceAll('\r\n', '\n');
 
 const indexHtml = read('index.html');
 const conversationJs = read('site-conversation.js');
@@ -19,11 +19,11 @@ const sidebarCss = read('site-sidebar-nav.css');
 
 // ------------------------------------------------------------------- nav --
 const festivalTriggers = [...indexHtml.matchAll(/data-festival-open/g)];
-assert.equal(festivalTriggers.length, 2, 'the 축제·행사 nav button must exist once in the desktop sidebar and once in the mobile drawer');
+assert.equal(festivalTriggers.length, 0, '축제·행사 belongs inside 생활정보, not a duplicate primary menu');
 
 const festivalButtonRe = /<button[^>]*data-festival-open[^>]*>[\s\S]*?<\/button>/g;
 const festivalButtons = [...indexHtml.matchAll(festivalButtonRe)];
-assert.equal(festivalButtons.length, 2);
+assert.equal(festivalButtons.length, 0);
 for (const [button] of festivalButtons) {
   assert.match(button, /aria-label="축제·행사"/, 'the 축제·행사 button must have an accessible label using the renamed category');
   assert.match(button, /lotbi-icon-festival/, 'the 축제·행사 button must use the festival icon symbol (internal id unchanged by the rename)');
@@ -32,12 +32,17 @@ for (const [button] of festivalButtons) {
 
 const festivalGroupRe = /<div class="sidebar-festival-nav"[^>]*>/g;
 const festivalGroups = [...indexHtml.matchAll(festivalGroupRe)];
-assert.equal(festivalGroups.length, 2);
+assert.equal(festivalGroups.length, 0);
 for (const [group] of festivalGroups) {
   assert.match(group, /aria-label="축제·행사"/, 'the nav group must carry the renamed accessible label');
 }
 
 const symbolMatches = [...indexHtml.matchAll(/id="lotbi-icon-festival"/g)];
+const sections = read('site-consumer-sections.js');
+assert.equal((indexHtml.match(/data-consumer-section="life"/g) || []).length, 2, 'desktop and mobile must expose 생활정보');
+assert.match(sections, /id: 'festivals', label: '축제·행사'/, '생활정보 must expose festivals');
+assert.match(sections, /item\.id === 'festivals' \? onFestival\(\)/, 'festival shortcut must use the existing festival owner');
+assert.match(conversationJs, /onFestival: \(\) => \{ closeSurface\(\); void openFestival\(\); \}/, '생활정보 must mount the real festival owner');
 assert.equal(symbolMatches.length, 1, 'the festival icon symbol must be defined exactly once');
 
 assert.match(indexHtml, /<link rel="stylesheet" href="site-festival\.css(?:\?v=[A-Za-z0-9._-]+)?" \/>/,

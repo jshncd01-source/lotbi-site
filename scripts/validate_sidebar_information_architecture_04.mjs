@@ -50,7 +50,7 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
 
   assert.ok(!block.includes('data-sidebar-destination="work"'), `${label} must not keep the disabled work placeholder in the primary navigation`);
   assert.ok(!block.includes('data-sidebar-destination="library"'), `${label} must not keep the disabled library placeholder in the primary navigation`);
-  const primary = block.match(/<div class="sidebar-primary-nav">[\s\S]*?<\/div>/)?.[0] || '';
+  const primary = block.match(/<div class="consumer-primary-nav"[^>]*>[\s\S]*?<\/div>/)?.[0] || '';
   assert.ok(primary.includes('data-new-conversation'), `${label} primary navigation must keep new conversation`);
   assert.ok(!primary.includes('connected-services'), `${label} connected services must not remain a primary action`);
   // The secondary region itself is gone on both surfaces; what mattered about
@@ -65,7 +65,7 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
     !block.includes('data-global-nav-action'),
     `${label} sidebar must not duplicate account-menu actions`,
   );
-  const calendar = block.match(/<div class="sidebar-calendar-nav"[^>]*>[\s\S]*?(?=<section class="nav-section sidebar-history-section")/)?.[0] || '';
+  const calendar = primary;
   assert.match(calendar, /<button[^>]*data-calendar-view="all"[^>]*>[\s\S]*?<span class="nav-item-label">캘린더<\/span>[\s\S]*?<\/button>/, `${label} Calendar root action missing`);
   assert.equal((calendar.match(/data-calendar-view="/g) || []).length, 1, `${label} must expose only the Calendar root action`);
   assert.ok(!calendar.includes('sidebar-calendar-subnav'), `${label} sidebar must not duplicate Calendar quick views`);
@@ -76,8 +76,13 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
     assert.ok(!calendar.includes(internal), `${label} leaked internal Calendar term: ${internal}`);
   }
 
-  const primaryPos = block.indexOf('sidebar-primary-nav');
-  const calendarPos = block.indexOf('sidebar-calendar-nav');
+  const primaryPos = block.indexOf('consumer-primary-nav');
+  const calendarPos = block.indexOf('data-calendar-view="all"');
+  const menuHooks = ['data-new-conversation', 'data-calendar-view="all"', 'data-consumer-section="wallet"', 'data-scam-open', 'data-consumer-section="care"', 'data-consumer-section="life"', 'data-consumer-section="mall"'];
+  const positions = menuHooks.map(hook => primary.indexOf(hook));
+  assert.ok(positions.every(position => position >= 0), `${label} seven primary destinations required`);
+  assert.deepEqual(positions, [...positions].sort((a, b) => a - b), `${label} approved menu order must be preserved`);
+  assert.equal((primary.match(/<button\b/g) || []).length, 7, `${label} exactly seven primary menu buttons required`);
   const recentPos = block.indexOf('sidebar-history-section');
   const accountPos = block.indexOf('sidebar-account-footer');
   assert.ok(

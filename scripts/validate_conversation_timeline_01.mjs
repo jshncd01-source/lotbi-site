@@ -60,7 +60,7 @@ assert.match(conversation, /shouldShowConversationSeparator/);
 assert.match(conversation, /createdAt/);
 assert.match(css, /\.conversation-thread,[\s\S]*?width:\s*min\(760px,\s*100%\)/);
 assert.match(css, /\.chat-composer-stack\s*\{[^}]*width:\s*min\(760px,\s*100%\)/s);
-assert.match(css, /\.conversation-time-separator\s*\{[^}]*text-align:\s*center[^}]*font-weight:\s*400[^}]*color:\s*#[0-9a-fA-F]{6}/s);
+assert.match(css, /\.conversation-time-separator\s*\{[^}]*text-align:\s*center[^}]*font-weight:\s*400[^}]*color:\s*var\(--lotbi-text-primary, var\(--text, #212121\)\)/s);
 assert.doesNotMatch(css, /\.conversation-time-separator\s*\{[^}]*(?:background|border|box-shadow):/s);
 assert.match(css, /@media\s*\(max-width:\s*390px\)/);
 const homeConversationVersion = html.match(/site-conversation\.js\?v=([^"]+)/)?.[1] || '';
