@@ -1,6 +1,6 @@
 import {
   closePersonSos, createHumanSighting, createPerson, createPersonSos, deletePerson,
-  listGuardianNotices, listHumanSightings, listPeople, listPersonIdentityPhotos,
+  getPerson, listGuardianNotices, listHumanSightings, listPeople, listPersonIdentityPhotos,
   listPersonSos, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice, submitHumanSighting, updatePerson,
 } from './site-person.js?v=aset-8f7d68845114';
@@ -23,7 +23,7 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
   const refresh = async () => {
     [people, cases, notices, sightings] = await Promise.all([listPeople(sessionToken), listPersonSos(sessionToken), listGuardianNotices(sessionToken), listHumanSightings(sessionToken)]);
     identityPhotos = new Map(await Promise.all(people.map(async item => [item.personId, await listPersonIdentityPhotos(sessionToken, item.personId)])));
-    if (editing) editing = people.find(item => item.personId === editing.personId) || null;
+    if (editing) editing = people.some(item => item.personId === editing.personId) ? await getPerson(sessionToken, editing.personId) : null;
     render();
   };
   const renderNav = () => { nav.replaceChildren(...[['sos', 'SOS / 실종 신고'], ['home', '사람'], ['pet', '반려동물'], ['sighting', '발견 제보'], ['notices', '후보 확인']].map(([id, label]) => button(label, () => { if (id === 'pet') { onOpenPet(); return; } active = id; render(); }, active === id))); };
@@ -31,7 +31,7 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
   const renderIdentityPhotos = person => {
     const box = el('section', 'person-form');
     const photos = identityPhotos.get(person.personId) || [];
-    const renewalText = person.identityPhotoState === 'EXPIRED' ? '유효기간이 지났습니다. SOS 전에 10장을 갱신해 주세요.' : person.identityPhotoState === 'EXPIRING' ? `사진이 ${person.identityPhotoDaysRemaining ?? 0}일 뒤 만료됩니다. 지금 갱신해 주세요.` : `현재 갱신 주기는 ${person.identityPhotoValidityDays === 180 ? '6개월' : '1년'}이며, SOS 동의 전에는 검색에 사용되지 않습니다.`;
+    const renewalText = person.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? '출생 연·월을 입력해야 갱신 주기를 계산하고 SOS를 사용할 수 있습니다.' : person.identityPhotoState === 'EXPIRED' ? '유효기간이 지났습니다. SOS 전에 10장을 갱신해 주세요.' : person.identityPhotoState === 'EXPIRING' ? `사진이 ${person.identityPhotoDaysRemaining ?? 0}일 뒤 만료됩니다. 지금 갱신해 주세요.` : `현재 갱신 주기는 ${person.identityPhotoValidityDays === 180 ? '6개월' : '1년'}이며, SOS 동의 전에는 검색에 사용되지 않습니다.`;
     box.append(el('h4', '', `비공개 식별사진 ${photos.length}/10`), el('p', 'person-consent', renewalText));
     IDENTITY_SLOTS.forEach((label, index) => {
       const row = el('label', 'person-photo-slot');
@@ -47,15 +47,15 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
     content.replaceChildren(el('h3', 'person-title', '등록된 사람'));
     for (const item of people) {
       const card = el('article', 'person-card');
-      card.append(el('strong', '', item.displayName), el('p', '', `${item.nickname || '별명 없음'} · 식별사진 ${item.identityPhotoCount}/10${item.identityPhotoState === 'EXPIRED' ? ' · 갱신 필요' : ''}`), button('상세 · 사진 관리', () => { editing = item; renderHome(); }), button('삭제', async () => { await deletePerson(sessionToken, item); await refresh(); }));
+      card.append(el('strong', '', item.displayName), el('p', '', `${item.nickname || '별명 없음'} · 식별사진 ${item.identityPhotoCount}/10${item.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? ' · 출생정보 보완 필요' : item.identityPhotoState === 'EXPIRED' ? ' · 갱신 필요' : ''}`), button('상세 · 사진 관리', async () => { try { editing = await getPerson(sessionToken, item.personId); renderHome(); } catch { status.textContent = '상세 정보를 불러오지 못했습니다.'; } }), button('삭제', async () => { await deletePerson(sessionToken, item); await refresh(); }));
       content.append(card);
     }
     if (editing) {
       const edit = document.createElement('form'); edit.className = 'person-form';
       const editName = document.createElement('input'); editName.required = true; editName.value = editing.displayName;
       const editNickname = document.createElement('input'); editNickname.value = editing.nickname || '';
-      const editBirthYear = document.createElement('input'); editBirthYear.type = 'number'; editBirthYear.min = '1900'; editBirthYear.max = String(new Date().getFullYear()); editBirthYear.required = true; editBirthYear.placeholder = '태어난 연도'; editBirthYear.value = String(editing.birthYear);
-      const editBirthMonth = document.createElement('input'); editBirthMonth.type = 'number'; editBirthMonth.min = '1'; editBirthMonth.max = '12'; editBirthMonth.required = true; editBirthMonth.placeholder = '태어난 월'; editBirthMonth.value = String(editing.birthMonth);
+      const editBirthYear = document.createElement('input'); editBirthYear.type = 'number'; editBirthYear.min = '1900'; editBirthYear.max = String(new Date().getFullYear()); editBirthYear.required = true; editBirthYear.placeholder = '태어난 연도'; editBirthYear.value = editing.birthYear == null ? '' : String(editing.birthYear);
+      const editBirthMonth = document.createElement('input'); editBirthMonth.type = 'number'; editBirthMonth.min = '1'; editBirthMonth.max = '12'; editBirthMonth.required = true; editBirthMonth.placeholder = '태어난 월'; editBirthMonth.value = editing.birthMonth == null ? '' : String(editing.birthMonth);
       const editRelationship = document.createElement('select');
       for (const [value, label] of [['CHILD','자녀'],['PARENT','부모'],['SPOUSE','배우자'],['FAMILY','가족'],['DEPENDENT','돌봄 대상'],['OTHER','기타']]) { const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = value === editing.relationship; editRelationship.append(option); }
       const save = button('수정 저장', () => {}, true); save.type = 'submit';
