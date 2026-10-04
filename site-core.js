@@ -85,7 +85,7 @@ function normalizeScamShieldResult(payload) {
   const unverifiedItems = list(payload?.unverified_items);
   const nextSafeAction = list(payload?.next_safe_action);
   if (
-    payload?.contract_id !== 'LOTBI-SCAM-SHIELD-MVP-01'
+    !['LOTBI-SCAM-SHIELD-MVP-01', 'LOTBI-SAFECARE-REAL-USER-01'].includes(payload?.contract_id)
     || !/^scam_[0-9a-f]{20}$/.test(caseId)
     || !SCAM_RISK_LEVELS.includes(payload?.risk_level)
     || typeof payload?.headline !== 'string'
@@ -109,6 +109,13 @@ function normalizeScamShieldResult(payload) {
     confirmedFacts: Object.freeze(confirmedFacts),
     unverifiedItems: Object.freeze(unverifiedItems),
     nextSafeAction: Object.freeze(nextSafeAction),
+    doNow: Object.freeze(list(payload?.do_now) || nextSafeAction),
+    doNot: Object.freeze(list(payload?.do_not) || []),
+    uncertainties: Object.freeze(list(payload?.uncertainties) || unverifiedItems),
+    checkedAt: typeof payload?.checked_at === 'string' ? payload.checked_at : '',
+    officialSourceCheck: payload?.official_source_check && typeof payload.official_source_check === 'object' ? Object.freeze({...payload.official_source_check}) : null,
+    urlCheck: payload?.url_check && typeof payload.url_check === 'object' ? Object.freeze({...payload.url_check}) : null,
+    fileCheck: payload?.file_check && typeof payload.file_check === 'object' ? Object.freeze({...payload.file_check}) : null,
     evidence: Object.freeze(evidence),
     incidentTriage: payload.incident_triage && typeof payload.incident_triage === 'object' ? payload.incident_triage : null,
   });

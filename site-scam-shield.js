@@ -6,7 +6,7 @@ let clicked;
 let incident;
 
 const escapeText = value => String(value ?? '');
-const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/html', 'application/xhtml+xml', 'application/pdf']);
+const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/plain', 'text/html', 'application/xhtml+xml', 'application/pdf']);
 const maxFileBytes = 10 * 1024 * 1024;
 
 function selectedInput() {
@@ -47,10 +47,11 @@ function render(payload) {
   badge.textContent = payload.headline;
   result.append(badge);
   [
+    list('지금 하실 일', payload.doNow),
+    list('하지 마세요', payload.doNot),
     list('왜 그렇게 보나요?', payload.reasons),
     list('확인된 내용', payload.confirmedFacts),
     list('아직 확인 안 된 내용', payload.unverifiedItems),
-    list('지금 할 일', payload.nextSafeAction),
     payload.incidentTriage ? list('이미 눌렀다면', payload.incidentTriage.actions) : null,
   ].filter(Boolean).forEach(section => result.append(section));
   if (payload.evidence.length) {
@@ -110,7 +111,7 @@ async function submitAnalysis(event) {
   if (kind === 'file') {
     const file = form.elements.scamFile.files?.[0];
     if (file && !allowedFileTypes.has(file.type)) {
-      status.textContent = 'JPEG, PNG, WEBP, HTML, PDF 파일만 확인할 수 있어요.';
+      status.textContent = 'JPEG, PNG, WEBP, TXT, HTML, PDF 파일만 확인할 수 있어요.';
       return;
     }
     if (file && (file.size <= 0 || file.size > maxFileBytes)) {
