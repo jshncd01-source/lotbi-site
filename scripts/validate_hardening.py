@@ -118,14 +118,21 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # safe-area-aware top, 높이 기반 숨김 transform 으로 바꾸어 focus 시 전체 링크가
 # viewport 안에 들어온다. 변경 범위는 .skip-link 의 position/top/transform 세
 # 선언뿐이며 법적 페이지 본문·계정 URL·보안 경계에는 변화가 없다.
+# Consumer design relock: these four bodies equal Ncloud main 6898c989 after
+# removing only body.class=consumer-document. Head changes are the shared
+# document CSS and heading-navigation script; policy text/links are unchanged.
+# styles.css changes only the reviewed neutral palette declarations. Hashes
+# remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
-    'privacy.html': 'b81b5d3de01471c05782d53e1db4e8cf78725297d3c455428c131a514f3b74f7',
-    'terms.html': '5714d5205e923921851d5422a13afa8c0b483b932e85b2e81178cb4bac96b072',
-    'account-deletion.html': '4f897a168aa686e16099fc3477c1d41491a24c6b871f20c0a912343bc76fba29',
-    'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
+    'privacy.html': 'b9fd41592ff9870c24d22421d67de01345b454311feea8dda6909837e87c3f4b',
+    'terms.html': 'ca14ad83f35e662fd1db62471f08bbd589e36e66971fe3a87ce6015cde0f9cc5',
+    'account-deletion.html': 'e5fe021bd6ffe63f1d474e54309e6a4fec1ae0c030c6026ad5a27fdff6d4516f',
+    'contact.html': 'aad500a3f16f9e9bff15f0386429b01a45ac03d00ac58ba02036b4d0646f3918',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': '49c66de0ef4322c39dcedcbd796e7831b6369b359482bf25c2d4eb609b611969',
+    'styles.css': 'aed23f88ef952d0e15656d985cef955449c1d764f6cfed8e984a3447e6399a6d',
+    # Only closes the on-demand plan disclosure; no networking/persistence.
+    'site-consumer-layout.js': 'e91e525b09565b88dd743d4fd44e5c1a7ff17cb57c668f8a91c4319d9080c295',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
@@ -144,7 +151,8 @@ def locked_bytes(rel: str, path: Path) -> bytes:
         if CHOOSER_BOOTSTRAP not in text:
             return text.encode('utf-8')
         return text.replace(CHOOSER_BOOTSTRAP, '', 1).encode('utf-8')
-    return path.read_bytes()
+    data = path.read_bytes()
+    return data.replace(b'\r\n', b'\n') if rel.endswith(('.css', '.js')) else data
 
 
 def extract_theme_bootstrap(index: str) -> str | None:
@@ -225,6 +233,7 @@ def main() -> int:
     approved_scripts = (
         '<script type="importmap">',
         f'<script src="home-shell.js?v={asset_version}" defer></script>',
+        f'<script src="site-consumer-layout.js?v={asset_version}" defer></script>',
         f'<script src="mobile-entry.js?v={asset_version}" defer></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
@@ -364,14 +373,16 @@ def main() -> int:
             errors.append(f"missing layout-safe auth continuity style: {token}")
 
     perf_tokens = (
-        'width="1535"',
-        'height="697"',
+        'width="512"',
+        'height="512"',
         'decoding="async"',
         'fetchpriority="high"',
     )
     for token in perf_tokens:
         if token not in index:
             errors.append(f"missing character performance contract: {token}")
+    if not re.search(r'<img\b(?=[^>]*data-lotbi-avatar-fallback)(?=[^>]*width="512")(?=[^>]*height="512")(?=[^>]*src="assets/brand/lotbi-mark-512\.png")[^>]*>', index):
+        errors.append("avatar fallback must preserve its actual 512x512 official artwork dimensions")
 
     css_tokens = (
         "100dvh",

@@ -96,14 +96,21 @@ def main() -> int:
                 errors.append("index.html: skip link missing")
             if "lotbi-prompt" not in parser.labels_for:
                 errors.append("index.html: prompt textarea must keep an explicit label")
-            if len(parser.textareas) != 1:
+            prompts = [area for area in parser.textareas if area.get("id") == "lotbi-prompt"]
+            if len(prompts) != 1:
                 errors.append("index.html: expected one prompt textarea")
             else:
-                prompt = parser.textareas[0]
+                prompt = prompts[0]
                 if "readonly" in prompt or "aria-readonly" in prompt:
                     errors.append("index.html: prompt must be writable in SITE-HOME-NAV-01")
                 if prompt.get("autocomplete") != "off":
                     errors.append("index.html: prompt must explicitly opt out of browser autocomplete persistence")
+            # The existing verification dialog has a second, separately labelled
+            # textarea. Do not confuse it with the single chat composer or let a
+            # new unlabelled editor silently pass.
+            for area in parser.textareas:
+                if not area.get("id") or area.get("id") not in parser.labels_for:
+                    errors.append("index.html: every textarea requires its own explicit label")
 
             composer_buttons = [
                 button for button in parser.buttons

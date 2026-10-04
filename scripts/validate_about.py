@@ -59,8 +59,8 @@ def main() -> int:
         errors.append("sitemap.xml: company introduction URL missing")
     if "@media (max-width: 760px)" not in css:
         errors.append("about.css: responsive mobile rule missing")
-    if "var(--brand-navy)" not in css or "var(--brand-violet)" not in css:
-        errors.append("about.css: must reuse existing LOTBI brand color tokens")
+    if "var(--lotbi-text-primary, var(--text, #212121))" not in css or "var(--brand-line)" not in css:
+        errors.append("about.css: must reuse shared LOTBI neutral text and divider tokens")
 
     overclaim = (
         "모든 거래를 자동으로 완료합니다",
