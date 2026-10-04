@@ -192,7 +192,7 @@ function assertViewport(label, result, width, height, mode) {
   if (result.title.whiteSpace !== 'nowrap') throw new Error(`${label}: recent title must remain exactly one line (${result.title.whiteSpace})`);
   if (result.title.textOverflow !== 'ellipsis') throw new Error(`${label}: recent title overflow must use ellipsis (${result.title.textOverflow})`);
   if (mode === 'desktop') {
-    if (Math.abs(result.surface.width - 248) > tolerance) throw new Error(`${label}: consumer desktop sidebar must be 248px (${result.surface.width}px)`);
+    if (Math.abs(result.surface.width - 220) > tolerance) throw new Error(`${label}: existing desktop sidebar must remain 220px (${result.surface.width}px)`);
     if (result.surface.height > height + tolerance) throw new Error(`${label}: desktop sidebar exceeds viewport height`);
   } else {
     if (result.surface.left < -tolerance || result.surface.right > width + tolerance) throw new Error(`${label}: mobile drawer is outside viewport`);
