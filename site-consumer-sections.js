@@ -65,22 +65,54 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     form.append(input, submit);
     form.addEventListener('submit', event => { event.preventDefault(); if (input.value.trim()) onDraft(input.value.trim()); else input.focus(); });
     const grid = node('div', 'consumer-shortcuts');
+    function openLifeDetail(item) {
+      const back = action('생활정보로 돌아가기', () => { root.replaceChildren(form, heading, grid, footer); input.focus(); }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const queryForm = node('form', 'consumer-life-form');
+      const controls = [];
+      const fields = item.id === 'directions'
+        ? [['출발지', '예: 서울역'], ['목적지', '예: 전주 한옥마을']]
+        : item.id === 'bills' ? [['고지서 내용', '기관 · 금액 · 납부기한을 입력하세요']]
+        : [['지역 또는 장소', '예: 전주시 덕진구']];
+      if (['places', 'facilities', 'local', 'support'].includes(item.id)) fields.push(['찾고 싶은 정보', '예: 주차 가능한 카페, 청년 지원금']);
+      for (const [labelText, placeholder] of fields) {
+        const label = node('label', 'consumer-life-field', labelText);
+        const field = node(item.id === 'bills' ? 'textarea' : 'input');
+        if (item.id !== 'bills') field.type = 'text';
+        field.placeholder = placeholder; field.maxLength = 1000; field.required = true;
+        field.setAttribute('aria-label', labelText); label.append(field); controls.push([labelText, field]); queryForm.append(label);
+      }
+      const send = action('롯비에게 확인 요청'); send.type = 'submit'; queryForm.append(send);
+      queryForm.addEventListener('submit', event => {
+        event.preventDefault();
+        if (disposed) return;
+        const missing = controls.find(([, field]) => !field.value.trim());
+        if (missing) { missing[1].focus(); return; }
+        onDraft([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
+      });
+      const note = item.id === 'bills'
+        ? '내용을 입력하면 대화창에서 확인 요청을 준비합니다. 사진·PDF는 기존 대화창의 첨부 기능을 이용하세요. 납부기한 확인 후 등록을 제안하며, 확인 없이 일정을 저장하거나 결제하지 않습니다.'
+        : '입력한 조건으로 대화창에서 질문을 준비합니다. 현재 위치를 자동 수집하지 않으며, 최신 정보와 실제 이용 조건은 결과의 출처에서 확인하세요.';
+      detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
+      root.replaceChildren(detail); title.focus();
+    }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button';
       button.append(icon(item.icon), node('span', '', item.label));
-      button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : onDraft(item.prompt));
+      button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : openLifeDetail(item));
       grid.append(button);
     }
     const saved = action('저장한 정보 다시 보기', onSaved, {secondary: true});
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
     const footer = node('div', 'consumer-section-footer');
-    footer.append(saved, node('p', 'consumer-feature-note', '바로가기를 누르면 질문을 준비해요. 공과금 납기는 확인 후 일정 등록을 제안합니다.'));
+    footer.append(saved, node('p', 'consumer-feature-note', '원하는 정보를 선택하고 조건을 입력하세요. 공과금 납기는 확인 후 일정 등록을 제안합니다.'));
     root.append(form, heading, grid, footer);
   } else if (section === 'wallet') {
     const state = empty('중요한 생활 자료, 안전하게', '신분증·면허·자격증·회원증을 보관하고 필요할 때 꺼내 쓰세요.', 'wallet');
     state.append(action('첫 자료 등록하기', null, {disabled: true}));
     const sources = node('div', 'consumer-source-options');
-    for (const label of ['사진 촬영', '사진 선택', '파일 업로드']) sources.append(node('span', 'consumer-category-label', label));
+    for (const label of ['사진 촬영', '사진 선택', '파일 업로드']) sources.append(action(label, null, {secondary: true, disabled: true}));
     const note = node('p', 'consumer-feature-note', '웹 보관함 연결 준비 중 · 현재 저장 자료를 조회하거나 등록할 수 없습니다. 민감한 자료는 대화창에 올리지 마세요.');
     root.append(state, sources, note);
   } else if (section === 'care') {

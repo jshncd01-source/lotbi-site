@@ -210,3 +210,12 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] { position: static; max-height: none; overflow: visible; box-shadow: none; }
   .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] .calendar-day-body { overflow: visible; }
 }
+/* Focused life-information forms; no nested modal or invented results. */
+.consumer-life-detail { max-width: 760px; display: grid; gap: 24px; }
+.consumer-life-detail > .consumer-action { justify-self: start; border: 0; padding-inline: 0; font-weight: 500; }
+.consumer-life-detail h3 { margin: 8px 0 0; font-size: 24px; font-weight: 600; letter-spacing: -.035em; }
+.consumer-life-form { display: grid; gap: 20px; }
+.consumer-life-field { display: grid; gap: 10px; color: inherit; font-size: 14px; font-weight: 500; }
+.consumer-life-field :is(input, textarea) { box-sizing: border-box; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
+.consumer-life-field textarea { min-height: 160px; resize: vertical; }
+.consumer-life-form > .consumer-action { justify-self: start; }

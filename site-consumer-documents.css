@@ -1,0 +1,60 @@
+/* Consumer information/support pages only. Policy text and form owners stay intact. */
+body.consumer-document { background: var(--panel); color: var(--text); }
+.consumer-document .wrap { max-width: 960px; padding-inline: 32px; }
+.consumer-document .topbar { height: 88px; border-color: var(--line); gap: 20px; }
+.consumer-document .topbar .lotbi-official-brand-logo { width: 116px; height: auto; }
+.consumer-document .topbar nav { gap: 20px; font-size: 14px; font-weight: 500; }
+.consumer-document :is(.section, .about-hero) { padding: 56px 0; }
+.consumer-document :is(.section, .about-hero) > h1 { margin: 0 0 24px; font-size: clamp(28px, 4vw, 42px); font-weight: 600; line-height: 1.3; letter-spacing: -.045em; word-break: keep-all; }
+.consumer-document .kicker { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .04em; }
+.consumer-document .kicker::before { content: none; }
+.consumer-document .lead-small { max-width: 720px; font-size: 16px; line-height: 1.8; }
+.consumer-document :is(.section h2, .about-section h2) { margin-top: 40px; margin-bottom: 12px; font-size: 21px; font-weight: 600; line-height: 1.5; letter-spacing: -.03em; scroll-margin-top: 24px; }
+.consumer-document :is(.section h3, .about-principle h3) { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.consumer-document :is(.section p, .about-section > p, .about-core-message p) { font-size: 15px; line-height: 1.85; overflow-wrap: anywhere; }
+.consumer-document .section :is(ul, ol) { padding-left: 24px; font-size: 15px; }
+.consumer-document .section li { margin-block: 8px; }
+.consumer-document :is(.support-card, .notice-card) { padding: 24px 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.consumer-document .contact-grid { gap: 32px; }
+.consumer-document .contact-grid h2, .consumer-document .notice-card h2 { margin-top: 0; }
+.consumer-document .primary-link { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 500; background: var(--text); color: var(--panel) !important; overflow-wrap: anywhere; }
+.consumer-document .primary-link:hover { background: var(--accent); }
+.consumer-document :is(a, button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.consumer-document .lotbi-footer { padding: 28px 0 36px; font-size: 12px; }
+.consumer-document .footer-links { gap: 8px 18px; font-weight: 500; }
+.consumer-document .footer-links a { display: inline-flex; align-items: center; min-height: 36px; }
+.consumer-document :is(.company-legal, .footer-service) { color: var(--muted); font-size: 12px; }
+.consumer-document dl div { grid-template-columns: 140px minmax(0, 1fr); padding-block: 14px; }
+.consumer-document dd { font-weight: 500; overflow-wrap: anywhere; }
+.consumer-document .about-core-message { padding: 24px 0 0; background: none !important; }
+.consumer-document .about-core-message strong { font-size: 24px; font-weight: 600; }
+.consumer-document .about-section { padding: 12px 0 40px; border-color: var(--line); }
+.consumer-document .about-principle { padding-block: 24px; gap: 24px; background: transparent !important; }
+.consumer-document .about-quote { padding-left: 18px; border-left: 2px solid var(--line); font-size: 18px; font-weight: 500; }
+.consumer-document .feedback-form { max-width: 720px; }
+.consumer-document .feedback-categories { gap: 8px; }
+.consumer-document .feedback-category { border-radius: 10px; box-shadow: none; }
+.consumer-document .feedback-category-name, .consumer-document .feedback-label { font-weight: 500; }
+.consumer-document .feedback-form :is(input:not([type=radio]), textarea) { font-size: 16px; color: var(--text); background: var(--panel); border-color: var(--line); border-radius: 10px; }
+.consumer-document .feedback-submit { min-height: 48px; border-radius: 10px; font-weight: 500; background: var(--text); color: var(--panel); }
+.consumer-document .feedback-done { border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.consumer-document-toc { margin: 28px 0 40px; padding: 16px 0; border-block: 1px solid var(--line); font-size: 14px; }
+.consumer-document-toc summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; color: var(--text); font-weight: 500; }
+.consumer-document-toc nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; padding-top: 12px; }
+.consumer-document .consumer-document-toc a { display: flex; align-items: center; min-height: 44px; color: var(--muted); text-decoration: none; font-size: 14px; overflow-wrap: anywhere; }
+.consumer-document .consumer-document-toc a:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 600px) {
+  .consumer-document .wrap { padding-inline: 20px; }
+  .consumer-document .topbar { height: 76px; }
+  .consumer-document .topbar nav { gap: 12px; font-size: 13px; }
+  .consumer-document .topbar .lotbi-official-brand-logo { width: 92px; }
+  .consumer-document :is(.section, .about-hero) { padding: 36px 0; }
+  .consumer-document .contact-grid, .consumer-document-toc nav { grid-template-columns: 1fr; }
+  .consumer-document .contact-grid { gap: 4px; }
+  .consumer-document dl div { grid-template-columns: 1fr; gap: 4px; }
+  .consumer-document .legal-table-scroll { max-width: 100%; }
+}
+.consumer-document .feedback-privacy, .consumer-document .feedback-next { color: var(--text); }
+.consumer-document .feedback-category:has(input:checked) { box-shadow: inset 0 0 0 1px var(--accent); }
+.consumer-document .feedback-category:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 3px; }
+.consumer-document .topbar nav a { display: inline-flex; align-items: center; min-height: 44px; }

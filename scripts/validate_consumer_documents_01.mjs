@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+const pages = ['about', 'contact', 'privacy', 'terms', 'account-deletion', 'refund', 'exchange', 'dispute', 'feedback', '404'];
+for (const page of pages) {
+  const html = read(`${page}.html`);
+  assert.match(html, /<body class="consumer-document">/);
+  assert.match(html, /site-consumer-documents\.css/);
+  assert.match(html, /site-document-navigation\.js[^>]*defer/);
+  assert.match(html, /site-static-theme\.css/);
+  assert.match(html, /lotbi-brand-logo-light/);
+  assert.match(html, /lotbi-brand-logo-dark/);
+  assert.ok(html.indexOf('lotbiSavedTheme') < html.indexOf('<link rel="stylesheet"'), `${page} must resolve theme before paint`);
+}
+const css = read('site-consumer-documents.css');
+assert.match(css, /body\.consumer-document/);
+assert.match(css, /max-width: 600px/);
+assert.match(css, /focus-visible/);
+assert.doesNotMatch(css, /linear-gradient|radial-gradient/);
+const navigation = read('site-document-navigation.js');
+assert.match(navigation, /heading\.textContent/);
+assert.match(navigation, /details/);
+assert.doesNotMatch(navigation, /fetch\(|localStorage|sessionStorage|innerHTML/);
+const sections = read('site-consumer-sections.js');
+assert.match(sections, /openLifeDetail\(item\)/);
+assert.match(sections, /queryForm\.addEventListener\('submit'/);
+assert.match(sections, /event\.preventDefault\(\)/);
+assert.match(sections, /if \(disposed\) return/);
+assert.match(sections, /root\.replaceChildren\(form, heading, grid, footer\)/);
+assert.match(sections, /출발지.*서울역/);
+assert.match(sections, /목적지.*전주 한옥마을/);
+assert.match(sections, /확인 없이 일정을 저장하거나 결제하지 않습니다/);
+assert.doesNotMatch(sections, /fetch\(|type = 'file'|localStorage/);
+console.log('CONSUMER_DOCUMENTS_01 PASS — ten public pages and explicit life-information draft flows, source checks only');
