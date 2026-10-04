@@ -25,6 +25,7 @@ const fetchImpl = async (url, options = {}) => {
 };
 const sos = await client.createPersonSos('session-token', {
   personId: 'per_01', lastSeenAt: '2026-10-05T00:00:00Z', lastSeenSummary: '서울', description: '',
+  matchingConsentConfirmed: true,
 }, fetchImpl);
 assert.equal(sos.status, 'ACTIVE');
 assert.equal(JSON.parse(calls[0].options.body).matching_consent_confirmed, true);

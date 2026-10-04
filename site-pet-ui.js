@@ -41,12 +41,11 @@ import {
   petPhotoNextActionLabel,
   petPhotoRejection,
   PET_PHOTO_ANCHOR_SLOT_CODES,
-  PET_MATCHING_CONSENT_VERSION,
   petSexLabel,
   petSpeciesLabel,
   renamePet,
   respondToPetMatchNotice,
-  setPetMatchingConsent,
+  submitFoundPet,
   uploadFoundPetPhoto,
   uploadPetPhoto,
   uploadPetRegistrationDraftPhoto,
@@ -66,7 +65,7 @@ import {
 } from './site-pet-gate.js?v=aset-8f7d68845114';
 import {createBottomSheet} from './site-bottom-sheet.js?v=aset-8f7d68845114';
 
-const MATCHING_CONSENT_COPY = '동의하면 공공 실종·보호 공고에서 유사한 후보를 찾아 근거를 보여주는 데 등록한 사진이 쓰입니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
+const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
 
 // PET-PHOTO-UX-03 — the registration screen's own reading order. This is a
@@ -491,6 +490,11 @@ export async function mountPetFamilyManager({
               ? `🎂 ${pet.name} 생일이 내일이에요`
               : `🎂 ${pet.name} 생일까지 7일`);
           card.appendChild(el('p', 'pet-profile-birthday', birthdayCopy));
+        }
+        if (profile.identityPhotoRenewalDue) {
+          card.appendChild(el('p', 'pet-profile-birthday', profile.identityPhotoState === 'EXPIRED'
+            ? '식별사진 유효기간이 지났어요 · SOS 전에 갱신해 주세요'
+            : `식별사진이 ${profile.identityPhotoDaysRemaining ?? 0}일 뒤 만료돼요`));
         }
         if (profile.candidateNoticeCount > 0) {
           const candidate = el('button', 'pet-candidate-cta', `🟠 ${pet.name}와 유사한 발견 제보가 있어요 · 확인하기 ›`);
@@ -1010,34 +1014,10 @@ export async function mountPetFamilyManager({
     detailSection.append(renameField, renameSave);
 
     const consent = el('div', 'pet-consent');
-    const consentLine = el('label', 'pet-consent-toggle');
-    const consentInput = el('input');
-    consentInput.type = 'checkbox';
-    consentInput.checked = pet.matchingConsentState === 'GRANTED';
-    consentInput.dataset.petConsent = pet.petId;
-    consentLine.append(consentInput, el('span', '', '유사 공고 후보 찾기에 사진 사용 동의'));
-    consent.append(consentLine, el('p', 'pet-consent-copy', MATCHING_CONSENT_COPY));
-    consentInput.addEventListener('change', async () => {
-      if (busy) return;
-      const enabled = consentInput.checked;
-      setBusy(true);
-      showError('');
-      try {
-        const updated = await setPetMatchingConsent(sessionToken, pet.petId, {
-          enabled,
-          consentVersion: MATCHING_CONSENT_VERSION,
-        });
-        pets = pets.map(item => (item.petId === updated.petId ? updated : item));
-        renderList();
-        renderDetail(updated.petId);
-        status.textContent = enabled ? '매칭 동의를 켰습니다.' : '매칭 동의를 껐습니다.';
-      } catch (value) {
-        consentInput.checked = !enabled;
-        showError(errorMessage(value, '매칭 동의 상태를 바꾸지 못했습니다.'), value);
-      } finally {
-        setBusy(false);
-      }
-    });
+    consent.append(
+      el('strong', '', '등록 사진은 평소 검색에 사용되지 않습니다.'),
+      el('p', 'pet-consent-copy', MATCHING_CONSENT_COPY),
+    );
     detailSection.appendChild(consent);
 
     const remove = el('button', 'site-button pet-delete-button', '반려동물 삭제');
@@ -1141,7 +1121,12 @@ export async function mountPetFamilyManager({
   const renderFoundPhotos = (record, host) => {
     host.replaceChildren();
     const slots = foundPhotos.get(record.caseId) || [];
-    host.appendChild(el('p', 'pet-case-photo-count', `첨부 사진 ${slots.length}/${FOUND_PHOTO_SLOT_MAX}`));
+    host.appendChild(el('p', 'pet-case-photo-count', `첨부 사진 ${slots.length}/${FOUND_PHOTO_SLOT_MAX} · 최소 5장`));
+    host.appendChild(el('p', 'pet-empty-copy', record.reviewState === 'DRAFT'
+      ? '다른 각도의 선명한 사진을 추가할수록 정확한 후보를 찾는 데 도움이 됩니다.'
+      : (record.reviewState === 'NO_RELIABLE_MATCH'
+        ? '현재 LOTBI의 활성 실종 정보 중 일치 가능성이 높은 대상을 찾지 못했습니다.'
+        : '제보가 접수되었습니다. 활성 실종 정보와 자세히 비교하고 있습니다.')));
 
     const strip = el('div', 'pet-case-photo-strip');
     for (const slotIndex of slots) {
@@ -1172,7 +1157,7 @@ export async function mountPetFamilyManager({
           }
         })();
       }
-      if (record.status === 'ACTIVE') {
+      if (record.status === 'ACTIVE' && record.reviewState === 'DRAFT') {
         const remove = el('button', 'pet-case-photo-remove', '삭제');
         remove.type = 'button';
         remove.setAttribute('aria-label', `첨부 사진 ${slotIndex} 삭제`);
@@ -1197,40 +1182,46 @@ export async function mountPetFamilyManager({
     }
     host.appendChild(strip);
 
-    if (record.status !== 'ACTIVE') return;
+    if (record.status !== 'ACTIVE' || record.reviewState !== 'DRAFT') return;
     const slotIndex = nextFoundSlot(record.caseId);
-    if (slotIndex === 0) return;
-
-    const input = el('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg,image/png';
-    input.hidden = true;
-    const add = el('button', 'site-button site-button-secondary pet-case-photo-add', '사진 첨부');
-    add.type = 'button';
-    add.addEventListener('click', () => input.click());
-    input.addEventListener('change', async () => {
-      const file = input.files?.[0];
-      input.value = '';
-      if (!file || busy) return;
+    if (slotIndex !== 0) {
+      const input = el('input');
+      input.type = 'file';
+      input.accept = 'image/jpeg,image/png';
+      input.hidden = true;
+      const add = el('button', 'site-button site-button-secondary pet-case-photo-add', '+ 다른 각도 사진 추가');
+      add.type = 'button';
+      add.addEventListener('click', () => input.click());
+      input.addEventListener('change', async () => {
+        const file = input.files?.[0];
+        input.value = '';
+        if (!file || busy) return;
+        setBusy(true);
+        try {
+          await uploadFoundPetPhoto(sessionToken, record.caseId, slotIndex, file, FOUND_PHOTO_SEMANTIC_SLOT_CODES[slotIndex - 1] || '');
+          foundPhotos.set(record.caseId, [...slots, slotIndex].sort((a, b) => a - b));
+          renderFoundPhotos(record, host);
+          status.textContent = '사진을 안전하게 저장했습니다.';
+        } catch (value) {
+          showError(errorMessage(value, '사진을 첨부하지 못했습니다.'), value);
+        } finally { setBusy(false); }
+      });
+      host.append(add, input);
+    }
+    const submit = el('button', 'site-button site-button-primary', '검토 요청 제출');
+    submit.type = 'button'; submit.disabled = slots.length < 5;
+    submit.addEventListener('click', async () => {
+      if (busy || slots.length < 5) return;
       setBusy(true);
       try {
-        await uploadFoundPetPhoto(
-          sessionToken,
-          record.caseId,
-          slotIndex,
-          file,
-          FOUND_PHOTO_SEMANTIC_SLOT_CODES[slotIndex - 1] || '',
-        );
-        foundPhotos.set(record.caseId, [...slots, slotIndex].sort((a, b) => a - b));
-        renderFoundPhotos(record, host);
-        status.textContent = '사진을 첨부했습니다.';
-      } catch (value) {
-        showError(errorMessage(value, '사진을 첨부하지 못했습니다.'), value);
-      } finally {
-        setBusy(false);
-      }
+        const updated = await submitFoundPet(sessionToken, record.caseId);
+        foundCases = foundCases.map(item => item.caseId === updated.caseId ? updated : item);
+        renderFound();
+        status.textContent = '제보가 접수되었습니다. 자세히 비교한 뒤 안내하겠습니다.';
+      } catch (value) { showError(errorMessage(value, '제보를 제출하지 못했습니다.'), value); }
+      finally { setBusy(false); }
     });
-    host.append(add, input);
+    host.appendChild(submit);
   };
 
   const closeCaseButtons = (record, kind) => {
@@ -1331,11 +1322,15 @@ export async function mountPetFamilyManager({
       const moment = momentField('마지막으로 본 시각', localNowValue());
       const note = textField('특이사항 (선택)', 2000);
 
+      const consent = el('label', 'pet-consent-toggle');
+      const consentInput = el('input'); consentInput.type = 'checkbox'; consentInput.required = true;
+      consent.append(consentInput, el('span', '', '활성 SOS 기간 동안만 등록 사진을 비공개 후보 검색에 사용하는 데 동의합니다.'));
+
       const formError = el('p', 'site-field-error');
       formError.setAttribute('role', 'alert');
-      const submit = el('button', 'site-button site-button-primary', '실종 신고 저장');
+      const submit = el('button', 'site-button site-button-primary', '동의하고 실종 신고');
       submit.type = 'submit';
-      form.append(petField, place.field, moment.field, note.field, formError, submit);
+      form.append(petField, place.field, moment.field, note.field, consent, formError, submit);
 
       let requestId = '';
       form.addEventListener('submit', async event => {
@@ -1344,6 +1339,10 @@ export async function mountPetFamilyManager({
         const lastSeenAt = isoFromLocal(moment.input.value);
         if (!lastSeenAt) {
           formError.textContent = '마지막으로 본 시각을 입력해 주세요.';
+          return;
+        }
+        if (!consentInput.checked) {
+          formError.textContent = '활성 SOS 기간의 비공개 후보 검색 동의가 필요합니다.';
           return;
         }
         formError.textContent = '';
@@ -1357,6 +1356,7 @@ export async function mountPetFamilyManager({
             locationLabel: place.input.value,
             lastSeenAt,
             note: note.input.value,
+            matchingConsentConfirmed: consentInput.checked,
           });
           requestId = '';
           sosCases = [created, ...sosCases];
@@ -1386,7 +1386,7 @@ export async function mountPetFamilyManager({
     foundSection.append(
       header,
       el('p', 'pet-case-safety', '위험하게 가까이 접근하거나 붙잡아 사진을 찍지 마세요.'),
-      el('p', 'pet-empty-copy', '반려동물을 등록하지 않았어도 발견한 동물을 기록할 수 있습니다.'),
+      el('p', 'pet-empty-copy', '서로 다른 각도의 선명한 사진 5장부터 제출할 수 있으며 즉시 일치 여부를 답하지 않습니다.'),
     );
 
     const active = foundCases.filter(item => item.status === 'ACTIVE');
@@ -1440,7 +1440,7 @@ export async function mountPetFamilyManager({
 
       const formError = el('p', 'site-field-error');
       formError.setAttribute('role', 'alert');
-      const submit = el('button', 'site-button site-button-primary', '발견 신고 저장');
+      const submit = el('button', 'site-button site-button-primary', '제보 작성 시작');
       submit.type = 'submit';
       form.append(speciesField, place.field, moment.field, description.field, formError, submit);
 
@@ -1469,7 +1469,7 @@ export async function mountPetFamilyManager({
           foundCases = [created, ...foundCases];
           foundPhotos.set(created.caseId, []);
           renderFound();
-          status.textContent = '발견 신고를 저장했습니다. 사진을 첨부할 수 있습니다.';
+          status.textContent = '제보 초안을 만들었습니다. 서로 다른 각도의 사진을 최소 5장 추가해 주세요.';
         } catch (value) {
           formError.textContent = errorMessage(value, '발견 신고를 저장하지 못했습니다.');
         } finally {
@@ -2125,11 +2125,7 @@ export async function mountPetFamilyManager({
         '동물보호법에 따라 국가 시스템에서 발급하는 번호입니다. 롯비가 발급하지 않습니다. '
         + '없으면 비워 두셔도 등록됩니다. 민감정보라 목록에는 표시하지 않고 상세에서만 가려서 보여줍니다.',
       );
-      const consent = el('label', 'pet-consent-toggle');
-      const consentInput = el('input');
-      consentInput.type = 'checkbox';
-      consentInput.checked = registrationDraft.matchingConsentState === 'GRANTED';
-      consent.append(consentInput, el('span', '', '유사 공고 후보 찾기에 사진 사용 동의'));
+      const consent = el('div', 'pet-consent-toggle', '등록 사진은 비공개 암호화 저장되며 SOS를 켤 때만 별도 동의를 받아 사용합니다.');
       const error = formError();
       const actions = el('div', 'pet-draft-actions');
       const review = el('button', 'site-button site-button-primary', '등록 내용 검토');
@@ -2174,8 +2170,8 @@ export async function mountPetFamilyManager({
           coat_pattern_other: patternOtherInput.value.trim() || null,
           distinctive_marks: marksInput.value.trim() || null,
           official_registration_number: registrationInput.value.trim() || null,
-          matching_consent: consentInput.checked,
-          matching_consent_version: consentInput.checked ? PET_MATCHING_CONSENT_VERSION : null,
+          matching_consent: false,
+          matching_consent_version: null,
         };
         if (ageMode === 'BIRTH_DATE') updates.birth_date = birthInput.value;
         if (ageMode === 'ESTIMATED') {
@@ -2214,7 +2210,7 @@ export async function mountPetFamilyManager({
       add('생년월일', registrationDraft.birthDate);
       add('추정 나이', Number.isInteger(registrationDraft.approximateAgeMonths) ? `${registrationDraft.approximateAgeMonths}개월` : '');
       add('가족이 된 날', registrationDraft.familyDate);
-      add('매칭 동의', consentLabel(registrationDraft.matchingConsentState));
+      add('사진 사용', '등록 상태에서는 사용 안 함 · SOS 시 별도 동의');
       body.appendChild(facts);
       const error = formError();
       const actions = el('div', 'pet-draft-actions');
