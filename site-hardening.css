@@ -11,7 +11,7 @@
   border: 1px solid var(--brand-line);
   border-radius: 14px;
   background: #f8f9fc;
-  color: #3f4754;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 14px;
   line-height: 1.5;
   text-align: left;
@@ -142,7 +142,7 @@
   }
 
   .chat-input::placeholder {
-    color: #555d69;
+    color: var(--lotbi-text-primary, var(--text, #212121));
   }
 }
 

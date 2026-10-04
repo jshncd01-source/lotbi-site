@@ -176,7 +176,7 @@
 }
 
 .calendar-expense-total-label {
-  color: var(--brand-blue, #285f9e);
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 0.95rem;
   font-weight: 850;
   white-space: nowrap;

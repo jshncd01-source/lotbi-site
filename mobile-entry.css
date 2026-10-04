@@ -15,7 +15,7 @@ html.lotbi-mobile-entry-lock body {
     radial-gradient(circle at 12% 18%, rgba(123, 98, 187, .13) 0 110px, transparent 111px),
     radial-gradient(circle at 88% 82%, rgba(79, 120, 197, .12) 0 135px, transparent 136px),
     rgba(245, 247, 250, .98);
-  color: #172033;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
 }
 
@@ -45,7 +45,7 @@ html.lotbi-mobile-entry-lock body {
 
 .lotbi-entry-eyebrow {
   margin: 0 0 10px;
-  color: var(--brand-violet, #7b62bb);
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 850;
   letter-spacing: .08em;
@@ -53,7 +53,7 @@ html.lotbi-mobile-entry-lock body {
 
 .lotbi-entry-copy h1 {
   margin: 0;
-  color: var(--brand-navy, #182a46);
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: clamp(29px, 8vw, 38px);
   line-height: 1.18;
   letter-spacing: -.04em;
@@ -61,7 +61,7 @@ html.lotbi-mobile-entry-lock body {
 
 .lotbi-entry-copy > p:not(.lotbi-entry-eyebrow) {
   margin: 14px 0 0;
-  color: #667085;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 15px;
   line-height: 1.7;
 }
@@ -104,7 +104,7 @@ html.lotbi-mobile-entry-lock body {
 .lotbi-entry-action-secondary {
   border: 1px solid #d0d5dd;
   background: #fff;
-  color: var(--brand-navy, #182a46);
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .lotbi-entry-action:not(:disabled):hover,
@@ -115,7 +115,7 @@ html.lotbi-mobile-entry-lock body {
 .lotbi-entry-status,
 .lotbi-entry-notice {
   margin: 0;
-  color: #667085;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   line-height: 1.55;
 }
@@ -131,7 +131,7 @@ html.lotbi-mobile-entry-lock body {
   border-left: 3px solid var(--brand-violet, #7b62bb);
   border-radius: 8px;
   background: #f7f5fb;
-  color: #475467;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 @media (max-width: 560px) {

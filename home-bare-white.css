@@ -2,8 +2,8 @@
 body.chat-home-page:not(.conversation-active) {
   --home-skin-bg: #ffffff;
   --home-skin-surface: #ffffff;
-  --home-skin-text: #20242a;
-  --home-skin-muted: #69717d;
+  --home-skin-text: var(--lotbi-text-primary);
+  --home-skin-muted: var(--lotbi-text-primary);
   --home-skin-line: #e7e9ed;
   --home-skin-hover: #f6f7f8;
   --home-skin-selected: #f1f3f5;
@@ -13,30 +13,30 @@ body.chat-home-page:not(.conversation-active) {
 }
 
 body.chat-home-page[data-site-theme="dark"]:not(.conversation-active) {
-  --home-skin-bg: #151922;
-  --home-skin-surface: #151922;
-  --home-skin-text: #edf0f5;
-  --home-skin-muted: #aeb6c3;
-  --home-skin-line: #343b47;
-  --home-skin-hover: #202631;
-  --home-skin-selected: #262e3a;
-  --home-skin-action: #202631;
-  --home-skin-strong: #edf0f5;
-  --home-skin-strong-text: #17191d;
+  --home-skin-bg: #212121;
+  --home-skin-surface: #212121;
+  --home-skin-text: var(--lotbi-text-primary);
+  --home-skin-muted: var(--lotbi-text-primary);
+  --home-skin-line: #424242;
+  --home-skin-hover: #2f2f2f;
+  --home-skin-selected: #353535;
+  --home-skin-action: #2f2f2f;
+  --home-skin-strong: #f5f5f5;
+  --home-skin-strong-text: #212121;
 }
 
 @media (prefers-color-scheme: dark) {
   body.chat-home-page[data-site-theme="system"]:not(.conversation-active) {
-    --home-skin-bg: #151922;
-    --home-skin-surface: #151922;
-    --home-skin-text: #edf0f5;
-    --home-skin-muted: #aeb6c3;
-    --home-skin-line: #343b47;
-    --home-skin-hover: #202631;
-    --home-skin-selected: #262e3a;
-    --home-skin-action: #202631;
-    --home-skin-strong: #edf0f5;
-    --home-skin-strong-text: #17191d;
+    --home-skin-bg: #212121;
+    --home-skin-surface: #212121;
+    --home-skin-text: var(--lotbi-text-primary);
+    --home-skin-muted: var(--lotbi-text-primary);
+    --home-skin-line: #424242;
+    --home-skin-hover: #2f2f2f;
+    --home-skin-selected: #353535;
+    --home-skin-action: #2f2f2f;
+    --home-skin-strong: #f5f5f5;
+    --home-skin-strong-text: #212121;
   }
 }
 
@@ -325,20 +325,20 @@ body.chat-home-page {
 }
 
 body.chat-home-page[data-site-theme="dark"] {
-  --home-sidebar-bg: #151922;
-  --home-sidebar-text: #edf0f5;
-  --home-sidebar-line: #343b47;
-  --home-sidebar-hover: #202631;
-  --home-sidebar-selected: #262e3a;
+  --home-sidebar-bg: #212121;
+  --home-sidebar-text: #f5f5f5;
+  --home-sidebar-line: #424242;
+  --home-sidebar-hover: #2f2f2f;
+  --home-sidebar-selected: #353535;
 }
 
 @media (prefers-color-scheme: dark) {
   body.chat-home-page[data-site-theme="system"] {
-    --home-sidebar-bg: #151922;
-    --home-sidebar-text: #edf0f5;
-    --home-sidebar-line: #343b47;
-    --home-sidebar-hover: #202631;
-    --home-sidebar-selected: #262e3a;
+    --home-sidebar-bg: #212121;
+    --home-sidebar-text: #f5f5f5;
+    --home-sidebar-line: #424242;
+    --home-sidebar-hover: #2f2f2f;
+    --home-sidebar-selected: #353535;
   }
 }
 

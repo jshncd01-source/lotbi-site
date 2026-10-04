@@ -12,15 +12,15 @@
 }
 
 .subscription-plan-banner-copy { display: grid; gap: 5px; }
-.subscription-plan-banner-eyebrow { margin: 0; color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: .13em; }
-.subscription-plan-banner h2 { margin: 0; color: var(--brand-navy); font-size: 21px; line-height: 1.35; }
+.subscription-plan-banner-eyebrow { margin: 0; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 11px; font-weight: 800; letter-spacing: .13em; }
+.subscription-plan-banner h2 { margin: 0; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 21px; line-height: 1.35; }
 .subscription-plan-banner-copy > p:last-child { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 .subscription-plan-banner-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .subscription-plan-banner-plans > span { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); font-size: 12px; }
 .subscription-plan-banner-plans strong { color: var(--text); font-size: 15px; }
 .subscription-plan-banner-plans small { color: var(--muted); font-size: 11px; }
 .subscription-plan-banner-plans .is-recommended { border-color: var(--brand-blue); box-shadow: inset 3px 0 0 var(--brand-blue); background: var(--soft); }
-.subscription-plan-banner-plans b { color: var(--brand-blue); font-size: 11px; }
+.subscription-plan-banner-plans b { color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 11px; }
 .subscription-plan-banner-action-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .subscription-plan-banner-action-row a { display: inline-flex; align-items: center; min-height: 40px; padding: 9px 15px; border-radius: 10px; background: var(--brand-navy); color: #fff; font-size: 14px; font-weight: 800; text-decoration: none; }
 .subscription-plan-banner-action-row a:hover, .subscription-plan-banner-action-row a:focus-visible { background: var(--brand-blue); }

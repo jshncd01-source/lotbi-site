@@ -68,7 +68,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #4a4d55;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 13px;
   line-height: 1.2;
@@ -368,7 +368,7 @@
   border: 1px solid #d9e0ec;
   border-radius: 999px;
   background: #f7f9fc;
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 13px;
   font-weight: 800;
@@ -383,7 +383,7 @@
 .response-grade-trigger[aria-expanded="true"] {
   border-color: rgba(123, 98, 187, .42);
   background: #f5f2fb;
-  color: #5f4a9f;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .response-grade-trigger:focus-visible,
@@ -415,7 +415,7 @@
   border: 1px solid #d9dee8;
   border-radius: 16px;
   background: #fff;
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   box-shadow: 0 18px 48px rgba(24, 42, 70, .18);
   text-align: left;
 }
@@ -456,7 +456,7 @@
 }
 
 .response-grade-description {
-  color: #737b88;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 650;
   line-height: 1.4;
@@ -491,7 +491,7 @@
 .wake-button {
   border-color: #d9e0ec;
   background: #f7f9fc;
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .72);
 }
 
@@ -501,7 +501,7 @@
 .wake-button[data-listening="true"] {
   border-color: rgba(79, 120, 197, .5);
   background: linear-gradient(135deg, rgba(79, 120, 197, .14), rgba(123, 98, 187, .11));
-  color: #3c5a96;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   box-shadow: 0 0 0 3px rgba(79, 120, 197, .10);
 }
 
@@ -511,7 +511,7 @@
 .wake-button:not(:disabled):focus-visible {
   border-color: rgba(123, 98, 187, .42);
   background: #f5f2fb;
-  color: #5f4a9f;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .mic-button[data-requesting="true"] {
@@ -529,7 +529,7 @@
 .send-button {
   border-color: #e0e5ee;
   background: #e9edf4;
-  color: #8b96a8;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   box-shadow: none;
 }
 
@@ -550,7 +550,7 @@
   padding: 8px 12px;
   border-color: rgba(123, 98, 187, .20);
   background: #faf9fd;
-  color: #5b6472;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 14px;
   line-height: 1.55;
   text-align: center;
@@ -611,7 +611,7 @@
   place-items: center;
   padding: 24px;
   background: #f7f8fb;
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .auth-callback-shell {
@@ -633,7 +633,7 @@
 
 .auth-callback-shell h1 {
   margin: 0 0 12px;
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 24px;
 }
 
@@ -833,7 +833,7 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   font-size: 11px;
   line-height: 1.35;
   font-weight: 400;
-  color: #8a919e;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   white-space: nowrap;
 }
 
@@ -856,7 +856,7 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 
 .chat-safety-copy {
   margin: 0 8px 7px;
-  color: #737b88;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   line-height: 1.45;
   text-align: center;
@@ -879,14 +879,14 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   flex: 0 0 auto;
   border-color: #d9e0ec;
   background: #f7f9fc;
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .attachment-button:not(:disabled):hover,
 .attachment-button:not(:disabled):focus-visible {
   border-color: rgba(123, 98, 187, .42);
   background: #f5f2fb;
-  color: #5f4a9f;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .attachment-preview-card,
@@ -923,7 +923,7 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   place-items: center;
   border-radius: 8px;
   background: #eceff5;
-  color: #596273;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11px;
   font-weight: 900;
 }
@@ -945,7 +945,7 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #596273;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 20px;
   cursor: pointer;
@@ -1126,13 +1126,13 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 }
 
 .profile-popover-summary-name {
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 14px;
 }
 
 .profile-popover-summary-handle,
 .profile-popover-summary-plan {
-  color: #737b88;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   line-height: 1.4;
 }
@@ -1154,7 +1154,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -1187,7 +1187,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   justify-self: end;
   border-top: 1.5px solid currentColor;
   border-right: 1.5px solid currentColor;
-  color: #9aa2ae;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   transform: rotate(45deg);
 }
 
@@ -1215,7 +1215,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 
 .profile-contract-note {
   margin: 3px 8px 5px;
-  color: #737b88;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   line-height: 1.45;
 }
@@ -1273,7 +1273,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 .site-button-secondary { width: fit-content; border: 1px solid var(--lotbi-border-strong, #cfd6e2); background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); }
 .profile-photo-preview {
   width: 88px; height: 88px; display: grid; place-items: center; border-radius: 50%;
-  background: #e7ebf3 center / cover no-repeat; color: #18345f; font-size: 24px; font-weight: 850;
+  background: #e7ebf3 center / cover no-repeat; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 24px; font-weight: 850;
 }
 .profile-photo-picker { width: min(100%, 390px); display: grid; gap: 10px; justify-items: start; }
 .profile-photo-source-menu {
@@ -1333,13 +1333,13 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 }
 
 .lotbi-box-empty strong {
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 16px;
 }
 
 .lotbi-box-empty p {
   margin: 0;
-  color: #687180;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 13px;
   line-height: 1.55;
 }
@@ -1371,7 +1371,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 }
 
 .lotbi-box-card-placeholder {
-  color: #7d8796;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 700;
 }
@@ -1385,7 +1385,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 }
 
 .lotbi-box-card-source {
-  color: #697386;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 700;
 }
@@ -1420,7 +1420,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   border: 1px solid #cfd6e2;
   border-radius: 10px;
   background: #fff;
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 12px;
   font-weight: 780;
@@ -1452,7 +1452,7 @@ body[data-site-theme="dark"] .lotbi-box-empty,
 body[data-site-theme="dark"] .lotbi-box-card,
 body[data-site-theme="dark"] .lotbi-box-card-action {
   background: #202631;
-  color: #edf0f5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   border-color: #424b59;
 }
 
@@ -1461,13 +1461,13 @@ body[data-site-theme="dark"] .lotbi-box-card-media {
 }
 
 body[data-site-theme="dark"] .lotbi-box-empty strong {
-  color: #edf0f5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body[data-site-theme="dark"] .lotbi-box-empty p,
 body[data-site-theme="dark"] .lotbi-box-card-source,
 body[data-site-theme="dark"] .lotbi-box-card-placeholder {
-  color: #aeb6c3;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 @media (max-width: 620px) {
@@ -1509,26 +1509,26 @@ body[data-site-theme="dark"] .lotbi-box-card-placeholder {
   }
 }
 
-body[data-site-theme="dark"] { background: #151922; color: #eef1f6; }
+body[data-site-theme="dark"] { background: #151922; color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .chat-home-shell { background: #151922; }
-body[data-site-theme="dark"] .chat-message-assistant { color: #edf0f5; }
+body[data-site-theme="dark"] .chat-message-assistant { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .chat-composer-stack { background: linear-gradient(to bottom, rgba(21, 25, 34, 0), #151922 18px, #151922 100%); }
 body[data-site-theme="dark"] .chat-topbar { background: #151922; }
 body[data-site-theme="dark"] .chat-composer,
 body[data-site-theme="dark"] .site-modal,
 body[data-site-theme="dark"] .profile-popover,
-body[data-site-theme="dark"] .response-grade-menu { background: #202631; color: #edf0f5; border-color: #424b59; }
+body[data-site-theme="dark"] .response-grade-menu { background: #202631; color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #424b59; }
 body[data-site-theme="dark"] .response-grade-trigger,
-body[data-site-theme="dark"] .response-grade-option { color: #edf0f5; border-color: #515b69; }
+body[data-site-theme="dark"] .response-grade-option { color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #515b69; }
 body[data-site-theme="dark"] .response-grade-trigger { background: #171c25; box-shadow: none; }
-body[data-site-theme="dark"] .response-grade-description { color: #aeb6c3; }
+body[data-site-theme="dark"] .response-grade-description { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .response-grade-option:hover,
 body[data-site-theme="dark"] .response-grade-option:focus-visible,
 body[data-site-theme="dark"] .response-grade-option[aria-checked="true"] { background: #2a3140; }
 body[data-site-theme="dark"] .chat-input,
 body[data-site-theme="dark"] .profile-popover button,
 body[data-site-theme="dark"] .profile-popover a[role="menuitem"],
-body[data-site-theme="dark"] .profile-popover-summary-name { color: #edf0f5; }
+body[data-site-theme="dark"] .profile-popover-summary-name { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .profile-popover-summary { border-color: #424b59; }
 body[data-site-theme="dark"] .profile-popover button:not(:disabled):hover,
 body[data-site-theme="dark"] .profile-popover button:not(:disabled):focus-visible,
@@ -1536,19 +1536,19 @@ body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:hover,
 body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
 body[data-site-theme="dark"] .profile-popover .profile-menu-logout { color: var(--lotbi-error-text, #ff8ba7); }
 body[data-site-theme="dark"] .profile-popover-summary-handle,
-body[data-site-theme="dark"] .profile-popover-summary-plan { color: #aeb6c3; }
+body[data-site-theme="dark"] .profile-popover-summary-plan { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .site-field input,
 body[data-site-theme="dark"] .site-field select,
-body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5; border-color: #515b69; }
+body[data-site-theme="dark"] .color-option { background: #171c25; color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #515b69; }
 
 @media (prefers-color-scheme: dark) {
-  body[data-site-theme="system"] { background: #151922; color: #eef1f6; }
+  body[data-site-theme="system"] { background: #151922; color: var(--lotbi-text-primary, var(--text, #212121)); }
   body[data-site-theme="system"] .chat-home-shell { background: #151922; }
-  body[data-site-theme="system"] .chat-message-assistant { color: #edf0f5; }
+  body[data-site-theme="system"] .chat-message-assistant { color: var(--lotbi-text-primary, var(--text, #212121)); }
   body[data-site-theme="system"] .chat-composer-stack { background: linear-gradient(to bottom, rgba(21, 25, 34, 0), #151922 18px, #151922 100%); }
   body[data-site-theme="system"] .chat-topbar { background: #151922; }
   body[data-site-theme="system"] .chat-composer { background: #202631; }
-  body[data-site-theme="system"] .chat-input { color: #edf0f5; }
+  body[data-site-theme="system"] .chat-input { color: var(--lotbi-text-primary, var(--text, #212121)); }
   body[data-site-theme="system"] .profile-popover button,
   body[data-site-theme="system"] .profile-popover a[role="menuitem"],
   body[data-site-theme="system"] .profile-popover-summary-name { color: var(--lotbi-text-primary, #edf0f5); }
@@ -1676,7 +1676,7 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
 }
 
 .lotbi-rich-card-placeholder {
-  color: #7d8796;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 13px;
   font-weight: 650;
 }
@@ -1691,7 +1691,7 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
 }
 
 .lotbi-rich-card-source {
-  color: #697386;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 700;
 }
@@ -1718,7 +1718,7 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: #edf0f5
   display: flex;
   flex-wrap: wrap;
   gap: 5px 9px;
-  color: #697386;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   line-height: 1.45;
 }
@@ -1782,12 +1782,12 @@ body[data-site-theme="dark"] .lotbi-rich-card-media {
 body[data-site-theme="dark"] .lotbi-rich-card-source,
 body[data-site-theme="dark"] .lotbi-rich-card-evidence,
 body[data-site-theme="dark"] .lotbi-rich-card-placeholder {
-  color: #aeb6c3;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
   background: #edf0f5;
-  color: #151922;
+  color: #212121;
   border-color: #edf0f5;
 }
 
@@ -1846,7 +1846,7 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
   border: 1px solid #d9e0ec;
   border-radius: 999px;
   background: #f7f9fc;
-  color: #354052;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 750;
   line-height: 1.2;
@@ -1886,7 +1886,7 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
 
 .attachment-chip-meta {
   flex: 0 0 auto;
-  color: #737b88;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11px;
   font-weight: 700;
 }
@@ -1900,7 +1900,7 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #697386;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 16px;
   line-height: 1;
@@ -1926,7 +1926,7 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
 .attachment-button {
   border-color: #d9e0ec;
   background: #f7f9fc;
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .attachment-button[aria-expanded="true"],
@@ -1934,7 +1934,7 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
 .attachment-button:not(:disabled):focus-visible {
   border-color: rgba(123, 98, 187, .42);
   background: #f5f2fb;
-  color: #5f4a9f;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .attachment-menu {
@@ -1958,7 +1958,7 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
   border: 0;
   border-radius: 9px;
   background: transparent;
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 13px;
   font-weight: 800;
@@ -1972,19 +1972,19 @@ body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
 }
 
 .attachment-uploading {
-  color: #667085;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 750;
   align-self: center;
 }
 body[data-site-theme="dark"] .attachment-chip,
-body[data-site-theme="dark"] .attachment-menu { background: #202631; color: #edf0f5; border-color: #424b59; }
-body[data-site-theme="dark"] .attachment-menu button { color: #edf0f5; }
+body[data-site-theme="dark"] .attachment-menu { background: #202631; color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #424b59; }
+body[data-site-theme="dark"] .attachment-menu button { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .attachment-menu button:hover,
 body[data-site-theme="dark"] .attachment-menu button:focus-visible,
 body[data-site-theme="dark"] .attachment-chip-remove:hover,
 body[data-site-theme="dark"] .attachment-chip-remove:focus-visible { background: #2a3140; }
-body[data-site-theme="dark"] .attachment-chip-meta { color: #aeb6c3; }
+body[data-site-theme="dark"] .attachment-chip-meta { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .attachment-chip-thumb { background: #2a3140; }
 
 /* Conversation → Calendar action */
@@ -2012,25 +2012,25 @@ body[data-site-theme="dark"] .attachment-chip-thumb { background: #2a3140; }
   min-width: 0;
   display: grid;
   gap: 2px;
-  color: #4b5565;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
 }
 
 .conversation-calendar-action-copy strong {
   overflow-wrap: anywhere;
-  color: #252b36;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 13px;
   font-weight: 800;
 }
 
 .conversation-calendar-action-copy small {
-  color: #7a8392;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11px;
 }
 
 .conversation-calendar-action-status {
   min-height: 18px;
-  color: #5c6573;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 700;
 }
@@ -2042,7 +2042,7 @@ body[data-site-theme="dark"] .attachment-chip-thumb { background: #2a3140; }
 }
 
 .conversation-calendar-partial-guide {
-  color: #7a8392;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11px;
   line-height: 1.45;
 }
@@ -2053,7 +2053,7 @@ body[data-site-theme="dark"] .attachment-chip-thumb { background: #2a3140; }
   border: 1px solid #cfd6e1;
   border-radius: 999px;
   background: transparent;
-  color: #334155;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 12px;
   font-weight: 800;
@@ -2095,7 +2095,7 @@ body[data-site-theme="dark"] .conversation-calendar-action { border-top-color: #
 body[data-site-theme="dark"] .conversation-calendar-action-button-primary {
   border-color: #dbe2ec;
   background: #dbe2ec;
-  color: #161b22;
+  color: #212121;
 }
 body[data-site-theme="dark"] .conversation-calendar-action-button-primary:hover:not(:disabled),
 body[data-site-theme="dark"] .conversation-calendar-action-button-primary:focus-visible {
@@ -2103,12 +2103,12 @@ body[data-site-theme="dark"] .conversation-calendar-action-button-primary:focus-
   background: #eef2f7;
 }
 body[data-site-theme="dark"] .conversation-calendar-action-copy,
-body[data-site-theme="dark"] .conversation-calendar-action-status { color: #bec5d0; }
-body[data-site-theme="dark"] .conversation-calendar-action-copy strong { color: #f0f2f6; }
-body[data-site-theme="dark"] .conversation-calendar-action-copy small { color: #9da6b4; }
+body[data-site-theme="dark"] .conversation-calendar-action-status { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .conversation-calendar-action-copy strong { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .conversation-calendar-action-copy small { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .conversation-calendar-action-button {
   border-color: #536071;
-  color: #edf0f5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 body[data-site-theme="dark"] .conversation-calendar-action-button:hover:not(:disabled),
 body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible { background: #262d38; }
@@ -2141,7 +2141,7 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 body[data-site-theme="dark"] .conversation-pet-action-button {
   border-color: #dbe2ec;
   background: #dbe2ec;
-  color: #161b22;
+  color: #212121;
 }
 
 body[data-site-theme="dark"] .conversation-pet-action-button:hover,
@@ -2293,7 +2293,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   gap: 8px;
   align-items: center;
   justify-content: center;
-  color: #7b8491;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   letter-spacing: 0;
 }
 
@@ -2305,7 +2305,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   border: 1px solid rgba(79, 93, 113, .18);
   border-radius: 50%;
   background: rgba(255, 255, 255, .76);
-  color: #3f4a5a;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11px;
   font-weight: 850;
   letter-spacing: .08em;
@@ -2325,7 +2325,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
 .lotbi-rich-card-place .lotbi-rich-card-price {
   display: -webkit-box;
   overflow: hidden;
-  color: #5f6978;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11.5px;
   line-height: 1.32;
   font-weight: 620;
@@ -2346,7 +2346,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
 
 .lotbi-place-license-evidence,
 .lotbi-place-license-status {
-  color: #6f7886;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11px;
   line-height: 1.3;
   font-weight: 700;
@@ -2356,12 +2356,12 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   padding: 0 5px;
   border: 1px solid rgba(116, 126, 145, .22);
   border-radius: 999px;
-  color: #5f6978;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 /* 공공데이터가 늦을 수 있다는 사실만 적는다. 주어는 데이터이고, 업소가 아니다. */
 .lotbi-place-license-note {
-  color: #838c99;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 10.5px;
   line-height: 1.3;
   font-weight: 620;
@@ -2398,7 +2398,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   gap: 0;
   border-radius: 999px;
   background: #fff;
-  color: #202632;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .lotbi-rich-card-icon-action:hover {
@@ -2422,7 +2422,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   border: 1px solid rgba(77, 89, 107, .22);
   border-radius: 50%;
   background: rgba(255, 255, 255, .92);
-  color: #202632;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   box-shadow: 0 8px 22px rgba(18, 28, 45, .10);
   font: inherit;
   font-size: 30px;
@@ -2466,7 +2466,7 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
 body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price,
 body[data-site-theme="dark"] .lotbi-place-license-evidence,
 body[data-site-theme="dark"] .lotbi-place-license-status {
-  color: #c2c9d4;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body[data-site-theme="dark"] .lotbi-place-license-status {
@@ -2474,7 +2474,7 @@ body[data-site-theme="dark"] .lotbi-place-license-status {
 }
 
 body[data-site-theme="dark"] .lotbi-place-license-note {
-  color: #a8b1be;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body[data-site-theme="dark"] .lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
@@ -2486,13 +2486,13 @@ body[data-site-theme="dark"] .lotbi-rich-card-place-media.lotbi-rich-card-placeh
 body[data-site-theme="dark"] .lotbi-place-placeholder-mark {
   border-color: rgba(198, 207, 221, .18);
   background: rgba(20, 25, 34, .68);
-  color: #d7dde7;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body[data-site-theme="dark"] .lotbi-rich-card-icon-action,
 body[data-site-theme="dark"] .lotbi-place-orbit-control {
   background: rgba(23, 28, 37, .94);
-  color: #edf0f5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   border-color: #515b69;
 }
 

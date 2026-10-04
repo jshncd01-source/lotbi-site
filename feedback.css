@@ -136,7 +136,7 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--soft);
-  color: #343942;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 13px;
   line-height: 1.7;
 }
@@ -203,7 +203,7 @@
 }
 
 .feedback-next {
-  color: #343942;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .feedback-done-actions {
