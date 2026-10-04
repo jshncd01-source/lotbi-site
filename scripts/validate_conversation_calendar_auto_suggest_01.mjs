@@ -185,6 +185,7 @@ const ok = body => ({
   assert.equal(body.title, '라마다 프라자 호텔 자은도 숙박');
   assert.equal(body.temporal.kind, 'TIME_WINDOW');
   assert.equal(body.entry.place, '라마다 프라자 호텔 자은도');
+  assert.equal(body.usageType, 'SCHEDULE_AUTO');
 
   // The reservation number and the phone number the document carried are in the
   // draft's memo and must not reach the Calendar.
@@ -192,6 +193,30 @@ const ok = body => ({
   for (const secret of ['R-99128841', '010-1234-5678', 'memo']) {
     assert.ok(!written.includes(secret), `calendar write leaked ${secret}`);
   }
+}
+
+{
+  const receiptDraft = normalizeSmartCalendarDraft(corePayload({
+    document_kind: 'RECEIPT',
+    calendar_relevance: 'PAST_TRANSACTION_ONLY',
+    title: '테스트 마트 영수증',
+    local_time: null,
+    end_local_date: null,
+    end_local_time: null,
+    entry: {
+      ...corePayload().entry,
+      amount_minor: 12900,
+      currency: 'KRW',
+      expense_category: 'OTHER',
+      merchant: '테스트 마트',
+    },
+  }));
+  const {calls, create} = recordingActivity((_n, body) => ok(body));
+  const outcome = await registerCalendarDraft(receiptDraft, {
+    sessionToken: 'token', timezone: TZ, createAuthActivity: create,
+  });
+  assert.equal(outcome.state, CALENDAR_DRAFT_WRITE_STATE.REGISTERED);
+  assert.equal(calls[0].body.usageType, 'RECEIPT_AUTO');
 }
 
 // Nothing is written without a session, a title, a date or an identity.

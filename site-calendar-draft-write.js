@@ -17,8 +17,8 @@
 //     double-tap, a reload-and-retry and the same confirmation photographed
 //     again all land on the one entry without any of them knowing about each
 //     other.
-import {createLifeActivity} from './site-calendar.js?v=aset-de93ea2b9a41';
-import {SiteCoreError} from './site-core.js?v=aset-de93ea2b9a41';
+import {createLifeActivity} from './site-calendar.js?v=aset-2a3db9e9826a';
+import {SiteCoreError} from './site-core.js?v=aset-2a3db9e9826a';
 
 const FINGERPRINT_RE = /^[0-9a-f]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -102,6 +102,15 @@ function entryPayload(draft) {
   return payload;
 }
 
+function usageTypeForDraft(draft) {
+  const relevance = String(draft?.calendarRelevance || '').toUpperCase();
+  const kind = String(draft?.documentKind || '').toUpperCase();
+  if (relevance === 'PAST_TRANSACTION_ONLY' || ['PAYMENT', 'ORDER', 'DELIVERY', 'RECEIPT'].includes(kind)) {
+    return 'RECEIPT_AUTO';
+  }
+  return 'SCHEDULE_AUTO';
+}
+
 function failure(code, message, state = CALENDAR_DRAFT_WRITE_STATE.FAILED) {
   return Object.freeze({
     state,
@@ -149,6 +158,7 @@ export async function registerCalendarDraft(draft, {
       temporalSemantics: 'USER_PLANNED_TIME',
       busy: 'UNKNOWN',
       entry: entryPayload(draft),
+      usageType: usageTypeForDraft(draft),
     }, fetchImpl);
     if (!result?.readYourWrites || !result.activityId || !result.occurrenceId) {
       return failure('LIFE_MUTATION_CONTRACT_INVALID', '일정 저장 결과를 확인하지 못했습니다.');

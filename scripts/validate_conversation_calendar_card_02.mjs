@@ -122,7 +122,7 @@ function install(){
         retry_safe:true,follow_up:{required:false},intent:{action:'UNKNOWN'},
         ...(draft?{calendar_draft:draft}:{})});
     }
-    if(parsed.pathname==='/v2/life/activities'&&method==='POST'){
+    if(parsed.pathname==='/v2/life/activities/automated'&&method==='POST'){
       return json({activity_id:'activity_'+'1'.repeat(32),occurrence_id:'occurrence_'+'2'.repeat(32),
         title:JSON.parse(body||'{}').title||'',activity_revision:1,occurrence_revision:1,
         activity_state:'ACTIVE',entry:{},temporal:JSON.parse(body||'{}').temporal,
@@ -164,7 +164,7 @@ const send=async text=>{
 // every assertion here is about the turn just sent.
 const card=()=>[...document.querySelectorAll('.conversation-calendar-draft')].pop()||null;
 const button=label=>[...(card()?.querySelectorAll('button')||[])].find(b=>b.textContent.trim()===label);
-const writes=()=>calls.filter(c=>c.path==='/v2/life/activities'&&c.method==='POST');
+const writes=()=>calls.filter(c=>c.path==='/v2/life/activities/automated'&&c.method==='POST');
 
 try{
   localStorage.clear();
@@ -220,6 +220,7 @@ try{
   result.sentTemporal=sent.temporal;
   result.sentTitle=sent.title;
   result.sentRequestId=sent.logical_request_id;
+  result.sentUsageType=sent.usage_type;
   result.sentBody=posts[0].body;
   result.refreshes=refreshes;
   result.registeredText=[...document.querySelectorAll('.conversation-calendar-action[data-calendar-result]')].pop()?.querySelector('.conversation-calendar-action-status')?.textContent||'';
@@ -314,6 +315,9 @@ try {
     }
     if (!/^calimg-[0-9a-f]{40}$/.test(String(v.sentRequestId))) {
       throw new Error(`${label}: the write identity must come from the booking, got ${JSON.stringify(v.sentRequestId)}`);
+    }
+    if (v.sentUsageType !== 'SCHEDULE_AUTO') {
+      throw new Error(`${label}: an automated booking must spend the schedule allowance, got ${JSON.stringify(v.sentUsageType)}`);
     }
     // What the document carried and the Calendar must not.
     for (const secret of ['R-99128841', '010-1234-5678']) {

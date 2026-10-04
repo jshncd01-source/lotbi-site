@@ -88,9 +88,8 @@ def main() -> int:
     # 화면은 세 등급인데 약관이 한 등급만 적고 있으면 어긋난다. 등급이 하나
     # 늘거나 값이 하나 바뀔 때 조용히 지나가지 않도록 세 금액을 모두 건다.
     for needle in (
-        "기본 9,900원",
-        "프리미엄 19,900원",
-        "프리미엄 플러스 29,900원",
+        "LOTBI Basic·LOTBI Plus·LOTBI Pro",
+        "9,900원·19,900원·39,900원",
         "Toss Payments",
         "Apple App Store subscription",
         "Google Play subscription",

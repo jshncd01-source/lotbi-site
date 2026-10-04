@@ -120,7 +120,7 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 선언뿐이며 법적 페이지 본문·계정 URL·보안 경계에는 변화가 없다.
 LOCKED_SHA256 = {
     'privacy.html': 'b81b5d3de01471c05782d53e1db4e8cf78725297d3c455428c131a514f3b74f7',
-    'terms.html': 'fcecae54f43e69b31928f341d3102625488bb35b34e111858c460967a9331cc0',
+    'terms.html': '5714d5205e923921851d5422a13afa8c0b483b932e85b2e81178cb4bac96b072',
     'account-deletion.html': '4f897a168aa686e16099fc3477c1d41491a24c6b871f20c0a912343bc76fba29',
     'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
