@@ -31,7 +31,8 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
   const renderIdentityPhotos = person => {
     const box = el('section', 'person-form');
     const photos = identityPhotos.get(person.personId) || [];
-    box.append(el('h4', '', `비공개 식별사진 ${photos.length}/10`), el('p', 'person-consent', person.identityPhotoState === 'EXPIRED' ? '유효기간이 지났습니다. SOS 전에 10장을 갱신해 주세요.' : '사진은 1년마다 갱신하며, SOS 동의 전에는 검색에 사용되지 않습니다.'));
+    const renewalText = person.identityPhotoState === 'EXPIRED' ? '유효기간이 지났습니다. SOS 전에 10장을 갱신해 주세요.' : person.identityPhotoState === 'EXPIRING' ? `사진이 ${person.identityPhotoDaysRemaining ?? 0}일 뒤 만료됩니다. 지금 갱신해 주세요.` : `현재 갱신 주기는 ${person.identityPhotoValidityDays === 180 ? '6개월' : '1년'}이며, SOS 동의 전에는 검색에 사용되지 않습니다.`;
+    box.append(el('h4', '', `비공개 식별사진 ${photos.length}/10`), el('p', 'person-consent', renewalText));
     IDENTITY_SLOTS.forEach((label, index) => {
       const row = el('label', 'person-photo-slot');
       const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp';
@@ -53,26 +54,30 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
       const edit = document.createElement('form'); edit.className = 'person-form';
       const editName = document.createElement('input'); editName.required = true; editName.value = editing.displayName;
       const editNickname = document.createElement('input'); editNickname.value = editing.nickname || '';
+      const editBirthYear = document.createElement('input'); editBirthYear.type = 'number'; editBirthYear.min = '1900'; editBirthYear.max = String(new Date().getFullYear()); editBirthYear.required = true; editBirthYear.placeholder = '태어난 연도'; editBirthYear.value = String(editing.birthYear);
+      const editBirthMonth = document.createElement('input'); editBirthMonth.type = 'number'; editBirthMonth.min = '1'; editBirthMonth.max = '12'; editBirthMonth.required = true; editBirthMonth.placeholder = '태어난 월'; editBirthMonth.value = String(editing.birthMonth);
       const editRelationship = document.createElement('select');
       for (const [value, label] of [['CHILD','자녀'],['PARENT','부모'],['SPOUSE','배우자'],['FAMILY','가족'],['DEPENDENT','돌봄 대상'],['OTHER','기타']]) { const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = value === editing.relationship; editRelationship.append(option); }
       const save = button('수정 저장', () => {}, true); save.type = 'submit';
-      edit.append(el('h4', '', `${editing.displayName} 상세`), editName, editNickname, editRelationship, save, button('닫기', () => { editing = null; renderHome(); }));
-      edit.addEventListener('submit', async event => { event.preventDefault(); try { editing = await updatePerson(sessionToken, {personId: editing.personId, revision: editing.revision, displayName: editName.value.trim(), nickname: editNickname.value.trim(), relationship: editRelationship.value}); await refresh(); } catch { status.textContent = '수정하지 못했습니다.'; } });
+      edit.append(el('h4', '', `${editing.displayName} 상세`), editName, editNickname, editBirthYear, editBirthMonth, editRelationship, save, button('닫기', () => { editing = null; renderHome(); }));
+      edit.addEventListener('submit', async event => { event.preventDefault(); try { editing = await updatePerson(sessionToken, {personId: editing.personId, revision: editing.revision, displayName: editName.value.trim(), nickname: editNickname.value.trim(), relationship: editRelationship.value, birthYear: editBirthYear.value, birthMonth: editBirthMonth.value}); await refresh(); } catch { status.textContent = '수정하지 못했습니다. 출생 연·월을 확인해 주세요.'; } });
       content.append(edit, renderIdentityPhotos(editing));
     }
     const form = document.createElement('form'); form.className = 'person-form';
     const name = document.createElement('input'); name.required = true; name.placeholder = '이름';
+    const birthYear = document.createElement('input'); birthYear.type = 'number'; birthYear.min = '1900'; birthYear.max = String(new Date().getFullYear()); birthYear.required = true; birthYear.placeholder = '태어난 연도 (예: 2017)';
+    const birthMonth = document.createElement('input'); birthMonth.type = 'number'; birthMonth.min = '1'; birthMonth.max = '12'; birthMonth.required = true; birthMonth.placeholder = '태어난 월 (1~12)';
     const relationship = document.createElement('select'); for (const [value, label] of [['CHILD','자녀'],['PARENT','부모'],['SPOUSE','배우자'],['FAMILY','가족'],['DEPENDENT','돌봄 대상'],['OTHER','기타']]) { const option = document.createElement('option'); option.value = value; option.textContent = label; relationship.append(option); }
     const submit = button('기본 정보 저장', () => {}, true); submit.type = 'submit';
-    form.append(el('h4', '', '새 사람 등록'), name, relationship, el('p', 'person-consent', '기본 정보를 저장한 뒤 서로 다른 각도의 사진 10장을 등록합니다.'), submit);
-    form.addEventListener('submit', async event => { event.preventDefault(); status.textContent = '저장 중…'; try { editing = await createPerson(sessionToken, {displayName: name.value.trim(), relationship: relationship.value, requestKey: personRequestKey('create')}); status.textContent = ''; await refresh(); } catch { status.textContent = '등록하지 못했습니다.'; } });
+    form.append(el('h4', '', '새 사람 등록'), name, birthYear, birthMonth, relationship, el('p', 'person-consent', '출생 연·월로 갱신 주기를 계산합니다. 만 12세 이하는 6개월, 만 13세 이상은 1년이며 만료 30일·7일·1일 전에 알려드립니다.'), el('p', 'person-consent', '기본 정보를 저장한 뒤 서로 다른 각도의 사진 10장을 등록합니다.'), submit);
+    form.addEventListener('submit', async event => { event.preventDefault(); status.textContent = '저장 중…'; try { editing = await createPerson(sessionToken, {displayName: name.value.trim(), relationship: relationship.value, birthYear: birthYear.value, birthMonth: birthMonth.value, requestKey: personRequestKey('create')}); status.textContent = ''; await refresh(); } catch { status.textContent = '등록하지 못했습니다. 출생 연·월을 확인해 주세요.'; } });
     content.append(form);
   };
 
   const renderSos = () => {
     content.replaceChildren(el('h3', 'person-title', '진행 중 SOS'));
     for (const item of cases) { const card = el('article', 'person-card'); card.append(el('strong', '', item.displayName), el('p', '', item.lastSeenSummary), button('찾았어요 · 종료', async () => { await closePersonSos(sessionToken, item.sosId); await refresh(); })); content.append(card); }
-    const eligible = people.filter(item => item.hasPhoto && item.identityPhotoState !== 'EXPIRED');
+    const eligible = people.filter(item => item.hasPhoto && ['CURRENT', 'EXPIRING'].includes(item.identityPhotoState));
     const form = document.createElement('form'); form.className = 'person-form';
     const select = document.createElement('select'); for (const item of eligible) { const option = document.createElement('option'); option.value = item.personId; option.textContent = item.displayName; select.append(option); }
     const location = document.createElement('input'); location.required = true; location.placeholder = '마지막으로 본 장소';
