@@ -86,6 +86,67 @@ body.chat-home-page .consumer-workspace :is(.calendar-weekdays, .calendar-mobile
 body.chat-home-page .consumer-workspace .calendar-title-button { font-weight: 500; }
 body.chat-home-page .consumer-workspace .calendar-date-cell[data-selected='true'] { background: var(--lotbi-surface-subtle); }
 body.chat-home-page .consumer-workspace .calendar-date-cell[data-today='true'] { box-shadow: inset 0 0 0 1.5px var(--lotbi-text-primary); }
+/* Detail pages are quiet workspaces, not grids of oversized menu cards. */
+body.chat-home-page .consumer-workspace { padding-block: 40px; }
+body.chat-home-page .consumer-workspace > .site-modal { max-width: 880px; }
+body.chat-home-page .consumer-workspace .site-modal-header { gap: 16px; padding-bottom: 16px; }
+body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 26px; line-height: 1.4; }
+body.chat-home-page .consumer-workspace .site-modal-description { font-size: 14px; line-height: 1.7; margin-bottom: 32px; }
+body.chat-home-page .consumer-workspace .consumer-search { max-width: none; min-height: 56px; padding: 5px 6px 5px 14px; border-radius: 28px; background: var(--lotbi-surface-subtle); border-color: transparent; }
+/* The modal's generic form rule has four :not(type) selectors; keep this inset input borderless. */
+body.chat-home-page .consumer-workspace .site-modal .consumer-search input { padding: 8px 4px; border: 0 !important; outline: 0; box-shadow: none; background: transparent !important; }
+body.chat-home-page .consumer-workspace .consumer-search:focus-within { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+body.chat-home-page .consumer-workspace .consumer-search .consumer-action { border-radius: 24px; font-weight: 500; }
+body.chat-home-page .consumer-workspace .consumer-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
+body.chat-home-page .consumer-workspace .consumer-shortcut { flex-direction: row; align-items: center; min-height: 72px; padding: 16px 12px; gap: 16px; border: 0; border-bottom: 1px solid var(--lotbi-border-default); border-radius: 0; font-size: 15px; }
+body.chat-home-page .consumer-workspace .consumer-shortcut svg { width: 20px; height: 20px; }
+body.chat-home-page .consumer-workspace .consumer-shortcut::after { content: ''; margin-left: auto; width: 6px; height: 6px; border-right: 1px solid currentColor; border-top: 1px solid currentColor; transform: rotate(45deg); flex: 0 0 6px; }
+body.chat-home-page .consumer-workspace .consumer-section-label { margin: 12px 0 0; font-weight: 400; font-size: 13px; }
+body.chat-home-page .consumer-workspace .consumer-section-footer { gap: 20px; margin-top: 12px; padding-top: 20px; border: 0; }
+body.chat-home-page .consumer-workspace .consumer-feature-note { font-size: 13px; line-height: 1.7; }
+body.chat-home-page .consumer-workspace .consumer-empty { min-height: 320px; gap: 16px; }
+body.chat-home-page .consumer-workspace .consumer-empty h3 { font-size: 24px; font-weight: 500; line-height: 1.45; }
+body.chat-home-page .consumer-workspace .consumer-source-options { border: 0; gap: 12px; }
+body.chat-home-page .consumer-workspace .consumer-care-alert { padding: 20px 0 24px; border: 0; border-bottom: 1px solid var(--lotbi-border-default); border-radius: 0; background: transparent; gap: 16px; }
+body.chat-home-page .consumer-workspace .consumer-care-alert strong { font-weight: 500; font-size: 17px; }
+body.chat-home-page .consumer-workspace .consumer-care-alert p { font-size: 13px; }
+body.chat-home-page .consumer-workspace .consumer-tabs { gap: 24px; }
+body.chat-home-page .consumer-workspace .consumer-tabs button { padding-inline: 4px; font-weight: 400; }
+body.chat-home-page .consumer-workspace .consumer-tabs button[aria-selected='true'] { font-weight: 500; }
+body.chat-home-page .consumer-workspace .consumer-life-detail { max-width: 600px; margin-inline: auto; gap: 24px; }
+body.chat-home-page .consumer-workspace .consumer-life-detail h3 { font-size: 28px; font-weight: 500; line-height: 1.4; margin-top: 0; }
+body.chat-home-page .consumer-workspace .consumer-life-detail > .consumer-action { padding: 8px 0; font-size: 13px; }
+body.chat-home-page .consumer-workspace .consumer-life-form { gap: 24px; }
+body.chat-home-page .consumer-workspace .consumer-life-field { font-weight: 400; }
+body.chat-home-page .consumer-workspace .consumer-life-form > .consumer-action { min-width: 128px; font-weight: 500; }
+/* Radio choices stay prominent while the rest of the check flow stays compact. */
+body.chat-home-page .scam-dialog::backdrop { background: rgb(0 0 0 / 32%); }
+body.chat-home-page .scam-dialog { width: min(640px, calc(100vw - 32px)); box-shadow: 0 12px 40px rgb(0 0 0 / 10%); }
+body.chat-home-page .scam-dialog-header h2 { font-size: 24px; font-weight: 500; line-height: 1.4; }
+body.chat-home-page .scam-dialog-eyebrow { margin-bottom: 10px; }
+body.chat-home-page .scam-input-kinds { gap: 8px; }
+body.chat-home-page .scam-input-kinds label { min-height: 76px; padding: 12px; gap: 10px; border-radius: 12px; font-size: 13px; }
+body.chat-home-page .scam-input-kinds svg { width: 20px; height: 20px; }
+body.chat-home-page .scam-input-panel textarea { min-height: 160px; }
+body.chat-home-page .scam-clicked { font-weight: 400; padding-block: 4px; min-height: 36px; }
+body.chat-home-page .scam-incident { padding: 16px 0; border-top: 1px solid var(--lotbi-border-default); gap: 16px; }
+body.chat-home-page .scam-incident label { font-size: 14px; font-weight: 400; }
+body.chat-home-page .scam-submit { font-weight: 500; }
+body.chat-home-page .scam-status { font-size: 13px; line-height: 1.7; }
+@media (max-width: 600px) {
+  body.chat-home-page .consumer-workspace { padding: 20px; }
+  body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 23px; }
+  body.chat-home-page .consumer-workspace .consumer-search { flex-direction: row; align-items: center; padding-inline: 10px 5px; }
+  body.chat-home-page .consumer-workspace .consumer-search input { width: 0; font-size: 15px; }
+  body.chat-home-page .consumer-workspace .consumer-search .consumer-action { width: 44px; padding: 0; overflow: hidden; font-size: 0; flex: 0 0 44px; align-self: center; }
+  body.chat-home-page .consumer-workspace .consumer-search .consumer-action::after { content: '↑'; font-size: 22px; }
+  body.chat-home-page .consumer-workspace .consumer-shortcuts { grid-template-columns: minmax(0, 1fr); }
+  body.chat-home-page .consumer-workspace .consumer-shortcut { min-height: 60px; padding-inline: 4px; }
+  body.chat-home-page .consumer-workspace .consumer-life-detail h3 { font-size: 25px; }
+  body.chat-home-page .consumer-workspace .consumer-section-footer { align-items: stretch; }
+  body.chat-home-page .consumer-workspace .consumer-empty { min-height: 280px; }
+  body.chat-home-page .scam-input-kinds label { flex-direction: row; min-height: 48px; }
+}
 @media (max-width: 900px) {
   body.chat-home-page .chat-home-shell { padding-inline: 20px; }
   body.chat-home-page .chat-topbar { min-height: 64px; gap: 4px; }

@@ -179,23 +179,32 @@ const contrast = (a, b) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
-const BG = '#151922';
-const PANEL = '#171c25';
+const BG = '#212121';
+const PANEL = '#212121';
+const TEXT = '#f5f5f5';
+// Bind the measured palette to the real explicit/device CSS, not a historical palette.
+for (const tokens of [explicitTokens, systemTokens]) {
+  assert.match(tokens, /--bg:\s*#212121\s*;/);
+  assert.match(tokens, /--panel:\s*#212121\s*;/);
+  assert.match(tokens, /--text:\s*#f5f5f5\s*;/);
+  assert.match(tokens, /--soft:\s*#2f2f2f\s*;/);
+}
 for (const [label, fg, bg, min] of [
-  ['page text', '#f8fafc', BG, 4.5],
-  ['card text', '#f8fafc', PANEL, 4.5],
-  ['muted text', '#cbd5e1', BG, 4.5],
-  ['muted text on a card', '#cbd5e1', PANEL, 4.5],
-  ['legal body copy', '#e5e7eb', BG, 4.5],
+  ['page text', TEXT, BG, 4.5],
+  ['card text', TEXT, PANEL, 4.5],
+  ['muted text', TEXT, BG, 4.5],
+  ['muted text on a card', TEXT, PANEL, 4.5],
+  ['legal body copy', TEXT, BG, 4.5],
   // 11px business-info separators are small text, so they are held to the same bar.
-  ['footer separator', '#8b93a1', BG, 4.5],
+  ['footer separator', TEXT, BG, 4.5],
   // subscribe.css: the solid plan button inverts in Dark, so its label flips too.
-  ['plan button label', '#17191d', '#edf0f5', 4.5],
-  ['plan button label, hover', '#17191d', '#ffffff', 4.5],
+  ['plan button label', BG, TEXT, 4.5],
+  ['plan button label, hover', BG, '#ffffff', 4.5],
   // 제6조 6.1 국외이전 고지표: styles.css writes its cells #343942, which measured
   // 1.52:1 on the dark page. A disclosure a reviewer cannot read is not a disclosure.
-  ['overseas-transfer table cell', '#e5e7eb', BG, 4.5],
-  ['overseas-transfer table header', '#e5e7eb', '#202631', 4.5],
+  ['overseas-transfer table cell', TEXT, BG, 4.5],
+  ['overseas-transfer table header', TEXT, '#2f2f2f', 4.5],
+  ['text on divider surface', TEXT, '#424242', 4.5],
 ]) {
   const ratio = contrast(fg, bg);
   assert.ok(
@@ -208,8 +217,7 @@ for (const [label, fg, bg, min] of [
 // Every colour the static theme PAINTS must be one of these measured values —
 // a new literal slipping in unmeasured is how the last contrast gap happened.
 const MEASURED = new Set([
-  '#151922', '#171c25', '#f8fafc', '#cbd5e1', '#e5e7eb', '#edf0f5', '#424b59', '#202631', '#8b93a1',
-  '#17191d', '#ffffff',
+  BG, PANEL, TEXT, '#2f2f2f', '#424242', '#ffffff',
 ]);
 // Comments are stripped first: they quote the light-theme literals they exist to
 // explain (styles.css writes the cells of the 국외이전 고지표 a dark slate, and the

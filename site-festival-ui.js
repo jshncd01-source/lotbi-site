@@ -58,20 +58,20 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-b9075f749010';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-b9075f749010';
+} from './site-festival-client.js?v=aset-f2310e8a9c94';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-f2310e8a9c94';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-b9075f749010';
+} from './site-current-location.js?v=aset-f2310e8a9c94';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-b9075f749010';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-f2310e8a9c94';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -81,8 +81,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-b9075f749010';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-b9075f749010';
+} from './site-festival-calendar.js?v=aset-f2310e8a9c94';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-f2310e8a9c94';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -92,18 +92,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-b9075f749010';
+} from './site-navigation.js?v=aset-f2310e8a9c94';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-b9075f749010';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-f2310e8a9c94';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-b9075f749010';
+} from './site-calendar-weather.js?v=aset-f2310e8a9c94';
 
 const PAGE_SIZE = 20;
 

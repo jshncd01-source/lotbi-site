@@ -17,4 +17,11 @@ for (const page of ['auth/start/index.html', 'auth/callback/index.html', 'app/op
 assert.match(read('site-scam-shield.js'), /분석 근거 자세히 보기/);
 assert.match(read('site-consumer-sections.js'), /질문 준비하기/);
 assert.match(read('site-consumer-sections.js'), /확인 없이 진행하지 않습니다/);
+// Conditional scam questions must stay hidden until the user chooses the incident path.
+assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);
+const layout = read('site-consumer-layout.css');
+// Workspace is the backdrop's class; .site-modal is its child, not its ancestor.
+assert.match(layout, /body\.chat-home-page \.consumer-workspace \.site-modal \.consumer-search input\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*transparent\s*!important/);
+assert.match(layout, /\.consumer-search:focus-within\s*\{[^}]*outline:/);
+assert.match(layout, /\.scam-dialog\s*\{[^}]*width:\s*min\(640px, calc\(100vw - 32px\)\)/);
 console.log('CONSUMER_DETAIL_SYSTEM_01 PASS — source coverage, not authenticated E2E');

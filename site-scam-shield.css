@@ -17,6 +17,7 @@
 .scam-input-panel input[type="text"], .scam-input-panel input[type="url"], .scam-input-panel input[type="file"], .scam-incident select { width: 100%; min-height: 50px; box-sizing: border-box; border: 1px solid #b7c1d0; border-radius: 12px; padding: 12px; font: inherit; }
 .scam-clicked { display: flex; gap: 10px; align-items: center; margin: 16px 0; font-weight: 700; }
 .scam-incident { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.scam-dialog [hidden] { display: none !important; }
 .scam-incident label { display: grid; gap: 6px; font-weight: 700; }
 .scam-submit { width: 100%; border: 0; padding: 0 18px; color: #fff; background: #1258d8; }
 .scam-submit:disabled { opacity: .55; cursor: wait; }

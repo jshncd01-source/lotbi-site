@@ -173,7 +173,7 @@ assert.ok(
   'the wordmark must follow the bootstrap="system" state now that it paints a dark background',
 );
 assert.ok(
-  /html\[data-site-theme-bootstrap="system"\] body:not\(\[data-site-theme\]\)\s*\{[^}]*background:\s*#151922/.test(tokens),
+  /html\[data-site-theme-bootstrap="system"\] body:not\(\[data-site-theme\]\)\s*\{[^}]*background:\s*#212121/.test(tokens),
   'the bootstrap="system" block must paint its background — the logo rule above depends on it',
 );
 
