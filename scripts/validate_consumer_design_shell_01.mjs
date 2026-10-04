@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read = file => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+const html = read('index.html');
+const js = read('site-conversation.js');
+const subscribe = read('subscribe.html');
+const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '안심케어', '생활정보', '제휴몰'];
+const navs = [...html.matchAll(/<div class="consumer-primary-nav"[^>]*>([\s\S]*?)<\/div>/g)];
+assert.equal(navs.length, 2, 'desktop and mobile use the same navigation');
+for (const [,nav] of navs) {
+  assert.deepEqual([...nav.matchAll(/<button\b[^>]*aria-label="([^"]+)"/g)].map(match => match[1]), expected);
+  assert.match(nav, /data-calendar-view="all"/);
+  assert.match(nav, /data-scam-open/);
+}
+assert.match(html, /data-lotbi-avatar-stage/);
+assert.match(html, /data-lotbi-avatar-fallback/);
+assert.match(html, /lotbi-lockup-160w\.png/);
+assert.match(js, /https:\/\/account\.lotbiai\.com\/account/);
+assert.match(js, /\['프로필', openProfile\], \['개인테마', openPersonalTheme\], \['설정', openSettings\]/);
+assert.match(js, /mountConsumerSection/);
+assert.match(js, /workspace: section/);
+assert.match(js, /workspace: 'calendar'/);
+assert.match(js, /mainScrollHost.inert = true/);
+assert.match(js, /mainScrollHost.inert = false/);
+assert.match(js, /else if \(!workspace\) trapFocus/);
+assert.match(js, /closeSurface\(\); startNewConversation\(\)/);
+assert.match(html, /consumer-brand-fallback/);
+assert.match(read('site-consumer-sections.js'), /selectTab\('pets', 'sos'\)/);
+assert.match(js, /openFestival/);
+assert.match(js, /openLotbiBox/);
+for (const text of ['일상을 챙겨주는 AI 생활비서', '생활 전반을 더 많이 맡기는 개인비서', 'LOTBI를 가장 넉넉하게 사용', '9,900원', '19,900원', '39,900원', '프로필 1개', '프로필 5개', '프로필 15개']) assert.ok(subscribe.includes(text));
+assert.doesNotMatch(subscribe, /29,900원/);
+console.log('CONSUMER_DESIGN_SHELL_01 PASS (source contracts, not live E2E)');

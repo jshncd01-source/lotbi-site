@@ -4,6 +4,7 @@ let result;
 let status;
 let clicked;
 let incident;
+let dialogTrigger;
 
 const escapeText = value => String(value ?? '');
 const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/plain', 'text/html', 'application/xhtml+xml', 'application/pdf']);
@@ -75,8 +76,9 @@ function requestAnalysis(formData) {
   });
 }
 
-function openDialog() {
+function openDialog(event) {
   if (!dialog) return;
+  dialogTrigger = event?.currentTarget instanceof HTMLElement ? event.currentTarget : document.activeElement;
   result.hidden = true;
   status.textContent = '문자, 주소 또는 파일을 보내 주세요.';
   if (typeof dialog.showModal === 'function') {
@@ -96,6 +98,7 @@ function closeDialog() {
   }
   dialog.removeAttribute('open');
   dialog.removeAttribute('aria-modal');
+  dialogTrigger?.focus?.();
 }
 
 document.addEventListener('keydown', event => {
@@ -150,6 +153,15 @@ function bindScamShield() {
   status = document.querySelector('[data-scam-status]');
   clicked = document.querySelector('[data-scam-clicked]');
   incident = document.querySelector('[data-scam-incident]');
+  if (dialog && dialog.dataset.scamOutsideBound !== 'true') {
+    dialog.dataset.scamOutsideBound = 'true';
+    dialog.addEventListener('click', event => {
+      if (event.target !== dialog) return;
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog();
+    });
+    dialog.addEventListener('close', () => dialogTrigger?.focus?.());
+  }
 
   document.querySelectorAll('[data-scam-open]').forEach(button => {
     if (button.dataset.scamBound === 'true') return;
