@@ -29,6 +29,6 @@ assert.match(sections, /if \(disposed\) return/);
 assert.match(sections, /root\.replaceChildren\(form, heading, grid, footer\)/);
 assert.match(sections, /출발지.*서울역/);
 assert.match(sections, /목적지.*전주 한옥마을/);
-assert.match(sections, /확인 없이 일정을 저장하거나 결제하지 않습니다/);
+assert.match(sections, /납기일 등록과 납부는 확인 없이 진행하지 않습니다/);
 assert.doesNotMatch(sections, /fetch\(|type = 'file'|localStorage/);
 console.log('CONSUMER_DOCUMENTS_01 PASS — ten public pages and explicit life-information draft flows, source checks only');

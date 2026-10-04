@@ -58,7 +58,7 @@ function render(payload) {
   if (payload.evidence.length) {
     const details = document.createElement('details');
     const summary = document.createElement('summary');
-    summary.textContent = '전문 정보 보기';
+    summary.textContent = '분석 근거 자세히 보기';
     const ul = document.createElement('ul');
     payload.evidence.forEach(item => {
       const li = document.createElement('li');
@@ -140,7 +140,7 @@ async function submitAnalysis(event) {
     render(payload);
     status.textContent = payload.riskLevel === 'UNVERIFIED' ? '확인이 더 필요해요. 아래의 확인 안 된 내용을 봐 주세요.' : '분석 결과가 나왔습니다.';
   } catch (error) {
-    status.textContent = error instanceof Error ? error.message : '안심확인을 완료하지 못했습니다.';
+    status.textContent = error instanceof Error ? error.message : '진위확인을 완료하지 못했습니다.';
   } finally {
     submit.disabled = false;
   }

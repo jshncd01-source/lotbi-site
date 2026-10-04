@@ -83,7 +83,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         field.placeholder = placeholder; field.maxLength = 1000; field.required = true;
         field.setAttribute('aria-label', labelText); label.append(field); controls.push([labelText, field]); queryForm.append(label);
       }
-      const send = action('롯비에게 확인 요청'); send.type = 'submit'; queryForm.append(send);
+      const send = action('질문 준비하기'); send.type = 'submit'; queryForm.append(send);
       queryForm.addEventListener('submit', event => {
         event.preventDefault();
         if (disposed) return;
@@ -92,8 +92,8 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         onDraft([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
       });
       const note = item.id === 'bills'
-        ? '내용을 입력하면 대화창에서 확인 요청을 준비합니다. 사진·PDF는 기존 대화창의 첨부 기능을 이용하세요. 납부기한 확인 후 등록을 제안하며, 확인 없이 일정을 저장하거나 결제하지 않습니다.'
-        : '입력한 조건으로 대화창에서 질문을 준비합니다. 현재 위치를 자동 수집하지 않으며, 최신 정보와 실제 이용 조건은 결과의 출처에서 확인하세요.';
+        ? '다음 화면에서 질문을 확인한 뒤 보내세요. 사진·PDF는 대화창에 첨부할 수 있어요. 납기일 등록과 납부는 확인 없이 진행하지 않습니다.'
+        : '다음 화면에서 질문을 확인한 뒤 보내세요. 현재 위치는 자동으로 수집하지 않습니다.';
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }

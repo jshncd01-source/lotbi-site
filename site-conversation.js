@@ -1,22 +1,22 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-8627654b0607';
-import * as siteCore from './site-core.js?v=aset-8627654b0607';
-import './site-scam-shield.js?v=aset-8627654b0607';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-8627654b0607';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-8627654b0607';
-import * as siteAttachments from './site-attachments.js?v=aset-8627654b0607';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-8627654b0607';
-import {deterministicReply} from './site-deterministic.js?v=aset-8627654b0607';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-8627654b0607';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-8627654b0607';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-8627654b0607';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-8627654b0607';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-8627654b0607';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-8627654b0607';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-8627654b0607';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-8627654b0607';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-8627654b0607';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-8627654b0607';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-8627654b0607';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-ee26b83c00ea';
+import * as siteCore from './site-core.js?v=aset-ee26b83c00ea';
+import './site-scam-shield.js?v=aset-ee26b83c00ea';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-ee26b83c00ea';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-ee26b83c00ea';
+import * as siteAttachments from './site-attachments.js?v=aset-ee26b83c00ea';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-ee26b83c00ea';
+import {deterministicReply} from './site-deterministic.js?v=aset-ee26b83c00ea';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-ee26b83c00ea';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-ee26b83c00ea';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-ee26b83c00ea';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-ee26b83c00ea';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-ee26b83c00ea';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-ee26b83c00ea';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-ee26b83c00ea';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-ee26b83c00ea';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-ee26b83c00ea';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-ee26b83c00ea';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-ee26b83c00ea';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -167,7 +167,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-8627654b0607';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-ee26b83c00ea';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -2965,7 +2965,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-8627654b0607');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-ee26b83c00ea');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2993,7 +2993,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-8627654b0607');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-ee26b83c00ea');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3138,22 +3138,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
   };
   window.addEventListener('hashchange', openProfilePhotoFromHash);
-  // 개인테마 — the theme choice and nothing else. This surface only calls the
-  // existing applyPreferences/savePreferences pair; the theme switching logic
-  // itself is not touched here.
+  // One settings owner: display modes are edited in Account. Existing Site
+  // theme bootstrap and synchronization are unchanged.
   const openPersonalTheme = () => {
-    const {backdrop, panel, content} = modalShell('개인테마', '이 브라우저에서 사용할 화면 모드를 선택하세요.');
-    const themeLabel = document.createElement('label'); themeLabel.className = 'site-field'; themeLabel.textContent = '테마';
-    const select = document.createElement('select');
-    for (const [value, label] of THEME_OPTIONS) {
-      const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = preferences.theme === value; select.appendChild(option);
-    }
-    select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
-    themeLabel.appendChild(select);
-    // 기기모드 and 자동모드 are different answers, so the window says which is which.
-    const themeHelp = document.createElement('p'); themeHelp.className = 'site-field-help';
-    themeHelp.textContent = `'기기모드'는 기기의 다크 모드를 따라가고, '자동모드'는 시계를 따라갑니다 — 저녁 ${AUTO_THEME_DARK_HOUR}시부터 다크, 아침 ${AUTO_THEME_LIGHT_HOUR}시부터 라이트.`;
-    content.append(themeLabel, themeHelp); installSurfaceBehavior(backdrop, panel, {modal: true});
+    window.location.assign(ACCOUNT_MANAGE_URL + '#personalization');
   };
   // 설정 — no intermediate modal. It leaves for the account page directly, the
   // same destination the profile modal's removed button used.
@@ -3187,7 +3175,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onFestival: () => { closeSurface(); void openFestival(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-8627654b0607');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-ee26b83c00ea');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -3452,12 +3440,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
 
   const openHelp = () => {
-    const {backdrop, panel, content} = modalShell('도움말'); const links = document.createElement('nav');
-    links.className = 'help-links'; links.setAttribute('aria-label', '도움말 링크');
-    for (const [href, label] of [['/contact.html', '도움말 센터 및 버그 신고'], ['/terms.html', '이용약관'], ['/privacy.html', '개인정보처리방침']]) {
-      const link = document.createElement('a'); link.href = href; link.textContent = label; links.appendChild(link);
-    }
-    content.appendChild(links); installSurfaceBehavior(backdrop, panel, {modal: true});
+    window.location.assign(ACCOUNT_MANAGE_URL + '#help');
   };
   const beginAccountLogoutHandoff = () => {
     markSiteLogoutSuppression();

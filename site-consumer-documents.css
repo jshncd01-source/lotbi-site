@@ -58,3 +58,12 @@ body.consumer-document { background: var(--panel); color: var(--text); }
 .consumer-document .feedback-category:has(input:checked) { box-shadow: inset 0 0 0 1px var(--accent); }
 .consumer-document .feedback-category:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 3px; }
 .consumer-document .topbar nav a { display: inline-flex; align-items: center; min-height: 44px; }
+/* The same type scale is used for support, policies and their completion view.
+   Contract/legal body text is intentionally untouched. */
+.consumer-document { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.consumer-document :is(.section, .about-section) { max-width: 760px; margin-inline: auto; }
+.consumer-document .lead-small { color: var(--text); }
+.consumer-document .feedback-done { padding: 28px 0; }
+.consumer-document .feedback-done h2 { font-size: 24px; font-weight: 600; letter-spacing: -.035em; }
+.consumer-document .feedback-category { min-height: 64px; border-color: var(--line); border-radius: 12px; }
+.consumer-document .feedback-category-copy { color: var(--muted); font-size: 13px; line-height: 1.6; }

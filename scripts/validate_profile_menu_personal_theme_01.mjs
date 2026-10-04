@@ -1,19 +1,9 @@
 // SITE-PROFILE-MENU-PERSONAL-THEME-01
 //
-// 대표 지시 4건을 잠그는 게이트. 프로필 메뉴는 여섯 항목 그대로이고, 바뀐 것은
-// 두 번째 항목의 이름과, 그 창과 '설정' 이 하는 일뿐이다.
-//
-//   [1] '개인 맞춤 설정' → '개인테마' (항목은 없애지 않는다, 이름만 바꾼다)
-//   [2] '개인테마' 창에는 테마 선택만 남는다 (대화 색상 글박스는 제거)
-//   [3] '설정' 은 창을 띄우지 않고 계정 관리 페이지로 바로 나간다
-//   [4] '프로필' 창의 '계정 페이지에서 관리' 버튼은 사라지고 '프로필 저장' 은 남는다
-//
-// [1][2][4] 와 항목 수·순서는 실제 Chromium 에서 렌더해 측정한다. [3] 은 소스
-// 계약으로 잠근다 — 클릭하면 문서가 외부 출처로 나가버려서 같은 문서 안에서는
-// 측정한 값을 되가져올 수 없다. 측정한 것과 소스로 잠근 것을 섞어 적지 않는다.
-//
-// 테마 전환 로직(savePreferences / applyPreferences) 자체는 이 게이트의 범위가
-// 아니다. 여기서는 '개인테마' 창이 그 둘을 호출한 결과만 본다.
+// Six account-menu entries remain. Profile identity, personalization/theme and
+// help now have one canonical Account owner rather than duplicate Site forms.
+// This Site fixture checks the menu and local photo editor. Cross-origin Account
+// navigation is source-checked, not reported as an Account runtime/E2E pass.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,12 +18,7 @@ const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 const workflow = read('.github/workflows/site-review.yml');
 
 const MENU_LABELS = ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'];
-// SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' joined this list as a fourth
-// *preference*. 대표's original four instructions named three, and the clock
-// schedule ("18시 이후 다크, 07시 화이트") was a separate instruction; this is
-// where the two meet. 기기모드 follows the device, 자동모드 follows the clock,
-// and neither replaces the other — so all four stay locked here.
-const THEME_OPTIONS = [['system', '기기모드'], ['light', '라이트모드'], ['dark', '다크모드'], ['auto', '자동모드']];
+// The four theme preferences are tested by Account's theme tests, their owner.
 const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
 
 // ── 소스 계약 ─────────────────────────────────────────────────────────────
@@ -55,6 +40,8 @@ assert.ok(
 assert.ok(!conversation.includes('개인 테마'), "표기는 '개인테마' 입니다 — 띄어쓰지 않습니다");
 
 // [2] 색상 글박스는 중복이라 제거됐고, 되돌아오지 않는다.
+assert.ok(conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#personalization')"), '개인테마는 Account의 개인 맞춤 설정으로 이동해야 합니다');
+assert.ok(conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#help')"), '도움말은 Account의 도움말 한곳으로 이동해야 합니다');
 for (const removed of ['colorPicker', "'대화 색상'", "className = 'color-picker'"]) {
   assert.ok(!conversation.includes(removed), `대화 색상 선택은 제거되어야 합니다: ${removed}`);
 }
@@ -74,14 +61,14 @@ assert.ok(
   'data-global-nav-action 핸들러는 같은 설정 동작을 유지해야 합니다',
 );
 
-// [4] 프로필 창에서 계정 관리 버튼만 빠지고, 저장 버튼은 남는다.
+// [4] Identity editing belongs to Account; the Site keeps only local photo editing.
 assert.ok(
   !conversation.includes('계정 페이지에서 관리'),
   "'계정 페이지에서 관리' 버튼은 프로필 창에서 제거되어야 합니다",
 );
 assert.ok(
   conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#profile')") && conversation.includes("modalShell('프로필 사진'"),
-  "'프로필 저장' 버튼은 그대로 남아야 합니다",
+  '프로필은 Account로 이동하고 로컬 사진 편집은 별도 유지해야 합니다',
 );
 
 // PROFILE-PHOTO-SOURCES-01 — LOTBI owns the three user-facing choices so
@@ -151,20 +138,11 @@ const labels=items().map(n=>n.textContent);
 const disabledItems=items().filter(n=>n.disabled).map(n=>n.textContent);
 const popoverText=document.querySelector('.profile-popover').textContent;
 
-// [1][2] 개인테마 창
-const themeItem=items().find(n=>n.textContent==='개인테마');
-if(!themeItem)throw new Error('개인테마 항목 없음');
-click(themeItem);await wait(()=>modal(),'theme modal');
-const themeTitle=modal().querySelector('h2').textContent;
-const selects=[...modal().querySelectorAll('select')];
-if(selects.length!==1)throw new Error('개인테마 창의 select 개수 '+selects.length);
-const themeChoices=[...selects[0].options].map(o=>[o.value,o.textContent]);
-const colorPickerPresent=Boolean(modal().querySelector('.color-picker'))||modal().textContent.includes('대화 색상');
-const themeModalText=modal().textContent;
-selects[0].value='dark';selects[0].dispatchEvent(new Event('change',{bubbles:true}));
-await wait(()=>document.body.dataset.siteTheme==='dark','dark applied');
-const themeApplied=document.body.dataset.siteTheme,themeBootstrap=document.documentElement.dataset.siteThemeBootstrap,themeStored=localStorage.getItem('lotbi.site.theme.bootstrap.v1');
-await closeModal();
+// Theme now has one Account owner. Navigation is source-checked; do not
+// fabricate a Site modal or claim Account theme interaction was tested here.
+if(!items().some(n=>n.textContent==='개인테마'))throw new Error('개인테마 항목 없음');
+document.querySelector('.profile-popover').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+await wait(()=>!document.querySelector('.profile-popover'),'profile menu close');
 
 // [4] 프로필 창
 // Canonical navigation is source-checked above. Photo remains Site-local.
@@ -226,7 +204,7 @@ await closeModal();
 
 out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},
 labels,disabledItems,deadEnd:popoverText.includes('준비 중'),
-theme:{title:themeTitle,choices:themeChoices,colorPickerPresent,applied:themeApplied,bootstrap:themeBootstrap,stored:themeStored,deadEnd:themeModalText.includes('준비 중')},
+theme:{owner:'ACCOUNT',runtime:'NOT_TESTED'},
 profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,validPreview,storedPhoto,finalCancelPreserved}})
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
@@ -271,15 +249,8 @@ try {
     assert.deepEqual(v.disabledItems, [], `${surface}: 누를 수 없는 메뉴 항목이 있으면 안 됩니다`);
     assert.equal(v.deadEnd, false, `${surface}: 메뉴에 '준비 중' 표시가 있으면 안 됩니다`);
 
-    // [1][2] 개인테마 창은 테마 선택만 가진다.
-    assert.equal(v.theme.title, '개인테마', `${surface}: 창 제목은 개인테마 여야 합니다`);
-    assert.deepEqual(v.theme.choices, THEME_OPTIONS, `${surface}: 다크·라이트·기기·자동 네 선택지여야 합니다`);
-    assert.equal(v.theme.colorPickerPresent, false, `${surface}: 대화 색상 선택이 남아 있으면 안 됩니다`);
-    assert.equal(v.theme.deadEnd, false, `${surface}: 개인테마 창에 '준비 중' 표시가 있으면 안 됩니다`);
-    // 고른 테마가 실제로 문서와 저장소에 닿는지 — 창을 옮기면서 끊기지 않았는지.
-    assert.equal(v.theme.applied, 'dark', `${surface}: 다크모드 선택이 문서에 적용되어야 합니다`);
-    assert.equal(v.theme.bootstrap, 'dark', `${surface}: 첫 페인트용 속성도 함께 따라가야 합니다`);
-    assert.equal(v.theme.stored, 'dark', `${surface}: 선택한 테마가 저장되어야 합니다`);
+    assert.equal(v.theme.owner, 'ACCOUNT', `${surface}: 테마는 Account 설정 한곳에서 관리합니다`);
+    assert.equal(v.theme.runtime, 'NOT_TESTED', `${surface}: 이 Site 테스트가 Account 런타임까지 검증했다고 표시하지 않습니다`);
 
     // [4] 프로필 창은 저장 버튼만 남고 계정 관리 버튼은 없다.
     assert.equal(v.profile.title, '프로필 사진', `${surface}: 프로필 창 제목`);
