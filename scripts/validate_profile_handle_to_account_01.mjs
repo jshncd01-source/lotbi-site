@@ -3,7 +3,7 @@
 // 대표: 프로필 화면에서 공개 아이디를 빼라.
 //
 // 계정 전역 식별자를 두 화면에서 고칠 수 있으면 두 곳이 같은 값을 두고 다툽니다.
-// 주인은 계정 페이지이고, 이 화면은 표시 이름과 사진만 다룹니다.
+// 주인은 계정 페이지이고, Site 사진 화면은 로컬 사진만 다룹니다.
 //
 // 숨긴 것이 아니라 돌려보낸 것이라는 점이 이 게이트의 핵심입니다. 값에 닿을 길이
 // 사라지면 그건 제거가 아니라 접근 차단입니다. 프로필 메뉴의 '설정'이 계정
@@ -17,7 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const conversation = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
 
 const profile = conversation.slice(
-  conversation.indexOf('const openProfile = () => {'),
+  conversation.indexOf('const openProfilePhoto = () => {'),
   conversation.indexOf('const openPersonalTheme = () => {'),
 );
 assert.ok(profile.length > 200, 'the profile modal must remain locatable');
@@ -29,14 +29,14 @@ assert.ok(profile.length > 200, 'the profile modal must remain locatable');
 const profileCode = profile.replace(/^[ \t]*\/\/.*$/gm, '');
 assert.ok(!profileCode.includes('publicHandle'), '프로필 화면은 계정 전역 식별자를 읽지도 쓰지도 않아야 합니다');
 assert.ok(!/handle/i.test(profileCode), '핸들 입력·라벨·도움말이 모두 사라져야 합니다');
-// 저장 요청에 실리는 필드는 표시 이름 하나뿐. 실을 수 없으면 덮어쓸 수도 없다.
+// 사진 화면은 로컬 이미지만 다루며, 계정 이름 편집기를 중복 소유하지 않는다.
 assert.ok(
-  profile.includes('updateCurrentSiteProfile(sessionToken, {displayName: name.value})'),
-  '프로필 저장은 표시 이름만 보내야 합니다 — 그래야 계정 쪽 값을 덮어쓸 길이 없습니다',
+  !profile.includes('updateCurrentSiteProfile') && !profile.includes('nameLabel'),
+  'Site 사진 화면에 계정 이름 편집기나 API 저장 요청을 두지 않습니다',
 );
 // 화면에 붙는 노드 목록에서도 빠져야 한다.
 assert.ok(
-  profile.includes('content.append(preview, photoPicker, error, nameLabel, emailField, save)'),
+  profile.includes('content.append(preview, photoPicker, error, accountLink)'),
   '핸들 필드가 화면 구성에서 빠져야 합니다',
 );
 

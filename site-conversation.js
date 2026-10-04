@@ -1,23 +1,23 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-235fb8f38692';
-import * as siteCore from './site-core.js?v=aset-235fb8f38692';
-import './site-scam-shield.js?v=aset-235fb8f38692';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-235fb8f38692';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-235fb8f38692';
-import * as siteAttachments from './site-attachments.js?v=aset-235fb8f38692';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-235fb8f38692';
-import {deterministicReply} from './site-deterministic.js?v=aset-235fb8f38692';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-235fb8f38692';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-235fb8f38692';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-235fb8f38692';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-235fb8f38692';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-235fb8f38692';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-235fb8f38692';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-235fb8f38692';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-235fb8f38692';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-235fb8f38692';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-235fb8f38692';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-235fb8f38692';
-const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-64beec4e7c73';
+import * as siteCore from './site-core.js?v=aset-64beec4e7c73';
+import './site-scam-shield.js?v=aset-64beec4e7c73';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-64beec4e7c73';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-64beec4e7c73';
+import * as siteAttachments from './site-attachments.js?v=aset-64beec4e7c73';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-64beec4e7c73';
+import {deterministicReply} from './site-deterministic.js?v=aset-64beec4e7c73';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-64beec4e7c73';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-64beec4e7c73';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-64beec4e7c73';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-64beec4e7c73';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-64beec4e7c73';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-64beec4e7c73';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-64beec4e7c73';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-64beec4e7c73';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-64beec4e7c73';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-64beec4e7c73';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-64beec4e7c73';
+const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
@@ -167,7 +167,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-235fb8f38692';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-64beec4e7c73';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -2832,6 +2832,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const identity = await getCurrentSiteUser(sessionToken);
       if (namespace && identity.installationId !== namespace) throw new SiteCoreError('Site 사용자 namespace가 일치하지 않습니다.', {code: 'SITE_IDENTITY_NAMESPACE_MISMATCH'});
       serverIdentity = identity; refreshAuthenticatedProfileSlots();
+      openProfilePhotoFromHash();
     } catch (error) {
       if (isSessionError(error)) sessionToken = undefined;
       return;
@@ -2954,18 +2955,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // must release them rather than leak the private bytes into the page.
     let releasePetSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      modal: true,
+      workspace: 'care',
       onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
     });
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-235fb8f38692');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-64beec4e7c73');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
         initialSurface,
       });
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
       content.replaceChildren(Object.assign(document.createElement('p'), {
@@ -2981,18 +2983,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     panel.classList.add('site-festival-modal');
     let releaseFestivalSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      modal: true,
+      workspace: 'life',
       onClose: () => { releaseFestivalSurface?.(); releaseFestivalSurface = null; },
     });
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-235fb8f38692');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-64beec4e7c73');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
         selectedDate,
-      });      releaseFestivalSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+      });
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseFestivalSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
       content.replaceChildren(Object.assign(document.createElement('p'), {
         className: 'festival-error',
@@ -3070,12 +3074,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지 파일을 읽지 못했습니다.')); };
     image.src = objectUrl;
   });
-  const openProfile = () => {
-    // SITE-PROFILE-HANDLE-TO-ACCOUNT-01 — 계정 전역 식별자(핸들)를 이 화면에서
-    // 뺐습니다. 계정 페이지가 그 값의 주인이고, 여기서 고치면 두 곳이 같은 값을
-    // 두고 다투게 됩니다. 숨긴 것이 아니라 주인에게 돌려보낸 것이므로, 가는 길은
-    // 프로필 메뉴의 '설정'(계정 페이지 직행)으로 한 단계 위에 그대로 열려 있습니다.
-    const {backdrop, panel, content} = modalShell('프로필', '이름은 모든 기기에서 함께 사용해요. 프로필 사진은 이 브라우저에만 저장돼요.');
+  // Account owns canonical name/email editing. The Site owns only its local photo.
+  const openProfile = () => { window.location.assign(ACCOUNT_MANAGE_URL + '#profile'); };
+  const openProfilePhoto = () => {
+    if (!sessionToken || !serverIdentity) return;
+    const {backdrop, panel, content} = modalShell('프로필 사진', '이 사진은 LOTBI 사이트의 이 브라우저에만 저장됩니다.');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
@@ -3121,36 +3124,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     photoMenu.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); setPhotoMenuOpen(false); photoTrigger.focus(); } });
     photoPicker.prepend(photoTrigger, photoMenu);
 
-    const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
-    const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
-    const emailField = document.createElement('div'); emailField.className = 'site-readonly-field';
-    const emailTitle = document.createElement('strong'); emailTitle.textContent = '이메일';
-    const emailValue = document.createElement('span'); emailValue.textContent = serverIdentity?.email || '등록된 이메일 없음'; emailField.append(emailTitle, emailValue);
-    const save = document.createElement('button'); save.type = 'button'; save.className = 'site-button site-button-primary'; save.textContent = '프로필 저장';
-    save.disabled = !sessionToken;
-
-    save.addEventListener('click', async () => {
-      if (!sessionToken || save.disabled) return;
-      error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
-      try {
-        // 표시 이름만 보냅니다. publicHandle 을 실어 보내지 않으므로 이 화면이
-        // 계정 쪽 핸들을 덮어쓸 길 자체가 없습니다.
-        const updated = await updateCurrentSiteProfile(sessionToken, {displayName: name.value});
-        serverIdentity = Object.freeze({...serverIdentity, ...updated});
-        name.value = serverIdentity.name || canonicalProfileName();
-        emailValue.textContent = serverIdentity.email || '등록된 이메일 없음';
-        preview.textContent = initials(canonicalProfileName());
-        refreshAuthenticatedProfileSlots();
-        save.textContent = '저장됨';
-      } catch (caught) {
-        error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
-        save.textContent = '프로필 저장';
-      } finally {
-        save.disabled = false;
-      }
-    });
-    content.append(preview, photoPicker, error, nameLabel, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
+    const accountLink = document.createElement('a'); accountLink.className = 'site-button site-button-secondary';
+    accountLink.href = ACCOUNT_MANAGE_URL + '#profile'; accountLink.textContent = '이름 · 이메일 관리';
+    content.append(preview, photoPicker, error, accountLink); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
+  const openProfilePhotoFromHash = () => {
+    if (window.location.hash !== '#profile-photo' || !sessionToken || !serverIdentity || !stateReady) return;
+    openProfilePhoto();
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  };
+  window.addEventListener('hashchange', openProfilePhotoFromHash);
   // 개인테마 — the theme choice and nothing else. This surface only calls the
   // existing applyPreferences/savePreferences pair; the theme switching logic
   // itself is not touched here.
@@ -3200,7 +3183,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onFestival: () => { closeSurface(); void openFestival(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-235fb8f38692');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-64beec4e7c73');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -3461,7 +3444,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     content.appendChild(list);
     render();
-    installSurfaceBehavior(backdrop, panel, {modal: true, trigger});
+    installSurfaceBehavior(backdrop, panel, {workspace: 'life', trigger});
   };
 
   const openHelp = () => {
@@ -4510,7 +4493,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (!detail || typeof detail.authenticated !== 'boolean') return;
     if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
-    if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')) closeSurface();
+    if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')) closeSurface();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();

@@ -193,3 +193,20 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   .site-modal { padding: 20px; }
   body.chat-home-page .subscription-plan-banner { flex-direction: column; gap: 10px; }
 }
+/* Detail screens retain their real managers, with the same canvas hierarchy. */
+.consumer-workspace :is(.site-festival-modal, .site-pet-modal) > .site-modal-content { overflow: visible; }
+.consumer-workspace :is(.pet-home-card-title, .pet-section-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-program-title) { font-weight: 600; }
+.consumer-workspace :is(.pet-home-card, .pet-card, .festival-card) { border-radius: 12px; box-shadow: none; }
+.consumer-workspace .pet-home-card[data-pet-home-active='true'] { border-color: var(--lotbi-text-primary); background: var(--lotbi-surface-subtle); box-shadow: none; }
+.consumer-workspace :is(.pet-profile-controls, .pet-timeline, .pet-candidate-section) { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; }
+.consumer-workspace :is(.festival-detail, .festival-program-surface, .festival-registration-sheet, .festival-schedule-sheet) { box-shadow: none; border-radius: 12px; }
+.consumer-workspace :is(.pet-family-surface, .festival-manager) { gap: 24px; }
+.consumer-workspace :is(button, input, select, textarea, a):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+/* The consumer calendar remains month-first; selected-day details follow it. */
+@media (min-width: 901px) {
+  .consumer-workspace .calendar-month-layout[data-day-detail='SIDE'][data-detail-open='true'] { grid-template-columns: minmax(0, 1fr); gap: 24px; height: auto; }
+  .consumer-workspace .calendar-month-layout .calendar-month { height: auto; }
+  .consumer-workspace .calendar-month-grid { min-height: 440px; }
+  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] { position: static; max-height: none; overflow: visible; box-shadow: none; }
+  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] .calendar-day-body { overflow: visible; }
+}

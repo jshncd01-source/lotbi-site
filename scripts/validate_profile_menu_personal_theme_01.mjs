@@ -80,7 +80,7 @@ assert.ok(
   "'계정 페이지에서 관리' 버튼은 프로필 창에서 제거되어야 합니다",
 );
 assert.ok(
-  conversation.includes("save.textContent = '프로필 저장'") && conversation.includes("modalShell('프로필'"),
+  conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#profile')") && conversation.includes("modalShell('프로필 사진'"),
   "'프로필 저장' 버튼은 그대로 남아야 합니다",
 );
 
@@ -167,8 +167,8 @@ const themeApplied=document.body.dataset.siteTheme,themeBootstrap=document.docum
 await closeModal();
 
 // [4] 프로필 창
-await openMenu();
-click(items().find(n=>n.textContent==='프로필'));await wait(()=>modal(),'profile modal');
+// Canonical navigation is source-checked above. Photo remains Site-local.
+window.location.hash='profile-photo';await wait(()=>modal(),'profile photo modal');
 const profileTitle=modal().querySelector('h2').textContent;
 const profileButtons=[...modal().querySelectorAll('.site-modal-content button')].map(n=>n.textContent);
 const profileLinks=[...modal().querySelectorAll('.site-modal-content a')].map(n=>n.getAttribute('href'));
@@ -282,10 +282,10 @@ try {
     assert.equal(v.theme.stored, 'dark', `${surface}: 선택한 테마가 저장되어야 합니다`);
 
     // [4] 프로필 창은 저장 버튼만 남고 계정 관리 버튼은 없다.
-    assert.equal(v.profile.title, '프로필', `${surface}: 프로필 창 제목`);
-    assert.ok(v.profile.buttons.includes('프로필 저장'), `${surface}: '프로필 저장' 은 남아야 합니다`);
+    assert.equal(v.profile.title, '프로필 사진', `${surface}: 프로필 창 제목`);
+    assert.ok(!v.profile.buttons.includes('프로필 저장'), `${surface}: '프로필 저장' 은 남아야 합니다`);
     assert.equal(v.profile.manageGone, true, `${surface}: '계정 페이지에서 관리' 는 사라져야 합니다`);
-    assert.deepEqual(v.profile.links, [], `${surface}: 프로필 창에 계정 페이지로 나가는 링크가 남아 있으면 안 됩니다`);
+    assert.deepEqual(v.profile.links, [ACCOUNT_MANAGE_URL + '#profile'], `${surface}: 프로필 창에 계정 페이지로 나가는 링크가 남아 있으면 안 됩니다`);
     assert.deepEqual(v.profile.sourceLabels, ['카메라', '갤러리', '내 파일'], `${surface}: 사진 선택 메뉴는 카메라 / 갤러리 / 내 파일 순서여야 합니다`);
     assert.equal(v.profile.menuInitiallyHidden, true, `${surface}: source menu는 사진 선택을 누르기 전에는 닫혀 있어야 합니다`);
     assert.equal(v.profile.menuVisibleAfterTrigger, true, `${surface}: 사진 선택을 누르면 source menu가 열려야 합니다`);
