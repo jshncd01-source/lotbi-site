@@ -165,7 +165,7 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   .consumer-workspace .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px; }
   .consumer-workspace .calendar-toolbar .calendar-title-button { min-width: 0; padding-inline: 4px; font-size: 16px; }
   .consumer-workspace .calendar-today-button { grid-column: 1 / 3; grid-row: 2; }
-  .consumer-workspace .calendar-settings-button { grid-column: 3; grid-row: 2; min-width: 44px; }
+  .consumer-workspace .calendar-settings-button { grid-column: 3; grid-row: 2; width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0; }
   .consumer-workspace .calendar-settings-label { display: none; }
   .consumer-workspace .calendar-mode-tabs { grid-row: 3; }
   .consumer-workspace .calendar-expense-line { grid-template-columns: minmax(0, 1fr); gap: 16px; }
