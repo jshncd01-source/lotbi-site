@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-e25f80588aaf';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-e25f80588aaf';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-e25f80588aaf';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-1a98cf015e92';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-1a98cf015e92';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-1a98cf015e92';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -11,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-e25f80588aaf';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-e25f80588aaf';
+} from './site-calendar-model.js?v=aset-1a98cf015e92';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-1a98cf015e92';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-e25f80588aaf';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-e25f80588aaf';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-e25f80588aaf';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-1a98cf015e92';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-1a98cf015e92';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-1a98cf015e92';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -27,14 +27,14 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-e25f80588aaf';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-e25f80588aaf';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-e25f80588aaf';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-e25f80588aaf';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-e25f80588aaf';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-e25f80588aaf';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-e25f80588aaf';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-e25f80588aaf';
+} from './site-calendar-product.js?v=aset-1a98cf015e92';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-1a98cf015e92';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-1a98cf015e92';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-1a98cf015e92';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-1a98cf015e92';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-1a98cf015e92';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-1a98cf015e92';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-1a98cf015e92';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -3428,14 +3428,16 @@ export async function mountLifeCalendarManager({
     if (!isLocationUsageEnabled()) {
       locationRequestGeneration += 1;
       state.locationInFlight = false;
+      state.locationPermission = LOCATION_PERMISSION.DENIED;
+      state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      state.locationMessage = '설정에서 위치 사용이 꺼져 있어요. 지역을 직접 선택할 수 있어요.';
+      // OFF must take effect before any weather request finishes.
+      renderPreservingFocus();
       if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
         currentWeatherLocation = storedRegionWeatherLocation();
         clearBrowserLocationProvenance();
         await refreshWeatherOnly();
       }
-      state.locationPermission = LOCATION_PERMISSION.DENIED;
-      state.locationResolution = LOCATION_RESOLUTION.IDLE;
-      state.locationMessage = '설정에서 위치 사용이 꺼져 있어요. 지역을 직접 선택할 수 있어요.';
       return;
     }
     const permission = await getBrowserLocationPermissionState({
@@ -3443,6 +3445,7 @@ export async function mountLifeCalendarManager({
       geolocation: locationProvider,
     });
     if (!root.isConnected) return;
+    if (!isLocationUsageEnabled()) return syncLocationPermission();
     state.locationPermission = permission;
     if (permission === LOCATION_PERMISSION.DENIED) {
       if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
