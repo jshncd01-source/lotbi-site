@@ -118,19 +118,21 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # safe-area-aware top, 높이 기반 숨김 transform 으로 바꾸어 focus 시 전체 링크가
 # viewport 안에 들어온다. 변경 범위는 .skip-link 의 position/top/transform 세
 # 선언뿐이며 법적 페이지 본문·계정 URL·보안 경계에는 변화가 없다.
-# Consumer design relock: these four bodies equal Ncloud main 6898c989 after
+# Consumer design relock: these four bodies equal Ncloud main 3e6c1bc9 after
 # removing only body.class=consumer-document. Head changes are the shared
 # document CSS and heading-navigation script; policy text/links are unchanged.
-# styles.css changes only the reviewed neutral palette declarations. Hashes
+# Clean URL canonical/head links and the approved privacy table containment
+# are preserved from main. styles.css also keeps the reviewed neutral palette.
+# Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
-    'privacy.html': 'b9fd41592ff9870c24d22421d67de01345b454311feea8dda6909837e87c3f4b',
-    'terms.html': 'ca14ad83f35e662fd1db62471f08bbd589e36e66971fe3a87ce6015cde0f9cc5',
-    'account-deletion.html': 'e5fe021bd6ffe63f1d474e54309e6a4fec1ae0c030c6026ad5a27fdff6d4516f',
-    'contact.html': 'aad500a3f16f9e9bff15f0386429b01a45ac03d00ac58ba02036b4d0646f3918',
+    'privacy.html': '99b0eb892bd215a88d73276cf6ee7cc7c9ad10fe2bbe770e4acb30fd66ccaf25',
+    'terms.html': '53891a54ccd41077217a9eeb42bad29b0163fdc49e948ba12a73cb935f011a19',
+    'account-deletion.html': '4975d2eff55f370753afa9e9c0acbb22e94caf465065b12f18836fd297f02676',
+    'contact.html': '4ea3c572e9de7b81d9e125bcc55f7e61dc7ea8923ab0eb1fdb02fba18532075f',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': 'aed23f88ef952d0e15656d985cef955449c1d764f6cfed8e984a3447e6399a6d',
+    'styles.css': '32eedab514f6e237f762a35ac18b1ae0ce643bc04023547ee9be60d135a43c66',
     # Only closes the on-demand plan disclosure; no networking/persistence.
     'site-consumer-layout.js': 'e91e525b09565b88dd743d4fd44e5c1a7ff17cb57c668f8a91c4319d9080c295',
 }

@@ -12,13 +12,13 @@ DOCS = (
         "TERMS",
         "LOTBI_TERMS_2026-09-17_R1",
         ROOT / "terms.html",
-        "https://lotbiai.com/terms.html",
+        "https://lotbiai.com/terms",
     ),
     (
         "PRIVACY",
         "LOTBI_PRIVACY_2026-09-24_R1",
         ROOT / "privacy.html",
-        "https://lotbiai.com/privacy.html",
+        "https://lotbiai.com/privacy",
     ),
 )
 

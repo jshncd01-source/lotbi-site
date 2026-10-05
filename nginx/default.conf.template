@@ -28,6 +28,16 @@ server {
         try_files /index.html =404;
     }
 
+    # Public legal and information pages use extensionless canonical URLs.
+    # Keep historical .html references durable while preserving query strings.
+    location ~ ^/(about|subscribe|refund|exchange|dispute|account-deletion|contact|terms|privacy)\.html$ {
+        return 301 /$1$is_args$args;
+    }
+
+    location ~ ^/(?<clean_page>about|subscribe|refund|exchange|dispute|account-deletion|contact|terms|privacy)$ {
+        try_files /$clean_page.html =404;
+    }
+
     location / {
         try_files $uri $uri/ =404;
     }
