@@ -249,7 +249,7 @@ assert.ok(
   'list cards must not print the raw Pet ID as user-facing copy',
 );
 
-// Matching consent is opt-in and must say what it covers.
+// Matching consent is opt-in during an active SOS and must say what it covers.
 assert.ok(
   petClient.includes("value.matching_consent_state === 'GRANTED' ? 'GRANTED' : 'NOT_GRANTED'"),
   'matching consent must default to NOT_GRANTED for anything but an explicit GRANTED',
@@ -257,7 +257,7 @@ assert.ok(
 assert.match(
   petUi,
   /자동 알림이나 연락처 중개는 하지 않습니다/,
-  'the consent toggle must state that no alerts or contact relay happen',
+  'the active-SOS consent copy must state that no alerts or contact relay happen',
 );
 
 // ------------------------------------------------------- non-assertion rule
@@ -380,6 +380,12 @@ function innerFixtureHtml() {
   // petPhotoQuickLook's own guard) — this fixture takes that same, already
   // real, code path so the gate assertions test the gate, not decode timing.
   globalThis.createImageBitmap = undefined;
+  globalThis.addEventListener('error', event => {
+    document.getElementById('render-result').textContent = JSON.stringify({error: String(event.error?.stack || event.message || event.error)});
+  });
+  globalThis.addEventListener('unhandledrejection', event => {
+    document.getElementById('render-result').textContent = JSON.stringify({error: String(event.reason?.stack || event.reason)});
+  });
   let draftPhotos = [];
   let draftSpecies = '';
   globalThis.fetch = async (url, options = {}) => {
@@ -494,12 +500,13 @@ function innerFixtureHtml() {
   const listText = list.textContent;
 
   // Detail view: the registration number is allowed here, but only masked
-  // until the owner reveals it, and the consent toggle must explain itself.
+  // until the owner reveals it. Matching consent is not a standing profile
+  // toggle; the copy must direct it to the active-SOS flow.
   list.querySelector('[data-pet-open="PET_KR_AAAAAAAAAAAAAAAAAAAA"]').click();
   const detail = document.querySelector('[data-pet-detail]');
   const detailTextBeforeReveal = detail.textContent;
   const maskedRegistration = detail.querySelector('.pet-registration-value').textContent;
-  const consentChecked = detail.querySelector('[data-pet-consent]').checked;
+  const standingConsentControlPresent = Boolean(detail.querySelector('[data-pet-consent]'));
   detail.querySelector('.pet-registration-reveal').click();
   const revealedRegistration = detail.querySelector('.pet-registration-value').textContent;
 
@@ -664,7 +671,7 @@ function innerFixtureHtml() {
     detailTextBeforeReveal,
     maskedRegistration,
     revealedRegistration,
-    consentChecked,
+    standingConsentControlPresent,
     slots,
     cases,
     photoCount,
@@ -685,7 +692,8 @@ function innerFixtureHtml() {
     speciesMarks,
     rearSpecies,
     rearImage,
-    hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
+    hasConsentCopy: detailTextBeforeReveal.includes('등록 사진은 평소 검색에 사용되지 않습니다')
+      && detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
     hasNotice: surface.textContent.includes('공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다'),
   });
 </script></body></html>`;
@@ -786,8 +794,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.ok(result.maskedRegistration.includes('•'), `${label}: masked registration must be visibly masked`);
   assert.notEqual(result.maskedRegistration, RAW_REGISTRATION, `${label}: masked registration must differ from the raw value`);
   assert.equal(result.revealedRegistration, RAW_REGISTRATION, `${label}: explicit reveal must show the real number`);
-  assert.equal(result.consentChecked, false, `${label}: NOT_GRANTED must render as an unchecked opt-in`);
-  assert.ok(result.hasConsentCopy, `${label}: the consent toggle must explain what it covers`);
+  assert.equal(result.standingConsentControlPresent, false, `${label}: profile detail must not expose standing matching consent`);
+  assert.ok(result.hasConsentCopy, `${label}: active-SOS consent copy must explain what it covers`);
   assert.ok(result.hasNotice, `${label}: non-assertion notice must render`);
 
   assert.equal(result.slots.length, 10, `${label}: all ten photo slots must render`);
@@ -817,7 +825,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     `${label}: an active SOS case must offer both ways to close it`);
   assert.equal(result.cases.found.length, 1, `${label}: the active found case must render`);
   assert.ok(result.cases.found[0].text.includes('고양이'), `${label}: found species must render in Korean`);
-  assert.equal(result.cases.found[0].photoCount, '첨부 사진 1/10', `${label}: found photo count must render`);
+  assert.equal(result.cases.found[0].photoCount, '첨부 사진 1/10 · 최소 5장', `${label}: found photo count and submission minimum must render`);
   assert.ok(result.cases.safety.includes('붙잡아 사진을 찍지 마세요'),
     `${label}: the found report must keep its safety warning`);
   assert.ok(result.cases.sosFormOpensFor, `${label}: the SOS form must open`);
