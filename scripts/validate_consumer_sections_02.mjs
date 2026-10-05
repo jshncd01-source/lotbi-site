@@ -5,8 +5,8 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['날씨', '장소', '길찾기', '음식점·생활시설', '축제·행사', '지역생활정보', '지원금·보조금', '공과금 확인']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 8);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['축제·행사', '지역생활정보', '공과금 확인']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 3);
 assert.ok(LIFE_SHORTCUTS.filter(item => item.id !== 'festivals').every(item => typeof item.prompt === 'string'));
 assert.match(LIFE_SHORTCUTS.find(item => item.id === 'bills').prompt, /등록할지/);
 for (const label of ['첫 자료 등록하기', '사진 촬영', '사진 선택', '파일 업로드', '사람 등록', '제휴처 찾아 연결하기']) assert.ok(source.includes(label));

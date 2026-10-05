@@ -1,13 +1,8 @@
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
 export const LIFE_SHORTCUTS = Object.freeze([
-  {id: 'weather', label: '날씨', icon: 'sun', prompt: '내 지역의 오늘 날씨를 알려 줘'},
-  {id: 'places', label: '장소', icon: 'pin', prompt: '찾고 싶은 장소가 있어'},
-  {id: 'directions', label: '길찾기', icon: 'route', prompt: '출발지에서 목적지까지 가는 길을 알려 줘'},
-  {id: 'facilities', label: '음식점·생활시설', icon: 'store', prompt: '내 주변 음식점과 생활시설을 찾아 줘'},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
-  {id: 'support', label: '지원금·보조금', icon: 'document', prompt: '내 상황에 맞는 지원금과 보조금을 알아보고 싶어'},
   {id: 'bills', label: '공과금 확인', icon: 'document', prompt: '공과금 고지서를 확인하고 납부기한을 캘린더에 등록할지 알려 줘'},
 ]);
 
