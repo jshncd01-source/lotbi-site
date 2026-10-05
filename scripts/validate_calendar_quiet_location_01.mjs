@@ -118,8 +118,14 @@ try {
   const gridTop = () => Math.round(root.querySelector('.calendar-month-grid').getBoundingClientRect().top);
   const gridTopBefore = gridTop();
   click(locationToggle);
-  await wait(() => locationToggle.getAttribute('aria-checked') === 'false'
-    && root.dataset.locationPermission === 'DENIED', 'automatic location OFF');
+  try {
+    await wait(() => locationToggle.getAttribute('aria-checked') === 'false'
+      && root.dataset.locationPermission === 'DENIED', 'automatic location OFF');
+  } catch (error) {
+    throw new Error(String(error) + JSON.stringify({cookie: document.cookie,
+      checked: locationToggle.getAttribute('aria-checked'), permission: root.dataset.locationPermission,
+      message: locationRow.textContent}));
+  }
   result.autoSwitchOff = locationToggle.textContent === 'OFF'
     && document.cookie.includes('lotbi_location_usage_v1=off');
   click(locationToggle);
