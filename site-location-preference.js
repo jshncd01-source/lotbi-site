@@ -15,3 +15,21 @@ export function isLocationUsageEnabled() {
   try { return readLocationUsagePreference(globalThis.document?.cookie ?? ''); }
   catch { return false; }
 }
+
+export function serializeLocationUsagePreference(enabled, hostname, protocol) {
+  const production = hostname === 'lotbiai.com' || hostname === 'account.lotbiai.com';
+  const local = hostname === 'localhost' || hostname === '127.0.0.1';
+  if ((!production && !local) || (production && protocol !== 'https:')) throw new Error('Unsupported preference origin');
+  return `${LOCATION_USAGE_COOKIE}=${enabled ? 'on' : 'off'}; Path=/; SameSite=Lax; Max-Age=31536000${production ? '; Domain=lotbiai.com; Secure' : ''}`;
+}
+
+export function setLocationUsageEnabled(enabled) {
+  const value = Boolean(enabled);
+  document.cookie = serializeLocationUsagePreference(value, location.hostname, location.protocol);
+  const saved = document.cookie.split(';').map(part => part.trim())
+    .filter(part => part.startsWith(`${LOCATION_USAGE_COOKIE}=`));
+  if (saved.length !== 1 || saved[0] !== `${LOCATION_USAGE_COOKIE}=${value ? 'on' : 'off'}`) {
+    throw new Error('Location preference could not be saved');
+  }
+  window.dispatchEvent(new CustomEvent(LOCATION_USAGE_EVENT, {detail: {enabled: value}}));
+}

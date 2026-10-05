@@ -58,7 +58,10 @@ assert.match(manager, /void syncLocationPermission\(\)\.then/);
 // static guards against a silent drift back.
 assert.match(manager, /buildLocationRow: buildLocationSettingsRow/);
 assert.match(manager, /row\.dataset\.calendarLocationRow = 'true'/);
-assert.match(manager, /row\.append\(copy, locationButton\)/);
+assert.match(manager, /row\.append\(copy, locationToggle\)/);
+assert.match(manager, /copy\.appendChild\(locationButton\)/);
+assert.match(manager, /locationToggle\.setAttribute\('role', 'switch'\)/);
+assert.match(manager, /locationButton\.hidden = !automatic \|\| blocked \|\| \(!needsPermission && !retry\)/);
 assert.match(manager, /announceLocation\('현재 위치로 날씨를 표시합니다\.'\)/);
 const renderStart = manager.indexOf('  function render() {');
 const renderEnd = manager.indexOf('  async function refresh({');

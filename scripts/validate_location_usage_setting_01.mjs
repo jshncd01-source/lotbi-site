@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {LOCATION_USAGE_COOKIE, readLocationUsagePreference} from '../site-location-preference.js';
+import {LOCATION_USAGE_COOKIE, readLocationUsagePreference, serializeLocationUsagePreference, setLocationUsageEnabled} from '../site-location-preference.js';
 import {acquireSharedBrowserCurrentLocation, clearRecentBrowserCurrentLocation, getBrowserLocationPermissionState, getRecentBrowserCurrentLocation, requestBrowserCurrentLocation, resolveSharedBrowserCurrentLocation, LOCATION_PERMISSION} from '../site-current-location.js';
 
 const previousDocument = globalThis.document;
+const previousWindow = globalThis.window;
+const previousLocation = globalThis.location;
+const preferenceEvents = [];
+globalThis.window = {dispatchEvent: event => preferenceEvents.push(event)};
+globalThis.location = {hostname: '127.0.0.1', protocol: 'http:'};
 const preference = {cookie: ''};
 globalThis.document = preference;
 let calls = 0;
@@ -17,6 +22,21 @@ try {
   assert.equal(readLocationUsagePreference(''), true);
   for (const value of ['off', '', 'broken', '%6Fn']) assert.equal(readLocationUsagePreference(`lotbi_location_usage_v1=${value}`), false);
   assert.equal(readLocationUsagePreference('lotbi_location_usage_v1=on; lotbi_location_usage_v1=off'), false);
+  assert.equal(serializeLocationUsagePreference(false, 'lotbiai.com', 'https:'), 'lotbi_location_usage_v1=off; Path=/; SameSite=Lax; Max-Age=31536000; Domain=lotbiai.com; Secure');
+  assert.equal(serializeLocationUsagePreference(true, '127.0.0.1', 'http:'), 'lotbi_location_usage_v1=on; Path=/; SameSite=Lax; Max-Age=31536000');
+  assert.throws(() => serializeLocationUsagePreference(true, 'lotbiai.com', 'http:'));
+  assert.throws(() => serializeLocationUsagePreference(true, 'example.com', 'https:'));
+  setLocationUsageEnabled(false);
+  assert.equal(readLocationUsagePreference(preference.cookie), false);
+  assert.equal(preferenceEvents.at(-1).detail.enabled, false);
+  setLocationUsageEnabled(true);
+  assert.equal(readLocationUsagePreference(preference.cookie), true);
+  assert.equal(preferenceEvents.at(-1).detail.enabled, true);
+  const dispatchedBeforeBlockedSave = preferenceEvents.length;
+  globalThis.document = {get cookie() { return ''; }, set cookie(_value) {}};
+  assert.throws(() => setLocationUsageEnabled(true), /could not be saved/);
+  assert.equal(preferenceEvents.length, dispatchedBeforeBlockedSave);
+  globalThis.document = preference;
   preference.cookie = `${LOCATION_USAGE_COOKIE}=on`;
   await acquireSharedBrowserCurrentLocation({geolocation, now});
   assert.notEqual(getRecentBrowserCurrentLocation({now}), null);
@@ -61,10 +81,17 @@ try {
   const festival = readFileSync(new URL('../site-festival-ui.js', import.meta.url), 'utf8');
   assert.match(festival, /isLocationUsageEnabled\(\) && state\.locationMode === 'CURRENT' && state\.currentPosition/, 'OFF must not send an old position when constructing a new query');
   const calendar = readFileSync(new URL('../site-calendar-manager.js', import.meta.url), 'utf8');
+  assert.match(calendar, /locationToggle\.setAttribute\('role', 'switch'\)/);
+  assert.match(calendar, /locationToggle\.setAttribute\('aria-checked', String\(automatic\)\)/);
+  assert.match(calendar, /setLocationUsageEnabled\(enabled\)/);
   assert.match(calendar, /if \(!region \|\| !root\.isConnected \|\| requestGeneration !== locationRequestGeneration \|\| !isLocationUsageEnabled\(\)\) return;/, 'a late region lookup must not persist after OFF');
   console.log('LOCATION USAGE SETTING PASS: persistence contract, OFF/no GPS, cache discard, concurrency, late success, no prompt on mount.');
 } finally {
   clearRecentBrowserCurrentLocation();
   if (previousDocument === undefined) delete globalThis.document;
   else globalThis.document = previousDocument;
+  if (previousWindow === undefined) delete globalThis.window;
+  else globalThis.window = previousWindow;
+  if (previousLocation === undefined) delete globalThis.location;
+  else globalThis.location = previousLocation;
 }

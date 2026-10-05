@@ -1309,6 +1309,26 @@ body.calendar-editor-open { overflow: hidden; }
 }
 .calendar-settings-action-row > span { flex: 1 1 auto; min-width: 0; display: grid; gap: 4px; }
 .calendar-settings-action-row strong { font-size: 14px; }
+.calendar-location-switch {
+  position: relative; flex: 0 0 64px; width: 64px; min-height: 44px;
+  border: 0; border-radius: 24px; padding: 0 8px 0 26px;
+  background: var(--lotbi-surface-hover, #eee); color: var(--lotbi-text-primary, #212121);
+  font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.calendar-location-switch::after {
+  content: ''; position: absolute; width: 20px; height: 20px; left: 5px; top: 12px;
+  border-radius: 50%; background: var(--lotbi-text-primary, #212121);
+}
+.calendar-location-switch[aria-checked="true"] {
+  padding: 0 26px 0 8px; background: var(--lotbi-text-primary, #212121);
+  color: var(--lotbi-surface-primary, #fff);
+}
+.calendar-location-switch[aria-checked="true"]::after {
+  left: 39px; background: var(--lotbi-surface-primary, #fff);
+}
+.calendar-location-switch:focus-visible { outline: 2px solid var(--lotbi-focus-ring, #212121); outline-offset: 3px; }
+.calendar-settings-action-row [data-calendar-current-location] { justify-self: start; }
+.calendar-settings-action-row [data-calendar-current-location][hidden] { display: none; }
 .calendar-settings-status { color: var(--lotbi-calendar-muted-ink); font-size: 11px; line-height: 1.45; }
 .calendar-settings-weather-overview {
   display: grid;

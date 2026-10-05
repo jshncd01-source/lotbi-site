@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-7a6977a059db';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-7a6977a059db';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7a6977a059db';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-e25f80588aaf';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-e25f80588aaf';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-e25f80588aaf';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -11,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-7a6977a059db';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-7a6977a059db';
+} from './site-calendar-model.js?v=aset-e25f80588aaf';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-e25f80588aaf';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-7a6977a059db';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-7a6977a059db';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-7a6977a059db';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-e25f80588aaf';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-e25f80588aaf';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-e25f80588aaf';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -27,14 +27,14 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-7a6977a059db';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-7a6977a059db';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-7a6977a059db';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-7a6977a059db';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-7a6977a059db';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-7a6977a059db';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-7a6977a059db';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-7a6977a059db';
+} from './site-calendar-product.js?v=aset-e25f80588aaf';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-e25f80588aaf';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-e25f80588aaf';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-e25f80588aaf';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-e25f80588aaf';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-e25f80588aaf';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-e25f80588aaf';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-e25f80588aaf';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -3101,6 +3101,10 @@ export async function mountLifeCalendarManager({
   toolbar.append(previous, title, next, today, settingsButton, modes);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
+  const locationToggle = button('OFF', 'calendar-location-switch');
+  locationToggle.setAttribute('role', 'switch');
+  locationToggle.setAttribute('aria-label', '현재 위치 자동 사용');
+  locationToggle.dataset.calendarAutoLocation = 'true';
   locationButton.dataset.calendarCurrentLocation = 'true';
   locationButton.setAttribute('aria-label', '현재 위치를 캘린더 날씨에 사용');
   const viewport = document.createElement('div'); viewport.className = 'calendar-viewport';
@@ -3558,7 +3562,15 @@ export async function mountLifeCalendarManager({
   }
 
   function locationSettingsStatusText() {
-    if (!isLocationUsageEnabled()) return '설정에서 위치 사용이 꺼져 있어요. 지역을 직접 선택할 수 있어요.';
+    if (!isLocationUsageEnabled() || state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.MANUAL) {
+      return state.manualWeatherRegion
+        ? '자동 사용이 꺼져 있어요. 선택한 지역의 날씨를 표시합니다.'
+        : '자동 사용이 꺼져 있어요. 아래에서 날씨 지역을 선택해 주세요.';
+    }
+    if (state.locationPermission === LOCATION_PERMISSION.GRANTED
+      && ![LOCATION_RESOLUTION.ERROR, LOCATION_RESOLUTION.TIMEOUT].includes(state.locationResolution)) {
+      return '캘린더를 열거나 돌아오면 현재 위치의 날씨를 자동으로 확인합니다.';
+    }
     const presentation = weatherLocationPresentation();
     if (state.manualWeatherRegion && !presentation.currentStatus.includes('현재 위치로 날씨')) {
       return `${presentation.currentStatus} ${presentation.manualSummary}`;
@@ -3567,6 +3579,9 @@ export async function mountLifeCalendarManager({
   }
 
   function syncLocationSettingsControl() {
+    const automatic = isLocationUsageEnabled() && state.weatherRegionOrigin !== WEATHER_REGION_ORIGIN.MANUAL;
+    locationToggle.setAttribute('aria-checked', String(automatic));
+    locationToggle.textContent = automatic ? 'ON' : 'OFF';
     const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
       && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
     const blocked = state.locationPermission === LOCATION_PERMISSION.DENIED
@@ -3574,6 +3589,10 @@ export async function mountLifeCalendarManager({
     locationButton.disabled = state.locationInFlight || (isLocationUsageEnabled() && blocked);
     locationButton.textContent = isLocationUsageEnabled() ? weatherLocationPresentation().currentAction : '설정에서 위치 켜기';
     locationButton.setAttribute('aria-label', isLocationUsageEnabled() ? '현재 위치를 캘린더 날씨에 사용' : '설정에서 위치 켜기');
+    const needsPermission = [LOCATION_PERMISSION.UNKNOWN, LOCATION_PERMISSION.PROMPT_REQUIRED].includes(state.locationPermission);
+    const retry = [LOCATION_RESOLUTION.TIMEOUT, LOCATION_RESOLUTION.ERROR].includes(state.locationResolution);
+    locationButton.hidden = !automatic || blocked || (!needsPermission && !retry);
+    if (needsPermission && !retry) locationButton.textContent = '위치 허용';
     syncOpenWeatherLocationSettings();
     locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
     if (locationStatusNode) locationStatusNode.textContent = locationSettingsStatusText();
@@ -3590,7 +3609,7 @@ export async function mountLifeCalendarManager({
     row.dataset.calendarLocationRow = 'true';
     const copy = document.createElement('span');
     const label = document.createElement('strong');
-    label.textContent = '현재 위치';
+    label.textContent = '현재 위치 자동 사용';
     const status = document.createElement('small');
     status.className = 'calendar-settings-status';
     // "브라우저 사이트 설정에서 허용해 주세요" 만으로는 어디를 눌러야 하는지 아무도
@@ -3608,7 +3627,8 @@ export async function mountLifeCalendarManager({
     }
     help.append(helpSummary, helpList);
     copy.append(label, status, help);
-    row.append(copy, locationButton);
+    row.append(copy, locationToggle);
+    copy.appendChild(locationButton);
     locationStatusNode = status;
     locationHelpNode = help;
     syncLocationSettingsControl();
@@ -4259,6 +4279,24 @@ export async function mountLifeCalendarManager({
   locationButton.addEventListener('click', () => {
     if (!isLocationUsageEnabled()) { window.location.assign('https://account.lotbiai.com/account#privacy'); return; }
     void useCurrentLocation();
+  });
+
+  locationToggle.addEventListener('click', () => {
+    const enabled = !(isLocationUsageEnabled() && state.weatherRegionOrigin !== WEATHER_REGION_ORIGIN.MANUAL);
+    try {
+      setLocationUsageEnabled(enabled);
+    } catch {
+      syncLocationSettingsControl();
+      if (locationStatusNode) locationStatusNode.textContent = '위치 설정을 저장하지 못했어요. 다시 시도해 주세요.';
+      return;
+    }
+    if (enabled) {
+      // Explicit ON opts back into current location without deleting the saved fallback region.
+      state.weatherRegionOrigin = null;
+      writeWeatherRegionOrigin(settingsStorage, null);
+      void useCurrentLocation();
+    }
+    syncLocationSettingsControl();
   });
 
   // One navigation path, with the unit owned by the active product view.
