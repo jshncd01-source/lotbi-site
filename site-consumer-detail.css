@@ -195,8 +195,30 @@ body.chat-home-page .calendar-editor-details { border: 0; border-top: 1px solid 
 body.chat-home-page .calendar-editor-details > summary { min-height: 44px; }
 body.chat-home-page .calendar-editor-details:not([open]) { row-gap: 0; padding-top: 12px; }
 body.chat-home-page .calendar-expense-summary { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; background: transparent; }
-body.chat-home-page .calendar-expense-label { color: var(--lotbi-text-primary); font-weight: 400; }
-body.chat-home-page .calendar-expense-amount { font-weight: 500; font-variant-numeric: tabular-nums; }
+/* Consumer calendar: a readable monthly ledger summary, not a coloured ticker.
+   Keep the legacy strip and its data contracts untouched outside this layout. */
+body.chat-home-page .calendar-expense-header { margin: 0 0 20px; }
+body.chat-home-page .calendar-expense-heading { margin: 0; font-size: 18px; line-height: 1.5; letter-spacing: -.02em; color: var(--lotbi-text-primary); }
+body.chat-home-page .calendar-expense-scope { margin: 6px 0 0; font-size: 13px; line-height: 1.65; color: var(--consumer-detail-muted); overflow-wrap: anywhere; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-line { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-total { grid-row: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 0; padding: 0; border: 0; min-width: 0; }
+body.chat-home-page .calendar-expense-total-label { font-size: 13px; font-weight: 400; color: var(--consumer-detail-muted); }
+body.chat-home-page .calendar-expense-total-amount { font-size: 26px; font-weight: 500; line-height: 1.4; letter-spacing: -.025em; overflow-wrap: anywhere; min-width: 0; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-items { grid-row: 2; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 16px; overflow: visible; white-space: normal; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
+body.chat-home-page .calendar-expense-item[data-expense-category] dt { color: var(--lotbi-text-primary); font-size: 13px; font-weight: 400; }
+body.chat-home-page .calendar-expense-item dd { color: var(--lotbi-text-primary); font-size: 15px; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
+body.chat-home-page .calendar-expense-coverage { grid-column: 1 / -1; margin: 0; font-size: 13px; line-height: 1.65; color: var(--lotbi-text-primary); white-space: normal; }
+body.chat-home-page .calendar-expense-notice { font-size: 14px; line-height: 1.7; color: var(--consumer-detail-muted); }
+body.chat-home-page .calendar-expense-storage-note { margin: 16px 0 0; font-size: 13px; line-height: 1.65; }
+body.chat-home-page .calendar-expense-line + .calendar-expense-line { margin-top: 20px; padding-top: 20px; }
+@media (max-width: 900px) {
+  body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-items { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-items { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+  body.chat-home-page .calendar-expense-total-amount { font-size: 24px; }
+}
 body.chat-home-page .lotbi-box-card { border-radius: 12px; background: var(--lotbi-surface-primary); box-shadow: none; }
 body.chat-home-page .lotbi-box-card-title { font-size: 16px; font-weight: 500; line-height: 1.5; }
 body.chat-home-page .lotbi-box-card-price { font-size: 16px; font-weight: 500; }

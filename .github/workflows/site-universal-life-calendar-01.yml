@@ -63,6 +63,9 @@ on:
       - 'scripts/validate_calendar_editor_field_height_01.mjs'
       - 'scripts/validate_calendar_settings_expansion_01.mjs'
       - 'scripts/validate_calendar_secondary_surfaces_01.mjs'
+      - 'scripts/validate_calendar_ledger_design_01.mjs'
+      - 'scripts/fixtures/calendar-ledger-design-01.html'
+      - 'site-consumer-detail.css'
       - 'scripts/validate_calendar_product_model_01.mjs'
       - 'scripts/validate_calendar_cross_platform_ux_01.mjs'
       - 'scripts/validate_calendar_compact_editor_01.mjs'
@@ -128,6 +131,7 @@ jobs:
         run: node scripts/validate_guest_calendar_local_01.mjs
       - name: Real Calendar UI and editor
         run: |
+          node scripts/validate_calendar_ledger_design_01.mjs
           node scripts/validate_calendar_real_ui_01.mjs
           node scripts/validate_calendar_weather_icons_01.mjs
           node scripts/validate_calendar_weather_glyph_legibility_01.mjs
