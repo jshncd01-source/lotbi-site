@@ -123,6 +123,10 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 본문 문구와 디자인은 변경하지 않았고, 기존 .html 주소는 Nginx 301 alias로
 # 보존한다. 새 게시본과 새 동의 증빙은 clean URI를 사용하되 과거 저장 URI는
 # 그대로 유효하다.
+# PRIVACY-TABLE-WIDTH-HOTFIX-20261005 — styles.css의 승인된 레이아웃 변경으로
+# .legal-table-scroll을 본문 열 안에 유지하고 내부 가로 스크롤·키보드 포커스·
+# 모바일 data-label 카드를 보존한다. 법률 본문과 동의 증빙은 변경하지 않는다.
+# scripts/validate_privacy_table_width_01.mjs가 이 계약을 별도로 검증한다.
 LOCKED_SHA256 = {
     'privacy.html': 'ac96f7dcf14724da42d5f17dd15ee38dd1749cbe39fcf54d82f58b82b7062f6f',
     'terms.html': '19c0c6d5328bc6154f26aff2b5871a71193104f422b9e85d012753f0df80a6c0',
@@ -130,7 +134,7 @@ LOCKED_SHA256 = {
     'contact.html': '192c4d9903e5efd5d393f606f7e92a8e26e9ab5eb8445655fd904240cf2ff3d0',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': '49c66de0ef4322c39dcedcbd796e7831b6369b359482bf25c2d4eb609b611969',
+    'styles.css': '4674a04254d2598fe7bf1de0c030ad185f9387996d3bdd9b0f10334c250b7f90',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
