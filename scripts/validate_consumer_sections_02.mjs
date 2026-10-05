@@ -9,9 +9,9 @@ assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['날씨', '장소', '�
 assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 8);
 assert.ok(LIFE_SHORTCUTS.filter(item => item.id !== 'festivals').every(item => typeof item.prompt === 'string'));
 assert.match(LIFE_SHORTCUTS.find(item => item.id === 'bills').prompt, /등록할지/);
-for (const label of ['첫 자료 등록하기', '사진 촬영', '사진 선택', '파일 업로드', '사람 등록', '제휴처 찾아 연결하기']) assert.ok(source.includes(label));
+for (const label of ['사람 등록', '제휴처 찾아 연결하기']) assert.ok(source.includes(label));
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|type = 'file'/);
-assert.match(source, /action\('첫 자료 등록하기', null, \{disabled: true\}\)/);
+assert.match(source, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt\}\)/);
 assert.match(source, /action\('사람 등록', null, \{disabled: true\}\)/);
 assert.match(source, /role', 'tablist'/);
 assert.match(source, /aria-selected/);
