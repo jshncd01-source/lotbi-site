@@ -22,7 +22,7 @@ assert.match(source, /!authenticated/);
 assert.match(source, /mounted\?\.dispose\?\.\(\)/);
 assert.match(conversation, /onClose: \(\) => mounted\?\.dispose\(\)/);
 assert.match(conversation, /mountPetFamilyManager\(\{sessionToken, root, subscription: serverSubscription/);
-assert.match(conversation, /mountPersonProfileManager\(\{sessionToken, root, subscription: serverSubscription/);
+assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface/);
 assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.match(css, /min-height: 44px/);
