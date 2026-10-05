@@ -1,22 +1,22 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-21e31ea833e3';
-import * as siteCore from './site-core.js?v=aset-21e31ea833e3';
-import './site-scam-shield.js?v=aset-21e31ea833e3';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-21e31ea833e3';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-21e31ea833e3';
-import * as siteAttachments from './site-attachments.js?v=aset-21e31ea833e3';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-21e31ea833e3';
-import {deterministicReply} from './site-deterministic.js?v=aset-21e31ea833e3';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-21e31ea833e3';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-21e31ea833e3';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-21e31ea833e3';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-21e31ea833e3';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-21e31ea833e3';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-21e31ea833e3';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-21e31ea833e3';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-21e31ea833e3';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-21e31ea833e3';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-21e31ea833e3';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-21e31ea833e3';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-de88e6e1b0a7';
+import * as siteCore from './site-core.js?v=aset-de88e6e1b0a7';
+import './site-scam-shield.js?v=aset-de88e6e1b0a7';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-de88e6e1b0a7';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-de88e6e1b0a7';
+import * as siteAttachments from './site-attachments.js?v=aset-de88e6e1b0a7';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-de88e6e1b0a7';
+import {deterministicReply} from './site-deterministic.js?v=aset-de88e6e1b0a7';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-de88e6e1b0a7';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-de88e6e1b0a7';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-de88e6e1b0a7';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-de88e6e1b0a7';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-de88e6e1b0a7';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-de88e6e1b0a7';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-de88e6e1b0a7';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-de88e6e1b0a7';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-de88e6e1b0a7';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-de88e6e1b0a7';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-de88e6e1b0a7';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -167,7 +167,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-21e31ea833e3';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-de88e6e1b0a7';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -854,7 +854,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let state = {threads: [], activeThreadId: null, draft: ''};
   let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
-  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer;
+  let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer, activeVoiceConsumer;
   let lastRenderedCreatedAt;
   let timestampRefreshTimer;
   let themeBoundaryTimer;
@@ -908,12 +908,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const resolve = typeof detail.resolve === 'function' ? detail.resolve : () => {};
     const reject = typeof detail.reject === 'function' ? detail.reject : () => {};
     try {
-      if (!sessionToken) throw new SiteCoreError('안심확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
+      if (!sessionToken) throw new SiteCoreError('진위확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
       resolve(await analyzeScamShield(sessionToken, detail.formData));
     } catch (error) {
       if (error instanceof SiteCoreError && isSessionError(error)) sessionToken = undefined;
       reject(error);
     }
+  });
+  window.addEventListener('lotbi:scam-shield-session-request', event => {
+    const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object' ? event.detail : {};
+    if (typeof detail.resolve === 'function') detail.resolve(Boolean(sessionToken));
+  });
+  window.addEventListener('lotbi:scam-shield-login-request', event => {
+    const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object' ? event.detail : {};
+    const resolve = typeof detail.resolve === 'function' ? detail.resolve : () => {};
+    const reject = typeof detail.reject === 'function' ? detail.reject : () => {};
+    void beginSiteHandoff().then(resolve, reject);
   });
   const recentConversationContext = () => {
     const messages = threadRecord()?.messages;
@@ -2965,7 +2975,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-21e31ea833e3');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-de88e6e1b0a7');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2993,7 +3003,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-21e31ea833e3');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-de88e6e1b0a7');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3189,11 +3199,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onFestival: () => { closeSurface(); void openFestival(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       mountPeople: async (root, reportCounts) => {
-        const {mountPersonProfileManager} = await import('./site-person-ui.js?v=aset-21e31ea833e3');
+        const {mountPersonProfileManager} = await import('./site-person-ui.js?v=aset-de88e6e1b0a7');
         return mountPersonProfileManager({sessionToken, root, subscription: serverSubscription, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-21e31ea833e3');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-de88e6e1b0a7');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -3836,52 +3846,152 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // The engine accepted start() and then reported nothing at all. Put the
   // composer back exactly as it was before the click and say so in plain words.
   // Never stand in a blank or invented transcript for speech we did not hear.
-  const abandonSilentVoiceEngine = recognition => {
+  const abandonSilentVoiceEngine = (recognition, consumer) => {
     voiceStartDeadline = undefined;
     if (voiceRecognition !== recognition) return;
     try { recognition.abort(); } catch { /* an engine that never started may refuse to stop */ }
     voiceRecognition = undefined;
     if (voiceAvatarRequestId) { driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; }
     setListeningState(false);
+    consumer?.onListening?.(false);
     voiceRequesting = false; delete micButton.dataset.requesting; updateSendState();
-    setVoiceFeedback(VOICE_ENGINE_SILENT_MESSAGE); prompt.focus();
+    if (consumer) {
+      if (!consumer.__lotbiSettled) {
+        consumer.__lotbiSettled = true;
+        consumer.reject?.(new Error(VOICE_ENGINE_SILENT_MESSAGE));
+      }
+    } else {
+      setVoiceFeedback(VOICE_ENGINE_SILENT_MESSAGE);
+      prompt.focus();
+    }
   };
-  const startVoiceInput = async () => {
+  // One recognition owner serves both the conversation composer and
+  // 진위확인's review-before-submit field. The caller decides where the
+  // transcript lands; only the conversation path keeps its existing delayed
+  // auto-send. 진위확인 never sends from recognition callbacks.
+  const startVoiceInput = async options => {
+    const consumer = options?.reviewOnly === true ? options : null;
+    const feedback = message => {
+      if (consumer) consumer.onStatus?.(message);
+      else setVoiceFeedback(message);
+    };
+    const focusComposer = () => { if (!consumer) prompt.focus(); };
     cancelVoiceAutoSend();
-    if (inFlight || voiceRequesting) return;
-    if (voiceListening && voiceRecognition) { voiceRecognition.stop(); return; }
+    if (inFlight || voiceRequesting) {
+      consumer?.reject?.(new Error('다른 음성 입력이 끝난 뒤 다시 눌러 주세요.'));
+      return;
+    }
+    if (voiceListening && voiceRecognition) {
+      voiceRecognition.stop();
+      consumer?.reject?.(new Error('듣기를 멈췄어요. 다시 눌러 말씀해 주세요.'));
+      return;
+    }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (typeof SpeechRecognition !== 'function') { setVoiceFeedback('음성 입력을 지원하지 않는 브라우저입니다. 텍스트로 입력해 주세요.'); prompt.focus(); return; }
+    if (typeof SpeechRecognition !== 'function') {
+      const message = '음성 입력을 지원하지 않는 브라우저입니다. 직접 입력해 주세요.';
+      if (consumer) consumer.reject?.(new Error(message)); else setVoiceFeedback(message);
+      focusComposer();
+      return;
+    }
     // A recogniser left over from a silent engine is still holding the mic.
     if (voiceRecognition) { const stale = voiceRecognition; voiceRecognition = undefined; clearVoiceStartDeadline(); try { stale.abort(); } catch { /* already gone */ } }
-    voiceRequesting = true; micButton.disabled = true; micButton.dataset.requesting = 'true'; setVoiceFeedback('마이크 권한을 확인하고 있습니다.');
+    activeVoiceConsumer = consumer;
+    voiceRequesting = true; micButton.disabled = true; micButton.dataset.requesting = 'true'; feedback('마이크 권한을 확인하고 있습니다.');
     try {
       await requestMicrophoneAccess(); const recognition = new SpeechRecognition(); voiceRecognition = recognition;
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { clearVoiceStartDeadline(); voiceAvatarRequestId = nextAvatarRequestId('voice'); driveAvatar('listening-start', voiceAvatarRequestId); setListeningState(true); setVoiceFeedback('듣고 있습니다. 말씀해 주세요.'); };
+      recognition.onstart = () => {
+        clearVoiceStartDeadline();
+        voiceAvatarRequestId = nextAvatarRequestId('voice');
+        driveAvatar('listening-start', voiceAvatarRequestId);
+        setListeningState(true);
+        consumer?.onListening?.(true);
+        feedback('듣고 있어요. 확인할 내용을 말씀해 주세요.');
+      };
       recognition.onresult = event => {
         const heard = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
         // Nothing usable came back. Say so plainly; never send an empty turn and
         // never stand in a guess for words we did not hear.
-        if (!heard) { setVoiceFeedback(VOICE_NOTHING_HEARD_MESSAGE); prompt.focus(); return; }
+        if (!heard) {
+          recognition.__lotbiDone = true;
+          if (consumer) { consumer.__lotbiSettled = true; consumer.reject?.(new Error(VOICE_NOTHING_HEARD_MESSAGE)); }
+          else setVoiceFeedback(VOICE_NOTHING_HEARD_MESSAGE);
+          focusComposer();
+          return;
+        }
         // "롯비야 내일 날씨" should ask about the weather, not about LOTBI's own
         // name. Drops a leading wake call; text that does not open with one
         // comes back untouched.
         const transcript = stripWakePrefix(heard);
         // A wake call with nothing after it is a call, not a question. Never
         // send an empty turn, and never invent the part that was not said.
-        if (!transcript) { setVoiceFeedback(VOICE_WAKE_ONLY_MESSAGE); prompt.focus(); return; }
+        if (!transcript) {
+          recognition.__lotbiDone = true;
+          if (consumer) { consumer.__lotbiSettled = true; consumer.reject?.(new Error(VOICE_WAKE_ONLY_MESSAGE)); }
+          else setVoiceFeedback(VOICE_WAKE_ONLY_MESSAGE);
+          focusComposer();
+          return;
+        }
+        recognition.__lotbiDone = true;
+        if (consumer) {
+          consumer.__lotbiSettled = true;
+          consumer.resolve?.(transcript);
+          return;
+        }
         const current = prompt.value.trimEnd(); prompt.value = current ? `${current} ${transcript}` : transcript;
         prompt.dispatchEvent(new Event('input', {bubbles: true}));
         beginVoiceAutoSend();
       };
-      recognition.onerror = event => { clearVoiceStartDeadline(); setVoiceFeedback(voiceErrorMessage(event)); };
-      recognition.onend = () => { clearVoiceStartDeadline(); if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; setListeningState(false); if (voiceRecognition === recognition) voiceRecognition = undefined; updateSendState(); prompt.focus(); };
+      recognition.onerror = event => {
+        clearVoiceStartDeadline();
+        recognition.__lotbiDone = true;
+        const message = voiceErrorMessage(event);
+        if (consumer) { consumer.__lotbiSettled = true; consumer.reject?.(new Error(message)); }
+        else setVoiceFeedback(message);
+      };
+      recognition.onend = () => {
+        clearVoiceStartDeadline();
+        if (voiceAvatarRequestId) driveAvatar('listening-end', voiceAvatarRequestId);
+        voiceAvatarRequestId = undefined;
+        setListeningState(false);
+        consumer?.onListening?.(false);
+        if (consumer && !recognition.__lotbiDone && !consumer.__lotbiSettled) {
+          consumer.__lotbiSettled = true;
+          consumer.reject?.(new Error(VOICE_NOTHING_HEARD_MESSAGE));
+        }
+        if (voiceRecognition === recognition) voiceRecognition = undefined;
+        if (activeVoiceConsumer === consumer) activeVoiceConsumer = undefined;
+        updateSendState();
+        focusComposer();
+      };
       recognition.start();
-      voiceStartDeadline = setTimeout(() => abandonSilentVoiceEngine(recognition), VOICE_RECOGNITION_START_TIMEOUT_MS);
-    } catch (error) { clearVoiceStartDeadline(); voiceRecognition = undefined; setListeningState(false); setVoiceFeedback(voiceErrorMessage(error)); prompt.focus(); }
+      voiceStartDeadline = setTimeout(() => abandonSilentVoiceEngine(recognition, consumer), VOICE_RECOGNITION_START_TIMEOUT_MS);
+    } catch (error) {
+      clearVoiceStartDeadline(); voiceRecognition = undefined; setListeningState(false);
+      const message = voiceErrorMessage(error);
+      if (consumer) { consumer.__lotbiSettled = true; consumer.reject?.(new Error(message)); }
+      else setVoiceFeedback(message);
+      focusComposer();
+    }
     finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
   };
+  window.addEventListener('lotbi:voice-transcription-request', event => {
+    const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object' ? event.detail : {};
+    void startVoiceInput({...detail, reviewOnly: true});
+  });
+  window.addEventListener('lotbi:voice-transcription-cancel', () => {
+    if (activeVoiceConsumer) activeVoiceConsumer.__lotbiSettled = true;
+    if (voiceRecognition) {
+      const active = voiceRecognition;
+      voiceRecognition = undefined;
+      clearVoiceStartDeadline();
+      try { active.abort(); } catch {}
+    }
+    setListeningState(false);
+    activeVoiceConsumer?.onListening?.(false);
+    activeVoiceConsumer = undefined;
+    updateSendState();
+  });
   const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
