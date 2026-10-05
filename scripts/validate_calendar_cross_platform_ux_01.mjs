@@ -124,7 +124,7 @@ assert.ok(manager.includes("weatherSummary.className = 'calendar-weather-summary
 assert.ok(manager.includes("minimum.className = 'calendar-weather-temperature-min'"));
 assert.ok(manager.includes("maximum.className = 'calendar-weather-temperature-max'"));
 assert.ok(manager.includes("separator.className = 'calendar-weather-temperature-separator'"));
-assert.match(css, /\.calendar-weather-temperature-min\s*\{[^}]*left:\s*0;[^}]*bottom:\s*0;[^}]*color:\s*#1769c2;/);
+assert.match(css, /\.calendar-weather-temperature-min\s*\{[^}]*left:\s*0;[^}]*bottom:\s*0;[^}]*color:\s*var\(--lotbi-text-primary, var\(--text, #212121\)\);/);
 assert.match(css, /\.calendar-weather-temperature-max\s*\{[^}]*top:\s*0;[^}]*right:\s*0;[^}]*color:\s*#d43b32;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-header\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*44px 12px;/);
 assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.calendar-date-trigger\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*1;/);

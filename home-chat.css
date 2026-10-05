@@ -26,7 +26,7 @@
 
 .chat-sidebar {
   background: #f7f8fb;
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .chat-sidebar-desktop {
@@ -53,7 +53,7 @@
 
 .nav-section-title {
   margin: 0 10px 7px;
-  color: #737b88;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .02em;
@@ -70,7 +70,7 @@
   border: 0;
   border-radius: 12px;
   background: transparent;
-  color: #353c48;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -81,7 +81,7 @@
 .nav-item-primary {
   border: 1px solid #d9dee8;
   background: #fff;
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
   box-shadow: 0 1px 4px rgba(24, 42, 70, .04);
 }
 
@@ -213,7 +213,7 @@
 .account-login {
   border: 1px solid var(--brand-line);
   background: rgba(255, 255, 255, .72);
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .account-signup {
@@ -287,7 +287,7 @@
   outline: 0;
   padding: 10px 4px 8px;
   background: transparent;
-  color: #303642;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-size: 17px;
   line-height: 1.55;
@@ -318,7 +318,7 @@
   border-radius: 999px;
   border: 1px solid var(--brand-line);
   background: #f6f8fc;
-  color: var(--brand-navy);
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .composer-button svg {

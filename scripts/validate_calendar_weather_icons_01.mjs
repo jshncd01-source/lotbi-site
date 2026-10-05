@@ -267,7 +267,7 @@ assert.equal(
 );
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
+const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8').replace(/\r\n/g, '\n');
 const locationSource = fs.readFileSync(path.join(ROOT, 'site-current-location.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
 const weatherModuleSource = fs.readFileSync(path.join(ROOT, 'site-calendar-weather.js'), 'utf8');

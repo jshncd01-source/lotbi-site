@@ -12,7 +12,7 @@ const index = read('index.html');
 const module_ = read('site-footer-legal.js');
 const footerCss = read('footer-business-info.css');
 
-const SUMMARY_LINE = '유한회사 알에이디홀딩스 | 사업자등록번호 583-88-03679';
+const SUMMARY_LINE = 'LOTBI · 회사 및 이용 안내';
 const MANDATORY = [
   '유한회사 알에이디홀딩스', '대표자: 전선혜',
   '주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)',
@@ -35,7 +35,7 @@ assert.equal((index.match(/id="footer-legal-panels"/g) || []).length, 1, 'one le
 const disclosureTag = index.match(/<details\b[^>]*data-footer-legal-disclosure[^>]*>/)?.[0] || '';
 assert.ok(disclosureTag, 'native <details> disclosure is required');
 assert.ok(!/\bopen\b/.test(disclosureTag), 'mobile first paint must start compact before JS');
-const summaryTag = index.match(/<summary\b[\s\S]*?data-footer-legal-toggle[\s\S]*?>/)?.[0] || '';
+const summaryTag = index.match(/<summary\b[^>]*data-footer-legal-toggle[^>]*>/)?.[0] || '';
 assert.ok(summaryTag, 'native <summary> toggle is required');
 assert.ok(!/\bhidden\b/.test(summaryTag), 'summary must be usable when enhancement JS fails');
 assert.ok(/aria-controls="footer-legal-panels"/.test(summaryTag));

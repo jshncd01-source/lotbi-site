@@ -2,7 +2,7 @@
   color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #f7f8fb;
-  color: #17191d;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body {
@@ -24,7 +24,7 @@ body {
 }
 
 .brand {
-  color: #20124d;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -37,7 +37,7 @@ h1 {
 
 p {
   margin: 0;
-  color: #59616e;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   line-height: 1.65;
 }
 

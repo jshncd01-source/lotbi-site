@@ -11,6 +11,11 @@ const cssFiles = [
   'site-sidebar-nav.css',
   'site-calendar.css',
   'site-auth-continuity.css',
+  'home-bare-white.css',
+  'site-theme-tokens.css',
+  'site-consumer-design.css',
+  'site-consumer-layout.css',
+  'site-consumer-detail.css',
 ];
 const css = cssFiles.map(file => fs.readFileSync(file, 'utf8')).join('\n\n');
 
@@ -71,8 +76,8 @@ doc.open(); doc.write(${markup}); doc.close();
 const win = frame.contentWindow;
 const surface = doc.querySelector(${JSON.stringify(mode === 'desktop' ? '.chat-sidebar-desktop' : '.mobile-nav-drawer')});
 if (!surface) throw new Error('Sidebar surface missing from fixture');
-const primary = surface.querySelector('.sidebar-primary-nav');
-const calendar = surface.querySelector('.sidebar-calendar-nav');
+const primary = surface.querySelector('.consumer-primary-nav');
+const calendar = primary;
 const recent = surface.querySelector('.sidebar-history-scroll');
 const recentList = surface.querySelector('[data-recent-conversations]');
 const footer = surface.querySelector('.sidebar-account-footer');
@@ -187,7 +192,7 @@ function assertViewport(label, result, width, height, mode) {
   if (result.title.whiteSpace !== 'nowrap') throw new Error(`${label}: recent title must remain exactly one line (${result.title.whiteSpace})`);
   if (result.title.textOverflow !== 'ellipsis') throw new Error(`${label}: recent title overflow must use ellipsis (${result.title.textOverflow})`);
   if (mode === 'desktop') {
-    if (Math.abs(result.surface.width - 220) > tolerance) throw new Error(`${label}: desktop sidebar width changed from 220px (${result.surface.width}px)`);
+    if (Math.abs(result.surface.width - 220) > tolerance) throw new Error(`${label}: existing desktop sidebar must remain 220px (${result.surface.width}px)`);
     if (result.surface.height > height + tolerance) throw new Error(`${label}: desktop sidebar exceeds viewport height`);
   } else {
     if (result.surface.left < -tolerance || result.surface.right > width + tolerance) throw new Error(`${label}: mobile drawer is outside viewport`);

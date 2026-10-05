@@ -100,7 +100,7 @@ for (const [label, selector] of [['explicit Dark', 'body[data-site-theme="dark"]
 // not do is be the only place a dark surface is defined.
 const bareWhite = fs.readFileSync(path.join(ROOT, 'home-bare-white.css'), 'utf8');
 assert.ok(
-  bareWhite.includes('--home-skin-bg: #ffffff') && bareWhite.includes('--home-skin-bg: #151922'),
+  bareWhite.includes('--home-skin-bg: #ffffff') && bareWhite.includes('--home-skin-bg: #212121'),
   'home-bare-white.css must keep defining both themes for the Home skin',
 );
 assert.ok(

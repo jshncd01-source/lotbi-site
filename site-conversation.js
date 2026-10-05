@@ -1,22 +1,23 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-53bde1fef0df';
-import * as siteCore from './site-core.js?v=aset-53bde1fef0df';
-import './site-scam-shield.js?v=aset-53bde1fef0df';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-53bde1fef0df';
-import * as siteAttachments from './site-attachments.js?v=aset-53bde1fef0df';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-53bde1fef0df';
-import {deterministicReply} from './site-deterministic.js?v=aset-53bde1fef0df';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-53bde1fef0df';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-53bde1fef0df';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-53bde1fef0df';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-53bde1fef0df';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-53bde1fef0df';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-53bde1fef0df';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-53bde1fef0df';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-53bde1fef0df';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-53bde1fef0df';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-53bde1fef0df';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-53bde1fef0df';
-const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, updateCurrentSiteProfile, uploadConversationAttachment, SiteCoreError} = siteCore;
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-2483f0b86536';
+import * as siteCore from './site-core.js?v=aset-2483f0b86536';
+import './site-scam-shield.js?v=aset-2483f0b86536';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-2483f0b86536';
+import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-2483f0b86536';
+import * as siteAttachments from './site-attachments.js?v=aset-2483f0b86536';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-2483f0b86536';
+import {deterministicReply} from './site-deterministic.js?v=aset-2483f0b86536';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-2483f0b86536';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-2483f0b86536';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2483f0b86536';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-2483f0b86536';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-2483f0b86536';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-2483f0b86536';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-2483f0b86536';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-2483f0b86536';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-2483f0b86536';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-2483f0b86536';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-2483f0b86536';
+const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
@@ -166,7 +167,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-53bde1fef0df';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-2483f0b86536';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -999,7 +1000,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     scheduleThemeBoundary(storedTheme);
     const systemDark = resolvedTheme === 'system' && globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches === true;
     const themeColor = document.querySelector('meta[name="theme-color"]');
-    if (themeColor) themeColor.setAttribute('content', resolvedTheme === 'dark' || systemDark ? '#151922' : '#ffffff');
+    if (themeColor) themeColor.setAttribute('content', resolvedTheme === 'dark' || systemDark ? '#212121' : '#ffffff');
     syncResponseGradeUi();
     document.body.dataset.responseGrade = preferences.responseGrade;
   };
@@ -2590,6 +2591,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const activateThread = id => {
     if (!state.threads.some(item => item.id === id)) return;
+    closeSurface();
     cancelActiveTurn('conversation-switch');
     closeConversationMenus();
     state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); prompt.focus();
@@ -2756,7 +2758,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const detailParts = [];
     if (serverIdentity?.publicHandle) detailParts.push(`@${serverIdentity.publicHandle}`);
     if (includePlan && serverSubscription?.plan) {
-      const planLabels = {FREE: 'LOTBI Free', LOTBI_PLUS: 'LOTBI Plus'};
+      const planLabels = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
       detailParts.push(planLabels[serverSubscription.plan] || serverSubscription.plan);
     }
     if (detailParts.length) {
@@ -2779,7 +2781,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const email = document.createElement('span'); email.className = 'profile-popover-summary-email'; email.textContent = serverIdentity.email; copy.appendChild(email);
     }
     if (serverSubscription?.plan) {
-      const planLabels = {FREE: 'LOTBI Free', LOTBI_PLUS: 'LOTBI Plus'};
+      const planLabels = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
       const planName = planLabels[serverSubscription.plan] || serverSubscription.plan;
       const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = `현재 이용 등급 · ${planName}`; copy.appendChild(plan);
     }
@@ -2830,6 +2832,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const identity = await getCurrentSiteUser(sessionToken);
       if (namespace && identity.installationId !== namespace) throw new SiteCoreError('Site 사용자 namespace가 일치하지 않습니다.', {code: 'SITE_IDENTITY_NAMESPACE_MISMATCH'});
       serverIdentity = identity; refreshAuthenticatedProfileSlots();
+      openProfilePhotoFromHash();
     } catch (error) {
       if (isSessionError(error)) sessionToken = undefined;
       return;
@@ -2844,21 +2847,48 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   const closeSurface = () => {
     if (!openSurface) return;
+    if (openSurface.dataset.workspace) {
+      mainScrollHost.inert = false;
+      for (const entry of document.querySelectorAll('[data-workspace-current]')) {
+        entry.removeAttribute('aria-current'); entry.removeAttribute('data-workspace-current');
+      }
+    }
     for (const trigger of document.querySelectorAll('[data-profile-menu-trigger]')) trigger.setAttribute('aria-expanded', 'false');
     const onClose = surfaceCloseCallback;
-    openSurface.remove(); openSurface = undefined; openSurfaceTrigger = undefined; surfaceCloseCallback = undefined; document.body.classList.remove('site-overlay-open');
+    openSurface.remove(); openSurface = undefined; openSurfaceTrigger = undefined; surfaceCloseCallback = undefined; document.body.classList.remove('site-overlay-open', 'site-workspace-open');
     if (typeof onClose === 'function') {
       try { onClose(); } catch {}
     }
     if (surfaceRestoreFocus instanceof HTMLElement && surfaceRestoreFocus.isConnected) surfaceRestoreFocus.focus();
     surfaceRestoreFocus = undefined;
   };
-  const installSurfaceBehavior = (surface, panel, {modal = false, trigger, onClose} = {}) => {
-    closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; surfaceCloseCallback = typeof onClose === 'function' ? onClose : undefined;
-    document.body.appendChild(surface); document.body.classList.add('site-overlay-open');
+  const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', trigger, onClose, onBack, backLabel = '대화로 돌아가기'} = {}) => {
+    const initiatingFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = initiatingFocus; surfaceCloseCallback = typeof onClose === 'function' ? onClose : undefined;
+    document.body.appendChild(surface); document.body.classList.add(workspace ? 'site-workspace-open' : 'site-overlay-open');
+    if (workspace) {
+      surface.dataset.workspace = workspace;
+      surface.classList.add('consumer-workspace'); panel.setAttribute('role', 'region');
+      mainScrollHost.inert = true;
+      const back = panel.querySelector('.site-modal-close');
+      if (back) {
+        back.textContent = '←'; back.title = backLabel;
+        back.setAttribute('aria-label', backLabel);
+        if (typeof onBack === 'function') {
+          back.removeEventListener('click', closeSurface);
+          back.addEventListener('click', () => { closeSurface(); onBack(); });
+        }
+        panel.querySelector('.site-modal-header')?.prepend(back);
+      }
+      for (const entry of document.querySelectorAll('.consumer-primary-nav button')) {
+        if (entry.dataset.consumerSection === workspace || (workspace === 'calendar' && entry.hasAttribute('data-calendar-view'))) {
+          entry.setAttribute('aria-current', 'page'); entry.dataset.workspaceCurrent = '';
+        }
+      }
+    }
     surface.addEventListener('click', event => { if (event.target === surface) closeSurface(); });
     surface.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); closeSurface(); } else trapFocus(panel, event);
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSurface(); if (typeof onBack === 'function') onBack(); } else if (!workspace) trapFocus(panel, event);
     });
     if (modal) panel.setAttribute('aria-modal', 'true');
     queueMicrotask(() => focusableNodes(panel)[0]?.focus());
@@ -2929,18 +2959,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // must release them rather than leak the private bytes into the page.
     let releasePetSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      modal: true,
+      workspace: 'care', backLabel: '안심케어로 돌아가기', onBack: () => openConsumerSection('care'),
       onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
     });
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-53bde1fef0df');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-2483f0b86536');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
         initialSurface,
       });
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releasePetSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
       content.replaceChildren(Object.assign(document.createElement('p'), {
@@ -2956,18 +2987,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     panel.classList.add('site-festival-modal');
     let releaseFestivalSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      modal: true,
+      workspace: 'life', backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'),
       onClose: () => { releaseFestivalSurface?.(); releaseFestivalSurface = null; },
     });
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-53bde1fef0df');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-2483f0b86536');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
         selectedDate,
-      });      releaseFestivalSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+      });
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseFestivalSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
     } catch {
       content.replaceChildren(Object.assign(document.createElement('p'), {
         className: 'festival-error',
@@ -3045,12 +3078,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지 파일을 읽지 못했습니다.')); };
     image.src = objectUrl;
   });
-  const openProfile = () => {
-    // SITE-PROFILE-HANDLE-TO-ACCOUNT-01 — 계정 전역 식별자(핸들)를 이 화면에서
-    // 뺐습니다. 계정 페이지가 그 값의 주인이고, 여기서 고치면 두 곳이 같은 값을
-    // 두고 다투게 됩니다. 숨긴 것이 아니라 주인에게 돌려보낸 것이므로, 가는 길은
-    // 프로필 메뉴의 '설정'(계정 페이지 직행)으로 한 단계 위에 그대로 열려 있습니다.
-    const {backdrop, panel, content} = modalShell('프로필', '표시 이름·이메일은 LOTBI 계정의 canonical 정보이며 모든 기기에서 동일하게 사용됩니다. 사진만 이 브라우저에 저장됩니다.');
+  // Account owns canonical name/email editing. The Site owns only its local photo.
+  const openProfile = () => { window.location.assign(ACCOUNT_MANAGE_URL + '#profile'); };
+  const openProfilePhoto = () => {
+    if (!sessionToken || !serverIdentity) return;
+    const {backdrop, panel, content} = modalShell('프로필 사진', '이 사진은 LOTBI 사이트의 이 브라우저에만 저장됩니다.');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
     if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
@@ -3096,56 +3128,59 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     photoMenu.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); setPhotoMenuOpen(false); photoTrigger.focus(); } });
     photoPicker.prepend(photoTrigger, photoMenu);
 
-    const nameLabel = document.createElement('label'); nameLabel.className = 'site-field'; nameLabel.textContent = '표시 이름';
-    const name = document.createElement('input'); name.type = 'text'; name.maxLength = 120; name.value = serverIdentity?.name || canonicalProfileName(); name.autocomplete = 'name'; nameLabel.appendChild(name);
-    const emailField = document.createElement('div'); emailField.className = 'site-readonly-field';
-    const emailTitle = document.createElement('strong'); emailTitle.textContent = '이메일';
-    const emailValue = document.createElement('span'); emailValue.textContent = serverIdentity?.email || '등록된 이메일 없음'; emailField.append(emailTitle, emailValue);
-    const save = document.createElement('button'); save.type = 'button'; save.className = 'site-button site-button-primary'; save.textContent = '프로필 저장';
-    save.disabled = !sessionToken;
-
-    save.addEventListener('click', async () => {
-      if (!sessionToken || save.disabled) return;
-      error.textContent = ''; save.disabled = true; save.textContent = '저장 중…';
-      try {
-        // 표시 이름만 보냅니다. publicHandle 을 실어 보내지 않으므로 이 화면이
-        // 계정 쪽 핸들을 덮어쓸 길 자체가 없습니다.
-        const updated = await updateCurrentSiteProfile(sessionToken, {displayName: name.value});
-        serverIdentity = Object.freeze({...serverIdentity, ...updated});
-        name.value = serverIdentity.name || canonicalProfileName();
-        emailValue.textContent = serverIdentity.email || '등록된 이메일 없음';
-        preview.textContent = initials(canonicalProfileName());
-        refreshAuthenticatedProfileSlots();
-        save.textContent = '저장됨';
-      } catch (caught) {
-        error.textContent = caught instanceof Error ? caught.message : '프로필을 저장하지 못했습니다.';
-        save.textContent = '프로필 저장';
-      } finally {
-        save.disabled = false;
-      }
-    });
-    content.append(preview, photoPicker, error, nameLabel, emailField, save); installSurfaceBehavior(backdrop, panel, {modal: true});
+    const accountLink = document.createElement('a'); accountLink.className = 'site-button site-button-secondary';
+    accountLink.href = ACCOUNT_MANAGE_URL + '#profile'; accountLink.textContent = '이름 · 이메일 관리';
+    content.append(preview, photoPicker, error, accountLink); installSurfaceBehavior(backdrop, panel, {modal: true});
   };
-  // 개인테마 — the theme choice and nothing else. This surface only calls the
-  // existing applyPreferences/savePreferences pair; the theme switching logic
-  // itself is not touched here.
+  const openProfilePhotoFromHash = () => {
+    if (window.location.hash !== '#profile-photo' || !sessionToken || !serverIdentity || !stateReady) return;
+    openProfilePhoto();
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  };
+  window.addEventListener('hashchange', openProfilePhotoFromHash);
+  // One settings owner: display modes are edited in Account. Existing Site
+  // theme bootstrap and synchronization are unchanged.
   const openPersonalTheme = () => {
-    const {backdrop, panel, content} = modalShell('개인테마', '선택한 테마는 현재 사용자 설치의 이 브라우저에 저장됩니다.');
-    const themeLabel = document.createElement('label'); themeLabel.className = 'site-field'; themeLabel.textContent = '테마';
-    const select = document.createElement('select');
-    for (const [value, label] of THEME_OPTIONS) {
-      const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = preferences.theme === value; select.appendChild(option);
-    }
-    select.addEventListener('change', () => { preferences.theme = select.value; applyPreferences(); savePreferences(); });
-    themeLabel.appendChild(select);
-    // 기기모드 and 자동모드 are different answers, so the window says which is which.
-    const themeHelp = document.createElement('p'); themeHelp.className = 'site-field-help';
-    themeHelp.textContent = `'기기모드'는 기기의 다크 모드를 따라가고, '자동모드'는 시계를 따라갑니다 — 저녁 ${AUTO_THEME_DARK_HOUR}시부터 다크, 아침 ${AUTO_THEME_LIGHT_HOUR}시부터 라이트.`;
-    content.append(themeLabel, themeHelp); installSurfaceBehavior(backdrop, panel, {modal: true});
+    window.location.assign(ACCOUNT_MANAGE_URL + '#personalization');
   };
   // 설정 — no intermediate modal. It leaves for the account page directly, the
   // same destination the profile modal's removed button used.
   const openSettings = () => { window.location.assign(ACCOUNT_MANAGE_URL); };
+  // Keep feature ownership in the existing managers. These entry points never
+  // submit a request or imply that an unconnected feature is available.
+  const openConsumerSection = section => {
+    closeMobileDrawer();
+    // The provider catalogue already owns connection state, permissions and
+    // disconnect. Enter it directly instead of adding an extra menu-board.
+    if (section === 'mall') { window.location.assign('https://account.lotbiai.com/connected-services'); return; }
+    const definitions = {
+      wallet: ['Life Wallet', '신분·자격·증명 자료를 보관하는 생활지갑입니다. 결제카드 지갑은 아니에요.'],
+      care: ['안심케어', '사람과 반려동물을 함께 챙기는 안전 공간입니다.'],
+      life: ['생활정보', '내 주변의 생활정보를 찾고, 필요한 일정을 챙겨 보세요.'],
+      mall: ['제휴몰', '업체와 연결하고, 롯비에서 필요한 서비스를 이용하세요.'],
+    };
+    const definition = definitions[section];
+    if (!definition) return;
+    const {backdrop, panel, content} = modalShell(...definition);
+    panel.classList.add('consumer-section-panel');
+    const draft = text => {
+      prompt.value = text.slice(0, 1000); prompt.dispatchEvent(new Event('input', {bubbles: true})); prompt.focus();
+      setStatus('요청을 입력창에 넣었어요. 내용을 확인한 뒤 전송하세요.');
+    };
+    let mounted;
+    installSurfaceBehavior(backdrop, panel, {workspace: section, onClose: () => mounted?.dispose()});
+    mounted = mountConsumerSection({
+      section, root: content, authenticated: Boolean(sessionToken),
+      onDraft: text => { closeSurface(); draft(text); },
+      onFestival: () => { closeSurface(); void openFestival(); },
+      onSaved: () => { closeSurface(); openLotbiBox(); },
+      mountPets: async (root, initialSurface, reportCounts) => {
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-2483f0b86536');
+        return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
+          onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
+      },
+    });
+  };
   const openCalendar = async (view, {deepOpen, initialDraft = null, restoreConversation = false} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
@@ -3166,7 +3201,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     );
     panel.classList.add('site-calendar-modal');
     installSurfaceBehavior(backdrop, panel, {
-      modal: true,
+      workspace: 'calendar',
       onClose: returnState ? () => {
         if (namespace !== returnState.namespace) return;
         if (returnState.threadId && state.threads.some(item => item.id === returnState.threadId)) {
@@ -3401,16 +3436,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     content.appendChild(list);
     render();
-    installSurfaceBehavior(backdrop, panel, {modal: true, trigger});
+    installSurfaceBehavior(backdrop, panel, {workspace: 'life', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life')});
   };
 
   const openHelp = () => {
-    const {backdrop, panel, content} = modalShell('도움말'); const links = document.createElement('nav');
-    links.className = 'help-links'; links.setAttribute('aria-label', '도움말 링크');
-    for (const [href, label] of [['/contact', '도움말 센터 및 버그 신고'], ['/terms', '이용약관'], ['/privacy', '개인정보처리방침']]) {
-      const link = document.createElement('a'); link.href = href; link.textContent = label; links.appendChild(link);
-    }
-    content.appendChild(links); installSurfaceBehavior(backdrop, panel, {modal: true});
+    window.location.assign(ACCOUNT_MANAGE_URL + '#help');
   };
   const beginAccountLogoutHandoff = () => {
     markSiteLogoutSuppression();
@@ -4381,6 +4411,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       return;
     }
     const globalNavAction = target?.closest('[data-global-nav-action]');
+    const consumerSection = target?.closest('[data-consumer-section]');
+    if (consumerSection instanceof HTMLButtonElement) {
+      event.preventDefault(); openConsumerSection(consumerSection.dataset.consumerSection); return;
+    }
     if (globalNavAction instanceof HTMLButtonElement) {
       event.preventDefault();
       closeMobileDrawer();
@@ -4415,7 +4449,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       return;
     }
     const newChat = target?.closest('[data-new-conversation]');
-    if (newChat) { event.preventDefault(); startNewConversation(); return; }
+    if (newChat) { event.preventDefault(); closeSurface(); startNewConversation(); return; }
     const staleLogin = target?.closest('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]');
     if (staleLogin instanceof HTMLElement && sessionToken && document.body.dataset.siteAuthState === 'authenticated') {
       const slot = staleLogin.closest('[data-sidebar-account]');
@@ -4429,7 +4463,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (trigger instanceof HTMLElement) { event.preventDefault(); openProfileMenu(trigger); }
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeConversationMenus();
+    if (event.key === 'Escape') {
+      closeConversationMenus();
+      if (openSurface?.dataset.workspace) closeSurface();
+    }
   });
   // Page teardown releases every object URL. A bfcache-persisted page keeps its
   // previews so a back-navigation does not restore broken images.
@@ -4443,7 +4480,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (!detail || typeof detail.authenticated !== 'boolean') return;
     if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
-    if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell')) closeSurface();
+    if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')) closeSurface();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();

@@ -13,7 +13,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
+const read = rel => readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 
 const ui = read('site-festival-ui.js');
 const client = read('site-festival-client.js');
@@ -62,7 +62,7 @@ assert.match(ui, /state\.locationPermission = await getBrowserLocationPermission
 // 그 밖의 어떤 상태도 좌표를 새로 묻지 않는다.
 assert.match(
   ui,
-  /if \(state\.locationPermission === LOCATION_PERMISSION\.GRANTED \|\| sharedPosition\) \{[\s\S]{0,200}?await useCurrentLocation\(\{auto: true, sharedPosition\}\);\s*\} else \{/,
+  /if \(isLocationUsageEnabled\(\) && \(state\.locationPermission === LOCATION_PERMISSION\.GRANTED \|\| sharedPosition\)\) \{[\s\S]{0,200}?await useCurrentLocation\(\{auto: true, sharedPosition\}\);\s*\} else \{/,
   'only GRANTED, or a fix already in hand, may auto-trigger the current-location flow; every other state must fall through without a location prompt',
 );
 // 그 "이미 가진 좌표" 는 권한을 읽은 다음에 조회해야 한다: 권한 읽기가 DENIED 를
@@ -114,7 +114,7 @@ assert.match(
 );
 assert.match(
   ui,
-  /if \(state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{\s*const backButton/,
+  /if \(isLocationUsageEnabled\(\) && state\.locationPermission !== LOCATION_PERMISSION\.DENIED\)\s*\{\s*const backButton/,
   '"현재 위치로 돌아가기" inside the region sheet must also be gated on permission not being DENIED',
 );
 assert.match(ui, /backButton\.textContent = '현재 위치로 돌아가기'/);
@@ -144,7 +144,7 @@ assert.match(ui, /state\.municipality = municipality;/, 'the selected 시·군 m
 // and only ever sent alongside region, never on its own.
 assert.match(
   ui,
-  /if \(state\.region\) \{\s*query\.region = state\.region;\s*if \(state\.municipality\) query\.municipality = state\.municipality;\s*\} else if \(state\.locationMode === 'CURRENT' && state\.currentPosition\) \{/,
+  /if \(state\.region\) \{\s*query\.region = state\.region;\s*if \(state\.municipality\) query\.municipality = state\.municipality;\s*\} else if \(isLocationUsageEnabled\(\) && state\.locationMode === 'CURRENT' && state\.currentPosition\) \{/,
   'a manual region must take precedence over any stored current-location coordinates, and municipality must never be sent without region',
 );
 

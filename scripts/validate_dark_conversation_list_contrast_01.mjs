@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {themeTokenValue} from './lib/theme-token-value.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
@@ -61,11 +62,11 @@ assert.ok(
 // light (:root), explicit dark, system-follows-dark, and the pre-paint
 // bootstrap — the same four this file already maintains for surface colours.
 for (const token of ['--lotbi-nav-history-text', '--lotbi-nav-history-text-active']) {
-  const defs = tokens.match(new RegExp(`${token}:\\s*#[0-9a-fA-F]{6}`, 'g')) ?? [];
+  const defs = tokens.match(new RegExp(`${token}:\\s*(?:#[0-9a-fA-F]{6}|var\\(--lotbi-[a-z-]+\\))`, 'g')) ?? [];
   assert.equal(defs.length, 4, `${token} must be defined in all four theme states, found ${defs.length}`);
 }
 
-const valueIn = (block, token) => block.match(new RegExp(`${token}:\\s*(#[0-9a-fA-F]{6})`))?.[1];
+const valueIn = themeTokenValue;
 const lightBlock = tokens.slice(0, tokens.indexOf('body[data-site-theme="dark"]'));
 const darkBlock = tokens.slice(tokens.indexOf('body[data-site-theme="dark"] {'));
 
@@ -79,8 +80,8 @@ for (const [name, v] of [['light text', lightText], ['light active', lightActive
 }
 
 // ── 3. Light is unchanged — the fix was only allowed to touch Dark ────────
-assert.equal(lightText, '#555d69', 'the light unselected colour must not change');
-assert.equal(lightActive, '#182a46', 'the light selected colour must not change');
+assert.equal(lightText, '#212121', 'light conversation text must use the approved neutral ink');
+assert.equal(lightActive, '#212121', 'selected text shares the same neutral ink');
 
 // ── 4. Every row clears AA against the surface it actually sits on ────────
 // Surfaces come from home-bare-white.css, so a palette change there is caught
@@ -88,8 +89,10 @@ assert.equal(lightActive, '#182a46', 'the light selected colour must not change'
 const surface = (name, fallback) => bareWhite.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1] ?? fallback;
 const lightBg = '#ffffff';
 const lightSelectedBg = surface('--home-skin-selected', '#f1f3f5');
-const darkBg = bareWhite.match(/--home-skin-bg:\s*(#151922)/)?.[1] ?? '#151922';
-const darkSelectedBg = bareWhite.match(/--home-skin-selected:\s*(#262e3a)/)?.[1] ?? '#262e3a';
+const darkSkin = bareWhite.slice(bareWhite.indexOf('body.chat-home-page[data-site-theme="dark"]'));
+const darkBg = darkSkin.match(/--home-skin-bg:\s*(#[0-9a-fA-F]{6})/)?.[1];
+const darkSelectedBg = darkSkin.match(/--home-skin-selected:\s*(#[0-9a-fA-F]{6})/)?.[1];
+assert.ok(darkBg && darkSelectedBg, 'actual dark surfaces must be defined');
 
 const rows = [
   ['light / unselected', lightText, lightBg],
@@ -108,8 +111,8 @@ for (const [label, fg, bg] of rows) {
 // ── 5. Selected and unselected must still be distinguishable ──────────────
 // Fixing contrast by making every row the same bright colour would pass the
 // checks above and lose the selection cue.
-assert.notEqual(darkText, darkActive, 'Dark must still distinguish the selected conversation');
-assert.notEqual(lightText, lightActive, 'Light must still distinguish the selected conversation');
+assert.notEqual(darkBg, darkSelectedBg, 'Dark must distinguish selection by its surface');
+assert.notEqual(lightBg, lightSelectedBg, 'Light must distinguish selection by its surface');
 assert.ok(
   selectedRule.includes('font-weight'),
   'the selected conversation must keep a non-colour cue as well',

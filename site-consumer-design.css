@@ -1,0 +1,221 @@
+/* Conversation-first LOTBI shell. Existing auth, composer and feature owners remain unchanged. */
+body.chat-home-page { --consumer-muted: var(--home-skin-muted, var(--lotbi-text-secondary, #626772)); }
+.chat-sidebar-desktop { background: var(--home-skin-bg, var(--lotbi-surface-primary, #fff)); border-right: 1px solid var(--home-skin-line, var(--lotbi-border-default, #eeeeef)); }
+.consumer-primary-nav { display: grid; gap: 3px; }
+.consumer-primary-nav .nav-item { min-height: 42px; padding: 10px 12px; border: 0; border-radius: 9px; font-size: 14px; font-weight: 500; }
+.consumer-primary-nav .nav-item-primary { margin-bottom: 12px; font-weight: 650; background: var(--home-skin-hover, var(--lotbi-surface-hover, #f5f5f6)); }
+.consumer-primary-nav .nav-item:hover { background: var(--home-skin-hover, var(--lotbi-surface-hover, #f5f5f6)); }
+.consumer-primary-nav .nav-icon { width: 19px; height: 19px; opacity: .8; }
+.sidebar-history-section { margin-top: 24px; }
+.nav-section-title { font-size: 12px; font-weight: 600; color: var(--consumer-muted); }
+body.chat-home-page:not(.conversation-active) .chat-hero { min-height: calc(100svh - 190px); justify-content: center; padding: 26px 0 44px; }
+body.chat-home-page:not(.conversation-active) .home-avatar-anchor { order: 0; flex: 0 0 auto; }
+body.chat-home-page:not(.conversation-active) .chat-character-wrap { width: 104px; height: 130px; margin: 0 0 18px; }
+body.chat-home-page:not(.conversation-active) .chat-character-logo { width: 104px; height: 104px; object-fit: contain; }
+.consumer-brand-fallback { display: none; }
+body.chat-home-page[data-conversation-restore="pending"]:not(.conversation-active) .home-avatar-anchor { display: none; }
+body.chat-home-page[data-conversation-restore="pending"]:not(.conversation-active) .consumer-brand-fallback { display: block; width: 104px; height: 104px; object-fit: contain; margin: 0 0 24px; }
+body.chat-home-page:not(.conversation-active) .site-avatar-stage { width: 100%; height: 100%; }
+body.chat-home-page:not(.conversation-active) .home-value-proposition { order: 1; margin: 0 0 26px; max-width: 640px; }
+body.chat-home-page:not(.conversation-active) .home-value-proposition h2 { margin: 0 0 12px; font-size: clamp(25px, 2.8vw, 34px); font-weight: 650; letter-spacing: -.045em; line-height: 1.35; }
+body.chat-home-page:not(.conversation-active) .home-value-proposition p { margin: 0; font-size: 14px; line-height: 1.7; color: var(--consumer-muted); }
+body.chat-home-page:not(.conversation-active) .chat-composer-stack { order: 2; position: static; bottom: auto; z-index: auto; width: min(720px, 100%); margin: 0; padding: 0; background: transparent; display: flex; flex-direction: column; }
+body.chat-home-page:not(.conversation-active) .chat-composer { margin: 0; border-radius: 24px; min-height: 112px; box-shadow: 0 2px 10px rgb(0 0 0 / 3%); }
+body.chat-home-page:not(.conversation-active) .chat-safety-copy { order: 3; margin: 13px 0 0; font-size: 11px; color: var(--consumer-muted); }
+body.chat-home-page:not(.conversation-active) .home-example-prompts { order: 3; margin-top: 20px; gap: 9px; }
+.home-example-prompts button { min-height: 36px; padding: 8px 13px; font-size: 12px; font-weight: 500; background: transparent; color: var(--consumer-muted); }
+.conversation-active .home-example-prompts { display: none; }
+body.chat-home-page .subscription-plan-banner { order: 4; width: min(720px, 100%); margin: 26px 0 0; padding: 15px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 0; border-top: 1px solid var(--home-skin-line, #eeeeef); border-radius: 0; background: transparent; box-shadow: none; text-align: left; }
+.subscription-plan-banner .subscription-plan-banner-eyebrow, .subscription-plan-banner .subscription-plan-banner-plans, .subscription-plan-banner-action-row small { display: none; }
+.subscription-plan-banner .subscription-plan-banner-copy h2 { font-size: 13px; font-weight: 600; margin: 0 0 4px; }
+.subscription-plan-banner .subscription-plan-banner-copy > p:last-child { font-size: 11px; line-height: 1.6; color: var(--consumer-muted); max-width: 480px; margin: 0; }
+.subscription-plan-banner .subscription-plan-banner-action-row { flex: 0 0 auto; margin: 0; }
+.subscription-plan-banner .subscription-plan-banner-action-row a { min-height: 36px; border-radius: 10px; font-size: 12px; padding: 8px 12px; }
+body.chat-home-page .sidebar-profile-trigger { min-height: 60px; padding: 10px; border-radius: 12px; border: 0; background: transparent; box-shadow: none; gap: 10px; }
+body.chat-home-page .sidebar-profile-avatar { width: 34px; height: 34px; min-width: 34px; border-radius: 50%; font-size: 14px; }
+body.chat-home-page .sidebar-account-name { font-size: 13px; font-weight: 650; }
+body.chat-home-page .sidebar-account-handle { font-size: 11px; color: var(--consumer-muted); }
+body.chat-home-page .profile-popover { width: min(286px, calc(100vw - 24px)); max-height: calc(100svh - 24px); overflow-y: auto; padding: 6px; border: 1px solid var(--home-skin-line, #e8e8eb); border-radius: 16px; box-shadow: 0 8px 28px rgb(0 0 0 / 8%); }
+body.chat-home-page .profile-popover-summary { padding: 14px 10px; }
+body.chat-home-page .profile-popover [role="menuitem"] { min-height: 42px; padding: 10px 12px; border-radius: 9px; font-size: 13px; font-weight: 500; }
+body.chat-home-page .profile-popover [role="menuitem"]:focus-visible, .consumer-primary-nav button:focus-visible { outline: 2px solid var(--home-skin-text, var(--lotbi-text-primary, #202123)); outline-offset: -2px; }
+.profile-menu-logout { border-top: 1px solid var(--home-skin-line, #e8e8eb); margin-top: 6px; color: var(--danger, #b42332); }
+body.chat-home-page .site-modal { width: min(520px, calc(100vw - 32px)); border-radius: 20px; padding: 24px; box-shadow: 0 16px 56px rgb(0 0 0 / 12%); }
+body.chat-home-page .site-modal-header h2 { font-size: 20px; letter-spacing: -.03em; }
+body.chat-home-page .site-modal-description { font-size: 13px; line-height: 1.7; }
+.consumer-feature-list { display: grid; gap: 0; margin: 0; }
+.consumer-feature-row { display: grid; gap: 5px; width: 100%; min-height: 65px; padding: 14px 0; background: transparent; border: 0; border-bottom: 1px solid var(--home-skin-line, #eeeeef); color: inherit; text-align: left; font: inherit; cursor: pointer; text-decoration: none; }
+.consumer-feature-row small, .consumer-feature-note { font-size: 12px; line-height: 1.65; color: var(--consumer-muted); }
+.consumer-feature-row:hover { background: var(--home-skin-hover, var(--lotbi-surface-hover, #f5f5f6)); }
+.consumer-feature-row:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.consumer-feature-note { margin: 14px 0 0; }
+/* Feature entry surfaces share one restrained visual language. */
+body.chat-home-page .consumer-section-panel { width: min(760px, calc(100vw - 32px)); max-height: calc(100svh - 32px); }
+body.chat-home-page .site-modal-backdrop:has(> .consumer-section-panel) { padding: 16px; place-items: center; }
+.consumer-section-panel .site-modal-header { padding: 0 0 16px; }
+.consumer-section-panel .site-modal-description { padding: 0 0 20px; }
+.consumer-section-panel .consumer-section-content { padding: 0; }
+.consumer-section-content { display: grid; gap: 22px; min-width: 0; }
+.consumer-section-label { margin: 14px 0 0; font-size: 13px; font-weight: 500; color: var(--consumer-muted); }
+.consumer-section-footer { margin-top: 20px; padding-top: 24px; border-top: 1px solid var(--lotbi-border-default); display: flex; align-items: center; gap: 24px; }
+.consumer-section-footer .consumer-action { flex-shrink: 0; }
+.consumer-section-footer .consumer-feature-note { margin: 0; }
+.consumer-section-content svg, .scam-input-kinds svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.consumer-search { display: flex; gap: 10px; align-items: center; border: 1px solid var(--lotbi-border-default); border-radius: 16px; padding: 7px; }
+.consumer-search input { flex: 1; width: 0; min-width: 0; min-height: 44px; padding: 8px 12px; background: transparent; border: 0; color: inherit; font: inherit; font-size: 16px; }
+.consumer-search input::placeholder { color: var(--consumer-muted); }
+.consumer-action { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; box-sizing: border-box; padding: 10px 16px; border: 1px solid transparent; border-radius: 10px; background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.consumer-action-secondary { background: transparent; border-color: var(--lotbi-border-default); color: inherit; }
+.consumer-action:disabled { opacity: .6; cursor: not-allowed; }
+.consumer-action:not(:disabled):hover { filter: brightness(.95); }
+.consumer-section-content :is(button, input, a):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+.consumer-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.consumer-shortcut { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; min-height: 104px; padding: 16px; border: 0; border-radius: 12px; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 14px; cursor: pointer; }
+.consumer-shortcut svg { color: var(--lotbi-text-secondary); }
+.consumer-shortcut:hover { background: var(--lotbi-surface-hover); }
+.consumer-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 220px; padding: 24px; text-align: center; }
+.consumer-empty > svg { width: 40px; height: 40px; margin-bottom: 6px; color: var(--consumer-muted); }
+.consumer-empty h3 { margin: 0; font-size: 20px; letter-spacing: -.03em; }
+.consumer-empty p { max-width: 420px; margin: 0; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
+.consumer-empty .consumer-action { margin-top: 10px; }
+.consumer-source-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.consumer-category-label { padding: 8px 12px; font-size: 13px; color: var(--consumer-muted); }
+.consumer-care-alert { display: flex; gap: 14px; align-items: center; padding: 18px; border-radius: 14px; background: var(--lotbi-surface-subtle); }
+.consumer-care-alert > div { flex: 1; }
+.consumer-care-alert strong { font-size: 15px; }
+.consumer-care-alert p { margin: 5px 0 0; color: var(--consumer-muted); font-size: 12px; line-height: 1.65; }
+.consumer-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--lotbi-border-default); }
+.consumer-tabs button { min-height: 48px; padding: 12px 20px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--consumer-muted); font: inherit; font-size: 14px; cursor: pointer; }
+.consumer-tabs button[aria-selected="true"] { color: inherit; border-bottom-color: currentColor; font-weight: 600; }
+.consumer-care-body { min-width: 0; }
+.consumer-error { color: var(--lotbi-error-text); font-size: 14px; }
+/* Keep calendar and pet owner geometry and actions; reduce decorative noise. */
+body.chat-home-page .site-calendar-modal,
+body.chat-home-page .site-pet-modal,
+body.chat-home-page .site-festival-modal { box-shadow: 0 12px 40px rgb(0 0 0 / 10%); }
+.consumer-care-body .pet-section { border: 0; background: transparent; box-shadow: none; padding-inline: 0; }
+.consumer-care-body :is(.pet-card, .pet-empty) { box-shadow: none; border-color: var(--lotbi-border-default); border-radius: 12px; }
+body.chat-home-page .scam-dialog { box-sizing: border-box; width: min(720px, calc(100vw - 32px)); max-width: none; max-height: calc(100svh - 32px); margin: auto; border: 1px solid var(--lotbi-border-default); border-radius: 20px; box-shadow: 0 12px 40px rgb(0 0 0 / 10%); color: var(--lotbi-text-primary); background: var(--lotbi-surface-primary); }
+body.chat-home-page .scam-dialog-inner { padding: 28px; }
+body.chat-home-page .scam-dialog-header h2 { font-size: 24px; font-weight: 600; letter-spacing: -.04em; }
+body.chat-home-page .scam-dialog-eyebrow { color: var(--consumer-muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+body.chat-home-page .scam-dialog-inner > p { color: var(--consumer-muted); font-size: 13px; line-height: 1.7; }
+body.chat-home-page .scam-dialog-close { border: 0; background: transparent; color: inherit; }
+body.chat-home-page .scam-input-kinds { gap: 10px; margin: 24px 0; }
+body.chat-home-page .scam-input-kinds label { min-height: 90px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding: 14px; border: 1px solid var(--lotbi-border-default); background: transparent; color: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+body.chat-home-page .scam-input-kinds label:has(input:checked) { border-color: var(--lotbi-text-primary); background: var(--lotbi-surface-subtle); }
+body.chat-home-page .scam-input-kinds label:has(input:focus-visible) { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+body.chat-home-page .scam-input-panel :is(input, textarea), body.chat-home-page .scam-incident select { width: 100%; box-sizing: border-box; min-height: 50px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; padding: 14px; font: inherit; font-size: 16px; color: inherit; background: var(--lotbi-surface-primary); }
+body.chat-home-page .scam-input-panel textarea { display: block; min-height: 132px; resize: vertical; }
+body.chat-home-page .scam-clicked { font-size: 13px; font-weight: 500; line-height: 1.6; }
+body.chat-home-page .scam-submit { min-height: 48px; background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); font-size: 14px; font-weight: 600; }
+body.chat-home-page .scam-dialog :is(button, input, textarea, select):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+@media (max-width: 900px) {
+  body.chat-home-page:not(.conversation-active) .chat-hero { min-height: calc(100svh - 150px); padding: 22px 0 32px; }
+  body.chat-home-page:not(.conversation-active) .chat-character-wrap { width: 88px; height: 112px; margin-bottom: 14px; }
+  body.chat-home-page:not(.conversation-active) .chat-character-logo { width: 88px; height: 88px; }
+  .mobile-nav-drawer { width: min(300px, calc(100vw - 36px)); }
+  body.chat-home-page .subscription-plan-banner { align-items: flex-start; }
+  .subscription-plan-banner .subscription-plan-banner-copy { min-width: 0; }
+  .subscription-plan-banner .subscription-plan-banner-copy > p:last-child { display: block; }
+}
+/* Primary features occupy the content canvas, not a stack of modal cards.
+   The conversation stays mounted (and inert) so its draft and scroll survive. */
+body.site-workspace-open { overflow: hidden; }
+body.chat-home-page .consumer-workspace {
+  inset: 0 0 0 220px; z-index: 40; display: block; overflow-y: auto;
+  overscroll-behavior: contain; padding: 56px 48px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary);
+}
+body.chat-home-page .consumer-workspace > .site-modal {
+  width: min(100%, 960px); height: auto; max-height: none; overflow: visible; margin: 0 auto;
+  padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent;
+}
+.consumer-workspace .site-modal-header { padding: 0 0 12px; justify-content: flex-start; }
+.consumer-workspace .site-modal-close { font-size: 22px; flex-shrink: 0; }
+body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px; font-weight: 600; letter-spacing: -.04em; }
+.consumer-workspace .site-modal-description { padding: 0; margin: 0 0 40px; color: var(--consumer-muted); }
+.consumer-workspace .site-modal-content { padding: 0; }
+.consumer-workspace .site-calendar-modal > .site-modal-content { overflow: visible; }
+.consumer-workspace .calendar-product-shell { height: auto; grid-template-rows: auto auto auto auto; }
+.consumer-workspace .calendar-toolbar button { font-weight: 500; box-shadow: none; }
+.consumer-workspace .calendar-toolbar .calendar-title-button { font-size: 18px; font-weight: 600; }
+.consumer-workspace .consumer-shortcuts { gap: 12px; }
+.consumer-workspace .consumer-shortcut { min-height: 120px; padding: 20px 16px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; gap: 20px; }
+.consumer-workspace .consumer-search { max-width: 760px; min-height: 62px; box-shadow: none; }
+.consumer-workspace .consumer-empty { min-height: 360px; }
+.consumer-workspace .consumer-source-options { padding-top: 16px; border-top: 1px solid var(--lotbi-border-default); }
+.consumer-workspace .consumer-section-content > .consumer-feature-note { text-align: center; max-width: 560px; margin: 0 auto; }
+.consumer-primary-nav [aria-current="page"] { background: var(--lotbi-surface-hover); font-weight: 600; }
+@media (max-width: 1100px) and (min-width: 901px) {
+  body.chat-home-page .consumer-workspace { padding: 40px 28px; }
+}
+@media (max-width: 900px) {
+  body.chat-home-page .consumer-workspace { inset: 0; padding: 24px; }
+  .consumer-workspace .site-modal-description { margin-bottom: 28px; }
+  body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 24px; }
+}
+@media (max-width: 600px) {
+  body.chat-home-page .consumer-workspace { padding: 20px; }
+  .consumer-workspace .consumer-shortcut { min-height: 100px; padding: 16px 12px; gap: 16px; }
+  .consumer-workspace .consumer-empty { min-height: 300px; }
+  .consumer-section-footer { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .consumer-workspace .consumer-search { gap: 0; }
+  .consumer-workspace .consumer-search .consumer-action { align-self: flex-end; }
+  .consumer-workspace .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .consumer-workspace .calendar-toolbar .calendar-title-button { min-width: 0; padding-inline: 4px; font-size: 16px; }
+  .consumer-workspace .calendar-today-button { grid-column: 1 / 3; grid-row: 2; }
+  .consumer-workspace .calendar-settings-button { grid-column: 3; grid-row: 2; width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0; }
+  .consumer-workspace .calendar-settings-label { display: none; }
+  .consumer-workspace .calendar-mode-tabs { grid-row: 3; }
+  .consumer-workspace .calendar-expense-line { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .consumer-workspace .calendar-expense-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; white-space: normal; gap: 12px; }
+  .consumer-workspace .calendar-expense-item { flex-wrap: wrap; }
+  .consumer-workspace .calendar-expense-total { border: 0; padding: 12px 0 0; border-top: 1px solid var(--lotbi-border-default); }
+}
+@media (max-width: 600px) {
+  body.chat-home-page .consumer-section-panel { padding: 20px; }
+  .consumer-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .consumer-shortcut { min-height: 84px; padding: 12px 10px; gap: 10px; word-break: keep-all; }
+  .consumer-search { align-items: stretch; flex-direction: column; }
+  .consumer-search input { width: 100%; box-sizing: border-box; }
+  .consumer-care-alert { flex-wrap: wrap; }
+  .consumer-care-alert .consumer-action { width: 100%; }
+  .consumer-empty { min-height: 200px; padding: 20px 0; }
+  body.chat-home-page .scam-dialog-inner { padding: 20px; }
+  body.chat-home-page .scam-dialog-header h2 { font-size: 21px; }
+  body.chat-home-page .scam-input-kinds { grid-template-columns: 1fr; gap: 8px; margin: 20px 0; }
+  body.chat-home-page .scam-input-kinds label { flex-direction: row; justify-content: flex-start; min-height: 48px; padding: 12px 14px; }
+}
+@media (max-width: 420px) {
+  body.chat-home-page:not(.conversation-active) .home-value-proposition p { max-width: 260px; margin: auto; font-size: 13px; }
+  .home-example-prompts { flex-wrap: wrap; }
+  .site-modal { padding: 20px; }
+  body.chat-home-page .subscription-plan-banner { flex-direction: column; gap: 10px; }
+}
+/* Detail screens retain their real managers, with the same canvas hierarchy. */
+.consumer-workspace :is(.site-festival-modal, .site-pet-modal) > .site-modal-content { overflow: visible; }
+.consumer-workspace :is(.pet-home-card-title, .pet-section-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-program-title) { font-weight: 600; }
+.consumer-workspace :is(.pet-home-card, .pet-card, .festival-card) { border-radius: 12px; box-shadow: none; }
+.consumer-workspace .pet-home-card[data-pet-home-active='true'] { border-color: var(--lotbi-text-primary); background: var(--lotbi-surface-subtle); box-shadow: none; }
+.consumer-workspace :is(.pet-profile-controls, .pet-timeline, .pet-candidate-section) { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; }
+.consumer-workspace :is(.festival-detail, .festival-program-surface, .festival-registration-sheet, .festival-schedule-sheet) { box-shadow: none; border-radius: 12px; }
+.consumer-workspace :is(.pet-family-surface, .festival-manager) { gap: 24px; }
+.consumer-workspace :is(button, input, select, textarea, a):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+/* The consumer calendar remains month-first; selected-day details follow it. */
+@media (min-width: 901px) {
+  .consumer-workspace .calendar-month-layout[data-day-detail='SIDE'][data-detail-open='true'] { grid-template-columns: minmax(0, 1fr); gap: 24px; height: auto; }
+  .consumer-workspace .calendar-month-layout .calendar-month { height: auto; }
+  .consumer-workspace .calendar-month-grid { min-height: 440px; }
+  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] { position: static; max-height: none; overflow: visible; box-shadow: none; }
+  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] .calendar-day-body { overflow: visible; }
+}
+/* Focused life-information forms; no nested modal or invented results. */
+.consumer-life-detail { max-width: 760px; display: grid; gap: 24px; }
+.consumer-life-detail > .consumer-action { justify-self: start; border: 0; padding-inline: 0; font-weight: 500; }
+.consumer-life-detail h3 { margin: 8px 0 0; font-size: 24px; font-weight: 600; letter-spacing: -.035em; }
+.consumer-life-form { display: grid; gap: 20px; }
+.consumer-life-field { display: grid; gap: 10px; color: inherit; font-size: 14px; font-weight: 500; }
+.consumer-life-field :is(input, textarea) { box-sizing: border-box; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
+.consumer-life-field textarea { min-height: 160px; resize: vertical; }
+.consumer-life-form > .consumer-action { justify-self: start; }

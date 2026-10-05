@@ -235,7 +235,7 @@ assert.ok(staticAccountActions.includes('계정 확인 중'), 'first paint must 
 assert.match(callbackHtml, /src="\/auth-callback\.js\?v=[^"]+"/, 'callback entry runtime must be cache-busted');
 assert.ok(callbackHtml.includes('id="auth-callback-shell"'));
 assert.ok(callbackHtml.includes('aria-labelledby="auth-callback-title" hidden'));
-assert.ok(callbackHtml.includes('LOTBI 연결 오류'));
+assert.ok(callbackHtml.includes('<h1 id="auth-callback-title">로그인 연결을 완료하지 못했어요</h1>'));
 
 assert.ok(authStartHtml.includes('id="auth-start-error-shell"'));
 assert.match(authStartHtml, /src="\/auth-start\.js\?v=aset-[^"]+"/);
@@ -265,6 +265,8 @@ const callbackStylesheets = stylesheetHrefs(callbackHtml);
 for (const href of homeStylesheets) {
   assert.ok(callbackStylesheets.includes(href), `callback hydration missing home stylesheet: ${href}`);
 }
+assert.deepEqual(callbackStylesheets.filter(href => homeStylesheets.includes(href)), homeStylesheets,
+  'callback hydration must preserve the complete Home cascade, including consumer detail/layout overrides');
 const sidebarStylesheet = homeStylesheets.find(href => href.startsWith('site-sidebar-nav.css?v='));
 assert.ok(sidebarStylesheet, 'home Sidebar stylesheet must be cache-busted');
 assert.ok(callbackStylesheets.includes(sidebarStylesheet), 'callback must share the current Home Sidebar stylesheet');

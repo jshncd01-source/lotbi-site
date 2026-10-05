@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-53bde1fef0df';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-53bde1fef0df';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-53bde1fef0df';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-2483f0b86536';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-2483f0b86536';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2483f0b86536';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -11,15 +11,15 @@ import {
   monthGridRange,
   sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-53bde1fef0df';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-53bde1fef0df';
+} from './site-calendar-model.js?v=aset-2483f0b86536';
+import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-2483f0b86536';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-53bde1fef0df';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-53bde1fef0df';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-53bde1fef0df';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-2483f0b86536';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-2483f0b86536';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-2483f0b86536';
 import {
   calendarEventPresentation,
   calendarWeatherPresentation,
@@ -27,13 +27,14 @@ import {
   calendarWeekTimeGrid,
   filterScheduleItems,
   monthCellSummary,
-} from './site-calendar-product.js?v=aset-53bde1fef0df';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-53bde1fef0df';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-53bde1fef0df';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-53bde1fef0df';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-53bde1fef0df';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-53bde1fef0df';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-53bde1fef0df';
+} from './site-calendar-product.js?v=aset-2483f0b86536';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-2483f0b86536';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-2483f0b86536';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-2483f0b86536';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-2483f0b86536';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-2483f0b86536';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-2483f0b86536';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-2483f0b86536';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1822,7 +1823,14 @@ function renderYear(state, actions) {
     card.dataset.yearMonth = String(month.month);
     card.dataset.current = String(state.year === civilDateParts(state.todayDate).year && month.month === civilDateParts(state.todayDate).month);
     const title = document.createElement('strong'); title.textContent = month.label;
-    const weekdays = document.createElement('span'); weekdays.className = 'calendar-mini-weekdays'; weekdays.textContent = weekdayOrder(state.weekStart).map(weekday => WEEKDAY_INITIALS[weekday]).join(' ');
+    const weekdays = document.createElement('span'); weekdays.className = 'calendar-mini-weekdays';
+    // Each weekday needs its own grid item. One text node wraps inside the
+    // first of seven columns, producing a vertical pile instead of a row.
+    for (const weekday of weekdayOrder(state.weekStart)) {
+      const label = document.createElement('span');
+      label.textContent = WEEKDAY_INITIALS[weekday];
+      weekdays.appendChild(label);
+    }
     const dates = document.createElement('span'); dates.className = 'calendar-mini-grid';
     for (const cell of month.cells) {
       const day = document.createElement('span'); day.textContent = cell.inCurrentMonth ? String(cell.day) : ''; dates.appendChild(day);
@@ -3093,6 +3101,10 @@ export async function mountLifeCalendarManager({
   toolbar.append(previous, title, next, today, settingsButton, modes);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
+  const locationToggle = button('OFF', 'calendar-location-switch');
+  locationToggle.setAttribute('role', 'switch');
+  locationToggle.setAttribute('aria-label', '현재 위치 자동 사용');
+  locationToggle.dataset.calendarAutoLocation = 'true';
   locationButton.dataset.calendarCurrentLocation = 'true';
   locationButton.setAttribute('aria-label', '현재 위치를 캘린더 날씨에 사용');
   const viewport = document.createElement('div'); viewport.className = 'calendar-viewport';
@@ -3413,11 +3425,27 @@ export async function mountLifeCalendarManager({
   }
 
   async function syncLocationPermission() {
+    if (!isLocationUsageEnabled()) {
+      locationRequestGeneration += 1;
+      state.locationInFlight = false;
+      state.locationPermission = LOCATION_PERMISSION.DENIED;
+      state.locationResolution = LOCATION_RESOLUTION.IDLE;
+      state.locationMessage = '설정에서 위치 사용이 꺼져 있어요. 지역을 직접 선택할 수 있어요.';
+      // OFF must take effect before any weather request finishes.
+      renderPreservingFocus();
+      if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
+        currentWeatherLocation = storedRegionWeatherLocation();
+        clearBrowserLocationProvenance();
+        await refreshWeatherOnly();
+      }
+      return;
+    }
     const permission = await getBrowserLocationPermissionState({
       permissions: locationPermissions,
       geolocation: locationProvider,
     });
     if (!root.isConnected) return;
+    if (!isLocationUsageEnabled()) return syncLocationPermission();
     state.locationPermission = permission;
     if (permission === LOCATION_PERMISSION.DENIED) {
       if (currentWeatherLocation?.source === 'BROWSER_CURRENT') {
@@ -3451,6 +3479,7 @@ export async function mountLifeCalendarManager({
   // 에서는 절대 호출하지 않는다: getCurrentPosition 을 부르는 순간 권한 팝업이 뜨고,
   // 화면에 적어 둔 "버튼을 누를 때만 브라우저가 위치 권한을 요청합니다" 가 거짓이 된다.
   async function maybeUseGrantedCurrentLocation() {
+    if (!isLocationUsageEnabled()) return;
     if (state.locationPermission !== LOCATION_PERMISSION.GRANTED) return;
     if (state.locationInFlight) return;
     // 사용자가 설정에서 직접 고른 지역은 자동으로 덮어쓰지 않는다.
@@ -3536,6 +3565,16 @@ export async function mountLifeCalendarManager({
   }
 
   function locationSettingsStatusText() {
+    if (!isLocationUsageEnabled() || state.weatherRegionOrigin === WEATHER_REGION_ORIGIN.MANUAL) {
+      return state.manualWeatherRegion
+        ? '자동 사용이 꺼져 있어요. 선택한 지역의 날씨를 표시합니다.'
+        : '자동 사용이 꺼져 있어요. 아래에서 날씨 지역을 선택해 주세요.';
+    }
+    if (state.locationPermission === LOCATION_PERMISSION.GRANTED
+      && ![LOCATION_RESOLUTION.ERROR, LOCATION_RESOLUTION.TIMEOUT].includes(state.locationResolution)) {
+      const regionSummary = state.manualWeatherRegion ? `${weatherLocationPresentation().manualSummary}. ` : '';
+      return `${regionSummary}캘린더를 열거나 돌아오면 현재 위치의 날씨를 자동으로 확인합니다.`;
+    }
     const presentation = weatherLocationPresentation();
     if (state.manualWeatherRegion && !presentation.currentStatus.includes('현재 위치로 날씨')) {
       return `${presentation.currentStatus} ${presentation.manualSummary}`;
@@ -3544,18 +3583,26 @@ export async function mountLifeCalendarManager({
   }
 
   function syncLocationSettingsControl() {
+    const automatic = isLocationUsageEnabled() && state.weatherRegionOrigin !== WEATHER_REGION_ORIGIN.MANUAL;
+    locationToggle.setAttribute('aria-checked', String(automatic));
+    locationToggle.textContent = automatic ? 'ON' : 'OFF';
     const usingBrowserLocation = currentWeatherLocation?.source === 'BROWSER_CURRENT'
       && state.locationResolution === LOCATION_RESOLUTION.RESOLVED;
     const blocked = state.locationPermission === LOCATION_PERMISSION.DENIED
       || state.locationPermission === LOCATION_PERMISSION.UNAVAILABLE;
-    locationButton.disabled = state.locationInFlight || blocked;
-    locationButton.textContent = weatherLocationPresentation().currentAction;
+    locationButton.disabled = state.locationInFlight || (isLocationUsageEnabled() && blocked);
+    locationButton.textContent = isLocationUsageEnabled() ? weatherLocationPresentation().currentAction : '설정에서 위치 켜기';
+    locationButton.setAttribute('aria-label', isLocationUsageEnabled() ? '현재 위치를 캘린더 날씨에 사용' : '설정에서 위치 켜기');
+    const needsPermission = [LOCATION_PERMISSION.UNKNOWN, LOCATION_PERMISSION.PROMPT_REQUIRED].includes(state.locationPermission);
+    const retry = [LOCATION_RESOLUTION.TIMEOUT, LOCATION_RESOLUTION.ERROR].includes(state.locationResolution);
+    locationButton.hidden = !automatic || blocked || (!needsPermission && !retry);
+    if (needsPermission && !retry) locationButton.textContent = '위치 허용';
     syncOpenWeatherLocationSettings();
     locationButton.setAttribute('aria-pressed', String(usingBrowserLocation));
     if (locationStatusNode) locationStatusNode.textContent = locationSettingsStatusText();
     // 브라우저가 아예 위치를 제공하지 않는 경우(UNAVAILABLE)에는 사이트 권한을
     // 바꿔도 달라지는 것이 없다. 안내는 거부된 상태에서만 내민다.
-    if (locationHelpNode) locationHelpNode.hidden = state.locationPermission !== LOCATION_PERMISSION.DENIED;
+    if (locationHelpNode) locationHelpNode.hidden = !isLocationUsageEnabled() || state.locationPermission !== LOCATION_PERMISSION.DENIED;
   }
 
   // The Calendar owns this control; Settings only hosts it. Building it here
@@ -3566,7 +3613,7 @@ export async function mountLifeCalendarManager({
     row.dataset.calendarLocationRow = 'true';
     const copy = document.createElement('span');
     const label = document.createElement('strong');
-    label.textContent = '현재 위치';
+    label.textContent = '현재 위치 자동 사용';
     const status = document.createElement('small');
     status.className = 'calendar-settings-status';
     // "브라우저 사이트 설정에서 허용해 주세요" 만으로는 어디를 눌러야 하는지 아무도
@@ -3584,7 +3631,8 @@ export async function mountLifeCalendarManager({
     }
     help.append(helpSummary, helpList);
     copy.append(label, status, help);
-    row.append(copy, locationButton);
+    row.append(copy, locationToggle);
+    copy.appendChild(locationButton);
     locationStatusNode = status;
     locationHelpNode = help;
     syncLocationSettingsControl();
@@ -4038,6 +4086,7 @@ export async function mountLifeCalendarManager({
   }
 
   async function runCurrentLocationRequest({auto, requestGeneration}) {
+    if (!isLocationUsageEnabled()) return;
     const previousPermission = await getBrowserLocationPermissionState({
       permissions: locationPermissions,
       geolocation: locationProvider,
@@ -4090,7 +4139,7 @@ export async function mountLifeCalendarManager({
         // 불러올 이유가 없다.
         state.locationPermission = LOCATION_PERMISSION.GRANTED;
         const region = await regionForCurrentLocation(location);
-        if (!root.isConnected || requestGeneration !== locationRequestGeneration) return;
+        if (!root.isConnected || requestGeneration !== locationRequestGeneration || !isLocationUsageEnabled()) return;
         if (!region) return;
         const alreadyShowing = currentWeatherLocation?.source === 'MANUAL_REGION'
           && currentWeatherLocation.label === region.label;
@@ -4227,11 +4276,32 @@ export async function mountLifeCalendarManager({
   async function persistRegionForCurrentLocation(location, requestGeneration) {
     const region = await regionForCurrentLocation(location);
     // 그 사이 새 위치 요청이 끼어들었거나 화면이 사라졌으면 그쪽이 권위다.
-    if (!region || !root.isConnected || requestGeneration !== locationRequestGeneration) return;
+    if (!region || !root.isConnected || requestGeneration !== locationRequestGeneration || !isLocationUsageEnabled()) return;
     storeCurrentLocationRegion(region);
   }
 
-  locationButton.addEventListener('click', () => { void useCurrentLocation(); });
+  locationButton.addEventListener('click', () => {
+    if (!isLocationUsageEnabled()) { window.location.assign('https://account.lotbiai.com/account#privacy'); return; }
+    void useCurrentLocation();
+  });
+
+  locationToggle.addEventListener('click', () => {
+    const enabled = !(isLocationUsageEnabled() && state.weatherRegionOrigin !== WEATHER_REGION_ORIGIN.MANUAL);
+    try {
+      setLocationUsageEnabled(enabled);
+    } catch {
+      syncLocationSettingsControl();
+      if (locationStatusNode) locationStatusNode.textContent = '위치 설정을 저장하지 못했어요. 다시 시도해 주세요.';
+      return;
+    }
+    if (enabled) {
+      // Explicit ON opts back into current location without deleting the saved fallback region.
+      state.weatherRegionOrigin = null;
+      writeWeatherRegionOrigin(settingsStorage, null);
+      void useCurrentLocation();
+    }
+    syncLocationSettingsControl();
+  });
 
   // One navigation path, with the unit owned by the active product view.
   async function shiftMonth(delta) {
@@ -4332,6 +4402,7 @@ export async function mountLifeCalendarManager({
     window.removeEventListener('resize', onResize);
     window.removeEventListener('focus', onResume);
     window.removeEventListener('pageshow', onResume);
+    window.removeEventListener(LOCATION_USAGE_EVENT, onResume);
     document.removeEventListener('visibilitychange', onVisibilityChange);
     window.clearInterval(todayTimer);
     window.removeEventListener('lotbi:life-calendar-refresh', onRefresh);
@@ -4348,6 +4419,7 @@ export async function mountLifeCalendarManager({
   };
   window.addEventListener('focus', onResume);
   window.addEventListener('pageshow', onResume);
+  window.addEventListener(LOCATION_USAGE_EVENT, onResume);
   document.addEventListener('visibilitychange', onVisibilityChange);
   const todayTimer = window.setInterval(() => {
     if (!root.isConnected) { cleanupLifecycle(); return; }

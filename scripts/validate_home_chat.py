@@ -77,7 +77,7 @@ def main() -> int:
     asset_version = json.loads((ROOT / "site-asset-version.json").read_text(encoding="utf-8"))["version"]
 
     requirements = {
-        "approved LOTBI character asset": 'src="assets/lotbi-main-logo.png"',
+        "approved LOTBI character asset": 'src="assets/brand/lotbi-mark-512.png"',
         "official LOTBI lockup asset": 'src="/assets/brand/lotbi-lockup-160w.png"',
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
@@ -220,13 +220,28 @@ def main() -> int:
                 errors.append(f"index.html: {label} must not keep disabled {destination} destination in the DOM")
 
         primary_match = re.search(
-            r'<div class="sidebar-primary-nav">[\s\S]*?</div>',
+            r'<div class="consumer-primary-nav"[^>]*>[\s\S]*?</div>',
             block,
         )
         if not primary_match or "data-new-conversation" not in primary_match.group(0):
             errors.append(f"index.html: {label} primary navigation must contain new conversation")
         elif "connected-services" in primary_match.group(0):
             errors.append(f"index.html: {label} connected services must be secondary, not primary")
+        if primary_match:
+            primary = primary_match.group(0)
+            # Approved seven-menu IA replaces separate primary/calendar groups.
+            # Check real destinations and order, not only presentation classes.
+            destinations = (
+                'data-new-conversation', 'data-calendar-view="all"',
+                'data-consumer-section="wallet"', 'data-scam-open',
+                'data-consumer-section="care"', 'data-consumer-section="life"',
+                'data-consumer-section="mall"',
+            )
+            offsets = [primary.find(destination) for destination in destinations]
+            if any(offset < 0 for offset in offsets) or offsets != sorted(offsets):
+                errors.append(f"index.html: {label} must preserve all seven ordered menu destinations")
+            if primary.count('<button ') != 7:
+                errors.append(f"index.html: {label} must expose exactly seven primary menu buttons")
 
         if "sidebar-secondary-nav" in block:
             errors.append(f"index.html: {label} must not reintroduce the secondary navigation region")
@@ -246,8 +261,7 @@ def main() -> int:
         'class="sidebar-brand"',
         'class="sidebar-brand-logo lotbi-brand-logo-light"',
         'class="sidebar-nav sidebar-nav-desktop"',
-        'class="sidebar-primary-nav"',
-        'class="sidebar-calendar-nav"',
+        'class="consumer-primary-nav"',
         'class="nav-section sidebar-history-section"',
         'class="sidebar-history-scroll"',
         'class="sidebar-account-footer"',
@@ -288,6 +302,7 @@ def main() -> int:
 
     approved_scripts = (
         f'<script src="home-shell.js?v={asset_version}" defer></script>',
+        f'<script src="site-consumer-layout.js?v={asset_version}" defer></script>',
         f'<script src="mobile-entry.js?v={asset_version}" defer></script>',
         f'<script type="module" src="site-avatar.js?v={asset_version}"></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",

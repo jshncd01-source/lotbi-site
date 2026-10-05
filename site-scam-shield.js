@@ -4,6 +4,7 @@ let result;
 let status;
 let clicked;
 let incident;
+let dialogTrigger;
 
 const escapeText = value => String(value ?? '');
 const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/plain', 'text/html', 'application/xhtml+xml', 'application/pdf']);
@@ -57,7 +58,7 @@ function render(payload) {
   if (payload.evidence.length) {
     const details = document.createElement('details');
     const summary = document.createElement('summary');
-    summary.textContent = '전문 정보 보기';
+    summary.textContent = '분석 근거 자세히 보기';
     const ul = document.createElement('ul');
     payload.evidence.forEach(item => {
       const li = document.createElement('li');
@@ -75,8 +76,9 @@ function requestAnalysis(formData) {
   });
 }
 
-function openDialog() {
+function openDialog(event) {
   if (!dialog) return;
+  dialogTrigger = event?.currentTarget instanceof HTMLElement ? event.currentTarget : document.activeElement;
   result.hidden = true;
   status.textContent = '문자, 주소 또는 파일을 보내 주세요.';
   if (typeof dialog.showModal === 'function') {
@@ -88,6 +90,13 @@ function openDialog() {
   dialog.setAttribute('aria-modal', 'true');
 }
 
+function restoreDialogFocus() {
+  const visibleTrigger = dialogTrigger instanceof HTMLElement && dialogTrigger.isConnected
+    && !dialogTrigger.closest('[inert], [aria-hidden="true"]') && dialogTrigger.getClientRects().length;
+  const target = visibleTrigger ? dialogTrigger : document.querySelector('[data-mobile-nav-open]');
+  target?.focus?.();
+}
+
 function closeDialog() {
   if (!dialog) return;
   if (typeof dialog.close === 'function') {
@@ -96,10 +105,14 @@ function closeDialog() {
   }
   dialog.removeAttribute('open');
   dialog.removeAttribute('aria-modal');
+  restoreDialogFocus();
 }
 
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && dialog?.hasAttribute('open') && typeof dialog.close !== 'function') closeDialog();
+  if (event.key === 'Escape' && !event.defaultPrevented && dialog?.hasAttribute('open')) {
+    event.preventDefault();
+    closeDialog();
+  }
 });
 
 async function submitAnalysis(event) {
@@ -137,7 +150,7 @@ async function submitAnalysis(event) {
     render(payload);
     status.textContent = payload.riskLevel === 'UNVERIFIED' ? '확인이 더 필요해요. 아래의 확인 안 된 내용을 봐 주세요.' : '분석 결과가 나왔습니다.';
   } catch (error) {
-    status.textContent = error instanceof Error ? error.message : '안심확인을 완료하지 못했습니다.';
+    status.textContent = error instanceof Error ? error.message : '진위확인을 완료하지 못했습니다.';
   } finally {
     submit.disabled = false;
   }
@@ -150,6 +163,15 @@ function bindScamShield() {
   status = document.querySelector('[data-scam-status]');
   clicked = document.querySelector('[data-scam-clicked]');
   incident = document.querySelector('[data-scam-incident]');
+  if (dialog && dialog.dataset.scamOutsideBound !== 'true') {
+    dialog.dataset.scamOutsideBound = 'true';
+    dialog.addEventListener('click', event => {
+      if (event.target !== dialog) return;
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog();
+    });
+    dialog.addEventListener('close', restoreDialogFocus);
+  }
 
   document.querySelectorAll('[data-scam-open]').forEach(button => {
     if (button.dataset.scamBound === 'true') return;

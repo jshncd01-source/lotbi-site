@@ -12,7 +12,7 @@ import {pathToFileURL} from 'node:url';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8').replaceAll('\r\n', '\n');
 
 const index = read('index.html');
 const petClient = read('site-pet.js');
@@ -55,13 +55,12 @@ const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-deskto
 const mobileAside = index.match(/<aside(?=[^>]*id="mobile-nav-drawer")[\s\S]*?<\/aside>/)?.[0] || '';
 for (const [label, block] of [['desktop', desktopAside], ['mobile', mobileAside]]) {
   assert.ok(block, `${label} sidebar markup missing`);
-  assert.ok(block.includes('#lotbi-icon-paw'), `${label} 반려동물 entry missing the paw icon`);
-  assert.ok(block.includes('data-pet-family-open'), `${label} 반려동물 entry missing its open hook`);
-  assert.match(block, /<span class="nav-item-label">반려동물<\/span>/, `${label} 반려동물 label missing`);
-  assert.ok(block.includes('data-pet-sos-count'), `${label} must reserve the SOS badge slot`);
+  assert.ok(block.includes('data-consumer-section="care"'), `${label} must expose 안심케어`);
+  assert.match(block, /<span class="nav-item-label">안심케어<\/span>/, `${label} care label missing`);
+  assert.ok(!block.includes('data-pet-family-open'), `${label} must not duplicate pets as a primary menu`);
   // 캘린더 → 반려동물 → 최근 대화
-  const calendarPos = block.indexOf('sidebar-calendar-nav');
-  const petPos = block.indexOf('sidebar-pet-nav');
+  const calendarPos = block.indexOf('data-calendar-view="all"');
+  const petPos = block.indexOf('data-consumer-section="care"');
   const recentPos = block.indexOf('sidebar-history-section');
   assert.ok(
     calendarPos >= 0 && petPos > calendarPos && recentPos > petPos,
@@ -69,6 +68,9 @@ for (const [label, block] of [['desktop', desktopAside], ['mobile', mobileAside]
   );
 }
 assert.ok(index.includes('site-pet.css'), 'PET FAMILY stylesheet must be linked');
+const sections = read('site-consumer-sections.js');
+assert.match(sections, /mountPets/, 'care must retain the Pet owner mount callback');
+assert.match(conversation, /mountPets: async/, 'care must wire the Pet owner');
 assert.ok(
   conversation.includes("mountPetFamilyManager") && conversation.includes("data-pet-family-open"),
   'conversation shell must mount the PET FAMILY surface from the sidebar entry',

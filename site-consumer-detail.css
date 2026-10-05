@@ -1,0 +1,221 @@
+/* Consumer detail system. Geometry belongs to the existing feature managers;
+   this layer owns typography, controls and surface hierarchy, not behavior. */
+body.chat-home-page {
+  --consumer-detail-radius: 12px;
+  --consumer-detail-muted: var(--lotbi-text-secondary);
+  --consumer-detail-shadow: 0 8px 32px rgb(0 0 0 / 10%);
+}
+body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog, .lotbi-sheet) {
+  box-sizing: border-box; color: var(--lotbi-text-primary);
+  background: var(--lotbi-surface-primary); border-color: var(--lotbi-border-default);
+  border-radius: 16px; box-shadow: var(--consumer-detail-shadow);
+}
+body.chat-home-page :is(.calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100svh - 32px);
+  padding: 24px; overflow-y: auto; overscroll-behavior: contain;
+}
+body.chat-home-page :is(.calendar-settings-backdrop, .calendar-editor-backdrop, .calendar-readonly-backdrop, .calendar-delete-confirm-backdrop) {
+  padding: 16px; background: rgb(0 0 0 / 24%);
+}
+body.chat-home-page :is(.site-modal, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog, .consumer-care-body, .festival-manager, .scam-dialog) :is(h3, h4) {
+  color: var(--lotbi-text-primary); font-weight: 600; letter-spacing: -.025em; line-height: 1.5;
+}
+body.chat-home-page :is(.calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) h3 {
+  margin-top: 0; font-size: 20px;
+}
+body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), select, textarea) {
+  box-sizing: border-box; max-width: 100%; min-width: 0; min-height: 44px;
+  border: 1px solid var(--lotbi-border-default); border-radius: 10px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary);
+  padding: 10px 12px; font-family: inherit; font-size: 16px; line-height: 1.5;
+}
+body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) :is(input[type=checkbox], input[type=radio]) {
+  accent-color: var(--lotbi-text-primary); flex-shrink: 0;
+}
+body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) :is(button, summary) {
+  font-family: inherit; font-weight: 500; letter-spacing: 0; line-height: 1.5;
+}
+/* Shared controls are also links (including the Pet login gate). Keep their
+   primary action neutral in both themes instead of inheriting legacy navy. */
+body.chat-home-page .site-button-primary {
+  background: var(--lotbi-text-primary); border-color: var(--lotbi-text-primary);
+  color: var(--lotbi-surface-primary); font-weight: 500;
+}
+body.chat-home-page .site-button-primary:not(:disabled):hover { opacity: .88; }
+body.chat-home-page .site-button-primary:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px;
+}
+body.chat-home-page :is(.calendar-editor-header, .calendar-readonly-header, .calendar-settings-header) { align-items: center; gap: 12px; }
+/* One scroll owner per settings dialog. Keep the close control visible and let
+   the body shrink instead of nesting a second viewport-sized scroll area. */
+body.chat-home-page .calendar-settings-dialog { overflow: hidden; }
+body.chat-home-page .calendar-settings-header { flex: 0 0 auto; padding: 0 0 12px; }
+body.chat-home-page .calendar-settings-body {
+  flex: 1 1 auto; min-width: 0; min-height: 0; max-height: none;
+  overflow-x: hidden; overflow-y: auto; padding: 16px 0 0;
+  overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+body.chat-home-page .calendar-settings-body section { min-width: 0; }
+body.chat-home-page :is(.calendar-settings-weather-overview, .calendar-settings-status) { overflow-wrap: anywhere; }
+body.chat-home-page :is(.calendar-settings-toggle-row, .calendar-settings-select-row) small,
+body.chat-home-page :is(.calendar-settings-status, .calendar-settings-weather-overview small, .calendar-editor-primary > small) { font-size: 13px; line-height: 1.6; }
+body.chat-home-page .calendar-editor-dialog { overflow: hidden; }
+body.chat-home-page .calendar-editor-header { padding: 0 0 12px; }
+body.chat-home-page .calendar-editor-form { min-width: 0; }
+body.chat-home-page .calendar-editor-body { padding-inline: 0; scrollbar-gutter: stable; }
+body.chat-home-page .calendar-editor-actions { padding-inline: 0; padding-bottom: 0; }
+body.chat-home-page :is(.calendar-editor-close, .calendar-readonly-close, .calendar-settings-close, .site-modal-close) {
+  width: 44px; min-height: 44px; padding: 8px; border: 0;
+  border-radius: 10px; background: transparent; color: var(--lotbi-text-secondary);
+}
+body.chat-home-page :is(.calendar-editor-close, .calendar-readonly-close, .calendar-settings-close, .site-modal-close):hover {
+  background: var(--lotbi-surface-hover); color: var(--lotbi-text-primary);
+}
+body.chat-home-page :is(.calendar-editor-field, .calendar-settings-field, .site-field) { font-size: 14px; font-weight: 500; gap: 8px; }
+body.chat-home-page :is(.calendar-editor-body, .calendar-editor-primary, .calendar-editor-details) > label,
+body.chat-home-page :is(.calendar-editor-category-field, .calendar-editor-time-control) { font-size: 14px; font-weight: 500; color: var(--lotbi-text-primary); gap: 8px; }
+body.chat-home-page .calendar-editor-details > summary { font-weight: 500; }
+body.chat-home-page :is(.calendar-editor-time-sheet, .calendar-editor-category-sheet, .profile-photo-source-menu) {
+  padding: 12px; border: 1px solid var(--lotbi-border-default); border-radius: 12px;
+  background: var(--lotbi-surface-primary); box-shadow: 0 4px 20px rgb(0 0 0 / 8%);
+}
+body.chat-home-page :is(.calendar-editor-actions, .calendar-readonly-actions, .calendar-delete-confirm-actions) {
+  gap: 10px; padding-top: 20px; margin-top: 20px; border-top: 1px solid var(--lotbi-border-default); flex-wrap: wrap;
+}
+body.chat-home-page :is(.calendar-editor-actions, .calendar-readonly-actions, .calendar-delete-confirm-actions) button {
+  min-height: 44px; border-radius: 10px; padding: 10px 16px; font-size: 14px;
+}
+body.chat-home-page :is(.calendar-readonly-notice, .calendar-editor-help, .site-field-help, .pet-form-help, .pet-meta, .festival-card-location) {
+  font-size: 13px; line-height: 1.65; color: var(--consumer-detail-muted);
+}
+body.chat-home-page .calendar-readonly-details { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 14px 20px; font-size: 14px; }
+body.chat-home-page .calendar-readonly-details :is(dt, dd) { margin: 0; overflow-wrap: anywhere; }
+body.chat-home-page .calendar-readonly-details dt { color: var(--consumer-detail-muted); }
+/* Pet steps and festival details are sections, not cards nested inside cards. */
+body.chat-home-page :is(.pet-section, .pet-profile-controls, .pet-timeline, .pet-candidate-section, .pet-registration-review, .festival-detail, .festival-program-surface) {
+  border-radius: 0; background: transparent; box-shadow: none;
+}
+body.chat-home-page :is(.pet-section-title, .pet-home-card-title, .pet-card-title, .pet-registration-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-card-title, .festival-program-title) {
+  font-weight: 600; letter-spacing: -.025em;
+}
+body.chat-home-page :is(.pet-home-card, .pet-card, .festival-card) { border-radius: var(--consumer-detail-radius); box-shadow: none; }
+body.chat-home-page .pet-home { gap: 6px; border-bottom: 1px solid var(--lotbi-border-default); padding-bottom: 12px; }
+body.chat-home-page .pet-home-card { min-height: 76px; border: 0; border-radius: 10px; padding: 12px; }
+body.chat-home-page .pet-home-card[data-pet-home-active='true'] { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-primary); box-shadow: none; }
+body.chat-home-page :is(.pet-form, .pet-registration-form) { gap: 20px; }
+body.chat-home-page :is(.pet-form, .pet-registration-form) label { font-weight: 500; font-size: 14px; }
+body.chat-home-page :is(.pet-button, .pet-submit, .pet-form button, .festival-cta-button, .festival-registration-link, .festival-region-option) {
+  min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 500;
+}
+body.chat-home-page :is(.pet-empty, .lotbi-box-empty) { border: 0; background: transparent; padding: 32px 16px; }
+body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal > .site-modal-header h2 { font-size: 14px; color: var(--consumer-detail-muted); font-weight: 500; }
+body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal > .site-modal-description { display: none; }
+.consumer-life-detail > .consumer-action { min-height: 44px; }
+.consumer-life-detail h3 { margin-top: 0; }
+.consumer-life-detail .consumer-feature-note { max-width: 60ch; }
+body.chat-home-page :is(.profile-popover, .thread-menu, .attachment-menu, .response-grade-menu, .profile-photo-source-menu) button { font-size: 14px; font-weight: 500; }
+body.chat-home-page :is(.profile-popover, .thread-menu, .attachment-menu, .response-grade-menu) { box-shadow: 0 6px 24px rgb(0 0 0 / 9%); }
+body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  body.chat-home-page :is(.calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) { padding: 20px; }
+  body.chat-home-page .calendar-readonly-details { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+  body.chat-home-page .calendar-readonly-details dd { margin-bottom: 12px; }
+  body.chat-home-page .pet-home-card { padding: 10px 8px; }
+  body.chat-home-page :is(.calendar-editor-actions, .calendar-delete-confirm-actions) button { flex: 1 1 auto; }
+  body.chat-home-page :is(.calendar-editor-primary, .calendar-editor-details) { grid-template-columns: minmax(0, 1fr); }
+  body.chat-home-page .calendar-editor-body { padding: 12px 0; }
+  body.chat-home-page .calendar-settings-select-row { align-items: stretch; flex-direction: column; gap: 8px; padding: 12px 0; }
+  body.chat-home-page .calendar-settings-select { width: 100%; }
+  body.chat-home-page .calendar-settings-body { padding-bottom: env(safe-area-inset-bottom); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) { animation: none; scroll-behavior: auto; }
+}
+@media (max-width: 380px) {
+  /* Seven dates must fit the viewport. Retain 44px height without allowing
+     the desktop 44px minimum width to overlap adjacent date cells. */
+  body.chat-home-page .calendar-date-trigger { min-width: 0; width: 100%; min-height: 44px; }
+}
+/* Actual shared bottom-sheet owners: photo source, festival region and dates. */
+body.chat-home-page .lotbi-sheet { font-size: 14px; line-height: 1.65; }
+body.chat-home-page .lotbi-sheet[data-presentation='INLINE'] { box-shadow: none; border-radius: 12px; }
+body.chat-home-page .lotbi-sheet-dismiss { font-weight: 500; border-radius: 10px; }
+body.chat-home-page .lotbi-sheet :is(button, a):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+body.chat-home-page .pet-draft-body { gap: 24px; }
+body.chat-home-page .pet-draft-title { font-size: 18px; font-weight: 600; letter-spacing: -.025em; }
+body.chat-home-page .pet-draft-progress-label { color: var(--consumer-detail-muted); font-size: 13px; font-weight: 400; }
+body.chat-home-page .pet-draft-steps { gap: 8px; padding: 0; }
+body.chat-home-page .pet-draft-step { padding: 10px 8px; border: 0; border-bottom: 2px solid var(--lotbi-border-default); border-radius: 0; background: transparent; color: var(--consumer-detail-muted); font-size: 13px; }
+body.chat-home-page .pet-draft-step[data-pet-draft-step-active='true'] { color: var(--lotbi-text-primary); border-bottom-color: currentColor; background: transparent; }
+body.chat-home-page .pet-draft-step-number { background: var(--lotbi-surface-subtle); color: inherit; font-weight: 500; }
+body.chat-home-page .pet-draft-review { padding: 16px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; background: transparent; }
+body.chat-home-page :is(.pet-draft-actions, .pet-section-header) { gap: 12px; flex-wrap: wrap; }
+body.chat-home-page :is(.pet-delete-confirm, .pet-draft-gate-banner) { padding: 18px; border-radius: 12px; box-shadow: none; }
+body.chat-home-page .pet-photo-source-menu { gap: 8px; }
+body.chat-home-page .pet-photo-source-label { font-size: 14px; font-weight: 500; }
+/* Owner details: restrained headings and a single level of surface hierarchy. */
+body.chat-home-page :is(.pet-family-surface, .festival-manager, .calendar-product-shell) :is(h3, h4, strong, dt, legend) { font-weight: 500; }
+body.chat-home-page :is(.pet-family-surface, .festival-manager) :is(button, summary, label) { font-weight: 500; }
+body.chat-home-page :is(.pet-card-name, .pet-photo-title, .pet-empty-title, .pet-section-title, .pet-draft-title) { font-weight: 500; font-size: 18px; }
+body.chat-home-page :is(.pet-card-species, .pet-progress-label, .pet-draft-photo-state, .pet-photo-count, .pet-photo-step-name, .pet-draft-progress-label) { font-weight: 400; font-size: 13px; }
+body.chat-home-page :is(.pet-detail-section, .pet-draft-species-field) { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; background: transparent; }
+body.chat-home-page .pet-card { padding: 20px; background: var(--lotbi-surface-primary); }
+body.chat-home-page .pet-profile-thumbnail { border-radius: 10px; }
+body.chat-home-page .pet-facts { gap: 14px 24px; font-size: 14px; line-height: 1.65; }
+body.chat-home-page :is(.pet-facts dt, .pet-registration-term) { font-size: 13px; font-weight: 400; }
+body.chat-home-page :is(.pet-form, .pet-registration-form) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select) { min-height: 48px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; padding: 12px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; font-size: 16px; }
+body.chat-home-page .pet-choice { font-size: 14px; font-weight: 400; border-radius: 10px; }
+body.chat-home-page .pet-draft-species-choice:has(input:checked) { border-color: var(--lotbi-text-primary); box-shadow: none; background: var(--lotbi-surface-subtle); }
+body.chat-home-page .pet-timeline-list { padding-left: 20px; font-size: 14px; line-height: 1.7; }
+body.chat-home-page .pet-timeline-time { font-size: 12px; }
+body.chat-home-page :is(.festival-chip, .festival-location-button, .festival-month-nav-button, .festival-month-nav-label, .festival-location-label) { font-weight: 500; }
+body.chat-home-page .festival-location-banner { border-radius: 0; padding: 16px 0; background: transparent; border-bottom: 1px solid var(--lotbi-border-default); }
+body.chat-home-page .festival-card { background: var(--lotbi-surface-primary); }
+body.chat-home-page .festival-card-title { font-size: 18px; font-weight: 500; line-height: 1.5; }
+body.chat-home-page .festival-detail-name { font-size: 26px; font-weight: 500; }
+body.chat-home-page :is(.calendar-editor-details, .calendar-settings-section) { border-radius: 0; background: transparent; }
+body.chat-home-page .calendar-editor-details { border: 0; border-top: 1px solid var(--lotbi-border-default); padding: 16px 0 0; }
+body.chat-home-page .calendar-editor-details > summary { min-height: 44px; }
+body.chat-home-page .calendar-expense-summary { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; background: transparent; }
+body.chat-home-page .calendar-expense-label { color: var(--lotbi-text-primary); font-weight: 400; }
+body.chat-home-page .calendar-expense-amount { font-weight: 500; font-variant-numeric: tabular-nums; }
+body.chat-home-page .lotbi-box-card { border-radius: 12px; background: var(--lotbi-surface-primary); box-shadow: none; }
+body.chat-home-page .lotbi-box-card-title { font-size: 16px; font-weight: 500; line-height: 1.5; }
+body.chat-home-page .lotbi-box-card-price { font-size: 16px; font-weight: 500; }
+body.chat-home-page :is(.profile-popover-summary-name, .profile-photo-source-option) { font-weight: 500; }
+body.chat-home-page .profile-popover-summary-name { font-size: 14px; }
+body.chat-home-page :is(.profile-popover-summary-email, .profile-popover-summary-handle, .profile-popover-summary-plan) { font-size: 12px; font-weight: 400; line-height: 1.6; overflow-wrap: anywhere; }
+body.chat-home-page :is(.profile-photo-source-option, .attachment-menu button, .thread-menu button) { min-height: 44px; }
+body.chat-home-page :is(.site-button, .conversation-management-modal-actions button) { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 500; }
+body.chat-home-page .conversation-management-modal-actions { gap: 8px; margin-top: 24px; justify-content: flex-end; }
+body.chat-home-page .chat-message-body { font-size: 16px; line-height: 1.75; }
+body.chat-home-page .chat-message-user { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-primary); border-radius: 22px; padding: 12px 18px; }
+body.chat-home-page .chat-message-meta { font-size: 12px; font-weight: 400; }
+body.chat-home-page .chat-message-actions button { font-weight: 400; }
+body.chat-home-page .chat-message-body .chat-code-block { background: var(--lotbi-surface-subtle); border-color: var(--lotbi-border-default); padding: 16px; }
+body.chat-home-page .chat-message-expand-button { font-weight: 500; }
+body.chat-home-page .scam-result-headline { font-size: 16px; font-weight: 500; border-radius: 10px; }
+body.chat-home-page :is(.festival-detail-surface, .festival-program-surface) { padding: 20px 0; border: 0; background: transparent; }
+body.chat-home-page .festival-detail-name { font-size: 24px; font-weight: 600; letter-spacing: -.03em; line-height: 1.4; }
+body.chat-home-page :is(.festival-detail-period, .festival-detail-location, .festival-detail-summary, .festival-program-note) { font-size: 14px; line-height: 1.7; }
+body.chat-home-page .festival-program-item { border: 0; border-bottom: 1px solid var(--lotbi-border-default); border-radius: 0; padding: 16px 0; }
+body.chat-home-page :is(.festival-program-title, .festival-schedule-sheet-title, .festival-region-sheet-title) { font-weight: 600; }
+body.chat-home-page :is(.festival-date-tab, .festival-region-option, .festival-back-button, .festival-calendar-add-trigger) { min-height: 44px; font-size: 14px; font-weight: 500; }
+body.chat-home-page [data-scam-result] section { padding: 16px 0; border: 0; border-bottom: 1px solid var(--lotbi-border-default); background: transparent; }
+body.chat-home-page [data-scam-result] h4 { margin: 0 0 8px; font-size: 16px; }
+body.chat-home-page [data-scam-result] li { margin-block: 6px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+body.chat-home-page [data-scam-result] summary { min-height: 44px; align-content: center; cursor: pointer; }
+/* App/Web chooser uses the same quiet entry surface without decorative gradients. */
+.lotbi-mobile-entry { background: var(--lotbi-surface-primary, #fff); }
+.lotbi-entry-card { box-sizing: border-box; border: 0; border-radius: 16px; box-shadow: none; }
+.lotbi-entry-copy h1 { font-size: 28px; font-weight: 600; line-height: 1.4; }
+.lotbi-entry-eyebrow { color: var(--lotbi-text-secondary, #666); font-weight: 500; letter-spacing: 0; }
+.lotbi-entry-action { border-radius: 10px; font-weight: 500; }
+.lotbi-entry-notice { border-left: 0; border-top: 1px solid var(--lotbi-border-default, #ddd); border-radius: 0; background: transparent; padding: 16px 0 0; }
+@media (max-width: 600px) {
+  body.chat-home-page .pet-draft-step { font-size: 12px; padding-inline: 4px; }
+  .lotbi-mobile-entry { align-items: center; padding: 16px; }
+  .lotbi-entry-card { padding: 24px 12px; border: 0; box-shadow: none; }
+}

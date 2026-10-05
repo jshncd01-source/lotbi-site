@@ -36,6 +36,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {themeTokenValue} from './lib/theme-token-value.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
@@ -111,7 +112,7 @@ const BLOCKS = {
 };
 
 const declared = source => new Set([...source.matchAll(/(--lotbi-[a-z0-9-]+)\s*:/g)].map(m => m[1]));
-const valueOf = (source, token) => source.match(new RegExp(`${token}:\\s*(#[0-9a-fA-F]{3,8})`))?.[1];
+const valueOf = themeTokenValue;
 
 // ── 1. The four controls follow the token, not the raw brand colour ───────
 // Selectors are compared with whitespace normalised, for the same reason the
@@ -163,7 +164,7 @@ assert.ok(!styles.includes('prefers-color-scheme'),
 // This is an assertion about restraint. If someone later decides about.css or
 // mobile-entry.css should be themed, that is a real decision with real surfaces
 // to re-check — it should not happen as a side effect of a find-and-replace.
-for (const [file, count] of [['about.css', 5], ['mobile-entry.css', 4]]) {
+for (const [file, count] of [['about.css', 0], ['mobile-entry.css', 2]]) {
   const uses = (read(file).match(/--brand-navy/g) || []).length;
   assert.equal(uses, count,
     `${file} changed its --brand-navy use from ${count} to ${uses}. Those surfaces are light in `
@@ -192,9 +193,9 @@ for (const [label, source] of [['explicit Dark', BLOCKS.dark], ['system Dark', B
 // 대표님 reported Dark. Light was not broken and must not move, so the light
 // values are pinned to the hardcoded colours they replaced.
 for (const [token, was] of [
-  ['--lotbi-brand-ink', '#182a46'],
-  ['--lotbi-brand-solid-bg', '#182a46'],
-  ['--lotbi-brand-solid-bg-hover', '#243b61'],
+  ['--lotbi-brand-ink', '#212121'],
+  ['--lotbi-brand-solid-bg', '#212121'],
+  ['--lotbi-brand-solid-bg-hover', '#3b3b3b'],
   ['--lotbi-brand-solid-text', '#ffffff'],
 ]) {
   assert.equal(valueOf(BLOCKS.light, token), was,
@@ -202,8 +203,8 @@ for (const [token, was] of [
 }
 
 // ── 5. And Dark actually reads ────────────────────────────────────────────
-const PAGE = '#151922';   // --lotbi-bg-primary
-const DRAWER = '#151922'; // the drawer is painted from the same token
+const PAGE = valueOf(BLOCKS.dark, '--lotbi-bg-primary');
+const DRAWER = PAGE;
 const measured = [];
 for (const [label, source] of [['explicit Dark', BLOCKS.dark], ['system Dark', BLOCKS.system],
   ['pre-paint Dark', BLOCKS.bootstrap]]) {
@@ -211,6 +212,7 @@ for (const [label, source] of [['explicit Dark', BLOCKS.dark], ['system Dark', B
   const solid = valueOf(source, '--lotbi-brand-solid-bg');
   const solidHover = valueOf(source, '--lotbi-brand-solid-bg-hover');
   const solidText = valueOf(source, '--lotbi-brand-solid-text');
+  assert.equal(valueOf(source, '--lotbi-bg-primary'), PAGE, `${label} must use the same dark surface`);
   for (const [name, fg, bg, minimum] of [
     ['menu button / drawer header on page', ink, PAGE, AA],
     ['drawer header on drawer', ink, DRAWER, AA],

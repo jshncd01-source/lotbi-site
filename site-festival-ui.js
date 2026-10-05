@@ -58,20 +58,21 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-53bde1fef0df';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-53bde1fef0df';
+} from './site-festival-client.js?v=aset-2483f0b86536';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-2483f0b86536';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-53bde1fef0df';
+} from './site-current-location.js?v=aset-2483f0b86536';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-2483f0b86536';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-53bde1fef0df';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-2483f0b86536';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -81,8 +82,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-53bde1fef0df';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-53bde1fef0df';
+} from './site-festival-calendar.js?v=aset-2483f0b86536';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2483f0b86536';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -92,18 +93,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-53bde1fef0df';
+} from './site-navigation.js?v=aset-2483f0b86536';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-53bde1fef0df';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-2483f0b86536';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-53bde1fef0df';
+} from './site-calendar-weather.js?v=aset-2483f0b86536';
 
 const PAGE_SIZE = 20;
 
@@ -756,7 +757,7 @@ export async function mountFestivalManager({
       // 확인 중에는 "현재 위치로 보기" 를 다시 누를 이유가 없으므로 그 자리에
       // 진행 상태를 보여준다.
       actions.appendChild(el('span', 'festival-location-busy', '현재 위치 확인 중...'));
-    } else if (state.locationMode !== 'CURRENT' && state.locationPermission !== LOCATION_PERMISSION.DENIED) {
+    } else if (isLocationUsageEnabled() && state.locationMode !== 'CURRENT' && state.locationPermission !== LOCATION_PERMISSION.DENIED) {
       const useLocationButton = document.createElement('button');
       useLocationButton.type = 'button';
       useLocationButton.className = 'festival-location-button';
@@ -773,6 +774,11 @@ export async function mountFestivalManager({
     regionButton.textContent = '지역 변경';
     regionButton.addEventListener('click', () => void openRegionSheet());
     actions.appendChild(regionButton);
+    if (!isLocationUsageEnabled()) {
+      const settingsLink = el('a', 'festival-location-button', '설정에서 위치 켜기');
+      settingsLink.href = 'https://account.lotbiai.com/account#privacy';
+      actions.appendChild(settingsLink);
+    }
     locationBanner.appendChild(actions);
     if (regionSheetDesktopAnchor) locationBanner.appendChild(regionSheetDesktopAnchor);
   }
@@ -855,7 +861,7 @@ export async function mountFestivalManager({
       list.appendChild(optionButton);
     }
     wrap.appendChild(list);
-    if (state.locationPermission !== LOCATION_PERMISSION.DENIED) {
+    if (isLocationUsageEnabled() && state.locationPermission !== LOCATION_PERMISSION.DENIED) {
       const backButton = document.createElement('button');
       backButton.type = 'button';
       backButton.className = 'festival-region-current-button';
@@ -939,12 +945,14 @@ export async function mountFestivalManager({
   // sharedPosition 이 넘어오면 그 좌표를 쓴다: 이미 손에 있는 값이므로 브라우저에
   // 좌표를 새로 묻지 않고, 따라서 권한 팝업이 뜰 여지도 없다.
   async function useCurrentLocation({auto = false, sharedPosition = null} = {}) {
+    if (!isLocationUsageEnabled()) return;
     state.locationBusy = true;
     renderLocationBanner();
     try {
       // 캘린더 날씨가 방금 현재 위치를 읽었다면 그 좌표를 그대로 쓴다 -- 같은
       // 브라우저·같은 origin 의 권한이고 같은 위치다 (§2/§8).
       const position = sharedPosition ?? await acquireSharedBrowserCurrentLocation();
+      if (!isLocationUsageEnabled()) return;
       // 좌표를 기다리는 동안 사용자가 직접 지역을 골랐다면 그 선택이 이긴다 (§22).
       // 자동 경로는 아무도 누르지 않은 요청이므로, 사람이 고른 것을 덮지 않는다.
       if (auto && state.region) return;
@@ -1045,7 +1053,7 @@ export async function mountFestivalManager({
     if (state.region) {
       query.region = state.region;
       if (state.municipality) query.municipality = state.municipality;
-    } else if (state.locationMode === 'CURRENT' && state.currentPosition) {
+    } else if (isLocationUsageEnabled() && state.locationMode === 'CURRENT' && state.currentPosition) {
       query.latitude = state.currentPosition.latitude;
       query.longitude = state.currentPosition.longitude;
     }
@@ -1336,7 +1344,7 @@ export async function mountFestivalManager({
     // 다만 캘린더 날씨가 방금 읽어 둔 좌표가 손에 있다면 그것은 써도 된다 --
     // 새 요청이 아니라 이미 받은 값이고, 팝업이 뜰 수 없다 (§8).
     const sharedPosition = getRecentBrowserCurrentLocation();
-    if (state.locationPermission === LOCATION_PERMISSION.GRANTED || sharedPosition) {
+    if (isLocationUsageEnabled() && (state.locationPermission === LOCATION_PERMISSION.GRANTED || sharedPosition)) {
       // 좌표가 도착할 때까지 배너는 '현재 위치 확인 중…' 을 유지한다.
       await useCurrentLocation({auto: true, sharedPosition});
     } else {
@@ -1347,8 +1355,39 @@ export async function mountFestivalManager({
     }
   }
 
+  let disposed = false;
+  const syncLocationPreference = () => {
+    if (disposed || !root.isConnected) return;
+    if (!isLocationUsageEnabled()) {
+      const hadPosition = state.currentPosition !== null;
+      state.currentPosition = null;
+      state.locationMode = 'NONE';
+      state.currentRegionLabel = '';
+      state.locationResolving = false;
+      state.locationBusy = false;
+      state.locationPermission = LOCATION_PERMISSION.DENIED;
+      renderLocationBanner();
+      if (hadPosition) void fetchAndRender({reset: true});
+    } else {
+      void getBrowserLocationPermissionState().then(permission => {
+        if (disposed || !root.isConnected) return;
+        state.locationPermission = permission;
+        renderLocationBanner();
+      });
+    }
+  };
+  window.addEventListener('focus', syncLocationPreference);
+  window.addEventListener('pageshow', syncLocationPreference);
+  window.addEventListener(LOCATION_USAGE_EVENT, syncLocationPreference);
+  const onLocationVisibility = () => { if (document.visibilityState === 'visible') syncLocationPreference(); };
+  document.addEventListener('visibilitychange', onLocationVisibility);
   return {
     dispose() {
+      disposed = true;
+      window.removeEventListener('focus', syncLocationPreference);
+      window.removeEventListener('pageshow', syncLocationPreference);
+      window.removeEventListener(LOCATION_USAGE_EVENT, syncLocationPreference);
+      document.removeEventListener('visibilitychange', onLocationVisibility);
       requestToken += 1;
       currentAbort?.abort();
       regionSheetRef?.close();

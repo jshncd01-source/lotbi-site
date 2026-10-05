@@ -141,7 +141,7 @@
 }
 
 .pet-profile-sos { color: #b42318; font-weight: 700; }
-.pet-profile-resolved { color: #067647; font-weight: 700; }
+.pet-profile-resolved { color: var(--lotbi-text-primary, var(--text, #212121)); font-weight: 700; }
 .pet-profile-birthday { color: #8a4b00; font-weight: 700; }
 
 .pet-candidate-cta {
@@ -433,7 +433,7 @@
 
 .pet-draft-step[data-pet-draft-step-complete='true'] {
   background: #e8f5ee;
-  color: #24734b;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .pet-draft-actions {
@@ -451,7 +451,7 @@
 }
 
 .pet-draft-photo-state-accepted {
-  color: #24734b;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 .pet-draft-photo-state-rejected {
@@ -858,7 +858,7 @@
   border: 1px solid #dbe1ea;
   border-radius: 14px;
   background: #fff;
-  color: #202734;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -888,7 +888,7 @@
 body[data-site-theme="dark"] .pet-photo-source-option {
   border-color: #465162;
   background: #171c25;
-  color: #edf0f5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body[data-site-theme="dark"] .pet-photo-source-option:hover,
@@ -1181,7 +1181,7 @@ body[data-site-theme="dark"] .pet-case-safety {
 
 .pet-gate-copy {
   margin: 0;
-  color: #475065;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 14px;
   line-height: 1.6;
 }
@@ -1197,7 +1197,7 @@ body[data-site-theme="dark"] .pet-case-safety {
   padding: 2px 6px;
   border-radius: 999px;
   background: #eef1f5;
-  color: #5b6478;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
@@ -1208,12 +1208,12 @@ body[data-site-theme="dark"] .pet-gate-panel {
 }
 
 body[data-site-theme="dark"] .pet-gate-copy {
-  color: #c4cbd8;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 body[data-site-theme="dark"] .pet-nav-lock {
   background: #333c4b;
-  color: #c4cbd8;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
 /* 번호가 두 가지입니다. 롯비 번호와 국가 동물등록번호가 한눈에 다른 것으로
@@ -1229,7 +1229,7 @@ body[data-site-theme="dark"] .pet-nav-lock {
 }
 
 .pet-number-term {
-  color: #5b6478;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   font-weight: 700;
 }
@@ -1243,7 +1243,7 @@ body[data-site-theme="dark"] .pet-nav-lock {
 
 .pet-number-note {
   margin: 0;
-  color: #6b7488;
+  color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1255,5 +1255,5 @@ body[data-site-theme="dark"] .pet-number-block {
 
 body[data-site-theme="dark"] .pet-number-note,
 body[data-site-theme="dark"] .pet-number-term {
-  color: #b7c0cf;
+  color: var(--lotbi-text-primary, var(--text, #212121));
 }

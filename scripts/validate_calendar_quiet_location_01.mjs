@@ -48,6 +48,7 @@ const wait = async (fn, label) => { for (let i = 0; i < 200; i += 1) { if (fn())
 const click = node => node.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
 try {
   localStorage.clear();
+  document.cookie = 'lotbi_location_usage_v1=on; Path=/';
   localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false}));
 
   const j = body => Promise.resolve(new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}}));
@@ -103,6 +104,10 @@ try {
   const dialog = root.querySelector('.calendar-settings-dialog');
   const locationRow = dialog.querySelector('[data-calendar-location-row]');
   const locationButton = dialog.querySelector('[data-calendar-current-location]');
+  const locationToggle = dialog.querySelector('[data-calendar-auto-location]');
+  result.autoSwitchOn = locationToggle?.getAttribute('role') === 'switch'
+    && locationToggle.getAttribute('aria-checked') === 'true' && locationToggle.textContent === 'ON';
+  result.noRoutineRefresh = locationButton?.hidden === true;
   result.settingsHasLocation = Boolean(locationRow && locationButton);
   result.settingsHasManualRegion = Boolean(dialog.querySelector('.calendar-settings-region-row'));
   result.locationButtonLabel = locationButton ? locationButton.textContent : '';
@@ -112,7 +117,18 @@ try {
   // the point is where the grid sits, not whether one node survived.
   const gridTop = () => Math.round(root.querySelector('.calendar-month-grid').getBoundingClientRect().top);
   const gridTopBefore = gridTop();
-  click(locationButton);
+  click(locationToggle);
+  try {
+    await wait(() => locationToggle.getAttribute('aria-checked') === 'false'
+      && root.dataset.locationPermission === 'DENIED', 'automatic location OFF');
+  } catch (error) {
+    throw new Error(String(error) + JSON.stringify({cookie: document.cookie,
+      checked: locationToggle.getAttribute('aria-checked'), permission: root.dataset.locationPermission,
+      message: locationRow.textContent}));
+  }
+  result.autoSwitchOff = locationToggle.textContent === 'OFF'
+    && document.cookie.includes('lotbi_location_usage_v1=off');
+  click(locationToggle);
   await wait(() => root.querySelector('.calendar-toast'), 'toast');
   const toast = root.querySelector('.calendar-toast');
   const host = root.querySelector('.calendar-toast-host');
@@ -133,7 +149,7 @@ try {
   // 6. Blast radius: a denied location costs the weather decoration and nothing
   //    else. The Calendar must still be standing.
   mode = 'denied';
-  click(root.querySelector('[data-calendar-current-location]'));
+  window.dispatchEvent(new Event('focus'));
   await wait(() => root.dataset.locationPermission === 'DENIED', 'denied sync');
   result.calendarSurvivesDenial = Boolean(root.querySelector('.calendar-month-grid'))
     && root.querySelectorAll('.calendar-date-cell').length >= 28;
@@ -199,6 +215,7 @@ try {
     if (!v.statusCollapsed) throw new Error(`${where}: the emptied status row must collapse, not hold space`);
     if (!v.permissionPublished) throw new Error(`${where}: location permission contract must stay published on the root`);
     if (!v.settingsHasLocation) throw new Error(`${where}: Settings must carry the current-location control`);
+    if (!v.autoSwitchOn || !v.autoSwitchOff || !v.noRoutineRefresh) throw new Error(`${where}: automatic location must have a persistent ON/OFF switch, not a routine refresh button`);
     if (!v.settingsHasManualRegion) throw new Error(`${where}: Settings must keep the manual region control beside it`);
     // Permission granted is not the same as coordinates in hand: until the user
     // asks once, the control still offers to fetch them.
