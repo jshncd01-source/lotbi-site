@@ -104,6 +104,18 @@
   background: var(--lotbi-surface-primary, #fff);
 }
 
+.pet-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.pet-card-actions .site-button {
+  width: 100%;
+  min-height: 44px;
+}
+
 .pet-profile-thumbnail {
   width: 72px;
   height: 72px;
@@ -534,6 +546,7 @@
 }
 
 @media (max-width: 640px) {
+  .pet-card-actions { grid-template-columns: 1fr; }
   .pet-home {
     grid-template-columns: 1fr;
   }

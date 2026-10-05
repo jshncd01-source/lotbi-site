@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-a06a83b89537';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-7ea2eeab5d1f';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -118,14 +118,6 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
   } else if (section === 'wallet') {
     releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt});
   } else if (section === 'care') {
-    const alert = node('div', 'consumer-care-alert');
-    const alertCopy = node('div'); alertCopy.append(node('strong', '', 'SOS · 실종 신고'), node('p', '', '긴급한 상황이라면 먼저 112·119에 연락하세요.'));
-    const sosActions = node('div', 'consumer-care-actions');
-    sosActions.append(
-      action('사람 실종 신고', () => { void selectTab('people', 'sos'); }),
-      action('반려동물 실종 신고', () => { void selectTab('pets', 'sos'); }, {secondary: true}),
-    );
-    alert.append(icon('shield'), alertCopy, sosActions);
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');
     const panelId = `${root.parentElement.getAttribute('aria-labelledby') || 'consumer-care'}-targets`; body.id = panelId;
@@ -178,7 +170,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '반려동물 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
       } finally { if (!disposed && current === generation) body.removeAttribute('aria-busy'); }
     }
-    root.append(alert, tabs, body); void selectTab('people');
+    root.append(tabs, body); void selectTab('people');
   } else if (section === 'mall') {
     const state = empty('연결한 업체를 롯비에서 이용하세요', '제휴처를 찾아 연결하고, 허용한 권한과 연결 상태를 관리하는 공간입니다.', 'link');
     const catalog = node('a', 'consumer-action', '제휴처 찾아 연결하기');

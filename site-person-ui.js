@@ -3,13 +3,13 @@ import {
   getPerson, listGuardianNotices, listHumanSightings, listPeople, listPersonIdentityPhotos,
   listPersonSos, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice, submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-a06a83b89537';
+} from './site-person.js?v=aset-7ea2eeab5d1f';
 
 const IDENTITY_SLOTS = Object.freeze(['정면 얼굴', '왼쪽 45도', '오른쪽 45도', '왼쪽 옆면', '오른쪽 옆면', '정면 상반신', '정면 전신', '추가 정면', '추가 왼쪽', '추가 오른쪽']);
 const el = (tag, className, text = '') => { const node = document.createElement(tag); node.className = className; node.textContent = text; return node; };
 const fileDataUri = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('PHOTO_READ_FAILED')); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); });
 
-export async function mountPersonCareManager({sessionToken, root, onOpenPet = () => {}, initialSurface = 'home'}) {
+export async function mountPersonCareManager({sessionToken, root, initialSurface = 'home'}) {
   const surface = el('div', 'person-care-surface');
   root.replaceChildren(surface);
   if (!sessionToken) { surface.append(el('p', 'person-empty', '로그인하면 사람 안심케어를 사용할 수 있습니다.')); return {}; }
@@ -17,7 +17,7 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
   const nav = el('div', 'person-tabs');
   const content = el('div', 'person-content');
   surface.append(status, nav, content);
-  let people = [], cases = [], notices = [], sightings = [], active = ['home', 'sos', 'sighting', 'notices'].includes(initialSurface) ? initialSurface : 'home', editing = null;
+  let people = [], cases = [], notices = [], sightings = [], active = ['home', 'sos', 'sighting', 'notices'].includes(initialSurface) ? initialSurface : 'home', editing = null, pendingSosPersonId = '';
   let identityPhotos = new Map();
   const button = (label, action, primary = false) => { const node = el('button', primary ? 'site-button person-primary' : 'site-button site-button-secondary', label); node.type = 'button'; node.addEventListener('click', action); return node; };
   const refresh = async () => {
@@ -26,7 +26,7 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
     if (editing) editing = people.some(item => item.personId === editing.personId) ? await getPerson(sessionToken, editing.personId) : null;
     render();
   };
-  const renderNav = () => { nav.replaceChildren(...[['sos', 'SOS / 실종 신고'], ['home', '사람'], ['pet', '반려동물'], ['sighting', '발견 제보'], ['notices', '후보 확인']].map(([id, label]) => button(label, () => { if (id === 'pet') { onOpenPet(); return; } active = id; render(); }, active === id))); };
+  const renderNav = () => { nav.replaceChildren(...[['home', '등록된 사람'], ['sos', '실종 관리'], ['sighting', '발견 제보']].map(([id, label]) => button(label, () => { active = id; render(); }, active === id))); };
 
   const renderIdentityPhotos = person => {
     const box = el('section', 'person-form');
@@ -44,12 +44,33 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
   };
 
   const renderHome = () => {
-    content.replaceChildren(el('h3', 'person-title', '등록된 사람'));
+    const heading = el('div', 'person-section-heading');
+    const headingCopy = el('div');
+    headingCopy.append(el('h3', 'person-title', '등록된 사람'), el('p', 'person-empty', '보호 대상의 사진 갱신과 실종 상태를 한곳에서 관리합니다.'));
+    heading.append(headingCopy, button('새 사람 등록', () => { content.querySelector('[data-person-create]')?.scrollIntoView({behavior: 'smooth', block: 'start'}); }, true));
+    content.replaceChildren(heading);
+    if (notices.length > 0) {
+      const noticeButton = button(`확인할 발견 후보 ${notices.length}건`, () => { active = 'notices'; render(); });
+      noticeButton.classList.add('person-notice-button');
+      content.append(noticeButton);
+    }
     for (const item of people) {
       const card = el('article', 'person-card');
-      card.append(el('strong', '', item.displayName), el('p', '', `${item.nickname || '별명 없음'} · 식별사진 ${item.identityPhotoCount}/10${item.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? ' · 출생정보 보완 필요' : item.identityPhotoState === 'EXPIRED' ? ' · 갱신 필요' : ''}`), button('상세 · 사진 관리', async () => { try { editing = await getPerson(sessionToken, item.personId); renderHome(); } catch { status.textContent = '상세 정보를 불러오지 못했습니다.'; } }), button('삭제', async () => { await deletePerson(sessionToken, item); await refresh(); }));
+      const activeCase = cases.find(record => record.personId === item.personId && record.status === 'ACTIVE');
+      const state = item.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? '출생정보 보완 필요' : item.identityPhotoState === 'EXPIRED' ? '사진 갱신 필요' : item.identityPhotoState === 'EXPIRING' ? `사진 만료 ${item.identityPhotoDaysRemaining ?? 0}일 전` : '사진 최신 상태';
+      const head = el('div', 'person-card-head');
+      head.append(el('strong', 'person-card-name', item.displayName), el('span', `person-state person-state-${item.identityPhotoState?.toLowerCase() || 'unknown'}`, state));
+      const actions = el('div', 'person-card-actions');
+      actions.append(
+        button('사진 갱신·관리', async () => { try { editing = await getPerson(sessionToken, item.personId); renderHome(); queueMicrotask(() => content.querySelector('[data-person-photos]')?.scrollIntoView({behavior: 'smooth', block: 'start'})); } catch { status.textContent = '상세 정보를 불러오지 못했습니다.'; } }),
+        button(activeCase ? '실종 관리' : '실종 상태로 전환', () => { pendingSosPersonId = item.personId; active = 'sos'; render(); }, !activeCase),
+      );
+      card.append(head, el('p', 'person-card-meta', `${item.nickname || '별명 없음'} · 식별사진 ${item.identityPhotoCount}/10`));
+      if (activeCase) card.append(el('p', 'person-active-missing', '실종 상태가 활성화되어 있습니다.'));
+      card.append(actions);
       content.append(card);
     }
+    if (!people.length) content.append(el('p', 'person-empty person-empty-panel', '아직 등록된 사람이 없습니다. 아래에서 첫 보호 대상을 등록해 주세요.'));
     if (editing) {
       const edit = document.createElement('form'); edit.className = 'person-form';
       const editName = document.createElement('input'); editName.required = true; editName.value = editing.displayName;
@@ -59,11 +80,15 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
       const editRelationship = document.createElement('select');
       for (const [value, label] of [['CHILD','자녀'],['PARENT','부모'],['SPOUSE','배우자'],['FAMILY','가족'],['DEPENDENT','돌봄 대상'],['OTHER','기타']]) { const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = value === editing.relationship; editRelationship.append(option); }
       const save = button('수정 저장', () => {}, true); save.type = 'submit';
-      edit.append(el('h4', '', `${editing.displayName} 상세`), editName, editNickname, editBirthYear, editBirthMonth, editRelationship, save, button('닫기', () => { editing = null; renderHome(); }));
+      const editActions = el('div', 'person-form-actions');
+      editActions.append(save, button('닫기', () => { editing = null; renderHome(); }));
+      const remove = button('등록 삭제', async () => { await deletePerson(sessionToken, editing); editing = null; await refresh(); }); remove.classList.add('person-danger');
+      edit.append(el('h4', '', `${editing.displayName} 상세`), editName, editNickname, editBirthYear, editBirthMonth, editRelationship, editActions, remove);
       edit.addEventListener('submit', async event => { event.preventDefault(); try { editing = await updatePerson(sessionToken, {personId: editing.personId, revision: editing.revision, displayName: editName.value.trim(), nickname: editNickname.value.trim(), relationship: editRelationship.value, birthYear: editBirthYear.value, birthMonth: editBirthMonth.value}); await refresh(); } catch { status.textContent = '수정하지 못했습니다. 출생 연·월을 확인해 주세요.'; } });
-      content.append(edit, renderIdentityPhotos(editing));
+      const photos = renderIdentityPhotos(editing); photos.dataset.personPhotos = '';
+      content.append(edit, photos);
     }
-    const form = document.createElement('form'); form.className = 'person-form';
+    const form = document.createElement('form'); form.className = 'person-form'; form.dataset.personCreate = '';
     const name = document.createElement('input'); name.required = true; name.placeholder = '이름';
     const birthYear = document.createElement('input'); birthYear.type = 'number'; birthYear.min = '1900'; birthYear.max = String(new Date().getFullYear()); birthYear.required = true; birthYear.placeholder = '태어난 연도 (예: 2017)';
     const birthMonth = document.createElement('input'); birthMonth.type = 'number'; birthMonth.min = '1'; birthMonth.max = '12'; birthMonth.required = true; birthMonth.placeholder = '태어난 월 (1~12)';
@@ -75,18 +100,22 @@ export async function mountPersonCareManager({sessionToken, root, onOpenPet = ()
   };
 
   const renderSos = () => {
-    content.replaceChildren(el('h3', 'person-title', '진행 중 SOS'));
-    for (const item of cases) { const card = el('article', 'person-card'); card.append(el('strong', '', item.displayName), el('p', '', item.lastSeenSummary), button('찾았어요 · 종료', async () => { await closePersonSos(sessionToken, item.sosId); await refresh(); })); content.append(card); }
-    const eligible = people.filter(item => item.hasPhoto && ['CURRENT', 'EXPIRING'].includes(item.identityPhotoState));
+    content.replaceChildren(el('h3', 'person-title', '실종 관리'), el('p', 'person-consent', '등록한 보호 대상을 선택해 실종 상태를 활성화합니다. 활성화한 동안에만 동의한 사진을 비공개 후보 검색에 사용합니다.'));
+    const activeCases = cases.filter(item => item.status === 'ACTIVE');
+    for (const item of activeCases) { const card = el('article', 'person-card'); card.append(el('strong', '', item.displayName), el('p', '', item.lastSeenSummary), button('찾았어요 · 실종 상태 종료', async () => { await closePersonSos(sessionToken, item.sosId); await refresh(); })); content.append(card); }
+    if (!activeCases.length) content.append(el('p', 'person-empty', '현재 실종 상태로 등록된 사람이 없습니다.'));
+    const activePersonIds = new Set(activeCases.map(item => item.personId));
+    const eligible = people.filter(item => item.hasPhoto && ['CURRENT', 'EXPIRING'].includes(item.identityPhotoState) && !activePersonIds.has(item.personId));
     const form = document.createElement('form'); form.className = 'person-form';
-    const select = document.createElement('select'); for (const item of eligible) { const option = document.createElement('option'); option.value = item.personId; option.textContent = item.displayName; select.append(option); }
+    const select = document.createElement('select'); for (const item of eligible) { const option = document.createElement('option'); option.value = item.personId; option.textContent = item.displayName; option.selected = item.personId === pendingSosPersonId; select.append(option); }
     const location = document.createElement('input'); location.required = true; location.placeholder = '마지막으로 본 장소';
     const description = document.createElement('textarea'); description.placeholder = '옷차림·특징';
     const consent = document.createElement('label'); consent.className = 'person-consent'; const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.required = true; consent.append(checkbox, document.createTextNode(' 등록 사진을 활성 SOS 기간 동안만 비공개 후보 검색과 관리자 검토에 사용하는 데 동의합니다.'));
-    const submit = button('동의하고 SOS 등록', () => {}, true); submit.type = 'submit';
-    form.append(el('h4', '', 'SOS 등록'), select, location, description, consent, submit);
-    form.addEventListener('submit', async event => { event.preventDefault(); try { await createPersonSos(sessionToken, {personId: select.value, lastSeenAt: new Date().toISOString(), lastSeenSummary: location.value.trim(), description: description.value.trim(), matchingConsentConfirmed: checkbox.checked}); await refresh(); } catch { status.textContent = '사진 10장과 갱신 상태, 동의를 확인해 주세요.'; } });
-    content.append(form);
+    const submit = button('동의하고 실종 상태로 전환', () => {}, true); submit.type = 'submit'; submit.disabled = eligible.length === 0;
+    form.append(el('h4', '', '실종 상태로 전환'), select, location, description, consent, submit);
+    form.addEventListener('submit', async event => { event.preventDefault(); try { await createPersonSos(sessionToken, {personId: select.value, lastSeenAt: new Date().toISOString(), lastSeenSummary: location.value.trim(), description: description.value.trim(), matchingConsentConfirmed: checkbox.checked}); pendingSosPersonId = ''; await refresh(); } catch { status.textContent = '사진 10장과 갱신 상태, 동의를 확인해 주세요.'; } });
+    if (eligible.length) content.append(form);
+    else content.append(el('p', 'person-empty person-empty-panel', people.length ? '실종 상태로 전환하려면 최신 식별사진 10장을 먼저 등록해 주세요.' : '먼저 사람을 등록해 주세요.'));
   };
 
   const renderSightings = () => {

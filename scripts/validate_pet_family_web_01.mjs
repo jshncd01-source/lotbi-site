@@ -115,11 +115,14 @@ assert.ok(
   'the UI must not allocate a stable Pet before the photo-first draft is finalized',
 );
 assert.ok(
-  petUi.includes("['pets', '내 반려동물'")
-    && petUi.includes("['sos', '실종 신고'")
+  petUi.includes("['pets', '등록된 반려동물'")
+    && petUi.includes("['sos', '실종 관리'")
     && petUi.includes("['found', '발견 제보'"),
   'Pet Home must expose three separate entry cards',
 );
+assert.match(petUi, /dataset\.petSosTarget/);
+assert.match(petUi, /실종 상태로 전환/);
+assert.match(petUi, /사진 갱신·관리/);
 
 // ----------------------------------------------------------- photo uploader
 
@@ -590,6 +593,13 @@ function innerFixtureHtml() {
     found: tabState('found'),
   };
   homeButtons.get('pets').click();
+  list.querySelector('[data-pet-sos-target="PET_KR_BBBBBBBBBBBBBBBBBBBB"]').click();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  const directMissingAction = {
+    active: [...homeButtons.values()].find(button => button.dataset.petHomeActive === 'true')?.dataset.petHomeTarget || '',
+    selectedPet: sosSection.querySelector('[data-pet-sos-form] select')?.value || '',
+  };
+  homeButtons.get('pets').click();
 
   // Registration begins by choosing one supported species. Only that
   // animal's ten private photo guides appear; no stable Pet ID exists yet.
@@ -680,6 +690,7 @@ function innerFixtureHtml() {
     deleteAfter,
     homeCards,
     homeTabs,
+    directMissingAction,
     draftSlots,
     draftSlotsBeforeSpecies,
     gateBeforeFaceFront,
@@ -838,8 +849,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.deepEqual(
     result.homeCards,
     [
-      {target: 'pets', title: '내 반려동물'},
-      {target: 'sos', title: '실종 신고'},
+      {target: 'pets', title: '등록된 반려동물'},
+      {target: 'sos', title: '실종 관리'},
       {target: 'found', title: '발견 제보'},
     ],
     `${label}: Pet Home must show the three separate surfaces`,
@@ -861,6 +872,9 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.homeTabs.found.sos, 0, `${label}: found tab must hide the SOS surface`);
   assert.ok(result.homeTabs.found.found > 0 && result.homeTabs.found.foundAction > 0,
     `${label}: found tab must show only the found surface and action`);
+  assert.deepEqual(result.directMissingAction, {
+    active: 'sos', selectedPet: 'PET_KR_BBBBBBBBBBBBBBBBBBBB',
+  }, `${label}: the per-pet missing action must open a preselected missing-state form`);
   assert.deepEqual(result.draftSlots, DRAFT_DISPLAY_ORDER,
     `${label}: registration must show all ten slots face-first (PET-PHOTO-UX-03), not Core's storage order`);
   assert.equal(result.draftSlotsBeforeSpecies, 0, `${label}: photo slots must wait for one species selection`);

@@ -51,19 +51,19 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-a06a83b89537';
+} from './site-pet.js?v=aset-7ea2eeab5d1f';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-a06a83b89537';
+} from './site-pet-guides.js?v=aset-7ea2eeab5d1f';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-a06a83b89537';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-a06a83b89537';
+} from './site-pet-gate.js?v=aset-7ea2eeab5d1f';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-7ea2eeab5d1f';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -276,8 +276,8 @@ export async function mountPetFamilyManager({
   const home = el('nav', 'pet-home');
   home.setAttribute('aria-label', '반려동물 메뉴');
   const homeItems = [
-    ['pets', '내 반려동물', '등록·사진·기본 정보를 관리합니다.'],
-    ['sos', '실종 신고', '내 반려동물의 실종 기록을 남깁니다.'],
+    ['pets', '등록된 반려동물', '사진 갱신과 기본 정보를 관리합니다.'],
+    ['sos', '실종 관리', '등록한 반려동물의 실종 상태를 관리합니다.'],
     ['found', '발견 제보', '발견한 동물을 안전하게 기록합니다.'],
   ];
   for (const [target, title, copy] of homeItems) {
@@ -302,6 +302,7 @@ export async function mountPetFamilyManager({
   let catalog = null;
   let registrationDraft = null;
   let activeSurface = ['pets', 'sos', 'found'].includes(initialSurface) ? initialSurface : 'pets';
+  let pendingSosPetId = '';
   let busy = false;
   // `${petId}:${slotCode}` -> object URL. Cached so re-rendering the detail
   // does not refetch every private photo, and revoked on dispose.
@@ -479,7 +480,7 @@ export async function mountPetFamilyManager({
           : `📷 식별사진 ${profile.photoCount}/${profile.photoTotal}`;
         card.appendChild(el('p', 'pet-profile-identity', identity));
         if (profile.activeSos) {
-          card.appendChild(el('p', 'pet-profile-sos', `🔴 ${pet.name} 실종 신고 중`));
+          card.appendChild(el('p', 'pet-profile-sos', `🔴 ${pet.name} 실종 상태 활성화 중`));
         } else if (profile.recentlyResolved) {
           card.appendChild(el('p', 'pet-profile-resolved', `❤️ ${pet.name}가 돌아왔어요`));
         }
@@ -493,7 +494,7 @@ export async function mountPetFamilyManager({
         }
         if (profile.identityPhotoRenewalDue) {
           card.appendChild(el('p', 'pet-profile-birthday', profile.identityPhotoState === 'EXPIRED'
-            ? '식별사진 유효기간이 지났어요 · SOS 전에 갱신해 주세요'
+            ? '식별사진 유효기간이 지났어요 · 실종 상태 전환 전에 갱신해 주세요'
             : `식별사진이 ${profile.identityPhotoDaysRemaining ?? 0}일 뒤 만료돼요`));
         }
         if (profile.candidateNoticeCount > 0) {
@@ -522,10 +523,13 @@ export async function mountPetFamilyManager({
 
       card.appendChild(el('p', 'pet-card-consent', consentLabel(pet.matchingConsentState)));
 
-      const open = el('button', 'site-button site-button-secondary pet-card-open', '상세 보기');
-      open.type = 'button';
-      open.dataset.petOpen = pet.petId;
-      card.appendChild(open);
+      const actions = el('div', 'pet-card-actions');
+      const open = el('button', 'site-button site-button-secondary pet-card-open', '사진 갱신·관리');
+      open.type = 'button'; open.dataset.petOpen = pet.petId;
+      const missing = el('button', profile?.activeSos ? 'site-button site-button-secondary' : 'site-button site-button-primary', profile?.activeSos ? '실종 관리' : '실종 상태로 전환');
+      missing.type = 'button'; missing.dataset.petSosTarget = pet.petId;
+      actions.append(open, missing);
+      card.appendChild(actions);
 
       listBody.appendChild(card);
     }
@@ -898,7 +902,7 @@ export async function mountPetFamilyManager({
       addFact('현재 나이', profile.ageLabel);
       addFact('가족 기간', profile.familyLabel);
       addFact('식별정보', profile.visualLabel);
-      if (profile.activeSos) addFact('실종 상태', '실종 신고 중');
+      if (profile.activeSos) addFact('실종 상태', '활성화 중');
       else if (profile.recentlyResolved) addFact('실종 상태', '최근 돌아옴');
     }
     detailSection.appendChild(facts);
@@ -1136,7 +1140,7 @@ export async function mountPetFamilyManager({
       if (cached) {
         const image = el('img', 'pet-case-photo-image');
         image.src = cached;
-        image.alt = `발견 신고 첨부 사진 ${slotIndex}`;
+        image.alt = `발견 제보 첨부 사진 ${slotIndex}`;
         image.decoding = 'async';
         item.appendChild(image);
       } else {
@@ -1148,7 +1152,7 @@ export async function mountPetFamilyManager({
             if (!item.isConnected) return;
             const image = el('img', 'pet-case-photo-image');
             image.src = url;
-            image.alt = `발견 신고 첨부 사진 ${slotIndex}`;
+            image.alt = `발견 제보 첨부 사진 ${slotIndex}`;
             image.decoding = 'async';
             item.replaceChildren(image, item.lastElementChild);
           } catch {
@@ -1253,7 +1257,7 @@ export async function mountPetFamilyManager({
     resolvedButton.type = 'button';
     resolvedButton.dataset.petCaseResolve = record.caseId;
     resolvedButton.addEventListener('click', () => void run(true));
-    const cancelButton = el('button', 'pet-case-cancel', '신고 취소');
+    const cancelButton = el('button', 'pet-case-cancel', kind === 'sos' ? '실종 상태 취소' : '제보 취소');
     cancelButton.type = 'button';
     cancelButton.dataset.petCaseCancel = record.caseId;
     cancelButton.addEventListener('click', () => void run(false));
@@ -1264,8 +1268,8 @@ export async function mountPetFamilyManager({
   const renderSos = () => {
     sosSection.replaceChildren();
     const header = el('div', 'pet-section-header');
-    header.append(el('h3', 'pet-section-title', '실종 신고'));
-    const openForm = el('button', 'site-button site-button-secondary', '실종 신고하기');
+    header.append(el('h3', 'pet-section-title', '실종 관리'));
+    const openForm = el('button', 'site-button site-button-secondary', '실종 상태로 전환');
     openForm.type = 'button';
     openForm.dataset.petSosNew = '';
     openForm.disabled = pets.length === 0;
@@ -1273,13 +1277,13 @@ export async function mountPetFamilyManager({
     sosSection.append(header);
 
     if (pets.length === 0) {
-      sosSection.appendChild(el('p', 'pet-empty-copy', '반려동물을 먼저 등록하면 실종 신고를 할 수 있습니다.'));
+      sosSection.appendChild(el('p', 'pet-empty-copy', '반려동물을 먼저 등록하면 실종 상태를 관리할 수 있습니다.'));
     }
 
     const active = sosCases.filter(item => item.status === 'ACTIVE');
     const closed = sosCases.filter(item => item.status !== 'ACTIVE');
     if (active.length === 0 && pets.length > 0) {
-      sosSection.appendChild(el('p', 'pet-empty-copy', '진행 중인 실종 신고가 없습니다.'));
+      sosSection.appendChild(el('p', 'pet-empty-copy', '현재 실종 상태로 등록된 반려동물이 없습니다.'));
     }
 
     for (const record of [...active, ...closed]) {
@@ -1314,6 +1318,7 @@ export async function mountPetFamilyManager({
       for (const pet of pets) {
         const option = el('option', '', pet.name);
         option.value = pet.petId;
+        option.selected = pet.petId === pendingSosPetId;
         petSelect.appendChild(option);
       }
       petField.appendChild(petSelect);
@@ -1328,7 +1333,7 @@ export async function mountPetFamilyManager({
 
       const formError = el('p', 'site-field-error');
       formError.setAttribute('role', 'alert');
-      const submit = el('button', 'site-button site-button-primary', '동의하고 실종 신고');
+      const submit = el('button', 'site-button site-button-primary', '동의하고 실종 상태로 전환');
       submit.type = 'submit';
       form.append(petField, place.field, moment.field, note.field, consent, formError, submit);
 
@@ -1359,12 +1364,13 @@ export async function mountPetFamilyManager({
             matchingConsentConfirmed: consentInput.checked,
           });
           requestId = '';
+          pendingSosPetId = '';
           sosCases = [created, ...sosCases];
           renderSos();
           reportCount();
-          status.textContent = '실종 신고를 저장했습니다.';
+          status.textContent = '실종 상태로 전환했습니다.';
         } catch (value) {
-          formError.textContent = errorMessage(value, '실종 신고를 저장하지 못했습니다.');
+          formError.textContent = errorMessage(value, '실종 상태로 전환하지 못했습니다.');
         } finally {
           submit.disabled = false;
           setBusy(false);
@@ -1373,13 +1379,14 @@ export async function mountPetFamilyManager({
       formHost.appendChild(form);
       queueMicrotask(() => place.input.focus());
     });
+    if (pendingSosPetId) queueMicrotask(() => openForm.click());
   };
 
   const renderFound = () => {
     foundSection.replaceChildren();
     const header = el('div', 'pet-section-header');
-    header.append(el('h3', 'pet-section-title', '발견 신고'));
-    const openForm = el('button', 'site-button site-button-secondary', '발견 신고하기');
+    header.append(el('h3', 'pet-section-title', '발견 제보'));
+    const openForm = el('button', 'site-button site-button-secondary', '발견 제보하기');
     openForm.type = 'button';
     openForm.dataset.petFoundNew = '';
     header.appendChild(openForm);
@@ -1471,7 +1478,7 @@ export async function mountPetFamilyManager({
           renderFound();
           status.textContent = '제보 초안을 만들었습니다. 서로 다른 각도의 사진을 최소 5장 추가해 주세요.';
         } catch (value) {
-          formError.textContent = errorMessage(value, '발견 신고를 저장하지 못했습니다.');
+          formError.textContent = errorMessage(value, '발견 제보를 저장하지 못했습니다.');
         } finally {
           submit.disabled = false;
           setBusy(false);
@@ -2292,6 +2299,15 @@ export async function mountPetFamilyManager({
 
   addButton.addEventListener('click', () => void renderRegisterForm());
   listBody.addEventListener('click', event => {
+    const missing = event.target instanceof Element ? event.target.closest('[data-pet-sos-target]') : null;
+    if (missing instanceof HTMLButtonElement) {
+      const petId = missing.dataset.petSosTarget || '';
+      const alreadyActive = sosCases.some(item => item.petId === petId && item.status === 'ACTIVE');
+      pendingSosPetId = alreadyActive ? '' : petId;
+      renderSos();
+      showSurface('sos');
+      return;
+    }
     const trigger = event.target instanceof Element ? event.target.closest('[data-pet-open]') : null;
     if (!(trigger instanceof HTMLButtonElement)) return;
     renderDetail(trigger.dataset.petOpen || '');
@@ -2323,6 +2339,7 @@ export async function mountPetFamilyManager({
     foundPhotos = new Map(await Promise.all(
       foundCases.map(async record => [record.caseId, [...await listFoundPetPhotos(sessionToken, record.caseId)]]),
     ));
+    renderList();
   } catch (value) {
     showError(errorMessage(value, '신고 내역을 불러오지 못했습니다.'), value);
   }

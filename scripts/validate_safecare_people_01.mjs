@@ -40,6 +40,11 @@ assert.doesNotMatch(sections, /사람 등록과 SOS의 웹 연결은 준비 중/
 assert.match(conversation, /site-person-ui\.js/);
 assert.match(ui, /출생 연·월로 갱신 주기를 계산/);
 assert.match(ui, /활성 SOS 기간 동안만/);
+assert.match(ui, /등록된 사람/);
+assert.match(ui, /사진 갱신/);
+assert.match(ui, /실종 상태로 전환/);
+assert.match(ui, /발견 제보/);
+assert.doesNotMatch(ui, /SOS \/ 실종 신고/);
 assert.match(ui, /image\/jpeg,image\/png,image\/webp/);
 assert.match(css, /\.person-primary/);
 assert.match(css, /min-height:\s*44px/);
