@@ -131,7 +131,7 @@ LOCKED_SHA256 = {
     'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': '59ff1f6f62783f3306186b90be8dbde178205fc70d99d154a803af7ae9206b97',
+    'styles.css': '4674a04254d2598fe7bf1de0c030ad185f9387996d3bdd9b0f10334c250b7f90',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
