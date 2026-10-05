@@ -486,6 +486,11 @@ jobs:
       - name: Validate company philosophy page
         run: python scripts/validate_about.py
 
+      - name: Validate PC Web Life Wallet PIN lock
+        run: |
+          node scripts/validate_life_wallet_entry_lock_01.mjs
+          node scripts/validate_consumer_sections_02.mjs
+
       - name: Validate Production Core CORS contract
         shell: bash
         run: |
@@ -562,7 +567,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-life-wallet.css /site-life-wallet.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 
