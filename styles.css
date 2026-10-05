@@ -359,12 +359,12 @@ textarea:focus-visible {
    card labelled from data-label instead of scrolling sideways. */
 .legal-table-scroll {
   overflow-x: auto;
-  /* Seven columns need more room than the 900px legal column, and the refusal
-     column is the one a reviewer must see — so widen past the prose width
-     instead of hiding it behind a sideways scroll. */
-  width: min(1180px, calc(100vw - 48px));
-  margin: 18px 0 26px 50%;
-  transform: translateX(-50%);
+  /* Keep the policy table aligned with the surrounding reading column.
+     Wide columns scroll inside this container, not across the page. */
+  width: 100%;
+  max-width: 100%;
+  margin: 18px 0 26px;
+  transform: none;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--panel);
