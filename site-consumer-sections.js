@@ -6,6 +6,18 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'bills', label: '공과금 확인', icon: 'document', prompt: '공과금 고지서를 확인하고 납부기한을 캘린더에 등록할지 알려 줘'},
 ]);
 
+// Each existing request form should show examples that belong to that service,
+// not a mixed café/grant example repeated across every detail page.
+const LIFE_DETAIL_FIELDS = Object.freeze({
+  weather: [['지역 또는 장소', '예: 전주시 덕진구']],
+  places: [['지역 또는 장소', '예: 전주시'], ['찾고 싶은 장소', '예: 한옥마을 근처 주차장']],
+  directions: [['출발지', '예: 서울역'], ['목적지', '예: 전주 한옥마을']],
+  facilities: [['지역 또는 장소', '예: 전주시 덕진구'], ['찾고 싶은 시설', '예: 주차 가능한 카페, 야간 약국']],
+  local: [['지역 또는 장소', '예: 전주시 덕진구'], ['궁금한 생활정보', '예: 쓰레기 배출일, 주민센터 운영시간']],
+  support: [['지역 또는 장소', '예: 전주시'], ['찾고 싶은 지원', '예: 청년 주거 지원, 자녀 돌봄 지원']],
+  bills: [['고지서 내용', '기관 · 금액 · 납부기한을 입력하세요']],
+});
+
 const ICON_PATHS = {
   sun: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8', 'M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5'],
   pin: ['M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z', 'M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6'],
@@ -66,11 +78,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       const title = node('h3', '', item.label); title.tabIndex = -1;
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
-      const fields = item.id === 'directions'
-        ? [['출발지', '예: 서울역'], ['목적지', '예: 전주 한옥마을']]
-        : item.id === 'bills' ? [['고지서 내용', '기관 · 금액 · 납부기한을 입력하세요']]
-        : [['지역 또는 장소', '예: 전주시 덕진구']];
-      if (['places', 'facilities', 'local', 'support'].includes(item.id)) fields.push(['찾고 싶은 정보', '예: 주차 가능한 카페, 청년 지원금']);
+      const fields = LIFE_DETAIL_FIELDS[item.id];
       for (const [labelText, placeholder] of fields) {
         const label = node('label', 'consumer-life-field', labelText);
         const field = node(item.id === 'bills' ? 'textarea' : 'input');

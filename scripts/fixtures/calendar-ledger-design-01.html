@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>캘린더 지출 디자인 검사 · 예시 데이터</title>
+  <style>
+    body { margin: 0; }
+    .fixture { box-sizing: border-box; max-width: 960px; margin: 0 auto; padding: 24px; color: var(--lotbi-text-primary); }
+    .fixture-note { font-size: 14px; line-height: 1.7; }
+    .fixture-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .fixture-controls button { min-height: 44px; padding: 8px 16px; border: 1px solid var(--lotbi-border-default); border-radius: 8px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); }
+    .fixture-controls button:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+    .fixture-section { margin-top: 32px; }
+  </style>
+</head>
+<body class="chat-home-page" data-site-theme="light">
+  <main class="fixture">
+    <h1>독립 UI 검사</h1>
+    <p class="fixture-note">예시 데이터입니다. 실제 캘린더·사용량·결제 데이터가 아니며 저장·업로드·계정 API를 사용하지 않습니다.</p>
+    <div class="fixture-controls" aria-label="검사 화면 테마">
+      <button type="button" data-theme="light">라이트 검사</button>
+      <button type="button" data-theme="dark">다크 검사</button>
+    </div>
+    <div id="populated" class="fixture-section"></div>
+    <div id="loading" class="fixture-section"></div>
+    <div id="error" class="fixture-section"></div>
+    <p id="fixture-status" role="status">디자인 검사 준비 중</p>
+  </main>
+  <script type="module">
+    const {version} = await fetch('/site-asset-version.json').then(response => response.json());
+    const styles = ['styles.css', 'home-chat.css', 'site-calendar.css', 'site-calendar-expense.css', 'site-theme-tokens.css', 'site-consumer-design.css', 'site-consumer-detail.css', 'site-consumer-layout.css'];
+    await Promise.all(styles.map(file => new Promise((resolve, reject) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = `/${file}?v=${version}`;
+      link.onload = resolve; link.onerror = reject; document.head.append(link);
+    })));
+    const {calendarExpenseSummaryNode, expenseSummaryFromEntries} = await import(`/site-calendar-expense.js?v=${version}`);
+    const summary = expenseSummaryFromEntries([
+      {entry: {amount_minor: 4200, currency: 'KRW', expense_category: 'FOOD'}},
+      {entry: {amount_minor: 80000, currency: 'KRW', expense_category: 'LIVING'}},
+      {entry: {amount_minor: 999999999999, currency: 'KRW', expense_category: 'SHOPPING'}},
+      {entry: {amount_minor: 12, currency: 'USD', expense_category: 'SHOPPING'}},
+      {entry: {amount_minor: null}},
+    ]);
+    document.querySelector('#populated').append(calendarExpenseSummaryNode({state: 'ready', summary, monthLabel: '2026년 9월', local: true, showHeading: true}));
+    for (const state of ['loading', 'error']) document.querySelector(`#${state}`).append(calendarExpenseSummaryNode({state, monthLabel: '2026년 9월', showHeading: true}));
+    for (const button of document.querySelectorAll('[data-theme]')) button.addEventListener('click', () => { document.body.dataset.siteTheme = button.dataset.theme; });
+    document.querySelector('#fixture-status').textContent = '디자인 검사 준비 완료 · 실제 저장 없음';
+  </script>
+</body>
+</html>
