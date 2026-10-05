@@ -13,6 +13,9 @@ for (const selector of ['calendar-settings-dialog', 'calendar-editor-dialog', 'c
 assert.match(css, /focus-visible/);
 assert.match(css, /prefers-reduced-motion/);
 assert.match(css, /font-size: 16px/);
+// Primary actions include link-based login gates, not just form buttons.
+assert.match(css, /body\.chat-home-page \.site-button-primary\s*\{[^}]*background: var\(--lotbi-text-primary\);[^}]*color: var\(--lotbi-surface-primary\);/);
+assert.match(css, /\.site-button-primary:focus-visible\s*\{[^}]*outline: 2px solid var\(--lotbi-focus-ring\)/);
 // Narrow calendar settings must have one scrolling body and shrinkable rows.
 assert.match(css, /\.calendar-settings-dialog\s*\{\s*overflow: hidden;/);
 assert.match(css, /\.calendar-settings-body\s*\{[^}]*min-width: 0;[^}]*max-height: none;[^}]*overflow-x: hidden; overflow-y: auto;/);

@@ -35,6 +35,16 @@ body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .c
 body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) :is(button, summary) {
   font-family: inherit; font-weight: 500; letter-spacing: 0; line-height: 1.5;
 }
+/* Shared controls are also links (including the Pet login gate). Keep their
+   primary action neutral in both themes instead of inheriting legacy navy. */
+body.chat-home-page .site-button-primary {
+  background: var(--lotbi-text-primary); border-color: var(--lotbi-text-primary);
+  color: var(--lotbi-surface-primary); font-weight: 500;
+}
+body.chat-home-page .site-button-primary:not(:disabled):hover { opacity: .88; }
+body.chat-home-page .site-button-primary:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px;
+}
 body.chat-home-page :is(.calendar-editor-header, .calendar-readonly-header, .calendar-settings-header) { align-items: center; gap: 12px; }
 /* One scroll owner per settings dialog. Keep the close control visible and let
    the body shrink instead of nesting a second viewport-sized scroll area. */
