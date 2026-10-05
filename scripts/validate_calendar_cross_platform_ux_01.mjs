@@ -6,19 +6,21 @@ const {calendarItemActionPolicy, monthGridKeyboardTargetDate, rovingTabTargetInd
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
 
-// A product-view regression must fail this gate: these are four different
-// information surfaces, not renamed versions of the former Month/Year/Agenda.
-assert.ok(manager.includes("['week', '주'], ['month', '월'], ['year', '년'], ['agenda', '일정']"));
+// A product-view regression must fail this gate. LIFE UX 01: three peer views
+// (월 · 주 · 목록); 년 stays a view but opens from the month title, not a tab.
+assert.ok(manager.includes("const MODES = Object.freeze([['month', '월'], ['week', '주'], ['agenda', '목록']]);"));
+assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
 assert.ok(manager.includes("strip.className = 'calendar-week-strip'"));
 assert.ok(manager.includes("group.dataset.calendarWeekGroup = day.date"));
-assert.ok(manager.includes("'이번 주에는 일정이 없어요.'"));
+assert.ok(manager.includes("'이번 주에는 기록이 없어요.'"));
+assert.ok(manager.includes("emptyMessage(state.loading ? '…' : '기록 없음')"));
 
 // Month is deliberately bounded regardless of how many events a day has, and
 // it exposes measured weather rather than inventing values for missing days.
-assert.ok(manager.includes('monthCellSummary(events)'));
-assert.ok(manager.includes('summary.visible'));
-assert.ok(manager.includes('summary.moreLabel'));
+assert.ok(manager.includes('const VISIBLE_ROWS = 2;'));
+assert.ok(manager.includes('monthSpanSegments(cells, state.items)'));
+assert.ok(manager.includes("more.textContent = remaining ? `+${remaining}` : '';"));
 assert.ok(manager.includes("temperature.className = 'calendar-weather-temperature'"));
 assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentation(weather)'));
 assert.ok(manager.includes('const temperatureLabel = weatherPresentation.monthLabel'));
@@ -31,12 +33,15 @@ assert.ok(css.includes('.calendar-month-layout[data-day-detail="SIDE"]'));
 assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"]'));
 assert.ok(!css.includes('[data-arrow]::before'));
 
-// Schedule is a searchable/list-like surface with explicit, independent
-// filters. Its empty state is not a blank canvas.
-for (const scope of ['all', 'today', 'week', 'month', 'reservation', 'payment', 'schedule']) {
-  assert.ok(manager.includes(`['${scope}',`), `missing Schedule filter: ${scope}`);
+// 목록 is a list surface with explicit, independent filters -- four, each one
+// answerable from loaded data -- and its empty states are not a blank canvas.
+for (const scope of ['month', 'upcoming', 'amount', 'unscheduled']) {
+  assert.ok(manager.includes(`['${scope}',`), `missing 목록 filter: ${scope}`);
 }
-assert.ok(manager.includes("'이 기간에는 일정이 없어요.'"));
+for (const retired of ["['all', '전체']", "['reservation', '예약']", "['schedule', '일정']"]) {
+  assert.ok(!manager.includes(retired), `retired 목록 filter still rendered: ${retired}`);
+}
+assert.ok(manager.includes("'이 달에는 기록이 없어요.'"));
 
 // Common controls stay visually compact while retaining a full touch target.
 assert.ok(css.includes('min-height: 44px'));
@@ -56,7 +61,7 @@ assert.match(css, /\.calendar-week-grid-event\s*\{[^}]*position:\s*absolute;/);
 assert.ok(manager.includes("block.style.top = `${(entry.start / MINUTES_PER_DAY) * 100}%`"));
 assert.ok(css.includes('.calendar-week-allday-row'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
-assert.ok(manager.includes("loading.textContent = '일정을 불러오는 중'"));
+assert.ok(manager.includes("loading.textContent = '기록을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));
 
 // Both tablists use the same wrapping keyboard contract and activate the
@@ -103,12 +108,13 @@ assert.ok(manager.includes('function focusSelectedCalendarTarget'));
 assert.ok(manager.includes("state.mode === 'week'"));
 assert.ok(manager.includes('data-calendar-week-date'));
 assert.ok(manager.includes("state.mode === 'month'"));
-assert.ok(manager.includes("selector = '.calendar-day-close'"));
+assert.ok(manager.includes("panel?.querySelector('.calendar-day-heading')"));
+assert.ok(!manager.includes('calendar-day-close'), 'the day panel is part of the page; it has no close control');
 
 // A Fold crossing the product breakpoint swaps FLOW/SIDE immediately.
 assert.ok(manager.includes('let lastDayDetailPresentation = dayDetailPresentation()'));
 assert.ok(manager.includes('nextDayDetailPresentation !== lastDayDetailPresentation'));
-assert.ok(manager.includes('if (state.mode === \'month\') render()'));
+assert.ok(manager.includes("if (state.mode !== 'year') render();"));
 
 // The semantic date button itself, not only the enclosing cell, is a full
 // touch target at every width.

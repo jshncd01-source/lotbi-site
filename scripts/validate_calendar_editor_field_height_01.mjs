@@ -2,10 +2,11 @@
 //
 // Two things, both reported from a real screen.
 //
-// 1. Date and primary title remain aligned with the 44px floor; the time
-//    control is now LOTBI-owned and hidden entirely for all-day entries.
-//    Details open only on request; their controls and the time sheet keep the
-//    same reachable touch-target floor in Light, Dark, and System.
+// 1. Date and primary title remain aligned with the 44px floor. LIFE UX 01:
+//    the date is a chip (its field opens on request) and every optional
+//    control sits behind a chip that opens only what a record needs; the
+//    chips, the opened controls and the date field all keep the same
+//    reachable touch-target floor in Light, Dark, and System.
 // 2. Saving a display setting rewrote the stored object with one key, so any
 //    other key in it was discarded. Nothing writes a second key yet, which is
 //    the only reason it has not bitten.
@@ -69,8 +70,9 @@ const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
 assert.match(css, /min-height: 44px; padding: 9px 10px/, 'the 44px touch-target floor stays');
 assert.match(css, /\.calendar-editor-merchant \{ font-size: 16px; \}/, 'the 16px mobile font stays: it is what stops iOS zooming on focus');
 assert.match(css, /\.calendar-editor-date::-webkit-date-and-time-value/, 'the iOS-only source of the extra height must be addressed directly');
-assert.match(css, /\.calendar-editor-time-trigger/, 'custom LOTBI time control must retain touch targets');
-assert.match(css, /\.calendar-editor-details/, 'optional controls must have a compact section');
+assert.match(css, /\.calendar-editor-chip \{[^}]*min-height: 44px;/, 'the chips that open optional controls keep the 44px touch target');
+assert.match(css, /\.calendar-editor-date-chip \{[^}]*min-height: 44px;/, 'the date chip keeps the 44px touch target');
+assert.match(css, /\.calendar-editor-section \{/, 'optional controls open into their own compact section');
 
 function browserPath() {
   for (const name of [process.env.CHROME_BIN, 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
@@ -137,14 +139,14 @@ try {
     };
     return {
       title: pick('.calendar-editor-title'),
+      dateChip: pick('.calendar-editor-date-chip'),
       date: pick('.calendar-editor-date'),
-      timeTrigger: pick('.calendar-editor-time-trigger'),
-      endTimeTrigger: pick('.calendar-editor-end-time-trigger'),
+      chip: pick('.calendar-editor-chip'),
       timeInput: pick('.calendar-editor-time'),
+      endTime: pick('.calendar-editor-end-time'),
       amount: pick('.calendar-editor-amount'),
       place: pick('.calendar-editor-place'),
       merchant: pick('.calendar-editor-merchant'),
-      detailsSummary: pick('.calendar-editor-details summary'),
     };
   };
 
@@ -153,11 +155,10 @@ try {
   // of each, and an empty picker must not measure differently.
   result.dateValue = root.querySelector('.calendar-editor-date')?.value || '';
   result.timeValue = root.querySelector('.calendar-editor-time')?.value ?? '(missing)';
-  result.collapsed = {details: !root.querySelector('.calendar-editor-details').open,
-    time: root.querySelector('.calendar-editor-time-control').hidden};
-  root.querySelector('.calendar-editor-all-day input').click();
-  root.querySelector('.calendar-editor-details summary').click();
-  root.querySelector('.calendar-editor-time-trigger').click();
+  result.collapsed = {dateField: root.querySelector('.calendar-editor-date-field').hidden,
+    sections: [...root.querySelectorAll('[data-editor-section]')].every(node => node.hidden)};
+  root.querySelector('.calendar-editor-date-chip').click();
+  for (const key of ['time', 'amount', 'place', 'end', 'more']) root.querySelector('[data-editor-chip="' + key + '"]').click();
   result.light = read();
   result.timeType = root.querySelector('.calendar-editor-time').type;
   document.body.dataset.siteTheme = 'dark';
@@ -221,7 +222,7 @@ try {
     const where = `${v.viewport.width}x${v.viewport.height}`;
     if (!v.dateValue) throw new Error(`${where}: the date field should carry the selected day`);
     if (v.timeValue !== '') throw new Error(`${where}: the time field should be the empty one, got ${v.timeValue}`);
-    if (!v.collapsed.details || !v.collapsed.time) throw new Error(`${where}: optional controls must be collapsed and all-day time hidden`);
+    if (!v.collapsed.dateField || !v.collapsed.sections) throw new Error(`${where}: the date field and every optional control must start closed`);
     if (v.timeType !== 'text') throw new Error(`${where}: time must be keyboard-safe text, not the native picker`);
     for (const [theme, t] of [['light', v.light], ['dark', v.dark], ['system', v.system]]) {
       const named = Object.entries(t).filter(([, value]) => value);

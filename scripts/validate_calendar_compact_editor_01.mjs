@@ -95,7 +95,7 @@ assert.equal(requests[1].body.expected_occurrence_revision, 4);
 // the final focus target. Otherwise the delayed expense response detaches it.
 const managerSource = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
 const refreshSource = managerSource.slice(managerSource.indexOf('async function refresh('), managerSource.indexOf('const focusCalendarContext'));
-const savedSource = managerSource.slice(managerSource.indexOf('onSaved: async () => {'), managerSource.indexOf('onStale: refresh'));
+const savedSource = managerSource.slice(managerSource.indexOf('onSaved: async savedDate => {'), managerSource.indexOf('onStale: refresh'));
 const focusSource = managerSource.slice(managerSource.indexOf('const focusCalendarContext'), managerSource.indexOf('openEditor = (item, date'));
 const editorSource = managerSource.slice(managerSource.indexOf('openEditor = (item, date'), managerSource.indexOf('settingsButton.addEventListener'));
 const navigationSource = managerSource.slice(managerSource.indexOf('const actions = {'), managerSource.indexOf("root.addEventListener('keydown'"));
@@ -107,11 +107,11 @@ assert.match(refreshSource, /let expenseRefresh = null;[\s\S]*if \(state\.mode =
   'Auth Month refresh must settle the final expense render when the caller requests final focus');
 assert.match(savedSource, /await refresh\(\{settleExpense: authenticated && origin\.mode === 'month'\}\)/,
   'editor save must request the settled Month render before restoring focus');
-assert.match(savedSource, /if \(sameCalendarContext\(origin\)\) focusCalendarContext\(origin, item, \(\) => sameCalendarContext\(origin\)\)/,
+assert.match(savedSource, /if \(sameCalendarContext\(context\)\) focusCalendarContext\(context, item, \(\) => sameCalendarContext\(context\)\)/,
   'settled save may focus its original date only while that Calendar context remains current');
 assert.match(editorSource, /generation: calendarContextGeneration,[\s\S]*calendarContextGeneration === context\.generation/,
   'settled save must distinguish navigation away and back from an unchanged Calendar context');
-assert.match(navigationSource, /selectDate: async \(date, \{openDetail = false\} = \{\}\) => \{\s*markCalendarContextNavigation\(\);/,
+assert.match(navigationSource, /selectDate: async \(date, \{openDetail = false, focusDetail = false, revealWeekDay = false\} = \{\}\) => \{\s*markCalendarContextNavigation\(\);/,
   'date navigation must advance the Calendar context generation');
 assert.match(focusSource, /queueMicrotask\(\(\) => \{\s*if \(!isCurrent\(\)\) return;/,
   'deferred final focus must recheck freshness after the save continuation');
@@ -124,7 +124,9 @@ const renderPreservingFocusSource = managerSource.slice(
   managerSource.indexOf('function renderPreservingFocus()'),
   managerSource.indexOf('async function refreshWeatherOnly'),
 );
-assert.match(renderPreservingFocusSource, /document\.activeElement\?\.closest\?\.\('\.calendar-day-panel'\)[\s\S]*render\(\);[\s\S]*focusedDayDetail && state\.mode === 'month' && state\.detailOpen[\s\S]*querySelector\('\.calendar-day-close'\)[\s\S]*\.focus\(\)/,
+// LIFE UX 01: the day panel is part of the page (no close control); a row or
+// the day heading takes focus back after a background render.
+assert.match(renderPreservingFocusSource, /active\?\.closest\?\.\('\.calendar-day-panel'\)[\s\S]*render\(\);[\s\S]*\} else if \(focusedDayDetail\) \{[\s\S]*\(sameRow \|\| root\.querySelector\('\.calendar-day-heading'\)\)\?\.focus\(/,
   'shared focus-preserving render must reconnect focus to the active day detail');
 assert.match(renderPreservingFocusSource, /root\.contains\(document\.activeElement\)/,
   'shared focus-preserving render must not adopt focus belonging to a different Calendar instance');
@@ -163,59 +165,49 @@ try{
   await wait(()=>root.querySelector('.calendar-editor-dialog'));
   const dialog=root.querySelector('.calendar-editor-dialog');
   const get=name=>dialog.querySelector('.calendar-editor-'+name);
-  const first={date:get('date').value,detailsHidden:!get('details').open,required:[...dialog.querySelectorAll('[required]')].map(n=>n.className),
-    timeType:get('time').type, timeHidden:get('time-control').hidden, timeDisabled:get('time').disabled};
-  dialog.querySelector('.calendar-editor-all-day input').click();
-  const timed={timeHidden:get('time-control').hidden,timeDisabled:get('time').disabled};
-  get('time-trigger').click();
-  await wait(()=>get('time-sheet')&&!get('time-sheet').hidden);
-  const sheetOpen={active:document.activeElement?.className,expanded:get('time-trigger').getAttribute('aria-expanded'),choices:[...get('time-sheet').querySelectorAll('[data-quick-time]')].map(n=>n.dataset.quickTime)};
-  get('details').querySelector('summary').click();get('category-trigger').click();
-  const timeToCategory={timeClosed:get('time-sheet').hidden,timeCollapsed:get('time-trigger').getAttribute('aria-expanded')==='false',categoryOpen:!get('category-sheet').hidden,categoryFocus:get('category-sheet').contains(document.activeElement)};
-  get('time-trigger').click();
-  const categoryToTime={categoryClosed:get('category-sheet').hidden,categoryCollapsed:get('category-trigger').getAttribute('aria-expanded')==='false',timeOpen:!get('time-sheet').hidden,timeFocus:document.activeElement===get('time')};
-  get('time-sheet').querySelector('.calendar-editor-time-clear').click();
-  get('category-trigger').click();get('details').querySelector('summary').focus();get('details').querySelector('summary').click();
-  const summaryWasFocused=document.activeElement===get('details').querySelector('summary');
-  const lastActionImmediately=get('cancel');lastActionImmediately.focus();lastActionImmediately.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
-  const immediateDialogTrap=document.activeElement===get('close');
-  await wait(()=>get('category-sheet').hidden);
-  const detailsCollapsed={categoryClosed:get('category-sheet').hidden,categoryCollapsed:get('category-trigger').getAttribute('aria-expanded')==='false',focus:summaryWasFocused};
-  const lastDialogAction=get('cancel');lastDialogAction.focus();lastDialogAction.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
-  const dialogTrapAfterCollapse=document.activeElement===get('close');
-  get('time-trigger').click();
-  get('time-sheet').querySelector('[data-quick-time="09:00"]').click();
-  get('time-sheet').querySelector('.calendar-editor-time-done').click();
-  const quick={value:get('time').value,focus:document.activeElement===get('time-trigger')};
-  get('time-trigger').click();get('time').value='25:71';get('time-sheet').querySelector('.calendar-editor-time-done').click();
-  const invalid={open:!get('time-sheet').hidden,error:get('time').getAttribute('aria-invalid')};
-  get('time').value='1045';get('time-sheet').querySelector('.calendar-editor-time-done').click();
-  const numericClock={value:get('time').value,closed:get('time-sheet').hidden,focus:document.activeElement===get('time-trigger')};
-  get('time-trigger').click();get('time-sheet').querySelector('.calendar-editor-time-clear').click();
-  const cleared={value:get('time').value,closed:get('time-sheet').hidden};
-  get('details').querySelector('summary').click();
-  get('category-trigger').click();
-  const categoryOpened={open:!get('category-sheet').hidden,expanded:get('category-trigger').getAttribute('aria-expanded'),options:[...get('category-sheet').querySelectorAll('[data-category]')].map(n=>n.dataset.category)};
-  const categoryChoices=[...get('category-sheet').querySelectorAll('[data-category]')];
-  categoryChoices.at(-1).focus();categoryChoices.at(-1).dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
-  const categoryTrapped=document.activeElement===categoryChoices[0];
-  get('category-sheet').querySelector('[data-category="FOOD"]').click();
-  const category={value:get('category').value,closed:get('category-sheet').hidden,focus:document.activeElement===get('category-trigger')};
-  get('time-trigger').click();get('time-sheet').querySelector('[data-quick-time="12:00"]').click();get('time-sheet').querySelector('.calendar-editor-time-done').click();
-  get('end-time-trigger').click();get('time-sheet').querySelector('[data-quick-time="09:00"]').click();get('time-sheet').querySelector('.calendar-editor-time-done').click();
-  get('title').value='회의';dialog.querySelector('form').requestSubmit();
-  await wait(()=>/종료/.test(get('error').textContent));
+  const chip=key=>dialog.querySelector('[data-editor-chip="'+key+'"]');
+  const section=key=>dialog.querySelector('[data-editor-section="'+key+'"]');
+  const typed=(input,value)=>{input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}))};
+  await new Promise(r=>setTimeout(r,0));
+  // LIFE UX 01: one question, the date as a chip, everything else behind chips.
+  const first={date:get('date').value,dateFieldHidden:get('date-field').hidden,dateChip:get('date-chip').textContent,
+    required:[...dialog.querySelectorAll('[required]')].map(n=>n.className),timeType:get('time').type,
+    sectionsHidden:['time','end','amount','place','memo','more'].every(key=>section(key).hidden),
+    chips:[...dialog.querySelectorAll('[data-editor-chip]')].map(n=>n.dataset.editorChip),
+    allDayControl:Boolean(dialog.querySelector('.calendar-editor-all-day')),focusTitle:document.activeElement===get('title')};
+  chip('time').click();
+  const timeOpen={hidden:section('time').hidden,expanded:chip('time').getAttribute('aria-expanded'),focus:document.activeElement===get('time'),
+    choices:[...section('time').querySelectorAll('[data-quick-time]')].map(n=>n.dataset.quickTime),endDisabled:get('end-time').disabled};
+  section('time').querySelector('[data-quick-time="09:00"]').click();
+  const quick={value:get('time').value,chip:chip('time').textContent,filled:chip('time').dataset.filled};
+  get('title').value='회의';typed(get('time'),'25:71');dialog.querySelector('form').requestSubmit();
+  await wait(()=>/HH:mm/.test(get('error').textContent),'invalid clock rejected');
+  const invalid={error:get('time').getAttribute('aria-invalid'),open:Boolean(root.querySelector('.calendar-editor-dialog'))};
+  typed(get('time'),'1045');get('time').dispatchEvent(new FocusEvent('blur'));
+  const numericClock={value:get('time').value};
+  section('time').querySelector('.calendar-editor-time-clear').click();
+  const cleared={value:get('time').value,chip:chip('time').textContent,endDisabled:get('end-time').disabled};
+  chip('amount').click();
+  const amountOpen={hidden:section('amount').hidden,focus:document.activeElement===get('amount'),type:get('amount').type,inputMode:get('amount').inputMode,
+    options:[...section('amount').querySelectorAll('[data-category]')].map(n=>n.dataset.category)};
+  typed(get('amount'),'12000');
+  section('amount').querySelector('[data-category="FOOD"]').click();
+  const category={value:get('category').value,pressed:section('amount').querySelector('[data-category="FOOD"]').getAttribute('aria-pressed'),
+    amount:get('amount').value,chip:chip('amount').textContent};
+  section('time').querySelector('[data-quick-time="12:00"]').click();
+  chip('end').click();typed(get('end-time'),'09:00');
+  dialog.querySelector('form').requestSubmit();
+  await wait(()=>/종료/.test(get('error').textContent),'end before start rejected');
   const endRejected=/종료/.test(get('error').textContent)&&Boolean(root.querySelector('.calendar-editor-dialog'));
-  get('end-time-trigger').click();get('time-sheet').querySelector('[data-quick-time="18:00"]').click();get('time-sheet').querySelector('.calendar-editor-time-done').click();
-  const endAccepted=get('end-time').value==='18:00';
-  // Trap and restore both directions in the top-level dialog.
-  get('details').open=false;
-  get('time-trigger').click();
-  const focusables=[...get('time-sheet').querySelectorAll('button:not([disabled]),input:not([disabled])')].filter(n=>!n.hidden);
-  const last=focusables.at(-1);last.focus();last.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
-  const trapped=get('time-sheet').contains(document.activeElement)&&document.activeElement!==last;
-  dialog.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-  const restored=document.activeElement===get('time-trigger');
+  typed(get('end-time'),'18:00');
+  const endAccepted=get('end-time').value==='18:00'&&chip('end').textContent.includes('18:00');
+  // Tab wraps inside the dialog in both directions.
+  const focusables=[...dialog.querySelectorAll('button, input, select, textarea')]
+    .filter(n=>!n.disabled&&!n.hidden&&n.getClientRects().length&&n.tabIndex!==-1);
+  focusables.at(-1).focus();focusables.at(-1).dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
+  const trappedForward=document.activeElement===focusables[0];
+  focusables[0].dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,cancelable:true}));
+  const trapped=trappedForward&&document.activeElement===focusables.at(-1);
   let staleFocusDuringSave=false;
   const onFocusSave=event=>{if(event.target===opener)staleFocusDuringSave=true};
   root.addEventListener('focusin',onFocusSave);
@@ -224,6 +216,8 @@ try{
   root.removeEventListener('focusin',onFocusSave);
   const newDate=root.querySelector('[data-calendar-date-trigger="2026-09-24"]');
   const afterSaveFocus={connected:document.activeElement.isConnected,selectedDate:document.activeElement===newDate,oldOpenerGone:!opener.isConnected,staleFocusDuringSave};
+  const stored=JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{}').events?.[0]||{};
+  const savedRecord={title:stored.title,start:stored.local_datetime,end:stored.local_end_datetime,amount:stored.entry?.amount_minor,category:stored.entry?.expense_category};
   const cancelOpener=root.querySelector('[data-calendar-add]');cancelOpener.focus();cancelOpener.click();
   await wait(()=>root.querySelector('.calendar-editor-dialog'));
   let staleFocusDuringCancel=false;
@@ -233,6 +227,11 @@ try{
   await wait(()=>!root.querySelector('.calendar-editor-dialog')&&document.activeElement===root.querySelector('[data-calendar-date-trigger="2026-09-24"]'));
   root.removeEventListener('focusin',onFocusCancel);
   const afterCancelFocus={connected:document.activeElement.isConnected,selectedDate:document.activeElement===root.querySelector('[data-calendar-date-trigger="2026-09-24"]'),staleFocusDuringCancel};
+  root.querySelector('[data-calendar-add]').click();
+  await wait(()=>root.querySelector('.calendar-editor-dialog'));
+  root.querySelector('.calendar-editor-title').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&document.activeElement===root.querySelector('[data-calendar-date-trigger="2026-09-24"]'));
+  const escapeClosed=true;
 
   // Auth Month: the schedule refresh lands first; expense completion renders
   // again later. Final focus must name the connected date after that render.
@@ -266,7 +265,8 @@ try{
   await mountLifeCalendarManager({root:authRoot,sessionToken:'site-token',timezone:'Asia/Seoul',now:()=>new Date('2026-09-24T00:00:00Z'),
     settingsStorage:{getItem:()=>JSON.stringify({showKoreaHolidays:false}),setItem(){}},
     locationProvider:null,locationPermissions:null,fetchImpl:authFetch});
-  await wait(()=>authRoot.querySelector('[data-calendar-expense-summary="ready"]'));
+  await wait(()=>expenseRequests>=1&&!authRoot.hasAttribute('aria-busy')&&authRoot.querySelector('.calendar-month-grid'));
+  await new Promise(resolve=>setTimeout(resolve,40));
   authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]').click();
   await wait(()=>authRoot.querySelector('[data-calendar-add]'));
   authRoot.querySelector('[data-calendar-add]').click();
@@ -277,12 +277,12 @@ try{
   await wait(()=>releaseExpense&&!authRoot.querySelector('.calendar-editor-dialog')&&authRoot.querySelector('.calendar-month-grid'));
   const authScheduleBeforeExpense=Boolean(authRoot.querySelector('.calendar-month-grid'));
   releaseExpense();
-  await wait(()=>authRoot.querySelector('[data-calendar-expense-summary="error"]')&&
+  await wait(()=>authRoot.querySelector('[data-calendar-amount-summary="error"]')&&
     document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]')&&document.activeElement.isConnected);
   const authAfterExpenseFocus={expenseRequests,connected:document.activeElement.isConnected,
     selectedDate:document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]'),
     schedulePresent:Boolean(authRoot.querySelector('.calendar-month-grid')),
-    expenseFailed: Boolean(authRoot.querySelector('[data-calendar-expense-summary="error"]'))};
+    expenseFailed: Boolean(authRoot.querySelector('[data-calendar-amount-summary="error"]'))};
   // Save again, but this time navigate to a different date while the expense
   // response is held. Neither the old save continuation nor the expense render
   // may steal focus from that newer date.
@@ -293,17 +293,17 @@ try{
   authRoot.querySelector('.calendar-editor-form').requestSubmit();
   await wait(()=>releaseExpense&&!authRoot.querySelector('.calendar-editor-dialog')&&authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]'));
   authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]').click();
-  await wait(()=>document.activeElement===authRoot.querySelector('.calendar-day-close')&&
+  await wait(()=>document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&
     authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
   const navigationFocusBeforeExpense=document.activeElement;
   const savesBeforeRelease=authSavedNotifications;
   releaseExpense();
   await wait(()=>authSavedNotifications>savesBeforeRelease&&!navigationFocusBeforeExpense.isConnected&&
-    document.activeElement===authRoot.querySelector('.calendar-day-close')&&document.activeElement.isConnected&&
+    document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&document.activeElement.isConnected&&
     authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
   await new Promise(resolve=>setTimeout(resolve,0));
   const authNavigationDuringExpense={connected:document.activeElement.isConnected,
-    dayDetailFocus:document.activeElement===authRoot.querySelector('.calendar-day-close'),
+    dateFocus:document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]'),
     selectedDate:authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25',
     schedulePresent:Boolean(authRoot.querySelector('.calendar-month-grid'))};
   // The same state values can reappear after real navigation. Save once more,
@@ -316,24 +316,23 @@ try{
   authRoot.querySelector('.calendar-editor-form').requestSubmit();
   await wait(()=>releaseExpense&&!authRoot.querySelector('.calendar-editor-dialog'));
   authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]').click();
-  await wait(()=>document.activeElement===authRoot.querySelector('.calendar-day-close')&&
+  await wait(()=>document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]')&&
     authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-24');
   authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]').click();
-  await wait(()=>document.activeElement===authRoot.querySelector('.calendar-day-close')&&
+  await wait(()=>document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&
     authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
   const awayBackFocusBeforeExpense=document.activeElement;
   const savesBeforeAwayBackRelease=authSavedNotifications;
   releaseExpense();
   await wait(()=>authSavedNotifications>savesBeforeAwayBackRelease&&!awayBackFocusBeforeExpense.isConnected&&
-    document.activeElement===authRoot.querySelector('.calendar-day-close')&&document.activeElement.isConnected&&
+    document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&document.activeElement.isConnected&&
     authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
   await new Promise(resolve=>setTimeout(resolve,0));
   const authAwayAndBackDuringExpense={connected:document.activeElement.isConnected,
-    dayDetailFocus:document.activeElement===authRoot.querySelector('.calendar-day-close'),
+    dateFocus:document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]'),
     selectedDate:authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25',
-    dateTriggerUnfocused:document.activeElement!==authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]'),
     schedulePresent:Boolean(authRoot.querySelector('.calendar-month-grid'))};
-  out.textContent=JSON.stringify({ok:true,first,timed,sheetOpen,timeToCategory,categoryToTime,detailsCollapsed,immediateDialogTrap,dialogTrapAfterCollapse,quick,invalid,numericClock,cleared,categoryOpened,category,categoryTrapped,endRejected,endAccepted,trapped,restored,afterSaveFocus,afterCancelFocus,authScheduleBeforeExpense,authAfterExpenseFocus,authNavigationDuringExpense,authAwayAndBackDuringExpense});
+  out.textContent=JSON.stringify({ok:true,first,timeOpen,quick,invalid,numericClock,cleared,amountOpen,category,endRejected,endAccepted,trapped,afterSaveFocus,savedRecord,afterCancelFocus,escapeClosed,authScheduleBeforeExpense,authAfterExpenseFocus,authNavigationDuringExpense,authAwayAndBackDuringExpense});
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></html>`;
 const wrapper = `<!doctype html><iframe src="/scripts/.calendar-compact-editor-inner.html" width="390" height="844"></iframe><pre id="result">pending</pre><script>const t=setInterval(()=>{const x=document.querySelector('iframe').contentDocument?.querySelector('#result');if(x&&x.textContent!=='pending'){document.querySelector('#result').textContent=x.textContent;clearInterval(t)}},20);setTimeout(()=>{if(document.querySelector('#result').textContent==='pending')document.querySelector('#result').textContent=JSON.stringify({ok:false,error:'timeout'})},35000)</script>`;
@@ -353,46 +352,38 @@ try {
   const v = JSON.parse(raw);
   assert.ok(v.ok, v.error);
   assert.equal(v.first.date, day, 'selected date prefilled');
-  assert.equal(v.first.detailsHidden, true, 'optional details start collapsed');
+  assert.equal(v.first.dateFieldHidden, true, 'a chosen date is a chip, not a second date form');
+  assert.match(v.first.dateChip, /^9월 24일 목요일/);
   assert.deepEqual(v.first.required, ['calendar-editor-title'], 'title alone is required');
   assert.equal(v.first.timeType, 'text', 'never open native clock');
-  assert.equal(v.first.timeHidden, true, 'all-day hides clock');
-  assert.equal(v.first.timeDisabled, true);
-  assert.equal(v.timed.timeHidden, false);
-  assert.equal(v.timed.timeDisabled, false);
-  assert.deepEqual(v.sheetOpen.choices, ['09:00', '12:00', '18:00']);
-  assert.equal(v.sheetOpen.expanded, 'true');
-  assert.deepEqual(v.timeToCategory, {timeClosed:true,timeCollapsed:true,categoryOpen:true,categoryFocus:true});
-  assert.deepEqual(v.categoryToTime, {categoryClosed:true,categoryCollapsed:true,timeOpen:true,timeFocus:true});
-  assert.deepEqual(v.detailsCollapsed, {categoryClosed:true,categoryCollapsed:true,focus:true});
-  assert.equal(v.immediateDialogTrap, true, 'hidden category cannot cancel the next Tab before toggle fires');
-  assert.equal(v.dialogTrapAfterCollapse, true, 'collapsed sheet must not trap Tab');
-  assert.equal(v.quick.value, '09:00');
-  assert.equal(v.quick.focus, true);
-  assert.deepEqual(v.invalid, {open: true, error: 'true'}, 'invalid typed HH:mm cannot commit');
-  assert.deepEqual(v.numericClock, {value:'10:45',closed:true,focus:true});
-  assert.deepEqual(v.cleared, {value: '', closed: true});
-  assert.equal(v.categoryOpened.open, true);
-  assert.equal(v.categoryOpened.expanded, 'true');
-  assert.ok(v.categoryOpened.options.includes('FOOD'));
-  assert.deepEqual(v.category, {value: 'FOOD', closed: true, focus: true});
-  assert.equal(v.categoryTrapped, true);
+  assert.equal(v.first.sectionsHidden, true, 'nothing behind a chip is shown until asked for');
+  assert.deepEqual(v.first.chips, ['time', 'amount', 'place', 'memo', 'end', 'more']);
+  assert.equal(v.first.allDayControl, false, 'no all-day checkbox leads the form');
+  assert.equal(v.first.focusTitle, true, 'the editor opens on its one question');
+  assert.deepEqual(v.timeOpen, {hidden: false, expanded: 'true', focus: true, choices: ['09:00', '12:00', '18:00'], endDisabled: true});
+  assert.deepEqual(v.quick, {value: '09:00', chip: '시간 09:00', filled: 'true'});
+  assert.deepEqual(v.invalid, {error: 'true', open: true}, 'invalid typed HH:mm cannot commit');
+  assert.deepEqual(v.numericClock, {value: '10:45'});
+  assert.deepEqual(v.cleared, {value: '', chip: '시간', endDisabled: true});
+  assert.deepEqual(v.amountOpen, {hidden: false, focus: true, type: 'text', inputMode: 'numeric', options: ['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', '']});
+  assert.deepEqual(v.category, {value: 'FOOD', pressed: 'true', amount: '12,000', chip: '12,000원 · 음식'});
   assert.equal(v.endRejected, true);
   assert.equal(v.endAccepted, true);
-  assert.equal(v.trapped, true);
-  assert.equal(v.restored, true);
+  assert.equal(v.trapped, true, 'Tab wraps inside the dialog in both directions');
   assert.deepEqual(v.afterSaveFocus, {connected:true,selectedDate:true,oldOpenerGone:true,staleFocusDuringSave:false});
+  assert.deepEqual(v.savedRecord, {title: '회의', start: '2026-09-24T12:00:00', end: '2026-09-24T18:00:00', amount: 12000, category: 'FOOD'});
   assert.deepEqual(v.afterCancelFocus, {connected:true,selectedDate:true,staleFocusDuringCancel:false});
+  assert.equal(v.escapeClosed, true, 'Escape closes the editor and returns focus to the date');
   assert.equal(v.authScheduleBeforeExpense, true, 'schedule remains visible while the auxiliary expense request waits');
   assert.ok(v.authAfterExpenseFocus.expenseRequests >= 2, 'initial and post-save expense responses were both requested');
   assert.equal(v.authAfterExpenseFocus.connected, true);
   assert.equal(v.authAfterExpenseFocus.selectedDate, true, 'delayed expense render must not detach the final focus target');
   assert.equal(v.authAfterExpenseFocus.schedulePresent, true);
   assert.equal(v.authAfterExpenseFocus.expenseFailed, true, 'expense failure must not hide the authoritative schedule');
-  assert.deepEqual(v.authNavigationDuringExpense, {connected:true,dayDetailFocus:true,selectedDate:true,schedulePresent:true},
-    'navigation during delayed Auth expense must retain focus in the newly selected connected day detail');
-  assert.deepEqual(v.authAwayAndBackDuringExpense, {connected:true,dayDetailFocus:true,selectedDate:true,dateTriggerUnfocused:true,schedulePresent:true},
-    'navigation away and back during delayed Auth expense must not let the stale save continuation replace day-detail focus');
+  assert.deepEqual(v.authNavigationDuringExpense, {connected:true,dateFocus:true,selectedDate:true,schedulePresent:true},
+    'navigation during delayed Auth expense must keep focus on the newly selected date');
+  assert.deepEqual(v.authAwayAndBackDuringExpense, {connected:true,dateFocus:true,selectedDate:true,schedulePresent:true},
+    'navigation away and back during delayed Auth expense must not let the stale save continuation move focus off the current date');
   console.log('LOTBI Calendar compact editor and contracts: PASS');
 } finally {
   server.kill();

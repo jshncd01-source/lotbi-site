@@ -129,14 +129,17 @@ try {
 
   // The event on the holiday must still be legible -- the block sits behind the
   // schedule, never over it.
-  const desktop = matchMedia('(min-width: 901px)').matches;
+  // LIFE UX 01: a phone (600px and under) shows a dot per record instead of
+  // the titles; wider screens keep the titled chips.
+  const phone = matchMedia('(max-width: 600px)').matches;
   const chip = cell('2026-09-25').querySelector('.calendar-event-chip');
+  const dot = cell('2026-09-25').querySelector('.calendar-record-dot');
+  const dotBox = dot ? dot.getBoundingClientRect() : null;
   result.eventOnHoliday = {
     present: Boolean(chip),
     title: chip ? chip.textContent.trim() : '',
-    // The stack is deliberately hidden under 900px; there the count stands in.
-    visible: desktop ? Boolean(chip && chip.getBoundingClientRect().height > 0) : true,
-    countShown: desktop ? true : (cell('2026-09-25').querySelector('.calendar-mobile-event-count')?.textContent || '') !== '',
+    visible: phone ? true : Boolean(chip && chip.getBoundingClientRect().height > 0),
+    countShown: phone ? Boolean(dotBox && dotBox.width > 0 && dotBox.height > 0) : true,
   };
 
   // The settings control is an icon, not a glyph.

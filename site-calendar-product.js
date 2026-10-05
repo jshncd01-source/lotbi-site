@@ -1,7 +1,8 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-bc4041e02558';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-bc4041e02558';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-b162e8b268f9';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-b162e8b268f9';
+import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-b162e8b268f9';
 
 function weekStartDate(date, weekStart) {
   const {year, month, day} = civilDateParts(date);
@@ -243,4 +244,237 @@ export function calendarWeatherPresentation(weather) {
     ? `${Math.round(min)}° / ${Math.round(max)}°` : monthLabel;
   const precipLabel = weatherPrecipitationLabel(weather);
   return Object.freeze({monthLabel, weekLabel, precipLabel});
+}
+
+// ── Life timeline ────────────────────────────────────────────────────────
+// What a date holds, read the way a day is lived: the things that frame the
+// whole day first, then the clock, then what was noted without a time. Shared
+// by the selected-day detail, the week list and the list view so one record
+// reads the same everywhere. Read-time only: nothing here is stored, and no
+// time, kind or amount is invented for a record that did not state one.
+
+// The last civil date a record covers. A stay or a trip states its ending; an
+// ordinary record ends on the day it starts.
+export function calendarItemEndDate(item) {
+  const start = item?.local_date;
+  if (!validCivilDate(start)) return '';
+  const stated = validCivilDate(item?.local_end_date)
+    ? item.local_end_date
+    : String(item?.local_end_datetime || '').slice(0, 10);
+  return validCivilDate(stated) && stated > start ? stated : start;
+}
+
+export function calendarItemSpansDays(item) {
+  const start = item?.local_date;
+  return validCivilDate(start) && calendarItemEndDate(item) > start;
+}
+
+// Every loaded record that covers `date` -- a three-night stay belongs to each
+// of its nights. Only records the current read actually returned can appear:
+// a span whose start fell outside the fetched window is not reconstructed.
+export function calendarItemsOnDate(items, date) {
+  if (!validCivilDate(date)) return [];
+  return (Array.isArray(items) ? items : []).filter(item => {
+    const start = item?.local_date;
+    if (!validCivilDate(start) || start > date) return false;
+    return start === date || calendarItemEndDate(item) >= date;
+  });
+}
+
+export const LIFE_TIMELINE_GROUP = Object.freeze({
+  SPAN: 'SPAN',
+  DEADLINE: 'DEADLINE',
+  TIMED: 'TIMED',
+  UNTIMED: 'UNTIMED',
+});
+
+function hasClockTime(item) {
+  return item?.all_day !== true
+    && typeof item?.local_datetime === 'string'
+    && /^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(item.local_datetime);
+}
+
+// Core names a due date with DEADLINE semantics; nothing else is read as one.
+// A record without a clock time is "time-less", not "all day": the contract has
+// no field that tells the two apart, so neither is claimed.
+// A stay that starts at a stated hour sits at that hour on the day it begins
+// (check-in 15:00 is part of that day's flow); every later day it frames the
+// day as a 기간.
+export function lifeTimelineGroup(item, date = item?.local_date) {
+  if (calendarItemSpansDays(item)) {
+    return date === item?.local_date && hasClockTime(item) ? LIFE_TIMELINE_GROUP.TIMED : LIFE_TIMELINE_GROUP.SPAN;
+  }
+  if (item?.temporal_semantics === 'DEADLINE') return LIFE_TIMELINE_GROUP.DEADLINE;
+  if (hasClockTime(item)) return LIFE_TIMELINE_GROUP.TIMED;
+  return LIFE_TIMELINE_GROUP.UNTIMED;
+}
+
+const byTitle = (left, right) => String(left?.title || '').localeCompare(String(right?.title || ''), 'ko');
+
+export function lifeTimelineForDate(items, date) {
+  const groups = {SPAN: [], DEADLINE: [], TIMED: [], UNTIMED: []};
+  const onDate = calendarItemsOnDate(items, date);
+  for (const item of onDate) groups[lifeTimelineGroup(item, date)].push(item);
+  groups.SPAN.sort((left, right) => String(left.local_date).localeCompare(String(right.local_date))
+    || calendarItemEndDate(right).localeCompare(calendarItemEndDate(left))
+    || byTitle(left, right));
+  groups.DEADLINE.sort(byTitle);
+  groups.TIMED.sort((left, right) => String(left.local_datetime).localeCompare(String(right.local_datetime)) || byTitle(left, right));
+  groups.UNTIMED.sort(byTitle);
+  return Object.freeze({
+    // 기간 · 마감: what frames the whole day.
+    top: Object.freeze([...groups.SPAN, ...groups.DEADLINE]),
+    // 시간순.
+    timed: Object.freeze(groups.TIMED),
+    // 시간 없는 기록: never given a 00:00 or "now" it did not have.
+    untimed: Object.freeze(groups.UNTIMED),
+    count: onDate.length,
+  });
+}
+
+// "09/12 15:00": the same stamp the Calendar has always used for a stay's two ends.
+function shortStamp(date, datetime) {
+  const day = `${date.slice(5, 7)}/${date.slice(8, 10)}`;
+  return typeof datetime === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(datetime)
+    ? `${day} ${datetime.slice(11, 16)}`
+    : day;
+}
+
+function rowAmountLabel(entry) {
+  const amount = entry?.amount_minor;
+  if (!Number.isSafeInteger(amount) || amount < 0) return '';
+  const currency = typeof entry?.currency === 'string' && /^[A-Z]{3}$/.test(entry.currency) ? entry.currency : 'KRW';
+  return formatExpenseAmount(amount, currency);
+}
+
+function memoExcerpt(memo) {
+  const line = typeof memo === 'string' ? memo.trim().split(/\r?\n/u)[0].trim() : '';
+  if (!line) return '';
+  return line.length > 40 ? `${line.slice(0, 39)}…` : line;
+}
+
+// One row's words. `today` only decides how a deadline reads ("기한 지남").
+export function lifeRowPresentation(item, {date = item?.local_date, today = ''} = {}) {
+  const group = lifeTimelineGroup(item, date);
+  const start = item?.local_date;
+  const end = calendarItemEndDate(item);
+  const spans = calendarItemSpansDays(item);
+  // "09/12 15:00 → 09/13 11:00": every day of a span says where it starts and ends.
+  const spanText = spans ? `${shortStamp(start, item.local_datetime)} → ${shortStamp(end, item.local_end_datetime)}` : '';
+  let timeLabel = '';
+  let timeDetail = '';
+  let statusLabel = '';
+  if (group === LIFE_TIMELINE_GROUP.SPAN) {
+    timeLabel = '기간';
+  } else if (group === LIFE_TIMELINE_GROUP.DEADLINE) {
+    timeLabel = '마감';
+    if (validCivilDate(today) && validCivilDate(start)) {
+      if (start < today) statusLabel = '기한 지남';
+      else if (start === today) statusLabel = '오늘 마감';
+    }
+  } else if (group === LIFE_TIMELINE_GROUP.TIMED) {
+    timeLabel = item.local_datetime.slice(11, 16);
+    const endClock = typeof item?.local_end_datetime === 'string' && /T\d\d:\d\d/.test(item.local_end_datetime)
+      ? item.local_end_datetime.slice(11, 16) : '';
+    if (endClock && !spans) timeDetail = `~${endClock}`;
+  } else if (!validCivilDate(start)) {
+    // 날짜 미정: the list view's own group; it has no day to belong to yet.
+    timeLabel = '미정';
+  }
+  // An attention projection may carry its own state (list view's 기한 지남).
+  const attention = ATTENTION_LABEL[item?.calendar_attention_state] || '';
+  if (attention) statusLabel = attention;
+
+  const entry = item?.entry && typeof item.entry === 'object' ? item.entry : {};
+  const amountLabel = rowAmountLabel(entry);
+  // A category only means something next to an amount; 미분류 says nothing.
+  const categoryLabel = amountLabel && entry.expense_category && entry.expense_category !== 'UNCLASSIFIED'
+    ? expenseCategoryLabel(entry.expense_category) : '';
+  const title = typeof item?.title === 'string' ? item.title.trim() : '';
+  const place = typeof entry.place === 'string' ? entry.place.trim() : '';
+  const merchant = typeof entry.merchant === 'string' ? entry.merchant.trim() : '';
+  const secondary = [
+    spanText,
+    place,
+    merchant && merchant !== title && merchant !== place ? merchant : '',
+    categoryLabel,
+    memoExcerpt(entry.memo),
+    item?.provider_verified === true && item?.confirmation_level === 'PROVIDER_VERIFIED' ? '외부 확인됨' : '',
+  ].filter(Boolean);
+  const continued = spans && validCivilDate(date) && date !== start;
+  return Object.freeze({
+    group,
+    timeLabel,
+    timeDetail,
+    statusLabel,
+    title,
+    amountLabel,
+    categoryLabel,
+    secondaryText: secondary.join(' · '),
+    // A stay's second night shows the stay, but its price belongs to the day
+    // it was recorded on; the row says so instead of repeating the amount.
+    amountOnThisDay: Boolean(amountLabel) && !continued,
+    continued,
+  });
+}
+
+// What a day's records add up to, per currency, in the shape the editor wrote
+// them. A record counts once, on the day it starts: a three-night stay is not
+// three payments. Currencies are never summed together.
+export function dayAmountTotals(items, date) {
+  const totals = new Map();
+  for (const item of Array.isArray(items) ? items : []) {
+    if (item?.local_date !== date) continue;
+    const amount = item?.entry?.amount_minor;
+    if (!Number.isSafeInteger(amount) || amount < 0) continue;
+    const currency = /^[A-Z]{3}$/.test(String(item.entry.currency || '')) ? item.entry.currency : 'KRW';
+    totals.set(currency, (totals.get(currency) || 0) + amount);
+  }
+  return Object.freeze([...totals.entries()]
+    .sort(([left], [right]) => (left === 'KRW' ? -1 : right === 'KRW' ? 1 : left.localeCompare(right)))
+    .map(([currency, amountMinor]) => Object.freeze({currency, amountMinor, label: formatExpenseAmount(amountMinor, currency)})));
+}
+
+// Desktop month: a multi-day record is one bar across the days it covers. Each
+// week row hands out lanes so the same bar stays on the same line from day to
+// day; a bar that continues into the next row starts a new segment there and
+// repeats its title.
+export function monthSpanSegments(cells, items) {
+  const byDate = new Map();
+  const laneCountByRow = [];
+  const spans = (Array.isArray(items) ? items : []).filter(calendarItemSpansDays);
+  for (let row = 0; row * 7 < cells.length; row += 1) {
+    const rowCells = cells.slice(row * 7, row * 7 + 7);
+    const rowStart = rowCells[0].date;
+    const rowEnd = rowCells[rowCells.length - 1].date;
+    const inRow = spans
+      .filter(item => item.local_date <= rowEnd && calendarItemEndDate(item) >= rowStart)
+      .sort((left, right) => String(left.local_date).localeCompare(String(right.local_date))
+        || calendarItemEndDate(right).localeCompare(calendarItemEndDate(left))
+        || byTitle(left, right));
+    const laneEnds = [];
+    for (const item of inRow) {
+      const start = item.local_date;
+      const end = calendarItemEndDate(item);
+      const segmentStart = start > rowStart ? start : rowStart;
+      const segmentEnd = end < rowEnd ? end : rowEnd;
+      let lane = laneEnds.findIndex(laneEnd => laneEnd < segmentStart);
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(segmentEnd); } else laneEnds[lane] = segmentEnd;
+      for (const cell of rowCells) {
+        if (cell.date < segmentStart || cell.date > segmentEnd) continue;
+        if (!byDate.has(cell.date)) byDate.set(cell.date, []);
+        byDate.get(cell.date).push(Object.freeze({
+          item,
+          lane,
+          showTitle: cell.date === segmentStart,
+          startsHere: cell.date === start,
+          endsHere: cell.date === end,
+          segmentStart: cell.date === segmentStart,
+          segmentEnd: cell.date === segmentEnd,
+        }));
+      }
+    }
+    laneCountByRow.push(laneEnds.length);
+  }
+  return Object.freeze({byDate, laneCountByRow: Object.freeze(laneCountByRow)});
 }

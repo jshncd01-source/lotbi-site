@@ -12,7 +12,9 @@
 //   - a message with a real Core calendar_draft opens the editor pre-filled,
 //     heading "일정 초안 확인"
 //   - a plain answer with neither a place nor a calendar_draft still opens the
-//     editor, blank, heading "일정 등록" — never the bare calendar view
+//     editor, blank, heading "기록 추가" — never the bare calendar view
+//     (LIFE UX 01 renamed the blank editor from "일정 등록" to "기록 추가";
+//     the contract — it always opens, it never invents a title — is unchanged)
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -247,7 +249,7 @@ try {
     // The regression: no place, no calendar_draft — must still reach the
     // editor, never the bare calendar view.
     if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
-    if (v.plain_heading !== '일정 등록') throw new Error(`${label}: a blank fallback must read "일정 등록", got "${v.plain_heading}"`);
+    if (v.plain_heading !== '기록 추가') throw new Error(`${label}: a blank fallback must read "기록 추가", got "${v.plain_heading}"`);
     if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
 
     console.log(label, JSON.stringify({
@@ -255,7 +257,7 @@ try {
       plain: {heading: v.plain_heading, title: v.plain_title},
     }));
   }
-  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), and a plain answer with nothing to pre-fill still opens it blank ("일정 등록") instead of landing on the bare calendar view.');
+  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), and a plain answer with nothing to pre-fill still opens it blank ("기록 추가") instead of landing on the bare calendar view.');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

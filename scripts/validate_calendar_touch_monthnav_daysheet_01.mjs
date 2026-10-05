@@ -6,7 +6,11 @@
 //   - a tap-sized movement stays a tap, so date cells and event chips still work
 //   - a burst of swipes advances exactly one month (no skipping)
 //   - the touch selected-day surface stays below the Month with no overlay
-//   - Escape closes the detail but leaves the Calendar modal open (Site #129/#130)
+//   - LIFE UX 01: the day detail is part of the page (no close control); its
+//     two actions are pinned to the bottom of a touch screen and name the day
+//     a new record lands on; tapping another date retargets it
+//   - Escape inside the detail steps back to the selected date and leaves the
+//     Calendar modal open (Site #129/#130)
 //   - desktop keeps the sticky side detail and gains no swipe behaviour
 import fs from 'node:fs';
 import path from 'node:path';
@@ -200,6 +204,7 @@ try{
     result.desktopPresentation=panel.dataset.presentation;
     result.desktopPosition=getComputedStyle(panel).position;
     result.desktopBackdrop=Boolean(modal.querySelector('[data-calendar-day-sheet-backdrop]'));
+    result.desktopActionsInPanel=panel.querySelectorAll('.calendar-add-actions button').length;
   }else{
     // --- swipe left -> next month ---------------------------------------
     const nextPrevented=drag(monthNode(),rightX,midY,leftX,midY);
@@ -236,19 +241,21 @@ try{
     await idle('previous button idle');
     result.buttonsPreserved=true;
 
-    // --- date tap opens the in-flow detail below the Month ----------------
-    const cell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
+    // --- date tap moves the in-flow detail below the Month ---------------
+    const cell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true'&&n.dataset.today!=='true');
     const cellDate=cell.dataset.calendarDate;
     click(cell);
     await wait(()=>modal.querySelector('[data-calendar-date="'+cellDate+'"]')?.dataset.selected==='true','date selection');
-    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'day detail open');
-    const sheet=modal.querySelector('.calendar-day-panel');
-    // The sheet rises from below the fold, so geometry is only meaningful once the
-    // entry animation has settled.
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===cellDate,'day detail follows');
+    // Geometry is only meaningful once any entry animation has settled. A
+    // background render (weather, holidays, the amount line) rebuilds the
+    // panel, so it is read afresh rather than through a reference that may
+    // since have left the document.
+    const livePanel=()=>modal.querySelector('.calendar-day-panel');
     stage='sheet animation settle';
     let previousBottom=null,stableTicks=0;
     for(let i=0;i<120;i+=1){
-      const current=sheet.getBoundingClientRect().bottom;
+      const current=livePanel().getBoundingClientRect().bottom;
       if(previousBottom!==null&&Math.abs(current-previousBottom)<0.5){
         stableTicks+=1;
         if(stableTicks>=3)break;
@@ -256,8 +263,11 @@ try{
       previousBottom=current;
       await new Promise(r=>setTimeout(r,20));
     }
+    const sheet=livePanel();
     const sheetRect=sheet.getBoundingClientRect();
     const sheetStyle=getComputedStyle(sheet);
+    const pinned=modal.querySelector('.calendar-action-slot[data-calendar-action-bar="pinned"]');
+    result.cellDate=cellDate;
     result.sheet={
       presentation:sheet.dataset.presentation,
       position:sheetStyle.position,
@@ -267,51 +277,44 @@ try{
       right:sheetRect.right,
       gridBottom:modal.querySelector('.calendar-month-grid').getBoundingClientRect().bottom,
       backdrop:Boolean(modal.querySelector('[data-calendar-day-sheet-backdrop]')),
-      bottomOffset:getComputedStyle(sheet).bottom,
-      viewportBound:sheet.dataset.visualViewportBound||'',
       reducedMotion:sheet.dataset.reducedMotion||'',
       heading:Boolean(sheet.querySelector('.calendar-day-heading')?.textContent?.trim()),
-      addButton:Boolean(sheet.querySelector('[data-calendar-add]')),
-      addLabel:sheet.querySelector('[data-calendar-add]')?.textContent||'',
-      addAria:sheet.querySelector('[data-calendar-add]')?.getAttribute('aria-label')||'',
-      addImageButton:Boolean(sheet.querySelector('[data-calendar-add-image]')),
-      addImageLabel:sheet.querySelector('[data-calendar-add-image]')?.textContent||'',
-      addImageAria:sheet.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
-      listOrEmpty:Boolean(sheet.querySelector('.calendar-day-event')||sheet.querySelector('.calendar-empty')||sheet.textContent.includes('등록된 일정이 없어요')),
+      listOrEmpty:Boolean(sheet.querySelector('.calendar-day-event')||sheet.querySelector('.life-calendar-empty')),
       close:Boolean(sheet.querySelector('.calendar-day-close')),
+      actionsInPanel:sheet.querySelectorAll('.calendar-add-actions button').length,
+    };
+    result.actions={
+      pinned:Boolean(pinned),
+      position:pinned?getComputedStyle(pinned).position:'',
+      addLabel:pinned?.querySelector('[data-calendar-add]')?.textContent||'',
+      addAria:pinned?.querySelector('[data-calendar-add]')?.getAttribute('aria-label')||'',
+      addImageLabel:pinned?.querySelector('[data-calendar-add-image]')?.textContent||'',
+      addImageAria:pinned?.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
     };
 
-    // --- 닫기 dismisses --------------------------------------------------
-    // The in-flow detail has no dismiss backdrop, so a tap on another date is
-    // handled by that date rather than swallowed by a full-screen layer.
-    click(sheet.querySelector('.calendar-day-close'));
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'close button dismiss');
-    result.closeDismiss=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
-
-    // --- another date retargets the panel instead of closing it ----------
-    click(modal.querySelector('[data-calendar-date="'+cellDate+'"]'));
-    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'panel reopen');
+    // --- another date retargets the detail, and the pinned action follows --
     const neighbourCell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')]
-      .find(node=>node.dataset.calendarDate!==cellDate);
+      .find(node=>node.dataset.calendarDate!==cellDate&&node.dataset.today!=='true');
     const neighbourDate=neighbourCell?.dataset.calendarDate||'';
     click(neighbourCell);
     await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===neighbourDate,'panel retarget');
     result.retarget={
       requested:neighbourDate,
       selected:modal.querySelector('.calendar-day-panel')?.dataset.selectedDate||'',
-      stillOpen:!modal.querySelector('.calendar-day-panel')?.hidden,
+      stillShown:!modal.querySelector('.calendar-day-panel')?.hidden,
+      addLabel:modal.querySelector('.calendar-action-slot [data-calendar-add]')?.textContent||'',
     };
 
-    // --- Escape closes the panel, Calendar survives (Site #129/#130) ------
+    // --- Escape inside the detail steps back to the date; Calendar survives --
     click(modal.querySelector('[data-calendar-date="'+cellDate+'"]'));
     await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===cellDate,'panel back on the first date');
-    const trigger=modal.querySelector('[data-calendar-date-trigger="'+cellDate+'"]');
-    trigger.focus();
-    trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'day detail Escape close');
+    const heading=modal.querySelector('.calendar-day-panel .calendar-day-heading');
+    heading.focus();
+    heading.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===cellDate,'day detail Escape focus restore');
     result.escapeKeepsCalendar=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
     result.escapeBackdropCleared=!modal.querySelector('[data-calendar-day-sheet-backdrop]');
-    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===cellDate,'day detail Escape focus restore');
+    result.escapeDetailStays=modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===cellDate&&!modal.querySelector('.calendar-day-panel')?.hidden;
     result.escapeFocusRestore=true;
   }
 
@@ -380,6 +383,7 @@ try {
     if (value.desktopPresentation !== 'SIDE') throw new Error(`${label}: desktop must keep the side detail`);
     if (value.desktopPosition !== 'sticky') throw new Error(`${label}: desktop detail must remain sticky`);
     if (value.desktopBackdrop) throw new Error(`${label}: desktop must not render a dismiss backdrop`);
+    if (value.desktopActionsInPanel !== 2) throw new Error(`${label}: desktop keeps its two actions inside the side detail (got ${value.desktopActionsInPanel})`);
   }
 
   for (const value of mobiles) {
@@ -397,28 +401,31 @@ try {
     if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: day panel horizontal overflow`);
     if (!sheet.heading) throw new Error(`${label}: the day panel must show the date heading`);
     if (!sheet.listOrEmpty) throw new Error(`${label}: the day panel must show the entry list or the empty message`);
-    if (!sheet.addButton) throw new Error(`${label}: the full form must stay one press away`);
-    if (!sheet.addImageButton) throw new Error(`${label}: the day panel must offer the image route too`);
-    // The visible words no longer repeat the date — it is already in the
-    // heading, the toolbar and the highlighted cell — but the accessible name
-    // still says which day is being added to. The panel offers these two and
-    // nothing else: no title box, no [저장].
-    if (sheet.addLabel.trim() !== '+ 일정 추가') throw new Error(`${label}: full-form button label changed (${sheet.addLabel})`);
-    if (sheet.addImageLabel.trim() !== '사진에서 일정 추가') throw new Error(`${label}: image add button label changed (${sheet.addImageLabel})`);
-    if (!/\d+월 \d+일 일정을 직접 입력해서 등록/.test(sheet.addAria)) throw new Error(`${label}: full-form button must name the date for assistive tech (${sheet.addAria})`);
-    if (!/\d+월 \d+일에 이미지로 일정 등록/.test(sheet.addImageAria)) throw new Error(`${label}: image add button must name the date for assistive tech (${sheet.addImageAria})`);
-    if (!sheet.close) throw new Error(`${label}: the day panel must keep its close control`);
+    if (sheet.close) throw new Error(`${label}: the day detail is part of the page and must not carry a close control`);
+    // On a touch screen the two actions are pinned to the bottom of the
+    // Calendar, not repeated inside the detail, and they name the day a new
+    // record lands on (the picked day is never today here).
+    const actions = value.actions || {};
+    const [, month, day] = String(value.cellDate).split('-').map(Number);
+    if (sheet.actionsInPanel !== 0) throw new Error(`${label}: a touch screen keeps the actions in the pinned bar, not in the detail`);
+    if (!actions.pinned || actions.position !== 'sticky') throw new Error(`${label}: + 기록 must be pinned to the bottom (got ${JSON.stringify(actions)})`);
+    if (actions.addLabel.trim() !== `+ ${month}월 ${day}일에 기록`) throw new Error(`${label}: the pinned add button must name the picked day (${actions.addLabel})`);
+    if (actions.addImageLabel.trim() !== '사진에서 기록 읽기') throw new Error(`${label}: image add button label changed (${actions.addImageLabel})`);
+    if (actions.addAria !== `${month}월 ${day}일에 기록 추가`) throw new Error(`${label}: + 기록 must name the date for assistive tech (${actions.addAria})`);
+    if (actions.addImageAria !== `사진에서 일정·거래 정보를 읽어 ${month}월 ${day}일 기록 초안 만들기`) throw new Error(`${label}: image add button must name the date for assistive tech (${actions.addImageAria})`);
 
-    if (!value.closeDismiss) throw new Error(`${label}: 닫기 must dismiss the day without closing the Calendar modal`);
-    // The point of dropping the backdrop: another date is reachable while the
-    // panel is open, and taking it retargets the panel rather than closing it.
+    // Another date is reachable while the detail is shown, and taking it
+    // retargets the detail -- and the pinned action -- rather than closing it.
     if (value.retarget?.selected !== value.retarget?.requested) {
-      throw new Error(`${label}: tapping another date must move the panel to it (${JSON.stringify(value.retarget)})`);
+      throw new Error(`${label}: tapping another date must move the detail to it (${JSON.stringify(value.retarget)})`);
     }
-    if (!value.retarget?.stillOpen) throw new Error(`${label}: tapping another date must leave the panel open`);
+    if (!value.retarget?.stillShown) throw new Error(`${label}: tapping another date must keep the detail on the page`);
+    const [, nextMonth, nextDay] = String(value.retarget.requested).split('-').map(Number);
+    if (value.retarget.addLabel.trim() !== `+ ${nextMonth}월 ${nextDay}일에 기록`) throw new Error(`${label}: the pinned add button must follow the picked day (${value.retarget.addLabel})`);
     if (!value.escapeKeepsCalendar) throw new Error(`${label}: Escape must leave the Calendar modal open`);
     if (!value.escapeBackdropCleared) throw new Error(`${label}: Escape must leave no dismiss layer behind`);
     if (!value.escapeFocusRestore) throw new Error(`${label}: Escape must restore focus to the selected date`);
+    if (!value.escapeDetailStays) throw new Error(`${label}: Escape steps back to the date; the day detail stays on the page`);
   }
 
   for (const value of results) {

@@ -67,6 +67,18 @@ body.chat-home-page .calendar-editor-actions { padding-inline: 0; padding-bottom
 /* A pristine form has no error to reserve a full paragraph for. Nonempty
    validation errors retain their role/appearance; no submission logic changes. */
 body.chat-home-page .calendar-editor-error:empty { display: none; }
+/* The record editor is a bottom sheet on touch widths (it rides the visual
+   viewport, so the keyboard never covers 저장) and a panel at the right edge
+   on a desk -- never a narrow box in the middle of the screen. */
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SHEET'] { padding: 0; align-items: flex-end; justify-content: center; }
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SHEET'] > .calendar-editor-dialog {
+  width: min(100%, 640px); height: auto; max-height: calc(var(--calendar-editor-visual-height, 100dvh) - 12px);
+  align-self: flex-end; padding: 18px 20px 0; border-width: 1px 0 0; border-radius: 18px 18px 0 0;
+}
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SHEET'] .calendar-editor-actions { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SIDE'] { padding: 16px; justify-content: flex-end; align-items: stretch; }
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SIDE'] > .calendar-editor-dialog { width: min(440px, 100%); height: auto; max-height: 100%; align-self: stretch; }
+body.chat-home-page .calendar-editor-body > .calendar-editor-title-field { color: var(--consumer-detail-muted); font-size: 13px; }
 body.chat-home-page :is(.calendar-editor-close, .calendar-readonly-close, .calendar-settings-close, .site-modal-close) {
   width: 44px; min-height: 44px; padding: 8px; border: 0;
   border-radius: 10px; background: transparent; color: var(--lotbi-text-secondary);

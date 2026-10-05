@@ -37,7 +37,9 @@ assert.deepEqual(expense.lines[0], {
     {expenseCategory: 'OTHER', label: '기타', amount: '0원'},
     {expenseCategory: 'UNCLASSIFIED', label: '미분류', amount: '0원'},
   ],
-  note: '금액 없는 일정 1건 제외',
+  // LIFE UX 01: a record without an amount is an ordinary record; nothing says
+  // it was left out (entriesWithoutAmount stays in the data, unworded).
+  note: '',
 });
 assert.equal(expense.storageNote, '이 기기에 저장됨');
 
@@ -229,8 +231,10 @@ assert.match(touchRuntime, /presentation\s*!==\s*'FLOW'[\s\S]*position\s*!==\s*'
   'touch runtime must assert an in-flow, non-overlay mobile detail');
 assert.doesNotMatch(dayPanelRuntime, /toggleLabel|\[접기\]|presentation\s*!==\s*'POPOVER'/,
   'day-panel runtime must not require the retired collapse/overlay UI');
-assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 [일월화수목금토]$/'),
-  'day-panel runtime must keep the compact selected-date heading contract');
+// LIFE UX 01: the day detail names its day in full ("10월 5일 월요일"), the
+// same words as the editor's date chip.
+assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 [일월화수목금토]요일$/'),
+  'day-panel runtime must keep the selected-date heading contract');
 assert.match(monthGeometry, /rows\.length\s*!==\s*2[\s\S]*more\.textContent\s*!==\s*'\+3'/,
   'Month geometry must lock two mounted rows plus a visible +3 overflow summary');
 assert.match(modalRuntime, /visible\s*!==\s*expectedRows[\s\S]*overflowVisible/,
