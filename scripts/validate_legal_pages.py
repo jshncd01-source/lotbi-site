@@ -99,8 +99,8 @@ def main() -> int:
     require(terms, "외부 Merchant 거래", "terms.html", errors)
 
     # Canonical legal URLs and business disclosure.
-    require(privacy, 'href="https://lotbiai.com/privacy.html"', "privacy.html", errors)
-    require(terms, 'href="https://lotbiai.com/terms.html"', "terms.html", errors)
+    require(privacy, 'href="https://lotbiai.com/privacy"', "privacy.html", errors)
+    require(terms, 'href="https://lotbiai.com/terms"', "terms.html", errors)
     for needle in ("유한회사 알에이디홀딩스", "583-88-03679", "2026-전주덕진-0798"):
         require(privacy + terms, needle, "legal pages", errors)
 

@@ -23,8 +23,8 @@ const MANDATORY = [
   '문의하기', '사업자정보확인', 'LOTBI (롯비) © 2026 · AI Voice Commerce Agent',
 ];
 const MANDATORY_HREFS = [
-  'about.html', 'subscribe.html', 'refund.html', 'privacy.html', 'terms.html',
-  'account-deletion.html', 'contact.html', 'exchange.html', 'dispute.html',
+  '/about', '/subscribe', '/refund', '/privacy', '/terms',
+  '/account-deletion', '/contact', '/exchange', '/dispute',
   'tel:0632370930', 'mailto:developer@lotbiai.com',
   'https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679',
 ];
@@ -62,11 +62,11 @@ const BUSINESS_PAGES = [
   'refund.html', 'exchange.html', 'dispute.html',
 ];
 const FOOTER_LINKS = [
-  ['about.html', '회사 소개'], ['subscribe.html', '구독 안내'],
-  ['refund.html', '구독 철회 및 해지'], ['exchange.html', '반품 및 교환'],
-  ['dispute.html', '소비자 분쟁 해결 기준'], ['terms.html', '이용약관'],
-  ['privacy.html', '개인정보처리방침'], ['account-deletion.html', '계정 삭제'],
-  ['contact.html', '문의하기'],
+  ['/about', '회사 소개'], ['/subscribe', '구독 안내'],
+  ['/refund', '구독 철회 및 해지'], ['/exchange', '반품 및 교환'],
+  ['/dispute', '소비자 분쟁 해결 기준'], ['/terms', '이용약관'],
+  ['/privacy', '개인정보처리방침'], ['/account-deletion', '계정 삭제'],
+  ['/contact', '문의하기'],
 ];
 for (const page of BUSINESS_PAGES) {
   const html = read(page);

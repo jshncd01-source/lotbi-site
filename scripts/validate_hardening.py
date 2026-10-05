@@ -118,17 +118,20 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # safe-area-aware top, 높이 기반 숨김 transform 으로 바꾸어 focus 시 전체 링크가
 # viewport 안에 들어온다. 변경 범위는 .skip-link 의 position/top/transform 세
 # 선언뿐이며 법적 페이지 본문·계정 URL·보안 경계에는 변화가 없다.
-# PRIVACY-TABLE-WIDTH-HOTFIX-20261005 — approved layout-only change in styles.css:
-# contain .legal-table-scroll in its reading column, preserving internal overflow,
-# keyboard focus and mobile data-label cards. All other CSS rules are unchanged.
-# Policy/support HTML differs only in generated asset version tokens, stripped
-# below; the policy text, contacts, URLs and consent evidence are not changed.
-# scripts/validate_privacy_table_width_01.mjs pins the new containment contract.
+# SITE-CLEAN-LEGAL-URLS-01 — privacy/terms/account-deletion/contact 잠금 값은
+# canonical·og:url과 내부 탐색 링크에서만 .html을 제거하면서 움직였다. 법률·안내
+# 본문 문구와 디자인은 변경하지 않았고, 기존 .html 주소는 Nginx 301 alias로
+# 보존한다. 새 게시본과 새 동의 증빙은 clean URI를 사용하되 과거 저장 URI는
+# 그대로 유효하다.
+# PRIVACY-TABLE-WIDTH-HOTFIX-20261005 — styles.css의 승인된 레이아웃 변경으로
+# .legal-table-scroll을 본문 열 안에 유지하고 내부 가로 스크롤·키보드 포커스·
+# 모바일 data-label 카드를 보존한다. 법률 본문과 동의 증빙은 변경하지 않는다.
+# scripts/validate_privacy_table_width_01.mjs가 이 계약을 별도로 검증한다.
 LOCKED_SHA256 = {
-    'privacy.html': 'b81b5d3de01471c05782d53e1db4e8cf78725297d3c455428c131a514f3b74f7',
-    'terms.html': '5714d5205e923921851d5422a13afa8c0b483b932e85b2e81178cb4bac96b072',
-    'account-deletion.html': '4f897a168aa686e16099fc3477c1d41491a24c6b871f20c0a912343bc76fba29',
-    'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
+    'privacy.html': 'ac96f7dcf14724da42d5f17dd15ee38dd1749cbe39fcf54d82f58b82b7062f6f',
+    'terms.html': '19c0c6d5328bc6154f26aff2b5871a71193104f422b9e85d012753f0df80a6c0',
+    'account-deletion.html': '34ef0724c8141b066d3dd5406fceaafbdf6be5cf856946bcdb4de7721b5afc6a',
+    'contact.html': '192c4d9903e5efd5d393f606f7e92a8e26e9ab5eb8445655fd904240cf2ff3d0',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': '4674a04254d2598fe7bf1de0c030ad185f9387996d3bdd9b0f10334c250b7f90',

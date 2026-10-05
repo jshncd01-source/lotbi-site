@@ -6,13 +6,19 @@ on:
       - main
     paths:
       - index.html
+      - about.html
       - privacy.html
       - terms.html
+      - account-deletion.html
+      - contact.html
       - subscribe.html
       - refund.html
       - exchange.html
       - dispute.html
+      - sitemap.xml
+      - nginx/default.conf.template
       - scripts/sync_footer_business_info.py
+      - scripts/validate_clean_urls.py
       - scripts/validate_legal_pages.py
       - scripts/emit_social_signup_legal_manifest.py
       - .github/workflows/legal-pages-review.yml
@@ -48,6 +54,9 @@ jobs:
 
       - name: Validate public-site structure
         run: python scripts/validate_site.py
+
+      - name: Validate clean public URLs
+        run: python scripts/validate_clean_urls.py
 
       - name: Validate public-site hardening
         run: python scripts/validate_hardening.py
