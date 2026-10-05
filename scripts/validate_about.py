@@ -53,9 +53,9 @@ def main() -> int:
         or 'src="/assets/brand/lotbi-lockup-160w.png"' not in about
     ):
         errors.append("about.html: official LOTBI brand asset must be reused")
-    if 'href="about.html"' not in index:
+    if 'href="/about"' not in index:
         errors.append("index.html: company introduction must be discoverable from the public home")
-    if "https://lotbiai.com/about.html" not in sitemap:
+    if "https://lotbiai.com/about" not in sitemap:
         errors.append("sitemap.xml: company introduction URL missing")
     if "@media (max-width: 760px)" not in css:
         errors.append("about.css: responsive mobile rule missing")

@@ -56,16 +56,21 @@ REQUIRED_FILES = REQUIRED_HTML + (
 )
 EXPECTED_CANONICALS = {
     "index.html": f"{SITE_ORIGIN}/",
-    "about.html": f"{SITE_ORIGIN}/about.html",
-    "privacy.html": f"{SITE_ORIGIN}/privacy.html",
-    "terms.html": f"{SITE_ORIGIN}/terms.html",
-    "account-deletion.html": f"{SITE_ORIGIN}/account-deletion.html",
-    "contact.html": f"{SITE_ORIGIN}/contact.html",
-    "subscribe.html": f"{SITE_ORIGIN}/subscribe.html",
-    "refund.html": f"{SITE_ORIGIN}/refund.html",
-    "exchange.html": f"{SITE_ORIGIN}/exchange.html",
-    "dispute.html": f"{SITE_ORIGIN}/dispute.html",
+    "about.html": f"{SITE_ORIGIN}/about",
+    "privacy.html": f"{SITE_ORIGIN}/privacy",
+    "terms.html": f"{SITE_ORIGIN}/terms",
+    "account-deletion.html": f"{SITE_ORIGIN}/account-deletion",
+    "contact.html": f"{SITE_ORIGIN}/contact",
+    "subscribe.html": f"{SITE_ORIGIN}/subscribe",
+    "refund.html": f"{SITE_ORIGIN}/refund",
+    "exchange.html": f"{SITE_ORIGIN}/exchange",
+    "dispute.html": f"{SITE_ORIGIN}/dispute",
     "feedback.html": f"{SITE_ORIGIN}/feedback.html",
+}
+CLEAN_ROUTE_TO_FILE = {
+    canonical.removeprefix(SITE_ORIGIN): filename
+    for filename, canonical in EXPECTED_CANONICALS.items()
+    if filename not in {"index.html", "feedback.html"}
 }
 
 
@@ -142,6 +147,9 @@ def local_target(source: Path, raw_url: str) -> tuple[Path | None, str | None]:
     path_part = unquote(parsed.path)
     if not path_part:
         return source, parsed.fragment or None
+    clean_file = CLEAN_ROUTE_TO_FILE.get(path_part)
+    if clean_file:
+        return (ROOT / clean_file).resolve(), parsed.fragment or None
     if path_part.startswith("/"):
         candidate = (ROOT / path_part.lstrip("/")).resolve()
     else:
@@ -261,7 +269,7 @@ def main() -> int:
             fail(errors, "account-deletion.html: must not overclaim immediate hard deletion")
 
     index_text = (ROOT / "index.html").read_text(encoding="utf-8") if (ROOT / "index.html").exists() else ""
-    for required_link in ("about.html", "privacy.html", "terms.html", "account-deletion.html", "contact.html"):
+    for required_link in ("/about", "/privacy", "/terms", "/account-deletion", "/contact"):
         if required_link not in index_text:
             fail(errors, f"index.html: footer/navigation must expose {required_link}")
 
