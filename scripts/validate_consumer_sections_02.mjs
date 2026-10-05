@@ -12,7 +12,8 @@ assert.match(LIFE_SHORTCUTS.find(item => item.id === 'bills').prompt, /등록할
 for (const label of ['사람 등록', '제휴처 찾아 연결하기']) assert.ok(source.includes(label));
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|type = 'file'/);
 assert.match(source, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt\}\)/);
-assert.match(source, /action\('사람 등록', null, \{disabled: true\}\)/);
+assert.match(source, /mountPeople\(host, counts =>/);
+assert.doesNotMatch(source, /action\('사람 등록', null, \{disabled: true\}\)/);
 assert.match(source, /role', 'tablist'/);
 assert.match(source, /aria-selected/);
 assert.match(source, /ArrowLeft.*ArrowRight.*Home.*End/);
@@ -21,6 +22,7 @@ assert.match(source, /!authenticated/);
 assert.match(source, /mounted\?\.dispose\?\.\(\)/);
 assert.match(conversation, /onClose: \(\) => mounted\?\.dispose\(\)/);
 assert.match(conversation, /mountPetFamilyManager\(\{sessionToken, root, subscription: serverSubscription/);
+assert.match(conversation, /mountPersonProfileManager\(\{sessionToken, root, subscription: serverSubscription/);
 assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.match(css, /min-height: 44px/);
