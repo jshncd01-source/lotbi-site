@@ -77,6 +77,7 @@ body.chat-home-page .consumer-workspace {
   --lotbi-calendar-weekday-ink: var(--lotbi-text-primary);
   --lotbi-calendar-muted-ink: var(--lotbi-text-primary);
   --lotbi-calendar-outside-surface: var(--lotbi-surface-subtle);
+  --lotbi-calendar-week-selected-surface: var(--lotbi-surface-subtle);
   --lotbi-calendar-grid-line: var(--lotbi-border-default);
   --lotbi-calendar-today-ring: var(--lotbi-text-primary);
 }
@@ -84,6 +85,13 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-weight: 500
 body.chat-home-page .consumer-workspace :is(.calendar-date-number, .calendar-week-day-number) { font-size: 15px; font-weight: 500; }
 body.chat-home-page .consumer-workspace :is(.calendar-weekdays, .calendar-mobile-event-count, .calendar-event-chip, .calendar-event-status) { font-weight: 400; }
 body.chat-home-page .consumer-workspace .calendar-title-button { font-weight: 500; }
+body.chat-home-page .consumer-workspace .calendar-year-month { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+body.chat-home-page .consumer-workspace .calendar-mini-weekdays { font-size: 12px; line-height: 1.6; }
+body.chat-home-page .consumer-workspace .calendar-mini-grid span { min-height: 22px; font-size: 12px; }
+body.chat-home-page .consumer-workspace .calendar-year-event-count { font-size: 12px; font-weight: 400; }
+body.chat-home-page .consumer-workspace .calendar-year-month[data-current="true"] { border-color: var(--lotbi-text-primary); box-shadow: inset 0 0 0 1px var(--lotbi-text-primary); }
+body.chat-home-page .consumer-workspace :is(.calendar-week-date, .calendar-week-day)[data-selected="true"] { background: var(--lotbi-calendar-week-selected-surface); }
+body.chat-home-page .consumer-workspace .calendar-week-strip { background: var(--lotbi-surface-primary); border-color: var(--lotbi-border-default); }
 body.chat-home-page .consumer-workspace .calendar-date-cell[data-selected='true'] { background: var(--lotbi-surface-subtle); }
 body.chat-home-page .consumer-workspace .calendar-date-cell[data-today='true'] { box-shadow: inset 0 0 0 1.5px var(--lotbi-text-primary); }
 /* Detail pages are quiet workspaces, not grids of oversized menu cards. */

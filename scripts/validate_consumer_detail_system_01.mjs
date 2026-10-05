@@ -36,6 +36,15 @@ assert.match(read('site-consumer-sections.js'), /확인 없이 진행하지 않�
 // Conditional scam questions must stay hidden until the user chooses the incident path.
 assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);
 const layout = read('site-consumer-layout.css');
+const manager = read('site-calendar-manager.js');
+const yearRenderer = manager.slice(manager.indexOf('function renderYear('), manager.indexOf('function renderYear(') + 2500);
+assert.match(yearRenderer, /for \(const weekday of weekdayOrder\(state\.weekStart\)\)/, 'year weekday headings must occupy seven separate cells');
+assert.match(yearRenderer, /weekdays\.appendChild\(label\)/);
+assert.doesNotMatch(yearRenderer, /weekdays\.textContent\s*=/, 'a single text node wraps into the first grid column');
+assert.match(layout, /--lotbi-calendar-week-selected-surface: var\(--lotbi-surface-subtle\)/);
+assert.match(layout, /\.calendar-mini-weekdays\s*\{ font-size: 12px/);
+assert.match(layout, /\.calendar-year-month\s*\{ display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start/);
+assert.match(layout, /\.calendar-mini-grid span\s*\{ min-height: 22px; font-size: 12px/);
 // Workspace is the backdrop's class; .site-modal is its child, not its ancestor.
 assert.match(layout, /body\.chat-home-page \.consumer-workspace \.site-modal \.consumer-search input\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*transparent\s*!important/);
 assert.match(layout, /\.consumer-search:focus-within\s*\{[^}]*outline:/);
