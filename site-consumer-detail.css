@@ -64,6 +64,9 @@ body.chat-home-page .calendar-editor-header { padding: 0 0 12px; }
 body.chat-home-page .calendar-editor-form { min-width: 0; }
 body.chat-home-page .calendar-editor-body { padding-inline: 0; scrollbar-gutter: stable; }
 body.chat-home-page .calendar-editor-actions { padding-inline: 0; padding-bottom: 0; }
+/* A pristine form has no error to reserve a full paragraph for. Nonempty
+   validation errors retain their role/appearance; no submission logic changes. */
+body.chat-home-page .calendar-editor-error:empty { display: none; }
 body.chat-home-page :is(.calendar-editor-close, .calendar-readonly-close, .calendar-settings-close, .site-modal-close) {
   width: 44px; min-height: 44px; padding: 8px; border: 0;
   border-radius: 10px; background: transparent; color: var(--lotbi-text-secondary);
@@ -85,6 +88,9 @@ body.chat-home-page :is(.calendar-editor-actions, .calendar-readonly-actions, .c
 body.chat-home-page :is(.calendar-editor-actions, .calendar-readonly-actions, .calendar-delete-confirm-actions) button {
   min-height: 44px; border-radius: 10px; padding: 10px 16px; font-size: 14px;
 }
+/* The editor body already ends with its own padding. Avoid adding another
+   20px margin before the fixed footer while retaining a clear divider. */
+body.chat-home-page .calendar-editor-dialog .calendar-editor-actions { margin-top: 0; padding-top: 16px; }
 body.chat-home-page :is(.calendar-readonly-notice, .calendar-editor-help, .site-field-help, .pet-form-help, .pet-meta, .festival-card-location) {
   font-size: 13px; line-height: 1.65; color: var(--consumer-detail-muted);
 }
@@ -113,6 +119,12 @@ body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal
 .consumer-life-detail > .consumer-action { min-height: 44px; }
 .consumer-life-detail h3 { margin-top: 0; }
 .consumer-life-detail .consumer-feature-note { max-width: 60ch; }
+/* A grid child with auto margins otherwise shrinks to its example text width,
+   leaving the detail heading and the workspace header on different columns. */
+body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal { max-width: 600px; }
+body.chat-home-page .consumer-workspace .consumer-life-detail { width: 100%; min-width: 0; }
+body.chat-home-page .consumer-workspace .consumer-life-form { min-width: 0; }
+body.chat-home-page .consumer-workspace .consumer-life-field { min-width: 0; font-size: 14px; line-height: 1.6; }
 body.chat-home-page :is(.profile-popover, .thread-menu, .attachment-menu, .response-grade-menu, .profile-photo-source-menu) button { font-size: 14px; font-weight: 500; }
 body.chat-home-page :is(.profile-popover, .thread-menu, .attachment-menu, .response-grade-menu) { box-shadow: 0 6px 24px rgb(0 0 0 / 9%); }
 body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) :is(button, a, input, select, textarea, summary):focus-visible {
@@ -126,6 +138,9 @@ body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .c
   body.chat-home-page :is(.calendar-editor-actions, .calendar-delete-confirm-actions) button { flex: 1 1 auto; }
   body.chat-home-page :is(.calendar-editor-primary, .calendar-editor-details) { grid-template-columns: minmax(0, 1fr); }
   body.chat-home-page .calendar-editor-body { padding: 12px 0; }
+  /* Fit the short form to its contents, but keep expanded details within the
+     existing visual-viewport-sized backdrop so header/footer remain reachable. */
+  body.chat-home-page .calendar-editor-dialog { height: auto; max-height: 100%; align-self: center; }
   body.chat-home-page .calendar-settings-select-row { align-items: stretch; flex-direction: column; gap: 8px; padding: 12px 0; }
   body.chat-home-page .calendar-settings-select { width: 100%; }
   body.chat-home-page .calendar-settings-body { padding-bottom: env(safe-area-inset-bottom); }
@@ -178,9 +193,32 @@ body.chat-home-page .festival-detail-name { font-size: 26px; font-weight: 500; }
 body.chat-home-page :is(.calendar-editor-details, .calendar-settings-section) { border-radius: 0; background: transparent; }
 body.chat-home-page .calendar-editor-details { border: 0; border-top: 1px solid var(--lotbi-border-default); padding: 16px 0 0; }
 body.chat-home-page .calendar-editor-details > summary { min-height: 44px; }
+body.chat-home-page .calendar-editor-details:not([open]) { row-gap: 0; padding-top: 12px; }
 body.chat-home-page .calendar-expense-summary { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; background: transparent; }
-body.chat-home-page .calendar-expense-label { color: var(--lotbi-text-primary); font-weight: 400; }
-body.chat-home-page .calendar-expense-amount { font-weight: 500; font-variant-numeric: tabular-nums; }
+/* Consumer calendar: a readable monthly ledger summary, not a coloured ticker.
+   Keep the legacy strip and its data contracts untouched outside this layout. */
+body.chat-home-page .calendar-expense-header { margin: 0 0 20px; }
+body.chat-home-page .calendar-expense-heading { margin: 0; font-size: 18px; line-height: 1.5; letter-spacing: -.02em; color: var(--lotbi-text-primary); }
+body.chat-home-page .calendar-expense-scope { margin: 6px 0 0; font-size: 13px; line-height: 1.65; color: var(--consumer-detail-muted); overflow-wrap: anywhere; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-line { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-total { grid-row: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 0; padding: 0; border: 0; min-width: 0; }
+body.chat-home-page .calendar-expense-total-label { font-size: 13px; font-weight: 400; color: var(--consumer-detail-muted); }
+body.chat-home-page .calendar-expense-total-amount { font-size: 26px; font-weight: 500; line-height: 1.4; letter-spacing: -.025em; overflow-wrap: anywhere; min-width: 0; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-items { grid-row: 2; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 16px; overflow: visible; white-space: normal; }
+body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
+body.chat-home-page .calendar-expense-item[data-expense-category] dt { color: var(--lotbi-text-primary); font-size: 13px; font-weight: 400; }
+body.chat-home-page .calendar-expense-item dd { color: var(--lotbi-text-primary); font-size: 15px; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
+body.chat-home-page .calendar-expense-coverage { grid-column: 1 / -1; margin: 0; font-size: 13px; line-height: 1.65; color: var(--lotbi-text-primary); white-space: normal; }
+body.chat-home-page .calendar-expense-notice { font-size: 14px; line-height: 1.7; color: var(--consumer-detail-muted); }
+body.chat-home-page .calendar-expense-storage-note { margin: 16px 0 0; font-size: 13px; line-height: 1.65; }
+body.chat-home-page .calendar-expense-line + .calendar-expense-line { margin-top: 20px; padding-top: 20px; }
+@media (max-width: 900px) {
+  body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-items { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  body.chat-home-page .calendar-expense-summary[data-expense-layout="workspace"] .calendar-expense-items { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+  body.chat-home-page .calendar-expense-total-amount { font-size: 24px; }
+}
 body.chat-home-page .lotbi-box-card { border-radius: 12px; background: var(--lotbi-surface-primary); box-shadow: none; }
 body.chat-home-page .lotbi-box-card-title { font-size: 16px; font-weight: 500; line-height: 1.5; }
 body.chat-home-page .lotbi-box-card-price { font-size: 16px; font-weight: 500; }
@@ -198,6 +236,12 @@ body.chat-home-page .chat-message-body .chat-code-block { background: var(--lotb
 body.chat-home-page .chat-message-expand-button { font-weight: 500; }
 body.chat-home-page .scam-result-headline { font-size: 16px; font-weight: 500; border-radius: 10px; }
 body.chat-home-page :is(.festival-detail-surface, .festival-program-surface) { padding: 20px 0; border: 0; background: transparent; }
+/* Flex display on detail surfaces must not override their hidden state. */
+body.chat-home-page .festival-manager [hidden] { display: none !important; }
+body.chat-home-page .festival-program-header { display: grid; gap: 8px; padding: 16px 0 24px; margin: 0; border-bottom: 1px solid var(--lotbi-border-default); }
+body.chat-home-page .festival-program-event-name { margin: 0; font-size: 14px; line-height: 1.65; color: var(--consumer-detail-muted); overflow-wrap: anywhere; }
+body.chat-home-page .festival-program-heading { margin: 0; font-size: 24px; font-weight: 500; line-height: 1.4; letter-spacing: -.025em; }
+body.chat-home-page .festival-program-header .festival-detail-period { margin: 0; }
 body.chat-home-page .festival-detail-name { font-size: 24px; font-weight: 600; letter-spacing: -.03em; line-height: 1.4; }
 body.chat-home-page :is(.festival-detail-period, .festival-detail-location, .festival-detail-summary, .festival-program-note) { font-size: 14px; line-height: 1.7; }
 body.chat-home-page .festival-program-item { border: 0; border-bottom: 1px solid var(--lotbi-border-default); border-radius: 0; padding: 16px 0; }
@@ -207,6 +251,55 @@ body.chat-home-page [data-scam-result] section { padding: 16px 0; border: 0; bor
 body.chat-home-page [data-scam-result] h4 { margin: 0 0 8px; font-size: 16px; }
 body.chat-home-page [data-scam-result] li { margin-block: 6px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
 body.chat-home-page [data-scam-result] summary { min-height: 44px; align-content: center; cursor: pointer; }
+/* Keep the title and dismiss action outside the single scrolling check body.
+   This applies to the native and fallback dialogs without opening a closed one. */
+body.chat-home-page .scam-dialog { overflow: hidden; padding: 0; }
+body.chat-home-page .scam-dialog[open] { display: flex; flex-direction: column; }
+body.chat-home-page .scam-dialog-header {
+  flex: 0 0 auto; align-items: center; padding: 24px 24px 18px;
+  border-bottom: 1px solid var(--lotbi-border-default); gap: 12px;
+}
+body.chat-home-page .scam-dialog-header > div { min-width: 0; }
+body.chat-home-page .scam-dialog .scam-dialog-header h2 { font-size: 22px; line-height: 1.4; letter-spacing: -.025em; }
+body.chat-home-page .scam-dialog .scam-dialog-eyebrow { margin: 0 0 6px; font-size: 12px; color: var(--consumer-detail-muted); }
+body.chat-home-page .scam-dialog-close { flex: 0 0 44px; min-height: 44px; border-radius: 10px; font-size: 24px; }
+body.chat-home-page .scam-dialog-close:hover { background: var(--lotbi-surface-subtle); }
+body.chat-home-page .scam-dialog-inner {
+  flex: 1 1 auto; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto;
+  padding: 20px 24px 24px; overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+body.chat-home-page .scam-dialog-description { margin: 0; font-size: 14px; line-height: 1.7; }
+body.chat-home-page .scam-dialog .scam-input-kinds { margin: 20px 0 24px; }
+body.chat-home-page .scam-input-panel { min-width: 0; display: grid; gap: 8px; }
+body.chat-home-page .scam-input-panel > label { font-size: 14px; font-weight: 500; line-height: 1.6; }
+body.chat-home-page .scam-dialog .scam-input-panel input[type=file] {
+  box-sizing: border-box; width: 100%; min-width: 0; padding: 12px;
+  border: 1px solid var(--lotbi-border-default); border-radius: 10px;
+  background: var(--lotbi-surface-subtle); color: var(--lotbi-text-primary);
+  font-family: inherit; font-size: 14px;
+}
+body.chat-home-page .scam-input-panel input[type=file]::file-selector-button {
+  min-height: 44px; padding: 8px 12px; margin-right: 10px;
+  border: 1px solid var(--lotbi-border-default); border-radius: 8px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; cursor: pointer;
+}
+body.chat-home-page .scam-field-help { margin: 0; color: var(--consumer-detail-muted); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+body.chat-home-page .scam-clicked { min-height: 44px; align-items: flex-start; padding-block: 10px; }
+body.chat-home-page .scam-clicked input { margin-top: 3px; }
+body.chat-home-page .scam-result { border-color: var(--lotbi-border-default); }
+body.chat-home-page .scam-status { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  body.chat-home-page .scam-dialog-header { padding: 18px 16px 14px; }
+  body.chat-home-page .scam-dialog .scam-dialog-header h2 { font-size: 20px; }
+  body.chat-home-page .scam-dialog-inner { padding: 18px 16px max(20px, env(safe-area-inset-bottom)); }
+  body.chat-home-page .scam-dialog .scam-input-kinds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  body.chat-home-page .scam-dialog .scam-input-kinds label {
+    min-width: 0; min-height: 76px; padding: 10px 4px; gap: 6px;
+    flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    font-size: 12px; line-height: 1.5; word-break: keep-all;
+  }
+  body.chat-home-page .scam-input-kinds svg { width: 18px; height: 18px; }
+}
 /* App/Web chooser uses the same quiet entry surface without decorative gradients. */
 .lotbi-mobile-entry { background: var(--lotbi-surface-primary, #fff); }
 .lotbi-entry-card { box-sizing: border-box; border: 0; border-radius: 16px; box-shadow: none; }

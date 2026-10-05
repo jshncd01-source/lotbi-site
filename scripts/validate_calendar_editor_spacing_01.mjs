@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+const css = read('site-consumer-detail.css');
+const manager = read('site-calendar-manager.js');
+assert.match(css, /\.calendar-editor-error:empty\s*\{ display: none;/);
+assert.doesNotMatch(css, /\.calendar-editor-error\s*\{[^}]*display: none/);
+assert.match(css, /\.calendar-editor-dialog \.calendar-editor-actions\s*\{ margin-top: 0; padding-top: 16px;/);
+assert.match(css, /\.calendar-editor-details:not\(\[open\]\)\s*\{ row-gap: 0; padding-top: 12px;/);
+assert.match(css, /\.calendar-editor-details > summary\s*\{ min-height: 44px;/);
+assert.match(css, /\.calendar-editor-dialog\s*\{ height: auto; max-height: 100%; align-self: center;/);
+assert.match(manager, /heightVar: '--calendar-editor-visual-height'/);
+assert.match(manager, /error\.setAttribute\('role', 'alert'\)/);
+assert.match(manager, /error\.textContent = /);
+assert.match(read('site-calendar.css'), /\.calendar-editor-details:not\(\[open\]\) > :not\(summary\) \{ display: none;/);
+console.log('CALENDAR_EDITOR_SPACING_01 PASS — CSS-only compact spacing, nonempty errors and disclosure contract retained');

@@ -58,21 +58,21 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-2483f0b86536';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-2483f0b86536';
+} from './site-festival-client.js?v=aset-75486decd111';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-75486decd111';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-2483f0b86536';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-2483f0b86536';
+} from './site-current-location.js?v=aset-75486decd111';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-75486decd111';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-2483f0b86536';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-75486decd111';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -82,8 +82,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-2483f0b86536';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2483f0b86536';
+} from './site-festival-calendar.js?v=aset-75486decd111';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-75486decd111';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -93,18 +93,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-2483f0b86536';
+} from './site-navigation.js?v=aset-75486decd111';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-2483f0b86536';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-75486decd111';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-2483f0b86536';
+} from './site-calendar-weather.js?v=aset-75486decd111';
 
 const PAGE_SIZE = 20;
 
@@ -215,7 +215,7 @@ function buildCardActionRow(festival, {
   programButton.type = 'button';
   programButton.className = 'festival-card-icon-button festival-card-action-program';
   programButton.textContent = '프로그램';
-  programButton.addEventListener('click', () => onOpenProgram(festival.id));
+  programButton.addEventListener('click', () => onOpenProgram(festival.id, festival));
   row.appendChild(programButton);
 
   const registrationButton = document.createElement('button');
@@ -1070,6 +1070,8 @@ export async function mountFestivalManager({
   }
 
   function showList() {
+    // Back navigation invalidates any pending detail/retry/weather response.
+    ++requestToken;
     programSurface.hidden = true;
     detailSurface.hidden = true;
     listSurface.hidden = false;
@@ -1141,7 +1143,7 @@ export async function mountFestivalManager({
     }
   }
 
-  function renderProgramSurface(festival, detailToken, {onBack} = {}) {
+  function renderProgramSurface(festival, detailToken, {onBack, loadFailed = false, onRetry} = {}) {
     programSurface.replaceChildren();
 
     const back = document.createElement('button');
@@ -1154,6 +1156,33 @@ export async function mountFestivalManager({
       else detailSurface.hidden = false;
     });
     programSurface.appendChild(back);
+
+    // Keep the selected event identifiable even when there are no programs.
+    // List metadata is already public and normalized; never invent dates.
+    const header = el('header', 'festival-program-header');
+    if (festival.name) header.appendChild(el('p', 'festival-program-event-name', festival.name));
+    header.appendChild(el('h3', 'festival-program-heading', '프로그램'));
+    const period = formatFestivalPeriod(festival);
+    if (period) header.appendChild(el('p', 'festival-detail-period', period));
+    programSurface.appendChild(header);
+
+    // A failed read is not evidence that an event has no programs.
+    if (loadFailed) {
+      const message = el('p', 'festival-error', '프로그램 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+      message.setAttribute('role', 'alert');
+      programSurface.appendChild(message);
+      if (onRetry) {
+        const retry = el('button', 'festival-retry-button', '다시 시도');
+        retry.type = 'button';
+        retry.addEventListener('click', () => {
+          retry.disabled = true;
+          retry.textContent = '불러오는 중…';
+          onRetry();
+        });
+        programSurface.appendChild(retry);
+      }
+      return;
+    }
 
     const dateTabs = groupProgramsByDate(festival.programs);
     if (!dateTabs.length) {
@@ -1205,28 +1234,32 @@ export async function mountFestivalManager({
     }
   }
 
-  function openProgramSurface(festival, detailToken, {onBack} = {}) {
+  function openProgramSurface(festival, detailToken, options = {}) {
     listSurface.hidden = true;
     detailSurface.hidden = true;
     programSurface.hidden = false;
-    renderProgramSurface(festival, detailToken, {onBack});
+    renderProgramSurface(festival, detailToken, options);
   }
 
   // Lazy per-card fetch: browse items never carry programs, so [프로그램]/
   // [접수] on a list card fetch the one festival's detail on click, not for
-  // every visible card up front (no N+1 on the browse list). A fetch failure
-  // degrades to the same empty-state copy as a real "no programs" festival —
-  // never a stuck spinner or a thrown error into an onClick handler.
-  async function openProgramFromCard(festivalId) {
+  // every visible card up front (no N+1 on the browse list). Keep public list
+  // context on a failed read and distinguish failure from a real empty result.
+  async function openProgramFromCard(festivalId, listFestival) {
     const token = ++requestToken;
     let festival = null;
+    let failed = false;
     try {
       festival = await getPublishedFestival(festivalId, fetchImpl);
     } catch {
-      festival = null;
+      failed = true;
     }
     if (token !== requestToken) return;
-    openProgramSurface(festival || {programs: []}, token, {onBack: showList});
+    openProgramSurface(festival || {...listFestival, programs: []}, token, {
+      onBack: showList,
+      loadFailed: failed || !festival,
+      onRetry: () => openProgramFromCard(festivalId, listFestival),
+    });
   }
 
   async function openRegistrationFromCard(festivalId) {

@@ -174,7 +174,7 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
   };
 }
 
-function currencyLine(presentation) {
+function currencyLine(presentation, {totalFirst = false} = {}) {
   const line = document.createElement('div');
   line.className = 'calendar-expense-line';
   line.dataset.currency = presentation.currency;
@@ -212,7 +212,8 @@ function currencyLine(presentation) {
     items.appendChild(coverage);
   }
 
-  line.append(items, total);
+  if (totalFirst) line.append(total, items);
+  else line.append(items, total);
   return line;
 }
 
@@ -238,6 +239,7 @@ const EMPTY_KRW = Object.freeze({
  * @param {string} [options.monthLabel] e.g. "2026년 9월"
  * @param {string} [options.errorMessage]
  * @param {boolean} [options.local] totals computed from this browser's own entries
+ * @param {boolean} [options.showHeading] consumer workspace, not the legacy compact strip
  */
 export function calendarExpenseSummaryNode({
   state,
@@ -245,6 +247,7 @@ export function calendarExpenseSummaryNode({
   monthLabel = '',
   errorMessage = '',
   local = false,
+  showHeading = false,
 }) {
   const section = document.createElement('section');
   section.className = 'calendar-expense-summary';
@@ -253,6 +256,20 @@ export function calendarExpenseSummaryNode({
     'aria-label',
     monthLabel ? `${monthLabel} 지출 합계` : '지출 합계',
   );
+
+  if (showHeading) {
+    section.dataset.expenseLayout = 'workspace';
+    const header = document.createElement('header');
+    header.className = 'calendar-expense-header';
+    const heading = document.createElement('h3');
+    heading.className = 'calendar-expense-heading';
+    heading.textContent = '월별 지출';
+    const scope = document.createElement('p');
+    scope.className = 'calendar-expense-scope';
+    scope.textContent = [monthLabel, '캘린더에 기록한 금액 기준'].filter(Boolean).join(' · ');
+    header.append(heading, scope);
+    section.appendChild(header);
+  }
 
   if (state === 'loading') {
     section.appendChild(noticeNode('지출 합계를 불러오는 중…', {status: true}));
@@ -275,7 +292,9 @@ export function calendarExpenseSummaryNode({
 
   const presentation = expenseSummaryPresentation(summary, {local});
   section.dataset.expenseRecorded = String(presentation.recorded);
-  presentation.lines.forEach(line => section.appendChild(currencyLine(line)));
+  // Reading order follows the consumer layout: total, then categories. The
+  // compact legacy strip retains its original categories-first DOM order.
+  presentation.lines.forEach(line => section.appendChild(currencyLine(line, {totalFirst: showHeading})));
   if (presentation.storageNote) {
     const storageNote = document.createElement('p');
     storageNote.className = 'calendar-expense-storage-note';
