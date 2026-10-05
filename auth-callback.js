@@ -5,10 +5,10 @@ import {
   readAndClearSiteHandoffContext,
   recoverMissingSiteHandoffContext,
   SiteHandoffClientError,
-} from './site-auth.js?v=aset-2646a013be23';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-2646a013be23';
-import {mountConversation} from './site-conversation.js?v=aset-2646a013be23';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-2646a013be23';
+} from './site-auth.js?v=aset-086dc99fe06b';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-086dc99fe06b';
+import {mountConversation} from './site-conversation.js?v=aset-086dc99fe06b';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-086dc99fe06b';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -105,8 +105,8 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-  await loadClassicScript('/home-shell.js?v=aset-2646a013be23');
-  await loadClassicScript('/mobile-entry.js?v=aset-2646a013be23');
+  await loadClassicScript('/home-shell.js?v=aset-086dc99fe06b');
+  await loadClassicScript('/mobile-entry.js?v=aset-086dc99fe06b');
 }
 
 async function completeSiteHandoff() {

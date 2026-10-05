@@ -1,3 +1,5 @@
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-086dc99fe06b';
+
 export const BROWSER_CURRENT_LOCATION_MAX_AGE_MS = 120_000;
 
 export const LOCATION_PERMISSION = Object.freeze({
@@ -30,6 +32,11 @@ let recentBrowserLocation = null;
 // 같은 순간에 두 기능이 mount 되어도 getCurrentPosition 은 한 번만 부른다(§9).
 // 먼저 시작한 요청의 promise 를 뒤이은 요청자들이 함께 기다린다.
 let inFlightBrowserLocation = null;
+let locationPreferenceGeneration = 0;
+globalThis.window?.addEventListener(LOCATION_USAGE_EVENT, () => {
+  locationPreferenceGeneration += 1;
+  if (!isLocationUsageEnabled()) clearRecentBrowserCurrentLocation();
+});
 
 export class BrowserLocationError extends Error {
   constructor(code, message) {
@@ -70,6 +77,10 @@ export async function getBrowserLocationPermissionState({
   geolocation = globalThis.navigator?.geolocation,
   permissionQueryTimeoutMs = PERMISSION_QUERY_TIMEOUT_MS,
 } = {}) {
+  if (!isLocationUsageEnabled()) {
+    clearRecentBrowserCurrentLocation();
+    return LOCATION_PERMISSION.DENIED;
+  }
   if (!geolocation || typeof geolocation.getCurrentPosition !== 'function') {
     clearRecentBrowserCurrentLocation();
     return LOCATION_PERMISSION.UNAVAILABLE;
@@ -156,6 +167,11 @@ export function requestBrowserCurrentLocation({
   timeoutMs = 8_000,
   maxAgeMs = BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
 } = {}) {
+  if (!isLocationUsageEnabled()) {
+    clearRecentBrowserCurrentLocation();
+    return Promise.reject(new BrowserLocationError('LOCATION_USAGE_DISABLED', '설정에서 위치 사용이 꺼져 있어요.'));
+  }
+  const preferenceGeneration = locationPreferenceGeneration;
   if (!geolocation || typeof geolocation.getCurrentPosition !== 'function') {
     return Promise.reject(new BrowserLocationError(
       'BROWSER_LOCATION_UNSUPPORTED',
@@ -171,6 +187,9 @@ export function requestBrowserCurrentLocation({
     geolocation.getCurrentPosition(
       position => {
         try {
+          if (!isLocationUsageEnabled() || preferenceGeneration !== locationPreferenceGeneration) {
+            throw new BrowserLocationError('LOCATION_USAGE_DISABLED', '설정에서 위치 사용이 변경되었어요.');
+          }
           resolve(normalizePosition(position, {now, maxAgeMs}));
         } catch (error) {
           reject(browserLocationFailure(error));
@@ -212,6 +231,7 @@ export function getRecentBrowserCurrentLocation({
   now = Date.now,
   maxAgeMs = BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
 } = {}) {
+  if (!isLocationUsageEnabled()) { clearRecentBrowserCurrentLocation(); return null; }
   if (!recentBrowserLocation) return null;
   return isFreshBrowserCurrentLocation(recentBrowserLocation, {now, maxAgeMs})
     ? recentBrowserLocation
@@ -237,6 +257,11 @@ export function acquireSharedBrowserCurrentLocation({
   timeoutMs = 8_000,
   maxAgeMs = BROWSER_CURRENT_LOCATION_MAX_AGE_MS,
 } = {}) {
+  if (!isLocationUsageEnabled()) {
+    clearRecentBrowserCurrentLocation();
+    return Promise.reject(new BrowserLocationError('LOCATION_USAGE_DISABLED', '설정에서 위치 사용이 꺼져 있어요.'));
+  }
+  const preferenceGeneration = locationPreferenceGeneration;
   const reusable = getRecentBrowserCurrentLocation({now, maxAgeMs});
   if (reusable) return Promise.resolve(reusable);
 
@@ -244,6 +269,9 @@ export function acquireSharedBrowserCurrentLocation({
 
   const pending = requestBrowserCurrentLocation({geolocation, now, timeoutMs, maxAgeMs})
     .then(location => {
+      if (!isLocationUsageEnabled() || preferenceGeneration !== locationPreferenceGeneration) {
+        throw new BrowserLocationError('LOCATION_USAGE_DISABLED', '설정에서 위치 사용이 변경되었어요.');
+      }
       recentBrowserLocation = location;
       return location;
     });
