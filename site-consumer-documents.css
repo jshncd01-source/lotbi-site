@@ -63,6 +63,10 @@ body.consumer-document { background: var(--panel); color: var(--text); }
 .consumer-document { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }
 .consumer-document :is(.section, .about-section) { max-width: 760px; margin-inline: auto; }
 .consumer-document .lead-small { color: var(--text); }
+/* Keep the seven-column notice inside the same reading column as its prose.
+   Wide table contents may scroll inside it; the page itself never breaks out.
+   The existing mobile labelled-row layout in styles.css remains unchanged. */
+.consumer-document .legal-table-scroll { width: 100%; max-width: 100%; margin: 18px 0 26px; transform: none; border-radius: 8px; }
 .consumer-document .feedback-done { padding: 28px 0; }
 .consumer-document .feedback-done h2 { font-size: 24px; font-weight: 600; letter-spacing: -.035em; }
 .consumer-document .feedback-category { min-height: 64px; border-color: var(--line); border-radius: 12px; }
