@@ -36,6 +36,24 @@ body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .c
   font-family: inherit; font-weight: 500; letter-spacing: 0; line-height: 1.5;
 }
 body.chat-home-page :is(.calendar-editor-header, .calendar-readonly-header, .calendar-settings-header) { align-items: center; gap: 12px; }
+/* One scroll owner per settings dialog. Keep the close control visible and let
+   the body shrink instead of nesting a second viewport-sized scroll area. */
+body.chat-home-page .calendar-settings-dialog { overflow: hidden; }
+body.chat-home-page .calendar-settings-header { flex: 0 0 auto; padding: 0 0 12px; }
+body.chat-home-page .calendar-settings-body {
+  flex: 1 1 auto; min-width: 0; min-height: 0; max-height: none;
+  overflow-x: hidden; overflow-y: auto; padding: 16px 0 0;
+  overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+body.chat-home-page .calendar-settings-body section { min-width: 0; }
+body.chat-home-page :is(.calendar-settings-weather-overview, .calendar-settings-status) { overflow-wrap: anywhere; }
+body.chat-home-page :is(.calendar-settings-toggle-row, .calendar-settings-select-row) small,
+body.chat-home-page :is(.calendar-settings-status, .calendar-settings-weather-overview small, .calendar-editor-primary > small) { font-size: 13px; line-height: 1.6; }
+body.chat-home-page .calendar-editor-dialog { overflow: hidden; }
+body.chat-home-page .calendar-editor-header { padding: 0 0 12px; }
+body.chat-home-page .calendar-editor-form { min-width: 0; }
+body.chat-home-page .calendar-editor-body { padding-inline: 0; scrollbar-gutter: stable; }
+body.chat-home-page .calendar-editor-actions { padding-inline: 0; padding-bottom: 0; }
 body.chat-home-page :is(.calendar-editor-close, .calendar-readonly-close, .calendar-settings-close, .site-modal-close) {
   width: 44px; min-height: 44px; padding: 8px; border: 0;
   border-radius: 10px; background: transparent; color: var(--lotbi-text-secondary);
@@ -98,9 +116,17 @@ body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .c
   body.chat-home-page :is(.calendar-editor-actions, .calendar-delete-confirm-actions) button { flex: 1 1 auto; }
   body.chat-home-page :is(.calendar-editor-primary, .calendar-editor-details) { grid-template-columns: minmax(0, 1fr); }
   body.chat-home-page .calendar-editor-body { padding: 12px 0; }
+  body.chat-home-page .calendar-settings-select-row { align-items: stretch; flex-direction: column; gap: 8px; padding: 12px 0; }
+  body.chat-home-page .calendar-settings-select { width: 100%; }
+  body.chat-home-page .calendar-settings-body { padding-bottom: env(safe-area-inset-bottom); }
 }
 @media (prefers-reduced-motion: reduce) {
   body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) { animation: none; scroll-behavior: auto; }
+}
+@media (max-width: 380px) {
+  /* Seven dates must fit the viewport. Retain 44px height without allowing
+     the desktop 44px minimum width to overlap adjacent date cells. */
+  body.chat-home-page .calendar-date-trigger { min-width: 0; width: 100%; min-height: 44px; }
 }
 /* Actual shared bottom-sheet owners: photo source, festival region and dates. */
 body.chat-home-page .lotbi-sheet { font-size: 14px; line-height: 1.65; }

@@ -13,6 +13,12 @@ for (const selector of ['calendar-settings-dialog', 'calendar-editor-dialog', 'c
 assert.match(css, /focus-visible/);
 assert.match(css, /prefers-reduced-motion/);
 assert.match(css, /font-size: 16px/);
+// Narrow calendar settings must have one scrolling body and shrinkable rows.
+assert.match(css, /\.calendar-settings-dialog\s*\{\s*overflow: hidden;/);
+assert.match(css, /\.calendar-settings-body\s*\{[^}]*min-width: 0;[^}]*max-height: none;[^}]*overflow-x: hidden; overflow-y: auto;/);
+assert.match(css, /\.calendar-settings-select-row\s*\{[^}]*flex-direction: column;/);
+assert.match(css, /\.calendar-settings-select\s*\{ width: 100%;/);
+assert.match(css, /\.calendar-date-trigger\s*\{ min-width: 0; width: 100%; min-height: 44px;/);
 for (const page of ['auth/callback/index.html', 'app/open/auth/social-return/index.html', 'kakao-navi.html']) assert.match(read(page), /site-consumer-transfer\.css/);
 // The normal login entry is a silent redirect; style its error inline only.
 const authStart = read('auth/start/index.html');
