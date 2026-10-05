@@ -118,6 +118,12 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # safe-area-aware top, 높이 기반 숨김 transform 으로 바꾸어 focus 시 전체 링크가
 # viewport 안에 들어온다. 변경 범위는 .skip-link 의 position/top/transform 세
 # 선언뿐이며 법적 페이지 본문·계정 URL·보안 경계에는 변화가 없다.
+# PRIVACY-TABLE-WIDTH-HOTFIX-20261005 — approved layout-only change in styles.css:
+# contain .legal-table-scroll in its reading column, preserving internal overflow,
+# keyboard focus and mobile data-label cards. All other CSS rules are unchanged.
+# Policy/support HTML differs only in generated asset version tokens, stripped
+# below; the policy text, contacts, URLs and consent evidence are not changed.
+# scripts/validate_privacy_table_width_01.mjs pins the new containment contract.
 LOCKED_SHA256 = {
     'privacy.html': 'b81b5d3de01471c05782d53e1db4e8cf78725297d3c455428c131a514f3b74f7',
     'terms.html': '5714d5205e923921851d5422a13afa8c0b483b932e85b2e81178cb4bac96b072',
@@ -125,7 +131,7 @@ LOCKED_SHA256 = {
     'contact.html': 'fb925d07ac2d862e46e999d1d3891aa1de05baf98cb50584306a43f6c7fccce3',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
-    'styles.css': '49c66de0ef4322c39dcedcbd796e7831b6369b359482bf25c2d4eb609b611969',
+    'styles.css': '59ff1f6f62783f3306186b90be8dbde178205fc70d99d154a803af7ae9206b97',
 }
 CHOOSER_BOOTSTRAP = '  <link rel="stylesheet" href="mobile-entry.css" />\n  <script src="mobile-entry.js" defer></script>\n'
 
