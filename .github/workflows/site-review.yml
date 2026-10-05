@@ -491,6 +491,15 @@ jobs:
           node scripts/validate_life_wallet_entry_lock_01.mjs
           node scripts/validate_consumer_sections_02.mjs
 
+      - name: Validate 진위확인 production connection
+        run: |
+          node --check site-scam-shield.js
+          node --check site-core.js
+          node --check site-conversation.js
+          node scripts/validate_scam_shield_mvp_01.mjs
+          node scripts/validate_scam_shield_connection_01.mjs
+          node scripts/validate_verification_dialog_design_01.mjs
+
       - name: Validate Production Core CORS contract
         shell: bash
         run: |

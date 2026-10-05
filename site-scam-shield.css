@@ -10,11 +10,22 @@
 .scam-dialog-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
 .scam-dialog-header h2 { margin: 0; font-size: 1.55rem; }
 .scam-dialog-close { width: 44px; border: 1px solid #d8dee8; background: #fff; font-size: 1.4rem; }
+.scam-login-gate { display: grid; gap: 18px; padding: 8px 0; }
+.scam-login-gate h3 { margin: 0; font-size: clamp(1.3rem, 4vw, 1.65rem); line-height: 1.4; }
+.scam-login-gate p { margin: 0; font-size: 1.05rem; line-height: 1.7; }
+.scam-login-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.scam-login-actions button { min-width: 160px; padding: 0 18px; border: 1px solid #b7c1d0; background: #fff; }
+.scam-login-actions [data-scam-login] { border-color: #1258d8; background: #1258d8; color: #fff; }
+.scam-scope-note { margin: 8px 0 0; color: var(--lotbi-text-secondary, #4b5563); font-size: .95rem; line-height: 1.65; word-break: keep-all; }
 .scam-input-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 20px 0 16px; }
 .scam-input-kinds label { min-height: 44px; display: grid; place-items: center; border: 1px solid #ccd5e3; border-radius: 12px; font-weight: 700; }
 .scam-input-kinds input { position: absolute; opacity: 0; }
 .scam-input-kinds label:has(input:checked) { border-color: #1258d8; background: #eaf1ff; color: var(--lotbi-text-primary, var(--text, #212121)); }
-.scam-input-panel input[type="text"], .scam-input-panel input[type="url"], .scam-input-panel input[type="file"], .scam-incident select { width: 100%; min-height: 50px; box-sizing: border-box; border: 1px solid #b7c1d0; border-radius: 12px; padding: 12px; font: inherit; }
+.scam-input-panel input[type="text"], .scam-input-panel input[type="url"], .scam-input-panel input[type="file"], .scam-input-panel textarea, .scam-incident select { width: 100%; min-height: 50px; box-sizing: border-box; border: 1px solid #b7c1d0; border-radius: 12px; padding: 12px; font: inherit; }
+.scam-voice-panel { display: grid; gap: 10px; }
+.scam-voice-panel textarea { min-height: 150px; resize: vertical; font-size: 1.2rem; line-height: 1.65; }
+.scam-voice-panel [data-scam-voice-start] { justify-self: start; min-width: 130px; padding: 0 16px; border: 1px solid #1258d8; background: #fff; color: #1258d8; }
+.scam-voice-panel [data-scam-voice-start][data-listening="true"] { background: #ffe5e5; border-color: #a31313; color: #a31313; }
 .scam-clicked { display: flex; gap: 10px; align-items: center; margin: 16px 0; font-weight: 700; }
 .scam-incident { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .scam-dialog [hidden] { display: none !important; }
@@ -22,11 +33,14 @@
 .scam-submit { width: 100%; border: 0; padding: 0 18px; color: #fff; background: #1258d8; }
 .scam-submit:disabled { opacity: .55; cursor: wait; }
 .scam-status { min-height: 24px; margin: 12px 0 0; color: var(--lotbi-text-primary, var(--text, #212121)); }
-.scam-result { margin-top: 18px; border-top: 1px solid #e3e8ef; padding-top: 18px; }
+.scam-result { margin-top: 18px; border-top: 1px solid #e3e8ef; padding-top: 18px; overflow-wrap: anywhere; }
+.scam-result h3 { margin: 0 0 10px; font-size: 1.2rem; }
 .scam-result-headline { display: inline-block; padding: 10px 14px; border-radius: 999px; background: #fff0d8; color: #7a3e00; font-size: 1.15rem; font-weight: 800; }
 .scam-result[data-risk-level="CURRENTLY_NO_RISK_SIGNAL"] .scam-result-headline { background: #e5f7ec; color: var(--lotbi-text-primary, var(--text, #212121)); }
 .scam-result[data-risk-level="HIGH_RISK"] .scam-result-headline, .scam-result[data-risk-level="CONFIRMED_MALICIOUS"] .scam-result-headline { background: #ffe5e5; color: #a31313; }
 .scam-result h4 { margin: 16px 0 6px; font-size: 1rem; }
 .scam-result ul { margin: 0; padding-left: 22px; line-height: 1.65; }
 .scam-result details { margin-top: 18px; }
+.scam-usage-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 18px; padding: 0 16px; border: 1px solid #1258d8; border-radius: 12px; color: #1258d8; font-weight: 800; text-decoration: none; }
+.scam-dialog :is(button, a, input, textarea, select):focus-visible { outline: 3px solid var(--lotbi-focus-ring, #1258d8); outline-offset: 3px; }
 @media (max-width: 560px) { .scam-dialog { width: 100%; max-width: none; max-height: 92dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; } .scam-incident { grid-template-columns: 1fr; } }
