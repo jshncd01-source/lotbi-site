@@ -12,6 +12,9 @@ assert.ok(ui.includes('실종 상태로 전환'));
 assert.ok(ui.includes('사진 갱신'));
 assert.ok(ui.includes('관리자 승인 후보'));
 assert.ok(ui.includes('연락처는 공개되지 않습니다.'));
+assert.ok(ui.includes('Promise.allSettled'));
+assert.ok(ui.includes('사람 등록과 사진 관리는 사용할 수 있습니다.'));
+assert.ok(ui.includes('실종 관리 연결은 준비 중입니다.'));
 assert.ok(conversation.includes('mountPeople: async'));
 assert.ok(conversation.includes('mountPersonCareManager'));
 
