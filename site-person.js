@@ -1,89 +1,45 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-de88e6e1b0a7';
-
-const BASE = '/v2/person-profiles';
+// Owner-only Person + SOS Core client. No public person search or contact data.
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-a06a83b89537';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
-  if (!result) throw new SiteCoreError('사람 정보를 보려면 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
+  if (!result) throw new SiteCoreError('사람 안심케어는 로그인 후 사용할 수 있습니다.', {code: 'SESSION_REQUIRED', status: 401});
   return result;
 }
-
-function requestKey() {
-  const id = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
-    || `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`.padEnd(32, '0').slice(0, 32);
-  return `prq_${Date.now().toString().padStart(13, '0')}_${id.slice(0, 32)}`;
-}
-
-const MESSAGES = Object.freeze({
-  PERSON_CARE_PROFILE_LIMIT_REACHED: '안심케어 프로필 한도에 도달했습니다. 기존 프로필을 정리하거나 플랜을 확인해 주세요.',
-  PERSON_FIELD_INVALID: '이름과 입력 내용을 확인해 주세요.',
-  PERSON_RELATIONSHIP_INVALID: '관계를 다시 선택해 주세요.',
-  PERSON_PHOTO_TOO_LARGE: '사진은 2MB 이하로 선택해 주세요.',
-  PERSON_PHOTO_UNSUPPORTED: 'JPG, PNG 또는 WEBP 사진을 선택해 주세요.',
-  PERSON_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진으로 다시 시도해 주세요.',
-  PERSON_PHOTO_BOUNDS_INVALID: '사진 크기가 너무 큽니다. 다른 사진으로 다시 시도해 주세요.',
-  SESSION_REQUIRED: '로그인이 필요합니다.',
-  SESSION_INVALID: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
-  SESSION_EXPIRED: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
-  SESSION_AUDIENCE_RESTRICTED: '이 브라우저에서는 아직 사람 등록을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
-});
-
-async function payload(response) {
-  try { return await response.json(); } catch { return {}; }
-}
-
-function apiError(response, body, fallback) {
-  const detail = body && typeof body.detail === 'object' ? body.detail : {};
-  const code = typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`;
-  const message = MESSAGES[code]
-    || (response.status >= 500 ? '서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해 주세요.' : fallback);
-  return new SiteCoreError(message, {code, status: response.status, retryable: response.status >= 500});
-}
-
-async function jsonRequest(path, sessionToken, {method = 'GET', body, idempotent = false} = {}, fetchImpl = globalThis.fetch) {
-  const headers = {Authorization: `Bearer ${token(sessionToken)}`};
+async function request(path, sessionToken, {method = 'GET', body, requestKey = ''} = {}, fetchImpl = globalThis.fetch) {
+  const headers = {Authorization: `Bearer ${token(sessionToken)}`, Accept: 'application/json'};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (idempotent) headers['Idempotency-Key'] = requestKey();
+  if (requestKey) headers['Idempotency-Key'] = requestKey;
   let response;
-  try {
-    response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
-      method, mode: 'cors', credentials: 'omit', headers,
-      ...(body !== undefined ? {body: JSON.stringify(body)} : {}),
-    });
-  } catch {
-    throw new SiteCoreError('안심케어 서버에 연결하지 못했습니다.', {code: 'PERSON_NETWORK_ERROR', retryable: true});
+  try { response = await fetchImpl(`${CORE_ORIGIN}${path}`, {method, mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', headers, ...(body === undefined ? {} : {body: JSON.stringify(body)})}); }
+  catch { throw new SiteCoreError('사람 안심케어 서버에 연결하지 못했습니다.', {code: 'PERSON_NETWORK_ERROR', retryable: true}); }
+  let payload = {}; try { payload = await response.json(); } catch {}
+  if (!response.ok) {
+    const detail = payload?.detail && typeof payload.detail === 'object' ? payload.detail : {};
+    throw new SiteCoreError('요청을 처리하지 못했습니다.', {code: typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`, status: response.status});
   }
-  const data = response.status === 204 ? {} : await payload(response);
-  if (!response.ok) throw apiError(response, data, '요청을 완료하지 못했습니다.');
-  return data;
+  return payload;
 }
-
-export async function listPersonProfiles(sessionToken, fetchImpl = globalThis.fetch) {
-  const data = await jsonRequest(BASE, sessionToken, {}, fetchImpl);
-  return Array.isArray(data.people) ? data.people : [];
-}
-
-export async function createPersonProfile(sessionToken, input, fetchImpl = globalThis.fetch) {
-  const data = await jsonRequest(BASE, sessionToken, {method: 'POST', body: input, idempotent: true}, fetchImpl);
-  if (!data.person?.person_id) throw new SiteCoreError('사람 등록 응답이 올바르지 않습니다.', {code: 'PERSON_CONTRACT_INVALID'});
-  return data.person;
-}
-
-export async function uploadPersonPhoto(sessionToken, personId, revision, photoDataUri, fetchImpl = globalThis.fetch) {
-  const data = await jsonRequest(`${BASE}/${encodeURIComponent(personId)}/photo`, sessionToken, {
-    method: 'PUT', body: {expected_revision: revision, photo_data_uri: photoDataUri}, idempotent: true,
-  }, fetchImpl);
-  return data.person;
-}
-
-export async function deletePersonProfile(sessionToken, personId, revision, fetchImpl = globalThis.fetch) {
-  await jsonRequest(`${BASE}/${encodeURIComponent(personId)}?expected_revision=${revision}`, sessionToken, {method: 'DELETE'}, fetchImpl);
-}
-
-export async function personThumbnailUrl(sessionToken, personId, fetchImpl = globalThis.fetch) {
-  const response = await fetchImpl(`${CORE_ORIGIN}${BASE}/${encodeURIComponent(personId)}/photo/thumbnail`, {
-    method: 'GET', mode: 'cors', credentials: 'omit', headers: {Authorization: `Bearer ${token(sessionToken)}`},
-  });
-  if (!response.ok) throw apiError(response, await payload(response), '사진을 불러오지 못했습니다.');
-  return URL.createObjectURL(await response.blob());
-}
+function person(row) { return Object.freeze({personId: row.person_id, displayName: row.display_name, nickname: row.nickname || '', relationship: row.relationship, birthYear: row.birth_year == null ? null : Number(row.birth_year), birthMonth: row.birthday_month == null ? null : Number(row.birthday_month), revision: row.revision, hasPhoto: row.has_photo === true, identityPhotoCount: Number(row.identity_photo_count || 0), identityPhotoRequired: Number(row.identity_photo_required || 10), identityPhotoState: row.identity_photo_state || 'INCOMPLETE', identityPhotoExpiresAt: row.identity_photo_expires_at || null, identityPhotoDaysRemaining: row.identity_photo_days_remaining ?? null, identityPhotoRenewalReminderDays: row.identity_photo_renewal_reminder_days ?? null, identityPhotoValidityDays: row.identity_photo_validity_days ?? null, identityPhotoRenewalPolicy: row.identity_photo_renewal_policy || null}); }
+function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_index), slotCode: row.slot_code || row.angle_code, revision: Number(row.revision), width: Number(row.width), height: Number(row.height), updatedAt: row.updated_at}); }
+function sighting(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('사람 제보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({reportId: row.report_id, observedAt: row.observed_at, locationSummary: row.location_summary, description: row.description || '', reviewState: row.review_state, photoCount: Number(row.photo_count), minimumPhotoCount: Number(row.minimum_photo_count), maximumPhotoCount: Number(row.maximum_photo_count), canSubmit: row.can_submit === true, message: row.message}); }
+function sos(row) { if (row.matching_scope !== 'ACTIVE_SOS_ONLY' || row.automatic_identity_decision !== false) throw new SiteCoreError('SOS 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({sosId: row.sos_id, personId: row.person_id, displayName: row.display_name, status: row.status, lastSeenAt: row.last_seen_at, lastSeenSummary: row.last_seen_summary, description: row.description || ''}); }
+function notice(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('후보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({noticeId: row.notice_id, candidateId: row.candidate_id, personId: row.person_id, displayName: row.display_name, status: row.status, response: row.response || '', faceScore: row.face_score, photoPath: row.registered_photo_path}); }
+export const personRequestKey = kind => `site.person.${kind}.${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)}`;
+export async function listPeople(sessionToken, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {}, fetchImpl); return Object.freeze((payload.people || []).map(person)); }
+export async function getPerson(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}`, sessionToken, {}, fetchImpl); return person(payload.person); }
+export async function createPerson(sessionToken, input, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {method: 'POST', requestKey: input.requestKey || personRequestKey('create'), body: {display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), birthday_day: null, nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
+export async function updatePerson(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method: 'PATCH', body: {expected_revision: input.revision, display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
+export async function deletePerson(sessionToken, value, fetchImpl) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
+export async function putPersonPhoto(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}/photo`, sessionToken, {method: 'PUT', requestKey: input.requestKey || personRequestKey('photo'), body: {expected_revision: input.revision, photo_data_uri: input.dataUri}}, fetchImpl); return person(payload.person); }
+export async function listPersonIdentityPhotos(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos`, sessionToken, {}, fetchImpl); return Object.freeze((payload.photos || []).map(identityPhoto)); }
+export async function putPersonIdentityPhoto(sessionToken, personId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
+export async function listPersonSos(sessionToken, fetchImpl) { const payload = await request('/v2/person-sos?status=ACTIVE', sessionToken, {}, fetchImpl); return Object.freeze((payload.items || []).map(sos)); }
+export async function createPersonSos(sessionToken, input, fetchImpl) { const payload = await request('/v2/person-sos', sessionToken, {method: 'POST', body: {person_id: input.personId, last_seen_at: input.lastSeenAt, last_seen_summary: input.lastSeenSummary, description: input.description || null, matching_consent_confirmed: input.matchingConsentConfirmed === true}}, fetchImpl); return sos(payload.sos); }
+export async function closePersonSos(sessionToken, sosId, fetchImpl) { const payload = await request(`/v2/person-sos/${encodeURIComponent(sosId)}/close`, sessionToken, {method: 'PUT'}, fetchImpl); return sos(payload.sos); }
+export async function listGuardianNotices(sessionToken, fetchImpl) { const payload = await request('/v2/person-sos/notices/candidates', sessionToken, {}, fetchImpl); return Object.freeze((payload.notices || []).map(notice)); }
+export async function respondGuardianNotice(sessionToken, noticeId, response, fetchImpl) { const payload = await request(`/v2/person-sos/notices/${encodeURIComponent(noticeId)}/response`, sessionToken, {method: 'POST', body: {response}}, fetchImpl); return notice(payload.notice); }
+export async function listHumanSightings(sessionToken, fetchImpl) { const payload = await request('/v2/safecare/human-sightings', sessionToken, {}, fetchImpl); return Object.freeze((payload.reports || []).map(sighting)); }
+export async function createHumanSighting(sessionToken, input, fetchImpl) { const payload = await request('/v2/safecare/human-sightings', sessionToken, {method: 'POST', body: {observed_at: input.observedAt, location_summary: input.locationSummary, description: input.description || null}}, fetchImpl); return sighting(payload.report); }
+export async function putHumanSightingPhoto(sessionToken, reportId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
+export async function submitHumanSighting(sessionToken, reportId, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/submit`, sessionToken, {method: 'POST'}, fetchImpl); return sighting(payload.report); }

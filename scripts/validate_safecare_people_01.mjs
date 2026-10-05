@@ -17,16 +17,16 @@ const fetchImpl = async (url, options = {}) => {
   return new Response(JSON.stringify({people: []}), {status: 200, headers: {'Content-Type': 'application/json'}});
 };
 
-const {createPersonProfile, deletePersonProfile, listPersonProfiles} = await import('../site-person.js');
-assert.deepEqual(await listPersonProfiles('session-token', fetchImpl), []);
-const person = await createPersonProfile('session-token', {
-  display_name: '김롯비', relationship: 'FAMILY', nickname: null,
-  birthday_month: null, birthday_day: null,
+const {createPerson, deletePerson, listPeople} = await import('../site-person.js');
+assert.deepEqual(await listPeople('session-token', fetchImpl), []);
+const person = await createPerson('session-token', {
+  displayName: '김롯비', relationship: 'FAMILY', nickname: null,
+  birthYear: 2017, birthMonth: 5,
 }, fetchImpl);
-assert.equal(person.display_name, '김롯비');
-assert.match(calls[1].options.headers['Idempotency-Key'], /^prq_[0-9]{13}_[0-9a-f]{32}$/);
+assert.equal(person.displayName, '김롯비');
+assert.match(calls[1].options.headers['Idempotency-Key'], /^site\.person\.create\./);
 assert.equal(calls[1].options.credentials, 'omit');
-await deletePersonProfile('session-token', person.person_id, 1, fetchImpl);
+await deletePerson('session-token', {personId: person.personId, revision: 1}, fetchImpl);
 assert.match(calls[2].url, /expected_revision=1$/);
 
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -38,9 +38,10 @@ const index = read('index.html');
 assert.match(sections, /mountPeople/);
 assert.doesNotMatch(sections, /사람 등록과 SOS의 웹 연결은 준비 중/);
 assert.match(conversation, /site-person-ui\.js/);
-assert.match(ui, /사람과 반려동물은 같은 안심케어 한도/);
+assert.match(ui, /출생 연·월로 갱신 주기를 계산/);
+assert.match(ui, /활성 SOS 기간 동안만/);
 assert.match(ui, /image\/jpeg,image\/png,image\/webp/);
 assert.match(css, /\.person-primary/);
-assert.match(css, /min-height: 44px/);
+assert.match(css, /min-height:\s*44px/);
 assert.match(index, /site-person\.css\?v=aset-/);
 console.log('SAFECARE_PEOPLE_01 PASS — live Person CRUD entry, privacy copy and responsive controls');

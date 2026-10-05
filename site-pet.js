@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-de88e6e1b0a7';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-a06a83b89537';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
@@ -606,6 +606,11 @@ function normalizePetProfile(value) {
     }) : null,
     photoCount: Number.isInteger(value.photo_count) ? value.photo_count : 0,
     photoTotal: Number.isInteger(value.photo_total) ? value.photo_total : PET_PHOTO_SLOT_CODES.length,
+    identityPhotoState: typeof value.identity_photo_state === 'string' ? value.identity_photo_state : 'INCOMPLETE',
+    identityPhotoExpiresAt: typeof value.identity_photo_expires_at === 'string' ? value.identity_photo_expires_at : null,
+    identityPhotoDaysRemaining: Number.isInteger(value.identity_photo_days_remaining) ? value.identity_photo_days_remaining : null,
+    identityPhotoRenewalReminderDays: Number.isInteger(value.identity_photo_renewal_reminder_days) ? value.identity_photo_renewal_reminder_days : null,
+    identityPhotoRenewalDue: value.identity_photo_renewal_due === true,
     thumbnailSlot: PET_PHOTO_SLOT_CODES.includes(thumbnail.slot_code) ? thumbnail.slot_code : '',
     visualStatus: typeof visual.status === 'string' ? visual.status : 'UNAVAILABLE',
     visualLabel: typeof visual.label === 'string' ? visual.label : '식별정보 준비 중',
@@ -968,6 +973,12 @@ function normalizeCase(value, idKey) {
     note: typeof value.note === 'string' ? value.note : '',
     description: typeof value.description === 'string' ? value.description : '',
     photoCount: Number.isInteger(value.photo_count) ? value.photo_count : null,
+    reviewState: typeof value.review_state === 'string' ? value.review_state : null,
+    minimumPhotoCount: Number.isInteger(value.minimum_photo_count) ? value.minimum_photo_count : null,
+    maximumPhotoCount: Number.isInteger(value.maximum_photo_count) ? value.maximum_photo_count : null,
+    canSubmit: value.can_submit === true,
+    submittedAt: typeof value.submitted_at === 'string' ? value.submitted_at : null,
+    resultAt: typeof value.result_at === 'string' ? value.result_at : null,
     status: CASE_STATUSES.includes(value.status) ? value.status : 'ACTIVE',
     createdAt: typeof value.created_at === 'string' ? value.created_at : '',
   });
@@ -978,6 +989,7 @@ export async function createPetSOS(sessionToken, input, fetchImpl = globalThis.f
     pet_id: String(input?.petId || ''),
     location_source: 'USER_ENTERED',
     last_seen_at: String(input?.lastSeenAt || ''),
+    matching_consent_confirmed: input?.matchingConsentConfirmed === true,
   };
   const label = String(input?.locationLabel || '').trim();
   if (label) body.last_seen_location = {label};
@@ -1031,7 +1043,7 @@ export async function createFoundPet(sessionToken, input, fetchImpl = globalThis
     body,
     requestId: input?.requestId || petRequestId('found'),
   }, fetchImpl);
-  const record = normalizeCase(payload?.found, 'found_case_id');
+  const record = normalizeCase(payload?.found_case, 'found_case_id');
   if (!record) throw new SiteCoreError('발견 신고를 저장하지 못했습니다.', {code: 'PET_FOUND_FAILED'});
   return record;
 }
@@ -1042,12 +1054,19 @@ export async function listFoundPets(sessionToken, fetchImpl = globalThis.fetch) 
   return Object.freeze(rows.map(row => normalizeCase(row, 'found_case_id')).filter(Boolean));
 }
 
+export async function submitFoundPet(sessionToken, caseId, fetchImpl = globalThis.fetch) {
+  const payload = await petRequest(`/v2/pets/found/${encodeURIComponent(caseId)}/submit`, sessionToken, {method: 'POST'}, fetchImpl);
+  const record = normalizeCase(payload?.found_case, 'found_case_id');
+  if (!record) throw new SiteCoreError('발견 제보를 제출하지 못했습니다.', {code: 'PET_FOUND_SUBMIT_FAILED'});
+  return record;
+}
+
 export async function closeFoundPet(sessionToken, caseId, resolved, fetchImpl = globalThis.fetch) {
   const payload = await petRequest(`/v2/pets/found/${encodeURIComponent(caseId)}/close`, sessionToken, {
     method: 'PUT',
     body: {resolved: resolved === true},
   }, fetchImpl);
-  const record = normalizeCase(payload?.found, 'found_case_id');
+  const record = normalizeCase(payload?.found_case, 'found_case_id');
   if (!record) throw new SiteCoreError('발견 신고를 종료하지 못했습니다.', {code: 'PET_FOUND_CLOSE_FAILED'});
   return record;
 }

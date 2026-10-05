@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-de88e6e1b0a7';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-a06a83b89537';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -120,12 +120,12 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
   } else if (section === 'care') {
     const alert = node('div', 'consumer-care-alert');
     const alertCopy = node('div'); alertCopy.append(node('strong', '', 'SOS · 실종 신고'), node('p', '', '긴급한 상황이라면 먼저 112·119에 연락하세요.'));
-    const alertActions = node('div', 'consumer-care-alert-actions');
-    alertActions.append(
-      action('사람 등록·확인', () => { void selectTab('people'); }, {secondary: true}),
-      action('반려동물 실종 신고', () => { void selectTab('pets', 'sos'); }),
+    const sosActions = node('div', 'consumer-care-actions');
+    sosActions.append(
+      action('사람 실종 신고', () => { void selectTab('people', 'sos'); }),
+      action('반려동물 실종 신고', () => { void selectTab('pets', 'sos'); }, {secondary: true}),
     );
-    alert.append(icon('shield'), alertCopy, alertActions);
+    alert.append(icon('shield'), alertCopy, sosActions);
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');
     const panelId = `${root.parentElement.getAttribute('aria-labelledby') || 'consumer-care'}-targets`; body.id = panelId;
@@ -155,14 +155,11 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         body.setAttribute('aria-busy', 'true');
         const host = node('div'); body.replaceChildren(host);
         try {
-          const mounted = await mountPeople(host, counts => {
-            if (disposed || current !== generation || !authenticated) return;
-            if (Number.isInteger(counts.people)) buttons[0].textContent = `사람 · ${counts.people}`;
-          });
+          const mounted = await mountPeople(host, initialSurface);
           if (disposed || current !== generation) { mounted?.dispose?.(); return; }
           releasePeople = mounted?.dispose;
         } catch {
-          if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '사람 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
+          if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '사람 안심케어 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
         } finally { if (!disposed && current === generation) body.removeAttribute('aria-busy'); }
         return;
       }
