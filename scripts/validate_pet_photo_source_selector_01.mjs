@@ -55,7 +55,7 @@ assert.equal(
 );
 assert.ok(
   !/choose\.addEventListener\('click', \(\) => input\.click\(\)\)/.test(petUi),
-  'a slot "사진 올리기"/"다시 올리기" button must not click a single input directly any more',
+  'a slot "사진 선택"/"다른 사진 선택" button must not click a single input directly any more',
 );
 
 // Desktop is explicitly a bypass, not a smaller version of the sheet.
@@ -68,8 +68,8 @@ assert.match(petUi, /matchMedia\('\(max-width: 900px\)'\)/, 'the mobile/desktop 
 assert.match(petUi, /bindPetPhotoSourceChange\(sourceInputs, file => \{ void handleChosenFile\(file\); \}\)/, 'all three inputs must still run through the existing upload handler');
 assert.equal(
   (petUi.match(/const rejection = petPhotoRejection\(file\);/g) || []).length,
-  2,
-  'both slot renderers must still reject an unsupported file locally before it ever reaches Core',
+  3, // existing-pet slot, registration-draft slot, and (SAFECARE-WEB-UI-REDESIGN-01) the found-report photo
+  'every photo picker must still reject an unsupported file locally before it ever reaches Core',
 );
 
 // The sheet only ever needs the shared, already-accessible bottom-sheet
@@ -175,6 +175,7 @@ function innerFixtureHtml() {
   let filledSlots = {['${DOG_ID}']: ['NOSE_FRONT'], ['${CAT_ID}']: []};
   let draftPhotos = [];
   let draftSpecies = '';
+  globalThis.__draftFields = {};
   globalThis.fetch = async (url, init) => {
     const target = String(url);
     const method = (init && init.method) || 'GET';
@@ -219,7 +220,12 @@ function innerFixtureHtml() {
     if (target.endsWith('/v2/pet-registration-drafts/' + DRAFT_ID) && method === 'PATCH') {
       const update = JSON.parse(init?.body || '{}');
       if (typeof update.species === 'string') draftSpecies = update.species;
-      return json({draft: {draft_id: DRAFT_ID, status: 'ACTIVE', current_step: update.current_step || 'PHOTOS', revision: 2, species: draftSpecies || 'DOG', matching_consent_state: 'NOT_GRANTED', photos: draftPhotos}});
+      // SAFECARE-WEB-UI-REDESIGN-01: basic information comes first now, so the
+      // stand-in keeps what was saved the way Core's draft does.
+      for (const key of ['name', 'sex', 'breed_code', 'breed', 'current_step']) {
+        if (key in update) globalThis.__draftFields[key] = update[key];
+      }
+      return json({draft: {draft_id: DRAFT_ID, status: 'ACTIVE', current_step: globalThis.__draftFields.current_step || 'PHOTOS', revision: 2, species: draftSpecies || 'DOG', name: globalThis.__draftFields.name || null, sex: globalThis.__draftFields.sex || null, breed_code: globalThis.__draftFields.breed_code || null, breed: globalThis.__draftFields.breed || null, matching_consent_state: 'NOT_GRANTED', photos: draftPhotos}});
     }
     const draftPhotoMatch = target.match(new RegExp('/v2/pet-registration-drafts/' + DRAFT_ID + '/photos/([A-Z_]+)$'));
     if (draftPhotoMatch && method === 'PUT') {
@@ -341,8 +347,17 @@ try {
     // sheet, preserving the existing sequential-unlock gate untouched.
     document.querySelector('.pet-add-button').click();
     await wait(150);
+    // SAFECARE-WEB-UI-REDESIGN-01: step 1 is 기본정보, then the ten photos.
     document.querySelector('input[name="pet-species"][value="DOG"]').click();
     await wait(150);
+    const basicForm = document.querySelector('[data-pet-register-form]');
+    basicForm.querySelector('input[type="text"]').value = '초코';
+    basicForm.querySelector('input[name="pet-sex"][value="MALE"]').click();
+    const breed = basicForm.querySelector('select');
+    breed.value = 'JINDO';
+    breed.dispatchEvent(new Event('change', {bubbles: true}));
+    basicForm.requestSubmit();
+    await wait(400);
     const lockedTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
       .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT');
     const lockedChoose = lockedTile.querySelector('.pet-slot-actions button');
@@ -424,7 +439,7 @@ const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebK
 const mobileAndroid = await run({windowSize: '390,844', userAgent: ANDROID_UA});
 assert.ok(!mobileAndroid.error, `Android mobile fixture failed: ${mobileAndroid.error}`);
 
-assert.equal(mobileAndroid.menuAfterChooseClick, true, 'Mobile "사진 올리기" must open LOTBI\'s own source menu, not a native picker');
+assert.equal(mobileAndroid.menuAfterChooseClick, true, 'Mobile "사진 선택" must open LOTBI\'s own source menu, not a native picker');
 assert.deepEqual(mobileAndroid.clickedAfterChooseClick, [], 'no input may be clicked before the owner chooses a source');
 assert.deepEqual(
   mobileAndroid.optionsAtOpen,
@@ -439,7 +454,7 @@ assert.equal(mobileAndroid.sheetRole, 'dialog', 'the source sheet must be an acc
 
 assert.equal(mobileAndroid.menuAfterBackdropCancel, false, 'a backdrop click must close the menu');
 assert.deepEqual(mobileAndroid.clickedAfterBackdropCancel, [], 'cancelling must never click any picker input');
-assert.equal(mobileAndroid.slotUnchangedAfterCancel, '사진 올리기', 'cancelling must leave the slot button/state untouched');
+assert.equal(mobileAndroid.slotUnchangedAfterCancel, '사진 선택', 'cancelling must leave the slot button/state untouched');
 
 assert.equal(mobileAndroid.afterCamera.length, 1, 'choosing Camera must click exactly one input');
 assert.equal(mobileAndroid.afterCamera[0].source, 'camera');
