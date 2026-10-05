@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-da31bc6c0a94';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-de88e6e1b0a7';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -59,11 +59,12 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, mountPets, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, mountPeople, mountPets, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
   let generation = 0;
+  let releasePeople;
   let releasePets;
   let releaseWallet;
 
@@ -119,8 +120,12 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
   } else if (section === 'care') {
     const alert = node('div', 'consumer-care-alert');
     const alertCopy = node('div'); alertCopy.append(node('strong', '', 'SOS · 실종 신고'), node('p', '', '긴급한 상황이라면 먼저 112·119에 연락하세요.'));
-    const sos = action('반려동물 실종 신고', () => { void selectTab('pets', 'sos'); });
-    alert.append(icon('shield'), alertCopy, sos);
+    const alertActions = node('div', 'consumer-care-alert-actions');
+    alertActions.append(
+      action('사람 등록·확인', () => { void selectTab('people'); }, {secondary: true}),
+      action('반려동물 실종 신고', () => { void selectTab('pets', 'sos'); }),
+    );
+    alert.append(icon('shield'), alertCopy, alertActions);
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');
     const panelId = `${root.parentElement.getAttribute('aria-labelledby') || 'consumer-care'}-targets`; body.id = panelId;
@@ -138,16 +143,28 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     });
     tabs.append(...buttons);
     async function selectTab(value, initialSurface = 'pets') {
-      const current = ++generation; releasePets?.(); releasePets = undefined;
+      const current = ++generation;
+      releasePeople?.(); releasePeople = undefined;
+      releasePets?.(); releasePets = undefined;
       body.setAttribute('aria-labelledby', `${panelId}-${value}`);
       for (const button of buttons) {
         const active = button.dataset.careTab === value;
         button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
       }
       if (value === 'people') {
-        body.removeAttribute('aria-busy');
-        const state = empty('소중한 사람을 함께 챙겨요', '가족의 정보를 안전하게 보관하고, 필요할 때 실종 신고로 이어지는 공간입니다. 사람 등록과 SOS의 웹 연결은 준비 중이에요.', 'people');
-        state.append(action('사람 등록', null, {disabled: true})); body.replaceChildren(state); return;
+        body.setAttribute('aria-busy', 'true');
+        const host = node('div'); body.replaceChildren(host);
+        try {
+          const mounted = await mountPeople(host, counts => {
+            if (disposed || current !== generation || !authenticated) return;
+            if (Number.isInteger(counts.people)) buttons[0].textContent = `사람 · ${counts.people}`;
+          });
+          if (disposed || current !== generation) { mounted?.dispose?.(); return; }
+          releasePeople = mounted?.dispose;
+        } catch {
+          if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '사람 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
+        } finally { if (!disposed && current === generation) body.removeAttribute('aria-busy'); }
+        return;
       }
       body.setAttribute('aria-busy', 'true'); body.replaceChildren(node('p', 'consumer-feature-note', '반려동물 정보를 확인하고 있어요.'));
       // Each async mount owns a separate host. A late response after switching
@@ -173,5 +190,5 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePets?.(); releaseWallet?.dispose?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); }};
 }
