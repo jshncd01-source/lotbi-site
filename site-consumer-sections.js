@@ -1,3 +1,5 @@
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-dfbb949bebd6';
+
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
 export const LIFE_SHORTCUTS = Object.freeze([
@@ -57,12 +59,13 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, mountPets, authenticated = false} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, mountPets, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
   let generation = 0;
   let releasePets;
+  let releaseWallet;
 
   if (section === 'life') {
     const form = node('form', 'consumer-search');
@@ -112,12 +115,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     footer.append(saved, node('p', 'consumer-feature-note', '원하는 정보를 선택하고 조건을 입력하세요. 공과금 납기는 확인 후 일정 등록을 제안합니다.'));
     root.append(form, heading, grid, footer);
   } else if (section === 'wallet') {
-    const state = empty('중요한 생활 자료, 안전하게', '신분증·면허·자격증·회원증을 보관하고 필요할 때 꺼내 쓰세요.', 'wallet');
-    state.append(action('첫 자료 등록하기', null, {disabled: true}));
-    const sources = node('div', 'consumer-source-options');
-    for (const label of ['사진 촬영', '사진 선택', '파일 업로드']) sources.append(action(label, null, {secondary: true, disabled: true}));
-    const note = node('p', 'consumer-feature-note', '웹 보관함 연결 준비 중 · 현재 저장 자료를 조회하거나 등록할 수 없습니다. 민감한 자료는 대화창에 올리지 마세요.');
-    root.append(state, sources, note);
+    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt});
   } else if (section === 'care') {
     const alert = node('div', 'consumer-care-alert');
     const alertCopy = node('div'); alertCopy.append(node('strong', '', 'SOS · 실종 신고'), node('p', '', '긴급한 상황이라면 먼저 112·119에 연락하세요.'));
@@ -175,5 +173,5 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePets?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePets?.(); releaseWallet?.dispose?.(); }};
 }
