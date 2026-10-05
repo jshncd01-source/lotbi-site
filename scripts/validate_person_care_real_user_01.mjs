@@ -7,12 +7,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const ui = read('site-person-ui.js');
 const conversation = read('site-conversation.js');
-assert.ok(ui.includes("['sos', 'SOS / 실종 신고'], ['home', '사람'], ['pet', '반려동물']"));
+assert.ok(ui.includes("['home', '등록된 사람'], ['sos', '실종 관리'], ['sighting', '발견 제보']"));
+assert.ok(ui.includes('실종 상태로 전환'));
+assert.ok(ui.includes('사진 갱신'));
 assert.ok(ui.includes('관리자 승인 후보'));
 assert.ok(ui.includes('연락처는 공개되지 않습니다.'));
 assert.ok(conversation.includes('mountPeople: async'));
 assert.ok(conversation.includes('mountPersonCareManager'));
-assert.ok(conversation.includes("onOpenPet: () => openPetFamily('pets')"));
 
 const client = await import(`${pathToFileURL(path.join(root, 'site-person.js')).href}?contract=person-real-user-01`);
 const calls = [];
