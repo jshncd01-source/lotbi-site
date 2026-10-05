@@ -64,6 +64,9 @@ body.chat-home-page .calendar-editor-header { padding: 0 0 12px; }
 body.chat-home-page .calendar-editor-form { min-width: 0; }
 body.chat-home-page .calendar-editor-body { padding-inline: 0; scrollbar-gutter: stable; }
 body.chat-home-page .calendar-editor-actions { padding-inline: 0; padding-bottom: 0; }
+/* A pristine form has no error to reserve a full paragraph for. Nonempty
+   validation errors retain their role/appearance; no submission logic changes. */
+body.chat-home-page .calendar-editor-error:empty { display: none; }
 body.chat-home-page :is(.calendar-editor-close, .calendar-readonly-close, .calendar-settings-close, .site-modal-close) {
   width: 44px; min-height: 44px; padding: 8px; border: 0;
   border-radius: 10px; background: transparent; color: var(--lotbi-text-secondary);
@@ -85,6 +88,9 @@ body.chat-home-page :is(.calendar-editor-actions, .calendar-readonly-actions, .c
 body.chat-home-page :is(.calendar-editor-actions, .calendar-readonly-actions, .calendar-delete-confirm-actions) button {
   min-height: 44px; border-radius: 10px; padding: 10px 16px; font-size: 14px;
 }
+/* The editor body already ends with its own padding. Avoid adding another
+   20px margin before the fixed footer while retaining a clear divider. */
+body.chat-home-page .calendar-editor-dialog .calendar-editor-actions { margin-top: 0; padding-top: 16px; }
 body.chat-home-page :is(.calendar-readonly-notice, .calendar-editor-help, .site-field-help, .pet-form-help, .pet-meta, .festival-card-location) {
   font-size: 13px; line-height: 1.65; color: var(--consumer-detail-muted);
 }
@@ -132,6 +138,9 @@ body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .c
   body.chat-home-page :is(.calendar-editor-actions, .calendar-delete-confirm-actions) button { flex: 1 1 auto; }
   body.chat-home-page :is(.calendar-editor-primary, .calendar-editor-details) { grid-template-columns: minmax(0, 1fr); }
   body.chat-home-page .calendar-editor-body { padding: 12px 0; }
+  /* Fit the short form to its contents, but keep expanded details within the
+     existing visual-viewport-sized backdrop so header/footer remain reachable. */
+  body.chat-home-page .calendar-editor-dialog { height: auto; max-height: 100%; align-self: center; }
   body.chat-home-page .calendar-settings-select-row { align-items: stretch; flex-direction: column; gap: 8px; padding: 12px 0; }
   body.chat-home-page .calendar-settings-select { width: 100%; }
   body.chat-home-page .calendar-settings-body { padding-bottom: env(safe-area-inset-bottom); }
@@ -184,6 +193,7 @@ body.chat-home-page .festival-detail-name { font-size: 26px; font-weight: 500; }
 body.chat-home-page :is(.calendar-editor-details, .calendar-settings-section) { border-radius: 0; background: transparent; }
 body.chat-home-page .calendar-editor-details { border: 0; border-top: 1px solid var(--lotbi-border-default); padding: 16px 0 0; }
 body.chat-home-page .calendar-editor-details > summary { min-height: 44px; }
+body.chat-home-page .calendar-editor-details:not([open]) { row-gap: 0; padding-top: 12px; }
 body.chat-home-page .calendar-expense-summary { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; background: transparent; }
 body.chat-home-page .calendar-expense-label { color: var(--lotbi-text-primary); font-weight: 400; }
 body.chat-home-page .calendar-expense-amount { font-weight: 500; font-variant-numeric: tabular-nums; }
