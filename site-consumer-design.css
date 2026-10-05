@@ -99,16 +99,20 @@ body.chat-home-page .scam-dialog { box-sizing: border-box; width: min(720px, cal
 body.chat-home-page .scam-dialog-inner { padding: 28px; }
 body.chat-home-page .scam-dialog-header h2 { font-size: 24px; font-weight: 600; letter-spacing: -.04em; }
 body.chat-home-page .scam-dialog-eyebrow { color: var(--consumer-muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
-body.chat-home-page .scam-dialog-inner > p { color: var(--consumer-muted); font-size: 13px; line-height: 1.7; }
+body.chat-home-page .scam-dialog-inner > p { color: var(--consumer-muted); font-size: 16px; line-height: 1.7; }
 body.chat-home-page .scam-dialog-close { border: 0; background: transparent; color: inherit; }
-body.chat-home-page .scam-input-kinds { gap: 10px; margin: 24px 0; }
-body.chat-home-page .scam-input-kinds label { min-height: 90px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding: 14px; border: 1px solid var(--lotbi-border-default); background: transparent; color: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+body.chat-home-page .scam-input-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 24px 0; }
+body.chat-home-page .scam-input-kinds :is(label, .scam-voice-method) { box-sizing: border-box; min-height: 96px; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+body.chat-home-page .scam-input-kinds :is(label, .scam-voice-method):hover { background: var(--lotbi-surface-subtle); }
+body.chat-home-page .scam-input-kinds span { display: grid; gap: 3px; min-width: 0; }
+body.chat-home-page .scam-input-kinds strong { font-size: 17px; font-weight: 600; line-height: 1.45; word-break: keep-all; }
+body.chat-home-page .scam-input-kinds small { color: var(--consumer-muted); font-size: 14px; font-weight: 400; line-height: 1.5; word-break: keep-all; }
 body.chat-home-page .scam-input-kinds label:has(input:checked) { border-color: var(--lotbi-text-primary); background: var(--lotbi-surface-subtle); }
-body.chat-home-page .scam-input-kinds label:has(input:focus-visible) { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
-body.chat-home-page .scam-input-panel :is(input, textarea), body.chat-home-page .scam-incident select { width: 100%; box-sizing: border-box; min-height: 50px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; padding: 14px; font: inherit; font-size: 16px; color: inherit; background: var(--lotbi-surface-primary); }
+body.chat-home-page .scam-input-kinds :is(label:has(input:focus-visible), .scam-voice-method:focus-visible) { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+body.chat-home-page .scam-input-panel :is(input, textarea), body.chat-home-page .scam-incident select { width: 100%; box-sizing: border-box; min-height: 56px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; padding: 15px; font: inherit; font-size: 17px; color: inherit; background: var(--lotbi-surface-primary); }
 body.chat-home-page .scam-input-panel textarea { display: block; min-height: 132px; resize: vertical; }
-body.chat-home-page .scam-clicked { font-size: 13px; font-weight: 500; line-height: 1.6; }
-body.chat-home-page .scam-submit { min-height: 48px; background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); font-size: 14px; font-weight: 600; }
+body.chat-home-page .scam-clicked { font-size: 16px; font-weight: 500; line-height: 1.6; }
+body.chat-home-page .scam-submit { min-height: 56px; background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); font-size: 17px; font-weight: 600; }
 body.chat-home-page .scam-dialog :is(button, input, textarea, select):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
 @media (max-width: 900px) {
   body.chat-home-page:not(.conversation-active) .chat-hero { min-height: calc(100svh - 150px); padding: 22px 0 32px; }
@@ -184,8 +188,8 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   .consumer-empty { min-height: 200px; padding: 20px 0; }
   body.chat-home-page .scam-dialog-inner { padding: 20px; }
   body.chat-home-page .scam-dialog-header h2 { font-size: 21px; }
-  body.chat-home-page .scam-input-kinds { grid-template-columns: 1fr; gap: 8px; margin: 20px 0; }
-  body.chat-home-page .scam-input-kinds label { flex-direction: row; justify-content: flex-start; min-height: 48px; padding: 12px 14px; }
+  body.chat-home-page .scam-input-kinds { grid-template-columns: 1fr; gap: 10px; margin: 20px 0; }
+  body.chat-home-page .scam-input-kinds :is(label, .scam-voice-method) { min-height: 74px; padding: 13px 14px; }
 }
 @media (max-width: 420px) {
   body.chat-home-page:not(.conversation-active) .home-value-proposition p { max-width: 260px; margin: auto; font-size: 13px; }
