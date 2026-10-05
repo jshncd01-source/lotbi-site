@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const html = read('index.html');
@@ -31,4 +32,44 @@ assert.match(ui, /typeof dialog\.close === 'function'/, 'native dialog close mus
 assert.match(ui, /dialog\.removeAttribute\('open'\)/, 'fallback dialog must be closable without the dialog API');
 assert.match(ui, /lotbi:home-shell-hydrated/, 'login callback hydration must rebind Scam Shield to the replaced home DOM');
 assert.match(ui, /dataset\.scamBound/, 'hydration rebinding must remain idempotent');
+assert.match(ui, /event\.key === 'Escape' && !event\.defaultPrevented && dialog\?\.hasAttribute\('open'\)/, 'Escape must explicitly close native and fallback dialogs without overriding consumed keys');
+assert.match(ui, /dialog\.addEventListener\('close', restoreDialogFocus\)/, 'native close must restore focus to a visible trigger');
+assert.match(ui, /\[data-mobile-nav-open\]/, 'a hidden mobile navigation trigger must fall back to the visible menu button');
+// Exercise the real keyboard/focus functions without requests or user data.
+let keydown;
+let prevented = 0;
+let nativeCloses = 0;
+let restored = 0;
+class Trigger {
+  isConnected = true;
+  hidden = false;
+  closest() { return this.hidden ? {} : null; }
+  getClientRects() { return [{}]; }
+  focus() { restored++; }
+}
+const trigger = new Trigger();
+const menu = {focus() { restored += 10; }};
+const sandbox = vm.createContext({HTMLElement: Trigger, document: {
+  addEventListener(name, fn) { if (name === 'keydown') keydown = fn; },
+  querySelector(selector) { return selector === '[data-mobile-nav-open]' ? menu : null; },
+  querySelectorAll() { return []; },
+}, window: {addEventListener() {}}, trigger});
+vm.runInContext(ui, sandbox);
+sandbox.nativeDialog = {hasAttribute: () => true, close() { nativeCloses++; }};
+vm.runInContext('dialog = nativeDialog; dialogTrigger = trigger;', sandbox);
+keydown({key: 'Escape', defaultPrevented: true, preventDefault() { prevented++; }});
+assert.equal(nativeCloses, 0, 'consumed Escape is not overridden');
+keydown({key: 'Escape', defaultPrevented: false, preventDefault() { prevented++; }});
+assert.equal(nativeCloses, 1);
+assert.equal(prevented, 1);
+vm.runInContext('restoreDialogFocus()', sandbox);
+assert.equal(restored, 1);
+trigger.hidden = true;
+vm.runInContext('restoreDialogFocus()', sandbox);
+assert.equal(restored, 11, 'hidden mobile trigger returns to the visible menu button');
+const removed = [];
+sandbox.fallbackDialog = {hasAttribute: () => true, removeAttribute(name) { removed.push(name); }};
+vm.runInContext('dialog = fallbackDialog;', sandbox);
+keydown({key: 'Escape', defaultPrevented: false, preventDefault() { prevented++; }});
+assert.deepEqual(removed, ['open', 'aria-modal']);
 console.log('SITE-SCAM-SHIELD-MVP-01 PASS');

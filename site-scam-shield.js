@@ -90,6 +90,13 @@ function openDialog(event) {
   dialog.setAttribute('aria-modal', 'true');
 }
 
+function restoreDialogFocus() {
+  const visibleTrigger = dialogTrigger instanceof HTMLElement && dialogTrigger.isConnected
+    && !dialogTrigger.closest('[inert], [aria-hidden="true"]') && dialogTrigger.getClientRects().length;
+  const target = visibleTrigger ? dialogTrigger : document.querySelector('[data-mobile-nav-open]');
+  target?.focus?.();
+}
+
 function closeDialog() {
   if (!dialog) return;
   if (typeof dialog.close === 'function') {
@@ -98,11 +105,14 @@ function closeDialog() {
   }
   dialog.removeAttribute('open');
   dialog.removeAttribute('aria-modal');
-  dialogTrigger?.focus?.();
+  restoreDialogFocus();
 }
 
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && dialog?.hasAttribute('open') && typeof dialog.close !== 'function') closeDialog();
+  if (event.key === 'Escape' && !event.defaultPrevented && dialog?.hasAttribute('open')) {
+    event.preventDefault();
+    closeDialog();
+  }
 });
 
 async function submitAnalysis(event) {
@@ -160,7 +170,7 @@ function bindScamShield() {
       const bounds = dialog.getBoundingClientRect();
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog();
     });
-    dialog.addEventListener('close', () => dialogTrigger?.focus?.());
+    dialog.addEventListener('close', restoreDialogFocus);
   }
 
   document.querySelectorAll('[data-scam-open]').forEach(button => {
