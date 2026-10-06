@@ -714,7 +714,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       if (message) shell.append(element('p', 'wallet-message', message));
       if (!cards.length) {
         const empty = element('section', 'wallet-empty');
-        empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '예시 신분증은 넣지 않습니다. 사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
+        empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
         shell.append(empty);
       } else {
         const list = element('div', 'wallet-card-grid');

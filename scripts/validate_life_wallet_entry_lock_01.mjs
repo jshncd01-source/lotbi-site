@@ -144,6 +144,8 @@ assert.match(walletSource, /field\('자료 사진 · 필수', front\)/u);
 assert.match(walletSource, /안전하게 이 기기에만 저장됩니다\./u);
 assert.match(walletSource, /LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다\./u);
 assert.match(walletCssSource, /\.wallet-storage-reassurance\s*\{/u, 'wallet storage reassurance must have a separate layout block');
+assert.doesNotMatch(walletSource, /예시 신분증은 넣지 않습니다\./u);
+assert.match(walletSource, /사용자가 직접 등록한 실제 자료만 여기에 표시됩니다\./u);
 assert.match(walletSource, /AI로 재작성하지 않고 그대로 암호화/u);
 assert.match(consumerSource, /mountLifeWallet/u);
 assert.match(conversationSource, /accountId: serverIdentity\?\.userId/u);
