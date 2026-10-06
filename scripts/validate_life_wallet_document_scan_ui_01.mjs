@@ -8,7 +8,10 @@ const FIXTURE_REL='__life_wallet_document_scan_ui_01.html';
 
 const fixture=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:680px;margin:auto}</style></head><body><main id="host"></main><pre id="result">pending</pre><script type="module">
 const out=document.getElementById('result'); const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-const wait=async (predicate,label)=>{for(let i=0;i<100;i+=1){const value=predicate();if(value)return value;await sleep(30)}throw new Error('timed out '+label+' state='+document.querySelector('.wallet-scan-editor')?.dataset.scanState+' text='+document.getElementById('host').textContent)};
+// The merge-gate host can be busy running the complete Site validator suite.
+// Give the real canvas analysis time to finish there instead of turning host
+// load into a false product failure after only three seconds.
+const wait=async (predicate,label)=>{for(let i=0;i<500;i+=1){const value=predicate();if(value)return value;await sleep(30)}throw new Error('timed out '+label+' state='+document.querySelector('.wallet-scan-editor')?.dataset.scanState+' text='+document.getElementById('host').textContent)};
 try{
  const source=document.createElement('canvas');source.width=480;source.height=320;const c=source.getContext('2d');c.fillStyle='#18212d';c.fillRect(0,0,480,320);c.beginPath();c.moveTo(70,55);c.lineTo(420,40);c.lineTo(440,275);c.lineTo(50,285);c.closePath();c.fillStyle='#e9dcae';c.fill();c.lineWidth=8;c.strokeStyle='#fff';c.stroke();c.fillStyle='#315c7d';c.fillRect(150,115,190,18);
  globalThis.createImageBitmap=async()=>source;

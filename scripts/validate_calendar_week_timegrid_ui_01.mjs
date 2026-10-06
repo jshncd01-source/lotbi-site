@@ -106,11 +106,7 @@ try {
   result.initialScrollTop = weekGrid?.scrollTop ?? null;
   result.firstVisibleHour = [...root.querySelectorAll('.calendar-week-hour-label')]
     .find(node => node.textContent && node.getBoundingClientRect().bottom > stickyBottom)?.textContent || '';
-  result.midnightReachable = Boolean(weekGrid);
-  if (weekGrid) {
-    weekGrid.scrollTop = 0;
-    result.midnightReachable = weekGrid.scrollTop === 0;
-  }
+  result.hourOrder = [...root.querySelectorAll('.calendar-week-hour-label')].map(node => node.textContent);
   const dayHeaders = [...root.querySelectorAll('.calendar-week-day')];
   const lefts = dayHeaders.map(n => Math.round(n.getBoundingClientRect().left));
   const tops = dayHeaders.map(n => Math.round(n.getBoundingClientRect().top));
@@ -238,8 +234,9 @@ try {
     if (v.stripCount !== 0) throw new Error(`${where}: Week must not duplicate dates in a separate strip`);
     if (v.toggleCount !== 0) throw new Error(`${where}: Week must not require a secondary layout toggle`);
     if (!v.gridPresent) throw new Error(`${where}: Week must render the weekly hour grid`);
-    if (v.firstVisibleHour !== '06:00') throw new Error(`${where}: Week must open with 06:00 as the first visible hour, got "${v.firstVisibleHour}" at scrollTop=${v.initialScrollTop}`);
-    if (!v.midnightReachable) throw new Error(`${where}: 00:00-05:59 must remain reachable by scrolling upward`);
+    if (v.firstVisibleHour !== '06:00' || v.initialScrollTop !== 0) throw new Error(`${where}: Week must begin with 06:00 without scroll positioning, got "${v.firstVisibleHour}" at scrollTop=${v.initialScrollTop}`);
+    const expectedHours = Array.from({length: 24}, (_, index) => `${String((6 + index) % 24).padStart(2, '0')}:00`);
+    if (JSON.stringify(v.hourOrder) !== JSON.stringify(expectedHours)) throw new Error(`${where}: Week hours must run 06:00-23:00 then 00:00-05:00, got ${JSON.stringify(v.hourOrder)}`);
     if (JSON.stringify(v.weekActions.labels) !== JSON.stringify(['사진에서 기록 읽기', '+ 기록'])) {
       throw new Error(`${where}: Week must show both record actions, got ${JSON.stringify(v.weekActions.labels)}`);
     }
