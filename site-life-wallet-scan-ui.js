@@ -1,4 +1,4 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-b0bfc811064c';
+import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-bda9a8b7263e';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -17,9 +17,31 @@ function node(tag, className='', text='') {
   const element=document.createElement(tag); if(className)element.className=className; if(text)element.textContent=text; return element;
 }
 
+async function encodedDimensions(file) {
+  const bytes=new Uint8Array(await file.slice(0,262144).arrayBuffer());
+  if(bytes.length>=24&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71) {
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength); return {width:view.getUint32(16),height:view.getUint32(20)};
+  }
+  if(bytes.length<4||bytes[0]!==255||bytes[1]!==216)return null;
+  let offset=2;
+  while(offset+9<bytes.length){
+    if(bytes[offset]!==255){offset+=1;continue}
+    const marker=bytes[offset+1];offset+=2;
+    if(marker===216||marker===217||marker===1||(marker>=208&&marker<=215))continue;
+    if(offset+2>bytes.length)break;const length=(bytes[offset]<<8)|bytes[offset+1];if(length<2||offset+length>bytes.length)break;
+    if((marker>=192&&marker<=195)||(marker>=197&&marker<=199)||(marker>=201&&marker<=203)||(marker>=205&&marker<=207))return {width:(bytes[offset+5]<<8)|bytes[offset+6],height:(bytes[offset+3]<<8)|bytes[offset+4]};
+    offset+=length;
+  }
+  return null;
+}
+
 async function decodeFile(file, resources) {
   if (typeof createImageBitmap === 'function') {
-    try { const bitmap=await createImageBitmap(file,{imageOrientation:'from-image'}); resources.bitmap=bitmap; return bitmap; } catch {}
+    try {
+      const size=await encodedDimensions(file); const options={imageOrientation:'from-image'};
+      if(size&&Math.max(size.width,size.height)>2560){const scale=2560/Math.max(size.width,size.height);options.resizeWidth=Math.round(size.width*scale);options.resizeHeight=Math.round(size.height*scale);options.resizeQuality='high'}
+      const bitmap=await createImageBitmap(file,options); resources.bitmap=bitmap; return bitmap;
+    } catch {}
   }
   const url=URL.createObjectURL(file); resources.url=url; const image=new Image(); image.src=url; await image.decode(); return image;
 }
@@ -56,6 +78,8 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   const resources={bitmap:null,url:''}; let source=null; let corners=null; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
+  function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}}
+
   function setCorner(name,x,y) {
     const size=dimensions(source); corners[name]={x:Math.max(0,Math.min(size.width-1,x)),y:Math.max(0,Math.min(size.height-1,y))}; updateOverlay();
   }
@@ -88,7 +112,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
 
   async function initialize() {
     try{
-      source=await decodeFile(file,resources); if(destroyed)return; const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
+      source=await decodeFile(file,resources); if(destroyed){releaseResources();return} const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
       const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}])); shell.dataset.scanMode=found.mode; updateOverlay(); await renderPreview();
     }catch(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
   }
@@ -98,7 +122,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   confirm.addEventListener('click',()=>{if(latest&&!destroyed)onConfirm(latest)});
   cancel.addEventListener('click',()=>{if(!destroyed)onCancel();destroy()}); replace.addEventListener('click',()=>{if(!destroyed)onReplace();destroy()});
 
-  function destroy(){if(destroyed)return;destroyed=true;renderVersion+=1;resources.bitmap?.close?.();if(resources.url)URL.revokeObjectURL(resources.url);shell.replaceChildren()}
+  function destroy(){if(destroyed)return;destroyed=true;renderVersion+=1;releaseResources();shell.replaceChildren()}
   void initialize();
   return Object.freeze({element:shell,destroy});
 }

@@ -68,7 +68,7 @@ try{
   input.dispatchEvent(new Event('change',{bubbles:true}));
   for(let attempt=0;attempt<100&&!picker.element.querySelector('[data-scan-state="review"]');attempt+=1)await sleep(30);
   picker.element.querySelector('[data-wallet-scan-confirm]').click();
-  for(let attempt=0;attempt<50&&!ready;attempt+=1)await sleep(20);
+  for(let attempt=0;attempt<150&&!ready;attempt+=1)await sleep(20);
   const selectedDataUrl=await picker.readDataUrl();
   const inputRect=input.getBoundingClientRect();
   const pickerRect=picker.element.getBoundingClientRect();

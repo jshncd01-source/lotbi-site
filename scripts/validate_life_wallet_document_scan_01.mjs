@@ -32,6 +32,7 @@ const point = (x, y) => ({x, y});
 try {
   const scan = await import('/site-life-wallet-scan.js?test=1');
   const ordered = scan.orderDocumentCorners([point(440,275), point(70,55), point(50,285), point(420,40)]);
+  const diamond = scan.orderDocumentCorners([point(240,30), point(440,160), point(240,290), point(40,160)]);
   const canvas = document.createElement('canvas'); canvas.width = 480; canvas.height = 320;
   const context = canvas.getContext('2d', {willReadFrequently:true});
   context.fillStyle = '#18212d'; context.fillRect(0,0,480,320);
@@ -62,7 +63,13 @@ try {
   lowContext.fillStyle = '#777'; lowContext.fillRect(0,0,480,320);
   for (let x=0; x<480; x+=16) { lowContext.fillStyle = x % 32 ? '#797979' : '#757575'; lowContext.fillRect(x,0,16,320); }
   const manual = scan.detectDocumentCorners(lowContext.getImageData(0,0,480,320));
-  out.textContent = JSON.stringify({ok:true, ordered, automatic, manual, corrected:{...corrected,dataUrl:corrected.dataUrl.slice(0,32),corners:[sample(2,2),sample(corrected.width-3,2),sample(corrected.width-3,corrected.height-3),sample(2,corrected.height-3)],colorSample:sample(Math.round(corrected.width*.75),Math.round(corrected.height*.75))},largeResult:{width:largeResult.width,height:largeResult.height},smallResult:{width:smallResult.width,height:smallResult.height},quality});
+  const subtle = document.createElement('canvas'); subtle.width=480; subtle.height=320;
+  const subtleContext=subtle.getContext('2d',{willReadFrequently:true}); subtleContext.fillStyle='#777'; subtleContext.fillRect(0,0,480,320);
+  subtleContext.fillStyle='#828282'; subtleContext.fillRect(28,24,424,272);
+  subtleContext.strokeStyle='#f5f5f5'; subtleContext.lineWidth=7; subtleContext.strokeRect(105,72,270,176);
+  subtleContext.fillStyle='#666'; subtleContext.fillRect(145,120,185,12); subtleContext.fillRect(145,150,145,9);
+  const internalBorder=scan.detectDocumentCorners(subtleContext.getImageData(0,0,480,320));
+  out.textContent = JSON.stringify({ok:true, ordered, diamond, automatic, manual, internalBorder, corrected:{...corrected,dataUrl:corrected.dataUrl.slice(0,32),corners:[sample(2,2),sample(corrected.width-3,2),sample(corrected.width-3,corrected.height-3),sample(2,corrected.height-3)],colorSample:sample(Math.round(corrected.width*.75),Math.round(corrected.height*.75))},largeResult:{width:largeResult.width,height:largeResult.height},smallResult:{width:smallResult.width,height:smallResult.height},quality});
 } catch (error) { out.textContent = JSON.stringify({ok:false,error:String(error?.stack||error)}); }
 </script></body></html>`;
 
@@ -83,12 +90,14 @@ try {
   const result = JSON.parse(match[1].replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>'));
   assert.equal(result.ok, true, result.error);
   assert.deepEqual(result.ordered, {topLeft:{x:70,y:55},topRight:{x:420,y:40},bottomRight:{x:440,y:275},bottomLeft:{x:50,y:285}});
+  assert.equal(new Set(Object.values(result.diamond).map(corner=>`${corner.x}:${corner.y}`)).size,4,`diamond ordering duplicated a corner: ${JSON.stringify(result.diamond)}`);
   assert.equal(result.automatic.mode, 'automatic');
   assert.ok(result.automatic.confidence >= 0.75, `automatic confidence ${result.automatic.confidence}`);
   const expected = [{x:70,y:55},{x:420,y:40},{x:440,y:275},{x:50,y:285}];
   const actual = [result.automatic.corners.topLeft,result.automatic.corners.topRight,result.automatic.corners.bottomRight,result.automatic.corners.bottomLeft];
   actual.forEach((corner,index) => assert.ok(Math.hypot(corner.x-expected[index].x,corner.y-expected[index].y)<=12, `corner ${index} is too far: ${JSON.stringify(corner)}`));
   assert.equal(result.manual.mode, 'manual', `low-contrast pattern was misclassified: ${JSON.stringify(result.manual)}`);
+  assert.equal(result.internalBorder.mode,'manual',`an internal printed border was misclassified as the document edge: ${JSON.stringify(result.internalBorder)}`);
   for (const corner of Object.values(result.manual.corners)) {
     assert.ok(corner.x > 0 && corner.x < 480 && corner.y > 0 && corner.y < 320, `manual corner outside source: ${JSON.stringify(corner)}`);
   }

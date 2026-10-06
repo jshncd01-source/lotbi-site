@@ -4,13 +4,20 @@ export function orderDocumentCorners(points) {
   if (!Array.isArray(points) || points.length !== 4) throw new TypeError('Four document corners are required.');
   const normalized = points.map(point => ({x: Number(point.x), y: Number(point.y)}));
   if (normalized.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y))) throw new TypeError('Document corners must be finite coordinates.');
-  const bySum = [...normalized].sort((left, right) => (left.x + left.y) - (right.x + right.y));
-  const byDifference = [...normalized].sort((left, right) => (left.x - left.y) - (right.x - right.y));
+  if (new Set(normalized.map(point => `${point.x}:${point.y}`)).size !== 4) throw new TypeError('Document corners must be unique.');
+  const center = normalized.reduce((sum, point) => ({x:sum.x + point.x / 4, y:sum.y + point.y / 4}), {x:0,y:0});
+  const clockwise = [...normalized].sort((left, right) => Math.atan2(left.y-center.y,left.x-center.x)-Math.atan2(right.y-center.y,right.x-center.x));
+  let first = 0;
+  for (let index=1;index<clockwise.length;index+=1) {
+    const candidate=clockwise[index]; const current=clockwise[first];
+    if (candidate.x+candidate.y<current.x+current.y || (candidate.x+candidate.y===current.x+current.y && candidate.y<current.y)) first=index;
+  }
+  const ordered=[...clockwise.slice(first),...clockwise.slice(0,first)];
   return {
-    topLeft: bySum[0],
-    topRight: byDifference[3],
-    bottomRight: bySum[3],
-    bottomLeft: byDifference[0],
+    topLeft: ordered[0],
+    topRight: ordered[1],
+    bottomRight: ordered[2],
+    bottomLeft: ordered[3],
   };
 }
 
@@ -127,6 +134,23 @@ function lineSupport(binary, width, height, start, end) {
   return supported / (steps + 1);
 }
 
+function boundaryContrast(gray, width, height, start, end) {
+  const length=Math.hypot(end.x-start.x,end.y-start.y);
+  if (length<1) return 0;
+  const normal={x:-(end.y-start.y)/length,y:(end.x-start.x)/length};
+  let difference=0; let samples=0;
+  for (const ratio of [0.18,0.34,0.5,0.66,0.82]) {
+    const center={x:start.x+(end.x-start.x)*ratio,y:start.y+(end.y-start.y)*ratio};
+    for (const distance of [10,12,14]) {
+      const leftX=Math.round(center.x-normal.x*distance); const leftY=Math.round(center.y-normal.y*distance);
+      const rightX=Math.round(center.x+normal.x*distance); const rightY=Math.round(center.y+normal.y*distance);
+      if (leftX<0||leftX>=width||leftY<0||leftY>=height||rightX<0||rightX>=width||rightY<0||rightY>=height) continue;
+      difference+=Math.abs(gray[leftY*width+leftX]-gray[rightY*width+rightX]); samples+=1;
+    }
+  }
+  return difference/Math.max(1,samples);
+}
+
 function componentCandidates(binary, width, height) {
   const visited = new Uint8Array(binary.length);
   const queue = new Int32Array(binary.length);
@@ -162,7 +186,8 @@ function componentCandidates(binary, width, height) {
 export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
-  const binary = dilate(sobelEdges(boxBlur(working.gray, working.width, working.height), working.width, working.height), working.width, working.height);
+  const blurred=boxBlur(working.gray,working.width,working.height);
+  const binary = dilate(sobelEdges(blurred, working.width, working.height), working.width, working.height);
   let best = null;
   for (const candidate of componentCandidates(binary, working.width, working.height)) {
     const corners = candidate.corners;
@@ -172,7 +197,8 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
     const edges = [[corners.topLeft,corners.topRight],[corners.topRight,corners.bottomRight],[corners.bottomRight,corners.bottomLeft],[corners.bottomLeft,corners.topLeft]];
     const shortestEdge = Math.min(...edges.map(([start,end]) => Math.hypot(end.x-start.x,end.y-start.y)));
     const support = edges.reduce((sum,[start,end]) => sum + lineSupport(binary,working.width,working.height,start,end),0) / 4;
-    if (areaRatio < 0.18 || shortestEdge < Math.min(working.width,working.height) * 0.16 || support < 0.46) continue;
+    const contrast=edges.reduce((sum,[start,end])=>sum+boundaryContrast(blurred,working.width,working.height,start,end),0)/4;
+    if (areaRatio < 0.18 || shortestEdge < Math.min(working.width,working.height) * 0.16 || support < 0.46 || contrast < 7) continue;
     const areaScore = clamp((areaRatio - 0.18) / 0.42, 0, 1);
     const confidence = clamp(0.56 + areaScore * 0.24 + support * 0.22, 0, 0.99);
     if (!best || confidence > best.confidence) best = {corners, confidence};
