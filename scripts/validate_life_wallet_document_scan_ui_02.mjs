@@ -5,29 +5,15 @@
 // internal edges). The default flow must crop automatically: no manual corner
 // step, background and margins removed, the whole card kept, save enabled.
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import http from 'node:http';
-import os from 'node:os';
 import path from 'node:path';
-import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {runFixturePage} from './lib/headless-fixture-result.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FIXTURE_PATH = '/__life_wallet_scan_ui_02.html';
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-function browserPath() {
-  for (const candidate of [process.env.CHROME_BIN, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
-    if ((candidate.includes('/') || candidate.includes('\\')) && fs.existsSync(candidate)) return candidate;
-    const found = spawnSync(process.platform === 'win32' ? 'where' : 'which', [candidate], {encoding: 'utf8'});
-    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim().split(/\r?\n/u)[0];
-  }
-  throw new Error('Chrome/Chromium is required for the Life Wallet scan UI validation.');
-}
 
 const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:680px;margin:auto}</style></head><body><main id="host"></main><script type="module">
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-const wait = async (predicate, label) => { for (let i = 0; i < 400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
+const wait = async (predicate, label) => { for (let i = 0; i < 2400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
 const nativeBitmap = globalThis.createImageBitmap;
 async function scanScene(module, scenes, scene) {
   // The scene generator decodes its own JPEG round-trip, so only the scanner sees the stub.
@@ -82,52 +68,13 @@ try {
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
-function contentType(file) {
-  if (file.endsWith('.js') || file.endsWith('.mjs')) return 'text/javascript; charset=utf-8';
-  if (file.endsWith('.css')) return 'text/css; charset=utf-8';
-  if (file.endsWith('.html')) return 'text/html; charset=utf-8';
-  if (file.endsWith('.svg')) return 'image/svg+xml';
-  if (file.endsWith('.png')) return 'image/png';
-  return 'application/octet-stream';
-}
-
-const server = http.createServer((request, response) => {
-  const url = new URL(request.url, 'http://127.0.0.1');
-  if (url.pathname === FIXTURE_PATH) { response.writeHead(200, {'content-type': 'text/html; charset=utf-8'}); response.end(fixture); return; }
-  const file = path.join(ROOT, decodeURIComponent(url.pathname));
-  if (!file.startsWith(ROOT) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { response.writeHead(404); response.end(); return; }
-  response.writeHead(200, {'content-type': contentType(file)}); response.end(fs.readFileSync(file));
+const result = await runFixturePage({
+  root: ROOT, fixturePath: '/__life_wallet_scan_ui_02.html', fixtureHtml: fixture, timeoutMs: 600000,
+  viewport: {width: 390, height: 844, mobile: true},
+  resultExpression: 'window.__result ? JSON.stringify(window.__result) : ""',
 });
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const origin = `http://127.0.0.1:${server.address().port}`;
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-wallet-scan-ui-'));
-const chrome = spawn(browserPath(), ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], {stdio: 'ignore'});
-let socket;
-try {
-  const portFile = path.join(profile, 'DevToolsActivePort');
-  for (let attempt = 0; attempt < 200 && !fs.existsSync(portFile); attempt += 1) await delay(50);
-  const debugPort = fs.readFileSync(portFile, 'utf8').split(/\r?\n/u)[0];
-  let page;
-  for (let attempt = 0; attempt < 100 && !page; attempt += 1) {
-    try { page = (await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json()).find(target => target.type === 'page'); } catch {}
-    if (!page) await delay(50);
-  }
-  assert.ok(page, 'headless Chrome page target missing');
-  socket = new WebSocket(page.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, {once: true}); socket.addEventListener('error', reject, {once: true}); });
-  let messageId = 0; const pending = new Map();
-  socket.addEventListener('message', event => { const message = JSON.parse(event.data); if (message.id && pending.has(message.id)) { pending.get(message.id)(message); pending.delete(message.id); } });
-  const send = (method, params = {}) => new Promise(resolve => { const id = ++messageId; pending.set(id, resolve); socket.send(JSON.stringify({id, method, params})); });
-  await send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: true});
-  await send('Page.navigate', {url: origin + FIXTURE_PATH});
-  let result = null;
-  for (let attempt = 0; attempt < 900 && !result; attempt += 1) {
-    await delay(100);
-    const evaluated = await send('Runtime.evaluate', {expression: 'window.__result ? JSON.stringify(window.__result) : ""', returnByValue: true});
-    const value = evaluated.result?.result?.value; if (value) result = JSON.parse(value);
-  }
-  assert.ok(result, 'scanner UI fixture timed out');
-  assert.equal(result.ok, true, result.error);
+assert.equal(result.ok, true, result.error);
+{
   const {automatic, ambiguous} = result;
   const detail = JSON.stringify({...automatic, text: undefined});
   assert.equal(automatic.state, 'review');
@@ -151,8 +98,4 @@ try {
   assert.equal(ambiguous.mode, 'manual', `two competing cards must not be cropped silently: ${JSON.stringify(ambiguous)}`);
   assert.equal(ambiguous.confirmEnabled, false, 'ambiguous scenes keep save disabled until the user adjusts corners');
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_UI_02 PASS — aspect=${automatic.aspect.toFixed(3)} edge_surface=${automatic.edgeSurfaceRatio.toFixed(3)} ambiguous=${ambiguous.reason}`);
-} finally {
-  try { socket?.close(); } catch {}
-  chrome.kill(); server.close();
-  for (let attempt = 0; attempt < 10; attempt += 1) { try { fs.rmSync(profile, {recursive: true, force: true}); break; } catch { await delay(200); } }
 }

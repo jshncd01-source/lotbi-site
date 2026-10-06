@@ -178,7 +178,9 @@ export async function renderScene({
   const shadow = shadowContext.getImageData(0, 0, width, height).data;
   const textures = cards.map(card => {
     const textureWidth = 960; const textureHeight = Math.round(textureWidth / card.aspect);
-    return {card, texture: cardTexture(textureWidth, textureHeight, card, random), textureWidth, textureHeight, inverse: inverseHomography(card.corners)};
+    const xs = card.corners.map(point => point.x); const ys = card.corners.map(point => point.y);
+    const bounds = {left: Math.min(...xs) - 2, right: Math.max(...xs) + 2, top: Math.min(...ys) - 2, bottom: Math.max(...ys) + 2};
+    return {card, bounds, texture: cardTexture(textureWidth, textureHeight, card, random), textureWidth, textureHeight, inverse: inverseHomography(card.corners)};
   });
   const output = new ImageData(width, height);
   const hotX = width * 0.7; const hotY = height * 0.25; const hotSigma = width * 0.3;
@@ -190,7 +192,8 @@ export async function renderScene({
       const shade = 1 - (shadow[index * 4 + 3] / 255) * 0.42;
       let rgb = [pixels[index * 3] * shade, pixels[index * 3 + 1] * shade, pixels[index * 3 + 2] * shade];
       if (frame && Math.min(x, y, width - 1 - x, height - 1 - y) < Math.min(width, height) * frame.thickness) rgb = [...frame.color];
-      for (const {card, texture, textureWidth, textureHeight, inverse} of textures) {
+      for (const {card, bounds, texture, textureWidth, textureHeight, inverse} of textures) {
+        if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) continue;
         let covered = 0; const sum = [0, 0, 0];
         for (const [ox, oy] of subsamples) {
           const {u, v} = inverse(x + ox, y + oy);
