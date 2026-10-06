@@ -131,6 +131,28 @@ root.innerHTML='<aside class="chat-sidebar"><ul data-recent-conversations></ul><
 document.body.dataset.siteAuthState='authenticated';
 if(!conversation.mountConversation({sessionToken:'site-token',identityKey:'install-theme-test'}))throw new Error('mount');
 await wait(()=>document.querySelector('.sidebar-account-name')?.textContent==='홍길동','identity');
+const accountFooter=document.querySelector('.sidebar-account-footer');
+const accountTrigger=document.querySelector('.sidebar-profile-trigger');
+const accountPlan=document.querySelector('.sidebar-account-plan');
+const footerStyle=getComputedStyle(accountFooter);
+const triggerStyle=getComputedStyle(accountTrigger);
+const planStyle=accountPlan?getComputedStyle(accountPlan):null;
+const accountCard={
+  trigger:{
+    backgroundColor:triggerStyle.backgroundColor,
+    borderWidth:triggerStyle.borderWidth,
+    borderStyle:triggerStyle.borderStyle,
+    borderRadius:triggerStyle.borderRadius,
+    boxShadow:triggerStyle.boxShadow,
+  },
+  footer:{borderTopWidth:footerStyle.borderTopWidth,borderTopStyle:footerStyle.borderTopStyle},
+  plan:accountPlan?{
+    text:accountPlan.textContent,
+    display:planStyle.display,
+    backgroundColor:planStyle.backgroundColor,
+    borderRadius:planStyle.borderRadius,
+  }:null,
+};
 
 // 항목 여섯 개, 순서 그대로, 막다른 길 없음
 await openMenu();
@@ -202,7 +224,7 @@ await setProfileFile('camera',null);
 const finalCancelPreserved=beforeFinalCancelStorage===JSON.stringify(storageSnapshot())&&beforeFinalCancelPreview===profilePhotoPreview.style.backgroundImage;
 await closeModal();
 
-out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},
+out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},accountCard,
 labels,disabledItems,deadEnd:popoverText.includes('준비 중'),
 theme:{owner:'ACCOUNT',runtime:'NOT_TESTED'},
 profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,validPreview,storedPhoto,finalCancelPreserved}})
@@ -243,6 +265,20 @@ try {
   waitServer();
   const measured = [['desktop', run(browser, 1440, 900)], ['mobile', run(browser, 390, 844)]];
   for (const [surface, v] of measured) {
+    assert.deepEqual(v.accountCard.trigger, {
+      backgroundColor:'rgb(255, 255, 255)',
+      borderWidth:'1px',
+      borderStyle:'solid',
+      borderRadius:'14px',
+      boxShadow:'rgba(17, 35, 68, 0.08) 0px 6px 18px 0px',
+    }, `${surface}: 하단 계정 영역은 독립된 카드로 보여야 합니다`);
+    assert.deepEqual(v.accountCard.footer, {borderTopWidth:'1px',borderTopStyle:'solid'}, `${surface}: 최근 대화와 계정 카드는 구분선으로 나뉘어야 합니다`);
+    assert.deepEqual(v.accountCard.plan, {
+      text:'LOTBI Plus',
+      display:'flex',
+      backgroundColor:'rgb(241, 237, 255)',
+      borderRadius:'999px',
+    }, `${surface}: 이용 등급은 별도 배지로 읽혀야 합니다`);
     // 여섯 개 그대로, 순서 그대로.
     assert.deepEqual(v.labels, MENU_LABELS, `${surface}: 프로필 메뉴는 여섯 항목이 이 순서여야 합니다`);
     // 막다른 길 금지 — 로그인된 상태에서는 누를 수 없는 항목이 없어야 한다.
