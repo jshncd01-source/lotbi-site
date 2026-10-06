@@ -5,7 +5,7 @@
 // shoot, the same way the pet screen draws its slot schematics, so a guardian
 // can see at a glance why ten different directions are asked for.
 
-import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-db0f8546a47a';
+import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-b7709434b96b';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
