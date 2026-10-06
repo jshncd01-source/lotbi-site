@@ -2,7 +2,7 @@ const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
 const PIN_KDF_ITERATIONS = 310_000;
 const BACKUP_KDF_ITERATIONS = 600_000;
-const INACTIVITY_MS = 60_000;
+const INACTIVITY_MS = 10 * 60_000;
 const MAX_PIN_FAILURES = 5;
 const BACKUP_AAD = 'LOTBI_LIFE_WALLET_BACKUP_V1';
 const CARD_KINDS = Object.freeze([
@@ -468,7 +468,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const activity = () => {
     if (!unlocked || disposed) return;
     clearTimeout(timer);
-    timer = setTimeout(() => { void lockAndRender('60초 동안 사용하지 않아 다시 잠겼습니다.'); }, INACTIVITY_MS);
+    timer = setTimeout(() => { void lockAndRender('10분 동안 사용하지 않아 다시 잠겼습니다.'); }, INACTIVITY_MS);
   };
   const activityEvents = ['pointerdown', 'keydown', 'input'];
   for (const name of activityEvents) root.addEventListener(name, activity, {passive: true});
@@ -610,7 +610,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       }
       const manage = element('div', 'wallet-manage');
       manage.append(button('PIN 변경', renderChangePin, true), button('암호화 백업', renderBackup, true), button('백업 가져오기', renderImport, true));
-      shell.append(manage, element('p', 'wallet-security-note', '화면 이탈·로그아웃·새로고침·백그라운드 전환·60초 비활동 시 자동으로 다시 잠깁니다.'));
+      shell.append(manage, element('p', 'wallet-security-note', '화면 이탈·로그아웃·새로고침·백그라운드 전환·10분 비활동 시 자동으로 다시 잠깁니다.'));
       root.replaceChildren(shell);
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
