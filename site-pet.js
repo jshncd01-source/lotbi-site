@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-e04fd8596fb6';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-1b59788ff7b8';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
@@ -172,6 +172,15 @@ const PET_ERROR_MESSAGES = Object.freeze({
   PET_PHOTO_TOO_BLURRY: '사진이 흐려요. 초점을 맞추고 다시 찍어 주세요.',
   PET_PHOTO_TOO_SMALL: '사진이 너무 작아요. 줄이지 말고 원본 크기로 올려 주세요.',
   PET_PHOTO_ANCHOR_REQUIRED: '코·특징 사진은 얼굴이나 몸 전체 사진을 먼저 올린 뒤에 등록할 수 있어요.',
+  // SAFECARE-WEB-UI-REDESIGN-01 — Core codes the screen used to show only as
+  // a generic failure.
+  PET_PHOTO_DUPLICATE: '같은 사진은 여러 각도에 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
+  FOUND_PET_PHOTO_DUPLICATE: '같은 사진은 여러 장으로 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
+  PET_IDENTITY_PHOTOS_INCOMPLETE: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PET_IDENTITY_PHOTOS_EXPIRED: '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 사진을 먼저 갱신해 주세요.',
+  FOUND_PET_PHOTOS_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
+  FOUND_PET_PHOTO_ANGLES_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
+  FOUND_PET_REPORT_ALREADY_SUBMITTED: '이미 제출한 제보입니다.',
   PET_PHOTO_SPECIES_CHECK_UNAVAILABLE: '사진 확인 기능이 잠시 멈췄어요. 잠시 후 다시 시도해 주세요.',
   PET_DRAFT_NOT_FOUND: '저장하던 등록 초안을 찾지 못했습니다. 새로 시작해 주세요.',
   PET_DRAFT_NOT_ACTIVE: '이미 마친 등록 초안입니다.',

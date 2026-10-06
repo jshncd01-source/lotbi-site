@@ -15,8 +15,15 @@ for (const forbidden of [
 ]) {
   assert.ok(!uiSource.includes(forbidden), `required-marker copy returned: ${forbidden}`);
 }
-assert.ok(uiSource.indexOf("stepChrome('PHOTOS')") < uiSource.indexOf("stepChrome('BASIC')"),
-  'the registration source must place the photo step before basic information');
+// SAFECARE-WEB-UI-REDESIGN-01: registration reads 기본정보 → 사진 10장 → 최종 확인
+// → 등록 완료, like the person screen. Core's PHOTOS -> BASIC photo gate is
+// still the only way past the photo step, and finalize re-validates both.
+assert.ok(uiSource.indexOf("stepChrome('BASIC')") < uiSource.indexOf("stepChrome('PHOTOS')")
+  && uiSource.indexOf("stepChrome('PHOTOS')") < uiSource.indexOf("stepChrome('REVIEW')")
+  && uiSource.indexOf("stepChrome('REVIEW')") < uiSource.indexOf("stepChrome('DONE')"),
+  'the registration source must read basic information, photos, final check, done');
+assert.ok(uiSource.includes("if (registrationDraft.currentStep === 'PHOTOS') await saveDraft({current_step: 'BASIC'});"),
+  "leaving the photo step must still pass through Core's PHOTOS -> BASIC photo gate");
 assert.ok(uiSource.includes('petDraftPhotoInspectionMessage'), 'draft photo reason codes must drive visible inspection guidance');
 assert.ok(uiSource.includes('next.disabled = !progression.ready'), 'BASIC must stay disabled until the progression contract is green');
 assert.ok(!uiSource.includes('registrationDraft.photos.length !== PET_PHOTO_SLOT_CODES.length'),

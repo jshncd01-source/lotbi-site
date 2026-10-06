@@ -4,48 +4,6 @@
   gap: 18px;
 }
 
-.pet-home {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.pet-home-card {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  min-height: 92px;
-  padding: 15px;
-  border: 1px solid var(--lotbi-border-default, #e2e6ee);
-  border-radius: 15px;
-  background: var(--lotbi-surface-primary, #fff);
-  color: var(--lotbi-text-primary, #202634);
-  text-align: left;
-  cursor: pointer;
-}
-
-.pet-home-card[data-pet-home-active='true'] {
-  border-color: var(--brand-violet, #7b62bb);
-  background: color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff));
-  box-shadow: inset 0 0 0 1px var(--brand-violet, #7b62bb);
-}
-
-.pet-home-card:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--brand-violet, #7b62bb) 38%, transparent);
-  outline-offset: 2px;
-}
-
-.pet-home-card-title {
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.pet-home-card-copy {
-  color: var(--lotbi-text-muted, #6a7280);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .pet-status {
   margin: 0;
   min-height: 18px;
@@ -233,9 +191,10 @@
 
 .pet-card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
 }
 
 .pet-card-name {
@@ -547,14 +506,6 @@
 
 @media (max-width: 640px) {
   .pet-card-actions { grid-template-columns: 1fr; }
-  .pet-home {
-    grid-template-columns: 1fr;
-  }
-
-  .pet-home-card {
-    min-height: 72px;
-  }
-
   .pet-draft-step { font-size: 10px; }
 }
 
@@ -1269,4 +1220,65 @@ body[data-site-theme="dark"] .pet-number-block {
 body[data-site-theme="dark"] .pet-number-note,
 body[data-site-theme="dark"] .pet-number-term {
   color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+/* SAFECARE-WEB-UI-REDESIGN-01 ------------------------------------------- */
+/* Several new controls set display, which beats the UA [hidden] rule. */
+.pet-family-surface [hidden] {
+  display: none !important;
+}
+
+.pet-profile-renewal,
+.pet-photo-context-note {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.pet-draft-extra {
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  padding: 0 12px;
+}
+
+.pet-draft-extra[open] {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.pet-draft-extra > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  word-break: keep-all;
+}
+
+.pet-draft-review-photos {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pet-draft-review-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.pet-draft-done {
+  display: grid;
+  gap: 12px;
+}
+
+.pet-family-surface .safecare-found {
+  display: grid;
+  gap: 12px;
 }

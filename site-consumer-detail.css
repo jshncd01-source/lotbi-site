@@ -113,13 +113,10 @@ body.chat-home-page .calendar-readonly-details dt { color: var(--consumer-detail
 body.chat-home-page :is(.pet-section, .pet-profile-controls, .pet-timeline, .pet-candidate-section, .pet-registration-review, .festival-detail, .festival-program-surface) {
   border-radius: 0; background: transparent; box-shadow: none;
 }
-body.chat-home-page :is(.pet-section-title, .pet-home-card-title, .pet-card-title, .pet-registration-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-card-title, .festival-program-title) {
+body.chat-home-page :is(.pet-section-title, .pet-card-title, .pet-registration-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-card-title, .festival-program-title) {
   font-weight: 600; letter-spacing: -.025em;
 }
-body.chat-home-page :is(.pet-home-card, .pet-card, .festival-card) { border-radius: var(--consumer-detail-radius); box-shadow: none; }
-body.chat-home-page .pet-home { gap: 6px; border-bottom: 1px solid var(--lotbi-border-default); padding-bottom: 12px; }
-body.chat-home-page .pet-home-card { min-height: 76px; border: 0; border-radius: 10px; padding: 12px; }
-body.chat-home-page .pet-home-card[data-pet-home-active='true'] { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-primary); box-shadow: none; }
+body.chat-home-page :is(.pet-card, .festival-card) { border-radius: var(--consumer-detail-radius); box-shadow: none; }
 body.chat-home-page :is(.pet-form, .pet-registration-form) { gap: 20px; }
 body.chat-home-page :is(.pet-form, .pet-registration-form) label { font-weight: 500; font-size: 14px; }
 body.chat-home-page :is(.pet-button, .pet-submit, .pet-form button, .festival-cta-button, .festival-registration-link, .festival-region-option) {
@@ -146,7 +143,6 @@ body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .c
   body.chat-home-page :is(.calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) { padding: 20px; }
   body.chat-home-page .calendar-readonly-details { grid-template-columns: minmax(0, 1fr); gap: 5px; }
   body.chat-home-page .calendar-readonly-details dd { margin-bottom: 12px; }
-  body.chat-home-page .pet-home-card { padding: 10px 8px; }
   body.chat-home-page :is(.calendar-editor-actions, .calendar-delete-confirm-actions) button { flex: 1 1 auto; }
   body.chat-home-page :is(.calendar-editor-primary, .calendar-editor-details) { grid-template-columns: minmax(0, 1fr); }
   body.chat-home-page .calendar-editor-body { padding: 12px 0; }

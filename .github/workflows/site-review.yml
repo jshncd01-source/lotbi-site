@@ -372,6 +372,20 @@ jobs:
       - name: Validate PET photo source selector
         run: node scripts/validate_pet_photo_source_selector_01.mjs
 
+      # SAFECARE-WEB-UI-REDESIGN-01: person + pet SafeCare screens at 1440px and
+      # 390px — the missing state only on an ACTIVE SOS card, a separate found
+      # CTA, found photos 1 to 10 with the final submit from 5, and no match
+      # asserted before Core reports NO_RELIABLE_MATCH.
+      - name: Validate SafeCare web UI redesign
+        run: |
+          node --check site-safecare-common.js
+          node --check site-safecare-guide-art.js
+          node --check site-person-guides.js
+          node --check site-pet-guides.js
+          node --check site-person-ui.js
+          node scripts/validate_safecare_capture_art_01.mjs
+          node scripts/validate_safecare_web_ui_redesign_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs

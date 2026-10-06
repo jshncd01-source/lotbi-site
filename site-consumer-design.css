@@ -212,9 +212,8 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
 }
 /* Detail screens retain their real managers, with the same canvas hierarchy. */
 .consumer-workspace :is(.site-festival-modal, .site-pet-modal) > .site-modal-content { overflow: visible; }
-.consumer-workspace :is(.pet-home-card-title, .pet-section-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-program-title) { font-weight: 600; }
-.consumer-workspace :is(.pet-home-card, .pet-card, .festival-card) { border-radius: 12px; box-shadow: none; }
-.consumer-workspace .pet-home-card[data-pet-home-active='true'] { border-color: var(--lotbi-text-primary); background: var(--lotbi-surface-subtle); box-shadow: none; }
+.consumer-workspace :is(.pet-section-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-program-title) { font-weight: 600; }
+.consumer-workspace :is(.pet-card, .festival-card) { border-radius: 12px; box-shadow: none; }
 .consumer-workspace :is(.pet-profile-controls, .pet-timeline, .pet-candidate-section) { padding: 20px 0; border: 0; border-top: 1px solid var(--lotbi-border-default); border-radius: 0; }
 .consumer-workspace :is(.festival-detail, .festival-program-surface, .festival-registration-sheet, .festival-schedule-sheet) { box-shadow: none; border-radius: 12px; }
 .consumer-workspace :is(.pet-family-surface, .festival-manager) { gap: 24px; }

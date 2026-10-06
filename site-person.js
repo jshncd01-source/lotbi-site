@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-e04fd8596fb6';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-1b59788ff7b8';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -43,3 +43,56 @@ export async function listHumanSightings(sessionToken, fetchImpl) { const payloa
 export async function createHumanSighting(sessionToken, input, fetchImpl) { const payload = await request('/v2/safecare/human-sightings', sessionToken, {method: 'POST', body: {observed_at: input.observedAt, location_summary: input.locationSummary, description: input.description || null}}, fetchImpl); return sighting(payload.report); }
 export async function putHumanSightingPhoto(sessionToken, reportId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
 export async function submitHumanSighting(sessionToken, reportId, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/submit`, sessionToken, {method: 'POST'}, fetchImpl); return sighting(payload.report); }
+export async function listHumanSightingPhotos(sessionToken, reportId, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos`, sessionToken, {}, fetchImpl); return Object.freeze((payload.photos || []).map(identityPhoto)); }
+export async function deleteHumanSightingPhoto(sessionToken, reportId, slotIndex, fetchImpl) { await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos/${slotIndex}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
+
+// Core error code -> a sentence the guardian can act on. The code itself is
+// never shown; the screen keeps it on a data attribute for diagnosis.
+const PERSON_ERROR_MESSAGES = Object.freeze({
+  SESSION_REQUIRED: '로그인 후 사용할 수 있습니다.',
+  PERSON_NETWORK_ERROR: '안심케어 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+  PERSON_IDENTITY_PHOTO_DUPLICATE: '같은 사진은 여러 각도에 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
+  HUMAN_SIGHTING_PHOTO_DUPLICATE: '같은 사진은 여러 장으로 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_TOO_LARGE: '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_UNSUPPORTED: 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.',
+  PERSON_IDENTITY_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
+  PERSON_REID_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
+  PERSON_REID_PHOTO_QUALITY_INSUFFICIENT: '얼굴이나 모습이 선명하게 보이지 않습니다. 밝은 곳에서 다시 찍은 사진을 선택해 주세요.',
+  PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
+  BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
+  PERSON_IDENTITY_PHOTOS_INCOMPLETE: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_PHOTO_REQUIRED: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_IDENTITY_PHOTOS_EXPIRED: '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 사진을 먼저 갱신해 주세요.',
+  PERSON_REID_CONSENT_REQUIRED: '실종 기간 동안 사진을 후보 검색에 사용하는 데 동의해 주세요.',
+  PERSON_SOS_LOCATION_INVALID: '마지막으로 본 장소를 확인해 주세요.',
+  PERSON_SOS_NOT_FOUND: '실종 정보를 찾지 못했습니다. 화면을 새로 열어 주세요.',
+  HUMAN_SIGHTING_LOCATION_INVALID: '발견 장소를 확인해 주세요.',
+  HUMAN_SIGHTING_PHOTOS_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
+  HUMAN_SIGHTING_ANGLES_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
+  HUMAN_SIGHTING_ALREADY_SUBMITTED: '이미 제출한 제보입니다.',
+  HUMAN_SIGHTING_NOT_FOUND: '제보를 찾지 못했습니다. 화면을 새로 열어 주세요.',
+  HUMAN_SIGHTING_PHOTO_SLOT_INVALID: '사진은 최대 10장까지 등록할 수 있습니다.',
+});
+
+export function personErrorMessage(error, fallback) {
+  const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';
+  if (PERSON_ERROR_MESSAGES[code]) return PERSON_ERROR_MESSAGES[code];
+  const status = error && typeof error === 'object' ? error.status : 0;
+  if (status === 401) return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
+  if (status === 413) return '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.';
+  if (status === 429) return '요청이 많습니다. 잠시 후 다시 시도해 주세요.';
+  if (status >= 500) return '서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해 주세요.';
+  return fallback;
+}
+
+// Private photo bytes for an on-screen preview only. Same bearer session, no
+// cookies, no referrer; the object URL never leaves this tab.
+async function privateObjectUrl(path, sessionToken, fetchImpl = globalThis.fetch) {
+  let response;
+  try { response = await fetchImpl(`${CORE_ORIGIN}${path}`, {method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', headers: {Authorization: `Bearer ${token(sessionToken)}`}}); }
+  catch { throw new SiteCoreError('사진을 불러오지 못했습니다.', {code: 'PERSON_NETWORK_ERROR', retryable: true}); }
+  if (!response.ok) throw new SiteCoreError('사진을 불러오지 못했습니다.', {code: `HTTP_${response.status}`, status: response.status});
+  return URL.createObjectURL(await response.blob());
+}
+export function fetchPersonIdentityPhotoObjectUrl(sessionToken, personId, slotIndex, fetchImpl) { return privateObjectUrl(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}/content`, sessionToken, fetchImpl); }
+export function fetchHumanSightingPhotoObjectUrl(sessionToken, reportId, slotIndex, fetchImpl) { return privateObjectUrl(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos/${slotIndex}/content`, sessionToken, fetchImpl); }

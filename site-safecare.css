@@ -1,0 +1,764 @@
+/* SAFECARE-WEB-UI-REDESIGN-01 — shared SafeCare pieces for the person and pet
+   screens: the four-step stepper, the ten-slot photo grid, the photo guide,
+   the found-report CTA and progress, and status badges. Colours come only from
+   the --lotbi-* theme tokens so Light and Dark follow the rest of LOTBI. */
+
+.safecare-back {
+  display: flex;
+}
+
+.safecare-back .site-button {
+  min-height: 40px;
+}
+
+.safecare-loading {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------ stepper */
+.safecare-stepper {
+  display: grid;
+  gap: 8px;
+}
+
+.safecare-step-label {
+  margin: 0;
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.safecare-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.safecare-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 10px;
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 13px;
+}
+
+.safecare-step[data-safecare-step-state="active"] {
+  border-color: var(--brand-violet, #7b62bb);
+  color: var(--lotbi-text-primary, #202634);
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px var(--brand-violet, #7b62bb);
+}
+
+.safecare-step[data-safecare-step-state="done"] {
+  color: var(--lotbi-text-primary, #202634);
+}
+
+.safecare-step-number {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.safecare-step[data-safecare-step-state="active"] .safecare-step-number {
+  background: var(--brand-violet, #7b62bb);
+  color: #fff;
+}
+
+.safecare-step-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  line-height: 1.3;
+}
+
+/* ------------------------------------------------------ photo progress */
+.safecare-photo-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.safecare-photo-counter {
+  display: grid;
+  gap: 2px;
+  color: var(--lotbi-text-primary, #202634);
+  word-break: keep-all;
+}
+
+.safecare-photo-counter strong {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.safecare-photo-counter span {
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.safecare-progress {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+}
+
+.safecare-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-violet, #7b62bb);
+  transition: width .2s ease;
+}
+
+/* The found report's 5-photo submit line, drawn on the bar itself. */
+.safecare-progress-found {
+  height: 12px;
+  overflow: visible;
+}
+
+.safecare-progress-found::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 50%;
+  width: 2px;
+  background: var(--lotbi-text-primary, #202634);
+  opacity: .55;
+}
+
+.safecare-progress-mark {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.safecare-progress-found + .safecare-slot-grid,
+.safecare-progress-found + * {
+  margin-top: 14px;
+}
+
+/* -------------------------------------------------------- photo guide */
+.safecare-guide {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 14px;
+  background: var(--lotbi-surface-subtle, #f7f7f7);
+}
+
+.safecare-guide-head {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.safecare-guide-figure {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-violet, #7b62bb) 16%, transparent);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 72% 18%, color-mix(in srgb, #9be7cf 30%, transparent), transparent 38%),
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-violet, #7b62bb) 13%, var(--lotbi-surface-primary, #fff)), var(--lotbi-surface-primary, #fff));
+  color: var(--lotbi-text-primary, #202634);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand-violet, #7b62bb) 14%, transparent);
+}
+
+.safecare-guide-figure .person-guide-diagram,
+.safecare-guide-figure .pet-slot-diagram {
+  width: 84px;
+  height: 64px;
+}
+
+.safecare-guide-art {
+  display: block;
+  width: 112px;
+  max-width: none;
+  height: 112px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgb(46 35 79 / 14%));
+}
+
+.safecare-guide-title {
+  margin: 0 0 4px;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 16px;
+  font-weight: 900;
+  word-break: keep-all;
+}
+
+.safecare-guide-copy {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.safecare-guide-map {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: safecare-guide;
+}
+
+.safecare-guide-step {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px 4px;
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  word-break: keep-all;
+  counter-increment: safecare-guide;
+}
+
+.safecare-guide-step > span::before {
+  content: counter(safecare-guide) ". ";
+}
+
+.safecare-guide-step svg {
+  width: 100%;
+  max-width: 72px;
+  height: auto;
+}
+
+.person-guide-diagram {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pet-slot-guide-frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--brand-violet, #7b62bb) 58%, transparent);
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pet-slot-guide-shape {
+  fill: color-mix(in srgb, var(--brand-violet, #7b62bb) 10%, var(--lotbi-surface-primary, #fff));
+  stroke: var(--lotbi-text-primary, #202634);
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pet-slot-guide-detail {
+  fill: var(--lotbi-text-primary, #202634);
+  stroke: none;
+}
+
+.pet-slot-guide-callout {
+  fill: var(--lotbi-surface-primary, #fff);
+  stroke: var(--lotbi-text-primary, #202634);
+  stroke-width: 1.55;
+}
+
+.pet-slot-diagram[data-pet-guide-species="cat"] .pet-slot-guide-shape {
+  fill: color-mix(in srgb, #9be7cf 18%, var(--lotbi-surface-primary, #fff));
+}
+
+.person-guide-feature {
+  fill: currentColor;
+  stroke: none;
+}
+
+.person-guide-stage {
+  fill: color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff));
+  stroke: none;
+}
+
+.person-guide-head {
+  fill: color-mix(in srgb, #f1c7ad 72%, var(--lotbi-surface-primary, #fff));
+  stroke: var(--lotbi-text-primary, #202634);
+}
+
+.person-guide-body {
+  fill: color-mix(in srgb, var(--brand-violet, #7b62bb) 22%, var(--lotbi-surface-primary, #fff));
+  stroke: var(--lotbi-text-primary, #202634);
+}
+
+.person-guide-mouth {
+  opacity: .65;
+}
+
+.person-guide-arrow {
+  fill: var(--brand-violet, #7b62bb);
+  stroke: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+/* ---------------------------------------------------------- slot grid */
+.safecare-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.safecare-slot {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.safecare-slot[data-safecare-slot-filled="true"] {
+  border-color: var(--brand-violet, #7b62bb);
+}
+
+.safecare-slot[data-safecare-slot-locked="true"] {
+  opacity: .62;
+}
+
+.safecare-slot[data-safecare-slot-working="true"] {
+  opacity: .6;
+}
+
+.safecare-slot-media {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 72 / 52;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+  color: var(--lotbi-text-secondary, #3d4653);
+}
+
+.safecare-slot-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.safecare-slot-loading {
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 12px;
+}
+
+.safecare-slot-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.safecare-slot-index {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+  font-size: 12px;
+}
+
+.safecare-slot[data-safecare-slot-filled="true"] .safecare-slot-index {
+  background: var(--brand-violet, #7b62bb);
+  color: #fff;
+}
+
+.safecare-slot-hint {
+  margin: 0;
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.safecare-slot .site-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.safecare-slot-error {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------- found CTA */
+.safecare-found-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 16px;
+  border: 1px dashed var(--lotbi-border-strong, #c9c9c9);
+  border-radius: 14px;
+  background: var(--lotbi-surface-subtle, #f7f7f7);
+}
+
+.safecare-found-cta-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 260px;
+  color: var(--lotbi-text-primary, #202634);
+  word-break: keep-all;
+}
+
+.safecare-found-cta-copy span {
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.safecare-found-cta-button {
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+
+.safecare-found-details {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.safecare-found-details legend {
+  margin-bottom: 4px;
+  padding: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-weight: 800;
+}
+
+.safecare-add-photo {
+  justify-self: start;
+  min-height: 44px;
+}
+
+.safecare-wizard-actions {
+  align-items: center;
+}
+
+/* A disabled submit must read as disabled, not merely pale. */
+.safecare-wizard-actions .site-button:disabled,
+.safecare-add-photo:disabled,
+.safecare-slot .site-button:disabled {
+  cursor: not-allowed;
+  border-style: dashed;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+  color: var(--lotbi-text-disabled, #8a8a8a);
+}
+
+.safecare-submit-hint {
+  flex: 1 1 200px;
+}
+
+.safecare-report-list {
+  display: grid;
+  gap: 10px;
+}
+
+.safecare-report[data-safecare-just-submitted="true"] {
+  border-color: var(--brand-violet, #7b62bb);
+}
+
+/* ----------------------------------------------------- active SOS box */
+.safecare-sos-active {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--lotbi-error-text, #a02645);
+  border-radius: 12px;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.safecare-sos-active strong {
+  color: var(--lotbi-error-text, #a02645);
+}
+
+.safecare-sos-active-note {
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 13px;
+}
+
+.safecare-sos-active .site-button {
+  justify-self: start;
+  min-height: 44px;
+}
+
+/* ------------------------------------------------------------ badges */
+.safecare-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.safecare-badge-ok { color: var(--lotbi-success-text, #247647); }
+.safecare-badge-warning,
+.safecare-badge-warning-text { color: var(--lotbi-warning-text, #8a4b16); }
+.safecare-badge-danger,
+.safecare-badge-danger-text { color: var(--lotbi-error-text, #a02645); }
+.safecare-badge-draft,
+.safecare-badge-neutral,
+.safecare-badge-progress { color: var(--lotbi-text-primary, #202634); }
+.safecare-badge-progress { border-style: dashed; }
+
+/* -------------------------------------------- person screen additions */
+.person-error {
+  margin: 0;
+  color: var(--lotbi-error-text, #a02645);
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.person-card-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.person-card-facts,
+.person-review {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.person-card-facts dt,
+.person-review dt {
+  color: var(--lotbi-text-muted, #5d6675);
+}
+
+.person-card-facts dd,
+.person-review dd {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-weight: 700;
+  word-break: keep-all;
+}
+
+.person-card-note {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.person-card-note-danger {
+  color: var(--lotbi-error-text, #a02645);
+}
+
+.person-text-button {
+  justify-self: start;
+  min-height: 36px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.person-form-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 17px;
+  font-weight: 900;
+  word-break: keep-all;
+}
+
+.person-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.person-field-label {
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.person-field-hint {
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.person-birth-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.person-consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.person-consent-check input {
+  flex: 0 0 auto;
+  width: 20px;
+  min-height: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.person-danger-zone {
+  display: grid;
+  gap: 8px;
+}
+
+.person-delete-confirm {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.person-login-link {
+  justify-self: start;
+}
+
+.person-consent,
+.person-empty,
+.person-card-meta {
+  word-break: keep-all;
+}
+
+/* ------------------------------------------------------------ mobile */
+@media (max-width: 640px) {
+  .safecare-steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .safecare-step {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .safecare-guide-head {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .safecare-guide-figure {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+  }
+
+  .safecare-guide-figure .person-guide-diagram,
+  .safecare-guide-figure .pet-slot-diagram {
+    width: 58px;
+    height: 44px;
+  }
+
+  .safecare-guide-art {
+    width: 76px;
+    height: 76px;
+  }
+
+  .safecare-guide-map {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .safecare-guide-step {
+    padding: 4px 2px;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .safecare-slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .safecare-slot {
+    padding: 8px;
+  }
+
+  .safecare-found-cta-button {
+    width: 100%;
+  }
+
+  .safecare-wizard-actions .site-button {
+    flex: 1 1 140px;
+  }
+}

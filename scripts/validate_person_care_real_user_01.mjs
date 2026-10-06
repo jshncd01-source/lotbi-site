@@ -7,7 +7,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const ui = read('site-person-ui.js');
 const conversation = read('site-conversation.js');
-assert.ok(ui.includes("['home', '등록된 사람'], ['sos', '실종 관리'], ['sighting', '발견 제보']"));
+// SAFECARE-WEB-UI-REDESIGN-01: the inner three-way menu is gone. Registered
+// people are the screen; each card owns its actions and the found report is a
+// separate CTA.
+assert.ok(!ui.includes("['home', '등록된 사람'], ['sos', '실종 관리'], ['sighting', '발견 제보']"));
+assert.ok(ui.includes('data-safecare-found-cta') || ui.includes('dataset.safecareFoundCta'));
+assert.ok(ui.includes('발견 제보하기'));
 assert.ok(ui.includes('실종 상태로 전환'));
 assert.ok(ui.includes('사진 갱신'));
 assert.ok(ui.includes('관리자 승인 후보'));
