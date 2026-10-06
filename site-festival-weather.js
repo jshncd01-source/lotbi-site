@@ -9,8 +9,8 @@
 //   - date join: calendarWeatherByDate() from site-calendar-weather.js
 // Duplicating either of those here is exactly what this module exists to
 // avoid.
-import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=aset-958c38563259';
-import {calendarWeatherByDate} from './site-calendar-weather.js?v=aset-958c38563259';
+import {getPublicCalendarWeather} from './site-calendar-public-weather.js?v=aset-9a01ac1be3b2';
+import {calendarWeatherByDate} from './site-calendar-weather.js?v=aset-9a01ac1be3b2';
 // Core's public Calendar weather read (GET /v2/life/weather/public) accepts a
 // maximum 15-day inclusive window (see lotbi-core app/calendar_weather_http.py).
 // A festival's own program span is normally 3-5 days and fits without
