@@ -21,6 +21,35 @@
   display: none;
 }
 
+.calendar-amount-overview {
+  min-width: 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--lotbi-calendar-grid-line, #dbe1ea);
+}
+
+.calendar-amount-overview .calendar-amount-line { margin-top: 0; border-top: 0; }
+.calendar-amount-category-groups { min-width: 0; padding: 0 4px 8px; }
+.calendar-amount-categories {
+  max-width: none;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+.calendar-amount-category {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid var(--lotbi-border-default, #d9dee8);
+  border-radius: 9px;
+  background: var(--lotbi-surface-elevated, #fff);
+}
+.calendar-amount-category dt { min-width: 0; color: var(--lotbi-calendar-muted-ink, #687180); font-size: 12px; font-weight: 700; }
+.calendar-amount-category dd { margin: 0; color: var(--lotbi-text-primary, #303642); font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* One fixed colour per category, so the six names are told apart at a glance
    instead of being read one by one. Fixed, never random: a reader who learns
    that 음식 is red has to find it red next month too, and a colour that moves
@@ -219,6 +248,8 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
 }
 
 @media (max-width: 520px) {
+  .calendar-amount-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calendar-amount-category { padding: 7px; }
   .calendar-expense-summary {
     padding: 10px;
     font-size: 0.8125rem;
