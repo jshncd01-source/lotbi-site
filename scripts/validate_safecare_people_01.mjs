@@ -30,6 +30,25 @@ assert.equal(calls[1].options.credentials, 'omit');
 await deletePerson('session-token', {personId: person.personId, revision: 1}, fetchImpl);
 assert.match(calls[2].url, /expected_revision=1$/);
 
+const recoveryCalls = [];
+const recoveryFetch = async (url, options = {}) => {
+  recoveryCalls.push({url, options});
+  if (recoveryCalls.length === 1) throw new TypeError('connection closed after commit');
+  return new Response(JSON.stringify({person: {
+    person_id: 'per_fedcba9876543210fedcba9876543210', display_name: '박안심',
+    relationship: 'PARENT', birth_year: 1960, birthday_month: 4,
+    state: 'ACTIVE', revision: 1, has_photo: false,
+  }, idempotent_replay: true}), {status: 200, headers: {'Content-Type': 'application/json'}});
+};
+const recovered = await createPerson('session-token', {
+  displayName: '박안심', relationship: 'PARENT', nickname: null,
+  birthYear: 1960, birthMonth: 4,
+}, recoveryFetch);
+assert.equal(recovered.displayName, '박안심');
+assert.equal(recoveryCalls.length, 2);
+assert.equal(recoveryCalls[0].options.headers['Idempotency-Key'], recoveryCalls[1].options.headers['Idempotency-Key']);
+assert.equal(recoveryCalls[0].options.body, recoveryCalls[1].options.body);
+
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const sections = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');

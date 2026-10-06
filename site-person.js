@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-c946beb6ef10';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-dee0576eaeb9';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -36,7 +36,17 @@ function personRequestKeyRandomHex() {
 export const personRequestKey = () => `prq_${Date.now()}_${personRequestKeyRandomHex()}`;
 export async function listPeople(sessionToken, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {}, fetchImpl); return Object.freeze((payload.people || []).map(person)); }
 export async function getPerson(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}`, sessionToken, {}, fetchImpl); return person(payload.person); }
-export async function createPerson(sessionToken, input, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {method: 'POST', requestKey: input.requestKey || personRequestKey('create'), body: {display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), birthday_day: null, nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
+export async function createPerson(sessionToken, input, fetchImpl) {
+  const options = {method: 'POST', requestKey: input.requestKey || personRequestKey('create'), body: {display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), birthday_day: null, nickname: input.nickname || null}};
+  const retryDelays = [250, 750, 1500];
+  for (let attempt = 0; ; attempt += 1) {
+    try { return person((await request('/v2/person-profiles', sessionToken, options, fetchImpl)).person); }
+    catch (error) {
+      if (error?.code !== 'PERSON_NETWORK_ERROR' || attempt >= retryDelays.length) throw error;
+      await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+    }
+  }
+}
 export async function updatePerson(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method: 'PATCH', body: {expected_revision: input.revision, display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
 export async function deletePerson(sessionToken, value, fetchImpl) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
 export async function putPersonPhoto(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}/photo`, sessionToken, {method: 'PUT', requestKey: input.requestKey || personRequestKey('photo'), body: {expected_revision: input.revision, photo_data_uri: input.dataUri}}, fetchImpl); return person(payload.person); }
