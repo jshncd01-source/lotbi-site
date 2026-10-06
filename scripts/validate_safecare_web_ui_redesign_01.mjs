@@ -82,10 +82,18 @@ assert.ok(personUi.includes("from './site-safecare-common.js?v=") && petUi.inclu
   'both screens must use the one shared rule module');
 assert.ok(!/birthYear\.type = 'number'|birthMonth\.type = 'number'/.test(personUi), 'birth year/month must be chosen, not typed');
 for (const code of [
-  'PERSON_IDENTITY_FACE_NOT_FOUND',
-  'PERSON_IDENTITY_MULTIPLE_FACES',
-  'PERSON_IDENTITY_FACE_DIRECTION_INVALID',
-  'PERSON_IDENTITY_FACE_GATE_UNAVAILABLE',
+  'PERSON_IDENTITY_PHOTO_NON_IDENTITY_IMAGE',
+  'PERSON_IDENTITY_PHOTO_NO_PERSON',
+  'PERSON_IDENTITY_PHOTO_NO_FACE',
+  'PERSON_IDENTITY_PHOTO_MULTIPLE_FACES',
+  'PERSON_IDENTITY_PHOTO_WRONG_POSE',
+  'PERSON_IDENTITY_PHOTO_WRONG_FRAMING',
+  'PERSON_IDENTITY_PHOTO_TOO_BLURRY',
+  'PERSON_IDENTITY_PHOTO_OCCLUDED',
+  'PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL',
+  'PERSON_IDENTITY_PHOTO_CHECK_UNAVAILABLE',
+  'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON',
+  'PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR',
 ]) {
   assert.ok(personClient.includes(code), `person photo UI must explain Core rejection ${code}`);
 }
