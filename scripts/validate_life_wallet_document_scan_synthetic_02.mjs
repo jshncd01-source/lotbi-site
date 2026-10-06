@@ -35,11 +35,12 @@ try {
     {group: 'NEGATIVE', name: 'two-cards', expect: 'manual', scene: {seed: 24, surfaceKind: 'felt', cards: [card({margins: {left: .04, right: .53, top: .2, bottom: .22}, rotation: 2}), card({margins: {left: .53, right: .04, top: .22, bottom: .2}, rotation: -2})]}},
     {group: 'NEGATIVE', name: 'two-touching-cards', expect: 'manual', scene: {seed: 29, surfaceKind: 'olive', cards: [card({margins: {left: .03, right: .49, top: .25, bottom: .2}, rotation: -3}), card({margins: {left: .5, right: .03, top: .2, bottom: .25}, rotation: 4})]}},
     {group: 'NEGATIVE', name: 'very-low-contrast', expect: 'manual', scene: {seed: 25, surfaceKind: 'felt', cards: [card({margins: {left: .13, right: .06, top: .04, bottom: .04}, rotation: 1, tint: [70, 118, 76], plain: true})]}},
-    {group: 'NEGATIVE', name: 'weak-card-strong-panel', expect: 'manual', scene: {seed: 27, surfaceKind: 'felt', cards: [card({margins: {left: .13, right: .06, top: .04, bottom: .04}, rotation: 1, tint: [70, 118, 76], panel: true})]}},
+    {group: 'SYNTHETIC_DENSE_INTERNAL_EDGES', name: 'weak-card-strong-panel', expect: 'card-or-manual', scene: {seed: 27, surfaceKind: 'felt', cards: [card({margins: {left: .13, right: .06, top: .04, bottom: .04}, rotation: 1, tint: [70, 118, 76], panel: true})]}},
   ];
   const sweep = Array.from({length: 24}, (_, index) => ({group: 'SYNTHETIC_RANDOM_ENVELOPE', name: 'seed-' + (index + 1), expect: 'card', scene: scenes.randomWalletScene(index + 1)}));
+  const softEdges = Array.from({length: 12}, (_, index) => ({group: 'SYNTHETIC_SOFT_EDGE', name: 'soft-' + (index + 1), expect: 'card-or-manual', scene: scenes.softEdgeWalletScene(index + 1)}));
   const results = [];
-  for (const test of [...named, ...sweep]) {
+  for (const test of [...named, ...sweep, ...softEdges]) {
     const width = test.scene.width || W; const height = test.scene.height || H;
     const canvas = await scenes.renderScene({width, height, ...test.scene});
     // Same bounded detection input the scanner UI builds before detection.
@@ -70,14 +71,19 @@ const result = await runFixturePage({
 assert.equal(result.ok, true, result.error);
 {
   const groups = new Map();
-  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles']);
+  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles', 'floodMode']);
   for (const row of result.results) {
     const label = `${row.group}/${row.name}`;
     const serialized = JSON.stringify(row.diagnostics || {});
     assert.ok(serialized.length < 1200, `${label}: diagnostics must stay small geometry/statistics (${serialized.length} chars)`);
     for (const key of Object.keys(row.diagnostics || {})) assert.ok(allowedDiagnostics.has(key), `${label}: unexpected diagnostics key ${key}`);
     assert.ok(!/data:image|base64/u.test(serialized), `${label}: diagnostics must not carry image data`);
-    if (row.expect === 'card') {
+    if (row.expect === 'card-or-manual') {
+      // Hard scenes (the reported soft-edge failure class, a faint card around a strong
+      // internal panel): an automatic crop must be the whole card; manual is allowed, a
+      // wrong crop (such as the panel) never.
+      if (row.mode === 'automatic') row.errors.forEach((error, index) => assert.ok(error <= row.shortSide * 0.02, `${label}: soft-edge crop corner ${index} is ${error.toFixed(1)}px off: ${serialized}`));
+    } else if (row.expect === 'card') {
       assert.equal(row.mode, 'automatic', `${label}: card was not detected automatically: ${row.reason} ${serialized}`);
       assert.equal(row.reason, 'document-quadrilateral');
       // Corners are the intersections of the straight card sides, so rounded corners are
@@ -88,11 +94,14 @@ assert.equal(result.ok, true, result.error);
       assert.equal(row.mode, 'manual', `${label}: ambiguous/negative scene must not be cropped automatically: ${serialized}`);
     }
     const group = groups.get(row.group) || {count: 0, worst: 0, elapsed: 0};
-    group.count += 1; group.elapsed += row.elapsed; if (row.expect === 'card') group.worst = Math.max(group.worst, ...row.errors);
+    group.count += 1; group.elapsed += row.elapsed; group.automatic = (group.automatic || 0) + (row.mode === 'automatic' ? 1 : 0);
+    if (row.expect === 'card' || (row.expect === 'card-or-manual' && row.mode === 'automatic')) group.worst = Math.max(group.worst, ...row.errors);
     groups.set(row.group, group);
   }
+  const soft = groups.get('SYNTHETIC_SOFT_EDGE');
+  assert.ok(soft.automatic >= Math.ceil(soft.count * 2 / 3), `soft-edge scenes fell back to manual too often: ${soft.automatic}/${soft.count}`);
   const average = result.results.reduce((sum, row) => sum + row.elapsed, 0) / result.results.length;
   assert.ok(average < 3000, `average detection time ${average.toFixed(0)}ms suggests a pathological slowdown`);
-  for (const [name, group] of groups) console.log(`${name}=PASS scenes=${group.count}${group.worst ? ` worst_corner_px=${group.worst.toFixed(1)}` : ''}`);
+  for (const [name, group] of groups) console.log(`${name}=PASS scenes=${group.count} automatic=${group.automatic}${group.worst ? ` worst_corner_px=${group.worst.toFixed(1)}` : ''}`);
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_SYNTHETIC_02 PASS — scenes=${result.results.length}, average_detection_ms=${average.toFixed(0)}`);
 }
