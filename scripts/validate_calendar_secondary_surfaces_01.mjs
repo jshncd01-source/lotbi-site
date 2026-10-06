@@ -225,10 +225,10 @@ assert.match(rootEscapeSource, /calendar-settings-(?:dialog|backdrop)[\s\S]*retu
 
 // Break caught: focused browser fixtures still asserted the retired overlay
 // variants or rendered every Month event, so CI would reject the final IA.
-assert.doesNotMatch(touchRuntime, /setDayDetailPresentation\(|presentation\s*!==\s*'POPOVER'|presentation\s*!==\s*'SHEET'/,
-  'touch runtime must test the authoritative FLOW/SIDE detail only');
-assert.match(touchRuntime, /presentation\s*!==\s*'FLOW'[\s\S]*position\s*!==\s*'static'/,
-  'touch runtime must assert an in-flow, non-overlay mobile detail');
+assert.doesNotMatch(touchRuntime, /setDayDetailPresentation\(|presentation\s*!==\s*'POPOVER'|presentation\s*!==\s*'FLOW'/,
+  'touch runtime must test the authoritative SHEET/MODAL detail only');
+assert.match(touchRuntime, /presentation\s*!==\s*'SHEET'[\s\S]*position\s*!==\s*'fixed'/,
+  'touch runtime must assert a fixed, dismissible mobile sheet');
 assert.doesNotMatch(dayPanelRuntime, /toggleLabel|\[접기\]|presentation\s*!==\s*'POPOVER'/,
   'day-panel runtime must not require the retired collapse/overlay UI');
 // LIFE UX 01: the day detail names its day in full ("10월 5일 월요일"), the

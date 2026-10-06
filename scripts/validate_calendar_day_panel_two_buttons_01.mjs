@@ -378,25 +378,15 @@ function run(browser, w, h, {theme = 'light'} = {}) {
   return v;
 }
 
-// The day detail is part of the page: today's, unless a date was pressed; in
-// flow under the month on a phone, a rail beside it on a desk; never a sheet
-// over the month; no caret dropped into it; one selected date at a time.
+// Month opens as the calendar alone. A date press is the only action that may
+// create a selected-day popup/sheet.
 function assertTodayInPage(label, when, value, r) {
   if (!r.todayDate) throw new Error(`${label}: ${when} — today is not on the month`);
-  if (r.panelHidden !== false) throw new Error(`${label}: ${when} — today's detail must be on the page`);
-  if (r.panelSelectedDate !== r.todayDate) throw new Error(`${label}: ${when} — the detail shows ${r.panelSelectedDate}, not today ${r.todayDate}; nobody pressed it`);
-  if (r.selectedDates.join(',') !== r.todayDate) throw new Error(`${label}: ${when} — selected cells ${r.selectedDates.join(', ')} must be today alone`);
+  if (r.panelPresent) throw new Error(`${label}: ${when} — Month opened an unrequested day detail`);
+  if (r.selectedDates.length) throw new Error(`${label}: ${when} — Month selected ${r.selectedDates.join(', ')} before a date press`);
   if (r.overlay) throw new Error(`${label}: ${when} — a sheet or backdrop covers the month`);
-  if (r.closeControl) throw new Error(`${label}: ${when} — the detail is part of the page and has no close control`);
+  if (r.closeControl) throw new Error(`${label}: ${when} — a close control exists without an open detail`);
   if (r.caret.insidePanel || r.caret.editable) throw new Error(`${label}: ${when} — the caret was moved without anyone asking (${r.caret.tag}.${r.caret.cls})`);
-  const expectedPresentation = value.desktop ? 'SIDE' : 'FLOW';
-  if (r.panelPresentation !== expectedPresentation) throw new Error(`${label}: ${when} — expected ${expectedPresentation}, got ${r.panelPresentation}`);
-  if (!value.desktop) {
-    if (r.panelPosition !== 'static') throw new Error(`${label}: ${when} — a phone keeps the detail in page flow, got ${r.panelPosition}`);
-    if (r.panelRect.top < r.gridRect.bottom - 2) throw new Error(`${label}: ${when} — the detail covers the month grid`);
-  } else if (r.panelRect.left < r.gridRect.right - 2) {
-    throw new Error(`${label}: ${when} — the desktop detail must sit beside the month, not under or over it`);
-  }
 }
 
 const browser = browserPath();
@@ -425,16 +415,16 @@ try {
       assertTodayInPage(label, 'on re-entering the Calendar', value, value.reopen);
       assertTodayInPage(label, 'a beat after re-entering', value, value.reopenSettled);
       if (value.quickAddAnywhereOnMount || value.quickAddAnywhereOnReopen) fail('a quick-add form is still rendered somewhere in the Calendar');
-      if (!value.mountEmptySentence) fail('an empty today must say 오늘은 아직 기록이 없어요.');
-      if (value.mountButtons.join('|') !== '사진에서 기록 읽기|+ 기록') fail(`today's actions must read 사진에서 기록 읽기 then + 기록, got [${value.mountButtons.join('|')}]`);
+      if (value.mountEmptySentence) fail('Month must not mount an automatic today detail');
+      if (value.mountButtons.length) fail(`Month must not mount day actions before a date press, got [${value.mountButtons.join('|')}]`);
 
       // ── 1. 제목 입력칸도, [저장] 도, 커서도 없다 ───────────────────────
       if (empty.quickAddForm) fail('the quick-add form is still in the day detail');
       if (empty.inputsInPanel !== 0) fail(`the day detail still holds ${empty.inputsInPanel} input(s)`);
       if (busy.inputsInPanel !== 0) fail(`a day with entries still holds ${busy.inputsInPanel} input(s) in its detail`);
       if (empty.caret.editable) fail(`tapping a date put the caret in ${empty.caret.tag}.${empty.caret.cls} — a phone raises its keyboard for that`);
-      // A tap keeps focus on the date pressed; Enter is what moves into the detail.
-      if (empty.caret.dateTrigger !== value.emptyDate) fail(`tapping a date must keep focus on that date, got ${empty.caret.tag}.${empty.caret.cls}`);
+      // A popup/sheet moves focus into its explicit close control.
+      if (!empty.caret.cls.includes('calendar-day-close')) fail(`tapping a date must focus the opened detail, got ${empty.caret.tag}.${empty.caret.cls}`);
       if (busy.caret.editable) fail(`a day with entries put the caret in ${busy.caret.tag}.${busy.caret.cls}`);
       if (empty.selectedDates.join(',') !== value.emptyDate) fail(`only the tapped date may be selected, got ${empty.selectedDates.join(', ')}`);
 
@@ -443,16 +433,12 @@ try {
       // desk's detail already names it in its heading, so it just says + 기록.
       // Either way the accessible name carries the date (below).
       const [, month, day] = value.emptyDate.split('-').map(Number);
-      const addLabel = (m, d) => (value.desktop ? '+ 기록' : `+ ${m}월 ${d}일에 기록`);
+      const addLabel = () => '+ 기록';
       const expected = ['사진에서 기록 읽기', addLabel(month, day)];
       if (empty.buttons.join('|') !== expected.join('|')) fail(`a picked day must offer exactly ${expected.join(' then ')}, got [${empty.buttons.join('|')}]`);
       const [, busyMonth, busyDayNumber] = value.busyDate.split('-').map(Number);
       if (busy.buttons.join('|') !== ['사진에서 기록 읽기', addLabel(busyMonth, busyDayNumber)].join('|')) fail(`a day with entries must offer the same two buttons, got [${busy.buttons.join('|')}]`);
-      if (value.desktop) {
-        if (empty.buttonsInPanel !== 2) fail(`a desk keeps the two buttons inside the day detail, got ${empty.buttonsInPanel}`);
-      } else if (empty.buttonsInPinnedBar !== 2 || empty.buttonsInPanel !== 0) {
-        fail(`a phone pins the two buttons to the bottom of the Calendar, got pinned=${empty.buttonsInPinnedBar} panel=${empty.buttonsInPanel}`);
-      }
+      if (empty.buttonsInPanel !== 2 || empty.buttonsInPinnedBar !== 0) fail(`the popup/sheet must own the two buttons, got pinned=${empty.buttonsInPinnedBar} panel=${empty.buttonsInPanel}`);
       if (!empty.buttonsHittable) fail('both buttons must be hit-testable on an empty day');
       if (!busy.buttonsHittable) fail('both buttons must stay reachable on a full day');
       if (empty.addImageAria !== `사진에서 일정·거래 정보를 읽어 ${month}월 ${day}일 기록 초안 만들기`) fail(`사진에서 기록 읽기 must name the date for assistive tech (${empty.addImageAria})`);
@@ -469,22 +455,18 @@ try {
       if (busy.emptySentence) fail('a day with entries must not say it has none');
       if (busy.events !== 8) fail(`a day with entries must list them (got ${busy.events})`);
       if (busy.times.join(',') !== '01:00,02:00,03:00') fail(`a day's records run in time order, got ${busy.times.join(',')}`);
-      if (!value.desktop && ['auto', 'scroll'].some(mode => busy.bodyOverflow === mode || busy.panelOverflow === mode)) {
-        fail('a phone keeps one scroll: the day detail must not scroll inside itself');
-      }
 
       // ── geometry ───────────────────────────────────────────────────────
-      const expectedPresentation = value.desktop ? 'SIDE' : 'FLOW';
-      const expectedPosition = value.desktop ? 'sticky' : 'static';
+      const expectedPresentation = value.desktop ? 'MODAL' : 'SHEET';
+      const expectedPosition = value.desktop ? 'relative' : 'fixed';
       if (empty.presentation !== expectedPresentation) fail(`expected ${expectedPresentation}, got ${empty.presentation}`);
       if (empty.position !== expectedPosition) fail(`expected ${expectedPosition} detail, got ${empty.position}`);
       if (empty.selectedDate !== value.emptyDate) fail(`the detail shows ${empty.selectedDate}, not the tapped ${value.emptyDate}`);
       if (empty.rect.left < -1 || empty.rect.right > value.viewport.width + 1) fail('the detail overflows sideways');
       if (value.desktop) {
-        if (empty.rect.left < empty.gridRight - 2) fail('the desktop detail must sit beside the month');
-        if (empty.rect.width < 300 || empty.rect.width > 400) fail(`the desktop detail must be a 320–380px rail, got ${empty.rect.width}px`);
-      } else if (empty.rect.top < empty.gridBottom - 2) {
-        fail('in-flow detail covers the Month grid');
+        if (empty.rect.width < 420 || empty.rect.width > 540) fail(`the desktop detail must be a readable centered popup, got ${empty.rect.width}px`);
+      } else if (Math.abs(empty.rect.bottom-value.viewport.height)>2) {
+        fail('the mobile detail must rest on the viewport bottom');
       }
     }
     console.log('CALENDAR DAY PANEL TWO BUTTONS PASS', JSON.stringify(report.map(v => ({
