@@ -21,6 +21,7 @@ import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinki
 import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-94d64f7d07eb';
 import {resolveLifeLocationContext} from './site-life-location.js?v=aset-94d64f7d07eb';
 import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-94d64f7d07eb';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-b29fb394ed8a';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -1425,6 +1426,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       captured_at: normalized.capturedAt,
       results: normalized.results.map(place => ({
         result_id: place.resultId,
+        ...(place.medicalStatus ? {medical_status: {
+          kind: place.medicalStatus.kind,
+          open_state: place.medicalStatus.openState,
+          hours_label: place.medicalStatus.hoursLabel,
+          target_label: place.medicalStatus.targetLabel,
+          basis: 'NMC_REGISTERED_HOURS',
+        }} : {}),
+        ...(place.emergencyStatus ? {emergency_status: {
+          realtime_state: place.emergencyStatus.realtimeState,
+          updated_at_label: place.emergencyStatus.updatedAtLabel,
+          beds: place.emergencyStatus.beds.map(item => ({label: item.label, available: item.available})),
+          er_operating: place.emergencyStatus.erOperating,
+          severe_acceptance_reported: [...place.emergencyStatus.severeAcceptanceReported],
+          messages: [...place.emergencyStatus.messages],
+          acceptance_guaranteed: false,
+        }} : {}),
         place_id: place.placeId,
         name: place.name,
         category: place.category,
@@ -1624,6 +1641,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       });
       actions.appendChild(mapAction);
 
+      for (const line of medicalStatusLines(place)) {
+        const status = document.createElement('span');
+        status.className = 'lotbi-place-license-note lotbi-place-medical-line';
+        status.dataset.medicalState = line.state;
+        status.textContent = line.text;
+        copy.appendChild(status);
+      }
       item.append(media, copy, actions);
       cards.push(item);
       rail.appendChild(item);
@@ -2527,6 +2551,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const place = normalizedPersistedPlaceResult(message.meta?.placeResult);
     if (message.role === 'assistant' && rich) {
       const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
+    }
+    if (message.role === 'assistant' && message.meta?.emergencyCall === true) {
+      node.appendChild(createEmergencyCallNotice(document));
     }
     if (message.role === 'assistant' && place) {
       const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
@@ -4247,6 +4274,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
         const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
         if (suggestedPetAction) meta.petAction = suggestedPetAction;
+        if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
         if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
@@ -4371,6 +4399,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       }
       const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
       if (suggestedPetAction) meta.petAction = suggestedPetAction;
+      if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
       if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
