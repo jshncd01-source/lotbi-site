@@ -688,8 +688,32 @@ function normalizeEvidenceCoverage(placeResult) {
   });
 }
 
+// LIFE-PUBLIC-DATA-01: optional coarse location for one life lookup turn.
+// Anything malformed is dropped here rather than sent; Core rejects the rest.
+function normalizeConversationClientLocation(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const source = value.source === 'BROWSER_CURRENT' || value.source === 'SAVED_REGION' ? value.source : '';
+  const latitude = Number(value.latitude);
+  const longitude = Number(value.longitude);
+  if (
+    !source
+    || !Number.isFinite(latitude) || !Number.isFinite(longitude)
+    || latitude < 31 || latitude > 44.5 || longitude < 122 || longitude > 132.5
+  ) return null;
+  const label = typeof value.label === 'string'
+    ? value.label.replace(/[^0-9A-Za-z가-힣·.\- ]/gu, ' ').replace(/\s+/gu, ' ').trim().slice(0, 40).trim()
+    : '';
+  return Object.freeze({
+    latitude: Math.round(latitude * 1000) / 1000,
+    longitude: Math.round(longitude * 1000) / 1000,
+    source,
+    ...(source === 'SAVED_REGION' && label ? {label} : {}),
+  });
+}
+
 function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
+  const school = normalizeConversationClientSchool(identity?.school);
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
   const conversationId = typeof identity?.conversationId === 'string' ? identity.conversationId.trim() : '';
   const turnId = typeof identity?.turnId === 'string' ? identity.turnId.trim() : '';
@@ -697,6 +721,7 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const stateVersion = Number.isInteger(identity?.stateVersion) && identity.stateVersion >= 0
     ? identity.stateVersion
     : null;
+  const location = normalizeConversationClientLocation(identity?.location);
   const safeIdentity = value => !value || /^[A-Za-z0-9._:-]{1,160}$/.test(value);
   if (!timezoneName && !createdAt && !conversationId && !turnId && !logicalRequestId && stateVersion === null) return null;
   if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64) {
@@ -713,11 +738,13 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   }
   return Object.freeze({
     timezone: timezoneName,
+    ...(school ? {school} : {}),
     ...(createdAt ? {turn_created_at: createdAt} : {}),
     ...(conversationId ? {conversation_id: conversationId} : {}),
     ...(turnId ? {turn_id: turnId} : {}),
     ...(logicalRequestId ? {logical_request_id: logicalRequestId} : {}),
     ...(stateVersion !== null ? {state_version: stateVersion} : {}),
+    ...(location ? {location} : {}),
   });
 }
 
@@ -906,6 +933,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
+    schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
@@ -916,6 +944,26 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
     calendarDraft: normalizeSmartCalendarDraft(payload.calendar_draft),
+  });
+}
+
+// LIFE-PUBLIC-DATA-01 / NEIS: the chosen school's public NEIS identifiers only.
+function normalizeConversationClientSchool(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const officeCode = typeof value.office_code === 'string' ? value.office_code.trim().toUpperCase() : '';
+  const schoolCode = typeof value.school_code === 'string' ? value.school_code.trim() : '';
+  const name = typeof value.name === 'string' ? value.name.replace(/\s+/gu, ' ').trim() : '';
+  if (!/^[A-Z][0-9]{2}$/u.test(officeCode) || !/^[0-9]{7,10}$/u.test(schoolCode) || !/^[0-9A-Za-z가-힣·()\- ]{2,60}$/u.test(name)) return null;
+  const kind = typeof value.kind === 'string' && /^[가-힣]{2,20}$/u.test(value.kind.trim()) ? value.kind.trim() : '';
+  const grade = Number.isInteger(value.grade) && value.grade >= 1 && value.grade <= 6 ? value.grade : null;
+  const className = typeof value.class_name === 'string' && /^[0-9A-Za-z가-힣]{1,4}$/u.test(value.class_name.trim()) ? value.class_name.trim() : '';
+  return Object.freeze({
+    office_code: officeCode,
+    school_code: schoolCode,
+    name,
+    ...(kind ? {kind} : {}),
+    ...(grade !== null ? {grade} : {}),
+    ...(className ? {class_name: className} : {}),
   });
 }
 
@@ -990,6 +1038,7 @@ function normalizeConversationRecentContext(recentContext) {
 
 export async function sendGuestConversationMessage({
   guestToken,
+  school = null,
   text,
   idempotencyKey,
   recentContext = [],
@@ -1000,6 +1049,7 @@ export async function sendGuestConversationMessage({
   turnId = '',
   logicalRequestId = '',
   stateVersion = null,
+  location = null,
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof guestToken === 'string' ? guestToken.trim() : '';
@@ -1018,10 +1068,12 @@ export async function sendGuestConversationMessage({
   }
 
   const clientContext = conversationClientContext(timezoneName, turnCreatedAt, {
+    school,
     conversationId,
     turnId,
     logicalRequestId,
     stateVersion,
+    location,
   });
   const body = {
     text: message || '첨부 파일을 확인해 주세요.',
@@ -1084,6 +1136,7 @@ export async function sendGuestConversationMessage({
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
+    schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
