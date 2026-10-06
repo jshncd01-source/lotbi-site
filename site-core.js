@@ -746,6 +746,13 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   });
 }
 
+// LIFE-PUBLIC-DATA-01 / NIGHT MEDICAL: only whether the 119 notice applies.
+function normalizeMedicalResultNotice(value) {
+  if (!value || typeof value !== 'object' || value.contract_id !== 'CORE-MEDICAL-RESULT-01') return null;
+  const notices = Array.isArray(value.notices) ? value.notices : [];
+  return Object.freeze({emergencyCall: notices.includes('CALL_119')});
+}
+
 function normalizeAttachmentIds(attachmentIds) {
   if (!Array.isArray(attachmentIds)) return [];
   const normalized = attachmentIds.map(value => typeof value === 'string' ? value.trim() : '');
@@ -935,6 +942,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
     reusableOutput: normalizeReusableOutput(payload.reusable_output),
+    medicalNotice: normalizeMedicalResultNotice(payload.medical_result),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
@@ -1115,6 +1123,7 @@ export async function sendGuestConversationMessage({
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
     reusableOutput: normalizeReusableOutput(payload.reusable_output),
+    medicalNotice: normalizeMedicalResultNotice(payload.medical_result),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,

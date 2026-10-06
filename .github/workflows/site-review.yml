@@ -222,6 +222,12 @@ jobs:
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
+      # LIFE-PUBLIC-DATA-01 / FEATURE C: 야간 병원·약국·응급실 카드와 119 안내.
+      - name: Validate night medical cards, ER real-time honesty and 119 notice
+        run: |
+          node --check site-life-medical.js
+          node scripts/validate_life_night_medical_01.mjs
+
       - name: Validate Conversation to Calendar actions
         run: |
           node --check site-calendar-actions.js

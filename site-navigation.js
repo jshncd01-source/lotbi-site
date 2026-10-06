@@ -2,6 +2,9 @@ const NAVER_MAPS_WEB_APPNAME = 'https://lotbiai.com';
 const NAVER_MAPS_ANDROID_PACKAGE = 'com.nhn.android.nmap';
 const NAVER_MAPS_WEB_SEARCH_BASE = 'https://map.naver.com/p/search/';
 const NAVIGATION_TTL_MS = 60 * 60 * 1000;
+// NAVER geocoding for Place results; 국립중앙의료원 registry WGS84 for the
+// LIFE-PUBLIC-DATA-01 medical results. Both are provider-confirmed points.
+const NAVIGATION_COORDINATE_AUTHORITIES = new Set(['NAVER_MAPS_GEOCODING', 'NMC_OFFICIAL']);
 
 // SITE-PLACE-CARD-MAP-DEEPLINK-01 — KakaoMap과 티맵 손잡이.
 //
@@ -85,6 +88,53 @@ export function buildVerifiedPhoneHref(place) {
   return normalizeVerifiedPhone({phone: number, phone_verified: true}).href;
 }
 
+// LIFE-PUBLIC-DATA-01 / NIGHT MEDICAL. 국립중앙의료원 등록 진료시간·응급실 실시간 보고.
+// Only what Core sent is kept; ER bed numbers survive only for a FRESH report.
+const OPEN_STATES = new Set(['OPEN', 'CLOSED', 'NOT_LISTED', 'LISTED']);
+const REALTIME_STATES = new Set(['FRESH', 'STALE', 'UNAVAILABLE', 'NOT_CHECKED']);
+const KINDS = new Set(['HOSPITAL', 'PHARMACY', 'EMERGENCY']);
+const SAFE_TEXT_RE = /[\u0000-\u001f<>]/gu;
+
+function boundedText(value, max = 80) {
+  return typeof value === 'string' ? value.replace(SAFE_TEXT_RE, ' ').replace(/\s+/gu, ' ').trim().slice(0, max) : '';
+}
+
+export function normalizeMedicalStatus(value) {
+  if (!value || typeof value !== 'object') return null;
+  const kind = boundedText(value.kind).toUpperCase();
+  const openState = boundedText(value.open_state).toUpperCase();
+  if (!KINDS.has(kind) || !OPEN_STATES.has(openState) || value.basis !== 'NMC_REGISTERED_HOURS') return null;
+  return Object.freeze({
+    kind,
+    openState,
+    hoursLabel: boundedText(value.hours_label, 60),
+    targetLabel: boundedText(value.target_label, 40),
+  });
+}
+
+export function normalizeEmergencyStatus(value) {
+  if (!value || typeof value !== 'object') return null;
+  const realtimeState = boundedText(value.realtime_state).toUpperCase();
+  if (!REALTIME_STATES.has(realtimeState) || value.acceptance_guaranteed !== false) return null;
+  const fresh = realtimeState === 'FRESH';
+  const beds = fresh && Array.isArray(value.beds)
+    ? value.beds
+      .filter(item => item && typeof item === 'object' && Number.isInteger(item.available) && boundedText(item.label))
+      .slice(0, 9)
+      .map(item => Object.freeze({label: boundedText(item.label, 20), available: item.available}))
+    : [];
+  return Object.freeze({
+    realtimeState,
+    updatedAtLabel: boundedText(value.updated_at_label, 20),
+    beds: Object.freeze(beds),
+    erOperating: value.er_operating === true ? true : (value.er_operating === false ? false : null),
+    severeAcceptanceReported: Object.freeze(
+      (Array.isArray(value.severe_acceptance_reported) ? value.severe_acceptance_reported : []).map(item => boundedText(item, 20)).filter(Boolean).slice(0, 12),
+    ),
+    messages: Object.freeze((Array.isArray(value.messages) ? value.messages : []).map(item => boundedText(item, 120)).filter(Boolean).slice(0, 2)),
+  });
+}
+
 const FOOD_LICENSE_STATES = new Set(['VERIFIED', 'AMBIGUOUS', 'NOT_FOUND', 'CONFLICTING', 'UNAVAILABLE']);
 
 function normalizeFoodLicenseVerification(value) {
@@ -109,7 +159,7 @@ function coordinateReady(place) {
     && longitude >= 122.37
     && longitude <= 132
     && text(place?.coordinate_system).toUpperCase() === 'WGS84'
-    && text(place?.coordinate_authority) === 'NAVER_MAPS_GEOCODING'
+    && NAVIGATION_COORDINATE_AUTHORITIES.has(text(place?.coordinate_authority))
     && place?.navigation_capability === true;
 }
 
@@ -118,6 +168,8 @@ function normalizePlace(place, index) {
   const name = text(place.name);
   const address = text(place.road_address) || text(place.address);
   if (!name || !address) return null;
+  const medicalStatus = normalizeMedicalStatus(place.medical_status);
+  const emergencyStatus = normalizeEmergencyStatus(place.emergency_status);
   const latitude = finiteCoordinate(place.latitude);
   const longitude = finiteCoordinate(place.longitude);
   const sourceUrl = text(place.source_url);
@@ -127,6 +179,8 @@ function normalizePlace(place, index) {
   return Object.freeze({
     candidateIndex: index,
     resultId: text(place.result_id) || `place-${index + 1}`,
+    medicalStatus,
+    emergencyStatus,
     placeId: text(place.place_id),
     name,
     category: text(place.category),
