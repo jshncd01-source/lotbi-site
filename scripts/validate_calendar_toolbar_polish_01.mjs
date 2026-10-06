@@ -24,7 +24,7 @@ assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.calendar
 // The original rule (and this exact request/indentation) must still exist --
 // validate_calendar_responsive_01.mjs also locks it; this is the same
 // contract restated so a toolbar-polish regression fails here too.
-assert.ok(css.includes('.calendar-toolbar {\n  grid-row: 1;'), 'must not have touched the base .calendar-toolbar rule');
+assert.match(css, /\.calendar-toolbar \{\r?\n  grid-row: 1;/, 'must not have touched the base .calendar-toolbar rule');
 assert.match(css, /\.calendar-settings-button \{[\s\S]*display:\s*inline-flex;[\s\S]*gap:\s*5px;/,
   'must not have touched the base .calendar-settings-button rule');
 
@@ -97,6 +97,10 @@ try {
     monthTab: [...root.querySelectorAll('.calendar-mode-tab')].find(n => n.textContent === '월'), // selected by default
   };
 
+  const toolbar = target('.calendar-toolbar');
+  const modes = target('.calendar-mode-tabs');
+  result.order = [...toolbar.children].map(node => node === modes ? '보기' : node.textContent.trim());
+
   result.geometry = {};
   result.radius = {};
   result.contrast = {};
@@ -118,6 +122,13 @@ try {
     }
     if (fg && bg) result.contrast[name] = Math.round(contrast(fg, bg) * 100) / 100;
   }
+
+  const next = [...root.querySelectorAll('.calendar-nav-button')].find(node => node.dataset.calendarNavigation === 'next');
+  const title = target('.calendar-title-button');
+  const desktopNodes = [buttons.previous, title, next, buttons.today, modes, buttons.settings];
+  result.toolbarLefts = desktopNodes.map(node => Math.round(node.getBoundingClientRect().left));
+  result.todayToModesGap = Math.round(modes.getBoundingClientRect().left - buttons.today.getBoundingClientRect().right);
+  result.modesToSettingsGap = Math.round(buttons.settings.getBoundingClientRect().left - modes.getBoundingClientRect().right);
 
   out.textContent = JSON.stringify(result);
 } catch (e) {
@@ -182,6 +193,15 @@ try {
       // light/dark colour rules already targeted this, this just confirms
       // the new shadow/radius/typography layer did not quietly break it.
       if (ratio < 3) throw new Error(`${theme}: ${name} text/background contrast dropped to ${ratio}:1`);
+    }
+    if (JSON.stringify(v.order) !== JSON.stringify(['이전', '2026년 9월', '다음', '오늘', '보기', '설정'])) {
+      throw new Error(`${theme}: toolbar DOM order must follow navigation, views, then settings; got ${JSON.stringify(v.order)}`);
+    }
+    if (!v.toolbarLefts.every((left, index, values) => index === 0 || left > values[index - 1])) {
+      throw new Error(`${theme}: toolbar controls are not visually ordered left-to-right: ${JSON.stringify(v.toolbarLefts)}`);
+    }
+    if (v.todayToModesGap > 12 || v.modesToSettingsGap > 12) {
+      throw new Error(`${theme}: view tabs and settings must stay with the navigation group, gaps=${v.todayToModesGap}/${v.modesToSettingsGap}`);
     }
     console.log(`${theme}: PASS`, JSON.stringify(v));
   }
