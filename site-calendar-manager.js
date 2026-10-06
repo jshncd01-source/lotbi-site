@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-7f1ce72a7d9a';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-7f1ce72a7d9a';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-7f1ce72a7d9a';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-d0a22f5869a5';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-d0a22f5869a5';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-d0a22f5869a5';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-7f1ce72a7d9a';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-7f1ce72a7d9a';
+} from './site-calendar-model.js?v=aset-d0a22f5869a5';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-d0a22f5869a5';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-7f1ce72a7d9a';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-7f1ce72a7d9a';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-7f1ce72a7d9a';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-d0a22f5869a5';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-d0a22f5869a5';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-d0a22f5869a5';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-7f1ce72a7d9a';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-7f1ce72a7d9a';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-7f1ce72a7d9a';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-7f1ce72a7d9a';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-7f1ce72a7d9a';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-7f1ce72a7d9a';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-7f1ce72a7d9a';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-7f1ce72a7d9a';
+} from './site-calendar-product.js?v=aset-d0a22f5869a5';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-d0a22f5869a5';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-d0a22f5869a5';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-d0a22f5869a5';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-d0a22f5869a5';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-d0a22f5869a5';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-d0a22f5869a5';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-d0a22f5869a5';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1597,6 +1597,24 @@ function syncMonthLayout(layout) {
 const CALENDAR_WEEK_HOUR_HEIGHT = 48;
 const CALENDAR_WEEK_DEFAULT_START_HOUR = 6;
 const MINUTES_PER_DAY = 24 * 60;
+const CALENDAR_WEEK_START_MINUTES = CALENDAR_WEEK_DEFAULT_START_HOUR * 60;
+
+// A LOTBI day is displayed from the useful waking hours into the following
+// dawn: 06:00-23:59 first, then 00:00-05:59 at the bottom. Civil dates and the
+// stored event times do not change; this only rotates their visual position.
+function calendarWeekDisplayMinute(minute) {
+  return (minute - CALENDAR_WEEK_START_MINUTES + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+}
+
+function calendarWeekDisplaySegments(start, end) {
+  const displayStart = calendarWeekDisplayMinute(start);
+  const displayEnd = displayStart + (end - start);
+  if (displayEnd <= MINUTES_PER_DAY) return [{start: displayStart, end: displayEnd}];
+  return [
+    {start: displayStart, end: MINUTES_PER_DAY},
+    {start: 0, end: displayEnd - MINUTES_PER_DAY},
+  ];
+}
 
 // Week keeps LOTBI's visual language while using the familiar calendar model:
 // dates run left-to-right and clock time runs top-to-bottom. The grid owns its
@@ -1654,11 +1672,13 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
   const hourAxis = document.createElement('div');
   hourAxis.className = 'calendar-week-hour-axis';
   hourAxis.style.height = `${MINUTES_PER_DAY / 60 * CALENDAR_WEEK_HOUR_HEIGHT}px`;
-  for (let hour = 0; hour < 24; hour += 1) {
+  const displayHours = Array.from({length: 24}, (_, index) => (CALENDAR_WEEK_DEFAULT_START_HOUR + index) % 24);
+  for (const [index, hour] of displayHours.entries()) {
     const label = document.createElement('div');
     label.className = 'calendar-week-hour-label';
-    label.style.top = `${hour * CALENDAR_WEEK_HOUR_HEIGHT}px`;
-    if (hour > 0) label.textContent = `${String(hour).padStart(2, '0')}:00`;
+    label.style.top = `${index * CALENDAR_WEEK_HOUR_HEIGHT}px`;
+    label.dataset.first = String(index === 0);
+    label.textContent = `${String(hour).padStart(2, '0')}:00`;
     hourAxis.appendChild(label);
   }
   scroll.dataset.gridLines = String(state.showGridLines !== false);
@@ -1736,23 +1756,25 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
     for (const entry of day.timed) {
       const item = entry.item;
       const presentation = calendarEventPresentation(item);
-      const block = button('', 'calendar-week-grid-event');
-      block.dataset.eventKind = presentation.kind;
-      block.dataset.calendarEventId = item.id || item.activity_id || '';
-      block.style.top = `${(entry.start / MINUTES_PER_DAY) * 100}%`;
-      block.style.height = `${((entry.end - entry.start) / MINUTES_PER_DAY) * 100}%`;
-      block.style.setProperty('--calendar-event-lane', String(entry.lane));
-      block.style.setProperty('--calendar-event-lane-count', String(entry.laneCount));
-      const time = document.createElement('span');
-      time.className = 'calendar-week-grid-event-time';
-      time.textContent = presentation.timeLabel;
-      const title = document.createElement('span');
-      title.className = 'calendar-week-grid-event-title';
-      title.textContent = item.title;
-      block.append(time, title);
-      block.setAttribute('aria-label', `${presentation.timeLabel} ${item.title}`);
-      block.addEventListener('click', event => actions.onEvent(item, event.currentTarget));
-      group.appendChild(block);
+      for (const segment of calendarWeekDisplaySegments(entry.start, entry.end)) {
+        const block = button('', 'calendar-week-grid-event');
+        block.dataset.eventKind = presentation.kind;
+        block.dataset.calendarEventId = item.id || item.activity_id || '';
+        block.style.top = `${(segment.start / MINUTES_PER_DAY) * 100}%`;
+        block.style.height = `${((segment.end - segment.start) / MINUTES_PER_DAY) * 100}%`;
+        block.style.setProperty('--calendar-event-lane', String(entry.lane));
+        block.style.setProperty('--calendar-event-lane-count', String(entry.laneCount));
+        const time = document.createElement('span');
+        time.className = 'calendar-week-grid-event-time';
+        time.textContent = presentation.timeLabel;
+        const title = document.createElement('span');
+        title.className = 'calendar-week-grid-event-title';
+        title.textContent = item.title;
+        block.append(time, title);
+        block.setAttribute('aria-label', `${presentation.timeLabel} ${item.title}`);
+        block.addEventListener('click', event => actions.onEvent(item, event.currentTarget));
+        group.appendChild(block);
+      }
     }
     scroll.appendChild(group);
   }
@@ -1762,13 +1784,6 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
   stickyRows.append(header, alldayRow);
   body.append(stickyRows, scroll);
   wrapper.appendChild(body);
-  // Open on the useful part of the day while preserving midnight through
-  // 05:59 above it for overnight travel, medical and shift-work records. The
-  // microtask runs after the complete grid is inserted into the viewport,
-  // avoiding a detached element clamping the requested position back to zero.
-  queueMicrotask(() => {
-    body.scrollTop = Math.max(0, CALENDAR_WEEK_DEFAULT_START_HOUR * CALENDAR_WEEK_HOUR_HEIGHT - 24);
-  });
   return wrapper;
 }
 

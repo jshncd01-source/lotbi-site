@@ -996,6 +996,7 @@ body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color:
   position: absolute; left: 0; right: 6px; transform: translateY(-50%);
   color: var(--lotbi-calendar-weekday-ink); font-size: 10px; font-variant-numeric: tabular-nums; text-align: right;
 }
+.calendar-week-hour-label[data-first="true"] { transform: translateY(4px); }
 .calendar-week-grid-day { position: relative; min-width: 0; border-left: 1px solid var(--lotbi-calendar-grid-line); }
 .calendar-week-grid-scroll[data-grid-lines="true"] .calendar-week-grid-day {
   background-image: repeating-linear-gradient(to bottom, var(--lotbi-calendar-grid-line) 0, var(--lotbi-calendar-grid-line) 1px, transparent 1px, transparent 48px);
