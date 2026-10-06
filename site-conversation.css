@@ -1246,6 +1246,46 @@ html[data-profile-photo-embed="true"] .site-modal-close {
   display: none;
 }
 
+html[data-profile-photo-embed="true"] .site-modal {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-header {
+  padding: 22px 24px 8px;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-header h2 {
+  font-size: 20px;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-content {
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 16px;
+  padding: 10px 24px 22px;
+}
+
+html[data-profile-photo-embed="true"] .profile-photo-preview {
+  grid-row: 1 / span 2;
+  width: 72px;
+  height: 72px;
+  font-size: 21px;
+}
+
+html[data-profile-photo-embed="true"] .profile-photo-picker {
+  width: 100%;
+}
+
+html[data-profile-photo-embed="true"] .site-field-error {
+  grid-column: 2;
+  margin: 0;
+}
+
 .site-modal {
   width: min(100%, 520px);
   max-height: min(84vh, 720px);
