@@ -10,7 +10,8 @@ body.chat-home-page .consumer-primary-nav { gap: 2px; }
 body.chat-home-page .consumer-primary-nav .nav-item { min-height: 44px; padding: 10px 12px; font-size: 14px; font-weight: 400; border-radius: 8px; }
 body.chat-home-page .consumer-primary-nav .nav-item-primary { margin-bottom: 14px; font-weight: 500; background: var(--lotbi-surface-subtle); }
 body.chat-home-page .consumer-primary-nav .nav-icon { width: 18px; height: 18px; opacity: .85; }
-body.chat-home-page .sidebar-history-section { margin-top: 32px; }
+body.chat-home-page .sidebar-history-shell { margin-top: 32px; }
+body.chat-home-page .sidebar-history-shell .sidebar-history-section { margin-top: 0; }
 body.chat-home-page .nav-section-title { padding-inline: 12px; font-weight: 400; font-size: 12px; }
 body.chat-home-page .sidebar-account-footer { padding-top: 8px; }
 body.chat-home-page:not(.conversation-active) .chat-hero { min-height: calc(100svh - 120px); flex: 1 0 auto; justify-content: center; overflow: visible; padding: 0 0 64px; }

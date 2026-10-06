@@ -17,17 +17,37 @@ const fetchImpl = async (url, options = {}) => {
   return new Response(JSON.stringify({people: []}), {status: 200, headers: {'Content-Type': 'application/json'}});
 };
 
-const {createPerson, deletePerson, listPeople} = await import('../site-person.js');
+const {createPerson, deletePerson, listPeople, personRequestKey} = await import('../site-person.js');
+assert.match(personRequestKey('create'), /^prq_\d{13}_[0-9a-f]{32}$/);
 assert.deepEqual(await listPeople('session-token', fetchImpl), []);
 const person = await createPerson('session-token', {
   displayName: '김롯비', relationship: 'FAMILY', nickname: null,
   birthYear: 2017, birthMonth: 5,
 }, fetchImpl);
 assert.equal(person.displayName, '김롯비');
-assert.match(calls[1].options.headers['Idempotency-Key'], /^site\.person\.create\./);
+assert.match(calls[1].options.headers['Idempotency-Key'], /^prq_\d{13}_[0-9a-f]{32}$/);
 assert.equal(calls[1].options.credentials, 'omit');
 await deletePerson('session-token', {personId: person.personId, revision: 1}, fetchImpl);
 assert.match(calls[2].url, /expected_revision=1$/);
+
+const recoveryCalls = [];
+const recoveryFetch = async (url, options = {}) => {
+  recoveryCalls.push({url, options});
+  if (recoveryCalls.length === 1) throw new TypeError('connection closed after commit');
+  return new Response(JSON.stringify({person: {
+    person_id: 'per_fedcba9876543210fedcba9876543210', display_name: '박안심',
+    relationship: 'PARENT', birth_year: 1960, birthday_month: 4,
+    state: 'ACTIVE', revision: 1, has_photo: false,
+  }, idempotent_replay: true}), {status: 200, headers: {'Content-Type': 'application/json'}});
+};
+const recovered = await createPerson('session-token', {
+  displayName: '박안심', relationship: 'PARENT', nickname: null,
+  birthYear: 1960, birthMonth: 4,
+}, recoveryFetch);
+assert.equal(recovered.displayName, '박안심');
+assert.equal(recoveryCalls.length, 2);
+assert.equal(recoveryCalls[0].options.headers['Idempotency-Key'], recoveryCalls[1].options.headers['Idempotency-Key']);
+assert.equal(recoveryCalls[0].options.body, recoveryCalls[1].options.body);
 
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const sections = read('site-consumer-sections.js');

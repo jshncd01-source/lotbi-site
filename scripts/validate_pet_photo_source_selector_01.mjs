@@ -360,6 +360,7 @@ try {
     await wait(150);
     const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
     result.registrationRenewalNotice = renewalDialog?.textContent || '';
+    renewalDialog?.querySelector('[data-safecare-consent="privacy"]')?.click();
     renewalDialog?.querySelector('[data-safecare-renewal-confirm]')?.click();
     await wait(400);
     const lockedTile = [...document.querySelectorAll('[data-pet-draft-slot]')]

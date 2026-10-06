@@ -114,6 +114,20 @@ assert.equal(refreshSession.values.size, 0, 'an expired refresh grant must be re
 
 await refreshWallet.unlock('refresh-account', '7788');
 assert.ok(refreshSession.values.size > 0, 'PIN unlock must recreate the refresh grant');
+refreshWallet.suspend();
+await assert.rejects(
+  () => refreshWallet.list('refresh-account'),
+  /잠금을 먼저 해제/u,
+  'backgrounding must clear the in-memory wallet key',
+);
+const backgroundReturnedWallet = new LifeWalletVault(refreshRepository, refreshOptions);
+assert.equal(
+  await backgroundReturnedWallet.resumeUnlock('refresh-account'),
+  true,
+  'returning from the background within 10 minutes must not require the PIN again',
+);
+
+await refreshWallet.unlock('refresh-account', '7788');
 refreshWallet.lock();
 assert.equal(refreshSession.values.size, 0, 'explicit locking must remove the refresh grant');
 const explicitlyLockedWallet = new LifeWalletVault(refreshRepository, refreshOptions);
@@ -138,7 +152,7 @@ assert.match(walletSource, /generateKey\(\{name: 'AES-GCM', length: 256\}, false
 assert.match(walletSource, /document\.visibilityState === 'hidden'/u);
 assert.match(walletSource, /INACTIVITY_MS = 10 \* 60_000/u);
 assert.match(walletSource, /10분 동안 사용하지 않아 다시 잠겼습니다\./u);
-assert.match(walletSource, /새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다\./u);
+assert.match(walletSource, /화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다\. 10분간 사용하지 않으면 다시 잠깁니다\./u);
 assert.doesNotMatch(walletSource, /60초 동안 사용하지 않아|60초 비활동/u);
 assert.match(walletSource, /await vault\.resumeUnlock\(accountId\)/u, 'mount must restore a valid same-tab unlock grant');
 assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page transitions must preserve the same-tab unlock grant');
@@ -152,7 +166,6 @@ assert.doesNotMatch(walletSource, /fetch\s*\(/u, 'wallet must not upload data');
 assert.doesNotMatch(walletSource, /PublicKeyCredential|navigator\.credentials|WebAuthn/u, 'PC wallet must not claim or invoke device authentication');
 assert.doesNotMatch(walletSource, /Windows Hello·지문·Face ID를 지원하는 것처럼 표시하지 않습니다|PC Web은 4자리 월렛 PIN만 사용합니다/u);
 assert.doesNotMatch(walletSource, /field\('자료 이름', name\)|field\('뒷면 사진 · 선택', back\)/u);
-assert.match(walletSource, /field\('자료 사진 · 필수', front\)/u);
 assert.match(walletSource, /안전하게 이 기기에만 저장됩니다\./u);
 assert.match(walletSource, /LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다\./u);
 assert.match(walletCssSource, /\.wallet-storage-reassurance\s*\{/u, 'wallet storage reassurance must have a separate layout block');
@@ -170,7 +183,8 @@ assert.match(walletSource, /저장된 백업 파일 찾기/u);
 assert.match(walletSource, /월렛 4자리 PIN이 아니라/u);
 assert.match(walletSource, /파일이나 백업 암호를 분실하면 복원할 수 없습니다\./u);
 assert.match(walletSource, /Life Wallet 자료 복원/u);
-assert.match(walletSource, /AI로 재작성하지 않고 그대로 암호화/u);
+assert.match(walletSource, /기울기·원근·여백과 화질을 이 브라우저에서만 보정/u);
+assert.match(walletSource, /원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다/u);
 assert.match(consumerSource, /mountLifeWallet/u);
 assert.match(conversationSource, /accountId: serverIdentity\?\.userId/u);
 assert.match(indexSource, /site-life-wallet\.css/u);

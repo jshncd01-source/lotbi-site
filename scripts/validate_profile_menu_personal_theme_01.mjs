@@ -131,6 +131,36 @@ root.innerHTML='<aside class="chat-sidebar"><ul data-recent-conversations></ul><
 document.body.dataset.siteAuthState='authenticated';
 if(!conversation.mountConversation({sessionToken:'site-token',identityKey:'install-theme-test'}))throw new Error('mount');
 await wait(()=>document.querySelector('.sidebar-account-name')?.textContent==='홍길동','identity');
+const accountFooter=document.querySelector('.sidebar-account-footer');
+const accountTrigger=document.querySelector('.sidebar-profile-trigger');
+const accountPlan=document.querySelector('.sidebar-account-plan');
+const accountName=document.querySelector('.sidebar-account-name');
+const accountAvatar=document.querySelector('.sidebar-profile-avatar');
+const footerStyle=getComputedStyle(accountFooter);
+const triggerStyle=getComputedStyle(accountTrigger);
+const planStyle=accountPlan?getComputedStyle(accountPlan):null;
+const avatarStyle=getComputedStyle(accountAvatar);
+const nameRect=accountName.getBoundingClientRect();
+const planRect=accountPlan?.getBoundingClientRect();
+const accountCard={
+  trigger:{
+    backgroundColor:triggerStyle.backgroundColor,
+    borderWidth:triggerStyle.borderWidth,
+    borderStyle:triggerStyle.borderStyle,
+    borderRadius:triggerStyle.borderRadius,
+    boxShadow:triggerStyle.boxShadow,
+    minHeight:triggerStyle.minHeight,
+  },
+  footer:{borderTopWidth:footerStyle.borderTopWidth,borderTopStyle:footerStyle.borderTopStyle},
+  avatar:{width:avatarStyle.width,height:avatarStyle.height},
+  plan:accountPlan?{
+    text:accountPlan.textContent,
+    display:planStyle.display,
+    backgroundColor:planStyle.backgroundColor,
+    borderRadius:planStyle.borderRadius,
+    sameRowAsName:(Math.min(nameRect.bottom,planRect.bottom)-Math.max(nameRect.top,planRect.top))>(Math.min(nameRect.height,planRect.height)/2),
+  }:null,
+};
 
 // 항목 여섯 개, 순서 그대로, 막다른 길 없음
 await openMenu();
@@ -202,7 +232,7 @@ await setProfileFile('camera',null);
 const finalCancelPreserved=beforeFinalCancelStorage===JSON.stringify(storageSnapshot())&&beforeFinalCancelPreview===profilePhotoPreview.style.backgroundImage;
 await closeModal();
 
-out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},
+out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},accountCard,
 labels,disabledItems,deadEnd:popoverText.includes('준비 중'),
 theme:{owner:'ACCOUNT',runtime:'NOT_TESTED'},
 profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,validPreview,storedPhoto,finalCancelPreserved}})
@@ -243,6 +273,23 @@ try {
   waitServer();
   const measured = [['desktop', run(browser, 1440, 900)], ['mobile', run(browser, 390, 844)]];
   for (const [surface, v] of measured) {
+    assert.deepEqual(v.accountCard.trigger, {
+      backgroundColor:'rgba(0, 0, 0, 0)',
+      borderWidth:'0px',
+      borderStyle:'none',
+      borderRadius:'10px',
+      boxShadow:'none',
+      minHeight:'50px',
+    }, `${surface}: 하단 계정 영역은 사이드바에 자연스럽게 붙은 평평한 한 줄이어야 합니다`);
+    assert.deepEqual(v.accountCard.footer, {borderTopWidth:'0px',borderTopStyle:'none'}, `${surface}: 계정 영역 주변에 별도 카드 구분선이 없어야 합니다`);
+    assert.deepEqual(v.accountCard.avatar, {width:'32px',height:'32px'}, `${surface}: 계정 아바타는 조밀한 32px 크기여야 합니다`);
+    assert.deepEqual(v.accountCard.plan, {
+      text:'LOTBI Plus',
+      display:'flex',
+      backgroundColor:'rgba(0, 0, 0, 0)',
+      borderRadius:'0px',
+      sameRowAsName:true,
+    }, `${surface}: 이용 등급은 이름 옆에 배지가 아닌 인라인 정보로 보여야 합니다`);
     // 여섯 개 그대로, 순서 그대로.
     assert.deepEqual(v.labels, MENU_LABELS, `${surface}: 프로필 메뉴는 여섯 항목이 이 순서여야 합니다`);
     // 막다른 길 금지 — 로그인된 상태에서는 누를 수 없는 항목이 없어야 한다.

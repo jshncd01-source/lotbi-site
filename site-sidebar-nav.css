@@ -89,18 +89,27 @@
   outline-offset: 2px;
 }
 
-.sidebar-history-section {
+.sidebar-history-shell {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
 
 .sidebar-history-scroll {
-  flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.sidebar-history-shell .sidebar-history-section {
+  min-height: auto;
+  overflow: visible;
+}
+
+.sidebar-pinned-section {
+  margin-bottom: 18px;
 }
 
 .nav-history-list li {
@@ -288,9 +297,9 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 .sidebar-account-footer {
   flex: 0 0 auto;
   margin-top: auto;
-  padding: 12px 4px 0;
-  border-top: 1px solid #e2e6ee;
-  background: #f7f8fb;
+  padding: 8px 4px 0;
+  border-top: 0;
+  background: transparent;
 }
 
 .sidebar-account-slot {
@@ -326,16 +335,31 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 
 .sidebar-profile-trigger {
   inline-size: 100%;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  min-height: 50px;
+  padding: 8px 10px;
+  display: flex;
   align-items: center;
   align-content: normal;
-  gap: 9px;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  transition: background-color 140ms ease;
 }
 
+.sidebar-profile-trigger:hover {
+  background: #eceff5;
+}
+
+.sidebar-profile-trigger:active {
+  background: #f1f3f8;
+}
 
 .sidebar-profile-avatar {
-  width: 36px;
-  height: 36px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -348,11 +372,12 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 }
 
 .sidebar-profile-chevron {
-  width: 18px;
-  height: 18px;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
-  color: var(--lotbi-text-primary, var(--text, #212121));
+  color: var(--lotbi-text-muted, #667085);
   transition: transform 140ms ease, color 140ms ease;
 }
 
@@ -362,7 +387,7 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   height: 6px;
   border-top: 1.5px solid currentColor;
   border-right: 1.5px solid currentColor;
-  transform: rotate(45deg);
+  transform: rotate(135deg);
 }
 
 .sidebar-profile-trigger:hover .sidebar-profile-chevron,
@@ -371,10 +396,17 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 }
 
 .sidebar-profile-trigger[aria-expanded="true"] .sidebar-profile-chevron {
-  transform: rotate(-90deg);
+  transform: rotate(180deg);
 }
 
-.sidebar-profile-copy { min-width: 0; display: grid; gap: 1px; }
+.sidebar-profile-copy {
+  min-width: 0;
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 4px;
+}
 
 .sidebar-account-name,
 .sidebar-account-handle {
@@ -391,10 +423,64 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 }
 
 .sidebar-account-handle {
-  color: var(--lotbi-text-primary, var(--text, #212121));
+  flex-basis: 100%;
+  color: var(--lotbi-text-muted, #667085);
   font-size: 12px;
   font-weight: 650;
   line-height: 1.35;
+}
+
+.sidebar-account-plan {
+  max-width: 100%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
+  overflow: hidden;
+  color: var(--lotbi-text-muted, #667085);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-plan::before {
+  content: '·';
+  margin-right: 4px;
+}
+
+body[data-site-theme="dark"] .sidebar-profile-trigger {
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-site-theme="dark"] .sidebar-profile-trigger:hover {
+  border-color: #566172;
+  background: #272e3a;
+}
+
+body[data-site-theme="dark"] .sidebar-account-plan {
+  color: var(--lotbi-text-muted, #aeb6c3);
+  background: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .sidebar-profile-trigger {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body[data-site-theme="system"] .sidebar-profile-trigger:hover {
+    border-color: #566172;
+    background: #272e3a;
+  }
+
+  body[data-site-theme="system"] .sidebar-account-plan {
+    color: var(--lotbi-text-muted, #aeb6c3);
+    background: transparent;
+  }
 }
 
 .sidebar-account-placeholder {

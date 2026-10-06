@@ -21,6 +21,14 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ------------------------------------------------------------ A. rules
 const common = await import(pathToFileURL(path.join(ROOT, 'site-safecare-common.js')).href);
+const renewalNotice = await import(pathToFileURL(path.join(ROOT, 'site-safecare-renewal-notice.js')).href);
+assert.equal(typeof renewalNotice.requiresGuardianConsent, 'function', 'renewal notice must expose the guardian-consent rule');
+assert.equal(renewalNotice.requiresGuardianConsent({relationship: 'CHILD', birthYear: 2012, birthMonth: 11}, new Date('2026-10-06T00:00:00Z')), true,
+  'a child who has not reached 14 must require guardian consent');
+assert.equal(renewalNotice.requiresGuardianConsent({relationship: 'CHILD', birthYear: 2012, birthMonth: 10}, new Date('2026-10-06T00:00:00Z')), false,
+  'a child who reaches 14 in the current month must not require guardian consent');
+assert.equal(renewalNotice.requiresGuardianConsent({relationship: 'PARENT', birthYear: 2018, birthMonth: 8}, new Date('2026-10-06T00:00:00Z')), false,
+  'only the CHILD relationship can require guardian consent');
 for (let count = 0; count <= 10; count += 1) {
   const progress = common.foundPhotoProgress(count);
   assert.equal(progress.canSubmit, count >= 5, `found report with ${count} photos: submit must ${count >= 5 ? 'open' : 'stay closed'}`);
@@ -53,6 +61,7 @@ console.log('SAFECARE-WEB-UI-REDESIGN-01 rules PASS');
 
 // ------------------------------------------------------------ B. source
 const personUi = read('site-person-ui.js');
+const personClient = read('site-person.js');
 const petUi = read('site-pet-ui.js');
 const commonSource = read('site-safecare-common.js');
 const personGuides = read('site-person-guides.js');
@@ -72,6 +81,14 @@ assert.ok(index.includes('site-safecare.css?v='), 'the shared SafeCare styleshee
 assert.ok(personUi.includes("from './site-safecare-common.js?v=") && petUi.includes("from './site-safecare-common.js?v="),
   'both screens must use the one shared rule module');
 assert.ok(!/birthYear\.type = 'number'|birthMonth\.type = 'number'/.test(personUi), 'birth year/month must be chosen, not typed');
+for (const code of [
+  'PERSON_IDENTITY_FACE_NOT_FOUND',
+  'PERSON_IDENTITY_MULTIPLE_FACES',
+  'PERSON_IDENTITY_FACE_DIRECTION_INVALID',
+  'PERSON_IDENTITY_FACE_GATE_UNAVAILABLE',
+]) {
+  assert.ok(personClient.includes(code), `person photo UI must explain Core rejection ${code}`);
+}
 // Fields Core does not store must not appear as if they were saved.
 for (const unsupported of ['현재 상태', '제보자 연락처', '지도에서 선택', '다른 기기에서 이어']) {
   assert.ok(!personUi.includes(unsupported) && !petUi.includes(unsupported), `no screen may offer "${unsupported}"`);
@@ -369,7 +386,8 @@ async function run() {
           count: tiles().length,
           labels: tiles().map(tile => tile.querySelector('.safecare-slot-label').textContent),
           counter: document.querySelector('[data-safecare-photo-count]').textContent,
-          guide: document.querySelector('[data-safecare-guide="person"]') ? document.querySelector('[data-safecare-guide="person"] .safecare-guide-map').children.length : 0,
+          guideBoxPresent: Boolean(document.querySelector('[data-safecare-guide="person"]')),
+          emptyArtworkCount: tiles().filter(tile => tile.dataset.safecareSlotFilled === 'false' && tile.querySelector('.person-slot-guide-image')).length,
           accept: [...new Set(tiles().map(tile => tile.querySelector('input[type=file]').accept))],
           buttons: [...new Set(tiles().map(tile => tile.querySelector('.safecare-slot-choose').textContent))],
           nextDisabled: document.querySelector('[data-person-photos-next]').disabled,
@@ -429,7 +447,30 @@ async function run() {
           text: renewalDialog.textContent,
           createdBeforeConfirm: __calls.includes('POST /v2/person-profiles'),
           activeBeforeConfirm: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent,
+          sectionCount: renewalDialog.querySelectorAll('[data-safecare-notice-section]').length,
+          guardianVisible: Boolean(renewalDialog.querySelector('[data-safecare-notice-section="guardian"]')),
+          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
         };
+        renewalDialog.querySelector('[data-safecare-notice-toggle="renewal"]').click();
+        renewalNotice.openAfterRenewal = [...renewalDialog.querySelectorAll('[data-safecare-notice-detail]')]
+          .filter(node => !node.hidden).map(node => node.dataset.safecareNoticeDetail);
+        renewalDialog.querySelector('[data-safecare-notice-toggle="usage"]').click();
+        renewalNotice.openAfterUsage = [...renewalDialog.querySelectorAll('[data-safecare-notice-detail]')]
+          .filter(node => !node.hidden).map(node => node.dataset.safecareNoticeDetail);
+        const usageConsent = renewalDialog.querySelector('[data-safecare-consent="usage"]');
+        renewalNotice.usageLabel = usageConsent.closest('label').textContent.trim();
+        usageConsent.click();
+        renewalNotice.disabledAfterUsage = renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        const privacyConsent = renewalDialog.querySelector('[data-safecare-consent="privacy"]');
+        renewalNotice.privacyLabel = privacyConsent.closest('label').textContent.trim();
+        privacyConsent.click();
+        renewalNotice.disabledAfterPrivacy = renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalDialog.querySelector('[data-safecare-notice-toggle="guardian"]').click();
+        const guardianConsent = renewalDialog.querySelector('[data-safecare-consent="guardian"]');
+        renewalNotice.guardianLabel = guardianConsent.closest('label').textContent.trim();
+        guardianConsent.click();
+        renewalNotice.confirmEnabledAfterRequiredConsents = !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.confirmText = renewalDialog.querySelector('[data-safecare-renewal-confirm]').textContent;
         await __wait(260);
         return {selectedBirth, renewalNotice};
       `);
@@ -571,7 +612,13 @@ async function run() {
           title: renewalDialog.querySelector('h3')?.textContent || '',
           text: renewalDialog.textContent,
           photosVisibleBeforeConfirm: Boolean(document.querySelector('[data-pet-draft-slot]')),
+          guardianVisible: Boolean(renewalDialog.querySelector('[data-safecare-consent="guardian"]')),
+          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
         };
+        const privacyConsent = renewalDialog.querySelector('[data-safecare-consent="privacy"]');
+        renewalNotice.privacyLabel = privacyConsent.closest('label').textContent.trim();
+        privacyConsent.click();
+        renewalNotice.confirmEnabledAfterPrivacy = !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
         await __wait(260);
         return {renewalNotice};
       `);
@@ -624,11 +671,12 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(cards['박영자'].photoAction, '사진 등록 이어하기');
   assert.equal(cards['김하늘'].photoAction, '사진 갱신·관리');
 
-  // person photos: exactly ten labelled slots, progress, guide, web wording
+  // person photos: exactly ten labelled slots, progress, card-local artwork, web wording
   assert.equal(r.personPhotos.before.count, 10, `${label}: exactly ten identity slots`);
   assert.deepEqual(r.personPhotos.before.labels, ['정면 얼굴', '왼쪽 45도', '오른쪽 45도', '왼쪽 옆면', '오른쪽 옆면', '정면 상반신', '정면 전신', '추가 정면', '추가 왼쪽', '추가 오른쪽']);
   assert.equal(r.personPhotos.before.counter, '등록 완료 3 / 10남은 사진 7장');
-  assert.equal(r.personPhotos.before.guide, 10, `${label}: the person guide must map all ten directions`);
+  assert.equal(r.personPhotos.before.guideBoxPresent, false, `${label}: the duplicated explanation box must not sit above the photo cards`);
+  assert.equal(r.personPhotos.before.emptyArtworkCount, 7, `${label}: every empty photo card must show its own large shooting example`);
   assert.deepEqual(r.personPhotos.before.accept, ['image/jpeg,image/png,image/webp']);
   assert.ok(r.personPhotos.before.buttons.every(text => ['사진 선택', '다른 사진 선택'].includes(text)), `${label}: web wording must be 사진 선택`);
   assert.equal(r.personPhotos.before.nextDisabled, true, `${label}: 3/10 must not move on`);
@@ -649,12 +697,26 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personRenewalNotice.selectedBirth, '2018년 8월');
   assert.equal(r.personRegisterFlow.create, true);
   assert.equal(r.personRegisterFlow.active, '식별 사진 10장');
-  assert.equal(r.personRenewalNotice.renewalNotice?.title, '식별 사진 갱신 안내', `${label}: person renewal notice must open before photos`);
+  assert.equal(r.personRenewalNotice.renewalNotice?.title, '식별 사진 등록 안내', `${label}: person registration notice must open before photos`);
   assert.equal(r.personRenewalNotice.renewalNotice.createdBeforeConfirm, false, `${label}: person profile must not be created before renewal notice confirmation`);
   assert.equal(r.personRenewalNotice.renewalNotice.activeBeforeConfirm, '기본정보');
+  assert.equal(r.personRenewalNotice.renewalNotice.sectionCount, 3, `${label}: under-14 child must see renewal, usage, and guardian sections`);
+  assert.equal(r.personRenewalNotice.renewalNotice.guardianVisible, true, `${label}: under-14 child must require guardian confirmation`);
+  assert.equal(r.personRenewalNotice.renewalNotice.confirmDisabledInitially, true, `${label}: registration must wait for required consent`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.openAfterRenewal, ['renewal'], `${label}: renewal details must open alone`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.openAfterUsage, ['usage'], `${label}: opening usage details must close renewal details`);
+  assert.equal(r.personRenewalNotice.renewalNotice.usageLabel, '위 내용에 동의합니다 (필수)');
+  assert.equal(r.personRenewalNotice.renewalNotice.disabledAfterUsage, true, `${label}: guardian consent must still be required`);
+  assert.equal(r.personRenewalNotice.renewalNotice.privacyLabel, '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
+  assert.equal(r.personRenewalNotice.renewalNotice.disabledAfterPrivacy, true, `${label}: guardian consent must remain required after privacy consent`);
+  assert.equal(r.personRenewalNotice.renewalNotice.guardianLabel, '법정대리인임을 확인하고 동의합니다 (필수)');
+  assert.equal(r.personRenewalNotice.renewalNotice.confirmEnabledAfterRequiredConsents, true, `${label}: all required consent enables registration`);
+  assert.equal(r.personRenewalNotice.renewalNotice.confirmText, '동의하고 식별 사진 등록');
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만 12세 이하 · 180일마다'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만 13세 이상 · 365일마다'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
+  assert.ok(r.personRenewalNotice.renewalNotice.text.includes('안심케어 등록 및 실종 시 후보 검색'));
+  assert.ok(r.personRenewalNotice.renewalNotice.text.includes('등록을 삭제하면 관련 식별 사진과 생성된 식별정보도 삭제'));
   assert.deepEqual(r.personRegisterFlow.locked, ['false', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true'],
     `${label}: registration starts from the front face`);
 
@@ -705,6 +767,10 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 사진 10장');
   assert.equal(r.petRenewalNotice.renewalNotice?.title, '식별 사진 갱신 안내', `${label}: pet renewal notice must open before photos`);
   assert.equal(r.petRenewalNotice.renewalNotice.photosVisibleBeforeConfirm, false, `${label}: pet photos must wait for renewal notice confirmation`);
+  assert.equal(r.petRenewalNotice.renewalNotice.guardianVisible, false, `${label}: pet registration must not ask for legal guardian confirmation`);
+  assert.equal(r.petRenewalNotice.renewalNotice.confirmDisabledInitially, true, `${label}: pet registration must wait for privacy consent`);
+  assert.equal(r.petRenewalNotice.renewalNotice.privacyLabel, '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
+  assert.equal(r.petRenewalNotice.renewalNotice.confirmEnabledAfterPrivacy, true, `${label}: pet privacy consent enables photo registration`);
   assert.ok(r.petRenewalNotice.renewalNotice.text.includes('나이와 관계없이 · 6개월(180일)마다'));
   assert.ok(r.petRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
   assert.equal(r.petRegisterPhotos.slots, 10);
