@@ -14,13 +14,14 @@ import {
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
   personErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto, respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-49ed46e1aaed';
-import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-49ed46e1aaed';
+} from './site-person.js?v=aset-c614fd9a29ca';
+import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-c614fd9a29ca';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-49ed46e1aaed';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-49ed46e1aaed';
+} from './site-safecare-common.js?v=aset-c614fd9a29ca';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-c614fd9a29ca';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-c614fd9a29ca';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
@@ -347,7 +348,6 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     form.append(
       el('h4', 'person-form-title', view.edit ? `${person?.displayName || ''} 정보 수정` : '기본정보'),
       labeled('이름', name), labeled('관계', relationship), birth,
-      el('p', 'person-consent', '출생 연·월로 갱신 주기를 계산합니다. 만 12세 이하는 180일, 만 13세 이상은 365일마다 사진을 갱신하며 만료 30일·7일·1일 전에 알려드립니다.'),
       error, submit,
     );
     form.addEventListener('submit', async event => {
@@ -357,17 +357,25 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       const month = normalizeBirthMonth(selectedMonth);
       if (!name.value.trim()) { error.textContent = '이름을 입력해 주세요.'; error.hidden = false; name.focus(); return; }
       if (!year || !month) { error.textContent = '출생 연도와 월을 선택해 주세요.'; error.hidden = false; birthTrigger.focus(); return; }
-      busy = true; submit.disabled = true; error.hidden = true; showStatus('저장 중…');
-      try {
-        let saved;
-        if (person) saved = await updatePerson(sessionToken, {personId: person.personId, revision: person.revision, displayName: name.value.trim(), nickname: person.nickname || '', relationship: relationship.value, birthYear: year, birthMonth: month});
-        else saved = await createPerson(sessionToken, {displayName: name.value.trim(), relationship: relationship.value, birthYear: year, birthMonth: month, requestKey: personRequestKey('create')});
-        await reloadPerson(saved.personId);
-        showStatus('');
-        if (view.edit) { showStatus('정보를 저장했습니다.'); go({name: 'list'}); }
-        else go({name: 'register', step: 2, personId: saved.personId});
-      } catch (value) { showStatus(''); fail(error, value, '저장하지 못했습니다. 입력한 내용을 확인해 주세요.'); }
-      finally { busy = false; submit.disabled = false; }
+      const save = async () => {
+        busy = true; submit.disabled = true; error.hidden = true; showStatus('저장 중…');
+        try {
+          let saved;
+          if (person) saved = await updatePerson(sessionToken, {personId: person.personId, revision: person.revision, displayName: name.value.trim(), nickname: person.nickname || '', relationship: relationship.value, birthYear: year, birthMonth: month});
+          else saved = await createPerson(sessionToken, {displayName: name.value.trim(), relationship: relationship.value, birthYear: year, birthMonth: month, requestKey: personRequestKey('create')});
+          await reloadPerson(saved.personId);
+          showStatus('');
+          if (view.edit) { showStatus('정보를 저장했습니다.'); go({name: 'list'}); }
+          else go({name: 'register', step: 2, personId: saved.personId});
+        } catch (value) {
+          showStatus('');
+          const message = personErrorMessage(value, '저장하지 못했습니다. 입력한 내용을 확인해 주세요.');
+          fail(error, value, message);
+          throw new Error(message);
+        } finally { busy = false; submit.disabled = false; }
+      };
+      if (view.edit) await save();
+      else openSafeCareRenewalNotice({kind: 'person', onConfirm: save});
     });
     content.append(form);
     if (view.edit && person) {
