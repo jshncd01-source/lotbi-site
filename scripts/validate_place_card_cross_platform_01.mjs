@@ -114,6 +114,8 @@ for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps'
 assert.match(renderer, /readDefaultMapProvider\(document\.cookie\)/u);
 assert.match(renderer, /defaultMapProviderPresentation\(defaultMapProvider/u);
 assert.match(renderer, /openDefaultMapPlace\(defaultMapProvider/u);
+assert.match(renderer, /if \(opened\.opened\) event\.preventDefault\(\)/u);
+assert.match(renderer, /계속 열 수 있어요/u);
 assert.equal((renderer.match(/actions\.appendChild\(mapAction\)/gu) ?? []).length, 1);
 assert.doesNotMatch(renderer, /actions\.appendChild\((?:navigate|kakaoNavi|tmap|googleMaps)\)/u);
 assert.doesNotMatch(renderer, /lotbi-place-action-label/u);

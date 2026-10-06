@@ -265,6 +265,14 @@ export function buildKakaoMapsDirectionsUrl(place) {
   return `https://map.kakao.com/link/to/${encodeURIComponent(payload.name)},${payload.y},${payload.x}`;
 }
 
+export function buildKakaoMapsSearchUrl(place) {
+  const query = searchQuery(place);
+  if (!query) throw new TypeError('place search query is required');
+  const url = new URL('https://map.kakao.com/');
+  url.searchParams.set('q', query);
+  return url.href;
+}
+
 export function buildTmapMobileUri(place) {
   if (!place || typeof place !== 'object') throw new TypeError('place is required');
   const destination = destinationCoordinates(place);
@@ -302,14 +310,15 @@ export function isTmapHandoffAvailable({userAgent = globalThis.navigator?.userAg
   return android || ios;
 }
 
-function openNewBrowsingContext(windowRef, uri) {
+function openNewBrowsingContext(windowRef, uri, {preloadUri = ''} = {}) {
   if (!windowRef || typeof windowRef.open !== 'function') {
     return Object.freeze({opened: false, child: null});
   }
   try {
-    const child = windowRef.open(uri, '_blank', 'noopener,noreferrer');
+    const child = windowRef.open(preloadUri || uri, '_blank', 'noopener,noreferrer');
     if (!child) return Object.freeze({opened: false, child: null});
     child.opener = null;
+    if (preloadUri && child.location) child.location.href = uri;
     return Object.freeze({opened: true, child});
   } catch {
     return Object.freeze({opened: false, child: null});
@@ -319,16 +328,31 @@ function openNewBrowsingContext(windowRef, uri) {
 export function openKakaoNaviPlace(place, {
   windowRef = globalThis.window,
   origin = globalThis.location?.origin || 'https://lotbiai.com',
+  userAgent = globalThis.navigator?.userAgent || '',
 } = {}) {
   if (!place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   let uri = '';
+  let fallbackUri = '';
   try {
-    uri = buildKakaoNaviHandoffUrl(place, {origin});
+    const {android, ios} = mobilePlatform(userAgent);
+    const mobile = android || ios;
+    fallbackUri = place.navigationCapable === true
+      ? buildKakaoMapsDirectionsUrl(place)
+      : buildKakaoMapsSearchUrl(place);
+    uri = mobile && place.navigationCapable === true
+      ? buildKakaoNaviHandoffUrl(place, {origin})
+      : fallbackUri;
   } catch {
     return Object.freeze({opened: false, mode: 'BLOCKED'});
   }
   const result = openNewBrowsingContext(windowRef, uri);
-  return Object.freeze({opened: result.opened, mode: result.opened ? 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB' : 'BLOCKED', uri});
+  const web = uri === fallbackUri;
+  return Object.freeze({
+    opened: result.opened,
+    mode: result.opened ? (web ? 'KAKAO_MAPS_WEB_NEW_TAB' : 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB') : 'BLOCKED',
+    uri,
+    fallbackUri,
+  });
 }
 
 export function openTmapPlace(place, {
@@ -337,12 +361,13 @@ export function openTmapPlace(place, {
 } = {}) {
   if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   const {android, ios} = mobilePlatform(userAgent);
+  const webFallback = buildNaverMapsWebSearchUrl(place);
   const uri = !android && !ios
     ? buildNaverMapsWebSearchUrl(place)
     : android
       ? buildTmapAndroidIntentUri(place)
       : buildTmapMobileUri(place);
-  const result = openNewBrowsingContext(windowRef, uri);
+  const result = openNewBrowsingContext(windowRef, uri, {preloadUri: ios ? webFallback : ''});
   return Object.freeze({
     opened: result.opened,
     mode: result.opened
@@ -353,7 +378,7 @@ export function openTmapPlace(place, {
         : (android ? 'TMAP_SEARCH_INTENT_NEW_TAB' : 'TMAP_SEARCH_URL_SCHEME_NEW_TAB'))
       : 'BLOCKED',
     uri,
-    fallbackUri: android ? TMAP_ANDROID_STORE_URL : ios ? TMAP_IOS_STORE_URL : uri,
+    fallbackUri: android ? TMAP_ANDROID_STORE_URL : webFallback,
   });
 }
 
@@ -375,7 +400,7 @@ export function openGoogleMapsPlace(place, {windowRef = globalThis.window} = {})
     return Object.freeze({opened: false, mode: 'BLOCKED'});
   }
   const result = openNewBrowsingContext(windowRef, uri);
-  return Object.freeze({opened: result.opened, mode: result.opened ? 'GOOGLE_MAPS_NEW_TAB' : 'BLOCKED', uri});
+  return Object.freeze({opened: result.opened, mode: result.opened ? 'GOOGLE_MAPS_NEW_TAB' : 'BLOCKED', uri, fallbackUri: uri});
 }
 
 export function naverMapsPlaceActionLabel(place, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
@@ -396,7 +421,7 @@ export function openNaverMapsPlace(place, {
     : ios
       ? buildNaverMapsMobileUri(place)
       : webUrl;
-  const result = openNewBrowsingContext(windowRef, uri);
+  const result = openNewBrowsingContext(windowRef, uri, {preloadUri: ios ? webUrl : ''});
   return Object.freeze({
     opened: result.opened,
     mode: result.opened
@@ -418,12 +443,22 @@ const DEFAULT_MAP_PRESENTATION = Object.freeze({
   GOOGLE_MAPS: Object.freeze({action: 'google-maps', icon: 'google-maps', label: 'Google Maps', success: '선택한 장소를 Google Maps에서 엽니다.'}),
 });
 
-export function defaultMapProviderPresentation(provider) {
+export function defaultMapProviderPresentation(provider, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
+  const {android, ios} = mobilePlatform(userAgent);
+  if (provider === 'TMAP' && !android && !ios) return Object.freeze({
+    ...DEFAULT_MAP_PRESENTATION.TMAP,
+    label: '티맵 대신 네이버지도 웹',
+    success: '티맵은 모바일 전용이라 네이버지도 웹에서 엽니다.',
+  });
   return DEFAULT_MAP_PRESENTATION[provider] || DEFAULT_MAP_PRESENTATION.NAVER_MAP;
 }
 
 export function buildDefaultMapHref(provider, place, {userAgent = globalThis.navigator?.userAgent || '', origin = globalThis.location?.origin || 'https://lotbiai.com'} = {}) {
-  if (provider === 'KAKAO_NAVI') return buildKakaoNaviHandoffUrl(place, {origin});
+  if (provider === 'KAKAO_NAVI') {
+    const {android, ios} = mobilePlatform(userAgent);
+    if ((android || ios) && place?.navigationCapable === true) return buildKakaoNaviHandoffUrl(place, {origin});
+    return place?.navigationCapable === true ? buildKakaoMapsDirectionsUrl(place) : buildKakaoMapsSearchUrl(place);
+  }
   if (provider === 'TMAP') {
     const {android, ios} = mobilePlatform(userAgent);
     if (android) return buildTmapAndroidIntentUri(place);

@@ -1,23 +1,23 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-6384a8dd9597';
-import * as siteCore from './site-core.js?v=aset-6384a8dd9597';
-import './site-scam-shield.js?v=aset-6384a8dd9597';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-6384a8dd9597';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, openDefaultMapPlace} from './site-navigation.js?v=aset-6384a8dd9597';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-6384a8dd9597';
-import * as siteAttachments from './site-attachments.js?v=aset-6384a8dd9597';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-6384a8dd9597';
-import {deterministicReply} from './site-deterministic.js?v=aset-6384a8dd9597';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-6384a8dd9597';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-6384a8dd9597';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6384a8dd9597';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-6384a8dd9597';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-6384a8dd9597';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-6384a8dd9597';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-6384a8dd9597';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-6384a8dd9597';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-6384a8dd9597';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-6384a8dd9597';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-6384a8dd9597';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-dc4700af9a0a';
+import * as siteCore from './site-core.js?v=aset-dc4700af9a0a';
+import './site-scam-shield.js?v=aset-dc4700af9a0a';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-dc4700af9a0a';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, openDefaultMapPlace} from './site-navigation.js?v=aset-dc4700af9a0a';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-dc4700af9a0a';
+import * as siteAttachments from './site-attachments.js?v=aset-dc4700af9a0a';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-dc4700af9a0a';
+import {deterministicReply} from './site-deterministic.js?v=aset-dc4700af9a0a';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-dc4700af9a0a';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-dc4700af9a0a';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-dc4700af9a0a';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-dc4700af9a0a';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-dc4700af9a0a';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-dc4700af9a0a';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-dc4700af9a0a';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-dc4700af9a0a';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-dc4700af9a0a';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-dc4700af9a0a';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-dc4700af9a0a';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -168,7 +168,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-6384a8dd9597';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-dc4700af9a0a';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -688,6 +688,7 @@ const VOICE_PERMISSION_TIMEOUT_MS = 10000;
 const VOICE_RECOGNITION_START_TIMEOUT_MS = 5000;
 const VOICE_ENGINE_SILENT_MESSAGE = '이 브라우저에서는 음성 인식이 동작하지 않네요. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
 const VOICE_PERMISSION_TIMEOUT_MESSAGE = '마이크 권한 확인이 끝나지 않았습니다. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
+const PUBLIC_SITE_VOICE_RELEASE_ENABLED = false;
 
 // Carries a message already written for the person, so voiceErrorMessage can
 // hand it straight through instead of flattening it to the generic failure.
@@ -837,7 +838,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const avatar = document.querySelector('[data-lotbi-avatar-container]');
   if (
     !(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement)
-    || !(micButton instanceof HTMLButtonElement) || !(attachmentControl instanceof HTMLElement)
+    || !(attachmentControl instanceof HTMLElement)
     || !(attachmentTrigger instanceof HTMLButtonElement) || !(attachmentMenu instanceof HTMLElement)
     || !(attachmentPreview instanceof HTMLElement) || attachmentInputs.length !== 3
     || attachmentInputs.some(input => !(input instanceof HTMLInputElement))
@@ -1467,9 +1468,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         return false;
       }
       const opened = opener(place);
-      if (!opened.opened) return false;
+      if (!opened.opened) {
+        setStatus('새 탭이 막혔어요. 아래 지도 버튼의 링크로 계속 열 수 있어요.');
+        return opened;
+      }
       setStatus(successCopy);
-      return true;
+      return opened;
     };
     const openPlaceInDefaultMap = place => openFreshPlace(
       place,
@@ -1577,8 +1581,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       mapAction.tabIndex = placeIndex === 0 ? 0 : -1;
       addActionIcon(mapAction, mapPresentation.icon);
       mapAction.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInDefaultMap(place);
+        const opened = openPlaceInDefaultMap(place);
+        if (opened.opened) event.preventDefault();
       });
       actions.appendChild(mapAction);
 
@@ -2933,7 +2937,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6384a8dd9597');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-dc4700af9a0a');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2961,7 +2965,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-6384a8dd9597');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-dc4700af9a0a');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3157,11 +3161,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onFestival: () => { closeSurface(); void openFestival(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       mountPeople: async (root, initialSurface) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-6384a8dd9597');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-dc4700af9a0a');
         return mountPersonCareManager({sessionToken, root, initialSurface});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6384a8dd9597');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-dc4700af9a0a');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -3741,13 +3745,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     sendButton.disabled = inFlight || attachmentBusy || !hasContent;
     sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송');
     sendButton.title = inFlight ? '전송 중' : '전송';
-    micButton.disabled = inFlight || attachmentBusy || voiceRequesting;
+    if (micButton instanceof HTMLButtonElement) micButton.disabled = inFlight || attachmentBusy || voiceRequesting;
     attachmentTrigger.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
     if (attachmentTrigger.disabled && attachmentMenuOpen) closeAttachmentMenu();
     for (const input of attachmentInputs) input.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
   };
   const setListeningState = listening => {
-    voiceListening = listening; micButton.setAttribute('aria-pressed', String(listening));
+    voiceListening = listening;
+    if (!(micButton instanceof HTMLButtonElement)) return;
+    micButton.setAttribute('aria-pressed', String(listening));
     micButton.setAttribute('aria-label', listening ? '음성 입력 중지' : '음성 입력'); micButton.title = listening ? '듣는 중 — 눌러서 종료' : '음성 입력';
     if (listening) micButton.dataset.listening = 'true'; else delete micButton.dataset.listening;
   };
@@ -3812,7 +3818,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (voiceAvatarRequestId) { driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; }
     setListeningState(false);
     consumer?.onListening?.(false);
-    voiceRequesting = false; delete micButton.dataset.requesting; updateSendState();
+    voiceRequesting = false; if (micButton instanceof HTMLButtonElement) delete micButton.dataset.requesting; updateSendState();
     if (consumer) {
       if (!consumer.__lotbiSettled) {
         consumer.__lotbiSettled = true;
@@ -3854,7 +3860,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // A recogniser left over from a silent engine is still holding the mic.
     if (voiceRecognition) { const stale = voiceRecognition; voiceRecognition = undefined; clearVoiceStartDeadline(); try { stale.abort(); } catch { /* already gone */ } }
     activeVoiceConsumer = consumer;
-    voiceRequesting = true; micButton.disabled = true; micButton.dataset.requesting = 'true'; feedback('마이크 권한을 확인하고 있습니다.');
+    voiceRequesting = true;
+    if (micButton instanceof HTMLButtonElement) { micButton.disabled = true; micButton.dataset.requesting = 'true'; }
+    feedback('마이크 권한을 확인하고 있습니다.');
     try {
       await requestMicrophoneAccess(); const recognition = new SpeechRecognition(); voiceRecognition = recognition;
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
@@ -3931,25 +3939,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       else setVoiceFeedback(message);
       focusComposer();
     }
-    finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
+    finally { voiceRequesting = false; if (micButton instanceof HTMLButtonElement) delete micButton.dataset.requesting; updateSendState(); }
   };
-  window.addEventListener('lotbi:voice-transcription-request', event => {
-    const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object' ? event.detail : {};
-    void startVoiceInput({...detail, reviewOnly: true});
-  });
-  window.addEventListener('lotbi:voice-transcription-cancel', () => {
-    if (activeVoiceConsumer) activeVoiceConsumer.__lotbiSettled = true;
-    if (voiceRecognition) {
-      const active = voiceRecognition;
-      voiceRecognition = undefined;
-      clearVoiceStartDeadline();
-      try { active.abort(); } catch {}
-    }
-    setListeningState(false);
-    activeVoiceConsumer?.onListening?.(false);
-    activeVoiceConsumer = undefined;
-    updateSendState();
-  });
   const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
@@ -4329,7 +4320,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     await requestAssistant(message, true);
   };
 
-  micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
+  if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && micButton instanceof HTMLButtonElement) {
+    micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
+  }
   if (RESPONSE_GRADE_BACKEND_ENABLED) {
     responseGradeTrigger.addEventListener('click', () => {
       if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
@@ -4416,12 +4409,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       event.preventDefault(); closeAttachmentMenu({restoreFocus: true});
     }
   });
-  micButton.addEventListener('click', () => void startVoiceInput());
+  if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && micButton instanceof HTMLButtonElement) {
+    micButton.addEventListener('click', () => void startVoiceInput());
+  }
 
   // SITE-VOICE-WAKE-LISTENER-01 — hands-free calling, within what a browser
   // actually allows. The control stays hidden where the engine cannot do this
   // at all: a toggle that can never work is worse than no toggle.
-  if (wakeButton instanceof HTMLButtonElement && wakeListeningSupported()) {
+  if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && wakeButton instanceof HTMLButtonElement && wakeListeningSupported()) {
     const setWakeUi = (listening, message = '') => {
       wakeButton.setAttribute('aria-pressed', String(listening));
       wakeButton.setAttribute('aria-label', listening ? '롯비야 듣기 끄기' : '롯비야 듣기 켜기');
