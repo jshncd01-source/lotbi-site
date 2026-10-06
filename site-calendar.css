@@ -431,6 +431,9 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   grid-auto-rows: auto;
   gap: 10px;
 }
+.calendar-product-shell[data-amount-visible="true"] {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
 
 .calendar-toolbar {
   grid-row: 1;
@@ -546,10 +549,15 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   .calendar-toolbar .calendar-mode-tab:active { transform: none; }
 }
 
+.calendar-amount-slot { grid-row: 2; min-width: 0; }
+.calendar-amount-slot[hidden] { display: none; }
 .calendar-status { grid-row: 2; min-height: 0; }
 .calendar-viewport { grid-row: 3; min-width: 0; min-height: 0; }
+.calendar-product-shell[data-amount-visible="true"] .calendar-status { grid-row: 3; }
+.calendar-product-shell[data-amount-visible="true"] .calendar-viewport { grid-row: 4; }
 .calendar-status:empty { display: none; }
 .calendar-status:empty + .calendar-viewport { grid-row: 2 / 4; }
+.calendar-product-shell[data-amount-visible="true"] .calendar-status:empty + .calendar-viewport { grid-row: 3 / 5; }
 /* Transient location notice. Fixed, so it never reserves a row above the date
    grid, and above the Settings backdrop (z-index 1160) because the control that
    triggers it lives inside that dialog. */
@@ -992,6 +1000,8 @@ body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color:
 }
 .calendar-week-grid-day[data-selected="true"] { background-color: rgba(24, 42, 70, .035); }
 body[data-site-theme="dark"] .calendar-week-grid-day[data-selected="true"] { background-color: rgba(237, 240, 245, .05); }
+.calendar-week-grid-day[data-holiday="true"] { background-color: var(--lotbi-calendar-holiday-surface); }
+body[data-site-theme="dark"] .calendar-week-grid-day[data-holiday="true"] { background-color: var(--lotbi-calendar-holiday-surface); }
 .calendar-week-grid-event {
   position: absolute;
   left: calc(var(--calendar-event-lane, 0) * (100% / var(--calendar-event-lane-count, 1)));
