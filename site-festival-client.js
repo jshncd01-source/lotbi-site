@@ -31,7 +31,7 @@
 // sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
 // ordering/filtering (region, time window, distance) is Core-authoritative
 // via browseFestivals; nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-11ccce0f5635';
+import {CORE_ORIGIN} from './site-core.js?v=aset-dce95fcbc3d0';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -47,7 +47,7 @@ export const FESTIVAL_STATUS = Object.freeze({
   UPCOMING: 'UPCOMING',
   ENDED: 'ENDED',
   CANCELLED: 'CANCELLED',
-  // 상시 운영 -- a standing exhibit/venue with no fixed end date. Distinct
+  // 장기 운영 -- an exhibit/venue/event running for the Core-defined long span. Distinct
   // from every date-bound status above; computeFestivalStatus() short-
   // circuits to this before ever looking at startDate/endDate.
   ALWAYS_OPEN: 'ALWAYS_OPEN',
@@ -59,7 +59,7 @@ export const FESTIVAL_STATUS_LABEL = Object.freeze({
   UPCOMING: '곧 시작',
   ENDED: '종료',
   CANCELLED: '취소',
-  ALWAYS_OPEN: '상시 운영',
+  ALWAYS_OPEN: '장기 운영',
 });
 
 export const FESTIVAL_TIME_FILTER = Object.freeze({
@@ -71,7 +71,7 @@ export const FESTIVAL_TIME_FILTER = Object.freeze({
   // for the 〈 2026년 9월 〉 month navigator -- distinct from THIS_MONTH, which
   // stays hardcoded to the real current month.
   MONTH: 'MONTH',
-  // 상시 운영(always-open, e.g. a standing exhibit with no fixed end date).
+  // 장기 운영(always-open API value, e.g. a long-running exhibit or event).
   // Hidden from every other filter -- only ever visible when this one is
   // explicitly selected (see app.festival_browse on the Core side).
   ALWAYS_OPEN: 'ALWAYS_OPEN',
@@ -84,9 +84,20 @@ export const FESTIVAL_TIME_FILTER_LABEL = Object.freeze({
   THIS_WEEKEND: '이번 주말',
   THIS_MONTH: '이번 달',
   MONTH: '월별',
-  ALWAYS_OPEN: '상시 운영',
+  ALWAYS_OPEN: '장기 운영',
   DATE: '날짜 선택',
 });
+
+// Public festival browse policy: start on ongoing events and expose only the
+// four user-facing quick filters. Keep ALL/MONTH/DATE in the API contract for
+// internal callers and month navigation, but do not present ALL as a chip.
+export const FESTIVAL_DEFAULT_TIME_FILTER = FESTIVAL_TIME_FILTER.ONGOING;
+export const FESTIVAL_USER_TIME_FILTERS = Object.freeze([
+  FESTIVAL_TIME_FILTER.ONGOING,
+  FESTIVAL_TIME_FILTER.THIS_WEEKEND,
+  FESTIVAL_TIME_FILTER.THIS_MONTH,
+  FESTIVAL_TIME_FILTER.ALWAYS_OPEN,
+]);
 
 // Same 17 시·도 FESTIVAL-EVENT-02's `/festivals/regions` returns — used only
 // if that live call fails, so the region picker still has something to show.
@@ -95,6 +106,40 @@ const REGION_FALLBACK_PROVINCES = Object.freeze([
   '대전광역시', '세종특별자치시', '전북특별자치도', '광주광역시', '전라남도',
   '대구광역시', '경상북도', '부산광역시', '울산광역시', '경상남도', '제주특별자치도',
 ]);
+
+export function listFestivalRegionChoices(provinces = []) {
+  const uniqueProvinces = [...new Set(
+    (Array.isArray(provinces) ? provinces : [])
+      .map(value => String(value || '').trim())
+      .filter(value => value && value !== '전국'),
+  )];
+  return ['전국', ...uniqueProvinces];
+}
+
+export function buildFestivalBrowseLocationQuery({
+  region = '',
+  municipality = '',
+  locationMode = 'NONE',
+  currentPosition = null,
+  currentRegionLabel = '',
+} = {}) {
+  const manualRegion = String(region || '').trim();
+  if (manualRegion) {
+    const query = {region: manualRegion};
+    const manualMunicipality = String(municipality || '').trim();
+    if (manualMunicipality) query.municipality = manualMunicipality;
+    return query;
+  }
+
+  const latitude = currentPosition?.latitude;
+  const longitude = currentPosition?.longitude;
+  if (locationMode !== 'CURRENT' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return {};
+
+  const query = {latitude, longitude};
+  const resolvedRegion = String(currentRegionLabel || '').trim();
+  if (resolvedRegion) query.region = resolvedRegion;
+  return query;
+}
 
 // Each 광역시·도's official administrative-center coordinates, used only to
 // classify a GPS reading into a display label ("현재 위치 기준 · 전북특별자치도").
@@ -393,7 +438,7 @@ export function formatFestivalDateLabel(dateString) {
 }
 
 export function formatFestivalPeriod(festival) {
-  if (festival?.alwaysOpen) return '상시 운영';
+  if (festival?.alwaysOpen) return '장기 운영';
   if (!festival?.startDate || !festival?.endDate) return '';
   if (festival.startDate === festival.endDate) return formatFestivalDateLabel(festival.startDate);
   return `${formatFestivalDateLabel(festival.startDate)} ~ ${formatFestivalDateLabel(festival.endDate)}`;
@@ -574,7 +619,7 @@ function normalizeBrowseItem(raw) {
   const startDate = parseFestivalDateToISO(raw.start_date);
   const endDate = parseFestivalDateToISO(raw.end_date);
   const alwaysOpen = raw.is_always_open === true;
-  // 상시 운영 rows are the one case allowed to have no (or only a partial)
+  // 장기 운영 rows are the one case allowed to have no (or only a partial)
   // date range -- every other row still requires both, exactly as before.
   if (!id || !name) return null;
   if (!alwaysOpen && (!startDate || !endDate)) return null;

@@ -125,11 +125,12 @@ async function mountCase(manager,{sessionToken,fetchImpl}){
   document.querySelectorAll('.calendar-photo-confirm-backdrop,.calendar-editor-backdrop').forEach(node=>node.remove());
   const root=document.getElementById('calendar-root');
   root.replaceChildren();
-  manager.mountLifeCalendarManager({
+  await manager.mountLifeCalendarManager({
     root,sessionToken,timezone:'Asia/Seoul',
     now:()=>new Date('2026-09-22T03:00:00+09:00'),
     fetchImpl,settingsStorage:{getItem:()=>JSON.stringify({showKoreaHolidays:false}),setItem(){}},
   });
+  root.querySelector('.calendar-today-button')?.click();
   return root;
 }
 
@@ -247,7 +248,7 @@ try{
   result.refusedAskedChat=refused.calls.some(c=>c.method==='POST'&&c.path.endsWith('/messages'));
   // A 403 is this route being refused, never evidence the session died: the
   // month must still be standing behind the message.
-  result.refusedCalendarStanding=Boolean(root.querySelector('.calendar-month'));
+  result.refusedCalendarStanding=Boolean(root.querySelector('.calendar-day-view'));
 
   // --- a signed-out owner ------------------------------------------------
   const guest=stubFetch();
@@ -368,7 +369,7 @@ try {
     if (!/\+ 기록/.test(v.refusedText) || !/직접/.test(v.refusedText)) fail(`a refused upload must point at + 기록, got "${v.refusedText}"`);
     if (/로그인/.test(v.refusedText)) fail(`a 403 is the route, not the session — it must not send the owner to a login screen, got "${v.refusedText}"`);
     if (v.refusedAskedChat) fail('a refused upload must not go on to ask for a draft');
-    if (!v.refusedCalendarStanding) fail('a 403 must leave the month grid standing');
+    if (!v.refusedCalendarStanding) fail('a 403 must leave the active Calendar view standing');
 
     if (!/로그인/.test(v.guestText)) fail(`a signed-out owner must be asked to sign in, got "${v.guestText}"`);
     if (!/로그인 없이도/.test(v.guestText)) fail(`a signed-out owner must hear that + 기록 works without signing in, got "${v.guestText}"`);

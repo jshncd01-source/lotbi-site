@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-11ccce0f5635';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-dce95fcbc3d0';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -25,10 +25,28 @@ function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_i
 function sighting(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('사람 제보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({reportId: row.report_id, observedAt: row.observed_at, locationSummary: row.location_summary, description: row.description || '', reviewState: row.review_state, photoCount: Number(row.photo_count), minimumPhotoCount: Number(row.minimum_photo_count), maximumPhotoCount: Number(row.maximum_photo_count), canSubmit: row.can_submit === true, message: row.message}); }
 function sos(row) { if (row.matching_scope !== 'ACTIVE_SOS_ONLY' || row.automatic_identity_decision !== false) throw new SiteCoreError('SOS 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({sosId: row.sos_id, personId: row.person_id, displayName: row.display_name, status: row.status, lastSeenAt: row.last_seen_at, lastSeenSummary: row.last_seen_summary, description: row.description || ''}); }
 function notice(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('후보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({noticeId: row.notice_id, candidateId: row.candidate_id, personId: row.person_id, displayName: row.display_name, status: row.status, response: row.response || '', faceScore: row.face_score, photoPath: row.registered_photo_path}); }
-export const personRequestKey = kind => `site.person.${kind}.${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)}`;
+function personRequestKeyRandomHex() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return uuid.replaceAll('-', '').toLowerCase();
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+}
+export const personRequestKey = () => `prq_${Date.now()}_${personRequestKeyRandomHex()}`;
 export async function listPeople(sessionToken, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {}, fetchImpl); return Object.freeze((payload.people || []).map(person)); }
 export async function getPerson(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}`, sessionToken, {}, fetchImpl); return person(payload.person); }
-export async function createPerson(sessionToken, input, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {method: 'POST', requestKey: input.requestKey || personRequestKey('create'), body: {display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), birthday_day: null, nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
+export async function createPerson(sessionToken, input, fetchImpl) {
+  const options = {method: 'POST', requestKey: input.requestKey || personRequestKey('create'), body: {display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), birthday_day: null, nickname: input.nickname || null}};
+  const retryDelays = [250, 750, 1500];
+  for (let attempt = 0; ; attempt += 1) {
+    try { return person((await request('/v2/person-profiles', sessionToken, options, fetchImpl)).person); }
+    catch (error) {
+      if (error?.code !== 'PERSON_NETWORK_ERROR' || attempt >= retryDelays.length) throw error;
+      await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+    }
+  }
+}
 export async function updatePerson(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method: 'PATCH', body: {expected_revision: input.revision, display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
 export async function deletePerson(sessionToken, value, fetchImpl) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
 export async function putPersonPhoto(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}/photo`, sessionToken, {method: 'PUT', requestKey: input.requestKey || personRequestKey('photo'), body: {expected_revision: input.revision, photo_data_uri: input.dataUri}}, fetchImpl); return person(payload.person); }
@@ -56,6 +74,10 @@ const PERSON_ERROR_MESSAGES = Object.freeze({
   PERSON_IDENTITY_PHOTO_TOO_LARGE: '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.',
   PERSON_IDENTITY_PHOTO_UNSUPPORTED: 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.',
   PERSON_IDENTITY_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
+  PERSON_IDENTITY_FACE_NOT_FOUND: '사람 얼굴을 찾지 못했습니다. 얼굴이 선명하게 보이는 사진을 선택해 주세요.',
+  PERSON_IDENTITY_MULTIPLE_FACES: '한 사람만 나온 사진을 선택해 주세요.',
+  PERSON_IDENTITY_FACE_DIRECTION_INVALID: '이 칸의 촬영 방향과 맞지 않습니다. 안내 그림과 같은 방향의 사진을 선택해 주세요.',
+  PERSON_IDENTITY_FACE_GATE_UNAVAILABLE: '사진 얼굴 확인을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
   PERSON_REID_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
   PERSON_REID_PHOTO_QUALITY_INSUFFICIENT: '얼굴이나 모습이 선명하게 보이지 않습니다. 밝은 곳에서 다시 찍은 사진을 선택해 주세요.',
   PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',

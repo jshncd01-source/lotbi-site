@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-11ccce0f5635';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-11ccce0f5635';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-11ccce0f5635';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-dce95fcbc3d0';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-dce95fcbc3d0';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-dce95fcbc3d0';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-11ccce0f5635';
-import {calendarAmountDetailNode, calendarAmountSummaryLine, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-11ccce0f5635';
+} from './site-calendar-model.js?v=aset-dce95fcbc3d0';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-dce95fcbc3d0';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-11ccce0f5635';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-11ccce0f5635';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-11ccce0f5635';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-dce95fcbc3d0';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-dce95fcbc3d0';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-dce95fcbc3d0';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-11ccce0f5635';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-11ccce0f5635';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-11ccce0f5635';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-11ccce0f5635';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-11ccce0f5635';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-11ccce0f5635';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-11ccce0f5635';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-11ccce0f5635';
+} from './site-calendar-product.js?v=aset-dce95fcbc3d0';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-dce95fcbc3d0';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-dce95fcbc3d0';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-dce95fcbc3d0';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-dce95fcbc3d0';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-dce95fcbc3d0';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-dce95fcbc3d0';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-dce95fcbc3d0';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -68,8 +68,8 @@ function weekdayOrder(weekStart = 0) {
 // title ("2026년 10월 ▾") rather than taking a tab of its own. The list view's
 // key stays 'agenda' -- deep links and other surfaces send that name -- while
 // its label says what it is now, 목록.
-const MODES = Object.freeze([['month', '월'], ['week', '주'], ['agenda', '목록']]);
-const VIEW_KEYS = Object.freeze(['month', 'week', 'year', 'agenda']);
+const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);
+const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);
 const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
 const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription.v1';
 // 저장된 날씨 지역이 어디서 왔는지. 지역 자체는 site-calendar-weather-region.js 가
@@ -554,7 +554,8 @@ function dateInTimezone(now, timezone) {
 }
 
 function normalizeMode(value) {
-  if (value === 'today' || value === 'all' || value === 'date') return 'month';
+  if (value === 'today' || value === 'date') return 'day';
+  if (value === 'all') return 'month';
   // 'attention' 은 다른 표면(사이드바·딥링크)이 아직 보낼 수 있는 옛 이름이다.
   // 탭이 없어졌으니 그 링크는 기한 지남을 이어받은 일정 보기로 보낸다.
   if (value === 'upcoming' || value === 'attention') return 'agenda';
@@ -638,7 +639,7 @@ function usesFlowingDayDetail() {
   return globalThis.innerWidth <= 900;
 }
 
-export const DAY_DETAIL_PRESENTATION = Object.freeze({FLOW: 'FLOW', SIDE: 'SIDE'});
+export const DAY_DETAIL_PRESENTATION = Object.freeze({PAGE: 'PAGE', SHEET: 'SHEET', MODAL: 'MODAL'});
 
 // Touch widths keep the selected day in document flow; desktop gives it a
 // stable side rail. Neither presentation covers the month grid.
@@ -651,7 +652,7 @@ export function setDayDetailPresentation(value) {
 
 export function dayDetailPresentation() {
   return dayDetailPresentationOverride
-    || (usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE);
+    || (usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.SHEET : DAY_DETAIL_PRESENTATION.MODAL);
 }
 
 function prefersReducedMotion() {
@@ -1036,7 +1037,9 @@ function calendarViewWindow(view, date, timezone, now, weekStart) {
     ? yearBounds(selectedDate)
     : key === 'week'
       ? {...weekBounds(selectedDate, weekStart), ...civilDateParts(selectedDate)}
-      : monthBounds(selectedDate);
+      : key === 'day'
+        ? {start: selectedDate, end: selectedDate, ...civilDateParts(selectedDate)}
+        : monthBounds(selectedDate);
   return {selectedDate, key, range};
 }
 
@@ -1083,7 +1086,7 @@ export async function loadLifeCalendarEnrichment(
   {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null, weekStart = 0} = {},
 ) {
   const {key, range} = calendarViewWindow(view, date, timezone, now, weekStart);
-  const weatherWindow = key === 'month' || key === 'week'
+  const weatherWindow = key === 'day' || key === 'month' || key === 'week'
     ? forecastWindow(range, dateInTimezone(now, timezone))
     : null;
   const weatherRequest = weatherWindow
@@ -1102,7 +1105,7 @@ export async function loadLifeCalendarEnrichment(
         return {providerReady: false, items: [], aiCalls: 0, failure: error};
       })
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
-  const holidayRequest = (key === 'month' || key === 'week' || key === 'year')
+  const holidayRequest = (key === 'day' || key === 'month' || key === 'week' || key === 'year')
     ? loadKoreaHolidaysForRange(range, fetchImpl)
     : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
   const [weather, holidays] = await Promise.all([weatherRequest, holidayRequest]);
@@ -1401,12 +1404,13 @@ function addMessageNode(text) {
 // than a window over it -- it shows today when the Calendar opens and follows
 // whichever date is picked, so there is nothing to close and nothing covers the
 // month.
-function dayPanel(state, actions, {includeActions = false} = {}) {
+function dayPanel(state, actions, {includeActions = false, presentation = DAY_DETAIL_PRESENTATION.PAGE, closable = false} = {}) {
   const date = state.selectedDate;
+  const {month, day} = civilDateParts(date);
   const panel = document.createElement('aside');
   panel.className = 'calendar-day-panel';
   panel.dataset.selectedDate = date;
-  panel.dataset.presentation = dayDetailPresentation();
+  panel.dataset.presentation = presentation;
   panel.dataset.reducedMotion = String(prefersReducedMotion());
   panel.setAttribute('aria-label', `${longKoreanDate(date)} 기록`);
 
@@ -1436,6 +1440,12 @@ function dayPanel(state, actions, {includeActions = false} = {}) {
   }
   const weather = dayWeatherNode(calendarWeatherByDate(state.weather).get(date), {precipitation: state.showPrecipitation !== false});
   if (weather) head.appendChild(weather);
+  if (closable) {
+    const close = button('닫기', 'calendar-day-close');
+    close.setAttribute('aria-label', `${month}월 ${day}일 기록 닫기`);
+    close.addEventListener('click', () => actions.closeDayDetail?.());
+    head.appendChild(close);
+  }
 
   const body = document.createElement('div');
   body.className = 'calendar-day-body';
@@ -1471,6 +1481,40 @@ function dayPanel(state, actions, {includeActions = false} = {}) {
   body.dataset.empty = String(!timeline && !selectedHoliday);
   panel.append(head, body);
   return panel;
+}
+
+function dayDetailOverlay(state, actions) {
+  const presentation = dayDetailPresentation();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-day-detail-backdrop calendar-day-sheet-backdrop';
+  backdrop.dataset.calendarDayDetailBackdrop = '';
+  backdrop.dataset.reducedMotion = String(prefersReducedMotion());
+  const panel = dayPanel(state, actions, {includeActions: true, presentation, closable: true});
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.tabIndex = -1;
+  backdrop.appendChild(panel);
+  backdrop.addEventListener('click', event => {
+    if (event.target === backdrop) actions.closeDayDetail?.();
+  });
+  backdrop.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    actions.closeDayDetail?.();
+  });
+  return backdrop;
+}
+
+function renderDay(state, actions) {
+  const section = document.createElement('section');
+  section.className = 'calendar-day-view';
+  section.dataset.calendarDayView = state.selectedDate;
+  section.appendChild(dayPanel(state, actions, {
+    includeActions: true,
+    presentation: DAY_DETAIL_PRESENTATION.PAGE,
+  }));
+  return section;
 }
 
 function monthEventRow(item, onSelect) {
@@ -1553,116 +1597,18 @@ function syncMonthLayout(layout) {
 const CALENDAR_WEEK_HOUR_HEIGHT = 48;
 const MINUTES_PER_DAY = 24 * 60;
 
-// The week is seven days of a life, not seven columns of hours: a strip to
-// jump between days, then each day's records in day order. A phone never gets
-// the hour grid -- four squeezed columns of cut-off titles was what Week used
-// to be there. A wide screen can still switch to 시간표 when the hours matter.
+// Week keeps LOTBI's visual language while using the familiar calendar model:
+// dates run left-to-right and clock time runs top-to-bottom. The grid owns its
+// horizontal overflow on narrow screens so the surrounding page never does.
 function renderWeek(state, actions, weatherCredit = null) {
   const section = document.createElement('section');
   section.className = 'calendar-week-agenda';
-  section.setAttribute('aria-label', '주간 기록');
-  const timeGridAvailable = !usesFlowingDayDetail();
-  const layout = timeGridAvailable && state.weekLayout === 'timegrid' ? 'timegrid' : 'list';
+  section.setAttribute('aria-label', '주간 시간표');
+  const layout = 'timegrid';
   section.dataset.weekLayout = layout;
   const weatherByDate = calendarWeatherByDate(state.weather);
   const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
-  const days = calendarWeekDays(state.selectedDate, state.weekStart);
-
-  const strip = document.createElement('div');
-  strip.className = 'calendar-week-strip';
-  strip.setAttribute('role', 'tablist');
-  strip.setAttribute('aria-label', '이번 주 날짜');
-  const weekControls = [];
-  for (const day of days) {
-    const selected = day.date === state.selectedDate;
-    const count = calendarItemsOnDate(state.items, day.date).length;
-    const control = button('', 'calendar-week-date');
-    control.dataset.calendarWeekDate = day.date;
-    control.dataset.selected = String(selected);
-    control.dataset.today = String(day.date === state.todayDate);
-    control.dataset.holiday = String(holidayMap.has(day.date));
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', String(selected));
-    control.setAttribute('aria-label', `${koreanDate(day.date)}, 기록 ${count}개${day.date === state.todayDate ? ', 오늘' : ''}`);
-    if (day.date === state.todayDate) control.setAttribute('aria-current', 'date');
-    control.tabIndex = selected ? 0 : -1;
-    const weekday = document.createElement('span');
-    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
-    const number = document.createElement('strong');
-    number.textContent = String(day.day);
-    control.append(weekday, number, recordDots(count));
-    control.addEventListener('click', () => { void actions.selectDate(day.date, {revealWeekDay: true}); });
-    weekControls.push(control);
-    strip.appendChild(control);
-  }
-  bindRovingTablist(strip, weekControls);
-  section.appendChild(strip);
-
-  if (timeGridAvailable) {
-    const toggle = document.createElement('div');
-    toggle.className = 'calendar-week-layout-toggle';
-    toggle.setAttribute('role', 'group');
-    toggle.setAttribute('aria-label', '주간 보기 방식');
-    for (const [value, label] of [['list', '생활목록'], ['timegrid', '시간표']]) {
-      const option = button(label, 'calendar-week-layout-option');
-      option.dataset.weekLayoutOption = value;
-      option.setAttribute('aria-pressed', String(layout === value));
-      option.addEventListener('click', () => actions.setWeekLayout?.(value));
-      toggle.appendChild(option);
-    }
-    section.appendChild(toggle);
-  }
-
-  if (layout === 'timegrid') {
-    section.appendChild(renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
-  } else {
-    const list = document.createElement('div');
-    list.className = 'calendar-week-list';
-    for (const day of days) {
-      const group = document.createElement('section');
-      group.className = 'calendar-week-day-group';
-      group.dataset.calendarWeekGroup = day.date;
-      group.dataset.selected = String(day.date === state.selectedDate);
-      group.dataset.today = String(day.date === state.todayDate);
-      const header = document.createElement('div');
-      header.className = 'calendar-week-day-header';
-      const heading = document.createElement('h3');
-      heading.className = 'calendar-week-day-heading';
-      heading.tabIndex = -1;
-      if (day.date === state.todayDate) {
-        const todayBadge = document.createElement('span');
-        todayBadge.className = 'calendar-day-today';
-        todayBadge.textContent = '오늘';
-        heading.append(todayBadge, ' ');
-      }
-      heading.append(longKoreanDate(day.date));
-      header.appendChild(heading);
-      if (state.showLunarDates) {
-        const lunarLabel = lunarDateLabel(solarToLunar(day.date));
-        if (lunarLabel) {
-          const lunar = document.createElement('span');
-          lunar.className = 'calendar-week-day-lunar';
-          lunar.textContent = `음력 ${lunarLabel}`;
-          header.appendChild(lunar);
-        }
-      }
-      const holiday = holidayMap.get(day.date);
-      if (holiday) {
-        const holidayLine = document.createElement('span');
-        holidayLine.className = 'calendar-week-holiday';
-        holidayLine.textContent = holiday.name;
-        header.appendChild(holidayLine);
-      }
-      const weather = dayWeatherNode(weatherByDate.get(day.date), {precipitation: state.showPrecipitation !== false});
-      if (weather) header.appendChild(weather);
-      group.appendChild(header);
-      const timeline = lifeTimelineNodes(state.items, day.date, {today: state.todayDate, onSelect: actions.onEvent});
-      if (timeline) group.appendChild(timeline);
-      else group.appendChild(emptyMessage(state.loading ? '…' : '기록 없음'));
-      list.appendChild(group);
-    }
-    section.appendChild(list);
-  }
+  section.appendChild(renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
 
   if (weatherCredit) {
     const credit = document.createElement('p');
@@ -1676,17 +1622,10 @@ function renderWeek(state, actions, weatherCredit = null) {
     notice.textContent = state.weatherMessage;
     section.appendChild(notice);
   }
-  if (!timeGridAvailable) return section;
-  // A desk keeps the selected day beside the week, as it does beside the
-  // month: its records, its weather and + 기록, without scrolling to find them.
-  const besideDay = document.createElement('div');
-  besideDay.className = 'calendar-week-layout';
-  besideDay.dataset.dayDetail = DAY_DETAIL_PRESENTATION.SIDE;
-  besideDay.append(section, dayPanel(state, actions, {includeActions: true}));
-  return besideDay;
+  return section;
 }
 
-// The hour grid, kept for wide screens that ask for it (주 → 시간표).
+// The hour grid is the Week view: seven date columns and a vertical clock.
 function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
   const grid = calendarWeekTimeGrid(state.selectedDate, state.items, state.weekStart);
   const wrapper = document.createElement('div');
@@ -1732,6 +1671,7 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
 
     const headerCell = button('', 'calendar-week-day');
     headerCell.dataset.calendarWeekDate = day.date;
+    headerCell.dataset.weekday = String(day.weekday);
     headerCell.dataset.selected = String(selected);
     headerCell.dataset.holiday = String(Boolean(holiday));
     headerCell.setAttribute('aria-label', koreanDate(day.date));
@@ -1768,6 +1708,7 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
 
     const alldayCell = document.createElement('div');
     alldayCell.className = 'calendar-week-allday-cell';
+    alldayCell.dataset.weekday = String(day.weekday);
     alldayCell.dataset.selected = String(selected);
     alldayCell.dataset.holiday = String(Boolean(holiday));
     if (holiday) {
@@ -1787,7 +1728,9 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
     const group = document.createElement('div');
     group.className = 'calendar-week-grid-day';
     group.dataset.calendarWeekGroup = day.date;
+    group.dataset.weekday = String(day.weekday);
     group.dataset.selected = String(selected);
+    group.dataset.holiday = String(Boolean(holiday));
     group.style.height = columnHeight;
     for (const entry of day.timed) {
       const item = entry.item;
@@ -1822,6 +1765,18 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
     scroll.scrollTop = Math.max(0, 7 * CALENDAR_WEEK_HOUR_HEIGHT - 24);
   });
   return wrapper;
+}
+
+function renderAmountSummary(state, actions) {
+  const monthKey = `${state.year}-${state.month}`;
+  const amountSettled = state.expense.monthKey === monthKey;
+  return calendarAmountSummaryBlock({
+    state: amountSettled ? state.expense.status : 'loading',
+    summary: amountSettled ? state.expense.summary : null,
+    month: state.month,
+    errorMessage: amountSettled ? state.expense.message : '',
+    onOpen: opener => actions.openAmountDetail?.(opener),
+  });
 }
 
 function renderMonth(state, actions, weatherCredit = null) {
@@ -1859,11 +1814,15 @@ function renderMonth(state, actions, weatherCredit = null) {
   // Multi-day records become bars; each week row hands out its own lanes.
   const spans = monthSpanSegments(cells, state.items);
   const VISIBLE_ROWS = 2;
+  const todayParts = civilDateParts(state.todayDate);
+  const passiveFocusDate = todayParts.year === state.year && todayParts.month === state.month
+    ? state.todayDate
+    : `${state.year}-${String(state.month).padStart(2, '0')}-01`;
 
   for (const cell of cells) {
     // Everything this date holds, a stay's second night included.
     const events = calendarItemsOnDate(state.items, cell.date);
-    const selected = cell.date === state.selectedDate;
+    const selected = state.detailOpen && cell.date === state.selectedDate;
     const today = cell.date === state.todayDate;
     const hasAttention = attentionDates.has(cell.date);
     const weather = weatherByDate.get(cell.date) || null;
@@ -1891,7 +1850,7 @@ function renderMonth(state, actions, weatherCredit = null) {
     date.dataset.selected = String(selected);
     date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention, weather, holiday}));
     if (today) date.setAttribute('aria-current', 'date');
-    date.tabIndex = selected ? 0 : -1;
+    date.tabIndex = selected || (!state.detailOpen && cell.date === passiveFocusDate) ? 0 : -1;
     const number = document.createElement('span');
     number.className = 'calendar-date-number';
     number.textContent = String(cell.day);
@@ -2052,22 +2011,8 @@ function renderMonth(state, actions, weatherCredit = null) {
     notice.textContent = state.weatherMessage;
     calendar.appendChild(notice);
   }
-  // The month's recorded amounts, as one line that disappears when there are
-  // none. The breakdown waits behind it; the Calendar is not a ledger.
-  const monthKey = `${state.year}-${state.month}`;
-  const amountSettled = state.expense.monthKey === monthKey;
-  const amountLine = calendarAmountSummaryLine({
-    state: amountSettled ? state.expense.status : 'loading',
-    summary: amountSettled ? state.expense.summary : null,
-    month: state.month,
-    errorMessage: amountSettled ? state.expense.message : '',
-    onOpen: opener => actions.openAmountDetail?.(opener),
-  });
-  if (amountLine) calendar.appendChild(amountLine);
-  const panel = dayPanel(state, actions, {includeActions: !usesFlowingDayDetail()});
-  // Order matters: existing runtime checks read layout.children[0] as the month and
-  // layout.children[1] as the selected-day surface.
-  layout.append(calendar, panel);
+  layout.appendChild(calendar);
+  if (state.detailOpen) layout.appendChild(dayDetailOverlay(state, actions));
   if (usesFlowingDayDetail()) {
     bindMonthSwipe(calendar, {
       onPrevious: () => void actions.shiftMonth?.(-1),
@@ -3677,7 +3622,7 @@ export async function mountLifeCalendarManager({
     // that raised itself for an arbitrary remembered date -- a window nobody
     // had pressed. Now it is always today until someone picks another day, and
     // it never covers the grid.)
-    detailOpen: true, dayCollapsed: false, agendaScope: 'month',
+    detailOpen: false, dayCollapsed: false, agendaScope: 'month',
     // Week shows a life list by default; a wide screen may switch to 시간표.
     weekLayout: 'list',
     locationInFlight: false,
@@ -3707,6 +3652,7 @@ export async function mountLifeCalendarManager({
   const next = button('다음', 'calendar-nav-button'); next.setAttribute('aria-label', '다음 달');
   next.dataset.calendarNavigation = 'next';
   const today = button('오늘', 'calendar-today-button');
+  today.dataset.calendarMode = 'day';
   const settingsButton = button('', 'calendar-settings-button');
   settingsButton.appendChild(toolbarIcon(SETTINGS_ICON_SHAPES));
   const settingsLabel = document.createElement('span');
@@ -3721,8 +3667,9 @@ export async function mountLifeCalendarManager({
     const control = button(label, 'calendar-mode-tab'); control.dataset.calendarMode = mode; control.setAttribute('role', 'tab'); modeButtons.set(mode, control); modes.appendChild(control);
   }
   bindRovingTablist(modes, modeButtons.values());
-  toolbar.append(previous, title, next, today, settingsButton, modes);
+  toolbar.append(previous, title, next, today, modes, settingsButton);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
+  const amountSlot = document.createElement('div'); amountSlot.className = 'calendar-amount-slot';
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
   const locationToggle = button('OFF', 'calendar-location-switch');
   locationToggle.setAttribute('role', 'switch');
@@ -3734,7 +3681,7 @@ export async function mountLifeCalendarManager({
   // + 기록 and 사진에서 기록 읽기 when they are not inside the day panel: pinned
   // to the bottom of the Calendar on a touch screen, a plain row on a desk.
   const actionSlot = document.createElement('div'); actionSlot.className = 'calendar-action-slot';
-  shell.append(toolbar, status, viewport, actionSlot); root.replaceChildren(shell);
+  shell.append(toolbar, amountSlot, status, viewport, actionSlot); root.replaceChildren(shell);
 
   // The title is also the way to 년: "2026년 10월 ▾" opens the year to pick a
   // month from, and the year's title brings the month back. The caret is drawn
@@ -3752,13 +3699,16 @@ export async function mountLifeCalendarManager({
         ? `${first.month}월 ${first.day}–${last.day}일`
         : `${first.month}/${first.day}–${last.month}/${last.day}`;
       title.setAttribute('aria-label', `${first.year}년 ${first.month}월 ${first.day}일부터 ${last.month}월 ${last.day}일까지 주간 보기. 누르면 연도와 월을 고릅니다`);
+    } else if (state.mode === 'day') {
+      title.textContent = longKoreanDate(state.selectedDate);
+      title.setAttribute('aria-label', `${longKoreanDate(state.selectedDate)} 일간 보기`);
     } else {
       title.textContent = `${state.year}년 ${state.month}월`;
       title.setAttribute('aria-label', `${state.year}년 ${state.month}월. 누르면 연도와 월을 고릅니다`);
     }
     title.setAttribute('aria-expanded', String(state.mode === 'year'));
     title.dataset.yearOpen = String(state.mode === 'year');
-    const navigationUnit = state.mode === 'year' ? '해' : state.mode === 'week' ? '주' : '달';
+    const navigationUnit = state.mode === 'year' ? '해' : state.mode === 'week' ? '주' : state.mode === 'day' ? '날' : '달';
     previous.setAttribute('aria-label', `이전 ${navigationUnit}`);
     next.setAttribute('aria-label', `다음 ${navigationUnit}`);
     // 년 has no tab of its own; while it is open the 월 tab stays the keyboard
@@ -3768,6 +3718,8 @@ export async function mountLifeCalendarManager({
       control.setAttribute('aria-selected', String(selected));
       control.tabIndex = selected || (state.mode === 'year' && mode === 'month') ? 0 : -1;
     }
+    today.setAttribute('aria-pressed', String(state.mode === 'day'));
+    today.dataset.selected = String(state.mode === 'day');
     root.dataset.calendarManagerView = state.mode;
     root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest';
   };
@@ -3783,15 +3735,13 @@ export async function mountLifeCalendarManager({
           heading.scrollIntoView({block: 'nearest', inline: 'nearest'});
           return;
         }
+        const close = panel?.querySelector('.calendar-day-close');
+        if (detail && close instanceof HTMLElement) {
+          close.focus({preventScroll: true});
+          return;
+        }
         const trigger = root.querySelector(`[data-calendar-date-trigger="${date}"]`);
         if (trigger instanceof HTMLElement) trigger.focus({preventScroll: true});
-        // A tap on a date keeps the month in place. Only when the day below has
-        // scrolled out of sight is it brought back into view.
-        if (detail && heading instanceof HTMLElement && panel.dataset.presentation === DAY_DETAIL_PRESENTATION.FLOW) {
-          const top = heading.getBoundingClientRect().top;
-          const visibleBottom = (globalThis.visualViewport?.height || globalThis.innerHeight || 0) - 120;
-          if (top > visibleBottom || top < 0) heading.scrollIntoView({block: 'center', behavior: reduced ? 'auto' : 'smooth'});
-        }
         return;
       }
       if (state.mode === 'week') {
@@ -3825,10 +3775,16 @@ export async function mountLifeCalendarManager({
       state.selectedDate = date;
       state.year = parts.year;
       state.month = parts.month;
-      state.detailOpen = true;
+      state.detailOpen = state.mode === 'month';
       state.dayCollapsed = false;
       if (monthChanged) await afterMonthChange(); else render();
       focusSelectedCalendarTarget({detail: openDetail, date, focusDetail, revealWeekDay});
+    },
+    closeDayDetail: () => {
+      if (!state.detailOpen) return;
+      state.detailOpen = false;
+      render();
+      focusSelectedCalendarTarget({date: state.selectedDate});
     },
     selectMonth: async month => {
       markCalendarContextNavigation();
@@ -3840,7 +3796,7 @@ export async function mountLifeCalendarManager({
         ? state.todayDate
         : `${state.year}-${String(month).padStart(2, "0")}-01`;
       state.mode = 'month';
-      state.detailOpen = true;
+      state.detailOpen = false;
       await refresh();
     },
     onDateKey: (event, date) => {
@@ -3954,7 +3910,8 @@ export async function mountLifeCalendarManager({
     ) return;
     event.preventDefault();
     event.stopPropagation();
-    focusSelectedCalendarTarget({date: state.selectedDate});
+    if (state.mode === 'month' && state.detailOpen) actions.closeDayDetail();
+    else focusSelectedCalendarTarget({date: state.selectedDate});
   }, true);
 
   let refreshGeneration = 0;
@@ -3981,6 +3938,7 @@ export async function mountLifeCalendarManager({
 
   // 보이는 달/주 범위 중 예보 가능한 부분. 년 보기에는 날씨가 없다.
   function visibleWeatherWindow() {
+    if (state.mode === 'day') return forecastWindow({start: state.selectedDate, end: state.selectedDate}, state.todayDate);
     if (state.mode === 'month') return forecastWindow(monthBounds(state.selectedDate), state.todayDate);
     if (state.mode === 'week') return forecastWindow(weekBounds(state.selectedDate, state.weekStart), state.todayDate);
     return null;
@@ -4084,8 +4042,10 @@ export async function mountLifeCalendarManager({
       ? yearBounds(state.selectedDate)
       : state.mode === 'week'
         ? weekBounds(state.selectedDate, state.weekStart)
-        : monthBounds(state.selectedDate);
-    if (!(state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) return;
+        : state.mode === 'day'
+          ? {start: state.selectedDate, end: state.selectedDate}
+          : monthBounds(state.selectedDate);
+    if (!(state.mode === 'day' || state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) return;
     const holidays = await loadKoreaHolidaysForRange(range, fetchImpl);
     if (!root.isConnected || requestGeneration !== holidayGeneration) return;
     state.holidays = holidays.items || [];
@@ -4315,6 +4275,11 @@ export async function mountLifeCalendarManager({
     const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"], .calendar-day-panel[data-day-panel-bound="true"]');
     if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
+    const showsAmountSummary = state.mode === 'day' || state.mode === 'week' || state.mode === 'month';
+    const amountSummary = showsAmountSummary ? renderAmountSummary(state, actions) : null;
+    amountSlot.replaceChildren(...(amountSummary ? [amountSummary] : []));
+    amountSlot.hidden = !amountSummary;
+    shell.dataset.amountVisible = String(Boolean(amountSummary));
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '기록을 불러오는 중'; status.appendChild(loading);
     } else {
@@ -4329,6 +4294,7 @@ export async function mountLifeCalendarManager({
       syncLocationSettingsControl();
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
+    else if (state.mode === 'day') viewport.replaceChildren(renderDay(state, actions));
     else if (state.mode === 'week') viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else {
@@ -4346,7 +4312,7 @@ export async function mountLifeCalendarManager({
     // + 기록 / 사진에서 기록 읽기 outside the day panel: every view except 년
     // (which is only for finding a month), and Month and Week only when the
     // day panel sits under them rather than beside them.
-    const panelCarriesActions = (state.mode === 'month' || state.mode === 'week') && !usesFlowingDayDetail();
+    const panelCarriesActions = state.mode === 'day' || state.mode === 'month';
     if (state.mode === 'year' || panelCarriesActions) {
       actionSlot.hidden = true;
       actionSlot.replaceChildren();
@@ -4583,7 +4549,7 @@ export async function mountLifeCalendarManager({
         }
         // 일정은 여기서 이미 화면에 오른다 -- 날씨·공휴일은 기다리지 않는다.
         state.loading = false; renderPreservingFocus();
-        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        if (state.mode === 'day' || state.mode === 'week' || state.mode === 'month') expenseRefresh = refreshExpenseSummary();
         // 날씨·공휴일은 따로 도착한다. 그 사이 다른 달로 넘어갔거나(새
         // refreshGeneration) 위치/지역이 다시 바뀌었으면(새 weatherGeneration) 이
         // 응답은 조용히 버려진다 -- 화면은 이미 최신 요청이 맡고 있다.
@@ -4592,7 +4558,7 @@ export async function mountLifeCalendarManager({
           const applyWeather = weatherToken === weatherGeneration;
           const applyHolidays = holidayToken === holidayGeneration;
           if (applyWeather) {
-            if (result.key === 'month' || result.key === 'week') {
+            if (result.key === 'day' || result.key === 'month' || result.key === 'week') {
               state.weather = enrichment.weather || [];
               state.weatherMessage = enrichment.weatherFailureMessage || '';
               persistCalendarWeatherCache(enrichment.weather);
@@ -4601,7 +4567,7 @@ export async function mountLifeCalendarManager({
               state.weatherMessage = '';
             }
           }
-          if (applyHolidays && (result.key === 'month' || result.key === 'week' || result.key === 'year')) {
+          if (applyHolidays && (result.key === 'day' || result.key === 'month' || result.key === 'week' || result.key === 'year')) {
             state.holidays = enrichment.holidays || [];
           }
           if (applyWeather || applyHolidays) renderPreservingFocus();
@@ -4619,7 +4585,7 @@ export async function mountLifeCalendarManager({
         // then decorate it with weather/holiday data fail-soft.
         state.loading = false;
         renderPreservingFocus();
-        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        if (state.mode === 'day' || state.mode === 'week' || state.mode === 'month') expenseRefresh = refreshExpenseSummary();
 
         // Which dates the guest month/week grid can show weather for is a
         // property of the visible date range intersected with the forecast
@@ -4646,8 +4612,10 @@ export async function mountLifeCalendarManager({
           ? yearBounds(state.selectedDate)
           : state.mode === 'week'
             ? weekBounds(state.selectedDate, state.weekStart)
-            : monthBounds(state.selectedDate);
-        const holidayRequest = (state.mode === 'month' || state.mode === 'week' || state.mode === 'year') && state.showKoreaHolidays
+            : state.mode === 'day'
+              ? {start: state.selectedDate, end: state.selectedDate}
+              : monthBounds(state.selectedDate);
+        const holidayRequest = (state.mode === 'day' || state.mode === 'month' || state.mode === 'week' || state.mode === 'year') && state.showKoreaHolidays
           ? loadKoreaHolidaysForRange(holidayRange, fetchImpl)
           : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
         void Promise.all([weatherRequest, holidayRequest]).then(([guestWeather, holidayResult]) => {
@@ -4659,7 +4627,7 @@ export async function mountLifeCalendarManager({
             state.weatherMessage = weatherFailureCopy(guestWeather.failure);
             persistCalendarWeatherCache(guestWeather.items);
           }
-          if (applyHolidays && (state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) {
+          if (applyHolidays && (state.mode === 'day' || state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) {
             state.holidays = holidayResult.items || [];
           }
           if (applyWeather || applyHolidays) renderPreservingFocus();
@@ -4702,7 +4670,9 @@ export async function mountLifeCalendarManager({
         ? root.querySelector(`[data-calendar-event-id="${eventId}"]`)
         : null;
       const dateTarget = origin.mode === 'month'
-        ? root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`)
+        ? (origin.detailOpen
+            ? root.querySelector('.calendar-day-close')
+            : root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`))
         : null;
       const agendaTarget = origin.mode === 'agenda'
         ? root.querySelector(`[data-agenda-scope="${origin.agendaScope}"]`)
@@ -5041,6 +5011,11 @@ export async function mountLifeCalendarManager({
         const parts = civilDateParts(state.selectedDate);
         state.year = parts.year;
         state.month = parts.month;
+      } else if (state.mode === 'day') {
+        state.selectedDate = addCivilDays(state.selectedDate, delta);
+        const parts = civilDateParts(state.selectedDate);
+        state.year = parts.year;
+        state.month = parts.month;
       } else {
         state.month += delta;
         while (state.month < 1) { state.month += 12; state.year -= 1; }
@@ -5052,7 +5027,7 @@ export async function mountLifeCalendarManager({
           ? state.todayDate
           : `${state.year}-${String(state.month).padStart(2, '0')}-01`;
       }
-      state.detailOpen = true;
+      state.detailOpen = false;
       if (state.mode === 'agenda') state.agendaScope = 'month';
       await refresh();
     } finally {
@@ -5069,14 +5044,16 @@ export async function mountLifeCalendarManager({
     state.year = parts.year;
     state.month = parts.month;
     state.selectedDate = state.todayDate;
-    state.detailOpen = true;
+    state.mode = 'day';
+    state.detailOpen = false;
     state.dayCollapsed = false;
     await refresh();
   });
   title.addEventListener('click', async () => {
     markCalendarContextNavigation();
+    if (state.mode === 'day') return;
     state.mode = state.mode === 'year' ? 'month' : 'year';
-    state.detailOpen = true;
+    state.detailOpen = false;
     state.agendaScope = 'month';
     await refresh();
   });
@@ -5084,7 +5061,7 @@ export async function mountLifeCalendarManager({
     if (state.mode !== mode) {
       markCalendarContextNavigation();
       state.mode = mode;
-      state.detailOpen = true;
+      state.detailOpen = false;
       state.dayCollapsed = false;
       if (mode !== 'agenda') state.agendaScope = 'month';
       await refresh();

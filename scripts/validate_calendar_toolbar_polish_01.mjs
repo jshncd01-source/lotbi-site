@@ -24,7 +24,7 @@ assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.calendar
 // The original rule (and this exact request/indentation) must still exist --
 // validate_calendar_responsive_01.mjs also locks it; this is the same
 // contract restated so a toolbar-polish regression fails here too.
-assert.ok(css.includes('.calendar-toolbar {\n  grid-row: 1;'), 'must not have touched the base .calendar-toolbar rule');
+assert.match(css, /\.calendar-toolbar \{\r?\n  grid-row: 1;/, 'must not have touched the base .calendar-toolbar rule');
 assert.match(css, /\.calendar-settings-button \{[\s\S]*display:\s*inline-flex;[\s\S]*gap:\s*5px;/,
   'must not have touched the base .calendar-settings-button rule');
 
@@ -97,6 +97,16 @@ try {
     monthTab: [...root.querySelectorAll('.calendar-mode-tab')].find(n => n.textContent === '월'), // selected by default
   };
 
+  const toolbar = target('.calendar-toolbar');
+  const modes = target('.calendar-mode-tabs');
+  result.order = [...toolbar.children].map(node => node === modes ? '보기' : node.textContent.trim());
+  result.viewOrder = [buttons.today, ...modes.children].map(node => node.textContent.trim());
+  result.initialMonth = {
+    view: root.dataset.calendarManagerView,
+    detailPresent: Boolean(root.querySelector('.calendar-day-panel')),
+    selectedDates: root.querySelectorAll('.calendar-date-cell[data-selected="true"]').length,
+  };
+
   result.geometry = {};
   result.radius = {};
   result.contrast = {};
@@ -118,6 +128,59 @@ try {
     }
     if (fg && bg) result.contrast[name] = Math.round(contrast(fg, bg) * 100) / 100;
   }
+
+  const next = [...root.querySelectorAll('.calendar-nav-button')].find(node => node.dataset.calendarNavigation === 'next');
+  const title = target('.calendar-title-button');
+  const desktopNodes = [buttons.previous, title, next, buttons.today, modes, buttons.settings];
+  result.toolbarLefts = desktopNodes.map(node => Math.round(node.getBoundingClientRect().left));
+  result.todayToModesGap = Math.round(modes.getBoundingClientRect().left - buttons.today.getBoundingClientRect().right);
+  result.modesToSettingsGap = Math.round(buttons.settings.getBoundingClientRect().left - modes.getBoundingClientRect().right);
+
+  // 오늘 is a real day view, not a reset button that leaves the month on
+  // screen. Week and Month remain independent views, and Month owns no day
+  // detail until a person chooses a date.
+  buttons.today.click();
+  await wait(() => root.dataset.calendarManagerView === 'day', 'today day view');
+  await wait(() => root.querySelector('.calendar-day-panel'), 'today timeline');
+  result.todayView = {
+    monthPresent: Boolean(root.querySelector('.calendar-month-grid')),
+    dayDate: root.querySelector('.calendar-day-panel')?.dataset.selectedDate || '',
+  };
+
+  buttons.weekTab.click();
+  await wait(() => root.dataset.calendarManagerView === 'week', 'week view');
+  result.weekView = {
+    weekPresent: Boolean(root.querySelector('.calendar-week-agenda')),
+    sideDetailPresent: Boolean(root.querySelector('.calendar-week-layout .calendar-day-panel')),
+  };
+
+  buttons.monthTab.click();
+  await wait(() => root.dataset.calendarManagerView === 'month', 'month view again');
+  await wait(() => root.querySelector('.calendar-month-grid'), 'month grid again');
+  const monthWidthBefore = Math.round(root.querySelector('.calendar-month').getBoundingClientRect().width);
+  root.querySelector('.calendar-date-cell[data-current-month="true"] .calendar-date-trigger').click();
+  await wait(() => root.querySelector('[data-calendar-day-detail-backdrop]'), 'desktop day popup');
+  const detail = root.querySelector('.calendar-day-panel');
+  result.monthPopup = {
+    presentation: detail?.dataset.presentation || '',
+    modal: detail?.getAttribute('aria-modal') || '',
+    closePresent: Boolean(detail?.querySelector('.calendar-day-close')),
+    monthWidthBefore,
+    monthWidthAfter: Math.round(root.querySelector('.calendar-month').getBoundingClientRect().width),
+  };
+  detail.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+  await wait(() => !root.querySelector('[data-calendar-day-detail-backdrop]'), 'desktop day popup Escape close');
+  result.escapeClosed = !root.querySelector('.calendar-day-panel');
+  root.querySelector('.calendar-date-cell[data-current-month="true"] .calendar-date-trigger').click();
+  await wait(() => root.querySelector('.calendar-day-close'), 'desktop day popup reopen for close');
+  root.querySelector('.calendar-day-close').click();
+  await wait(() => !root.querySelector('[data-calendar-day-detail-backdrop]'), 'desktop day popup close button');
+  result.closeButtonClosed = !root.querySelector('.calendar-day-panel');
+  root.querySelector('.calendar-date-cell[data-current-month="true"] .calendar-date-trigger').click();
+  await wait(() => root.querySelector('[data-calendar-day-detail-backdrop]'), 'desktop day popup reopen for backdrop');
+  root.querySelector('[data-calendar-day-detail-backdrop]').click();
+  await wait(() => !root.querySelector('[data-calendar-day-detail-backdrop]'), 'desktop day popup backdrop close');
+  result.backdropClosed = !root.querySelector('.calendar-day-panel');
 
   out.textContent = JSON.stringify(result);
 } catch (e) {
@@ -182,6 +245,36 @@ try {
       // light/dark colour rules already targeted this, this just confirms
       // the new shadow/radius/typography layer did not quietly break it.
       if (ratio < 3) throw new Error(`${theme}: ${name} text/background contrast dropped to ${ratio}:1`);
+    }
+    if (JSON.stringify(v.order) !== JSON.stringify(['이전', '2026년 9월', '다음', '오늘', '보기', '설정'])) {
+      throw new Error(`${theme}: toolbar DOM order must follow navigation, views, then settings; got ${JSON.stringify(v.order)}`);
+    }
+    if (JSON.stringify(v.viewOrder) !== JSON.stringify(['오늘', '주', '월', '목록'])) {
+      throw new Error(`${theme}: view order must be 오늘, 주, 월, 목록; got ${JSON.stringify(v.viewOrder)}`);
+    }
+    if (v.initialMonth.view !== 'month' || v.initialMonth.detailPresent || v.initialMonth.selectedDates !== 0) {
+      throw new Error(`${theme}: Month must open as the calendar alone with no selected-day detail; got ${JSON.stringify(v.initialMonth)}`);
+    }
+    if (v.todayView.monthPresent || v.todayView.dayDate !== '2026-09-23') {
+      throw new Error(`${theme}: 오늘 must show only today's complete day surface; got ${JSON.stringify(v.todayView)}`);
+    }
+    if (!v.weekView.weekPresent || v.weekView.sideDetailPresent) {
+      throw new Error(`${theme}: 주 must show the complete week without a selected-day side rail; got ${JSON.stringify(v.weekView)}`);
+    }
+    if (v.monthPopup.presentation !== 'MODAL' || v.monthPopup.modal !== 'true' || !v.monthPopup.closePresent) {
+      throw new Error(`${theme}: a desktop month date must open an accessible centered popup; got ${JSON.stringify(v.monthPopup)}`);
+    }
+    if (v.monthPopup.monthWidthBefore !== v.monthPopup.monthWidthAfter) {
+      throw new Error(`${theme}: opening day detail must not resize Month (${v.monthPopup.monthWidthBefore} -> ${v.monthPopup.monthWidthAfter})`);
+    }
+    if (!v.escapeClosed) throw new Error(`${theme}: Escape must close the day popup`);
+    if (!v.closeButtonClosed) throw new Error(`${theme}: the close button must close the day popup`);
+    if (!v.backdropClosed) throw new Error(`${theme}: the backdrop must close the day popup`);
+    if (!v.toolbarLefts.every((left, index, values) => index === 0 || left > values[index - 1])) {
+      throw new Error(`${theme}: toolbar controls are not visually ordered left-to-right: ${JSON.stringify(v.toolbarLefts)}`);
+    }
+    if (v.todayToModesGap > 12 || v.modesToSettingsGap > 12) {
+      throw new Error(`${theme}: view tabs and settings must stay with the navigation group, gaps=${v.todayToModesGap}/${v.modesToSettingsGap}`);
     }
     console.log(`${theme}: PASS`, JSON.stringify(v));
   }
