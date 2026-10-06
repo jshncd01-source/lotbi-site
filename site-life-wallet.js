@@ -330,6 +330,10 @@ export class LifeWalletVault {
     if (!preserveSession) this.clearUnlockGrant();
   }
 
+  suspend() {
+    this.lock({preserveSession: true});
+  }
+
   async resumeUnlock(accountId) {
     const scope = await accountScope(accountId);
     const grant = this.readUnlockGrant();
@@ -586,9 +590,16 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     clearTimeout(backgroundTimer);
     if (document.visibilityState === 'hidden' && unlocked) {
       backgroundTimer = setTimeout(() => {
-        if (document.visibilityState === 'hidden' && unlocked) void lockAndRender('화면을 벗어나 Life Wallet이 잠겼습니다.');
+        if (document.visibilityState === 'hidden' && unlocked) {
+          unlocked = false;
+          vault.suspend();
+          clearTimeout(timer);
+          root.replaceChildren();
+        }
       }, 150);
+      return;
     }
+    if (document.visibilityState === 'visible' && !unlocked && root.childElementCount === 0) void restoreOrRender();
   };
   const pagehideListener = () => {
     clearTimeout(backgroundTimer); unlocked = false; vault.lock({preserveSession: true}); clearTimeout(timer); root.replaceChildren();
@@ -757,7 +768,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         }
         shell.append(list);
       }
-      shell.append(element('p', 'wallet-security-note', '같은 탭에서는 화면 이동·새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다. 잠그기·로그아웃·로그인 만료·백그라운드 전환 시 즉시 잠깁니다.'));
+      shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
