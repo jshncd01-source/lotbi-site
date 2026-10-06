@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-e4aa91819865';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-3a2133c06bd0';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -112,9 +112,27 @@ const IDENTITY_FRAMING_MESSAGES = Object.freeze({
   full: '전신이 충분히 보이지 않습니다. 머리부터 발끝까지 한 장에 담기도록 다시 촬영해 주세요.',
 });
 
+// SAFECARE-PHOTO-UPLOAD-FIX-03: "촬영 방향이 맞지 않습니다" did not tell a
+// guardian whether the head was turned too far, too little or the other way.
+// Core returns one code; the slot says which view it needed.
+function identityPoseMessage(slot) {
+  const side = slot?.direction === 'right' ? '오른쪽' : '왼쪽';
+  if (slot?.view === 'turn' && slot?.extra) {
+    return `방향이 맞지 않습니다. 사진 속 얼굴이 화면 ${side}을 바라보도록 고개를 돌린 사진을 선택해 주세요. 셀카는 좌우가 바뀌어 저장될 수 있습니다.`;
+  }
+  if (slot?.view === 'turn') {
+    return `45도 각도가 아닙니다. 두 눈·코·입이 모두 보이도록 고개를 반쯤만 돌려 주세요. 눈이 한쪽만 보이면 '${side} 옆면' 칸에 올려 주세요. 셀카는 좌우가 바뀌어 저장될 수 있으니 사진 속 얼굴이 화면 ${side}을 보는지 확인해 주세요.`;
+  }
+  if (slot?.view === 'profile') {
+    return `옆면 사진이 아닙니다. 고개를 완전히 옆으로 돌려 귀와 턱선이 보이게 찍어 주세요. 두 눈이 다 보이면 '${side} 45도' 칸에 올려 주세요.`;
+  }
+  return '정면 사진이 아닙니다. 카메라를 똑바로 바라본 사진을 선택해 주세요.';
+}
+
 export function personIdentityPhotoErrorMessage(error, slot, fallback) {
   const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';
   const body = slot?.view === 'upper' || slot?.view === 'full';
+  if (code === 'PERSON_IDENTITY_PHOTO_WRONG_POSE' && slot) return identityPoseMessage(slot);
   if (code === 'PERSON_IDENTITY_PHOTO_WRONG_FRAMING') {
     return IDENTITY_FRAMING_MESSAGES[slot?.view] || '얼굴 전체가 화면 안에 들어오지 않았습니다. 이마부터 턱까지 잘리지 않게 다시 촬영해 주세요.';
   }

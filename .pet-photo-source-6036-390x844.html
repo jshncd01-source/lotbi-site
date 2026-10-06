@@ -1,0 +1,257 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="/site-theme-tokens.css" />
+<link rel="stylesheet" href="/site-bottom-sheet.css" />
+<link rel="stylesheet" href="/site-pet.css" />
+<style>html,body{margin:0}#host{padding:12px}#render-result{position:absolute;left:-99999px;visibility:hidden}</style>
+<script>
+  // Never let a real OS file dialog open under headless Chrome: record which
+  // input a click landed on instead. This is the only way to observe "which
+  // source did LOTBI actually trigger" without a real native picker.
+  globalThis.__clicked = [];
+  const nativeClick = HTMLInputElement.prototype.click;
+  HTMLInputElement.prototype.click = function patchedClick() {
+    if (this.type === 'file') {
+      globalThis.__clicked.push({
+        source: this.dataset.petPhotoSourceInput || '',
+        accept: this.getAttribute('accept') || '',
+        capture: this.getAttribute('capture') || '',
+      });
+      return;
+    }
+    return nativeClick.call(this);
+  };
+
+  globalThis.__report = globalThis.fetch.bind(globalThis);
+  const DRAFT_ID = 'pdraft_zzzzzzzzzzzzzzzzzzzz';
+  let filledSlots = {['PET_KR_AAAAAAAAAAAAAAAAAAAA']: ['NOSE_FRONT'], ['PET_KR_BBBBBBBBBBBBBBBBBBBB']: []};
+  let draftPhotos = [];
+  let draftSpecies = '';
+  globalThis.__draftFields = {};
+  globalThis.fetch = async (url, init) => {
+    const target = String(url);
+    const method = (init && init.method) || 'GET';
+    const json = (body, status) => new Response(JSON.stringify(body), {status: status || 200, headers: {'Content-Type': 'application/json'}});
+
+    // An already-registered pet's own photo slots.
+    const petPhotoPut = target.match(/\/v2\/pets\/([^/]+)\/photos\/([A-Z_]+)$/);
+    if (method === 'PUT' && petPhotoPut) {
+      const [, petId, slotCode] = petPhotoPut;
+      filledSlots[petId] = [...new Set([...(filledSlots[petId] || []), slotCode])];
+      return json({manifest: {slot_count: filledSlots[petId].length, state: 'UPLOAD_INCOMPLETE', manifest_version: 1}});
+    }
+    if (/\/v2\/pets\/PET_KR_AAAAAAAAAAAAAAAAAAAA\/photos$/.test(target)) {
+      return json({photos: filledSlots['PET_KR_AAAAAAAAAAAAAAAAAAAA'].map(slot_code => ({slot_code})), manifest: {slot_count: filledSlots['PET_KR_AAAAAAAAAAAAAAAAAAAA'].length, state: 'UPLOAD_INCOMPLETE', manifest_version: 1}});
+    }
+    if (/\/v2\/pets\/PET_KR_BBBBBBBBBBBBBBBBBBBB\/photos$/.test(target)) {
+      return json({photos: filledSlots['PET_KR_BBBBBBBBBBBBBBBBBBBB'].map(slot_code => ({slot_code})), manifest: {slot_count: filledSlots['PET_KR_BBBBBBBBBBBBBBBBBBBB'].length, state: 'UPLOAD_INCOMPLETE', manifest_version: 1}});
+    }
+    if (/\/v2\/pets\/sos$/.test(target)) return json({cases: []});
+    if (/\/v2\/pets\/found$/.test(target)) return json({cases: []});
+    if (/\/v2\/pets$/.test(target)) return json({pets: [
+      {pet_id: 'PET_KR_AAAAAAAAAAAAAAAAAAAA', name: '보리', species: 'DOG', sex: 'FEMALE', photo_completion_state: 'UPLOAD_INCOMPLETE', matching_consent_state: 'NOT_GRANTED'},
+      {pet_id: 'PET_KR_BBBBBBBBBBBBBBBBBBBB', name: '나비', species: 'CAT', sex: 'FEMALE', photo_completion_state: 'UPLOAD_INCOMPLETE', matching_consent_state: 'NOT_GRANTED'},
+    ]});
+
+    // Registration draft: a brand-new pet, PHOTOS step. The gate under test
+    // (FACE_FRONT unlocks the rest) is orthogonal to this feature and stays
+    // completely untouched here — only exercised, not re-implemented.
+    if (/\/v2\/pet-catalog$/.test(target)) {
+      return json({
+        breeds: {DOG: [{code: 'JINDO', display_name: '진돗개', species: 'DOG'}], CAT: []},
+        colors: [{code: 'WHITE', display_name: '흰색'}],
+        patterns: [{code: 'SOLID', display_name: '단색', species: null}],
+      });
+    }
+    if (/\/v2\/pet-registration-drafts\/active$/.test(target)) return json({draft: null});
+    if (/\/v2\/pet-registration-drafts$/.test(target) && method === 'POST') {
+      draftPhotos = [];
+      draftSpecies = '';
+      return json({draft: {draft_id: DRAFT_ID, status: 'ACTIVE', current_step: 'PHOTOS', revision: 1, matching_consent_state: 'NOT_GRANTED', photos: []}});
+    }
+    if (target.endsWith('/v2/pet-registration-drafts/' + DRAFT_ID) && method === 'PATCH') {
+      const update = JSON.parse(init?.body || '{}');
+      if (typeof update.species === 'string') draftSpecies = update.species;
+      // SAFECARE-WEB-UI-REDESIGN-01: basic information comes first now, so the
+      // stand-in keeps what was saved the way Core's draft does.
+      for (const key of ['name', 'sex', 'breed_code', 'breed', 'current_step']) {
+        if (key in update) globalThis.__draftFields[key] = update[key];
+      }
+      return json({draft: {draft_id: DRAFT_ID, status: 'ACTIVE', current_step: globalThis.__draftFields.current_step || 'PHOTOS', revision: 2, species: draftSpecies || 'DOG', name: globalThis.__draftFields.name || null, sex: globalThis.__draftFields.sex || null, breed_code: globalThis.__draftFields.breed_code || null, breed: globalThis.__draftFields.breed || null, matching_consent_state: 'NOT_GRANTED', photos: draftPhotos}});
+    }
+    const draftPhotoMatch = target.match(new RegExp('/v2/pet-registration-drafts/' + DRAFT_ID + '/photos/([A-Z_]+)$'));
+    if (draftPhotoMatch && method === 'PUT') {
+      const slotCode = draftPhotoMatch[1];
+      const photo = {
+        slot_code: slotCode,
+        slot_index: 0,
+        revision: 1,
+        inspection_state: slotCode === 'FACE_FRONT' ? 'ACCEPTED' : 'PENDING',
+        detected_species: slotCode === 'FACE_FRONT' ? draftSpecies : '',
+      };
+      draftPhotos = [...draftPhotos.filter(item => item.slot_code !== slotCode), photo];
+      return json({photo});
+    }
+    return json({}, 404);
+  };
+</script>
+</head><body><div id="host"></div><pre id="render-result"></pre>
+<script type="module">
+import {mountPetFamilyManager} from '/site-pet-ui.js';
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const png = () => new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], 'x.png', {type: 'image/png'});
+
+function setFile(input, file) {
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  input.files = transfer.files;
+  input.dispatchEvent(new Event('change', {bubbles: true}));
+}
+
+const result = {viewportWidth: window.innerWidth, userAgent: navigator.userAgent};
+try {
+  await mountPetFamilyManager({sessionToken: 'fixture-token', root: document.getElementById('host')});
+  document.querySelector('[data-pet-open="PET_KR_AAAAAAAAAAAAAAAAAAAA"]').click();
+  await wait(300);
+
+  const dogTile = document.querySelector('[data-pet-slot="NOSE_RIGHT"]');
+  const dogChoose = dogTile.querySelector('[data-pet-slot-choose]');
+
+  // 1) The button must not open a native picker directly — only LOTBI's own
+  //    menu (Mobile) or a direct gallery click (Desktop) may ever fire.
+  globalThis.__clicked.length = 0;
+  dogChoose.click();
+  await wait(50);
+  result.menuAfterChooseClick = Boolean(document.querySelector('.pet-photo-source-menu'));
+  result.clickedAfterChooseClick = globalThis.__clicked.slice();
+
+  if (result.menuAfterChooseClick) {
+    // Mobile: verify the three labelled options exist before touching any of
+    // them, then cancel via backdrop and prove nothing happened.
+    const optionsAtOpen = [...document.querySelectorAll('.pet-photo-source-option')].map(node => ({
+      key: node.dataset.petPhotoSourceOption,
+      label: node.querySelector('.pet-photo-source-label')?.textContent || '',
+      role: node.getAttribute('role'),
+    }));
+    result.optionsAtOpen = optionsAtOpen;
+    result.sheetRole = document.querySelector('[data-lotbi-sheet]')?.getAttribute('role') || '';
+
+    document.querySelector('[data-lotbi-sheet-backdrop]').click();
+    await wait(250);
+    result.menuAfterBackdropCancel = Boolean(document.querySelector('.pet-photo-source-menu'));
+    result.clickedAfterBackdropCancel = globalThis.__clicked.slice();
+    result.slotUnchangedAfterCancel = dogChoose.textContent.trim();
+
+    // Reopen, choose Camera.
+    dogChoose.click();
+    await wait(50);
+    document.querySelector('[data-pet-photo-source-option="camera"]').click();
+    await wait(50);
+    result.afterCamera = globalThis.__clicked.slice();
+    result.menuAfterCameraPick = Boolean(document.querySelector('.pet-photo-source-menu'));
+
+    // Reopen, choose File (before Gallery, since a successful upload below
+    // re-renders the grid and replaces this tile's elements).
+    globalThis.__clicked.length = 0;
+    dogChoose.click();
+    await wait(50);
+    document.querySelector('[data-pet-photo-source-option="file"]').click();
+    await wait(50);
+    result.afterFile = globalThis.__clicked.slice();
+
+    // Escape must also close the sheet.
+    dogChoose.click();
+    await wait(50);
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+    await wait(250);
+    result.menuAfterEscape = Boolean(document.querySelector('.pet-photo-source-menu'));
+
+    // Reopen, choose Gallery, then actually deliver a file through it — the
+    // upload pipeline must still be the one canonical path. A successful
+    // upload re-renders the grid, so the filled state is read from a fresh
+    // query rather than the (now stale) tile reference above.
+    globalThis.__clicked.length = 0;
+    dogChoose.click();
+    await wait(50);
+    document.querySelector('[data-pet-photo-source-option="gallery"]').click();
+    await wait(50);
+    result.afterGallery = globalThis.__clicked.slice();
+    const galleryInput = dogTile.querySelector('[data-pet-photo-source-input="gallery"]');
+    setFile(galleryInput, png());
+    await wait(600);
+    result.dogSlotFilledAfterGalleryUpload = document.querySelector('[data-pet-slot="NOSE_RIGHT"]')?.dataset.petSlotFilled;
+
+    // CAT parity: the same shared component must open for the other species.
+    // The pet list stays rendered beside the open detail panel, so the other
+    // pet's own open button is simply clicked again.
+    document.querySelector('[data-pet-open="PET_KR_BBBBBBBBBBBBBBBBBBBB"]').click();
+    await wait(300);
+    const catTile = document.querySelector('[data-pet-slot="NOSE_FRONT"]');
+    catTile.querySelector('[data-pet-slot-choose]').click();
+    await wait(50);
+    result.catMenuOpens = Boolean(document.querySelector('.pet-photo-source-menu'));
+    result.catOptions = [...document.querySelectorAll('.pet-photo-source-option')].map(node => node.dataset.petPhotoSourceOption);
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+    await wait(250);
+
+    // Registration draft: a locked slot's choose button must never open the
+    // sheet, preserving the existing sequential-unlock gate untouched.
+    document.querySelector('.pet-add-button').click();
+    await wait(150);
+    // SAFECARE-WEB-UI-REDESIGN-01: step 1 is 기본정보, then the ten photos.
+    document.querySelector('input[name="pet-species"][value="DOG"]').click();
+    await wait(150);
+    const basicForm = document.querySelector('[data-pet-register-form]');
+    basicForm.querySelector('input[type="text"]').value = '초코';
+    basicForm.querySelector('input[name="pet-sex"][value="MALE"]').click();
+    const breed = basicForm.querySelector('select');
+    breed.value = 'JINDO';
+    breed.dispatchEvent(new Event('change', {bubbles: true}));
+    basicForm.requestSubmit();
+    await wait(150);
+    const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
+    result.registrationRenewalNotice = renewalDialog?.textContent || '';
+    renewalDialog?.querySelector('[data-safecare-consent="privacy"]')?.click();
+    renewalDialog?.querySelector('[data-safecare-renewal-confirm]')?.click();
+    await wait(400);
+    const lockedTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
+      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT');
+    const lockedChoose = lockedTile.querySelector('.pet-slot-actions button');
+    result.lockedChooseDisabled = lockedChoose.disabled;
+    globalThis.__clicked.length = 0;
+    lockedChoose.click();
+    await wait(50);
+    result.menuOnLockedSlot = Boolean(document.querySelector('.pet-photo-source-menu'));
+    result.clickedOnLockedSlot = globalThis.__clicked.slice();
+
+    // Unlock by accepting FACE_FRONT, then confirm the now-unlocked slot's
+    // source selector still leads to the same upload pipeline.
+    const faceTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
+      .find(node => node.dataset.petDraftSlot === 'FACE_FRONT');
+    setFile(faceTile.querySelector('[data-pet-photo-source-input="camera"]'), png());
+    await wait(400);
+    const noseTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
+      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT');
+    noseTile.querySelector('.pet-slot-actions button').click();
+    await wait(50);
+    document.querySelector('[data-pet-photo-source-option="gallery"]')?.click();
+    await wait(50);
+    setFile(noseTile.querySelector('[data-pet-photo-source-input="gallery"]'), png());
+    await wait(400);
+    result.draftSlotFilledAfterUnlock = [...document.querySelectorAll('[data-pet-draft-slot]')]
+      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT')?.dataset.petSlotFilled;
+  } else {
+    // Desktop: the button must go straight to the gallery input, and the
+    // upload pipeline must still work end to end.
+    result.desktopClickWentToGallery = result.clickedAfterChooseClick[0]?.source === 'gallery';
+    const galleryInput = dogTile.querySelector('[data-pet-photo-source-input="gallery"]');
+    setFile(galleryInput, png());
+    await wait(600);
+    result.dogSlotFilledAfterDesktopUpload = document.querySelector('[data-pet-slot="NOSE_RIGHT"]')?.dataset.petSlotFilled;
+  }
+} catch (error) {
+  result.error = String(error && error.stack || error);
+}
+document.getElementById('render-result').textContent = JSON.stringify(result);
+await globalThis.__report('/__result', {method: 'POST', body: JSON.stringify(result)});
+</script></body></html>

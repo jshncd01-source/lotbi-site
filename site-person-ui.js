@@ -15,14 +15,15 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-e4aa91819865';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-e4aa91819865';
+} from './site-person.js?v=aset-3a2133c06bd0';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-3a2133c06bd0';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-e4aa91819865';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-e4aa91819865';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-e4aa91819865';
+} from './site-safecare-common.js?v=aset-3a2133c06bd0';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-3a2133c06bd0';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-3a2133c06bd0';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-3a2133c06bd0';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
@@ -429,24 +430,32 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const caption = el('figcaption', 'safecare-slot-caption');
     caption.append(el('span', 'safecare-slot-index', filled ? '✓' : String(slotIndex)), el('span', 'safecare-slot-label', slot.label));
     const hint = el('p', 'safecare-slot-hint', locked ? '정면 얼굴을 먼저 등록하면 선택할 수 있습니다.' : slot.hint);
-    const input = el('input'); input.type = 'file'; input.accept = PHOTO_ACCEPT; input.hidden = true; input.dataset.personSlotInput = slot.code;
+    const input = el('input'); input.type = 'file'; input.accept = PERSON_PHOTO_ACCEPT; input.hidden = true; input.dataset.personSlotInput = slot.code;
     const choose = el('button', 'site-button site-button-secondary safecare-slot-choose', filled ? '다른 사진 선택' : '사진 선택');
     choose.type = 'button'; choose.disabled = locked;
-    choose.addEventListener('click', () => { if (!locked && !busy) input.click(); });
     const slotError = errorNode(); slotError.classList.add('safecare-slot-error');
+    // A tap that cannot pick a photo right now says why instead of doing nothing.
+    const notNow = () => { slotError.textContent = locked ? '정면 얼굴 사진을 먼저 등록해 주세요.' : '다른 사진을 확인하는 중입니다. 끝난 뒤 다시 선택해 주세요.'; slotError.hidden = false; };
+    choose.addEventListener('click', () => { if (locked || busy) notNow(); else input.click(); });
     input.addEventListener('change', async () => {
       const file = input.files?.[0]; input.value = '';
-      if (!file || busy || locked) return;
-      if (!PHOTO_TYPES.has(file.type)) { slotError.textContent = 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.'; slotError.hidden = false; return; }
-      // Core checks the photo (person, face, direction, framing, sharpness)
-      // before storing it. "저장했습니다" appears only after Core accepted it;
-      // a refused photo leaves this slot exactly as it was.
+      if (!file) return;  // the picker was closed without a photo
+      if (busy || locked) { notNow(); return; }
+      // SAFECARE-PHOTO-UPLOAD-FIX-03: the file is recognised by its bytes and
+      // brought to JPEG/PNG within Core's limits here (HEIC, WebP, an empty
+      // MIME type, a very large photo); one that cannot be opened says why.
+      // Core then checks the photo (person, face, direction, framing,
+      // sharpness) before storing it. "저장했습니다" appears only after Core
+      // accepted it; a refused photo leaves this slot exactly as it was.
       busy = true; tile.dataset.safecareSlotWorking = 'true'; slotError.hidden = true; showStatus(`${slot.label} 사진을 확인하고 있습니다…`);
-      try { await putPersonIdentityPhoto(sessionToken, person.personId, slotIndex, await fileDataUri(file)); await reloadPerson(person.personId); showStatus(`${slot.label} 사진을 저장했습니다.`); onChange(); }
-      catch (value) {
+      try {
+        const photo = await preparePersonPhoto(file);
+        await putPersonIdentityPhoto(sessionToken, person.personId, slotIndex, photo.dataUri);
+        await reloadPerson(person.personId); showStatus(`${slot.label} 사진을 저장했습니다.`); onChange();
+      } catch (value) {
         showStatus(''); tile.dataset.safecareSlotWorking = 'false';
         const fallback = '사진을 저장하지 못했습니다. 안내 그림과 같은 방향에서 찍은 선명한 사진을 선택해 주세요.';
-        fail(slotError, value, fallback, personIdentityPhotoErrorMessage(value, slot, fallback));
+        fail(slotError, value, fallback, value instanceof PersonPhotoPrepareError ? personPhotoPrepareMessage(value) : personIdentityPhotoErrorMessage(value, slot, fallback));
       }
       finally { busy = false; }
     });
