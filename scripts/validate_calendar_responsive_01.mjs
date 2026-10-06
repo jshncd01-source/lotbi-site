@@ -102,7 +102,10 @@ assert.ok(manager.includes("case 'PageDown'"));
 assert.ok(manager.includes('state.detailOpen = false'));
 assert.ok(manager.includes('state.dayCollapsed'));
 assert.ok(manager.includes("root.addEventListener('keydown'"), 'Calendar root Escape containment missing');
-assert.ok(manager.includes("!root.querySelector('.calendar-editor-dialog')"), 'Calendar detail Escape must defer to the editor');
+// LIFE UX 01: the day panel is part of the page; Escape inside it steps back to
+// its date, and it still yields to any open editor or dialog.
+assert.ok(manager.includes("|| root.querySelector('.calendar-editor-dialog')"), 'Calendar detail Escape must defer to the editor');
+assert.ok(manager.includes("|| !document.activeElement?.closest?.('.calendar-day-panel')"), 'Calendar day-panel Escape must only act inside the panel');
 assert.ok(manager.includes('event.stopPropagation();'), 'Calendar Escape surfaces must stop outer modal propagation');
 assert.ok(manager.includes('let refreshGeneration = 0;'), 'Calendar Manager stale-response generation guard missing');
 assert.ok(manager.includes('const requestGeneration = ++refreshGeneration;'), 'Calendar Manager must version each refresh');

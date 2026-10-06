@@ -14,12 +14,12 @@ import {
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
   personErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto, respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-a2c3210a8242';
-import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-a2c3210a8242';
+} from './site-person.js?v=aset-7c1b5fc06bd0';
+import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-7c1b5fc06bd0';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-a2c3210a8242';
+} from './site-safecare-common.js?v=aset-7c1b5fc06bd0';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));

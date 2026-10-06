@@ -1,20 +1,25 @@
 // CALENDAR-DAY-PANEL-TWO-BUTTONS-01
 //
-// 대표 지시 세 가지를 봉인한다.
+// 날짜 상세와 두 버튼을 봉인한다. (LIFE UX 01 갱신)
 //
-//  1. 날짜 창에 "일정 제목" 입력칸과 [저장] 버튼이 없다. 커서도 들어가지 않는다.
-//  2. 그 자리에는 버튼이 딱 둘이다 — [사진에서 일정 추가] [+ 일정 추가]. 일정 추가는
-//     그 날짜로 전체 입력 폼을 연다.
-//  3. 캘린더를 열었을 뿐인데 날짜 창이 저절로 뜨지 않는다. 사용자가 날짜를 직접
-//     누르기 전에는 어떤 날짜 창도 뜨지 않으며, 닫고 나갔다 다시 들어와도 같다.
+//  1. 날짜 상세에 "일정 제목" 입력칸과 [저장] 버튼이 없다. 커서도 들어가지 않는다.
+//  2. 버튼은 딱 둘이다 — [사진에서 기록 읽기] [+ 기록]. + 기록은 고른 날짜로
+//     입력 폼을 바로 연다(종류 고르기 단계 없음). 오늘이 아닌 날을 고르면
+//     "+ 10월 7일에 기록"처럼 그 날짜를 말한다. 폰에서는 화면 아래에 붙어 있고,
+//     넓은 화면에서는 오른쪽 날짜 상세 안에 있다.
+//  3. 날짜 상세는 창이 아니라 화면의 일부다. 캘린더를 열면 오늘의 기록이 폰에서는
+//     달력 아래에 이어서, 넓은 화면에서는 오른쪽 칸에 보인다. 달력을 덮는
+//     overlay·sheet가 아니며, 사용자가 누르지 않은 날짜가 미리 선택되는 일은
+//     없다 -- 선택은 오늘이거나, 사용자가 누른 날짜다.
 //
-// 세 번째가 이 파일이 생긴 이유다. 직전 판(PR #272)은 mount 시점의
-// `detailOpen: usesFlowingDayDetail()` 때문에 폰에서 캘린더를 열자마자 아무도
-// 누르지 않은 날짜의 창이 이미 떠 있었다. 여기서는 mount 직후를 실제로 재서
-// `.calendar-day-panel[hidden]` 인지 확인한다.
+// 3은 이전 지시("캘린더를 열면 날짜 창이 저절로 뜨지 않는다")를 대체한다. 그
+// 지시가 막으려던 것 -- 아무도 누르지 않은 날짜(오늘이 24일인데 7일)가 선택된
+// 채 달력을 가리는 창 -- 은 여기서도 그대로 막는다: 열 때와 다시 들어올 때
+// 선택은 오늘 하나뿐이고, 상세는 달력 아래(폰) 또는 옆(데스크톱)에 있으며
+// 달력을 가리지 않는다. 캐럿도 저절로 들어가지 않는다.
 //
-// 함께 지키는 것: compact 날짜 heading, 닫기, "등록된 일정이 없어요.", 일정 목록,
-// 모바일 in-flow 기하(달력을 overlay로 가리지 않는다).
+// 함께 지키는 것: 날짜 heading, "이 날은 기록이 없어요.", 일정 목록, 폰에서
+// 상세가 안쪽 스크롤을 갖지 않는 것(한 화면 한 스크롤), 버튼이 실제로 눌리는 것.
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -28,8 +33,6 @@ const WRAPPER = path.join(ROOT, WRAPPER_REL);
 const PORT = 4207;
 const ORIGIN = 'http://127.0.0.1:' + PORT;
 const V = 'twobuttons1';
-
-const EXPECTED_BUTTONS = ['사진에서 일정 추가', '+ 일정 추가'];
 
 // ── the dead form must be gone from the source, not commented out ─────────
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
@@ -45,10 +48,14 @@ for (const token of [
 if (calendarCss.includes('calendar-quick-add')) {
   throw new Error('site-calendar.css still carries a .calendar-quick-add rule for markup that no longer exists');
 }
-// The one that actually caused the phantom panel. A mount that reads the
-// viewport to decide whether the day panel is open is the defect itself.
+// Whether the day detail is shown must not depend on reading the viewport at
+// mount: that is how a phone once opened on a sheet nobody asked for.
 if (/detailOpen:\s*usesFlowingDayDetail\(\)/.test(manager)) {
-  throw new Error('the Calendar must not mount with the day panel already open — that is the window for a date nobody pressed');
+  throw new Error('the day detail must not be decided by the viewport at mount');
+}
+// No "what kind of record?" chooser between + 기록 and the editor.
+for (const token of ['calendar-add-type', 'data-calendar-add-kind', '어떤 기록을']) {
+  if (manager.includes(token)) throw new Error(`+ 기록 must open the editor directly; found a type chooser token "${token}"`);
 }
 
 function browserPath() {
@@ -107,28 +114,30 @@ const out=document.getElementById('calendar-result');
 let stage='init';
 setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage,viewport:{width:innerWidth,height:innerHeight}})}},40000);
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
-const click=node=>node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
-const settle=async node=>{
+const click=node=>{if(!node)throw new Error('missing node at stage: '+stage);node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}))};
+// Takes a getter: a background render (weather, holidays, the amount line)
+// rebuilds the panel, so it is always read afresh.
+const settle=async get=>{
   let previous=null,stable=0;
   for(let i=0;i<120;i+=1){
-    const r=node.getBoundingClientRect();
+    const r=get().getBoundingClientRect();
     const current=r.height+r.top;
     if(previous!==null&&Math.abs(current-previous)<0.5){stable+=1;if(stable>=3)return}else stable=0;
     previous=current;
     await new Promise(r=>setTimeout(r,20));
   }
 };
-// What the caret is sitting on, named rather than guessed. A text box anywhere
-// is the thing 대표 asked to be gone; "nothing in particular" is the pass.
+// What the caret is sitting on, named rather than guessed.
 const caret=()=>{
   const node=document.activeElement;
-  if(!node||node===document.body)return {tag:'(none)',cls:'',type:'',editable:false,insidePanel:false};
+  if(!node||node===document.body)return {tag:'(none)',cls:'',type:'',editable:false,insidePanel:false,dateTrigger:''};
   return {
     tag:node.tagName,
     cls:String(node.className||''),
     type:String(node.getAttribute?.('type')||''),
     editable:node.tagName==='INPUT'||node.tagName==='TEXTAREA'||node.isContentEditable===true,
     insidePanel:Boolean(node.closest?.('.calendar-day-panel')),
+    dateTrigger:node.dataset?.calendarDateTrigger||'',
   };
 };
 try{
@@ -151,10 +160,13 @@ try{
     watchPosition:()=>0,clearWatch:()=>{},
   }});
   const {createGuestCalendarRepository}=await import('/site-calendar-guest.js?v=${V}');
-  const guestRepo=createGuestCalendarRepository(localStorage,{createQuota:50,limit:100});
-  const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+  createGuestCalendarRepository(localStorage,{createQuota:50,limit:100});
+  const parts=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
   const part=Object.fromEntries(parts.map(value=>[value.type,value.value]));
-  const busyDate=part.year+'-'+part.month+'-12';
+  // A busy day that is never today, so the empty-today and busy-day readings
+  // never collide whatever the real date is.
+  const busyDay=part.day==='12'?'13':'12';
+  const busyDate=part.year+'-'+part.month+'-'+busyDay;
 
   const conversation=await import('/site-conversation.js?v=${V}');
   if(!conversation.mountConversation())throw new Error('conversation mount');
@@ -171,50 +183,26 @@ try{
     await wait(()=>modal.querySelector('.calendar-month')?.getBoundingClientRect().width>0,'month geometry');
     return {modal,content};
   };
-  // Everything a mount must NOT have put on screen, read straight off the DOM.
-  const mountReading=modal=>{
+  const measure=node=>{const r=node.getBoundingClientRect();return {top:Math.round(r.top),bottom:Math.round(r.bottom),left:Math.round(r.left),right:Math.round(r.right),height:Math.round(r.height),width:Math.round(r.width)}};
+  // What the Calendar shows without anyone pressing a date.
+  const reading=modal=>{
     const panel=modal.querySelector('.calendar-day-panel');
-    const box=panel&&panel.hidden!==true?panel.getBoundingClientRect():null;
+    const grid=modal.querySelector('.calendar-month-grid');
     return {
       panelPresent:Boolean(panel),
       panelHidden:panel?panel.hidden===true:null,
       panelSelectedDate:panel?.dataset.selectedDate||'',
-      panelRect:box?{top:Math.round(box.top),left:Math.round(box.left),width:Math.round(box.width),height:Math.round(box.height)}:null,
+      panelPresentation:panel?.dataset.presentation||'',
+      panelPosition:panel?getComputedStyle(panel).position:'',
+      panelRect:panel&&!panel.hidden?measure(panel):null,
+      gridRect:grid?measure(grid):null,
       selectedDates:[...modal.querySelectorAll('.calendar-date-cell[data-selected="true"]')].map(n=>n.dataset.calendarDate),
       todayDate:modal.querySelector('.calendar-date-cell[data-today="true"]')?.dataset.calendarDate||'',
+      overlay:Boolean(modal.querySelector('.calendar-day-sheet-backdrop,.calendar-day-backdrop,[data-calendar-day-sheet]')),
+      closeControl:Boolean(modal.querySelector('.calendar-day-close')),
       caret:caret(),
     };
   };
-
-  let {modal,content}=await openCalendar();
-  const desktop=innerWidth>900;
-  const result={ok:true,desktop,viewport:{width:innerWidth,height:innerHeight},
-    theme:document.body.dataset.siteTheme||'light'};
-
-  // --- (1) opening the Calendar shows the Calendar ----------------------
-  result.onMount=mountReading(modal);
-  // Give a late render (weather, expense strip, holidays) a chance to raise it
-  // behind our back before we call it closed.
-  await new Promise(r=>setTimeout(r,400));
-  result.onMountSettled=mountReading(modal);
-  result.quickAddAnywhereOnMount=Boolean(
-    modal.querySelector('[data-calendar-quick-add],[data-calendar-quick-add-title],[data-calendar-quick-add-save],.calendar-quick-add')
-  );
-
-  const cells=()=>[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')];
-  const emptyCell=cells().find(node=>node.dataset.calendarDate!==busyDate&&node.dataset.selected!=='true');
-  const emptyDate=emptyCell.dataset.calendarDate;
-  result.emptyDate=emptyDate;
-  result.busyDate=busyDate;
-
-  // --- (2) a tap on an empty day ----------------------------------------
-  click(emptyCell);
-  await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'panel open');
-  const panel=modal.querySelector('.calendar-day-panel');
-  await settle(panel);
-  // A focus that arrives a frame late is still a focus 대표 did not ask for.
-  await new Promise(r=>setTimeout(r,250));
-  const measure=node=>{const r=node.getBoundingClientRect();return {top:Math.round(r.top),bottom:Math.round(r.bottom),left:Math.round(r.left),right:Math.round(r.right),height:Math.round(r.height),width:Math.round(r.width)}};
   const hit=node=>{
     if(!node)return false;
     const r=node.getBoundingClientRect();
@@ -222,7 +210,37 @@ try{
     const found=document.elementFromPoint(Math.round(r.left+r.width/2),Math.round(r.top+r.height/2));
     return Boolean(found&&(found===node||node.contains(found)));
   };
-  const addButtons=()=>[...panel.querySelectorAll('.calendar-add-actions button')];
+  const addButtons=modal=>[...modal.querySelectorAll('.calendar-add-actions button')];
+
+  let {modal,content}=await openCalendar();
+  const desktop=innerWidth>900;
+  const result={ok:true,desktop,viewport:{width:innerWidth,height:innerHeight},
+    theme:document.body.dataset.siteTheme||'light'};
+
+  // --- (1) opening the Calendar: today's detail, part of the page ---------
+  result.onMount=reading(modal);
+  // Give a late render (weather, amount line, holidays) a chance to move it.
+  await new Promise(r=>setTimeout(r,400));
+  result.onMountSettled=reading(modal);
+  result.quickAddAnywhereOnMount=Boolean(
+    modal.querySelector('[data-calendar-quick-add],[data-calendar-quick-add-title],[data-calendar-quick-add-save],.calendar-quick-add')
+  );
+  result.mountButtons=addButtons(modal).map(node=>node.textContent.trim());
+  result.mountEmptySentence=(modal.querySelector('.calendar-day-panel')?.textContent||'').includes('오늘은 아직 기록이 없어요.');
+
+  const cells=()=>[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')];
+  const emptyCell=cells().find(node=>node.dataset.calendarDate!==busyDate&&node.dataset.today!=='true');
+  const emptyDate=emptyCell.dataset.calendarDate;
+  result.emptyDate=emptyDate;
+  result.busyDate=busyDate;
+
+  // --- (2) a tap on an empty day ----------------------------------------
+  click(emptyCell);
+  await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===emptyDate,'panel follows the tap');
+  await settle(()=>modal.querySelector('.calendar-day-panel'));
+  // A focus that arrives a frame late is still a focus nobody asked for.
+  await new Promise(r=>setTimeout(r,250));
+  const panel=modal.querySelector('.calendar-day-panel');
   result.empty={
     presentation:panel.dataset.presentation,
     position:getComputedStyle(panel).position,
@@ -232,34 +250,36 @@ try{
     // Nothing to type into, and nothing to press [저장] on.
     inputsInPanel:panel.querySelectorAll('input,textarea,select,[contenteditable="true"]').length,
     quickAddForm:Boolean(panel.querySelector('[data-calendar-quick-add],.calendar-quick-add')),
-    quickAddTitle:Boolean(panel.querySelector('[data-calendar-quick-add-title],.calendar-quick-add-title')),
-    quickAddSave:Boolean(panel.querySelector('[data-calendar-quick-add-save],.calendar-quick-add-save')),
-    buttons:addButtons().map(node=>node.textContent.trim()),
-    buttonsHittable:addButtons().every(hit),
-    addImageAria:panel.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
-    addDetailAria:panel.querySelector('[data-calendar-add]')?.getAttribute('aria-label')||'',
-    closeAria:panel.querySelector('.calendar-day-close')?.getAttribute('aria-label')||'',
+    buttons:addButtons(modal).map(node=>node.textContent.trim()),
+    buttonsInPanel:panel.querySelectorAll('.calendar-add-actions button').length,
+    buttonsInPinnedBar:modal.querySelectorAll('.calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-actions button').length,
+    buttonsHittable:addButtons(modal).every(hit),
+    addImageAria:modal.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
+    addDetailAria:modal.querySelector('[data-calendar-add]')?.getAttribute('aria-label')||'',
     heading:panel.querySelector('.calendar-day-heading')?.textContent?.trim()||'',
-    emptySentence:panel.textContent.includes('등록된 일정이 없어요'),
+    emptySentence:panel.textContent.includes('이 날은 기록이 없어요.'),
+    selectedDates:[...modal.querySelectorAll('.calendar-date-cell[data-selected="true"]')].map(n=>n.dataset.calendarDate),
     gridBottom:Math.round(modal.querySelector('.calendar-month-grid').getBoundingClientRect().bottom),
+    gridRight:Math.round(modal.querySelector('.calendar-month-grid').getBoundingClientRect().right),
   };
 
-  // --- (4) + 일정 추가 opens the full form on the tapped day ---------------
-  click(panel.querySelector('[data-calendar-add]'));
-  await wait(()=>modal.querySelector('.calendar-editor-dialog'),'full form open');
+  // --- (4) + 기록 opens the form straight away on the tapped day ----------
+  click(modal.querySelector('[data-calendar-add]'));
+  await wait(()=>modal.querySelector('.calendar-editor-dialog'),'form open');
   const editor=modal.querySelector('.calendar-editor-dialog');
   await new Promise(r=>setTimeout(r,80));
   result.editor={
     heading:editor.querySelector('#calendar-editor-heading')?.textContent?.trim()||'',
     date:editor.querySelector('.calendar-editor-date')?.value||'',
-    // 제목·시간·메모가 다 있는 그 폼.
+    question:editor.querySelector('.calendar-editor-title')?.closest('label')?.textContent||'',
     hasTitle:Boolean(editor.querySelector('.calendar-editor-title')),
     hasTime:Boolean(editor.querySelector('.calendar-editor-time')),
     hasMemo:Boolean(editor.querySelector('.calendar-editor-memo')),
     hasSave:Boolean(editor.querySelector('.calendar-editor-save')),
+    focusOnTitle:document.activeElement===editor.querySelector('.calendar-editor-title'),
   };
   click(editor.querySelector('.calendar-editor-cancel'));
-  await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'full form closed');
+  await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'form closed');
   await new Promise(r=>setTimeout(r,120));
 
   // --- (3) a day that already has entries -------------------------------
@@ -288,38 +308,36 @@ try{
   click(navButtons[0]);
   await wait(()=>content?.getAttribute('aria-busy')!=='true','back to month');
   await new Promise(r=>setTimeout(r,140));
-  // Stepping months is not pressing a date either.
-  result.afterMonthStep=mountReading(modal);
+  // Stepping back to this month lands on today, not on a date nobody pressed.
+  result.afterMonthStep=reading(modal);
   await wait(()=>modal.querySelector('[data-calendar-date="'+busyDate+'"]'),'busy cell back');
   click(modal.querySelector('[data-calendar-date="'+busyDate+'"]'));
   await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===busyDate,'busy day open');
+  await settle(()=>modal.querySelector('.calendar-day-panel'));
   const busyPanel=modal.querySelector('.calendar-day-panel');
-  await settle(busyPanel);
   const busyBody=busyPanel.querySelector('.calendar-day-body');
   result.busy={
     events:busyPanel.querySelectorAll('.calendar-day-event').length,
     titles:[...busyPanel.querySelectorAll('.calendar-day-event strong')].map(n=>n.textContent).slice(0,3),
+    times:[...busyPanel.querySelectorAll('.calendar-day-event time')].map(n=>n.textContent).slice(0,3),
     rect:measure(busyPanel),
     bodyOverflow:getComputedStyle(busyBody).overflowY,
-    buttons:[...busyPanel.querySelectorAll('.calendar-add-actions button')].map(n=>n.textContent.trim()),
-    buttonsHittable:[...busyPanel.querySelectorAll('.calendar-add-actions button')].every(hit),
-    emptySentence:busyPanel.textContent.includes('등록된 일정이 없어요'),
+    panelOverflow:getComputedStyle(busyPanel).overflowY,
+    buttons:addButtons(modal).map(n=>n.textContent.trim()),
+    buttonsHittable:addButtons(modal).every(hit),
+    emptySentence:/기록이 없어요/.test(busyPanel.textContent),
     caret:caret(),
     inputsInPanel:busyPanel.querySelectorAll('input,textarea,select,[contenteditable="true"]').length,
   };
 
-  // --- (5) 닫기, then leave the Calendar and come back -------------------
-  click(busyPanel.querySelector('.calendar-day-close'));
-  await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'닫기 dismiss');
-  result.afterClose=mountReading(modal);
-
+  // --- (5) leave the Calendar and come back: today again -----------------
   click(modal.querySelector('.site-modal-close'));
   await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar closed');
   await new Promise(r=>setTimeout(r,200));
   ({modal,content}=await openCalendar());
-  result.reopen=mountReading(modal);
+  result.reopen=reading(modal);
   await new Promise(r=>setTimeout(r,400));
-  result.reopenSettled=mountReading(modal);
+  result.reopenSettled=reading(modal);
   result.quickAddAnywhereOnReopen=Boolean(
     modal.querySelector('[data-calendar-quick-add],[data-calendar-quick-add-title],[data-calendar-quick-add-save],.calendar-quick-add')
   );
@@ -360,30 +378,24 @@ function run(browser, w, h, {theme = 'light'} = {}) {
   return v;
 }
 
-// "창이 없다"는 것은 패널 요소가 hidden 이고, 아무 좌표도 차지하지 않고, 커서가
-// 그 안에 없다는 뜻이다. 셋을 모두 잰다.
-//
-// 날짜 칸의 data-selected 는 창이 아니라 키보드 로빙의 과녁이다 -- 방향키가
-// 어디서 출발할지를 정하는 값이라 없앨 수 없다. 대신 그것이 '오늘'에 머무는지를
-// 본다: 오늘이 아닌 날짜가 미리 선택돼 있으면 사용자가 가지 않은 곳에 데려다
-// 놓은 것이고, 대표가 보낸 화면(오늘은 24일인데 7일이 선택돼 있던 것)이 그것이다.
-function assertNoDayWindow(label, when, reading) {
-  if (reading.panelHidden !== true) {
-    throw new Error(`${label}: ${when} — a day window is on screen for ${reading.panelSelectedDate || '(no date)'} at ${JSON.stringify(reading.panelRect)}; nobody pressed a date`);
-  }
-  if (reading.panelRect) throw new Error(`${label}: ${when} — the day panel still occupies ${JSON.stringify(reading.panelRect)}`);
-  if (reading.caret.insidePanel) throw new Error(`${label}: ${when} — the caret is inside the day panel (${reading.caret.tag}.${reading.caret.cls})`);
-  if (reading.selectedDates.length > 1) {
-    throw new Error(`${label}: ${when} — ${reading.selectedDates.length} date cells are marked selected at once (${reading.selectedDates.join(', ')})`);
-  }
-}
-
-// On a fresh entry the roving target must be today and nothing else.
-function assertRovingTargetIsToday(label, when, reading) {
-  if (!reading.todayDate) return;
-  const stray = reading.selectedDates.filter(date => date !== reading.todayDate);
-  if (stray.length) {
-    throw new Error(`${label}: ${when} — ${stray.join(', ')} is pre-selected while today is ${reading.todayDate}; nobody pressed it`);
+// The day detail is part of the page: today's, unless a date was pressed; in
+// flow under the month on a phone, a rail beside it on a desk; never a sheet
+// over the month; no caret dropped into it; one selected date at a time.
+function assertTodayInPage(label, when, value, r) {
+  if (!r.todayDate) throw new Error(`${label}: ${when} — today is not on the month`);
+  if (r.panelHidden !== false) throw new Error(`${label}: ${when} — today's detail must be on the page`);
+  if (r.panelSelectedDate !== r.todayDate) throw new Error(`${label}: ${when} — the detail shows ${r.panelSelectedDate}, not today ${r.todayDate}; nobody pressed it`);
+  if (r.selectedDates.join(',') !== r.todayDate) throw new Error(`${label}: ${when} — selected cells ${r.selectedDates.join(', ')} must be today alone`);
+  if (r.overlay) throw new Error(`${label}: ${when} — a sheet or backdrop covers the month`);
+  if (r.closeControl) throw new Error(`${label}: ${when} — the detail is part of the page and has no close control`);
+  if (r.caret.insidePanel || r.caret.editable) throw new Error(`${label}: ${when} — the caret was moved without anyone asking (${r.caret.tag}.${r.caret.cls})`);
+  const expectedPresentation = value.desktop ? 'SIDE' : 'FLOW';
+  if (r.panelPresentation !== expectedPresentation) throw new Error(`${label}: ${when} — expected ${expectedPresentation}, got ${r.panelPresentation}`);
+  if (!value.desktop) {
+    if (r.panelPosition !== 'static') throw new Error(`${label}: ${when} — a phone keeps the detail in page flow, got ${r.panelPosition}`);
+    if (r.panelRect.top < r.gridRect.bottom - 2) throw new Error(`${label}: ${when} — the detail covers the month grid`);
+  } else if (r.panelRect.left < r.gridRect.right - 2) {
+    throw new Error(`${label}: ${when} — the desktop detail must sit beside the month, not under or over it`);
   }
 }
 
@@ -403,95 +415,85 @@ try {
   } else {
     for (const value of report) {
       const label = `${value.viewport.width}x${value.viewport.height}${value.theme === 'dark' ? ' dark' : ''}`;
+      const fail = message => { throw new Error(`${label}: ${message}`); };
       const empty = value.empty, busy = value.busy, editor = value.editor;
 
-      // ── 3. 캘린더를 열면 달력만 보인다 ─────────────────────────────────
-      assertNoDayWindow(label, 'on mount', value.onMount);
-      assertNoDayWindow(label, 'a beat after mount', value.onMountSettled);
-      assertRovingTargetIsToday(label, 'on mount', value.onMountSettled);
-      assertNoDayWindow(label, 'after stepping a month and back', value.afterMonthStep);
-      assertNoDayWindow(label, 'after 닫기', value.afterClose);
-      assertNoDayWindow(label, 'on re-entering the Calendar', value.reopen);
-      assertNoDayWindow(label, 'a beat after re-entering', value.reopenSettled);
-      assertRovingTargetIsToday(label, 'on re-entering the Calendar', value.reopenSettled);
-      if (value.quickAddAnywhereOnMount || value.quickAddAnywhereOnReopen) {
-        throw new Error(`${label}: a quick-add form is still rendered somewhere in the Calendar`);
-      }
+      // ── 3. 캘린더를 열면 오늘이 화면의 일부로 보인다 ───────────────────
+      assertTodayInPage(label, 'on mount', value, value.onMount);
+      assertTodayInPage(label, 'a beat after mount', value, value.onMountSettled);
+      assertTodayInPage(label, 'after stepping a month and back', value, value.afterMonthStep);
+      assertTodayInPage(label, 'on re-entering the Calendar', value, value.reopen);
+      assertTodayInPage(label, 'a beat after re-entering', value, value.reopenSettled);
+      if (value.quickAddAnywhereOnMount || value.quickAddAnywhereOnReopen) fail('a quick-add form is still rendered somewhere in the Calendar');
+      if (!value.mountEmptySentence) fail('an empty today must say 오늘은 아직 기록이 없어요.');
+      if (value.mountButtons.join('|') !== '사진에서 기록 읽기|+ 기록') fail(`today's actions must read 사진에서 기록 읽기 then + 기록, got [${value.mountButtons.join('|')}]`);
 
       // ── 1. 제목 입력칸도, [저장] 도, 커서도 없다 ───────────────────────
-      if (empty.quickAddForm) throw new Error(`${label}: the quick-add form is still in the day panel`);
-      if (empty.quickAddTitle) throw new Error(`${label}: the 일정 제목 box is still in the day panel`);
-      if (empty.quickAddSave) throw new Error(`${label}: the [저장] button is still in the day panel`);
-      if (empty.inputsInPanel !== 0) {
-        throw new Error(`${label}: the day panel still holds ${empty.inputsInPanel} input(s); it is meant to hold two buttons`);
-      }
-      if (busy.inputsInPanel !== 0) {
-        throw new Error(`${label}: a day with entries still holds ${busy.inputsInPanel} input(s) in its panel`);
-      }
-      if (empty.caret.editable) {
-        throw new Error(`${label}: tapping a date put the caret in ${empty.caret.tag}.${empty.caret.cls} — a phone raises its keyboard for that`);
-      }
-      // Opening a detail surface moves keyboard focus to its Close control so
-      // screen-reader and keyboard users land inside the newly opened context.
-      // This is not an editable caret and must never raise the mobile keyboard.
-      if (!empty.caret.insidePanel || empty.caret.tag !== 'BUTTON' || !empty.caret.cls.includes('calendar-day-close')) {
-        throw new Error(`${label}: tapping a date must focus the day-detail close control, got ${empty.caret.tag}.${empty.caret.cls}`);
-      }
-      if (busy.caret.editable) throw new Error(`${label}: a day with entries put the caret in ${busy.caret.tag}.${busy.caret.cls}`);
+      if (empty.quickAddForm) fail('the quick-add form is still in the day detail');
+      if (empty.inputsInPanel !== 0) fail(`the day detail still holds ${empty.inputsInPanel} input(s)`);
+      if (busy.inputsInPanel !== 0) fail(`a day with entries still holds ${busy.inputsInPanel} input(s) in its detail`);
+      if (empty.caret.editable) fail(`tapping a date put the caret in ${empty.caret.tag}.${empty.caret.cls} — a phone raises its keyboard for that`);
+      // A tap keeps focus on the date pressed; Enter is what moves into the detail.
+      if (empty.caret.dateTrigger !== value.emptyDate) fail(`tapping a date must keep focus on that date, got ${empty.caret.tag}.${empty.caret.cls}`);
+      if (busy.caret.editable) fail(`a day with entries put the caret in ${busy.caret.tag}.${busy.caret.cls}`);
+      if (empty.selectedDates.join(',') !== value.emptyDate) fail(`only the tapped date may be selected, got ${empty.selectedDates.join(', ')}`);
 
-      // ── 2. 버튼 둘, 그리고 [+ 일정 추가] 가 여는 것 ────────────────────
-      if (empty.buttons.join('|') !== EXPECTED_BUTTONS.join('|')) {
-        throw new Error(`${label}: the day panel must offer exactly ${EXPECTED_BUTTONS.join(' then ')}, got [${empty.buttons.join('|')}]`);
+      // ── 2. 버튼 둘, 그리고 [+ 기록] 이 여는 것 ─────────────────────────
+      // The pinned bar on a phone names the day a new record lands on; the
+      // desk's detail already names it in its heading, so it just says + 기록.
+      // Either way the accessible name carries the date (below).
+      const [, month, day] = value.emptyDate.split('-').map(Number);
+      const addLabel = (m, d) => (value.desktop ? '+ 기록' : `+ ${m}월 ${d}일에 기록`);
+      const expected = ['사진에서 기록 읽기', addLabel(month, day)];
+      if (empty.buttons.join('|') !== expected.join('|')) fail(`a picked day must offer exactly ${expected.join(' then ')}, got [${empty.buttons.join('|')}]`);
+      const [, busyMonth, busyDayNumber] = value.busyDate.split('-').map(Number);
+      if (busy.buttons.join('|') !== ['사진에서 기록 읽기', addLabel(busyMonth, busyDayNumber)].join('|')) fail(`a day with entries must offer the same two buttons, got [${busy.buttons.join('|')}]`);
+      if (value.desktop) {
+        if (empty.buttonsInPanel !== 2) fail(`a desk keeps the two buttons inside the day detail, got ${empty.buttonsInPanel}`);
+      } else if (empty.buttonsInPinnedBar !== 2 || empty.buttonsInPanel !== 0) {
+        fail(`a phone pins the two buttons to the bottom of the Calendar, got pinned=${empty.buttonsInPinnedBar} panel=${empty.buttonsInPanel}`);
       }
-      if (busy.buttons.join('|') !== EXPECTED_BUTTONS.join('|')) {
-        throw new Error(`${label}: a day with entries must offer the same two buttons, got [${busy.buttons.join('|')}]`);
-      }
-      if (!empty.buttonsHittable) throw new Error(`${label}: both buttons must be hit-testable on an empty day`);
-      if (!busy.buttonsHittable) throw new Error(`${label}: both buttons must stay reachable on a full day`);
-      if (!/\d+월 \d+일에 이미지로 일정 등록/.test(empty.addImageAria)) {
-        throw new Error(`${label}: 사진에서 일정 추가 must name the date for assistive tech (${empty.addImageAria})`);
-      }
-      if (!/\d+월 \d+일 일정을 직접 입력해서 등록/.test(empty.addDetailAria)) {
-        throw new Error(`${label}: + 일정 추가 must name the date for assistive tech (${empty.addDetailAria})`);
-      }
-      if (editor.date !== value.emptyDate) {
-        throw new Error(`${label}: + 일정 추가 must open the full form on the tapped day ${value.emptyDate}, got ${editor.date || '(empty)'}`);
-      }
-      if (editor.heading !== '일정 등록') throw new Error(`${label}: + 일정 추가 opened "${editor.heading}" instead of the 일정 등록 form`);
-      if (!editor.hasTitle || !editor.hasTime || !editor.hasMemo || !editor.hasSave) {
-        throw new Error(`${label}: + 일정 추가 must open the full form — 제목·시간·메모·저장 (${JSON.stringify(editor)})`);
-      }
+      if (!empty.buttonsHittable) fail('both buttons must be hit-testable on an empty day');
+      if (!busy.buttonsHittable) fail('both buttons must stay reachable on a full day');
+      if (empty.addImageAria !== `사진에서 일정·거래 정보를 읽어 ${month}월 ${day}일 기록 초안 만들기`) fail(`사진에서 기록 읽기 must name the date for assistive tech (${empty.addImageAria})`);
+      if (empty.addDetailAria !== `${month}월 ${day}일에 기록 추가`) fail(`+ 기록 must name the date for assistive tech (${empty.addDetailAria})`);
+      if (editor.date !== value.emptyDate) fail(`+ 기록 must open the form on the tapped day ${value.emptyDate}, got ${editor.date || '(empty)'}`);
+      if (editor.heading !== '기록 추가') fail(`+ 기록 opened "${editor.heading}" instead of 기록 추가`);
+      if (!editor.question.includes('무엇을 남길까요?')) fail(`the form must ask one question first, got "${editor.question}"`);
+      if (!editor.hasTitle || !editor.hasTime || !editor.hasMemo || !editor.hasSave) fail(`+ 기록 must open the full form — 제목·시간·메모·저장 (${JSON.stringify(editor)})`);
+      if (!editor.focusOnTitle) fail('the form must open on its question');
 
-      // ── compact day detail content ─────────────────────────────────────
-      if (empty.closeAria !== '선택한 날짜 일정 닫기') throw new Error(`${label}: day-detail close name changed (${empty.closeAria})`);
-      if (!/^\d+월 \d+일 [일월화수목금토]$/.test(empty.heading)) throw new Error(`${label}: compact panel heading changed (${empty.heading})`);
-      if (/\d{4}년|요일/.test(empty.heading)) throw new Error(`${label}: the panel repeats a giant date sentence (${empty.heading})`);
-      if (!empty.emptySentence) throw new Error(`${label}: an empty day must still say 등록된 일정이 없어요`);
-      if (busy.emptySentence) throw new Error(`${label}: a day with entries must not say 등록된 일정이 없어요`);
-      if (busy.events !== 8) throw new Error(`${label}: a day with entries must list them (got ${busy.events})`);
-      if (!value.desktop && (busy.bodyOverflow === 'auto' || busy.bodyOverflow === 'scroll')) {
-        throw new Error(`${label}: mobile FLOW detail must use page flow, not an inner scroller`);
+      // ── day detail content ─────────────────────────────────────────────
+      if (!/^\d+월 \d+일 [일월화수목금토]요일$/.test(empty.heading)) fail(`the detail heading must name the day, got (${empty.heading})`);
+      if (!empty.emptySentence) fail('an empty day must say 이 날은 기록이 없어요.');
+      if (busy.emptySentence) fail('a day with entries must not say it has none');
+      if (busy.events !== 8) fail(`a day with entries must list them (got ${busy.events})`);
+      if (busy.times.join(',') !== '01:00,02:00,03:00') fail(`a day's records run in time order, got ${busy.times.join(',')}`);
+      if (!value.desktop && ['auto', 'scroll'].some(mode => busy.bodyOverflow === mode || busy.panelOverflow === mode)) {
+        fail('a phone keeps one scroll: the day detail must not scroll inside itself');
       }
 
-      // ── geometry: mobile is FLOW; desktop is a sticky SIDE rail ─────────
+      // ── geometry ───────────────────────────────────────────────────────
       const expectedPresentation = value.desktop ? 'SIDE' : 'FLOW';
       const expectedPosition = value.desktop ? 'sticky' : 'static';
-      if (empty.presentation !== expectedPresentation) throw new Error(`${label}: expected ${expectedPresentation}, got ${empty.presentation}`);
-      if (empty.position !== expectedPosition) throw new Error(`${label}: expected ${expectedPosition} detail, got ${empty.position}`);
-      if (empty.selectedDate !== value.emptyDate) throw new Error(`${label}: the panel opened on ${empty.selectedDate}, not the tapped ${value.emptyDate}`);
-      if (empty.rect.left < -1 || empty.rect.right > value.viewport.width + 1) throw new Error(`${label}: the panel overflows sideways`);
-
-      if (value.desktop) continue;
-      if (empty.rect.top < empty.gridBottom - 2) throw new Error(`${label}: in-flow detail covers the Month grid`);
+      if (empty.presentation !== expectedPresentation) fail(`expected ${expectedPresentation}, got ${empty.presentation}`);
+      if (empty.position !== expectedPosition) fail(`expected ${expectedPosition} detail, got ${empty.position}`);
+      if (empty.selectedDate !== value.emptyDate) fail(`the detail shows ${empty.selectedDate}, not the tapped ${value.emptyDate}`);
+      if (empty.rect.left < -1 || empty.rect.right > value.viewport.width + 1) fail('the detail overflows sideways');
+      if (value.desktop) {
+        if (empty.rect.left < empty.gridRight - 2) fail('the desktop detail must sit beside the month');
+        if (empty.rect.width < 300 || empty.rect.width > 400) fail(`the desktop detail must be a 320–380px rail, got ${empty.rect.width}px`);
+      } else if (empty.rect.top < empty.gridBottom - 2) {
+        fail('in-flow detail covers the Month grid');
+      }
     }
     console.log('CALENDAR DAY PANEL TWO BUTTONS PASS', JSON.stringify(report.map(v => ({
       size: `${v.viewport.width}x${v.viewport.height}`, theme: v.theme,
-      onMountPanel: v.onMountSettled.panelHidden === true ? 'hidden' : 'OPEN',
-      reopenPanel: v.reopenSettled.panelHidden === true ? 'hidden' : 'OPEN',
+      onMount: v.onMountSettled.panelSelectedDate === v.onMountSettled.todayDate ? 'today' : v.onMountSettled.panelSelectedDate,
       buttons: v.empty.buttons.join('+'),
       inputsInPanel: v.empty.inputsInPanel,
-      caretAfterTap: v.empty.caret.tag,
-      panel: `${v.empty.presentation}/${v.empty.position}`,
+      caretAfterTap: v.empty.caret.dateTrigger ? 'date' : v.empty.caret.tag,
+      panel: `${v.empty.presentation}/${v.empty.position}/${v.empty.rect.width}px`,
     }))));
   }
 } finally {

@@ -12,8 +12,10 @@ const homeCss = read('home-chat.css');
 const conversationCss = read('site-conversation.css');
 const combinedCss = `${homeCss}\n${conversationCss}`;
 
-// Existing composer controls remain the stable public DOM contract.
-assert.match(index, /class="composer-button mic-button"/);
+// Text chat remains the stable public DOM contract while public voice is
+// excluded from the initial release.
+assert.doesNotMatch(index, /class="composer-button mic-button"/);
+assert.doesNotMatch(index, /data-wake-toggle/);
 assert.match(index, /class="composer-button send-button"/);
 assert.match(index, /id="lotbi-prompt"/);
 
@@ -29,18 +31,11 @@ assert.match(conversation, /!event\.shiftKey/);
 assert.match(conversation, /if \(inFlight \|\| attachmentUploadsInFlight\) return/);
 assert.match(conversation, /if \(!message && !selectedAttachments\.length\) return/);
 
-// Voice input is progressive enhancement: the mounted runtime unlocks the mic,
-// supported browsers request permission and start recognition, unsupported/denied
-// states return user feedback instead of a dead control.
-assert.match(conversation, /\.mic-button/);
-assert.match(conversation, /micButton\.disabled\s*=\s*false/);
-assert.match(conversation, /micButton\.addEventListener\('click'/);
-assert.match(conversation, /navigator\.mediaDevices\.getUserMedia/);
-assert.match(conversation, /SpeechRecognition|webkitSpeechRecognition/);
-assert.match(conversation, /ko-KR/);
-assert.match(conversation, /aria-pressed/);
-assert.match(conversation, /음성 입력을 지원하지 않는 브라우저|마이크 권한/);
-assert.match(conversation, /prompt\.dispatchEvent\(new Event\('input'/);
+// Internal voice code remains available for a future release, but no public
+// control may bind it in this release.
+assert.match(conversation, /const PUBLIC_SITE_VOICE_RELEASE_ENABLED = false/);
+assert.match(conversation, /if \(PUBLIC_SITE_VOICE_RELEASE_ENABLED && micButton instanceof HTMLButtonElement\)/);
+assert.doesNotMatch(conversation, /window\.addEventListener\('lotbi:voice-transcription-request'/);
 
 // Composer actions remain touchable and have visibly distinct disabled/active/focus/press/listening states.
 assert.match(combinedCss, /\.composer-button[\s\S]*min-width:\s*44px/);
@@ -49,7 +44,6 @@ assert.match(combinedCss, /\.send-button:not\(:disabled\)/);
 assert.match(combinedCss, /linear-gradient\([^)]*var\(--brand-pink\)[^)]*var\(--brand-violet\)[^)]*var\(--brand-blue\)/);
 assert.match(combinedCss, /\.composer-button:focus-visible/);
 assert.match(combinedCss, /\.composer-button:active/);
-assert.match(combinedCss, /\.mic-button\[data-listening="true"\]/);
 
 // No interaction style may introduce an overlay above the composer.
 assert.doesNotMatch(conversationCss, /\.chat-composer[^}]*pointer-events:\s*none/);

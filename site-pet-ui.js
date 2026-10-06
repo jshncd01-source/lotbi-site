@@ -51,19 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-a2c3210a8242';
+} from './site-pet.js?v=aset-7c1b5fc06bd0';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-a2c3210a8242';
+} from './site-pet-guides.js?v=aset-7c1b5fc06bd0';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-a2c3210a8242';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-a2c3210a8242';
+} from './site-pet-gate.js?v=aset-7c1b5fc06bd0';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-7c1b5fc06bd0';
+import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-7c1b5fc06bd0';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -71,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-a2c3210a8242';
+} from './site-safecare-common.js?v=aset-7c1b5fc06bd0';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -191,17 +192,14 @@ function openPetPhotoSource(sourceInputs) {
 }
 
 // SAFECARE-WEB-UI-REDESIGN-01 — the always-visible shooting guide above the
-// ten slots: the chosen animal as a large character, why ten directions, and
+// ten slots: the chosen animal as a finished illustration, why ten directions, and
 // the direction map drawn with the same per-slot schematics the tiles use.
 function petPhotoGuide(species) {
   const box = el('section', 'safecare-guide');
   box.dataset.safecareGuide = species === 'CAT' ? 'cat' : 'dog';
   const head = el('div', 'safecare-guide-head');
   const figure = el('div', 'safecare-guide-figure');
-  const character = el('span', 'safecare-guide-character', species === 'CAT' ? '🐱' : '🐶');
-  character.setAttribute('role', 'img');
-  character.setAttribute('aria-label', species === 'CAT' ? '고양이' : '강아지');
-  figure.appendChild(character);
+  figure.appendChild(createSafeCareGuideArtwork(species === 'CAT' ? 'cat' : 'dog'));
   const copy = el('div');
   copy.append(
     el('h4', 'safecare-guide-title', `${species === 'CAT' ? '고양이' : '강아지'} 촬영 안내 · 서로 다른 방향 10장`),

@@ -5,6 +5,8 @@
 // shoot, the same way the pet screen draws its slot schematics, so a guardian
 // can see at a glance why ten different directions are asked for.
 
+import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-7c1b5fc06bd0';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const PERSON_IDENTITY_SLOTS = Object.freeze([
@@ -33,7 +35,7 @@ function text(value, x, y, className) {
 }
 
 function drawFace(root, {view, direction}) {
-  const shoulders = shape('path', {d: 'M16 51C18 40 26 36 36 36S54 40 56 51'});
+  const shoulders = shape('path', {d: 'M16 51C18 40 26 36 36 36S54 40 56 51H16Z', class: 'person-guide-body'});
   root.appendChild(shoulders);
   if (view === 'profile') {
     // A side head: back of the skull, brow, nose and chin facing one way.
@@ -53,24 +55,25 @@ function drawFace(root, {view, direction}) {
   root.appendChild(shape('circle', {cx: 31.5 + shift, cy: 19, r: 1.3, class: 'person-guide-feature'}));
   root.appendChild(shape('circle', {cx: 40.5 + shift * (view === 'turn' ? 0.6 : 1), cy: 19, r: 1.3, class: 'person-guide-feature'}));
   root.appendChild(shape('path', {d: `M${36 + shift} 21v4h${shift < 0 ? -2 : 2}`}));
-  root.appendChild(shape('path', {d: `M${33 + shift} 28.5q3 2 6 0`}));
+  root.appendChild(shape('path', {d: `M${33 + shift} 28.5h6`, class: 'person-guide-mouth'}));
 }
 
 function drawUpper(root) {
   root.appendChild(shape('circle', {cx: 36, cy: 12, r: 7, class: 'person-guide-head'}));
-  root.appendChild(shape('path', {d: 'M22 51V33C22 25 28 21 36 21S50 25 50 33V51'}));
+  root.appendChild(shape('path', {d: 'M22 51V33C22 25 28 21 36 21S50 25 50 33V51H22Z', class: 'person-guide-body'}));
   root.appendChild(shape('path', {d: 'M28 51V38M44 51V38'}));
 }
 
 function drawFull(root) {
   root.appendChild(shape('circle', {cx: 36, cy: 7.5, r: 4.5, class: 'person-guide-head'}));
-  root.appendChild(shape('path', {d: 'M30 14H42L44 31H28Z'}));
+  root.appendChild(shape('path', {d: 'M30 14H42L44 31H28Z', class: 'person-guide-body'}));
   root.appendChild(shape('path', {d: 'M30 15L25 29M42 15L47 29'}));
   root.appendChild(shape('path', {d: 'M32 31L31 49M40 31L41 49'}));
 }
 
 export function personSlotDiagram(slot) {
   const root = shape('svg', {viewBox: '0 0 72 52', class: 'person-guide-diagram', 'aria-hidden': 'true', focusable: 'false'});
+  root.appendChild(shape('rect', {x: 14, y: 2, width: 44, height: 48, rx: 18, class: 'person-guide-stage'}));
   if (slot.view === 'upper') drawUpper(root);
   else if (slot.view === 'full') drawFull(root);
   else drawFace(root, slot);
@@ -90,7 +93,7 @@ export function personPhotoGuide() {
   head.className = 'safecare-guide-head';
   const figure = document.createElement('div');
   figure.className = 'safecare-guide-figure safecare-guide-figure-person';
-  figure.appendChild(personSlotDiagram(PERSON_IDENTITY_SLOTS[0]));
+  figure.appendChild(createSafeCareGuideArtwork('person'));
   const copy = document.createElement('div');
   const title = document.createElement('h4');
   title.className = 'safecare-guide-title';

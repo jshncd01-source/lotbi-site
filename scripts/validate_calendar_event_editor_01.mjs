@@ -111,7 +111,10 @@ for (const token of [
   'calendar-editor-title',
   'calendar-editor-date',
   'calendar-editor-time',
-  'calendar-editor-all-day',
+  // LIFE UX 01: no all-day checkbox; the date is a chip and the rest are
+  // chips that open only what a record needs.
+  'calendar-editor-date-chip',
+  'calendar-editor-chip',
   'calendar-editor-amount',
   'calendar-editor-category',
   'calendar-editor-memo',
@@ -128,13 +131,13 @@ for (const token of [
   "confirmationDialog.setAttribute('aria-modal', 'true')",
   "confirmationDialog.setAttribute('aria-labelledby', 'calendar-delete-confirm-title')",
   "confirmationDialog.setAttribute('aria-describedby', 'calendar-delete-confirm-description')",
-  '이 일정을 삭제하시겠습니까?',
-  '삭제한 일정은 복구할 수 없습니다.',
+  '이 기록을 삭제하시겠습니까?',
+  '삭제한 기록은 복구할 수 없습니다.',
   'if (deleteRequestInFlight) return',
   'dialog.inert = true',
   'STALE_REVISION',
 ]) assert.ok(manager.includes(token), `missing editor contract: ${token}`);
-for (const removed of ['calendar-editor-confirm-delete', '이 일정을 삭제할까요?', "button('유지'", "button('삭제 확인'"]) {
+for (const removed of ['calendar-editor-confirm-delete', '이 일정을 삭제할까요?', '이 기록을 삭제할까요?', 'calendar-editor-all-day', "button('유지'", "button('삭제 확인'"]) {
   assert.ok(!manager.includes(removed), `legacy inline delete confirmation must be removed: ${removed}`);
 }
 assert.ok(!manager.includes('prompt('));
@@ -155,7 +158,8 @@ for (const forbidden of ["createElement('form')", 'calendar-editor-save', 'calen
 }
 assert.ok(manager.includes('if (item && calendarItemActionPolicy(item).readOnly)'));
 assert.ok(manager.includes('if (item && itemPolicy.canRemove)'));
-assert.ok(manager.includes('if (!item || itemPolicy.canUpdate) actions.prepend(save)'));
+// 저장 is the last, right-most action (취소 · 저장), as in the record sheet design.
+assert.ok(manager.includes('if (!item || itemPolicy.canUpdate) actions.append(save)'));
 assert.ok(css.includes('.calendar-editor-dialog'));
 assert.ok(css.includes('.calendar-readonly-dialog'));
 assert.ok(css.includes('.calendar-readonly-backdrop'));

@@ -164,12 +164,12 @@ try{
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   const today=modal.querySelector('.calendar-today-button');
-  // 확인 필요 탭은 없앴다. Week/Month/Year/Schedule의 네 역할을 검증한다.
-  const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='일정');
+  // LIFE UX 01: 월 / 주 / 목록 tabs; 년 is reached through the month title.
+  const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='목록');
   const modeTabLabels=[...modal.querySelectorAll('.calendar-mode-tab')].map(n=>n.textContent);
   const calendar=layout?.children?.[0], detail=layout?.children?.[1];
   if(!grid||!layout||!today||!agendaTab||!calendar||!detail)throw new Error('month chrome missing');
-  if(modeTabLabels.join('/')!=='주/월/년/일정')throw new Error('mode tabs must be 주/월/년/일정, got '+modeTabLabels.join('/'));
+  if(modeTabLabels.join('/')!=='월/주/목록')throw new Error('mode tabs must be 월/주/목록, got '+modeTabLabels.join('/'));
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
   const contentStyle=getComputedStyle(content);
@@ -227,6 +227,10 @@ try{
       left:detailRect.left,
       right:detailRect.right,
       presentation:detail.dataset.presentation||'',
+      selectedDate:detail.dataset.selectedDate||'',
+      todayDate:grid.querySelector('.calendar-date-cell[data-today="true"]')?.dataset.calendarDate||'',
+      width:detailRect.width,
+      gridRight:gridRect.right,
       gridBottom:gridRect.bottom,
       backdrop:Boolean(layout.querySelector('[data-calendar-day-sheet-backdrop]')),
       viewportHeight:innerHeight,
@@ -248,7 +252,11 @@ try{
     const rows=[...cell.querySelectorAll('.calendar-event-chip')];
     const expectedRows=Math.min(expected,2);
     if(rows.length!==expectedRows)throw new Error('Month must mount at most two rows '+fixtureDates[index]+' '+rows.length+' expected '+expectedRows);
-    const countText=cell.querySelector('.calendar-mobile-event-count')?.textContent||'';
+    // LIFE UX 01: a touch cell carries a dot per record (at most three), with
+    // the full count on the dots for the record; the titles wait in the detail.
+    const dots=cell.querySelector('.calendar-record-dots');
+    const dotCount=Number(dots?.dataset.recordCount||0);
+    const dotNodes=dots?dots.querySelectorAll('.calendar-record-dot').length:0;
     const more=cell.querySelector('.calendar-event-overflow');
     const visible=rows.filter(row=>!row.hidden&&getComputedStyle(row).display!=='none').length;
     const overflowVisible=Boolean(more&&!more.hidden&&getComputedStyle(more).display!=='none');
@@ -263,8 +271,8 @@ try{
       const stack=cell.querySelector('.calendar-event-stack');
       if(getComputedStyle(stack).overflowY==='auto'||getComputedStyle(stack).overflowY==='scroll')throw new Error('cell inner scrollbar '+fixtureDates[index]);
       if(rows.length>2)throw new Error('Month mounted unbounded event detail '+fixtureDates[index]);
-    }else if(countText!==(expected?expected+'개':'')){
-      throw new Error('mobile event count mismatch '+fixtureDates[index]+' '+countText+' expected '+expected);
+    }else if(dotCount!==expected||dotNodes!==Math.min(expected,3)){
+      throw new Error('mobile record dots mismatch '+fixtureDates[index]+' count '+dotCount+' dots '+dotNodes+' expected '+expected);
     }
     density.push({date:fixtureDates[index],expected,visible,hiddenCount,overflowVisible,cellHeight});
   });
@@ -275,8 +283,13 @@ try{
     if(modalRect.height<innerHeight-60)throw new Error('desktop modal too short '+modalRect.height);
     if(result.modal.overflowY!=='hidden')throw new Error('desktop modal must not scroll');
     if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
-    if(result.calendar.widthRatio<0.97)throw new Error('desktop Month does not own available width '+result.calendar.widthRatio);
-    if(!result.detail.hidden)throw new Error('desktop Calendar must start with an unobstructed Month');
+    // LIFE UX 01: the selected day (today on entry) is a 320–380px rail beside
+    // the Month, never over it, and the Month keeps the rest of the width.
+    if(result.calendar.widthRatio<0.6)throw new Error('desktop Month must keep most of the width beside the day rail '+result.calendar.widthRatio);
+    if(result.detail.hidden)throw new Error('desktop Calendar must show the selected day beside the Month');
+    if(result.detail.selectedDate!==result.detail.todayDate)throw new Error('desktop Calendar must open on today, got '+result.detail.selectedDate);
+    if(result.detail.width<300||result.detail.width>400)throw new Error('desktop day rail must be 320–380px, got '+result.detail.width);
+    if(result.detail.left<result.detail.gridRight-2)throw new Error('desktop day rail must sit beside the Month, not over it');
     if(result.detail.presentation!=='SIDE')throw new Error('desktop selected-day detail contract must be SIDE');
     if(result.detail.position!=='sticky')throw new Error('desktop selected-day detail must remain a sticky side panel');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
@@ -288,7 +301,7 @@ try{
     eventButton.focus();
     click(eventButton);
     await wait(()=>modal.querySelector('.calendar-editor-dialog'),'event editor');
-    if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 수정')throw new Error('event click opened wrong surface');
+    if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='기록 수정')throw new Error('event click opened wrong surface');
     const editorTitle=modal.querySelector('.calendar-editor-title');
     const deleteButton=modal.querySelector('.calendar-editor-delete');
     if(!(editorTitle instanceof HTMLInputElement)||!(deleteButton instanceof HTMLButtonElement))throw new Error('event delete controls missing');
@@ -298,8 +311,8 @@ try{
     if(modal.querySelectorAll('.calendar-delete-confirm-dialog').length!==1)throw new Error('duplicate delete confirmation dialog');
     const deleteDialog=modal.querySelector('.calendar-delete-confirm-dialog');
     if(deleteDialog.getAttribute('role')!=='dialog'||deleteDialog.getAttribute('aria-modal')!=='true')throw new Error('delete dialog semantics');
-    if(deleteDialog.querySelector('h4')?.textContent!=='이 일정을 삭제하시겠습니까?')throw new Error('delete dialog title');
-    if(deleteDialog.querySelector('#calendar-delete-confirm-description')?.textContent!=='삭제한 일정은 복구할 수 없습니다.')throw new Error('delete dialog description');
+    if(deleteDialog.querySelector('h4')?.textContent!=='이 기록을 삭제하시겠습니까?')throw new Error('delete dialog title');
+    if(deleteDialog.querySelector('#calendar-delete-confirm-description')?.textContent!=='삭제한 기록은 복구할 수 없습니다.')throw new Error('delete dialog description');
     const cancelDelete=deleteDialog.querySelector('.calendar-delete-confirm-cancel');
     if(!(cancelDelete instanceof HTMLButtonElement))throw new Error('delete cancel missing');
     await wait(()=>document.activeElement===cancelDelete,'safe delete focus');
@@ -330,13 +343,13 @@ try{
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
-    // The contract moved three times: the below-the-month flow panel became a
-    // bottom sheet, the sheet became a panel anchored to the tapped date, and
-    // now the panel waits to be asked. It used to be open the moment the
-    // Calendar opened -- a window for a date nobody had pressed, which is what
-    // 대표 reported. So the entry assertion is inverted rather than dropped:
-    // showing it on entry again is the regression.
-    if(!result.detail.hidden)throw new Error('touch Calendar must not show a selected-day surface before a date is pressed');
+    // The contract moved four times: the below-the-month flow panel became a
+    // bottom sheet, the sheet became a panel anchored to the tapped date, the
+    // panel waited to be asked, and LIFE UX 01 made the selected day part of
+    // the page: today's records in flow under the Month, never a window over
+    // it, never a date nobody pressed.
+    if(result.detail.hidden)throw new Error('touch Calendar must show the selected day under the Month');
+    if(result.detail.selectedDate!==result.detail.todayDate)throw new Error('touch Calendar must open on today, got '+result.detail.selectedDate);
     // Everything below is about the panel a tap opens, so tap one first. Today
     // is the date the panel used to raise itself on, so the geometry measured
     // here is the same geometry this gate has always measured.
@@ -345,15 +358,19 @@ try{
     click(entryCell);
     await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'touch selected-day panel opens on a tap');
     {
-      const opened=modal.querySelector('.calendar-day-panel');
       // The panel rises into place; geometry is only meaningful once it stops.
+      // A background render (weather, holidays, the amount line) rebuilds the
+      // panel, so it is read afresh each time rather than through a reference
+      // that may since have left the document.
+      const livePanel=()=>modal.querySelector('.calendar-day-panel');
       let previous=null,stable=0;
       for(let i=0;i<120;i+=1){
-        const current=opened.getBoundingClientRect().bottom;
+        const current=livePanel().getBoundingClientRect().bottom;
         if(previous!==null&&Math.abs(current-previous)<0.5){stable+=1;if(stable>=3)break}else stable=0;
         previous=current;
         await new Promise(resolve=>setTimeout(resolve,20));
       }
+      const opened=livePanel();
       const openedRect=opened.getBoundingClientRect();
       result.detail={
         ...result.detail,
@@ -384,8 +401,11 @@ try{
     if(result.detail.top<result.detail.gridBottom-2)throw new Error('touch selected-day panel covers the month grid');
 
     const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
-    const mobileEventButton=mobileEventCell?.querySelector('.calendar-event-chip');
-    if(!(mobileEventButton instanceof HTMLButtonElement))throw new Error('mobile event editor target missing');
+    if(!mobileEventCell)throw new Error('mobile event cell missing');
+    click(mobileEventCell);
+    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===fixtureDates[1],'mobile event day');
+    await wait(()=>modal.querySelector('.calendar-day-panel .calendar-day-event'),'mobile event row');
+    const mobileEventButton=modal.querySelector('.calendar-day-panel .calendar-day-event');
     click(mobileEventButton);
     await wait(()=>modal.querySelector('.calendar-editor-dialog'),'mobile event editor');
     const mobileEditor=modal.querySelector('.calendar-editor-dialog');
@@ -400,12 +420,13 @@ try{
     if(mobileBodyStyle.overflowY!=='auto')throw new Error('mobile editor body must own vertical scroll');
     if(getComputedStyle(document.body).overflow!=='hidden')throw new Error('mobile editor must lock background scroll');
     if(mobileActionsRect.bottom>mobileEditorRect.bottom+1)throw new Error('mobile editor action footer unreachable');
-    if(innerWidth<=520&&mobileEditorRect.height<innerHeight-2)throw new Error('phone editor must use the visual viewport');
-    const detailsSummary=mobileEditor.querySelector('.calendar-editor-details > summary');
-    const editorDetails=mobileEditor.querySelector('.calendar-editor-details');
-    if(!(detailsSummary instanceof HTMLElement)||!(editorDetails instanceof HTMLDetailsElement))throw new Error('mobile optional details disclosure missing');
-    click(detailsSummary);
-    await wait(()=>editorDetails.open,'mobile optional details open');
+    // A bottom sheet: it rests on the bottom of the visual viewport.
+    if(Math.abs(mobileEditorRect.bottom-innerHeight)>2)throw new Error('touch editor sheet must rest on the bottom of the visual viewport ('+mobileEditorRect.bottom+' vs '+innerHeight+')');
+    const moreChip=mobileEditor.querySelector('[data-editor-chip="more"]');
+    const moreSection=mobileEditor.querySelector('[data-editor-section="more"]');
+    if(!(moreChip instanceof HTMLButtonElement)||!(moreSection instanceof HTMLElement))throw new Error('mobile optional details chip missing');
+    click(moreChip);
+    await wait(()=>!moreSection.hidden,'mobile optional details open');
     const merchant=modal.querySelector('.calendar-editor-merchant');
     if(!(merchant instanceof HTMLInputElement))throw new Error('mobile lower field missing');
     merchant.focus();
@@ -424,14 +445,17 @@ try{
 
   const waitCalendarIdle=label=>wait(()=>content.getAttribute('aria-busy')!=='true',label+' idle');
   const mode=async name=>{
-    const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
+    // 년 is the month title's job; the tabs are 월 / 주 / 목록.
+    const button=name==='년'
+      ?modal.querySelector('.calendar-title-button')
+      :[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
     click(button);
-    await wait(()=>content.dataset.calendarManagerView===({주:'week',년:'year',일정:'agenda',월:'month'}[name]),name);
+    await wait(()=>content.dataset.calendarManagerView===({주:'week',년:'year',목록:'agenda',월:'month'}[name]),name);
     await waitCalendarIdle(name);
   };
   await mode('주');
   await mode('년');
-  await mode('일정');
+  await mode('목록');
   await wait(()=>modal.querySelector('.calendar-unscheduled-group'),'Agenda unscheduled group');
   const unscheduledGroup=modal.querySelector('.calendar-unscheduled-group');
   if(unscheduledGroup?.querySelector('h3')?.textContent!=='날짜 미정')throw new Error('unscheduled heading missing');
@@ -443,10 +467,10 @@ try{
   modal.querySelector('.calendar-editor-title')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'unscheduled editor Escape close');
   result.unscheduledReachable=true;
-  const weekRange=modal.querySelector('[data-agenda-scope="week"]');
-  if(!(weekRange instanceof HTMLButtonElement))throw new Error('Agenda this-week control missing');
-  click(weekRange);
-  await wait(()=>modal.querySelector('[data-agenda-scope="week"]')?.getAttribute('aria-pressed')==='true','Agenda week range');
+  const upcomingRange=modal.querySelector('[data-agenda-scope="upcoming"]');
+  if(!(upcomingRange instanceof HTMLButtonElement))throw new Error('Agenda upcoming control missing');
+  click(upcomingRange);
+  await wait(()=>modal.querySelector('[data-agenda-scope="upcoming"]')?.getAttribute('aria-pressed')==='true','Agenda upcoming range');
   result.agendaRanges=true;
   await mode('월');
   const title=modal.querySelector('.calendar-title-button').textContent;
@@ -460,7 +484,7 @@ try{
   const selectedDate=ordinary?.dataset.calendarDate;
   click(ordinary);
   await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
-  await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'selected-day detail open');
+  await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===selectedDate&&!modal.querySelector('.calendar-day-panel')?.hidden,'selected-day detail follows');
   const settingsButton=modal.querySelector('.calendar-settings-button');
   if(!(settingsButton instanceof HTMLButtonElement))throw new Error('Settings opener missing');
   settingsButton.focus();
@@ -481,12 +505,14 @@ try{
   if(modal.querySelector('.calendar-day-panel')?.hidden)throw new Error('Settings Escape also closed the underlying day detail');
   await wait(()=>document.activeElement===settingsButton,'Settings Escape focus restore');
   result.settingsModalContained=true;
-  const selectedTrigger=modal.querySelector('[data-calendar-date-trigger="'+selectedDate+'"]');
-  selectedTrigger.focus();
-  selectedTrigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-  await wait(()=>modal.querySelector('.calendar-day-panel')?.hidden===true,'selected-day Escape close');
-  if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
+  // The detail is part of the page: Escape inside it steps back to its date
+  // in the grid and stops there, so the Calendar modal stays open.
+  const dayHeading=modal.querySelector('.calendar-day-panel .calendar-day-heading');
+  dayHeading.focus();
+  dayHeading.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
+  if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
+  if(modal.querySelector('.calendar-day-panel')?.dataset.selectedDate!==selectedDate)throw new Error('day-detail Escape lost the selected day');
   result.escapeContained=true;
   click(modal.querySelector('.calendar-today-button'));
   await wait(()=>content.dataset.calendarManagerView==='month','today');
@@ -535,7 +561,7 @@ try{
   if(draftRoot.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 초안 확인')throw new Error('draft editor heading');
   if(draftRoot.querySelector('.calendar-editor-title')?.value!=='보험 서류 확인')throw new Error('draft title not prefilled');
   if(draftRoot.querySelector('.calendar-editor-date')?.value!=='')throw new Error('draft editor invented a date');
-  if(draftRoot.querySelector('.calendar-editor-amount')?.value!=='12000')throw new Error('draft amount not prefilled');
+  if(String(draftRoot.querySelector('.calendar-editor-amount')?.value||'').replace(/,/g,'')!=='12000')throw new Error('draft amount not prefilled');
   if(draftRoot.querySelector('.calendar-editor-memo')?.value!=='사진에서 확인한 메모')throw new Error('draft memo not prefilled');
   draftRoot.querySelector('.calendar-editor-title')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>!draftRoot.querySelector('.calendar-editor-dialog'),'draft editor Escape close');

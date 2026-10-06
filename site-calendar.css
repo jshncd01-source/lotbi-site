@@ -418,11 +418,11 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   min-width: 0;
   min-height: 0;
   display: grid;
-  /* Row 4 belongs to the expense totals bar. Without a row of its own the bar
-     overflowed the month view's clipped content box and was simply invisible on
-     desktop. Row 3 still takes the remaining space, so the month grid is
-     unchanged apart from giving up the bar's one line. */
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  /* Row 3 takes the remaining space. The + 기록 bar, when a view shows it
+     outside the day detail, gets an implicit row 4 of its own; a hidden bar
+     creates no row, so it costs the month no gap either. */
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-auto-rows: auto;
   gap: 10px;
 }
 
@@ -1945,6 +1945,686 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   .calendar-settings-body { max-height: none; flex: 1 1 auto; padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   CALENDAR LIFE UX 01
+   The Calendar reads as days of a life: a calm month, the selected day as a
+   time-ordered list of records, one "+ 기록" within thumb's reach, and the
+   month's amounts as a single quiet line. Colours come from the existing
+   role tokens, so light, dark and the system preference stay in step.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Toolbar: the title is also the way into 년. */
+.calendar-title-button::after {
+  content: '▾';
+  display: inline-block;
+  margin-left: 6px;
+  font-size: .72em;
+  opacity: .7;
+}
+.calendar-title-button[data-year-open="true"]::after { content: '▴'; }
+
+/* Month cells: dots are a phone's indicator; wider cells show titles. */
+.calendar-record-dots { display: none; }
+.calendar-record-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: .72;
+}
+.calendar-date-cell[data-current-month="false"] .calendar-record-dot { opacity: .45; }
+
+/* A multi-day record is one bar across its days. Only the first slice in a
+   week row carries the title; the others keep the bar continuous. */
+.calendar-span-chip {
+  grid-template-columns: minmax(0, 1fr);
+  margin-inline: -5px;
+  padding-inline: 8px;
+  border-radius: 0;
+  background: var(--lotbi-calendar-week-selected-surface);
+}
+.calendar-span-chip[data-span-start="true"] { margin-left: 0; border-top-left-radius: 5px; border-bottom-left-radius: 5px; }
+.calendar-span-chip[data-span-end="true"] { margin-right: 0; border-top-right-radius: 5px; border-bottom-right-radius: 5px; }
+.calendar-span-chip:hover { background: var(--lotbi-calendar-week-selected-surface); filter: brightness(.97); }
+.calendar-span-placeholder { display: block; min-height: 24px; }
+
+/* The month's amounts: one line, never a ledger. */
+.calendar-amount-line {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 8px 4px;
+  border: 0;
+  border-top: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.calendar-amount-line-label { color: var(--lotbi-calendar-muted-ink); font-size: 13px; }
+.calendar-amount-line-amount { margin-left: auto; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.calendar-amount-line-chevron { color: var(--lotbi-calendar-muted-ink); font-size: 18px; line-height: 1; }
+.calendar-amount-line:hover .calendar-amount-line-amount { text-decoration: underline; text-underline-offset: 3px; }
+.calendar-amount-line-error { cursor: default; color: var(--lotbi-calendar-muted-ink); font-size: 13px; }
+
+/* The selected day: a section of the page, not a floating card. */
+.calendar-day-panel { gap: 8px; }
+.calendar-day-panel-head { flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.calendar-day-heading { font-size: 17px; font-weight: 700; line-height: 1.4; }
+.calendar-day-heading:focus { outline: none; }
+.calendar-day-heading:focus-visible { outline: 2px solid var(--lotbi-focus-ring, #212121); outline-offset: 3px; border-radius: 4px; }
+.calendar-day-today {
+  display: inline-block;
+  margin-right: 2px;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  vertical-align: 2px;
+}
+.calendar-day-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--lotbi-calendar-muted-ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.calendar-day-weather .calendar-weather-icon { width: 18px; height: 18px; font-size: 16px; line-height: 18px; }
+.calendar-day-body { gap: 6px; }
+.calendar-day-holiday { margin: 0; }
+.calendar-day-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--lotbi-calendar-muted-ink);
+  font-size: 13px;
+}
+.calendar-day-amount strong {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Life timeline rows: time | what | amount, separated by hairlines. */
+.calendar-life-list { gap: 0; }
+.calendar-day-event.calendar-life-row {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+.calendar-life-list .calendar-life-row:last-child { border-bottom: 0; }
+.calendar-day-event.calendar-life-row:hover { background: var(--lotbi-calendar-week-selected-surface); }
+.calendar-day-event.calendar-life-row:focus-visible { outline: 2px solid var(--lotbi-focus-ring, #212121); outline-offset: -2px; }
+.calendar-life-time { min-width: 0; display: grid; gap: 1px; padding-top: 1px; }
+.calendar-day-event.calendar-life-row time {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.calendar-life-row[data-life-group="SPAN"] time,
+.calendar-life-row[data-life-group="DEADLINE"] time { font-size: 12px; font-weight: 650; color: var(--lotbi-calendar-muted-ink); }
+.calendar-life-time small { color: var(--lotbi-calendar-muted-ink); font-size: 11px; font-variant-numeric: tabular-nums; }
+.calendar-life-copy { min-width: 0; display: grid; gap: 2px; }
+.calendar-day-event.calendar-life-row .calendar-life-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.calendar-day-event.calendar-life-row .calendar-life-meta {
+  overflow: hidden;
+  color: var(--lotbi-calendar-muted-ink);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-life-row .calendar-event-status { justify-self: start; margin-top: 2px; }
+.calendar-life-amount {
+  padding-top: 1px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.calendar-life-row[data-life-continued="true"] .calendar-life-title { font-weight: 550; }
+.calendar-life-section-label {
+  margin: 10px 0 0;
+  padding: 0 4px;
+  color: var(--lotbi-calendar-muted-ink);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .01em;
+}
+
+/* + 기록 and 사진에서 기록 읽기. */
+.calendar-add-actions .calendar-add-button { min-height: 44px; padding: 8px 14px; font-size: 14px; }
+.calendar-add-actions .calendar-add-detail-button { font-weight: 750; }
+.calendar-action-slot[hidden] { display: none !important; }
+.calendar-action-slot { min-width: 0; display: grid; gap: 6px; }
+.calendar-action-slot .calendar-add-message { margin: 0; }
+.calendar-action-slot[data-calendar-action-bar="inline"] .calendar-add-actions {
+  position: static;
+  justify-content: flex-end;
+  padding-top: 0;
+  background: transparent;
+}
+.calendar-action-slot[data-calendar-action-bar="pinned"] {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  /* No bleed into the parent's gutter: the bar may sit in a surface with none. */
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--lotbi-calendar-grid-line);
+  background: var(--lotbi-surface-primary, var(--lotbi-calendar-sheet-surface, #ffffff));
+  box-shadow: 0 -10px 18px -16px rgba(15, 23, 42, .45);
+}
+.calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-actions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+.calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-button { min-height: 48px; }
+.calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-image-button { flex: 0 0 auto; }
+.calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-detail-button { flex: 1 1 auto; }
+.calendar-day-panel .calendar-add-actions { margin-top: 6px; padding-top: 10px; justify-content: flex-end; }
+
+/* Week: a strip of days, then each day's records. The week's one column is
+   the width it is given (beside the day rail on a desk), never the hour grid's
+   natural width: the hour grid scrolls sideways inside it instead. */
+.calendar-week-agenda { grid-template-columns: minmax(0, 1fr); }
+.calendar-week-timegrid { min-width: 0; }
+.calendar-week-date .calendar-record-dots { display: flex; gap: 3px; justify-content: center; min-height: 5px; }
+.calendar-week-date[data-today="true"] strong { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
+.calendar-week-date[data-holiday="true"] { background: var(--lotbi-calendar-holiday-surface); }
+.calendar-week-date[data-selected="true"] { box-shadow: inset 0 0 0 1.5px var(--lotbi-calendar-today-ring); }
+.calendar-week-layout-toggle { display: flex; justify-content: flex-end; gap: 6px; }
+.calendar-week-layout-option {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.calendar-week-layout-option[aria-pressed="true"] { border-color: currentColor; font-weight: 700; }
+.calendar-week-list { min-width: 0; display: grid; }
+/* The credit line is pinned to the month grid's third row elsewhere; in Week
+   it simply follows the list. */
+.calendar-week-agenda > .calendar-weather-credit { grid-row: auto; }
+/* On a wide screen a day's rows stay a readable length, amounts next to
+   their titles rather than a screen away. */
+@media (min-width: 901px) {
+  .calendar-week-agenda[data-week-layout="list"] > .calendar-week-list,
+  .calendar-agenda-view { max-width: 760px; }
+}
+.calendar-week-day-group {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 12px 0 8px;
+  border-top: 1px solid var(--lotbi-calendar-grid-line);
+  scroll-margin-top: 72px;
+}
+.calendar-week-day-group:first-child { border-top: 0; }
+.calendar-week-day-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.calendar-week-day-heading { margin: 0; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 15px; font-weight: 700; }
+.calendar-week-day-heading:focus { outline: none; }
+.calendar-week-day-group[data-selected="true"] .calendar-week-day-heading { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.calendar-week-day-group > .life-calendar-empty { margin: 0; padding: 2px 4px 4px; color: var(--lotbi-calendar-muted-ink); font-size: 13px; }
+
+/* 목록 */
+.calendar-agenda-day h3[data-today="true"]::after { content: ' · 오늘'; color: var(--lotbi-calendar-muted-ink); font-weight: 600; }
+
+/* Editor, photo confirmation and amount detail share one presentation:
+   a bottom sheet on touch widths, a panel at the right edge on a desk. */
+.calendar-editor-backdrop[data-editor-presentation="SIDE"],
+.calendar-photo-confirm-backdrop[data-editor-presentation="SIDE"],
+.calendar-amount-backdrop[data-editor-presentation="SIDE"] {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 16px;
+}
+.calendar-editor-backdrop[data-editor-presentation="SIDE"] > .calendar-editor-dialog {
+  width: min(440px, 100%);
+  height: auto;
+  max-height: 100%;
+  align-self: stretch;
+}
+.calendar-photo-confirm-backdrop,
+.calendar-amount-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, .34);
+}
+.calendar-photo-confirm-dialog,
+.calendar-amount-dialog {
+  box-sizing: border-box;
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary, var(--lotbi-calendar-sheet-surface, #ffffff));
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  box-shadow: 0 12px 40px rgba(15, 23, 42, .18);
+}
+.calendar-photo-confirm-backdrop[data-editor-presentation="SIDE"] > .calendar-photo-confirm-dialog,
+.calendar-amount-backdrop[data-editor-presentation="SIDE"] > .calendar-amount-dialog { align-self: flex-start; }
+.calendar-photo-confirm-header,
+.calendar-amount-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.calendar-photo-confirm-header h3,
+.calendar-amount-header h3 { margin: 0; font-size: 18px; font-weight: 700; }
+.calendar-photo-confirm-close,
+.calendar-amount-close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+}
+.calendar-photo-confirm-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 12px;
+}
+.calendar-photo-confirm-title { font-size: 17px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.calendar-photo-confirm-amount { margin: 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.calendar-photo-confirm-when,
+.calendar-photo-confirm-where { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 14px; line-height: 1.5; }
+.calendar-photo-confirm-card [data-missing="true"] { color: #a13232; font-weight: 600; }
+.calendar-photo-confirm-note { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 12.5px; line-height: 1.5; }
+.calendar-photo-confirm-error { margin: 0; color: #a13232; font-size: 13px; }
+.calendar-photo-confirm-error[data-hint="true"] { color: var(--lotbi-calendar-muted-ink); }
+.calendar-photo-confirm-error:empty { display: none; }
+.calendar-photo-confirm-actions,
+.calendar-amount-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.calendar-photo-confirm-actions button,
+.calendar-amount-actions button {
+  min-height: 48px;
+  padding: 10px 18px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+}
+.calendar-photo-confirm-save { border-color: var(--brand-navy, #182a46) !important; background: var(--brand-navy, #182a46) !important; color: #fff !important; }
+.calendar-photo-confirm-actions button:disabled { cursor: not-allowed; opacity: .45; }
+
+.calendar-amount-detail { display: grid; gap: 12px; }
+.calendar-amount-detail-scope,
+.calendar-amount-detail-storage,
+.calendar-amount-detail-empty { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 13px; line-height: 1.55; }
+.calendar-amount-detail-currency { display: grid; gap: 6px; }
+.calendar-amount-detail-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--lotbi-calendar-grid-line); }
+.calendar-amount-detail-total strong { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.calendar-amount-detail-rows { display: grid; gap: 0; max-width: none; margin: 0; }
+.calendar-amount-detail-row {
+  display: flex;
+  grid-template-columns: none;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 0;
+}
+.calendar-amount-detail-row dt { color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 14px; }
+.calendar-amount-detail-row dd { margin: 0; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.calendar-amount-detail-row dd small { color: var(--lotbi-calendar-muted-ink); font-size: 12px; font-weight: 500; }
+
+/* The record editor. */
+.calendar-editor-body { gap: 12px; }
+.calendar-editor-date-row { display: grid; gap: 8px; justify-items: start; }
+.calendar-editor-date-chip {
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  /* A content-sized pill: alignment is invisible, and the form reads left. */
+  text-align: left;
+}
+.calendar-editor-date-field { width: 100%; }
+.calendar-editor-date-field[hidden] { display: none; }
+.calendar-editor-date-field > label { display: grid; gap: 6px; font-size: 13px; color: var(--lotbi-calendar-muted-ink); }
+.calendar-editor-body > .calendar-editor-title-field { display: grid; gap: 8px; font-size: 13px; font-weight: 650; color: var(--lotbi-calendar-muted-ink); }
+.calendar-editor-title-field .calendar-editor-title { font-weight: 600; color: var(--lotbi-text-primary, var(--text, #212121)); }
+.calendar-editor-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.calendar-editor-chip {
+  max-width: 100%;
+  min-height: 44px;
+  overflow: hidden;
+  padding: 6px 14px;
+  border: 1px dashed var(--lotbi-calendar-grid-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-editor-chip[data-filled="false"]::before { content: '+ '; color: var(--lotbi-calendar-muted-ink); }
+.calendar-editor-chip[data-filled="true"] { border-style: solid; background: var(--lotbi-calendar-week-selected-surface); font-weight: 650; font-variant-numeric: tabular-nums; }
+.calendar-editor-chip[aria-expanded="true"] { border-style: solid; border-color: var(--lotbi-text-primary, var(--text, #212121)); }
+.calendar-editor-sections { display: grid; gap: 10px; }
+.calendar-editor-sections:not(:has(> .calendar-editor-section:not([hidden]))) { display: none; }
+.calendar-editor-section {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 12px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+.calendar-editor-section[hidden] { display: none !important; }
+.calendar-editor-section.calendar-editor-time-control { grid-template-columns: minmax(0, 1fr); font-size: 13px; font-weight: 650; }
+.calendar-editor-section > label,
+.calendar-editor-end-control > label { display: grid; gap: 6px; font-size: 13px; font-weight: 650; color: var(--lotbi-calendar-muted-ink); }
+.calendar-editor-section-label { color: var(--lotbi-calendar-muted-ink); font-size: 13px; font-weight: 650; }
+.calendar-editor-time-row { display: flex; align-items: center; gap: 8px; }
+.calendar-editor-time-row .calendar-editor-time { width: 120px; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.calendar-editor-time-clear {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--lotbi-calendar-muted-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.calendar-editor-hint { color: var(--lotbi-calendar-muted-ink); font-size: 12px; line-height: 1.5; }
+.calendar-editor-hint[hidden] { display: none; }
+.calendar-editor-end-time:disabled { opacity: .5; }
+.calendar-editor-amount-field { display: grid; gap: 6px; }
+.calendar-editor-amount-box { display: flex; align-items: center; gap: 8px; }
+.calendar-editor-amount-box .calendar-editor-amount { flex: 1 1 auto; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.calendar-editor-amount-unit { flex: 0 0 auto; color: var(--lotbi-calendar-muted-ink); font-size: 15px; }
+.calendar-editor-section.calendar-editor-amount-control .calendar-editor-category-sheet {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.calendar-editor-amount-control .calendar-editor-category-choice[aria-pressed="true"] {
+  border-color: var(--lotbi-text-primary, var(--text, #212121));
+  background: var(--lotbi-calendar-week-selected-surface);
+  font-weight: 700;
+}
+.calendar-editor-note { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 12.5px; line-height: 1.5; }
+
+/* Dark: the base sheet rules paint every day row as a card; a timeline row is
+   a line on the panel's own surface instead. */
+body[data-site-theme="dark"] .calendar-day-event.calendar-life-row { border-color: var(--lotbi-calendar-grid-line); background: transparent; }
+body[data-site-theme="dark"] .calendar-day-event.calendar-life-row:hover { background: var(--lotbi-calendar-week-selected-surface); }
+body[data-site-theme="dark"] .calendar-photo-confirm-save { border-color: #edf0f5 !important; background: #edf0f5 !important; color: #212121 !important; }
+body[data-site-theme="dark"] .calendar-photo-confirm-card [data-missing="true"] { color: #f2a1a1; }
+body[data-site-theme="dark"] .calendar-photo-confirm-error { color: #f2a1a1; }
+body[data-site-theme="dark"] .calendar-action-slot[data-calendar-action-bar="pinned"] { box-shadow: 0 -10px 18px -14px rgba(0, 0, 0, .8); }
+/* A stay is one bar across its days in the dark too: the transparent dark
+   chip would leave only the first day's title and lose the bar. */
+body[data-site-theme="dark"] .calendar-span-chip { background: #2a3546; }
+/* + 기록 is the Calendar's one primary action, and the selected view is where
+   you are. On the dark canvas the brand fill is the canvas colour itself, so
+   both take the light fill dark-theme selections already use. */
+body[data-site-theme="dark"] .calendar-add-actions .calendar-add-detail-button,
+body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-color: #edf0f5; background: #edf0f5; color: #212121; }
+
+/* Desk: the selected day sits beside the month, and beside the week. */
+@media (min-width: 901px) {
+  .calendar-month-layout[data-day-detail="SIDE"][data-detail-open="true"] {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 30%, 380px);
+    gap: 20px;
+  }
+  .calendar-week-layout[data-day-detail="SIDE"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 30%, 380px);
+    gap: 20px;
+    align-items: start;
+  }
+  .calendar-week-layout > .calendar-week-agenda { min-width: 0; }
+  /* A bar has to reach the cell's edges to read as one bar across days; the
+     cell itself still clips, so nothing leaks into a neighbour. */
+  .calendar-event-stack { overflow: visible; }
+  .calendar-day-panel[data-presentation="SIDE"] { padding: 16px; }
+  .calendar-day-panel[data-presentation="SIDE"] .calendar-add-actions { position: sticky; bottom: 0; }
+}
+
+/* The month's cells are as wide as the room beside the day rail allows, not
+   as wide as the screen, so the forecast follows the grid's own width. Under
+   ~96px a cell (a small laptop, a tablet held sideways) shows the glyph
+   alone in its top-right corner; the temperatures are in the day rail. */
+@media (min-width: 601px) {
+  .calendar-month-grid { container: calendar-month / inline-size; }
+}
+@container calendar-month (max-width: 679px) {
+  .calendar-month-grid .calendar-weather-temperature,
+  .calendar-month-grid .calendar-weather-precip { display: none; }
+  /* The date keeps the left; the glyph takes the corner instead of being
+     pushed past the cell's edge by a 44px date button. */
+  .calendar-month-grid .calendar-date-trigger { min-width: 0; padding-inline: 4px; justify-items: start; }
+  .calendar-month-grid .calendar-weather-summary { position: absolute; top: 6px; right: 5px; margin: 0; }
+  .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { display: inline-flex; align-items: center; justify-content: center; }
+}
+@container calendar-month (max-width: 519px) {
+  .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
+}
+
+/* Any cell wide enough for titles (tablet and desk, ~100px): the glyph keeps
+   its full size and the forecast stacks -- glyph, then one "min/max" line --
+   so it fits beside the date instead of being clipped by the cell. */
+@media (min-width: 601px) {
+  .calendar-month-grid .calendar-weather-summary { grid-template-columns: auto; justify-items: end; align-items: start; gap: 0; }
+  .calendar-month-grid .calendar-weather-temperature { width: auto; height: auto; font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .calendar-month-grid .calendar-weather-temperature > span { position: static; transform: none; }
+  .calendar-month-grid .calendar-weather-temperature-separator { margin-inline: 1px; font-size: 10px; }
+  .calendar-month-grid .calendar-weather-temperature-value { padding-top: 0; }
+  .calendar-month-grid .calendar-weather-precip { grid-column: 1; font-size: 9px; }
+  /* 확인 필요 moves to the cell's lower corner so it never fights the forecast
+     for the top row; the date button's label still says it in words. */
+  .calendar-month-grid .calendar-date-cell { position: relative; }
+  .calendar-month-grid .calendar-attention-marker { position: absolute; right: 5px; bottom: 4px; max-width: calc(100% - 10px); margin: 0; font-size: 10px; }
+}
+
+/* Touch widths: one scroll, a slimmer toolbar, the day under the month. */
+@media (max-width: 900px) {
+  .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px auto 44px; }
+  .calendar-settings-button { width: 44px; min-width: 44px; padding-inline: 0; }
+  .calendar-settings-label { display: none; }
+  .calendar-mode-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .calendar-day-panel[data-presentation="FLOW"] {
+    margin-top: 6px;
+    padding: 14px 4px 6px;
+    border: 0;
+    border-top: 1px solid var(--lotbi-calendar-grid-line);
+    border-radius: 0;
+    background: transparent;
+  }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event.calendar-life-row { min-height: 52px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event.calendar-life-row .calendar-life-title { font-size: 15px; }
+  .calendar-event-stack { display: grid; }
+  .calendar-date-cell { min-height: 96px; }
+  /* A busy week must not make its row taller than the others: every week row
+     takes the height of the tallest (the grid's height is its content's). */
+  .calendar-month-grid { grid-auto-rows: 1fr; }
+  .calendar-toast-host { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+
+  .calendar-editor-backdrop[data-editor-presentation="SHEET"],
+  .calendar-photo-confirm-backdrop[data-editor-presentation="SHEET"],
+  .calendar-amount-backdrop[data-editor-presentation="SHEET"] {
+    top: var(--calendar-editor-visual-top, 0px);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    height: var(--calendar-editor-visual-height, 100dvh);
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+  .calendar-editor-backdrop[data-editor-presentation="SHEET"] > .calendar-editor-dialog,
+  .calendar-photo-confirm-backdrop[data-editor-presentation="SHEET"] > .calendar-photo-confirm-dialog,
+  .calendar-amount-backdrop[data-editor-presentation="SHEET"] > .calendar-amount-dialog {
+    width: min(100%, 640px);
+    height: auto;
+    max-height: calc(var(--calendar-editor-visual-height, 100dvh) - 12px);
+    align-self: flex-end;
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+  }
+  .calendar-editor-backdrop[data-editor-presentation="SHEET"] .calendar-editor-actions {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .calendar-photo-confirm-backdrop[data-editor-presentation="SHEET"] > .calendar-photo-confirm-dialog,
+  .calendar-amount-backdrop[data-editor-presentation="SHEET"] > .calendar-amount-dialog {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  /* Within thumb's reach: the two answers split the sheet's width. */
+  .calendar-photo-confirm-backdrop[data-editor-presentation="SHEET"] .calendar-photo-confirm-actions button,
+  .calendar-amount-backdrop[data-editor-presentation="SHEET"] .calendar-amount-actions button { flex: 1 1 0; }
+}
+
+/* Phones: seven cells of date + dots, each cell one target. */
+@media (max-width: 600px) {
+  .calendar-event-stack { display: none; }
+  .calendar-mobile-event-count { display: none !important; }
+  .calendar-holiday-label { display: none; }
+  .calendar-date-cell { min-height: 52px; gap: 0; padding: 0; }
+  .calendar-date-header {
+    position: relative;
+    min-height: 0;
+    display: block;
+  }
+  .calendar-date-trigger {
+    width: 100%;
+    min-width: 0;
+    min-height: 52px;
+    display: grid;
+    grid-template-rows: auto auto;
+    justify-items: start;
+    align-content: start;
+    gap: 5px;
+    justify-self: stretch;
+    padding: 7px 0 6px 6px;
+    border-radius: 0;
+  }
+  .calendar-date-number { font-size: 15px; line-height: 1.2; }
+  .calendar-date-lunar { font-size: 8px; }
+  .calendar-record-dots { display: flex; gap: 3px; justify-content: flex-start; min-height: 5px; }
+  .calendar-weather-summary {
+    position: absolute;
+    top: 6px;
+    right: 4px;
+    display: block;
+    margin: 0;
+    pointer-events: none;
+  }
+  /* The legibility floor for the glyph on a phone. An emoji draws about 1.4em
+     wide, so it is centred on its 15px box: what spills, spills evenly, and
+     Saturday's glyph is not clipped by the grid's edge. */
+  .calendar-weather-summary > .calendar-weather-icon {
+    width: 15px;
+    height: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    line-height: 15px;
+  }
+  .calendar-weather-temperature,
+  .calendar-weather-precip { display: none; }
+  .calendar-attention-marker { top: auto; bottom: 4px; right: 4px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event.calendar-life-row {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .calendar-editor-body { padding: 14px 16px; }
+  .calendar-editor-header { padding: 14px 16px 10px; }
+  .calendar-editor-actions { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 380px) {
+  .calendar-day-event.calendar-life-row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px; }
+  .calendar-add-actions .calendar-add-button { padding-inline: 10px; font-size: 13px; }
+  /* The month name must stay whole on a folded phone; the button's own
+     label still says it opens the year. */
+  .calendar-title-button::after { display: none; }
+  .calendar-toolbar .calendar-title-button { padding-inline: 2px; font-size: 15px; }
+}
+@media (max-width: 350px) {
+  /* ~43px cells: the date and its dots first; the forecast stays in the day
+     panel, where there is room for it. */
+  .calendar-weather-summary { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-week-day-group { scroll-behavior: auto; }
+}
+
 /* BEGIN GENERATED: system-dark mirror -- scripts/generate_calendar_system_dark.mjs */
 /* Do not edit by hand. Run the generator; the validator fails on drift. */
 @media (prefers-color-scheme: dark) {
@@ -2166,5 +2846,23 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-deep-open-notice { border-color: #46515f;
   background: #222936;
   color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .calendar-day-event.calendar-life-row,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-event.calendar-life-row { border-color: var(--lotbi-calendar-grid-line); background: transparent; }
+  body[data-site-theme="system"] .calendar-day-event.calendar-life-row:hover,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-event.calendar-life-row:hover { background: var(--lotbi-calendar-week-selected-surface); }
+  body[data-site-theme="system"] .calendar-photo-confirm-save,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-photo-confirm-save { border-color: #edf0f5 !important; background: #edf0f5 !important; color: #212121 !important; }
+  body[data-site-theme="system"] .calendar-photo-confirm-card [data-missing="true"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-photo-confirm-card [data-missing="true"] { color: #f2a1a1; }
+  body[data-site-theme="system"] .calendar-photo-confirm-error,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-photo-confirm-error { color: #f2a1a1; }
+  body[data-site-theme="system"] .calendar-action-slot[data-calendar-action-bar="pinned"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-action-slot[data-calendar-action-bar="pinned"] { box-shadow: 0 -10px 18px -14px rgba(0, 0, 0, .8); }
+  body[data-site-theme="system"] .calendar-span-chip,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-span-chip { background: #2a3546; }
+  body[data-site-theme="system"] .calendar-add-actions .calendar-add-detail-button,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-add-actions .calendar-add-detail-button,
+  body[data-site-theme="system"] .calendar-mode-tab[aria-selected="true"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-mode-tab[aria-selected="true"] { border-color: #edf0f5; background: #edf0f5; color: #212121; }
 }
 /* END GENERATED: system-dark mirror */

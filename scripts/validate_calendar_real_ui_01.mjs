@@ -73,14 +73,14 @@ assert.ok(holidayCall, 'month view must load Korea public holidays');
 assert.match(holidayCall, /year=2026&country=KR/);
 assert.equal(month.holidays[0].name, '추석');
 assert.deepEqual(month.attention, []);
-assert.equal(buildCalendarAriaLabel({date: '2026-09-20', weekday: 0}, 2), '2026년 9월 20일 일요일, 일정 2개');
+assert.equal(buildCalendarAriaLabel({date: '2026-09-20', weekday: 0}, 2), '2026년 9월 20일 일요일, 기록 2개');
 assert.equal(
   buildCalendarAriaLabel(
     {date: '2026-09-20', weekday: 0},
     2,
     {today: true, selected: true, attention: true, holiday: {name: '테스트 공휴일'}},
   ),
-  '2026년 9월 20일 일요일, 일정 2개, 오늘, 선택됨, 확인 필요 일정 있음, 대한민국 공휴일 테스트 공휴일',
+  '2026년 9월 20일 일요일, 기록 2개, 오늘, 선택됨, 확인 필요 일정 있음, 대한민국 공휴일 테스트 공휴일',
 );
 assert.deepEqual(countCalendarEventsByMonth([
   {local_date: '2026-01-02'}, {local_date: '2026-01-30'}, {local_date: '2026-09-20'}, {local_date: '2025-09-20'},
@@ -120,8 +120,8 @@ assert.ok(manager.includes('calendar-year-event-count'), 'year overview must ren
 for (const token of [
   'calendar-delete-confirm-backdrop',
   'calendar-delete-confirm-dialog',
-  '이 일정을 삭제하시겠습니까?',
-  '삭제한 일정은 복구할 수 없습니다.',
+  '이 기록을 삭제하시겠습니까?',
+  '삭제한 기록은 복구할 수 없습니다.',
   "button('취소', 'calendar-delete-confirm-cancel')",
   "button('삭제', 'calendar-delete-confirm-submit')",
   'if (deleteRequestInFlight) return',

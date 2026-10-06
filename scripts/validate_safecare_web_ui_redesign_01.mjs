@@ -508,7 +508,7 @@ async function run() {
           label: document.querySelector('.pet-draft-progress-label').textContent,
           slots: document.querySelectorAll('[data-pet-draft-slot]').length,
           guide: document.querySelector('[data-safecare-guide]')?.dataset.safecareGuide || '',
-          character: document.querySelector('.safecare-guide-character')?.textContent || '',
+          artwork: document.querySelector('.safecare-guide-art')?.getAttribute('src') || '',
           counter: document.querySelector('[data-safecare-photo-count]')?.textContent || '',
           firstOpen: document.querySelector('[data-pet-draft-slot="FACE_FRONT"]')?.dataset.petDraftSlotLocked,
           nextDisabled: document.querySelector('[data-pet-draft-next="REVIEW"]')?.disabled,
@@ -616,7 +616,7 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 사진 10장');
   assert.equal(r.petRegisterPhotos.slots, 10);
   assert.equal(r.petRegisterPhotos.guide, 'dog');
-  assert.equal(r.petRegisterPhotos.character, '🐶');
+  assert.equal(r.petRegisterPhotos.artwork, 'assets/safecare/dog-capture-guide-v1.png');
   assert.ok(r.petRegisterPhotos.counter.startsWith('등록 완료 0 / 10 · 남은 사진 10장'));
   assert.equal(r.petRegisterPhotos.firstOpen, 'false');
   assert.equal(r.petRegisterPhotos.nextDisabled, true);

@@ -1,19 +1,31 @@
-// Locks 이미지로 등록 — the picture-to-draft path on the Calendar day panel.
+// Locks 사진에서 기록 읽기 — the picture-to-draft path on the Calendar.
 //
 // The rule the 대표 set is that LOTBI never saves by itself: a picture becomes a
 // draft the owner looks at and presses save on. So the assertions here are as
 // much about what must NOT happen as about what must.
 //
+// LIFE UX 01: the draft first appears as a short confirmation card ("사진에서
+// 읽었어요" · what was legible · [수정] [저장]) instead of the full form; 수정
+// opens the full editor prefilled, 저장 writes exactly once. The photo itself is
+// never kept, and the card says so.
+//
 // Covered contracts:
+//   - the day's actions read 사진에서 기록 읽기 then + 기록, each with its own hook
 //   - the attachment id the upload returned is the one sent to the conversation
 //     route (it is `id` on that contract, and reading the wrong key silently
 //     sent an empty attachment list)
 //   - the message text is the canonical phrase Core's calendar-draft gate needs
-//   - the draft opens the editor prefilled, and NOTHING is written: no POST or
-//     PATCH to any activity route anywhere in the flow
-//   - a response carrying no draft says so and leaves the editor closed
-//   - a refused upload asks the owner to sign in again rather than failing mute
-//   - a signed-out owner is told to sign in before any network call is made
+//   - the draft opens the confirmation card with what was legible, and NOTHING
+//     is written: no POST or PATCH to any activity route anywhere in the flow
+//     until the owner presses 저장
+//   - 수정 opens the editor prefilled with every field the draft carried, and a
+//     field it did not carry stays blank
+//   - 저장 on the card writes exactly one record with the draft's values
+//   - a response carrying no draft, or a photo that is not a transaction, says
+//     so and opens nothing
+//   - a refused upload points at + 기록 rather than a login screen
+//   - a signed-out owner is told to sign in before any network call is made,
+//     and that + 기록 still works without signing in
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -46,11 +58,11 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <script type="module">
 const out=document.getElementById('image-result');
 let stage='init';
-setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},35000);
+setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},40000);
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
 const settledImageMessage=root=>{
   const message=root.querySelector('[data-calendar-add-message]');
-  return message&&message.textContent!=='이미지에서 일정을 읽는 중…'?message:null;
+  return message&&message.textContent&&!message.textContent.includes('읽는 중')?message:null;
 };
 const json=body=>new Promise(resolve=>setTimeout(()=>resolve(new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}})),80));
 
@@ -59,6 +71,12 @@ const DRAFT={contract_id:'CORE-SMART-CALENDAR-DRAFT-01',schema_version:1,
   title:'야놀자 호텔 예약',local_date:'2026-09-26',local_time:'15:00',
   entry:{amount_minor:208320,currency:'KRW',expense_category:'TRAVEL',
     memo:null,place:'제주 호텔',merchant:'NOL'},
+  source_attachment_ids:['att_aaaabbbbccccddddeeee']};
+// A family photo: Core reads it honestly as nothing to record.
+const NOT_A_TRANSACTION={contract_id:'CORE-SMART-CALENDAR-DRAFT-01',schema_version:1,
+  source_kind:'ATTACHMENT_AI_DRAFT',requires_user_confirmation:true,automatic_write:false,
+  title:null,local_date:null,local_time:null,document_kind:'NOT_A_TRANSACTION',
+  entry:{amount_minor:null,currency:null,expense_category:null,memo:null,place:null,merchant:null},
   source_attachment_ids:['att_aaaabbbbccccddddeeee']};
 
 // The id the upload hands back. The conversation call must quote THIS value.
@@ -82,6 +100,13 @@ function stubFetch({uploadStatus=200,draft=DRAFT}={}){
         retry_safe:true,follow_up:{required:false},intent:{action:'UNKNOWN'},
         calendar_draft:draft});
     }
+    if(parsed.pathname==='/v2/life/activities'&&(init.method||'GET').toUpperCase()==='POST'){
+      const body=JSON.parse(init.body);
+      return Promise.resolve(new Response(JSON.stringify({activity_id:'activity_0123456789abcdef0123456789abcdef',occurrence_id:'occurrence_0123456789abcdef0123456789abcdef',
+        activity_revision:1,occurrence_revision:1,title:body.title,activity_state:'ACTIVE',temporal:body.temporal,
+        entry:body.entry||null,temporal_semantics:'USER_PLANNED_TIME',busy:'UNKNOWN',confirmation_level:'USER_ATTESTED',provider_verified:false,read_your_writes:true}),
+        {status:201,headers:{'Content-Type':'application/json'}}));
+    }
     if(parsed.pathname==='/v2/life/agenda')return json({view:'AGENDA',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',coverage:'PERSONAL_ACTIVITY_ONLY',items:[],ai_calls:0,provider_api_calls:0});
     if(parsed.pathname==='/v2/life/attention')return json({view:'ATTENTION',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',coverage:'PERSONAL_ACTIVITY_ONLY',items:[],ai_calls:0,provider_api_calls:0});
     if(parsed.pathname==='/v2/life/expense-summary')return json({view:'EXPENSE_SUMMARY',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',start_date:'2026-09-01',end_date:'2026-09-30',coverage:'RECORDED_CALENDAR_ENTRIES_ONLY',currencies:[],entries_without_amount:0,ai_calls:0,provider_api_calls:0});
@@ -91,8 +116,13 @@ function stubFetch({uploadStatus=200,draft=DRAFT}={}){
   impl.calls=calls;
   return impl;
 }
+// Any POST/PATCH/PUT/DELETE on an activity route is a save.
+const writesOf=fetchImpl=>fetchImpl.calls
+  .filter(c=>['POST','PATCH','PUT','DELETE'].includes(c.method)&&c.path.includes('/activities'))
+  .map(c=>c.method+' '+c.path);
 
 async function mountCase(manager,{sessionToken,fetchImpl}){
+  document.querySelectorAll('.calendar-photo-confirm-backdrop,.calendar-editor-backdrop').forEach(node=>node.remove());
   const root=document.getElementById('calendar-root');
   root.replaceChildren();
   manager.mountLifeCalendarManager({
@@ -113,6 +143,8 @@ function dropImage(root){
   picker.files=transfer.files;
   picker.dispatchEvent(new Event('change',{bubbles:true}));
 }
+const card=()=>document.querySelector('.calendar-photo-confirm-dialog');
+const editorDialog=()=>document.querySelector('.calendar-editor-dialog');
 
 try{
   localStorage.clear();
@@ -123,7 +155,7 @@ try{
   const manager=await import('/site-calendar-manager.js?v=20260924-mapdeeplink1');
   const result={ok:true};
 
-  // --- the happy path --------------------------------------------------
+  // --- the happy path: a confirmation card, nothing saved ---------------
   const happy=stubFetch();
   let root=await mountCase(manager,{sessionToken:'tok_image_fixture',fetchImpl:happy});
   await wait(()=>root.querySelector('[data-calendar-add-image]'),'add-image button');
@@ -137,47 +169,72 @@ try{
 
   addImage.click();
   dropImage(root);
-
-  await wait(()=>document.querySelector('.calendar-editor-dialog')||settledImageMessage(root),'editor or settled message');
+  await wait(()=>card()||editorDialog()||settledImageMessage(root),'card, editor or settled message');
 
   const uploadCall=happy.calls.find(c=>c.method==='POST'&&c.path.endsWith('/attachments'));
-  const chatCall=happy.calls.find(c=>c.method==='POST'&&!c.path.endsWith('/attachments'));
+  const chatCall=happy.calls.find(c=>c.method==='POST'&&c.path.endsWith('/messages'));
   result.uploaded=Boolean(uploadCall);
   result.chatCalled=Boolean(chatCall);
   const chatBody=chatCall?JSON.parse(chatCall.body):null;
   result.sentAttachmentIds=chatBody?.attachment_ids||null;
   result.sentText=chatBody?.text||'';
 
-  // Nothing may be written. Any POST/PATCH/PUT/DELETE on an activity route is a
-  // silent save, which is the one thing this feature must never do.
-  result.writes=happy.calls
-    .filter(c=>['POST','PATCH','PUT','DELETE'].includes(c.method)&&c.path.includes('/activities'))
-    .map(c=>c.method+' '+c.path);
+  result.cardOpened=Boolean(card());
+  result.editorBeforeCard=Boolean(editorDialog());
+  if(card()){
+    const c=card();
+    const text=cls=>c.querySelector('.calendar-photo-confirm-'+cls)?.textContent||'';
+    result.card={heading:c.querySelector('#calendar-photo-confirm-heading')?.textContent||'',
+      title:text('title'),amount:text('amount'),when:text('when'),where:text('where'),note:text('note'),
+      buttons:[...c.querySelectorAll('.calendar-photo-confirm-actions button')].map(n=>n.textContent),
+      saveEnabled:!c.querySelector('.calendar-photo-confirm-save')?.disabled};
+    await new Promise(r=>setTimeout(r,30));
+    result.card.focusOnSave=document.activeElement===c.querySelector('.calendar-photo-confirm-save');
+  }
+  result.writesAtCard=writesOf(happy);
 
-  const dialog=document.querySelector('.calendar-editor-dialog, dialog[data-calendar-editor], .calendar-editor')
-    ||root.querySelector('.calendar-editor-dialog, dialog[data-calendar-editor], .calendar-editor');
-  result.editorOpened=Boolean(dialog);
-  if(dialog){
+  // 수정: the full editor, prefilled with every field the draft carried.
+  card()?.querySelector('.calendar-photo-confirm-edit')?.click();
+  await wait(()=>editorDialog(),'editor from 수정');
+  {
+    const dialog=editorDialog();
     const val=cls=>dialog.querySelector('.calendar-editor-'+cls)?.value??null;
     result.prefill={
       title:val('title'),date:val('date'),time:val('time'),
-      amount:val('amount'),category:val('category'),
+      amount:String(val('amount')??'').replace(/,/g,''),category:val('category'),
       place:val('place'),merchant:val('merchant'),memo:val('memo'),
-      allDay:dialog.querySelector('.calendar-editor-all-day input')?.checked??null,
     };
+    result.cardGone=!card();
     result.heading=dialog.querySelector('#calendar-editor-heading')?.textContent||'';
     result.categoryOptions=[...dialog.querySelectorAll('.calendar-editor-category option')].map(o=>o.textContent);
   }
+  result.writesAtEditor=writesOf(happy);
 
-  // --- a response with no draft ----------------------------------------
-  const noDraft=stubFetch({draft:null});
-  root=await mountCase(manager,{sessionToken:'tok_image_fixture',fetchImpl:noDraft});
-  await wait(()=>root.querySelector('[data-calendar-add-image]'),'add-image button 2');
+  // --- 저장 on the card writes exactly once, with the draft's values -----
+  const saving=stubFetch();
+  root=await mountCase(manager,{sessionToken:'tok_image_fixture',fetchImpl:saving});
+  await wait(()=>root.querySelector('[data-calendar-add-image]'),'add-image button save');
   root.querySelector('[data-calendar-add-image]').click();
   dropImage(root);
-  await wait(()=>settledImageMessage(root),'no-draft message');
-  result.noDraftText=root.querySelector('[data-calendar-add-message]')?.textContent||'';
-  result.noDraftEditorOpened=Boolean(document.querySelector('.calendar-editor-dialog, dialog[data-calendar-editor], .calendar-editor'));
+  await wait(()=>card(),'card for save');
+  card().querySelector('.calendar-photo-confirm-save').click();
+  await wait(()=>!card()&&writesOf(saving).length>0,'card saved');
+  await new Promise(r=>setTimeout(r,200));
+  const saved=saving.calls.filter(c=>c.method==='POST'&&c.path==='/v2/life/activities').map(c=>JSON.parse(c.body));
+  result.savedWrites=writesOf(saving);
+  result.savedBody=saved[0]?{title:saved[0].title,temporal:saved[0].temporal,entry:saved[0].entry}:null;
+
+  // --- a response with no draft ----------------------------------------
+  for(const [key,draft] of [['noDraft',null],['notTransaction',NOT_A_TRANSACTION]]){
+    const fetchImpl=stubFetch({draft});
+    root=await mountCase(manager,{sessionToken:'tok_image_fixture',fetchImpl});
+    await wait(()=>root.querySelector('[data-calendar-add-image]'),'add-image button '+key);
+    root.querySelector('[data-calendar-add-image]').click();
+    dropImage(root);
+    await wait(()=>settledImageMessage(root),key+' message');
+    result[key]={text:root.querySelector('[data-calendar-add-message]')?.textContent||'',
+      opened:Boolean(card()||editorDialog()),writes:writesOf(fetchImpl)};
+  }
 
   // --- a refused upload (403: the route, not the session) ---------------
   const refused=stubFetch({uploadStatus:403});
@@ -187,7 +244,7 @@ try{
   dropImage(root);
   await wait(()=>settledImageMessage(root),'refused message');
   result.refusedText=root.querySelector('[data-calendar-add-message]')?.textContent||'';
-  result.refusedAskedChat=refused.calls.some(c=>c.method==='POST'&&!c.path.endsWith('/attachments'));
+  result.refusedAskedChat=refused.calls.some(c=>c.method==='POST'&&c.path.endsWith('/messages'));
   // A 403 is this route being refused, never evidence the session died: the
   // month must still be standing behind the message.
   result.refusedCalendarStanding=Boolean(root.querySelector('.calendar-month'));
@@ -198,12 +255,12 @@ try{
   await wait(()=>root.querySelector('[data-calendar-add-image]'),'add-image button 4');
   const guestCallsBefore=guest.calls.length;
   root.querySelector('[data-calendar-add-image]').click();
-  await wait(()=>root.querySelector('[data-calendar-add-message]'),'guest message');
+  await wait(()=>settledImageMessage(root),'guest message');
   result.guestText=root.querySelector('[data-calendar-add-message]')?.textContent||'';
   result.guestMadeNoCall=guest.calls.length===guestCallsBefore;
 
   out.textContent=JSON.stringify(result);
-}catch(e){const r=document.getElementById('calendar-root');out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),diag:{status:r?.querySelector('.calendar-status')?.textContent||''}})}
+}catch(e){const r=document.getElementById('calendar-root');out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),diag:{status:r?.querySelector('.calendar-status')?.textContent||'',message:r?.querySelector('[data-calendar-add-message]')?.textContent||''}})}
 </script></body></html>`;
 
 function waitServer() {
@@ -245,68 +302,81 @@ try {
   for (const [w, h] of [[390, 844], [1280, 900]]) {
     const v = run(browser, w, h);
     const label = `${w}x${h}`;
+    const fail = message => { throw new Error(`${label}: ${message}`); };
 
-    // 자세히 went back to 직접 등록 when the title box left the panel: with no
-    // box to type in, this button IS how an entry is written by hand. The
-    // picture route keeps its name and its place in front of it.
-    if (v.buttonOrder.join('|') !== '사진에서 일정 추가|+ 일정 추가') {
-      throw new Error(`${label}: the day panel must offer 사진에서 일정 추가 then + 일정 추가, got ${v.buttonOrder.join('|')}`);
-    }
-    if (!v.plainButtonPresent) throw new Error(`${label}: the full-form button must keep its own data hook`);
-    if (!v.pickerHidden) throw new Error(`${label}: the file input must stay hidden`);
-    if (!v.pickerAcceptsImages.includes('image/')) throw new Error(`${label}: the file input must ask for images, got "${v.pickerAcceptsImages}"`);
+    // Two ways in, picture first; the plain one opens the editor directly.
+    if (v.buttonOrder.join('|') !== '사진에서 기록 읽기|+ 기록') fail(`the day's actions must read 사진에서 기록 읽기 then + 기록, got ${v.buttonOrder.join('|')}`);
+    if (!v.plainButtonPresent) fail('+ 기록 must keep its own data hook');
+    if (!v.pickerHidden) fail('the file input must stay hidden');
+    if (!v.pickerAcceptsImages.includes('image/')) fail(`the file input must ask for images, got "${v.pickerAcceptsImages}"`);
 
-    if (!v.uploaded) throw new Error(`${label}: choosing a picture must upload it`);
-    if (!v.chatCalled) throw new Error(`${label}: the upload must be followed by a draft request`);
-
+    if (!v.uploaded) fail('choosing a picture must upload it');
+    if (!v.chatCalled) fail('the upload must be followed by a draft request');
     // The bug this test exists for: the upload contract names the id `id`, and
     // reading `attachmentId` off it sent [undefined] — an empty attachment list.
-    if (!Array.isArray(v.sentAttachmentIds) || v.sentAttachmentIds.length !== 1) {
-      throw new Error(`${label}: exactly one attachment id must be sent, got ${JSON.stringify(v.sentAttachmentIds)}`);
-    }
-    if (v.sentAttachmentIds[0] !== 'att_aaaabbbbccccddddeeee') {
-      throw new Error(`${label}: the id the upload returned must be the id sent, got ${JSON.stringify(v.sentAttachmentIds[0])}`);
-    }
+    if (!Array.isArray(v.sentAttachmentIds) || v.sentAttachmentIds.length !== 1) fail(`exactly one attachment id must be sent, got ${JSON.stringify(v.sentAttachmentIds)}`);
+    if (v.sentAttachmentIds[0] !== 'att_aaaabbbbccccddddeeee') fail(`the id the upload returned must be the id sent, got ${JSON.stringify(v.sentAttachmentIds[0])}`);
     // Core only builds a calendar draft when the message names the calendar and
     // an add action. Losing either word turns this into an ordinary chat turn.
-    if (!/캘린더|달력|일정/.test(v.sentText) || !/추가|등록|저장/.test(v.sentText)) {
-      throw new Error(`${label}: the message must ask Core for a calendar entry, got "${v.sentText}"`);
-    }
+    if (!/캘린더|달력|일정/.test(v.sentText) || !/추가|등록|저장/.test(v.sentText)) fail(`the message must ask Core for a calendar entry, got "${v.sentText}"`);
 
-    if (v.writes.length) throw new Error(`${label}: nothing may be saved before the owner presses save, but the flow made ${v.writes.join(', ')}`);
-    if (!v.editorOpened) throw new Error(`${label}: the draft must open the editor for review`);
-    // Field by field, what a picture is allowed to fill in. The draft carried
-    // every one of these, so every one must arrive — a draft that silently
-    // dropped the amount would look like an entry the owner chose to leave blank.
+    // The card: what was legible, the photo is not kept, nothing saved yet.
+    if (!v.cardOpened || v.editorBeforeCard) fail('a legible draft must open the confirmation card first, not the full form');
+    const card = v.card;
+    if (card.heading !== '사진에서 읽었어요') fail(`the card must say where it came from, got "${card.heading}"`);
+    if (card.title !== '야놀자 호텔 예약') fail(`the card must show the title read, got "${card.title}"`);
+    if (card.amount !== '208,320원') fail(`the card must show the amount read, got "${card.amount}"`);
+    if (card.when !== '여행 · 9월 26일 토요일 15:00') fail(`the card must show category and when, got "${card.when}"`);
+    if (card.where !== '제주 호텔 · NOL') fail(`the card must show where, got "${card.where}"`);
+    if (card.note !== '사진 자체는 캘린더에 저장되지 않아요.') fail(`the card must say the photo is not kept, got "${card.note}"`);
+    if (card.buttons.join('|') !== '수정|저장' || !card.saveEnabled) fail(`the card must offer 수정 and an enabled 저장, got ${card.buttons.join('|')}`);
+    if (!card.focusOnSave) fail('a complete draft must put focus on 저장');
+    if (v.writesAtCard.length) fail(`nothing may be saved before the owner presses 저장, but the flow made ${v.writesAtCard.join(', ')}`);
+
+    // 수정: the editor, field by field, with what a picture is allowed to fill in.
+    if (!v.cardGone) fail('수정 must replace the card with the editor');
     const expected = {
       title: '야놀자 호텔 예약', date: '2026-09-26', time: '15:00',
       amount: '208320', category: 'TRAVEL', place: '제주 호텔', merchant: 'NOL',
     };
     for (const [field, want] of Object.entries(expected)) {
-      if (String(v.prefill[field] ?? '') !== want) {
-        throw new Error(`${label}: the editor must open with ${field}="${want}", got ${JSON.stringify(v.prefill[field])}`);
-      }
+      if (String(v.prefill[field] ?? '') !== want) fail(`the editor must open with ${field}="${want}", got ${JSON.stringify(v.prefill[field])}`);
     }
-    // The draft carried no memo. A blank stays blank: nothing is invented to
-    // fill the field in.
-    if (v.prefill.memo) throw new Error(`${label}: a field the picture did not carry must stay blank, got memo=${JSON.stringify(v.prefill.memo)}`);
-    if (!/확인|초안/.test(v.heading)) throw new Error(`${label}: the editor must announce itself as a draft to check, got "${v.heading}"`);
-    if (!v.categoryOptions.includes('기타')) throw new Error(`${label}: the draft editor must offer 기타, got ${v.categoryOptions.join('/')}`);
+    // The draft carried no memo. A blank stays blank: nothing is invented.
+    if (v.prefill.memo) fail(`a field the picture did not carry must stay blank, got memo=${JSON.stringify(v.prefill.memo)}`);
+    if (!/확인|초안/.test(v.heading)) fail(`the editor must announce itself as a draft to check, got "${v.heading}"`);
+    if (!v.categoryOptions.includes('기타')) fail(`the draft editor must offer 기타, got ${v.categoryOptions.join('/')}`);
+    if (v.writesAtEditor.length) fail(`opening the editor must not save, but the flow made ${v.writesAtEditor.join(', ')}`);
 
-    if (!v.noDraftText) throw new Error(`${label}: a response with no draft must say so`);
-    if (v.noDraftEditorOpened) throw new Error(`${label}: a response with no draft must not open an empty editor`);
+    // 저장 on the card: exactly one write, with the draft's values.
+    if (v.savedWrites.length !== 1) fail(`저장 must write exactly once, got ${JSON.stringify(v.savedWrites)}`);
+    const body = v.savedBody;
+    if (body?.title !== '야놀자 호텔 예약') fail(`the saved title must be the draft's, got ${JSON.stringify(body?.title)}`);
+    if (JSON.stringify(body?.temporal || {}).indexOf('2026-09-26T15:00') < 0) fail(`the saved time must be the draft's, got ${JSON.stringify(body?.temporal)}`);
+    if (body?.entry?.amount_minor !== 208320 || body?.entry?.expense_category !== 'TRAVEL' || body?.entry?.place !== '제주 호텔' || body?.entry?.merchant !== 'NOL') {
+      fail(`the saved entry must be the draft's, got ${JSON.stringify(body?.entry)}`);
+    }
 
-    if (!/직접 등록/.test(v.refusedText)) throw new Error(`${label}: a refused upload must point at the manual way in, got "${v.refusedText}"`);
-    if (/로그인/.test(v.refusedText)) throw new Error(`${label}: a 403 is the route, not the session — it must not send the owner to a login screen, got "${v.refusedText}"`);
-    if (v.refusedAskedChat) throw new Error(`${label}: a refused upload must not go on to ask for a draft`);
-    if (!v.refusedCalendarStanding) throw new Error(`${label}: a 403 must leave the month grid standing`);
+    for (const key of ['noDraft', 'notTransaction']) {
+      const state = v[key];
+      if (!/찾지 못했어요/.test(state.text) || !/\+ 기록/.test(state.text)) fail(`${key}: nothing legible must be said, with + 기록 as the way on, got "${state.text}"`);
+      if (!/저장되지 않아요/.test(state.text)) fail(`${key}: the message must say the photo is not kept, got "${state.text}"`);
+      if (state.opened) fail(`${key}: nothing legible must not open a card or an empty editor`);
+      if (state.writes.length) fail(`${key}: nothing may be written, got ${state.writes.join(', ')}`);
+    }
 
-    if (!/로그인/.test(v.guestText)) throw new Error(`${label}: a signed-out owner must be asked to sign in, got "${v.guestText}"`);
-    if (!v.guestMadeNoCall) throw new Error(`${label}: a signed-out owner must not reach the network`);
+    if (!/\+ 기록/.test(v.refusedText) || !/직접/.test(v.refusedText)) fail(`a refused upload must point at + 기록, got "${v.refusedText}"`);
+    if (/로그인/.test(v.refusedText)) fail(`a 403 is the route, not the session — it must not send the owner to a login screen, got "${v.refusedText}"`);
+    if (v.refusedAskedChat) fail('a refused upload must not go on to ask for a draft');
+    if (!v.refusedCalendarStanding) fail('a 403 must leave the month grid standing');
 
-    console.log(label, JSON.stringify({attachment: v.sentAttachmentIds, text: v.sentText, heading: v.heading, prefill: v.prefill}));
+    if (!/로그인/.test(v.guestText)) fail(`a signed-out owner must be asked to sign in, got "${v.guestText}"`);
+    if (!/로그인 없이도/.test(v.guestText)) fail(`a signed-out owner must hear that + 기록 works without signing in, got "${v.guestText}"`);
+    if (!v.guestMadeNoCall) fail('a signed-out owner must not reach the network');
+
+    console.log(label, JSON.stringify({attachment: v.sentAttachmentIds, text: v.sentText, card: v.card, heading: v.heading, prefill: v.prefill}));
   }
-  console.log('LOTBI Calendar 이미지로 등록: PASS');
+  console.log('LOTBI Calendar 사진에서 기록 읽기: PASS');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

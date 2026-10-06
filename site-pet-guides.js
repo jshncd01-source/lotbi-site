@@ -204,10 +204,26 @@ export function petPhotoSlotDiagram(slotCode, species) {
     'aria-hidden': 'true',
     focusable: 'false',
   });
-  const face = species === 'DOG' ? '🐶' : '🐱';
-  const body = species === 'DOG' ? '🐕' : '🐈';
-  const animalLabel = species === 'DOG' ? '강아지' : '고양이';
-  const bodySlot = ['BODY_LEFT', 'BODY_RIGHT'].includes(slotCode);
+  root.setAttribute('data-pet-guide-species', species.toLowerCase());
+  const {draw} = guide;
+  const mirror = draw.mirror ? 'translate(72 0) scale(-1 1)' : '';
+  const transformed = local => [mirror, local].filter(Boolean).join(' ');
+  const appendVector = (paths, circles = [], localTransform = '') => {
+    const transform = transformed(localTransform);
+    for (const d of paths || []) {
+      const node = shape('path', {d, class: 'pet-slot-guide-shape'});
+      if (transform) node.setAttribute('transform', transform);
+      root.appendChild(node);
+    }
+    for (const [cx, cy, rx, ry] of circles || []) {
+      const className = Math.max(rx, ry) >= 5 ? 'pet-slot-guide-callout' : 'pet-slot-guide-detail';
+      const node = shape('ellipse', {cx, cy, rx, ry, class: className});
+      if (transform) node.setAttribute('transform', transform);
+      root.appendChild(node);
+    }
+  };
+
+  for (const d of FRAME) root.appendChild(shape('path', {d, class: 'pet-slot-guide-frame'}));
   if (slotCode === 'BACK_REAR') {
     root.setAttribute('data-pet-rear-species', species);
     root.appendChild(shape('image', {
@@ -219,7 +235,9 @@ export function petPhotoSlotDiagram(slotCode, species) {
       preserveAspectRatio: 'xMidYMid meet',
     }));
   } else {
-    root.appendChild(diagramText(bodySlot ? body : face, 36, 35, 'pet-slot-species-mark', animalLabel));
+    appendVector(draw.paths, draw.circles);
+    appendVector(draw.turned, draw.turnedCircles, NOSE_TURN);
+    appendVector(draw.zoomed, [], NOSE_ZOOM_TURN);
   }
 
   if (slotCode.endsWith('_LEFT')) {

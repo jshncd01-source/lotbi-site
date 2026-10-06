@@ -177,13 +177,19 @@
 }
 
 .safecare-guide-figure {
+  position: relative;
   display: grid;
   place-items: center;
   width: 96px;
   height: 96px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-violet, #7b62bb) 16%, transparent);
   border-radius: 22px;
-  background: var(--lotbi-surface-primary, #fff);
+  background:
+    radial-gradient(circle at 72% 18%, color-mix(in srgb, #9be7cf 30%, transparent), transparent 38%),
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-violet, #7b62bb) 13%, var(--lotbi-surface-primary, #fff)), var(--lotbi-surface-primary, #fff));
   color: var(--lotbi-text-primary, #202634);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand-violet, #7b62bb) 14%, transparent);
 }
 
 .safecare-guide-figure .person-guide-diagram,
@@ -192,10 +198,13 @@
   height: 64px;
 }
 
-.safecare-guide-character {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  font-size: 56px;
-  line-height: 1;
+.safecare-guide-art {
+  display: block;
+  width: 112px;
+  max-width: none;
+  height: 112px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgb(46 35 79 / 14%));
 }
 
 .safecare-guide-title {
@@ -260,9 +269,59 @@
   stroke-linejoin: round;
 }
 
+.pet-slot-guide-frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--brand-violet, #7b62bb) 58%, transparent);
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pet-slot-guide-shape {
+  fill: color-mix(in srgb, var(--brand-violet, #7b62bb) 10%, var(--lotbi-surface-primary, #fff));
+  stroke: var(--lotbi-text-primary, #202634);
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pet-slot-guide-detail {
+  fill: var(--lotbi-text-primary, #202634);
+  stroke: none;
+}
+
+.pet-slot-guide-callout {
+  fill: var(--lotbi-surface-primary, #fff);
+  stroke: var(--lotbi-text-primary, #202634);
+  stroke-width: 1.55;
+}
+
+.pet-slot-diagram[data-pet-guide-species="cat"] .pet-slot-guide-shape {
+  fill: color-mix(in srgb, #9be7cf 18%, var(--lotbi-surface-primary, #fff));
+}
+
 .person-guide-feature {
   fill: currentColor;
   stroke: none;
+}
+
+.person-guide-stage {
+  fill: color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff));
+  stroke: none;
+}
+
+.person-guide-head {
+  fill: color-mix(in srgb, #f1c7ad 72%, var(--lotbi-surface-primary, #fff));
+  stroke: var(--lotbi-text-primary, #202634);
+}
+
+.person-guide-body {
+  fill: color-mix(in srgb, var(--brand-violet, #7b62bb) 22%, var(--lotbi-surface-primary, #fff));
+  stroke: var(--lotbi-text-primary, #202634);
+}
+
+.person-guide-mouth {
+  opacity: .65;
 }
 
 .person-guide-arrow {
@@ -670,8 +729,9 @@
     height: 44px;
   }
 
-  .safecare-guide-character {
-    font-size: 40px;
+  .safecare-guide-art {
+    width: 76px;
+    height: 76px;
   }
 
   .safecare-guide-map {

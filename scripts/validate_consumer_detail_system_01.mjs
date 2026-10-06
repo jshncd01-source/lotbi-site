@@ -37,7 +37,10 @@ assert.match(read('site-consumer-sections.js'), /확인 없이 진행하지 않�
 assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);
 const layout = read('site-consumer-layout.css');
 const manager = read('site-calendar-manager.js');
-assert.match(read('site-consumer-design.css'), /\.calendar-settings-button\s*\{ grid-column: 3; grid-row: 2; width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0/, 'mobile settings control must fit its 44px toolbar track');
+// LIFE UX 01: the phone toolbar is two rows (‹ month › 오늘 ⚙ / 월 주 목록); the
+// settings control still sits in its own 44px track.
+assert.match(read('site-consumer-design.css'), /\.calendar-toolbar \{ grid-template-columns: 44px minmax\(0, 1fr\) 44px auto 44px; gap: 4px; \}/, 'mobile Calendar toolbar must keep a 44px settings track in two rows');
+assert.match(read('site-consumer-design.css'), /\.calendar-settings-button\s*\{ width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0/, 'mobile settings control must fit its 44px toolbar track');
 const yearRenderer = manager.slice(manager.indexOf('function renderYear('), manager.indexOf('function renderYear(') + 2500);
 assert.match(yearRenderer, /for \(const weekday of weekdayOrder\(state\.weekStart\)\)/, 'year weekday headings must occupy seven separate cells');
 assert.match(yearRenderer, /weekdays\.appendChild\(label\)/);

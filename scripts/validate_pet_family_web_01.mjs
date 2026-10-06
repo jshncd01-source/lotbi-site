@@ -681,7 +681,7 @@ function innerFixtureHtml() {
     active: item.dataset.petDraftStepActive,
   }));
   const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
-  const speciesMarks = [...document.querySelectorAll('.pet-slot-species-mark')].map(item => item.textContent);
+  const speciesMarks = [...document.querySelectorAll('[data-pet-guide-species]')].map(item => item.dataset.petGuideSpecies);
   const rearSpecies = document.querySelector('[data-pet-rear-species]')?.dataset.petRearSpecies || '';
   const rearImage = document.querySelector('[data-pet-rear-species] image')?.getAttribute('href') || '';
 
@@ -934,7 +934,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.registrationSteps[1].active, 'true', `${label}: the photo step must follow basic information`);
   assert.equal(result.registrationActionWhileOpen, 0,
     `${label}: the list-level registration/resume action must disappear while its form is open`);
-  assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => ['🐶', '🐕'].includes(mark)),
+  assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => mark === 'dog'),
     `${label}: DOG selection must show only dog photo guides`);
   assert.equal(result.rearSpecies, 'DOG', `${label}: rear slot must use the selected dog's back-facing guide`);
   assert.equal(result.rearImage, '/assets/pet/dog-rear-v1.png',
