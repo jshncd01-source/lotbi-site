@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-1907f12324c0';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-b7709434b96b';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -147,7 +147,10 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         body.setAttribute('aria-busy', 'true');
         const host = node('div'); body.replaceChildren(host);
         try {
-          const mounted = await mountPeople(host, initialSurface);
+          const mounted = await mountPeople(host, initialSurface, counts => {
+            if (disposed || current !== generation || !authenticated) return;
+            if (Number.isInteger(counts.people)) buttons[0].textContent = `사람 · ${counts.people}`;
+          });
           if (disposed || current !== generation) { mounted?.dispose?.(); return; }
           releasePeople = mounted?.dispose;
         } catch {

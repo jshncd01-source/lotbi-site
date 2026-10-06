@@ -14,13 +14,13 @@ import {
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
   personErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto, respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-1907f12324c0';
-import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-1907f12324c0';
+} from './site-person.js?v=aset-b7709434b96b';
+import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-b7709434b96b';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-1907f12324c0';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-1907f12324c0';
+} from './site-safecare-common.js?v=aset-b7709434b96b';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-b7709434b96b';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
@@ -33,7 +33,7 @@ const fileDataUri = file => new Promise((resolve, reject) => { const reader = ne
 const relationshipLabel = value => RELATIONSHIPS.find(([code]) => code === value)?.[1] || '기타';
 const validityLabel = days => days === 180 ? '6개월' : days === 365 ? '1년' : '';
 
-export async function mountPersonCareManager({sessionToken, root, initialSurface = 'home'}) {
+export async function mountPersonCareManager({sessionToken, root, initialSurface = 'home', onCountChange} = {}) {
   const surface = el('div', 'person-care-surface');
   surface.dataset.personCareSurface = '';
   root.replaceChildren(surface);
@@ -43,6 +43,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     login.href = '/auth/start/';
     empty.append(el('p', '', '로그인하면 사람 안심케어를 사용할 수 있습니다.'), login);
     surface.append(empty);
+    if (typeof onCountChange === 'function') onCountChange({people: 0});
     return {};
   }
   const status = el('p', 'person-status'); status.setAttribute('role', 'status');
@@ -78,6 +79,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     ? ''
     : '사람 등록과 사진 관리는 사용할 수 있습니다. 실종 관리와 발견 제보 연결을 준비 중입니다.';
   const revokeAll = () => { for (const url of previews.values()) URL.revokeObjectURL(url); previews.clear(); };
+  const reportCount = () => { if (typeof onCountChange === 'function') onCountChange({people: people.length}); };
 
   const refresh = async () => {
     people = await listPeople(sessionToken);
@@ -95,11 +97,13 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     sightings = availability.sightings ? sightingResult.value : [];
     const photoResults = await Promise.allSettled(people.map(async item => [item.personId, await listPersonIdentityPhotos(sessionToken, item.personId)]));
     identityPhotos = new Map(photoResults.map((result, index) => result.status === 'fulfilled' ? result.value : [people[index].personId, []]));
+    reportCount();
   };
   const reloadPerson = async personId => {
     const [person, photos] = await Promise.all([getPerson(sessionToken, personId), listPersonIdentityPhotos(sessionToken, personId)]);
     people = people.some(item => item.personId === personId) ? people.map(item => item.personId === personId ? person : item) : [...people, person];
     identityPhotos.set(personId, photos);
+    reportCount();
     return person;
   };
   const clearSheet = () => { activeSheet?.destroy(); activeSheet = null; };

@@ -232,11 +232,22 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
 <script type="module">
   import {mountPersonCareManager} from '/site-person-ui.js';
   import {mountPetFamilyManager} from '/site-pet-ui.js';
+  import {mountConsumerSection} from '/site-consumer-sections.js';
   const host = document.getElementById('host');
   globalThis.__wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   globalThis.__until = async (check, ms = 4000) => { for (let t = 0; t < ms && !check(); t += 50) await __wait(50); return check(); };
   globalThis.__mountPerson = async surface => { host.replaceChildren(); globalThis.__screen = await mountPersonCareManager({sessionToken: 'fixture-token', root: host, initialSurface: surface || 'home'}); };
   globalThis.__mountPet = async surface => { host.replaceChildren(); globalThis.__screen = await mountPetFamilyManager({sessionToken: 'fixture-token', root: host, initialSurface: surface || 'pets'}); };
+  globalThis.__mountCare = () => {
+    host.replaceChildren();
+    globalThis.__screen = mountConsumerSection({
+      section: 'care',
+      root: host,
+      authenticated: true,
+      mountPeople: (root, initialSurface, reportCounts) => mountPersonCareManager({sessionToken: 'fixture-token', root, initialSurface, onCountChange: reportCounts}),
+      mountPets: (root, initialSurface, reportCounts) => mountPetFamilyManager({sessionToken: 'fixture-token', root, initialSurface, onCountChange: reportCounts}),
+    });
+  };
   globalThis.__file = (name, type = 'image/png') => new Promise(resolve => {
     const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 640;
     const context = canvas.getContext('2d');
@@ -314,6 +325,17 @@ async function run() {
         shots.push(file);
       };
       const r = results[label] = {};
+
+      // --------------------------------------------- SafeCare category counts
+      r.categoryCounts = await cdp.evaluate(`
+        __mountCare();
+        await __until(() => [...document.querySelectorAll('[role=tab]')].some(tab => tab.textContent === '사람 · 4'));
+        const tabs = [...document.querySelectorAll('[role=tab]')];
+        const people = tabs[0].textContent;
+        tabs[1].click();
+        await __until(() => tabs[1].textContent === '반려동물 · 1');
+        return {people, pets: tabs[1].textContent};
+      `);
 
       // ---------------------------------------------------- person: list
       r.personList = await cdp.evaluate(`
@@ -544,6 +566,8 @@ async function run() {
 
 const results = await run();
 for (const [label, r] of Object.entries(results)) {
+  assert.deepEqual(r.categoryCounts, {people: '사람 · 4', pets: '반려동물 · 1'}, `${label}: both SafeCare categories must show the same count format`);
+
   // person list: inner menu gone, card actions, ACTIVE SOS only, separate CTA
   const cards = Object.fromEntries(r.personList.cards.map(card => [card.name, card]));
   assert.equal(r.personList.innerMenu, 0, `${label}: the person inner menu must be gone`);
