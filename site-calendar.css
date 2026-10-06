@@ -2703,6 +2703,8 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-add-message { background: #232a35; color: var(--lotbi-text-primary, var(--text, #212121)); }
   body[data-site-theme="system"] .calendar-week-grid-day[data-selected="true"],
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-week-grid-day[data-selected="true"] { background-color: rgba(237, 240, 245, .05); }
+  body[data-site-theme="system"] .calendar-week-grid-day[data-holiday="true"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-week-grid-day[data-holiday="true"] { background-color: var(--lotbi-calendar-holiday-surface); }
   body[data-site-theme="system"] .calendar-nav-button,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-nav-button,
   body[data-site-theme="system"] .calendar-title-button,
