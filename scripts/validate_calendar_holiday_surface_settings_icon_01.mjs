@@ -1,5 +1,5 @@
-// A public holiday must read as a day off, and the settings control must look
-// like settings.
+// Public holidays and weekends must read as days off, and the settings control
+// must look like settings.
 //
 // Before this, a holiday changed only the date number's colour -- the same red a
 // Sunday already used -- so 추석 and a plain Sunday were indistinguishable, and
@@ -109,10 +109,12 @@ try {
     const holiday = cell('2026-09-25');   // 추석, a Friday
     const sunday = cell('2026-09-20');    // plain Sunday
     // 23 is today and therefore selected, so the plain control is the 16th.
+    const saturday = cell('2026-09-19');  // plain Saturday
     const weekday = cell('2026-09-16');   // plain Wednesday
     return {
       holidayBg: bg(holiday),
       sundayBg: bg(sunday),
+      saturdayBg: bg(saturday),
       weekdayBg: bg(weekday),
       holidayInk: ink(holiday),
       sundayInk: ink(sunday),
@@ -126,6 +128,11 @@ try {
 
   const result = {ok: true, viewport: {width: innerWidth, height: innerHeight}};
   result.light = readTheme();
+  cell('2026-09-20').querySelector('.calendar-date-trigger').click();
+  await sleep(40);
+  result.lightSelectedSundayBg = bg(cell('2026-09-20'));
+  cell('2026-09-16').querySelector('.calendar-date-trigger').click();
+  await sleep(40);
 
   // The event on the holiday must still be legible -- the block sits behind the
   // schedule, never over it.
@@ -159,6 +166,9 @@ try {
   document.body.dataset.siteTheme = 'dark';
   await sleep(120);
   result.dark = readTheme();
+  cell('2026-09-20').querySelector('.calendar-date-trigger').click();
+  await sleep(40);
+  result.darkSelectedSundayBg = bg(cell('2026-09-20'));
   document.body.dataset.siteTheme = 'light';
 
   // Blast radius: break the holiday feed and re-read the month.
@@ -253,16 +263,22 @@ try {
   for (const v of results) {
     const where = `${v.viewport.width}x${v.viewport.height}`;
     for (const [theme, t] of [['light', v.light], ['dark', v.dark]]) {
-      // The point of the whole change: a holiday is a block, a Sunday is not.
+      // The point of the change: weekends and holidays are visible surfaces,
+      // rather than weekday-white cells whose number alone changes colour.
       if (distance(t.holidayBg, t.weekdayBg) < 12) {
         throw new Error(`${where} ${theme}: a holiday must not share the plain weekday surface (${t.holidayBg} vs ${t.weekdayBg})`);
       }
       if (distance(t.holidayBg, t.sundayBg) < 12) {
         throw new Error(`${where} ${theme}: a holiday must be told apart from a plain Sunday by its surface (${t.holidayBg} vs ${t.sundayBg})`);
       }
-      // ...and a plain Sunday must stay plain: no block leaked onto weekends.
-      if (distance(t.sundayBg, t.weekdayBg) > 4) {
-        throw new Error(`${where} ${theme}: a plain Sunday must keep the ordinary cell surface (${t.sundayBg} vs ${t.weekdayBg})`);
+      if (distance(t.sundayBg, t.weekdayBg) < 8) {
+        throw new Error(`${where} ${theme}: a plain Sunday needs its red day-off surface (${t.sundayBg} vs ${t.weekdayBg})`);
+      }
+      if (distance(t.saturdayBg, t.weekdayBg) < 8) {
+        throw new Error(`${where} ${theme}: a plain Saturday needs its blue day-off surface (${t.saturdayBg} vs ${t.weekdayBg})`);
+      }
+      if (distance(t.sundayBg, t.saturdayBg) < 8) {
+        throw new Error(`${where} ${theme}: Sunday and Saturday surfaces must remain distinguishable (${t.sundayBg} vs ${t.saturdayBg})`);
       }
       // The block must not resize the cell.
       if (t.holidayHeight !== t.weekdayHeight) {
@@ -280,6 +296,12 @@ try {
     if (luminance(v.dark.holidayInk) < 0.5) throw new Error(`${where}: the dark holiday number must lighten (${v.dark.holidayInk})`);
     if (luminance(v.dark.holidayBg) > 0.5) throw new Error(`${where}: the dark holiday surface must stay dark (${v.dark.holidayBg})`);
     if (luminance(v.dark.sundayInk) < 0.5) throw new Error(`${where}: the dark Sunday number must lighten too (${v.dark.sundayInk})`);
+    if (distance(v.lightSelectedSundayBg, v.light.sundayBg) > 4) {
+      throw new Error(`${where}: selecting Sunday must keep its red surface (${v.lightSelectedSundayBg} vs ${v.light.sundayBg})`);
+    }
+    if (distance(v.darkSelectedSundayBg, v.dark.sundayBg) > 4) {
+      throw new Error(`${where}: selecting Sunday must keep its dark red surface (${v.darkSelectedSundayBg} vs ${v.dark.sundayBg})`);
+    }
 
     if (!v.eventOnHoliday.present) throw new Error(`${where}: the event on the holiday disappeared`);
     if (v.eventOnHoliday.title !== '차례 준비') throw new Error(`${where}: the event title changed: ${v.eventOnHoliday.title}`);
