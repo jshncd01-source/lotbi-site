@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-953829f25b62';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-02e005631567';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -74,6 +74,10 @@ const PERSON_ERROR_MESSAGES = Object.freeze({
   PERSON_IDENTITY_PHOTO_TOO_LARGE: '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.',
   PERSON_IDENTITY_PHOTO_UNSUPPORTED: 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.',
   PERSON_IDENTITY_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
+  PERSON_IDENTITY_FACE_NOT_FOUND: '사람 얼굴을 찾지 못했습니다. 얼굴이 선명하게 보이는 사진을 선택해 주세요.',
+  PERSON_IDENTITY_MULTIPLE_FACES: '한 사람만 나온 사진을 선택해 주세요.',
+  PERSON_IDENTITY_FACE_DIRECTION_INVALID: '이 칸의 촬영 방향과 맞지 않습니다. 안내 그림과 같은 방향의 사진을 선택해 주세요.',
+  PERSON_IDENTITY_FACE_GATE_UNAVAILABLE: '사진 얼굴 확인을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
   PERSON_REID_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
   PERSON_REID_PHOTO_QUALITY_INSUFFICIENT: '얼굴이나 모습이 선명하게 보이지 않습니다. 밝은 곳에서 다시 찍은 사진을 선택해 주세요.',
   PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
