@@ -182,3 +182,133 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   const scaled = Object.fromEntries(Object.entries(best.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
   return {corners:scaled,confidence:Number(best.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral'};
 }
+
+function distance(left, right) { return Math.hypot(right.x - left.x, right.y - left.y); }
+
+function solveLinearSystem(matrix, values) {
+  const size = values.length;
+  const rows = matrix.map((row, index) => [...row, values[index]]);
+  for (let column = 0; column < size; column += 1) {
+    let pivot = column;
+    for (let row = column + 1; row < size; row += 1) if (Math.abs(rows[row][column]) > Math.abs(rows[pivot][column])) pivot = row;
+    if (Math.abs(rows[pivot][column]) < 1e-10) throw new Error('문서 모서리를 다시 조정해 주세요.');
+    [rows[column], rows[pivot]] = [rows[pivot], rows[column]];
+    const divisor = rows[column][column];
+    for (let index = column; index <= size; index += 1) rows[column][index] /= divisor;
+    for (let row = 0; row < size; row += 1) {
+      if (row === column) continue;
+      const factor = rows[row][column];
+      for (let index = column; index <= size; index += 1) rows[row][index] -= factor * rows[column][index];
+    }
+  }
+  return rows.map(row => row[size]);
+}
+
+function homography(destination, source) {
+  const matrix = []; const values = [];
+  for (let index = 0; index < 4; index += 1) {
+    const x = destination[index].x; const y = destination[index].y;
+    const sourceX = source[index].x; const sourceY = source[index].y;
+    matrix.push([x,y,1,0,0,0,-sourceX*x,-sourceX*y]); values.push(sourceX);
+    matrix.push([0,0,0,x,y,1,-sourceY*x,-sourceY*y]); values.push(sourceY);
+  }
+  return solveLinearSystem(matrix, values);
+}
+
+function bilinearSample(data, width, height, x, y, channel) {
+  const left = clamp(Math.floor(x), 0, width - 1); const right = clamp(left + 1, 0, width - 1);
+  const top = clamp(Math.floor(y), 0, height - 1); const bottom = clamp(top + 1, 0, height - 1);
+  const horizontal = clamp(x - left, 0, 1); const vertical = clamp(y - top, 0, 1);
+  const topValue = data[(top * width + left) * 4 + channel] * (1 - horizontal) + data[(top * width + right) * 4 + channel] * horizontal;
+  const bottomValue = data[(bottom * width + left) * 4 + channel] * (1 - horizontal) + data[(bottom * width + right) * 4 + channel] * horizontal;
+  return Math.round(topValue * (1 - vertical) + bottomValue * vertical);
+}
+
+function sourceImageData(source) {
+  const width = source.naturalWidth || source.videoWidth || source.width;
+  const height = source.naturalHeight || source.videoHeight || source.height;
+  if (!width || !height || typeof document === 'undefined') throw new TypeError('A decoded browser image source is required.');
+  const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+  const context = canvas.getContext('2d', {willReadFrequently:true}); context.drawImage(source,0,0,width,height);
+  return context.getImageData(0,0,width,height);
+}
+
+function enhancePixels(imageData) {
+  const source = imageData.data; const width = imageData.width; const height = imageData.height;
+  const channelMeans = [0,0,0]; let luminanceMean = 0;
+  for (let index = 0; index < source.length; index += 4) {
+    channelMeans[0] += source[index]; channelMeans[1] += source[index+1]; channelMeans[2] += source[index+2];
+    luminanceMean += source[index]*0.299+source[index+1]*0.587+source[index+2]*0.114;
+  }
+  const pixels = width * height;
+  channelMeans.forEach((value,index) => { channelMeans[index] = value / pixels; }); luminanceMean /= pixels;
+  const exposure = clamp(136 / Math.max(1,luminanceMean),0.88,1.12);
+  const neutral = (channelMeans[0]+channelMeans[1]+channelMeans[2])/3;
+  const balance = channelMeans.map(value => clamp(neutral/Math.max(1,value),0.92,1.08));
+  const softened = new Uint8ClampedArray(source);
+  for (let y=1;y<height-1;y+=1) for (let x=1;x<width-1;x+=1) {
+    const offset=(y*width+x)*4;
+    for (let channel=0;channel<3;channel+=1) {
+      const average=(source[offset-width*4+channel]+source[offset-4+channel]+source[offset+channel]+source[offset+4+channel]+source[offset+width*4+channel])/5;
+      softened[offset+channel]=Math.round(source[offset+channel]*0.92+average*0.08);
+    }
+  }
+  const output = new ImageData(width,height);
+  for (let y=0;y<height;y+=1) for (let x=0;x<width;x+=1) {
+    const offset=(y*width+x)*4;
+    for (let channel=0;channel<3;channel+=1) {
+      let blurred=softened[offset+channel];
+      if (x>0&&x<width-1&&y>0&&y<height-1) blurred=(softened[offset-width*4+channel]+softened[offset-4+channel]+softened[offset+channel]+softened[offset+4+channel]+softened[offset+width*4+channel])/5;
+      const sharpened=softened[offset+channel]+(softened[offset+channel]-blurred)*0.24;
+      output.data[offset+channel]=clamp(Math.round(((sharpened-128)*1.06+128)*exposure*balance[channel]),0,255);
+    }
+    output.data[offset+3]=255;
+  }
+  return output;
+}
+
+export function assessDocumentQuality(imageData, {corners} = {}) {
+  const warnings = [];
+  const {data,width,height}=imageData; const pixels=width*height;
+  if (Math.min(width,height)<400 || pixels<480_000) warnings.push('low-resolution');
+  let glare=0; let laplacian=0; let laplacianSamples=0;
+  const luminance = new Float32Array(pixels);
+  for (let index=0;index<pixels;index+=1) {
+    const offset=index*4; const value=data[offset]*0.299+data[offset+1]*0.587+data[offset+2]*0.114; luminance[index]=value;
+    if (value>247 && Math.max(data[offset],data[offset+1],data[offset+2])-Math.min(data[offset],data[offset+1],data[offset+2])<10) glare+=1;
+  }
+  for (let y=1;y<height-1;y+=1) for (let x=1;x<width-1;x+=1) {
+    const index=y*width+x; laplacian+=Math.abs(luminance[index]*4-luminance[index-1]-luminance[index+1]-luminance[index-width]-luminance[index+width]); laplacianSamples+=1;
+  }
+  if (laplacian/Math.max(1,laplacianSamples)<5.5) warnings.push('blur');
+  if (glare/pixels>0.16) warnings.push('glare');
+  if (corners) {
+    const margin=Math.max(2,Math.min(width,height)*0.015);
+    if (Object.values(corners).some(point=>point.x<=margin||point.y<=margin||point.x>=width-1-margin||point.y>=height-1-margin)) warnings.push('edge-clipped');
+  }
+  return warnings;
+}
+
+export async function rectifyDocument(source, corners, {enhance=true} = {}) {
+  const sourcePixels=sourceImageData(source); const ordered=orderDocumentCorners(Object.values(corners));
+  const estimatedWidth=(distance(ordered.topLeft,ordered.topRight)+distance(ordered.bottomLeft,ordered.bottomRight))/2;
+  const estimatedHeight=(distance(ordered.topLeft,ordered.bottomLeft)+distance(ordered.topRight,ordered.bottomRight))/2;
+  const sourceMaximum=Math.max(sourcePixels.width,sourcePixels.height);
+  const scale=Math.min(1,2048/Math.max(estimatedWidth,estimatedHeight),sourceMaximum/Math.max(estimatedWidth,estimatedHeight));
+  const width=Math.max(2,Math.round(estimatedWidth*scale)); const height=Math.max(2,Math.round(estimatedHeight*scale));
+  const destination=[{x:0,y:0},{x:width-1,y:0},{x:width-1,y:height-1},{x:0,y:height-1}];
+  const sourceCorners=[ordered.topLeft,ordered.topRight,ordered.bottomRight,ordered.bottomLeft];
+  const transform=homography(destination,sourceCorners); const corrected=new ImageData(width,height);
+  for (let y=0;y<height;y+=1) for (let x=0;x<width;x+=1) {
+    const denominator=transform[6]*x+transform[7]*y+1;
+    const sourceX=(transform[0]*x+transform[1]*y+transform[2])/denominator;
+    const sourceY=(transform[3]*x+transform[4]*y+transform[5])/denominator;
+    const offset=(y*width+x)*4;
+    for (let channel=0;channel<3;channel+=1) corrected.data[offset+channel]=bilinearSample(sourcePixels.data,sourcePixels.width,sourcePixels.height,sourceX,sourceY,channel);
+    corrected.data[offset+3]=255;
+  }
+  const output=enhance?enhancePixels(corrected):corrected;
+  const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height; canvas.getContext('2d').putImageData(output,0,0);
+  const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:ordered})])];
+  return {dataUrl:canvas.toDataURL('image/jpeg',0.92),width,height,warnings,enhanced:Boolean(enhance)};
+}

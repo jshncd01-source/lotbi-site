@@ -39,13 +39,30 @@ try {
   context.fillStyle = '#e9dcae'; context.fill(); context.lineWidth = 8; context.strokeStyle = '#ffffff'; context.stroke();
   context.fillStyle = '#315c7d'; context.fillRect(150,115,190,18); context.fillRect(150,155,150,12); context.fillRect(150,185,210,12);
   const automatic = scan.detectDocumentCorners(context.getImageData(0,0,480,320));
+  const corrected = await scan.rectifyDocument(canvas, automatic.corners, {enhance:false});
+  const correctedImage = new Image(); correctedImage.src = corrected.dataUrl; await correctedImage.decode();
+  const correctedCanvas = document.createElement('canvas'); correctedCanvas.width = corrected.width; correctedCanvas.height = corrected.height;
+  const correctedContext = correctedCanvas.getContext('2d', {willReadFrequently:true}); correctedContext.drawImage(correctedImage,0,0);
+  const correctedPixels = correctedContext.getImageData(0,0,corrected.width,corrected.height);
+  const sample = (x,y) => Array.from(correctedPixels.data.slice((y*corrected.width+x)*4,(y*corrected.width+x)*4+3));
+
+  const large = document.createElement('canvas'); large.width=2600; large.height=1600;
+  const largeContext=large.getContext('2d'); largeContext.fillStyle='#d8c28b'; largeContext.fillRect(0,0,2600,1600);
+  const largeResult=await scan.rectifyDocument(large,{topLeft:point(0,0),topRight:point(2599,0),bottomRight:point(2599,1599),bottomLeft:point(0,1599)},{enhance:false});
+  const small = document.createElement('canvas'); small.width=160; small.height=100;
+  const smallContext=small.getContext('2d'); smallContext.fillStyle='#d8c28b'; smallContext.fillRect(0,0,160,100);
+  const smallResult=await scan.rectifyDocument(small,{topLeft:point(0,0),topRight:point(159,0),bottomRight:point(159,99),bottomLeft:point(0,99)},{enhance:false});
+
+  const qualityCanvas=document.createElement('canvas'); qualityCanvas.width=240; qualityCanvas.height=140;
+  const qualityContext=qualityCanvas.getContext('2d',{willReadFrequently:true}); qualityContext.fillStyle='#888'; qualityContext.fillRect(0,0,240,140); qualityContext.fillStyle='#fff'; qualityContext.fillRect(0,0,120,140);
+  const quality=scan.assessDocumentQuality(qualityContext.getImageData(0,0,240,140),{corners:{topLeft:point(0,0),topRight:point(239,0),bottomRight:point(239,139),bottomLeft:point(0,139)}});
 
   const low = document.createElement('canvas'); low.width = 480; low.height = 320;
   const lowContext = low.getContext('2d', {willReadFrequently:true});
   lowContext.fillStyle = '#777'; lowContext.fillRect(0,0,480,320);
   for (let x=0; x<480; x+=16) { lowContext.fillStyle = x % 32 ? '#797979' : '#757575'; lowContext.fillRect(x,0,16,320); }
   const manual = scan.detectDocumentCorners(lowContext.getImageData(0,0,480,320));
-  out.textContent = JSON.stringify({ok:true, ordered, automatic, manual});
+  out.textContent = JSON.stringify({ok:true, ordered, automatic, manual, corrected:{...corrected,dataUrl:corrected.dataUrl.slice(0,32),corners:[sample(2,2),sample(corrected.width-3,2),sample(corrected.width-3,corrected.height-3),sample(2,corrected.height-3)],colorSample:sample(Math.round(corrected.width*.75),Math.round(corrected.height*.75))},largeResult:{width:largeResult.width,height:largeResult.height},smallResult:{width:smallResult.width,height:smallResult.height},quality});
 } catch (error) { out.textContent = JSON.stringify({ok:false,error:String(error?.stack||error)}); }
 </script></body></html>`;
 
@@ -75,6 +92,15 @@ try {
   for (const corner of Object.values(result.manual.corners)) {
     assert.ok(corner.x > 0 && corner.x < 480 && corner.y > 0 && corner.y < 320, `manual corner outside source: ${JSON.stringify(corner)}`);
   }
+  assert.ok(result.corrected.dataUrl.startsWith('data:image/jpeg;base64,'), 'corrected output must be a JPEG data URL');
+  assert.ok(Math.abs(result.corrected.width/result.corrected.height-1.584)<0.08, `corrected ratio ${result.corrected.width/result.corrected.height}`);
+  assert.ok(Math.max(result.corrected.width,result.corrected.height)<=480, 'a small source must not be enlarged');
+  for (const rgb of result.corrected.corners) assert.ok(rgb.reduce((sum,value)=>sum+value,0)>250, `background remained in corrected corner: ${rgb}`);
+  assert.ok(Math.abs(result.corrected.colorSample[0]-233)<30 && Math.abs(result.corrected.colorSample[1]-220)<30, `enhance:false changed document colors: ${result.corrected.colorSample}`);
+  assert.equal(result.corrected.enhanced,false);
+  assert.ok(Math.max(result.largeResult.width,result.largeResult.height)<=2048, `large result exceeded cap: ${JSON.stringify(result.largeResult)}`);
+  assert.ok(result.smallResult.width<=160 && result.smallResult.height<=100, `small result was enlarged: ${JSON.stringify(result.smallResult)}`);
+  for (const warning of ['blur','glare','low-resolution','edge-clipped']) assert.ok(result.quality.includes(warning), `missing quality warning ${warning}: ${result.quality}`);
   console.log('LIFE_WALLET_DOCUMENT_SCAN_01 PASS');
 } finally {
   server.kill();
