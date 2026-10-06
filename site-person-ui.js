@@ -12,16 +12,17 @@ import {
   closePersonSos, createHumanSighting, createPerson, createPersonSos, deleteHumanSightingPhoto, deletePerson,
   fetchHumanSightingPhotoObjectUrl, fetchPersonIdentityPhotoObjectUrl, getPerson, listGuardianNotices,
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
-  personErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto, respondGuardianNotice,
+  personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
+  respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-a649d9093990';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-a649d9093990';
+} from './site-person.js?v=aset-0bcb6b91e6de';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-0bcb6b91e6de';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-a649d9093990';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-a649d9093990';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-a649d9093990';
+} from './site-safecare-common.js?v=aset-0bcb6b91e6de';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-0bcb6b91e6de';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-0bcb6b91e6de';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
@@ -69,8 +70,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     return node;
   };
   const showStatus = text => { status.textContent = text; };
-  const fail = (target, error, fallback) => {
-    target.textContent = personErrorMessage(error, fallback);
+  const fail = (target, error, fallback, message = personErrorMessage(error, fallback)) => {
+    target.textContent = message;
     target.hidden = false;
     const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';
     if (code) target.dataset.personErrorCode = code; else delete target.dataset.personErrorCode;
@@ -437,9 +438,16 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       const file = input.files?.[0]; input.value = '';
       if (!file || busy || locked) return;
       if (!PHOTO_TYPES.has(file.type)) { slotError.textContent = 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.'; slotError.hidden = false; return; }
-      busy = true; tile.dataset.safecareSlotWorking = 'true'; slotError.hidden = true; showStatus(`${slot.label} 사진을 안전하게 저장하는 중…`);
+      // Core checks the photo (person, face, direction, framing, sharpness)
+      // before storing it. "저장했습니다" appears only after Core accepted it;
+      // a refused photo leaves this slot exactly as it was.
+      busy = true; tile.dataset.safecareSlotWorking = 'true'; slotError.hidden = true; showStatus(`${slot.label} 사진을 확인하고 있습니다…`);
       try { await putPersonIdentityPhoto(sessionToken, person.personId, slotIndex, await fileDataUri(file)); await reloadPerson(person.personId); showStatus(`${slot.label} 사진을 저장했습니다.`); onChange(); }
-      catch (value) { showStatus(''); tile.dataset.safecareSlotWorking = 'false'; fail(slotError, value, '사진을 저장하지 못했습니다. 다른 방향에서 찍은 선명한 사진을 선택해 주세요.'); }
+      catch (value) {
+        showStatus(''); tile.dataset.safecareSlotWorking = 'false';
+        const fallback = '사진을 저장하지 못했습니다. 안내 그림과 같은 방향에서 찍은 선명한 사진을 선택해 주세요.';
+        fail(slotError, value, fallback, personIdentityPhotoErrorMessage(value, slot, fallback));
+      }
       finally { busy = false; }
     });
     tile.append(media, caption, hint, choose, slotError, input);

@@ -6,8 +6,8 @@
 
 export const PERSON_IDENTITY_SLOTS = Object.freeze([
   Object.freeze({code: 'FACE_FRONT', label: '정면 얼굴', hint: '두 눈과 코, 입이 모두 보이게 정면에서 찍어 주세요.', view: 'front', artwork: 'assets/safecare/person-face-front-v1.png'}),
-  Object.freeze({code: 'FACE_LEFT_45', label: '왼쪽 45도', hint: '고개를 왼쪽으로 반쯤 돌린 얼굴입니다.', view: 'turn', direction: 'left', artwork: 'assets/safecare/person-face-left-45-v1.png'}),
-  Object.freeze({code: 'FACE_RIGHT_45', label: '오른쪽 45도', hint: '고개를 오른쪽으로 반쯤 돌린 얼굴입니다.', view: 'turn', direction: 'right', artwork: 'assets/safecare/person-face-right-45-v1.png'}),
+  Object.freeze({code: 'FACE_LEFT_45', label: '왼쪽 45도', hint: '사진 속 얼굴이 왼쪽을 바라보도록 고개를 반쯤 돌린 얼굴입니다.', view: 'turn', direction: 'left', artwork: 'assets/safecare/person-face-left-45-v2.png'}),
+  Object.freeze({code: 'FACE_RIGHT_45', label: '오른쪽 45도', hint: '사진 속 얼굴이 오른쪽을 바라보도록 고개를 반쯤 돌린 얼굴입니다.', view: 'turn', direction: 'right', artwork: 'assets/safecare/person-face-right-45-v1.png'}),
   Object.freeze({code: 'FACE_LEFT_PROFILE', label: '왼쪽 옆면', hint: '왼쪽 옆얼굴이 보이게, 귀와 턱선까지 담아 주세요.', view: 'profile', direction: 'left', artwork: 'assets/safecare/person-face-left-profile-v1.png'}),
   Object.freeze({code: 'FACE_RIGHT_PROFILE', label: '오른쪽 옆면', hint: '오른쪽 옆얼굴이 보이게, 귀와 턱선까지 담아 주세요.', view: 'profile', direction: 'right', artwork: 'assets/safecare/person-face-right-profile-v1.png'}),
   Object.freeze({code: 'UPPER_BODY_FRONT', label: '정면 상반신', hint: '머리부터 허리까지 정면에서 찍어 주세요.', view: 'upper', artwork: 'assets/safecare/person-upper-body-front-v1.png'}),
