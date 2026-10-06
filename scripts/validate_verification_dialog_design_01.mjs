@@ -20,7 +20,7 @@ for (const value of ['camera', 'photo', 'document', 'text', 'url']) assert.match
 assert.match(dialog, /maxlength="20000"/);
 assert.match(dialog, /<label for="scam-text">/);
 assert.match(dialog, /<label for="scam-url">/);
-assert.match(dialog, /data-scam-voice/);
+assert.doesNotMatch(dialog, /data-scam-voice|data-scam-input-panel="voice"/);
 assert.match(ui, /maxFileBytes = 10 \* 1024 \* 1024/);
 assert.match(ui, /panel\.hidden = !visible/);
 assert.match(ui, /methodChooser\.hidden = hasSelection/);
