@@ -31,7 +31,7 @@
 // sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
 // ordering/filtering (region, time window, distance) is Core-authoritative
 // via browseFestivals; nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-0af3638317e2';
+import {CORE_ORIGIN} from './site-core.js?v=aset-0e4417aec252';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -88,8 +88,10 @@ export const FESTIVAL_TIME_FILTER_LABEL = Object.freeze({
   DATE: '날짜 선택',
 });
 
+// Public festival browse policy: start on ongoing events and expose only the
+// four user-facing quick filters. Keep ALL/MONTH/DATE in the API contract for
+// internal callers and month navigation, but do not present ALL as a chip.
 export const FESTIVAL_DEFAULT_TIME_FILTER = FESTIVAL_TIME_FILTER.ONGOING;
-
 export const FESTIVAL_USER_TIME_FILTERS = Object.freeze([
   FESTIVAL_TIME_FILTER.ONGOING,
   FESTIVAL_TIME_FILTER.THIS_WEEKEND,

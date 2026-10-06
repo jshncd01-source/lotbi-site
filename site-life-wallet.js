@@ -559,8 +559,10 @@ export function createWalletPhotoPicker({onError = () => {}} = {}) {
   input.setAttribute('aria-labelledby', label.id);
 
   const picker = element('div', 'wallet-photo-picker');
-  const mark = element('span', 'wallet-photo-mark', '+');
-  mark.setAttribute('aria-hidden', 'true');
+  const mark = element('button', 'wallet-photo-mark', '+');
+  mark.type = 'button';
+  mark.setAttribute('aria-label', '자료 사진 선택');
+  mark.addEventListener('click', () => input.click());
   const preview = element('img', 'wallet-photo-preview');
   preview.hidden = true;
   const copy = element('span', 'wallet-photo-copy');
