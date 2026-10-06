@@ -1,30 +1,9 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
-import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {runFixturePage} from './lib/headless-fixture-result.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FIXTURE_REL = 'scripts/.life-wallet-document-scan-fixture.html';
-const FIXTURE = path.join(ROOT, FIXTURE_REL);
-const PORT = 21_000 + (process.pid % 20_000);
-const ORIGIN = `http://127.0.0.1:${PORT}`;
-
-function browserPath() {
-  const candidates = [
-    process.env.CHROME_BIN,
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
-    'google-chrome-stable',
-    'google-chrome',
-    'chromium',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    if ((candidate.includes('/') || candidate.includes('\\')) && fs.existsSync(candidate)) return candidate;
-    const found = spawnSync(process.platform === 'win32' ? 'where' : 'which', [candidate], {encoding: 'utf8'});
-    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim().split(/\r?\n/u)[0];
-  }
-  throw new Error('Chrome/Chromium is required for the Life Wallet scan validation.');
-}
 
 const fixture = `<!doctype html><html><body><pre id="result">pending</pre><script type="module">
 const out = document.getElementById('result');
@@ -111,21 +90,11 @@ try {
 } catch (error) { out.textContent = JSON.stringify({ok:false,error:String(error?.stack||error)}); }
 </script></body></html>`;
 
-fs.writeFileSync(FIXTURE, fixture, 'utf8');
-const python = process.platform === 'win32' ? 'python' : 'python3';
-const server = spawn(python, ['-m','http.server',String(PORT),'--bind','127.0.0.1'], {cwd:ROOT,stdio:'ignore'});
-try {
-  for (let attempt=0; attempt<50; attempt+=1) {
-    const ready=spawnSync('curl',['--fail','--silent',`${ORIGIN}/${FIXTURE_REL}`],{timeout:1000});
-    if (ready.status===0) break;
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,100);
-    if (attempt===49) throw new Error('fixture server did not start');
-  }
-  const run = spawnSync(browserPath(), ['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--virtual-time-budget=2000','--dump-dom',`${ORIGIN}/${FIXTURE_REL}`], {encoding:'utf8',timeout:40000,maxBuffer:8*1024*1024});
-  if (run.error) throw run.error;
-  const match = run.stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/u);
-  assert.ok(match, `scan result missing: ${run.stderr}`);
-  const result = JSON.parse(match[1].replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>'));
+const result = await runFixturePage({
+  root: ROOT, fixturePath: '/__life_wallet_document_scan_01.html', fixtureHtml: fixture,
+  resultExpression: "(() => { const text = document.getElementById('result')?.textContent || ''; return text === 'pending' ? '' : text; })()",
+});
+{
   assert.equal(result.ok, true, result.error);
   assert.deepEqual(result.ordered, {topLeft:{x:70,y:55},topRight:{x:420,y:40},bottomRight:{x:440,y:275},bottomLeft:{x:50,y:285}});
   assert.equal(new Set(Object.values(result.diamond).map(corner=>`${corner.x}:${corner.y}`)).size,4,`diamond ordering duplicated a corner: ${JSON.stringify(result.diamond)}`);
@@ -168,7 +137,4 @@ try {
   assert.ok(result.smallResult.width<=160 && result.smallResult.height<=100, `small result was enlarged: ${JSON.stringify(result.smallResult)}`);
   for (const warning of ['blur','glare','low-resolution','edge-clipped']) assert.ok(result.quality.includes(warning), `missing quality warning ${warning}: ${result.quality}`);
   console.log('LIFE_WALLET_DOCUMENT_SCAN_01 PASS');
-} finally {
-  server.kill();
-  fs.rmSync(FIXTURE,{force:true});
 }
