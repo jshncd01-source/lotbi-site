@@ -23,6 +23,7 @@ const out=document.getElementById('result'); const sleep=ms=>new Promise(resolve
 const wait=async (predicate,label)=>{for(let i=0;i<100;i+=1){const value=predicate();if(value)return value;await sleep(30)}throw new Error('timed out '+label+' state='+document.querySelector('.wallet-scan-editor')?.dataset.scanState+' text='+document.getElementById('host').textContent)};
 try{
  const source=document.createElement('canvas');source.width=480;source.height=320;const c=source.getContext('2d');c.fillStyle='#18212d';c.fillRect(0,0,480,320);c.beginPath();c.moveTo(70,55);c.lineTo(420,40);c.lineTo(440,275);c.lineTo(50,285);c.closePath();c.fillStyle='#e9dcae';c.fill();c.lineWidth=8;c.strokeStyle='#fff';c.stroke();c.fillStyle='#315c7d';c.fillRect(150,115,190,18);
+ globalThis.createImageBitmap=async()=>source;
  const blob=await new Promise(resolve=>source.toBlob(resolve,'image/png'));const file=new File([blob],'synthetic-wallet.png',{type:'image/png'});
  const module=await import('/site-life-wallet-scan-ui.js?test=1');let confirmed='';let cancelled=0;let replaced=0;
  const scanner=module.createWalletDocumentScanner({file,onConfirm:value=>{confirmed=value},onCancel:()=>{cancelled+=1},onReplace:()=>{replaced+=1}});document.getElementById('host').append(scanner.element);

@@ -63,6 +63,7 @@ try{
 
   const source=document.createElement('canvas');source.width=480;source.height=320;const context=source.getContext('2d');context.fillStyle='#18212d';context.fillRect(0,0,480,320);context.beginPath();context.moveTo(70,55);context.lineTo(420,40);context.lineTo(440,275);context.lineTo(50,285);context.closePath();context.fillStyle='#e9dcae';context.fill();context.lineWidth=8;context.strokeStyle='#fff';context.stroke();
   const png=await new Promise(resolve=>source.toBlob(resolve,'image/png'));
+  globalThis.createImageBitmap=async()=>source;
   const validTransfer=new DataTransfer();
   validTransfer.items.add(new File([png],'wallet-card.png',{type:'image/png'}));
   input.files=validTransfer.files;
