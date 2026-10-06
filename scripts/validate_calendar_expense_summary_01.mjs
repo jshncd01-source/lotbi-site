@@ -1,9 +1,8 @@
 // Locks the Calendar month amount line (LIFE UX 01).
 //
-// The Calendar is not a ledger. A month's recorded amounts are one quiet line
-// under the month -- "9월 입력 금액 합계 314,500원 ›" -- and the breakdown waits
-// behind it. The six-slot strip with its 0원 boxes and its "금액 없는 일정 N건
-// 제외" sentence is gone on purpose; what it protected is kept:
+// A month's recorded amounts keep one clear total line under the month, with the
+// five user-facing categories visible immediately beneath it. The detailed
+// currency/count view still opens from the total line.
 //
 // Covered contracts:
 //   - the line sits inside the month surface, under the grid; the month
@@ -64,6 +63,14 @@ let stage='init';
 setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},45000);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await sleep(20)}throw new Error('timeout '+label)};
+const waitForDomIdle=(node,quietMs=120)=>new Promise(resolve=>{
+  let timer;
+  const done=()=>{observer.disconnect();resolve()};
+  const settle=()=>{clearTimeout(timer);timer=setTimeout(done,quietMs)};
+  const observer=new MutationObserver(settle);
+  observer.observe(node,{subtree:true,childList:true,characterData:true,attributes:true});
+  settle();
+});
 
 // The fixture answers Core itself so the assertions measure rendering, not the
 // network. Only the routes the month view touches are served.
@@ -166,6 +173,10 @@ try{
   const populatedFetch=stubFetch({expense:KRW_SUMMARY});
   let root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:populatedFetch});
   await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready','ready line');
+  // The amount read can settle before the other initial Calendar reads. Wait
+  // until their fixture-driven renders are quiet; otherwise a late render can
+  // replace the focused amount line while focus return is being measured.
+  await waitForDomIdle(root);
   const ready=line(root);
 
   const layout=root.querySelector('.calendar-month-layout');
@@ -185,6 +196,13 @@ try{
   const centre=node=>{const r=node.getBoundingClientRect();return r.top+r.height/2};
   result.oneRow=Math.abs(centre(ready.querySelector('.calendar-amount-line-label'))-centre(ready.querySelector('.calendar-amount-line-amount')))<3;
   result.lineCategoryWords=['음식','여행','쇼핑','생활비','기타','미분류'].filter(word=>ready.textContent.includes(word));
+  const categoryList=root.querySelector('.calendar-amount-categories');
+  result.categoryRows=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>[
+    row.dataset.expenseCategory,
+    row.querySelector('dt')?.textContent||'',
+    row.querySelector('dd')?.textContent||'',
+  ]);
+  result.categoryColumns=categoryList ? getComputedStyle(categoryList).gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
   result.forbidden=forbiddenIn(root.textContent);
   result.aboveTheFold=box.bottom<=innerHeight;
   result.barBottom=Math.round(box.bottom);
@@ -435,6 +453,14 @@ try {
     if (!value.oneRow) fail('label and total must share one row');
     if (value.lineHeight < 44 || value.lineHeight > 64) fail(`the line must be one 44px+ touch row, got ${value.lineHeight}px`);
     if (value.lineCategoryWords.length) fail(`the line must not spell out categories, got ${value.lineCategoryWords.join(',')}`);
+    if (JSON.stringify(value.categoryRows) !== JSON.stringify([
+      ['FOOD', '음식', '40,500원'],
+      ['TRAVEL', '여행', '180,000원'],
+      ['SHOPPING', '쇼핑', '0원'],
+      ['LIVING', '생활비', '94,000원'],
+      ['OTHER', '기타', '0원'],
+    ])) fail(`the month must show the five category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
+    if (value.viewport.width <= 520 && value.categoryColumns !== 2) fail(`phone categories must use two columns, got ${value.categoryColumns}`);
     if (value.forbidden.length) fail(`ledger words must not appear on the month, got ${value.forbidden.join(',')}`);
     if (!value.aboveTheFold) fail(`the amount line must be visible without scrolling — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
     if (!value.noHorizontalOverflow) fail('the amount line must not cause horizontal overflow');
