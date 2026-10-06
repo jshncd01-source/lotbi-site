@@ -125,6 +125,16 @@ function dilate(binary, width, height) {
   return output;
 }
 
+function erode(binary,width,height){
+  const output=new Uint8Array(binary.length);
+  for(let y=1;y<height-1;y+=1)for(let x=1;x<width-1;x+=1){
+    let neighbors=0;
+    for(let row=-1;row<=1;row+=1)for(let column=-1;column<=1;column+=1)neighbors+=binary[(y+row)*width+x+column];
+    if(neighbors>=7)output[y*width+x]=1;
+  }
+  return output;
+}
+
 function polygonArea(corners) {
   const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
   let sum = 0;
@@ -244,6 +254,84 @@ function componentCandidates(binary, width, height) {
   return candidates;
 }
 
+function colorDistance(color,index,mean){
+  const red=color[index]-mean[0];const green=color[index+1]-mean[1];const blue=color[index+2]-mean[2];
+  return Math.sqrt(red*red+green*green+blue*blue);
+}
+
+function refineMaskBounds(mask,corners,width,height){
+  const points=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
+  const minimumX=clamp(Math.floor(Math.min(...points.map(point=>point.x))),1,width-2);const maximumX=clamp(Math.ceil(Math.max(...points.map(point=>point.x))),1,width-2);
+  const minimumY=clamp(Math.floor(Math.min(...points.map(point=>point.y))),1,height-2);const maximumY=clamp(Math.ceil(Math.max(...points.map(point=>point.y))),1,height-2);
+  const columns=new Uint32Array(maximumX-minimumX+1);const rows=new Uint32Array(maximumY-minimumY+1);
+  for(let y=minimumY;y<=maximumY;y+=1)for(let x=minimumX;x<=maximumX;x+=1)if(mask[y*width+x]){columns[x-minimumX]+=1;rows[y-minimumY]+=1}
+  const columnThreshold=Math.max(3,Math.max(...columns)*.34);const rowThreshold=Math.max(3,Math.max(...rows)*.34);
+  let left=columns.findIndex(value=>value>=columnThreshold);let right=columns.length-1-[...columns].reverse().findIndex(value=>value>=columnThreshold);
+  let top=rows.findIndex(value=>value>=rowThreshold);let bottom=rows.length-1-[...rows].reverse().findIndex(value=>value>=rowThreshold);
+  if(left<0||right<left||top<0||bottom<top)return null;
+  left+=minimumX;right+=minimumX;top+=minimumY;bottom+=minimumY;
+  return {topLeft:{x:left,y:top},topRight:{x:right,y:top},bottomRight:{x:right,y:bottom},bottomLeft:{x:left,y:bottom}};
+}
+
+function maskBoundarySupport(mask,width,height,corners){
+  const offset=Math.max(2,Math.round(Math.min(width,height)*.008));let matched=0;let samples=0;
+  const left=corners.topLeft.x;const right=corners.topRight.x;const top=corners.topLeft.y;const bottom=corners.bottomLeft.y;
+  for(let step=1;step<=15;step+=1){
+    const ratio=step/16;const x=Math.round(left+(right-left)*ratio);const y=Math.round(top+(bottom-top)*ratio);
+    const pairs=[[[x,top+offset],[x,top-offset]],[[x,bottom-offset],[x,bottom+offset]],[[left+offset,y],[left-offset,y]],[[right-offset,y],[right+offset,y]]];
+    for(const [[insideX,insideY],[outsideX,outsideY]] of pairs){
+      if(insideX<0||insideX>=width||insideY<0||insideY>=height||outsideX<0||outsideX>=width||outsideY<0||outsideY>=height)continue;
+      samples+=1;if(mask[insideY*width+insideX]&&!mask[outsideY*width+outsideX])matched+=1;
+    }
+  }
+  return matched/Math.max(1,samples);
+}
+
+function backgroundSeparatedCandidates(color,edges,width,height){
+  const patchSize=Math.max(8,Math.round(Math.min(width,height)*.075));
+  const inset=Math.max(2,Math.round(patchSize*.12));
+  const origins=[[inset,inset],[width-patchSize-inset,inset],[width-patchSize-inset,height-patchSize-inset],[inset,height-patchSize-inset]];
+  const patches=origins.map(([startX,startY])=>{
+    const mean=[0,0,0];let count=0;
+    for(let y=startY;y<startY+patchSize;y+=1)for(let x=startX;x<startX+patchSize;x+=1){const index=(y*width+x)*3;mean[0]+=color[index];mean[1]+=color[index+1];mean[2]+=color[index+2];count+=1}
+    mean[0]/=count;mean[1]/=count;mean[2]/=count;
+    const distances=[];
+    for(let y=startY;y<startY+patchSize;y+=2)for(let x=startX;x<startX+patchSize;x+=2)distances.push(colorDistance(color,(y*width+x)*3,mean));
+    distances.sort((left,right)=>left-right);
+    return {mean,variation:distances[Math.floor(distances.length*.9)]||0};
+  });
+  const maximumVariation=Math.max(...patches.map(patch=>patch.variation));
+  let maximumCornerDifference=0;
+  for(let left=0;left<patches.length;left+=1)for(let right=left+1;right<patches.length;right+=1){
+    const a=patches[left].mean;const b=patches[right].mean;maximumCornerDifference=Math.max(maximumCornerDifference,Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]));
+  }
+  if(maximumCornerDifference>92)return [];
+  const threshold=clamp(maximumVariation*1.25+10,30,90);
+  let mask=new Uint8Array(width*height);
+  for(let y=1;y<height-1;y+=1)for(let x=1;x<width-1;x+=1){
+    const index=(y*width+x)*3;let distance=Infinity;
+    for(const patch of patches)distance=Math.min(distance,colorDistance(color,index,patch.mean));
+    if(distance>threshold)mask[y*width+x]=1;
+  }
+  mask=dilate(dilate(erode(erode(mask,width,height),width,height),width,height),width,height);
+  const candidates=[];const components=componentCandidates(mask,width,height);
+  for(const candidate of components){
+    const corners=refineMaskBounds(mask,candidate.corners,width,height);if(!corners)continue;
+    const area=polygonArea(corners);const areaRatio=area/(width*height);let filled=0;
+    for(let y=corners.topLeft.y;y<=corners.bottomLeft.y;y+=1)for(let x=corners.topLeft.x;x<=corners.topRight.x;x+=1)filled+=mask[y*width+x];
+    const fillRatio=filled/Math.max(1,area);
+    if(areaRatio<.12||areaRatio>.9||nearSourceFrame(corners,width,height,areaRatio,{strict:true}))continue;
+    if(fillRatio<.32)continue;
+    const boundarySupport=maskBoundarySupport(mask,width,height,corners);
+    const sides=[[corners.topLeft,corners.topRight],[corners.topRight,corners.bottomRight],[corners.bottomRight,corners.bottomLeft],[corners.bottomLeft,corners.topLeft]];
+    const support=sides.reduce((sum,[start,end])=>sum+lineSupport(edges,width,height,start,end),0)/4;
+    const contrast=sides.reduce((sum,[start,end])=>sum+colorBoundaryContrast(color,width,height,start,end),0)/4;
+    const shapeScore=documentShapeScore(corners);
+    candidates.push({corners,areaRatio,fillRatio,shapeScore,boundarySupport,support,contrast,confidence:clamp(.69+Math.min(.09,(fillRatio-.32)*.16)+shapeScore*.07+boundarySupport*.06+support*.04+clamp(contrast/45,0,1)*.05,0,.94),source:'background-separation'});
+  }
+  return candidates.sort((left,right)=>right.confidence-left.confidence);
+}
+
 export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
@@ -268,15 +356,29 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
     const confidence = clamp(0.38 + areaScore * 0.30 + support * 0.18 + shapeScore * 0.14 + contrastScore * 0.08, 0, 0.99);
     candidates.push({corners,confidence,areaRatio});
   }
+  const edgeCandidates=[...candidates];
+  const separatedCandidates=backgroundSeparatedCandidates(working.color,combined,working.width,working.height);
+  candidates.push(...separatedCandidates);
   let best=[...candidates].sort((left,right)=>right.confidence-left.confidence)[0]||null;
   let uncertainReason='automatic-detection-uncertain';
-  const frameCandidates=candidates.filter(candidate=>nearSourceFrame(candidate.corners,working.width,working.height,candidate.areaRatio)).sort((left,right)=>right.areaRatio-left.areaRatio);
-  for(const frame of frameCandidates){
-    const nested=candidates.filter(candidate=>candidate!==frame&&candidate.areaRatio<=frame.areaRatio*.86&&containsCorners(frame.corners,candidate.corners)).sort((left,right)=>right.confidence-left.confidence);
-    if(!nested.length)continue;
-    const inner=nested[0];
-    if(inner.confidence-frame.confidence>.08){best=inner;break}
-    best=null;uncertainReason='competing-boundaries';break;
+  if(separatedCandidates.length){
+    const separated=separatedCandidates[0];const separatedPoints=Object.values(separated.corners);const separatedCenter=separatedPoints.reduce((sum,point)=>({x:sum.x+point.x/4,y:sum.y+point.y/4}),{x:0,y:0});
+    const matching=edgeCandidates.filter(candidate=>{
+      const ratio=candidate.areaRatio/separated.areaRatio;if(ratio<.55||ratio>1.45)return false;
+      const points=Object.values(candidate.corners);const center=points.reduce((sum,point)=>({x:sum.x+point.x/4,y:sum.y+point.y/4}),{x:0,y:0});
+      return Math.hypot(center.x-separatedCenter.x,center.y-separatedCenter.y)<=Math.min(working.width,working.height)*.12;
+    }).sort((left,right)=>right.confidence-left.confidence);
+    const credibleSeparated=separatedCandidates.find(candidate=>candidate.boundarySupport>=.28||candidate.support>=.18||candidate.contrast>=6);
+    if(matching.length)best=matching[0];else if(credibleSeparated)best=credibleSeparated;else{best=null;uncertainReason='automatic-detection-uncertain'}
+  }else{
+    const frameCandidates=candidates.filter(candidate=>nearSourceFrame(candidate.corners,working.width,working.height,candidate.areaRatio)).sort((left,right)=>right.areaRatio-left.areaRatio);
+    for(const frame of frameCandidates){
+      const nested=candidates.filter(candidate=>candidate!==frame&&candidate.areaRatio<=frame.areaRatio*.86&&containsCorners(frame.corners,candidate.corners)).sort((left,right)=>right.confidence-left.confidence);
+      if(!nested.length)continue;
+      const inner=nested[0];
+      if(inner.confidence-frame.confidence>.08){best=inner;break}
+      best=null;uncertainReason='competing-boundaries';break;
+    }
   }
   if(best&&nearSourceFrame(best.corners,working.width,working.height,best.areaRatio,{strict:true})&&!candidates.some(candidate=>candidate!==best&&containsCorners(best.corners,candidate.corners)))best=null;
   if (!best || best.confidence < 0.75) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:best?.confidence||0,mode:'manual',reason:uncertainReason};
