@@ -164,14 +164,14 @@ try{
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   const today=modal.querySelector('.calendar-today-button');
-  // LIFE UX 01: 월 / 주 / 목록 tabs; 년 is reached through the month title.
+  // 오늘 is a separate day control; the remaining tabs are 주 / 월 / 목록.
   const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='목록');
   const modeTabLabels=[...modal.querySelectorAll('.calendar-mode-tab')].map(n=>n.textContent);
-  const calendar=layout?.children?.[0], detail=layout?.children?.[1];
-  if(!grid||!layout||!today||!agendaTab||!calendar||!detail)throw new Error('month chrome missing');
-  if(modeTabLabels.join('/')!=='월/주/목록')throw new Error('mode tabs must be 월/주/목록, got '+modeTabLabels.join('/'));
+  const calendar=layout?.children?.[0], detail=layout?.querySelector('.calendar-day-panel');
+  if(!grid||!layout||!today||!agendaTab||!calendar)throw new Error('month chrome missing');
+  if(modeTabLabels.join('/')!=='주/월/목록')throw new Error('mode tabs must be 주/월/목록, got '+modeTabLabels.join('/'));
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
-  const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail.getBoundingClientRect();
+  const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail?.getBoundingClientRect();
   const contentStyle=getComputedStyle(content);
   // No space under the month grid may be wasted. The expense totals bar owns a
   // row beneath the grid, so when it shows, the boundary is its top edge less
@@ -217,22 +217,23 @@ try{
     toolbar:{todayOneLine:oneLine(today),agendaOneLine:oneLine(agendaTab),modeTabLabels,scrollWidth:toolbar.scrollWidth,clientWidth:toolbar.clientWidth,noX:noX(toolbar)},
     calendar:{width:calRect.width,layoutWidth:layoutRect.width,widthRatio:layoutRect.width>0?calRect.width/layoutRect.width:0},
     detail:{
-      hidden:detail.hidden,
-      position:getComputedStyle(detail).position,
-      overflowY:getComputedStyle(detail).overflowY,
-      scrollHeight:detail.scrollHeight,
-      clientHeight:detail.clientHeight,
-      top:detailRect.top,
-      bottom:detailRect.bottom,
-      left:detailRect.left,
-      right:detailRect.right,
-      presentation:detail.dataset.presentation||'',
-      selectedDate:detail.dataset.selectedDate||'',
+      present:Boolean(detail),
+      hidden:detail?.hidden??true,
+      position:detail?getComputedStyle(detail).position:'',
+      overflowY:detail?getComputedStyle(detail).overflowY:'',
+      scrollHeight:detail?.scrollHeight||0,
+      clientHeight:detail?.clientHeight||0,
+      top:detailRect?.top||0,
+      bottom:detailRect?.bottom||0,
+      left:detailRect?.left||0,
+      right:detailRect?.right||0,
+      presentation:detail?.dataset.presentation||'',
+      selectedDate:detail?.dataset.selectedDate||'',
       todayDate:grid.querySelector('.calendar-date-cell[data-today="true"]')?.dataset.calendarDate||'',
-      width:detailRect.width,
+      width:detailRect?.width||0,
       gridRight:gridRect.right,
       gridBottom:gridRect.bottom,
-      backdrop:Boolean(layout.querySelector('[data-calendar-day-sheet-backdrop]')),
+      backdrop:Boolean(layout.querySelector('[data-calendar-day-detail-backdrop]')),
       viewportHeight:innerHeight,
       viewportWidth:innerWidth
     },
@@ -283,15 +284,8 @@ try{
     if(modalRect.height<innerHeight-60)throw new Error('desktop modal too short '+modalRect.height);
     if(result.modal.overflowY!=='hidden')throw new Error('desktop modal must not scroll');
     if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
-    // LIFE UX 01: the selected day (today on entry) is a 320–380px rail beside
-    // the Month, never over it, and the Month keeps the rest of the width.
-    if(result.calendar.widthRatio<0.6)throw new Error('desktop Month must keep most of the width beside the day rail '+result.calendar.widthRatio);
-    if(result.detail.hidden)throw new Error('desktop Calendar must show the selected day beside the Month');
-    if(result.detail.selectedDate!==result.detail.todayDate)throw new Error('desktop Calendar must open on today, got '+result.detail.selectedDate);
-    if(result.detail.width<300||result.detail.width>400)throw new Error('desktop day rail must be 320–380px, got '+result.detail.width);
-    if(result.detail.left<result.detail.gridRight-2)throw new Error('desktop day rail must sit beside the Month, not over it');
-    if(result.detail.presentation!=='SIDE')throw new Error('desktop selected-day detail contract must be SIDE');
-    if(result.detail.position!=='sticky')throw new Error('desktop selected-day detail must remain a sticky side panel');
+    if(result.calendar.widthRatio<0.95)throw new Error('desktop Month must keep the full content width '+result.calendar.widthRatio);
+    if(result.detail.present||result.detail.backdrop)throw new Error('desktop Calendar must not open a selected day before a date press');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
     if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
 
@@ -343,16 +337,8 @@ try{
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
-    // The contract moved four times: the below-the-month flow panel became a
-    // bottom sheet, the sheet became a panel anchored to the tapped date, the
-    // panel waited to be asked, and LIFE UX 01 made the selected day part of
-    // the page: today's records in flow under the Month, never a window over
-    // it, never a date nobody pressed.
-    if(result.detail.hidden)throw new Error('touch Calendar must show the selected day under the Month');
-    if(result.detail.selectedDate!==result.detail.todayDate)throw new Error('touch Calendar must open on today, got '+result.detail.selectedDate);
-    // Everything below is about the panel a tap opens, so tap one first. Today
-    // is the date the panel used to raise itself on, so the geometry measured
-    // here is the same geometry this gate has always measured.
+    if(result.detail.present||result.detail.backdrop)throw new Error('touch Calendar must not open a selected day before a date press');
+    // Everything below is about the sheet a tap opens, so tap one first.
     const entryCell=grid.querySelector('.calendar-date-cell[data-selected="true"]')
       ||grid.querySelector('.calendar-date-cell[data-current-month="true"]');
     click(entryCell);
@@ -384,21 +370,20 @@ try{
         left:openedRect.left,
         right:openedRect.right,
         presentation:opened.dataset.presentation||'',
-        backdrop:Boolean(layout.querySelector('[data-calendar-day-sheet-backdrop]')),
+        backdrop:Boolean(modal.querySelector('[data-calendar-day-detail-backdrop]')),
         // Opening a FLOW detail may scroll the Calendar content so its actions
         // are immediately reachable. Compare against the grid's position after
         // that scroll, not the DOMRect cached before the user tapped the date.
         gridBottom:grid.getBoundingClientRect().bottom,
       };
     }
-    // Mobile detail is in normal flow below the month. It may require vertical
-    // scrolling, but it must never cover or dismiss the grid.
+    // Mobile detail is a dismissible bottom sheet.
     if(result.detail.hidden)throw new Error('a tap on a date must open the selected-day surface');
-    if(result.detail.presentation!=='FLOW')throw new Error('touch selected-day surface must be the in-flow panel');
-    if(result.detail.position!=='static')throw new Error('touch selected-day panel must stay in document flow');
-    if(result.detail.backdrop)throw new Error('touch selected-day panel must not lay a dismiss layer over the month');
+    if(result.detail.presentation!=='SHEET')throw new Error('touch selected-day surface must be a bottom sheet');
+    if(result.detail.position!=='fixed')throw new Error('touch selected-day panel must stay fixed to the viewport');
+    if(!result.detail.backdrop)throw new Error('touch selected-day panel must own a dismiss layer');
     if(result.detail.left<-1||result.detail.right>innerWidth+1)throw new Error('touch selected-day panel horizontal overflow');
-    if(result.detail.top<result.detail.gridBottom-2)throw new Error('touch selected-day panel covers the month grid');
+    if(Math.abs(result.detail.bottom-innerHeight)>2)throw new Error('touch selected-day panel must rest on the viewport bottom');
 
     const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     if(!mobileEventCell)throw new Error('mobile event cell missing');
@@ -502,20 +487,19 @@ try{
   if(document.activeElement!==lastSettingsControl)throw new Error('Settings backward Tab escaped the dialog');
   lastSettingsControl.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>!modal.querySelector('.calendar-settings-dialog'),'Settings Escape close');
-  if(modal.querySelector('.calendar-day-panel')?.hidden)throw new Error('Settings Escape also closed the underlying day detail');
+  if(!modal.querySelector('.calendar-day-panel'))throw new Error('Settings Escape also closed the underlying day detail');
   await wait(()=>document.activeElement===settingsButton,'Settings Escape focus restore');
   result.settingsModalContained=true;
-  // The detail is part of the page: Escape inside it steps back to its date
-  // in the grid and stops there, so the Calendar modal stays open.
+  // Escape closes only the selected-day overlay and restores its date.
   const dayHeading=modal.querySelector('.calendar-day-panel .calendar-day-heading');
   dayHeading.focus();
   dayHeading.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
   if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
-  if(modal.querySelector('.calendar-day-panel')?.dataset.selectedDate!==selectedDate)throw new Error('day-detail Escape lost the selected day');
+  if(modal.querySelector('.calendar-day-panel'))throw new Error('day-detail Escape did not close the overlay');
   result.escapeContained=true;
   click(modal.querySelector('.calendar-today-button'));
-  await wait(()=>content.dataset.calendarManagerView==='month','today');
+  await wait(()=>content.dataset.calendarManagerView==='day','today');
   await waitCalendarIdle('today');
   result.controls=true;result.dateSelection=true;
 
