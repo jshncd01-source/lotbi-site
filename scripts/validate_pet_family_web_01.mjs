@@ -626,6 +626,7 @@ function innerFixtureHtml() {
   }
   const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
   const petRenewalNotice = renewalDialog?.textContent || '';
+  renewalDialog?.querySelector('[data-safecare-consent="privacy"]')?.click();
   renewalDialog?.querySelector('[data-safecare-renewal-confirm]')?.click();
   for (let waited = 0; waited < 3000 && !document.querySelector('[data-pet-draft-slot]'); waited += 100) {
     await new Promise(resolve => setTimeout(resolve, 100));
