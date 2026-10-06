@@ -37,6 +37,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <script type="module">
 const out=document.getElementById('result');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const wait=async(predicate,label)=>{for(let attempt=0;attempt<200;attempt+=1){const value=predicate();if(value)return value;await sleep(25)}throw new Error('timed out '+label+' scanner='+document.querySelector('.wallet-scan-editor')?.dataset.scanState+' disabled='+document.querySelector('[data-wallet-scan-confirm]')?.disabled)};
 try{
   const {createWalletPhotoPicker}=await import('/site-life-wallet.js?photo-picker-test=1');
   const errors=[];
@@ -66,9 +67,9 @@ try{
   validTransfer.items.add(new File([png],'wallet-card.png',{type:'image/png'}));
   input.files=validTransfer.files;
   input.dispatchEvent(new Event('change',{bubbles:true}));
-  for(let attempt=0;attempt<100&&!picker.element.querySelector('[data-scan-state="review"]');attempt+=1)await sleep(30);
-  picker.element.querySelector('[data-wallet-scan-confirm]').click();
-  for(let attempt=0;attempt<150&&!ready;attempt+=1)await sleep(20);
+  const confirm=await wait(()=>{const candidate=picker.element.querySelector('[data-wallet-scan-confirm]');return candidate&&!candidate.disabled&&picker.element.querySelector('[data-scan-state="review"]')?candidate:null},'enabled scan confirmation');
+  confirm.click();
+  await wait(()=>ready,'photo ready callback');
   const selectedDataUrl=await picker.readDataUrl();
   const inputRect=input.getBoundingClientRect();
   const pickerRect=picker.element.getBoundingClientRect();

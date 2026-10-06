@@ -6,10 +6,10 @@ const {calendarItemActionPolicy, monthGridKeyboardTargetDate, rovingTabTargetInd
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
 
-// A product-view regression must fail this gate. LIFE UX 01: three peer views
-// (월 · 주 · 목록); 년 stays a view but opens from the month title, not a tab.
-assert.ok(manager.includes("const MODES = Object.freeze([['month', '월'], ['week', '주'], ['agenda', '목록']]);"));
-assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['month', 'week', 'year', 'agenda']);"));
+// 오늘 is a real day view. The remaining peer controls follow it in the
+// product order 주 · 월 · 목록; 년 still opens from the month title.
+assert.ok(manager.includes("const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);"));
+assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
 assert.ok(manager.includes("strip.className = 'calendar-week-strip'"));
 assert.ok(manager.includes("group.dataset.calendarWeekGroup = day.date"));
@@ -25,12 +25,12 @@ assert.ok(manager.includes("temperature.className = 'calendar-weather-temperatur
 assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentation(weather)'));
 assert.ok(manager.includes('const temperatureLabel = weatherPresentation.monthLabel'));
 
-// The selected day belongs in the page on a phone and in a stable side rail on
-// desktop. The removed floating pointer must not survive in active CSS.
-assert.ok(manager.includes("FLOW: 'FLOW', SIDE: 'SIDE'"));
-assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE'));
-assert.ok(css.includes('.calendar-month-layout[data-day-detail="SIDE"]'));
-assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"]'));
+// Month owns no automatic detail. A chosen date uses a centered dialog on a
+// desk and a bottom sheet on touch widths, while Today owns the in-page panel.
+assert.ok(manager.includes("PAGE: 'PAGE', SHEET: 'SHEET', MODAL: 'MODAL'"));
+assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.SHEET : DAY_DETAIL_PRESENTATION.MODAL'));
+assert.ok(css.includes('.calendar-day-panel[data-presentation="MODAL"]'));
+assert.ok(css.includes('.calendar-day-panel[data-presentation="SHEET"]'));
 assert.ok(!css.includes('[data-arrow]::before'));
 
 // 목록 is a list surface with explicit, independent filters -- four, each one
@@ -109,9 +109,9 @@ assert.ok(manager.includes("state.mode === 'week'"));
 assert.ok(manager.includes('data-calendar-week-date'));
 assert.ok(manager.includes("state.mode === 'month'"));
 assert.ok(manager.includes("panel?.querySelector('.calendar-day-heading')"));
-assert.ok(!manager.includes('calendar-day-close'), 'the day panel is part of the page; it has no close control');
+assert.ok(manager.includes("button('닫기', 'calendar-day-close')"), 'month day detail must have an explicit close control');
 
-// A Fold crossing the product breakpoint swaps FLOW/SIDE immediately.
+// A Fold crossing the product breakpoint swaps SHEET/MODAL immediately.
 assert.ok(manager.includes('let lastDayDetailPresentation = dayDetailPresentation()'));
 assert.ok(manager.includes('nextDayDetailPresentation !== lastDayDetailPresentation'));
 assert.ok(manager.includes("if (state.mode !== 'year') render();"));
