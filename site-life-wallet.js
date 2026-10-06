@@ -702,7 +702,13 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       if (disposed || !unlocked || generation !== renderGeneration) return;
       const shell = element('section', 'wallet-shell');
       const toolbar = element('div', 'wallet-toolbar');
-      const copy = element('div'); copy.append(element('strong', '', `저장 자료 ${cards.length}개`), element('span', '', '이 브라우저에 암호화되어 저장됩니다.'));
+      const copy = element('div', 'wallet-storage-copy');
+      const reassurance = element('div', 'wallet-storage-reassurance');
+      reassurance.append(
+        element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
+        element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
+      );
+      copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
       toolbar.append(copy, button('+ 자료 추가', renderAdd), button('잠그기', () => void lockAndRender(), true));
       shell.append(toolbar);
       if (message) shell.append(element('p', 'wallet-message', message));

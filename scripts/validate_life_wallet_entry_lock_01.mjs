@@ -10,6 +10,7 @@ if (!globalThis.atob) globalThis.atob = value => Buffer.from(value, 'base64').to
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const walletSource = await readFile(path.join(root, 'site-life-wallet.js'), 'utf8');
+const walletCssSource = await readFile(path.join(root, 'site-life-wallet.css'), 'utf8');
 const consumerSource = await readFile(path.join(root, 'site-consumer-sections.js'), 'utf8');
 const conversationSource = await readFile(path.join(root, 'site-conversation.js'), 'utf8');
 const indexSource = await readFile(path.join(root, 'index.html'), 'utf8');
@@ -140,6 +141,9 @@ assert.doesNotMatch(walletSource, /PublicKeyCredential|navigator\.credentials|We
 assert.doesNotMatch(walletSource, /Windows Hello·지문·Face ID를 지원하는 것처럼 표시하지 않습니다|PC Web은 4자리 월렛 PIN만 사용합니다/u);
 assert.doesNotMatch(walletSource, /field\('자료 이름', name\)|field\('뒷면 사진 · 선택', back\)/u);
 assert.match(walletSource, /field\('자료 사진 · 필수', front\)/u);
+assert.match(walletSource, /안전하게 이 기기에만 저장됩니다\./u);
+assert.match(walletSource, /LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다\./u);
+assert.match(walletCssSource, /\.wallet-storage-reassurance\s*\{/u, 'wallet storage reassurance must have a separate layout block');
 assert.match(walletSource, /AI로 재작성하지 않고 그대로 암호화/u);
 assert.match(consumerSource, /mountLifeWallet/u);
 assert.match(conversationSource, /accountId: serverIdentity\?\.userId/u);
