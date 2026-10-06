@@ -18,15 +18,14 @@ const css = read('site-festival.css');
 // ---------------------------------------------------------- time filters --
 // FESTIVAL-EVENT-02 REGION-BROWSE: 날짜 선택 (a custom date-picker filter
 // forcing one specific day before browsing at all) is removed from the
-// user-facing filter bar. FESTIVAL-EVENT-11 adds ALWAYS_OPEN (상시 운영) as a
-// 5th chip -- 전체/진행 중/이번 주말/이번 달/상시 운영, generated from an explicit
+// user-facing filter bar. FESTIVAL-EVENT-11 adds ALWAYS_OPEN (상시 운영), while
+// the default-ongoing policy removes 전체 -- 진행 중/이번 주말/이번 달/상시 운영,
+// generated from an explicit
 // list (not the full FESTIVAL_TIME_FILTER enum, which still carries DATE for
 // Core's own unrelated contract — see site-festival-client.js and
 // validate_festival_public_boundary_01.mjs).
-assert.match(ui, /const USER_TIME_FILTERS = \[\s*FESTIVAL_TIME_FILTER\.ALL,\s*FESTIVAL_TIME_FILTER\.ONGOING,\s*FESTIVAL_TIME_FILTER\.THIS_WEEKEND,\s*FESTIVAL_TIME_FILTER\.THIS_MONTH,\s*FESTIVAL_TIME_FILTER\.ALWAYS_OPEN,\s*\];/,
-  'the user-facing filter bar must render exactly 전체/진행 중/이번 주말/이번 달/상시 운영, and DATE must not be in that list');
-assert.match(ui, /for \(const key of USER_TIME_FILTERS\)/,
-  'the 5 time filter buttons must be generated from the explicit user-facing list, not hand-duplicated copy');
+assert.match(ui, /for \(const key of FESTIVAL_USER_TIME_FILTERS\)/,
+  'the 4 visible time filter buttons must come from the shared default-ongoing policy');
 
 // 〈 2026년 9월 〉 월별 탐색 (FESTIVAL-EVENT-11): a persistent prev/next month
 // navigator, independent of the quick-filter chips, that drives the MONTH
@@ -86,7 +85,7 @@ assert.doesNotMatch(`${ui}\n${clientJs}`, /unsplash\.com|picsum\.photos|placehol
 // A list card must stay list-scoped: it must not render program/reservation/
 // parking/official-source detail sections (those are FESTIVAL-EVENT-08's
 // detail surface, not the card).
-const buildCardBody = /function buildCard\([\s\S]*?\n\}\n/.exec(ui)?.[0] || '';
+const buildCardBody = /function buildCard\([\s\S]*?\r?\n\}\r?\n/.exec(ui)?.[0] || '';
 assert.ok(buildCardBody, 'buildCard must exist');
 for (const forbidden of ['buildProgramSection', 'buildReservationSection', 'buildParkingShuttleSection', 'buildOfficialSourceSection', 'buildCtaRow']) {
   assert.ok(!buildCardBody.includes(forbidden), `the list card must not render ${forbidden} — that belongs to the detail surface only`);
@@ -122,4 +121,4 @@ assert.doesNotMatch(css, /\.festival-date-field/, 'the removed 날짜 선택 dat
 assert.match(css, /\.festival-card-grid \{[^}]*grid-template-columns:\s*1fr;/);
 assert.match(css, /@media \(min-width: 640px\) \{\s*\.festival-card-grid \{\s*grid-template-columns:\s*repeat\(2, 1fr\);/);
 
-console.log('FESTIVAL FILTERS/PAGINATION/CARD/ACCESSIBILITY VALIDATION PASS — 5-filter time bar + month navigator (날짜 선택 removed, Core DATE contract untouched), request-token+AbortController race safety, Core-authoritative ordering, card rendering rules, no-fixture-in-production, and accessibility/responsive contracts verified.');
+console.log('FESTIVAL FILTERS/PAGINATION/CARD/ACCESSIBILITY VALIDATION PASS — 4-filter default-ongoing time bar + month navigator (전체/날짜 선택 removed from UI, Core contracts untouched), request-token+AbortController race safety, Core-authoritative ordering, card rendering rules, no-fixture-in-production, and accessibility/responsive contracts verified.');

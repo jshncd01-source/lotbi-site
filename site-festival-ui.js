@@ -44,8 +44,10 @@
 import {
   FESTIVAL_STATUS,
   FESTIVAL_STATUS_LABEL,
+  FESTIVAL_DEFAULT_TIME_FILTER,
   FESTIVAL_TIME_FILTER,
   FESTIVAL_TIME_FILTER_LABEL,
+  FESTIVAL_USER_TIME_FILTERS,
   browseFestivals,
   computeFestivalStatus,
   formatFestivalDateLabel,
@@ -58,21 +60,21 @@ import {
   listFestivalMunicipalities,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-cd0f7e0799af';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-cd0f7e0799af';
+} from './site-festival-client.js?v=aset-fd0a6e010706';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-fd0a6e010706';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-cd0f7e0799af';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-cd0f7e0799af';
+} from './site-current-location.js?v=aset-fd0a6e010706';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-fd0a6e010706';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-cd0f7e0799af';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-fd0a6e010706';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -82,8 +84,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-cd0f7e0799af';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-cd0f7e0799af';
+} from './site-festival-calendar.js?v=aset-fd0a6e010706';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-fd0a6e010706';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -93,18 +95,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-cd0f7e0799af';
+} from './site-navigation.js?v=aset-fd0a6e010706';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-cd0f7e0799af';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-fd0a6e010706';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-cd0f7e0799af';
+} from './site-calendar-weather.js?v=aset-fd0a6e010706';
 
 const PAGE_SIZE = 20;
 
@@ -648,7 +650,7 @@ export async function mountFestivalManager({
   const state = {
     region: '',
     municipality: '',
-    time: FESTIVAL_TIME_FILTER.ALL,
+    time: FESTIVAL_DEFAULT_TIME_FILTER,
     locationMode: 'NONE', // 'NONE' | 'CURRENT'
     currentPosition: null,
     currentRegionLabel: '',
@@ -987,18 +989,13 @@ export async function mountFestivalManager({
   // User-facing time filters -- 날짜 선택 (a custom date picker forcing one
   // specific day before browsing at all) is removed from this screen. Core's
   // own time=DATE contract is untouched (see site-festival-client.js); this
-  // UI simply never sends it any more. ALWAYS_OPEN (상시 운영) is additive:
+  // UI simply never sends it any more. ALL (전체) is also no longer exposed:
+  // the screen opens on ONGOING (진행 중). ALWAYS_OPEN (상시 운영) remains
+  // explicit:
   // 상시 운영 행사는 이 필터를 직접 골랐을 때만 보이고 (Core가 다른 모든
-  // 필터에서 제외한다), 나머지 4개 필터의 동작은 그대로다.
-  const USER_TIME_FILTERS = [
-    FESTIVAL_TIME_FILTER.ALL,
-    FESTIVAL_TIME_FILTER.ONGOING,
-    FESTIVAL_TIME_FILTER.THIS_WEEKEND,
-    FESTIVAL_TIME_FILTER.THIS_MONTH,
-    FESTIVAL_TIME_FILTER.ALWAYS_OPEN,
-  ];
+  // 필터에서 제외한다), 나머지 필터의 동작은 그대로다.
   const timeButtons = new Map();
-  for (const key of USER_TIME_FILTERS) {
+  for (const key of FESTIVAL_USER_TIME_FILTERS) {
     const button = chipButton(FESTIVAL_TIME_FILTER_LABEL[key], {
       pressed: state.time === key,
       onClick: () => selectTimeFilter(key),
