@@ -18,6 +18,10 @@
 .wallet-toolbar > div { display: grid; gap: 4px; flex: 1; }
 .wallet-toolbar strong { font-size: 17px; }
 .wallet-toolbar span { color: var(--consumer-muted); font-size: 12px; }
+.wallet-storage-copy { gap: 10px !important; min-width: 0; }
+.wallet-storage-reassurance { display: grid; gap: 3px; max-width: 680px; }
+.wallet-toolbar .wallet-storage-reassurance strong { font-size: 13px; line-height: 1.5; }
+.wallet-storage-reassurance span { line-height: 1.55; }
 .wallet-empty { min-height: 330px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .wallet-empty h3 { margin: 0 0 10px; font-size: 20px; }
 .wallet-empty p { max-width: 500px; margin: 0 0 20px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
