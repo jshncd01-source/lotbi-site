@@ -272,7 +272,7 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   let uncertainReason='automatic-detection-uncertain';
   const frameCandidates=candidates.filter(candidate=>nearSourceFrame(candidate.corners,working.width,working.height,candidate.areaRatio)).sort((left,right)=>right.areaRatio-left.areaRatio);
   for(const frame of frameCandidates){
-    const nested=candidates.filter(candidate=>candidate!==frame&&candidate.areaRatio>=frame.areaRatio*.24&&candidate.areaRatio<=frame.areaRatio*.86&&containsCorners(frame.corners,candidate.corners)).sort((left,right)=>right.confidence-left.confidence);
+    const nested=candidates.filter(candidate=>candidate!==frame&&candidate.areaRatio<=frame.areaRatio*.86&&containsCorners(frame.corners,candidate.corners)).sort((left,right)=>right.confidence-left.confidence);
     if(!nested.length)continue;
     const inner=nested[0];
     if(inner.confidence-frame.confidence>.08){best=inner;break}
