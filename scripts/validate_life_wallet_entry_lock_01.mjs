@@ -114,6 +114,20 @@ assert.equal(refreshSession.values.size, 0, 'an expired refresh grant must be re
 
 await refreshWallet.unlock('refresh-account', '7788');
 assert.ok(refreshSession.values.size > 0, 'PIN unlock must recreate the refresh grant');
+refreshWallet.suspend();
+await assert.rejects(
+  () => refreshWallet.list('refresh-account'),
+  /잠금을 먼저 해제/u,
+  'backgrounding must clear the in-memory wallet key',
+);
+const backgroundReturnedWallet = new LifeWalletVault(refreshRepository, refreshOptions);
+assert.equal(
+  await backgroundReturnedWallet.resumeUnlock('refresh-account'),
+  true,
+  'returning from the background within 10 minutes must not require the PIN again',
+);
+
+await refreshWallet.unlock('refresh-account', '7788');
 refreshWallet.lock();
 assert.equal(refreshSession.values.size, 0, 'explicit locking must remove the refresh grant');
 const explicitlyLockedWallet = new LifeWalletVault(refreshRepository, refreshOptions);
@@ -138,7 +152,7 @@ assert.match(walletSource, /generateKey\(\{name: 'AES-GCM', length: 256\}, false
 assert.match(walletSource, /document\.visibilityState === 'hidden'/u);
 assert.match(walletSource, /INACTIVITY_MS = 10 \* 60_000/u);
 assert.match(walletSource, /10분 동안 사용하지 않아 다시 잠겼습니다\./u);
-assert.match(walletSource, /새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다\./u);
+assert.match(walletSource, /화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다\. 10분간 사용하지 않으면 다시 잠깁니다\./u);
 assert.doesNotMatch(walletSource, /60초 동안 사용하지 않아|60초 비활동/u);
 assert.match(walletSource, /await vault\.resumeUnlock\(accountId\)/u, 'mount must restore a valid same-tab unlock grant');
 assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page transitions must preserve the same-tab unlock grant');
