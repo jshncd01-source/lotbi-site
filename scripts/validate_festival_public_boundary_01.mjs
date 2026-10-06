@@ -11,10 +11,10 @@
 // having real festival rows in it.
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const client = await import(path.join(ROOT, 'site-festival-client.js'));
+const client = await import(pathToFileURL(path.join(ROOT, 'site-festival-client.js')).href);
 
 const {
   FESTIVAL_STATUS,
