@@ -621,6 +621,12 @@ function innerFixtureHtml() {
   breedSelect.value = 'JINDO';
   breedSelect.dispatchEvent(new Event('change', {bubbles: true}));
   basicForm.requestSubmit();
+  for (let waited = 0; waited < 3000 && !document.querySelector('[data-safecare-renewal-dialog="pet"]'); waited += 100) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
+  const petRenewalNotice = renewalDialog?.textContent || '';
+  renewalDialog?.querySelector('[data-safecare-renewal-confirm]')?.click();
   for (let waited = 0; waited < 3000 && !document.querySelector('[data-pet-draft-slot]'); waited += 100) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
@@ -711,6 +717,7 @@ function innerFixtureHtml() {
     draftSlotsBeforeSpecies,
     draftSlotsAfterSpeciesOnly,
     basicStepLabel,
+    petRenewalNotice,
     photoGuide,
     gateBeforeFaceFront,
     gateAfterFaceFront,
@@ -892,6 +899,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.draftSlotsBeforeSpecies, 0, `${label}: photo slots must wait for basic information`);
   assert.equal(result.draftSlotsAfterSpeciesOnly, 0, `${label}: choosing a species alone must not skip basic information`);
   assert.equal(result.basicStepLabel, '반려동물 등록 1단계 / 4단계 · 기본정보', `${label}: registration must start with 기본정보`);
+  assert.ok(result.petRenewalNotice.includes('나이와 관계없이 · 6개월(180일)마다'), `${label}: pet photo step must confirm the six-month renewal policy`);
   assert.equal(result.photoGuide, 'dog', `${label}: the dog photo guide must show above the ten slots`);
 
   // PET-PHOTO-UX-03: only FACE_FRONT is open at first; the other nine are
