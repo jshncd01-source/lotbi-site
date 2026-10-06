@@ -219,9 +219,14 @@ export function buildNaverMapsAndroidIntentUri(place, {appname = NAVER_MAPS_WEB_
 }
 
 export function buildNaverMapsWebSearchUrl(place) {
-  const query = searchQuery(place);
+  const destination = destinationCoordinates(place);
+  const exactNaverPlace = destination && text(place?.placeId).startsWith('naver:');
+  const query = exactNaverPlace ? text(place?.name) : searchQuery(place);
   if (!query) throw new TypeError('place search query is required');
-  return NAVER_MAPS_WEB_SEARCH_BASE + encodeURIComponent(query);
+  const searchUrl = NAVER_MAPS_WEB_SEARCH_BASE + encodeURIComponent(query);
+  return exactNaverPlace
+    ? `${searchUrl}?c=${destination.longitude},${destination.latitude},15,0,0,0,dh`
+    : searchUrl;
 }
 
 // 좌표는 navigation_capability 가 참일 때만 쓴다. NAVER 버튼이 지키는 규칙과

@@ -135,10 +135,10 @@ assert.match(intent, /scheme=nmap/u);
 assert.match(intent, /S\.browser_fallback_url=https%3A%2F%2Fmap\.naver\.com%2Fp%2Fsearch%2F/u);
 
 const desktop = nav.buildNaverMapsWebSearchUrl(place);
-assert.match(desktop, /^https:\/\/map\.naver\.com\/p\/search\//u);
-// The full road address must reach the search query -- not a leading
-// two-word fragment ("전북 전주시") that can match the wrong place.
-assert.match(decodeURIComponent(desktop), /전주 실제 카페 전북 전주시 완산구 기린대로 1/u);
+assert.equal(
+  decodeURIComponent(desktop),
+  'https://map.naver.com/p/search/전주 실제 카페?c=127.1480000,35.8242000,15,0,0,0,dh',
+);
 
 function fakeWindow() {
   const calls = [];
