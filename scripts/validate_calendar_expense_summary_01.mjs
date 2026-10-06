@@ -1,12 +1,13 @@
 // Locks the Calendar month amount line (LIFE UX 01).
 //
-// A month's recorded amounts keep one clear total line under the month, with the
-// five user-facing categories visible immediately beneath it. The detailed
+// A month's recorded amounts keep one clear total line at the top of Today,
+// Week and Month, with the five user-facing categories visible immediately
+// beneath it. The detailed
 // currency/count view still opens from the total line.
 //
 // Covered contracts:
-//   - the line sits inside the month surface, under the grid; the month
-//     layout's first two children stay the month and the selected-day surface
+//   - the summary sits directly below the toolbar and before the view in
+//     Today, Week and Month, so scrolling the schedule does not hide it first
 //   - one line: label, total and chevron share a row; a real button with a
 //     44px touch target; no category name and no ledger words on the line
 //   - a month with no recorded amount draws no line at all (no 0원 ledger)
@@ -177,13 +178,38 @@ try{
   // until their fixture-driven renders are quiet; otherwise a late render can
   // replace the focused amount line while focus return is being measured.
   await waitForDomIdle(root);
-  const ready=line(root);
+  let ready=line(root);
 
   const layout=root.querySelector('.calendar-month-layout');
+  const shell=root.querySelector('.calendar-product-shell');
+  const amountSlot=root.querySelector('.calendar-amount-slot');
+  const toolbar=root.querySelector('.calendar-toolbar');
+  const viewport=root.querySelector('.calendar-viewport');
   result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
   result.layoutHasNoAutomaticDayPanel=!layout?.querySelector('.calendar-day-panel');
-  result.lineInsideMonth=Boolean(layout?.children[0]?.contains(ready));
-  result.lineFollowsGrid=root.querySelector('.calendar-month-grid')?.compareDocumentPosition(ready)===Node.DOCUMENT_POSITION_FOLLOWING;
+  result.lineInsideTopSlot=Boolean(amountSlot?.contains(ready));
+  result.summaryDirectlyBelowToolbar=Boolean(shell && toolbar && amountSlot && toolbar.nextElementSibling===amountSlot);
+  result.summaryBeforeViewport=Boolean(amountSlot && viewport && (amountSlot.compareDocumentPosition(viewport)&Node.DOCUMENT_POSITION_FOLLOWING));
+
+  result.summaryModes=[];
+  for(const [label,selector,viewSelector] of [
+    ['오늘','[data-calendar-mode="day"]','.calendar-day-view'],
+    ['주','[data-calendar-mode="week"]','.calendar-week-agenda'],
+    ['월','[data-calendar-mode="month"]','.calendar-month-layout'],
+  ]){
+    const control=[...root.querySelectorAll(selector)].find(node=>node.textContent.trim()===label)||root.querySelector(selector);
+    control?.click();
+    await wait(()=>root.querySelector(viewSelector),label+' view');
+    await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' top amount');
+    const activeLine=line(root);
+    result.summaryModes.push({
+      label,
+      view:Boolean(root.querySelector(viewSelector)),
+      inTopSlot:Boolean(root.querySelector('.calendar-amount-slot')?.contains(activeLine)),
+      topSlotBeforeView:Boolean(root.querySelector('.calendar-amount-slot')?.compareDocumentPosition(root.querySelector('.calendar-viewport'))&Node.DOCUMENT_POSITION_FOLLOWING),
+    });
+  }
+  ready=line(root);
 
   result.lineTag=ready.tagName;
   result.lineType=ready.getAttribute('type');
@@ -453,7 +479,12 @@ try {
 
     if (!value.layoutFirstIsMonth) fail('month layout child 0 must stay the month grid');
     if (!value.layoutHasNoAutomaticDayPanel) fail('Month must not mount a selected-day surface before a date press');
-    if (!value.lineInsideMonth || !value.lineFollowsGrid) fail('the amount line must sit inside the month surface, under the grid');
+    if (!value.lineInsideTopSlot || !value.summaryDirectlyBelowToolbar || !value.summaryBeforeViewport) {
+      fail('the amount summary must sit directly below the toolbar and before the calendar viewport');
+    }
+    if (value.summaryModes.length!==3 || value.summaryModes.some(mode=>!mode.view||!mode.inTopSlot||!mode.topSlotBeforeView)) {
+      fail(`Today, Week and Month must all keep the amount summary above their content, got ${JSON.stringify(value.summaryModes)}`);
+    }
 
     // One quiet line.
     if (value.lineTag !== 'BUTTON' || value.lineType !== 'button') fail(`the amount line must be a real button, got ${value.lineTag}/${value.lineType}`);
