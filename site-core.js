@@ -688,26 +688,6 @@ function normalizeEvidenceCoverage(placeResult) {
   });
 }
 
-// LIFE-PUBLIC-DATA-01 / NEIS: the chosen school's public NEIS identifiers only.
-function normalizeConversationClientSchool(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const officeCode = typeof value.office_code === 'string' ? value.office_code.trim().toUpperCase() : '';
-  const schoolCode = typeof value.school_code === 'string' ? value.school_code.trim() : '';
-  const name = typeof value.name === 'string' ? value.name.replace(/\s+/gu, ' ').trim() : '';
-  if (!/^[A-Z][0-9]{2}$/u.test(officeCode) || !/^[0-9]{7,10}$/u.test(schoolCode) || !/^[0-9A-Za-z가-힣·()\- ]{2,60}$/u.test(name)) return null;
-  const kind = typeof value.kind === 'string' && /^[가-힣]{2,20}$/u.test(value.kind.trim()) ? value.kind.trim() : '';
-  const grade = Number.isInteger(value.grade) && value.grade >= 1 && value.grade <= 6 ? value.grade : null;
-  const className = typeof value.class_name === 'string' && /^[0-9A-Za-z가-힣]{1,4}$/u.test(value.class_name.trim()) ? value.class_name.trim() : '';
-  return Object.freeze({
-    office_code: officeCode,
-    school_code: schoolCode,
-    name,
-    ...(kind ? {kind} : {}),
-    ...(grade !== null ? {grade} : {}),
-    ...(className ? {class_name: className} : {}),
-  });
-}
-
 function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
   const school = normalizeConversationClientSchool(identity?.school);
@@ -939,6 +919,26 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
     calendarDraft: normalizeSmartCalendarDraft(payload.calendar_draft),
+  });
+}
+
+// LIFE-PUBLIC-DATA-01 / NEIS: the chosen school's public NEIS identifiers only.
+function normalizeConversationClientSchool(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const officeCode = typeof value.office_code === 'string' ? value.office_code.trim().toUpperCase() : '';
+  const schoolCode = typeof value.school_code === 'string' ? value.school_code.trim() : '';
+  const name = typeof value.name === 'string' ? value.name.replace(/\s+/gu, ' ').trim() : '';
+  if (!/^[A-Z][0-9]{2}$/u.test(officeCode) || !/^[0-9]{7,10}$/u.test(schoolCode) || !/^[0-9A-Za-z가-힣·()\- ]{2,60}$/u.test(name)) return null;
+  const kind = typeof value.kind === 'string' && /^[가-힣]{2,20}$/u.test(value.kind.trim()) ? value.kind.trim() : '';
+  const grade = Number.isInteger(value.grade) && value.grade >= 1 && value.grade <= 6 ? value.grade : null;
+  const className = typeof value.class_name === 'string' && /^[0-9A-Za-z가-힣]{1,4}$/u.test(value.class_name.trim()) ? value.class_name.trim() : '';
+  return Object.freeze({
+    office_code: officeCode,
+    school_code: schoolCode,
+    name,
+    ...(kind ? {kind} : {}),
+    ...(grade !== null ? {grade} : {}),
+    ...(className ? {class_name: className} : {}),
   });
 }
 
