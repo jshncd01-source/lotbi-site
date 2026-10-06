@@ -1,8 +1,8 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-f4726caf5abb';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-f4726caf5abb';
-import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-f4726caf5abb';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-d77b68337be8';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-d77b68337be8';
+import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-d77b68337be8';
 
 function weekStartDate(date, weekStart) {
   const {year, month, day} = civilDateParts(date);
