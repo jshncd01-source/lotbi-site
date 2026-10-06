@@ -133,8 +133,23 @@ try {
   }
   const alldayRow = root.querySelector('.calendar-week-allday-row');
   const scroll = root.querySelector('.calendar-week-grid-scroll');
+  const edgePairs = selector => [...root.querySelectorAll(selector)].map(node => {
+    const rect = node.getBoundingClientRect();
+    return {left: rect.left, right: rect.right};
+  });
+  const headerEdges = edgePairs('.calendar-week-day');
+  const alldayEdges = edgePairs('.calendar-week-allday-cell');
+  const gridEdges = edgePairs('.calendar-week-grid-day');
+  result.maxColumnEdgeDelta = Math.max(...headerEdges.flatMap((edge, index) => [
+    Math.abs(edge.left - alldayEdges[index].left),
+    Math.abs(edge.right - alldayEdges[index].right),
+    Math.abs(edge.left - gridEdges[index].left),
+    Math.abs(edge.right - gridEdges[index].right),
+  ]));
   result.alldayFound = Boolean(alldayRow && alldayRow.textContent.includes('추석'));
-  result.alldayAboveScroll = Boolean(alldayRow && scroll) && alldayRow.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().top + 1;
+  result.alldayAboveScroll = Boolean(alldayRow && scroll)
+    && Boolean(alldayRow.compareDocumentPosition(scroll) & Node.DOCUMENT_POSITION_FOLLOWING)
+    && getComputedStyle(alldayRow.parentElement).position === 'sticky';
   result.hourLabelCount = root.querySelectorAll('.calendar-week-hour-label').length;
   const grid = root.querySelector('.calendar-week-grid');
   result.horizontalOverflow = grid.scrollWidth - grid.clientWidth;
@@ -217,6 +232,7 @@ try {
     if (!v.eventsFound || !v.laterIsLower || !v.proportional) throw new Error(`${where}: timed events must use their vertical clock positions`);
     if (!v.overlapSameBand || !v.overlapLanesSeparate) throw new Error(`${where}: overlapping events must split into visible lanes`);
     if (!v.alldayFound || !v.alldayAboveScroll) throw new Error(`${where}: all-day records must sit above the hourly scroller`);
+    if (v.maxColumnEdgeDelta > 1) throw new Error(`${where}: week header, all-day row and hourly columns must stay aligned (max edge drift=${v.maxColumnEdgeDelta.toFixed(2)}px)`);
     if (v.hourLabelCount !== 24) throw new Error(`${where}: expected a 24-hour vertical axis, got ${v.hourLabelCount}`);
     if (v.viewport.width <= 900 && v.horizontalOverflow <= 0) throw new Error(`${where}: mobile must scroll the weekly grid horizontally instead of squeezing seven days`);
     if (v.viewport.width > 900 && v.horizontalOverflow > 1) throw new Error(`${where}: desktop week should fit without page-level horizontal overflow`);
