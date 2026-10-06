@@ -36,8 +36,9 @@ assert.ok(
 );
 // 화면에 붙는 노드 목록에서도 빠져야 한다.
 assert.ok(
-  profile.includes('content.append(preview, photoPicker, error, accountLink)'),
-  '핸들 필드가 화면 구성에서 빠져야 합니다',
+  profile.includes('content.append(preview, photoPicker, error)')
+    && profile.includes('if (!profilePhotoEmbed) content.append(accountLink)'),
+  '핸들 필드는 빠지고 계정 링크는 독립 화면에만 남아야 합니다',
 );
 
 // ── 2. 지운 것이 아니라 돌려보낸 것 ───────────────────────────────────────
