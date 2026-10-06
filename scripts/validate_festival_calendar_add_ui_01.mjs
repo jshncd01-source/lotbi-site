@@ -36,7 +36,7 @@ assert.match(ui, /import \{calendarMonthGrid\} from '\.\/site-calendar-model\.js
 
 // -------------------------------------------------------- utility action --
 assert.match(ui, /trigger\.textContent = '📅 일정 등록'/, 'the add-to-Calendar action must exist as its own utility action');
-const ctaRowMatch = /function buildCtaRow\([\s\S]*?\n\}\n/.exec(ui);
+const ctaRowMatch = /function buildCtaRow\([\s\S]*?\r?\n\}\r?\n/.exec(ui);
 assert.ok(ctaRowMatch, 'buildCtaRow() must exist');
 assert.doesNotMatch(ctaRowMatch[0], /festival-calendar-add/, 'the add-to-Calendar trigger must not be folded into buildCtaRow()\'s primary [접수]/[프로그램] CTA group');
 assert.match(ui, /function festivalCalendarAddEligible\(festival, now\) \{/, 'ENDED/CANCELLED festivals must gate the add action off');
@@ -57,7 +57,7 @@ assert.match(ui, /wrap\.appendChild\(el\('p', 'festival-schedule-sheet-period', 
 // supports reading back an old entry saved that way before this change, and
 // renderDetail()'s Calendar re-entry comment describes that fallback) — this
 // only forbids the *picker* from offering a new 전체 기간 choice again.
-const scheduleGridBodyMatch = /function buildScheduleGridBody\([\s\S]*?\n\}\n/.exec(ui);
+const scheduleGridBodyMatch = /function buildScheduleGridBody\([\s\S]*?\r?\n\}\r?\n/.exec(ui);
 assert.ok(scheduleGridBodyMatch, 'buildScheduleGridBody() must exist');
 const scheduleGridBody = scheduleGridBodyMatch[0];
 assert.doesNotMatch(scheduleGridBody, /role', 'radiogroup'/, 'the day-by-day radiogroup picker must be removed');
