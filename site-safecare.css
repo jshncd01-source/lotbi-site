@@ -379,6 +379,23 @@
   object-fit: cover;
 }
 
+[data-person-slot] .safecare-slot-media {
+  aspect-ratio: 1;
+  background:
+    radial-gradient(circle at 50% 28%, color-mix(in srgb, #9be7cf 14%, transparent), transparent 45%),
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff)), var(--lotbi-surface-hover, #f1f3f8));
+}
+
+.person-slot-guide-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgb(46 35 79 / 12%));
+}
+
 .safecare-slot-loading {
   color: var(--lotbi-text-muted, #5d6675);
   font-size: 12px;
