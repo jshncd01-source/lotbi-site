@@ -218,13 +218,17 @@ export class MemoryWalletRepository {
 
 function validateCard(card) {
   if (!card || typeof card !== 'object' || typeof card.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/u.test(card.id)) throw new Error('자료 식별정보가 올바르지 않습니다.');
-  if (typeof card.name !== 'string' || !card.name.trim() || card.name.trim().length > 80) throw new Error('자료 이름은 1자 이상 80자 이하로 입력해 주세요.');
-  if (!CARD_KINDS.some(([value]) => value === card.kind)) throw new Error('자료 종류가 올바르지 않습니다.');
+  const kindLabel = CARD_KINDS.find(([value]) => value === card.kind)?.[1];
+  if (!kindLabel) throw new Error('자료 종류가 올바르지 않습니다.');
+  if (card.name !== undefined && typeof card.name !== 'string') throw new Error('자료 이름 형식이 올바르지 않습니다.');
+  const name = card.name?.trim() || kindLabel;
+  if (name.length > 80) throw new Error('자료 이름은 80자 이하로 입력해 주세요.');
   if (typeof card.frontDataUrl !== 'string' || card.frontDataUrl.length > 17_000_000 || !/^data:image\/(?:jpeg|png);base64,/u.test(card.frontDataUrl)) throw new Error('앞면 이미지를 확인해 주세요.');
-  if (card.backDataUrl && (typeof card.backDataUrl !== 'string' || card.backDataUrl.length > 17_000_000 || !/^data:image\/(?:jpeg|png);base64,/u.test(card.backDataUrl))) throw new Error('뒷면 이미지를 확인해 주세요.');
+  const backDataUrl = card.backDataUrl === undefined ? '' : card.backDataUrl;
+  if (typeof backDataUrl !== 'string' || (backDataUrl && (backDataUrl.length > 17_000_000 || !/^data:image\/(?:jpeg|png);base64,/u.test(backDataUrl)))) throw new Error('뒷면 이미지를 확인해 주세요.');
   if (typeof card.note !== 'string' || card.note.length > 1000) throw new Error('메모는 1,000자 이하로 입력해 주세요.');
   if (typeof card.updatedAt !== 'string' || !Number.isFinite(Date.parse(card.updatedAt))) throw new Error('자료 수정 시간이 올바르지 않습니다.');
-  return Object.freeze({...card, name: card.name.trim()});
+  return Object.freeze({...card, name, backDataUrl});
 }
 
 export class LifeWalletVault {
@@ -619,26 +623,23 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderAdd() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
-    const name = element('input'); name.type = 'text'; name.maxLength = 80; name.required = true;
     const kind = element('select'); for (const [value, label] of CARD_KINDS) { const option = element('option', '', label); option.value = value; kind.append(option); }
     const front = element('input'); front.type = 'file'; front.accept = 'image/jpeg,image/png'; front.required = true;
-    const back = element('input'); back.type = 'file'; back.accept = 'image/jpeg,image/png';
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const save = button('암호화하여 저장'); save.type = 'submit'; actions.append(save);
-    form.append(element('h3', '', '자료 추가'), field('자료 이름', name), field('자료 종류', kind), field('앞면 사진 · 필수', front), field('뒷면 사진 · 선택', back), field('메모 · 선택', note), actions, status,
+    form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), field('자료 사진 · 필수', front), field('메모 · 선택', note), actions, status,
       element('p', 'wallet-security-note', 'JPEG·PNG 원본을 AI로 재작성하지 않고 그대로 암호화합니다. 이 자료는 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
         setBusy(form, true);
         const frontDataUrl = await readImageFile(front.files?.[0]);
-        const backDataUrl = back.files?.[0] ? await readImageFile(back.files[0]) : '';
-        await vault.save(accountId, {id: randomId(), name: name.value, kind: kind.value, note: note.value, frontDataUrl, backDataUrl, updatedAt: new Date().toISOString()});
+        await vault.save(accountId, {id: randomId(), kind: kind.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
         await renderWallet('자료를 암호화하여 저장했습니다.');
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }
     });
-    root.replaceChildren(form); name.focus(); activity();
+    root.replaceChildren(form); kind.focus(); activity();
   }
 
   function renderDetail(card) {
@@ -646,7 +647,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', card.name));
     detail.append(header);
     const images = element('div', 'wallet-detail-images');
-    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${card.name} 앞면 원본`; front.append(frontImage, element('figcaption', '', '앞면'));
+    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${card.name} 자료 사진 원본`; front.append(frontImage, element('figcaption', '', '자료 사진'));
     images.append(front);
     if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${card.name} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
     detail.append(images);
