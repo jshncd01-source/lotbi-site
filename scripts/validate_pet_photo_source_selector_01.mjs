@@ -357,6 +357,11 @@ try {
     breed.value = 'JINDO';
     breed.dispatchEvent(new Event('change', {bubbles: true}));
     basicForm.requestSubmit();
+    await wait(150);
+    const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
+    result.registrationRenewalNotice = renewalDialog?.textContent || '';
+    renewalDialog?.querySelector('[data-safecare-consent="privacy"]')?.click();
+    renewalDialog?.querySelector('[data-safecare-renewal-confirm]')?.click();
     await wait(400);
     const lockedTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
       .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT');
@@ -478,6 +483,7 @@ assert.equal(mobileAndroid.menuAfterEscape, false, 'Escape must close the sheet'
 assert.equal(mobileAndroid.catMenuOpens, true, 'CAT must get the exact same source selector as DOG');
 assert.deepEqual(mobileAndroid.catOptions, ['camera', 'gallery', 'file'], 'CAT options must match DOG');
 
+assert.ok(mobileAndroid.registrationRenewalNotice.includes('나이와 관계없이 · 6개월(180일)마다'), 'registration must confirm the six-month renewal policy before photo sources open');
 assert.equal(mobileAndroid.lockedChooseDisabled, true, 'a locked registration slot must keep its choose button disabled');
 assert.equal(mobileAndroid.menuOnLockedSlot, false, 'a locked slot must never open the source menu');
 assert.deepEqual(mobileAndroid.clickedOnLockedSlot, [], 'a locked slot must never click any input');

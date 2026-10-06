@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-40c9658df826';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-f528177a64e4';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -59,7 +59,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, mountPeople, mountPets, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, loadCareCounts, mountPeople, mountPets, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -134,6 +134,11 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       return button;
     });
     tabs.append(...buttons);
+    const applyCounts = counts => {
+      if (disposed || !authenticated || !counts) return;
+      if (Number.isInteger(counts.people)) buttons[0].textContent = `사람 · ${counts.people}`;
+      if (Number.isInteger(counts.pets)) buttons[1].textContent = `반려동물 · ${counts.pets}`;
+    };
     async function selectTab(value, initialSurface = 'pets') {
       const current = ++generation;
       releasePeople?.(); releasePeople = undefined;
@@ -147,7 +152,10 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         body.setAttribute('aria-busy', 'true');
         const host = node('div'); body.replaceChildren(host);
         try {
-          const mounted = await mountPeople(host, initialSurface);
+          const mounted = await mountPeople(host, initialSurface, counts => {
+            if (disposed || current !== generation || !authenticated) return;
+            applyCounts(counts);
+          });
           if (disposed || current !== generation) { mounted?.dispose?.(); return; }
           releasePeople = mounted?.dispose;
         } catch {
@@ -162,7 +170,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       try {
         const mounted = await mountPets(host, initialSurface, counts => {
           if (disposed || current !== generation || !authenticated) return;
-          if (Number.isInteger(counts.pets)) buttons[1].textContent = `반려동물 · ${counts.pets}`;
+          applyCounts(counts);
         });
         if (disposed || current !== generation) { mounted?.dispose?.(); return; }
         releasePets = mounted?.dispose;
@@ -170,7 +178,11 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '반려동물 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
       } finally { if (!disposed && current === generation) body.removeAttribute('aria-busy'); }
     }
-    root.append(tabs, body); void selectTab('people');
+    root.append(tabs, body);
+    if (authenticated && typeof loadCareCounts === 'function') {
+      void Promise.resolve(loadCareCounts()).then(applyCounts).catch(() => {});
+    }
+    void selectTab('people');
   } else if (section === 'mall') {
     const state = empty('연결한 업체를 롯비에서 이용하세요', '제휴처를 찾아 연결하고, 허용한 권한과 연결 상태를 관리하는 공간입니다.', 'link');
     const catalog = node('a', 'consumer-action', '제휴처 찾아 연결하기');
