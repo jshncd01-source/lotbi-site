@@ -128,10 +128,10 @@ const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8'
 const manager = read('site-calendar-manager.js');
 const expense = read('site-calendar-expense.js');
 const calendarCss = read('site-calendar.css');
-assert.ok(manager.includes('calendarAmountSummaryBlock({'), 'the month shows the total and category overview');
+assert.ok(manager.includes('calendarAmountSummaryBlock({'), 'Today, Week and Month show the total and category overview');
 assert.ok(manager.includes('calendarAmountDetailNode({summary, local})'), 'the breakdown opens from the line');
 assert.ok(!manager.includes('calendarExpenseSummaryNode('), 'the always-visible ledger card must not be mounted');
-assert.ok(!manager.includes('calendar-expense-slot'), 'the ledger card no longer owns a shell row');
+assert.ok(manager.includes("amountSlot.className = 'calendar-amount-slot'"), 'the amount overview owns the top shell row');
 assert.ok(!manager.includes("'월별 지출'"), 'no ledger heading on the Calendar');
 // Code only: the comments explain the rule by quoting the words it forbids.
 const withoutComments = source => source

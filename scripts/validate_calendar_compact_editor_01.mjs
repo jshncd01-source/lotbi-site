@@ -103,8 +103,8 @@ const expenseSource = managerSource.slice(managerSource.indexOf('async function 
 const validatorSource = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8');
 assert.doesNotMatch(validatorSource, /\bmanager\.mountLifeCalendarManager\(/,
   'Auth browser fixture must call its actual imported mount binding');
-assert.match(refreshSource, /let expenseRefresh = null;[\s\S]*if \(state\.mode === 'month'\) expenseRefresh = refreshExpenseSummary\(\);[\s\S]*if \(settleExpense && authenticated && expenseRefresh\) await expenseRefresh;/,
-  'Auth Month refresh must settle the final expense render when the caller requests final focus');
+assert.match(refreshSource, /let expenseRefresh = null;[\s\S]*if \(state\.mode === 'day' \|\| state\.mode === 'week' \|\| state\.mode === 'month'\) expenseRefresh = refreshExpenseSummary\(\);[\s\S]*if \(settleExpense && authenticated && expenseRefresh\) await expenseRefresh;/,
+  'Auth Today, Week and Month refresh must start the expense render, and callers requesting final focus must be able to await it');
 assert.match(savedSource, /await refresh\(\{settleExpense: authenticated && origin\.mode === 'month'\}\)/,
   'editor save must request the settled Month render before restoring focus');
 assert.match(savedSource, /if \(sameCalendarContext\(context\)\) focusCalendarContext\(context, item, \(\) => sameCalendarContext\(context\)\)/,
