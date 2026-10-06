@@ -134,9 +134,14 @@ await wait(()=>document.querySelector('.sidebar-account-name')?.textContent==='�
 const accountFooter=document.querySelector('.sidebar-account-footer');
 const accountTrigger=document.querySelector('.sidebar-profile-trigger');
 const accountPlan=document.querySelector('.sidebar-account-plan');
+const accountName=document.querySelector('.sidebar-account-name');
+const accountAvatar=document.querySelector('.sidebar-profile-avatar');
 const footerStyle=getComputedStyle(accountFooter);
 const triggerStyle=getComputedStyle(accountTrigger);
 const planStyle=accountPlan?getComputedStyle(accountPlan):null;
+const avatarStyle=getComputedStyle(accountAvatar);
+const nameRect=accountName.getBoundingClientRect();
+const planRect=accountPlan?.getBoundingClientRect();
 const accountCard={
   trigger:{
     backgroundColor:triggerStyle.backgroundColor,
@@ -144,13 +149,16 @@ const accountCard={
     borderStyle:triggerStyle.borderStyle,
     borderRadius:triggerStyle.borderRadius,
     boxShadow:triggerStyle.boxShadow,
+    minHeight:triggerStyle.minHeight,
   },
   footer:{borderTopWidth:footerStyle.borderTopWidth,borderTopStyle:footerStyle.borderTopStyle},
+  avatar:{width:avatarStyle.width,height:avatarStyle.height},
   plan:accountPlan?{
     text:accountPlan.textContent,
     display:planStyle.display,
     backgroundColor:planStyle.backgroundColor,
     borderRadius:planStyle.borderRadius,
+    sameRowAsName:Math.abs(nameRect.top-planRect.top)<2,
   }:null,
 };
 
@@ -266,19 +274,22 @@ try {
   const measured = [['desktop', run(browser, 1440, 900)], ['mobile', run(browser, 390, 844)]];
   for (const [surface, v] of measured) {
     assert.deepEqual(v.accountCard.trigger, {
-      backgroundColor:'rgb(255, 255, 255)',
-      borderWidth:'1px',
-      borderStyle:'solid',
-      borderRadius:'14px',
-      boxShadow:'rgba(17, 35, 68, 0.08) 0px 6px 18px 0px',
-    }, `${surface}: 하단 계정 영역은 독립된 카드로 보여야 합니다`);
-    assert.deepEqual(v.accountCard.footer, {borderTopWidth:'1px',borderTopStyle:'solid'}, `${surface}: 최근 대화와 계정 카드는 구분선으로 나뉘어야 합니다`);
+      backgroundColor:'rgba(0, 0, 0, 0)',
+      borderWidth:'0px',
+      borderStyle:'none',
+      borderRadius:'10px',
+      boxShadow:'none',
+      minHeight:'50px',
+    }, `${surface}: 하단 계정 영역은 사이드바에 자연스럽게 붙은 평평한 한 줄이어야 합니다`);
+    assert.deepEqual(v.accountCard.footer, {borderTopWidth:'0px',borderTopStyle:'none'}, `${surface}: 계정 영역 주변에 별도 카드 구분선이 없어야 합니다`);
+    assert.deepEqual(v.accountCard.avatar, {width:'32px',height:'32px'}, `${surface}: 계정 아바타는 조밀한 32px 크기여야 합니다`);
     assert.deepEqual(v.accountCard.plan, {
       text:'LOTBI Plus',
       display:'flex',
-      backgroundColor:'rgb(241, 237, 255)',
-      borderRadius:'999px',
-    }, `${surface}: 이용 등급은 별도 배지로 읽혀야 합니다`);
+      backgroundColor:'rgba(0, 0, 0, 0)',
+      borderRadius:'0px',
+      sameRowAsName:true,
+    }, `${surface}: 이용 등급은 이름 옆에 배지가 아닌 인라인 정보로 보여야 합니다`);
     // 여섯 개 그대로, 순서 그대로.
     assert.deepEqual(v.labels, MENU_LABELS, `${surface}: 프로필 메뉴는 여섯 항목이 이 순서여야 합니다`);
     // 막다른 길 금지 — 로그인된 상태에서는 누를 수 없는 항목이 없어야 한다.
