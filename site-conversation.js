@@ -20,6 +20,7 @@ import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-con
 import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-638e69c0cbe0';
 import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-638e69c0cbe0';
 import {resolveLifeLocationContext} from './site-life-location.js?v=aset-043f2d43f794';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-dce95fcbc3d0';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -1241,6 +1242,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     sortThreads(); saveState(); renderRecent();
   };
   const lotbiBoxKey = () => storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box');
+  // LIFE-PUBLIC-DATA-01 / NEIS: the chosen school lives with this namespace's settings.
+  const lifeSchoolKey = () => storageKey(namespace || anonymousConversationNamespace(), 'life-school');
+  const rememberSchoolPreferencePatch = schoolResult => {
+    const patch = schoolResult?.save_preference;
+    if (!patch || !Number.isInteger(patch.grade)) return;
+    const saved = readSchoolPreference(lifeSchoolKey(), storage);
+    if (saved) writeSchoolPreference(lifeSchoolKey(), {...saved, grade: patch.grade, class_name: String(patch.class_name || '')}, storage);
+  };
   const loadLotbiBox = () => {
     const parsed = safeParse(storage?.getItem(lotbiBoxKey()), []);
     return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.key === 'string').slice(0, 100) : [];
@@ -2542,6 +2551,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (message.role === 'assistant' && message.meta?.calendarDraft) {
       const calendarDraft = createConversationCalendarDraft(message.meta.calendarDraft);
       if (calendarDraft) node.appendChild(calendarDraft);
+    }
+    if (message.role === 'assistant' && message.meta?.schoolResult) {
+      const schoolCard = createSchoolResultCard(message.meta.schoolResult, {
+        document,
+        onSelectSchool: (school, resumeText) => {
+          if (!writeSchoolPreference(lifeSchoolKey(), school, storage)) return;
+          setStatus(`${school.name}을(를) 자녀 학교로 저장했어요.`);
+          if (resumeText && !inFlight) void requestAssistant(resumeText, true);
+        },
+        onAddToCalendar: draft => openCalendar(draft?.localDate ? 'month' : 'agenda', {initialDraft: draft, restoreConversation: true}),
+        onChangeSchool: () => {
+          clearSchoolPreference(lifeSchoolKey(), storage);
+          setStatus('저장된 학교를 지웠어요. 학교 이름을 말씀해 주시면 다시 찾아볼게요.');
+        },
+      });
+      if (schoolCard) node.appendChild(schoolCard);
     }
     if (message.role === 'assistant' && ['sos', 'found'].includes(message.meta?.petAction?.target)) {
       const action = document.createElement('button');
@@ -4190,12 +4215,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       diagnostics.lastPath = 'CORE_GUEST_CONVERSATION'; diagnostics.coreCalls += 1;
       const coreStartedAt = performanceNow(); recordTiming('T1-core-guest-request', {coreCall: diagnostics.coreCalls});
       try {
+        const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
         const token = await ensureGuestSession();
         if (!turnStillActive()) return;
         const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
         if (!turnStillActive()) return;
         const response = await sendGuestConversationMessage({
           guestToken: token,
+          ...(lifeSchool ? {school: lifeSchool} : {}),
           text: message,
           idempotencyKey: guestRequestId,
           recentContext: recentConversationContext(),
@@ -4243,6 +4270,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
+        const schoolMeta = compactSchoolResultMeta(response.schoolResult);
+        if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
         const placeResult = compactPlaceResultMeta(response.placeResult);
         if (placeResult) meta.placeResult = placeResult;
         const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
@@ -4308,6 +4337,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const thinking = beginRequestThinking(authenticatedRequestId); inFlight = true; updateSendState(); setVoiceFeedback('');
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
+    const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
     try {
       const activeSessionToken = sessionToken;
       const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
@@ -4322,6 +4352,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         sourceTurnCreatedAtIso,
         recentConversationContext(),
         {
+          ...(lifeSchool ? {school: lifeSchool} : {}),
           conversationId: activeConversationId,
           turnId: authenticatedRequestId,
           logicalRequestId: authenticatedRequestId,
@@ -4364,6 +4395,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
+      const schoolMeta = compactSchoolResultMeta(response.schoolResult);
+      if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
       const placeResult = compactPlaceResultMeta(response.placeResult);
       if (placeResult) meta.placeResult = placeResult;
       const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
