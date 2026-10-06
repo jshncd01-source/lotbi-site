@@ -158,7 +158,7 @@ const accountCard={
     display:planStyle.display,
     backgroundColor:planStyle.backgroundColor,
     borderRadius:planStyle.borderRadius,
-    sameRowAsName:Math.abs(nameRect.top-planRect.top)<2,
+    sameRowAsName:(Math.min(nameRect.bottom,planRect.bottom)-Math.max(nameRect.top,planRect.top))>(Math.min(nameRect.height,planRect.height)/2),
   }:null,
 };
 
