@@ -407,10 +407,11 @@ async function run() {
           dayControls: picker.querySelectorAll('[data-person-birth-day], [aria-label*="일 선택"]').length,
           typedBirthControls: form.querySelectorAll('input[type=number], [data-person-birth-year][contenteditable], [data-person-birth-month][contenteditable]').length,
           numberInputs: form.querySelectorAll('input[type=number]').length,
+          inlineRenewalNotices: [...form.querySelectorAll('.person-consent')].filter(node => node.textContent.includes('갱신 주기')).length,
         };
       `);
       await shoot('person-03-register-step1');
-      r.personRegisterFlow = await cdp.evaluate(`
+      r.personRenewalNotice = await cdp.evaluate(`
         const form = document.querySelector('[data-person-basic-form]');
         form.querySelector('input').value = '정우리';
         document.querySelector('[data-person-birth-year-option="2018"]').click();
@@ -418,12 +419,29 @@ async function run() {
         document.querySelector('[data-person-birth-confirm]').click();
         const selectedBirth = form.querySelector('[data-person-birth-trigger]').textContent;
         form.requestSubmit();
+        await __until(() => document.querySelector('[data-safecare-renewal-dialog="person"]'));
+        const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="person"]');
+        if (!renewalDialog) return {
+          selectedBirth, renewalNotice: null,
+        };
+        const renewalNotice = {
+          title: renewalDialog.querySelector('h3')?.textContent || '',
+          text: renewalDialog.textContent,
+          createdBeforeConfirm: __calls.includes('POST /v2/person-profiles'),
+          activeBeforeConfirm: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent,
+        };
+        await __wait(260);
+        return {selectedBirth, renewalNotice};
+      `);
+      await shoot('person-04-renewal-notice');
+      r.personRegisterFlow = await cdp.evaluate(`
+        document.querySelector('[data-safecare-renewal-confirm]').click();
         await __until(() => document.querySelector('[data-person-slot-grid]'));
         const create = __calls.find(call => call === 'POST /v2/person-profiles');
         const locked = [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.dataset.safecareSlotLocked);
-        return {create: Boolean(create), selectedBirth, active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, locked};
+        return {create: Boolean(create), active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, locked};
       `);
-      await shoot('person-04-register-step2');
+      await shoot('person-05-register-step2');
 
       // -------------------------------------------------- person: SOS rules
       r.personSos = await cdp.evaluate(`
@@ -539,13 +557,27 @@ async function run() {
         return {label, slotsAtStart, ageModes: [...document.querySelectorAll('input[name=pet-age-mode]')].map(input => input.value), family: [...document.querySelectorAll('[data-pet-register-form] .site-field')].some(field => field.firstChild?.textContent === '가족이 된 날 (선택)')};
       `);
       await shoot('pet-04-register-step1');
-      r.petRegisterPhotos = await cdp.evaluate(`
+      r.petRenewalNotice = await cdp.evaluate(`
         document.querySelector('input[name=pet-species][value=DOG]').click();
         const form = document.querySelector('[data-pet-register-form]');
         form.querySelector('input[type=text]').value = '보리';
         form.querySelector('input[name=pet-sex][value=FEMALE]').click();
         const breed = form.querySelector('select'); breed.value = 'JINDO'; breed.dispatchEvent(new Event('change', {bubbles: true}));
         form.requestSubmit();
+        await __until(() => document.querySelector('[data-safecare-renewal-dialog="pet"]'));
+        const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
+        if (!renewalDialog) return {renewalNotice: null};
+        const renewalNotice = {
+          title: renewalDialog.querySelector('h3')?.textContent || '',
+          text: renewalDialog.textContent,
+          photosVisibleBeforeConfirm: Boolean(document.querySelector('[data-pet-draft-slot]')),
+        };
+        await __wait(260);
+        return {renewalNotice};
+      `);
+      await shoot('pet-05-renewal-notice');
+      r.petRegisterPhotos = await cdp.evaluate(`
+        document.querySelector('[data-safecare-renewal-confirm]').click();
         await __until(() => document.querySelector('[data-pet-draft-slot]'));
         return {
           label: document.querySelector('.pet-draft-progress-label').textContent,
@@ -557,7 +589,7 @@ async function run() {
           nextDisabled: document.querySelector('[data-pet-draft-next="REVIEW"]')?.disabled,
         };
       `);
-      await shoot('pet-05-register-step2-photos');
+      await shoot('pet-06-register-step2-photos');
     }
     socket.close();
     return results;
@@ -613,9 +645,16 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personRegister.dayControls, 0, `${label}: birth day must not be collected`);
   assert.equal(r.personRegister.typedBirthControls, 0, `${label}: birth year/month must not be typed`);
   assert.equal(r.personRegister.numberInputs, 0);
-  assert.equal(r.personRegisterFlow.selectedBirth, '2018년 8월');
+  assert.equal(r.personRegister.inlineRenewalNotices, 0, `${label}: renewal policy belongs in the confirmation dialog, not weak inline helper copy`);
+  assert.equal(r.personRenewalNotice.selectedBirth, '2018년 8월');
   assert.equal(r.personRegisterFlow.create, true);
   assert.equal(r.personRegisterFlow.active, '식별 사진 10장');
+  assert.equal(r.personRenewalNotice.renewalNotice?.title, '식별 사진 갱신 안내', `${label}: person renewal notice must open before photos`);
+  assert.equal(r.personRenewalNotice.renewalNotice.createdBeforeConfirm, false, `${label}: person profile must not be created before renewal notice confirmation`);
+  assert.equal(r.personRenewalNotice.renewalNotice.activeBeforeConfirm, '기본정보');
+  assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만 12세 이하 · 180일마다'));
+  assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만 13세 이상 · 365일마다'));
+  assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
   assert.deepEqual(r.personRegisterFlow.locked, ['false', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true'],
     `${label}: registration starts from the front face`);
 
@@ -664,6 +703,10 @@ for (const [label, r] of Object.entries(results)) {
   assert.deepEqual(r.petRegister.ageModes, ['BIRTH_DATE', 'ESTIMATED', 'UNKNOWN']);
   assert.equal(r.petRegister.family, true, `${label}: 가족이 된 날 is stored by Core's draft and must be offered`);
   assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 사진 10장');
+  assert.equal(r.petRenewalNotice.renewalNotice?.title, '식별 사진 갱신 안내', `${label}: pet renewal notice must open before photos`);
+  assert.equal(r.petRenewalNotice.renewalNotice.photosVisibleBeforeConfirm, false, `${label}: pet photos must wait for renewal notice confirmation`);
+  assert.ok(r.petRenewalNotice.renewalNotice.text.includes('나이와 관계없이 · 6개월(180일)마다'));
+  assert.ok(r.petRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
   assert.equal(r.petRegisterPhotos.slots, 10);
   assert.equal(r.petRegisterPhotos.guide, 'dog');
   assert.equal(r.petRegisterPhotos.artwork, 'assets/safecare/dog-capture-guide-v1.png');
