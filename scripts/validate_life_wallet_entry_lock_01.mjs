@@ -14,7 +14,8 @@ const walletCssSource = await readFile(path.join(root, 'site-life-wallet.css'), 
 const consumerSource = await readFile(path.join(root, 'site-consumer-sections.js'), 'utf8');
 const conversationSource = await readFile(path.join(root, 'site-conversation.js'), 'utf8');
 const indexSource = await readFile(path.join(root, 'index.html'), 'utf8');
-const {LifeWalletVault, MemoryWalletRepository, validateWalletPin} = await import('../site-life-wallet.js');
+const walletModule = await import('../site-life-wallet.js');
+const {LifeWalletVault, MemoryWalletRepository, validateWalletPin, validateBackupPasswordPair, canExportWalletBackup} = walletModule;
 
 class MemorySessionStorage {
   constructor() { this.values = new Map(); }
@@ -25,6 +26,17 @@ class MemorySessionStorage {
 
 assert.equal(validateWalletPin('0123'), '0123', 'leading zero must be preserved');
 for (const invalid of ['123', '12345', '12a4', 1234]) assert.throws(() => validateWalletPin(invalid));
+
+assert.equal(typeof canExportWalletBackup, 'function', 'wallet backup availability policy must be implemented');
+assert.equal(typeof validateBackupPasswordPair, 'function', 'backup password confirmation validation must be implemented');
+assert.equal(canExportWalletBackup([]), false, 'an empty wallet must not offer an exportable backup');
+assert.equal(canExportWalletBackup([{id: 'one-card'}]), true, 'a wallet with saved data must allow backup export');
+assert.equal(validateBackupPasswordPair('backup-password', 'backup-password'), 'backup-password');
+assert.throws(
+  () => validateBackupPasswordPair('backup-password', 'different-password'),
+  /일치하지 않습니다/u,
+  'backup creation must reject a mistyped confirmation',
+);
 
 const repository = new MemoryWalletRepository();
 const wallet = new LifeWalletVault(repository);
@@ -146,6 +158,18 @@ assert.match(walletSource, /LOTBI 관리자도 원본을 볼 수 없으며, 기�
 assert.match(walletCssSource, /\.wallet-storage-reassurance\s*\{/u, 'wallet storage reassurance must have a separate layout block');
 assert.doesNotMatch(walletSource, /예시 신분증은 넣지 않습니다\./u);
 assert.match(walletSource, /사용자가 직접 등록한 실제 자료만 여기에 표시됩니다\./u);
+assert.match(walletSource, /aria-haspopup.*menu/u, 'wallet management must open from an accessible settings menu');
+assert.match(walletSource, /wallet-settings-menu/u, 'wallet management actions must live in the settings menu');
+assert.doesNotMatch(walletSource, /const manage = element\('div', 'wallet-manage'\)/u, 'management actions must not remain as a bottom button row');
+assert.match(walletSource, /암호화 백업 파일 만들기/u);
+assert.match(walletSource, /새 백업 전용 암호 · 8자 이상/u);
+assert.match(walletSource, /백업을 복원할 때 이 암호가 반드시 필요합니다\./u);
+assert.match(walletSource, /내 기기에 백업 파일 저장/u);
+assert.match(walletSource, /백업에서 Life Wallet 복원/u);
+assert.match(walletSource, /저장된 백업 파일 찾기/u);
+assert.match(walletSource, /월렛 4자리 PIN이 아니라/u);
+assert.match(walletSource, /파일이나 백업 암호를 분실하면 복원할 수 없습니다\./u);
+assert.match(walletSource, /Life Wallet 자료 복원/u);
 assert.match(walletSource, /AI로 재작성하지 않고 그대로 암호화/u);
 assert.match(consumerSource, /mountLifeWallet/u);
 assert.match(conversationSource, /accountId: serverIdentity\?\.userId/u);
