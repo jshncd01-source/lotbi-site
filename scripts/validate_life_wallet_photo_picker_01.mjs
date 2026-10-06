@@ -43,11 +43,15 @@ try{
   const picker=createWalletPhotoPicker({onError:message=>errors.push(message)});
   document.getElementById('host').append(picker.element);
   const input=picker.input;
-  const trigger=picker.element.querySelector('button');
+  const trigger=picker.element.querySelector('.wallet-photo-action');
+  const mark=picker.element.querySelector('.wallet-photo-mark');
   const preview=picker.element.querySelector('img');
   let inputClicks=0;
   input.addEventListener('click',()=>{inputClicks+=1});
+  mark.click();
+  const plusInputClicks=inputClicks;
   trigger.click();
+  const allInputClicks=inputClicks;
 
   const invalidTransfer=new DataTransfer();
   invalidTransfer.items.add(new File([new Uint8Array([1,2,3])],'wrong.gif',{type:'image/gif'}));
@@ -67,7 +71,9 @@ try{
   out.textContent=JSON.stringify({
     ok:true,
     accept:input.accept,
-    inputClicks,
+    markTag:mark.tagName,
+    plusInputClicks,
+    allInputClicks,
     inputHidden:inputRect.width<=1&&inputRect.height<=1,
     initialError:errors.find(Boolean)||'',
     selectedDataUrl:selectedDataUrl.startsWith('data:image/png;base64,'),
@@ -115,7 +121,9 @@ try {
   if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
   const result = readResult(run.stdout);
   assert.equal(result.accept, 'image/jpeg,image/png', 'the picker must limit selection to JPEG and PNG');
-  assert.equal(result.inputClicks, 1, 'the visible photo button must activate the real file input');
+  assert.equal(result.markTag, 'BUTTON', 'the plus tile must expose its click behavior as a button');
+  assert.equal(result.plusInputClicks, 1, 'clicking the plus tile must activate the real file input');
+  assert.equal(result.allInputClicks, 2, 'both visible photo actions must activate the real file input');
   assert.equal(result.inputHidden, true, 'the native file input must not remain visibly laid out');
   assert.equal(result.initialError, 'JPEG 또는 PNG 이미지만 등록할 수 있습니다.', 'unsupported images must keep the existing validation');
   assert.equal(result.selectedDataUrl, true, 'the selected image must be available to the existing encrypted save flow');
