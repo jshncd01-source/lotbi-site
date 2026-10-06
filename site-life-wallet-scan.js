@@ -274,9 +274,8 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   for(const frame of frameCandidates){
     const nested=candidates.filter(candidate=>candidate!==frame&&candidate.areaRatio>=frame.areaRatio*.24&&candidate.areaRatio<=frame.areaRatio*.86&&containsCorners(frame.corners,candidate.corners)).sort((left,right)=>right.confidence-left.confidence);
     if(!nested.length)continue;
-    const inner=nested[0];const confidenceGap=frame.confidence-inner.confidence;
+    const inner=nested[0];
     if(inner.confidence-frame.confidence>.08){best=inner;break}
-    if(confidenceGap>.105){best=frame;break}
     best=null;uncertainReason='competing-boundaries';break;
   }
   if(best&&nearSourceFrame(best.corners,working.width,working.height,best.areaRatio,{strict:true})&&!candidates.some(candidate=>candidate!==best&&containsCorners(best.corners,candidate.corners)))best=null;
