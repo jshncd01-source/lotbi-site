@@ -109,14 +109,15 @@ for (const forbidden of [
   assert.doesNotMatch(renderer, new RegExp(forbidden, 'u'));
 }
 for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps']) {
-  assert.match(renderer, new RegExp(`addActionIcon\\([^,]+, '${iconName}'\\)`, 'u'));
   assert.equal(fs.existsSync(new URL(`../assets/place-actions/${iconName}.png`, import.meta.url)), true);
 }
+assert.match(renderer, /readDefaultMapProvider\(document\.cookie\)/u);
+assert.match(renderer, /defaultMapProviderPresentation\(defaultMapProvider/u);
+assert.match(renderer, /openDefaultMapPlace\(defaultMapProvider/u);
+assert.equal((renderer.match(/actions\.appendChild\(mapAction\)/gu) ?? []).length, 1);
+assert.doesNotMatch(renderer, /actions\.appendChild\((?:navigate|kakaoNavi|tmap|googleMaps)\)/u);
 assert.doesNotMatch(renderer, /lotbi-place-action-label/u);
 assert.doesNotMatch(renderer, /addActionLabel/u);
-assert.match(renderer, /dataset\.tmapState = isTmapHandoffAvailable\(\) \? 'MOBILE_APP' : 'INSTALL_GUIDE'/u);
-assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
-assert.match(renderer, /dataset\.action = 'google-maps'/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
 
 console.log('Cross-platform Place Card product contract: PASS');

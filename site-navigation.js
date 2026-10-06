@@ -260,6 +260,11 @@ export function buildKakaoNaviHandoffUrl(place, {origin = 'https://lotbiai.com'}
   return url.href;
 }
 
+export function buildKakaoMapsDirectionsUrl(place) {
+  const payload = buildKakaoNaviSdkPayload(place);
+  return `https://map.kakao.com/link/to/${encodeURIComponent(payload.name)},${payload.y},${payload.x}`;
+}
+
 export function buildTmapMobileUri(place) {
   if (!place || typeof place !== 'object') throw new TypeError('place is required');
   const destination = destinationCoordinates(place);
@@ -332,18 +337,23 @@ export function openTmapPlace(place, {
 } = {}) {
   if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   const {android, ios} = mobilePlatform(userAgent);
-  if (!android && !ios) return Object.freeze({opened: false, mode: 'TMAP_MOBILE_ONLY'});
-  const uri = android ? buildTmapAndroidIntentUri(place) : buildTmapMobileUri(place);
+  const uri = !android && !ios
+    ? buildNaverMapsWebSearchUrl(place)
+    : android
+      ? buildTmapAndroidIntentUri(place)
+      : buildTmapMobileUri(place);
   const result = openNewBrowsingContext(windowRef, uri);
   return Object.freeze({
     opened: result.opened,
     mode: result.opened
-      ? (place.navigationCapable
+      ? (!android && !ios
+        ? 'TMAP_DESKTOP_NAVER_WEB_FALLBACK'
+        : place.navigationCapable
         ? (android ? 'TMAP_ROUTE_INTENT_NEW_TAB' : 'TMAP_ROUTE_URL_SCHEME_NEW_TAB')
         : (android ? 'TMAP_SEARCH_INTENT_NEW_TAB' : 'TMAP_SEARCH_URL_SCHEME_NEW_TAB'))
       : 'BLOCKED',
     uri,
-    fallbackUri: android ? TMAP_ANDROID_STORE_URL : TMAP_IOS_STORE_URL,
+    fallbackUri: android ? TMAP_ANDROID_STORE_URL : ios ? TMAP_IOS_STORE_URL : uri,
   });
 }
 
@@ -399,4 +409,34 @@ export function openNaverMapsPlace(place, {
     uri,
     fallbackUri: webUrl,
   });
+}
+
+const DEFAULT_MAP_PRESENTATION = Object.freeze({
+  NAVER_MAP: Object.freeze({action: 'naver-map', icon: 'naver-map', label: '네이버지도', success: '선택한 장소를 네이버지도에서 엽니다.'}),
+  KAKAO_NAVI: Object.freeze({action: 'kakao-navi', icon: 'kakao-map', label: '카카오내비', success: '선택한 장소를 카카오내비 길안내로 연결합니다.'}),
+  TMAP: Object.freeze({action: 'tmap', icon: 'tmap', label: '티맵', success: '선택한 장소를 티맵 길안내로 연결합니다.'}),
+  GOOGLE_MAPS: Object.freeze({action: 'google-maps', icon: 'google-maps', label: 'Google Maps', success: '선택한 장소를 Google Maps에서 엽니다.'}),
+});
+
+export function defaultMapProviderPresentation(provider) {
+  return DEFAULT_MAP_PRESENTATION[provider] || DEFAULT_MAP_PRESENTATION.NAVER_MAP;
+}
+
+export function buildDefaultMapHref(provider, place, {userAgent = globalThis.navigator?.userAgent || '', origin = globalThis.location?.origin || 'https://lotbiai.com'} = {}) {
+  if (provider === 'KAKAO_NAVI') return buildKakaoNaviHandoffUrl(place, {origin});
+  if (provider === 'TMAP') {
+    const {android, ios} = mobilePlatform(userAgent);
+    if (android) return buildTmapAndroidIntentUri(place);
+    if (ios) return buildTmapMobileUri(place);
+    return buildNaverMapsWebSearchUrl(place);
+  }
+  if (provider === 'GOOGLE_MAPS') return buildGoogleMapsDirectionsUrl(place);
+  return buildNaverMapsWebSearchUrl(place);
+}
+
+export function openDefaultMapPlace(provider, place, options = {}) {
+  if (provider === 'KAKAO_NAVI') return openKakaoNaviPlace(place, options);
+  if (provider === 'TMAP') return openTmapPlace(place, options);
+  if (provider === 'GOOGLE_MAPS') return openGoogleMapsPlace(place, options);
+  return openNaverMapsPlace(place, options);
 }

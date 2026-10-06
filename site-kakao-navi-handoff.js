@@ -1,7 +1,8 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-b162e8b268f9';
+import {CORE_ORIGIN} from './site-core.js?v=aset-6384a8dd9597';
 
 const status = document.getElementById('status');
 const launch = document.getElementById('launch');
+const fallback = document.getElementById('fallback');
 
 function destinationFromLocation(locationRef = globalThis.location) {
   const params = new URLSearchParams(locationRef.search);
@@ -29,9 +30,15 @@ function loadScript(src, documentRef = document) {
   });
 }
 
+function kakaoMapsDirectionsUrl(destination) {
+  return `https://map.kakao.com/link/to/${encodeURIComponent(destination.name)},${destination.y},${destination.x}`;
+}
+
 async function prepare() {
   const destination = destinationFromLocation();
   if (!destination) throw new Error('DESTINATION_INVALID');
+  fallback.href = kakaoMapsDirectionsUrl(destination);
+  fallback.hidden = false;
   const response = await fetch(`${CORE_ORIGIN}/app/config.json`, {
     headers: {Accept: 'application/json'},
     credentials: 'omit',
@@ -63,5 +70,7 @@ async function prepare() {
 
 prepare().catch(() => {
   launch.hidden = true;
-  status.textContent = '지금은 카카오내비 연결을 준비하지 못했어요. LOTBI로 돌아가 다시 시도해 주세요.';
+  status.textContent = fallback.hidden
+    ? '목적지를 확인하지 못했어요. LOTBI 장소검색으로 돌아가 주세요.'
+    : '카카오내비를 바로 열지 못했어요. 아래 카카오맵 웹 길찾기로 계속할 수 있어요.';
 });

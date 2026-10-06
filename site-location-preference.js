@@ -2,6 +2,8 @@
 // Account and Site share only this on/off value; browser permission stays per origin.
 export const LOCATION_USAGE_COOKIE = 'lotbi_location_usage_v1';
 export const LOCATION_USAGE_EVENT = 'lotbi:location-usage-change';
+export const DEFAULT_MAP_PROVIDER_COOKIE = 'lotbi_default_map_provider_v1';
+export const DEFAULT_MAP_PROVIDERS = Object.freeze(['NAVER_MAP', 'KAKAO_NAVI', 'TMAP', 'GOOGLE_MAPS']);
 
 export function readLocationUsagePreference(cookieHeader = '') {
   const matches = cookieHeader.split(';').map(part => part.trim())
@@ -32,4 +34,12 @@ export function setLocationUsageEnabled(enabled) {
     throw new Error('Location preference could not be saved');
   }
   window.dispatchEvent(new CustomEvent(LOCATION_USAGE_EVENT, {detail: {enabled: value}}));
+}
+
+export function readDefaultMapProvider(cookieHeader = '') {
+  const matches = cookieHeader.split(';').map(part => part.trim())
+    .filter(part => part.startsWith(`${DEFAULT_MAP_PROVIDER_COOKIE}=`));
+  if (matches.length !== 1) return 'NAVER_MAP';
+  const value = matches[0].slice(DEFAULT_MAP_PROVIDER_COOKIE.length + 1);
+  return DEFAULT_MAP_PROVIDERS.includes(value) ? value : 'NAVER_MAP';
 }

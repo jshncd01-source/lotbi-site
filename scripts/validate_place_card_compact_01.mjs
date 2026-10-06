@@ -194,8 +194,10 @@ function waitServer() {
 }
 
 function wrapperMarkup(testCase) {
-  return `<!doctype html><html><body style="margin:0"><iframe id="frame" src="/${INNER_REL}" width="${testCase.width}" height="${testCase.height}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
+  return `<!doctype html><html><body style="margin:0"><iframe id="frame" src="about:blank" width="${testCase.width}" height="${testCase.height}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('frame'),out=document.getElementById('result');
+  document.cookie='lotbi_default_map_provider_v1=${testCase.provider}; Path=/; SameSite=Lax';
+  frame.src='/${INNER_REL}';
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('placecard-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
   setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},70000);
   <\/script></body></html>`;
@@ -233,17 +235,20 @@ try {
   fs.writeFileSync(INNER, buildInner(), 'utf8');
   server=spawn('python3',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
   waitServer();
-  for (const testCase of CASES) {
+  const providerActions={NAVER_MAP:'naver-map',KAKAO_NAVI:'kakao-navi',TMAP:'tmap',GOOGLE_MAPS:'google-maps'};
+  for (const baseCase of CASES) for (const provider of Object.keys(providerActions)) {
+    const testCase={...baseCase,provider,label:`${baseCase.label}/${provider}`};
     const reading=run(browser,testCase);
-    const expected=['phone','naver-map','kakao-navi','tmap','google-maps'];
+    const expected=['phone',providerActions[provider]];
     assert.deepEqual(reading.actions.map(x=>x.action),expected,`${testCase.label}: actions`);
     for(const action of reading.actions) {
       assert.ok(action.w>=44&&action.h>=44,`${testCase.label}: ${action.action} ${action.w}x${action.h}`);
+      assert.ok(action.w>=(reading.card.w-24)/2,`${testCase.label}: ${action.action} does not fill the simplified two-action row`);
       assert.equal(action.text,'',`${testCase.label}: ${action.action} visible label`);
       assert.match(action.iconSrc,/^\/assets\/place-actions\/[a-z-]+\.png\?v=place-icons-20260925$/u,
         `${testCase.label}: ${action.action} icon`);
       assert.ok(action.aria.includes(PLACE_RESULT.results[0].name),`${testCase.label}: aria`);
-      if(action.action!=='phone'&&action.action!=='tmap') {
+      if(action.action!=='phone') {
         assert.equal(action.target,'_blank');
         assert.match(action.rel,/noopener/u);
         assert.match(action.rel,/noreferrer/u);

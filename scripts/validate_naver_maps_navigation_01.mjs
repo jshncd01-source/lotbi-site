@@ -203,7 +203,7 @@ assert.ok(rendererStart >= 0 && rendererEnd > rendererStart);
 const renderer = conversationSource.slice(rendererStart, rendererEnd);
 
 // Consumer card contract: no administrative diagnostics, phone appears only when verified,
-// every map action remains visible as an icon, and handoffs leave the LOTBI tab intact.
+// the selected map action remains visible as an icon, and handoffs leave the LOTBI tab intact.
 for (const forbidden of [
   '인허가 대조', '인허가 정보 불일치', '공공 인허가', '행정 인허가',
   'WGS84 확인', 'NAVER Maps Geocoding · WGS84 확인', '사진 정보 없음',
@@ -212,16 +212,16 @@ for (const forbidden of [
 }
 assert.match(renderer, /if \(phoneHref\) \{/u);
 assert.doesNotMatch(renderer, /전화번호 정보 없음/u);
-assert.match(renderer, /dataset\.tmapState = isTmapHandoffAvailable\(\) \? 'MOBILE_APP' : 'INSTALL_GUIDE'/u);
+assert.match(renderer, /const defaultMapProvider = readDefaultMapProvider\(document\.cookie\)/u);
+assert.match(renderer, /candidate => openDefaultMapPlace\(defaultMapProvider, candidate\)/u);
+assert.match(renderer, /mapAction\.href = buildDefaultMapHref\(defaultMapProvider, place\)/u);
 assert.doesNotMatch(renderer, /TMAP_MOBILE_ONLY/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
-assert.match(renderer, /navigate\.target = '_blank'/u);
-assert.match(renderer, /navigate\.rel = 'noopener noreferrer'/u);
-assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
-assert.match(renderer, /dataset\.action = 'google-maps'/u);
-for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps']) {
-  assert.match(renderer, new RegExp(`addActionIcon\\([^,]+, '${iconName}'\\)`, 'u'));
-}
+assert.match(renderer, /mapAction\.target = '_blank'/u);
+assert.match(renderer, /mapAction\.rel = 'noopener noreferrer'/u);
+assert.match(renderer, /mapAction\.dataset\.action = mapPresentation\.action/u);
+assert.match(renderer, /addActionIcon\(mapAction, mapPresentation\.icon\)/u);
+assert.match(renderer, /addActionIcon\(phone, 'phone'\)/u);
 assert.doesNotMatch(renderer, /addActionLabel|lotbi-place-action-label/u);
 
 // Carousel interaction and inactive-card accessibility remain part of the NAVER place surface.
@@ -237,7 +237,7 @@ assert.match(renderer, /control\.tabIndex = current \? 0 : -1/u);
 assert.match(renderer, /control\.setAttribute\('aria-disabled', current \? 'false' : 'true'\)/u);
 assert.match(
   renderer,
-  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*openPlaceInNaverMap\(placeResult\.results\[index\]\);/u,
+  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*openPlaceInDefaultMap\(placeResult\.results\[index\]\);/u,
 );
 
 // Current generated asset version must be the one the conversation runtime imports.
