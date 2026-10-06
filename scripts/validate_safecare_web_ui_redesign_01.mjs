@@ -92,6 +92,8 @@ for (const code of [
   'PERSON_IDENTITY_PHOTO_OCCLUDED',
   'PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL',
   'PERSON_IDENTITY_PHOTO_CHECK_UNAVAILABLE',
+  'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON',
+  'PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR',
 ]) {
   assert.ok(personClient.includes(code), `person photo UI must explain Core rejection ${code}`);
 }

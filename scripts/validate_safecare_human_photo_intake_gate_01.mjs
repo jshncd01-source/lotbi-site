@@ -24,6 +24,8 @@ const REFUSALS = [
   'PERSON_IDENTITY_PHOTO_OCCLUDED',
   'PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL',
   'PERSON_IDENTITY_PHOTO_CHECK_UNAVAILABLE',
+  'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON',
+  'PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR',
 ];
 const FALLBACK = '__fallback__';
 const INTERNAL = [/score/i, /yaw/i, /confidence/i, /model/i, /\bAI\b/, /\d+(\.\d+)?\s*%/, /모델/, /점수/, /신뢰도/, /PERSON_/];
@@ -48,6 +50,12 @@ assert.match(client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_NO_FACE'}, 
 assert.match(client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_WRONG_POSE'}, FALLBACK), /촬영 방향이 맞지 않습니다/);
 assert.match(client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_TOO_BLURRY'}, FALLBACK), /너무 흐립니다/);
 assert.match(client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_CHECK_UNAVAILABLE'}, FALLBACK), /저장하지 않았습니다/);
+// Same-person refusals: "someone else" and "cannot tell" read differently.
+const different = client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON'}, FALLBACK);
+const unclear = client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR'}, FALLBACK);
+assert.match(different, /등록된 사람과 다른 사람으로 보이는 사진입니다/);
+assert.match(unclear, /얼굴을 충분히 확인하기 어렵습니다/);
+assert.ok(!/다른 사람/.test(unclear), 'an inconclusive check must not say "different person"');
 
 // Framing reads per slot.
 const framing = {code: 'PERSON_IDENTITY_PHOTO_WRONG_FRAMING', status: 422};
