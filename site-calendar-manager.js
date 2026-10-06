@@ -4312,9 +4312,15 @@ export async function mountLifeCalendarManager({
       syncMonthLayout(layout);
     }
 
+    // Week needs its actions before the tall time grid so they remain visible
+    // without scrolling. Other modes keep their existing position after the
+    // viewport; moving the shared slot back also makes mode changes stable.
+    if (state.mode === 'week') viewport.before(actionSlot);
+    else viewport.after(actionSlot);
+
     // + 기록 / 사진에서 기록 읽기 outside the day panel: every view except 년
-    // (which is only for finding a month), and Month and Week only when the
-    // day panel sits under them rather than beside them.
+    // (which is only for finding a month), while Day and Month carry the same
+    // actions inside their day panel.
     const panelCarriesActions = state.mode === 'day' || state.mode === 'month';
     if (state.mode === 'year' || panelCarriesActions) {
       actionSlot.hidden = true;
@@ -4322,7 +4328,9 @@ export async function mountLifeCalendarManager({
       actionSlot.dataset.calendarActionBar = 'none';
     } else {
       actionSlot.hidden = false;
-      actionSlot.dataset.calendarActionBar = usesFlowingDayDetail() ? 'pinned' : 'inline';
+      actionSlot.dataset.calendarActionBar = state.mode === 'week'
+        ? 'week-top'
+        : (usesFlowingDayDetail() ? 'pinned' : 'inline');
       const nodes = [];
       if (state.imageMessage) nodes.push(addMessageNode(state.imageMessage));
       nodes.push(addActionsRow(state, actions, {placement: 'bar'}));
