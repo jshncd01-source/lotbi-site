@@ -83,6 +83,7 @@ assert.ok(conversation.includes("window.location.hash === '#profile-photo'"), 'A
 assert.ok(conversation.includes('const profilePhotoEmbed = isProfilePhotoEmbed()'), 'the picker must evaluate embed mode after the handoff restores its hash');
 assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-close'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded close must return control to Account');
 assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-updated'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded save must notify Account');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-ready'}, ACCOUNT_MANAGE_ORIGIN)"), 'Account must reveal the iframe only after the embedded picker is ready');
 assert.match(conversationCss, /html\[data-profile-photo-embed="true"\]/, 'embedded mode must hide the Site home shell');
 assert.ok(conversation.includes("if (source === 'camera') input.setAttribute('capture', 'environment')"), '카메라 경로만 후면 정지사진 capture를 요청해야 합니다');
 assert.ok(conversation.includes('excludeAcceptAllOption: true'), '내 파일 경로도 임의 파일 전체 허용 옵션을 노출하면 안 됩니다');
