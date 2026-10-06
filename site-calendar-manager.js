@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-cd02305bae98';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-cd02305bae98';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-cd02305bae98';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-80f1cc78fc69';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-80f1cc78fc69';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-80f1cc78fc69';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-cd02305bae98';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-cd02305bae98';
+} from './site-calendar-model.js?v=aset-80f1cc78fc69';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-80f1cc78fc69';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-cd02305bae98';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-cd02305bae98';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-cd02305bae98';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-80f1cc78fc69';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-80f1cc78fc69';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-80f1cc78fc69';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-cd02305bae98';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-cd02305bae98';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-cd02305bae98';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-cd02305bae98';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-cd02305bae98';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-cd02305bae98';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-cd02305bae98';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-cd02305bae98';
+} from './site-calendar-product.js?v=aset-80f1cc78fc69';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-80f1cc78fc69';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-80f1cc78fc69';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-80f1cc78fc69';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-80f1cc78fc69';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-80f1cc78fc69';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-80f1cc78fc69';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-80f1cc78fc69';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1730,6 +1730,7 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
     group.dataset.calendarWeekGroup = day.date;
     group.dataset.weekday = String(day.weekday);
     group.dataset.selected = String(selected);
+    group.dataset.holiday = String(Boolean(holiday));
     group.style.height = columnHeight;
     for (const entry of day.timed) {
       const item = entry.item;
@@ -1764,6 +1765,18 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
     scroll.scrollTop = Math.max(0, 7 * CALENDAR_WEEK_HOUR_HEIGHT - 24);
   });
   return wrapper;
+}
+
+function renderAmountSummary(state, actions) {
+  const monthKey = `${state.year}-${state.month}`;
+  const amountSettled = state.expense.monthKey === monthKey;
+  return calendarAmountSummaryBlock({
+    state: amountSettled ? state.expense.status : 'loading',
+    summary: amountSettled ? state.expense.summary : null,
+    month: state.month,
+    errorMessage: amountSettled ? state.expense.message : '',
+    onOpen: opener => actions.openAmountDetail?.(opener),
+  });
 }
 
 function renderMonth(state, actions, weatherCredit = null) {
@@ -1998,18 +2011,6 @@ function renderMonth(state, actions, weatherCredit = null) {
     notice.textContent = state.weatherMessage;
     calendar.appendChild(notice);
   }
-  // The month's recorded amounts: one total line plus the five familiar
-  // categories. The count/currency breakdown still waits behind the total.
-  const monthKey = `${state.year}-${state.month}`;
-  const amountSettled = state.expense.monthKey === monthKey;
-  const amountLine = calendarAmountSummaryBlock({
-    state: amountSettled ? state.expense.status : 'loading',
-    summary: amountSettled ? state.expense.summary : null,
-    month: state.month,
-    errorMessage: amountSettled ? state.expense.message : '',
-    onOpen: opener => actions.openAmountDetail?.(opener),
-  });
-  if (amountLine) calendar.appendChild(amountLine);
   layout.appendChild(calendar);
   if (state.detailOpen) layout.appendChild(dayDetailOverlay(state, actions));
   if (usesFlowingDayDetail()) {
@@ -3668,6 +3669,7 @@ export async function mountLifeCalendarManager({
   bindRovingTablist(modes, modeButtons.values());
   toolbar.append(previous, title, next, today, modes, settingsButton);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
+  const amountSlot = document.createElement('div'); amountSlot.className = 'calendar-amount-slot';
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
   const locationToggle = button('OFF', 'calendar-location-switch');
   locationToggle.setAttribute('role', 'switch');
@@ -3679,7 +3681,7 @@ export async function mountLifeCalendarManager({
   // + 기록 and 사진에서 기록 읽기 when they are not inside the day panel: pinned
   // to the bottom of the Calendar on a touch screen, a plain row on a desk.
   const actionSlot = document.createElement('div'); actionSlot.className = 'calendar-action-slot';
-  shell.append(toolbar, status, viewport, actionSlot); root.replaceChildren(shell);
+  shell.append(toolbar, amountSlot, status, viewport, actionSlot); root.replaceChildren(shell);
 
   // The title is also the way to 년: "2026년 10월 ▾" opens the year to pick a
   // month from, and the year's title brings the month back. The caret is drawn
@@ -4273,6 +4275,11 @@ export async function mountLifeCalendarManager({
     const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"], .calendar-day-panel[data-day-panel-bound="true"]');
     if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
+    const showsAmountSummary = state.mode === 'day' || state.mode === 'week' || state.mode === 'month';
+    const amountSummary = showsAmountSummary ? renderAmountSummary(state, actions) : null;
+    amountSlot.replaceChildren(...(amountSummary ? [amountSummary] : []));
+    amountSlot.hidden = !amountSummary;
+    shell.dataset.amountVisible = String(Boolean(amountSummary));
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '기록을 불러오는 중'; status.appendChild(loading);
     } else {
@@ -4542,7 +4549,7 @@ export async function mountLifeCalendarManager({
         }
         // 일정은 여기서 이미 화면에 오른다 -- 날씨·공휴일은 기다리지 않는다.
         state.loading = false; renderPreservingFocus();
-        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        if (state.mode === 'day' || state.mode === 'week' || state.mode === 'month') expenseRefresh = refreshExpenseSummary();
         // 날씨·공휴일은 따로 도착한다. 그 사이 다른 달로 넘어갔거나(새
         // refreshGeneration) 위치/지역이 다시 바뀌었으면(새 weatherGeneration) 이
         // 응답은 조용히 버려진다 -- 화면은 이미 최신 요청이 맡고 있다.
@@ -4578,7 +4585,7 @@ export async function mountLifeCalendarManager({
         // then decorate it with weather/holiday data fail-soft.
         state.loading = false;
         renderPreservingFocus();
-        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        if (state.mode === 'day' || state.mode === 'week' || state.mode === 'month') expenseRefresh = refreshExpenseSummary();
 
         // Which dates the guest month/week grid can show weather for is a
         // property of the visible date range intersected with the forecast
