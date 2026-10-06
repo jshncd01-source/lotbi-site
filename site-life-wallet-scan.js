@@ -364,7 +364,7 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   if(separatedCandidates.length){
     const separated=separatedCandidates[0];const separatedPoints=Object.values(separated.corners);const separatedCenter=separatedPoints.reduce((sum,point)=>({x:sum.x+point.x/4,y:sum.y+point.y/4}),{x:0,y:0});
     const matching=edgeCandidates.filter(candidate=>{
-      const ratio=candidate.areaRatio/separated.areaRatio;if(ratio<.55||ratio>1.45)return false;
+      const ratio=candidate.areaRatio/separated.areaRatio;if(ratio<.72||ratio>1.28)return false;
       const points=Object.values(candidate.corners);const center=points.reduce((sum,point)=>({x:sum.x+point.x/4,y:sum.y+point.y/4}),{x:0,y:0});
       return Math.hypot(center.x-separatedCenter.x,center.y-separatedCenter.y)<=Math.min(working.width,working.height)*.12;
     }).sort((left,right)=>right.confidence-left.confidence);
