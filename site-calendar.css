@@ -2064,7 +2064,7 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   text-align: left;
 }
 .calendar-amount-line-label { color: var(--lotbi-calendar-muted-ink); font-size: 13px; }
-.calendar-amount-line-amount { margin-left: auto; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.calendar-amount-line-amount { margin-left: 0; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .calendar-amount-line-chevron { color: var(--lotbi-calendar-muted-ink); font-size: 18px; line-height: 1; }
 .calendar-amount-line:hover .calendar-amount-line-amount { text-decoration: underline; text-underline-offset: 3px; }
 .calendar-amount-line-error { cursor: default; color: var(--lotbi-calendar-muted-ink); font-size: 13px; }
@@ -2189,7 +2189,8 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-action-slot[hidden] { display: none !important; }
 .calendar-action-slot { min-width: 0; display: grid; gap: 6px; }
 .calendar-action-slot .calendar-add-message { margin: 0; }
-.calendar-action-slot[data-calendar-action-bar="inline"] .calendar-add-actions {
+.calendar-action-slot[data-calendar-action-bar="inline"] .calendar-add-actions,
+.calendar-action-slot[data-calendar-action-bar="week-top"] .calendar-add-actions {
   position: static;
   justify-content: flex-end;
   padding-top: 0;

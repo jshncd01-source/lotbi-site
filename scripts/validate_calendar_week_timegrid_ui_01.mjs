@@ -79,6 +79,20 @@ try {
   await wait(() => root.querySelector('.calendar-week-agenda'), 'week mounted');
   const result = {ok: true, viewport: {width: innerWidth, height: innerHeight}};
   const section = root.querySelector('.calendar-week-agenda');
+  const amountSlot = root.querySelector('.calendar-amount-slot');
+  const actionSlot = root.querySelector('.calendar-action-slot');
+  const calendarViewport = root.querySelector('.calendar-viewport');
+  const actionRect = actionSlot?.getBoundingClientRect();
+  const weekRect = section?.getBoundingClientRect();
+  result.weekActions = {
+    labels: [...(actionSlot?.querySelectorAll('.calendar-add-button') || [])].map(node => node.textContent.trim()),
+    placement: actionSlot?.dataset.calendarActionBar || '',
+    afterAmount: Boolean(amountSlot && actionSlot)
+      && Boolean(amountSlot.compareDocumentPosition(actionSlot) & Node.DOCUMENT_POSITION_FOLLOWING),
+    beforeViewport: Boolean(actionSlot && calendarViewport)
+      && Boolean(actionSlot.compareDocumentPosition(calendarViewport) & Node.DOCUMENT_POSITION_FOLLOWING),
+    aboveWeek: Boolean(actionRect && weekRect) && actionRect.bottom <= weekRect.top + 1,
+  };
   // Both widths open directly on the weekly hour grid. There is no duplicate
   // date strip or layout toggle before the user can see their schedule.
   result.initialLayout = section.dataset.weekLayout;
@@ -214,6 +228,12 @@ try {
     if (v.stripCount !== 0) throw new Error(`${where}: Week must not duplicate dates in a separate strip`);
     if (v.toggleCount !== 0) throw new Error(`${where}: Week must not require a secondary layout toggle`);
     if (!v.gridPresent) throw new Error(`${where}: Week must render the weekly hour grid`);
+    if (JSON.stringify(v.weekActions.labels) !== JSON.stringify(['사진에서 기록 읽기', '+ 기록'])) {
+      throw new Error(`${where}: Week must show both record actions, got ${JSON.stringify(v.weekActions.labels)}`);
+    }
+    if (v.weekActions.placement !== 'week-top' || !v.weekActions.afterAmount || !v.weekActions.beforeViewport || !v.weekActions.aboveWeek) {
+      throw new Error(`${where}: Week actions must sit directly after the amount summary and above the weekly grid, got ${JSON.stringify(v.weekActions)}`);
+    }
     if (v.columnCount !== 7 || !v.columnsIncreasing || !v.columnsSameRow) {
       throw new Error(`${where}: seven date columns must share one row left-to-right (count=${v.columnCount})`);
     }
