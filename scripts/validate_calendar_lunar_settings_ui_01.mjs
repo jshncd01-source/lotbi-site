@@ -105,16 +105,10 @@ try {
   await wait(() => root.querySelector('.calendar-day-panel[data-selected-date="2025-10-06"]'), 'Oct 6 selected');
   const weekTab = [...root.querySelectorAll('.calendar-mode-tab')].find(n => n.textContent === '주');
   click(weekTab);
-  // LIFE UX 01: Week opens as the life list; each day's header says its lunar
-  // date. The hour grid (주 → 시간표) carries the same conversion.
+  // Week is one vertical list; each date group's header carries the same
+  // lunar conversion as Month.
   await wait(() => root.querySelector('.calendar-week-list [data-calendar-week-group="2025-10-06"]'), 'week list on the right week');
   result.weekListLunarLabel = root.querySelector('.calendar-week-list [data-calendar-week-group="2025-10-06"] .calendar-week-day-lunar')?.textContent || '';
-  click(root.querySelector('[data-week-layout-option="timegrid"]'));
-  await wait(() => root.querySelector('.calendar-week-day[data-calendar-week-date="2025-10-06"]'), 'week grid on the right week');
-  // .calendar-week-date (the quick-jump strip) and .calendar-week-day (the
-  // grid column header) both carry data-calendar-week-date -- only the
-  // latter renders the lunar text, so the class must disambiguate them.
-  result.weekLunarLabel = root.querySelector('.calendar-week-day[data-calendar-week-date="2025-10-06"] .calendar-week-day-lunar')?.textContent || '';
 
   // 4. Turn it back off; the text must actually leave the DOM, not just hide.
   click(root.querySelector('.calendar-settings-button'));
@@ -181,7 +175,6 @@ try {
   if (v.oct7Label !== '8월 16일') throw new Error(`2025-10-07 (음력 8/16) must read 8월 16일, not repeat 8월 15일 -- got "${v.oct7Label}"`);
   if (v.storedAfterToggle !== true) throw new Error(`the setting must persist to localStorage, got ${v.storedAfterToggle}`);
   if (v.weekListLunarLabel !== '음력 8월 15일') throw new Error(`Week's life list must show the same conversion for 2025-10-06, got "${v.weekListLunarLabel}"`);
-  if (v.weekLunarLabel !== '8월 15일') throw new Error(`Week's hour grid must show the same conversion for 2025-10-06, got "${v.weekLunarLabel}"`);
   if (v.weekOffAfterToggle !== 0) throw new Error('turning the toggle back off must remove the Week lunar text, not just hide it');
   console.log('CALENDAR LUNAR SETTINGS UI PASS', JSON.stringify(v));
 } finally {

@@ -11,8 +11,9 @@ const css = fs.readFileSync('site-calendar.css', 'utf8');
 assert.ok(manager.includes("const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);"));
 assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
-assert.ok(manager.includes("strip.className = 'calendar-week-strip'"));
+assert.ok(manager.includes("const layout = 'list';"));
 assert.ok(manager.includes("group.dataset.calendarWeekGroup = day.date"));
+assert.ok(manager.includes("group.dataset.weekday = String(day.weekday)"));
 assert.ok(manager.includes("'이번 주에는 기록이 없어요.'"));
 assert.ok(manager.includes("emptyMessage(state.loading ? '…' : '기록 없음')"));
 
@@ -49,17 +50,11 @@ assert.ok(manager.includes("previous.dataset.calendarNavigation = 'previous'"));
 assert.ok(manager.includes("next.dataset.calendarNavigation = 'next'"));
 assert.ok(css.includes('.calendar-nav-button[data-calendar-navigation="next"]::before'));
 assert.ok(css.includes('.calendar-week-agenda'));
-assert.ok(css.includes('.calendar-week-day'));
-// Week is a real Google-Calendar-style time grid: 7 side-by-side day columns
-// against an hour axis, not the removed single-column agenda list, at any
-// width -- there is no longer a >=901px override collapsing it back to one
-// column.
-assert.match(css, /\.calendar-week-grid-header,\s*\n\.calendar-week-allday-row,\s*\n\.calendar-week-grid-scroll\s*\{[^}]*grid-template-columns:\s*var\(--calendar-week-axis-width\) repeat\(7, minmax\(var\(--calendar-week-column-min\), 1fr\)\);/);
-assert.ok(!css.includes('.calendar-week-days'));
-assert.ok(css.includes('.calendar-week-grid-event {'));
-assert.match(css, /\.calendar-week-grid-event\s*\{[^}]*position:\s*absolute;/);
-assert.ok(manager.includes("block.style.top = `${(entry.start / MINUTES_PER_DAY) * 100}%`"));
-assert.ok(css.includes('.calendar-week-allday-row'));
+assert.ok(css.includes('.calendar-week-day-group'));
+// Week has one reading direction on every width: seven date groups stack
+// vertically and share Month's red/blue weekend surfaces.
+assert.ok(css.includes('.calendar-week-day-group[data-weekday="0"] { background: var(--lotbi-calendar-weekend-sun-surface); }'));
+assert.ok(css.includes('.calendar-week-day-group[data-weekday="6"] { background: var(--lotbi-calendar-weekend-sat-surface); }'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
 assert.ok(manager.includes("loading.textContent = '기록을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));
@@ -73,7 +68,6 @@ assert.equal(rovingTabTargetIndex('Home', 2, 4), 0);
 assert.equal(rovingTabTargetIndex('End', 1, 4), 3);
 assert.equal(rovingTabTargetIndex('Enter', 1, 4), null);
 assert.ok(manager.includes('bindRovingTablist(modes'));
-assert.ok(manager.includes('bindRovingTablist(strip'));
 
 // Month Home/End must follow the visual row owned by the configured week start.
 assert.equal(monthGridKeyboardTargetDate('2026-09-24', 'Home', 0), '2026-09-20');
@@ -106,7 +100,7 @@ assert.deepEqual(calendarItemActionPolicy({
 // Selection restores focus only to a target guaranteed by the active view.
 assert.ok(manager.includes('function focusSelectedCalendarTarget'));
 assert.ok(manager.includes("state.mode === 'week'"));
-assert.ok(manager.includes('data-calendar-week-date'));
+assert.ok(manager.includes('data-calendar-week-group'));
 assert.ok(manager.includes("state.mode === 'month'"));
 assert.ok(manager.includes("panel?.querySelector('.calendar-day-heading')"));
 assert.ok(manager.includes("button('닫기', 'calendar-day-close')"), 'month day detail must have an explicit close control');
