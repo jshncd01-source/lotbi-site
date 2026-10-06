@@ -75,9 +75,27 @@ const largeNoseEllipses = noseDiagram.children.filter(child => child.tagName ===
 assert.ok(largeNoseEllipses.length >= 1, 'nose guidance must include a magnified callout');
 assert.ok(largeNoseEllipses.every(child => child.class === 'pet-slot-guide-callout'), 'large callouts must stay outlined instead of becoming solid blobs');
 
-const {PERSON_IDENTITY_SLOTS, personSlotDiagram} = await import('../site-person-guides.js');
-const personFront = personSlotDiagram(PERSON_IDENTITY_SLOTS[0]);
-assert.ok(personFront.children.some(child => child.tagName === 'RECT' && child.class === 'person-guide-stage'), 'person guide needs a deliberate visual stage');
-assert.ok(personFront.children.some(child => child.class === 'person-guide-body'), 'person guide needs a filled body silhouette');
+const {PERSON_IDENTITY_SLOTS, personSlotArtwork} = await import('../site-person-guides.js');
+
+const expectedPersonSlotArtwork = [
+  'assets/safecare/person-face-front-v1.png',
+  'assets/safecare/person-face-left-45-v1.png',
+  'assets/safecare/person-face-right-45-v1.png',
+  'assets/safecare/person-face-left-profile-v1.png',
+  'assets/safecare/person-face-right-profile-v1.png',
+  'assets/safecare/person-upper-body-front-v1.png',
+  'assets/safecare/person-full-body-front-v1.png',
+  'assets/safecare/person-face-front-alt-v1.png',
+  'assets/safecare/person-face-left-alt-v1.png',
+  'assets/safecare/person-face-right-alt-v1.png',
+];
+for (const [index, slot] of PERSON_IDENTITY_SLOTS.entries()) {
+  const artwork = personSlotArtwork(slot);
+  assert.equal(artwork.tagName, 'IMG', `${slot.code} must use a finished image instead of a tiny line icon`);
+  assert.equal(artwork.className, 'person-slot-guide-image');
+  assert.equal(artwork.src, expectedPersonSlotArtwork[index]);
+  assert.equal(artwork.alt, `${slot.label} 촬영 예시`);
+  assert.equal(artwork.decoding, 'async');
+}
 
 console.log('SAFECARE-CAPTURE-ART-01 PASS');
