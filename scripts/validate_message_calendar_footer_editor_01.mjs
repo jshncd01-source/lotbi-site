@@ -190,11 +190,23 @@ try{
   // calendar view instead of "일정을 등록하시겠습니까?".
   draft=null;
   await send('오늘 날씨 어때');
+  const latestActions=[...document.querySelectorAll('.chat-message-actions')].pop();
+  result.messageActionLabels=[...latestActions.querySelectorAll(':scope > button')].map(button=>button.getAttribute('aria-label'));
+  click(latestActions.querySelector('[data-message-action="share"]'));
+  result.shareMenuItems=[...latestActions.querySelectorAll('[role="menuitem"]')].map(item=>item.getAttribute('aria-label'));
+  click(latestActions.querySelector('[data-message-action="share"]'));
   const plain=await openViaFooter('plain');
   result.plain_editorOpened=Boolean(plain.editor);
   result.plain_heading=plain.editor?.querySelector('#calendar-editor-heading')?.textContent||'';
   result.plain_title=plain.editor?.querySelector('.calendar-editor-title')?.value||'';
   result.plain_calendarManagerView=plain.modal?.querySelector('.site-modal-content')?.dataset.calendarManagerView||'';
+  result.calendarRole=plain.modal?.getAttribute('role')||'';
+  result.calendarAriaModal=plain.modal?.getAttribute('aria-modal')||'';
+  result.calendarIsWorkspace=plain.modal?.parentElement?.classList.contains('consumer-workspace')||false;
+  result.bodyWorkspaceOpen=document.body.classList.contains('site-workspace-open');
+  result.bodyOverlayOpen=document.body.classList.contains('site-overlay-open');
+  result.chatRemainsVisible=!document.getElementById('main-content').hidden;
+  result.chatIsInert=document.getElementById('main-content').inert;
 
   result.ok=true;
   out.textContent=JSON.stringify(result);
@@ -232,6 +244,12 @@ function run(browser, w, h) {
   return v;
 }
 
+function assertList(actual, expected, label) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
@@ -251,6 +269,11 @@ try {
     if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
     if (v.plain_heading !== '기록 추가') throw new Error(`${label}: a blank fallback must read "기록 추가", got "${v.plain_heading}"`);
     if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
+    assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가'], `${label}: chat answer tools`);
+    assertList(v.shareMenuItems, ['링크 복사', '카카오톡 공유하기'], `${label}: share menu`);
+    if (v.calendarRole !== 'dialog' || v.calendarAriaModal !== 'true') throw new Error(`${label}: Calendar must be an accessible modal dialog`);
+    if (v.calendarIsWorkspace || v.bodyWorkspaceOpen) throw new Error(`${label}: Calendar must not replace chat as a workspace`);
+    if (!v.bodyOverlayOpen || !v.chatRemainsVisible || v.chatIsInert) throw new Error(`${label}: chat must remain mounted and visible behind Calendar`);
 
     console.log(label, JSON.stringify({
       withDraft: {heading: v.withDraft_heading, title: v.withDraft_title, date: v.withDraft_date},

@@ -291,24 +291,16 @@ function createRecorder() {
   assert.deepEqual(synth.speakLog, mixed, 'numbers, phone numbers and English text must reach the engine unmodified');
 }
 
-// --- 22. site-conversation.js must actually wire this controller in -------
-// A controller this correct is worthless if the page keeps its own state
-// alongside it. This guards the integration itself, not just the module.
+// --- 22. Chat no longer exposes browser read-aloud ------------------------
+// Keep the controller's isolated unit coverage because another surface may
+// reuse it later, while locking the product decision that chat must not wire it.
 {
   const fs = await import('node:fs');
   const path = await import('node:path');
   const source = fs.readFileSync(path.join(import.meta.dirname, '..', 'site-conversation.js'), 'utf8');
-  assert.match(source, /import\s*\{createReadAloudController,\s*READ_ALOUD_STATE\}\s*from\s*'\.\/site-read-aloud-controller\.js/);
-  // Declared, not called, at module scope — a standalone regression test
-  // (validate_home_refresh_persistence_01.mjs) evaluates an isolated source
-  // range of this file without the module's imports available; a top-level
-  // factory call there throws ReferenceError. The real instance is created
-  // once mountConversation() actually runs.
-  assert.match(source, /\nlet readAloud;\n/);
-  assert.match(source, /function mountConversation\([\s\S]{0,200}?\{\n\s*readAloud = speechSupported\(\) \? createReadAloudController\(\{onTelemetry: reportReadAloudTelemetry\}\) : null;/);
-  assert.match(source, /visibilitychange'[\s\S]*?readAloud\?\.stop\('PAGE_HIDDEN'\)/);
-  assert.match(source, /'pagehide'[\s\S]*?readAloud\?\.stop\('PAGE_HIDDEN'\)/);
-  assert.ok(!source.includes('site-voice-playback.js'), 'the superseded single-purpose ownership module must not be re-imported');
+  assert.doesNotMatch(source, /site-read-aloud-controller\.js/);
+  assert.doesNotMatch(source, /createReadAloudController|READ_ALOUD_STATE|readAloud/);
+  assert.doesNotMatch(source, /messageAction: 'speak'|읽어주기|읽기 멈추기/);
 }
 
-console.log('SITE-VOICE-READ-ALOUD-RELIABILITY-02 CONTRACT PASS');
+console.log('SITE-VOICE-READ-ALOUD REMOVAL + CONTROLLER UNIT CONTRACT PASS');

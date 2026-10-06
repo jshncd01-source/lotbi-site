@@ -256,10 +256,9 @@ jobs:
       - name: Validate public Site voice release exclusion
         run: node scripts/validate_voice_public_release_exclusion_01.mjs
 
-      # SITE-VOICE-READ-ALOUD-RELIABILITY-02: single playback owner, bounded
-      # voice readiness/fallback, sequential chunk playback, page lifecycle,
-      # and privacy-safe telemetry for the "읽어주기" button.
-      - name: Validate read-aloud (읽어주기) reliability
+      # The isolated controller remains tested for possible reuse, while the
+      # chat integration gate locks the product decision to expose no 읽어주기.
+      - name: Validate read-aloud controller and chat exclusion
         run: |
           node --check site-voice-tts.js
           node --check site-read-aloud-speech.js
@@ -412,9 +411,9 @@ jobs:
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
-      # 복사하기/공유하기 ride under every LOTBI answer. Guard that share stays
-      # on the OS share sheet — no Kakao SDK, no app key, no extra page script.
-      - name: Validate message copy and share actions
+      # 답변 공유에는 링크 복사와 카카오톡만 노출한다. Kakao SDK is loaded
+      # lazily from the allowlisted Core config, never as an eager page script.
+      - name: Validate message copy and two-option share actions
         run: node scripts/validate_message_share_actions_01.mjs
 
       # CHATPERF-08 — a chat photo is analysis input, never a thing this Site
@@ -596,7 +595,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-life-wallet.css /site-life-wallet.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-kakao-share.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-life-wallet.css /site-life-wallet.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 
