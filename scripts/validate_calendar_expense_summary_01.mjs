@@ -63,6 +63,14 @@ let stage='init';
 setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},45000);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await sleep(20)}throw new Error('timeout '+label)};
+const waitForDomIdle=(node,quietMs=120)=>new Promise(resolve=>{
+  let timer;
+  const done=()=>{observer.disconnect();resolve()};
+  const settle=()=>{clearTimeout(timer);timer=setTimeout(done,quietMs)};
+  const observer=new MutationObserver(settle);
+  observer.observe(node,{subtree:true,childList:true,characterData:true,attributes:true});
+  settle();
+});
 
 // The fixture answers Core itself so the assertions measure rendering, not the
 // network. Only the routes the month view touches are served.
@@ -165,6 +173,10 @@ try{
   const populatedFetch=stubFetch({expense:KRW_SUMMARY});
   let root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:populatedFetch});
   await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready','ready line');
+  // The amount read can settle before the other initial Calendar reads. Wait
+  // until their fixture-driven renders are quiet; otherwise a late render can
+  // replace the focused amount line while focus return is being measured.
+  await waitForDomIdle(root);
   const ready=line(root);
 
   const layout=root.querySelector('.calendar-month-layout');
