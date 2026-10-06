@@ -377,7 +377,8 @@ async function run() {
           count: tiles().length,
           labels: tiles().map(tile => tile.querySelector('.safecare-slot-label').textContent),
           counter: document.querySelector('[data-safecare-photo-count]').textContent,
-          guide: document.querySelector('[data-safecare-guide="person"]') ? document.querySelector('[data-safecare-guide="person"] .safecare-guide-map').children.length : 0,
+          guideBoxPresent: Boolean(document.querySelector('[data-safecare-guide="person"]')),
+          emptyArtworkCount: tiles().filter(tile => tile.dataset.safecareSlotFilled === 'false' && tile.querySelector('.person-slot-guide-image')).length,
           accept: [...new Set(tiles().map(tile => tile.querySelector('input[type=file]').accept))],
           buttons: [...new Set(tiles().map(tile => tile.querySelector('.safecare-slot-choose').textContent))],
           nextDisabled: document.querySelector('[data-person-photos-next]').disabled,
@@ -661,11 +662,12 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(cards['박영자'].photoAction, '사진 등록 이어하기');
   assert.equal(cards['김하늘'].photoAction, '사진 갱신·관리');
 
-  // person photos: exactly ten labelled slots, progress, guide, web wording
+  // person photos: exactly ten labelled slots, progress, card-local artwork, web wording
   assert.equal(r.personPhotos.before.count, 10, `${label}: exactly ten identity slots`);
   assert.deepEqual(r.personPhotos.before.labels, ['정면 얼굴', '왼쪽 45도', '오른쪽 45도', '왼쪽 옆면', '오른쪽 옆면', '정면 상반신', '정면 전신', '추가 정면', '추가 왼쪽', '추가 오른쪽']);
   assert.equal(r.personPhotos.before.counter, '등록 완료 3 / 10남은 사진 7장');
-  assert.equal(r.personPhotos.before.guide, 10, `${label}: the person guide must map all ten directions`);
+  assert.equal(r.personPhotos.before.guideBoxPresent, false, `${label}: the duplicated explanation box must not sit above the photo cards`);
+  assert.equal(r.personPhotos.before.emptyArtworkCount, 7, `${label}: every empty photo card must show its own large shooting example`);
   assert.deepEqual(r.personPhotos.before.accept, ['image/jpeg,image/png,image/webp']);
   assert.ok(r.personPhotos.before.buttons.every(text => ['사진 선택', '다른 사진 선택'].includes(text)), `${label}: web wording must be 사진 선택`);
   assert.equal(r.personPhotos.before.nextDisabled, true, `${label}: 3/10 must not move on`);
