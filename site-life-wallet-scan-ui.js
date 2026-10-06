@@ -1,4 +1,4 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-37942d1edeb3';
+import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-77672b7c1fe1';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -73,7 +73,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
   shell.append(heading,privacy,status,workspace,warnings,choices,actions);
 
-  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
+  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
   function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}}
@@ -87,6 +87,12 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
     return CORNER_NAMES.some(([name])=>Math.hypot(corners[name].x-fallbackCorners[name].x,corners[name].y-fallbackCorners[name].y)>1);
   }
 
+  // Rounded-corner cleanup only applies to the exact automatic crop it was measured on.
+  function automaticGeometryKept(){
+    if(!detectedCorners||!corners)return false;
+    return CORNER_NAMES.every(([name])=>Math.hypot(corners[name].x-detectedCorners[name].x,corners[name].y-detectedCorners[name].y)<=1);
+  }
+
   function updateOverlay() {
     if(!source||!corners)return; const size=dimensions(source); const points=[];
     for(const [name] of CORNER_NAMES){const point=corners[name];const handle=handles.get(name);handle.style.left=`${point.x/size.width*100}%`;handle.style.top=`${point.y/size.height*100}%`;handle.dataset.x=String(Math.round(point.x));handle.dataset.y=String(Math.round(point.y));handle.setAttribute('aria-valuetext',`${Math.round(point.x)}, ${Math.round(point.y)}`);points.push(`${point.x/size.width*100},${point.y/size.height*100}`)}
@@ -96,7 +102,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   async function renderPreview() {
     if(!source||!corners||destroyed)return; const version=++renderVersion; confirm.disabled=true; status.textContent='보정 결과 만드는 중';
     try{
-      const result=await rectifyDocument(source,corners,{enhance:enhanced}); if(destroyed||version!==renderVersion)return;
+      const result=await rectifyDocument(source,corners,{enhance:enhanced,cornerRadius:automaticGeometryKept()?cornerRadius:0}); if(destroyed||version!==renderVersion)return;
       latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced);
       warnings.replaceChildren(); if(result.warnings.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of result.warnings)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
       const automatic=shell.dataset.scanMode==='automatic';
@@ -118,7 +124,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   async function initialize() {
     try{
       source=await decodeFile(file,resources); if(destroyed){releaseResources();return} const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
-      const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}])); fallbackCorners=found.mode==='manual'?Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}])):null; shell.dataset.scanMode=found.mode; updateOverlay(); await renderPreview();
+      const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}])); fallbackCorners=found.mode==='manual'?Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}])):null; if(found.mode==='automatic'){detectedCorners=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}]));cornerRadius=found.cornerRadius||0} shell.dataset.scanMode=found.mode; shell.dataset.scanReason=found.reason||''; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay(); await renderPreview();
     }catch(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
   }
 
