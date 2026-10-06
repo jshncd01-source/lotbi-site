@@ -941,12 +941,14 @@ body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color:
   --calendar-week-axis-width: 44px;
   --calendar-week-column-min: 84px;
   min-width: 0;
-  overflow-x: auto;
+  max-height: min(66vh, 620px);
+  overflow: auto;
   overscroll-behavior-x: contain;
   border: 1px solid var(--lotbi-calendar-grid-line);
   border-radius: 14px;
   background: var(--lotbi-calendar-sheet-surface);
 }
+.calendar-week-grid-sticky-rows { position: sticky; top: 0; z-index: 2; min-width: 100%; background: var(--lotbi-calendar-sheet-surface); }
 .calendar-week-grid-header,
 .calendar-week-allday-row,
 .calendar-week-grid-scroll {
@@ -954,7 +956,7 @@ body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color:
   grid-template-columns: var(--calendar-week-axis-width) repeat(7, minmax(var(--calendar-week-column-min), 1fr));
   min-width: 100%;
 }
-.calendar-week-grid-header { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--lotbi-calendar-grid-line); background: var(--lotbi-calendar-sheet-surface); }
+.calendar-week-grid-header { border-bottom: 1px solid var(--lotbi-calendar-grid-line); background: var(--lotbi-calendar-sheet-surface); }
 .calendar-week-grid-axis-spacer { min-width: 0; }
 .calendar-week-day {
   min-width: 0; min-height: 56px; display: grid; place-items: center; gap: 2px;
@@ -988,7 +990,7 @@ body[data-site-theme="dark"] .calendar-add-message { background: #232a35; color:
   cursor: pointer; font: inherit; font-size: 11px; font-weight: 750; text-align: left;
 }
 .calendar-week-holiday { color: var(--lotbi-calendar-holiday-ink); font-size: 11px; font-weight: 750; }
-.calendar-week-grid-scroll { position: relative; align-items: start; max-height: min(66vh, 620px); overflow-y: auto; overscroll-behavior-y: contain; }
+.calendar-week-grid-scroll { position: relative; align-items: start; overscroll-behavior-y: contain; }
 .calendar-week-hour-axis { position: relative; }
 .calendar-week-hour-label {
   position: absolute; left: 0; right: 6px; transform: translateY(-50%);
@@ -1023,7 +1025,7 @@ body[data-site-theme="dark"] .calendar-week-grid-day[data-holiday="true"] { back
   .calendar-week-grid { --calendar-week-axis-width: 36px; --calendar-week-column-min: 68px; }
   .calendar-week-day { min-height: 48px; padding: 6px 2px; }
   .calendar-week-day-number { font-size: 14px; }
-  .calendar-week-grid-scroll { max-height: min(58vh, 520px); }
+  .calendar-week-grid { max-height: min(58vh, 520px); }
 }
 .calendar-week-add-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .calendar-week-add-actions .calendar-add-button { width: auto; min-width: 0; margin-top: 0; }
