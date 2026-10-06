@@ -52,6 +52,17 @@ wallet.lock();
 await wallet.unlock(account, '0007');
 assert.equal((await wallet.list(account)).length, 2, 'returning to the first account restores only its records');
 
+const simplifiedRepository = new MemoryWalletRepository();
+const simplifiedWallet = new LifeWalletVault(simplifiedRepository);
+await simplifiedWallet.create('simplified-add-account', '8642');
+await simplifiedWallet.save('simplified-add-account', {
+  id: 'auto-named-certificate', kind: 'certificate', note: '',
+  frontDataUrl: 'data:image/png;base64,AA==', updatedAt: '2026-10-06T00:00:00.000Z',
+});
+const [simplifiedCard] = await simplifiedWallet.list('simplified-add-account');
+assert.equal(simplifiedCard.name, '증명서', 'the selected kind must provide the stored display name');
+assert.equal(simplifiedCard.backDataUrl, '', 'the single-photo flow must preserve an empty legacy back image');
+
 const limitedRepository = new MemoryWalletRepository();
 const limitedWallet = new LifeWalletVault(limitedRepository);
 await limitedWallet.create('rate-limited-account', '1357');
@@ -82,6 +93,8 @@ assert.doesNotMatch(walletSource, /localStorage/u, 'wallet must not store secret
 assert.doesNotMatch(walletSource, /fetch\s*\(/u, 'wallet must not upload data');
 assert.doesNotMatch(walletSource, /PublicKeyCredential|navigator\.credentials|WebAuthn/u, 'PC wallet must not claim or invoke device authentication');
 assert.doesNotMatch(walletSource, /Windows Hello·지문·Face ID를 지원하는 것처럼 표시하지 않습니다|PC Web은 4자리 월렛 PIN만 사용합니다/u);
+assert.doesNotMatch(walletSource, /field\('자료 이름', name\)|field\('뒷면 사진 · 선택', back\)/u);
+assert.match(walletSource, /field\('자료 사진 · 필수', front\)/u);
 assert.match(walletSource, /AI로 재작성하지 않고 그대로 암호화/u);
 assert.match(consumerSource, /mountLifeWallet/u);
 assert.match(conversationSource, /accountId: serverIdentity\?\.userId/u);
