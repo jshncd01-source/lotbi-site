@@ -244,6 +244,7 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
       section: 'care',
       root: host,
       authenticated: true,
+      loadCareCounts: async () => ({people: 4, pets: 1}),
       mountPeople: (root, initialSurface, reportCounts) => mountPersonCareManager({sessionToken: 'fixture-token', root, initialSurface, onCountChange: reportCounts}),
       mountPets: (root, initialSurface, reportCounts) => mountPetFamilyManager({sessionToken: 'fixture-token', root, initialSurface, onCountChange: reportCounts}),
     });
@@ -329,12 +330,16 @@ async function run() {
       // --------------------------------------------- SafeCare category counts
       r.categoryCounts = await cdp.evaluate(`
         __mountCare();
-        await __until(() => [...document.querySelectorAll('[role=tab]')].some(tab => tab.textContent === '사람 · 4'));
+        await __until(() => {
+          const current = [...document.querySelectorAll('[role=tab]')];
+          return current[0]?.textContent === '사람 · 4' && current[1]?.textContent === '반려동물 · 1';
+        });
         const tabs = [...document.querySelectorAll('[role=tab]')];
         const people = tabs[0].textContent;
+        const petsBeforeClick = tabs[1].textContent;
         tabs[1].click();
         await __until(() => tabs[1].textContent === '반려동물 · 1');
-        return {people, pets: tabs[1].textContent};
+        return {people, petsBeforeClick, pets: tabs[1].textContent};
       `);
 
       // ---------------------------------------------------- person: list
@@ -566,7 +571,7 @@ async function run() {
 
 const results = await run();
 for (const [label, r] of Object.entries(results)) {
-  assert.deepEqual(r.categoryCounts, {people: '사람 · 4', pets: '반려동물 · 1'}, `${label}: both SafeCare categories must show the same count format`);
+  assert.deepEqual(r.categoryCounts, {people: '사람 · 4', petsBeforeClick: '반려동물 · 1', pets: '반려동물 · 1'}, `${label}: both SafeCare categories must show their counts before either tab is opened`);
 
   // person list: inner menu gone, card actions, ACTIVE SOS only, separate CTA
   const cards = Object.fromEntries(r.personList.cards.map(card => [card.name, card]));
