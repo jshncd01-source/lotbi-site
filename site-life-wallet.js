@@ -577,7 +577,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         pin.value = ''; unlocked = true; activity(); await renderWallet();
       } catch (error) { status.textContent = safeMessage(error, '잠금을 해제하지 못했습니다.'); setBusy(form, false); pin.value = ''; refreshDots(); pin.focus(); }
     });
-    wrap.append(form, element('p', 'wallet-security-note', 'Windows Hello·지문·Face ID를 지원하는 것처럼 표시하지 않습니다. PC Web은 4자리 월렛 PIN만 사용합니다.'));
+    wrap.append(form);
     root.replaceChildren(wrap); pin.focus();
   }
 
