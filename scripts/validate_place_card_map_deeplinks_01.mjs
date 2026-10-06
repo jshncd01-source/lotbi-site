@@ -25,6 +25,7 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile Safari/537.36
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile Safari/604.1';
 const DESKTOP = 'Mozilla/5.0 (X11; Linux x86_64) Chrome/140 Safari/537.36';
 const PLACE = Object.freeze({
+  placeId: 'naver:place-123',
   name: '선유도 리조트',
   address: '전북특별자치도 군산시 옥도면 선유북길 30',
   latitude: 35.8012345,
@@ -34,7 +35,15 @@ const PLACE = Object.freeze({
 
 assert.match(buildNaverMapsMobileUri(PLACE), /^nmap:\/\/navigation\?/u);
 assert.match(buildNaverMapsAndroidIntentUri(PLACE), /package=com\.nhn\.android\.nmap/u);
-assert.match(buildNaverMapsWebSearchUrl(PLACE), /^https:\/\/map\.naver\.com\/p\/search\//u);
+assert.equal(
+  decodeURIComponent(buildNaverMapsWebSearchUrl(PLACE)),
+  'https://map.naver.com/p/search/선유도 리조트?c=126.4567891,35.8012345,15,0,0,0,dh',
+);
+const GENERIC_COORDINATE_PLACE = Object.freeze({...PLACE, placeId: ''});
+assert.match(
+  decodeURIComponent(buildNaverMapsWebSearchUrl(GENERIC_COORDINATE_PLACE)),
+  /선유도 리조트 전북특별자치도 군산시 옥도면 선유북길 30/u,
+);
 
 assert.deepEqual(buildKakaoNaviSdkPayload(PLACE), {
   name: PLACE.name,
