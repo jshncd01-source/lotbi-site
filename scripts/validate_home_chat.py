@@ -82,7 +82,6 @@ def main() -> int:
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
         "prompt length boundary": 'maxlength="1000"',
-        "microphone control": "mic-button",
         "send control": "send-button",
         "conversation thread": 'id="conversation-thread"',
         "local navigation script": f'src="home-shell.js?v={asset_version}"',

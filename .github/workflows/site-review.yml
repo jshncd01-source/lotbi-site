@@ -253,6 +253,9 @@ jobs:
           node --check site-conversation.js
           node scripts/validate_voice_wake_phrase_match_01.mjs
 
+      - name: Validate public Site voice release exclusion
+        run: node scripts/validate_voice_public_release_exclusion_01.mjs
+
       # SITE-VOICE-READ-ALOUD-RELIABILITY-02: single playback owner, bounded
       # voice readiness/fallback, sequential chunk playback, page lifecycle,
       # and privacy-safe telemetry for the "읽어주기" button.
