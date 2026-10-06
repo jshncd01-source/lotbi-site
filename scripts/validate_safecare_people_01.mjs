@@ -33,12 +33,17 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const sections = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const ui = read('site-person-ui.js');
+const renewalNotice = read('site-safecare-renewal-notice.js');
 const css = read('site-person.css');
 const index = read('index.html');
 assert.match(sections, /mountPeople/);
 assert.doesNotMatch(sections, /사람 등록과 SOS의 웹 연결은 준비 중/);
 assert.match(conversation, /site-person-ui\.js/);
-assert.match(ui, /출생 연·월로 갱신 주기를 계산/);
+assert.match(ui, /openSafeCareRenewalNotice/);
+assert.doesNotMatch(ui, /출생 연·월로 갱신 주기를 계산합니다\. 만 12세 이하/);
+assert.match(renewalNotice, /출생 연·월을 기준으로 식별 사진의 갱신 주기를 계산/);
+assert.match(renewalNotice, /만 12세 이하 · 180일마다/);
+assert.match(renewalNotice, /만 13세 이상 · 365일마다/);
 assert.match(ui, /활성 SOS 기간 동안만/);
 assert.match(ui, /등록된 사람/);
 assert.match(ui, /사진 갱신/);

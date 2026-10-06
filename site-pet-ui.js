@@ -51,20 +51,21 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-0cc24ae11e2b';
+} from './site-pet.js?v=aset-aea1e681dd4a';
 import {
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-0cc24ae11e2b';
+} from './site-pet-guides.js?v=aset-aea1e681dd4a';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-0cc24ae11e2b';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-0cc24ae11e2b';
-import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-0cc24ae11e2b';
+} from './site-pet-gate.js?v=aset-aea1e681dd4a';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-aea1e681dd4a';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-aea1e681dd4a';
+import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-aea1e681dd4a';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -72,7 +73,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-0cc24ae11e2b';
+} from './site-safecare-common.js?v=aset-aea1e681dd4a';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -2189,15 +2190,22 @@ export async function mountPetFamilyManager({
           updates.age_estimate_as_of = new Date().toISOString().slice(0, 10);
         }
         clearTimeout(autosaveTimer);
-        setBusy(true);
-        try {
-          await saveDraft(updates);
-          goToStep(registrationDraft.currentStep === 'PHOTOS' ? 'PHOTOS' : 'REVIEW');
-        } catch (value) {
-          error.textContent = errorMessage(value, '기본정보를 저장하지 못했습니다.');
-        } finally {
-          setBusy(false);
-        }
+        openSafeCareRenewalNotice({
+          kind: 'pet',
+          onConfirm: async () => {
+            setBusy(true);
+            try {
+              await saveDraft(updates);
+              goToStep(registrationDraft.currentStep === 'PHOTOS' ? 'PHOTOS' : 'REVIEW');
+            } catch (value) {
+              const message = errorMessage(value, '기본정보를 저장하지 못했습니다.');
+              error.textContent = message;
+              throw new Error(message);
+            } finally {
+              setBusy(false);
+            }
+          },
+        });
       });
       body.appendChild(form);
       queueMicrotask(() => { if (species) nameInput.focus(); });
