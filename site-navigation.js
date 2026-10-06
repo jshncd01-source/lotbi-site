@@ -99,6 +99,48 @@ function normalizeFoodLicenseVerification(value) {
   });
 }
 
+// LIFE-PUBLIC-DATA-01 / ANIMAL HOSPITAL. 행정안전부 동물병원 등록 대조 결과.
+// "공식 등록"은 Core 가 공공 대조에 성공했다고 밝힌 경우(VERIFIED + true)에만
+// 말한다. NAVER 에 나온다는 사실만으로는 등록 병원이라고 하지 않는다.
+const ANIMAL_HOSPITAL_STATES = new Set(['VERIFIED', 'INACTIVE', 'AMBIGUOUS', 'NOT_FOUND', 'CONFLICTING', 'UNAVAILABLE']);
+
+function normalizeAnimalHospitalVerification(value) {
+  if (!value || typeof value !== 'object') return null;
+  const state = text(value.state).toUpperCase();
+  if (!ANIMAL_HOSPITAL_STATES.has(state)) return null;
+  if (text(value.source) !== 'MOIS_ANIMAL_HOSPITAL' || value.ai_calls !== 0) return null;
+  return Object.freeze({
+    state,
+    source: 'MOIS_ANIMAL_HOSPITAL',
+    officialRegistered: state === 'VERIFIED' && value.official_registered === true,
+    administrativeStatus: ['VERIFIED', 'INACTIVE'].includes(state) ? text(value.administrative_status) : '',
+  });
+}
+
+function normalizeDistanceMeters(value) {
+  return Number.isInteger(value) && value >= 0 && value <= 300_000 ? value : null;
+}
+
+export function formatDistanceMeters(meters) {
+  if (!Number.isInteger(meters)) return '';
+  return meters < 1000 ? `${meters}m` : `${(meters / 1000).toFixed(1)}km`;
+}
+
+// One short status line under the address. Empty when the result itself states
+// nothing — no line is ever invented for an ordinary place.
+export function placeLifeBadges(place) {
+  const badges = [];
+  const verification = place?.animalHospitalVerification;
+  if (verification) {
+    if (verification.officialRegistered) badges.push({kind: 'registration', state: 'OFFICIAL_REGISTERED', label: '공식 등록 동물병원'});
+    else if (verification.state === 'INACTIVE') badges.push({kind: 'registration', state: 'INACTIVE', label: '등록 상태 확인 필요'});
+    else badges.push({kind: 'registration', state: 'UNVERIFIED', label: '공식 등록 확인 안 됨'});
+  }
+  const distance = formatDistanceMeters(place?.distanceMeters);
+  if (distance) badges.push({kind: 'distance', state: 'DISTANCE', label: distance});
+  return badges;
+}
+
 function coordinateReady(place) {
   const latitude = finiteCoordinate(place?.latitude);
   const longitude = finiteCoordinate(place?.longitude);
@@ -124,6 +166,8 @@ function normalizePlace(place, index) {
   const verifiedPhone = normalizeVerifiedPhone(place);
   const verifiedPhoto = normalizeVerifiedPhoto(place);
   const foodLicenseVerification = normalizeFoodLicenseVerification(place.food_license_verification);
+  const animalHospitalVerification = normalizeAnimalHospitalVerification(place.animal_hospital_verification);
+  const distanceMeters = normalizeDistanceMeters(place.distance_meters);
   return Object.freeze({
     candidateIndex: index,
     resultId: text(place.result_id) || `place-${index + 1}`,
@@ -142,6 +186,8 @@ function normalizePlace(place, index) {
     phoneHref: verifiedPhone.href,
     phoneVerified: Boolean(verifiedPhone.href),
     foodLicenseVerification,
+    animalHospitalVerification,
+    distanceMeters,
     navigationCapable: coordinateReady(place),
   });
 }

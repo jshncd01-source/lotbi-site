@@ -688,6 +688,29 @@ function normalizeEvidenceCoverage(placeResult) {
   });
 }
 
+// LIFE-PUBLIC-DATA-01: optional coarse location for one life lookup turn.
+// Anything malformed is dropped here rather than sent; Core rejects the rest.
+function normalizeConversationClientLocation(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const source = value.source === 'BROWSER_CURRENT' || value.source === 'SAVED_REGION' ? value.source : '';
+  const latitude = Number(value.latitude);
+  const longitude = Number(value.longitude);
+  if (
+    !source
+    || !Number.isFinite(latitude) || !Number.isFinite(longitude)
+    || latitude < 31 || latitude > 44.5 || longitude < 122 || longitude > 132.5
+  ) return null;
+  const label = typeof value.label === 'string'
+    ? value.label.replace(/[^0-9A-Za-z가-힣·.\- ]/gu, ' ').replace(/\s+/gu, ' ').trim().slice(0, 40).trim()
+    : '';
+  return Object.freeze({
+    latitude: Math.round(latitude * 1000) / 1000,
+    longitude: Math.round(longitude * 1000) / 1000,
+    source,
+    ...(source === 'SAVED_REGION' && label ? {label} : {}),
+  });
+}
+
 function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
@@ -697,6 +720,7 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const stateVersion = Number.isInteger(identity?.stateVersion) && identity.stateVersion >= 0
     ? identity.stateVersion
     : null;
+  const location = normalizeConversationClientLocation(identity?.location);
   const safeIdentity = value => !value || /^[A-Za-z0-9._:-]{1,160}$/.test(value);
   if (!timezoneName && !createdAt && !conversationId && !turnId && !logicalRequestId && stateVersion === null) return null;
   if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64) {
@@ -718,6 +742,7 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
     ...(turnId ? {turn_id: turnId} : {}),
     ...(logicalRequestId ? {logical_request_id: logicalRequestId} : {}),
     ...(stateVersion !== null ? {state_version: stateVersion} : {}),
+    ...(location ? {location} : {}),
   });
 }
 
@@ -1000,6 +1025,7 @@ export async function sendGuestConversationMessage({
   turnId = '',
   logicalRequestId = '',
   stateVersion = null,
+  location = null,
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof guestToken === 'string' ? guestToken.trim() : '';
@@ -1022,6 +1048,7 @@ export async function sendGuestConversationMessage({
     turnId,
     logicalRequestId,
     stateVersion,
+    location,
   });
   const body = {
     text: message || '첨부 파일을 확인해 주세요.',

@@ -2192,6 +2192,11 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   background: #1f2937;
 }
 
+/* LIFE-PUBLIC-DATA-01: the nearby-vet hand-off sits next to the Pet SOS action. */
+.conversation-life-action-button {
+  margin-left: 8px;
+}
+
 .conversation-pet-action-button:focus-visible {
   outline: 2px solid rgba(79, 120, 197, .30);
   outline-offset: 2px;
