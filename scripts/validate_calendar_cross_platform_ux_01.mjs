@@ -11,11 +11,11 @@ const css = fs.readFileSync('site-calendar.css', 'utf8');
 assert.ok(manager.includes("const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);"));
 assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
-assert.ok(manager.includes("const layout = 'list';"));
+assert.ok(manager.includes("const layout = 'timegrid';"));
+assert.ok(manager.includes('section.appendChild(renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}))'));
 assert.ok(manager.includes("group.dataset.calendarWeekGroup = day.date"));
 assert.ok(manager.includes("group.dataset.weekday = String(day.weekday)"));
 assert.ok(manager.includes("'이번 주에는 기록이 없어요.'"));
-assert.ok(manager.includes("emptyMessage(state.loading ? '…' : '기록 없음')"));
 
 // Month is deliberately bounded regardless of how many events a day has, and
 // it exposes measured weather rather than inventing values for missing days.
@@ -50,11 +50,12 @@ assert.ok(manager.includes("previous.dataset.calendarNavigation = 'previous'"));
 assert.ok(manager.includes("next.dataset.calendarNavigation = 'next'"));
 assert.ok(css.includes('.calendar-nav-button[data-calendar-navigation="next"]::before'));
 assert.ok(css.includes('.calendar-week-agenda'));
-assert.ok(css.includes('.calendar-week-day-group'));
-// Week has one reading direction on every width: seven date groups stack
-// vertically and share Month's red/blue weekend surfaces.
-assert.ok(css.includes('.calendar-week-day-group[data-weekday="0"] { background: var(--lotbi-calendar-weekend-sun-surface); }'));
-assert.ok(css.includes('.calendar-week-day-group[data-weekday="6"] { background: var(--lotbi-calendar-weekend-sat-surface); }'));
+assert.ok(css.includes('.calendar-week-grid'));
+// Week uses seven date columns with a vertical time axis on every width and
+// keeps LOTBI's red/blue weekend surfaces.
+assert.ok(css.includes('.calendar-week-day[data-weekday="0"] { background: var(--lotbi-calendar-weekend-sun-surface);'));
+assert.ok(css.includes('.calendar-week-day[data-weekday="6"] { background: var(--lotbi-calendar-weekend-sat-surface);'));
+assert.ok(css.includes('.calendar-week-hour-axis'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
 assert.ok(manager.includes("loading.textContent = '기록을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));

@@ -1,9 +1,9 @@
-// Real-browser proof that Week is one vertical list grouped by date.
+// Real-browser proof that Week is a LOTBI-styled weekly time grid.
 //
-// The week must not duplicate those dates in a horizontal jump strip or offer
-// a horizontal hour-grid toggle. Sunday through Saturday stack top-to-bottom
-// on every width, retain chronological records inside each date, and use the
-// same weekend surfaces as Month. Geometry claims need a real layout engine.
+// Dates run Sunday through Saturday across the top while clock time runs down
+// the left axis. Timed records occupy their real date/time position, including
+// overlapping lanes, and mobile keeps the same model via horizontal scrolling.
+// Geometry claims need a real layout engine.
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -79,27 +79,54 @@ try {
   await wait(() => root.querySelector('.calendar-week-agenda'), 'week mounted');
   const result = {ok: true, viewport: {width: innerWidth, height: innerHeight}};
   const section = root.querySelector('.calendar-week-agenda');
-  // Both widths open on one date-grouped vertical list.
+  // Both widths open directly on the weekly hour grid. There is no duplicate
+  // date strip or layout toggle before the user can see their schedule.
   result.initialLayout = section.dataset.weekLayout;
   result.stripCount = root.querySelectorAll('.calendar-week-strip').length;
   result.toggleCount = root.querySelectorAll('[data-week-layout-option]').length;
   result.gridPresent = Boolean(root.querySelector('.calendar-week-grid'));
-  const groups = [...root.querySelectorAll('.calendar-week-list [data-calendar-week-group]')];
-  const groupTops = groups.map(n => Math.round(n.getBoundingClientRect().top));
-  result.groupCount = groups.length;
-  result.groupsStack = groupTops.every((v, i) => i === 0 || v > groupTops[i - 1]);
-  result.groupDates = groups.map(n => n.dataset.calendarWeekGroup);
-  result.sectionOverflow = section.scrollWidth - section.clientWidth;
-  const sunday = groups.find(n => n.dataset.weekday === '0');
-  const monday = groups.find(n => n.dataset.weekday === '1');
-  const saturday = groups.find(n => n.dataset.weekday === '6');
+  await wait(() => root.querySelectorAll('.calendar-week-day').length === 7, '7 day columns');
+  await sleep(80);
+  const dayHeaders = [...root.querySelectorAll('.calendar-week-day')];
+  const lefts = dayHeaders.map(n => Math.round(n.getBoundingClientRect().left));
+  const tops = dayHeaders.map(n => Math.round(n.getBoundingClientRect().top));
+  result.columnCount = dayHeaders.length;
+  result.headerDates = dayHeaders.map(n => n.dataset.calendarWeekDate);
+  result.columnsIncreasing = lefts.every((v, i) => i === 0 || v > lefts[i - 1]);
+  result.columnsSameRow = tops.every(v => v === tops[0]);
   result.weekendSurfaces = {
-    sunday: sunday ? getComputedStyle(sunday).backgroundColor : '',
-    monday: monday ? getComputedStyle(monday).backgroundColor : '',
-    saturday: saturday ? getComputedStyle(saturday).backgroundColor : '',
+    sunday: getComputedStyle(dayHeaders[0]).backgroundColor,
+    monday: getComputedStyle(dayHeaders[1]).backgroundColor,
+    saturday: getComputedStyle(dayHeaders[6]).backgroundColor,
   };
-  const listRows = [...root.querySelectorAll('[data-calendar-week-group="2026-09-23"] .calendar-day-event')];
-  result.listRows = listRows.map(n => [n.querySelector('time')?.textContent || '', n.querySelector('strong')?.textContent || '']);
+
+  const eventRect = title => {
+    const node = [...root.querySelectorAll('.calendar-week-grid-event')].find(n => n.textContent.includes(title));
+    return node ? node.getBoundingClientRect() : null;
+  };
+  const morningRect = eventRect('아침 회의');
+  const afternoonRect = eventRect('오후 진료');
+  const dayColumn = root.querySelector('[data-calendar-week-group="2026-09-23"]');
+  const columnTop = dayColumn ? dayColumn.getBoundingClientRect().top : null;
+  result.eventsFound = Boolean(morningRect && afternoonRect && dayColumn);
+  if (result.eventsFound) {
+    const morningOffset = morningRect.top - columnTop;
+    const afternoonOffset = afternoonRect.top - columnTop;
+    result.laterIsLower = afternoonOffset > morningOffset;
+    const delta = afternoonOffset - morningOffset;
+    result.proportional = delta > 16 && delta < 32;
+    result.morningOffset = Math.round(morningOffset);
+    result.afternoonOffset = Math.round(afternoonOffset);
+    result.overlapLanesSeparate = morningRect.right <= afternoonRect.left + 1 || afternoonRect.right <= morningRect.left + 1;
+    result.overlapSameBand = morningRect.top < afternoonRect.bottom && afternoonRect.top < morningRect.bottom;
+  }
+  const alldayRow = root.querySelector('.calendar-week-allday-row');
+  const scroll = root.querySelector('.calendar-week-grid-scroll');
+  result.alldayFound = Boolean(alldayRow && alldayRow.textContent.includes('추석'));
+  result.alldayAboveScroll = Boolean(alldayRow && scroll) && alldayRow.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().top + 1;
+  result.hourLabelCount = root.querySelectorAll('.calendar-week-hour-label').length;
+  const grid = root.querySelector('.calendar-week-grid');
+  result.horizontalOverflow = grid.scrollWidth - grid.clientWidth;
   out.textContent = JSON.stringify(result);
 } catch (e) {
   out.textContent = JSON.stringify({ok: false, error: String(e?.stack || e), viewport: {width: innerWidth, height: innerHeight}});
@@ -152,31 +179,35 @@ fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
-  // The same vertical date list is the Week contract on desktop and mobile.
+  // Desktop shows the whole week when space permits; mobile keeps the same
+  // date-across/time-down model and scrolls the grid itself horizontally.
   const results = [[1440, 900], [360, 780]].map(([w, h]) => run(browser, w, h));
   for (const v of results) {
     const where = `${v.viewport.width}x${v.viewport.height}`;
-    if (v.initialLayout !== 'list') throw new Error(`${where}: Week must open as the life list, got "${v.initialLayout}"`);
-    if (v.stripCount !== 0) throw new Error(`${where}: Week must not duplicate dates in a horizontal strip`);
-    if (v.toggleCount !== 0) throw new Error(`${where}: Week must not offer a horizontal time-grid toggle`);
-    if (v.gridPresent) throw new Error(`${where}: Week must never render the horizontal hour grid`);
-    if (v.groupCount !== 7 || !v.groupsStack) throw new Error(`${where}: seven date groups must stack top to bottom (count=${v.groupCount})`);
-    if (JSON.stringify(v.groupDates) !== JSON.stringify(['2026-09-20','2026-09-21','2026-09-22','2026-09-23','2026-09-24','2026-09-25','2026-09-26'])) {
-      throw new Error(`${where}: Week date order must be Sunday through Saturday, got ${JSON.stringify(v.groupDates)}`);
+    if (v.initialLayout !== 'timegrid') throw new Error(`${where}: Week must open on the vertical time grid, got "${v.initialLayout}"`);
+    if (v.stripCount !== 0) throw new Error(`${where}: Week must not duplicate dates in a separate strip`);
+    if (v.toggleCount !== 0) throw new Error(`${where}: Week must not require a secondary layout toggle`);
+    if (!v.gridPresent) throw new Error(`${where}: Week must render the weekly hour grid`);
+    if (v.columnCount !== 7 || !v.columnsIncreasing || !v.columnsSameRow) {
+      throw new Error(`${where}: seven date columns must share one row left-to-right (count=${v.columnCount})`);
     }
-    if (v.sectionOverflow > 0) throw new Error(`${where}: the vertical Week list must not scroll sideways (overflow=${v.sectionOverflow})`);
+    if (JSON.stringify(v.headerDates) !== JSON.stringify(['2026-09-20','2026-09-21','2026-09-22','2026-09-23','2026-09-24','2026-09-25','2026-09-26'])) {
+      throw new Error(`${where}: header order must be Sunday through Saturday, got ${JSON.stringify(v.headerDates)}`);
+    }
     if (v.weekendSurfaces.sunday !== 'rgb(255, 243, 243)' || v.weekendSurfaces.saturday !== 'rgb(242, 247, 255)') {
-      throw new Error(`${where}: Sunday/Saturday must use red/blue surfaces, got ${JSON.stringify(v.weekendSurfaces)}`);
+      throw new Error(`${where}: Sunday/Saturday headers must keep LOTBI red/blue surfaces, got ${JSON.stringify(v.weekendSurfaces)}`);
     }
     if (v.weekendSurfaces.monday === v.weekendSurfaces.sunday || v.weekendSurfaces.monday === v.weekendSurfaces.saturday) {
-      throw new Error(`${where}: weekday surface must stay distinct from weekend surfaces`);
+      throw new Error(`${where}: weekday header surface must remain distinct from weekend surfaces`);
     }
-    // Day order: the clock first, in time order; the time-less record after.
-    if (JSON.stringify(v.listRows) !== JSON.stringify([['09:00', '아침 회의'], ['09:30', '오후 진료'], ['', '추석']])) {
-      throw new Error(`${where}: the 23rd must list 09:00, 09:30, then the time-less record, got ${JSON.stringify(v.listRows)}`);
-    }
+    if (!v.eventsFound || !v.laterIsLower || !v.proportional) throw new Error(`${where}: timed events must use their vertical clock positions`);
+    if (!v.overlapSameBand || !v.overlapLanesSeparate) throw new Error(`${where}: overlapping events must split into visible lanes`);
+    if (!v.alldayFound || !v.alldayAboveScroll) throw new Error(`${where}: all-day records must sit above the hourly scroller`);
+    if (v.hourLabelCount !== 24) throw new Error(`${where}: expected a 24-hour vertical axis, got ${v.hourLabelCount}`);
+    if (v.viewport.width <= 900 && v.horizontalOverflow <= 0) throw new Error(`${where}: mobile must scroll the weekly grid horizontally instead of squeezing seven days`);
+    if (v.viewport.width > 900 && v.horizontalOverflow > 1) throw new Error(`${where}: desktop week should fit without page-level horizontal overflow`);
   }
-  console.log('CALENDAR WEEK VERTICAL-BY-DATE UI PASS', JSON.stringify(results));
+  console.log('CALENDAR WEEK VERTICAL-TIMEGRID UI PASS', JSON.stringify(results));
 } finally {
   server.kill('SIGTERM');
   fs.rmSync(INNER, {force: true});
