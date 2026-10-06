@@ -1,22 +1,23 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-93a534a07ab8';
-import * as siteCore from './site-core.js?v=aset-93a534a07ab8';
-import './site-scam-shield.js?v=aset-93a534a07ab8';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-93a534a07ab8';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-93a534a07ab8';
-import * as siteAttachments from './site-attachments.js?v=aset-93a534a07ab8';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-93a534a07ab8';
-import {deterministicReply} from './site-deterministic.js?v=aset-93a534a07ab8';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-93a534a07ab8';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-93a534a07ab8';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-93a534a07ab8';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-93a534a07ab8';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-93a534a07ab8';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-93a534a07ab8';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-93a534a07ab8';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-93a534a07ab8';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-93a534a07ab8';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-93a534a07ab8';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-93a534a07ab8';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-e04fd8596fb6';
+import * as siteCore from './site-core.js?v=aset-e04fd8596fb6';
+import './site-scam-shield.js?v=aset-e04fd8596fb6';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-e04fd8596fb6';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult} from './site-navigation.js?v=aset-e04fd8596fb6';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-e04fd8596fb6';
+import * as siteAttachments from './site-attachments.js?v=aset-e04fd8596fb6';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-e04fd8596fb6';
+import {deterministicReply} from './site-deterministic.js?v=aset-e04fd8596fb6';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-e04fd8596fb6';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-e04fd8596fb6';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-e04fd8596fb6';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-e04fd8596fb6';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-e04fd8596fb6';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-e04fd8596fb6';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-e04fd8596fb6';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-e04fd8596fb6';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-e04fd8596fb6';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-e04fd8596fb6';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-e04fd8596fb6';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -167,7 +168,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-93a534a07ab8';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-e04fd8596fb6';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -1437,6 +1438,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const placeResult = normalizedPersistedPlaceResult(placeValue);
     if (!placeResult) return null;
     const fresh = isPlaceResultFresh(placeResult);
+    const defaultMapProvider = readDefaultMapProvider(document.cookie);
+    const mapPresentation = defaultMapProviderPresentation(defaultMapProvider);
     const rail = document.createElement('section');
     rail.className = 'lotbi-rich-card-rail lotbi-place-orbit';
     rail.classList.toggle('has-place-photo', placeResult.results.some(place => Boolean(place.imageUrl)));
@@ -1458,21 +1461,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       media.dataset.mediaState = 'empty-no-photo';
       media.dataset.mediaSource = 'NONE';
     };
-
-    const openFreshPlace = (place, opener, successCopy) => {
-      if (!isPlaceResultFresh(placeResult)) {
-        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return false;
-      }
-      const opened = opener(place);
-      if (!opened.opened) return false;
-      setStatus(successCopy);
-      return true;
-    };
-    const openPlaceInNaverMap = place => openFreshPlace(place, openNaverMapsPlace, '선택한 장소를 네이버 지도에서 엽니다.');
-    const openPlaceInKakaoNavi = place => openFreshPlace(place, openKakaoNaviPlace, '선택한 장소를 카카오내비 길안내로 연결합니다.');
-    const openPlaceInTmap = place => openFreshPlace(place, openTmapPlace, '선택한 장소를 T맵 길안내로 연결합니다.');
-    const openPlaceInGoogleMaps = place => openFreshPlace(place, openGoogleMapsPlace, '선택한 장소를 Google Maps에서 엽니다.');
 
     const cards = [];
     for (const [placeIndex, place] of placeResult.results.entries()) {
@@ -1562,68 +1550,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         actions.appendChild(phone);
       }
 
-      const navigate = document.createElement('a');
-      navigate.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-naver-map-action';
-      navigate.href = buildNaverMapsWebSearchUrl(place);
-      navigate.target = '_blank';
-      navigate.rel = 'noopener noreferrer';
-      navigate.setAttribute('aria-label', `${place.name} 네이버 지도에서 열기`);
-      navigate.title = '네이버 지도에서 열기';
-      navigate.dataset.action = 'naver-map';
-      navigate.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(navigate, 'naver-map');
-      navigate.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInNaverMap(place);
+      const mapAction = document.createElement('a');
+      mapAction.className = `lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-${mapPresentation.action}-action`;
+      mapAction.href = buildDefaultMapHref(defaultMapProvider, place);
+      mapAction.target = '_blank';
+      mapAction.rel = 'noopener noreferrer';
+      mapAction.setAttribute('aria-label', `${place.name} ${mapPresentation.label}에서 길찾기`);
+      mapAction.title = `${mapPresentation.label}에서 길찾기`;
+      mapAction.dataset.action = mapPresentation.action;
+      mapAction.dataset.mapProvider = defaultMapProvider;
+      mapAction.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionIcon(mapAction, mapPresentation.icon);
+      mapAction.addEventListener('click', event => {
+        if (!isPlaceResultFresh(placeResult)) {
+          event.preventDefault();
+          setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
+          return;
+        }
+        setStatus(mapPresentation.success);
       });
-      actions.appendChild(navigate);
-
-      const kakaoNavi = document.createElement('a');
-      kakaoNavi.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-navi-action';
-      kakaoNavi.href = buildKakaoNaviHandoffUrl(place);
-      kakaoNavi.target = '_blank';
-      kakaoNavi.rel = 'noopener noreferrer';
-      kakaoNavi.setAttribute('aria-label', `${place.name} 카카오내비에서 길안내`);
-      kakaoNavi.title = '카카오내비에서 길안내';
-      kakaoNavi.dataset.action = 'kakao-navi';
-      kakaoNavi.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(kakaoNavi, 'kakao-map');
-      kakaoNavi.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInKakaoNavi(place);
-      });
-      actions.appendChild(kakaoNavi);
-
-      const tmap = document.createElement('a');
-      tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action';
-      tmap.dataset.action = 'tmap';
-      tmap.dataset.tmapState = isTmapHandoffAvailable() ? 'MOBILE_APP' : 'INSTALL_GUIDE';
-      tmap.href = '#';
-      tmap.tabIndex = placeIndex === 0 ? 0 : -1;
-      tmap.setAttribute('aria-label', `${place.name} T맵에서 길안내`);
-      tmap.title = 'T맵에서 길안내';
-      addActionIcon(tmap, 'tmap');
-      tmap.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInTmap(place);
-      });
-      actions.appendChild(tmap);
-
-      const googleMaps = document.createElement('a');
-      googleMaps.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-google-maps-action';
-      googleMaps.href = buildGoogleMapsDirectionsUrl(place);
-      googleMaps.target = '_blank';
-      googleMaps.rel = 'noopener noreferrer';
-      googleMaps.setAttribute('aria-label', `${place.name} Google Maps에서 길안내`);
-      googleMaps.title = 'Google Maps에서 길안내';
-      googleMaps.dataset.action = 'google-maps';
-      googleMaps.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(googleMaps, 'google-maps');
-      googleMaps.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInGoogleMaps(place);
-      });
-      actions.appendChild(googleMaps);
+      actions.appendChild(mapAction);
 
       item.append(media, copy, actions);
       cards.push(item);
@@ -1712,7 +1658,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           setActiveIndex(index);
           return;
         }
-        openPlaceInNaverMap(placeResult.results[index]);
+        cards[index].querySelector('[data-map-provider]')?.click();
       });
     });
 
@@ -2976,7 +2922,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-93a534a07ab8');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-e04fd8596fb6');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3004,7 +2950,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-93a534a07ab8');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-e04fd8596fb6');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3200,11 +3146,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onFestival: () => { closeSurface(); void openFestival(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       mountPeople: async (root, initialSurface) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-93a534a07ab8');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-e04fd8596fb6');
         return mountPersonCareManager({sessionToken, root, initialSurface});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-93a534a07ab8');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-e04fd8596fb6');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },

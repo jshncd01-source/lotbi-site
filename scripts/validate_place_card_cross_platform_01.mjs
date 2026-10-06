@@ -109,14 +109,18 @@ for (const forbidden of [
   assert.doesNotMatch(renderer, new RegExp(forbidden, 'u'));
 }
 for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps']) {
-  assert.match(renderer, new RegExp(`addActionIcon\\([^,]+, '${iconName}'\\)`, 'u'));
   assert.equal(fs.existsSync(new URL(`../assets/place-actions/${iconName}.png`, import.meta.url)), true);
 }
+assert.match(renderer, /readDefaultMapProvider\(document\.cookie\)/u);
+assert.match(renderer, /defaultMapProviderPresentation\(defaultMapProvider/u);
+assert.doesNotMatch(renderer, /openDefaultMapPlace|window\.open/u);
+assert.match(renderer, /mapAction\.addEventListener\('click', event => \{\s*if \(!isPlaceResultFresh\(placeResult\)\) \{\s*event\.preventDefault\(\);\s*setStatus\('결과가 오래됐어요\. 같은 장소를 다시 검색한 뒤 열어 주세요\.'\);\s*return;/u);
+assert.match(renderer, /setStatus\(mapPresentation\.success\)/u);
+assert.match(renderer, /cards\[index\]\.querySelector\('\[data-map-provider\]'\)\?\.click\(\)/u);
+assert.equal((renderer.match(/actions\.appendChild\(mapAction\)/gu) ?? []).length, 1);
+assert.doesNotMatch(renderer, /actions\.appendChild\((?:navigate|kakaoNavi|tmap|googleMaps)\)/u);
 assert.doesNotMatch(renderer, /lotbi-place-action-label/u);
 assert.doesNotMatch(renderer, /addActionLabel/u);
-assert.match(renderer, /dataset\.tmapState = isTmapHandoffAvailable\(\) \? 'MOBILE_APP' : 'INSTALL_GUIDE'/u);
-assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
-assert.match(renderer, /dataset\.action = 'google-maps'/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
 
 console.log('Cross-platform Place Card product contract: PASS');
