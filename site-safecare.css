@@ -379,6 +379,23 @@
   object-fit: cover;
 }
 
+[data-person-slot] .safecare-slot-media {
+  aspect-ratio: 1;
+  background:
+    radial-gradient(circle at 50% 28%, color-mix(in srgb, #9be7cf 14%, transparent), transparent 45%),
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff)), var(--lotbi-surface-hover, #f1f3f8));
+}
+
+.person-slot-guide-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgb(46 35 79 / 12%));
+}
+
 .safecare-slot-loading {
   color: var(--lotbi-text-muted, #5d6675);
   font-size: 12px;
@@ -847,6 +864,94 @@ body[data-site-theme="dark"] .person-birth-wheel {
   line-height: 1.5;
 }
 
+.safecare-notice-sections {
+  display: grid;
+  gap: 10px;
+}
+
+.safecare-notice-section {
+  overflow: hidden;
+  border: 1px solid #d8e2f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.safecare-notice-section-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+}
+
+.safecare-notice-section-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.safecare-notice-section-copy strong {
+  color: var(--color-text-primary, #172033);
+  font-size: 15px;
+}
+
+.safecare-notice-section-copy span {
+  color: var(--color-text-secondary, #667085);
+  font-size: 13px;
+}
+
+.safecare-notice-toggle {
+  min-width: 78px;
+  min-height: 38px;
+  padding: 8px 11px;
+  white-space: nowrap;
+}
+
+.safecare-notice-detail {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid #e6ebf2;
+  background: #f9fbfe;
+}
+
+.safecare-notice-detail[hidden] {
+  display: none;
+}
+
+.safecare-consent-copy {
+  margin: 0;
+  color: var(--color-text-secondary, #475467);
+  font-size: 14px;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.safecare-consent-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid #cbd7e6;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--color-text-primary, #172033);
+  font-weight: 750;
+  line-height: 1.45;
+  word-break: keep-all;
+  cursor: pointer;
+}
+
+.safecare-consent-row input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--site-primary, #17375e);
+}
+
 .safecare-renewal-error {
   color: var(--site-danger, #b42318);
   font-weight: 700;
@@ -875,6 +980,56 @@ body[data-site-theme="dark"] .person-birth-wheel {
 
 /* ------------------------------------------------------------ mobile */
 @media (max-width: 640px) {
+  .safecare-renewal-dialog {
+    gap: 10px;
+    padding-top: 2px;
+  }
+
+  .safecare-renewal-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    font-size: 21px;
+  }
+
+  .safecare-renewal-title {
+    font-size: 22px;
+  }
+
+  .safecare-renewal-lead {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .safecare-notice-section-header {
+    gap: 8px;
+    padding: 10px 11px;
+  }
+
+  .safecare-notice-toggle {
+    min-width: 72px;
+    padding-inline: 9px;
+  }
+
+  .safecare-notice-detail {
+    gap: 9px;
+    padding: 10px 11px;
+  }
+
+  .safecare-consent-copy {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .safecare-consent-row {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .safecare-renewal-confirm {
+    min-height: 44px;
+  }
+
   .safecare-steps {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;

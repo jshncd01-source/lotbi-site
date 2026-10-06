@@ -44,8 +44,11 @@
 import {
   FESTIVAL_STATUS,
   FESTIVAL_STATUS_LABEL,
+  FESTIVAL_DEFAULT_TIME_FILTER,
   FESTIVAL_TIME_FILTER,
   FESTIVAL_TIME_FILTER_LABEL,
+  FESTIVAL_USER_TIME_FILTERS,
+  buildFestivalBrowseLocationQuery,
   browseFestivals,
   computeFestivalStatus,
   formatFestivalDateLabel,
@@ -54,25 +57,26 @@ import {
   formatFestivalPeriod,
   getPublishedFestival,
   groupProgramsByDate,
-  listFestivalRegions,
   listFestivalMunicipalities,
+  listFestivalRegionChoices,
+  listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-bf3f922c4411';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-bf3f922c4411';
+} from './site-festival-client.js?v=aset-b29fb394ed8a';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-b29fb394ed8a';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-bf3f922c4411';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-bf3f922c4411';
+} from './site-current-location.js?v=aset-b29fb394ed8a';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-b29fb394ed8a';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-bf3f922c4411';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-b29fb394ed8a';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -82,8 +86,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-bf3f922c4411';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-bf3f922c4411';
+} from './site-festival-calendar.js?v=aset-b29fb394ed8a';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-b29fb394ed8a';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -93,18 +97,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-bf3f922c4411';
+} from './site-navigation.js?v=aset-b29fb394ed8a';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-bf3f922c4411';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-b29fb394ed8a';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-bf3f922c4411';
+} from './site-calendar-weather.js?v=aset-b29fb394ed8a';
 
 const PAGE_SIZE = 20;
 
@@ -648,8 +652,8 @@ export async function mountFestivalManager({
   const state = {
     region: '',
     municipality: '',
-    time: FESTIVAL_TIME_FILTER.ALL,
-    locationMode: 'NONE', // 'NONE' | 'CURRENT'
+    time: FESTIVAL_DEFAULT_TIME_FILTER,
+    locationMode: 'NONE', // 'NONE' | 'CURRENT' | 'NATIONWIDE'
     currentPosition: null,
     currentRegionLabel: '',
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
@@ -848,16 +852,22 @@ export async function mountFestivalManager({
     const list = el('div', 'festival-region-list');
     list.setAttribute('role', 'listbox');
     list.setAttribute('aria-label', '광역시·도 선택');
-    for (const province of regionProvinces) {
+    for (const province of listFestivalRegionChoices(regionProvinces)) {
       const optionButton = document.createElement('button');
       optionButton.type = 'button';
       optionButton.className = 'festival-region-option';
       optionButton.setAttribute('role', 'option');
-      const selected = state.region === province;
+      const nationwide = province === '전국';
+      const selected = nationwide
+        ? state.locationMode === 'NATIONWIDE'
+        : state.region === province;
       optionButton.setAttribute('aria-selected', String(selected));
       if (selected) optionButton.classList.add('is-selected');
       optionButton.textContent = province;
-      optionButton.addEventListener('click', () => void goToMunicipalityStep(province));
+      optionButton.addEventListener('click', () => {
+        if (nationwide) selectNationwideRegion();
+        else void goToMunicipalityStep(province);
+      });
       list.appendChild(optionButton);
     }
     wrap.appendChild(list);
@@ -942,6 +952,17 @@ export async function mountFestivalManager({
     void fetchAndRender({reset: true});
   }
 
+  function selectNationwideRegion() {
+    state.region = '';
+    state.municipality = '';
+    state.locationMode = 'NATIONWIDE';
+    state.currentPosition = null;
+    state.currentRegionLabel = '';
+    renderLocationBanner();
+    regionSheetRef?.close();
+    void fetchAndRender({reset: true});
+  }
+
   // sharedPosition 이 넘어오면 그 좌표를 쓴다: 이미 손에 있는 값이므로 브라우저에
   // 좌표를 새로 묻지 않고, 따라서 권한 팝업이 뜰 여지도 없다.
   async function useCurrentLocation({auto = false, sharedPosition = null} = {}) {
@@ -955,7 +976,7 @@ export async function mountFestivalManager({
       if (!isLocationUsageEnabled()) return;
       // 좌표를 기다리는 동안 사용자가 직접 지역을 골랐다면 그 선택이 이긴다 (§22).
       // 자동 경로는 아무도 누르지 않은 요청이므로, 사람이 고른 것을 덮지 않는다.
-      if (auto && state.region) return;
+      if (auto && (state.region || state.locationMode === 'NATIONWIDE')) return;
       state.currentPosition = {latitude: position.latitude, longitude: position.longitude};
       state.region = '';
       state.locationMode = 'CURRENT';
@@ -984,21 +1005,11 @@ export async function mountFestivalManager({
     void fetchAndRender({reset: true});
   }
 
-  // User-facing time filters -- 날짜 선택 (a custom date picker forcing one
-  // specific day before browsing at all) is removed from this screen. Core's
-  // own time=DATE contract is untouched (see site-festival-client.js); this
-  // UI simply never sends it any more. ALWAYS_OPEN (상시 운영) is additive:
-  // 상시 운영 행사는 이 필터를 직접 골랐을 때만 보이고 (Core가 다른 모든
-  // 필터에서 제외한다), 나머지 4개 필터의 동작은 그대로다.
-  const USER_TIME_FILTERS = [
-    FESTIVAL_TIME_FILTER.ALL,
-    FESTIVAL_TIME_FILTER.ONGOING,
-    FESTIVAL_TIME_FILTER.THIS_WEEKEND,
-    FESTIVAL_TIME_FILTER.THIS_MONTH,
-    FESTIVAL_TIME_FILTER.ALWAYS_OPEN,
-  ];
+  // User-facing time filters are policy-owned by the client module. ALL and
+  // DATE remain available in the Core/API contract but are intentionally not
+  // rendered here. ALWAYS_OPEN appears only when explicitly selected.
   const timeButtons = new Map();
-  for (const key of USER_TIME_FILTERS) {
+  for (const key of FESTIVAL_USER_TIME_FILTERS) {
     const button = chipButton(FESTIVAL_TIME_FILTER_LABEL[key], {
       pressed: state.time === key,
       onClick: () => selectTimeFilter(key),
@@ -1050,12 +1061,8 @@ export async function mountFestivalManager({
     if (state.time === FESTIVAL_TIME_FILTER.MONTH) {
       query.date = `${state.monthAnchor.year}-${String(state.monthAnchor.month).padStart(2, '0')}`;
     }
-    if (state.region) {
-      query.region = state.region;
-      if (state.municipality) query.municipality = state.municipality;
-    } else if (isLocationUsageEnabled() && state.locationMode === 'CURRENT' && state.currentPosition) {
-      query.latitude = state.currentPosition.latitude;
-      query.longitude = state.currentPosition.longitude;
+    if (state.region || (isLocationUsageEnabled() && state.locationMode === 'CURRENT' && state.currentPosition)) {
+      Object.assign(query, buildFestivalBrowseLocationQuery(state));
     }
     return query;
   }
@@ -1065,7 +1072,11 @@ export async function mountFestivalManager({
       const label = state.municipality ? `${state.region} ${state.municipality}` : state.region;
       return `현재 조건에 맞는 축제·행사가 없어요 (${label})`;
     }
-    if (state.locationMode === 'CURRENT') return '현재 위치 주변에 조건에 맞는 축제·행사가 없어요';
+    if (state.locationMode === 'CURRENT') {
+      return state.currentRegionLabel
+        ? `현재 ${state.currentRegionLabel}에 조건에 맞는 축제·행사가 없어요`
+        : '현재 위치 주변에 조건에 맞는 축제·행사가 없어요';
+    }
     return '현재 조건에 맞는 축제·행사가 없어요';
   }
 

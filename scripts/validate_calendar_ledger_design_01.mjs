@@ -4,6 +4,7 @@ import {
   amountDetailPresentation,
   amountSummaryLinePresentation,
   calendarAmountDetailNode,
+  calendarAmountSummaryBlock,
   calendarAmountSummaryLine,
   calendarExpenseSummaryNode,
   expenseSummaryFromEntries,
@@ -12,9 +13,9 @@ import {
 
 // CALENDAR_LEDGER_DESIGN_01, revised by CALENDAR LIFE UX 01.
 //
-// The Calendar is not a ledger. A month's recorded amounts are one quiet line
-// under the grid -- gone entirely when the month holds none -- and the
-// breakdown waits behind it. The words are "입력 금액": an amount on a record
+// A month's recorded amounts have one total line under the grid followed by a
+// compact category overview; the count/currency breakdown remains behind the
+// total button. The words are "입력 금액": an amount on a record
 // can be a booking's price as easily as money already spent, and the contract
 // does not yet say which. A record without an amount is an ordinary record, so
 // nothing ever says it was "left out".
@@ -80,6 +81,25 @@ try {
   assert.equal(failed.textContent, '입력 금액 합계를 불러오지 못했어요.');
   assert.equal(find(failed, 'calendar-amount-line-amount'), undefined, 'a failed read shows no number');
 
+  const block = calendarAmountSummaryBlock({state: 'ready', summary, month: 9, onOpen: () => {}});
+  assert.equal(block.tagName, 'section');
+  assert.deepEqual(findAll(block, 'calendar-amount-category').map(node => [
+    node.dataset.expenseCategory,
+    text(node.children[0]),
+    text(node.children[1]),
+  ]), [
+    ['FOOD', '음식', '4,200원'],
+    ['TRAVEL', '여행', '0원'],
+    ['SHOPPING', '쇼핑', '0원'],
+    ['LIVING', '생활비', '80,000원'],
+    ['OTHER', '기타', '0원'],
+    ['FOOD', '음식', '0 USD'],
+    ['TRAVEL', '여행', '0 USD'],
+    ['SHOPPING', '쇼핑', '12 USD'],
+    ['LIVING', '생활비', '0 USD'],
+    ['OTHER', '기타', '0 USD'],
+  ]);
+
   // ── the detail behind it ──
   const detail = amountDetailPresentation(summary, {local: true});
   assert.equal(detail.recorded, true);
@@ -108,10 +128,10 @@ const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8'
 const manager = read('site-calendar-manager.js');
 const expense = read('site-calendar-expense.js');
 const calendarCss = read('site-calendar.css');
-assert.ok(manager.includes('calendarAmountSummaryLine({'), 'the month shows the one-line summary');
+assert.ok(manager.includes('calendarAmountSummaryBlock({'), 'Today, Week and Month show the total and category overview');
 assert.ok(manager.includes('calendarAmountDetailNode({summary, local})'), 'the breakdown opens from the line');
 assert.ok(!manager.includes('calendarExpenseSummaryNode('), 'the always-visible ledger card must not be mounted');
-assert.ok(!manager.includes('calendar-expense-slot'), 'the ledger card no longer owns a shell row');
+assert.ok(manager.includes("amountSlot.className = 'calendar-amount-slot'"), 'the amount overview owns the top shell row');
 assert.ok(!manager.includes("'월별 지출'"), 'no ledger heading on the Calendar');
 // Code only: the comments explain the rule by quoting the words it forbids.
 const withoutComments = source => source
@@ -126,4 +146,4 @@ for (const [name, source] of [['site-calendar-manager.js', manager], ['site-cale
 assert.match(calendarCss, /\.calendar-amount-line \{[^}]*min-height: 44px;/);
 assert.match(calendarCss, /\.calendar-amount-line-amount \{[^}]*font-variant-numeric: tabular-nums;/);
 assert.match(calendarCss, /\.calendar-amount-detail-row \{/);
-console.log('CALENDAR_LEDGER_DESIGN_01 PASS — one quiet line + detail on request, 입력 금액 wording, money/currency rules; not API E2E');
+console.log('CALENDAR_LEDGER_DESIGN_01 PASS — total + visible categories + detail on request, 입력 금액 wording, money/currency rules; not API E2E');

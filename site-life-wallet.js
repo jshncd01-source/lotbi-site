@@ -1,3 +1,5 @@
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-b29fb394ed8a';
+
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
 const PIN_KDF_ITERATIONS = 310_000;
@@ -330,6 +332,10 @@ export class LifeWalletVault {
     if (!preserveSession) this.clearUnlockGrant();
   }
 
+  suspend() {
+    this.lock({preserveSession: true});
+  }
+
   async resumeUnlock(accountId) {
     const scope = await accountScope(accountId);
     const grant = this.readUnlockGrant();
@@ -533,16 +539,208 @@ function safeMessage(error, fallback) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function readImageFile(file) {
-  if (!(file instanceof File)) return Promise.resolve('');
-  if (!['image/jpeg', 'image/png'].includes(file.type)) return Promise.reject(new Error('JPEG 또는 PNG 이미지만 등록할 수 있습니다.'));
-  if (file.size > 12 * 1024 * 1024) return Promise.reject(new Error('이미지는 한 장당 12MB 이하로 선택해 주세요.'));
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('이미지를 읽지 못했습니다.'));
-    reader.onerror = () => reject(new Error('이미지를 읽지 못했습니다.'));
-    reader.readAsDataURL(file);
+function validateImageFile(file) {
+  if (!(file instanceof File)) throw new Error('자료 사진을 선택해 주세요.');
+  if (!['image/jpeg', 'image/png'].includes(file.type)) throw new Error('JPEG 또는 PNG 이미지만 등록할 수 있습니다.');
+  if (file.size > 12 * 1024 * 1024) throw new Error('이미지는 한 장당 12MB 이하로 선택해 주세요.');
+}
+
+export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}} = {}) {
+  const fieldShell = element('div', 'wallet-field wallet-photo-field');
+  const label = element('span', 'wallet-photo-label', '자료 사진 · 필수');
+  const input = element('input', 'wallet-photo-input');
+  input.type = 'file';
+  input.accept = 'image/jpeg,image/png';
+  label.id = `wallet-photo-${randomId()}`;
+  input.setAttribute('aria-labelledby', label.id);
+
+  const picker = element('div', 'wallet-photo-picker');
+  const mark = element('button', 'wallet-photo-mark', '+');
+  mark.type = 'button';
+  mark.setAttribute('aria-label', '자료 사진 선택');
+  mark.addEventListener('click', () => input.click());
+  const preview = element('img', 'wallet-photo-preview');
+  preview.hidden = true;
+  const copy = element('span', 'wallet-photo-copy');
+  const title = element('strong', '', '자료 사진 추가');
+  const help = element('small', '', 'JPG·PNG · 최대 12MB');
+  copy.append(title, help);
+  const trigger = button('사진 선택', () => input.click());
+  trigger.classList.add('wallet-photo-action');
+  const scannerHost = element('div', 'wallet-photo-scanner-host');
+  let scanner = null;
+  let confirmedDataUrl = '';
+
+  const clearScanner = () => {
+    scanner?.destroy();
+    scanner = null;
+    scannerHost.replaceChildren();
+  };
+
+  const resetSelection = () => {
+    confirmedDataUrl = '';
+    onReady(false);
+    mark.hidden = false;
+    preview.hidden = true;
+    preview.removeAttribute('src');
+    preview.alt = '';
+    title.textContent = '자료 사진 추가';
+    help.textContent = 'JPG·PNG · 최대 12MB';
+    trigger.textContent = '사진 선택';
+  };
+
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    onError('');
+    try {
+      validateImageFile(file);
+      clearScanner();
+      confirmedDataUrl = '';
+      onReady(false);
+      mark.hidden = true;
+      preview.hidden = true;
+      preview.removeAttribute('src');
+      title.textContent = '사진 보정 중';
+      help.textContent = '모서리와 보정 결과를 확인해 주세요.';
+      trigger.textContent = '다시 선택';
+      scanner = createWalletDocumentScanner({
+        file,
+        onConfirm(dataUrl) {
+          confirmedDataUrl = dataUrl;
+          clearScanner();
+          preview.src = dataUrl;
+          preview.alt = `보정된 ${file.name} 미리보기`;
+          preview.hidden = false;
+          title.textContent = file.name;
+          help.textContent = '확인한 보정 결과를 암호화하여 저장합니다.';
+          trigger.textContent = '사진 변경';
+          onReady(true);
+        },
+        onCancel() {
+          input.value = '';
+          clearScanner();
+          resetSelection();
+        },
+        onReplace() {
+          input.value = '';
+          clearScanner();
+          resetSelection();
+          input.click();
+        },
+      });
+      scannerHost.append(scanner.element);
+    } catch (error) {
+      input.value = '';
+      clearScanner();
+      resetSelection();
+      onError(safeMessage(error, '사진을 선택하지 못했습니다.'));
+    }
   });
+
+  picker.append(input, mark, preview, copy, trigger);
+  fieldShell.append(label, picker, scannerHost);
+  return Object.freeze({
+    element: fieldShell,
+    input,
+    async readDataUrl() {
+      if (!confirmedDataUrl) throw new Error('사진 보정 결과를 확인한 뒤 저장해 주세요.');
+      return confirmedDataUrl;
+    },
+    destroy: clearScanner,
+  });
+}
+
+export function createWalletCardCarousel({cards, onOpen}) {
+  const shell = element('section', 'wallet-card-carousel');
+  shell.setAttribute('aria-label', '저장 자료');
+  const viewport = element('div', 'wallet-card-viewport');
+  viewport.tabIndex = 0;
+  viewport.setAttribute('aria-label', '저장 자료 카드 슬라이더');
+  const track = element('div', 'wallet-card-track');
+  const items = cards.map((card, index) => {
+    const item = button('', () => onOpen(card), true);
+    item.className = 'wallet-card';
+    item.setAttribute('aria-label', `${index + 1}번째 저장 자료 열기`);
+    const image = element('img', 'wallet-card-image');
+    image.src = card.frontDataUrl;
+    image.alt = `${index + 1}번째 저장 자료`;
+    item.append(image);
+    track.append(item);
+    return item;
+  });
+  viewport.append(track);
+  shell.append(viewport);
+
+  if (items.length < 2) {
+    shell.classList.add('wallet-card-carousel-single');
+    items[0]?.setAttribute('aria-current', 'true');
+    return shell;
+  }
+
+  let currentIndex = 0;
+  let programmaticTargetLeft = null;
+  const navigation = element('div', 'wallet-card-navigation');
+  const previous = button('‹', () => show(currentIndex - 1), true);
+  previous.className = 'wallet-card-arrow';
+  previous.dataset.walletCarouselPrevious = '';
+  previous.setAttribute('aria-label', '이전 자료');
+  const position = element('span', 'wallet-card-position');
+  position.setAttribute('aria-live', 'polite');
+  const next = button('›', () => show(currentIndex + 1), true);
+  next.className = 'wallet-card-arrow';
+  next.dataset.walletCarouselNext = '';
+  next.setAttribute('aria-label', '다음 자료');
+
+  function updateState(index) {
+    currentIndex = Math.max(0, Math.min(index, items.length - 1));
+    items.forEach((item, itemIndex) => {
+      if (itemIndex === currentIndex) item.setAttribute('aria-current', 'true');
+      else item.removeAttribute('aria-current');
+    });
+    previous.disabled = currentIndex === 0;
+    next.disabled = currentIndex === items.length - 1;
+    position.textContent = `${currentIndex + 1} / ${items.length}`;
+  }
+
+  function show(index) {
+    updateState(index);
+    const item = items[currentIndex];
+    const centeredLeft = item.offsetLeft - ((viewport.clientWidth - item.clientWidth) / 2);
+    programmaticTargetLeft = Math.max(0, Math.min(centeredLeft, viewport.scrollWidth - viewport.clientWidth));
+    viewport.scrollTo({
+      left: programmaticTargetLeft,
+      behavior: 'smooth',
+    });
+  }
+
+  let scrollFrame = 0;
+  viewport.addEventListener('scroll', () => {
+    cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => {
+      if (programmaticTargetLeft !== null) {
+        if (Math.abs(viewport.scrollLeft - programmaticTargetLeft) > 2) return;
+        programmaticTargetLeft = null;
+      }
+      const center = viewport.scrollLeft + (viewport.clientWidth / 2);
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      items.forEach((item, index) => {
+        const distance = Math.abs(center - (item.offsetLeft + (item.clientWidth / 2)));
+        if (distance < nearestDistance) { nearestDistance = distance; nearestIndex = index; }
+      });
+      if (nearestIndex !== currentIndex) updateState(nearestIndex);
+    });
+  }, {passive: true});
+  viewport.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    show(currentIndex + (event.key === 'ArrowRight' ? 1 : -1));
+  });
+  navigation.append(previous, position, next);
+  shell.append(navigation);
+  updateState(0);
+  return shell;
 }
 
 function downloadBackup(serialized) {
@@ -586,9 +784,16 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     clearTimeout(backgroundTimer);
     if (document.visibilityState === 'hidden' && unlocked) {
       backgroundTimer = setTimeout(() => {
-        if (document.visibilityState === 'hidden' && unlocked) void lockAndRender('화면을 벗어나 Life Wallet이 잠겼습니다.');
+        if (document.visibilityState === 'hidden' && unlocked) {
+          unlocked = false;
+          vault.suspend();
+          clearTimeout(timer);
+          root.replaceChildren();
+        }
       }, 150);
+      return;
     }
+    if (document.visibilityState === 'visible' && !unlocked && root.childElementCount === 0) void restoreOrRender();
   };
   const pagehideListener = () => {
     clearTimeout(backgroundTimer); unlocked = false; vault.lock({preserveSession: true}); clearTimeout(timer); root.replaceChildren();
@@ -748,16 +953,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
         shell.append(empty);
       } else {
-        const list = element('div', 'wallet-card-grid');
-        for (const card of cards) {
-          const item = button('', () => renderDetail(card), true); item.className = 'wallet-card';
-          const image = element('img', 'wallet-card-image'); image.src = card.frontDataUrl; image.alt = `${card.name} 앞면`;
-          const details = element('span', 'wallet-card-copy'); details.append(element('strong', '', card.name), element('small', '', CARD_KINDS.find(([value]) => value === card.kind)?.[1] || '생활 자료'));
-          item.append(image, details); list.append(item);
-        }
-        shell.append(list);
+        shell.append(createWalletCardCarousel({cards, onOpen: renderDetail}));
       }
-      shell.append(element('p', 'wallet-security-note', '같은 탭에서는 화면 이동·새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다. 잠그기·로그아웃·로그인 만료·백그라운드 전환 시 즉시 잠깁니다.'));
+      shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
@@ -767,18 +965,20 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   function renderAdd() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     const kind = element('select'); for (const [value, label] of CARD_KINDS) { const option = element('option', '', label); option.value = value; kind.append(option); }
-    const front = element('input'); front.type = 'file'; front.accept = 'image/jpeg,image/png'; front.required = true;
+    let save;
+    const photoPicker = createWalletPhotoPicker({onError: message => { status.textContent = message; }, onReady: ready => { if (save) save.disabled = !ready; }});
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
-    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
-    const save = button('암호화하여 저장'); save.type = 'submit'; actions.append(save);
-    form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), field('자료 사진 · 필수', front), field('메모 · 선택', note), actions, status,
-      element('p', 'wallet-security-note', 'JPEG·PNG 원본을 AI로 재작성하지 않고 그대로 암호화합니다. 이 자료는 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true));
+    save = button('암호화하여 저장'); save.type = 'submit'; save.disabled = true; actions.append(save);
+    form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), photoPicker.element, field('메모 · 선택', note), actions, status,
+      element('p', 'wallet-security-note', '기울기·원근·여백과 화질을 이 브라우저에서만 보정합니다. 원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
         setBusy(form, true);
-        const frontDataUrl = await readImageFile(front.files?.[0]);
+        const frontDataUrl = await photoPicker.readDataUrl();
         await vault.save(accountId, {id: randomId(), kind: kind.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
+        photoPicker.destroy();
         await renderWallet('자료를 암호화하여 저장했습니다.');
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }
     });

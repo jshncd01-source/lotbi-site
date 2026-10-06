@@ -1,17 +1,9 @@
-// Real-browser proof of the Week view's two layouts.
+// Real-browser proof that Week is a LOTBI-styled weekly time grid.
 //
-// LIFE UX 01: Week opens as 생활목록 -- a 7-day strip to jump between days,
-// then each day's records in day order -- on every width. A wide screen can
-// still switch to 시간표, and that hour grid must be an actual time grid, not
-// the list re-skinned: 7 day columns sit side by side, a timed event's
-// vertical position is really driven by its clock time (not just DOM order),
-// two overlapping events really split into separate lanes instead of
-// overlapping on screen, and the all-day/holiday row sits above the scrolling
-// hour grid as its own surface. A phone never gets the hour grid (four
-// squeezed columns of cut-off titles was what Week used to be there): its
-// strip fits the screen, its days stack, and a strip tap brings that day into
-// view. Geometry claims like these cannot be proven by reading source text --
-// they need a real layout engine.
+// Dates run Sunday through Saturday across the top while clock time runs down
+// the left axis. Timed records occupy their real date/time position, including
+// overlapping lanes, and mobile keeps the same model via horizontal scrolling.
+// Geometry claims need a real layout engine.
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -52,9 +44,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const wait = async (fn, label) => { for (let i = 0; i < 200; i += 1) { if (fn()) return; await sleep(20); } throw new Error('timeout ' + label); };
 try {
   localStorage.clear();
-  // Holidays and location are off-topic for a geometry test; stubbing them
-  // out keeps this hermetic instead of depending on the network.
-  localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false}));
+  // Keep the fixture hermetic while proving that a weekday holiday paints the
+  // entire time column, not only its heading or all-day row.
+  localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: true}));
   Object.defineProperty(navigator, 'geolocation', {configurable: true, value: {
     getCurrentPosition: (_ok, err) => { if (typeof err === 'function') err({code: 1, message: 'denied'}); },
     watchPosition: () => 0, clearWatch: () => {},
@@ -62,7 +54,7 @@ try {
   const j = body => Promise.resolve(new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}}));
   globalThis.fetch = url => {
     const u = new URL(String(url), location.origin);
-    if (u.pathname.includes('/holidays')) return j({year: 2026, country: 'KR', coverage_status: 'VERIFIED', snapshot_version: 'fixture', supported_years: [2026], items: [], ai_calls: 0, provider_api_calls: 0});
+    if (u.pathname.includes('/holidays')) return j({year: 2026, country: 'KR', coverage_status: 'VERIFIED', snapshot_version: 'fixture', supported_years: [2026], items: [{date: '2026-09-21', name: '대체공휴일', country: 'KR', holiday_type: 'PUBLIC', is_substitute: true, source: 'FIXTURE', source_date: '2026-09-21', verified_at: '2026-01-01T00:00:00Z'}], ai_calls: 0, provider_api_calls: 0});
     if (u.pathname.includes('/weather')) return j({provider_ready: false, items: [], ai_calls: 0});
     return j({items: []});
   };
@@ -82,88 +74,77 @@ try {
   const {mountLifeCalendarManager} = await import('/site-calendar-manager.js');
   await mountLifeCalendarManager({
     root, initialView: 'week', guestRepository: guestRepo,
-    timezone: 'Asia/Seoul', now: new Date('2026-09-23T01:00:00Z'),
+    timezone: 'Asia/Seoul', now: new Date('2026-09-21T01:00:00Z'),
   });
   await wait(() => root.querySelector('.calendar-week-agenda'), 'week mounted');
   const result = {ok: true, viewport: {width: innerWidth, height: innerHeight}};
   const section = root.querySelector('.calendar-week-agenda');
-  // Both widths open on the life list, with a 7-day strip on one row.
+  const amountSlot = root.querySelector('.calendar-amount-slot');
+  const actionSlot = root.querySelector('.calendar-action-slot');
+  const calendarViewport = root.querySelector('.calendar-viewport');
+  const actionRect = actionSlot?.getBoundingClientRect();
+  const weekRect = section?.getBoundingClientRect();
+  result.weekActions = {
+    labels: [...(actionSlot?.querySelectorAll('.calendar-add-button') || [])].map(node => node.textContent.trim()),
+    placement: actionSlot?.dataset.calendarActionBar || '',
+    afterAmount: Boolean(amountSlot && actionSlot)
+      && Boolean(amountSlot.compareDocumentPosition(actionSlot) & Node.DOCUMENT_POSITION_FOLLOWING),
+    beforeViewport: Boolean(actionSlot && calendarViewport)
+      && Boolean(actionSlot.compareDocumentPosition(calendarViewport) & Node.DOCUMENT_POSITION_FOLLOWING),
+    aboveWeek: Boolean(actionRect && weekRect) && actionRect.bottom <= weekRect.top + 1,
+  };
+  // Both widths open directly on the weekly hour grid. There is no duplicate
+  // date strip or layout toggle before the user can see their schedule.
   result.initialLayout = section.dataset.weekLayout;
-  const stripDays = [...root.querySelectorAll('.calendar-week-strip [data-calendar-week-date]')];
-  const stripTops = stripDays.map(n => Math.round(n.getBoundingClientRect().top));
-  const stripLefts = stripDays.map(n => Math.round(n.getBoundingClientRect().left));
-  result.stripCount = stripDays.length;
-  result.stripOneRow = stripTops.every(v => v === stripTops[0]) && stripLefts.every((v, i) => i === 0 || v > stripLefts[i - 1]);
-  result.stripFits = stripDays.every(n => n.getBoundingClientRect().right <= innerWidth + 1);
-  result.toggle = [...root.querySelectorAll('[data-week-layout-option]')].map(n => [n.dataset.weekLayoutOption, n.textContent, n.getAttribute('aria-pressed')]);
-  const listRows = [...root.querySelectorAll('[data-calendar-week-group="2026-09-23"] .calendar-day-event')];
-  result.listRows = listRows.map(n => [n.querySelector('time')?.textContent || '', n.querySelector('strong')?.textContent || '']);
-
-  if (innerWidth <= 900) {
-    // A phone: no hour grid at all, the days stack, nothing scrolls sideways,
-    // and a strip tap brings that day's records into view.
-    result.mobile = true;
-    result.gridPresent = Boolean(root.querySelector('.calendar-week-grid'));
-    const groups = [...root.querySelectorAll('.calendar-week-list [data-calendar-week-group]')];
-    const groupTops = groups.map(n => Math.round(n.getBoundingClientRect().top));
-    result.groupCount = groups.length;
-    result.groupsStack = groupTops.every((v, i) => i === 0 || v > groupTops[i - 1]);
-    result.sectionOverflow = section.scrollWidth - section.clientWidth;
-    // The week's last day starts below the fold; a strip tap must scroll its
-    // heading into the visible part of the page (as far as the page can go).
-    const scroller = root.closest('.site-modal-content');
-    const visibleBox = () => {
-      const box = scroller.getBoundingClientRect();
-      return {top: Math.max(box.top, 0), bottom: Math.min(box.bottom, innerHeight)};
-    };
-    const headingVisible = () => {
-      const heading = root.querySelector('.calendar-week-list [data-calendar-week-group="2026-09-26"] .calendar-week-day-heading');
-      if (!heading) return false;
-      const rect = heading.getBoundingClientRect();
-      const box = visibleBox();
-      return rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1;
-    };
-    result.lastDayBelowFold = !headingVisible();
-    root.querySelector('.calendar-week-strip [data-calendar-week-date="2026-09-26"]').click();
-    let revealed = false;
-    for (let i = 0; i < 150 && !revealed; i += 1) {
-      await sleep(20);
-      revealed = headingVisible();
-    }
-    result.stripTapReveals = revealed;
-    result.stripSelected = root.querySelector('.calendar-week-strip [data-calendar-week-date="2026-09-26"]')?.getAttribute('aria-selected');
-    out.textContent = JSON.stringify(result);
-    throw null;
-  }
-
-  // A wide screen: 시간표 is one press away, and it is a real hour grid.
-  root.querySelector('[data-week-layout-option="timegrid"]').click();
-  await wait(() => root.querySelector('.calendar-week-grid'), 'week grid mounted');
+  result.stripCount = root.querySelectorAll('.calendar-week-strip').length;
+  result.toggleCount = root.querySelectorAll('[data-week-layout-option]').length;
+  result.gridPresent = Boolean(root.querySelector('.calendar-week-grid'));
   await wait(() => root.querySelectorAll('.calendar-week-day').length === 7, '7 day columns');
-  await sleep(80); // let the post-mount rAF scroll settle
-  result.timegridPressed = root.querySelector('[data-week-layout-option="timegrid"]')?.getAttribute('aria-pressed');
-  result.layoutAfterToggle = root.querySelector('.calendar-week-agenda')?.dataset.weekLayout;
+  await sleep(80);
+  const weekGrid = root.querySelector('.calendar-week-grid');
+  const stickyBottom = root.querySelector('.calendar-week-grid-sticky-rows')?.getBoundingClientRect().bottom ?? 0;
+  result.initialScrollTop = weekGrid?.scrollTop ?? null;
+  result.firstVisibleHour = [...root.querySelectorAll('.calendar-week-hour-label')]
+    .find(node => node.textContent && node.getBoundingClientRect().bottom > stickyBottom)?.textContent || '';
+  result.midnightReachable = Boolean(weekGrid);
+  if (weekGrid) {
+    weekGrid.scrollTop = 0;
+    result.midnightReachable = weekGrid.scrollTop === 0;
+  }
   const dayHeaders = [...root.querySelectorAll('.calendar-week-day')];
   const lefts = dayHeaders.map(n => Math.round(n.getBoundingClientRect().left));
-  result.columnCount = dayHeaders.length;
-  result.columnsIncreasing = lefts.every((v, i) => i === 0 || v > lefts[i - 1]);
   const tops = dayHeaders.map(n => Math.round(n.getBoundingClientRect().top));
+  result.columnCount = dayHeaders.length;
+  result.headerDates = dayHeaders.map(n => n.dataset.calendarWeekDate);
+  result.columnsIncreasing = lefts.every((v, i) => i === 0 || v > lefts[i - 1]);
   result.columnsSameRow = tops.every(v => v === tops[0]);
+  result.weekendSurfaces = {
+    sunday: getComputedStyle(dayHeaders[0]).backgroundColor,
+    monday: getComputedStyle(dayHeaders[1]).backgroundColor,
+    saturday: getComputedStyle(dayHeaders[6]).backgroundColor,
+  };
+  const mondayHeader = root.querySelector('[data-calendar-week-date="2026-09-21"]');
+  const mondayAllDay = [...root.querySelectorAll('.calendar-week-allday-cell')][1];
+  const mondayGrid = root.querySelector('[data-calendar-week-group="2026-09-21"]');
+  result.weekdayHoliday = {
+    headerMarked: mondayHeader?.dataset.holiday || '',
+    allDayMarked: mondayAllDay?.dataset.holiday || '',
+    gridMarked: mondayGrid?.dataset.holiday || '',
+    headerSurface: mondayHeader ? getComputedStyle(mondayHeader).backgroundColor : '',
+    allDaySurface: mondayAllDay ? getComputedStyle(mondayAllDay).backgroundColor : '',
+    gridSurface: mondayGrid ? getComputedStyle(mondayGrid).backgroundColor : '',
+  };
 
   const eventRect = title => {
     const node = [...root.querySelectorAll('.calendar-week-grid-event')].find(n => n.textContent.includes(title));
     return node ? node.getBoundingClientRect() : null;
   };
-  const morningRect = eventRect('아침 회의'); // 09:00-10:00
-  const afternoonRect = eventRect('오후 진료'); // 09:30-10:30 -- overlaps the above
+  const morningRect = eventRect('아침 회의');
+  const afternoonRect = eventRect('오후 진료');
   const dayColumn = root.querySelector('[data-calendar-week-group="2026-09-23"]');
   const columnTop = dayColumn ? dayColumn.getBoundingClientRect().top : null;
   result.eventsFound = Boolean(morningRect && afternoonRect && dayColumn);
   if (result.eventsFound) {
-    // A real 30-minute-later start must sit a real, specific amount lower:
-    // at 48px/hour over a 1440-minute column, 30 minutes is exactly 24px.
-    // This is minute-of-day math driving a real CSS top, not source order in
-    // a list, and generous tolerance only covers rounding/border pixels.
     const morningOffset = morningRect.top - columnTop;
     const afternoonOffset = afternoonRect.top - columnTop;
     result.laterIsLower = afternoonOffset > morningOffset;
@@ -171,30 +152,34 @@ try {
     result.proportional = delta > 16 && delta < 32;
     result.morningOffset = Math.round(morningOffset);
     result.afternoonOffset = Math.round(afternoonOffset);
-
-    // The two are truly overlapping in time (09:00-10:00 vs 09:30-10:30), so
-    // the rendered blocks must not overlap horizontally -- proving the lane
-    // split is real pixels, not just a data attribute nobody reads.
     result.overlapLanesSeparate = morningRect.right <= afternoonRect.left + 1 || afternoonRect.right <= morningRect.left + 1;
-    // And they must still overlap in Y (same time window), otherwise the
-    // horizontal-separation check would trivially pass for unrelated reasons.
     result.overlapSameBand = morningRect.top < afternoonRect.bottom && afternoonRect.top < morningRect.bottom;
   }
-
   const alldayRow = root.querySelector('.calendar-week-allday-row');
   const scroll = root.querySelector('.calendar-week-grid-scroll');
+  const edgePairs = selector => [...root.querySelectorAll(selector)].map(node => {
+    const rect = node.getBoundingClientRect();
+    return {left: rect.left, right: rect.right};
+  });
+  const headerEdges = edgePairs('.calendar-week-day');
+  const alldayEdges = edgePairs('.calendar-week-allday-cell');
+  const gridEdges = edgePairs('.calendar-week-grid-day');
+  result.maxColumnEdgeDelta = Math.max(...headerEdges.flatMap((edge, index) => [
+    Math.abs(edge.left - alldayEdges[index].left),
+    Math.abs(edge.right - alldayEdges[index].right),
+    Math.abs(edge.left - gridEdges[index].left),
+    Math.abs(edge.right - gridEdges[index].right),
+  ]));
   result.alldayFound = Boolean(alldayRow && alldayRow.textContent.includes('추석'));
-  result.alldayAboveScroll = Boolean(alldayRow && scroll) && alldayRow.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().top + 1;
-
+  result.alldayAboveScroll = Boolean(alldayRow && scroll)
+    && Boolean(alldayRow.compareDocumentPosition(scroll) & Node.DOCUMENT_POSITION_FOLLOWING)
+    && getComputedStyle(alldayRow.parentElement).position === 'sticky';
   result.hourLabelCount = root.querySelectorAll('.calendar-week-hour-label').length;
-
   const grid = root.querySelector('.calendar-week-grid');
   result.horizontalOverflow = grid.scrollWidth - grid.clientWidth;
-
   out.textContent = JSON.stringify(result);
 } catch (e) {
-  // \`throw null\` ends the phone case early, after it has written its result.
-  if (e !== null) out.textContent = JSON.stringify({ok: false, error: String(e?.stack || e), viewport: {width: innerWidth, height: innerHeight}});
+  out.textContent = JSON.stringify({ok: false, error: String(e?.stack || e), viewport: {width: innerWidth, height: innerHeight}});
 }
 </script></body></html>`;
 
@@ -244,45 +229,47 @@ fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
-  // 1440 desktop (list first, then the full 7-column hour grid) and 360
-  // mobile (the life list only).
+  // Desktop shows the whole week when space permits; mobile keeps the same
+  // date-across/time-down model and scrolls the grid itself horizontally.
   const results = [[1440, 900], [360, 780]].map(([w, h]) => run(browser, w, h));
   for (const v of results) {
     const where = `${v.viewport.width}x${v.viewport.height}`;
-    if (v.initialLayout !== 'list') throw new Error(`${where}: Week must open as the life list, got "${v.initialLayout}"`);
-    if (v.stripCount !== 7 || !v.stripOneRow) throw new Error(`${where}: the 7-day strip must sit on one row, left to right (count=${v.stripCount})`);
-    if (!v.stripFits) throw new Error(`${where}: the 7-day strip must fit the screen width`);
-    // Day order: the clock first, in time order; the time-less record after.
-    if (JSON.stringify(v.listRows) !== JSON.stringify([['09:00', '아침 회의'], ['09:30', '오후 진료'], ['', '추석']])) {
-      throw new Error(`${where}: the 23rd must list 09:00, 09:30, then the time-less record, got ${JSON.stringify(v.listRows)}`);
+    if (v.initialLayout !== 'timegrid') throw new Error(`${where}: Week must open on the vertical time grid, got "${v.initialLayout}"`);
+    if (v.stripCount !== 0) throw new Error(`${where}: Week must not duplicate dates in a separate strip`);
+    if (v.toggleCount !== 0) throw new Error(`${where}: Week must not require a secondary layout toggle`);
+    if (!v.gridPresent) throw new Error(`${where}: Week must render the weekly hour grid`);
+    if (v.firstVisibleHour !== '06:00') throw new Error(`${where}: Week must open with 06:00 as the first visible hour, got "${v.firstVisibleHour}" at scrollTop=${v.initialScrollTop}`);
+    if (!v.midnightReachable) throw new Error(`${where}: 00:00-05:59 must remain reachable by scrolling upward`);
+    if (JSON.stringify(v.weekActions.labels) !== JSON.stringify(['사진에서 기록 읽기', '+ 기록'])) {
+      throw new Error(`${where}: Week must show both record actions, got ${JSON.stringify(v.weekActions.labels)}`);
     }
-    if (v.mobile) {
-      if (v.toggle.length) throw new Error(`${where}: a phone must not offer the hour grid, got ${JSON.stringify(v.toggle)}`);
-      if (v.gridPresent) throw new Error(`${where}: a phone must never render the hour grid`);
-      if (v.groupCount !== 7 || !v.groupsStack) throw new Error(`${where}: seven day groups must stack top to bottom (count=${v.groupCount})`);
-      if (v.sectionOverflow > 0) throw new Error(`${where}: the week list must not scroll sideways (overflow=${v.sectionOverflow})`);
-      if (!v.lastDayBelowFold) throw new Error(`${where}: fixture drift -- the week's last day must start below the fold for the reveal check to mean anything`);
-      if (!v.stripTapReveals) throw new Error(`${where}: a strip tap must bring that day's records into view`);
-      if (v.stripSelected !== 'true') throw new Error(`${where}: the tapped strip day must become the selected one`);
-      continue;
+    if (v.weekActions.placement !== 'week-top' || !v.weekActions.afterAmount || !v.weekActions.beforeViewport || !v.weekActions.aboveWeek) {
+      throw new Error(`${where}: Week actions must sit directly after the amount summary and above the weekly grid, got ${JSON.stringify(v.weekActions)}`);
     }
-    if (JSON.stringify(v.toggle) !== JSON.stringify([['list', '생활목록', 'true'], ['timegrid', '시간표', 'false']])) {
-      throw new Error(`${where}: a wide screen must offer 생활목록 / 시간표 with the list pressed first, got ${JSON.stringify(v.toggle)}`);
+    if (v.columnCount !== 7 || !v.columnsIncreasing || !v.columnsSameRow) {
+      throw new Error(`${where}: seven date columns must share one row left-to-right (count=${v.columnCount})`);
     }
-    if (v.layoutAfterToggle !== 'timegrid' || v.timegridPressed !== 'true') throw new Error(`${where}: pressing 시간표 must switch to the hour grid`);
-    if (v.columnCount !== 7) throw new Error(`${where}: expected 7 day columns, got ${v.columnCount}`);
-    if (!v.columnsIncreasing) throw new Error(`${where}: day columns are not laid out side by side left-to-right`);
-    if (!v.columnsSameRow) throw new Error(`${where}: day columns are not on one row -- looks like the old stacked agenda`);
-    if (!v.eventsFound) throw new Error(`${where}: could not find the seeded timed events in the grid`);
-    if (!v.laterIsLower) throw new Error(`${where}: a 09:30 event must render below a 09:00 event on the same day`);
-    if (!v.proportional) throw new Error(`${where}: 30 minutes later did not move the event ~24px lower (morning=${v.morningOffset} afternoon=${v.afternoonOffset})`);
-    if (!v.overlapSameBand) throw new Error(`${where}: overlap fixture events do not actually share a time band`);
-    if (!v.overlapLanesSeparate) throw new Error(`${where}: two truly-overlapping events render on top of each other instead of splitting lanes`);
-    if (!v.alldayFound) throw new Error(`${where}: the all-day event did not render in the all-day row`);
-    if (!v.alldayAboveScroll) throw new Error(`${where}: the all-day/holiday row must sit above the scrolling hour grid, not inside it`);
-    if (v.hourLabelCount !== 24) throw new Error(`${where}: expected a 24-hour axis, got ${v.hourLabelCount}`);
+    if (JSON.stringify(v.headerDates) !== JSON.stringify(['2026-09-20','2026-09-21','2026-09-22','2026-09-23','2026-09-24','2026-09-25','2026-09-26'])) {
+      throw new Error(`${where}: header order must be Sunday through Saturday, got ${JSON.stringify(v.headerDates)}`);
+    }
+    if (v.weekendSurfaces.sunday !== 'rgb(255, 243, 243)' || v.weekendSurfaces.saturday !== 'rgb(242, 247, 255)') {
+      throw new Error(`${where}: Sunday/Saturday headers must keep LOTBI red/blue surfaces, got ${JSON.stringify(v.weekendSurfaces)}`);
+    }
+    if (v.weekdayHoliday.headerMarked !== 'true' || v.weekdayHoliday.allDayMarked !== 'true' || v.weekdayHoliday.gridMarked !== 'true') {
+      throw new Error(`${where}: a weekday holiday must mark its header, all-day row and full time column, got ${JSON.stringify(v.weekdayHoliday)}`);
+    }
+    if (!v.weekdayHoliday.headerSurface || v.weekdayHoliday.headerSurface !== v.weekdayHoliday.allDaySurface || v.weekdayHoliday.headerSurface !== v.weekdayHoliday.gridSurface) {
+      throw new Error(`${where}: a weekday holiday must keep one holiday surface from top through the hour grid, got ${JSON.stringify(v.weekdayHoliday)}`);
+    }
+    if (!v.eventsFound || !v.laterIsLower || !v.proportional) throw new Error(`${where}: timed events must use their vertical clock positions`);
+    if (!v.overlapSameBand || !v.overlapLanesSeparate) throw new Error(`${where}: overlapping events must split into visible lanes`);
+    if (!v.alldayFound || !v.alldayAboveScroll) throw new Error(`${where}: all-day records must sit above the hourly scroller`);
+    if (v.maxColumnEdgeDelta > 1) throw new Error(`${where}: week header, all-day row and hourly columns must stay aligned (max edge drift=${v.maxColumnEdgeDelta.toFixed(2)}px)`);
+    if (v.hourLabelCount !== 24) throw new Error(`${where}: expected a 24-hour vertical axis, got ${v.hourLabelCount}`);
+    if (v.viewport.width <= 900 && v.horizontalOverflow <= 0) throw new Error(`${where}: mobile must scroll the weekly grid horizontally instead of squeezing seven days`);
+    if (v.viewport.width > 900 && v.horizontalOverflow > 1) throw new Error(`${where}: desktop week should fit without page-level horizontal overflow`);
   }
-  console.log('CALENDAR WEEK TIME-GRID UI PASS', JSON.stringify(results));
+  console.log('CALENDAR WEEK VERTICAL-TIMEGRID UI PASS', JSON.stringify(results));
 } finally {
   server.kill('SIGTERM');
   fs.rmSync(INNER, {force: true});

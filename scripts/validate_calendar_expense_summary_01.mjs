@@ -1,13 +1,13 @@
 // Locks the Calendar month amount line (LIFE UX 01).
 //
-// The Calendar is not a ledger. A month's recorded amounts are one quiet line
-// under the month -- "9월 입력 금액 합계 314,500원 ›" -- and the breakdown waits
-// behind it. The six-slot strip with its 0원 boxes and its "금액 없는 일정 N건
-// 제외" sentence is gone on purpose; what it protected is kept:
+// A month's recorded amounts keep one clear total line at the top of Today,
+// Week and Month, with the five user-facing categories visible immediately
+// beneath it. The detailed
+// currency/count view still opens from the total line.
 //
 // Covered contracts:
-//   - the line sits inside the month surface, under the grid; the month
-//     layout's first two children stay the month and the selected-day surface
+//   - the summary sits directly below the toolbar and before the view in
+//     Today, Week and Month, so scrolling the schedule does not hide it first
 //   - one line: label, total and chevron share a row; a real button with a
 //     44px touch target; no category name and no ledger words on the line
 //   - a month with no recorded amount draws no line at all (no 0원 ledger)
@@ -64,6 +64,14 @@ let stage='init';
 setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},45000);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await sleep(20)}throw new Error('timeout '+label)};
+const waitForDomIdle=(node,quietMs=120)=>new Promise(resolve=>{
+  let timer;
+  const done=()=>{observer.disconnect();resolve()};
+  const settle=()=>{clearTimeout(timer);timer=setTimeout(done,quietMs)};
+  const observer=new MutationObserver(settle);
+  observer.observe(node,{subtree:true,childList:true,characterData:true,attributes:true});
+  settle();
+});
 
 // The fixture answers Core itself so the assertions measure rendering, not the
 // network. Only the routes the month view touches are served.
@@ -166,13 +174,42 @@ try{
   const populatedFetch=stubFetch({expense:KRW_SUMMARY});
   let root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:populatedFetch});
   await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready','ready line');
-  const ready=line(root);
+  // The amount read can settle before the other initial Calendar reads. Wait
+  // until their fixture-driven renders are quiet; otherwise a late render can
+  // replace the focused amount line while focus return is being measured.
+  await waitForDomIdle(root);
+  let ready=line(root);
 
   const layout=root.querySelector('.calendar-month-layout');
+  const shell=root.querySelector('.calendar-product-shell');
+  const amountSlot=root.querySelector('.calendar-amount-slot');
+  const toolbar=root.querySelector('.calendar-toolbar');
+  const viewport=root.querySelector('.calendar-viewport');
   result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
-  result.layoutSecondIsDayPanel=Boolean(layout?.children[1]?.classList.contains('calendar-day-panel'));
-  result.lineInsideMonth=Boolean(layout?.children[0]?.contains(ready));
-  result.lineFollowsGrid=root.querySelector('.calendar-month-grid')?.compareDocumentPosition(ready)===Node.DOCUMENT_POSITION_FOLLOWING;
+  result.layoutHasNoAutomaticDayPanel=!layout?.querySelector('.calendar-day-panel');
+  result.lineInsideTopSlot=Boolean(amountSlot?.contains(ready));
+  result.summaryDirectlyBelowToolbar=Boolean(shell && toolbar && amountSlot && toolbar.nextElementSibling===amountSlot);
+  result.summaryBeforeViewport=Boolean(amountSlot && viewport && (amountSlot.compareDocumentPosition(viewport)&Node.DOCUMENT_POSITION_FOLLOWING));
+
+  result.summaryModes=[];
+  for(const [label,selector,viewSelector] of [
+    ['오늘','[data-calendar-mode="day"]','.calendar-day-view'],
+    ['주','[data-calendar-mode="week"]','.calendar-week-agenda'],
+    ['월','[data-calendar-mode="month"]','.calendar-month-layout'],
+  ]){
+    const control=[...root.querySelectorAll(selector)].find(node=>node.textContent.trim()===label)||root.querySelector(selector);
+    control?.click();
+    await wait(()=>root.querySelector(viewSelector),label+' view');
+    await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' top amount');
+    const activeLine=line(root);
+    result.summaryModes.push({
+      label,
+      view:Boolean(root.querySelector(viewSelector)),
+      inTopSlot:Boolean(root.querySelector('.calendar-amount-slot')?.contains(activeLine)),
+      topSlotBeforeView:Boolean(root.querySelector('.calendar-amount-slot')?.compareDocumentPosition(root.querySelector('.calendar-viewport'))&Node.DOCUMENT_POSITION_FOLLOWING),
+    });
+  }
+  ready=line(root);
 
   result.lineTag=ready.tagName;
   result.lineType=ready.getAttribute('type');
@@ -184,7 +221,34 @@ try{
   result.lineHeight=Math.round(box.height);
   const centre=node=>{const r=node.getBoundingClientRect();return r.top+r.height/2};
   result.oneRow=Math.abs(centre(ready.querySelector('.calendar-amount-line-label'))-centre(ready.querySelector('.calendar-amount-line-amount')))<3;
+  const totalLabelRect=ready.querySelector('.calendar-amount-line-label')?.getBoundingClientRect();
+  const totalAmountRect=ready.querySelector('.calendar-amount-line-amount')?.getBoundingClientRect();
+  result.totalPairGap=totalLabelRect&&totalAmountRect ? Math.round((totalAmountRect.left-totalLabelRect.right)*100)/100 : null;
   result.lineCategoryWords=['음식','여행','쇼핑','생활비','기타','미분류'].filter(word=>ready.textContent.includes(word));
+  const categoryList=root.querySelector('.calendar-amount-categories');
+  result.categoryRows=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>[
+    row.dataset.expenseCategory,
+    row.querySelector('dt')?.textContent||'',
+    row.querySelector('dd')?.textContent||'',
+  ]);
+  result.categoryPairGaps=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>{
+    const label=row.querySelector('dt')?.getBoundingClientRect();
+    const amount=row.querySelector('dd')?.getBoundingClientRect();
+    return amount&&label ? Math.round((amount.left-label.right)*100)/100 : null;
+  });
+  result.categoryColumns=categoryList ? getComputedStyle(categoryList).gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
+  const readCategoryStyles=()=>[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>{
+    const itemStyle=getComputedStyle(row);
+    const label=row.querySelector('dt');
+    return {
+      category:row.dataset.expenseCategory,
+      border:[itemStyle.borderTopWidth,itemStyle.borderRightWidth,itemStyle.borderBottomWidth,itemStyle.borderLeftWidth],
+      background:itemStyle.backgroundColor,
+      labelColor:getComputedStyle(label).color,
+      labelContrast:contrast(rgb(getComputedStyle(label).color),paintedBg(row)),
+    };
+  });
+  result.categoryStylesLight=readCategoryStyles();
   result.forbidden=forbiddenIn(root.textContent);
   result.aboveTheFold=box.bottom<=innerHeight;
   result.barBottom=Math.round(box.bottom);
@@ -199,6 +263,7 @@ try{
   result.contrastLight=readContrast();
   document.body.dataset.siteTheme='dark';
   result.contrastDark=readContrast();
+  result.categoryStylesDark=readCategoryStyles();
   delete document.body.dataset.siteTheme;
 
   // --- the breakdown, on request ------------------------------------------
@@ -421,8 +486,13 @@ try {
     const fail = message => { throw new Error(`${label}: ${message}`); };
 
     if (!value.layoutFirstIsMonth) fail('month layout child 0 must stay the month grid');
-    if (!value.layoutSecondIsDayPanel) fail('month layout child 1 must stay the selected-day surface');
-    if (!value.lineInsideMonth || !value.lineFollowsGrid) fail('the amount line must sit inside the month surface, under the grid');
+    if (!value.layoutHasNoAutomaticDayPanel) fail('Month must not mount a selected-day surface before a date press');
+    if (!value.lineInsideTopSlot || !value.summaryDirectlyBelowToolbar || !value.summaryBeforeViewport) {
+      fail('the amount summary must sit directly below the toolbar and before the calendar viewport');
+    }
+    if (value.summaryModes.length!==3 || value.summaryModes.some(mode=>!mode.view||!mode.inTopSlot||!mode.topSlotBeforeView)) {
+      fail(`Today, Week and Month must all keep the amount summary above their content, got ${JSON.stringify(value.summaryModes)}`);
+    }
 
     // One quiet line.
     if (value.lineTag !== 'BUTTON' || value.lineType !== 'button') fail(`the amount line must be a real button, got ${value.lineTag}/${value.lineType}`);
@@ -433,8 +503,25 @@ try {
       fail(`the line's accessible name must say what it is, the total and that it opens, got "${value.ariaLabel}"`);
     }
     if (!value.oneRow) fail('label and total must share one row');
+    if (value.totalPairGap===null||value.totalPairGap<0||value.totalPairGap>8) fail(`the total amount must sit directly beside its label, got gap ${value.totalPairGap}`);
     if (value.lineHeight < 44 || value.lineHeight > 64) fail(`the line must be one 44px+ touch row, got ${value.lineHeight}px`);
     if (value.lineCategoryWords.length) fail(`the line must not spell out categories, got ${value.lineCategoryWords.join(',')}`);
+    if (JSON.stringify(value.categoryRows) !== JSON.stringify([
+      ['FOOD', '음식', '40,500원'],
+      ['TRAVEL', '여행', '180,000원'],
+      ['SHOPPING', '쇼핑', '0원'],
+      ['LIVING', '생활비', '94,000원'],
+      ['OTHER', '기타', '0원'],
+    ])) fail(`the month must show the five category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
+    if (value.categoryPairGaps.some(gap=>gap===null||gap<0||gap>8)) fail(`each category amount must sit directly beside its title, got gaps ${JSON.stringify(value.categoryPairGaps)}`);
+    if (value.viewport.width <= 520 && value.categoryColumns !== 2) fail(`phone categories must use two columns, got ${value.categoryColumns}`);
+    for (const theme of ['Light', 'Dark']) {
+      const styles=value['categoryStyles'+theme];
+      if (styles.some(item=>item.border.some(width=>width!=='0px'))) fail(`${theme} category labels must not have box borders, got ${JSON.stringify(styles)}`);
+      if (styles.some(item=>item.background!=='rgba(0, 0, 0, 0)')) fail(`${theme} category labels must have no box background, got ${JSON.stringify(styles)}`);
+      if (new Set(styles.map(item=>item.labelColor)).size!==styles.length) fail(`${theme} category titles must each have a distinct colour, got ${JSON.stringify(styles)}`);
+      if (styles.some(item=>item.labelContrast<4.5)) fail(`${theme} category title colours must hold WCAG AA 4.5:1, got ${JSON.stringify(styles)}`);
+    }
     if (value.forbidden.length) fail(`ledger words must not appear on the month, got ${value.forbidden.join(',')}`);
     if (!value.aboveTheFold) fail(`the amount line must be visible without scrolling — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
     if (!value.noHorizontalOverflow) fail('the amount line must not cause horizontal overflow');

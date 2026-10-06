@@ -21,6 +21,35 @@
   display: none;
 }
 
+.calendar-amount-overview {
+  min-width: 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--lotbi-calendar-grid-line, #dbe1ea);
+}
+
+.calendar-amount-overview .calendar-amount-line { margin-top: 0; border-top: 0; }
+.calendar-amount-category-groups { min-width: 0; padding: 0 4px 8px; }
+.calendar-amount-categories {
+  max-width: none;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+.calendar-amount-category {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.calendar-amount-category dt { min-width: 0; color: var(--lotbi-calendar-muted-ink, #687180); font-size: 12px; font-weight: 700; }
+.calendar-amount-category dd { margin: 0; color: var(--lotbi-text-primary, #303642); font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* One fixed colour per category, so the six names are told apart at a glance
    instead of being read one by one. Fixed, never random: a reader who learns
    that 음식 is red has to find it red next month too, and a colour that moves
@@ -37,13 +66,17 @@
    4.5:1 and most past AAA 7:1. Yellow is deliberately absent — it cannot hold
    4.5:1 on white at this size. 미분류 stays grey on purpose: it is the absence
    of a choice, not a seventh kind of spending. */
-.calendar-expense-summary {
+.calendar-expense-summary,
+.calendar-amount-overview {
   --calendar-expense-food: #b0201c;
   --calendar-expense-travel: #00605a;
   --calendar-expense-shopping: #7b1fa2;
   --calendar-expense-living: #14508f;
   --calendar-expense-other: #6d4c41;
   --calendar-expense-unclassified: #545c68;
+}
+
+.calendar-expense-summary {
   box-sizing: border-box;
   width: 100%;
   margin-top: 8px;
@@ -157,6 +190,13 @@
   color: var(--calendar-expense-unclassified);
 }
 
+.calendar-amount-category[data-expense-category="FOOD"] dt { color: var(--calendar-expense-food); }
+.calendar-amount-category[data-expense-category="TRAVEL"] dt { color: var(--calendar-expense-travel); }
+.calendar-amount-category[data-expense-category="SHOPPING"] dt { color: var(--calendar-expense-shopping); }
+.calendar-amount-category[data-expense-category="LIVING"] dt { color: var(--calendar-expense-living); }
+.calendar-amount-category[data-expense-category="OTHER"] dt { color: var(--calendar-expense-other); }
+.calendar-amount-category[data-expense-category="UNCLASSIFIED"] dt { color: var(--calendar-expense-unclassified); }
+
 .calendar-expense-item dd {
   margin: 0;
   color: var(--lotbi-text-secondary, #3d4653);
@@ -197,7 +237,9 @@
    the default nobody has touched. A rule written only for
    body[data-site-theme="dark"] misses the OS-dark reader entirely. */
 body[data-site-theme="dark"] .calendar-expense-summary,
-html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-expense-summary {
+body[data-site-theme="dark"] .calendar-amount-overview,
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-expense-summary,
+html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-amount-overview {
   --calendar-expense-food: #ffab91;
   --calendar-expense-travel: #68d7c2;
   --calendar-expense-shopping: #dbabff;
@@ -208,7 +250,9 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
 
 @media (prefers-color-scheme: dark) {
   body[data-site-theme="system"] .calendar-expense-summary,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-expense-summary {
+  body[data-site-theme="system"] .calendar-amount-overview,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-expense-summary,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-amount-overview {
     --calendar-expense-food: #ffab91;
     --calendar-expense-travel: #68d7c2;
     --calendar-expense-shopping: #dbabff;
@@ -219,6 +263,8 @@ html[data-site-theme-bootstrap="dark"] body:not([data-site-theme]) .calendar-exp
 }
 
 @media (max-width: 520px) {
+  .calendar-amount-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calendar-amount-category { padding: 4px 0; }
   .calendar-expense-summary {
     padding: 10px;
     font-size: 0.8125rem;

@@ -14,14 +14,14 @@ import {
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
   personErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto, respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-bf3f922c4411';
-import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-bf3f922c4411';
+} from './site-person.js?v=aset-b29fb394ed8a';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-b29fb394ed8a';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-bf3f922c4411';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-bf3f922c4411';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-bf3f922c4411';
+} from './site-safecare-common.js?v=aset-b29fb394ed8a';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-b29fb394ed8a';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-b29fb394ed8a';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
@@ -375,7 +375,13 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
         } finally { busy = false; submit.disabled = false; }
       };
       if (view.edit) await save();
-      else openSafeCareRenewalNotice({kind: 'person', onConfirm: save});
+      else openSafeCareRenewalNotice({
+        kind: 'person',
+        relationship: relationship.value,
+        birthYear: year,
+        birthMonth: month,
+        onConfirm: save,
+      });
     });
     content.append(form);
     if (view.edit && person) {
@@ -409,7 +415,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     if (filled && previews.has(key)) {
       const image = el('img', 'safecare-slot-photo'); image.src = previews.get(key); image.alt = `${slot.label} 사진`; media.append(image);
     } else {
-      media.append(personSlotDiagram(slot));
+      media.append(personSlotArtwork(slot));
       if (filled) {
         void fetchPersonIdentityPhotoObjectUrl(sessionToken, person.personId, slotIndex).then(url => {
           if (disposed) { URL.revokeObjectURL(url); return; }
@@ -466,7 +472,6 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       content.append(note);
       if (activeCaseFor(person.personId)) content.append(el('p', 'person-card-note', '진행 중인 실종 상태는 전환 당시 사진으로 계속 비교합니다. 지금 바꾼 사진은 진행 중인 실종 비교에 반영되지 않습니다.'));
     }
-    content.append(personPhotoGuide());
     const grid = el('div', 'safecare-slot-grid');
     grid.dataset.personSlotGrid = '';
     const frontFilled = filledSlots.has(1);
