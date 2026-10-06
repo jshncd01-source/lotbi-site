@@ -334,6 +334,12 @@ jobs:
       - name: Validate shared location foundation (permission, reuse, no auto-prompt)
         run: node scripts/validate_global_location_foundation_01.mjs
 
+      # LIFE-PUBLIC-DATA-01: 생활 공공정보 조회에만 붙는 대략적 위치 문맥.
+      - name: Validate life lookup location context (current -> saved region -> none)
+        run: |
+          node --check site-life-location.js
+          node scripts/validate_life_location_context_01.mjs
+
       # 같은 계약을 실제 브라우저 엔진 안에서 측정한다. Android Chrome / Samsung
       # Internet / iPhone Safari 는 실기기가 필요하므로 여기서 다루지 않는다.
       - name: Measure shared location behavior in a real browser engine
