@@ -83,7 +83,7 @@ try{
     swipeEnabled:getComputedStyle(viewport).scrollSnapType.includes('x')&&getComputedStyle(viewport).overflowX==='auto',
     nextCardPeek:firstRect.width<carouselRect.width,
     compactCardFrame:firstRect.width<=480,
-    croppedToCardEdges:firstImageRect.width>firstRect.width&&firstImageRect.height>firstRect.height,
+    completeDocumentEdges:getComputedStyle(items[0].querySelector('.wallet-card-image')).transform==='none'&&getComputedStyle(items[0].querySelector('.wallet-card-image')).objectFit==='contain'&&firstImageRect.width<=firstRect.width+1&&firstImageRect.height<=firstRect.height+1,
     compactTrackPadding:(viewportRect.height-firstRect.height)<=12,
     singleControls:single.querySelectorAll('.wallet-card-navigation,.wallet-card-position').length,
     overflow:narrow.getBoundingClientRect().right>narrowHost.getBoundingClientRect().right,
@@ -136,7 +136,7 @@ try {
   assert.equal(result.swipeEnabled, true, 'the wallet card viewport must support horizontal scroll snapping');
   assert.equal(result.nextCardPeek, true, 'multiple cards must leave a visible next-card cue');
   assert.equal(result.compactCardFrame, true, 'wallet cards must stay compact instead of expanding into an image viewer');
-  assert.equal(result.croppedToCardEdges, true, 'the document image must crop surrounding photo margins inside the wallet card');
+  assert.equal(result.completeDocumentEdges, true, 'corrected wallet images must show every document edge without a fixed zoom crop');
   assert.equal(result.compactTrackPadding, true, 'the wallet slider must not add large vertical whitespace around cards');
   assert.equal(result.singleControls, 0, 'a single wallet card must not show carousel controls or position');
   assert.equal(result.overflow, false, 'the wallet carousel must fit a 390px mobile viewport');
