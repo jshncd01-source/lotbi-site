@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-6e9903c2dc91';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-e108bdb50dcc';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
