@@ -1,24 +1,24 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-d77b68337be8';
-import * as siteCore from './site-core.js?v=aset-d77b68337be8';
-import './site-scam-shield.js?v=aset-d77b68337be8';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-d77b68337be8';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult} from './site-navigation.js?v=aset-d77b68337be8';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-d77b68337be8';
-import * as siteAttachments from './site-attachments.js?v=aset-d77b68337be8';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-d77b68337be8';
-import {deterministicReply} from './site-deterministic.js?v=aset-d77b68337be8';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-d77b68337be8';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-d77b68337be8';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-d77b68337be8';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-d77b68337be8';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-d77b68337be8';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-d77b68337be8';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-d77b68337be8';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-d77b68337be8';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-d77b68337be8';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-d77b68337be8';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-d77b68337be8';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-d77b68337be8';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-06a2a32a07eb';
+import * as siteCore from './site-core.js?v=aset-06a2a32a07eb';
+import './site-scam-shield.js?v=aset-06a2a32a07eb';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-06a2a32a07eb';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult} from './site-navigation.js?v=aset-06a2a32a07eb';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-06a2a32a07eb';
+import * as siteAttachments from './site-attachments.js?v=aset-06a2a32a07eb';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-06a2a32a07eb';
+import {deterministicReply} from './site-deterministic.js?v=aset-06a2a32a07eb';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-06a2a32a07eb';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-06a2a32a07eb';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-06a2a32a07eb';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-06a2a32a07eb';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-06a2a32a07eb';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-06a2a32a07eb';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-06a2a32a07eb';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-06a2a32a07eb';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-06a2a32a07eb';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-06a2a32a07eb';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-06a2a32a07eb';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-06a2a32a07eb';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -169,7 +169,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-d77b68337be8';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-06a2a32a07eb';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -1176,48 +1176,48 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (!(list instanceof HTMLElement)) continue;
         const fragment = document.createDocumentFragment();
         for (const item of items) {
-          const li = document.createElement('li');
-          li.className = 'conversation-history-item';
-          li.dataset.threadId = item.id;
-          li.dataset.pinned = String(item.pinned === true);
+        const li = document.createElement('li');
+        li.className = 'conversation-history-item';
+        li.dataset.threadId = item.id;
+        li.dataset.pinned = String(item.pinned === true);
 
-          const button = document.createElement('button');
-          button.type = 'button'; button.className = 'conversation-history-open'; button.dataset.threadId = item.id;
-          button.title = item.title;
-          button.setAttribute('aria-label', `${item.pinned === true ? '고정된 ' : ''}${item.title} 대화 열기`);
-          if (item.id === state.activeThreadId) button.setAttribute('aria-current', 'true');
-          const title = document.createElement('span');
-          title.dataset.conversationTitle = ''; title.textContent = item.title;
-          button.appendChild(title);
-          if (item.pinned === true) {
-            const badge = document.createElement('span');
-            badge.className = 'conversation-history-pin'; badge.textContent = '고정'; badge.setAttribute('aria-hidden', 'true');
-            button.appendChild(badge);
-          }
-          button.addEventListener('click', () => activateThread(item.id));
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'conversation-history-open'; button.dataset.threadId = item.id;
+        button.title = item.title;
+        button.setAttribute('aria-label', `${item.pinned === true ? '고정된 ' : ''}${item.title} 대화 열기`);
+        if (item.id === state.activeThreadId) button.setAttribute('aria-current', 'true');
+        const title = document.createElement('span');
+        title.dataset.conversationTitle = ''; title.textContent = item.title;
+        button.appendChild(title);
+        if (item.pinned === true) {
+          const badge = document.createElement('span');
+          badge.className = 'conversation-history-pin'; badge.textContent = '고정'; badge.setAttribute('aria-hidden', 'true');
+          button.appendChild(badge);
+        }
+        button.addEventListener('click', () => activateThread(item.id));
 
-          const actions = document.createElement('details');
-          actions.className = 'conversation-history-actions'; actions.dataset.conversationMenu = '';
-          const summary = document.createElement('summary');
-          summary.className = 'conversation-history-menu-trigger'; summary.dataset.conversationMenuTrigger = '';
-          summary.setAttribute('aria-label', `${item.title} 대화 메뉴`); summary.textContent = '⋯';
-          const menu = document.createElement('div');
-          menu.className = 'conversation-history-menu'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', `${item.title} 대화 관리`);
+        const actions = document.createElement('details');
+        actions.className = 'conversation-history-actions'; actions.dataset.conversationMenu = '';
+        const summary = document.createElement('summary');
+        summary.className = 'conversation-history-menu-trigger'; summary.dataset.conversationMenuTrigger = '';
+        summary.setAttribute('aria-label', `${item.title} 대화 메뉴`); summary.textContent = '⋯';
+        const menu = document.createElement('div');
+        menu.className = 'conversation-history-menu'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', `${item.title} 대화 관리`);
 
-          const action = (name, label, handler, className = '') => {
-            const control = document.createElement('button');
-            control.type = 'button'; control.dataset.conversationAction = name; control.setAttribute('role', 'menuitem');
-            control.className = className; control.textContent = label;
-            control.addEventListener('click', event => {
-              event.preventDefault(); event.stopPropagation(); actions.open = false; handler();
-            });
-            menu.appendChild(control);
-          };
-          action('pin', item.pinned === true ? '고정 해제' : '상단에 고정', () => toggleThreadPin(item.id));
-          action('rename', '이름 바꾸기', () => openRenameThread(item.id));
-          action('delete', '삭제', () => openDeleteThread(item.id), 'conversation-history-delete');
-          actions.addEventListener('toggle', () => { if (actions.open) closeConversationMenus(actions); });
-          actions.append(summary, menu);
+        const action = (name, label, handler, className = '') => {
+          const control = document.createElement('button');
+          control.type = 'button'; control.dataset.conversationAction = name; control.setAttribute('role', 'menuitem');
+          control.className = className; control.textContent = label;
+          control.addEventListener('click', event => {
+            event.preventDefault(); event.stopPropagation(); actions.open = false; handler();
+          });
+          menu.appendChild(control);
+        };
+        action('pin', item.pinned === true ? '고정 해제' : '상단에 고정', () => toggleThreadPin(item.id));
+        action('rename', '이름 바꾸기', () => openRenameThread(item.id));
+        action('delete', '삭제', () => openDeleteThread(item.id), 'conversation-history-delete');
+        actions.addEventListener('toggle', () => { if (actions.open) closeConversationMenus(actions); });
+        actions.append(summary, menu);
           li.append(button, actions); fragment.appendChild(li);
         }
         list.replaceChildren(fragment);
@@ -2934,7 +2934,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-d77b68337be8');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-06a2a32a07eb');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2962,7 +2962,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-d77b68337be8');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-06a2a32a07eb');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3159,8 +3159,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-d77b68337be8'),
-          import('./site-pet.js?v=aset-d77b68337be8'),
+          import('./site-person.js?v=aset-06a2a32a07eb'),
+          import('./site-pet.js?v=aset-06a2a32a07eb'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3169,11 +3169,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-d77b68337be8');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-06a2a32a07eb');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-d77b68337be8');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-06a2a32a07eb');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },

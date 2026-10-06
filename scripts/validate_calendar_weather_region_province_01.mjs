@@ -484,7 +484,7 @@ try {
     throw new Error(`2단계에 다른 광역시·도의 지역이 섞였다: ${JSON.stringify(results.reloaded.cityOptions)}`);
   }
   // LIFE UX 01: 상단 탭은 월/주/목록이고, 년은 제목(2026년 10월 ▾)으로 간다.
-  if (results.reloaded.modeTabs.join('/') !== '월/주/목록') throw new Error(`상단 탭은 월/주/목록이다: ${results.reloaded.modeTabs.join('/')}`);
+  if (results.reloaded.modeTabs.join('/') !== '주/월/목록') throw new Error(`상단 탭은 주/월/목록이다: ${results.reloaded.modeTabs.join('/')}`);
   if (results.reloaded.overdueHeading !== '기한 지남') throw new Error('목록 보기에 기한 지남 묶음이 없다');
   if (!results.reloaded.overdueTitles.includes('지난달에 지난 기한')) {
     throw new Error(`지금 달에 없는 지난 기한이 어디에도 보이지 않는다: ${JSON.stringify(results.reloaded.overdueTitles)}`);
