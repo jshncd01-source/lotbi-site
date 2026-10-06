@@ -188,8 +188,8 @@ function colorBoundaryContrast(color,width,height,start,end){
 }
 
 function looksLikePhotoFrame(corners, width, height, areaRatio) {
-  if (areaRatio < 0.72) return false;
-  const inset = Math.min(width, height) * 0.065;
+  if (areaRatio < 0.965) return false;
+  const inset = Math.min(width, height) * 0.015;
   const points = [corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
   return points.every(point => point.x <= inset || point.x >= width - 1 - inset)
     && points.every(point => point.y <= inset || point.y >= height - 1 - inset);
@@ -200,8 +200,7 @@ function documentShapeScore(corners) {
   const left=distance(corners.topLeft,corners.bottomLeft); const right=distance(corners.topRight,corners.bottomRight);
   const long=Math.max((top+bottom)/2,(left+right)/2); const short=Math.max(1,Math.min((top+bottom)/2,(left+right)/2));
   const ratio=long/short;
-  if(ratio<1.08||ratio>2.35)return 0;
-  return clamp(1-Math.abs(ratio-1.55)/1.1,0.28,1);
+  return clamp(1-Math.abs(ratio-1.55)/6,0.18,1);
 }
 
 function componentCandidates(binary, width, height) {
@@ -255,10 +254,10 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
     const contrast=edges.reduce((sum,[start,end])=>sum+Math.max(boundaryContrast(blurred,working.width,working.height,start,end),colorBoundaryContrast(working.color,working.width,working.height,start,end)),0)/4;
     if (areaRatio < 0.18 || shortestEdge < Math.min(working.width,working.height) * 0.16 || support < 0.46 || contrast < 7) continue;
     if (looksLikePhotoFrame(corners,working.width,working.height,areaRatio)) continue;
-    const areaScore = clamp(1-Math.abs(areaRatio-0.5)/0.5,0,1);
+    const areaScore = clamp((areaRatio-0.18)/0.7,0,1);
     const shapeScore=documentShapeScore(corners);
-    if(!shapeScore)continue;
-    const confidence = clamp(0.48 + areaScore * 0.14 + support * 0.20 + shapeScore * 0.18, 0, 0.99);
+    const contrastScore=clamp((contrast-7)/35,0,1);
+    const confidence = clamp(0.38 + areaScore * 0.30 + support * 0.18 + shapeScore * 0.14 + contrastScore * 0.08, 0, 0.99);
     if (!best || confidence > best.confidence) best = {corners, confidence};
   }
   if (!best || best.confidence < 0.75) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:best?.confidence||0,mode:'manual',reason:'automatic-detection-uncertain'};
