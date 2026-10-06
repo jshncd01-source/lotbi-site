@@ -14,12 +14,13 @@ import {
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
   personErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto, respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-1b59788ff7b8';
-import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-1b59788ff7b8';
+} from './site-person.js?v=aset-e81f454d7441';
+import {PERSON_IDENTITY_SLOTS, personPhotoGuide, personSlotDiagram} from './site-person-guides.js?v=aset-e81f454d7441';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-1b59788ff7b8';
+} from './site-safecare-common.js?v=aset-e81f454d7441';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-e81f454d7441';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
@@ -52,6 +53,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
   let identityPhotos = new Map();
   let busy = false;
   let disposed = false;
+  let activeSheet = null;
   const availability = {sos: true, notices: true, sightings: true};
   const previews = new Map();
   // The view is the whole screen state: list, a person's register/photo
@@ -100,7 +102,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     identityPhotos.set(personId, photos);
     return person;
   };
-  const go = next => { view = next; render(); surface.scrollIntoView?.({block: 'start', behavior: 'smooth'}); };
+  const clearSheet = () => { activeSheet?.destroy(); activeSheet = null; };
+  const go = next => { clearSheet(); view = next; render(); surface.scrollIntoView?.({block: 'start', behavior: 'smooth'}); };
   const backBar = (label = '목록으로') => { const bar = el('div', 'safecare-back'); bar.append(button(`← ${label}`, () => go({name: 'list'}))); return bar; };
   const activeCaseFor = personId => cases.find(record => record.personId === personId && record.status === 'ACTIVE');
 
@@ -243,14 +246,97 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const name = el('input'); name.required = true; name.maxLength = 80; name.autocomplete = 'off'; name.value = person?.displayName || '';
     const relationship = el('select');
     for (const [value, label] of RELATIONSHIPS) { const option = el('option', '', label); option.value = value; option.selected = value === (person?.relationship || 'CHILD'); relationship.append(option); }
-    const birthYear = el('select'); birthYear.dataset.personBirthYear = '';
-    const yearPlaceholder = el('option', '', '연도 선택'); yearPlaceholder.value = ''; birthYear.append(yearPlaceholder);
-    for (const year of birthYearOptions()) { const option = el('option', '', `${year}년`); option.value = String(year); option.selected = year === person?.birthYear; birthYear.append(option); }
-    const birthMonth = el('select'); birthMonth.dataset.personBirthMonth = '';
-    const monthPlaceholder = el('option', '', '월 선택'); monthPlaceholder.value = ''; birthMonth.append(monthPlaceholder);
-    for (let month = 1; month <= 12; month += 1) { const option = el('option', '', `${month}월`); option.value = String(month); option.selected = month === person?.birthMonth; birthMonth.append(option); }
-    const birth = el('div', 'person-birth-row');
-    birth.append(labeled('출생 연도', birthYear), labeled('출생 월', birthMonth));
+    let selectedYear = normalizeBirthYear(person?.birthYear);
+    let selectedMonth = normalizeBirthMonth(person?.birthMonth);
+    const birth = el('div', 'site-field person-field person-birth-field');
+    const birthTrigger = el('button', 'person-birth-trigger');
+    birthTrigger.type = 'button';
+    birthTrigger.dataset.personBirthTrigger = '';
+    birthTrigger.setAttribute('aria-haspopup', 'dialog');
+    birthTrigger.setAttribute('aria-expanded', 'false');
+    const syncBirthTrigger = () => {
+      birthTrigger.textContent = selectedYear && selectedMonth ? `${selectedYear}년 ${selectedMonth}월` : '출생 연월 선택';
+      birthTrigger.dataset.hasValue = String(Boolean(selectedYear && selectedMonth));
+    };
+    syncBirthTrigger();
+    birth.append(el('span', 'person-field-label', '출생 연월'), birthTrigger, el('span', 'person-field-hint', '태어난 연도와 월만 선택합니다. 날짜는 입력하지 않습니다.'));
+
+    const openBirthPicker = () => {
+      clearSheet();
+      let pendingYear = selectedYear || new Date().getFullYear();
+      let pendingMonth = selectedMonth || new Date().getMonth() + 1;
+      const picker = el('section', 'person-birth-picker');
+      picker.dataset.personBirthPicker = '';
+      const title = el('h3', 'person-birth-picker-title', '출생 연월 선택');
+      const instruction = el('p', 'person-field-hint', '연도와 월을 위아래로 스크롤한 뒤 확인을 눌러 주세요. 태어난 날은 받지 않습니다.');
+      const wheels = el('div', 'person-birth-wheels');
+
+      const wheel = (label, values, selected, dataName, onSelect) => {
+        const column = el('div', 'person-birth-wheel-column');
+        const wheelLabel = el('span', 'person-birth-wheel-label', label);
+        const list = el('div', 'person-birth-wheel');
+        list.setAttribute('role', 'listbox');
+        list.setAttribute('aria-label', `${label} 선택`);
+        list.tabIndex = 0;
+        let scrollTimer = 0;
+        const options = values.map(value => {
+          const option = el('button', 'person-birth-wheel-option', `${value}${label === '연도' ? '년' : '월'}`);
+          option.type = 'button';
+          option.setAttribute('role', 'option');
+          option.dataset[dataName] = String(value);
+          option.setAttribute('aria-selected', String(value === selected));
+          if (value === selected) option.classList.add('is-selected');
+          option.addEventListener('click', () => select(option, true));
+          list.append(option);
+          return option;
+        });
+        const select = (option, center = false) => {
+          for (const item of options) {
+            const chosen = item === option;
+            item.classList.toggle('is-selected', chosen);
+            item.setAttribute('aria-selected', String(chosen));
+          }
+          onSelect(Number(option.dataset[dataName]));
+          if (center) option.scrollIntoView({block: 'center', behavior: 'smooth'});
+        };
+        list.addEventListener('scroll', () => {
+          clearTimeout(scrollTimer);
+          scrollTimer = setTimeout(() => {
+            const center = list.getBoundingClientRect().top + list.clientHeight / 2;
+            const nearest = options.reduce((best, option) => Math.abs(option.getBoundingClientRect().top + option.offsetHeight / 2 - center) < Math.abs(best.getBoundingClientRect().top + best.offsetHeight / 2 - center) ? option : best, options[0]);
+            if (nearest) select(nearest);
+          }, 90);
+        }, {passive: true});
+        column.append(wheelLabel, list);
+        queueMicrotask(() => options.find(option => option.classList.contains('is-selected'))?.scrollIntoView({block: 'center'}));
+        return column;
+      };
+
+      wheels.append(
+        wheel('연도', birthYearOptions(), pendingYear, 'personBirthYearOption', value => { pendingYear = value; }),
+        wheel('월', Array.from({length: 12}, (_, index) => index + 1), pendingMonth, 'personBirthMonthOption', value => { pendingMonth = value; }),
+      );
+      const actions = el('div', 'person-birth-picker-actions');
+      const confirm = el('button', 'site-button person-primary', '확인');
+      confirm.type = 'button';
+      confirm.dataset.personBirthConfirm = '';
+      confirm.addEventListener('click', () => {
+        selectedYear = normalizeBirthYear(pendingYear);
+        selectedMonth = normalizeBirthMonth(pendingMonth);
+        syncBirthTrigger();
+        error.hidden = true;
+        activeSheet?.close();
+      });
+      actions.append(confirm);
+      picker.append(title, instruction, wheels, actions);
+      activeSheet = createBottomSheet({
+        label: '출생 연월 선택', content: picker, presentation: SHEET_PRESENTATION.SHEET, dismissLabel: '취소',
+        onClose: () => { birthTrigger.setAttribute('aria-expanded', 'false'); activeSheet = null; },
+      });
+      birthTrigger.setAttribute('aria-expanded', 'true');
+      activeSheet.open();
+    };
+    birthTrigger.addEventListener('click', openBirthPicker);
     const error = errorNode();
     const submit = el('button', 'site-button person-primary', view.edit ? '수정 저장' : '다음: 식별 사진 등록');
     submit.type = 'submit';
@@ -263,10 +349,10 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (busy) return;
-      const year = normalizeBirthYear(birthYear.value);
-      const month = normalizeBirthMonth(birthMonth.value);
+      const year = normalizeBirthYear(selectedYear);
+      const month = normalizeBirthMonth(selectedMonth);
       if (!name.value.trim()) { error.textContent = '이름을 입력해 주세요.'; error.hidden = false; name.focus(); return; }
-      if (!year || !month) { error.textContent = '출생 연도와 월을 선택해 주세요.'; error.hidden = false; return; }
+      if (!year || !month) { error.textContent = '출생 연도와 월을 선택해 주세요.'; error.hidden = false; birthTrigger.focus(); return; }
       busy = true; submit.disabled = true; error.hidden = true; showStatus('저장 중…');
       try {
         let saved;
@@ -718,5 +804,5 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     failed.append(el('p', '', personErrorMessage(error, '사람 등록 정보를 불러오지 못했습니다.')), button('다시 시도', async () => { try { await refresh(); render(); } catch {} }));
     content.replaceChildren(failed);
   }
-  return {dispose() { disposed = true; dropComposer(); revokeAll(); root.replaceChildren(); }};
+  return {dispose() { disposed = true; clearSheet(); dropComposer(); revokeAll(); root.replaceChildren(); }};
 }

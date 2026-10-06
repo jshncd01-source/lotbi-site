@@ -651,10 +651,100 @@
   word-break: keep-all;
 }
 
-.person-birth-row {
+.person-birth-trigger {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 44px 12px 14px;
+  border: 1px solid var(--lotbi-border, #d8dde5);
+  border-radius: 12px;
+  background: var(--lotbi-surface, #fff);
+  color: var(--lotbi-text-muted, #5d6675);
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+
+.person-birth-trigger::after {
+  content: '↕';
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--lotbi-accent, #315d9b);
+  font-size: 18px;
+}
+
+.person-birth-trigger[data-has-value="true"] { color: var(--lotbi-text-primary, #202634); }
+
+.person-birth-trigger:focus-visible,
+.person-birth-wheel:focus-visible,
+.person-birth-wheel-option:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .34);
+  outline-offset: 2px;
+}
+
+.person-birth-picker {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 14px;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+.person-birth-picker-title { margin: 0; font-size: 19px; font-weight: 900; }
+
+.person-birth-wheels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.person-birth-wheel-column { display: grid; gap: 8px; min-width: 0; }
+.person-birth-wheel-label { text-align: center; font-size: 13px; font-weight: 900; color: var(--lotbi-text-muted, #5d6675); }
+
+.person-birth-wheel {
+  position: relative;
+  box-sizing: border-box;
+  height: 220px;
+  padding-block: 88px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: thin;
+  border-block: 1px solid var(--lotbi-border, #d8dde5);
+  background: linear-gradient(to bottom, transparent 40%, rgba(79, 120, 197, .1) 40%, rgba(79, 120, 197, .1) 60%, transparent 60%);
+  overscroll-behavior: contain;
+}
+
+.person-birth-wheel-option {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--lotbi-text-muted, #5d6675);
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  scroll-snap-align: center;
+  cursor: pointer;
+}
+
+.person-birth-wheel-option.is-selected {
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.person-birth-picker-actions { display: grid; }
+.person-birth-picker-actions .site-button { min-height: 48px; }
+
+body[data-site-theme="dark"] .person-birth-trigger,
+body[data-site-theme="dark"] .person-birth-wheel {
+  border-color: #465162;
+  background-color: #121720;
 }
 
 .person-consent-check {

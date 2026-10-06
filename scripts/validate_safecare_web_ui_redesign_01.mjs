@@ -359,12 +359,26 @@ async function run() {
         [...document.querySelectorAll('.person-section-heading button')].find(b => b.textContent === '사람 등록').click();
         await __until(() => document.querySelector('[data-person-basic-form]'));
         const form = document.querySelector('[data-person-basic-form]');
+        const trigger = form.querySelector('[data-person-birth-trigger]');
+        trigger.click();
+        await __until(() => document.querySelector('[data-person-birth-picker]'));
+        await __wait(260);
+        const picker = document.querySelector('[data-person-birth-picker]');
+        const yearWheel = picker.querySelector('[aria-label="연도 선택"]');
+        const year2018 = picker.querySelector('[data-person-birth-year-option="2018"]');
+        yearWheel.scrollTop = year2018.offsetTop - (yearWheel.clientHeight - year2018.offsetHeight) / 2;
+        yearWheel.dispatchEvent(new Event('scroll'));
+        await __wait(140);
         return {
           steps: [...document.querySelectorAll('.safecare-step-name')].map(node => node.textContent),
           active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent,
-          yearIsSelect: form.querySelector('[data-person-birth-year]')?.tagName,
-          monthIsSelect: form.querySelector('[data-person-birth-month]')?.tagName,
-          monthValues: [...form.querySelectorAll('[data-person-birth-month] option')].map(o => o.value).filter(Boolean),
+          triggerTag: trigger?.tagName,
+          triggerText: trigger?.textContent,
+          wheelLabels: [...picker.querySelectorAll('.person-birth-wheel-label')].map(node => node.textContent),
+          monthValues: [...picker.querySelectorAll('[data-person-birth-month-option]')].map(node => node.dataset.personBirthMonthOption),
+          scrolledYear: picker.querySelector('[data-person-birth-year-option][aria-selected="true"]')?.dataset.personBirthYearOption,
+          dayControls: picker.querySelectorAll('[data-person-birth-day], [aria-label*="일 선택"]').length,
+          typedBirthControls: form.querySelectorAll('input[type=number], [data-person-birth-year][contenteditable], [data-person-birth-month][contenteditable]').length,
           numberInputs: form.querySelectorAll('input[type=number]').length,
         };
       `);
@@ -372,13 +386,15 @@ async function run() {
       r.personRegisterFlow = await cdp.evaluate(`
         const form = document.querySelector('[data-person-basic-form]');
         form.querySelector('input').value = '정우리';
-        form.querySelector('[data-person-birth-year]').value = '2018';
-        form.querySelector('[data-person-birth-month]').value = '8';
+        document.querySelector('[data-person-birth-year-option="2018"]').click();
+        document.querySelector('[data-person-birth-month-option="8"]').click();
+        document.querySelector('[data-person-birth-confirm]').click();
+        const selectedBirth = form.querySelector('[data-person-birth-trigger]').textContent;
         form.requestSubmit();
         await __until(() => document.querySelector('[data-person-slot-grid]'));
         const create = __calls.find(call => call === 'POST /v2/person-profiles');
         const locked = [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.dataset.safecareSlotLocked);
-        return {create: Boolean(create), active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, locked};
+        return {create: Boolean(create), selectedBirth, active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, locked};
       `);
       await shoot('person-04-register-step2');
 
@@ -557,13 +573,18 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personPhotos.before.nextDisabled, true, `${label}: 3/10 must not move on`);
   assert.equal(r.personPhotos.after, '등록 완료 4 / 10남은 사진 6장');
 
-  // person registration: four steps, selects for birth
+  // person registration: four steps, one year/month wheel and no day field
   assert.deepEqual(r.personRegister.steps, ['기본정보', '식별 사진 10장', '최종 확인', '등록 완료']);
   assert.equal(r.personRegister.active, '기본정보');
-  assert.equal(r.personRegister.yearIsSelect, 'SELECT');
-  assert.equal(r.personRegister.monthIsSelect, 'SELECT');
+  assert.equal(r.personRegister.triggerTag, 'BUTTON');
+  assert.equal(r.personRegister.triggerText, '출생 연월 선택');
+  assert.deepEqual(r.personRegister.wheelLabels, ['연도', '월']);
   assert.deepEqual(r.personRegister.monthValues, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+  assert.equal(r.personRegister.scrolledYear, '2018', `${label}: scrolling the wheel must change its selected year`);
+  assert.equal(r.personRegister.dayControls, 0, `${label}: birth day must not be collected`);
+  assert.equal(r.personRegister.typedBirthControls, 0, `${label}: birth year/month must not be typed`);
   assert.equal(r.personRegister.numberInputs, 0);
+  assert.equal(r.personRegisterFlow.selectedBirth, '2018년 8월');
   assert.equal(r.personRegisterFlow.create, true);
   assert.equal(r.personRegisterFlow.active, '식별 사진 10장');
   assert.deepEqual(r.personRegisterFlow.locked, ['false', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true'],
