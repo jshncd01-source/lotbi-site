@@ -107,6 +107,16 @@ function validateBackupPassword(password) {
   }
 }
 
+export function validateBackupPasswordPair(password, confirmation) {
+  validateBackupPassword(password);
+  if (password !== confirmation) throw new Error('백업 전용 암호가 일치하지 않습니다.');
+  return password;
+}
+
+export function canExportWalletBackup(cards) {
+  return Array.isArray(cards) && cards.length > 0;
+}
+
 export async function accountScope(accountId) {
   const normalized = typeof accountId === 'string' ? accountId.trim() : '';
   if (!normalized) throw new Error('로그인 계정을 확인할 수 없습니다.');
@@ -709,7 +719,28 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
       );
       copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
-      toolbar.append(copy, button('+ 자료 추가', renderAdd), button('잠그기', () => void lockAndRender(), true));
+      const settings = element('div', 'wallet-settings');
+      const settingsMenu = element('div', 'wallet-settings-menu');
+      settingsMenu.hidden = true; settingsMenu.setAttribute('role', 'menu'); settingsMenu.setAttribute('aria-label', 'Life Wallet 설정');
+      const settingsToggle = button('⚙ 설정', () => {
+        settingsMenu.hidden = !settingsMenu.hidden;
+        settingsToggle.setAttribute('aria-expanded', String(!settingsMenu.hidden));
+        if (!settingsMenu.hidden) settingsMenu.querySelector('button:not(:disabled)')?.focus();
+      }, true);
+      settingsToggle.setAttribute('aria-haspopup', 'menu'); settingsToggle.setAttribute('aria-expanded', 'false');
+      const pinAction = button('PIN 변경', renderChangePin, true); pinAction.setAttribute('role', 'menuitem');
+      const backupAction = button('암호화 백업 파일 만들기', renderBackup, true); backupAction.setAttribute('role', 'menuitem');
+      backupAction.disabled = !canExportWalletBackup(cards);
+      if (backupAction.disabled) backupAction.title = '저장된 자료가 있을 때 백업할 수 있습니다.';
+      const importAction = button('백업에서 복원', renderImport, true); importAction.setAttribute('role', 'menuitem');
+      settingsMenu.append(pinAction, backupAction, importAction);
+      if (!canExportWalletBackup(cards)) settingsMenu.append(element('small', 'wallet-settings-help', '저장된 자료가 있을 때 백업 파일을 만들 수 있습니다.'));
+      settings.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || settingsMenu.hidden) return;
+        settingsMenu.hidden = true; settingsToggle.setAttribute('aria-expanded', 'false'); settingsToggle.focus();
+      });
+      settings.append(settingsToggle, settingsMenu);
+      toolbar.append(copy, button('+ 자료 추가', renderAdd), button('잠그기', () => void lockAndRender(), true), settings);
       shell.append(toolbar);
       if (message) shell.append(element('p', 'wallet-message', message));
       if (!cards.length) {
@@ -726,9 +757,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         }
         shell.append(list);
       }
-      const manage = element('div', 'wallet-manage');
-      manage.append(button('PIN 변경', renderChangePin, true), button('암호화 백업', renderBackup, true), button('백업 가져오기', renderImport, true));
-      shell.append(manage, element('p', 'wallet-security-note', '같은 탭에서는 화면 이동·새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다. 잠그기·로그아웃·로그인 만료·백그라운드 전환 시 즉시 잠깁니다.'));
+      shell.append(element('p', 'wallet-security-note', '같은 탭에서는 화면 이동·새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다. 잠그기·로그아웃·로그인 만료·백그라운드 전환 시 즉시 잠깁니다.'));
       root.replaceChildren(shell);
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
@@ -792,37 +821,57 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     root.replaceChildren(form); current.focus(); activity();
   }
 
-  function backupPasswordForm(title, submitLabel, onSubmit) {
+  function renderBackup() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     const password = element('input'); password.type = 'password'; password.minLength = 8; password.maxLength = 128; password.autocomplete = 'new-password';
+    const confirmation = element('input'); confirmation.type = 'password'; confirmation.minLength = 8; confirmation.maxLength = 128; confirmation.autocomplete = 'new-password';
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
-    const submit = button(submitLabel); submit.type = 'submit'; actions.append(submit);
-    form.append(element('h3', '', title), field('백업 암호 · 8자 이상', password), actions, status);
+    const submit = button('내 기기에 백업 파일 저장'); submit.type = 'submit'; actions.append(submit);
+    form.append(
+      element('h3', '', '암호화 백업 파일 만들기'),
+      element('p', 'wallet-form-intro', '기기 변경이나 브라우저 초기화에 대비해 Life Wallet 자료를 암호화된 파일로 저장합니다.'),
+      field('새 백업 전용 암호 · 8자 이상', password),
+      field('백업 전용 암호 확인', confirmation),
+      element('p', 'wallet-backup-warning', '백업을 복원할 때 이 암호가 반드시 필요합니다. LOTBI는 백업 암호를 보관하거나 재설정해 드릴 수 없으니 반드시 기억해 주세요.'),
+      element('p', 'wallet-backup-warning', '복원하려면 저장한 .lotbiwallet 백업 파일과 백업 전용 암호가 모두 필요합니다. 파일을 삭제하거나 분실하면 자료를 복원할 수 없습니다.'),
+      actions, status,
+    );
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
-      try { setBusy(form, true); await onSubmit(password.value, form); }
-      catch (error) { status.textContent = safeMessage(error, '백업 작업을 완료하지 못했습니다.'); setBusy(form, false); password.focus(); }
+      try {
+        const backupPassword = validateBackupPasswordPair(password.value, confirmation.value);
+        setBusy(form, true); downloadBackup(await vault.exportBackup(accountId, backupPassword));
+        await renderWallet('암호화된 백업 파일을 만들었습니다. 파일과 백업 전용 암호를 함께 안전하게 보관해 주세요.');
+      } catch (error) { status.textContent = safeMessage(error, '백업 파일을 만들지 못했습니다.'); setBusy(form, false); password.focus(); }
     });
     root.replaceChildren(form); password.focus(); activity();
-    return {form, status};
-  }
-
-  function renderBackup() {
-    backupPasswordForm('암호화 백업 내보내기', '백업 파일 만들기', async password => {
-      downloadBackup(await vault.exportBackup(accountId, password));
-      await renderWallet('암호화된 백업 파일을 만들었습니다. 백업 암호는 LOTBI가 보관하지 않습니다.');
-    });
   }
 
   function renderImport() {
-    const {form} = backupPasswordForm('암호화 백업 가져오기', '백업 복원', async password => {
-      const file = fileInput.files?.[0];
-      if (!file || file.size > 100 * 1024 * 1024) throw new Error('100MB 이하의 .lotbiwallet 파일을 선택해 주세요.');
-      const count = await vault.importBackup(accountId, await file.text(), password);
-      await renderWallet(`${count}개 자료를 복원했습니다.`);
-    });
+    const form = element('form', 'wallet-editor'); const status = errorRegion();
     const fileInput = element('input'); fileInput.type = 'file'; fileInput.accept = '.lotbiwallet,application/octet-stream'; fileInput.required = true;
-    form.insertBefore(field('백업 파일', fileInput), form.querySelector('.wallet-form-actions'));
+    const password = element('input'); password.type = 'password'; password.minLength = 8; password.maxLength = 128; password.autocomplete = 'current-password';
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
+    const submit = button('Life Wallet 자료 복원'); submit.type = 'submit'; actions.append(submit);
+    form.append(
+      element('h3', '', '백업에서 Life Wallet 복원'),
+      element('p', 'wallet-form-intro', '이전에 저장한 .lotbiwallet 백업 파일과 파일을 만들 때 설정한 백업 전용 암호가 모두 필요합니다.'),
+      field('1. 저장된 백업 파일 찾기', fileInput),
+      field('2. 백업 전용 암호 입력', password),
+      element('p', 'wallet-backup-warning', '월렛 4자리 PIN이 아니라 백업 파일을 만들 때 설정한 8자 이상의 백업 전용 암호를 입력해 주세요.'),
+      element('p', 'wallet-backup-warning', '파일이나 백업 암호를 분실하면 복원할 수 없습니다. LOTBI는 백업 파일과 암호를 보관하지 않습니다.'),
+      actions, status,
+    );
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); status.textContent = '';
+      try {
+        const file = fileInput.files?.[0];
+        if (!file || file.size > 100 * 1024 * 1024) throw new Error('100MB 이하의 .lotbiwallet 파일을 선택해 주세요.');
+        setBusy(form, true); const count = await vault.importBackup(accountId, await file.text(), password.value);
+        await renderWallet(`${count}개 자료를 복원했습니다.`);
+      } catch (error) { status.textContent = safeMessage(error, '백업 자료를 복원하지 못했습니다.'); setBusy(form, false); fileInput.focus(); }
+    });
+    root.replaceChildren(form); fileInput.focus(); activity();
   }
 
   void restoreOrRender();
