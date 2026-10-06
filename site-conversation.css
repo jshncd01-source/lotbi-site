@@ -1227,6 +1227,25 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   background: rgba(20, 28, 40, .42);
 }
 
+html[data-profile-photo-embed="true"],
+html[data-profile-photo-embed="true"] body {
+  min-height: 100%;
+  background: transparent !important;
+}
+
+html[data-profile-photo-embed="true"] body > :not(.site-modal-backdrop) {
+  display: none !important;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-backdrop {
+  padding: 0;
+  background: transparent;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-close {
+  display: none;
+}
+
 .site-modal {
   width: min(100%, 520px);
   max-height: min(84vh, 720px);

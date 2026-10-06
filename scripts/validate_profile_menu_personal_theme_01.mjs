@@ -13,6 +13,7 @@ import {fileURLToPath} from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const conversation = read('site-conversation.js');
+const conversationCss = read('site-conversation.css');
 const index = read('index.html');
 const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 const workflow = read('.github/workflows/site-review.yml');
@@ -77,6 +78,12 @@ assert.ok(
 // camera path carries capture=environment.
 assert.ok(conversation.includes("['camera', '카메라'], ['gallery', '갤러리'], ['files', '내 파일']"), '카메라 / 갤러리 / 내 파일 세 경로가 정확히 있어야 합니다');
 assert.ok(conversation.includes("input.accept = 'image/*'"), '모든 프로필 사진 input은 image/* 여야 합니다');
+assert.ok(conversation.includes("new URLSearchParams(window.location.search).get('embed') === 'profile-photo'"), 'Account embed mode must be explicit');
+assert.ok(conversation.includes("window.location.hash === '#profile-photo'"), 'Account embed mode must survive the session handoff return');
+assert.ok(conversation.includes('const profilePhotoEmbed = isProfilePhotoEmbed()'), 'the picker must evaluate embed mode after the handoff restores its hash');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-close'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded close must return control to Account');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-updated'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded save must notify Account');
+assert.match(conversationCss, /html\[data-profile-photo-embed="true"\]/, 'embedded mode must hide the Site home shell');
 assert.ok(conversation.includes("if (source === 'camera') input.setAttribute('capture', 'environment')"), '카메라 경로만 후면 정지사진 capture를 요청해야 합니다');
 assert.ok(conversation.includes('excludeAcceptAllOption: true'), '내 파일 경로도 임의 파일 전체 허용 옵션을 노출하면 안 됩니다');
 assert.ok(!conversation.includes("input.accept = 'video/*'") && !conversation.includes('capture="camcorder"'), 'video/camcorder 계약은 없어야 합니다');
@@ -303,7 +310,7 @@ try {
     assert.equal(v.profile.title, '프로필 사진', `${surface}: 프로필 창 제목`);
     assert.ok(!v.profile.buttons.includes('프로필 저장'), `${surface}: '프로필 저장' 은 남아야 합니다`);
     assert.equal(v.profile.manageGone, true, `${surface}: '계정 페이지에서 관리' 는 사라져야 합니다`);
-    assert.deepEqual(v.profile.links, [ACCOUNT_MANAGE_URL + '#profile'], `${surface}: 프로필 창에 계정 페이지로 나가는 링크가 남아 있으면 안 됩니다`);
+    assert.deepEqual(v.profile.links, [], `${surface}: 임베드 프로필 창에 계정 페이지로 나가는 링크가 남아 있으면 안 됩니다`);
     assert.deepEqual(v.profile.sourceLabels, ['카메라', '갤러리', '내 파일'], `${surface}: 사진 선택 메뉴는 카메라 / 갤러리 / 내 파일 순서여야 합니다`);
     assert.equal(v.profile.menuInitiallyHidden, true, `${surface}: source menu는 사진 선택을 누르기 전에는 닫혀 있어야 합니다`);
     assert.equal(v.profile.menuVisibleAfterTrigger, true, `${surface}: 사진 선택을 누르면 source menu가 열려야 합니다`);

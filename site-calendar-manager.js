@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-729eed0b9a75';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-729eed0b9a75';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-729eed0b9a75';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-160f1b3165ae';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-160f1b3165ae';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-160f1b3165ae';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-729eed0b9a75';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-729eed0b9a75';
+} from './site-calendar-model.js?v=aset-160f1b3165ae';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-160f1b3165ae';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-729eed0b9a75';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-729eed0b9a75';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-729eed0b9a75';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-160f1b3165ae';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-160f1b3165ae';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-160f1b3165ae';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-729eed0b9a75';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-729eed0b9a75';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-729eed0b9a75';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-729eed0b9a75';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-729eed0b9a75';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-729eed0b9a75';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-729eed0b9a75';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-729eed0b9a75';
+} from './site-calendar-product.js?v=aset-160f1b3165ae';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-160f1b3165ae';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-160f1b3165ae';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-160f1b3165ae';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-160f1b3165ae';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-160f1b3165ae';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-160f1b3165ae';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-160f1b3165ae';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1595,6 +1595,7 @@ function syncMonthLayout(layout) {
 // every hour the same visual size regardless of viewport, which is what
 // makes a 30-minute block and a 2-hour block read as different lengths.
 const CALENDAR_WEEK_HOUR_HEIGHT = 48;
+const CALENDAR_WEEK_DEFAULT_START_HOUR = 6;
 const MINUTES_PER_DAY = 24 * 60;
 
 // Week keeps LOTBI's visual language while using the familiar calendar model:
@@ -1761,11 +1762,12 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
   stickyRows.append(header, alldayRow);
   body.append(stickyRows, scroll);
   wrapper.appendChild(body);
-  // Land the scroller on the working day rather than midnight; a render is a
-  // fresh mount every time, so resetting the scroll position on every call is
-  // the expected result, not a lost user scroll.
-  requestAnimationFrame(() => {
-    body.scrollTop = Math.max(0, 7 * CALENDAR_WEEK_HOUR_HEIGHT - 24);
+  // Open on the useful part of the day while preserving midnight through
+  // 05:59 above it for overnight travel, medical and shift-work records. The
+  // microtask runs after the complete grid is inserted into the viewport,
+  // avoiding a detached element clamping the requested position back to zero.
+  queueMicrotask(() => {
+    body.scrollTop = Math.max(0, CALENDAR_WEEK_DEFAULT_START_HOUR * CALENDAR_WEEK_HOUR_HEIGHT - 24);
   });
   return wrapper;
 }
