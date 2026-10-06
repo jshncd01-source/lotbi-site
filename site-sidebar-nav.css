@@ -89,18 +89,27 @@
   outline-offset: 2px;
 }
 
-.sidebar-history-section {
+.sidebar-history-shell {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
 
 .sidebar-history-scroll {
-  flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.sidebar-history-shell .sidebar-history-section {
+  min-height: auto;
+  overflow: visible;
+}
+
+.sidebar-pinned-section {
+  margin-bottom: 18px;
 }
 
 .nav-history-list li {
