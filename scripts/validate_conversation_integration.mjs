@@ -27,8 +27,10 @@ const {
   HANDOFF_CONTEXT_KEY,
   HANDOFF_CONTEXT_TTL_MS,
   SiteHandoffClientError,
+  beginSiteHandoff,
   createSiteHandoffContext,
   readAndClearSiteHandoffContext,
+  siteHandoffReturnPath,
   storeSiteHandoffContext,
 } = await import('../site-auth.js?v=20260920-authux1');
 const {deterministicReply} = await import('../site-deterministic.js');
@@ -115,6 +117,51 @@ assert.match(context.state, /^[A-Za-z0-9_-]{43}$/);
 assert.match(context.codeVerifier, /^[A-Za-z0-9_-]{43}$/);
 assert.match(context.codeChallenge, /^[A-Za-z0-9_-]{43}$/);
 assert.notEqual(context.codeVerifier, context.codeChallenge);
+
+{
+  const storage = new MemoryStorage();
+  const profilePhotoContext = await createSiteHandoffContext('', now, '#profile-photo');
+  storeSiteHandoffContext(profilePhotoContext, storage);
+  const restored = readAndClearSiteHandoffContext(profilePhotoContext.state, storage, now + 1);
+  assert.equal(
+    restored.returnHash,
+    '#profile-photo',
+    '계정에서 사진을 누른 요청은 Site 로그인 handoff 후에도 프로필 사진창으로 돌아와야 합니다',
+  );
+  assert.equal(siteHandoffReturnPath(restored.returnHash), '/#profile-photo');
+  assert.equal(siteHandoffReturnPath('#unexpected'), '/');
+}
+
+{
+  const storage = new MemoryStorage();
+  const legacyContext = {...context};
+  delete legacyContext.returnHash;
+  storage.setItem(HANDOFF_CONTEXT_KEY, JSON.stringify(legacyContext));
+  const restored = readAndClearSiteHandoffContext(legacyContext.state, storage, now + 1);
+  assert.equal(restored.returnHash, '', '배포 중이던 기존 handoff도 홈으로 안전하게 완료되어야 합니다');
+}
+
+{
+  const storage = new MemoryStorage();
+  let assigned = '';
+  const previousWindow = globalThis.window;
+  globalThis.window = {
+    sessionStorage: storage,
+    location: {
+      hash: '#profile-photo',
+      assign(value) { assigned = String(value); },
+    },
+  };
+  try {
+    await beginSiteHandoff();
+    const stored = JSON.parse(storage.getItem(HANDOFF_CONTEXT_KEY));
+    assert.equal(stored.returnHash, '#profile-photo');
+    assert.ok(assigned.startsWith(`${ACCOUNT_SITE_HANDOFF_URL}?`));
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+}
 
 {
   const storage = new MemoryStorage();
