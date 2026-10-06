@@ -43,7 +43,7 @@
 .wallet-photo-input { position: absolute; width: 1px !important; min-height: 1px !important; height: 1px; margin: -1px; padding: 0 !important; overflow: hidden; clip-path: inset(50%); border: 0 !important; white-space: nowrap; }
 .wallet-photo-picker { min-width: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: var(--lotbi-surface-subtle); }
 .wallet-photo-mark, .wallet-photo-preview { box-sizing: border-box; width: 64px; height: 52px; border-radius: 10px; }
-.wallet-photo-mark { display: grid; place-items: center; border: 1px dashed var(--lotbi-border-strong, var(--lotbi-border-default)); background: var(--lotbi-surface-primary); color: var(--consumer-muted); font-size: 25px; font-weight: 400; }
+.wallet-photo-mark { display: grid; place-items: center; padding: 0; border: 1px dashed var(--lotbi-border-strong, var(--lotbi-border-default)); background: var(--lotbi-surface-primary); color: var(--consumer-muted); font: inherit; font-size: 25px; font-weight: 400; cursor: pointer; appearance: none; }
 .wallet-photo-mark[hidden], .wallet-photo-preview[hidden] { display: none; }
 .wallet-photo-preview { object-fit: cover; background: var(--lotbi-surface-primary); }
 .wallet-photo-copy { min-width: 0; display: grid; gap: 4px; }
