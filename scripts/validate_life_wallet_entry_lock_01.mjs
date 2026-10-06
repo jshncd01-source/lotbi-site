@@ -15,6 +15,13 @@ const conversationSource = await readFile(path.join(root, 'site-conversation.js'
 const indexSource = await readFile(path.join(root, 'index.html'), 'utf8');
 const {LifeWalletVault, MemoryWalletRepository, validateWalletPin} = await import('../site-life-wallet.js');
 
+class MemorySessionStorage {
+  constructor() { this.values = new Map(); }
+  getItem(key) { return this.values.get(key) ?? null; }
+  setItem(key, value) { this.values.set(key, String(value)); }
+  removeItem(key) { this.values.delete(key); }
+}
+
 assert.equal(validateWalletPin('0123'), '0123', 'leading zero must be preserved');
 for (const invalid of ['123', '12345', '12a4', 1234]) assert.throws(() => validateWalletPin(invalid));
 
@@ -63,6 +70,42 @@ const [simplifiedCard] = await simplifiedWallet.list('simplified-add-account');
 assert.equal(simplifiedCard.name, '증명서', 'the selected kind must provide the stored display name');
 assert.equal(simplifiedCard.backDataUrl, '', 'the single-photo flow must preserve an empty legacy back image');
 
+const refreshRepository = new MemoryWalletRepository();
+const refreshSession = new MemorySessionStorage();
+let refreshNow = Date.parse('2026-10-06T01:00:00.000Z');
+const refreshOptions = {sessionStorage: refreshSession, now: () => refreshNow};
+const refreshWallet = new LifeWalletVault(refreshRepository, refreshOptions);
+await refreshWallet.create('refresh-account', '7788');
+await refreshWallet.save('refresh-account', {
+  id: 'refresh-card', kind: 'membership', note: '새로고침 복원 테스트',
+  frontDataUrl: 'data:image/png;base64,AA==', updatedAt: '2026-10-06T01:00:00.000Z',
+});
+const serializedGrant = [...refreshSession.values.values()].join('');
+assert.ok(serializedGrant, 'unlocking must create a same-tab refresh grant');
+assert.doesNotMatch(serializedGrant, /7788|새로고침 복원 테스트|data:image/u, 'the refresh grant must not expose PIN or wallet plaintext');
+
+const refreshedWallet = new LifeWalletVault(refreshRepository, refreshOptions);
+assert.equal(await refreshedWallet.resumeUnlock('refresh-account'), true, 'refresh within 10 minutes must restore the unlocked wallet');
+assert.equal((await refreshedWallet.list('refresh-account'))[0].name, '회원증');
+
+refreshNow += 9 * 60_000;
+assert.equal(await refreshedWallet.refreshUnlockGrant('refresh-account'), true, 'activity must extend the refresh grant');
+refreshNow += 2 * 60_000;
+const activeRefreshWallet = new LifeWalletVault(refreshRepository, refreshOptions);
+assert.equal(await activeRefreshWallet.resumeUnlock('refresh-account'), true, 'recent activity must keep refresh continuity beyond the original deadline');
+
+refreshNow += 10 * 60_000 + 1;
+const expiredRefreshWallet = new LifeWalletVault(refreshRepository, refreshOptions);
+assert.equal(await expiredRefreshWallet.resumeUnlock('refresh-account'), false, 'refresh after 10 minutes must require the PIN again');
+assert.equal(refreshSession.values.size, 0, 'an expired refresh grant must be removed');
+
+await refreshWallet.unlock('refresh-account', '7788');
+assert.ok(refreshSession.values.size > 0, 'PIN unlock must recreate the refresh grant');
+refreshWallet.lock();
+assert.equal(refreshSession.values.size, 0, 'explicit locking must remove the refresh grant');
+const explicitlyLockedWallet = new LifeWalletVault(refreshRepository, refreshOptions);
+assert.equal(await explicitlyLockedWallet.resumeUnlock('refresh-account'), false, 'explicit locking must require the PIN after refresh');
+
 const limitedRepository = new MemoryWalletRepository();
 const limitedWallet = new LifeWalletVault(limitedRepository);
 await limitedWallet.create('rate-limited-account', '1357');
@@ -82,8 +125,10 @@ assert.match(walletSource, /generateKey\(\{name: 'AES-GCM', length: 256\}, false
 assert.match(walletSource, /document\.visibilityState === 'hidden'/u);
 assert.match(walletSource, /INACTIVITY_MS = 10 \* 60_000/u);
 assert.match(walletSource, /10분 동안 사용하지 않아 다시 잠겼습니다\./u);
-assert.match(walletSource, /10분 비활동 시 자동으로 다시 잠깁니다\./u);
+assert.match(walletSource, /새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다\./u);
 assert.doesNotMatch(walletSource, /60초 동안 사용하지 않아|60초 비활동/u);
+assert.match(walletSource, /await vault\.resumeUnlock\(accountId\)/u, 'mount must restore a valid same-tab unlock grant');
+assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page transitions must preserve the same-tab unlock grant');
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);
 assert.match(walletSource, /detail\?\.authenticated === false/u);
