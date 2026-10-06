@@ -221,6 +221,9 @@ try{
   result.lineHeight=Math.round(box.height);
   const centre=node=>{const r=node.getBoundingClientRect();return r.top+r.height/2};
   result.oneRow=Math.abs(centre(ready.querySelector('.calendar-amount-line-label'))-centre(ready.querySelector('.calendar-amount-line-amount')))<3;
+  const totalLabelRect=ready.querySelector('.calendar-amount-line-label')?.getBoundingClientRect();
+  const totalAmountRect=ready.querySelector('.calendar-amount-line-amount')?.getBoundingClientRect();
+  result.totalPairGap=totalLabelRect&&totalAmountRect ? Math.round((totalAmountRect.left-totalLabelRect.right)*100)/100 : null;
   result.lineCategoryWords=['음식','여행','쇼핑','생활비','기타','미분류'].filter(word=>ready.textContent.includes(word));
   const categoryList=root.querySelector('.calendar-amount-categories');
   result.categoryRows=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>[
@@ -500,6 +503,7 @@ try {
       fail(`the line's accessible name must say what it is, the total and that it opens, got "${value.ariaLabel}"`);
     }
     if (!value.oneRow) fail('label and total must share one row');
+    if (value.totalPairGap===null||value.totalPairGap<0||value.totalPairGap>8) fail(`the total amount must sit directly beside its label, got gap ${value.totalPairGap}`);
     if (value.lineHeight < 44 || value.lineHeight > 64) fail(`the line must be one 44px+ touch row, got ${value.lineHeight}px`);
     if (value.lineCategoryWords.length) fail(`the line must not spell out categories, got ${value.lineCategoryWords.join(',')}`);
     if (JSON.stringify(value.categoryRows) !== JSON.stringify([
