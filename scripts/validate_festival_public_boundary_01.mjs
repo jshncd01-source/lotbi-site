@@ -189,7 +189,7 @@ function capturingFetch(handler) {
   const insecureHomepagePage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withInsecureHomepage));
   assert.equal(insecureHomepagePage.festivals[0].homepageUrl, '', 'a non-https homepage_url must never reach the card');
 
-  // 상시 운영 rows are the one shape allowed through with no real date range at
+  // 장기 운영 rows are the one shape allowed through with no real date range at
   // all -- every other row is still rejected without both start/end dates.
   const alwaysOpenNoDates = {
     ...raw,
