@@ -332,12 +332,447 @@ function backgroundSeparatedCandidates(color,edges,width,height){
   return candidates.sort((left,right)=>right.confidence-left.confidence);
 }
 
+// --- Border-connected surface model ------------------------------------------------
+// Four corner patches cannot describe a textured, unevenly lit surface (and are
+// contaminated when the card sits close to the frame). Instead a smooth colour
+// field is fitted to the whole image border and the background is grown inward
+// from that border through pixels that stay close to the field, so lighting drift,
+// texture and soft shadows stay background while the card boundary stops growth.
+// Card pixels that merely resemble the surface remain foreground unless they are
+// actually connected to the border.
+
+function smoothColor(color,width,height,radius,passes){
+  let source=Float32Array.from(color);const temp=new Float32Array(source.length);const span=radius*2+1;
+  for(let pass=0;pass<passes;pass+=1){
+    for(let y=0;y<height;y+=1)for(let channel=0;channel<3;channel+=1){
+      let sum=0;for(let k=-radius;k<=radius;k+=1)sum+=source[(y*width+clamp(k,0,width-1))*3+channel];
+      for(let x=0;x<width;x+=1){temp[(y*width+x)*3+channel]=sum/span;sum+=source[(y*width+Math.min(width-1,x+radius+1))*3+channel]-source[(y*width+Math.max(0,x-radius))*3+channel]}
+    }
+    const output=new Float32Array(source.length);
+    for(let x=0;x<width;x+=1)for(let channel=0;channel<3;channel+=1){
+      let sum=0;for(let k=-radius;k<=radius;k+=1)sum+=temp[(clamp(k,0,height-1)*width+x)*3+channel];
+      for(let y=0;y<height;y+=1){output[(y*width+x)*3+channel]=sum/span;sum+=temp[(Math.min(height-1,y+radius+1)*width+x)*3+channel]-temp[(Math.max(0,y-radius)*width+x)*3+channel]}
+    }
+    source=output;
+  }
+  return source;
+}
+
+function sampleColor(color,width,height,x,y){
+  if(x<0||y<0||x>width-1||y>height-1)return null;
+  const left=Math.floor(x);const top=Math.floor(y);const right=Math.min(width-1,left+1);const bottom=Math.min(height-1,top+1);const fx=x-left;const fy=y-top;const value=[0,0,0];
+  for(let channel=0;channel<3;channel+=1){
+    const upper=color[(top*width+left)*3+channel]*(1-fx)+color[(top*width+right)*3+channel]*fx;
+    const lower=color[(bottom*width+left)*3+channel]*(1-fx)+color[(bottom*width+right)*3+channel]*fx;
+    value[channel]=upper*(1-fy)+lower*fy;
+  }
+  return value;
+}
+
+// Distance (in pixels, capped) from the outside of the domain; the image edge counts as outside.
+function domainDepth(width,height,domain,limit){
+  const distance=new Uint8Array(width*height).fill(255);const queue=new Int32Array(width*height);let head=0;let tail=0;
+  for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){
+    const index=y*width+x;if(domain&&!domain[index])continue;
+    if(x===0||y===0||x===width-1||y===height-1||(domain&&(!domain[index-1]||!domain[index+1]||!domain[index-width]||!domain[index+width]))){distance[index]=0;queue[tail++]=index}
+  }
+  while(head<tail){
+    const index=queue[head++];const next=distance[index]+1;if(next>limit)continue;const x=index%width;
+    for(const neighbor of [x>0?index-1:-1,x<width-1?index+1:-1,index-width,index+width]){
+      if(neighbor<0||neighbor>=width*height||(domain&&!domain[neighbor])||distance[neighbor]<=next)continue;
+      distance[neighbor]=next;queue[tail++]=neighbor;
+    }
+  }
+  return distance;
+}
+
+function surfaceModel(smooth,width,height,ring){
+  if(ring.length<60)return null;
+  let minimumX=Infinity;let maximumX=-Infinity;let minimumY=Infinity;let maximumY=-Infinity;
+  for(const index of ring){const x=index%width;const y=(index-x)/width;minimumX=Math.min(minimumX,x);maximumX=Math.max(maximumX,x);minimumY=Math.min(minimumY,y);maximumY=Math.max(maximumY,y)}
+  const centerX=(minimumX+maximumX)/2;const centerY=(minimumY+maximumY)/2;const spanX=Math.max(1,(maximumX-minimumX)/2);const spanY=Math.max(1,(maximumY-minimumY)/2);
+  const terms=(x,y)=>{const u=(x-centerX)/spanX;const v=(y-centerY)/spanY;return [1,u,v,u*u,u*v,v*v]};
+  const step=Math.max(1,Math.floor(ring.length/6000));const samples=[];for(let index=0;index<ring.length;index+=step)samples.push(ring[index]);
+  let active=new Uint8Array(samples.length).fill(1);let coefficients=null;let residuals=new Float32Array(samples.length);
+  for(let iteration=0;iteration<3;iteration+=1){
+    const matrix=Array.from({length:6},()=>new Array(6).fill(0));const values=Array.from({length:3},()=>new Array(6).fill(0));let used=0;
+    samples.forEach((index,sample)=>{
+      if(!active[sample])return;const x=index%width;const t=terms(x,(index-x)/width);used+=1;
+      for(let row=0;row<6;row+=1){for(let column=0;column<6;column+=1)matrix[row][column]+=t[row]*t[column];for(let channel=0;channel<3;channel+=1)values[channel][row]+=t[row]*smooth[index*3+channel]}
+    });
+    if(used<30)return null;
+    for(let row=0;row<6;row+=1)matrix[row][row]+=used*1e-6;
+    try{coefficients=values.map(channel=>solveLinearSystem(matrix,channel))}catch{return null}
+    samples.forEach((index,sample)=>{const x=index%width;const t=terms(x,(index-x)/width);let squared=0;for(let channel=0;channel<3;channel+=1){let expected=0;for(let term=0;term<6;term+=1)expected+=coefficients[channel][term]*t[term];squared+=(smooth[index*3+channel]-expected)**2}residuals[sample]=Math.sqrt(squared)});
+    const sorted=[...residuals].sort((left,right)=>left-right);const median=sorted[Math.floor(sorted.length/2)];
+    active=active.map((_,sample)=>residuals[sample]<=Math.max(8,median*2.5)?1:0);
+  }
+  // Spread of the surface itself: border samples rejected as outliers (a card corner
+  // reaching into the border ring) must not inflate the tolerance.
+  const sorted=[...residuals].filter((_,sample)=>active[sample]).sort((left,right)=>left-right);if(sorted.length<30)return null;
+  const spread=sorted[Math.floor(sorted.length*.85)];
+  return {
+    spread,
+    field(){
+      const expected=new Float32Array(width*height*3);
+      for(let y=0;y<height;y+=1){
+        const v=(y-centerY)/spanY;
+        for(let x=0;x<width;x+=1){const u=(x-centerX)/spanX;const offset=(y*width+x)*3;for(let channel=0;channel<3;channel+=1){const c=coefficients[channel];expected[offset+channel]=c[0]+c[1]*u+c[2]*v+c[3]*u*u+c[4]*u*v+c[5]*v*v}}
+      }
+      return expected;
+    },
+  };
+}
+
+function gradientMagnitude(smooth,width,height){
+  const magnitude=new Float32Array(width*height);
+  for(let y=1;y<height-1;y+=1)for(let x=1;x<width-1;x+=1){
+    const center=(y*width+x)*3;let energy=0;
+    for(let channel=0;channel<3;channel+=1){
+      const a=smooth[center-(width+1)*3+channel];const b=smooth[center-width*3+channel];const c=smooth[center-(width-1)*3+channel];
+      const d=smooth[center-3+channel];const f=smooth[center+3+channel];const g=smooth[center+(width-1)*3+channel];const h=smooth[center+width*3+channel];const i=smooth[center+(width+1)*3+channel];
+      const horizontal=-a+c-(2*d)+(2*f)-g+i;const vertical=-a-(2*b)-c+g+(2*h)+i;energy+=horizontal*horizontal+vertical*vertical;
+    }
+    magnitude[y*width+x]=Math.sqrt(energy)/8;
+  }
+  return magnitude;
+}
+
+// Background-like: close to the reference surface colour, or a darker shadow of it.
+function surfaceLike(smooth,index,reference,offset,threshold){
+  const red=smooth[index*3];const green=smooth[index*3+1];const blue=smooth[index*3+2];
+  const expectedRed=reference[offset];const expectedGreen=reference[offset+1];const expectedBlue=reference[offset+2];
+  const deltaRed=red-expectedRed;const deltaGreen=green-expectedGreen;const deltaBlue=blue-expectedBlue;
+  if(deltaRed*deltaRed+deltaGreen*deltaGreen+deltaBlue*deltaBlue<=threshold*threshold)return true;
+  const energy=expectedRed*expectedRed+expectedGreen*expectedGreen+expectedBlue*expectedBlue;if(energy<1)return false;
+  const ratio=(red*expectedRed+green*expectedGreen+blue*expectedBlue)/energy;if(ratio<.5||ratio>1)return false;
+  const shadowRed=red-expectedRed*ratio;const shadowGreen=green-expectedGreen*ratio;const shadowBlue=blue-expectedBlue*ratio;
+  return shadowRed*shadowRed+shadowGreen*shadowGreen+shadowBlue*shadowBlue<=threshold*threshold*.64;
+}
+
+// Inside a nested region the outer few pixels are a blurred mix of both sides, so the
+// sampling ring and the grown area start beyond that transition.
+function floodSurface(smooth,width,height,domain){
+  const thickness=Math.max(3,Math.round(Math.min(width,height)*.012));const inset=domain?6:0;
+  const depth=domainDepth(width,height,domain,inset+thickness);
+  const inDomain=index=>(!domain||domain[index])&&depth[index]>=inset;
+  const ring=[];for(let index=0;index<depth.length;index+=1)if(inDomain(index)&&depth[index]<inset+thickness)ring.push(index);
+  const model=surfaceModel(smooth,width,height,ring);if(!model)return null;
+  const threshold=clamp(model.spread*1.7+8,14,64);const expected=model.field();
+  // Illumination that the smooth model cannot follow (a lamp hotspot, vignetting) changes
+  // slowly, so where the local gradient is as calm as the border's own texture the
+  // reference colour may adapt step by step. Sharp steps (any document edge, even a faint
+  // one) never adapt and must match the fitted model itself.
+  const gradient=gradientMagnitude(smooth,width,height);const ringGradients=ring.map(index=>gradient[index]).sort((left,right)=>left-right);
+  const calm=clamp(ringGradients[Math.floor(ringGradients.length*.9)]*1.5+1,1,12);
+  const reference=new Float32Array(width*height*3);
+  const background=new Uint8Array(width*height);const queue=new Int32Array(width*height);let head=0;let tail=0;
+  for(const index of ring)if(!background[index]&&surfaceLike(smooth,index,expected,index*3,threshold)){background[index]=1;queue[tail++]=index;for(let channel=0;channel<3;channel+=1)reference[index*3+channel]=smooth[index*3+channel]}
+  while(head<tail){
+    const index=queue[head++];const x=index%width;
+    for(const neighbor of [x>0?index-1:-1,x<width-1?index+1:-1,index-width,index+width]){
+      if(neighbor<0||neighbor>=width*height||background[neighbor]||!inDomain(neighbor))continue;
+      const adaptive=gradient[neighbor]<=calm&&surfaceLike(smooth,neighbor,reference,index*3,threshold*.75);
+      if(!adaptive&&!surfaceLike(smooth,neighbor,expected,neighbor*3,threshold))continue;
+      background[neighbor]=1;queue[tail++]=neighbor;
+      for(let channel=0;channel<3;channel+=1){const previous=reference[index*3+channel];reference[neighbor*3+channel]=previous+(smooth[neighbor*3+channel]-previous)*.15}
+    }
+  }
+  let foreground=new Uint8Array(width*height);let area=0;for(let index=0;index<foreground.length;index+=1){const inside=inDomain(index);area+=inside?1:0;foreground[index]=inside&&!background[index]?1:0}
+  foreground=dilate(erode(foreground,width,height),width,height);
+  let content=0;for(let index=0;index<foreground.length;index+=1)content+=foreground[index];
+  return {background,foreground,threshold,calm,spread:model.spread,ringCount:ring.length,contentRatio:content/Math.max(1,area)};
+}
+
+function labelComponents(mask,width,height,minimumCount){
+  const labels=new Int32Array(width*height);const queue=new Int32Array(width*height);const components=[];
+  for(let origin=0;origin<mask.length;origin+=1){
+    if(!mask[origin]||labels[origin])continue;
+    const label=components.length+1;let head=0;let tail=0;queue[tail++]=origin;labels[origin]=label;
+    let minimumX=Infinity;let maximumX=-Infinity;let minimumY=Infinity;let maximumY=-Infinity;
+    while(head<tail){
+      const index=queue[head++];const x=index%width;const y=(index-x)/width;
+      if(x<minimumX)minimumX=x;if(x>maximumX)maximumX=x;if(y<minimumY)minimumY=y;if(y>maximumY)maximumY=y;
+      for(let row=-1;row<=1;row+=1)for(let column=-1;column<=1;column+=1){
+        const nextX=x+column;const nextY=y+row;if(nextX<0||nextY<0||nextX>=width||nextY>=height)continue;
+        const next=nextY*width+nextX;if(mask[next]&&!labels[next]){labels[next]=label;queue[tail++]=next}
+      }
+    }
+    components.push({label,count:tail,minimumX,maximumX,minimumY,maximumY});
+  }
+  return {labels,components:components.filter(component=>component.count>=minimumCount)};
+}
+
+function componentBoundary(labels,component,width,height){
+  const points=[];const {label}=component;
+  for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=component.minimumX;x<=component.maximumX;x+=1){
+    const index=y*width+x;if(labels[index]!==label)continue;
+    if(x===0||y===0||x===width-1||y===height-1||labels[index-1]!==label||labels[index+1]!==label||labels[index-width]!==label||labels[index+width]!==label)points.push({x,y});
+  }
+  return points;
+}
+
+function convexHull(points){
+  const sorted=[...points].sort((left,right)=>left.x-right.x||left.y-right.y);if(sorted.length<3)return sorted;
+  const cross=(origin,a,b)=>(a.x-origin.x)*(b.y-origin.y)-(a.y-origin.y)*(b.x-origin.x);
+  const lower=[];for(const point of sorted){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],point)<=0)lower.pop();lower.push(point)}
+  const upper=[];for(let index=sorted.length-1;index>=0;index-=1){const point=sorted[index];while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],point)<=0)upper.pop();upper.push(point)}
+  return lower.slice(0,-1).concat(upper.slice(0,-1));
+}
+
+function minimumAreaRectangle(hull){
+  let best=null;
+  for(let index=0;index<hull.length;index+=1){
+    const start=hull[index];const end=hull[(index+1)%hull.length];const length=Math.hypot(end.x-start.x,end.y-start.y);if(length<1e-6)continue;
+    const axisU={x:(end.x-start.x)/length,y:(end.y-start.y)/length};const axisV={x:-axisU.y,y:axisU.x};
+    let minimumU=Infinity;let maximumU=-Infinity;let minimumV=Infinity;let maximumV=-Infinity;
+    for(const point of hull){const u=point.x*axisU.x+point.y*axisU.y;const v=point.x*axisV.x+point.y*axisV.y;minimumU=Math.min(minimumU,u);maximumU=Math.max(maximumU,u);minimumV=Math.min(minimumV,v);maximumV=Math.max(maximumV,v)}
+    const area=(maximumU-minimumU)*(maximumV-minimumV);
+    if(!best||area<best.area)best={area,axisU,axisV,minimumU,maximumU,minimumV,maximumV};
+  }
+  return best;
+}
+
+function fitLine(points){
+  let meanX=0;let meanY=0;for(const point of points){meanX+=point.x;meanY+=point.y}meanX/=points.length;meanY/=points.length;
+  let xx=0;let xy=0;let yy=0;for(const point of points){const dx=point.x-meanX;const dy=point.y-meanY;xx+=dx*dx;xy+=dx*dy;yy+=dy*dy}
+  const angle=.5*Math.atan2(2*xy,xx-yy);
+  return {point:{x:meanX,y:meanY},direction:{x:Math.cos(angle),y:Math.sin(angle)}};
+}
+
+const lineDistance=(line,point)=>(point.x-line.point.x)*-line.direction.y+(point.y-line.point.y)*line.direction.x;
+
+function intersectLines(first,second){
+  const denominator=first.direction.x*second.direction.y-first.direction.y*second.direction.x;if(Math.abs(denominator)<1e-6)return null;
+  const scale=((second.point.x-first.point.x)*second.direction.y-(second.point.y-first.point.y)*second.direction.x)/denominator;
+  return {x:first.point.x+first.direction.x*scale,y:first.point.y+first.direction.y*scale};
+}
+
+// Long straight sides fitted to the contour; rounded corners never vote because only the
+// central part of each side is used, and the corners come from side intersections.
+function fitDocumentSides(points,rectangle){
+  const project=(point,axis)=>point.x*axis.x+point.y*axis.y;
+  const short=Math.min(rectangle.maximumU-rectangle.minimumU,rectangle.maximumV-rectangle.minimumV);
+  const band=Math.max(4,short*.14);const tolerance=Math.max(1.5,short*.012);
+  const specs=[
+    {axis:rectangle.axisU,value:rectangle.minimumU,along:rectangle.axisV,start:rectangle.minimumV,end:rectangle.maximumV},
+    {axis:rectangle.axisV,value:rectangle.minimumV,along:rectangle.axisU,start:rectangle.minimumU,end:rectangle.maximumU},
+    {axis:rectangle.axisU,value:rectangle.maximumU,along:rectangle.axisV,start:rectangle.minimumV,end:rectangle.maximumV},
+    {axis:rectangle.axisV,value:rectangle.maximumV,along:rectangle.axisU,start:rectangle.minimumU,end:rectangle.maximumU},
+  ];
+  const sides=[];
+  for(const spec of specs){
+    const span=spec.end-spec.start;const low=spec.start+span*.1;const high=spec.end-span*.1;
+    const pool=points.filter(point=>{const along=project(point,spec.along);return Math.abs(project(point,spec.axis)-spec.value)<=band&&along>=low&&along<=high});
+    if(pool.length<8)return null;
+    let line=fitLine(pool);let inliers=pool;
+    for(const limit of [tolerance*3,tolerance*1.5,tolerance]){
+      const next=pool.filter(point=>Math.abs(lineDistance(line,point))<=limit);if(next.length<8)return null;
+      inliers=next;line=fitLine(inliers);
+    }
+    const bins=new Uint8Array(20);for(const point of inliers)bins[clamp(Math.floor((project(point,spec.along)-low)/Math.max(1,high-low)*20),0,19)]=1;
+    const rms=Math.sqrt(inliers.reduce((sum,point)=>sum+lineDistance(line,point)**2,0)/inliers.length);
+    sides.push({line,coverage:bins.reduce((sum,value)=>sum+value,0)/20,rms});
+  }
+  return {sides,short,tolerance};
+}
+
+function quadrilateralFromSides(sides){
+  const points=[];
+  for(let index=0;index<4;index+=1){const point=intersectLines(sides[index].line,sides[(index+1)%4].line);if(!point)return null;points.push(point)}
+  try{return orderDocumentCorners(points)}catch{return null}
+}
+
+function outwardNormal(line,center){
+  const normal={x:-line.direction.y,y:line.direction.x};
+  return (center.x-line.point.x)*normal.x+(center.y-line.point.y)*normal.y>0?{x:-normal.x,y:-normal.y}:normal;
+}
+
+// Slide each side along its normal onto the strongest colour step: the grown background
+// stops a little outside the true edge because the model works on blurred colour.
+function snapSides(sides,corners,light,width,height){
+  const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
+  const center=ordered.reduce((sum,point)=>({x:sum.x+point.x/4,y:sum.y+point.y/4}),{x:0,y:0});
+  return sides.map(side=>{
+    const normal=outwardNormal(side.line,center);const along=side.line.direction;
+    const projections=ordered.map(point=>({distance:Math.abs(lineDistance(side.line,point)),position:(point.x-side.line.point.x)*along.x+(point.y-side.line.point.y)*along.y})).sort((left,right)=>left.distance-right.distance).slice(0,2).map(entry=>entry.position);
+    const start=Math.min(...projections);const end=Math.max(...projections);let best={offset:0,score:-1};
+    for(let offset=-6;offset<=4;offset+=.5){
+      let total=0;let count=0;
+      for(let sample=0;sample<32;sample+=1){
+        const position=start+(end-start)*(.12+.76*sample/31);
+        const x=side.line.point.x+along.x*position+normal.x*offset;const y=side.line.point.y+along.y*position+normal.y*offset;
+        const inner=sampleColor(light,width,height,x-normal.x*1.5,y-normal.y*1.5);const outer=sampleColor(light,width,height,x+normal.x*1.5,y+normal.y*1.5);
+        if(!inner||!outer)continue;total+=Math.hypot(inner[0]-outer[0],inner[1]-outer[1],inner[2]-outer[2]);count+=1;
+      }
+      if(count<20)continue;const score=total/count;if(score>best.score)best={offset,score};
+    }
+    return {...side,snap:best.offset,line:{point:{x:side.line.point.x+normal.x*best.offset,y:side.line.point.y+normal.y*best.offset},direction:along}};
+  });
+}
+
+function sideContrast(smooth,width,height,line,start,end,center){
+  const normal=outwardNormal(line,center);let total=0;let count=0;
+  for(let sample=0;sample<24;sample+=1){
+    const position=start+(end-start)*(.1+.8*sample/23);
+    for(const offset of [4,6,8]){
+      const x=line.point.x+line.direction.x*position;const y=line.point.y+line.direction.y*position;
+      const inner=sampleColor(smooth,width,height,x-normal.x*offset,y-normal.y*offset);const outer=sampleColor(smooth,width,height,x+normal.x*offset,y+normal.y*offset);
+      if(!inner||!outer)continue;total+=Math.hypot(inner[0]-outer[0],inner[1]-outer[1],inner[2]-outer[2]);count+=1;
+    }
+  }
+  return count?total/count:0;
+}
+
+function insideQuadrilateral(corners,point,margin=0){
+  const polygon=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
+  const center=polygon.reduce((sum,value)=>({x:sum.x+value.x/4,y:sum.y+value.y/4}),{x:0,y:0});
+  return polygon.every((start,index)=>{
+    const end=polygon[(index+1)%4];const length=Math.hypot(end.x-start.x,end.y-start.y)||1;
+    const side=((end.x-start.x)*(point.y-start.y)-(end.y-start.y)*(point.x-start.x))/length;
+    const reference=((end.x-start.x)*(center.y-start.y)-(end.y-start.y)*(center.x-start.x))/length;
+    return Math.sign(side)===Math.sign(reference)||Math.abs(side)<=margin;
+  });
+}
+
+// Rounded card corners: walk from each straight-side intersection along the corner
+// bisector to the first card pixel. For a right-angle corner of radius r that distance is
+// r(sqrt2 - 1) minus the small outward offset of the grown mask (undone by snapping).
+function cornerRadiusEstimate(labels,label,corners,sides,width,height){
+  const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
+  const offset=Math.max(0,-sides.reduce((sum,side)=>sum+side.snap,0)/4);
+  const estimates=ordered.map((point,index)=>{
+    const previous=ordered[(index+3)%4];const next=ordered[(index+1)%4];
+    const a={x:previous.x-point.x,y:previous.y-point.y};const b={x:next.x-point.x,y:next.y-point.y};const lengthA=Math.hypot(a.x,a.y)||1;const lengthB=Math.hypot(b.x,b.y)||1;
+    const bisector={x:a.x/lengthA+b.x/lengthB,y:a.y/lengthA+b.y/lengthB};const length=Math.hypot(bisector.x,bisector.y)||1;
+    for(let step=0;step<=Math.min(lengthA,lengthB)*.2;step+=.5){
+      const x=Math.round(point.x+bisector.x/length*step);const y=Math.round(point.y+bisector.y/length*step);
+      if(x>=0&&y>=0&&x<width&&y<height&&labels[y*width+x]===label)return (step+offset)/(Math.SQRT2-1);
+    }
+    return 0;
+  }).sort((left,right)=>left-right);
+  const short=Math.min(...ordered.map((point,index)=>distance(point,ordered[(index+1)%4])));
+  return clamp((estimates[1]+estimates[2])/2*1.1/Math.max(1,short),0,.12);
+}
+
+function surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold){
+  const boundary=componentBoundary(labels,component,width,height);if(boundary.length<40)return {rejected:'small-contour',rectangularity:0};
+  const rectangle=minimumAreaRectangle(convexHull(boundary));if(!rectangle)return {rejected:'no-rectangle',rectangularity:0};
+  const rectangularity=component.count/Math.max(1,rectangle.area);
+  const fitted=fitDocumentSides(boundary,rectangle);if(!fitted)return {rejected:'no-sides',rectangularity};
+  let corners=quadrilateralFromSides(fitted.sides);if(!corners)return {rejected:'no-corners',rectangularity};
+  const sides=snapSides(fitted.sides,corners,light,width,height);corners=quadrilateralFromSides(sides);if(!corners)return {rejected:'no-corners',rectangularity};
+  const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
+  const lengths=ordered.map((point,index)=>distance(point,ordered[(index+1)%4]));
+  const area=polygonArea(corners);const areaRatio=area/(width*height);
+  const angles=ordered.map((point,index)=>{const previous=ordered[(index+3)%4];const next=ordered[(index+1)%4];const a={x:previous.x-point.x,y:previous.y-point.y};const b={x:next.x-point.x,y:next.y-point.y};return Math.acos(clamp((a.x*b.x+a.y*b.y)/Math.max(1e-6,Math.hypot(a.x,a.y)*Math.hypot(b.x,b.y)),-1,1))*180/Math.PI});
+  const center=ordered.reduce((sum,point)=>({x:sum.x+point.x/4,y:sum.y+point.y/4}),{x:0,y:0});
+  const contrasts=ordered.map((point,index)=>{const end=ordered[(index+1)%4];const line={point,direction:{x:(end.x-point.x)/Math.max(1e-6,lengths[index]),y:(end.y-point.y)/Math.max(1e-6,lengths[index])}};return sideContrast(smooth,width,height,line,0,lengths[index],center)});
+  const contrast=contrasts.reduce((sum,value)=>sum+value,0)/4;
+  const outsideMargin=Math.max(4,fitted.short*.025);const outside=boundary.filter(point=>!insideQuadrilateral(corners,point,outsideMargin)).length/boundary.length;
+  const fill=component.count/Math.max(1,area);
+  const coverage=Math.min(...sides.map(side=>side.coverage));const straightness=Math.max(...sides.map(side=>side.rms));
+  const edgeSupport=ordered.reduce((sum,point,index)=>sum+lineSupport(edges,width,height,point,ordered[(index+1)%4]),0)/4;
+  const shapeScore=documentShapeScore(corners);
+  const metrics={areaRatio,fill,outside,coverage,straightness:straightness/fitted.tolerance,contrast,minimumContrast:Math.min(...contrasts),contrastToSurface:contrast/threshold,edgeSupport,shapeScore,rectangularity,angles:angles.map(value=>Math.round(value))};
+  const fits=ordered.every(point=>point.x>=-width*.02&&point.y>=-height*.02&&point.x<=width*1.02&&point.y<=height*1.02);
+  const gates=[
+    [areaRatio>=.1&&areaRatio<=.93,'area'],
+    [!nearSourceFrame(corners,width,height,areaRatio,{strict:true}),'source-frame'],
+    [fits,'outside-image'],
+    [Math.min(...lengths)>=Math.min(width,height)*.18,'short-side'],
+    [angles.every(value=>value>=60&&value<=120),'angles'],
+    [fill>=.86&&fill<=1.25,'fill'],
+    [outside<=.08,'protrusion'],
+    [coverage>=.55&&sides.reduce((sum,side)=>sum+side.coverage,0)/4>=.7,'coverage'],
+    [straightness<=Math.max(1.6,fitted.short*.014),'straightness'],
+    [contrast>=Math.max(22,threshold*2)&&metrics.minimumContrast>=Math.max(12,threshold*1.5),'contrast'],
+  ];
+  const failed=gates.find(([passed])=>!passed);if(failed)return {rejected:failed[1],metrics,area,rectangularity};
+  const confidence=clamp(.76+shapeScore*.05+clamp((Math.min(fill,1)-.86)/.12,0,1)*.05+coverage*.04+clamp((contrast-22)/40,0,1)*.04+edgeSupport*.03,0,.97);
+  metrics.cornerRadius=cornerRadiusEstimate(labels,component.label,corners,sides,width,height);
+  return {corners:Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:clamp(point.x,0,width-1),y:clamp(point.y,0,height-1)}])),confidence,areaRatio,area,metrics,rectangularity,source:'border-surface'};
+}
+
+function surfaceCandidates(smooth,light,edges,width,height,domain){
+  const flood=floodSurface(smooth,width,height,domain);if(!flood)return {flood:null,valid:[],evaluated:[]};
+  const {labels,components}=labelComponents(flood.foreground,width,height,Math.max(60,width*height*.03));
+  const evaluated=components.sort((left,right)=>right.count-left.count).slice(0,6).map(component=>({...surfaceCandidate(component,labels,smooth,light,edges,width,height,flood.threshold),component}));
+  return {flood,labels,evaluated,valid:evaluated.filter(candidate=>!candidate.rejected).sort((left,right)=>right.area-left.area)};
+}
+
+function borderSurfaceDetection(working,edges){
+  const {width,height}=working;
+  const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
+  const level=surfaceCandidates(smooth,light,edges,width,height,null);
+  const summary={floodThreshold:level.flood?Number(level.flood.threshold.toFixed(1)):null,calmGradient:level.flood?Number(level.flood.calm.toFixed(2)):null,foregroundRegions:level.evaluated.length,surfaceCandidates:level.valid.length,rejected:level.evaluated.filter(candidate=>candidate.rejected).slice(0,4).map(candidate=>`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`)};
+  const result={background:level.flood?.background||null,labels:level.labels||null,components:level.evaluated.map(candidate=>({...candidate.component,rejected:candidate.rejected||null})),summary};
+  if(!level.valid.length)return {...result,status:'none'};
+  const best=level.valid[0];
+  // Another large, rectangular foreground region (a second card, even one we could not
+  // fit cleanly) makes the choice ambiguous: never crop one of them silently.
+  const competing=level.evaluated.filter(candidate=>candidate!==best&&candidate.component.count>=best.component.count*.35&&(!candidate.rejected||candidate.rectangularity>=.8));
+  if(competing.length)return {...result,status:'multiple'};
+  if(nearSourceFrame(best.corners,width,height,best.areaRatio)){
+    const domain=new Uint8Array(width*height);for(let index=0;index<domain.length;index+=1)domain[index]=level.labels[index]===best.component.label?1:0;
+    const inner=surfaceCandidates(smooth,light,edges,width,height,domain);
+    const nested=inner.valid.filter(candidate=>candidate.area>=best.area*.18&&candidate.area<=best.area*.86);
+    summary.nested=`${inner.flood?inner.flood.threshold.toFixed(1):'none'}/${inner.flood?inner.flood.contentRatio.toFixed(3):'-'}/${inner.evaluated.map(candidate=>candidate.rejected?`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`:`ok:${candidate.areaRatio.toFixed(2)}`).join(',')}`;
+    if(nested.length)return {...result,status:'nested',candidate:best,summary};
+    // A frame-filling region with no content of its own is the surface seen through a
+    // photo frame or mat, not a document.
+    if(inner.flood&&inner.flood.contentRatio<.01)return {...result,status:'frame',summary};
+  }
+  return {...result,status:'document',candidate:best};
+}
+
+// When the surface model found no clean document, an edge/patch crop is only trusted if
+// the surface did not grow into it, and it is neither a panel inside a larger foreground
+// region nor a piece of a region the surface model saw clearly but could not fit as one
+// straight-sided document (two touching cards, a card with a large attached object).
+function surfaceConsistent(surface,corners,width,height){
+  if(!surface.background)return true;
+  const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];const center=ordered.reduce((sum,point)=>({x:sum.x+point.x/4,y:sum.y+point.y/4}),{x:0,y:0});
+  const inner=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:center.x+(point.x-center.x)*.85,y:center.y+(point.y-center.y)*.85}]));
+  let samples=0;let grown=0;
+  for(let y=0;y<height;y+=3)for(let x=0;x<width;x+=3){if(!insideQuadrilateral(inner,{x,y}))continue;samples+=1;grown+=surface.background[y*width+x]}
+  if(!samples||grown/samples>.25)return false;
+  const label=surface.labels?.[Math.round(center.y)*width+Math.round(center.x)];
+  const region=surface.components.find(component=>component.label===label);
+  if(!region)return true;
+  if(['fill','protrusion','coverage','straightness','angles','no-sides','no-corners'].includes(region.rejected))return false;
+  return region.count<=polygonArea(corners)*1.2;
+}
+
 export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
   const blurred=boxBlur(working.gray,working.width,working.height);
   const grayEdges=sobelEdges(blurred,working.width,working.height);const chromaEdges=colorEdges(working.color,working.width,working.height);
   const combined=new Uint8Array(grayEdges.length);for(let index=0;index<combined.length;index+=1)combined[index]=grayEdges[index]||chromaEdges[index]?1:0;
+  // The border-connected surface model decides whenever it sees exactly one document;
+  // it vetoes crops when several documents compete and defers to the edge/patch
+  // pipeline only for frame-like regions (photo of a mat) or when it found nothing.
+  const surface=borderSurfaceDetection(working,combined);
+  let legacy=null;let reason='automatic-detection-uncertain';let legacyConfidence=0;
+  if(surface.status==='nested'||surface.status==='none'){
+    const selection=edgeAndPatchSelection(working,blurred,combined);
+    legacy=selection.best&&selection.best.confidence>=.75?selection.best:null;reason=selection.uncertainReason;legacyConfidence=selection.best?.confidence||0;
+  }
+  let chosen=null;
+  if(surface.status==='document')chosen=surface.candidate;
+  else if(surface.status==='multiple')reason='competing-documents';
+  else if(surface.status==='nested'){chosen=legacy;if(!legacy)reason='competing-boundaries'}
+  else if(surface.status==='none'&&legacy&&surfaceConsistent(surface,legacy.corners,working.width,working.height))chosen=legacy;
+  const diagnostics=scanDiagnostics(working,surface,legacy,chosen);
+  if (!chosen) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:legacyConfidence,mode:'manual',reason,diagnostics};
+  const scaleBack = 1 / working.scale;
+  const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
+  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),diagnostics};
+}
+
+// Edge-component and corner-patch candidates (the original pipeline).
+function edgeAndPatchSelection(working,blurred,combined){
   const binary = dilate(combined, working.width, working.height);
   const candidates=[];
   for (const candidate of componentCandidates(binary, working.width, working.height)) {
@@ -381,10 +816,20 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
     }
   }
   if(best&&nearSourceFrame(best.corners,working.width,working.height,best.areaRatio,{strict:true})&&!candidates.some(candidate=>candidate!==best&&containsCorners(best.corners,candidate.corners)))best=null;
-  if (!best || best.confidence < 0.75) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:best?.confidence||0,mode:'manual',reason:uncertainReason};
-  const scaleBack = 1 / working.scale;
-  const scaled = Object.fromEntries(Object.entries(best.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
-  return {corners:scaled,confidence:Number(best.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral'};
+  return {best,uncertainReason};
+}
+
+// Non-identifying geometry/statistics only: no pixel values, text or image content.
+function scanDiagnostics(working,surface,legacy,chosen){
+  const round=value=>typeof value==='number'?Number(value.toFixed(3)):value;
+  const diagnostics={working:`${working.width}x${working.height}`,surface:surface.status,legacy:surface.status==='nested'||surface.status==='none'?(legacy?(legacy.source||'edge-components'):'none'):'skipped',source:chosen?(chosen.source||'edge-components'):'none',...surface.summary};
+  if(chosen){
+    const points=Object.values(chosen.corners);const xs=points.map(point=>point.x);const ys=points.map(point=>point.y);
+    diagnostics.bounds=[Math.min(...xs)/working.width,Math.min(...ys)/working.height,Math.max(...xs)/working.width,Math.max(...ys)/working.height].map(round);
+    diagnostics.areaRatio=round(chosen.areaRatio);
+  }
+  if(chosen?.metrics)for(const [name,value] of Object.entries(chosen.metrics))diagnostics[name]=Array.isArray(value)?value:round(value);
+  return diagnostics;
 }
 
 function distance(left, right) { return Math.hypot(right.x - left.x, right.y - left.y); }
@@ -487,13 +932,35 @@ export function assessDocumentQuality(imageData, {corners} = {}) {
   if (laplacian/Math.max(1,laplacianSamples)<5.5) warnings.push('blur');
   if (glare/pixels>0.16) warnings.push('glare');
   if (corners) {
-    const margin=Math.max(2,Math.min(width,height)*0.015);
+    const margin=Math.max(2,Math.min(width,height)*0.006);
     if (Object.values(corners).some(point=>point.x<=margin||point.y<=margin||point.x>=width-1-margin||point.y>=height-1-margin)) warnings.push('edge-clipped');
   }
   return warnings;
 }
 
-export async function rectifyDocument(source, corners, {enhance=true} = {}) {
+// Pixels outside a rounded card corner are surface, not card: give them the colour of the
+// card just inside the corner arc so the corrected card carries no background wedges.
+function fillRoundedCorners(imageData,relativeRadius){
+  const {data,width,height}=imageData;const radius=relativeRadius*Math.min(width,height);if(radius<2)return;
+  for(const [cornerX,cornerY,signX,signY] of [[0,0,1,1],[width-1,0,-1,1],[width-1,height-1,-1,-1],[0,height-1,1,-1]]){
+    const centerX=cornerX+signX*radius;const centerY=cornerY+signY*radius;const color=[0,0,0];let count=0;
+    for(let angle=.25;angle<=1.32;angle+=.08){
+      for(const ring of [radius-4,radius-2.5]){
+        const x=Math.round(centerX-signX*Math.cos(angle)*ring);const y=Math.round(centerY-signY*Math.sin(angle)*ring);
+        if(x<0||y<0||x>=width||y>=height)continue;const offset=(y*width+x)*4;color[0]+=data[offset];color[1]+=data[offset+1];color[2]+=data[offset+2];count+=1;
+      }
+    }
+    if(!count)continue;color.forEach((value,index)=>{color[index]=value/count});
+    for(let dy=0;dy<=Math.ceil(radius);dy+=1)for(let dx=0;dx<=Math.ceil(radius);dx+=1){
+      const x=cornerX+signX*dx;const y=cornerY+signY*dy;if(x<0||y<0||x>=width||y>=height)continue;
+      const outside=Math.hypot(centerX-x,centerY-y)-radius;if(outside<=-1||(dx>radius&&dy>radius))continue;
+      const weight=clamp((outside+1)/2,0,1);const offset=(y*width+x)*4;
+      for(let channel=0;channel<3;channel+=1)data[offset+channel]=Math.round(data[offset+channel]*(1-weight)+color[channel]*weight);
+    }
+  }
+}
+
+export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0} = {}) {
   const sourcePixels=sourceImageData(source); const ordered=orderDocumentCorners(Object.values(corners));
   const estimatedWidth=(distance(ordered.topLeft,ordered.topRight)+distance(ordered.bottomLeft,ordered.bottomRight))/2;
   const estimatedHeight=(distance(ordered.topLeft,ordered.bottomLeft)+distance(ordered.topRight,ordered.bottomRight))/2;
@@ -511,6 +978,7 @@ export async function rectifyDocument(source, corners, {enhance=true} = {}) {
     for (let channel=0;channel<3;channel+=1) corrected.data[offset+channel]=bilinearSample(sourcePixels.data,sourcePixels.width,sourcePixels.height,sourceX,sourceY,channel);
     corrected.data[offset+3]=255;
   }
+  if(cornerRadius>0)fillRoundedCorners(corrected,Math.min(.12,cornerRadius));
   const output=enhance?enhancePixels(corrected):corrected;
   const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height; canvas.getContext('2d').putImageData(output,0,0);
   const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:ordered})])];
