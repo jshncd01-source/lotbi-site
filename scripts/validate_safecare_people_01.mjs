@@ -17,14 +17,15 @@ const fetchImpl = async (url, options = {}) => {
   return new Response(JSON.stringify({people: []}), {status: 200, headers: {'Content-Type': 'application/json'}});
 };
 
-const {createPerson, deletePerson, listPeople} = await import('../site-person.js');
+const {createPerson, deletePerson, listPeople, personRequestKey} = await import('../site-person.js');
+assert.match(personRequestKey('create'), /^prq_\d{13}_[0-9a-f]{32}$/);
 assert.deepEqual(await listPeople('session-token', fetchImpl), []);
 const person = await createPerson('session-token', {
   displayName: '김롯비', relationship: 'FAMILY', nickname: null,
   birthYear: 2017, birthMonth: 5,
 }, fetchImpl);
 assert.equal(person.displayName, '김롯비');
-assert.match(calls[1].options.headers['Idempotency-Key'], /^site\.person\.create\./);
+assert.match(calls[1].options.headers['Idempotency-Key'], /^prq_\d{13}_[0-9a-f]{32}$/);
 assert.equal(calls[1].options.credentials, 'omit');
 await deletePerson('session-token', {personId: person.personId, revision: 1}, fetchImpl);
 assert.match(calls[2].url, /expected_revision=1$/);

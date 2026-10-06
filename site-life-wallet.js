@@ -549,6 +549,72 @@ function readImageFile(file) {
   });
 }
 
+export function createWalletPhotoPicker({onError = () => {}} = {}) {
+  const fieldShell = element('div', 'wallet-field wallet-photo-field');
+  const label = element('span', 'wallet-photo-label', '자료 사진 · 필수');
+  const input = element('input', 'wallet-photo-input');
+  input.type = 'file';
+  input.accept = 'image/jpeg,image/png';
+  label.id = `wallet-photo-${randomId()}`;
+  input.setAttribute('aria-labelledby', label.id);
+
+  const picker = element('div', 'wallet-photo-picker');
+  const mark = element('span', 'wallet-photo-mark', '+');
+  mark.setAttribute('aria-hidden', 'true');
+  const preview = element('img', 'wallet-photo-preview');
+  preview.hidden = true;
+  const copy = element('span', 'wallet-photo-copy');
+  const title = element('strong', '', '자료 사진 추가');
+  const help = element('small', '', 'JPG·PNG · 최대 12MB');
+  copy.append(title, help);
+  const trigger = button('사진 선택', () => input.click());
+  trigger.classList.add('wallet-photo-action');
+  let selectionPromise = Promise.resolve('');
+
+  const resetSelection = () => {
+    mark.hidden = false;
+    preview.hidden = true;
+    preview.removeAttribute('src');
+    preview.alt = '';
+    title.textContent = '자료 사진 추가';
+    help.textContent = 'JPG·PNG · 최대 12MB';
+    trigger.textContent = '사진 선택';
+  };
+
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    onError('');
+    selectionPromise = readImageFile(file).then(dataUrl => {
+      mark.hidden = true;
+      preview.src = dataUrl;
+      preview.alt = `${file.name} 미리보기`;
+      preview.hidden = false;
+      title.textContent = file.name;
+      help.textContent = '선택한 사진을 암호화하여 저장합니다.';
+      trigger.textContent = '사진 변경';
+      return dataUrl;
+    }).catch(error => {
+      input.value = '';
+      resetSelection();
+      onError(safeMessage(error, '사진을 선택하지 못했습니다.'));
+      return '';
+    });
+  });
+
+  picker.append(input, mark, preview, copy, trigger);
+  fieldShell.append(label, picker);
+  return Object.freeze({
+    element: fieldShell,
+    input,
+    async readDataUrl() {
+      const dataUrl = await selectionPromise;
+      if (!dataUrl) throw new Error('자료 사진을 선택해 주세요.');
+      return dataUrl;
+    },
+  });
+}
+
 function downloadBackup(serialized) {
   const url = URL.createObjectURL(new Blob([serialized], {type: 'application/octet-stream'}));
   const anchor = document.createElement('a');
@@ -778,17 +844,17 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   function renderAdd() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     const kind = element('select'); for (const [value, label] of CARD_KINDS) { const option = element('option', '', label); option.value = value; kind.append(option); }
-    const front = element('input'); front.type = 'file'; front.accept = 'image/jpeg,image/png'; front.required = true;
+    const photoPicker = createWalletPhotoPicker({onError: message => { status.textContent = message; }});
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const save = button('암호화하여 저장'); save.type = 'submit'; actions.append(save);
-    form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), field('자료 사진 · 필수', front), field('메모 · 선택', note), actions, status,
+    form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), photoPicker.element, field('메모 · 선택', note), actions, status,
       element('p', 'wallet-security-note', 'JPEG·PNG 원본을 AI로 재작성하지 않고 그대로 암호화합니다. 이 자료는 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
         setBusy(form, true);
-        const frontDataUrl = await readImageFile(front.files?.[0]);
+        const frontDataUrl = await photoPicker.readDataUrl();
         await vault.save(accountId, {id: randomId(), kind: kind.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
         await renderWallet('자료를 암호화하여 저장했습니다.');
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }

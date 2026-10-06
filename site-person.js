@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-d5ac58324fa4';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-98f5c2e8183c';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -25,7 +25,15 @@ function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_i
 function sighting(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('사람 제보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({reportId: row.report_id, observedAt: row.observed_at, locationSummary: row.location_summary, description: row.description || '', reviewState: row.review_state, photoCount: Number(row.photo_count), minimumPhotoCount: Number(row.minimum_photo_count), maximumPhotoCount: Number(row.maximum_photo_count), canSubmit: row.can_submit === true, message: row.message}); }
 function sos(row) { if (row.matching_scope !== 'ACTIVE_SOS_ONLY' || row.automatic_identity_decision !== false) throw new SiteCoreError('SOS 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({sosId: row.sos_id, personId: row.person_id, displayName: row.display_name, status: row.status, lastSeenAt: row.last_seen_at, lastSeenSummary: row.last_seen_summary, description: row.description || ''}); }
 function notice(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('후보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({noticeId: row.notice_id, candidateId: row.candidate_id, personId: row.person_id, displayName: row.display_name, status: row.status, response: row.response || '', faceScore: row.face_score, photoPath: row.registered_photo_path}); }
-export const personRequestKey = kind => `site.person.${kind}.${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)}`;
+function personRequestKeyRandomHex() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return uuid.replaceAll('-', '').toLowerCase();
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+}
+export const personRequestKey = () => `prq_${Date.now()}_${personRequestKeyRandomHex()}`;
 export async function listPeople(sessionToken, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {}, fetchImpl); return Object.freeze((payload.people || []).map(person)); }
 export async function getPerson(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}`, sessionToken, {}, fetchImpl); return person(payload.person); }
 export async function createPerson(sessionToken, input, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {method: 'POST', requestKey: input.requestKey || personRequestKey('create'), body: {display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), birthday_day: null, nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
