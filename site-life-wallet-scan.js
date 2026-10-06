@@ -187,12 +187,21 @@ function colorBoundaryContrast(color,width,height,start,end){
   return difference/Math.max(1,samples);
 }
 
-function looksLikePhotoFrame(corners, width, height, areaRatio) {
-  if (areaRatio < 0.965) return false;
-  const inset = Math.min(width, height) * 0.015;
+function nearSourceFrame(corners,width,height,areaRatio,{strict=false}={}){
+  if(areaRatio<(strict ? 0.965 : 0.72))return false;
+  const inset=Math.min(width,height)*(strict ? 0.015 : 0.065);
   const points = [corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
   return points.every(point => point.x <= inset || point.x >= width - 1 - inset)
     && points.every(point => point.y <= inset || point.y >= height - 1 - inset);
+}
+
+function containsCorners(outer,inner){
+  const polygon=[outer.topLeft,outer.topRight,outer.bottomRight,outer.bottomLeft];
+  return [inner.topLeft,inner.topRight,inner.bottomRight,inner.bottomLeft].every(point=>{
+    let sign=0;
+    for(let index=0;index<polygon.length;index+=1){const start=polygon[index];const end=polygon[(index+1)%polygon.length];const cross=(end.x-start.x)*(point.y-start.y)-(end.y-start.y)*(point.x-start.x);if(Math.abs(cross)<1)continue;const current=Math.sign(cross);if(sign&&current!==sign)return false;sign=current}
+    return true;
+  });
 }
 
 function documentShapeScore(corners) {
@@ -242,7 +251,7 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   const grayEdges=sobelEdges(blurred,working.width,working.height);const chromaEdges=colorEdges(working.color,working.width,working.height);
   const combined=new Uint8Array(grayEdges.length);for(let index=0;index<combined.length;index+=1)combined[index]=grayEdges[index]||chromaEdges[index]?1:0;
   const binary = dilate(combined, working.width, working.height);
-  let best = null;
+  const candidates=[];
   for (const candidate of componentCandidates(binary, working.width, working.height)) {
     const corners = candidate.corners;
     const points = [corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
@@ -253,13 +262,19 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
     const support = edges.reduce((sum,[start,end]) => sum + lineSupport(binary,working.width,working.height,start,end),0) / 4;
     const contrast=edges.reduce((sum,[start,end])=>sum+Math.max(boundaryContrast(blurred,working.width,working.height,start,end),colorBoundaryContrast(working.color,working.width,working.height,start,end)),0)/4;
     if (areaRatio < 0.18 || shortestEdge < Math.min(working.width,working.height) * 0.16 || support < 0.46 || contrast < 7) continue;
-    if (looksLikePhotoFrame(corners,working.width,working.height,areaRatio)) continue;
     const areaScore = clamp((areaRatio-0.18)/0.7,0,1);
     const shapeScore=documentShapeScore(corners);
     const contrastScore=clamp((contrast-7)/35,0,1);
     const confidence = clamp(0.38 + areaScore * 0.30 + support * 0.18 + shapeScore * 0.14 + contrastScore * 0.08, 0, 0.99);
-    if (!best || confidence > best.confidence) best = {corners, confidence};
+    candidates.push({corners,confidence,areaRatio});
   }
+  let best=[...candidates].sort((left,right)=>right.confidence-left.confidence)[0]||null;
+  const frameCandidates=candidates.filter(candidate=>nearSourceFrame(candidate.corners,working.width,working.height,candidate.areaRatio)).sort((left,right)=>right.areaRatio-left.areaRatio);
+  for(const frame of frameCandidates){
+    const nested=candidates.filter(candidate=>candidate!==frame&&candidate.areaRatio>=frame.areaRatio*.24&&candidate.areaRatio<=frame.areaRatio*.86&&containsCorners(frame.corners,candidate.corners)).sort((left,right)=>right.confidence-left.confidence);
+    if(nested.length){best=nested[0];break}
+  }
+  if(best&&nearSourceFrame(best.corners,working.width,working.height,best.areaRatio,{strict:true})&&!candidates.some(candidate=>candidate!==best&&containsCorners(best.corners,candidate.corners)))best=null;
   if (!best || best.confidence < 0.75) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:best?.confidence||0,mode:'manual',reason:'automatic-detection-uncertain'};
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(best.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
