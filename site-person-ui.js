@@ -3,7 +3,7 @@ import {
   getPerson, listGuardianNotices, listHumanSightings, listPeople, listPersonIdentityPhotos,
   listPersonSos, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice, submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-dc4700af9a0a';
+} from './site-person.js?v=aset-6c57f1339a92';
 
 const IDENTITY_SLOTS = Object.freeze(['정면 얼굴', '왼쪽 45도', '오른쪽 45도', '왼쪽 옆면', '오른쪽 옆면', '정면 상반신', '정면 전신', '추가 정면', '추가 왼쪽', '추가 오른쪽']);
 const el = (tag, className, text = '') => { const node = document.createElement(tag); node.className = className; node.textContent = text; return node; };

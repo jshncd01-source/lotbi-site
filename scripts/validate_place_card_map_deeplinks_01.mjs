@@ -160,5 +160,11 @@ for (const provider of ['NAVER_MAP', 'TMAP']) {
   assert.equal(windowRef.children[0].location.href, result.uri);
   assert.match(result.fallbackUri, /^https:\/\//u);
 }
+for (const provider of ['NAVER_MAP', 'TMAP']) {
+  const href = buildDefaultMapHref(provider, PLACE, {userAgent: IPHONE, origin: 'https://lotbiai.com'});
+  assert.match(href, /^https:\/\/lotbiai\.com\/map-handoff\.html\?/u);
+  assert.match(href, new RegExp(`provider=${provider}`, 'u'));
+  assert.match(href, /fallback=https%3A%2F%2Fmap\.naver\.com/u);
+}
 
 console.log('Place Card navigation handoff contract: PASS');

@@ -273,6 +273,17 @@ export function buildKakaoMapsSearchUrl(place) {
   return url.href;
 }
 
+export function buildIosMapHandoffUrl(provider, place, {origin = 'https://lotbiai.com'} = {}) {
+  if (provider !== 'NAVER_MAP' && provider !== 'TMAP') throw new TypeError('unsupported iOS handoff provider');
+  const nativeUri = provider === 'NAVER_MAP' ? buildNaverMapsMobileUri(place) : buildTmapMobileUri(place);
+  const fallbackUri = buildNaverMapsWebSearchUrl(place);
+  const url = new URL('/map-handoff.html', origin);
+  url.searchParams.set('provider', provider);
+  url.searchParams.set('native', nativeUri);
+  url.searchParams.set('fallback', fallbackUri);
+  return url.href;
+}
+
 export function buildTmapMobileUri(place) {
   if (!place || typeof place !== 'object') throw new TypeError('place is required');
   const destination = destinationCoordinates(place);
@@ -462,10 +473,13 @@ export function buildDefaultMapHref(provider, place, {userAgent = globalThis.nav
   if (provider === 'TMAP') {
     const {android, ios} = mobilePlatform(userAgent);
     if (android) return buildTmapAndroidIntentUri(place);
-    if (ios) return buildTmapMobileUri(place);
+    if (ios) return buildIosMapHandoffUrl('TMAP', place, {origin});
     return buildNaverMapsWebSearchUrl(place);
   }
   if (provider === 'GOOGLE_MAPS') return buildGoogleMapsDirectionsUrl(place);
+  const {android, ios} = mobilePlatform(userAgent);
+  if (android) return buildNaverMapsAndroidIntentUri(place);
+  if (ios) return buildIosMapHandoffUrl('NAVER_MAP', place, {origin});
   return buildNaverMapsWebSearchUrl(place);
 }
 

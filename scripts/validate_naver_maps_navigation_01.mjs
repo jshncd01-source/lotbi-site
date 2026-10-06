@@ -213,7 +213,6 @@ for (const forbidden of [
 assert.match(renderer, /if \(phoneHref\) \{/u);
 assert.doesNotMatch(renderer, /전화번호 정보 없음/u);
 assert.match(renderer, /const defaultMapProvider = readDefaultMapProvider\(document\.cookie\)/u);
-assert.match(renderer, /candidate => openDefaultMapPlace\(defaultMapProvider, candidate\)/u);
 assert.match(renderer, /mapAction\.href = buildDefaultMapHref\(defaultMapProvider, place\)/u);
 assert.doesNotMatch(renderer, /TMAP_MOBILE_ONLY/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
@@ -237,7 +236,7 @@ assert.match(renderer, /control\.tabIndex = current \? 0 : -1/u);
 assert.match(renderer, /control\.setAttribute\('aria-disabled', current \? 'false' : 'true'\)/u);
 assert.match(
   renderer,
-  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*openPlaceInDefaultMap\(placeResult\.results\[index\]\);/u,
+  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*cards\[index\]\.querySelector\('\[data-map-provider\]'\)\?\.click\(\);/u,
 );
 
 // Current generated asset version must be the one the conversation runtime imports.
