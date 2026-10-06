@@ -69,7 +69,26 @@ try {
   subtleContext.strokeStyle='#f5f5f5'; subtleContext.lineWidth=7; subtleContext.strokeRect(105,72,270,176);
   subtleContext.fillStyle='#666'; subtleContext.fillRect(145,120,185,12); subtleContext.fillRect(145,150,145,9);
   const internalBorder=scan.detectDocumentCorners(subtleContext.getImageData(0,0,480,320));
-  out.textContent = JSON.stringify({ok:true, ordered, diamond, automatic, manual, internalBorder, corrected:{...corrected,dataUrl:corrected.dataUrl.slice(0,32),corners:[sample(2,2),sample(corrected.width-3,2),sample(corrected.width-3,corrected.height-3),sample(2,corrected.height-3)],colorSample:sample(Math.round(corrected.width*.75),Math.round(corrected.height*.75))},largeResult:{width:largeResult.width,height:largeResult.height},smallResult:{width:smallResult.width,height:smallResult.height},quality});
+  const walletPhoto=document.createElement('canvas'); walletPhoto.width=720; walletPhoto.height=520;
+  const walletContext=walletPhoto.getContext('2d',{willReadFrequently:true});
+  walletContext.fillStyle='#31392d'; walletContext.fillRect(0,0,720,520);
+  walletContext.fillStyle='#87936f'; walletContext.fillRect(22,22,676,476);
+  for(let y=22;y<498;y+=18){walletContext.fillStyle=y%36===0?'#929d79':'#7f8b68';walletContext.fillRect(22,y,676,4)}
+  for(let x=22;x<698;x+=24){walletContext.fillStyle=x%48===0?'rgba(255,255,255,.10)':'rgba(0,0,0,.07)';walletContext.fillRect(x,22,3,476)}
+  walletContext.save(); walletContext.shadowColor='rgba(0,0,0,.35)'; walletContext.shadowBlur=14; walletContext.shadowOffsetY=8;
+  walletContext.beginPath(); walletContext.moveTo(122,104); walletContext.lineTo(603,80); walletContext.lineTo(625,400); walletContext.lineTo(105,422); walletContext.closePath();
+  walletContext.fillStyle='#d9d7b8'; walletContext.fill(); walletContext.restore();
+  walletContext.beginPath(); walletContext.moveTo(122,104); walletContext.lineTo(603,80); walletContext.lineTo(625,400); walletContext.lineTo(105,422); walletContext.closePath();
+  walletContext.lineWidth=5; walletContext.strokeStyle='#c8c6aa'; walletContext.stroke();
+  walletContext.fillStyle='#263a54'; walletContext.fillRect(220,166,280,20); walletContext.fillRect(220,212,220,14); walletContext.fillRect(220,250,255,14);
+  walletContext.fillStyle='#6c7a62'; walletContext.fillRect(145,155,58,105);
+  const walletDetection=scan.detectDocumentCorners(walletContext.getImageData(0,0,720,520));
+  const colorPhoto=document.createElement('canvas'); colorPhoto.width=640; colorPhoto.height=420;
+  const colorContext=colorPhoto.getContext('2d',{willReadFrequently:true});colorContext.fillStyle='#5f806f';colorContext.fillRect(0,0,640,420);
+  colorContext.beginPath();colorContext.moveTo(92,82);colorContext.lineTo(552,66);colorContext.lineTo(570,350);colorContext.lineTo(76,364);colorContext.closePath();colorContext.fillStyle='#a36c57';colorContext.fill();
+  colorContext.fillStyle='#20364a';colorContext.fillRect(185,145,275,18);colorContext.fillRect(185,190,220,12);colorContext.fillRect(185,226,250,12);colorContext.fillStyle='#d4b997';colorContext.fillRect(112,132,56,96);
+  const colorDetection=scan.detectDocumentCorners(colorContext.getImageData(0,0,640,420));
+  out.textContent = JSON.stringify({ok:true, ordered, diamond, automatic, manual, internalBorder, walletDetection, colorDetection, corrected:{...corrected,dataUrl:corrected.dataUrl.slice(0,32),corners:[sample(2,2),sample(corrected.width-3,2),sample(corrected.width-3,corrected.height-3),sample(2,corrected.height-3)],colorSample:sample(Math.round(corrected.width*.75),Math.round(corrected.height*.75))},largeResult:{width:largeResult.width,height:largeResult.height},smallResult:{width:smallResult.width,height:smallResult.height},quality});
 } catch (error) { out.textContent = JSON.stringify({ok:false,error:String(error?.stack||error)}); }
 </script></body></html>`;
 
@@ -98,6 +117,14 @@ try {
   actual.forEach((corner,index) => assert.ok(Math.hypot(corner.x-expected[index].x,corner.y-expected[index].y)<=12, `corner ${index} is too far: ${JSON.stringify(corner)}`));
   assert.equal(result.manual.mode, 'manual', `low-contrast pattern was misclassified: ${JSON.stringify(result.manual)}`);
   assert.equal(result.internalBorder.mode,'manual',`an internal printed border was misclassified as the document edge: ${JSON.stringify(result.internalBorder)}`);
+  assert.equal(result.walletDetection.mode,'automatic',`wallet photo did not auto-detect the card: ${JSON.stringify(result.walletDetection)}`);
+  const walletExpected=[{x:122,y:104},{x:603,y:80},{x:625,y:400},{x:105,y:422}];
+  const walletActual=[result.walletDetection.corners.topLeft,result.walletDetection.corners.topRight,result.walletDetection.corners.bottomRight,result.walletDetection.corners.bottomLeft];
+  walletActual.forEach((corner,index)=>assert.ok(Math.hypot(corner.x-walletExpected[index].x,corner.y-walletExpected[index].y)<=24,`wallet photo corner ${index} kept background: ${JSON.stringify(corner)}`));
+  assert.equal(result.colorDetection.mode,'automatic',`equal-luminance color boundary was missed: ${JSON.stringify(result.colorDetection)}`);
+  const colorExpected=[{x:92,y:82},{x:552,y:66},{x:570,y:350},{x:76,y:364}];
+  const colorActual=[result.colorDetection.corners.topLeft,result.colorDetection.corners.topRight,result.colorDetection.corners.bottomRight,result.colorDetection.corners.bottomLeft];
+  colorActual.forEach((corner,index)=>assert.ok(Math.hypot(corner.x-colorExpected[index].x,corner.y-colorExpected[index].y)<=24,`color boundary corner ${index} is wrong: ${JSON.stringify(corner)}`));
   for (const corner of Object.values(result.manual.corners)) {
     assert.ok(corner.x > 0 && corner.x < 480 && corner.y > 0 && corner.y < 320, `manual corner outside source: ${JSON.stringify(corner)}`);
   }

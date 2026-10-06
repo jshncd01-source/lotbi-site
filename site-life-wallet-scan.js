@@ -37,16 +37,18 @@ function workingGray(imageData, maximumEdge) {
   const width = Math.max(8, Math.round(imageData.width * scale));
   const height = Math.max(8, Math.round(imageData.height * scale));
   const gray = new Uint8Array(width * height);
+  const color = new Uint8Array(width * height * 3);
   const source = imageData.data;
   for (let y = 0; y < height; y += 1) {
     const sourceY = Math.min(imageData.height - 1, Math.floor(y / scale));
     for (let x = 0; x < width; x += 1) {
       const sourceX = Math.min(imageData.width - 1, Math.floor(x / scale));
       const offset = (sourceY * imageData.width + sourceX) * 4;
+      const colorOffset=(y*width+x)*3;color[colorOffset]=source[offset];color[colorOffset+1]=source[offset+1];color[colorOffset+2]=source[offset+2];
       gray[y * width + x] = Math.round(source[offset] * 0.299 + source[offset + 1] * 0.587 + source[offset + 2] * 0.114);
     }
   }
-  return {gray, width, height, scale};
+  return {gray, color, width, height, scale};
 }
 
 function boxBlur(gray, width, height) {
@@ -90,6 +92,24 @@ function sobelEdges(gray, width, height) {
   threshold = Math.max(28, threshold);
   const binary = new Uint8Array(magnitude.length);
   for (let index = 0; index < magnitude.length; index += 1) binary[index] = magnitude[index] >= threshold ? 1 : 0;
+  return binary;
+}
+
+function colorEdges(color,width,height){
+  const magnitude=new Uint8Array(width*height);const histogram=new Uint32Array(256);let nonzero=0;
+  for(let y=1;y<height-1;y+=1)for(let x=1;x<width-1;x+=1){
+    const center=(y*width+x)*3;let energy=0;
+    for(let channel=0;channel<3;channel+=1){
+      const a=color[center-(width+1)*3+channel];const b=color[center-width*3+channel];const c=color[center-(width-1)*3+channel];
+      const d=color[center-3+channel];const f=color[center+3+channel];const g=color[center+(width-1)*3+channel];const h=color[center+width*3+channel];const i=color[center+(width+1)*3+channel];
+      const horizontal=-a+c-(2*d)+(2*f)-g+i;const vertical=-a-(2*b)-c+g+(2*h)+i;energy+=horizontal*horizontal+vertical*vertical;
+    }
+    const value=clamp(Math.round(Math.sqrt(energy)/7),0,255);const index=y*width+x;magnitude[index]=value;if(value>0){histogram[value]+=1;nonzero+=1}
+  }
+  let remaining=Math.max(1,Math.round(nonzero*.14));let threshold=255;
+  for(let value=255;value>0;value-=1){remaining-=histogram[value];if(remaining<=0){threshold=value;break}}
+  threshold=Math.max(24,Math.min(72,Math.round(threshold*.35)));const binary=new Uint8Array(magnitude.length);
+  for(let index=0;index<magnitude.length;index+=1)binary[index]=magnitude[index]>=threshold?1:0;
   return binary;
 }
 
@@ -151,6 +171,39 @@ function boundaryContrast(gray, width, height, start, end) {
   return difference/Math.max(1,samples);
 }
 
+function colorBoundaryContrast(color,width,height,start,end){
+  const length=Math.hypot(end.x-start.x,end.y-start.y);if(length<1)return 0;
+  const normal={x:-(end.y-start.y)/length,y:(end.x-start.x)/length};let difference=0;let samples=0;
+  for(const ratio of [.18,.34,.5,.66,.82]){
+    const center={x:start.x+(end.x-start.x)*ratio,y:start.y+(end.y-start.y)*ratio};
+    for(const offset of [10,12,14]){
+      const leftX=Math.round(center.x-normal.x*offset);const leftY=Math.round(center.y-normal.y*offset);const rightX=Math.round(center.x+normal.x*offset);const rightY=Math.round(center.y+normal.y*offset);
+      if(leftX<0||leftX>=width||leftY<0||leftY>=height||rightX<0||rightX>=width||rightY<0||rightY>=height)continue;
+      const left=(leftY*width+leftX)*3;const right=(rightY*width+rightX)*3;let squared=0;
+      for(let channel=0;channel<3;channel+=1){const delta=color[left+channel]-color[right+channel];squared+=delta*delta}
+      difference+=Math.sqrt(squared)/3;samples+=1;
+    }
+  }
+  return difference/Math.max(1,samples);
+}
+
+function looksLikePhotoFrame(corners, width, height, areaRatio) {
+  if (areaRatio < 0.72) return false;
+  const inset = Math.min(width, height) * 0.065;
+  const points = [corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
+  return points.every(point => point.x <= inset || point.x >= width - 1 - inset)
+    && points.every(point => point.y <= inset || point.y >= height - 1 - inset);
+}
+
+function documentShapeScore(corners) {
+  const top=distance(corners.topLeft,corners.topRight); const bottom=distance(corners.bottomLeft,corners.bottomRight);
+  const left=distance(corners.topLeft,corners.bottomLeft); const right=distance(corners.topRight,corners.bottomRight);
+  const long=Math.max((top+bottom)/2,(left+right)/2); const short=Math.max(1,Math.min((top+bottom)/2,(left+right)/2));
+  const ratio=long/short;
+  if(ratio<1.08||ratio>2.35)return 0;
+  return clamp(1-Math.abs(ratio-1.55)/1.1,0.28,1);
+}
+
 function componentCandidates(binary, width, height) {
   const visited = new Uint8Array(binary.length);
   const queue = new Int32Array(binary.length);
@@ -187,7 +240,9 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
   const blurred=boxBlur(working.gray,working.width,working.height);
-  const binary = dilate(sobelEdges(blurred, working.width, working.height), working.width, working.height);
+  const grayEdges=sobelEdges(blurred,working.width,working.height);const chromaEdges=colorEdges(working.color,working.width,working.height);
+  const combined=new Uint8Array(grayEdges.length);for(let index=0;index<combined.length;index+=1)combined[index]=grayEdges[index]||chromaEdges[index]?1:0;
+  const binary = dilate(combined, working.width, working.height);
   let best = null;
   for (const candidate of componentCandidates(binary, working.width, working.height)) {
     const corners = candidate.corners;
@@ -197,10 +252,13 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
     const edges = [[corners.topLeft,corners.topRight],[corners.topRight,corners.bottomRight],[corners.bottomRight,corners.bottomLeft],[corners.bottomLeft,corners.topLeft]];
     const shortestEdge = Math.min(...edges.map(([start,end]) => Math.hypot(end.x-start.x,end.y-start.y)));
     const support = edges.reduce((sum,[start,end]) => sum + lineSupport(binary,working.width,working.height,start,end),0) / 4;
-    const contrast=edges.reduce((sum,[start,end])=>sum+boundaryContrast(blurred,working.width,working.height,start,end),0)/4;
+    const contrast=edges.reduce((sum,[start,end])=>sum+Math.max(boundaryContrast(blurred,working.width,working.height,start,end),colorBoundaryContrast(working.color,working.width,working.height,start,end)),0)/4;
     if (areaRatio < 0.18 || shortestEdge < Math.min(working.width,working.height) * 0.16 || support < 0.46 || contrast < 7) continue;
-    const areaScore = clamp((areaRatio - 0.18) / 0.42, 0, 1);
-    const confidence = clamp(0.56 + areaScore * 0.24 + support * 0.22, 0, 0.99);
+    if (looksLikePhotoFrame(corners,working.width,working.height,areaRatio)) continue;
+    const areaScore = clamp(1-Math.abs(areaRatio-0.5)/0.5,0,1);
+    const shapeScore=documentShapeScore(corners);
+    if(!shapeScore)continue;
+    const confidence = clamp(0.48 + areaScore * 0.14 + support * 0.20 + shapeScore * 0.18, 0, 0.99);
     if (!best || confidence > best.confidence) best = {corners, confidence};
   }
   if (!best || best.confidence < 0.75) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:best?.confidence||0,mode:'manual',reason:'automatic-detection-uncertain'};
