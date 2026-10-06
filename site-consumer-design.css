@@ -141,7 +141,11 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
 .consumer-workspace .site-modal-description { padding: 0; margin: 0 0 40px; color: var(--consumer-muted); }
 .consumer-workspace .site-modal-content { padding: 0; }
 .consumer-workspace .site-calendar-modal > .site-modal-content { overflow: visible; }
-.consumer-workspace .calendar-product-shell { height: auto; grid-template-rows: auto auto auto auto; }
+/* The workspace is the one scroll owner. The legacy touch rule that made the
+   modal content its own scroller (keyed on the view) would also trap the pinned
+   + 기록 bar inside a box exactly as tall as its content. */
+.consumer-workspace .site-calendar-modal > .site-modal-content[data-calendar-manager-view] { overflow: visible; }
+.consumer-workspace .calendar-product-shell { height: auto; grid-template-rows: auto auto auto; grid-auto-rows: auto; }
 .consumer-workspace .calendar-toolbar button { font-weight: 500; box-shadow: none; }
 .consumer-workspace .calendar-toolbar .calendar-title-button { font-size: 18px; font-weight: 600; }
 .consumer-workspace .consumer-shortcuts { gap: 12px; }
@@ -156,6 +160,9 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
 }
 @media (max-width: 900px) {
   body.chat-home-page .consumer-workspace { inset: 0; padding: 24px; }
+  /* The calendar's + 기록 bar pins to the bottom edge itself (with the
+     safe-area inset inside it), so the canvas adds no bottom padding under it. */
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] { padding-bottom: 0; }
   .consumer-workspace .site-modal-description { margin-bottom: 28px; }
   body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 24px; }
 }
@@ -166,12 +173,14 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   .consumer-section-footer { flex-direction: column; align-items: flex-start; gap: 16px; }
   .consumer-workspace .consumer-search { gap: 0; }
   .consumer-workspace .consumer-search .consumer-action { align-self: flex-end; }
-  .consumer-workspace .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px; }
-  .consumer-workspace .calendar-toolbar .calendar-title-button { min-width: 0; padding-inline: 4px; font-size: 16px; }
-  .consumer-workspace .calendar-today-button { grid-column: 1 / 3; grid-row: 2; }
-  .consumer-workspace .calendar-settings-button { grid-column: 3; grid-row: 2; width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0; }
+  /* Two rows, not three: ‹ month › 오늘 ⚙ on one line, the views on the next,
+     so the month itself starts higher on a phone. */
+  .consumer-workspace .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px auto 44px; gap: 4px; }
+  .consumer-workspace .calendar-toolbar .calendar-title-button { min-width: 0; overflow: hidden; padding-inline: 4px; font-size: 16px; text-overflow: ellipsis; }
+  .consumer-workspace .calendar-today-button { min-width: 48px; padding-inline: 8px; }
+  .consumer-workspace .calendar-settings-button { width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0; }
   .consumer-workspace .calendar-settings-label { display: none; }
-  .consumer-workspace .calendar-mode-tabs { grid-row: 3; }
+  .consumer-workspace .calendar-mode-tabs { grid-column: 1 / -1; }
   .consumer-workspace .calendar-expense-line { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .consumer-workspace .calendar-expense-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; white-space: normal; gap: 12px; }
   .consumer-workspace .calendar-expense-item { flex-wrap: wrap; }
@@ -191,6 +200,10 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   body.chat-home-page .scam-input-kinds { grid-template-columns: 1fr; gap: 10px; margin: 20px 0; }
   body.chat-home-page .scam-input-kinds :is(label, .scam-voice-method) { min-height: 74px; padding: 13px 14px; }
 }
+@media (max-width: 380px) {
+  /* A folded phone: the month name stays whole (the caret yields first). */
+  .consumer-workspace .calendar-toolbar .calendar-title-button { padding-inline: 2px; font-size: 15px; }
+}
 @media (max-width: 420px) {
   body.chat-home-page:not(.conversation-active) .home-value-proposition p { max-width: 260px; margin: auto; font-size: 13px; }
   .home-example-prompts { flex-wrap: wrap; }
@@ -206,13 +219,18 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
 .consumer-workspace :is(.festival-detail, .festival-program-surface, .festival-registration-sheet, .festival-schedule-sheet) { box-shadow: none; border-radius: 12px; }
 .consumer-workspace :is(.pet-family-surface, .festival-manager) { gap: 24px; }
 .consumer-workspace :is(button, input, select, textarea, a):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
-/* The consumer calendar remains month-first; selected-day details follow it. */
+/* The consumer calendar keeps the month first and puts the selected day
+   beside it on a desk, so picking a date never sends the eye below the fold.
+   The calendar workspace is wider than the other detail canvases to make room
+   for both columns. */
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] > .site-modal { width: min(100%, 1200px); max-width: 1200px; }
 @media (min-width: 901px) {
-  .consumer-workspace .calendar-month-layout[data-day-detail='SIDE'][data-detail-open='true'] { grid-template-columns: minmax(0, 1fr); gap: 24px; height: auto; }
+  .consumer-workspace .calendar-month-layout[data-day-detail='SIDE'][data-detail-open='true'] { grid-template-columns: minmax(0, 1fr) clamp(320px, 30%, 380px); gap: 24px; height: auto; align-items: start; }
+  .consumer-workspace .calendar-week-layout[data-day-detail='SIDE'] { gap: 24px; }
   .consumer-workspace .calendar-month-layout .calendar-month { height: auto; }
   .consumer-workspace .calendar-month-grid { min-height: 440px; }
-  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] { position: static; max-height: none; overflow: visible; box-shadow: none; }
-  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] .calendar-day-body { overflow: visible; }
+  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] { position: sticky; top: 16px; max-height: calc(100dvh - 48px); overflow: hidden; box-shadow: none; }
+  .consumer-workspace .calendar-day-panel[data-presentation='SIDE'] .calendar-day-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 }
 /* Focused life-information forms; no nested modal or invented results. */
 .consumer-life-detail { max-width: 760px; display: grid; gap: 24px; }

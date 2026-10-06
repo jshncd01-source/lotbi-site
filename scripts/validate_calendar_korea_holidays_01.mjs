@@ -85,7 +85,7 @@ assert.match(manager, /calendar-day-holiday/);
 assert.match(manager, /aria-label', '캘린더 설정'/);
 assert.match(manager, /대한민국 공휴일 표시/);
 assert.match(manager, /calendar-delete-confirm-dialog/);
-assert.match(manager, /이 일정을 삭제하시겠습니까\?/);
+assert.match(manager, /이 기록을 삭제하시겠습니까\?/);
 assert.match(manager, /calendar-editor-body/);
 
 assert.match(css, /\.calendar-holiday-label/);

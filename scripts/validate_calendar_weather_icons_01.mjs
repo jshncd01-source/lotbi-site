@@ -263,7 +263,8 @@ assert.equal(
     1,
     {weather: {label: '맑음'}},
   ),
-  '2026년 9월 22일 화요일, 일정 1개, 날씨 맑음',
+  // LIFE UX 01: a date counts 기록, not 일정.
+  '2026년 9월 22일 화요일, 기록 1개, 날씨 맑음',
 );
 
 const ROOT = path.resolve(import.meta.dirname, '..');

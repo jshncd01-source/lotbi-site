@@ -184,10 +184,10 @@ try {
   await wait(() => weatherRequests.length >= 1, 'week weather request');
   await sleep(150);
   result.weekRequests = drain();
-  // Two elements share this dataset (the day-jump strip button and the grid
-  // header cell); only the header cell carries the weather line.
-  const weekTodayHeader = root.querySelector('.calendar-week-day[data-calendar-week-date="2026-09-26"]');
-  result.weekTodayHasWeather = Boolean(weekTodayHeader?.querySelector('.calendar-week-weather'));
+  // LIFE UX 01: Week opens as the life list; today's day group header carries
+  // the weather line (the 7-day strip above it only carries the date).
+  const weekTodayHeader = root.querySelector('.calendar-week-list [data-calendar-week-group="2026-09-26"] .calendar-week-day-header');
+  result.weekTodayHasWeather = Boolean(weekTodayHeader?.querySelector('.calendar-day-weather'));
 
   // 6. Fail-soft: a failing weather fetch must not take the schedule down
   // with it, and must not invent a placeholder weather.

@@ -213,7 +213,8 @@ try{
   // --- other views ------------------------------------------------------
   root=await mountCase(manager,stubFetch({weather:SHORT_ONLY}));
   await wait(()=>credit(root),'month before switch');
-  root.querySelector('[data-calendar-mode="year"]').click();
+  // LIFE UX 01: 년 is reached through the month title, not a tab.
+  root.querySelector('.calendar-title-button').click();
   await wait(()=>root.dataset.calendarManagerView==='year','year view');
   await new Promise(r=>setTimeout(r,120));
   result.yearCredit=Boolean(credit(root));
@@ -280,12 +281,13 @@ function run(browser, w, h) {
     throw new Error('site-calendar-weather.js must cite the 공공누리 제1유형 source it is honouring');
   }
 
-  // The credit gets an implicit fifth row. The Calendar redesign and the
-  // expense bar both hold .calendar-product-shell's grid-template-rows, so it
-  // must stay exactly as they left it.
+  // .calendar-product-shell keeps three explicit rows (toolbar, status, the
+  // view); LIFE UX 01's + 기록 bar takes an implicit row only while it is
+  // shown, so a hidden bar costs the month no gap. The credit lives inside
+  // the views and must not change this template.
   const calendarCss = fs.readFileSync('site-calendar.css', 'utf8');
-  if (!calendarCss.includes('grid-template-rows: auto auto minmax(0, 1fr) auto;')) {
-    throw new Error('.calendar-product-shell must keep its four explicit rows');
+  if (!/grid-template-rows: auto auto minmax\(0, 1fr\);\s*grid-auto-rows: auto;/.test(calendarCss)) {
+    throw new Error('.calendar-product-shell must keep its three explicit rows and an implicit row for the + 기록 bar');
   }
   if (!calendarCss.includes('grid-template-rows: auto minmax(0, 1fr);')) {
     throw new Error('.calendar-month must keep its two explicit desktop rows — the weather credit uses an implicit row instead');
