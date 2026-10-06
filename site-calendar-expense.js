@@ -395,6 +395,54 @@ export function calendarAmountSummaryLine({state, summary = null, month = null, 
   return line;
 }
 
+function amountCategoryOverviewNode(summary) {
+  const currencies = recordedCurrencies(summary);
+  if (!currencies.length) return null;
+  const overview = document.createElement('div');
+  overview.className = 'calendar-amount-category-groups';
+  for (const currency of currencies) {
+    const byCategory = new Map((currency.categories || [])
+      .filter(row => EXPENSE_CATEGORY_ORDER.includes(row?.expenseCategory))
+      .map(row => [row.expenseCategory, row]));
+    const unclassified = byCategory.get('UNCLASSIFIED');
+    const hasUnclassified = (
+      (Number.isInteger(unclassified?.entryCount) && unclassified.entryCount > 0)
+      || (Number.isInteger(unclassified?.amountMinor) && unclassified.amountMinor !== 0)
+    );
+    const visibleCategories = EXPENSE_CATEGORY_ORDER.filter(category => category !== 'UNCLASSIFIED' || hasUnclassified);
+    const list = document.createElement('dl');
+    list.className = 'calendar-amount-categories';
+    list.dataset.currency = currency.currency;
+    for (const expenseCategory of visibleCategories) {
+      const row = byCategory.get(expenseCategory);
+      const item = document.createElement('div');
+      item.className = 'calendar-amount-category';
+      item.dataset.expenseCategory = expenseCategory;
+      const label = document.createElement('dt');
+      label.textContent = expenseCategoryLabel(expenseCategory);
+      const amount = document.createElement('dd');
+      amount.textContent = formatExpenseAmount(Number.isInteger(row?.amountMinor) ? row.amountMinor : 0, currency.currency);
+      item.append(label, amount);
+      list.appendChild(item);
+    }
+    overview.appendChild(list);
+  }
+  return overview;
+}
+
+export function calendarAmountSummaryBlock(options) {
+  const line = calendarAmountSummaryLine(options);
+  if (!line) return null;
+  if (options?.state !== 'ready') return line;
+  const categories = amountCategoryOverviewNode(options.summary);
+  if (!categories) return line;
+  const block = document.createElement('section');
+  block.className = 'calendar-amount-overview';
+  block.setAttribute('aria-label', Number.isInteger(options.month) ? `${options.month}월 입력 금액` : '입력 금액');
+  block.append(line, categories);
+  return block;
+}
+
 export function calendarAmountDetailNode({summary = null, monthLabel = '', local = false}) {
   const presentation = amountDetailPresentation(summary, {local});
   const body = document.createElement('div');
