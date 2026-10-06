@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-434723cde596';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-7764cae5195d';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
