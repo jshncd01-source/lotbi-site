@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-b0804ff289ec';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-b0804ff289ec';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-b0804ff289ec';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-df789249382b';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-df789249382b';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-df789249382b';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-b0804ff289ec';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-b0804ff289ec';
+} from './site-calendar-model.js?v=aset-df789249382b';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-df789249382b';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-b0804ff289ec';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-b0804ff289ec';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-b0804ff289ec';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-df789249382b';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-df789249382b';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-df789249382b';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-b0804ff289ec';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-b0804ff289ec';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-b0804ff289ec';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-b0804ff289ec';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-b0804ff289ec';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-b0804ff289ec';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-b0804ff289ec';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-b0804ff289ec';
+} from './site-calendar-product.js?v=aset-df789249382b';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-df789249382b';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-df789249382b';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-df789249382b';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-df789249382b';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-df789249382b';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-df789249382b';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-df789249382b';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1597,116 +1597,66 @@ function syncMonthLayout(layout) {
 const CALENDAR_WEEK_HOUR_HEIGHT = 48;
 const MINUTES_PER_DAY = 24 * 60;
 
-// The week is seven days of a life, not seven columns of hours: a strip to
-// jump between days, then each day's records in day order. A phone never gets
-// the hour grid -- four squeezed columns of cut-off titles was what Week used
-// to be there. A wide screen can still switch to 시간표 when the hours matter.
+// The week is seven days of a life, stacked by date from Sunday to Saturday.
+// Keep one reading direction on every viewport: each date is immediately
+// followed by its records, without a duplicate horizontal day strip or grid.
 function renderWeek(state, actions, weatherCredit = null) {
   const section = document.createElement('section');
   section.className = 'calendar-week-agenda';
   section.setAttribute('aria-label', '주간 기록');
-  const timeGridAvailable = !usesFlowingDayDetail();
-  const layout = timeGridAvailable && state.weekLayout === 'timegrid' ? 'timegrid' : 'list';
+  const layout = 'list';
   section.dataset.weekLayout = layout;
   const weatherByDate = calendarWeatherByDate(state.weather);
   const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
   const days = calendarWeekDays(state.selectedDate, state.weekStart);
 
-  const strip = document.createElement('div');
-  strip.className = 'calendar-week-strip';
-  strip.setAttribute('role', 'tablist');
-  strip.setAttribute('aria-label', '이번 주 날짜');
-  const weekControls = [];
+  const list = document.createElement('div');
+  list.className = 'calendar-week-list';
   for (const day of days) {
-    const selected = day.date === state.selectedDate;
-    const count = calendarItemsOnDate(state.items, day.date).length;
-    const control = button('', 'calendar-week-date');
-    control.dataset.calendarWeekDate = day.date;
-    control.dataset.selected = String(selected);
-    control.dataset.today = String(day.date === state.todayDate);
-    control.dataset.holiday = String(holidayMap.has(day.date));
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', String(selected));
-    control.setAttribute('aria-label', `${koreanDate(day.date)}, 기록 ${count}개${day.date === state.todayDate ? ', 오늘' : ''}`);
-    if (day.date === state.todayDate) control.setAttribute('aria-current', 'date');
-    control.tabIndex = selected ? 0 : -1;
-    const weekday = document.createElement('span');
-    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
-    const number = document.createElement('strong');
-    number.textContent = String(day.day);
-    control.append(weekday, number, recordDots(count));
-    control.addEventListener('click', () => { void actions.selectDate(day.date, {revealWeekDay: true}); });
-    weekControls.push(control);
-    strip.appendChild(control);
-  }
-  bindRovingTablist(strip, weekControls);
-  section.appendChild(strip);
-
-  if (timeGridAvailable) {
-    const toggle = document.createElement('div');
-    toggle.className = 'calendar-week-layout-toggle';
-    toggle.setAttribute('role', 'group');
-    toggle.setAttribute('aria-label', '주간 보기 방식');
-    for (const [value, label] of [['list', '생활목록'], ['timegrid', '시간표']]) {
-      const option = button(label, 'calendar-week-layout-option');
-      option.dataset.weekLayoutOption = value;
-      option.setAttribute('aria-pressed', String(layout === value));
-      option.addEventListener('click', () => actions.setWeekLayout?.(value));
-      toggle.appendChild(option);
+    const group = document.createElement('section');
+    group.className = 'calendar-week-day-group';
+    group.dataset.calendarWeekGroup = day.date;
+    group.dataset.selected = String(day.date === state.selectedDate);
+    group.dataset.today = String(day.date === state.todayDate);
+    group.dataset.weekday = String(day.weekday);
+    const header = document.createElement('div');
+    header.className = 'calendar-week-day-header';
+    const heading = document.createElement('h3');
+    heading.className = 'calendar-week-day-heading';
+    heading.tabIndex = -1;
+    if (day.date === state.todayDate) {
+      const todayBadge = document.createElement('span');
+      todayBadge.className = 'calendar-day-today';
+      todayBadge.textContent = '오늘';
+      heading.append(todayBadge, ' ');
     }
-    section.appendChild(toggle);
-  }
-
-  if (layout === 'timegrid') {
-    section.appendChild(renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
-  } else {
-    const list = document.createElement('div');
-    list.className = 'calendar-week-list';
-    for (const day of days) {
-      const group = document.createElement('section');
-      group.className = 'calendar-week-day-group';
-      group.dataset.calendarWeekGroup = day.date;
-      group.dataset.selected = String(day.date === state.selectedDate);
-      group.dataset.today = String(day.date === state.todayDate);
-      const header = document.createElement('div');
-      header.className = 'calendar-week-day-header';
-      const heading = document.createElement('h3');
-      heading.className = 'calendar-week-day-heading';
-      heading.tabIndex = -1;
-      if (day.date === state.todayDate) {
-        const todayBadge = document.createElement('span');
-        todayBadge.className = 'calendar-day-today';
-        todayBadge.textContent = '오늘';
-        heading.append(todayBadge, ' ');
+    heading.append(longKoreanDate(day.date));
+    header.appendChild(heading);
+    if (state.showLunarDates) {
+      const lunarLabel = lunarDateLabel(solarToLunar(day.date));
+      if (lunarLabel) {
+        const lunar = document.createElement('span');
+        lunar.className = 'calendar-week-day-lunar';
+        lunar.textContent = `음력 ${lunarLabel}`;
+        header.appendChild(lunar);
       }
-      heading.append(longKoreanDate(day.date));
-      header.appendChild(heading);
-      if (state.showLunarDates) {
-        const lunarLabel = lunarDateLabel(solarToLunar(day.date));
-        if (lunarLabel) {
-          const lunar = document.createElement('span');
-          lunar.className = 'calendar-week-day-lunar';
-          lunar.textContent = `음력 ${lunarLabel}`;
-          header.appendChild(lunar);
-        }
-      }
-      const holiday = holidayMap.get(day.date);
-      if (holiday) {
-        const holidayLine = document.createElement('span');
-        holidayLine.className = 'calendar-week-holiday';
-        holidayLine.textContent = holiday.name;
-        header.appendChild(holidayLine);
-      }
-      const weather = dayWeatherNode(weatherByDate.get(day.date), {precipitation: state.showPrecipitation !== false});
-      if (weather) header.appendChild(weather);
-      group.appendChild(header);
-      const timeline = lifeTimelineNodes(state.items, day.date, {today: state.todayDate, onSelect: actions.onEvent});
-      if (timeline) group.appendChild(timeline);
-      else group.appendChild(emptyMessage(state.loading ? '…' : '기록 없음'));
-      list.appendChild(group);
     }
-    section.appendChild(list);
+    const holiday = holidayMap.get(day.date);
+    if (holiday) {
+      const holidayLine = document.createElement('span');
+      holidayLine.className = 'calendar-week-holiday';
+      holidayLine.textContent = holiday.name;
+      header.appendChild(holidayLine);
+    }
+    const weather = dayWeatherNode(weatherByDate.get(day.date), {precipitation: state.showPrecipitation !== false});
+    if (weather) header.appendChild(weather);
+    group.appendChild(header);
+    const timeline = lifeTimelineNodes(state.items, day.date, {today: state.todayDate, onSelect: actions.onEvent});
+    if (timeline) group.appendChild(timeline);
+    else group.appendChild(emptyMessage(state.loading ? '…' : '기록 없음'));
+    list.appendChild(group);
   }
+  section.appendChild(list);
 
   if (weatherCredit) {
     const credit = document.createElement('p');
