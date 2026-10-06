@@ -81,7 +81,7 @@ assert.match(walletSource, /MAX_PIN_FAILURES = 5/u);
 assert.doesNotMatch(walletSource, /localStorage/u, 'wallet must not store secrets or data in localStorage');
 assert.doesNotMatch(walletSource, /fetch\s*\(/u, 'wallet must not upload data');
 assert.doesNotMatch(walletSource, /PublicKeyCredential|navigator\.credentials|WebAuthn/u, 'PC wallet must not claim or invoke device authentication');
-assert.match(walletSource, /Windows Hello·지문·Face ID를 지원하는 것처럼 표시하지 않습니다/u);
+assert.doesNotMatch(walletSource, /Windows Hello·지문·Face ID를 지원하는 것처럼 표시하지 않습니다|PC Web은 4자리 월렛 PIN만 사용합니다/u);
 assert.match(walletSource, /AI로 재작성하지 않고 그대로 암호화/u);
 assert.match(consumerSource, /mountLifeWallet/u);
 assert.match(conversationSource, /accountId: serverIdentity\?\.userId/u);
