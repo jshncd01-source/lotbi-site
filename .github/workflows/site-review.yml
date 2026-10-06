@@ -438,6 +438,12 @@ jobs:
       - name: Validate message copy and two-option share actions
         run: node scripts/validate_message_share_actions_01.mjs
 
+      # Until Core configures KakaoTalk sharing, "카카오톡 공유하기" copies the
+      # answer and link without requesting the Kakao SDK; once configured it
+      # opens the KakaoTalk share screen. Both states are exercised.
+      - name: Validate KakaoTalk share fallback and configured paths
+        run: node scripts/validate_kakao_share_fallback_01.mjs
+
       # CHATPERF-08 — a chat photo is analysis input, never a thing this Site
       # offers to save to the gallery or forces into a memory/calendar prompt.
       - name: Validate chat photo has no forced gallery/memory actions
