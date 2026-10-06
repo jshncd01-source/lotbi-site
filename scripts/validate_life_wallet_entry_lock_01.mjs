@@ -69,7 +69,10 @@ await assert.rejects(() => limitedWallet.unlock('rate-limited-account', '1357'),
 assert.match(walletSource, /PIN_KDF_ITERATIONS = 310_000/u);
 assert.match(walletSource, /generateKey\(\{name: 'AES-GCM', length: 256\}, false/u, 'device key must be non-extractable');
 assert.match(walletSource, /document\.visibilityState === 'hidden'/u);
-assert.match(walletSource, /INACTIVITY_MS = 60_000/u);
+assert.match(walletSource, /INACTIVITY_MS = 10 \* 60_000/u);
+assert.match(walletSource, /10분 동안 사용하지 않아 다시 잠겼습니다\./u);
+assert.match(walletSource, /10분 비활동 시 자동으로 다시 잠깁니다\./u);
+assert.doesNotMatch(walletSource, /60초 동안 사용하지 않아|60초 비활동/u);
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);
 assert.match(walletSource, /detail\?\.authenticated === false/u);
