@@ -31,7 +31,7 @@
 // sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
 // ordering/filtering (region, time window, distance) is Core-authoritative
 // via browseFestivals; nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-37c583c4c76b';
+import {CORE_ORIGIN} from './site-core.js?v=aset-418d8dc4afcf';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -106,6 +106,40 @@ const REGION_FALLBACK_PROVINCES = Object.freeze([
   '대전광역시', '세종특별자치시', '전북특별자치도', '광주광역시', '전라남도',
   '대구광역시', '경상북도', '부산광역시', '울산광역시', '경상남도', '제주특별자치도',
 ]);
+
+export function listFestivalRegionChoices(provinces = []) {
+  const uniqueProvinces = [...new Set(
+    (Array.isArray(provinces) ? provinces : [])
+      .map(value => String(value || '').trim())
+      .filter(value => value && value !== '전국'),
+  )];
+  return ['전국', ...uniqueProvinces];
+}
+
+export function buildFestivalBrowseLocationQuery({
+  region = '',
+  municipality = '',
+  locationMode = 'NONE',
+  currentPosition = null,
+  currentRegionLabel = '',
+} = {}) {
+  const manualRegion = String(region || '').trim();
+  if (manualRegion) {
+    const query = {region: manualRegion};
+    const manualMunicipality = String(municipality || '').trim();
+    if (manualMunicipality) query.municipality = manualMunicipality;
+    return query;
+  }
+
+  const latitude = currentPosition?.latitude;
+  const longitude = currentPosition?.longitude;
+  if (locationMode !== 'CURRENT' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return {};
+
+  const query = {latitude, longitude};
+  const resolvedRegion = String(currentRegionLabel || '').trim();
+  if (resolvedRegion) query.region = resolvedRegion;
+  return query;
+}
 
 // Each 광역시·도's official administrative-center coordinates, used only to
 // classify a GPS reading into a display label ("현재 위치 기준 · 전북특별자치도").
