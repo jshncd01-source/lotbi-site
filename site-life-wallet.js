@@ -617,6 +617,91 @@ export function createWalletPhotoPicker({onError = () => {}} = {}) {
   });
 }
 
+export function createWalletCardCarousel({cards, onOpen}) {
+  const shell = element('section', 'wallet-card-carousel');
+  shell.setAttribute('aria-label', '저장 자료');
+  const viewport = element('div', 'wallet-card-viewport');
+  viewport.tabIndex = 0;
+  viewport.setAttribute('aria-label', '저장 자료 카드 슬라이더');
+  const track = element('div', 'wallet-card-track');
+  const items = cards.map((card, index) => {
+    const item = button('', () => onOpen(card), true);
+    item.className = 'wallet-card';
+    item.setAttribute('aria-label', `${index + 1}번째 저장 자료 열기`);
+    const image = element('img', 'wallet-card-image');
+    image.src = card.frontDataUrl;
+    image.alt = `${index + 1}번째 저장 자료`;
+    item.append(image);
+    track.append(item);
+    return item;
+  });
+  viewport.append(track);
+  shell.append(viewport);
+
+  if (items.length < 2) {
+    shell.classList.add('wallet-card-carousel-single');
+    items[0]?.setAttribute('aria-current', 'true');
+    return shell;
+  }
+
+  let currentIndex = 0;
+  const navigation = element('div', 'wallet-card-navigation');
+  const previous = button('‹', () => show(currentIndex - 1), true);
+  previous.className = 'wallet-card-arrow';
+  previous.dataset.walletCarouselPrevious = '';
+  previous.setAttribute('aria-label', '이전 자료');
+  const position = element('span', 'wallet-card-position');
+  position.setAttribute('aria-live', 'polite');
+  const next = button('›', () => show(currentIndex + 1), true);
+  next.className = 'wallet-card-arrow';
+  next.dataset.walletCarouselNext = '';
+  next.setAttribute('aria-label', '다음 자료');
+
+  function updateState(index) {
+    currentIndex = Math.max(0, Math.min(index, items.length - 1));
+    items.forEach((item, itemIndex) => {
+      if (itemIndex === currentIndex) item.setAttribute('aria-current', 'true');
+      else item.removeAttribute('aria-current');
+    });
+    previous.disabled = currentIndex === 0;
+    next.disabled = currentIndex === items.length - 1;
+    position.textContent = `${currentIndex + 1} / ${items.length}`;
+  }
+
+  function show(index) {
+    updateState(index);
+    const item = items[currentIndex];
+    viewport.scrollTo({
+      left: Math.max(0, item.offsetLeft - ((viewport.clientWidth - item.clientWidth) / 2)),
+      behavior: 'smooth',
+    });
+  }
+
+  let scrollFrame = 0;
+  viewport.addEventListener('scroll', () => {
+    cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => {
+      const center = viewport.scrollLeft + (viewport.clientWidth / 2);
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      items.forEach((item, index) => {
+        const distance = Math.abs(center - (item.offsetLeft + (item.clientWidth / 2)));
+        if (distance < nearestDistance) { nearestDistance = distance; nearestIndex = index; }
+      });
+      if (nearestIndex !== currentIndex) updateState(nearestIndex);
+    });
+  }, {passive: true});
+  viewport.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    show(currentIndex + (event.key === 'ArrowRight' ? 1 : -1));
+  });
+  navigation.append(previous, position, next);
+  shell.append(navigation);
+  updateState(0);
+  return shell;
+}
+
 function downloadBackup(serialized) {
   const url = URL.createObjectURL(new Blob([serialized], {type: 'application/octet-stream'}));
   const anchor = document.createElement('a');
@@ -827,14 +912,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
         shell.append(empty);
       } else {
-        const list = element('div', 'wallet-card-grid');
-        for (const card of cards) {
-          const item = button('', () => renderDetail(card), true); item.className = 'wallet-card';
-          const image = element('img', 'wallet-card-image'); image.src = card.frontDataUrl; image.alt = `${card.name} 앞면`;
-          const details = element('span', 'wallet-card-copy'); details.append(element('strong', '', card.name), element('small', '', CARD_KINDS.find(([value]) => value === card.kind)?.[1] || '생활 자료'));
-          item.append(image, details); list.append(item);
-        }
-        shell.append(list);
+        shell.append(createWalletCardCarousel({cards, onOpen: renderDetail}));
       }
       shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
