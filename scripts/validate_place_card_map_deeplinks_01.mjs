@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
-import {
+import * as navigation from '../site-navigation.js';
+
+const {
   buildGoogleMapsDirectionsUrl,
+  buildDefaultMapHref,
+  buildKakaoMapsDirectionsUrl,
   buildKakaoNaviHandoffUrl,
   buildKakaoNaviSdkPayload,
   buildNaverMapsAndroidIntentUri,
@@ -13,7 +17,9 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from '../site-navigation.js';
+  openDefaultMapPlace,
+  defaultMapProviderPresentation,
+} = navigation;
 
 const ANDROID = 'Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile Safari/537.36';
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile Safari/604.1';
@@ -39,6 +45,11 @@ assert.deepEqual(buildKakaoNaviSdkPayload(PLACE), {
 const kakaoUrl = buildKakaoNaviHandoffUrl(PLACE);
 assert.match(kakaoUrl, /^https:\/\/lotbiai\.com\/kakao-navi\.html\?/u);
 assert.match(kakaoUrl, /coordType=wgs84/u);
+assert.equal(typeof buildKakaoMapsDirectionsUrl, 'function');
+assert.equal(
+  buildKakaoMapsDirectionsUrl(PLACE),
+  'https://map.kakao.com/link/to/%EC%84%A0%EC%9C%A0%EB%8F%84%20%EB%A6%AC%EC%A1%B0%ED%8A%B8,35.8012345,126.4567891',
+);
 
 const tmap = buildTmapMobileUri(PLACE);
 assert.match(tmap, /goalx=126\.4567891/u);
@@ -74,7 +85,7 @@ for (const [open, options, mode] of [
   [openNaverMapsPlace, {userAgent: ANDROID}, 'NAVER_NAVIGATION_INTENT_NEW_TAB'],
   [openNaverMapsPlace, {userAgent: IPHONE}, 'NAVER_NAVIGATION_URL_SCHEME_NEW_TAB'],
   [openNaverMapsPlace, {userAgent: DESKTOP}, 'NAVER_WEB_SEARCH_NEW_TAB'],
-  [openKakaoNaviPlace, {}, 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB'],
+  [openKakaoNaviPlace, {userAgent: ANDROID}, 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB'],
   [openTmapPlace, {userAgent: ANDROID}, 'TMAP_ROUTE_INTENT_NEW_TAB'],
   [openTmapPlace, {userAgent: IPHONE}, 'TMAP_ROUTE_URL_SCHEME_NEW_TAB'],
   [openGoogleMapsPlace, {}, 'GOOGLE_MAPS_NEW_TAB'],
@@ -90,8 +101,26 @@ for (const [open, options, mode] of [
 }
 
 const desktopTmap = openTmapPlace(PLACE, {windowRef: fakeWindow(), userAgent: DESKTOP});
-assert.equal(desktopTmap.opened, false);
-assert.equal(desktopTmap.mode, 'TMAP_MOBILE_ONLY');
+assert.equal(desktopTmap.opened, true);
+assert.equal(desktopTmap.mode, 'TMAP_DESKTOP_NAVER_WEB_FALLBACK');
+assert.match(desktopTmap.uri, /^https:\/\/map\.naver\.com\/p\/search\//u);
+assert.match(defaultMapProviderPresentation('TMAP', {userAgent: DESKTOP}).label, /네이버지도/u);
+assert.match(defaultMapProviderPresentation('TMAP', {userAgent: DESKTOP}).success, /티맵은 모바일 전용/u);
+
+const desktopKakao = openDefaultMapPlace('KAKAO_NAVI', PLACE, {windowRef: fakeWindow(), userAgent: DESKTOP});
+assert.equal(desktopKakao.mode, 'KAKAO_MAPS_WEB_NEW_TAB');
+assert.equal(desktopKakao.uri, buildKakaoMapsDirectionsUrl(PLACE));
+
+assert.equal(typeof openDefaultMapPlace, 'function');
+for (const [provider, expectedMode] of [
+  ['NAVER_MAP', 'NAVER_NAVIGATION_INTENT_NEW_TAB'],
+  ['KAKAO_NAVI', 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB'],
+  ['TMAP', 'TMAP_ROUTE_INTENT_NEW_TAB'],
+  ['GOOGLE_MAPS', 'GOOGLE_MAPS_NEW_TAB'],
+]) {
+  const result = openDefaultMapPlace(provider, PLACE, {windowRef: fakeWindow(), userAgent: ANDROID});
+  assert.equal(result.mode, expectedMode);
+}
 
 // Without a verified coordinate, every search-based fallback must still
 // carry the destination's full address -- never a truncated leading
@@ -110,5 +139,32 @@ const decodeQuery = uri => decodeURIComponent(uri).replace(/\+/gu, ' ');
 assert.match(decodeQuery(buildNaverMapsWebSearchUrl(NO_COORD_PLACE)), FULL_ADDRESS_PATTERN);
 assert.match(decodeQuery(buildNaverMapsMobileUri(NO_COORD_PLACE)), FULL_ADDRESS_PATTERN);
 assert.match(decodeQuery(buildTmapMobileUri(NO_COORD_PLACE)), FULL_ADDRESS_PATTERN);
+for (const provider of ['NAVER_MAP', 'KAKAO_NAVI', 'TMAP', 'GOOGLE_MAPS']) {
+  assert.doesNotThrow(() => buildDefaultMapHref(provider, NO_COORD_PLACE, {userAgent: DESKTOP}));
+}
+assert.match(decodeQuery(buildDefaultMapHref('KAKAO_NAVI', NO_COORD_PLACE, {userAgent: DESKTOP})), FULL_ADDRESS_PATTERN);
+assert.match(buildDefaultMapHref('KAKAO_NAVI', NO_COORD_PLACE, {userAgent: DESKTOP}), /^https:\/\/map\.kakao\.com\//u);
+
+const blockedWindow = {location: {href: 'https://lotbiai.com/'}, open: () => null};
+for (const provider of ['NAVER_MAP', 'KAKAO_NAVI', 'TMAP', 'GOOGLE_MAPS']) {
+  const blockedResult = openDefaultMapPlace(provider, PLACE, {windowRef: blockedWindow, userAgent: DESKTOP});
+  assert.equal(blockedResult.opened, false);
+  assert.match(blockedResult.fallbackUri || blockedResult.uri, /^https:\/\//u);
+}
+
+for (const provider of ['NAVER_MAP', 'TMAP']) {
+  const windowRef = fakeWindow();
+  const result = openDefaultMapPlace(provider, PLACE, {windowRef, userAgent: IPHONE});
+  assert.match(windowRef.calls[0][0], /^https:\/\/(?:map\.naver\.com|www\.google\.com|map\.kakao\.com)/u);
+  assert.match(result.uri, /^(?:nmap|tmap):\/\//u);
+  assert.equal(windowRef.children[0].location.href, result.uri);
+  assert.match(result.fallbackUri, /^https:\/\//u);
+}
+for (const provider of ['NAVER_MAP', 'TMAP']) {
+  const href = buildDefaultMapHref(provider, PLACE, {userAgent: IPHONE, origin: 'https://lotbiai.com'});
+  assert.match(href, /^https:\/\/lotbiai\.com\/map-handoff\.html\?/u);
+  assert.match(href, new RegExp(`provider=${provider}`, 'u'));
+  assert.match(href, /fallback=https%3A%2F%2Fmap\.naver\.com/u);
+}
 
 console.log('Place Card navigation handoff contract: PASS');

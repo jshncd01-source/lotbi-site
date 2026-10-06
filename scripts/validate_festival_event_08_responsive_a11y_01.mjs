@@ -422,11 +422,10 @@ assert.match(
   /여의동로 330/u,
   '네이버지도 목적지에 축제 주소 전체(도로명+번지)가 포함되어야 한다',
 );
-assert.ok(card.kakaoUri && card.kakaoUri.includes('/kakao-navi.html'), '카카오내비는 kakao-navi.html 핸드오프 페이지로 열려야 한다');
-// Kakao Navi always routes by verified coordinate -- confirm the festival's
-// actual lat/lng reach the handoff, not a re-derived or truncated value.
-assert.match(card.kakaoUri, /x=126\.93/u);
-assert.match(card.kakaoUri, /y=37\.52/u);
+assert.match(card.kakaoUri || '', /^https:\/\/map\.kakao\.com\/link\/to\//u,
+  '데스크톱 카카오는 카카오맵 웹 길찾기로 열려야 한다');
+// Confirm the festival's verified coordinate reaches the desktop web route.
+assert.match(decodeURIComponent(card.kakaoUri), /,37\.52,126\.93/u);
 assert.equal(card.tmapBtnPresent, false, 'TMAP은 모바일 전용이므로 데스크톱 UA에서는 렌더되지 않아야 한다');
 assert.equal(card.calendarTriggerPresent, true, '캘린더 추가 액션이 카드에 직접 있어야 한다');
 
