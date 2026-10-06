@@ -247,6 +247,12 @@ jobs:
           node scripts/validate_conversation_calendar_card_02.mjs
           node scripts/validate_calendar_day_list_range_01.mjs
 
+      # LIFE-PUBLIC-DATA-01 / FEATURE B: NEIS 급식·학사일정·시간표 카드와 학교 저장.
+      - name: Validate NEIS school card, school preference and explicit calendar add
+        run: |
+          node --check site-life-school.js
+          node scripts/validate_life_neis_school_01.mjs
+
       - name: Validate voice wake phrase matching
         run: |
           node --check site-voice-wake.js

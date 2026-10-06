@@ -688,8 +688,29 @@ function normalizeEvidenceCoverage(placeResult) {
   });
 }
 
+// LIFE-PUBLIC-DATA-01 / NEIS: the chosen school's public NEIS identifiers only.
+function normalizeConversationClientSchool(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const officeCode = typeof value.office_code === 'string' ? value.office_code.trim().toUpperCase() : '';
+  const schoolCode = typeof value.school_code === 'string' ? value.school_code.trim() : '';
+  const name = typeof value.name === 'string' ? value.name.replace(/\s+/gu, ' ').trim() : '';
+  if (!/^[A-Z][0-9]{2}$/u.test(officeCode) || !/^[0-9]{7,10}$/u.test(schoolCode) || !/^[0-9A-Za-z가-힣·()\- ]{2,60}$/u.test(name)) return null;
+  const kind = typeof value.kind === 'string' && /^[가-힣]{2,20}$/u.test(value.kind.trim()) ? value.kind.trim() : '';
+  const grade = Number.isInteger(value.grade) && value.grade >= 1 && value.grade <= 6 ? value.grade : null;
+  const className = typeof value.class_name === 'string' && /^[0-9A-Za-z가-힣]{1,4}$/u.test(value.class_name.trim()) ? value.class_name.trim() : '';
+  return Object.freeze({
+    office_code: officeCode,
+    school_code: schoolCode,
+    name,
+    ...(kind ? {kind} : {}),
+    ...(grade !== null ? {grade} : {}),
+    ...(className ? {class_name: className} : {}),
+  });
+}
+
 function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
+  const school = normalizeConversationClientSchool(identity?.school);
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
   const conversationId = typeof identity?.conversationId === 'string' ? identity.conversationId.trim() : '';
   const turnId = typeof identity?.turnId === 'string' ? identity.turnId.trim() : '';
@@ -713,6 +734,7 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   }
   return Object.freeze({
     timezone: timezoneName,
+    ...(school ? {school} : {}),
     ...(createdAt ? {turn_created_at: createdAt} : {}),
     ...(conversationId ? {conversation_id: conversationId} : {}),
     ...(turnId ? {turn_id: turnId} : {}),
@@ -906,6 +928,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
+    schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
@@ -990,6 +1013,7 @@ function normalizeConversationRecentContext(recentContext) {
 
 export async function sendGuestConversationMessage({
   guestToken,
+  school = null,
   text,
   idempotencyKey,
   recentContext = [],
@@ -1018,6 +1042,7 @@ export async function sendGuestConversationMessage({
   }
 
   const clientContext = conversationClientContext(timezoneName, turnCreatedAt, {
+    school,
     conversationId,
     turnId,
     logicalRequestId,
@@ -1084,6 +1109,7 @@ export async function sendGuestConversationMessage({
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
+    schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),

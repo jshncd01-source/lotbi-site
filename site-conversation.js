@@ -1,23 +1,24 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-c614fd9a29ca';
-import * as siteCore from './site-core.js?v=aset-c614fd9a29ca';
-import './site-scam-shield.js?v=aset-c614fd9a29ca';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-c614fd9a29ca';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult} from './site-navigation.js?v=aset-c614fd9a29ca';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-c614fd9a29ca';
-import * as siteAttachments from './site-attachments.js?v=aset-c614fd9a29ca';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-c614fd9a29ca';
-import {deterministicReply} from './site-deterministic.js?v=aset-c614fd9a29ca';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-c614fd9a29ca';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-c614fd9a29ca';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-c614fd9a29ca';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-c614fd9a29ca';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-c614fd9a29ca';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-c614fd9a29ca';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-c614fd9a29ca';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-c614fd9a29ca';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-c614fd9a29ca';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-c614fd9a29ca';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-c614fd9a29ca';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-edcaf62accde';
+import * as siteCore from './site-core.js?v=aset-edcaf62accde';
+import './site-scam-shield.js?v=aset-edcaf62accde';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-edcaf62accde';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult} from './site-navigation.js?v=aset-edcaf62accde';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-edcaf62accde';
+import * as siteAttachments from './site-attachments.js?v=aset-edcaf62accde';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-edcaf62accde';
+import {deterministicReply} from './site-deterministic.js?v=aset-edcaf62accde';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-edcaf62accde';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-edcaf62accde';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-edcaf62accde';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-edcaf62accde';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-edcaf62accde';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-edcaf62accde';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-edcaf62accde';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-edcaf62accde';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-edcaf62accde';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-edcaf62accde';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-edcaf62accde';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-edcaf62accde';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -168,7 +169,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-c614fd9a29ca';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-edcaf62accde';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -1220,6 +1221,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     sortThreads(); saveState(); renderRecent();
   };
   const lotbiBoxKey = () => storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box');
+  // LIFE-PUBLIC-DATA-01 / NEIS: the chosen school lives with this namespace's settings.
+  const lifeSchoolKey = () => storageKey(namespace || anonymousConversationNamespace(), 'life-school');
+  const rememberSchoolPreferencePatch = schoolResult => {
+    const patch = schoolResult?.save_preference;
+    if (!patch || !Number.isInteger(patch.grade)) return;
+    const saved = readSchoolPreference(lifeSchoolKey(), storage);
+    if (saved) writeSchoolPreference(lifeSchoolKey(), {...saved, grade: patch.grade, class_name: String(patch.class_name || '')}, storage);
+  };
   const loadLotbiBox = () => {
     const parsed = safeParse(storage?.getItem(lotbiBoxKey()), []);
     return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.key === 'string').slice(0, 100) : [];
@@ -2499,6 +2508,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const calendarDraft = createConversationCalendarDraft(message.meta.calendarDraft);
       if (calendarDraft) node.appendChild(calendarDraft);
     }
+    if (message.role === 'assistant' && message.meta?.schoolResult) {
+      const schoolCard = createSchoolResultCard(message.meta.schoolResult, {
+        document,
+        onSelectSchool: (school, resumeText) => {
+          if (!writeSchoolPreference(lifeSchoolKey(), school, storage)) return;
+          setStatus(`${school.name}을(를) 자녀 학교로 저장했어요.`);
+          if (resumeText && !inFlight) void requestAssistant(resumeText, true);
+        },
+        onAddToCalendar: draft => openCalendar(draft?.localDate ? 'month' : 'agenda', {initialDraft: draft, restoreConversation: true}),
+        onChangeSchool: () => {
+          clearSchoolPreference(lifeSchoolKey(), storage);
+          setStatus('저장된 학교를 지웠어요. 학교 이름을 말씀해 주시면 다시 찾아볼게요.');
+        },
+      });
+      if (schoolCard) node.appendChild(schoolCard);
+    }
     if (message.role === 'assistant' && ['sos', 'found'].includes(message.meta?.petAction?.target)) {
       const action = document.createElement('button');
       action.type = 'button';
@@ -2922,7 +2947,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-c614fd9a29ca');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-edcaf62accde');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2950,7 +2975,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-c614fd9a29ca');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-edcaf62accde');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3147,8 +3172,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-c614fd9a29ca'),
-          import('./site-pet.js?v=aset-c614fd9a29ca'),
+          import('./site-person.js?v=aset-edcaf62accde'),
+          import('./site-pet.js?v=aset-edcaf62accde'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3157,11 +3182,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-c614fd9a29ca');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-edcaf62accde');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-c614fd9a29ca');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-edcaf62accde');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4115,10 +4140,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       diagnostics.lastPath = 'CORE_GUEST_CONVERSATION'; diagnostics.coreCalls += 1;
       const coreStartedAt = performanceNow(); recordTiming('T1-core-guest-request', {coreCall: diagnostics.coreCalls});
       try {
+        const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
         const token = await ensureGuestSession();
         if (!turnStillActive()) return;
         const response = await sendGuestConversationMessage({
           guestToken: token,
+          ...(lifeSchool ? {school: lifeSchool} : {}),
           text: message,
           idempotencyKey: guestRequestId,
           recentContext: recentConversationContext(),
@@ -4165,6 +4192,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
+        const schoolMeta = compactSchoolResultMeta(response.schoolResult);
+        if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
         const placeResult = compactPlaceResultMeta(response.placeResult);
         if (placeResult) meta.placeResult = placeResult;
         const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
@@ -4230,6 +4259,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const thinking = beginRequestThinking(authenticatedRequestId); inFlight = true; updateSendState(); setVoiceFeedback('');
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
+    const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
     try {
       const activeSessionToken = sessionToken;
       const response = await sendConversationMessage(
@@ -4242,6 +4272,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         sourceTurnCreatedAtIso,
         recentConversationContext(),
         {
+          ...(lifeSchool ? {school: lifeSchool} : {}),
           conversationId: activeConversationId,
           turnId: authenticatedRequestId,
           logicalRequestId: authenticatedRequestId,
@@ -4283,6 +4314,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
+      const schoolMeta = compactSchoolResultMeta(response.schoolResult);
+      if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
       const placeResult = compactPlaceResultMeta(response.placeResult);
       if (placeResult) meta.placeResult = placeResult;
       const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});

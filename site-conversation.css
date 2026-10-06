@@ -2915,3 +2915,63 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
     transition: none;
   }
 }
+
+/* LIFE-PUBLIC-DATA-01 / NEIS school card: meals, 학사일정, 시간표, school choice. */
+.lotbi-school-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 16px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.lotbi-school-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.lotbi-school-card-title { font-size: 14px; font-weight: 800; }
+.lotbi-school-card-range,
+.lotbi-school-date,
+.lotbi-school-calories,
+.lotbi-school-legend,
+.lotbi-school-source { color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-school-legend { margin: 0; }
+.lotbi-school-dishes,
+.lotbi-school-events,
+.lotbi-school-timetable { margin: 4px 0 0; padding-left: 18px; }
+.lotbi-school-timetable { list-style: none; padding-left: 0; }
+.lotbi-school-allergens { color: var(--lotbi-text-secondary, #4d535d); font-size: 11px; letter-spacing: .02em; }
+.lotbi-school-event { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin: 2px 0; }
+
+.lotbi-school-calendar-add,
+.lotbi-school-change,
+.lotbi-school-candidate {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid rgba(116, 126, 145, .32);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.lotbi-school-candidates { display: grid; gap: 6px; }
+.lotbi-school-candidate { display: grid; gap: 2px; justify-items: start; border-radius: 14px; text-align: left; }
+.lotbi-school-candidate span { color: var(--lotbi-text-secondary, #4d535d); font-size: 11.5px; font-weight: 600; }
+.lotbi-school-card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+
+.lotbi-school-calendar-add:focus-visible,
+.lotbi-school-change:focus-visible,
+.lotbi-school-candidate:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+
+body[data-site-theme="dark"] .lotbi-school-card { border-color: rgba(198, 207, 221, .24); }
