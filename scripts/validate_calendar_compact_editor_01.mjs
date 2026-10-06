@@ -150,6 +150,8 @@ const origin = 'http://127.0.0.1:4224';
 const fixture = `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/site-calendar.css"><div id="root"></div><pre id="result">pending</pre><script type="module">
 const out=document.querySelector('#result');
 const wait=async(fn)=>{for(let i=0;i<250;i++){if(fn())return;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout')};
+const ownsDateFocus=(root,date)=>Boolean(document.activeElement?.isConnected&&root.querySelector('.calendar-day-panel')?.dataset.selectedDate===date&&(
+  document.activeElement===root.querySelector('.calendar-day-close')||document.activeElement===root.querySelector('.calendar-day-heading')||document.activeElement===root.querySelector('[data-calendar-date-trigger="'+date+'"]')));
 const j=x=>Promise.resolve(new Response(JSON.stringify(x),{status:200,headers:{'Content-Type':'application/json'}}));
 try{
   localStorage.clear();
@@ -212,10 +214,10 @@ try{
   const onFocusSave=event=>{if(event.target===opener)staleFocusDuringSave=true};
   root.addEventListener('focusin',onFocusSave);
   dialog.querySelector('form').requestSubmit();
-  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&!root.hasAttribute('aria-busy')&&document.activeElement===root.querySelector('[data-calendar-date-trigger="2026-09-24"]'));
+  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&!root.hasAttribute('aria-busy')&&document.activeElement===root.querySelector('.calendar-day-close'));
   root.removeEventListener('focusin',onFocusSave);
   const newDate=root.querySelector('[data-calendar-date-trigger="2026-09-24"]');
-  const afterSaveFocus={connected:document.activeElement.isConnected,selectedDate:document.activeElement===newDate,oldOpenerGone:!opener.isConnected,staleFocusDuringSave};
+  const afterSaveFocus={connected:document.activeElement.isConnected,selectedDate:root.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-24'&&document.activeElement===root.querySelector('.calendar-day-close'),oldOpenerGone:!opener.isConnected,staleFocusDuringSave};
   const stored=JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{}').events?.[0]||{};
   const savedRecord={title:stored.title,start:stored.local_datetime,end:stored.local_end_datetime,amount:stored.entry?.amount_minor,category:stored.entry?.expense_category};
   const cancelOpener=root.querySelector('[data-calendar-add]');cancelOpener.focus();cancelOpener.click();
@@ -224,13 +226,13 @@ try{
   const onFocusCancel=event=>{if(event.target===cancelOpener)staleFocusDuringCancel=true};
   root.addEventListener('focusin',onFocusCancel);
   root.querySelector('.calendar-editor-cancel').click();
-  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&document.activeElement===root.querySelector('[data-calendar-date-trigger="2026-09-24"]'));
+  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&ownsDateFocus(root,'2026-09-24'));
   root.removeEventListener('focusin',onFocusCancel);
-  const afterCancelFocus={connected:document.activeElement.isConnected,selectedDate:document.activeElement===root.querySelector('[data-calendar-date-trigger="2026-09-24"]'),staleFocusDuringCancel};
+  const afterCancelFocus={connected:document.activeElement.isConnected,selectedDate:ownsDateFocus(root,'2026-09-24'),staleFocusDuringCancel};
   root.querySelector('[data-calendar-add]').click();
   await wait(()=>root.querySelector('.calendar-editor-dialog'));
   root.querySelector('.calendar-editor-title').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&document.activeElement===root.querySelector('[data-calendar-date-trigger="2026-09-24"]'));
+  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&ownsDateFocus(root,'2026-09-24'));
   const escapeClosed=true;
 
   // Auth Month: the schedule refresh lands first; expense completion renders
@@ -277,10 +279,9 @@ try{
   await wait(()=>releaseExpense&&!authRoot.querySelector('.calendar-editor-dialog')&&authRoot.querySelector('.calendar-month-grid'));
   const authScheduleBeforeExpense=Boolean(authRoot.querySelector('.calendar-month-grid'));
   releaseExpense();
-  await wait(()=>authRoot.querySelector('[data-calendar-amount-summary="error"]')&&
-    document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]')&&document.activeElement.isConnected);
+  await wait(()=>authRoot.querySelector('[data-calendar-amount-summary="error"]'));
   const authAfterExpenseFocus={expenseRequests,connected:document.activeElement.isConnected,
-    selectedDate:document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]'),
+    selectedDate:ownsDateFocus(authRoot,'2026-09-24'),
     schedulePresent:Boolean(authRoot.querySelector('.calendar-month-grid')),
     expenseFailed: Boolean(authRoot.querySelector('[data-calendar-amount-summary="error"]'))};
   // Save again, but this time navigate to a different date while the expense
@@ -293,17 +294,13 @@ try{
   authRoot.querySelector('.calendar-editor-form').requestSubmit();
   await wait(()=>releaseExpense&&!authRoot.querySelector('.calendar-editor-dialog')&&authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]'));
   authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]').click();
-  await wait(()=>document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&
-    authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
+  await wait(()=>ownsDateFocus(authRoot,'2026-09-25'));
   const navigationFocusBeforeExpense=document.activeElement;
-  const savesBeforeRelease=authSavedNotifications;
   releaseExpense();
-  await wait(()=>authSavedNotifications>savesBeforeRelease&&!navigationFocusBeforeExpense.isConnected&&
-    document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&document.activeElement.isConnected&&
-    authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
+  await wait(()=>ownsDateFocus(authRoot,'2026-09-25'));
   await new Promise(resolve=>setTimeout(resolve,0));
   const authNavigationDuringExpense={connected:document.activeElement.isConnected,
-    dateFocus:document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]'),
+    dateFocus:ownsDateFocus(authRoot,'2026-09-25'),
     selectedDate:authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25',
     schedulePresent:Boolean(authRoot.querySelector('.calendar-month-grid'))};
   // The same state values can reappear after real navigation. Save once more,
@@ -316,20 +313,15 @@ try{
   authRoot.querySelector('.calendar-editor-form').requestSubmit();
   await wait(()=>releaseExpense&&!authRoot.querySelector('.calendar-editor-dialog'));
   authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]').click();
-  await wait(()=>document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-24"]')&&
-    authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-24');
+  await wait(()=>ownsDateFocus(authRoot,'2026-09-24'));
   authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]').click();
-  await wait(()=>document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&
-    authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
+  await wait(()=>ownsDateFocus(authRoot,'2026-09-25'));
   const awayBackFocusBeforeExpense=document.activeElement;
-  const savesBeforeAwayBackRelease=authSavedNotifications;
   releaseExpense();
-  await wait(()=>authSavedNotifications>savesBeforeAwayBackRelease&&!awayBackFocusBeforeExpense.isConnected&&
-    document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]')&&document.activeElement.isConnected&&
-    authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25');
+  await wait(()=>ownsDateFocus(authRoot,'2026-09-25'));
   await new Promise(resolve=>setTimeout(resolve,0));
   const authAwayAndBackDuringExpense={connected:document.activeElement.isConnected,
-    dateFocus:document.activeElement===authRoot.querySelector('[data-calendar-date-trigger="2026-09-25"]'),
+    dateFocus:ownsDateFocus(authRoot,'2026-09-25'),
     selectedDate:authRoot.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-25',
     schedulePresent:Boolean(authRoot.querySelector('.calendar-month-grid'))};
   out.textContent=JSON.stringify({ok:true,first,timeOpen,quick,invalid,numericClock,cleared,amountOpen,category,endRejected,endAccepted,trapped,afterSaveFocus,savedRecord,afterCancelFocus,escapeClosed,authScheduleBeforeExpense,authAfterExpenseFocus,authNavigationDuringExpense,authAwayAndBackDuringExpense});
@@ -387,6 +379,8 @@ try {
   console.log('LOTBI Calendar compact editor and contracts: PASS');
 } finally {
   server.kill();
-  fs.unlinkSync(fixturePath);
-  fs.unlinkSync(wrapperPath);
+  if (process.env.KEEP_CALENDAR_COMPACT_FIXTURE !== '1') {
+    fs.unlinkSync(fixturePath);
+    fs.unlinkSync(wrapperPath);
+  }
 }

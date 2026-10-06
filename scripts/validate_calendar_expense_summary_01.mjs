@@ -181,7 +181,7 @@ try{
 
   const layout=root.querySelector('.calendar-month-layout');
   result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
-  result.layoutSecondIsDayPanel=Boolean(layout?.children[1]?.classList.contains('calendar-day-panel'));
+  result.layoutHasNoAutomaticDayPanel=!layout?.querySelector('.calendar-day-panel');
   result.lineInsideMonth=Boolean(layout?.children[0]?.contains(ready));
   result.lineFollowsGrid=root.querySelector('.calendar-month-grid')?.compareDocumentPosition(ready)===Node.DOCUMENT_POSITION_FOLLOWING;
 
@@ -452,7 +452,7 @@ try {
     const fail = message => { throw new Error(`${label}: ${message}`); };
 
     if (!value.layoutFirstIsMonth) fail('month layout child 0 must stay the month grid');
-    if (!value.layoutSecondIsDayPanel) fail('month layout child 1 must stay the selected-day surface');
+    if (!value.layoutHasNoAutomaticDayPanel) fail('Month must not mount a selected-day surface before a date press');
     if (!value.lineInsideMonth || !value.lineFollowsGrid) fail('the amount line must sit inside the month surface, under the grid');
 
     // One quiet line.
