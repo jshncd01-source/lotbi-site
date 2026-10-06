@@ -12,9 +12,9 @@
 .wallet-keypad .consumer-action { min-height: 48px; padding: 8px; border-color: var(--lotbi-border-default); background: transparent; color: inherit; }
 .wallet-keypad .wallet-key-confirm { background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); }
 .wallet-message { min-height: 20px; margin: 0; color: var(--lotbi-error-text, #b42332); font-size: 13px; line-height: 1.6; text-align: center; }
-.wallet-security-note { max-width: 620px; margin: 20px auto 0; color: var(--consumer-muted); font-size: 12px; line-height: 1.65; text-align: center; }
-.wallet-shell { display: grid; gap: 24px; }
-.wallet-toolbar { display: flex; align-items: center; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid var(--lotbi-border-default); }
+.wallet-security-note { max-width: 620px; margin: 10px auto 0; color: var(--consumer-muted); font-size: 12px; line-height: 1.65; text-align: center; }
+.wallet-shell { display: grid; gap: 14px; }
+.wallet-toolbar { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--lotbi-border-default); }
 .wallet-toolbar > div { display: grid; gap: 4px; flex: 1; }
 .wallet-toolbar strong { font-size: 17px; }
 .wallet-toolbar span { color: var(--consumer-muted); font-size: 12px; }
@@ -31,15 +31,15 @@
 .wallet-empty { min-height: 330px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .wallet-empty h3 { margin: 0 0 10px; font-size: 20px; }
 .wallet-empty p { max-width: 500px; margin: 0 0 20px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
-.wallet-card-carousel { width: min(720px, 100%); min-width: 0; margin: 0 auto; }
+.wallet-card-carousel { width: min(600px, 100%); min-width: 0; margin: 0 auto; }
 .wallet-card-viewport { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; outline: none; }
 .wallet-card-viewport::-webkit-scrollbar { display: none; }
 .wallet-card-viewport:focus-visible { border-radius: 20px; box-shadow: 0 0 0 3px var(--lotbi-focus-ring, rgba(29, 78, 216, .24)); }
-.wallet-card-track { display: grid; grid-auto-flow: column; grid-auto-columns: min(88%, 520px); gap: 16px; padding: 8px 6% 14px; }
+.wallet-card-track { display: grid; grid-auto-flow: column; grid-auto-columns: min(84%, 460px); gap: 10px; padding: 2px 7% 6px; }
 .wallet-card-carousel-single .wallet-card-viewport { overflow-x: hidden; }
-.wallet-card-carousel-single .wallet-card-track { grid-auto-columns: min(100%, 560px); justify-content: center; padding-inline: 0; }
+.wallet-card-carousel-single .wallet-card-track { grid-auto-columns: min(100%, 460px); justify-content: center; padding-inline: 0; }
 .wallet-card { min-width: 0; display: block; padding: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--lotbi-border-default) 75%, transparent); border-radius: 20px; background: var(--lotbi-surface-subtle); color: inherit; cursor: pointer; appearance: none; scroll-snap-align: center; box-shadow: 0 12px 30px rgba(25, 31, 43, .14); }
-.wallet-card-image { display: block; width: 100%; aspect-ratio: 1.586; object-fit: cover; background: var(--lotbi-surface-subtle); }
+.wallet-card-image { display: block; width: 100%; aspect-ratio: 1.586; object-fit: cover; object-position: center; transform: scale(1.22); transform-origin: center; background: var(--lotbi-surface-subtle); }
 .wallet-card-navigation { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 2px; }
 .wallet-card-arrow { width: 38px; height: 38px; display: grid; place-items: center; padding: 0; border: 1px solid var(--lotbi-border-default); border-radius: 50%; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 25px; line-height: 1; cursor: pointer; }
 .wallet-card-arrow:disabled { cursor: default; opacity: .32; }
@@ -78,7 +78,7 @@
   .wallet-detail-images { grid-template-columns: 1fr; }
 }
 @media (max-width: 430px) {
-  .wallet-card-track { grid-auto-columns: 91%; gap: 12px; padding-inline: 2%; }
+  .wallet-card-track { grid-auto-columns: 88%; gap: 10px; padding-inline: 3%; }
   .wallet-card-carousel-single .wallet-card-track { grid-auto-columns: 100%; padding-inline: 0; }
   .wallet-card { border-radius: 16px; }
   .wallet-photo-picker { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; padding: 12px; }
