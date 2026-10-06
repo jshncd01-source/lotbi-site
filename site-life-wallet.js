@@ -1,3 +1,5 @@
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-2f1171d45683';
+
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
 const PIN_KDF_ITERATIONS = 310_000;
@@ -537,19 +539,13 @@ function safeMessage(error, fallback) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function readImageFile(file) {
-  if (!(file instanceof File)) return Promise.resolve('');
-  if (!['image/jpeg', 'image/png'].includes(file.type)) return Promise.reject(new Error('JPEG 또는 PNG 이미지만 등록할 수 있습니다.'));
-  if (file.size > 12 * 1024 * 1024) return Promise.reject(new Error('이미지는 한 장당 12MB 이하로 선택해 주세요.'));
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('이미지를 읽지 못했습니다.'));
-    reader.onerror = () => reject(new Error('이미지를 읽지 못했습니다.'));
-    reader.readAsDataURL(file);
-  });
+function validateImageFile(file) {
+  if (!(file instanceof File)) throw new Error('자료 사진을 선택해 주세요.');
+  if (!['image/jpeg', 'image/png'].includes(file.type)) throw new Error('JPEG 또는 PNG 이미지만 등록할 수 있습니다.');
+  if (file.size > 12 * 1024 * 1024) throw new Error('이미지는 한 장당 12MB 이하로 선택해 주세요.');
 }
 
-export function createWalletPhotoPicker({onError = () => {}} = {}) {
+export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}} = {}) {
   const fieldShell = element('div', 'wallet-field wallet-photo-field');
   const label = element('span', 'wallet-photo-label', '자료 사진 · 필수');
   const input = element('input', 'wallet-photo-input');
@@ -571,9 +567,19 @@ export function createWalletPhotoPicker({onError = () => {}} = {}) {
   copy.append(title, help);
   const trigger = button('사진 선택', () => input.click());
   trigger.classList.add('wallet-photo-action');
-  let selectionPromise = Promise.resolve('');
+  const scannerHost = element('div', 'wallet-photo-scanner-host');
+  let scanner = null;
+  let confirmedDataUrl = '';
+
+  const clearScanner = () => {
+    scanner?.destroy();
+    scanner = null;
+    scannerHost.replaceChildren();
+  };
 
   const resetSelection = () => {
+    confirmedDataUrl = '';
+    onReady(false);
     mark.hidden = false;
     preview.hidden = true;
     preview.removeAttribute('src');
@@ -587,33 +593,61 @@ export function createWalletPhotoPicker({onError = () => {}} = {}) {
     const file = input.files?.[0];
     if (!file) return;
     onError('');
-    selectionPromise = readImageFile(file).then(dataUrl => {
+    try {
+      validateImageFile(file);
+      clearScanner();
+      confirmedDataUrl = '';
+      onReady(false);
       mark.hidden = true;
-      preview.src = dataUrl;
-      preview.alt = `${file.name} 미리보기`;
-      preview.hidden = false;
-      title.textContent = file.name;
-      help.textContent = '선택한 사진을 암호화하여 저장합니다.';
-      trigger.textContent = '사진 변경';
-      return dataUrl;
-    }).catch(error => {
+      preview.hidden = true;
+      preview.removeAttribute('src');
+      title.textContent = '사진 보정 중';
+      help.textContent = '모서리와 보정 결과를 확인해 주세요.';
+      trigger.textContent = '다시 선택';
+      scanner = createWalletDocumentScanner({
+        file,
+        onConfirm(dataUrl) {
+          confirmedDataUrl = dataUrl;
+          clearScanner();
+          preview.src = dataUrl;
+          preview.alt = `보정된 ${file.name} 미리보기`;
+          preview.hidden = false;
+          title.textContent = file.name;
+          help.textContent = '확인한 보정 결과를 암호화하여 저장합니다.';
+          trigger.textContent = '사진 변경';
+          onReady(true);
+        },
+        onCancel() {
+          input.value = '';
+          clearScanner();
+          resetSelection();
+        },
+        onReplace() {
+          input.value = '';
+          clearScanner();
+          resetSelection();
+          input.click();
+        },
+      });
+      scannerHost.append(scanner.element);
+    } catch (error) {
       input.value = '';
+      clearScanner();
       resetSelection();
       onError(safeMessage(error, '사진을 선택하지 못했습니다.'));
-      return '';
-    });
+    }
   });
 
   picker.append(input, mark, preview, copy, trigger);
-  fieldShell.append(label, picker);
+  fieldShell.append(label, picker, scannerHost);
   return Object.freeze({
     element: fieldShell,
     input,
     async readDataUrl() {
-      const dataUrl = await selectionPromise;
-      if (!dataUrl) throw new Error('자료 사진을 선택해 주세요.');
-      return dataUrl;
+      if (!confirmedDataUrl) throw new Error('사진 보정 결과를 확인한 뒤 저장해 주세요.');
+      return confirmedDataUrl;
     },
+    destroy: clearScanner,
   });
 }
 
@@ -931,18 +965,20 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   function renderAdd() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     const kind = element('select'); for (const [value, label] of CARD_KINDS) { const option = element('option', '', label); option.value = value; kind.append(option); }
-    const photoPicker = createWalletPhotoPicker({onError: message => { status.textContent = message; }});
+    let save;
+    const photoPicker = createWalletPhotoPicker({onError: message => { status.textContent = message; }, onReady: ready => { if (save) save.disabled = !ready; }});
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
-    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
-    const save = button('암호화하여 저장'); save.type = 'submit'; actions.append(save);
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true));
+    save = button('암호화하여 저장'); save.type = 'submit'; save.disabled = true; actions.append(save);
     form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), photoPicker.element, field('메모 · 선택', note), actions, status,
-      element('p', 'wallet-security-note', 'JPEG·PNG 원본을 AI로 재작성하지 않고 그대로 암호화합니다. 이 자료는 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
+      element('p', 'wallet-security-note', '기울기·원근·여백과 화질을 이 브라우저에서만 보정합니다. 원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
         setBusy(form, true);
         const frontDataUrl = await photoPicker.readDataUrl();
         await vault.save(accountId, {id: randomId(), kind: kind.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
+        photoPicker.destroy();
         await renderWallet('자료를 암호화하여 저장했습니다.');
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }
     });
