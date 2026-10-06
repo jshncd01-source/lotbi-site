@@ -228,6 +228,11 @@ try{
     row.querySelector('dt')?.textContent||'',
     row.querySelector('dd')?.textContent||'',
   ]);
+  result.categoryPairGaps=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>{
+    const label=row.querySelector('dt')?.getBoundingClientRect();
+    const amount=row.querySelector('dd')?.getBoundingClientRect();
+    return amount&&label ? Math.round((amount.left-label.right)*100)/100 : null;
+  });
   result.categoryColumns=categoryList ? getComputedStyle(categoryList).gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
   const readCategoryStyles=()=>[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>{
     const itemStyle=getComputedStyle(row);
@@ -504,6 +509,7 @@ try {
       ['LIVING', '생활비', '94,000원'],
       ['OTHER', '기타', '0원'],
     ])) fail(`the month must show the five category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
+    if (value.categoryPairGaps.some(gap=>gap===null||gap<0||gap>8)) fail(`each category amount must sit directly beside its title, got gaps ${JSON.stringify(value.categoryPairGaps)}`);
     if (value.viewport.width <= 520 && value.categoryColumns !== 2) fail(`phone categories must use two columns, got ${value.categoryColumns}`);
     for (const theme of ['Light', 'Dark']) {
       const styles=value['categoryStyles'+theme];
