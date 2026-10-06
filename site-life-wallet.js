@@ -645,6 +645,7 @@ export function createWalletCardCarousel({cards, onOpen}) {
   }
 
   let currentIndex = 0;
+  let programmaticTargetLeft = null;
   const navigation = element('div', 'wallet-card-navigation');
   const previous = button('‹', () => show(currentIndex - 1), true);
   previous.className = 'wallet-card-arrow';
@@ -671,8 +672,10 @@ export function createWalletCardCarousel({cards, onOpen}) {
   function show(index) {
     updateState(index);
     const item = items[currentIndex];
+    const centeredLeft = item.offsetLeft - ((viewport.clientWidth - item.clientWidth) / 2);
+    programmaticTargetLeft = Math.max(0, Math.min(centeredLeft, viewport.scrollWidth - viewport.clientWidth));
     viewport.scrollTo({
-      left: Math.max(0, item.offsetLeft - ((viewport.clientWidth - item.clientWidth) / 2)),
+      left: programmaticTargetLeft,
       behavior: 'smooth',
     });
   }
@@ -681,6 +684,10 @@ export function createWalletCardCarousel({cards, onOpen}) {
   viewport.addEventListener('scroll', () => {
     cancelAnimationFrame(scrollFrame);
     scrollFrame = requestAnimationFrame(() => {
+      if (programmaticTargetLeft !== null) {
+        if (Math.abs(viewport.scrollLeft - programmaticTargetLeft) > 2) return;
+        programmaticTargetLeft = null;
+      }
       const center = viewport.scrollLeft + (viewport.clientWidth / 2);
       let nearestIndex = 0;
       let nearestDistance = Number.POSITIVE_INFINITY;

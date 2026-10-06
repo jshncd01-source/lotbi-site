@@ -52,16 +52,24 @@ try{
   const next=carousel.querySelector('[data-wallet-carousel-next]');
   const previous=carousel.querySelector('[data-wallet-carousel-previous]');
   next.click();
-  await sleep(80);
+  await sleep(350);
   const nextPosition=carousel.querySelector('.wallet-card-position')?.textContent;
   viewport.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
-  await sleep(80);
+  await sleep(350);
   const keyboardPosition=carousel.querySelector('.wallet-card-position')?.textContent;
   items[1].click();
   const single=createWalletCardCarousel({cards:[cards[0]],onOpen:()=>{}});
   document.getElementById('host').append(single);
+  const narrowHost=document.createElement('div');
+  narrowHost.style.width='390px';
+  narrowHost.style.maxWidth='100%';
+  const narrow=createWalletCardCarousel({cards,onOpen:()=>{}});
+  narrowHost.append(narrow);
+  document.body.append(narrowHost);
   const carouselRect=carousel.getBoundingClientRect();
   const firstRect=items[0].getBoundingClientRect();
+  const firstImageRect=items[0].querySelector('.wallet-card-image').getBoundingClientRect();
+  const viewportRect=viewport.getBoundingClientRect();
   out.textContent=JSON.stringify({
     ok:true,
     count:items.length,
@@ -74,8 +82,11 @@ try{
     opened:opened.join(','),
     swipeEnabled:getComputedStyle(viewport).scrollSnapType.includes('x')&&getComputedStyle(viewport).overflowX==='auto',
     nextCardPeek:firstRect.width<carouselRect.width,
+    compactCardFrame:firstRect.width<=480,
+    croppedToCardEdges:firstImageRect.width>firstRect.width&&firstImageRect.height>firstRect.height,
+    compactTrackPadding:(viewportRect.height-firstRect.height)<=12,
     singleControls:single.querySelectorAll('.wallet-card-navigation,.wallet-card-position').length,
-    overflow:carouselRect.right>document.documentElement.clientWidth,
+    overflow:narrow.getBoundingClientRect().right>narrowHost.getBoundingClientRect().right,
   });
 }catch(error){out.textContent=JSON.stringify({ok:false,error:String(error?.stack||error)})}
 </script></body></html>`;
@@ -108,7 +119,7 @@ try {
   waitForServer();
   const run = spawnSync(browserPath(), [
     '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--window-size=390,844', '--force-device-scale-factor=1', '--virtual-time-budget=1500',
+    '--window-size=1200,844', '--force-device-scale-factor=1', '--virtual-time-budget=1500',
     '--dump-dom', `${ORIGIN}/${FIXTURE_REL}`,
   ], {encoding: 'utf8', timeout: 40000, maxBuffer: 8 * 1024 * 1024});
   if (run.error) throw run.error;
@@ -124,6 +135,9 @@ try {
   assert.equal(result.opened, 'two', 'clicking the visible card must preserve the existing detail action');
   assert.equal(result.swipeEnabled, true, 'the wallet card viewport must support horizontal scroll snapping');
   assert.equal(result.nextCardPeek, true, 'multiple cards must leave a visible next-card cue');
+  assert.equal(result.compactCardFrame, true, 'wallet cards must stay compact instead of expanding into an image viewer');
+  assert.equal(result.croppedToCardEdges, true, 'the document image must crop surrounding photo margins inside the wallet card');
+  assert.equal(result.compactTrackPadding, true, 'the wallet slider must not add large vertical whitespace around cards');
   assert.equal(result.singleControls, 0, 'a single wallet card must not show carousel controls or position');
   assert.equal(result.overflow, false, 'the wallet carousel must fit a 390px mobile viewport');
   console.log('LIFE_WALLET_CARD_CAROUSEL_01 PASS');
