@@ -5,6 +5,7 @@ const BACKUP_KDF_ITERATIONS = 600_000;
 const INACTIVITY_MS = 10 * 60_000;
 const MAX_PIN_FAILURES = 5;
 const BACKUP_AAD = 'LOTBI_LIFE_WALLET_BACKUP_V1';
+const SESSION_GRANT_KEY = 'lotbi-life-wallet-unlock-v1';
 const CARD_KINDS = Object.freeze([
   ['identity', '신분·자격 자료'],
   ['membership', '회원증'],
@@ -106,6 +107,16 @@ function validateBackupPassword(password) {
   }
 }
 
+export function validateBackupPasswordPair(password, confirmation) {
+  validateBackupPassword(password);
+  if (password !== confirmation) throw new Error('백업 전용 암호가 일치하지 않습니다.');
+  return password;
+}
+
+export function canExportWalletBackup(cards) {
+  return Array.isArray(cards) && cards.length > 0;
+}
+
 export async function accountScope(accountId) {
   const normalized = typeof accountId === 'string' ? accountId.trim() : '';
   if (!normalized) throw new Error('로그인 계정을 확인할 수 없습니다.');
@@ -114,8 +125,14 @@ export async function accountScope(accountId) {
 
 function pinAad(scope) { return `lotbi-wallet-pin:v2:${scope}`; }
 function deviceAad(scope) { return `lotbi-wallet-device:v2:${scope}`; }
+function sessionAad(scope, expiresAt) { return `lotbi-wallet-session:v1:${scope}:${expiresAt}`; }
 function cardAad(scope, id) { return `lotbi-wallet-card:v1:${scope}:${id}`; }
 function storageKey(scope, id) { return `${scope}:${id}`; }
+
+function availableSessionStorage() {
+  try { return globalThis.sessionStorage || null; }
+  catch { return null; }
+}
 
 function request(value) {
   return new Promise((resolve, reject) => {
@@ -232,8 +249,10 @@ function validateCard(card) {
 }
 
 export class LifeWalletVault {
-  constructor(repository) {
+  constructor(repository, {sessionStorage = availableSessionStorage(), now = () => Date.now()} = {}) {
     this.repository = repository;
+    this.sessionStorage = sessionStorage;
+    this.now = now;
     this.unlocked = null;
   }
 
@@ -253,6 +272,7 @@ export class LifeWalletVault {
       const wrappedKey = await seal(deviceKey, JSON.stringify(pinEnvelope), deviceAad(scope));
       await this.repository.putVault({scope, version: 2, salt: bytesToBase64(salt), wrappedKey, failedAttempts: 0, pinBlocked: false});
       this.unlocked = {scope, key: await importAesKey(rawMasterKey)};
+      await this.persistUnlockGrant(scope, rawMasterKey);
     } finally {
       rawMasterKey.fill(0);
     }
@@ -266,7 +286,10 @@ export class LifeWalletVault {
     this.assertAttemptAllowed(vault);
     try {
       const rawMasterKey = await this.unwrapMasterKey(scope, vault, pin);
-      try { this.unlocked = {scope, key: await importAesKey(rawMasterKey)}; }
+      try {
+        this.unlocked = {scope, key: await importAesKey(rawMasterKey)};
+        await this.persistUnlockGrant(scope, rawMasterKey);
+      }
       finally { rawMasterKey.fill(0); }
       await this.repository.putVault({...vault, failedAttempts: 0, pinBlocked: false, retryAfter: undefined});
     } catch (error) {
@@ -302,7 +325,77 @@ export class LifeWalletVault {
     }
   }
 
-  lock() { this.unlocked = null; }
+  lock({preserveSession = false} = {}) {
+    this.unlocked = null;
+    if (!preserveSession) this.clearUnlockGrant();
+  }
+
+  async resumeUnlock(accountId) {
+    const scope = await accountScope(accountId);
+    const grant = this.readUnlockGrant();
+    if (!grant || grant.scope !== scope || grant.expiresAt <= this.now() || grant.expiresAt > this.now() + INACTIVITY_MS) {
+      this.clearUnlockGrant();
+      return false;
+    }
+    try {
+      const deviceKey = await this.repository.getDeviceKey(scope);
+      if (!deviceKey) throw new Error('이 브라우저의 월렛 보호 키를 찾지 못했습니다.');
+      const rawMasterKey = base64ToBytes(await openEnvelope(deviceKey, grant.envelope, sessionAad(scope, grant.expiresAt)));
+      try { this.unlocked = {scope, key: await importAesKey(rawMasterKey)}; }
+      finally { rawMasterKey.fill(0); }
+      return true;
+    } catch {
+      this.clearUnlockGrant();
+      return false;
+    }
+  }
+
+  async refreshUnlockGrant(accountId) {
+    const scope = await accountScope(accountId);
+    if (!this.unlocked || this.unlocked.scope !== scope) return false;
+    const grant = this.readUnlockGrant();
+    if (!grant || grant.scope !== scope || grant.expiresAt <= this.now()) {
+      this.clearUnlockGrant();
+      return false;
+    }
+    try {
+      const deviceKey = await this.repository.getDeviceKey(scope);
+      if (!deviceKey) return false;
+      const rawMasterKey = base64ToBytes(await openEnvelope(deviceKey, grant.envelope, sessionAad(scope, grant.expiresAt)));
+      try { await this.persistUnlockGrant(scope, rawMasterKey); }
+      finally { rawMasterKey.fill(0); }
+      return true;
+    } catch {
+      this.clearUnlockGrant();
+      return false;
+    }
+  }
+
+  async persistUnlockGrant(scope, rawMasterKey) {
+    if (!this.sessionStorage) return;
+    try {
+      const deviceKey = await this.repository.getDeviceKey(scope);
+      if (!deviceKey) return;
+      const expiresAt = this.now() + INACTIVITY_MS;
+      const envelope = await seal(deviceKey, bytesToBase64(rawMasterKey), sessionAad(scope, expiresAt));
+      this.sessionStorage.setItem(SESSION_GRANT_KEY, JSON.stringify({scope, expiresAt, envelope}));
+    } catch {
+      this.clearUnlockGrant();
+    }
+  }
+
+  readUnlockGrant() {
+    if (!this.sessionStorage) return null;
+    try {
+      const grant = JSON.parse(this.sessionStorage.getItem(SESSION_GRANT_KEY) || 'null');
+      return grant && typeof grant.scope === 'string' && Number.isFinite(grant.expiresAt) && grant.envelope ? grant : null;
+    } catch { return null; }
+  }
+
+  clearUnlockGrant() {
+    try { this.sessionStorage?.removeItem(SESSION_GRANT_KEY); }
+    catch { /* Session storage can be unavailable under restrictive browser settings. */ }
+  }
 
   async list(accountId) {
     const unlocked = await this.requireUnlocked(accountId);
@@ -467,12 +560,18 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   let sessionAuthenticated = authenticated;
   let timer;
   let sessionTimer;
+  let backgroundTimer;
+  let grantRefreshPending = false;
   let renderGeneration = 0;
 
   const activity = () => {
     if (!unlocked || disposed) return;
     clearTimeout(timer);
     timer = setTimeout(() => { void lockAndRender('10분 동안 사용하지 않아 다시 잠겼습니다.'); }, INACTIVITY_MS);
+    if (!grantRefreshPending) {
+      grantRefreshPending = true;
+      void vault.refreshUnlockGrant(accountId).finally(() => { grantRefreshPending = false; });
+    }
   };
   const activityEvents = ['pointerdown', 'keydown', 'input'];
   for (const name of activityEvents) root.addEventListener(name, activity, {passive: true});
@@ -483,9 +582,18 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       void lockAndRender('로그아웃되어 Life Wallet이 잠겼습니다.');
     }
   };
-  const visibilityListener = () => { if (document.visibilityState === 'hidden' && unlocked) void lockAndRender('화면을 벗어나 Life Wallet이 잠겼습니다.'); };
-  const pagehideListener = () => { unlocked = false; vault.lock(); clearTimeout(timer); root.replaceChildren(); };
-  const pageshowListener = () => { if (!disposed && root.childElementCount === 0) void renderLocked('페이지를 다시 열어 Life Wallet이 잠겼습니다.'); };
+  const visibilityListener = () => {
+    clearTimeout(backgroundTimer);
+    if (document.visibilityState === 'hidden' && unlocked) {
+      backgroundTimer = setTimeout(() => {
+        if (document.visibilityState === 'hidden' && unlocked) void lockAndRender('화면을 벗어나 Life Wallet이 잠겼습니다.');
+      }, 150);
+    }
+  };
+  const pagehideListener = () => {
+    clearTimeout(backgroundTimer); unlocked = false; vault.lock({preserveSession: true}); clearTimeout(timer); root.replaceChildren();
+  };
+  const pageshowListener = () => { if (!disposed && root.childElementCount === 0) void restoreOrRender(); };
   window.addEventListener('lotbi:site-session-state', sessionListener);
   document.addEventListener('visibilitychange', visibilityListener);
   window.addEventListener('pagehide', pagehideListener);
@@ -530,6 +638,16 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     } catch (error) {
       if (!disposed && generation === renderGeneration) renderNotice('Life Wallet을 열 수 없습니다', safeMessage(error, '브라우저 보관함을 확인하지 못했습니다.'));
     }
+  }
+
+  async function restoreOrRender(message = '') {
+    if (!disposed && sessionAuthenticated && accountId && await vault.resumeUnlock(accountId)) {
+      unlocked = true;
+      activity();
+      await renderWallet(message);
+      return;
+    }
+    if (!disposed) await renderLocked(message);
   }
 
   function renderSetup(message = '') {
@@ -594,13 +712,40 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       if (disposed || !unlocked || generation !== renderGeneration) return;
       const shell = element('section', 'wallet-shell');
       const toolbar = element('div', 'wallet-toolbar');
-      const copy = element('div'); copy.append(element('strong', '', `저장 자료 ${cards.length}개`), element('span', '', '이 브라우저에 암호화되어 저장됩니다.'));
-      toolbar.append(copy, button('+ 자료 추가', renderAdd), button('잠그기', () => void lockAndRender(), true));
+      const copy = element('div', 'wallet-storage-copy');
+      const reassurance = element('div', 'wallet-storage-reassurance');
+      reassurance.append(
+        element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
+        element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
+      );
+      copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
+      const settings = element('div', 'wallet-settings');
+      const settingsMenu = element('div', 'wallet-settings-menu');
+      settingsMenu.hidden = true; settingsMenu.setAttribute('role', 'menu'); settingsMenu.setAttribute('aria-label', 'Life Wallet 설정');
+      const settingsToggle = button('⚙ 설정', () => {
+        settingsMenu.hidden = !settingsMenu.hidden;
+        settingsToggle.setAttribute('aria-expanded', String(!settingsMenu.hidden));
+        if (!settingsMenu.hidden) settingsMenu.querySelector('button:not(:disabled)')?.focus();
+      }, true);
+      settingsToggle.setAttribute('aria-haspopup', 'menu'); settingsToggle.setAttribute('aria-expanded', 'false');
+      const pinAction = button('PIN 변경', renderChangePin, true); pinAction.setAttribute('role', 'menuitem');
+      const backupAction = button('암호화 백업 파일 만들기', renderBackup, true); backupAction.setAttribute('role', 'menuitem');
+      backupAction.disabled = !canExportWalletBackup(cards);
+      if (backupAction.disabled) backupAction.title = '저장된 자료가 있을 때 백업할 수 있습니다.';
+      const importAction = button('백업에서 복원', renderImport, true); importAction.setAttribute('role', 'menuitem');
+      settingsMenu.append(pinAction, backupAction, importAction);
+      if (!canExportWalletBackup(cards)) settingsMenu.append(element('small', 'wallet-settings-help', '저장된 자료가 있을 때 백업 파일을 만들 수 있습니다.'));
+      settings.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || settingsMenu.hidden) return;
+        settingsMenu.hidden = true; settingsToggle.setAttribute('aria-expanded', 'false'); settingsToggle.focus();
+      });
+      settings.append(settingsToggle, settingsMenu);
+      toolbar.append(copy, button('+ 자료 추가', renderAdd), button('잠그기', () => void lockAndRender(), true), settings);
       shell.append(toolbar);
       if (message) shell.append(element('p', 'wallet-message', message));
       if (!cards.length) {
         const empty = element('section', 'wallet-empty');
-        empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '예시 신분증은 넣지 않습니다. 사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
+        empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
         shell.append(empty);
       } else {
         const list = element('div', 'wallet-card-grid');
@@ -612,9 +757,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         }
         shell.append(list);
       }
-      const manage = element('div', 'wallet-manage');
-      manage.append(button('PIN 변경', renderChangePin, true), button('암호화 백업', renderBackup, true), button('백업 가져오기', renderImport, true));
-      shell.append(manage, element('p', 'wallet-security-note', '화면 이탈·로그아웃·새로고침·백그라운드 전환·10분 비활동 시 자동으로 다시 잠깁니다.'));
+      shell.append(element('p', 'wallet-security-note', '같은 탭에서는 화면 이동·새로고침 후에도 10분 비활동 전까지 다시 PIN을 묻지 않습니다. 잠그기·로그아웃·로그인 만료·백그라운드 전환 시 즉시 잠깁니다.'));
       root.replaceChildren(shell);
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
@@ -678,43 +821,63 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     root.replaceChildren(form); current.focus(); activity();
   }
 
-  function backupPasswordForm(title, submitLabel, onSubmit) {
+  function renderBackup() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     const password = element('input'); password.type = 'password'; password.minLength = 8; password.maxLength = 128; password.autocomplete = 'new-password';
+    const confirmation = element('input'); confirmation.type = 'password'; confirmation.minLength = 8; confirmation.maxLength = 128; confirmation.autocomplete = 'new-password';
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
-    const submit = button(submitLabel); submit.type = 'submit'; actions.append(submit);
-    form.append(element('h3', '', title), field('백업 암호 · 8자 이상', password), actions, status);
+    const submit = button('내 기기에 백업 파일 저장'); submit.type = 'submit'; actions.append(submit);
+    form.append(
+      element('h3', '', '암호화 백업 파일 만들기'),
+      element('p', 'wallet-form-intro', '기기 변경이나 브라우저 초기화에 대비해 Life Wallet 자료를 암호화된 파일로 저장합니다.'),
+      field('새 백업 전용 암호 · 8자 이상', password),
+      field('백업 전용 암호 확인', confirmation),
+      element('p', 'wallet-backup-warning', '백업을 복원할 때 이 암호가 반드시 필요합니다. LOTBI는 백업 암호를 보관하거나 재설정해 드릴 수 없으니 반드시 기억해 주세요.'),
+      element('p', 'wallet-backup-warning', '복원하려면 저장한 .lotbiwallet 백업 파일과 백업 전용 암호가 모두 필요합니다. 파일을 삭제하거나 분실하면 자료를 복원할 수 없습니다.'),
+      actions, status,
+    );
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
-      try { setBusy(form, true); await onSubmit(password.value, form); }
-      catch (error) { status.textContent = safeMessage(error, '백업 작업을 완료하지 못했습니다.'); setBusy(form, false); password.focus(); }
+      try {
+        const backupPassword = validateBackupPasswordPair(password.value, confirmation.value);
+        setBusy(form, true); downloadBackup(await vault.exportBackup(accountId, backupPassword));
+        await renderWallet('암호화된 백업 파일을 만들었습니다. 파일과 백업 전용 암호를 함께 안전하게 보관해 주세요.');
+      } catch (error) { status.textContent = safeMessage(error, '백업 파일을 만들지 못했습니다.'); setBusy(form, false); password.focus(); }
     });
     root.replaceChildren(form); password.focus(); activity();
-    return {form, status};
-  }
-
-  function renderBackup() {
-    backupPasswordForm('암호화 백업 내보내기', '백업 파일 만들기', async password => {
-      downloadBackup(await vault.exportBackup(accountId, password));
-      await renderWallet('암호화된 백업 파일을 만들었습니다. 백업 암호는 LOTBI가 보관하지 않습니다.');
-    });
   }
 
   function renderImport() {
-    const {form} = backupPasswordForm('암호화 백업 가져오기', '백업 복원', async password => {
-      const file = fileInput.files?.[0];
-      if (!file || file.size > 100 * 1024 * 1024) throw new Error('100MB 이하의 .lotbiwallet 파일을 선택해 주세요.');
-      const count = await vault.importBackup(accountId, await file.text(), password);
-      await renderWallet(`${count}개 자료를 복원했습니다.`);
-    });
+    const form = element('form', 'wallet-editor'); const status = errorRegion();
     const fileInput = element('input'); fileInput.type = 'file'; fileInput.accept = '.lotbiwallet,application/octet-stream'; fileInput.required = true;
-    form.insertBefore(field('백업 파일', fileInput), form.querySelector('.wallet-form-actions'));
+    const password = element('input'); password.type = 'password'; password.minLength = 8; password.maxLength = 128; password.autocomplete = 'current-password';
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
+    const submit = button('Life Wallet 자료 복원'); submit.type = 'submit'; actions.append(submit);
+    form.append(
+      element('h3', '', '백업에서 Life Wallet 복원'),
+      element('p', 'wallet-form-intro', '이전에 저장한 .lotbiwallet 백업 파일과 파일을 만들 때 설정한 백업 전용 암호가 모두 필요합니다.'),
+      field('1. 저장된 백업 파일 찾기', fileInput),
+      field('2. 백업 전용 암호 입력', password),
+      element('p', 'wallet-backup-warning', '월렛 4자리 PIN이 아니라 백업 파일을 만들 때 설정한 8자 이상의 백업 전용 암호를 입력해 주세요.'),
+      element('p', 'wallet-backup-warning', '파일이나 백업 암호를 분실하면 복원할 수 없습니다. LOTBI는 백업 파일과 암호를 보관하지 않습니다.'),
+      actions, status,
+    );
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); status.textContent = '';
+      try {
+        const file = fileInput.files?.[0];
+        if (!file || file.size > 100 * 1024 * 1024) throw new Error('100MB 이하의 .lotbiwallet 파일을 선택해 주세요.');
+        setBusy(form, true); const count = await vault.importBackup(accountId, await file.text(), password.value);
+        await renderWallet(`${count}개 자료를 복원했습니다.`);
+      } catch (error) { status.textContent = safeMessage(error, '백업 자료를 복원하지 못했습니다.'); setBusy(form, false); fileInput.focus(); }
+    });
+    root.replaceChildren(form); fileInput.focus(); activity();
   }
 
-  void renderLocked();
+  void restoreOrRender();
   return {
     dispose() {
-      disposed = true; unlocked = false; vault.lock(); clearTimeout(timer); clearTimeout(sessionTimer); renderGeneration += 1;
+      disposed = true; unlocked = false; vault.lock({preserveSession: true}); clearTimeout(timer); clearTimeout(sessionTimer); clearTimeout(backgroundTimer); renderGeneration += 1;
       for (const name of activityEvents) root.removeEventListener(name, activity);
       window.removeEventListener('lotbi:site-session-state', sessionListener);
       document.removeEventListener('visibilitychange', visibilityListener);

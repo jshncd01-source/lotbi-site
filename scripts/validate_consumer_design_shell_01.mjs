@@ -26,7 +26,7 @@ assert.match(js, /else if \(!workspace\) trapFocus/);
 assert.match(js, /closeSurface\(\); startNewConversation\(\)/);
 assert.match(html, /consumer-brand-fallback/);
 const consumerSections = read('site-consumer-sections.js');
-assert.match(consumerSections, /root\.append\(tabs, body\); void selectTab\('people'\)/);
+assert.match(consumerSections, /root\.append\(tabs, body\);[\s\S]*loadCareCounts\(\)[\s\S]*void selectTab\('people'\)/);
 assert.doesNotMatch(consumerSections, /긴급한 상황이라면|사람 실종 신고|반려동물 실종 신고/);
 assert.match(js, /openFestival/);
 assert.match(js, /openLotbiBox/);

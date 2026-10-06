@@ -519,6 +519,7 @@ jobs:
         run: |
           node scripts/validate_life_wallet_entry_lock_01.mjs
           node scripts/validate_consumer_sections_02.mjs
+          node scripts/validate_surface_drag_dismiss_guard_01.mjs
 
       - name: Validate 진위확인 production connection
         run: |
