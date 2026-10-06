@@ -72,10 +72,19 @@ function hologramOverlay(context, width, height, random) {
   }
 }
 
-function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = false, glare = false, tint = [228, 232, 229]} = {}, random) {
+function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = false, glare = false, edgeFade = null, tint = [228, 232, 229]} = {}, random) {
   const canvas = new OffscreenCanvas(width, height); const context = canvas.getContext('2d', {willReadFrequently: true});
   context.fillStyle = `rgb(${tint.join(',')})`; context.fillRect(0, 0, width, height);
   if (!plain) hologramOverlay(context, width, height, random);
+  // A printed design band whose colour is close to the surface at the card edge and fades
+  // into the card body: that stretch of the card edge is soft and low-contrast.
+  if (edgeFade) {
+    const depth = (edgeFade.side === 'left' || edgeFade.side === 'right' ? width : height) * edgeFade.depth;
+    const [x0, y0, x1, y1] = {left: [0, 0, depth, 0], right: [width, 0, width - depth, 0], top: [0, 0, 0, depth], bottom: [0, height, 0, height - depth]}[edgeFade.side];
+    const band = context.createLinearGradient(x0, y0, x1, y1);
+    band.addColorStop(0, `rgba(${edgeFade.color.join(',')},${edgeFade.alpha ?? 0.9})`); band.addColorStop(1, `rgba(${edgeFade.color.join(',')},0)`);
+    context.fillStyle = band; context.fillRect(0, 0, width, height);
+  }
   if (panel) { context.fillStyle = '#8f6c5c'; context.fillRect(width * 0.08, height * 0.12, width * 0.84, height * 0.76); }
   const photo = {x: width * 0.06, y: height * 0.24, w: width * 0.24, h: height * 0.6};
   const photoGradient = context.createLinearGradient(photo.x, photo.y, photo.x, photo.y + photo.h);
@@ -253,4 +262,16 @@ export function randomWalletScene(seed, {width = 1266, height = 680} = {}) {
     lighting: random() < .5 ? {left, right, top: pick(.95, 1.1), bottom: pick(.85, 1.0), hotspot: pick(0, .22)} : {left: right, right: left, top: pick(.85, 1.0), bottom: pick(.95, 1.1), hotspot: pick(0, .22)},
     noise: pick(3, 8), jpegQuality: pick(.7, .92), focusBlur: random() < .35 ? pick(.6, 1.6) : 0,
   };
+}
+
+// The reported production failure: a textured surface whose texture is about as sharp as
+// part of the card edge, where a printed band close to the surface colour softens one
+// side. Scenes are 1440x811 like the reported photo.
+export function softEdgeWalletScene(index) {
+  const random = seededRandom(900 + index);
+  const base = randomWalletScene(500 + index, {width: 1440, height: 811});
+  const tint = [[196, 214, 198], [205, 222, 206], [188, 206, 190], [214, 226, 214]][index % 4];
+  const edgeFade = {side: ['left', 'bottom', 'right', 'top'][index % 4], depth: .25 + random() * .2, alpha: .75 + random() * .2, color: [[96, 128, 84], [110, 140, 96], [84, 120, 80], [120, 146, 104]][(index >> 2) % 4]};
+  const card = walletCard({width: 1440, height: 811, margins: {left: .15 + random() * .06, right: .08 + random() * .04, top: .06 + random() * .03, bottom: .06 + random() * .03}, rotation: (random() - .5) * 4, keystone: random() * .05, tint, glare: random() < .3, edgeFade});
+  return {...base, width: 1440, height: 811, cards: [card], surfaceKind: ['strong', 'olive', 'felt', 'strong'][index % 4], focusBlur: 1.2 + random() * 1.2, noise: 6 + random() * 4};
 }

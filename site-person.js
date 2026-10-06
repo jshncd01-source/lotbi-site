@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-aa901abed1fe';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-fce93bf7bd86';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -74,10 +74,19 @@ const PERSON_ERROR_MESSAGES = Object.freeze({
   PERSON_IDENTITY_PHOTO_TOO_LARGE: '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.',
   PERSON_IDENTITY_PHOTO_UNSUPPORTED: 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.',
   PERSON_IDENTITY_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
-  PERSON_IDENTITY_FACE_NOT_FOUND: '사람 얼굴을 찾지 못했습니다. 얼굴이 선명하게 보이는 사진을 선택해 주세요.',
-  PERSON_IDENTITY_MULTIPLE_FACES: '한 사람만 나온 사진을 선택해 주세요.',
-  PERSON_IDENTITY_FACE_DIRECTION_INVALID: '이 칸의 촬영 방향과 맞지 않습니다. 안내 그림과 같은 방향의 사진을 선택해 주세요.',
-  PERSON_IDENTITY_FACE_GATE_UNAVAILABLE: '사진 얼굴 확인을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+  // Identity-photo intake gate (Core decides; nothing is stored on refusal).
+  PERSON_IDENTITY_PHOTO_NON_IDENTITY_IMAGE: '사람 식별 사진이 아닙니다. 문서·사물·화면 사진은 등록할 수 없습니다.',
+  PERSON_IDENTITY_PHOTO_NO_PERSON: '사람을 확인할 수 없습니다. 안내 그림처럼 등록할 사람이 크게 나온 사진을 다시 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_NO_FACE: '사람 얼굴을 확인할 수 없습니다. 안내 그림에 맞춰 얼굴이 선명하게 보이는 사진을 다시 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_MULTIPLE_FACES: '여러 사람이 함께 나온 사진은 등록할 수 없습니다. 등록할 사람 한 명만 나온 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_WRONG_POSE: '촬영 방향이 맞지 않습니다. 안내 그림과 같은 방향으로 얼굴을 돌려 다시 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_WRONG_FRAMING: '사진 구도가 이 칸과 맞지 않습니다. 안내 그림처럼 잘리지 않게 다시 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_TOO_BLURRY: '사진이 너무 흐립니다. 얼굴이 선명하게 보이도록 다시 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_OCCLUDED: '얼굴이 가려져 있습니다. 마스크·선글라스·손 등으로 가리지 않은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL: '사람이 너무 작게 나왔습니다. 조금 더 가까이에서 찍은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_CHECK_UNAVAILABLE: '지금은 사진을 확인할 수 없어 저장하지 않았습니다. 잠시 후 다시 시도해 주세요.',
+  PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON: '등록된 사람과 다른 사람으로 보이는 사진입니다. 같은 사람의 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR: '얼굴을 충분히 확인하기 어렵습니다. 얼굴이 조금 더 잘 보이게 다시 촬영해 주세요.',
   PERSON_REID_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
   PERSON_REID_PHOTO_QUALITY_INSUFFICIENT: '얼굴이나 모습이 선명하게 보이지 않습니다. 밝은 곳에서 다시 찍은 사진을 선택해 주세요.',
   PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
@@ -95,6 +104,25 @@ const PERSON_ERROR_MESSAGES = Object.freeze({
   HUMAN_SIGHTING_NOT_FOUND: '제보를 찾지 못했습니다. 화면을 새로 열어 주세요.',
   HUMAN_SIGHTING_PHOTO_SLOT_INVALID: '사진은 최대 10장까지 등록할 수 있습니다.',
 });
+
+// Framing refusals read differently per slot: a face slot needs the whole face,
+// the body slots need the upper body or the whole figure.
+const IDENTITY_FRAMING_MESSAGES = Object.freeze({
+  upper: '상반신이 충분히 보이지 않습니다. 머리부터 허리까지 정면에서 다시 촬영해 주세요.',
+  full: '전신이 충분히 보이지 않습니다. 머리부터 발끝까지 한 장에 담기도록 다시 촬영해 주세요.',
+});
+
+export function personIdentityPhotoErrorMessage(error, slot, fallback) {
+  const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';
+  const body = slot?.view === 'upper' || slot?.view === 'full';
+  if (code === 'PERSON_IDENTITY_PHOTO_WRONG_FRAMING') {
+    return IDENTITY_FRAMING_MESSAGES[slot?.view] || '얼굴 전체가 화면 안에 들어오지 않았습니다. 이마부터 턱까지 잘리지 않게 다시 촬영해 주세요.';
+  }
+  if (code === 'PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL' && !body) {
+    return '얼굴이 너무 작게 나왔습니다. 얼굴이 화면을 충분히 채우도록 가까이에서 다시 촬영해 주세요.';
+  }
+  return personErrorMessage(error, fallback);
+}
 
 export function personErrorMessage(error, fallback) {
   const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';

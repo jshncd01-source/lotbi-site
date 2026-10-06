@@ -222,6 +222,12 @@ jobs:
       - name: Validate live conversation and handoff contracts
         run: node scripts/validate_conversation_integration.mjs
 
+      # LIFE-PUBLIC-DATA-01 / FEATURE C: 야간 병원·약국·응급실 카드와 119 안내.
+      - name: Validate night medical cards, ER real-time honesty and 119 notice
+        run: |
+          node --check site-life-medical.js
+          node scripts/validate_life_night_medical_01.mjs
+
       - name: Validate Conversation to Calendar actions
         run: |
           node --check site-calendar-actions.js
@@ -246,6 +252,12 @@ jobs:
           node scripts/validate_conversation_calendar_auto_suggest_01.mjs
           node scripts/validate_conversation_calendar_card_02.mjs
           node scripts/validate_calendar_day_list_range_01.mjs
+
+      # LIFE-PUBLIC-DATA-01 / FEATURE B: NEIS 급식·학사일정·시간표 카드와 학교 저장.
+      - name: Validate NEIS school card, school preference and explicit calendar add
+        run: |
+          node --check site-life-school.js
+          node scripts/validate_life_neis_school_01.mjs
 
       - name: Validate voice wake phrase matching
         run: |
@@ -334,6 +346,16 @@ jobs:
       # 좌표 검증, 기능 간 재사용, 동시 요청 1회, 미허용 mount 에서 팝업 없음.
       - name: Validate shared location foundation (permission, reuse, no auto-prompt)
         run: node scripts/validate_global_location_foundation_01.mjs
+
+      # LIFE-PUBLIC-DATA-01: 생활 공공정보 조회에만 붙는 대략적 위치 문맥.
+      - name: Validate life lookup location context (current -> saved region -> none)
+        run: |
+          node --check site-life-location.js
+          node scripts/validate_life_location_context_01.mjs
+
+      # LIFE-PUBLIC-DATA-01 / FEATURE A: 동물병원 공식 등록 표시·거리·Pet SOS 연결.
+      - name: Validate animal hospital place card evidence
+        run: node scripts/validate_life_animal_hospital_01.mjs
 
       # 같은 계약을 실제 브라우저 엔진 안에서 측정한다. Android Chrome / Samsung
       # Internet / iPhone Safari 는 실기기가 필요하므로 여기서 다루지 않는다.

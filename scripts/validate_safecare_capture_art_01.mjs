@@ -79,7 +79,7 @@ const {PERSON_IDENTITY_SLOTS, personSlotArtwork} = await import('../site-person-
 
 const expectedPersonSlotArtwork = [
   'assets/safecare/person-face-front-v1.png',
-  'assets/safecare/person-face-left-45-v1.png',
+  'assets/safecare/person-face-left-45-v2.png',
   'assets/safecare/person-face-right-45-v1.png',
   'assets/safecare/person-face-left-profile-v1.png',
   'assets/safecare/person-face-right-profile-v1.png',
