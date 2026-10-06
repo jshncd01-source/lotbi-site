@@ -31,12 +31,19 @@
 .wallet-empty { min-height: 330px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .wallet-empty h3 { margin: 0 0 10px; font-size: 20px; }
 .wallet-empty p { max-width: 500px; margin: 0 0 20px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
-.wallet-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.wallet-card { min-width: 0; display: grid; padding: 0; overflow: hidden; border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: var(--lotbi-surface-primary); color: inherit; text-align: left; cursor: pointer; }
-.wallet-card-image { width: 100%; aspect-ratio: 1.55; object-fit: cover; background: var(--lotbi-surface-subtle); }
-.wallet-card-copy { display: grid; gap: 5px; padding: 13px; }
-.wallet-card-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.wallet-card-copy small { color: var(--consumer-muted); font-size: 11px; }
+.wallet-card-carousel { width: min(720px, 100%); min-width: 0; margin: 0 auto; }
+.wallet-card-viewport { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; outline: none; }
+.wallet-card-viewport::-webkit-scrollbar { display: none; }
+.wallet-card-viewport:focus-visible { border-radius: 20px; box-shadow: 0 0 0 3px var(--lotbi-focus-ring, rgba(29, 78, 216, .24)); }
+.wallet-card-track { display: grid; grid-auto-flow: column; grid-auto-columns: min(88%, 520px); gap: 16px; padding: 8px 6% 14px; }
+.wallet-card-carousel-single .wallet-card-viewport { overflow-x: hidden; }
+.wallet-card-carousel-single .wallet-card-track { grid-auto-columns: min(100%, 560px); justify-content: center; padding-inline: 0; }
+.wallet-card { min-width: 0; display: block; padding: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--lotbi-border-default) 75%, transparent); border-radius: 20px; background: var(--lotbi-surface-subtle); color: inherit; cursor: pointer; appearance: none; scroll-snap-align: center; box-shadow: 0 12px 30px rgba(25, 31, 43, .14); }
+.wallet-card-image { display: block; width: 100%; aspect-ratio: 1.586; object-fit: cover; background: var(--lotbi-surface-subtle); }
+.wallet-card-navigation { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 2px; }
+.wallet-card-arrow { width: 38px; height: 38px; display: grid; place-items: center; padding: 0; border: 1px solid var(--lotbi-border-default); border-radius: 50%; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 25px; line-height: 1; cursor: pointer; }
+.wallet-card-arrow:disabled { cursor: default; opacity: .32; }
+.wallet-card-position { min-width: 48px; color: var(--consumer-muted); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
 .wallet-editor { max-width: 680px; display: grid; gap: 18px; }
 .wallet-editor h3 { margin-bottom: 4px; }
 .wallet-photo-field { min-width: 0; }
@@ -64,7 +71,6 @@
 .wallet-danger-action { justify-self: start; color: var(--lotbi-error-text, #b42332); }
 .consumer-section-content[data-wallet-state='locked'] { overflow: hidden; }
 @media (max-width: 760px) {
-  .wallet-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .wallet-toolbar { align-items: stretch; flex-wrap: wrap; }
   .wallet-toolbar > div { flex-basis: 100%; }
   .wallet-toolbar > .wallet-settings { flex-basis: auto; }
@@ -72,7 +78,9 @@
   .wallet-detail-images { grid-template-columns: 1fr; }
 }
 @media (max-width: 430px) {
-  .wallet-card-grid { grid-template-columns: 1fr; }
+  .wallet-card-track { grid-auto-columns: 91%; gap: 12px; padding-inline: 2%; }
+  .wallet-card-carousel-single .wallet-card-track { grid-auto-columns: 100%; padding-inline: 0; }
+  .wallet-card { border-radius: 16px; }
   .wallet-photo-picker { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; padding: 12px; }
   .wallet-photo-mark, .wallet-photo-preview { width: 56px; height: 48px; }
   .wallet-photo-action { grid-column: 1 / -1; width: 100%; }
