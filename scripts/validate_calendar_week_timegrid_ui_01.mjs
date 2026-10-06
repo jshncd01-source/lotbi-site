@@ -44,9 +44,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const wait = async (fn, label) => { for (let i = 0; i < 200; i += 1) { if (fn()) return; await sleep(20); } throw new Error('timeout ' + label); };
 try {
   localStorage.clear();
-  // Holidays and location are off-topic for a geometry test; stubbing them
-  // out keeps this hermetic instead of depending on the network.
-  localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false}));
+  // Keep the fixture hermetic while proving that a weekday holiday paints the
+  // entire time column, not only its heading or all-day row.
+  localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: true}));
   Object.defineProperty(navigator, 'geolocation', {configurable: true, value: {
     getCurrentPosition: (_ok, err) => { if (typeof err === 'function') err({code: 1, message: 'denied'}); },
     watchPosition: () => 0, clearWatch: () => {},
@@ -54,7 +54,7 @@ try {
   const j = body => Promise.resolve(new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}}));
   globalThis.fetch = url => {
     const u = new URL(String(url), location.origin);
-    if (u.pathname.includes('/holidays')) return j({year: 2026, country: 'KR', coverage_status: 'VERIFIED', snapshot_version: 'fixture', supported_years: [2026], items: [], ai_calls: 0, provider_api_calls: 0});
+    if (u.pathname.includes('/holidays')) return j({year: 2026, country: 'KR', coverage_status: 'VERIFIED', snapshot_version: 'fixture', supported_years: [2026], items: [{date: '2026-09-21', name: '대체공휴일', country: 'KR', holiday_type: 'PUBLIC', is_substitute: true, source: 'FIXTURE', source_date: '2026-09-21', verified_at: '2026-01-01T00:00:00Z'}], ai_calls: 0, provider_api_calls: 0});
     if (u.pathname.includes('/weather')) return j({provider_ready: false, items: [], ai_calls: 0});
     return j({items: []});
   };
@@ -74,7 +74,7 @@ try {
   const {mountLifeCalendarManager} = await import('/site-calendar-manager.js');
   await mountLifeCalendarManager({
     root, initialView: 'week', guestRepository: guestRepo,
-    timezone: 'Asia/Seoul', now: new Date('2026-09-23T01:00:00Z'),
+    timezone: 'Asia/Seoul', now: new Date('2026-09-21T01:00:00Z'),
   });
   await wait(() => root.querySelector('.calendar-week-agenda'), 'week mounted');
   const result = {ok: true, viewport: {width: innerWidth, height: innerHeight}};
@@ -99,6 +99,17 @@ try {
     monday: getComputedStyle(dayHeaders[1]).backgroundColor,
     saturday: getComputedStyle(dayHeaders[6]).backgroundColor,
   };
+  const mondayHeader = root.querySelector('[data-calendar-week-date="2026-09-21"]');
+  const mondayAllDay = [...root.querySelectorAll('.calendar-week-allday-cell')][1];
+  const mondayGrid = root.querySelector('[data-calendar-week-group="2026-09-21"]');
+  result.weekdayHoliday = {
+    headerMarked: mondayHeader?.dataset.holiday || '',
+    allDayMarked: mondayAllDay?.dataset.holiday || '',
+    gridMarked: mondayGrid?.dataset.holiday || '',
+    headerSurface: mondayHeader ? getComputedStyle(mondayHeader).backgroundColor : '',
+    allDaySurface: mondayAllDay ? getComputedStyle(mondayAllDay).backgroundColor : '',
+    gridSurface: mondayGrid ? getComputedStyle(mondayGrid).backgroundColor : '',
+  };
 
   const eventRect = title => {
     const node = [...root.querySelectorAll('.calendar-week-grid-event')].find(n => n.textContent.includes(title));
@@ -122,8 +133,23 @@ try {
   }
   const alldayRow = root.querySelector('.calendar-week-allday-row');
   const scroll = root.querySelector('.calendar-week-grid-scroll');
+  const edgePairs = selector => [...root.querySelectorAll(selector)].map(node => {
+    const rect = node.getBoundingClientRect();
+    return {left: rect.left, right: rect.right};
+  });
+  const headerEdges = edgePairs('.calendar-week-day');
+  const alldayEdges = edgePairs('.calendar-week-allday-cell');
+  const gridEdges = edgePairs('.calendar-week-grid-day');
+  result.maxColumnEdgeDelta = Math.max(...headerEdges.flatMap((edge, index) => [
+    Math.abs(edge.left - alldayEdges[index].left),
+    Math.abs(edge.right - alldayEdges[index].right),
+    Math.abs(edge.left - gridEdges[index].left),
+    Math.abs(edge.right - gridEdges[index].right),
+  ]));
   result.alldayFound = Boolean(alldayRow && alldayRow.textContent.includes('추석'));
-  result.alldayAboveScroll = Boolean(alldayRow && scroll) && alldayRow.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().top + 1;
+  result.alldayAboveScroll = Boolean(alldayRow && scroll)
+    && Boolean(alldayRow.compareDocumentPosition(scroll) & Node.DOCUMENT_POSITION_FOLLOWING)
+    && getComputedStyle(alldayRow.parentElement).position === 'sticky';
   result.hourLabelCount = root.querySelectorAll('.calendar-week-hour-label').length;
   const grid = root.querySelector('.calendar-week-grid');
   result.horizontalOverflow = grid.scrollWidth - grid.clientWidth;
@@ -197,12 +223,16 @@ try {
     if (v.weekendSurfaces.sunday !== 'rgb(255, 243, 243)' || v.weekendSurfaces.saturday !== 'rgb(242, 247, 255)') {
       throw new Error(`${where}: Sunday/Saturday headers must keep LOTBI red/blue surfaces, got ${JSON.stringify(v.weekendSurfaces)}`);
     }
-    if (v.weekendSurfaces.monday === v.weekendSurfaces.sunday || v.weekendSurfaces.monday === v.weekendSurfaces.saturday) {
-      throw new Error(`${where}: weekday header surface must remain distinct from weekend surfaces`);
+    if (v.weekdayHoliday.headerMarked !== 'true' || v.weekdayHoliday.allDayMarked !== 'true' || v.weekdayHoliday.gridMarked !== 'true') {
+      throw new Error(`${where}: a weekday holiday must mark its header, all-day row and full time column, got ${JSON.stringify(v.weekdayHoliday)}`);
+    }
+    if (!v.weekdayHoliday.headerSurface || v.weekdayHoliday.headerSurface !== v.weekdayHoliday.allDaySurface || v.weekdayHoliday.headerSurface !== v.weekdayHoliday.gridSurface) {
+      throw new Error(`${where}: a weekday holiday must keep one holiday surface from top through the hour grid, got ${JSON.stringify(v.weekdayHoliday)}`);
     }
     if (!v.eventsFound || !v.laterIsLower || !v.proportional) throw new Error(`${where}: timed events must use their vertical clock positions`);
     if (!v.overlapSameBand || !v.overlapLanesSeparate) throw new Error(`${where}: overlapping events must split into visible lanes`);
     if (!v.alldayFound || !v.alldayAboveScroll) throw new Error(`${where}: all-day records must sit above the hourly scroller`);
+    if (v.maxColumnEdgeDelta > 1) throw new Error(`${where}: week header, all-day row and hourly columns must stay aligned (max edge drift=${v.maxColumnEdgeDelta.toFixed(2)}px)`);
     if (v.hourLabelCount !== 24) throw new Error(`${where}: expected a 24-hour vertical axis, got ${v.hourLabelCount}`);
     if (v.viewport.width <= 900 && v.horizontalOverflow <= 0) throw new Error(`${where}: mobile must scroll the weekly grid horizontally instead of squeezing seven days`);
     if (v.viewport.width > 900 && v.horizontalOverflow > 1) throw new Error(`${where}: desktop week should fit without page-level horizontal overflow`);

@@ -1,4 +1,4 @@
-import {SITE_CALLBACK_URI} from './site-core.js?v=aset-0bcb6b91e6de';
+import {SITE_CALLBACK_URI} from './site-core.js?v=aset-d29614dc4e96';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
@@ -62,6 +62,16 @@ export function hasSiteLogoutSuppression(now = Date.now(), storage = optionalSes
 
 const STATE_PATTERN = /^[\x21-\x7e]{16,256}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
+const PROFILE_PHOTO_RETURN_HASH = '#profile-photo';
+
+function normalizeSiteHandoffReturnHash(value) {
+  return value === PROFILE_PHOTO_RETURN_HASH ? PROFILE_PHOTO_RETURN_HASH : '';
+}
+
+export function siteHandoffReturnPath(returnHash) {
+  const normalized = normalizeSiteHandoffReturnHash(returnHash);
+  return normalized ? `/${normalized}` : '/';
+}
 
 function recordTiming(name) {
   try {
@@ -154,7 +164,7 @@ export async function recoverMissingSiteHandoffContext(error, {
   return true;
 }
 
-export async function createSiteHandoffContext(pendingText = '', now = Date.now()) {
+export async function createSiteHandoffContext(pendingText = '', now = Date.now(), returnHash = '') {
   if (!globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle || typeof globalThis.btoa !== 'function') {
     throw new SiteHandoffClientError('이 브라우저에서는 안전한 사이트 로그인 연결을 사용할 수 없습니다.', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE');
   }
@@ -169,6 +179,7 @@ export async function createSiteHandoffContext(pendingText = '', now = Date.now(
       codeVerifier,
       codeChallenge,
       pendingText: message,
+      returnHash: normalizeSiteHandoffReturnHash(returnHash),
       startedAt: now,
     });
   } catch (error) {
@@ -187,6 +198,7 @@ export function storeSiteHandoffContext(context, storage = browserStorage()) {
       state: context.state,
       codeVerifier: context.codeVerifier,
       pendingText: context.pendingText,
+      returnHash: normalizeSiteHandoffReturnHash(context.returnHash),
       startedAt: context.startedAt,
     }));
   } catch {
@@ -218,6 +230,7 @@ export function readAndClearSiteHandoffContext(returnedState, storage = browserS
     || now - context.startedAt > HANDOFF_CONTEXT_TTL_MS
     || typeof context.pendingText !== 'string'
     || context.pendingText.length > 1000
+    || (context.returnHash !== undefined && context.returnHash !== '' && context.returnHash !== PROFILE_PHOTO_RETURN_HASH)
   ) {
     throw new SiteHandoffClientError('로그인 연결 검증값이 만료되었거나 올바르지 않습니다.', 'SITE_HANDOFF_CONTEXT_INVALID');
   }
@@ -226,7 +239,7 @@ export function readAndClearSiteHandoffContext(returnedState, storage = browserS
     throw new SiteHandoffClientError('로그인 연결 상태값이 일치하지 않습니다.', 'SITE_HANDOFF_STATE_MISMATCH');
   }
 
-  return Object.freeze(context);
+  return Object.freeze({...context, returnHash: normalizeSiteHandoffReturnHash(context.returnHash)});
 }
 
 export function parseSiteHandoffCallback(url) {
@@ -326,7 +339,7 @@ export async function beginSiteHandoff(pendingText = '', {recoveryAttempt = fals
   if (!recoveryAttempt) clearSiteHandoffRecovery();
   let context;
   try {
-    context = await createSiteHandoffContext(pendingText);
+    context = await createSiteHandoffContext(pendingText, Date.now(), window.location.hash);
     storeSiteHandoffContext(context);
   } catch (error) {
     if (!shouldUseAccountSiteFallback(error)) throw error;

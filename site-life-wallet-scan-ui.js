@@ -1,4 +1,4 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-0bcb6b91e6de';
+import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-d29614dc4e96';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -56,32 +56,35 @@ function detectionPixels(source) {
 }
 
 export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>{},onReplace=()=>{}}={}) {
-  const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true';
-  const heading=node('h3','', '사진을 월렛 카드로 정리합니다');
+  const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true'; shell.dataset.scanAdjusting='false';
+  const heading=node('h3','', '신분증을 자동으로 정리하고 있습니다');
   const privacy=node('p','wallet-scan-privacy','사진 보정은 이 브라우저에서만 처리되며 LOTBI 서버로 전송되지 않습니다.');
   const status=node('p','wallet-scan-status','사진 분석 중'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
   const workspace=node('div','wallet-scan-workspace');
-  const sourcePane=node('section','wallet-scan-pane'); sourcePane.append(node('h4','', '모서리를 확인해 주세요'));
+  const sourcePane=node('section','wallet-scan-pane wallet-scan-source-pane'); sourcePane.hidden=true; sourcePane.append(node('h4','', '직접 조정'));
   const stage=node('div','wallet-scan-stage'); const canvas=node('canvas','wallet-scan-source'); const overlay=document.createElementNS('http://www.w3.org/2000/svg','svg'); overlay.classList.add('wallet-scan-outline'); overlay.setAttribute('aria-hidden','true');
   const polygon=document.createElementNS('http://www.w3.org/2000/svg','polygon'); overlay.append(polygon); stage.append(canvas,overlay); sourcePane.append(stage);
-  const resultPane=node('section','wallet-scan-pane'); resultPane.append(node('h4','', '보정 결과 확인')); const resultImage=node('img','wallet-scan-result-image'); resultImage.alt='보정된 자료 미리보기'; resultImage.hidden=true; resultPane.append(resultImage);
+  const resultPane=node('section','wallet-scan-pane wallet-scan-result-pane'); resultPane.append(node('h4','', '보정된 자료')); const resultImage=node('img','wallet-scan-result-image'); resultImage.alt='배경과 여백을 제거한 자료 미리보기'; resultImage.hidden=true; resultPane.append(resultImage);
   workspace.append(sourcePane,resultPane);
   const warnings=node('div','wallet-scan-warnings'); warnings.setAttribute('role','status'); warnings.setAttribute('aria-live','polite');
   const choices=node('div','wallet-scan-choices');
-  const originalTone=node('button','consumer-action','원본 색감'); originalTone.type='button'; originalTone.dataset.walletScanEnhance='false'; originalTone.setAttribute('aria-pressed','false');
-  const enhancedTone=node('button','consumer-action','선명하게'); enhancedTone.type='button'; enhancedTone.dataset.walletScanEnhance='true'; enhancedTone.setAttribute('aria-pressed','true');
-  const adjust=node('button','consumer-action','모서리 조정'); adjust.type='button'; choices.append(originalTone,enhancedTone,adjust);
+  const adjust=node('button','consumer-action wallet-scan-adjust','직접 조정'); adjust.type='button'; adjust.dataset.walletScanAdjust=''; choices.append(adjust);
   const actions=node('div','wallet-scan-actions');
-  const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','이대로 저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
+  const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
   shell.append(heading,privacy,status,workspace,warnings,choices,actions);
 
-  const resources={bitmap:null,url:''}; let source=null; let corners=null; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
+  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
   function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}}
 
   function setCorner(name,x,y) {
     const size=dimensions(source); corners[name]={x:Math.max(0,Math.min(size.width-1,x)),y:Math.max(0,Math.min(size.height-1,y))}; updateOverlay();
+  }
+
+  function manualGeometryChanged(){
+    if(!fallbackCorners||!corners)return false;
+    return CORNER_NAMES.some(([name])=>Math.hypot(corners[name].x-fallbackCorners[name].x,corners[name].y-fallbackCorners[name].y)>1);
   }
 
   function updateOverlay() {
@@ -94,9 +97,11 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
     if(!source||!corners||destroyed)return; const version=++renderVersion; confirm.disabled=true; status.textContent='보정 결과 만드는 중';
     try{
       const result=await rectifyDocument(source,corners,{enhance:enhanced}); if(destroyed||version!==renderVersion)return;
-      latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced); originalTone.setAttribute('aria-pressed',String(!enhanced)); enhancedTone.setAttribute('aria-pressed',String(enhanced));
+      latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced);
       warnings.replaceChildren(); if(result.warnings.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of result.warnings)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
-      status.textContent=shell.dataset.scanMode==='automatic'?'자동 인식 완료 · 모서리와 보정 결과를 확인해 주세요.':'자동 인식이 확실하지 않습니다. 모서리를 직접 맞춰 주세요.'; confirm.disabled=false; shell.dataset.scanState='review';
+      const automatic=shell.dataset.scanMode==='automatic';
+      status.textContent=automatic?'배경과 여백을 자동으로 제거했습니다. 결과를 확인해 주세요.':'자료 테두리를 찾지 못했습니다. 다시 선택하거나 직접 조정해 주세요.';
+      confirm.disabled=!automatic&&!manualGeometryChanged(); shell.dataset.scanState='review';
     }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
   }
 
@@ -113,13 +118,14 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   async function initialize() {
     try{
       source=await decodeFile(file,resources); if(destroyed){releaseResources();return} const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
-      const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}])); shell.dataset.scanMode=found.mode; updateOverlay(); await renderPreview();
+      const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}])); fallbackCorners=found.mode==='manual'?Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}])):null; shell.dataset.scanMode=found.mode; updateOverlay(); await renderPreview();
     }catch(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
   }
 
-  async function setEnhanced(value){if(enhanced===value&&latest)return;enhanced=value;await renderPreview()}
-  originalTone.addEventListener('click',()=>void setEnhanced(false));enhancedTone.addEventListener('click',()=>void setEnhanced(true));adjust.addEventListener('click',()=>handles.get('topLeft')?.focus());
-  confirm.addEventListener('click',()=>{if(latest&&!destroyed)onConfirm(latest)});
+  function openAdjustment(){sourcePane.hidden=false;shell.dataset.scanAdjusting='true';adjust.textContent='조정 닫기';handles.get('topLeft')?.focus()}
+  function closeAdjustment(){sourcePane.hidden=true;shell.dataset.scanAdjusting='false';adjust.textContent='직접 조정';resultImage.focus?.()}
+  adjust.addEventListener('click',()=>shell.dataset.scanAdjusting==='true'?closeAdjustment():openAdjustment());
+  confirm.addEventListener('click',()=>{if(!latest||destroyed)return;if(shell.dataset.scanMode!=='automatic'&&!manualGeometryChanged()){confirm.disabled=true;return}onConfirm(latest)});
   cancel.addEventListener('click',()=>{if(!destroyed)onCancel();destroy()}); replace.addEventListener('click',()=>{if(!destroyed)onReplace();destroy()});
 
   function destroy(){if(destroyed)return;destroyed=true;renderVersion+=1;releaseResources();shell.replaceChildren()}
