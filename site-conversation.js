@@ -1,24 +1,24 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-2b92c6b163e1';
-import * as siteCore from './site-core.js?v=aset-2b92c6b163e1';
-import './site-scam-shield.js?v=aset-2b92c6b163e1';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-2b92c6b163e1';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult} from './site-navigation.js?v=aset-2b92c6b163e1';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-2b92c6b163e1';
-import * as siteAttachments from './site-attachments.js?v=aset-2b92c6b163e1';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-2b92c6b163e1';
-import {deterministicReply} from './site-deterministic.js?v=aset-2b92c6b163e1';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-2b92c6b163e1';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-2b92c6b163e1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-2b92c6b163e1';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-2b92c6b163e1';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-2b92c6b163e1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-2b92c6b163e1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-2b92c6b163e1';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-2b92c6b163e1';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-2b92c6b163e1';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-2b92c6b163e1';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-2b92c6b163e1';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-2b92c6b163e1';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-f5fee4b65788';
+import * as siteCore from './site-core.js?v=aset-f5fee4b65788';
+import './site-scam-shield.js?v=aset-f5fee4b65788';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-f5fee4b65788';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult} from './site-navigation.js?v=aset-f5fee4b65788';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-f5fee4b65788';
+import * as siteAttachments from './site-attachments.js?v=aset-f5fee4b65788';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-f5fee4b65788';
+import {deterministicReply} from './site-deterministic.js?v=aset-f5fee4b65788';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-f5fee4b65788';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-f5fee4b65788';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-f5fee4b65788';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-f5fee4b65788';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-f5fee4b65788';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-f5fee4b65788';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-f5fee4b65788';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-f5fee4b65788';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-f5fee4b65788';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-f5fee4b65788';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-f5fee4b65788';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-f5fee4b65788';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -169,7 +169,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-2b92c6b163e1';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-f5fee4b65788';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -2722,14 +2722,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const copy = document.createElement('span'); copy.className = 'sidebar-profile-copy';
     const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = canonicalProfileName();
     copy.appendChild(name);
-    const detailParts = [];
-    if (serverIdentity?.publicHandle) detailParts.push(`@${serverIdentity.publicHandle}`);
+    if (serverIdentity?.publicHandle) {
+      const detail = document.createElement('span');
+      detail.className = 'sidebar-account-handle';
+      detail.textContent = `@${serverIdentity.publicHandle}`;
+      copy.appendChild(detail);
+    }
     if (includePlan && serverSubscription?.plan) {
       const planLabels = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
-      detailParts.push(planLabels[serverSubscription.plan] || serverSubscription.plan);
-    }
-    if (detailParts.length) {
-      const detail = document.createElement('span'); detail.className = 'sidebar-account-handle'; detail.textContent = detailParts.join(' · '); copy.appendChild(detail);
+      const plan = document.createElement('span');
+      plan.className = 'sidebar-account-plan';
+      plan.textContent = planLabels[serverSubscription.plan] || serverSubscription.plan;
+      copy.appendChild(plan);
     }
     const chevron = document.createElement('span');
     chevron.className = 'sidebar-profile-chevron';
@@ -2934,7 +2938,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-2b92c6b163e1');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-f5fee4b65788');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2962,7 +2966,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-2b92c6b163e1');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-f5fee4b65788');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3159,8 +3163,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-2b92c6b163e1'),
-          import('./site-pet.js?v=aset-2b92c6b163e1'),
+          import('./site-person.js?v=aset-f5fee4b65788'),
+          import('./site-pet.js?v=aset-f5fee4b65788'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3169,11 +3173,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-2b92c6b163e1');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-f5fee4b65788');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-2b92c6b163e1');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-f5fee4b65788');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },

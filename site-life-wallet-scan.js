@@ -269,13 +269,18 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
     candidates.push({corners,confidence,areaRatio});
   }
   let best=[...candidates].sort((left,right)=>right.confidence-left.confidence)[0]||null;
+  let uncertainReason='automatic-detection-uncertain';
   const frameCandidates=candidates.filter(candidate=>nearSourceFrame(candidate.corners,working.width,working.height,candidate.areaRatio)).sort((left,right)=>right.areaRatio-left.areaRatio);
   for(const frame of frameCandidates){
     const nested=candidates.filter(candidate=>candidate!==frame&&candidate.areaRatio>=frame.areaRatio*.24&&candidate.areaRatio<=frame.areaRatio*.86&&containsCorners(frame.corners,candidate.corners)).sort((left,right)=>right.confidence-left.confidence);
-    if(nested.length){best=nested[0];break}
+    if(!nested.length)continue;
+    const inner=nested[0];const confidenceGap=frame.confidence-inner.confidence;
+    if(inner.confidence-frame.confidence>.08){best=inner;break}
+    if(confidenceGap>.105){best=frame;break}
+    best=null;uncertainReason='competing-boundaries';break;
   }
   if(best&&nearSourceFrame(best.corners,working.width,working.height,best.areaRatio,{strict:true})&&!candidates.some(candidate=>candidate!==best&&containsCorners(best.corners,candidate.corners)))best=null;
-  if (!best || best.confidence < 0.75) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:best?.confidence||0,mode:'manual',reason:'automatic-detection-uncertain'};
+  if (!best || best.confidence < 0.75) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:best?.confidence||0,mode:'manual',reason:uncertainReason};
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(best.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
   return {corners:scaled,confidence:Number(best.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral'};

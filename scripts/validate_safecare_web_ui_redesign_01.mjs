@@ -61,6 +61,7 @@ console.log('SAFECARE-WEB-UI-REDESIGN-01 rules PASS');
 
 // ------------------------------------------------------------ B. source
 const personUi = read('site-person-ui.js');
+const personClient = read('site-person.js');
 const petUi = read('site-pet-ui.js');
 const commonSource = read('site-safecare-common.js');
 const personGuides = read('site-person-guides.js');
@@ -80,6 +81,14 @@ assert.ok(index.includes('site-safecare.css?v='), 'the shared SafeCare styleshee
 assert.ok(personUi.includes("from './site-safecare-common.js?v=") && petUi.includes("from './site-safecare-common.js?v="),
   'both screens must use the one shared rule module');
 assert.ok(!/birthYear\.type = 'number'|birthMonth\.type = 'number'/.test(personUi), 'birth year/month must be chosen, not typed');
+for (const code of [
+  'PERSON_IDENTITY_FACE_NOT_FOUND',
+  'PERSON_IDENTITY_MULTIPLE_FACES',
+  'PERSON_IDENTITY_FACE_DIRECTION_INVALID',
+  'PERSON_IDENTITY_FACE_GATE_UNAVAILABLE',
+]) {
+  assert.ok(personClient.includes(code), `person photo UI must explain Core rejection ${code}`);
+}
 // Fields Core does not store must not appear as if they were saved.
 for (const unsupported of ['현재 상태', '제보자 연락처', '지도에서 선택', '다른 기기에서 이어']) {
   assert.ok(!personUi.includes(unsupported) && !petUi.includes(unsupported), `no screen may offer "${unsupported}"`);
