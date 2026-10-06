@@ -49,13 +49,13 @@ assert.ok(css.includes('.calendar-month-layout { position: relative; display: bl
 for (const weeks of [4, 5, 6]) {
   assert.ok(css.includes(`.calendar-month-grid[data-week-count="${weeks}"]`), `missing ${weeks}-week geometry`);
 }
-assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) minmax(290px, 340px)'), 'desktop Month must reserve a side detail column when open');
-assert.ok(css.includes('.calendar-day-panel[data-presentation="SIDE"] {\n    position: sticky;'), 'desktop selected-day detail must remain beside the grid');
+assert.ok(css.includes('.calendar-day-detail-backdrop {'), 'selected-day detail must own a dismissible overlay');
+assert.ok(css.includes('.calendar-day-panel[data-presentation="MODAL"] {'), 'desktop selected-day detail must be a centered modal');
 assert.ok(css.includes('grid-template-columns: 44px minmax(80px, 1fr) 44px 52px 68px'), 'mobile toolbar must reserve room for the visible Settings label');
 assert.ok(css.includes('grid-template-columns: 44px minmax(0, 1fr) 44px 48px 64px'), 'narrow mobile toolbar must keep touch targets and the Settings label without horizontal scrolling');
-assert.ok(css.includes('grid-template-columns: repeat(4, minmax(0, 1fr))'), 'mobile view controls must be discoverable without horizontal scrolling');
+assert.ok(css.includes('grid-template-columns: repeat(3, minmax(0, 1fr))'), 'mobile week/month/list controls must be discoverable without horizontal scrolling');
 assert.ok(css.includes('.calendar-event-stack { display: none; }'), 'touch Month should prefer bounded density plus selected-day list');
-assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"] {\n    position: static;'), 'mobile selected-day detail must remain in flow rather than cover the month');
+assert.ok(css.includes('.calendar-day-panel[data-presentation="SHEET"] {'), 'mobile selected-day detail must be a bottom sheet');
 assert.ok(css.includes('.calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'mobile Year must use readable two-column summaries');
 assert.ok(css.includes('white-space: nowrap'));
 assert.ok(css.includes('overflow-y: auto'));
@@ -91,7 +91,8 @@ assert.ok(conversation.includes('event.stopPropagation();'), 'direct Calendar en
 assert.ok(conversation.includes("event.target instanceof Element ? event.target.closest('[data-calendar-view]')"), 'Calendar delegated fallback missing');
 assert.ok(conversation.includes('bindCalendarEntries();'), 'Calendar entries must bind on initial mount');
 assert.ok(conversation.includes("window.addEventListener(SIDEBAR_RENDERED_EVENT"), 'sidebar rerender recovery hook missing');
-assert.ok(manager.includes("if (value === 'today' || value === 'all' || value === 'date') return 'month'"));
+assert.ok(manager.includes("if (value === 'today' || value === 'date') return 'day'"));
+assert.ok(manager.includes("if (value === 'all') return 'month'"));
 // 'attention' 은 사이드바·딥링크가 아직 보낼 수 있는 옛 이름이다. 탭이 없어졌으므로
 // 그 링크는 기한 지남을 이어받은 일정 보기로 간다 -- 빈 화면으로 떨어지지 않는다.
 assert.ok(manager.includes("if (value === 'upcoming' || value === 'attention') return 'agenda'"));

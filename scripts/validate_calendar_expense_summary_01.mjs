@@ -181,7 +181,7 @@ try{
 
   const layout=root.querySelector('.calendar-month-layout');
   result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
-  result.layoutSecondIsDayPanel=Boolean(layout?.children[1]?.classList.contains('calendar-day-panel'));
+  result.layoutHasNoAutomaticDayPanel=!layout?.querySelector('.calendar-day-panel');
   result.lineInsideMonth=Boolean(layout?.children[0]?.contains(ready));
   result.lineFollowsGrid=root.querySelector('.calendar-month-grid')?.compareDocumentPosition(ready)===Node.DOCUMENT_POSITION_FOLLOWING;
 
@@ -203,6 +203,18 @@ try{
     row.querySelector('dd')?.textContent||'',
   ]);
   result.categoryColumns=categoryList ? getComputedStyle(categoryList).gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
+  const readCategoryStyles=()=>[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>{
+    const itemStyle=getComputedStyle(row);
+    const label=row.querySelector('dt');
+    return {
+      category:row.dataset.expenseCategory,
+      border:[itemStyle.borderTopWidth,itemStyle.borderRightWidth,itemStyle.borderBottomWidth,itemStyle.borderLeftWidth],
+      background:itemStyle.backgroundColor,
+      labelColor:getComputedStyle(label).color,
+      labelContrast:contrast(rgb(getComputedStyle(label).color),paintedBg(row)),
+    };
+  });
+  result.categoryStylesLight=readCategoryStyles();
   result.forbidden=forbiddenIn(root.textContent);
   result.aboveTheFold=box.bottom<=innerHeight;
   result.barBottom=Math.round(box.bottom);
@@ -217,6 +229,7 @@ try{
   result.contrastLight=readContrast();
   document.body.dataset.siteTheme='dark';
   result.contrastDark=readContrast();
+  result.categoryStylesDark=readCategoryStyles();
   delete document.body.dataset.siteTheme;
 
   // --- the breakdown, on request ------------------------------------------
@@ -439,7 +452,7 @@ try {
     const fail = message => { throw new Error(`${label}: ${message}`); };
 
     if (!value.layoutFirstIsMonth) fail('month layout child 0 must stay the month grid');
-    if (!value.layoutSecondIsDayPanel) fail('month layout child 1 must stay the selected-day surface');
+    if (!value.layoutHasNoAutomaticDayPanel) fail('Month must not mount a selected-day surface before a date press');
     if (!value.lineInsideMonth || !value.lineFollowsGrid) fail('the amount line must sit inside the month surface, under the grid');
 
     // One quiet line.
@@ -461,6 +474,13 @@ try {
       ['OTHER', '기타', '0원'],
     ])) fail(`the month must show the five category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
     if (value.viewport.width <= 520 && value.categoryColumns !== 2) fail(`phone categories must use two columns, got ${value.categoryColumns}`);
+    for (const theme of ['Light', 'Dark']) {
+      const styles=value['categoryStyles'+theme];
+      if (styles.some(item=>item.border.some(width=>width!=='0px'))) fail(`${theme} category labels must not have box borders, got ${JSON.stringify(styles)}`);
+      if (styles.some(item=>item.background!=='rgba(0, 0, 0, 0)')) fail(`${theme} category labels must have no box background, got ${JSON.stringify(styles)}`);
+      if (new Set(styles.map(item=>item.labelColor)).size!==styles.length) fail(`${theme} category titles must each have a distinct colour, got ${JSON.stringify(styles)}`);
+      if (styles.some(item=>item.labelContrast<4.5)) fail(`${theme} category title colours must hold WCAG AA 4.5:1, got ${JSON.stringify(styles)}`);
+    }
     if (value.forbidden.length) fail(`ledger words must not appear on the month, got ${value.forbidden.join(',')}`);
     if (!value.aboveTheFold) fail(`the amount line must be visible without scrolling — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
     if (!value.noHorizontalOverflow) fail('the amount line must not cause horizontal overflow');

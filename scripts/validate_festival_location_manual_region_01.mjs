@@ -133,19 +133,19 @@ assert.match(
 // 지역 변경이 확인 중에도 눌리게 된 뒤로는 이 경쟁이 실제로 일어날 수 있다.
 assert.match(
   ui,
-  /if \(auto && state\.region\) return;/,
-  'an auto location request that lands after the user picked a region must abandon its result, never overwrite it',
+  /if \(auto && \(state\.region \|\| state\.locationMode === 'NATIONWIDE'\)\) return;/,
+  'an auto location request that lands after the user picked a manual region or 전국 must abandon its result',
 );
 assert.match(ui, /state\.municipality = municipality;/, 'the selected 시·군 must be stored alongside the province');
 
-// Query construction must prefer an explicit region over coordinates, and
-// must never send both at once (also covered functionally in the public
-// boundary test's browseFestivals URL assertions). municipality is additive
-// and only ever sent alongside region, never on its own.
+// Query construction is delegated to the production helper covered by the
+// functional region-scope test. That helper preserves manual-region priority
+// while current-location mode deliberately sends both the resolved province
+// and coordinates (province filtering + distance ordering).
 assert.match(
   ui,
-  /if \(state\.region\) \{\s*query\.region = state\.region;\s*if \(state\.municipality\) query\.municipality = state\.municipality;\s*\} else if \(isLocationUsageEnabled\(\) && state\.locationMode === 'CURRENT' && state\.currentPosition\) \{/,
-  'a manual region must take precedence over any stored current-location coordinates, and municipality must never be sent without region',
+  /Object\.assign\(query, buildFestivalBrowseLocationQuery\(state\)\);/,
+  'festival UI must use the tested location-scope query builder',
 );
 
 // ---------------------------------------------------- province -> 시·군 -----
@@ -155,8 +155,8 @@ assert.match(
 assert.match(ui, /async function goToMunicipalityStep\(province\) \{/,
   'clicking a province must advance to a 시·군 step, not immediately apply+close');
 const provinceStepBody = /function buildRegionSheetBody\(\) \{[\s\S]*?\n {2}\}\n/.exec(ui)?.[0] || '';
-assert.match(provinceStepBody, /addEventListener\('click', \(\) => void goToMunicipalityStep\(province\)\)/,
-  'a province row must go to the 시·군 step, never call selectManualRegion directly');
+assert.match(provinceStepBody, /if \(nationwide\) selectNationwideRegion\(\);\s*else void goToMunicipalityStep\(province\);/,
+  '전국 must apply directly while a province row advances to the 시·군 step');
 assert.doesNotMatch(provinceStepBody, /selectManualRegion\(/, 'step 1 must never apply a region by itself');
 
 // No 구/읍/면/동/리 sub-division may ever be offered.
@@ -168,7 +168,7 @@ assert.match(ui, /backToProvinceStep\(\)/, 'step 2 must support going back to st
 
 // The 17-province list must only ever be rendered inside the region-change
 // sheet, lazily, never as a standing always-visible chip row.
-const regionIterations = [...ui.matchAll(/for \(const province of regionProvinces\)/g)];
+const regionIterations = [...ui.matchAll(/for \(const province of listFestivalRegionChoices\(regionProvinces\)\)/g)];
 assert.equal(regionIterations.length, 1, 'the province list must be rendered from exactly one place: the region-change sheet');
 assert.match(ui, /function buildRegionSheetBody\(\)/);
 assert.match(ui, /async function openRegionSheet\(\) \{\s*await ensureRegionProvinces\(\);/,

@@ -5,7 +5,9 @@ import {pathToFileURL} from 'node:url';
 const clientUrl = pathToFileURL(path.resolve('site-festival-client.js')).href;
 const {
   FESTIVAL_DEFAULT_TIME_FILTER,
+  FESTIVAL_STATUS_LABEL,
   FESTIVAL_TIME_FILTER,
+  FESTIVAL_TIME_FILTER_LABEL,
   FESTIVAL_USER_TIME_FILTERS,
 } = await import(clientUrl);
 
@@ -23,7 +25,10 @@ assert.deepEqual(
     FESTIVAL_TIME_FILTER.THIS_MONTH,
     FESTIVAL_TIME_FILTER.ALWAYS_OPEN,
   ],
-  'the visible filters must exclude 전체 and keep 진행 중/이번 주말/이번 달/상시 운영 in order',
+  'the visible filters must exclude 전체 and keep 진행 중/이번 주말/이번 달/장기 운영 in order',
 );
+
+assert.equal(FESTIVAL_STATUS_LABEL.ALWAYS_OPEN, '장기 운영');
+assert.equal(FESTIVAL_TIME_FILTER_LABEL.ALWAYS_OPEN, '장기 운영');
 
 console.log('FESTIVAL DEFAULT ONGOING VALIDATION PASS');

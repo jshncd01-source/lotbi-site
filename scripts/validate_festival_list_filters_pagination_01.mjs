@@ -18,8 +18,8 @@ const css = read('site-festival.css');
 // ---------------------------------------------------------- time filters --
 // FESTIVAL-EVENT-02 REGION-BROWSE: 날짜 선택 (a custom date-picker filter
 // forcing one specific day before browsing at all) is removed from the
-// user-facing filter bar. FESTIVAL-EVENT-11 adds ALWAYS_OPEN (상시 운영), while
-// the default-ongoing policy removes 전체 -- 진행 중/이번 주말/이번 달/상시 운영,
+// user-facing filter bar. FESTIVAL-EVENT-11 adds ALWAYS_OPEN (장기 운영), while
+// the default-ongoing policy removes 전체 -- 진행 중/이번 주말/이번 달/장기 운영,
 // generated from an explicit
 // list (not the full FESTIVAL_TIME_FILTER enum, which still carries DATE for
 // Core's own unrelated contract — see site-festival-client.js and

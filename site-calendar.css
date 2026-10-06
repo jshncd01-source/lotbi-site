@@ -493,6 +493,7 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-mode-tabs { min-width: 0; display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 6px; }
 .calendar-mode-tab { min-width: 58px; padding-inline: 10px; border-radius: 999px; }
 .calendar-mode-tab[aria-selected="true"] { border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
+.calendar-today-button[data-selected="true"] { border-color: var(--brand-navy, #182a46); background: var(--brand-navy, #182a46); color: #fff; }
 
 /* A more refined toolbar tone: rounder corners, a soft resting shadow
    instead of a flat border-only look, tightened weight/letter-spacing, and
@@ -817,6 +818,30 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
   border: 1px solid #dbe1ea;
   border-radius: 14px;
   background: var(--lotbi-calendar-panel-surface);
+}
+.calendar-day-view { width: min(100%, 760px); margin-inline: auto; }
+.calendar-day-panel[data-presentation="PAGE"] { width: 100%; }
+.calendar-day-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, .42);
+}
+.calendar-day-panel[data-presentation="MODAL"] {
+  position: relative;
+  z-index: 91;
+  width: min(520px, calc(100vw - 48px));
+  max-height: min(760px, calc(100dvh - 48px));
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+}
+.calendar-day-panel[data-presentation="MODAL"] .calendar-day-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .calendar-day-panel[hidden],
 .calendar-day-body[hidden] { display: none !important; }
@@ -1595,7 +1620,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     grid-column: 1 / -1;
     min-width: 0;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
   }
   .calendar-mode-tab { min-width: 0; padding-inline: 6px; }
@@ -1628,12 +1653,12 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
   .calendar-day-sheet-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 79;
+    z-index: 90;
     /* No scrim. A dimmed month is a month you cannot read, and the whole point
        of the sheet being small is that the date rows behind it stay usable.
        This layer still exists, and still dismisses on tap -- it just does it
        without covering the calendar, which is raised above it below. */
-    background: transparent;
+    background: rgba(15, 23, 42, .42);
     animation: calendar-day-sheet-fade 160ms ease-out;
   }
   .calendar-day-sheet-backdrop[data-reduced-motion="true"] { animation: none; }
@@ -1643,13 +1668,13 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
      sheet. The month sits above the backdrop (79) and below the sheet (80), so
      a tap on a date selects that date and the sheet simply retargets. */
   .calendar-month-layout[data-day-detail="SHEET"][data-detail-open="true"] .calendar-month {
-    position: relative;
-    z-index: 80;
+    position: static;
+    z-index: auto;
   }
   /* ...and the rows the sheet does cover can be scrolled clear of it. The
      reserve is the sheet's measured height, written by syncMonthLayout. */
   .calendar-month-layout[data-day-detail="SHEET"][data-detail-open="true"] {
-    padding-bottom: var(--calendar-day-sheet-reserve, 0px);
+    padding-bottom: 0;
   }
 
   .calendar-day-panel[data-presentation="SHEET"] {
@@ -1657,7 +1682,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 80;
+    z-index: 91;
     width: auto;
     margin-top: 0;
     /* Compact by default. An empty day is a heading, one line of text and two
