@@ -1,7 +1,7 @@
 // LIFE-MEDICAL-CATEGORY-ENTRY-01 — 생활정보에 병원·의원 / 약국 진입 카드.
 //
 // The cards are entry UI only: the detail form builds one sentence and hands
-// it to the existing conversation draft (onDraft). Core's medical route
+// it to the conversation (onDraft), which sends it right away. Core's medical route
 // (국립중앙의료원 data) answers it; nothing here searches by itself.
 //
 // Browser part: real touch/mouse input through the DevTools protocol on
@@ -89,12 +89,15 @@ assert.equal(medicalChipPressed('hospital', 'emergency', '응급실'), true);
 
 // ── Source contract ─────────────────────────────────────────────────────
 const source = read('site-consumer-sections.js');
-assert.match(source, /onDraft\(buildLifeMedicalPrompt\(item\.id, \{region: values\.region\.value, need: values\.need\.value\}\)\)/u, 'submit goes through the existing draft handoff');
+assert.match(source, /onDraft\(buildLifeMedicalPrompt\(item\.id, \{region: values\.region\.value, need: values\.need\.value\}\)\)/u, 'submit goes through the existing onDraft handoff');
 assert.match(source, /if \(item\.medical\) \{ openMedicalDetail\(item, back, detail, title\); return; \}/u);
 assert.match(source, /import \{createEmergencyCallNotice\} from '\.\/site-life-medical\.js\?v=aset-[0-9a-f]{12}'/u, 'reuses the existing 119 notice');
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');
 const conversation = read('site-conversation.js');
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/u);
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: the prepared question is sent right
+// away through the normal send path, keeping the phone keyboard closed.
+assert.match(conversation, /onDraft: text => askFromLife\(text\),/u);
+assert.match(conversation, /void requestAssistant\(question, true, '', 0, \{keepKeyboardClosed: true\}\);/u);
 
 // ── Browser ─────────────────────────────────────────────────────────────
 function browserPath() {
@@ -197,6 +200,7 @@ const PROBE = `(() => {
       emergency: Boolean(detail.querySelector('.conversation-emergency-call')), emergencyText: detail.querySelector('.conversation-emergency-call')?.textContent || '',
       call: detail.querySelector('.conversation-emergency-call-link')?.getAttribute('href') || '', fields, chips} : null,
     composer: document.getElementById('lotbi-prompt')?.value ?? null,
+    composerFocused: document.activeElement === document.getElementById('lotbi-prompt'),
     festival: Boolean(document.querySelector('.festival-manager')),
   };
 })()`;
@@ -407,15 +411,23 @@ async function runCase(browser, origin, dir, testCase) {
     state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 5 ? value : null; }, `${testCase.label}: back to life main`);
     assert.deepEqual(state.shortcuts.map(item => item.label), main.shortcuts.map(item => item.label), 'back → 생활정보 메인');
 
-    // 3. 병원·의원 submit → composer holds the Core-compatible sentence → send.
+    // 3. 병원·의원 submit sends the Core-compatible sentence right away
+    //    (LIFE-DIRECT-CHAT-CARD-COMPACTION-01): no second tap on send, the
+    //    composer stays empty and unfocused.
+    const sentTexts = () => evaluate('globalThis.__sent.map(item => item.text)');
+    const expectSent = async (count, text, label) => {
+      const texts = await waitFor(async () => { const value = await sentTexts(); return value.length >= count ? value : null; }, label);
+      assert.equal(texts.length, count, `${label}: exactly one message per tap`);
+      assert.equal(texts[count - 1], text, `${label}: Core receives the sentence unchanged`);
+    };
     await tapShortcut('hospital');
     await waitFor(async () => (await probe()).detail?.id === 'hospital', `${testCase.label}: hospital detail again`);
     await typeInto('[data-medical-field="region"]', '전주 효자동');
     await typeInto('[data-medical-field="need"]', '내과');
     await tap(await reveal('.consumer-life-detail form button[type=submit]'));
     state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: surface closes on submit`);
-    assert.equal(state.composer, '전주 효자동에서 지금 진료하는 내과 알려줘', `${testCase.label}: hospital draft`);
-    await evaluate("document.querySelector('.send-button').click(), true");
+    assert.equal(state.composer, '', `${testCase.label}: hospital question sent, not left in the composer`);
+    assert.equal(state.composerFocused, false, `${testCase.label}: composer not focused after the hospital ask`);
     const sent = await waitFor(() => evaluate('globalThis.__sent.length ? globalThis.__sent.slice() : null'), `${testCase.label}: guest message sent`);
     assert.equal(sent.length, 1);
     assert.ok(Object.values(sent[0]).includes('전주 효자동에서 지금 진료하는 내과 알려줘'), `${testCase.label}: Core receives the sentence unchanged ${JSON.stringify(sent[0])}`);
@@ -435,7 +447,9 @@ async function runCase(browser, origin, dir, testCase) {
     await shot('04-pharmacy');
     await tap(await reveal('.consumer-life-detail form button[type=submit]'));
     state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: pharmacy submit`);
-    assert.equal(state.composer, '전주 효자동에서 오늘 밤 여는 약국 알려줘', `${testCase.label}: pharmacy draft`);
+    assert.equal(state.composer, '', `${testCase.label}: pharmacy question sent, not left in the composer`);
+    assert.equal(state.composerFocused, false, `${testCase.label}: composer not focused after the pharmacy ask`);
+    await expectSent(2, '전주 효자동에서 오늘 밤 여는 약국 알려줘', `${testCase.label}: pharmacy`);
 
     // 5. Existing shortcuts and search box unchanged.
     await openLife();
@@ -448,7 +462,9 @@ async function runCase(browser, origin, dir, testCase) {
     await typeInto('.consumer-life-detail .consumer-life-field:nth-of-type(2) input', '쓰레기 배출일');
     await tap(await reveal('.consumer-life-detail form button[type=submit]'));
     state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: local submit`);
-    assert.equal(state.composer, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일');
+    assert.equal(state.composer, '', `${testCase.label}: local question sent, not left in the composer`);
+    assert.equal(state.composerFocused, false, `${testCase.label}: composer not focused after the local ask`);
+    await expectSent(3, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일', `${testCase.label}: local`);
     await openLife();
     await tapShortcut('bills');
     state = await waitFor(async () => { const value = await probe(); return value.detail ? value : null; }, `${testCase.label}: bills detail`);
@@ -460,7 +476,9 @@ async function runCase(browser, origin, dir, testCase) {
     await page('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r'});
     await page('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13});
     state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: life search submit`);
-    assert.equal(state.composer, '전주 쓰레기 배출일 알려줘');
+    assert.equal(state.composer, '', `${testCase.label}: life search question sent, not left in the composer`);
+    assert.equal(state.composerFocused, false, `${testCase.label}: composer not focused after the life search ask`);
+    await expectSent(4, '전주 쓰레기 배출일 알려줘', `${testCase.label}: life search`);
     await openLife();
     await tapShortcut('festivals');
     state = await waitFor(async () => { const value = await probe(); return value.festival ? value : null; }, `${testCase.label}: festival surface`);

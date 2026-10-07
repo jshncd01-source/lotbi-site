@@ -344,6 +344,11 @@ jobs:
       - name: Validate Place Card body opens NAVER search
         run: node scripts/validate_place_card_naver_search_click_01.mjs
 
+      # 생활정보 → 병원·약국 등: 버튼 한 번으로 바로 질문이 전송되고(입력창 재전송 없음),
+      # 키보드는 사용자가 입력창을 탭할 때만 열린다. 사진 없는 장소 카드는 사진 칸 없이 짧다.
+      - name: Validate life info direct chat and photo-less place cards
+        run: node scripts/validate_life_direct_chat_card_compaction_01.mjs
+
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
       # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.

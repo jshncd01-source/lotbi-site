@@ -170,8 +170,9 @@ try {
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     mediaState:center.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     photoSrc:center.querySelector('.lotbi-place-photo')?.src||'',
-    sideMediaHidden:side.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
-    sideMediaState:side.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
+    sideMediaPresent:Boolean(side.querySelector('.lotbi-rich-card-place-media')),
+    sideMediaPlaceholder:side.querySelectorAll('.lotbi-rich-card-media, .lotbi-rich-card-placeholder, .lotbi-rich-card-media-empty').length,
+    railPhotoClass:rail.classList.contains('has-place-photo'),
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
     sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
@@ -257,8 +258,10 @@ try {
     assert.equal(reading.mediaHidden,false,`${testCase.label}: verified photo banner remains visible`);
     assert.equal(reading.mediaState,'loaded',`${testCase.label}: verified photo media state`);
     assert.equal(reading.photoSrc,PLACE_RESULT.results[0].image_url,`${testCase.label}: verified photo src preserved`);
-    assert.equal(reading.sideMediaHidden,false,`${testCase.label}: no-photo side banner remains visible`);
-    assert.equal(reading.sideMediaState,'empty-no-photo',`${testCase.label}: no-photo side media state`);
+    // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: no photo, no photo box at all.
+    assert.equal(reading.sideMediaPresent,false,`${testCase.label}: a card without a photo has no media box`);
+    assert.equal(reading.sideMediaPlaceholder,0,`${testCase.label}: no empty placeholder on a card without a photo`);
+    assert.equal(reading.railPhotoClass,true,`${testCase.label}: the rail keeps the photo height while a card shows a photo`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
     assert.ok(reading.card.w<=Math.min(testCase.width*.82,286)+2,`${testCase.label}: card width ${reading.card.w}`);
     assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);

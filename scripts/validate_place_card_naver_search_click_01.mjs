@@ -284,7 +284,7 @@ const PROBE = `(() => {
       nestedInteractive: link.querySelectorAll('a, button, input, select, textarea').length,
       w: link.getBoundingClientRect().width, h: link.getBoundingClientRect().height,
     })),
-    hitAtMedia: (() => { const b = box(center.querySelector('.lotbi-rich-card-place-media')); const el = document.elementFromPoint(b.cx, b.cy); return (el?.className || el?.tagName || '') + '|' + (el?.closest?.('.lotbi-place-orbit-card')?.dataset.orbitIndex ?? '-'); })(),
+    hitAtMedia: (() => { const b = box(center.querySelector('.lotbi-rich-card-place-media')); if (!b) return 'NO_PHOTO_BOX'; const el = document.elementFromPoint(b.cx, b.cy); return (el?.className || el?.tagName || '') + '|' + (el?.closest?.('.lotbi-place-orbit-card')?.dataset.orbitIndex ?? '-'); })(),
     hitAtTitle: (() => { const b = box(center.querySelector('.lotbi-rich-card-title')); const el = document.elementFromPoint(b.cx, b.cy); return el?.closest?.('a') ? 'ANCHOR' : (el?.closest?.('.lotbi-place-orbit-card') === center ? 'CARD' : 'OTHER'); })(),
     clicks: globalThis.__anchorClicks.splice(0),
     status: document.querySelector('[data-conversation-status], #lotbi-conversation-status, .chat-status')?.textContent || '',
@@ -566,8 +566,10 @@ async function runCase(browser, origin, dir, testCase) {
       assert.equal(nextAgain.after.activeIndex, 2);
     }
 
-    // The new center card searches for itself (address-derived region).
-    expectSearch(await step('tap-third-card', b => tap(b.media.cx, b.media.cy)), 2, `${testCase.label}: third card`);
+    // The new center card searches for itself (address-derived region). It
+    // has no photo, so no photo box (LIFE-DIRECT-CHAT-CARD-COMPACTION-01):
+    // the tap lands on its body text.
+    expectSearch(await step('tap-third-card', b => { assert.equal(b.media, null, 'a card without a photo has no photo box'); return tap(b.address.cx, b.address.cy); }), 2, `${testCase.label}: third card`);
     const back = await step('back-to-first', b => tap(b.next.cx, b.next.cy));
     assert.equal(back.after.activeIndex, 0);
 

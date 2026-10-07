@@ -31,7 +31,7 @@ assert.match(authStart, /max-width: 460px/);
 assert.match(authStart, /a:focus-visible/);
 assert.match(authStart, /\[hidden\] \{ display: none !important/);
 assert.match(read('site-scam-shield.js'), /분석 근거 자세히 보기/);
-assert.match(read('site-consumer-sections.js'), /질문 준비하기/);
+assert.match(read('site-consumer-sections.js'), /바로 찾기/);
 assert.match(read('site-consumer-sections.js'), /확인 없이 진행하지 않습니다/);
 // Conditional scam questions must stay hidden until the user chooses the incident path.
 assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);

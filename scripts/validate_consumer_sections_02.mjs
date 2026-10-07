@@ -25,7 +25,10 @@ assert.match(source, /mounted\?\.dispose\?\.\(\)/);
 assert.match(conversation, /onClose: \(\) => mounted\?\.dispose\(\)/);
 assert.match(conversation, /mountPetFamilyManager\(\{sessionToken, root, subscription: serverSubscription/);
 assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface/);
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/);
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: the prepared question is sent right
+// away through the normal send path, keeping the phone keyboard closed.
+assert.match(conversation, /onDraft: text => askFromLife\(text\),/u);
+assert.match(conversation, /void requestAssistant\(question, true, '', 0, \{keepKeyboardClosed: true\}\);/u);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.match(css, /min-height: 44px/);
 assert.match(css, /input:focus-visible/);

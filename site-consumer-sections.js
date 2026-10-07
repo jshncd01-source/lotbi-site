@@ -1,8 +1,10 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-9e02e3c66a21';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-9e02e3c66a21';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-8970f6cb0e70';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-8970f6cb0e70';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
+// onDraft(text) hands a finished question to the conversation, which sends it
+// right away (one tap asks LOTBI; nothing to confirm or send again).
 // 병원·의원 / 약국 have no fixed prompt: their form builds one sentence that the
 // existing Core medical route (국립중앙의료원 data) recognizes.
 export const LIFE_SHORTCUTS = Object.freeze([
@@ -186,13 +188,13 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       values.need.addEventListener('input', syncChips);
       queryForm.append(chips);
       syncChips();
-      const send = action('질문 준비하기'); send.type = 'submit'; queryForm.append(send);
+      const send = action('바로 찾기'); send.type = 'submit'; queryForm.append(send);
       queryForm.addEventListener('submit', event => {
         event.preventDefault();
         if (disposed) return;
         onDraft(buildLifeMedicalPrompt(item.id, {region: values.region.value, need: values.need.value}));
       });
-      const note = '다음 화면에서 질문을 확인한 뒤 보내세요. 지역을 비워 두면 위치 사용을 켠 경우에만 현재 위치를 쓰고, 아니면 저장한 지역을 쓰거나 지역을 다시 물어봐요.';
+      const note = '누르면 바로 롯비가 찾아요. 지역을 비워 두면 위치 사용을 켠 경우에만 현재 위치를 쓰고, 아니면 저장한 지역을 쓰거나 지역을 다시 물어봐요.';
       detail.dataset.lifeDetail = item.id;
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
@@ -212,7 +214,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         field.placeholder = placeholder; field.maxLength = 1000; field.required = true;
         field.setAttribute('aria-label', labelText); label.append(field); controls.push([labelText, field]); queryForm.append(label);
       }
-      const send = action('질문 준비하기'); send.type = 'submit'; queryForm.append(send);
+      const send = action('롯비에게 물어보기'); send.type = 'submit'; queryForm.append(send);
       queryForm.addEventListener('submit', event => {
         event.preventDefault();
         if (disposed) return;
@@ -221,8 +223,8 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         onDraft([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
       });
       const note = item.id === 'bills'
-        ? '다음 화면에서 질문을 확인한 뒤 보내세요. 사진·PDF는 대화창에 첨부할 수 있어요. 납기일 등록과 납부는 확인 없이 진행하지 않습니다.'
-        : '다음 화면에서 질문을 확인한 뒤 보내세요. 현재 위치는 자동으로 수집하지 않습니다.';
+        ? '누르면 바로 롯비에게 물어봐요. 사진·PDF는 대화창에 첨부할 수 있어요. 납기일 등록과 납부는 확인 없이 진행하지 않습니다.'
+        : '누르면 바로 롯비에게 물어봐요. 현재 위치는 자동으로 수집하지 않습니다.';
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }

@@ -3074,6 +3074,16 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   }
 }
 
+/* LIFE-DIRECT-CHAT-CARD-COMPACTION-01 — a card without a photo has no photo
+   box, so its middle is text. While such a card is in the center the arrows
+   move down beside the phone / map row instead of covering its address or
+   opening hours (site-conversation.js sets the class). */
+.lotbi-place-orbit.is-center-without-photo .lotbi-place-orbit-control {
+  top: auto;
+  bottom: 10px;
+  margin-top: 0;
+}
+
 @media (max-width: 390px) {
   .lotbi-place-orbit-card {
     width: min(78vw, 278px);
