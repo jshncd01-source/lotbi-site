@@ -21,8 +21,8 @@ import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinki
 import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-720f2663ecb5';
 import {resolveLifeLocationContext} from './site-life-location.js?v=aset-720f2663ecb5';
 import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-720f2663ecb5';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-720f2663ecb5';
 import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-720f2663ecb5';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-720f2663ecb5';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
