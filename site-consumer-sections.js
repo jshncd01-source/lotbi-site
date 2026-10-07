@@ -1,5 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-9e02e3c66a21';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-9e02e3c66a21';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-720f2663ecb5';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-720f2663ecb5';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-720f2663ecb5';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -9,6 +10,7 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'hospital', label: '병원·의원', icon: 'hospital', medical: true},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', medical: true},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
+  {id: 'news', label: '지역뉴스', icon: 'news'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   {id: 'bills', label: '공과금 확인', icon: 'document', prompt: '공과금 고지서를 확인하고 납부기한을 캘린더에 등록할지 알려 줘'},
 ]);
@@ -96,6 +98,15 @@ export function buildLifeMedicalPrompt(kind, {region = '', need = ''} = {}) {
   return `${where}${HOSPITAL_TIME_PHRASES.now} 병원 알려줘. 찾는 진료: ${subject}`;
 }
 
+// REGIONAL-NEWS-P0 — 지역뉴스 asks for one region's latest news in a sentence
+// Core's news route reads ("전주시 뉴스 알려 줘"). No region means 내 주변:
+// the life-location contract then sends the current position only when
+// location use is on, else the saved region, else Core asks which region.
+export function buildRegionalNewsPrompt(region) {
+  const place = medicalText(region).replace(/\s*(?:의|에서|에)$/u, '');
+  return place ? `${place} 뉴스 알려 줘` : '내 주변 뉴스 알려 줘';
+}
+
 const ICON_PATHS = {
   sun: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8', 'M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5'],
   pin: ['M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z', 'M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6'],
@@ -109,6 +120,7 @@ const ICON_PATHS = {
   link: ['M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2', 'M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'],
   hospital: ['M4 3h16v18H4V3Z', 'M12 7v8M8 11h8'],
   pharmacy: ['M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7Z', 'm7 10 7 7'],
+  news: ['M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5Z', 'M17 9h3v10a2 2 0 0 1-2 2', 'M7 9h7M7 12h7M7 15h4'],
 };
 
 function node(tag, className = '', text = '') {
@@ -198,7 +210,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       root.replaceChildren(detail); title.focus();
     }
     function openLifeDetail(item) {
-      const back = action('생활정보로 돌아가기', () => { root.replaceChildren(form, heading, grid, footer); input.focus(); }, {secondary: true});
+      const back = action('지역정보로 돌아가기', () => { root.replaceChildren(form, heading, grid, footer); input.focus(); }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
       if (item.medical) { openMedicalDetail(item, back, detail, title); return; }
@@ -226,10 +238,41 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }
+    // 지역뉴스: with a saved region one tap asks for that region's news;
+    // without one, a one-field form asks which region (or 내 주변).
+    function openNewsEntry(item) {
+      const saved = savedLifeRegionLabel();
+      if (saved) { onDraft(buildRegionalNewsPrompt(saved)); return; }
+      const home = [...root.children];
+      const back = action('지역정보로 돌아가기', () => {
+        root.replaceChildren(...home);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const queryForm = node('form', 'consumer-life-form');
+      const label = node('label', 'consumer-life-field', '지역');
+      const field = node('input'); field.type = 'text'; field.required = true; field.maxLength = 40;
+      field.placeholder = '예: 전주시, 군산시, 완산구'; field.dataset.newsField = 'region';
+      field.setAttribute('aria-label', '지역'); label.append(field); queryForm.append(label);
+      const send = action('뉴스 찾기'); send.type = 'submit'; queryForm.append(send);
+      queryForm.addEventListener('submit', event => {
+        event.preventDefault();
+        if (disposed) return;
+        if (!field.value.trim()) { field.focus(); return; }
+        onDraft(buildRegionalNewsPrompt(field.value));
+      });
+      const nearby = action('내 주변 뉴스', () => { if (!disposed) onDraft(buildRegionalNewsPrompt('')); }, {secondary: true});
+      nearby.dataset.newsNearby = 'true';
+      const note = '기본 지역을 저장해 두면 다음부터 바로 그 지역 뉴스를 보여 드려요. 현재 위치는 내 주변 뉴스를 누르고 위치 사용을 켠 경우에만 써요. 기사는 각 언론사 원문으로 연결돼요.';
+      detail.append(back, title, queryForm, nearby, node('p', 'consumer-feature-note', note));
+      root.replaceChildren(detail); title.focus();
+    }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
       button.append(icon(item.icon), node('span', '', item.label));
-      button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : openLifeDetail(item));
+      button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : item.id === 'news' ? openNewsEntry(item) : openLifeDetail(item));
       grid.append(button);
     }
     const saved = action('저장한 정보 다시 보기', onSaved, {secondary: true});

@@ -19,7 +19,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보', '공과금 확인']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역뉴스', '지역생활정보', '공과금 확인']);
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.medical).map(item => item.id), ['hospital', 'pharmacy']);
 for (const id of ['festivals', 'local', 'bills']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS));
@@ -192,7 +192,7 @@ const PROBE = `(() => {
     pageOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     search: Boolean(workspace?.querySelector('.consumer-search input')), saved: [...(workspace?.querySelectorAll('.consumer-action') || [])].some(b => b.textContent === '저장한 정보 다시 보기'),
     shortcuts,
-    detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '생활정보로 돌아가기')),
+    detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')),
       submit: box(detail.querySelector('form button[type=submit]')), note: detail.querySelector('.consumer-feature-note')?.textContent || '',
       emergency: Boolean(detail.querySelector('.conversation-emergency-call')), emergencyText: detail.querySelector('.conversation-emergency-call')?.textContent || '',
       call: detail.querySelector('.conversation-emergency-call-link')?.getAttribute('href') || '', fields, chips} : null,
@@ -332,7 +332,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 5, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === LIFE_SHORTCUTS.length, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -343,11 +343,11 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: five cards, existing order kept after the two new ones.
+    // 1. Life main: every card, existing order kept after the two new ones.
     await openLife();
     const main = await probe();
-    assert.equal(main.title, '생활정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보', '공과금 확인']);
+    assert.equal(main.title, '지역정보');
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역뉴스', '지역생활정보', '공과금 확인']);
     assert.equal(main.search, true, 'life search box kept');
     assert.equal(main.saved, true, '저장한 정보 다시 보기 kept');
     assert.ok(main.pageOverflowX <= 0, `${testCase.label}: no horizontal page scroll (${main.pageOverflowX})`);
@@ -404,7 +404,7 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.detail.fields[1].value, '지금 진료하는 병원');
     await shot('03-hospital-now');
     await tap(await reveal('.consumer-life-detail > .consumer-action'));
-    state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 5 ? value : null; }, `${testCase.label}: back to life main`);
+    state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === LIFE_SHORTCUTS.length ? value : null; }, `${testCase.label}: back to life main`);
     assert.deepEqual(state.shortcuts.map(item => item.label), main.shortcuts.map(item => item.label), 'back → 생활정보 메인');
 
     // 3. 병원·의원 submit → composer holds the Core-compatible sentence → send.
@@ -455,7 +455,7 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.detail.title, '공과금 확인');
     assert.deepEqual(state.detail.fields.map(field => [field.label, field.tag]), [['고지서 내용', 'TEXTAREA']]);
     await tap(await reveal('.consumer-life-detail > .consumer-action'));
-    await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 5; }, `${testCase.label}: back from bills`);
+    await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === LIFE_SHORTCUTS.length; }, `${testCase.label}: back from bills`);
     await typeInto('.consumer-search input', '전주 쓰레기 배출일 알려줘');
     await page('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r'});
     await page('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13});

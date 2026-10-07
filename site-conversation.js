@@ -1,27 +1,28 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-9e02e3c66a21';
-import * as siteCore from './site-core.js?v=aset-9e02e3c66a21';
-import './site-scam-shield.js?v=aset-9e02e3c66a21';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-9e02e3c66a21';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-9e02e3c66a21';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-9e02e3c66a21';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-9e02e3c66a21';
-import * as siteAttachments from './site-attachments.js?v=aset-9e02e3c66a21';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-9e02e3c66a21';
-import {deterministicReply} from './site-deterministic.js?v=aset-9e02e3c66a21';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-9e02e3c66a21';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-9e02e3c66a21';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9e02e3c66a21';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-9e02e3c66a21';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-9e02e3c66a21';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-9e02e3c66a21';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-9e02e3c66a21';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-9e02e3c66a21';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-9e02e3c66a21';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-9e02e3c66a21';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-9e02e3c66a21';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-9e02e3c66a21';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-9e02e3c66a21';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-9e02e3c66a21';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-720f2663ecb5';
+import * as siteCore from './site-core.js?v=aset-720f2663ecb5';
+import './site-scam-shield.js?v=aset-720f2663ecb5';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-720f2663ecb5';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-720f2663ecb5';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-720f2663ecb5';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-720f2663ecb5';
+import * as siteAttachments from './site-attachments.js?v=aset-720f2663ecb5';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-720f2663ecb5';
+import {deterministicReply} from './site-deterministic.js?v=aset-720f2663ecb5';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-720f2663ecb5';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-720f2663ecb5';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-720f2663ecb5';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-720f2663ecb5';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-720f2663ecb5';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-720f2663ecb5';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-720f2663ecb5';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-720f2663ecb5';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-720f2663ecb5';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-720f2663ecb5';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-720f2663ecb5';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-720f2663ecb5';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-720f2663ecb5';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-720f2663ecb5';
+import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-720f2663ecb5';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -180,7 +181,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-9e02e3c66a21';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-720f2663ecb5';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -273,7 +274,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-9e02e3c66a21');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-720f2663ecb5');
   return shareWithKakaoTalk(options);
 }
 
@@ -281,7 +282,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-9e02e3c66a21');
+    const module = await import('./site-kakao-share.js?v=aset-720f2663ecb5');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -2704,6 +2705,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       });
       if (schoolCard) node.appendChild(schoolCard);
     }
+    if (message.role === 'assistant' && message.meta?.newsResult) {
+      // 지역뉴스: one card per story, each opening the outlet's own article.
+      const newsCards = createNewsResultCards(message.meta.newsResult, {document});
+      if (newsCards) node.appendChild(newsCards);
+    }
     if (message.role === 'assistant' && ['sos', 'found'].includes(message.meta?.petAction?.target)) {
       const action = document.createElement('button');
       action.type = 'button';
@@ -3239,7 +3245,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-9e02e3c66a21');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-720f2663ecb5');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3261,13 +3267,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     panel.classList.add('site-festival-modal');
     let releaseFestivalSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'life', route: 'festival', backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'),
+      workspace: 'life', route: 'festival', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'),
       onClose: () => { releaseFestivalSurface?.(); releaseFestivalSurface = null; },
     });
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-9e02e3c66a21');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-720f2663ecb5');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3485,7 +3491,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const definitions = {
       wallet: ['Life Wallet', '신분·자격·증명 자료를 보관하는 생활지갑입니다. 결제카드 지갑은 아니에요.'],
       care: ['안심케어', '사람과 반려동물을 함께 챙기는 안전 공간입니다.'],
-      life: ['생활정보', '내 주변의 생활정보를 찾고, 필요한 일정을 챙겨 보세요.'],
+      life: ['지역정보', '저장한 지역과 내 주변의 필요한 정보를 찾아보세요.'],
       mall: ['제휴몰', '업체와 연결하고, 롯비에서 필요한 서비스를 이용하세요.'],
     };
     const definition = definitions[section];
@@ -3526,8 +3532,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-9e02e3c66a21'),
-          import('./site-pet.js?v=aset-9e02e3c66a21'),
+          import('./site-person.js?v=aset-720f2663ecb5'),
+          import('./site-pet.js?v=aset-720f2663ecb5'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3536,11 +3542,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-9e02e3c66a21');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-720f2663ecb5');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-9e02e3c66a21');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-720f2663ecb5');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -3780,7 +3786,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     content.appendChild(list);
     render();
-    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: 'lotbi-box', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life')});
+    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: 'lotbi-box', trigger, backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life')});
   };
 
   const openHelp = () => {
@@ -4532,6 +4538,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (richProduct) meta.richProduct = richProduct;
         const schoolMeta = compactSchoolResultMeta(response.schoolResult);
         if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
+        const newsMeta = compactNewsResultMeta(response.newsResult);
+        if (newsMeta) meta.newsResult = newsMeta;
         const placeResult = compactPlaceResultMeta(response.placeResult);
         if (placeResult) meta.placeResult = placeResult;
         const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
@@ -4663,6 +4671,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (richProduct) meta.richProduct = richProduct;
       const schoolMeta = compactSchoolResultMeta(response.schoolResult);
       if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
+      const newsMeta = compactNewsResultMeta(response.newsResult);
+      if (newsMeta) meta.newsResult = newsMeta;
       const placeResult = compactPlaceResultMeta(response.placeResult);
       if (placeResult) meta.placeResult = placeResult;
       const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
