@@ -19,10 +19,14 @@ assert.match(js, /https:\/\/account\.lotbiai\.com\/account/);
 assert.match(js, /\['프로필', openProfile\], \['개인테마', openPersonalTheme\], \['설정', openSettings\]/);
 assert.match(js, /mountConsumerSection/);
 assert.match(js, /workspace: section/);
-assert.match(js, /workspace: 'calendar'/);
-assert.match(js, /dismissOnBackdrop = true/);
-assert.match(js, /workspace: 'calendar',\s*dismissOnBackdrop: false/,
-  'Calendar workspace must stay open when its blank backdrop area is clicked');
+const calendarSurface = js.slice(js.indexOf('const openCalendar = async'), js.indexOf('const bindCalendarEntries'));
+assert.match(calendarSurface, /panel\.classList\.add\('site-calendar-modal', 'site-calendar-chat-popup'\)/);
+assert.match(calendarSurface, /installSurfaceBehavior\(backdrop, panel, \{\s*modal: true,/);
+assert.match(calendarSurface, /modal: true,\s*dismissOnBackdrop: false,/,
+  'Calendar chat modal must stay open when its backdrop or blank modal area is clicked');
+assert.doesNotMatch(calendarSurface, /workspace:/, 'Calendar must remain an overlay over the chat');
+assert.match(js, /dismissOnBackdrop = true/,
+  'Other surfaces must retain backdrop dismissal unless they explicitly opt out');
 assert.match(js, /mainScrollHost.inert = true/);
 assert.match(js, /mainScrollHost.inert = false/);
 assert.match(js, /else if \(!workspace\) trapFocus/);

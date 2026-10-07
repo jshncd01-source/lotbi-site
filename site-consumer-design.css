@@ -94,6 +94,22 @@ body.chat-home-page .site-modal-backdrop:has(> .consumer-section-panel) { paddin
 body.chat-home-page .site-calendar-modal,
 body.chat-home-page .site-pet-modal,
 body.chat-home-page .site-festival-modal { box-shadow: 0 12px 40px rgb(0 0 0 / 10%); }
+/* Calendar is a dialog over the chat, not a workspace that replaces it. */
+body.chat-home-page .site-modal.site-calendar-chat-popup {
+  width: min(1040px, calc(100vw - 48px));
+  height: min(820px, calc(100dvh - 72px));
+  max-height: calc(100dvh - 72px);
+  padding: 24px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 20px;
+  background: var(--lotbi-surface-primary);
+  box-shadow: 0 20px 64px rgb(0 0 0 / 18%);
+}
+body.chat-home-page .site-modal-backdrop:has(> .site-calendar-chat-popup) {
+  padding: 36px 24px;
+  place-items: center;
+}
+body.chat-home-page .site-calendar-chat-popup > .site-modal-content { min-height: 0; }
 .consumer-care-body .pet-section { border: 0; background: transparent; box-shadow: none; padding-inline: 0; }
 .consumer-care-body :is(.pet-card, .pet-empty) { box-shadow: none; border-color: var(--lotbi-border-default); border-radius: 12px; }
 body.chat-home-page .scam-dialog { box-sizing: border-box; width: min(720px, calc(100vw - 32px)); max-width: none; max-height: calc(100svh - 32px); margin: auto; border: 1px solid var(--lotbi-border-default); border-radius: 20px; box-shadow: 0 12px 40px rgb(0 0 0 / 10%); color: var(--lotbi-text-primary); background: var(--lotbi-surface-primary); }
@@ -166,6 +182,14 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   body.chat-home-page .consumer-workspace[data-workspace='calendar'] { padding-bottom: 0; }
   .consumer-workspace .site-modal-description { margin-bottom: 28px; }
   body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 24px; }
+  body.chat-home-page .site-modal.site-calendar-chat-popup {
+    width: min(100%, calc(100vw - 24px));
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 16px;
+    border-radius: 18px;
+  }
+  body.chat-home-page .site-modal-backdrop:has(> .site-calendar-chat-popup) { padding: 12px; }
 }
 @media (max-width: 600px) {
   body.chat-home-page .consumer-workspace { padding: 20px; }
