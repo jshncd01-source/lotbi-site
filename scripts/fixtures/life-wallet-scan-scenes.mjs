@@ -348,7 +348,7 @@ export function cardOnWalletScene(index) {
 // A scanned page that fills the frame: off-white paper, a title, a ruled table, paragraphs
 // of glyph-like marks, red stamp blobs and a grey scanner shadow along one corner. Returns
 // the canvas and the box the printed content occupies (fractions of the frame).
-export async function renderPageScene(index, {blank = false, photo = false} = {}) {
+export async function renderPageScene(index, {blank = false, photo = false, dim = false, band = false} = {}) {
   const random = seededRandom(1500 + index); const width = 1240; const height = 1754;
   const canvas = new OffscreenCanvas(width, height); const context = canvas.getContext('2d');
   context.fillStyle = 'rgb(246,246,243)'; context.fillRect(0, 0, width, height);
@@ -382,10 +382,18 @@ export async function renderPageScene(index, {blank = false, photo = false} = {}
     const dim = context.createRadialGradient(0, height, 10, 0, height, width * .6);
     dim.addColorStop(0, 'rgba(60,60,70,.35)'); dim.addColorStop(1, 'rgba(60,60,70,0)'); context.fillStyle = dim; context.fillRect(0, 0, width, height);
   }
+  // A dim room photo of a sheet lying on a dark desk: the sheet ends above the frame bottom,
+  // a dark strip shows above it, and the whole photo is grey rather than white.
+  const sheetBottom = band ? Math.min(.975, box.bottom + .035) : 1;
+  if (band) {
+    context.fillStyle = 'rgb(14,14,16)'; context.fillRect(0, height * sheetBottom, width, height * (1 - sheetBottom));
+    context.fillStyle = 'rgb(70,72,74)'; context.fillRect(0, 0, width, height * .012);
+  }
+  if (dim) { context.fillStyle = 'rgba(0,0,0,.27)'; context.fillRect(0, 0, width, height); }
   const pixels = context.getImageData(0, 0, width, height);
   for (let offset = 0; offset < pixels.data.length; offset += 4) { const jitter = (random() + random() - 1) * 6; for (let channel = 0; channel < 3; channel += 1) pixels.data[offset + channel] = Math.max(0, Math.min(255, pixels.data[offset + channel] + jitter)); }
   context.putImageData(pixels, 0, 0);
   const blob = await canvas.convertToBlob({type: 'image/jpeg', quality: .85}); const bitmap = await createImageBitmap(blob);
   const encoded = new OffscreenCanvas(width, height); encoded.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close?.();
-  return {canvas: encoded, box, width, height};
+  return {canvas: encoded, box, width, height, sheetBottom};
 }

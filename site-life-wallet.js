@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-b312bf71e052';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-5f5748ded3bb';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -665,6 +665,7 @@ export function createWalletCardCarousel({cards, onOpen}) {
     const image = element('img', 'wallet-card-image');
     image.src = card.frontDataUrl;
     image.alt = `${index + 1}번째 저장 자료`;
+    image.draggable = false;
     item.append(image);
     track.append(item);
     return item;
@@ -678,19 +679,28 @@ export function createWalletCardCarousel({cards, onOpen}) {
     return shell;
   }
 
+  // One card at a time, like a phone wallet: swipe or drag to the next card; the dots show
+  // where you are and also move there for keyboard and screen-reader users.
   let currentIndex = 0;
   let programmaticTargetLeft = null;
-  const navigation = element('div', 'wallet-card-navigation');
-  const previous = button('‹', () => show(currentIndex - 1), true);
-  previous.className = 'wallet-card-arrow';
-  previous.dataset.walletCarouselPrevious = '';
-  previous.setAttribute('aria-label', '이전 자료');
+  const navigation = element('div', 'wallet-card-dots');
+  const dots = items.map((_, index) => {
+    const dot = element('button', 'wallet-card-dot');
+    dot.type = 'button';
+    dot.dataset.walletCarouselDot = String(index);
+    dot.setAttribute('aria-label', `${index + 1}번째 자료 보기`);
+    dot.addEventListener('click', () => show(index));
+    return dot;
+  });
   const position = element('span', 'wallet-card-position');
   position.setAttribute('aria-live', 'polite');
-  const next = button('›', () => show(currentIndex + 1), true);
-  next.className = 'wallet-card-arrow';
-  next.dataset.walletCarouselNext = '';
-  next.setAttribute('aria-label', '다음 자료');
+
+  // The strip is as tall as the card on screen, so a short ID card is not framed by the
+  // empty height of a tall page saved next to it.
+  function fitHeight() {
+    const item = items[currentIndex];
+    if (item.offsetHeight) viewport.style.height = `${item.offsetHeight + 10}px`;
+  }
 
   function updateState(index) {
     currentIndex = Math.max(0, Math.min(index, items.length - 1));
@@ -698,15 +708,26 @@ export function createWalletCardCarousel({cards, onOpen}) {
       if (itemIndex === currentIndex) item.setAttribute('aria-current', 'true');
       else item.removeAttribute('aria-current');
     });
-    previous.disabled = currentIndex === 0;
-    next.disabled = currentIndex === items.length - 1;
+    dots.forEach((dot, dotIndex) => {
+      if (dotIndex === currentIndex) dot.setAttribute('aria-current', 'true');
+      else dot.removeAttribute('aria-current');
+    });
     position.textContent = `${currentIndex + 1} / ${items.length}`;
+    fitHeight();
+  }
+  items.forEach(item => item.querySelector('img').addEventListener('load', fitHeight));
+
+  // Card centres in the strip's own scroll coordinates (offsetLeft would add the page margin).
+  function centerOf(item) {
+    const frame = viewport.getBoundingClientRect();
+    const rect = item.getBoundingClientRect();
+    return viewport.scrollLeft + rect.left - frame.left + (rect.width / 2);
   }
 
   function show(index) {
     updateState(index);
     const item = items[currentIndex];
-    const centeredLeft = item.offsetLeft - ((viewport.clientWidth - item.clientWidth) / 2);
+    const centeredLeft = centerOf(item) - (viewport.clientWidth / 2);
     programmaticTargetLeft = Math.max(0, Math.min(centeredLeft, viewport.scrollWidth - viewport.clientWidth));
     viewport.scrollTo({
       left: programmaticTargetLeft,
@@ -726,7 +747,7 @@ export function createWalletCardCarousel({cards, onOpen}) {
       let nearestIndex = 0;
       let nearestDistance = Number.POSITIVE_INFINITY;
       items.forEach((item, index) => {
-        const distance = Math.abs(center - (item.offsetLeft + (item.clientWidth / 2)));
+        const distance = Math.abs(center - centerOf(item));
         if (distance < nearestDistance) { nearestDistance = distance; nearestIndex = index; }
       });
       if (nearestIndex !== currentIndex) updateState(nearestIndex);
@@ -737,7 +758,52 @@ export function createWalletCardCarousel({cards, onOpen}) {
     event.preventDefault();
     show(currentIndex + (event.key === 'ArrowRight' ? 1 : -1));
   });
-  navigation.append(previous, position, next);
+  // A mouse drags the strip the way a finger swipes it (touch and pen already scroll
+  // natively). Snapping pauses while dragging; on release the strip settles on the card the
+  // drag reached, or the next one in the drag direction. A drag never opens a card. No
+  // pointer capture: it would retarget a plain click away from the card.
+  let drag = null;
+  let suppressClick = false;
+  const dragMove = event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const distance = event.clientX - drag.x;
+    if (!drag.moved && Math.abs(distance) < 6) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      programmaticTargetLeft = null;
+      viewport.dataset.dragging = 'true';
+    }
+    event.preventDefault();
+    viewport.scrollLeft = drag.left - distance;
+  };
+  const dragEnd = event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const {moved, x, startIndex} = drag;
+    drag = null;
+    window.removeEventListener('pointermove', dragMove);
+    window.removeEventListener('pointerup', dragEnd);
+    window.removeEventListener('pointercancel', dragEnd);
+    if (!moved) return;
+    delete viewport.dataset.dragging;
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 0);
+    const distance = event.clientX - x;
+    const reached = currentIndex;
+    show(reached === startIndex && Math.abs(distance) > viewport.clientWidth * .12 ? startIndex + (distance < 0 ? 1 : -1) : reached);
+  };
+  viewport.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || drag) return;
+    drag = {pointerId: event.pointerId, x: event.clientX, left: viewport.scrollLeft, startIndex: currentIndex, moved: false};
+    window.addEventListener('pointermove', dragMove);
+    window.addEventListener('pointerup', dragEnd);
+    window.addEventListener('pointercancel', dragEnd);
+  });
+  viewport.addEventListener('click', event => {
+    if (!suppressClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+  navigation.append(...dots, position);
   shell.append(navigation);
   updateState(0);
   return shell;

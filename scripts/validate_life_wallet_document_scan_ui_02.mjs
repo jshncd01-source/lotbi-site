@@ -75,8 +75,21 @@ try {
   await wait(() => pageScanner.element.dataset.scanState === 'review', 'page review state');
   const pagePreview = pageScanner.element.querySelector('.wallet-scan-result-image'); await pagePreview.decode();
   const pageBox = pagePreview.getBoundingClientRect();
-  const pageView = {mode: pageScanner.element.dataset.scanMode, boxAspect: pageBox.width / pageBox.height, imageAspect: pagePreview.naturalWidth / pagePreview.naturalHeight, boxWidth: pageBox.width, boxHeight: pageBox.height};
+  const pageView = {mode: pageScanner.element.dataset.scanMode, boxAspect: pageBox.width / pageBox.height, imageAspect: pagePreview.naturalWidth / pagePreview.naturalHeight, boxWidth: pageBox.width, boxHeight: pageBox.height, warnings: pageScanner.element.querySelector('.wallet-scan-warnings').textContent};
   pageScanner.destroy(); wide.remove(); globalThis.createImageBitmap = nativeBitmap;
+  // A dim photo of a sheet on a dark desk reads like a scan: white paper, dark print, no
+  // retake warning for a page that fills the frame, and the desk left out.
+  const desk = await scenes.renderPageScene(8, {photo: true, dim: true, band: true});
+  const deskBlob = await desk.canvas.convertToBlob({type: 'image/jpeg', quality: .9});
+  globalThis.createImageBitmap = async () => desk.canvas;
+  const deskScanner = module.createWalletDocumentScanner({file: new File([deskBlob], 'synthetic-desk-page.jpg', {type: 'image/jpeg'})});
+  document.getElementById('host').replaceChildren(deskScanner.element);
+  await wait(() => deskScanner.element.dataset.scanState === 'review', 'desk page review state');
+  const deskPreview = deskScanner.element.querySelector('.wallet-scan-result-image'); await deskPreview.decode();
+  const tones = (image, from, to) => { const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight; const context = canvas.getContext('2d', {willReadFrequently: true}); context.drawImage(image, 0, 0); const data = context.getImageData(0, Math.round(canvas.height * from), canvas.width, Math.max(1, Math.round(canvas.height * (to - from)))).data; const values = []; for (let offset = 0; offset < data.length; offset += 16) values.push(data[offset] * .299 + data[offset + 1] * .587 + data[offset + 2] * .114); values.sort((left, right) => left - right); return quantile => values[Math.floor(values.length * quantile)]; };
+  const deskTones = tones(deskPreview, 0, 1); const deskBottom = tones(deskPreview, .97, 1);
+  const deskView = {mode: deskScanner.element.dataset.scanMode, paper: deskTones(.8), ink: deskTones(.02), bottomRow: deskBottom(.5), warnings: deskScanner.element.querySelector('.wallet-scan-warnings').textContent};
+  deskScanner.destroy(); globalThis.createImageBitmap = nativeBitmap;
   // A phone photo stored as 9000x6000 pixels with EXIF orientation 6 is a 6000x9000 portrait;
   // the bounded decode size must follow the rotated frame or the page is squashed.
   let rotatedOptions = null; globalThis.createImageBitmap = (input, options) => { rotatedOptions = options; return Promise.reject(new Error('decode stub')); };
@@ -84,7 +97,7 @@ try {
   const rotatedScanner = module.createWalletDocumentScanner({file: new File([rotatedHeader], 'rotated.jpg', {type: 'image/jpeg'})});
   await wait(() => rotatedOptions, 'rotated decode options'); rotatedScanner.destroy();
   globalThis.createImageBitmap = nativeBitmap;
-  window.__result = {ok: true, automatic, ambiguous, rotatedOptions, pageView};
+  window.__result = {ok: true, automatic, ambiguous, rotatedOptions, pageView, deskView};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
@@ -95,7 +108,7 @@ const result = await runFixturePage({
 });
 assert.equal(result.ok, true, result.error);
 {
-  const {automatic, ambiguous, rotatedOptions, pageView} = result;
+  const {automatic, ambiguous, rotatedOptions, pageView, deskView} = result;
   assert.equal(rotatedOptions.imageOrientation, 'from-image');
   assert.deepEqual([rotatedOptions.resizeWidth, rotatedOptions.resizeHeight], [1707, 2560], `EXIF-rotated photo must be bounded in its rotated frame: ${JSON.stringify(rotatedOptions)}`);
   const detail = JSON.stringify({...automatic, text: undefined});
@@ -119,7 +132,13 @@ assert.equal(result.ok, true, result.error);
   assert.ok(automatic.width <= automatic.viewport, `scanner overflowed the mobile viewport: ${automatic.width}/${automatic.viewport}`);
   assert.equal(ambiguous.mode, 'manual', `two competing cards must not be cropped silently: ${JSON.stringify(ambiguous)}`);
   assert.equal(pageView.mode, 'automatic', `synthetic page fell back to manual: ${JSON.stringify(pageView)}`);
+  assert.equal(pageView.warnings, '', `a clean white scan must not be flagged for glare or edges after whitening: ${JSON.stringify(pageView)}`);
   assert.ok(Math.abs(pageView.boxAspect - pageView.imageAspect) < .03, `portrait page preview is letterboxed: ${JSON.stringify(pageView)}`);
+  assert.equal(deskView.mode, 'automatic', `dim desk page fell back to manual: ${JSON.stringify(deskView)}`);
+  assert.ok(deskView.paper >= 225, `dim page paper must read white after correction: ${JSON.stringify(deskView)}`);
+  assert.ok(deskView.ink <= 110, `print must stay dark after paper correction: ${JSON.stringify(deskView)}`);
+  assert.ok(deskView.bottomRow >= 150, `the dark desk below the sheet must not remain in the page: ${JSON.stringify(deskView)}`);
+  assert.equal(deskView.warnings, '', `a page filling the frame must not ask for a retake: ${JSON.stringify(deskView)}`);
   assert.equal(ambiguous.confirmEnabled, false, 'ambiguous scenes keep save disabled until the user adjusts corners');
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_UI_02 PASS — aspect=${automatic.aspect.toFixed(3)} edge_surface=${automatic.edgeSurfaceRatio.toFixed(3)} ambiguous=${ambiguous.reason}`);
 }

@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-b312bf71e052';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-b312bf71e052';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-b312bf71e052';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-5f5748ded3bb';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-5f5748ded3bb';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-5f5748ded3bb';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-b312bf71e052';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-b312bf71e052';
+} from './site-calendar-model.js?v=aset-5f5748ded3bb';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-5f5748ded3bb';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-b312bf71e052';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-b312bf71e052';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-b312bf71e052';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-5f5748ded3bb';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-5f5748ded3bb';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-5f5748ded3bb';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-b312bf71e052';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-b312bf71e052';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-b312bf71e052';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-b312bf71e052';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-b312bf71e052';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-b312bf71e052';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-b312bf71e052';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-b312bf71e052';
+} from './site-calendar-product.js?v=aset-5f5748ded3bb';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-5f5748ded3bb';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-5f5748ded3bb';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-5f5748ded3bb';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-5f5748ded3bb';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-5f5748ded3bb';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-5f5748ded3bb';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-5f5748ded3bb';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
