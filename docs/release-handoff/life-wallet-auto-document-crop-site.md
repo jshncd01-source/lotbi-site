@@ -1,6 +1,11 @@
 READY_FOR_DEPLOY=NO
 
-STATUS=REAL_PHOTO_VALIDATION_PENDING — user decision 2026-10-07 [PRE-DEPLOY FINAL DECISION]: do not deploy until REAL_ID_TEST=PASS, REAL_DOG_TEST=PASS, FALSE_AUTO_ACCEPT=0, GENERIC_COPY_FIX=PASS, SAVED_TITLE_FIX=PASS, NEW_FAILURES=0. Waiting for local paths of real ID and dog photos.
+STATUS=REAL_PHOTO_VALIDATION_PENDING (dog photo only) — user decision 2026-10-07 [PRE-DEPLOY FINAL DECISION].
+CHECKLIST (CODE_SHA c2eb730e, merge of main 0a03ca12; checked in the user's browser with this detection, numbers only):
+  REAL_ID_TEST=PASS — ID on green surface 1440x811: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=9, CROP_RECT=[0.183,0.107,0.891,0.901], CROP_RATIO=0.558, MANUAL_ADJUST_REQUIRED=NO; ID on a wallet in hand 1920x2560: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=11, CROP_RECT=[0.094,0.328,0.949,0.746], CROP_RATIO=0.343, MANUAL_ADJUST_REQUIRED=NO.
+  REAL_DOG_TEST=PENDING — the user's dog photo not yet re-selected (on deployed code it was auto-accepted as a full page with 2% print density).
+  FALSE_AUTO_ACCEPT=0 so far — a phone-screen image (1178x2560) auto-accepted on deployed code: AUTO_ACCEPT=NO, DETECTED_TEXT_LINES=8, MANUAL_ADJUST_REQUIRED=YES; a receipt (crop 2.06:1) is no longer auto-accepted (receipt rule, user decision: wallet = IDs, cards, documents; no receipts).
+  GENERIC_COPY_FIX=PASS (scan_ui_02 asserts the heading). SAVED_TITLE_FIX=PASS (entry_lock_01 asserts memo-first-line / kind · date titles). NEW_FAILURES=0 (16/16 validators on CODE_SHA).
 
 # life-wallet-auto-document-crop-site — release handoff (cards/documents only, PDF page 1, one-card wallet)
 
@@ -8,11 +13,11 @@ REPO=lotbi-site
 FEATURE_BRANCH=feature/life-wallet-auto-document-crop-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/life-wallet-auto-document-crop-site`)
 REMOTE_FEATURE_SHA=same as FEATURE_SHA after push (verified with git ls-remote at push time)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=8a9e414d (Merge release/20261007-site-t10-work)
-CODE_SHA=f6679e94f58cbfaa0e91062f5f42e112bd34d59b (merge of latest main)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=0a03ca12 (Merge release/20261007-site-t12-work)
+CODE_SHA=c2eb730ef81891911ed404d316b8b617b4fda616 (merge of latest main 0a03ca12)
 CODE_COMMITS (none in main yet; previous READYs 7134ac66 and e121b959 are included):
-  2fb3edd5 portrait page display; 7b7fce6b photographed pages + one-card wallet; afea3d85 PDF registration; bfc065cd cards/documents only, PDF page 1 only, no kind field, compact picker button, phone one-card fix
-ASSET_VERSION=aset-925dc0b45ff9
+  2fb3edd5 portrait page display; 7b7fce6b photographed pages + one-card wallet; afea3d85 PDF registration; bfc065cd cards/documents only, PDF page 1 only, no kind field, compact picker button, phone one-card fix; 170e36ab receipts not auto-saved, generic scanner heading, saved item titles
+ASSET_VERSION=aset-14d6e47fa107
 
 SCOPE=lotbi-site only: site-life-wallet.js, site-life-wallet.css, site-life-wallet-scan.js, site-life-wallet-scan-ui.js, new site-life-wallet-pdf.js, new vendor/pdfjs-6.4.299/ (Mozilla pdf.js 6.4.299, Apache-2.0, legacy build, 2.5MB, loaded only when a PDF is chosen), scripts/asset_cache_version.mjs (top-level vendor/ is sealed like avatar-runtime/vendor). Encrypted save boundary unchanged; a PDF page is saved as the same JPEG data URL. New items use the neutral kind 'document' ("저장 자료"); existing kinds stay readable (stored items and backups).
 CHANGE=
