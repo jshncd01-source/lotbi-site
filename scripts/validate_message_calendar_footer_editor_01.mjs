@@ -236,6 +236,34 @@ try{
   result.chatRemainsVisible=!document.getElementById('main-content').hidden;
   result.chatIsInert=document.getElementById('main-content').inert;
 
+  // The Calendar is a modal over the conversation, but unlike a short-lived
+  // confirmation dialog it must not disappear when the user taps blank space.
+  // Close the nested editor first so the clicks exercise the Calendar shell.
+  document.querySelector('.calendar-editor-close')?.click();
+  await wait(()=>!document.querySelector('.calendar-editor-dialog'),'plain editor closed');
+  const conversationBeforeBackdrop=document.getElementById('conversation-thread').textContent;
+  click(plain.modal);
+  await new Promise(r=>setTimeout(r,50));
+  result.calendarStayedAfterInnerBlankClick=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
+  const calendarBackdrop=plain.modal.parentElement;
+  calendarBackdrop.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true}));
+  click(calendarBackdrop);
+  await new Promise(r=>setTimeout(r,50));
+  result.calendarStayedAfterBackdropClick=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
+  const calendarCloseButton=document.querySelector('.site-calendar-modal > .site-modal-header .site-modal-close');
+  result.calendarCloseButtonLabel=calendarCloseButton?.getAttribute('aria-label')||'';
+  calendarCloseButton?.click();
+  await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar closed by close button');
+  result.calendarClosedByCloseButton=!document.querySelector('.site-modal.site-calendar-modal');
+  result.conversationPreservedAfterClose=document.getElementById('conversation-thread').textContent===conversationBeforeBackdrop;
+
+  click(document.querySelector('[data-calendar-view="all"]'));
+  const escapeCalendar=await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),'calendar reopened for Escape');
+  escapeCalendar.parentElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar closed by Escape');
+  result.calendarClosedByEscape=!document.querySelector('.site-modal.site-calendar-modal');
+  result.conversationPreservedAfterEscape=document.getElementById('conversation-thread').textContent===conversationBeforeBackdrop;
+
   result.ok=true;
   out.textContent=JSON.stringify(result);
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),calls:calls.map(c=>c.method+' '+c.path),partial:result})}
@@ -283,7 +311,7 @@ fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
-  for (const [w, h, kakao] of [[390, 844, 'unset'], [1280, 900, 'unset'], [390, 844, 'configured']]) {
+  for (const [w, h, kakao] of [[375, 812, 'unset'], [390, 844, 'unset'], [1280, 900, 'unset'], [390, 844, 'configured']]) {
     const v = run(browser, w, h, kakao);
     const label = `${w}x${h} kakao=${kakao}`;
 
@@ -302,6 +330,13 @@ try {
     if (v.calendarRole !== 'dialog' || v.calendarAriaModal !== 'true') throw new Error(`${label}: Calendar must be an accessible modal dialog`);
     if (v.calendarIsWorkspace || v.bodyWorkspaceOpen) throw new Error(`${label}: Calendar must not replace chat as a workspace`);
     if (!v.bodyOverlayOpen || !v.chatRemainsVisible || v.chatIsInert) throw new Error(`${label}: chat must remain mounted and visible behind Calendar`);
+    if (!v.calendarStayedAfterInnerBlankClick) throw new Error(`${label}: Calendar must stay open after a blank area inside the modal is clicked`);
+    if (!v.calendarStayedAfterBackdropClick) throw new Error(`${label}: Calendar must stay open after its outer backdrop is clicked`);
+    if (v.calendarCloseButtonLabel !== '캘린더 닫기') throw new Error(`${label}: Calendar modal close button contract changed, got "${v.calendarCloseButtonLabel}"`);
+    if (!v.calendarClosedByCloseButton) throw new Error(`${label}: Calendar close button must still close the modal`);
+    if (!v.conversationPreservedAfterClose) throw new Error(`${label}: closing Calendar must preserve the conversation`);
+    if (!v.calendarClosedByEscape) throw new Error(`${label}: Escape must still close the Calendar modal`);
+    if (!v.conversationPreservedAfterEscape) throw new Error(`${label}: closing Calendar with Escape must preserve the conversation`);
     if (!v.shareMenuClosed) throw new Error(`${label}: choosing a share option must close the share menu`);
     if (v.kakaoSdkScripts !== 0) throw new Error(`${label}: the Kakao SDK must not be added as a page script here`);
     if (kakao === 'unset') {
