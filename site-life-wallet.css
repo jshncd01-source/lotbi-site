@@ -97,7 +97,7 @@
 .wallet-scan-pane { min-width: 0; display: grid; gap: 8px; }
 .wallet-scan-pane[hidden] { display: none; }
 /* The button's inline-flex display would otherwise override the hidden attribute. */
-.wallet-scan-adjust[hidden] { display: none; }
+.wallet-scan-adjust[hidden], .wallet-scan-rotate[hidden] { display: none; }
 .wallet-scan-pane h4 { margin: 0; font-size: 14px; }
 .wallet-scan-stage { position: relative; min-width: 0; overflow: hidden; border-radius: 16px; background: #111827; touch-action: none; user-select: none; }
 .wallet-scan-source { width: 100%; height: auto; display: block; }

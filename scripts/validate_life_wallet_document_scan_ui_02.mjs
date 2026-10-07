@@ -113,6 +113,21 @@ try {
   await press('bottomRight', 'ArrowUp', 30); await press('bottomRight', 'ArrowLeft', 30);
   manualView.blankConfirm = !noteConfirm.disabled; manualView.blankStatus = noteScanner.element.querySelector('.wallet-scan-status').textContent;
   noteScanner.destroy(); globalThis.createImageBitmap = nativeBitmap;
+  // A card photographed on its side comes out upright (landscape, photo on the left), and the
+  // 회전 button turns the result a quarter.
+  const sideCanvas = await scenes.renderScene({width: 900, height: 1400, seed: 41, surfaceKind: 'felt', cards: [scenes.walletCard({width: 900, height: 1400, margins: {left: -0.044, right: -0.044, top: 0.279, bottom: 0.279}, rotation: 90, glyphDensity: 1.4})]});
+  globalThis.createImageBitmap = async () => sideCanvas;
+  const sideScanner = module.createWalletDocumentScanner({file: new File([await sideCanvas.convertToBlob({type: 'image/jpeg'})], 'synthetic-sideways.jpg', {type: 'image/jpeg'})});
+  document.getElementById('host').replaceChildren(sideScanner.element);
+  await wait(() => sideScanner.element.dataset.scanState === 'review', 'sideways review state');
+  const sidePreview = sideScanner.element.querySelector('.wallet-scan-result-image'); await sidePreview.decode();
+  const sideTones = (() => { const c = document.createElement('canvas'); c.width = sidePreview.naturalWidth; c.height = sidePreview.naturalHeight; const x = c.getContext('2d', {willReadFrequently: true}); x.drawImage(sidePreview, 0, 0); const band = (from, to) => { const d = x.getImageData(Math.round(c.width * from), Math.round(c.height * .3), Math.max(1, Math.round(c.width * (to - from))), Math.round(c.height * .4)).data; let sum = 0; for (let o = 0; o < d.length; o += 4) sum += d[o] * .299 + d[o + 1] * .587 + d[o + 2] * .114; return sum / (d.length / 4); }; return {photoSide: band(.08, .28), textSide: band(.7, .9)}; })();
+  const sideView = {mode: sideScanner.element.dataset.scanMode, rotation: sideScanner.element.dataset.scanRotation, width: sidePreview.naturalWidth, height: sidePreview.naturalHeight, ...sideTones};
+  sideScanner.element.querySelector('[data-wallet-scan-rotate]').click();
+  await wait(() => sideScanner.element.dataset.scanRotation !== sideView.rotation && sideScanner.element.dataset.scanState === 'review', 'rotated review');
+  await sleep(300); await sidePreview.decode();
+  sideView.turnedRotation = sideScanner.element.dataset.scanRotation; sideView.turnedPortrait = sidePreview.naturalHeight > sidePreview.naturalWidth;
+  sideScanner.destroy(); globalThis.createImageBitmap = nativeBitmap;
   // A phone photo stored as 9000x6000 pixels with EXIF orientation 6 is a 6000x9000 portrait;
   // the bounded decode size must follow the rotated frame or the page is squashed.
   let rotatedOptions = null; globalThis.createImageBitmap = (input, options) => { rotatedOptions = options; return Promise.reject(new Error('decode stub')); };
@@ -120,7 +135,7 @@ try {
   const rotatedScanner = module.createWalletDocumentScanner({file: new File([rotatedHeader], 'rotated.jpg', {type: 'image/jpeg'})});
   await wait(() => rotatedOptions, 'rotated decode options'); rotatedScanner.destroy();
   globalThis.createImageBitmap = nativeBitmap;
-  window.__result = {ok: true, automatic, ambiguous, rotatedOptions, pageView, deskView, petView, manualView};
+  window.__result = {ok: true, automatic, ambiguous, rotatedOptions, pageView, deskView, petView, manualView, sideView};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
@@ -131,7 +146,7 @@ const result = await runFixturePage({
 });
 assert.equal(result.ok, true, result.error);
 {
-  const {automatic, ambiguous, rotatedOptions, pageView, deskView, petView, manualView} = result;
+  const {automatic, ambiguous, rotatedOptions, pageView, deskView, petView, manualView, sideView} = result;
   assert.equal(rotatedOptions.imageOrientation, 'from-image');
   assert.deepEqual([rotatedOptions.resizeWidth, rotatedOptions.resizeHeight], [1707, 2560], `EXIF-rotated photo must be bounded in its rotated frame: ${JSON.stringify(rotatedOptions)}`);
   const detail = JSON.stringify({...automatic, text: undefined});
@@ -178,6 +193,12 @@ assert.equal(result.ok, true, result.error);
   assert.equal(manualView.framingConfirm, true, `corners framing the print must allow saving: ${JSON.stringify(manualView)}`);
   assert.equal(manualView.blankConfirm, false, `corners framing no print must not allow saving: ${JSON.stringify(manualView)}`);
   assert.ok(manualView.blankStatus.includes('모서리 안에 신분증이나 문서가 보이지 않습니다'), `blank-crop message: ${manualView.blankStatus}`);
+  assert.equal(sideView.mode, 'automatic', `a card on its side must be cropped: ${JSON.stringify(sideView)}`);
+  assert.equal(sideView.rotation, '270', `a clockwise-lying card is turned back: ${JSON.stringify(sideView)}`);
+  assert.ok(sideView.width > sideView.height, `the card comes out landscape: ${JSON.stringify(sideView)}`);
+  assert.ok(sideView.photoSide < sideView.textSide - 15, `the card comes out upright (photo on the left): ${JSON.stringify(sideView)}`);
+  assert.equal(sideView.turnedRotation, '0', 'the rotate button turns a quarter (270 → 0)');
+  assert.equal(sideView.turnedPortrait, true, 'after a quarter turn the result is portrait');
   assert.equal(ambiguous.confirmEnabled, false, 'ambiguous scenes keep save disabled until the user adjusts corners');
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_UI_02 PASS — aspect=${automatic.aspect.toFixed(3)} edge_surface=${automatic.edgeSurfaceRatio.toFixed(3)} ambiguous=${ambiguous.reason}`);
 }
