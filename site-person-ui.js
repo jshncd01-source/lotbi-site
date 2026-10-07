@@ -25,14 +25,11 @@ import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=as
 import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-9e997aa439b1';
 import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-9e997aa439b1';
 
-const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
-const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
 const STEPS = Object.freeze(['기본정보', '식별 사진 10장', '최종 확인', '등록 완료']);
 
 const el = (tag, className = '', text = '') => { const node = document.createElement(tag); if (className) node.className = className; if (text) node.textContent = text; return node; };
-const fileDataUri = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('PHOTO_READ_FAILED')); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); });
 const relationshipLabel = value => RELATIONSHIPS.find(([code]) => code === value)?.[1] || '기타';
 const validityLabel = days => days === 180 ? '6개월' : days === 365 ? '1년' : '';
 
@@ -623,7 +620,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
   const freshComposer = () => ({reportId: '', report: null, pending: new Map(), saved: new Map(), observedAt: localNowValue(), location: '', description: ''});
   const composerCount = () => new Set([...composer.pending.keys(), ...composer.saved.keys()]).size;
   const nextFreeSlot = () => { for (let slot = 1; slot <= FOUND_REPORT_MAX_PHOTOS; slot += 1) if (!composer.pending.has(slot) && !composer.saved.has(slot)) return slot; return 0; };
-  const dropComposer = () => { if (!composer) return; for (const item of composer.pending.values()) URL.revokeObjectURL(item.url); composer = null; };
+  // Pending photos are already-prepared data URIs (no object URL to release).
+  const dropComposer = () => { composer = null; };
 
   const openComposer = async reportId => {
     dropComposer();
@@ -643,9 +641,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       composer.reportId = created.reportId; composer.report = created;
     }
     for (const [slot, item] of [...composer.pending.entries()].sort((a, b) => a[0] - b[0])) {
-      const photo = await putHumanSightingPhoto(sessionToken, composer.reportId, slot, await fileDataUri(item.file));
+      const photo = await putHumanSightingPhoto(sessionToken, composer.reportId, slot, item.dataUri);
       composer.saved.set(slot, photo);
-      URL.revokeObjectURL(item.url);
       composer.pending.delete(slot);
     }
   };
@@ -685,7 +682,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       tile.dataset.personFoundSlot = String(slot);
       tile.dataset.personFoundSaved = saved ? 'true' : 'false';
       const media = el('div', 'safecare-slot-media');
-      if (pending) { const image = el('img', 'safecare-slot-photo'); image.src = pending.url; image.alt = `발견 사진 ${slot}`; media.append(image); }
+      if (pending) { const image = el('img', 'safecare-slot-photo'); image.src = pending.dataUri; image.alt = `발견 사진 ${slot}`; media.append(image); }
       else {
         media.append(el('span', 'safecare-slot-loading', '사진'));
         const key = `sighting:${composer.reportId}:${slot}:${saved.revision}`;
@@ -699,7 +696,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       const remove = el('button', 'person-text-button', '삭제'); remove.type = 'button';
       remove.addEventListener('click', async () => {
         if (busy) return;
-        if (pending) { URL.revokeObjectURL(pending.url); composer.pending.delete(slot); render(); return; }
+        if (pending) { composer.pending.delete(slot); render(); return; }
         busy = true;
         try { await deleteHumanSightingPhoto(sessionToken, composer.reportId, slot); composer.saved.delete(slot); render(); }
         catch (value) { fail(photoError, value, '사진을 삭제하지 못했습니다.'); }
@@ -708,22 +705,36 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       tile.append(media, caption, state, remove);
       grid.append(tile);
     }
-    const input = el('input'); input.type = 'file'; input.accept = PHOTO_ACCEPT; input.hidden = true; input.dataset.personFoundInput = '';
+    const input = el('input'); input.type = 'file'; input.accept = PERSON_PHOTO_ACCEPT; input.hidden = true; input.dataset.personFoundInput = '';
     const add = el('button', 'site-button site-button-secondary safecare-add-photo', progress.count === 0 ? '사진 선택으로 작성 시작' : '사진 추가');
     add.type = 'button'; add.disabled = !progress.canAdd; add.dataset.personFoundAdd = '';
-    add.addEventListener('click', () => { if (!busy && progress.canAdd) input.click(); });
+    // A tap that cannot pick a photo right now says why instead of doing nothing.
+    const notNow = () => { photoError.textContent = '다른 사진을 처리하는 중입니다. 끝난 뒤 다시 선택해 주세요.'; photoError.hidden = false; };
+    add.addEventListener('click', () => { if (busy) notNow(); else if (progress.canAdd) input.click(); });
     input.addEventListener('change', async () => {
       const file = input.files?.[0]; input.value = '';
-      if (!file || busy) return;
-      if (!PHOTO_TYPES.has(file.type)) { photoError.textContent = 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.'; photoError.hidden = false; return; }
+      if (!file) return;  // the picker was closed without a photo
+      if (busy) { notNow(); return; }
       const slot = nextFreeSlot();
-      if (!slot) return;
+      if (!slot) { photoError.textContent = `사진은 최대 ${FOUND_REPORT_MAX_PHOTOS}장까지 등록할 수 있습니다.`; photoError.hidden = false; return; }
       photoError.hidden = true;
-      if (!composer.reportId) { composer.pending.set(slot, {file, url: URL.createObjectURL(file)}); render(); return; }
-      busy = true; showStatus('사진을 안전하게 저장하는 중…');
-      try { composer.saved.set(slot, await putHumanSightingPhoto(sessionToken, composer.reportId, slot, await fileDataUri(file))); showStatus(''); render(); }
-      catch (value) { showStatus(''); fail(photoError, value, '사진을 저장하지 못했습니다.'); }
-      finally { busy = false; }
+      // SAFECARE-SIGHTING-PHOTO-INTAKE-01: the same preparation as the identity
+      // photos (site-person-photo-intake.js) — a JPG with an empty MIME type,
+      // HEIC the browser can open, WebP and very large photos reach Core as
+      // JPEG/PNG; a photo that cannot be opened says why. Before, the
+      // browser MIME filter refused them without a request and WebP was
+      // refused by Core.
+      busy = true;
+      try {
+        showStatus('사진을 확인하는 중…');
+        const photo = await preparePersonPhoto(file);
+        if (!composer.reportId) { composer.pending.set(slot, {dataUri: photo.dataUri}); showStatus(''); render(); return; }
+        showStatus('사진을 안전하게 저장하는 중…');
+        composer.saved.set(slot, await putHumanSightingPhoto(sessionToken, composer.reportId, slot, photo.dataUri)); showStatus(''); render();
+      } catch (value) {
+        showStatus('');
+        fail(photoError, value, '사진을 저장하지 못했습니다.', value instanceof PersonPhotoPrepareError ? personPhotoPrepareMessage(value) : personErrorMessage(value, '사진을 저장하지 못했습니다.'));
+      } finally { busy = false; }
     });
     box.append(grid, input, add, photoError);
 
