@@ -604,6 +604,33 @@ try {
       console.log(`MOBILE_COMPOSER_KEYBOARD_LAYOUT_01 ${where}`, JSON.stringify(summary[summary.length - 1]));
     }
   }
+  // Safe area: a 34px bottom inset (home indicator) is the room above the
+  // keyboard once — not added again by the scroller's own padding. index.html
+  // has no viewport-fit=cover, so real browsers report 0 today; this pins the
+  // rule for when they do not.
+  for (const [viewport, model] of [[VIEWPORTS[2], 'visual'], [VIEWPORTS[3], 'layout']]) {
+    const where = `${viewport.label}/${model}/safe-area-34`;
+    const profile = fs.mkdtempSync(path.join(tmp, 'profile-'));
+    const devtools = await openDevtools(browser, profile);
+    let r = null;
+    try {
+      await devtools.send('Page.enable');
+      await devtools.send('Runtime.enable');
+      await devtools.send('Emulation.setFocusEmulationEnabled', {enabled: true});
+      const supported = await devtools.send('Emulation.setSafeAreaInsetsOverride', {insets: {bottom: 34}}).then(() => true, () => false);
+      if (supported) r = await runCase(devtools, origin, viewport, model);
+    } finally {
+      devtools.close();
+    }
+    if (!r) { console.log(`MOBILE_COMPOSER_KEYBOARD_LAYOUT_01 ${where} NOT TESTED — this Chrome has no Emulation.setSafeAreaInsetsOverride`); continue; }
+    for (const [key, d] of [['home', r.blankOpen.dock], ['conversation', r.convOpen.dock], ['reading the middle', r.middle.openDock]]) {
+      assert.equal(d.keyboardClass, true, `${where} ${key}: keyboard state engaged`);
+      assert.ok(d.COMPOSER_BOTTOM_GAP >= 34 && d.COMPOSER_BOTTOM_GAP <= 35, `${where} ${key}: the safe area is the room above the keyboard once (${d.COMPOSER_BOTTOM_GAP}px)`);
+      assert.equal(d.transcriptUnderComposer, 0, `${where} ${key}: nothing of the conversation shows under the composer`);
+    }
+    summary.push({where, COMPOSER_BOTTOM_GAP_HOME: r.blankOpen.dock.COMPOSER_BOTTOM_GAP, COMPOSER_BOTTOM_GAP_CONV: r.convOpen.dock.COMPOSER_BOTTOM_GAP});
+    console.log(`MOBILE_COMPOSER_KEYBOARD_LAYOUT_01 ${where}`, JSON.stringify(summary[summary.length - 1]));
+  }
   // Desktop.
   {
     const profile = fs.mkdtempSync(path.join(tmp, 'profile-'));

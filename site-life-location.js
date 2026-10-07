@@ -8,9 +8,9 @@
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-3b6a826e0fe3';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-3b6a826e0fe3';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-3b6a826e0fe3';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-06561a4f564a';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-06561a4f564a';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-06561a4f564a';
 
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이)/u;
 const LIFE_NEARBY_RE = /(?:근처|주변|부근|인근|가까운|가까이|내\s*위치|우리\s*동네|여기)/u;
