@@ -1,10 +1,11 @@
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 
-STATUS=HOLD — user 2026-10-07: a cat photo must never be registered. With this build the cat (2 text rows) is not auto-accepted but can still be saved after manual corner adjustment. Waiting for the user's decision on a stronger refusal rule.
-CHECKLIST (CODE_SHA c2eb730e, merge of main 0a03ca12; checked in the user's browser with this detection, numbers only):
+STATUS=REAL_PHOTO_VALIDATION_COMPLETE — user decisions 2026-10-07: [PRE-DEPLOY FINAL DECISION]; wallet = IDs, licences, cards, documents (no receipts); a pet photo must never be saved (replaces "manual save never blocked").
+CHECKLIST (CODE_SHA 71f28413, contains main 0a03ca12; real photos measured in the user's browser with this detection, numbers only):
   REAL_ID_TEST=PASS — ID on green surface 1440x811: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=9, CROP_RECT=[0.183,0.107,0.891,0.901], CROP_RATIO=0.558, MANUAL_ADJUST_REQUIRED=NO; ID on a wallet in hand 1920x2560: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=11, CROP_RECT=[0.094,0.328,0.949,0.746], CROP_RATIO=0.343, MANUAL_ADJUST_REQUIRED=NO.
-  REAL_DOG_TEST=PASS (pet photo supplied by the user: a cat, 1920x2560) — AUTO_ACCEPT=NO, DETECTED_TEXT_LINES=2, MANUAL_ADJUST_REQUIRED=YES. The specific dog photo that Production auto-accepted was not re-selected; its earlier numbers (36 aligned marks of 152) are far below the 12-row full-page rule.
-  FALSE_AUTO_ACCEPT=0 — a phone-screen image (1178x2560) auto-accepted on deployed code: AUTO_ACCEPT=NO, DETECTED_TEXT_LINES=8, MANUAL_ADJUST_REQUIRED=YES; a receipt (crop 2.06:1) is no longer auto-accepted (receipt rule, user decision: wallet = IDs, cards, documents; no receipts).
+  REAL_DOG_TEST=PASS (pet photo supplied by the user: a cat, 1920x2560) — DETECTED_TEXT_LINES=2 < 3 → refused (not-a-document): AUTO_ACCEPT=NO, no manual adjustment, no save. The dog photo that Production auto-accepted was not re-selected (its 36 aligned marks of 152 are far below a page).
+  FALSE_AUTO_ACCEPT=0 — phone-screen image 1178x2560 (auto-accepted on deployed code): AUTO_ACCEPT=NO (8 rows < 12 for a page); receipt (crop 2.06:1): AUTO_ACCEPT=NO (receipt rule).
+  MANUAL_SAVE_GATE=PASS — a hand-placed crop is saved only while it frames >= 3 printed rows (scan_ui_02: framing print enables save, a blank crop does not).
   GENERIC_COPY_FIX=PASS (scan_ui_02 asserts the heading). SAVED_TITLE_FIX=PASS (entry_lock_01 asserts memo-first-line / kind · date titles). NEW_FAILURES=0 (16/16 validators on CODE_SHA).
 
 # life-wallet-auto-document-crop-site — release handoff (cards/documents only, PDF page 1, one-card wallet)
@@ -14,10 +15,10 @@ FEATURE_BRANCH=feature/life-wallet-auto-document-crop-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/life-wallet-auto-document-crop-site`)
 REMOTE_FEATURE_SHA=same as FEATURE_SHA after push (verified with git ls-remote at push time)
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=0a03ca12 (Merge release/20261007-site-t12-work)
-CODE_SHA=c2eb730ef81891911ed404d316b8b617b4fda616 (merge of latest main 0a03ca12)
+CODE_SHA=71f28413 (contains latest main 0a03ca12)
 CODE_COMMITS (none in main yet; previous READYs 7134ac66 and e121b959 are included):
-  2fb3edd5 portrait page display; 7b7fce6b photographed pages + one-card wallet; afea3d85 PDF registration; bfc065cd cards/documents only, PDF page 1 only, no kind field, compact picker button, phone one-card fix; 170e36ab receipts not auto-saved, generic scanner heading, saved item titles
-ASSET_VERSION=aset-14d6e47fa107
+  2fb3edd5 portrait page display; 7b7fce6b photographed pages + one-card wallet; afea3d85 PDF registration; bfc065cd cards/documents only, PDF page 1 only, no kind field, compact picker button, phone one-card fix; 170e36ab receipts not auto-saved, generic scanner heading, saved item titles; 71f28413 pet photos refused and manual crops must frame print
+ASSET_VERSION=aset-cf554b8c19df
 
 SCOPE=lotbi-site only: site-life-wallet.js, site-life-wallet.css, site-life-wallet-scan.js, site-life-wallet-scan-ui.js, new site-life-wallet-pdf.js, new vendor/pdfjs-6.4.299/ (Mozilla pdf.js 6.4.299, Apache-2.0, legacy build, 2.5MB, loaded only when a PDF is chosen), scripts/asset_cache_version.mjs (top-level vendor/ is sealed like avatar-runtime/vendor). Encrypted save boundary unchanged; a PDF page is saved as the same JPEG data URL. New items use the neutral kind 'document' ("저장 자료"); existing kinds stay readable (stored items and backups).
 CHANGE=
@@ -45,6 +46,6 @@ POST_DEPLOY_SMOKE=Life Wallet: (1) a pet photo → "신분증이나 문서로 �
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 PRIVACY_BOUNDARY=PASS — no real photo or PDF in repository, fixtures, logs or commits; synthetic images and a test-built PDF only.
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 
-USER_DECISION_NEEDED=refusal rule for pet photos (manual save of a cat must be impossible)
+USER_DECISION_NEEDED=NONE
