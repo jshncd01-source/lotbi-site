@@ -1091,7 +1091,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', walletCardTitle(card)));
     detail.append(header);
     const images = element('div', 'wallet-detail-images');
-    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage, element('figcaption', '', '자료 사진'));
+    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage); if (card.backDataUrl) front.append(element('figcaption', '', '앞면'));
     images.append(front);
     if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${walletCardTitle(card)} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
     detail.append(images);
