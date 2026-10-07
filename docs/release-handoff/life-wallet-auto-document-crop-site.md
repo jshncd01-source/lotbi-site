@@ -1,10 +1,10 @@
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 
-STATUS=REAL_PHOTO_VALIDATION_PENDING (dog photo only) — user decision 2026-10-07 [PRE-DEPLOY FINAL DECISION].
+STATUS=REAL_PHOTO_VALIDATION_COMPLETE — user decision 2026-10-07 [PRE-DEPLOY FINAL DECISION]; all gate items below are met.
 CHECKLIST (CODE_SHA c2eb730e, merge of main 0a03ca12; checked in the user's browser with this detection, numbers only):
   REAL_ID_TEST=PASS — ID on green surface 1440x811: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=9, CROP_RECT=[0.183,0.107,0.891,0.901], CROP_RATIO=0.558, MANUAL_ADJUST_REQUIRED=NO; ID on a wallet in hand 1920x2560: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=11, CROP_RECT=[0.094,0.328,0.949,0.746], CROP_RATIO=0.343, MANUAL_ADJUST_REQUIRED=NO.
-  REAL_DOG_TEST=PENDING — the user's dog photo not yet re-selected (on deployed code it was auto-accepted as a full page with 2% print density).
-  FALSE_AUTO_ACCEPT=0 so far — a phone-screen image (1178x2560) auto-accepted on deployed code: AUTO_ACCEPT=NO, DETECTED_TEXT_LINES=8, MANUAL_ADJUST_REQUIRED=YES; a receipt (crop 2.06:1) is no longer auto-accepted (receipt rule, user decision: wallet = IDs, cards, documents; no receipts).
+  REAL_DOG_TEST=PASS (pet photo supplied by the user: a cat, 1920x2560) — AUTO_ACCEPT=NO, DETECTED_TEXT_LINES=2, MANUAL_ADJUST_REQUIRED=YES. The specific dog photo that Production auto-accepted was not re-selected; its earlier numbers (36 aligned marks of 152) are far below the 12-row full-page rule.
+  FALSE_AUTO_ACCEPT=0 — a phone-screen image (1178x2560) auto-accepted on deployed code: AUTO_ACCEPT=NO, DETECTED_TEXT_LINES=8, MANUAL_ADJUST_REQUIRED=YES; a receipt (crop 2.06:1) is no longer auto-accepted (receipt rule, user decision: wallet = IDs, cards, documents; no receipts).
   GENERIC_COPY_FIX=PASS (scan_ui_02 asserts the heading). SAVED_TITLE_FIX=PASS (entry_lock_01 asserts memo-first-line / kind · date titles). NEW_FAILURES=0 (16/16 validators on CODE_SHA).
 
 # life-wallet-auto-document-crop-site — release handoff (cards/documents only, PDF page 1, one-card wallet)
@@ -45,6 +45,6 @@ POST_DEPLOY_SMOKE=Life Wallet: (1) a pet photo → "신분증이나 문서로 �
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 PRIVACY_BOUNDARY=PASS — no real photo or PDF in repository, fixtures, logs or commits; synthetic images and a test-built PDF only.
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 
-USER_DECISION_NEEDED=real ID and dog photo paths (local files, numbers-only check)
+USER_DECISION_NEEDED=NONE
