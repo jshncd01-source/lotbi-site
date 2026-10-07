@@ -689,9 +689,13 @@ function innerFixtureHtml() {
     active: item.dataset.petDraftStepActive,
   }));
   const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
-  const speciesMarks = [...document.querySelectorAll('[data-pet-guide-species]')].map(item => item.dataset.petGuideSpecies);
-  const rearSpecies = document.querySelector('[data-pet-rear-species]')?.dataset.petRearSpecies || '';
-  const rearImage = document.querySelector('[data-pet-rear-species] image')?.getAttribute('href') || '';
+  // PET-PHOTO-GUIDE-DEDUPE-01: the direction map above the tiles is gone, so
+  // the species check reads the example picture each empty tile shows.
+  const speciesMarks = [...document.querySelectorAll('[data-pet-draft-slot] .pet-slot-guide-image')].map(item => {
+    const src = item.getAttribute('src') || '';
+    return src.startsWith('assets/pet/dog-') ? 'dog' : src.startsWith('assets/pet/cat-') ? 'cat' : src;
+  });
+  const rearImage = document.querySelector('[data-pet-draft-slot="BACK_REAR"] .pet-slot-guide-image')?.getAttribute('src') || '';
 
   // Measure layout before the result sink is filled.
   const scrollWidth = document.documentElement.scrollWidth;
@@ -729,7 +733,6 @@ function innerFixtureHtml() {
     registrationSteps,
     registrationActionWhileOpen,
     speciesMarks,
-    rearSpecies,
     rearImage,
     hasConsentCopy: detailTextBeforeReveal.includes('등록 사진은 평소 검색에 사용되지 않습니다')
       && detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
@@ -853,7 +856,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     } else {
       assert.match(
         slot.artworkSrc,
-        /^assets\/pet\/dog-[a-z-]+-v1\.png$/,
+        /^assets\/pet\/dog-[a-z-]+-v2\.webp$/,
         `${label}: empty slot ${slot.code} must show its dog shooting artwork`,
       );
     }
@@ -950,8 +953,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     `${label}: the list-level registration/resume action must disappear while its form is open`);
   assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => mark === 'dog'),
     `${label}: DOG selection must show only dog photo guides`);
-  assert.equal(result.rearSpecies, 'DOG', `${label}: rear slot must use the selected dog's back-facing guide`);
-  assert.equal(result.rearImage, '/assets/pet/dog-rear-v1.png',
+  assert.equal(result.rearImage, 'assets/pet/dog-back-rear-v2.webp',
     `${label}: slot 9 must use only the selected dog's color rear-view artwork`);
 }
 

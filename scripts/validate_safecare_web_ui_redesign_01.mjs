@@ -118,7 +118,7 @@ function chromePath() {
   throw new Error('Chrome/Chromium is required for the SafeCare render validation (set CHROME_BIN).');
 }
 
-const MIME = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml'};
+const MIME = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml'};
 function serve() {
   const server = http.createServer((request, response) => {
     const rel = decodeURIComponent(request.url.split('?')[0]).replace(/^\/+/, '');
@@ -639,6 +639,8 @@ async function run() {
           slots: document.querySelectorAll('[data-pet-draft-slot]').length,
           guide: document.querySelector('[data-safecare-guide]')?.dataset.safecareGuide || '',
           artwork: document.querySelector('.safecare-guide-art')?.getAttribute('src') || '',
+          guideMap: document.querySelectorAll('.safecare-guide-map, .safecare-guide-title').length,
+          firstTileArt: document.querySelector('[data-pet-draft-slot="FACE_FRONT"] .pet-slot-guide-image')?.getAttribute('src') || '',
           counter: document.querySelector('[data-safecare-photo-count]')?.textContent || '',
           firstOpen: document.querySelector('[data-pet-draft-slot="FACE_FRONT"]')?.dataset.petDraftSlotLocked,
           nextDisabled: document.querySelector('[data-pet-draft-next="REVIEW"]')?.disabled,
@@ -783,7 +785,11 @@ for (const [label, r] of Object.entries(results)) {
   assert.ok(r.petRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
   assert.equal(r.petRegisterPhotos.slots, 10);
   assert.equal(r.petRegisterPhotos.guide, 'dog');
-  assert.equal(r.petRegisterPhotos.artwork, 'assets/safecare/dog-capture-guide-v1.png');
+  // PET-PHOTO-GUIDE-DEDUPE-01: the tiles carry the example pictures; no second
+  // illustration, title or direction map above them.
+  assert.equal(r.petRegisterPhotos.artwork, '', `${label}: duplicate guide illustration must be gone`);
+  assert.equal(r.petRegisterPhotos.guideMap, 0, `${label}: duplicate guide title/map must be gone`);
+  assert.equal(r.petRegisterPhotos.firstTileArt, 'assets/pet/dog-face-front-v2.webp');
   assert.ok(r.petRegisterPhotos.counter.startsWith('등록 완료 0 / 10 · 남은 사진 10장'));
   assert.equal(r.petRegisterPhotos.firstOpen, 'false');
   assert.equal(r.petRegisterPhotos.nextDisabled, true);

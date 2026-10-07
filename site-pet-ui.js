@@ -51,22 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-e0e4ea7967e8';
+} from './site-pet.js?v=aset-096b9ae8f165';
 import {
   petPhotoSlotArtwork,
-  petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-e0e4ea7967e8';
+} from './site-pet-guides.js?v=aset-096b9ae8f165';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-e0e4ea7967e8';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-e0e4ea7967e8';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-e0e4ea7967e8';
-import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-e0e4ea7967e8';
+} from './site-pet-gate.js?v=aset-096b9ae8f165';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-096b9ae8f165';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-096b9ae8f165';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -74,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-e0e4ea7967e8';
+} from './site-safecare-common.js?v=aset-096b9ae8f165';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -193,34 +191,20 @@ function openPetPhotoSource(sourceInputs) {
   sheet.open();
 }
 
-// SAFECARE-WEB-UI-REDESIGN-01 — the always-visible shooting guide above the
-// ten slots: the chosen animal as a finished illustration, why ten directions, and
-// the direction map drawn with the same per-slot schematics the tiles use.
+// PET-PHOTO-GUIDE-DEDUPE-01 — each of the ten slot tiles below already shows
+// its own example picture, label and shooting hint, and the gate banner says
+// to start with the face. The guide above the tiles therefore says only what
+// they cannot: why ten directions. The earlier boxed banner (an animal
+// illustration, a "촬영 안내" title and a second ten-item direction map)
+// repeated the tiles and the step title on the same screen.
 function petPhotoGuide(species) {
-  const box = el('section', 'safecare-guide');
+  const box = el('section', 'safecare-guide safecare-guide-compact');
   box.dataset.safecareGuide = species === 'CAT' ? 'cat' : 'dog';
-  const head = el('div', 'safecare-guide-head');
-  const figure = el('div', 'safecare-guide-figure');
-  figure.appendChild(createSafeCareGuideArtwork(species === 'CAT' ? 'cat' : 'dog'));
-  const copy = el('div');
-  copy.append(
-    el('h4', 'safecare-guide-title', `${species === 'CAT' ? '고양이' : '강아지'} 촬영 안내 · 서로 다른 방향 10장`),
-    el(
-      'p',
-      'safecare-guide-copy',
-      '실종 때 들어오는 발견 사진은 옆모습이나 뒷모습일 때가 많습니다. 여러 방향의 사진이 있어야 후보를 놓치지 않습니다. 얼굴 정면부터 시작해 주세요.',
-    ),
-  );
-  head.append(figure, copy);
-  const map = el('ol', 'safecare-guide-map');
-  for (const slotCode of PET_PHOTO_DISPLAY_ORDER) {
-    const item = el('li', 'safecare-guide-step');
-    const diagram = petPhotoSlotDiagram(slotCode, species === 'CAT' ? 'CAT' : 'DOG');
-    if (diagram) item.appendChild(diagram);
-    item.appendChild(el('span', '', petPhotoSlotLabel(slotCode)));
-    map.appendChild(item);
-  }
-  box.append(head, map);
+  box.appendChild(el(
+    'p',
+    'safecare-guide-copy',
+    '실종 때 들어오는 발견 사진은 옆모습이나 뒷모습일 때가 많아요. 아래 10개 방향을 모두 채워야 후보를 놓치지 않습니다.',
+  ));
   return box;
 }
 
