@@ -566,6 +566,13 @@ jobs:
           node scripts/validate_consumer_sections_02.mjs
           node scripts/validate_surface_drag_dismiss_guard_01.mjs
 
+      # 생활정보 병원·의원/약국 카드는 진입 UI만 더한다. 상세 화면이 만든 문장을
+      # 기존 대화 입력창으로 넘겨 Core 의료 조회가 답하는지(문장 규칙), 카드·칩이
+      # 375·390x844·데스크톱에서 잘리지 않고 탭되는지, 기존 축제·지역·공과금
+      # 바로가기가 그대로인지 실제 탭/클릭으로 확인한다.
+      - name: Validate life medical category entry
+        run: node scripts/validate_life_medical_category_entry_01.mjs
+
       - name: Validate 진위확인 production connection
         run: |
           node --check site-scam-shield.js
