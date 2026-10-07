@@ -7,15 +7,29 @@ FEATURE_BRANCH=feature/site-refresh-route-restore-01
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git refs/heads/feature/site-refresh-route-restore-01`)
 REMOTE_FEATURE_SHA=same as FEATURE_SHA after push (verified with git ls-remote at push time)
 BASE_MAIN_SHA=a3443d6574b52b452fcb0e4e4e31ee993b7b903a (작업 시작)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=fb12f8031cfbf1ce3887202cff7e27ab68b4b1b2 (ce132b3c, fb12f803 순서로 정상 merge)
-CODE_SHA=0ef04b03e7c33f203642ad7f9e2f11a75030a30b
-ASSET_VERSION=aset-018df3827ede
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=0a03ca12d3f551c62517a760e20346ee8cf44561 (ce132b3c → fb12f803 → 8a9e414d → 0a03ca12 순서로 정상 merge, rebase 없음)
+CODE_SHA=497b25cfbf1b703530897c1c0b7c153d429702b3
+ASSET_VERSION=aset-12285db20119
 DEPLOY_SCOPE=lotbi-site only (Core / Account Web / App / Admin 무변경, 배포 순서 제약 없음)
+TEST_STATUS=명령 248개(workflow 3개의 검증 명령 208 + workflow 밖 scripts/validate_* 40, validate 파일 206개 전부) — feature 244 PASS / 기존 Windows RED 4 (validate_calendar_system_dark_01, validate_image_attachment_thumbnail_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime), main 0a03ca12 동일 4건 재현
+NEW_FAILURES=0
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 SECRET_CHANGE_REQUIRED=NO
 SERVER_SPA_FALLBACK_CHANGED=NO
 USER_DECISION_NEEDED=NONE
+
+## VALIDATOR FIX 02 — 배포총괄방 SITE-T11 반환 대응 (2026-10-07)
+
+- 반환 사유: `scripts/validate_consumer_design_shell_01.mjs`가 이 branch에서 실패(main PASS). 정규식이 옛 `void selectTab('people')`을 요구했는데, 이 branch가 새로고침 복원을 위해 `void selectTab(careTab === 'pets' ? 'pets' : 'people')`로 바꿈(의도된 동작).
+- 이전 보고 누락 원인: 회귀 범위를 workflow `run:` 명령(207개)으로만 잡았는데, 이 validator는 workflow에 없는 `scripts/validate_*` 파일이었음. 이번에는 배포총괄방과 같은 범위(validate 파일 전부)로 비교.
+- df83aa7e 단정 갱신(약화 없음, 오히려 강화):
+  - `mountConsumerSection` 기본값 `careTab = 'people'` 고정
+  - care 블록(`root.append(tabs, body)` ~ mall 분기) 안에서 `loadCareCounts()` 뒤 마지막 문장이 정확히 `void selectTab(careTab === 'pets' ? 'pets' : 'people');`이고 초기 `selectTab(` 호출은 1회뿐
+  - 그 식을 실제로 평가: `'pets'`만 반려동물, `undefined`·`null`·`''`·`'people'`·`'PETS'`·`'pet'`·`'care'`·`'wallet'`은 전부 사람
+  - 탭 클릭·화살표 키가 `onCareTab`으로 알림(새로고침 복원용 URL 갱신 경로)
+  - 변형 검증 9종 전부 FAIL로 잡힘: careTab 그대로 전달, 기본 pets, 항상 pets, truthy 비교, 초기 선택 삭제, 시그니처 기본값 pets, 뒤에 pets 덮어쓰기, 클릭 onCareTab 누락, 옛 main 계약(`selectTab('people')` 고정). 원본은 PASS.
+- 497b25cf main 0a03ca12 merge 후 이 branch의 `validate_site_refresh_route_restore_01.mjs` 실패 → 원인 확인: main(life-medical-category-entry)이 생활정보 바로가기 맨 앞에 병원·의원·약국을 넣어 `.consumer-shortcut:first-child`가 축제·행사 대신 병원·의원 입력폼을 열고 festival 단계가 timeout(옛 선택자 임시 사본으로 재현). 같은 main 변경이 추가한 `[data-life-shortcut="festivals"]`로 축제·행사를 정확히 지정. 또 Windows에서 막 종료된 Chrome 프로필 삭제 EPERM이 실제 실패를 덮던 정리 단계를 경고로 바꿈(검사 단정 변경 없음).
 
 ## 문제
 
@@ -59,7 +73,7 @@ USER_DECISION_NEEDED=NONE
 - `auth-callback.js`: 복귀 위치가 라우트면 home hydrate 전에 pending 표시.
 - FLASH_OF_HOME_FIX: `index.html` head의 exact-purpose inline 블록(fragment만 읽고 `html[data-site-route-pending]` 설정, storage/network/navigation 없음) + `site-conversation.css`가 그동안 대화 홈을 숨기고 "화면을 불러오고 있어요" 표시. 화면이 열리거나 라우트가 아니면 즉시 해제, JS가 응답하지 않아도 CSS가 8초 후 스스로 해제.
 - `site-scam-shield.js`: open/close를 window 이벤트로 수신(`lotbi:scam-shield-open-request`/`-close-request`), 열림/닫힘을 `lotbi:scam-shield-visibility`로 알림. 닫을 때 'close' 이벤트를 기다리지 않음(숨은 탭에서 Chrome이 프레임 렌더 전까지 'close'를 보내지 않는 것을 확인).
-- `site-consumer-sections.js`: care `careTab`/`onCareTab` 옵션(기본값 기존과 동일).
+- `site-consumer-sections.js`: care `careTab`/`onCareTab` 옵션(기본값 기존과 동일, `'pets'`일 때만 반려동물 탭). 계약은 `validate_consumer_design_shell_01.mjs`가 고정(위 VALIDATOR FIX 02).
 - 검증: `scripts/validate_site_refresh_route_restore_01.mjs`(신규, site-review step, 로컬 약 107초). `validate_hardening.py`·`validate_home_chat.py`: 새 inline 블록을 SITE-THEME-BOOTSTRAP-FIRST-PAINT-01과 같은 방식으로 허용(내용 고정, 규칙 완화 아님).
 
 ## BRANCH HISTORY
@@ -68,10 +82,15 @@ USER_DECISION_NEEDED=NONE
 - 0eba1b95 Merge Ncloud main ce132b3c — asset token 충돌 55개 main 쪽, import/첫 페인트 블록 추가 hunk 4개 HEAD 쪽(토큰·추가 줄 제외 시 main과 동일 확인), 토큰 재계산. merge 결과의 main 대비 차이(토큰 줄 제외)가 827e4928의 변경과 동일함을 확인.
 - eebcbb72 fix(site): keep the route marker and 진위확인 inside existing contracts (진위확인은 window 이벤트로, inline 블록은 hardening validator에 내용 고정 허용)
 - 0ef04b03 Merge Ncloud main fb12f803 (place card 캐러셀 수정) — 같은 방식(토큰 55개 main 쪽, 추가 줄 hunk 4개 HEAD 쪽 검증, 토큰 재계산), main 대비 차이(토큰 줄 제외 1012줄)가 이 branch 코드 변경과 동일함을 확인
+- e3349070 docs: READY handoff (1차) — 배포총괄방 SITE-T11에서 consumer_design_shell_01 실패로 반환
+- df83aa7e test(site): consumer design shell validator 단정을 새 care 탭 계약으로 갱신(강화)
+- eae1bce1 Merge Ncloud main 8a9e414d (pet-photo-guide-dedupe) — 토큰 충돌 54개 HEAD 쪽, 추가 줄 hunk 4개 HEAD 쪽(site-route import·route-pending 블록), site-pet-ui.js는 main 쪽(main이 guide artwork import와 사용처를 함께 삭제). 토큰 정규화 3-way 재계산과 실제 결과가 75/75 파일 일치. 토큰 aset-b39d75b48115
+- c9805a29 Merge Ncloud main 0a03ca12 (SITE-T12: life-medical-category-entry·safecare-sighting-photo-intake·pet-photo-framing-gate) — 토큰 충돌 54개, 추가 줄 hunk 4개 HEAD 쪽, site-consumer-sections.js는 main 쪽(main이 site-life-medical.js import 추가). 토큰 정규화 3-way 재계산과 실제 결과 76/76 파일 일치. 토큰 aset-12285db20119
+- 497b25cf test(site): route restore validator가 축제·행사를 `[data-life-shortcut="festivals"]`로 지정 + 정리 단계 EPERM이 실제 실패를 덮지 않게
 
 ## TEST_STATUS
 
-FOCUSED_TESTS=PASS — validate_site_refresh_route_restore_01 (정적 + 실제 Chrome/CDP, iPhone UA 375x812·390x844 터치, 데스크톱 1280x900 마우스; 67/67/66 checks)
+FOCUSED_TESTS=PASS — validate_site_refresh_route_restore_01 (정적 + 실제 Chrome/CDP, iPhone UA 375x812·390x844 터치, 데스크톱 1280x900 마우스; 67/67/66 checks, HEAD 497b25cf에서 단독 105초) · validate_consumer_design_shell_01 PASS(갱신 단정 + 변형 9종 FAIL 확인)
 - 정적: 라우트 표 ↔ opener 1:1, 복귀 허용 목록 적대 입력(`#//evil.example`, `https://…`, `#calendar?next=…`, `javascript:` 등) 전부 `/`, 저장값 변조 시 거부, pending 블록이 첫 stylesheet·module보다 앞, nginx `location /` 계약 불변
 - CASE A `/` reload → 홈
 - CASE B~E 캘린더(강력 새로고침 포함)·Life Wallet·진위확인·안심케어·생활정보: 메뉴 → `/#<route>` → reload → 같은 화면(문서 교체 확인) → 닫기 → `/`
@@ -84,7 +103,14 @@ FOCUSED_TESTS=PASS — validate_site_refresh_route_restore_01 (정적 + 실제 C
 - CASE I 비로그인 `/#wallet`·`/#scam` → 각 화면의 로그인 안내(계정 API 호출 0), 거기서 로그인 → Account handoff → 같은 화면, 로그인 상태
 - CASE H 로그인 사용자 `/#wallet`·`/#calendar`·`/#care` reload, 새 문서 `/#life` → 매번 Account 왕복 1회 → 같은 화면(Life Wallet은 계정 화면, 로그인 안내 아님)
 - 홈 깜빡임: 프레임 단위 probe — 화면이 열리기 전 대화 홈이 그려진 프레임 0(모든 reload·직접 URL·로그인 복귀). probe 민감도 확인: pending 표시를 강제로 지우면 같은 시나리오에서 25/21 프레임 검출
-NAVIGATION_REGRESSION=PASS — workflow 3개의 검증 명령 전체(node --check 포함)를 HEAD 0ef04b03(207개)와 main fb12f803(206개)에서 실행: feature 202 PASS / 5 FAIL, main 201 PASS / 5 FAIL. 공통 4건은 main 동일 기존 Windows RED(validate_calendar_system_dark_01(CRLF), validate_image_attachment_thumbnail_01(CRLF), validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime). 나머지 1건씩은 고정 포트 python http.server의 "Failed to fetch dynamically imported module" 간헐 실패: main은 validate_calendar_day_panel_two_buttons_01, feature는 validate_calendar_holiday_surface_settings_icon_01 — feature 단독 재실행 holiday 3/3·two_buttons 2/2 PASS, 해당 모듈은 토큰 외 변경 없음.
+FULL_REGRESSION=PASS (NEW_FAILURES=0) — 배포총괄방과 같은 범위: workflow 3개의 검증 명령 전체 208개(node --check 39 포함) + workflow에 없는 scripts/validate_* 40개 = 248개, validate 파일 206개 전부. 브라우저·고정 포트·하위 프로세스를 쓰는 68개는 직렬, 나머지는 병렬. CHROME_BIN=Chrome stable.
+- feature HEAD c9805a29(코드 동일, 이후 497b25cf는 scripts/ 1파일): 1회차 239 PASS / 9 FAIL. 기존 RED 4건 외 5건 → 단독 순차 재실행 5/5 PASS
+  - validate_site_refresh_route_restore_01: main 0a03ca12의 생활정보 바로가기 순서 변경 → 497b25cf에서 수정, 단독 PASS
+  - validate_calendar_modal_runtime_02 · validate_calendar_lunar_settings_ui_01 · validate_calendar_editor_field_height_01 · validate_place_card_compact_01: "Failed to fetch dynamically imported module"(고정 포트 python http.server) / `--dump-dom` 결과 없음 → 단독 재실행 PASS. 이 branch는 해당 모듈을 토큰 외 바꾸지 않음
+- main 0a03ca12 baseline(같은 248개, refresh validator는 main에 없어 NA): 237 PASS / 10 FAIL = 기존 RED 4건 + 같은 부하성 간헐 실패 6건(conversation_calendar_card_02, auth_unknown_recovery_browser_01(정리 단계 EPERM), message_calendar_footer_editor_01, calendar_week_timegrid_ui_01, calendar_weather_attribution_01, mobile_home_initial_scroll_01 — 전부 feature에서는 PASS)
+- 실행 당시 이 PC에서 다른 방의 Chrome 약 30~47개·node 약 20개가 동시에 돌고 있었음(간헐 실패 원인으로 판단)
+- 같은 범위로 main 8a9e414d merge 시점(eae1bce1)에도 실행: feature 245개 중 241 PASS / 기존 RED 4, main 8a9e414d 2건 간헐 실패 단독 재실행 PASS → NEW_FAILURES=0
+PREVIOUS_RUN(1차 READY, 범위 부족) — workflow 3개의 검증 명령 전체(node --check 포함)를 HEAD 0ef04b03(207개)와 main fb12f803(206개)에서 실행: feature 202 PASS / 5 FAIL, main 201 PASS / 5 FAIL. 공통 4건은 main 동일 기존 Windows RED(validate_calendar_system_dark_01(CRLF), validate_image_attachment_thumbnail_01(CRLF), validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime). 나머지 1건씩은 고정 포트 python http.server의 "Failed to fetch dynamically imported module" 간헐 실패: main은 validate_calendar_day_panel_two_buttons_01, feature는 validate_calendar_holiday_surface_settings_icon_01 — feature 단독 재실행 holiday 3/3·two_buttons 2/2 PASS, 해당 모듈은 토큰 외 변경 없음.
   최근 Site 변경 관련 validator(then-latest main fb12f803 기준, 전부 PASS): calendar_compact_editor_01·calendar_editor_field_height_01·calendar_modal_runtime_02·conversation_calendar_actions_01·conversation_calendar_card_02(캘린더 편집/팝업), chat_answer_quality_p0_01·chat_answer_recovery_01(대화 꼬리·답변 복구·background completion), kakao_share_fallback_01·message_share_actions_01, place_card_naver_search_click_01·place_card_carousel_no_drift_01, pet_photo_source_selector_01, subscribe_account_checkout_handoff_01, auth_continuity_02·ios_social_return_01·home_same_url_stability_01, hardening·home_chat. 명령문 24절의 calendar single-layer editor·chat tools calendar popup·chat background completion(chat_answer_recovery_01)·Kakao share fail-closed·pet slot guide art·place card NAVER search·subscribe/account handoff는 모두 main fb12f803에 이미 포함되어 있고, 이 branch와 합친 HEAD의 전체 suite에서 함께 PASS.
 NEW_FAILURES=0
 
@@ -100,7 +126,9 @@ NOT_VERIFIED:
 2. 로그인: Life Wallet → F5 → (Account 왕복) → Life Wallet. 안심케어 → 반려동물 탭 → F5 → 반려동물 탭.
 3. 진위확인 → F5 → 진위확인. 비로그인이면 로그인 안내 → 로그인 → 진위확인으로 복귀.
 4. 모바일: 같은 1~2, 그리고 Android 뒤로 버튼이 화면을 닫고 홈으로(사이트를 떠나지 않음).
-5. `https://lotbiai.com/site-asset-version.json` = aset-018df3827ede.
+5. 안심케어를 메뉴로 열면 기본은 사람 탭(`/#care`), 반려동물 탭에서 F5일 때만 반려동물 탭 유지(`/#pets`).
+6. 생활정보 → 축제·행사 → F5 → 축제·행사, ← → 생활정보.
+7. `https://lotbiai.com/site-asset-version.json` = 이 branch 단독 배포라면 aset-12285db20119(Release Train에서 다른 branch와 합치면 train의 재계산 토큰).
 
 ## REMAINING_ISSUES
 
