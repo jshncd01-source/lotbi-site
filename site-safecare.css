@@ -169,6 +169,14 @@
   background: var(--lotbi-surface-subtle, #f7f7f7);
 }
 
+/* PET-PHOTO-GUIDE-DEDUPE-01 — the pet photo step keeps only the reason line;
+   the ten tiles below carry the example pictures, so no second box. */
+.safecare-guide-compact {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
 .safecare-guide-head {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
