@@ -374,21 +374,22 @@ try {
     result.clickedOnLockedSlot = globalThis.__clicked.slice();
 
     // Unlock by accepting FACE_FRONT, then confirm the now-unlocked slot's
-    // source selector still leads to the same upload pipeline.
+    // source selector still leads to the same upload pipeline. Slots open in
+    // order (PET-PHOTO-SEQUENTIAL-01), so the next one is 2번 FACE_LEFT.
     const faceTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
       .find(node => node.dataset.petDraftSlot === 'FACE_FRONT');
     setFile(faceTile.querySelector('[data-pet-photo-source-input="camera"]'), png());
     await wait(400);
-    const noseTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT');
-    noseTile.querySelector('.pet-slot-actions button').click();
+    const nextTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
+      .find(node => node.dataset.petDraftSlot === 'FACE_LEFT');
+    nextTile.querySelector('.pet-slot-actions button').click();
     await wait(50);
     document.querySelector('[data-pet-photo-source-option="gallery"]')?.click();
     await wait(50);
-    setFile(noseTile.querySelector('[data-pet-photo-source-input="gallery"]'), png());
+    setFile(nextTile.querySelector('[data-pet-photo-source-input="gallery"]'), png());
     await wait(400);
     result.draftSlotFilledAfterUnlock = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT')?.dataset.petSlotFilled;
+      .find(node => node.dataset.petDraftSlot === 'FACE_LEFT')?.dataset.petSlotFilled;
   } else {
     // Desktop: the button must go straight to the gallery input, and the
     // upload pipeline must still work end to end.
