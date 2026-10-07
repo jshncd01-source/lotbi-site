@@ -51,20 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-26a8ac24b592';
+} from './site-pet.js?v=aset-51ec5061fe5f';
 import {
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-26a8ac24b592';
+} from './site-pet-guides.js?v=aset-51ec5061fe5f';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-26a8ac24b592';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-26a8ac24b592';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-26a8ac24b592';
+} from './site-pet-gate.js?v=aset-51ec5061fe5f';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-51ec5061fe5f';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-51ec5061fe5f';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -72,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-26a8ac24b592';
+} from './site-safecare-common.js?v=aset-51ec5061fe5f';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -2223,13 +2223,30 @@ export async function mountPetFamilyManager({
       );
       count.dataset.safecarePhotoCount = String(presence.count);
       const faceFrontConfirmed = petDraftFaceFrontConfirmed(registrationDraft, photosBySlot.get('FACE_FRONT'));
-      const gateBanner = el(
-        'p',
-        'pet-draft-gate-banner',
-        faceFrontConfirmed
-          ? '이제 나머지 사진은 반려동물이 편한 자세에 맞춰 순서와 관계없이 등록할 수 있어요.'
-          : '먼저 얼굴 정면 사진을 확인해 주세요. 확인이 끝나면 나머지 사진을 자유로운 순서로 등록할 수 있어요.',
+      // PET-PHOTO-SEQUENTIAL-01 — the ten slots open one at a time in the
+      // order shown: 1번 얼굴 정면 first (Core's anchor gate), then each slot
+      // once the one before it holds a photo that did not fail inspection.
+      // A slot that already holds a photo stays open so it can be replaced or
+      // deleted. Dog and cat use the same order.
+      const slotOpen = PET_PHOTO_DISPLAY_ORDER.map((slotCode, index) => {
+        if (index === 0) return true;
+        if (!faceFrontConfirmed) return false;
+        if (photosBySlot.has(slotCode)) return true;
+        const previous = photosBySlot.get(PET_PHOTO_DISPLAY_ORDER[index - 1]);
+        return Boolean(previous) && previous.inspectionState !== 'REJECTED';
+      });
+      const nextIndex = PET_PHOTO_DISPLAY_ORDER.findIndex(
+        (slotCode, index) => slotOpen[index] && !photosBySlot.has(slotCode),
       );
+      let gateCopy = '먼저 얼굴 정면 사진을 확인해 주세요. 확인이 끝나면 2번부터 한 장씩 순서대로 열려요.';
+      if (faceFrontConfirmed && nextIndex >= 0) {
+        gateCopy = `이제 ${nextIndex + 1}번 ${petPhotoSlotLabel(PET_PHOTO_DISPLAY_ORDER[nextIndex])} 사진을 올려 주세요. 한 장을 올리면 다음 칸이 열려요.`;
+      } else if (faceFrontConfirmed && photosBySlot.size < PET_PHOTO_DISPLAY_ORDER.length) {
+        gateCopy = '확인을 통과하지 못한 사진을 다시 찍어 교체하면 다음 칸이 열려요.';
+      } else if (faceFrontConfirmed) {
+        gateCopy = '10칸을 모두 채웠어요. 사진 확인이 끝나면 다음 단계로 넘어갈 수 있어요.';
+      }
+      const gateBanner = el('p', 'pet-draft-gate-banner', gateCopy);
       gateBanner.setAttribute('aria-live', 'polite');
       body.append(count, gateBanner, el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression)));
       const grid = el('div', 'pet-slot-grid');
@@ -2237,7 +2254,7 @@ export async function mountPetFamilyManager({
 
       PET_PHOTO_DISPLAY_ORDER.forEach((slotCode, index) => {
         const photo = photosBySlot.get(slotCode);
-        const locked = slotCode !== 'FACE_FRONT' && !faceFrontConfirmed;
+        const locked = !slotOpen[index];
         const tile = el('figure', 'pet-slot');
         tile.dataset.petDraftSlot = slotCode;
         tile.dataset.petSlotFilled = photo ? 'true' : 'false';
@@ -2272,7 +2289,15 @@ export async function mountPetFamilyManager({
         }
         tile.appendChild(stateNode);
         if (locked) {
-          tile.appendChild(el('p', 'pet-draft-photo-locked-hint', '얼굴 정면 사진이 확인되면 선택할 수 있어요.'));
+          const previousSlot = PET_PHOTO_DISPLAY_ORDER[index - 1];
+          const previous = photosBySlot.get(previousSlot);
+          let lockCopy = '얼굴 정면 사진이 확인되면 선택할 수 있어요.';
+          if (faceFrontConfirmed) {
+            lockCopy = previous?.inspectionState === 'REJECTED'
+              ? `${index}번 ${petPhotoSlotLabel(previousSlot)} 사진을 다시 찍어 교체하면 열려요.`
+              : `${index}번 ${petPhotoSlotLabel(previousSlot)} 사진을 올리면 열려요.`;
+          }
+          tile.appendChild(el('p', 'pet-draft-photo-locked-hint', lockCopy));
         }
         const slotError = formError();
         slotError.hidden = true;
