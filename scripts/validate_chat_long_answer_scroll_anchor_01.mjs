@@ -55,6 +55,10 @@ assert.ok(!conversation.includes('forceScroll'), 'sending must anchor the questi
 assert.ok(/\.conversation-jump-latest\s*\{[^}]*position:\s*absolute/.test(css), 'the jump control floats above the composer');
 assert.ok(/\.conversation-jump-latest\[hidden\]\s*\{[^}]*display:\s*none/.test(css), 'a hidden jump control takes no space');
 assert.ok(/\.conversation-turn-space\s*\{[^}]*pointer-events:\s*none/.test(css), 'the turn space never takes taps');
+// GATE FIX 02: the scroller's padding made Chrome scroll the transcript to
+// reveal the composer caret on every keystroke (-163px on the Linux gate).
+assert.ok(/\.chat-home-shell:has\(\.chat-input:focus\)\s*\{[^}]*scroll-padding-bottom:\s*0/.test(css), 'no scroll padding while the composer has focus');
+assert.ok(conversation.includes("prompt.addEventListener('beforeinput', () => {"), 'typing keeps the held question and the line being read');
 
 // ── Answers ─────────────────────────────────────────────────────────────
 const sentence = (n, topic) => `${n}번째 문단 — ${topic}을 설명하는 부분이에요. 답변이 길어질 때 방금 보낸 질문과 답변의 시작이 화면에 그대로 남아 있는지 확인하는 문장입니다.`;

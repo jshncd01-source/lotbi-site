@@ -962,6 +962,16 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   scroll-padding-bottom: 168px;
 }
 
+/* CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 GATE FIX 02 — the padding keeps a focused
+   or revealed conversation item clear of the sticky composer. The composer's
+   own caret sits inside that band, so while the composer has focus Chrome
+   scrolled the transcript on every keystroke to "reveal" it (83-93px per
+   line at 360x780) and the question held at the top went off screen. With
+   the composer focused there is nothing of the conversation to reveal. */
+.chat-home-shell:has(.chat-input:focus) {
+  scroll-padding-bottom: 0;
+}
+
 .conversation-active .chat-home-shell {
   width: 100%;
   margin-inline: 0;

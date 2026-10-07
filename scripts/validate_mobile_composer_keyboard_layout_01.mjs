@@ -407,6 +407,10 @@ async function runCase(devtools, origin, viewport, model) {
     await settle();
   };
   const type = async text => { await devtools.send('Input.insertText', {text}); await settle(); };
+  // A person pauses between tapping the field and typing, and between lines.
+  // Longer than any short-lived allowance in the page (the Linux gate, slower
+  // than a desktop, reached the second line after one had run out).
+  const pause = () => new Promise(resolve => setTimeout(resolve, 1100));
 
   await metrics(height);
   await devtools.send('Emulation.setUserAgentOverride', {userAgent: MOBILE_UA});
@@ -444,8 +448,11 @@ async function runCase(devtools, origin, viewport, model) {
   // Tap the composer while reading from the anchored question.
   await openKeyboard();
   r.convOpen = {dock: await evaluate('__t.dock()'), question: await evaluate('__t.question()'), placeholder: await evaluate('__t.geometry()'), distance: await evaluate('__t.distance()')};
+  await pause();
   await type('가나다라마바사 첫 글자');
   r.convOpen.oneLine = await evaluate('__t.geometry()');
+  r.convOpen.oneQuestion = await evaluate('__t.question()');
+  await pause();
   await type(' ' + MULTI_LINE);
   r.convOpen.multiLine = await evaluate('__t.geometry()');
   r.convOpen.multiDock = await evaluate('__t.dock()');
@@ -465,9 +472,14 @@ async function runCase(devtools, origin, viewport, model) {
   r.middle.openShift = await evaluate('__t.heldShift()');
   r.middle.openDock = await evaluate('__t.dock()');
   r.middle.openDistance = await evaluate('__t.distance()');
+  // Typing while reading the middle: the line being read stays.
+  await pause();
+  await type('읽던 줄이 그대로인지 확인');
+  r.middle.typedShift = await evaluate('__t.heldShift()');
   await closeKeyboard();
   r.middle.closedShift = await evaluate('__t.heldShift()');
   await evaluate('__t.blur()');
+  await evaluate('__t.clear()');
   await settle();
   r.middle.jumpVisible = await evaluate('__t.jumpVisible()');
   await evaluate('__t.clickJump()');
@@ -580,9 +592,12 @@ try {
       assert.ok(r.convOpen.dock.composerTop - r.convOpen.dock.topbarBottom >= 60, `${where}: the transcript keeps the room between header and composer`);
       assertText(r.convOpen.placeholder, `${where} conversation placeholder + caret (open)`);
       assertText(r.convOpen.oneLine, `${where} conversation one line`);
+      assert.ok(r.convOpen.oneQuestion.offset >= 0 && r.convOpen.oneQuestion.offset <= 40 && r.convOpen.oneQuestion.onScreen,
+        `${where}: typing a line does not move the anchored question (${JSON.stringify(r.convOpen.oneQuestion)})`);
       assertText(r.convOpen.multiLine, `${where} conversation several lines`);
       assertDocked(r.convOpen.multiDock, `${where} conversation, several lines`);
       assert.ok(r.convOpen.multiQuestion.offset >= 0 && r.convOpen.multiQuestion.offset <= 40, `${where}: a growing draft does not move the anchored question (${r.convOpen.multiQuestion.offset})`);
+      assert.ok(r.convOpen.multiQuestion.onScreen, `${where}: the anchored question stays on screen above a growing draft (${JSON.stringify(r.convOpen.multiQuestion)})`);
       assert.equal(r.convAfter.dock.keyboardClass, false, `${where}: keyboard state cleared on close`);
       assert.ok(r.convAfter.dock.COMPOSER_BOTTOM_GAP >= 0 && r.convAfter.dock.COMPOSER_BOTTOM_GAP <= DOCK_MAX, `${where}: composer back at the bottom after close (${r.convAfter.dock.COMPOSER_BOTTOM_GAP})`);
       assert.equal(r.convAfter.dock.transcriptUnderComposer, 0, `${where}: nothing of the conversation shows under the composer after close`);
@@ -591,6 +606,7 @@ try {
       assert.ok(r.middle.held, `${where}: an item was visible in the middle of the answer`);
       assert.ok(r.middle.openShift !== null && Math.abs(r.middle.openShift) <= STILL, `${where}: the keyboard opening kept the line being read (${r.middle.openShift}px)`);
       assertDocked(r.middle.openDock, `${where} reading the middle, keyboard open`);
+      assert.ok(r.middle.typedShift !== null && Math.abs(r.middle.typedShift) <= STILL, `${where}: typing kept the line being read (${r.middle.typedShift}px)`);
       assert.ok(r.middle.openDistance > 100, `${where}: the keyboard did not jump the reader to the end`);
       assert.ok(r.middle.closedShift !== null && Math.abs(r.middle.closedShift) <= STILL, `${where}: the keyboard closing kept the line being read (${r.middle.closedShift}px)`);
       assert.ok(r.middle.jumpVisible, `${where}: ↓ 최신 답변 is offered while reading above the end`);
