@@ -55,6 +55,9 @@ jobs:
       - name: Validate iOS Social Auth return bridge
         run: python scripts/validate_ios_social_return_01.py
 
+      - name: Validate nginx script module MIME types
+        run: python scripts/validate_nginx_module_mime_01.py
+
       - name: Validate UI/UX Phase 1 contracts
         run: node scripts/validate_uiux_phase1_01.mjs
 
@@ -697,6 +700,11 @@ jobs:
 
           curl --fail --silent --show-error --head 'http://127.0.0.1:4173/.well-known/apple-app-site-association' \
             | tr -d '\r' | grep --ignore-case --quiet '^Content-Type: application/json'
+          for path in /avatar-runtime/runtime/controller.mjs '/avatar-runtime/runtime/faithful-binding.mjs?v=smoke' /avatar-runtime/runtime/refinement.mjs /site-avatar.js; do
+            curl --fail --silent --show-error --head "http://127.0.0.1:4173${path}" \
+              | tr -d '\r' | grep --ignore-case --quiet --extended-regexp '^Content-Type: (application|text)/javascript' \
+              || { echo "module script ${path} must be served as JavaScript" >&2; exit 1; }
+          done
           unknown_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/not-a-real-static-path')"
           [[ "$unknown_status" == '404' ]] || { echo "unrelated static path must remain 404, got $unknown_status" >&2; exit 1; }
 
