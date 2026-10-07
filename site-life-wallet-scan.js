@@ -852,17 +852,35 @@ function fullPageDocument(smooth,light,width,height){
     if(red*.299+green*.587+blue*.114>=150&&Math.max(red,green,blue)-Math.min(red,green,blue)<=40)paper+=1;
   }
   if(paper<samples*.5)return null;
+  // The sheet ends where rows and columns stop being paper: a dark table, floor or wall at
+  // the frame edge is trimmed from the outside in, so it never widens the crop. Paper is
+  // judged against this photo's own paper level, so dim photos still count.
+  const levels=[];
+  for(let index=0;index<width*height;index+=7){const red=smooth[index*3];const green=smooth[index*3+1];const blue=smooth[index*3+2];if(Math.max(red,green,blue)-Math.min(red,green,blue)<=40)levels.push(red*.299+green*.587+blue*.114)}
+  levels.sort((left,right)=>left-right);const paperLevel=levels[Math.floor(levels.length*.8)]||200;
+  const rowPaper=new Uint32Array(height);const columnPaper=new Uint32Array(width);
+  for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){
+    const index=y*width+x;const red=smooth[index*3];const green=smooth[index*3+1];const blue=smooth[index*3+2];
+    if(red*.299+green*.587+blue*.114>=paperLevel*.72&&Math.max(red,green,blue)-Math.min(red,green,blue)<=40){rowPaper[y]+=1;columnPaper[x]+=1}
+  }
+  let sheetTop=0;let sheetBottom=height-1;let sheetLeft=0;let sheetRight=width-1;
+  while(sheetTop<sheetBottom&&rowPaper[sheetTop]<width*.25)sheetTop+=1;
+  while(sheetBottom>sheetTop&&rowPaper[sheetBottom]<width*.25)sheetBottom-=1;
+  while(sheetLeft<sheetRight&&columnPaper[sheetLeft]<height*.25)sheetLeft+=1;
+  while(sheetRight>sheetLeft&&columnPaper[sheetRight]<height*.25)sheetRight-=1;
+  const tolerance=Math.max(2,Math.round(Math.min(width,height)*.005));
   // Printed content is fine detail: where the lightly blurred colour departs from the heavily
   // blurred one. Thin rules and small print stay; smooth shadows and paper tone do not.
   const content=new Uint8Array(width*height);
   for(let index=0;index<content.length;index+=1)content[index]=(light[index*3]-smooth[index*3])**2+(light[index*3+1]-smooth[index*3+1])**2+(light[index*3+2]-smooth[index*3+2])**2>18*18?1:0;
   const {components}=labelComponents(content,width,height,4);
-  const kept=components.filter(component=>component.minimumX>1&&component.minimumY>1&&component.maximumX<width-2&&component.maximumY<height-2&&component.count<width*height*.25);
+  const kept=components.filter(component=>component.minimumX>1&&component.minimumY>1&&component.maximumX<width-2&&component.maximumY<height-2&&component.count<width*height*.25
+    &&component.minimumX>=sheetLeft-tolerance&&component.maximumX<=sheetRight+tolerance&&component.minimumY>=sheetTop-tolerance&&component.maximumY<=sheetBottom+tolerance);
   let total=0;let left=width;let right=0;let top=height;let bottom=0;
   for(const component of kept){total+=component.count;left=Math.min(left,component.minimumX);right=Math.max(right,component.maximumX);top=Math.min(top,component.minimumY);bottom=Math.max(bottom,component.maximumY)}
   if(total<width*height*.01)return null;
   const pad=Math.round(Math.min(width,height)*.02);
-  const x0=Math.max(0,left-pad);const x1=Math.min(width-1,right+pad);const y0=Math.max(0,top-pad);const y1=Math.min(height-1,bottom+pad);
+  const x0=Math.max(sheetLeft,left-pad);const x1=Math.min(sheetRight,right+pad);const y0=Math.max(sheetTop,top-pad);const y1=Math.min(sheetBottom,bottom+pad);
   const area=(x1-x0+1)*(y1-y0+1);const areaRatio=area/(width*height);
   if(areaRatio<.35||total/area>.5)return null;
   return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
@@ -882,7 +900,7 @@ function borderSurfaceDetection(working,edges){
   const level=surfaceLevel(smooth,light,edges,width,height,null);
   let gradient=null;const gradientOf=()=>gradient??=gradientMagnitude(smooth,width,height);
   const summary={floodThreshold:level.flood?Number(level.flood.threshold.toFixed(1)):null,floodMode:level.adaptive?'adaptive':'strict',calmGradient:level.flood?Number(level.flood.calm.toFixed(2)):null,foregroundRegions:level.evaluated.length,surfaceCandidates:level.valid.length,rejected:level.evaluated.filter(candidate=>candidate.rejected).slice(0,4).map(candidate=>`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`)};
-  const result={background:level.flood?.background||null,labels:level.labels||null,components:level.evaluated.map(candidate=>({...candidate.component,rejected:candidate.rejected||null})),summary};
+  const result={background:level.flood?.background||null,labels:level.labels||null,components:level.evaluated.map(candidate=>({...candidate.component,rejected:candidate.rejected||null})),summary,smooth,light};
   if(!level.valid.length){
     // A card lying on a wallet, tray or book joins the holder in one irregular region.
     // Peel the holder off from that region's own outline; the card is what is left.
@@ -954,6 +972,73 @@ function surfaceConsistent(surface,corners,width,height){
   return quadArea<=regionBox*1.1&&both/Math.max(1,either)>=.85;
 }
 
+// Printed text: small dark marks of similar height standing side by side. A row of at least
+// five, at least six heights long, counts as a line of text. Cards carry a few such lines,
+// pages dozens; pets, faces and rooms produce scattered marks but hardly any rows.
+function textLines(working,smooth,light,corners){
+  const {width,height}=working;const tone=(values,index)=>values[index*3]*.299+values[index*3+1]*.587+values[index*3+2]*.114;
+  const ink=new Uint8Array(width*height);
+  for(let index=0;index<ink.length;index+=1){
+    const difference=(light[index*3]-smooth[index*3])**2+(light[index*3+1]-smooth[index*3+1])**2+(light[index*3+2]-smooth[index*3+2])**2;
+    ink[index]=difference>18*18&&tone(light,index)<tone(smooth,index)-6?1:0;
+  }
+  const {components}=labelComponents(ink,width,height,3);
+  const glyphs=components.filter(component=>{
+    const tall=component.maximumY-component.minimumY+1;const wide=component.maximumX-component.minimumX+1;
+    if(tall<3||tall>height*.05||wide>width*.15||component.minimumX<=1||component.minimumY<=1||component.maximumX>=width-2||component.maximumY>=height-2)return false;
+    return !corners||insideQuadrilateral(corners,{x:(component.minimumX+component.maximumX)/2,y:(component.minimumY+component.maximumY)/2});
+  }).map(component=>({left:component.minimumX,right:component.maximumX,middle:(component.minimumY+component.maximumY)/2,tall:component.maximumY-component.minimumY+1})).sort((first,second)=>first.middle-second.middle);
+  const parent=glyphs.map((_,index)=>index);const root=index=>parent[index]===index?index:(parent[index]=root(parent[index]));
+  for(let index=0;index<glyphs.length;index+=1){
+    const glyph=glyphs[index];
+    for(let other=index-1;other>=0&&glyph.middle-glyphs[other].middle<=glyph.tall;other-=1){
+      const neighbor=glyphs[other];const size=Math.max(glyph.tall,neighbor.tall);
+      if(Math.abs(glyph.middle-neighbor.middle)<=size*.5&&Math.max(neighbor.left-glyph.right,glyph.left-neighbor.right)<=size*2.5&&Math.abs(glyph.tall-neighbor.tall)<=size*.6)parent[root(index)]=root(other);
+    }
+  }
+  const rows=new Map();
+  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);rows.set(key,row)});
+  let lines=0;
+  for(const row of rows.values()){row.heights.sort((first,second)=>first-second);if(row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)])lines+=1}
+  return lines;
+}
+
+// Long side over short side of a quadrilateral, averaging opposite sides.
+function quadAspect(corners){
+  const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];const side=(start,end)=>Math.hypot(end.x-start.x,end.y-start.y);
+  const across=(side(ordered[0],ordered[1])+side(ordered[3],ordered[2]))/2;const down=(side(ordered[0],ordered[3])+side(ordered[1],ordered[2]))/2;
+  return Math.max(across,down)/Math.max(1,Math.min(across,down));
+}
+
+// Pages are whitened like scans. A page is a full-page crop, or a large, mostly
+// paper-coloured rectangle with square corners that is not card-shaped: ID-1 cards are
+// 1.59:1 with rounded corners, while A4 is 1.41:1, Letter 1.29:1 and receipts are long strips.
+function pageLike(working,corners){
+  const {width,height,color}=working;const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
+  const aspect=quadAspect(corners);
+  if(polygonArea(corners)<width*height*.3||(aspect>1.5&&aspect<1.9))return false;
+  const tones=[];let samples=0;
+  for(let y=0;y<height;y+=2)for(let x=0;x<width;x+=2){
+    if(!insideQuadrilateral(corners,{x,y}))continue;samples+=1;const index=(y*width+x)*3;
+    const red=color[index];const green=color[index+1];const blue=color[index+2];
+    if(Math.max(red,green,blue)-Math.min(red,green,blue)<=40)tones.push(red*.299+green*.587+blue*.114);
+  }
+  if(!samples)return false;tones.sort((left,right)=>left-right);const level=tones[Math.floor(tones.length*.8)]||0;
+  return level>=110&&tones.filter(tone=>tone>=level*.72).length>=samples*.55;
+}
+
+// Fewest printed rows a wallet item shows (real IDs show about ten; pets one or two).
+const MINIMUM_TEXT_LINES=3;
+
+// Printed rows inside corners the user placed by hand: a manual crop is only saved when it
+// frames a printed item, so a pet cannot be saved by dragging the corners around it.
+export function framesPrintedItem(imageData,corners,{maximumEdge=720}={}){
+  const working=workingGray(imageData,maximumEdge);const {width,height}=working;
+  const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
+  const scaled=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*working.scale,y:point.y*working.scale}]));
+  return textLines(working,smooth,light,scaled)>=MINIMUM_TEXT_LINES;
+}
+
 export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
@@ -974,11 +1059,22 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   else if(surface.status==='multiple')reason='competing-documents';
   else if(surface.status==='nested'){chosen=legacy;if(!legacy)reason='competing-boundaries'}
   else if(surface.status==='none'&&legacy&&surfaceConsistent(surface,legacy.corners,working.width,working.height))chosen=legacy;
+  // Wallet items are IDs, licences, cards and documents: they carry printed rows of text. A
+  // photo with hardly any (a pet, a person, a room) is not cropped, and the scanner refuses it.
+  const lines=textLines(working,surface.smooth,surface.light,null);
+  if(lines<MINIMUM_TEXT_LINES){chosen=null;reason='not-a-document'}
+  // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
+  // rooms a handful); a card needs a couple of lines of print inside its outline.
+  else if(chosen&&textLines(working,surface.smooth,surface.light,chosen.corners)<(chosen.source==='full-page'?12:2)){chosen=null;reason='automatic-detection-uncertain'}
+  // Receipts are long thin strips (about 2:1 and longer); cards are 1.59:1, A4 1.41:1, Letter
+  // 1.29:1 and business cards 1.75:1. A receipt is not saved as a wallet item automatically.
+  else if(chosen&&quadAspect(chosen.corners)>=1.85){chosen=null;reason='receipt-like'}
   const diagnostics=scanDiagnostics(working,surface,legacy,chosen);
+  diagnostics.textLines=lines;
   if (!chosen) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:legacyConfidence,mode:'manual',reason,diagnostics};
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
-  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),diagnostics};
+  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper:chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners)),diagnostics};
 }
 
 // Edge-component and corner-patch candidates (the original pipeline).
@@ -1126,6 +1222,38 @@ function enhancePixels(imageData) {
   return output;
 }
 
+// Pages (contracts, certificates): even out the light so the paper reads white and print
+// stays dark, like a document scanner. The local paper level is the brightest tone in each
+// small cell, spread and smoothed; every colour is scaled by it, so stamps and signatures
+// keep their hue. Gain is capped, so a dark photo or table stays dark instead of turning white.
+function whitenPaper(imageData){
+  const {data,width,height}=imageData;const cell=Math.max(4,Math.round(Math.min(width,height)/96));
+  const columns=Math.ceil(width/cell);const rows=Math.ceil(height/cell);let peak=new Float32Array(columns*rows);
+  for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){const offset=(y*width+x)*4;const value=data[offset]*.299+data[offset+1]*.587+data[offset+2]*.114;const index=Math.floor(y/cell)*columns+Math.floor(x/cell);if(value>peak[index])peak[index]=value}
+  const spread=(values,reduce)=>{
+    const next=new Float32Array(values.length);
+    for(let row=0;row<rows;row+=1)for(let column=0;column<columns;column+=1){
+      let maximum=0;let sum=0;let count=0;
+      for(let dy=-2;dy<=2;dy+=1)for(let dx=-2;dx<=2;dx+=1){const y=row+dy;const x=column+dx;if(y<0||x<0||y>=rows||x>=columns)continue;const value=values[y*columns+x];maximum=Math.max(maximum,value);sum+=value;count+=1}
+      next[row*columns+column]=reduce==='max'?maximum:sum/count;
+    }
+    return next;
+  };
+  peak=spread(spread(peak,'max'),'mean');
+  const output=new ImageData(width,height);const out=output.data;
+  for(let y=0;y<height;y+=1){
+    const gridY=clamp((y+.5)/cell-.5,0,rows-1);const row0=Math.floor(gridY);const row1=Math.min(rows-1,row0+1);const fy=gridY-row0;
+    for(let x=0;x<width;x+=1){
+      const gridX=clamp((x+.5)/cell-.5,0,columns-1);const column0=Math.floor(gridX);const column1=Math.min(columns-1,column0+1);const fx=gridX-column0;
+      const level=(peak[row0*columns+column0]*(1-fx)+peak[row0*columns+column1]*fx)*(1-fy)+(peak[row1*columns+column0]*(1-fx)+peak[row1*columns+column1]*fx)*fy;
+      const gain=clamp(246/Math.max(1,level),.95,1.6);const offset=(y*width+x)*4;
+      for(let channel=0;channel<3;channel+=1)out[offset+channel]=clamp(Math.round(255*Math.pow(clamp(data[offset+channel]*gain,0,255)/255,1.2)),0,255);
+      out[offset+3]=255;
+    }
+  }
+  return output;
+}
+
 export function assessDocumentQuality(imageData, {corners} = {}) {
   const warnings = [];
   const {data,width,height}=imageData; const pixels=width*height;
@@ -1170,7 +1298,7 @@ function fillRoundedCorners(imageData,relativeRadius){
   }
 }
 
-export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0} = {}) {
+export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0, paper=false} = {}) {
   const sourcePixels=sourceImageData(source); const ordered=orderDocumentCorners(Object.values(corners));
   const estimatedWidth=(distance(ordered.topLeft,ordered.topRight)+distance(ordered.bottomLeft,ordered.bottomRight))/2;
   const estimatedHeight=(distance(ordered.topLeft,ordered.bottomLeft)+distance(ordered.topRight,ordered.bottomRight))/2;
@@ -1189,8 +1317,11 @@ export async function rectifyDocument(source, corners, {enhance=true, cornerRadi
     corrected.data[offset+3]=255;
   }
   if(cornerRadius>0)fillRoundedCorners(corrected,Math.min(.12,cornerRadius));
-  const output=enhance?enhancePixels(corrected):corrected;
+  const output=enhance?(paper?whitenPaper(corrected):enhancePixels(corrected)):corrected;
   const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height; canvas.getContext('2d').putImageData(output,0,0);
-  const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:ordered})])];
+  // A page that fills the frame is expected to reach its edges, white paper is not glare on a
+  // glossy card, and a page's blank margins drag the whole-image sharpness measure down even
+  // when the print is crisp: pages are checked for resolution only.
+  const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:paper?null:ordered})])].filter(code=>!paper||code==='low-resolution');
   return {dataUrl:canvas.toDataURL('image/jpeg',0.92),width,height,warnings,enhanced:Boolean(enhance)};
 }
