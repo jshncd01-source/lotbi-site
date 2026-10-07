@@ -1,6 +1,6 @@
-READY_FOR_DEPLOY=YES
+READY_FOR_DEPLOY=NO
 
-STATUS=REAL_PHOTO_VALIDATION_COMPLETE — user decision 2026-10-07 [PRE-DEPLOY FINAL DECISION]; all gate items below are met.
+STATUS=HOLD — user 2026-10-07: a cat photo must never be registered. With this build the cat (2 text rows) is not auto-accepted but can still be saved after manual corner adjustment. Waiting for the user's decision on a stronger refusal rule.
 CHECKLIST (CODE_SHA c2eb730e, merge of main 0a03ca12; checked in the user's browser with this detection, numbers only):
   REAL_ID_TEST=PASS — ID on green surface 1440x811: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=9, CROP_RECT=[0.183,0.107,0.891,0.901], CROP_RATIO=0.558, MANUAL_ADJUST_REQUIRED=NO; ID on a wallet in hand 1920x2560: AUTO_ACCEPT=YES, DETECTED_TEXT_LINES=11, CROP_RECT=[0.094,0.328,0.949,0.746], CROP_RATIO=0.343, MANUAL_ADJUST_REQUIRED=NO.
   REAL_DOG_TEST=PASS (pet photo supplied by the user: a cat, 1920x2560) — AUTO_ACCEPT=NO, DETECTED_TEXT_LINES=2, MANUAL_ADJUST_REQUIRED=YES. The specific dog photo that Production auto-accepted was not re-selected; its earlier numbers (36 aligned marks of 152) are far below the 12-row full-page rule.
@@ -45,6 +45,6 @@ POST_DEPLOY_SMOKE=Life Wallet: (1) a pet photo → "신분증이나 문서로 �
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 PRIVACY_BOUNDARY=PASS — no real photo or PDF in repository, fixtures, logs or commits; synthetic images and a test-built PDF only.
-READY_FOR_DEPLOY=YES
+READY_FOR_DEPLOY=NO
 
-USER_DECISION_NEEDED=NONE
+USER_DECISION_NEEDED=refusal rule for pet photos (manual save of a cat must be impossible)
