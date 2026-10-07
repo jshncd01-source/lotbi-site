@@ -277,10 +277,33 @@ try{
     hasMemo:Boolean(editor.querySelector('.calendar-editor-memo')),
     hasSave:Boolean(editor.querySelector('.calendar-editor-save')),
     focusOnTitle:document.activeElement===editor.querySelector('.calendar-editor-title'),
+    dayDetailStillPresent:Boolean(modal.querySelector('.calendar-day-detail-backdrop')),
+    modalDialogCount:modal.querySelectorAll('[role="dialog"][aria-modal="true"]').length,
   };
   click(editor.querySelector('.calendar-editor-cancel'));
   await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'form closed');
+  await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===emptyDate,'day detail restored after cancel');
   await new Promise(r=>setTimeout(r,120));
+  result.editorReturn={
+    dayDetailRestored:Boolean(modal.querySelector('.calendar-day-detail-backdrop')),
+    selectedDate:modal.querySelector('.calendar-day-panel')?.dataset.selectedDate||'',
+  };
+
+  click(modal.querySelector('[data-calendar-add]'));
+  await wait(()=>modal.querySelector('.calendar-editor-dialog'),'form reopened for save');
+  const saveEditor=modal.querySelector('.calendar-editor-dialog');
+  const saveTitle=saveEditor.querySelector('.calendar-editor-title');
+  saveTitle.value='겹침 없는 기록';
+  saveTitle.dispatchEvent(new Event('input',{bubbles:true}));
+  click(saveEditor.querySelector('.calendar-editor-save'));
+  await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'saved form closed');
+  await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===emptyDate,'day detail restored after save');
+  await wait(()=>[...modal.querySelectorAll('.calendar-day-event strong')].some(node=>node.textContent==='겹침 없는 기록'),'saved record visible in restored day detail');
+  result.editorSaveReturn={
+    dayDetailRestored:Boolean(modal.querySelector('.calendar-day-detail-backdrop')),
+    selectedDate:modal.querySelector('.calendar-day-panel')?.dataset.selectedDate||'',
+    savedTitleVisible:[...modal.querySelectorAll('.calendar-day-event strong')].some(node=>node.textContent==='겹침 없는 기록'),
+  };
 
   // --- (3) a day that already has entries -------------------------------
   {
@@ -448,6 +471,10 @@ try {
       if (!editor.question.includes('무엇을 남길까요?')) fail(`the form must ask one question first, got "${editor.question}"`);
       if (!editor.hasTitle || !editor.hasTime || !editor.hasMemo || !editor.hasSave) fail(`+ 기록 must open the full form — 제목·시간·메모·저장 (${JSON.stringify(editor)})`);
       if (!editor.focusOnTitle) fail('the form must open on its question');
+      if (editor.dayDetailStillPresent) fail('the day detail must be replaced while the record editor is open');
+      if (editor.modalDialogCount !== 1) fail(`the editor must be the only active modal dialog, got ${editor.modalDialogCount}`);
+      if (!value.editorReturn.dayDetailRestored || value.editorReturn.selectedDate !== value.emptyDate) fail('cancel must return to the same selected-day detail');
+      if (!value.editorSaveReturn.dayDetailRestored || value.editorSaveReturn.selectedDate !== value.emptyDate || !value.editorSaveReturn.savedTitleVisible) fail('save must return to the same selected-day detail with the new record visible');
 
       // ── day detail content ─────────────────────────────────────────────
       if (!/^\d+월 \d+일 [일월화수목금토]요일$/.test(empty.heading)) fail(`the detail heading must name the day, got (${empty.heading})`);
