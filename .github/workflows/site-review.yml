@@ -160,6 +160,13 @@ jobs:
       - name: Validate answer scroll and markdown
         run: node scripts/validate_answer_scroll_markdown_01.mjs
 
+      # iPhone: the newest answer's sources and actions ended under the
+      # composer with the keyboard open, reopening a long conversation stayed
+      # mid-thread, and comparison tables showed raw pipes. Measured in real
+      # time at 390x844, 375x667 and 1280x900.
+      - name: Validate chat answer quality P0 (conversation tail, tables)
+        run: node scripts/validate_chat_answer_quality_p0_01.mjs
+
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
       # `fixed` would pass the first half and eat the second on a short screen.

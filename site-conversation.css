@@ -185,6 +185,129 @@
   margin: 0;
 }
 
+/* SITE-CHAT-ANSWER-QUALITY-P0 — comparison tables. A phone used to show the
+   raw "| a | b |" source. "항목 | A | B" fits a 375px screen as two columns
+   with a divider between the options; wider tables scroll sideways inside
+   their own box, never the page. */
+.chat-table-scroll {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 10px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #ffffff);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.chat-table-scroll:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring, #454545);
+  outline-offset: 2px;
+}
+
+.chat-message-paragraph + .chat-table-scroll,
+.chat-message-list + .chat-table-scroll {
+  margin-top: 12px;
+}
+
+.chat-table-scroll + .chat-message-paragraph,
+.chat-table-scroll + .chat-message-list {
+  margin-top: 10px;
+}
+
+.chat-message-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  white-space: normal;
+  color: inherit;
+}
+
+.chat-message-table th,
+.chat-message-table td {
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--lotbi-border-default, #e5e5e5);
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.chat-message-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.chat-message-table thead th {
+  background: var(--lotbi-surface-hover, #f0f0f0);
+  font-weight: 600;
+}
+
+.chat-message-table tbody th {
+  font-weight: 600;
+  color: inherit;
+}
+
+.chat-message-table .chat-table-empty {
+  color: var(--lotbi-text-disabled, #8a8a8a);
+}
+
+/* 항목 | A | B: fixed columns so long product names wrap instead of pushing
+   the table wider than the bubble, and a vertical divider between A and B. */
+.chat-message-table.is-comparison {
+  table-layout: fixed;
+}
+
+.chat-message-table.is-comparison :is(th, td):first-child {
+  width: 26%;
+}
+
+.chat-message-table.is-comparison :is(th, td):nth-child(2) {
+  border-left: 1px solid var(--lotbi-border-default, #e5e5e5);
+}
+
+.chat-message-table.is-comparison :is(th, td):nth-child(3) {
+  border-left: 1px solid var(--lotbi-border-strong, #c9c9c9);
+}
+
+/* Three or more options: keep each column readable and let the box scroll. */
+.chat-table-scroll.is-wide .chat-message-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.chat-table-scroll.is-wide .chat-message-table :is(th, td) {
+  min-width: 6.5em;
+  max-width: 14em;
+}
+
+.chat-table-scroll.is-wide .chat-message-table :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 5.5em;
+  background: var(--lotbi-surface-primary, #ffffff);
+  border-right: 1px solid var(--lotbi-border-default, #e5e5e5);
+}
+
+.chat-table-scroll.is-wide .chat-message-table thead th:first-child {
+  background: var(--lotbi-surface-hover, #f0f0f0);
+}
+
+@media (max-width: 480px) {
+  .chat-message-table {
+    font-size: 14px;
+  }
+
+  .chat-message-table th,
+  .chat-message-table td {
+    padding: 8px 8px;
+  }
+}
+
 .chat-message-meta {
   display: block;
   margin-top: 8px;
