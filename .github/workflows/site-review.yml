@@ -108,6 +108,14 @@ jobs:
       - name: Validate 자동모드 theme schedule
         run: node scripts/validate_theme_auto_schedule_02.mjs
 
+      # 화면 모드는 Account 설정 전용이 아니라 LOTBI 소비자 웹 전체의 설정 —
+      # lotbiai.com 과 account.lotbiai.com 이 같은 공유 cookie 하나를 읽는다.
+      - name: Check every consumer page carries the same theme bootstrap
+        run: node scripts/sync_theme_bootstrap.mjs --check
+
+      - name: Validate one screen mode across Site and Account
+        run: node scripts/validate_consumer_theme_sync_01.mjs
+
       - name: Validate canonical email-first identity profile
         run: node scripts/validate_identity_profile_hotfix_02.mjs
 
