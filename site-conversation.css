@@ -3172,3 +3172,27 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 .lotbi-school-candidate:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
 
 body[data-site-theme="dark"] .lotbi-school-card { border-color: rgba(198, 207, 221, .24); }
+
+/* SITE-REFRESH-ROUTE-RESTORE-01 — neutral shell while a reload reopens the
+   screen its URL names (html[data-site-route-pending], set in index.html and
+   auth-callback.js); the conversation home must not flash first. The
+   animations lift it on their own after 8 s if the runtime never answers. */
+html[data-site-route-pending] #main-content > * {
+  opacity: 0;
+  visibility: hidden;
+  animation: site-route-pending-release 0s linear 8s forwards;
+}
+html[data-site-route-pending] #main-content::before {
+  content: '화면을 불러오고 있어요';
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+  animation: site-route-pending-label 0s linear 8s forwards;
+}
+@keyframes site-route-pending-release { to { opacity: 1; visibility: visible; } }
+@keyframes site-route-pending-label { to { visibility: hidden; } }

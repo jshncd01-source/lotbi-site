@@ -226,6 +226,7 @@ async function openDialog(event) {
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
   }
+  notifyScamShieldVisibility();
   const authenticated = await requestSessionAvailability();
   if (sequence !== openSequence || !dialog.hasAttribute('open')) return;
   if (authenticated) showWorkspace();
@@ -259,11 +260,35 @@ function closeDialog() {
   stopVoiceRecognition();
   if (typeof dialog.close === 'function') {
     dialog.close();
+    // Chrome can hold the 'close' event until a frame is rendered, and a hidden
+    // tab renders none; the URL follows the dialog now, not when it is shown.
+    notifyScamShieldVisibility();
     return;
   }
   dialog.removeAttribute('open');
   dialog.removeAttribute('aria-modal');
   restoreDialogFocus();
+  notifyScamShieldVisibility();
+}
+
+// SITE-REFRESH-ROUTE-RESTORE-01 — 진위확인 is the /#scam route. The
+// conversation's route owner opens/closes it for reload and back/forward, and
+// hears every open/close here so the URL follows the dialog.
+function notifyScamShieldVisibility() {
+  try { window.dispatchEvent(new CustomEvent('lotbi:scam-shield-visibility')); } catch {}
+}
+
+export function isScamShieldOpen() {
+  return Boolean(dialog?.hasAttribute('open'));
+}
+
+export function openScamShield() {
+  if (!dialog || isScamShieldOpen()) return;
+  void openDialog();
+}
+
+export function closeScamShield() {
+  if (isScamShieldOpen()) closeDialog();
 }
 
 document.addEventListener('keydown', event => {
@@ -438,6 +463,7 @@ function bindScamShield() {
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog();
     });
     dialog.addEventListener('close', restoreDialogFocus);
+    dialog.addEventListener('close', notifyScamShieldVisibility);
   }
 
   document.querySelectorAll('[data-scam-open]').forEach(button => {
