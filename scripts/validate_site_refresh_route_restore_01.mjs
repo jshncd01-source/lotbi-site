@@ -470,7 +470,7 @@ async function runCase(browser, origin, workDir, testCase) {
 
     await openFromMenu('life');
     await settled('life', 'life');
-    await tapSelector('[data-site-route="life"] .consumer-shortcut:first-child');
+    await tapSelector('[data-site-route="life"] .consumer-shortcut[data-life-shortcut="festivals"]');
     state = await settled('festival', 'festival');
     check('festival: 생활정보 → 축제·행사 → /#festival', state.url === '/#festival', state);
     await expectScreen('festival');
@@ -503,7 +503,7 @@ async function runCase(browser, origin, workDir, testCase) {
     const step = async (route, label) => { const s = await settled(route, label); walk.push([label, s.url, s.docId === doc]); return s; };
     if (testCase.mobile) {
       await openFromMenu('life'); await step('life', 'open life');
-      await tapSelector('[data-site-route="life"] .consumer-shortcut:first-child'); await step('festival', 'open festival');
+      await tapSelector('[data-site-route="life"] .consumer-shortcut[data-life-shortcut="festivals"]'); await step('festival', 'open festival');
     } else {
       await openFromMenu('wallet'); await step('wallet', 'open wallet');
       await openFromMenu('care'); await step('care', 'open care');
@@ -656,6 +656,12 @@ try {
 } finally {
   server.kill('SIGTERM');
   await sleep(300);
-  fs.rmSync(workDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+  // Windows can hold a just-killed Chrome profile for a while; a cleanup
+  // error must never replace the failure that ended the run.
+  try {
+    fs.rmSync(workDir, {recursive: true, force: true, maxRetries: 10, retryDelay: 300});
+  } catch (error) {
+    console.warn(`route restore: temp profile not removed (${error.code}): ${workDir}`);
+  }
 }
 console.log('SITE-REFRESH-ROUTE-RESTORE-01 PASS');
