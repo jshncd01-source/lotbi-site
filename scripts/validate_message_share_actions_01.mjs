@@ -1,5 +1,5 @@
-// SITE-MESSAGE-SHARE-ACTIONS-02 — answer tools expose only link copy and
-// KakaoTalk inside the share menu, with no OS share sheet or read-aloud action.
+// SITE-MESSAGE-SHARE-ACTIONS-02 — answer tools always expose Link Copy and add
+// KakaoTalk only after explicit Share readiness, with no copy fallback.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -75,6 +75,9 @@ assert.match(conversation, /writeMessageTextToClipboard\(MESSAGE_ACTION_SHARE_UR
 assert.match(conversation, /report\('링크를 복사했습니다\.'\)/);
 assert.match(conversation, /shareMessageWithKakao\(\{text: value, url: MESSAGE_ACTION_SHARE_URL\}\)/);
 assert.match(conversation, /report\('카카오톡 공유 화면을 열었습니다\.'\)/);
+assert.match(conversation, /shareMenu\.append\(linkCopy\);/);
+assert.match(conversation, /if \(ready\)[\s\S]*shareMenu\.append\(kakao\)/);
+assert.doesNotMatch(conversation, /카카오톡에 붙여넣어 공유해 주세요/);
 
 assert.doesNotMatch(conversation, /createReadAloudController|READ_ALOUD_STATE|speechSynthesis|SpeechSynthesisUtterance/);
 assert.doesNotMatch(conversation, /messageAction: 'speak'|읽어주기|읽기 멈추기/);
@@ -84,6 +87,9 @@ assert.match(kakao, /Kakao\.Share\.sendDefault/);
 assert.match(kakao, /objectType: 'text'/);
 assert.match(kakao, /mobileWebUrl: url, webUrl: url/);
 assert.match(kakao, /kakao_javascript_key/);
+assert.match(kakao, /kakao_share_ready/);
+assert.doesNotMatch(kakao, /kakao_navi_ready/);
+assert.doesNotMatch(kakao, /copyFallback|KAKAO_SHARE_COPY_FAILED|return 'copied'/);
 assert.doesNotMatch(kakao, /console\.|localStorage|sessionStorage|document\.cookie|authorization/i);
 // The Kakao SDK, its key and its origin live only in the lazily imported
 // share module; the conversation runtime itself never embeds them.
