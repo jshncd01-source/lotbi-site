@@ -1,4 +1,5 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-0fe8494864b0';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-186a88a08d14';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-186a88a08d14';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -73,7 +74,7 @@ function detectionPixels(source) {
 
 export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>{},onReplace=()=>{}}={}) {
   const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true'; shell.dataset.scanAdjusting='false';
-  const heading=node('h3','', '신분증을 자동으로 정리하고 있습니다');
+  const heading=node('h3','', '자료를 자동으로 정리하고 있습니다');
   const privacy=node('p','wallet-scan-privacy','사진 보정은 이 브라우저에서만 처리되며 LOTBI 서버로 전송되지 않습니다.');
   const status=node('p','wallet-scan-status','사진 분석 중'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
   const workspace=node('div','wallet-scan-workspace');
@@ -89,10 +90,10 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
   shell.append(heading,privacy,status,workspace,warnings,choices,actions);
 
-  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
+  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let manualFramesItem=false; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
-  function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}}
+  function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}if(pdfDocument){void pdfDocument.destroy();pdfDocument=null}}
 
   function setCorner(name,x,y) {
     const size=dimensions(source); corners[name]={x:Math.max(0,Math.min(size.width-1,x)),y:Math.max(0,Math.min(size.height-1,y))}; updateOverlay();
@@ -118,12 +119,16 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   async function renderPreview() {
     if(!source||!corners||destroyed)return; const version=++renderVersion; confirm.disabled=true; status.textContent='보정 결과 만드는 중';
     try{
-      const result=await rectifyDocument(source,corners,{enhance:enhanced,cornerRadius:automaticGeometryKept()?cornerRadius:0}); if(destroyed||version!==renderVersion)return;
+      const result=await rectifyDocument(source,corners,{enhance:enhanced,cornerRadius:automaticGeometryKept()?cornerRadius:0,paper:paperPage}); if(destroyed||version!==renderVersion)return;
       latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced);
       warnings.replaceChildren(); if(result.warnings.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of result.warnings)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
       const automatic=shell.dataset.scanMode==='automatic';
-      status.textContent=automatic?'배경과 여백을 자동으로 제거했습니다. 결과를 확인해 주세요.':'자료 테두리를 찾지 못했습니다. 다시 선택하거나 직접 조정해 주세요.';
-      confirm.disabled=!automatic&&!manualGeometryChanged(); shell.dataset.scanState='review';
+      // A hand-placed crop is saved only when it frames a printed item (a pet never qualifies).
+      const adjusted=!automatic&&manualGeometryChanged();
+      const printed=adjusted&&framesPrintedItem(detectionImage,Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*detectionScale,y:point.y*detectionScale}])));
+      manualFramesItem=automatic||printed;
+      status.textContent=automatic?'배경과 여백을 자동으로 제거했습니다. 결과를 확인해 주세요.':notDocument?'신분증이나 문서로 보이지 않습니다. 신분증이나 문서 사진을 선택해 주세요.':adjusted&&!printed?'모서리 안에 신분증이나 문서가 보이지 않습니다. 자료에 맞춰 모서리를 조정해 주세요.':shell.dataset.scanReason==='receipt-like'?'영수증은 자동으로 등록하지 않습니다. 신분증·카드·문서 사진을 선택해 주세요.':'자료 테두리를 찾지 못했습니다. 다시 선택하거나 직접 조정해 주세요.';
+      confirm.disabled=notDocument||!manualFramesItem; shell.dataset.scanState='review';
     }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
   }
 
@@ -137,17 +142,46 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   }
   for(const [name,label] of CORNER_NAMES)installHandle(name,label);
 
+  const copy=points=>Object.fromEntries(Object.entries(points).map(([name,point])=>[name,{...point}]));
+
+  // Shows one decoded photo or PDF page: find the document on it and render the preview.
+  async function analyse(nextSource) {
+    source=nextSource; detectedCorners=null; fallbackCorners=null; cornerRadius=0; paperPage=false; notDocument=false; latest='';
+    const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
+    const detection=detectionPixels(source); detectionImage=detection.imageData; detectionScale=detection.scale; const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+    let mode=found.mode; let reason=found.reason||'';
+    // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
+    notDocument=reason==='not-a-document'; adjust.hidden=notDocument;
+    if(mode==='manual'&&pdfSource&&!notDocument&&reason!=='receipt-like'){
+      // A PDF page is the document itself: with no outline to find, keep the whole page.
+      corners={topLeft:{x:0,y:0},topRight:{x:size.width-1,y:0},bottomRight:{x:size.width-1,y:size.height-1},bottomLeft:{x:0,y:size.height-1}};
+      mode='automatic'; reason='pdf-page'; detectedCorners=copy(corners); paperPage=true;
+    }else if(mode==='manual')fallbackCorners=copy(corners);
+    else{detectedCorners=copy(corners);cornerRadius=found.cornerRadius||0;paperPage=Boolean(found.paper)}
+    shell.dataset.scanMode=mode; shell.dataset.scanReason=reason; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay(); await renderPreview();
+  }
+
+  function showError(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
+
   async function initialize() {
     try{
-      source=await decodeFile(file,resources); if(destroyed){releaseResources();return} const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
-      const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}])); fallbackCorners=found.mode==='manual'?Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}])):null; if(found.mode==='automatic'){detectedCorners=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}]));cornerRadius=found.cornerRadius||0} shell.dataset.scanMode=found.mode; shell.dataset.scanReason=found.reason||''; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay(); await renderPreview();
-    }catch(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
+      if(isPdfFile(file)){
+        const opened=await openPdfDocument(file); if(destroyed){void opened.destroy();return}
+        // Only the first page of a PDF is shown and saved.
+        pdfDocument=opened; pdfSource=true; shell.dataset.scanPdfPages=String(opened.pageCount); status.textContent='PDF 1쪽 불러오는 중';
+        const page=await opened.renderPage(1); if(destroyed)return;
+        void opened.destroy(); pdfDocument=null;
+        await analyse(page); return;
+      }
+      const decoded=await decodeFile(file,resources); if(destroyed){releaseResources();return}
+      await analyse(decoded);
+    }catch(error){showError(error)}
   }
 
   function openAdjustment(){sourcePane.hidden=false;shell.dataset.scanAdjusting='true';adjust.textContent='조정 닫기';handles.get('topLeft')?.focus()}
   function closeAdjustment(){sourcePane.hidden=true;shell.dataset.scanAdjusting='false';adjust.textContent='직접 조정';resultImage.focus?.()}
   adjust.addEventListener('click',()=>shell.dataset.scanAdjusting==='true'?closeAdjustment():openAdjustment());
-  confirm.addEventListener('click',()=>{if(!latest||destroyed)return;if(shell.dataset.scanMode!=='automatic'&&!manualGeometryChanged()){confirm.disabled=true;return}onConfirm(latest)});
+  confirm.addEventListener('click',()=>{if(!latest||destroyed||notDocument)return;if(!manualFramesItem){confirm.disabled=true;return}onConfirm(latest)});
   cancel.addEventListener('click',()=>{if(!destroyed)onCancel();destroy()}); replace.addEventListener('click',()=>{if(!destroyed)onReplace();destroy()});
 
   function destroy(){if(destroyed)return;destroyed=true;renderVersion+=1;releaseResources();shell.replaceChildren()}

@@ -61,7 +61,7 @@ try{
   input.dispatchEvent(new Event('change',{bubbles:true}));
   await sleep(60);
 
-  const source=document.createElement('canvas');source.width=480;source.height=320;const context=source.getContext('2d');context.fillStyle='#18212d';context.fillRect(0,0,480,320);context.beginPath();context.moveTo(70,55);context.lineTo(420,40);context.lineTo(440,275);context.lineTo(50,285);context.closePath();context.fillStyle='#e9dcae';context.fill();context.lineWidth=8;context.strokeStyle='#fff';context.stroke();
+  const source=document.createElement('canvas');source.width=480;source.height=320;const context=source.getContext('2d');context.fillStyle='#18212d';context.fillRect(0,0,480,320);context.beginPath();context.moveTo(70,55);context.lineTo(420,40);context.lineTo(440,275);context.lineTo(50,285);context.closePath();context.fillStyle='#e9dcae';context.fill();context.lineWidth=8;context.strokeStyle='#fff';context.stroke();for(let row=0;row<5;row+=1)for(let glyph=0;glyph<18;glyph+=1){context.fillStyle='#2a2a2a';context.fillRect(125+glyph*13,98+row*30,8,10)};
   const png=await new Promise(resolve=>source.toBlob(resolve,'image/png'));
   globalThis.createImageBitmap=async()=>source;
   const validTransfer=new DataTransfer();
@@ -69,6 +69,10 @@ try{
   input.files=validTransfer.files;
   input.dispatchEvent(new Event('change',{bubbles:true}));
   const confirm=await wait(()=>{const candidate=picker.element.querySelector('[data-wallet-scan-confirm]');return candidate&&!candidate.disabled&&picker.element.querySelector('[data-scan-state="review"]')?candidate:null},'enabled scan confirmation');
+  // While the photo is being corrected the change button stays a small outlined button and
+  // leaves room for the full hint text.
+  const scanningAction=picker.element.querySelector('.wallet-photo-action');const scanningHint=picker.element.querySelector('.wallet-photo-copy small');
+  const scanning={text:scanningAction.textContent,secondary:scanningAction.classList.contains('consumer-action-secondary'),actionWidth:scanningAction.getBoundingClientRect().width,actionHeight:scanningAction.getBoundingClientRect().height,hintClipped:scanningHint.scrollWidth>scanningHint.clientWidth+1,hintWidth:scanningHint.getBoundingClientRect().width};
   confirm.click();
   await wait(()=>ready,'photo ready callback');
   const selectedDataUrl=await picker.readDataUrl();
@@ -76,6 +80,7 @@ try{
   const pickerRect=picker.element.getBoundingClientRect();
   out.textContent=JSON.stringify({
     ok:true,
+    scanning,
     accept:input.accept,
     markTag:mark.tagName,
     plusInputClicks,
@@ -126,12 +131,17 @@ try {
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
   const result = readResult(run.stdout);
-  assert.equal(result.accept, 'image/jpeg,image/png', 'the picker must limit selection to JPEG and PNG');
+  assert.equal(result.accept, 'image/jpeg,image/png,application/pdf,.pdf', 'the picker must limit selection to JPEG, PNG and PDF');
+  assert.equal(result.scanning.text, '다시 선택');
+  assert.equal(result.scanning.secondary, true, `the change button must be an outlined secondary button, not a large black one: ${JSON.stringify(result.scanning)}`);
+  assert.ok(result.scanning.actionWidth <= 120 && result.scanning.actionHeight <= 40, `the change button must stay compact: ${JSON.stringify(result.scanning)}`);
+  assert.equal(result.scanning.hintClipped, false, `the hint text must not be cut off: ${JSON.stringify(result.scanning)}`);
+  assert.ok(result.scanning.hintWidth >= 140, `the hint text needs room beside the button: ${JSON.stringify(result.scanning)}`);
   assert.equal(result.markTag, 'BUTTON', 'the plus tile must expose its click behavior as a button');
   assert.equal(result.plusInputClicks, 1, 'clicking the plus tile must activate the real file input');
   assert.equal(result.allInputClicks, 2, 'both visible photo actions must activate the real file input');
   assert.equal(result.inputHidden, true, 'the native file input must not remain visibly laid out');
-  assert.equal(result.initialError, 'JPEG 또는 PNG 이미지만 등록할 수 있습니다.', 'unsupported images must keep the existing validation');
+  assert.equal(result.initialError, 'JPG·PNG 사진이나 PDF만 등록할 수 있습니다.', 'unsupported files (such as GIF) must still be rejected');
   assert.equal(result.selectedDataUrl, true, 'the selected image must be available to the existing encrypted save flow');
   assert.equal(result.previewVisible, true, 'a selected image must show an immediate preview');
   assert.equal(result.previewAlt, '보정된 wallet-card.png 미리보기', 'the preview must identify the corrected image');
