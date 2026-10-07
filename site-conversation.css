@@ -198,6 +198,7 @@
    Ghost buttons so the row never competes with the answer, but on the
    composer's 44px touch contract so a thumb hits them on every phone. */
 .chat-message-actions {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -257,6 +258,74 @@
   font-weight: 700;
 }
 
+.lotbi-share-menu {
+  position: absolute;
+  left: 46px;
+  bottom: 46px;
+  z-index: 45;
+  width: 224px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--lotbi-border-default, #d9dee8);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary, #fff);
+  box-shadow: 0 14px 34px rgb(24 42 70 / 14%);
+}
+
+.lotbi-share-menu[hidden] { display: none; }
+
+.lotbi-share-menu-item {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-primary, #303642);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lotbi-share-menu-item:hover,
+.lotbi-share-menu-item:focus-visible { background: var(--lotbi-surface-hover, #f0f2f7); }
+
+.lotbi-share-menu-item:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring, #4f78c5);
+  outline-offset: -2px;
+}
+
+.lotbi-share-menu-item svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;
+}
+
+@media (max-width: 760px) {
+  .lotbi-share-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: 390px;
+    margin-inline: auto;
+    padding: 8px;
+    border-radius: 18px;
+    box-shadow: 0 18px 52px rgb(20 31 49 / 22%);
+  }
+
+  .lotbi-share-menu-item { min-height: 48px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-message-action {
     transition: none;
@@ -275,6 +344,11 @@
 
   .chat-message-action svg {
     fill: currentColor;
+  }
+
+  .lotbi-share-menu-item {
+    border: 1px solid ButtonBorder;
+    color: ButtonText;
   }
 }
 

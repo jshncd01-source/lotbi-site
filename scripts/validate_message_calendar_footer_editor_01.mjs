@@ -100,12 +100,29 @@ const DRAFT={contract_id:'CORE-SMART-CALENDAR-DRAFT-01',schema_version:1,
 
 let draft=DRAFT;
 const calls=[];
+// "카카오톡 공유하기" runs once per page in one Core state: 'unset' is
+// Production today (kakao_navi_ready false), 'configured' is after Core turns
+// KakaoTalk sharing on. The Site code is the same in both.
+const kakaoMode=new URLSearchParams(location.search).get('kakao')||'unset';
+const copied=[];
+const kakaoCalls={init:[],send:[]};
 function install(){
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{copied.push(text)}}});
+  if(kakaoMode==='configured'){
+    let initialized=false;
+    globalThis.Kakao={init:key=>{kakaoCalls.init.push(key);initialized=true},isInitialized:()=>initialized,
+      Share:{sendDefault:async payload=>{kakaoCalls.send.push(payload)}}};
+  }
   const native=globalThis.fetch.bind(globalThis);
   globalThis.fetch=(url,init={})=>{
     const parsed=new URL(String(url),location.origin);
     const method=(init.method||'GET').toUpperCase();
     calls.push({path:parsed.pathname,method});
+    if(parsed.pathname==='/app/config.json'){
+      return json({navigation:kakaoMode==='configured'
+        ?{kakao_navi_ready:true,kakao_javascript_key:'fixture-js-key',kakao_javascript_sdk_url:'https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.js'}
+        :{kakao_navi_ready:false,kakao_javascript_key:null,kakao_javascript_sdk_url:null}});
+    }
     if(parsed.pathname==='/v2/conversation/messages'){
       return json(draft?{contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
         assistant_text:'10월 5일 오전 10시 30분 전주 치과 정기검진 일정이네요.',
@@ -190,11 +207,34 @@ try{
   // calendar view instead of "일정을 등록하시겠습니까?".
   draft=null;
   await send('오늘 날씨 어때');
+  const latestActions=[...document.querySelectorAll('.chat-message-actions')].pop();
+  result.messageActionLabels=[...latestActions.querySelectorAll(':scope > button')].map(button=>button.getAttribute('aria-label'));
+  click(latestActions.querySelector('[data-message-action="share"]'));
+  result.shareMenuItems=[...latestActions.querySelectorAll('[role="menuitem"]')].map(item=>item.getAttribute('aria-label'));
+  await wait(()=>calls.some(c=>c.path==='/app/config.json'),'kakao config read when the share menu opens');
+  await new Promise(r=>setTimeout(r,50));
+  click(latestActions.querySelector('[data-share-action="kakaotalk"]'));
+  const shareFeedback=latestActions.querySelector('.chat-message-action-feedback');
+  await wait(()=>shareFeedback.textContent.trim(),'kakao share feedback');
+  result.kakaoFeedback=shareFeedback.textContent.trim();
+  result.kakaoFeedbackTone=shareFeedback.dataset.tone||'';
+  result.kakaoCopied=[...copied];
+  result.kakaoSend=kakaoCalls.send.map(p=>({objectType:p.objectType,link:p.link}));
+  result.kakaoInit=[...kakaoCalls.init];
+  result.kakaoSdkScripts=[...document.querySelectorAll('script[src*="kakaocdn"]')].length;
+  result.shareMenuClosed=latestActions.querySelector('.lotbi-share-menu').hidden;
   const plain=await openViaFooter('plain');
   result.plain_editorOpened=Boolean(plain.editor);
   result.plain_heading=plain.editor?.querySelector('#calendar-editor-heading')?.textContent||'';
   result.plain_title=plain.editor?.querySelector('.calendar-editor-title')?.value||'';
   result.plain_calendarManagerView=plain.modal?.querySelector('.site-modal-content')?.dataset.calendarManagerView||'';
+  result.calendarRole=plain.modal?.getAttribute('role')||'';
+  result.calendarAriaModal=plain.modal?.getAttribute('aria-modal')||'';
+  result.calendarIsWorkspace=plain.modal?.parentElement?.classList.contains('consumer-workspace')||false;
+  result.bodyWorkspaceOpen=document.body.classList.contains('site-workspace-open');
+  result.bodyOverlayOpen=document.body.classList.contains('site-overlay-open');
+  result.chatRemainsVisible=!document.getElementById('main-content').hidden;
+  result.chatIsInert=document.getElementById('main-content').inert;
 
   result.ok=true;
   out.textContent=JSON.stringify(result);
@@ -210,16 +250,16 @@ function waitServer() {
   throw new Error('server start');
 }
 
-function wrapperMarkup(w, h) {
-  return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
+function wrapperMarkup(w, h, kakao) {
+  return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}?kakao=${kakao}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('case-frame'),out=document.getElementById('result');
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('footer-editor-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
   setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},55000);
   <\/script></body></html>`;
 }
 
-function run(browser, w, h) {
-  fs.writeFileSync(WRAPPER, wrapperMarkup(w, h), 'utf8');
+function run(browser, w, h, kakao) {
+  fs.writeFileSync(WRAPPER, wrapperMarkup(w, h, kakao), 'utf8');
   const r = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--force-prefers-reduced-motion=reduce', '--virtual-time-budget=60000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
   if (r.error) throw r.error;
   if (r.status !== 0) throw new Error('browser ' + r.status + ' ' + r.stderr);
@@ -232,14 +272,20 @@ function run(browser, w, h) {
   return v;
 }
 
+function assertList(actual, expected, label) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
-  for (const [w, h] of [[390, 844], [1280, 900]]) {
-    const v = run(browser, w, h);
-    const label = `${w}x${h}`;
+  for (const [w, h, kakao] of [[390, 844, 'unset'], [1280, 900, 'unset'], [390, 844, 'configured']]) {
+    const v = run(browser, w, h, kakao);
+    const label = `${w}x${h} kakao=${kakao}`;
 
     if (!v.withDraft_editorOpened) throw new Error(`${label}: a message with a calendar_draft must open the editor`);
     if (v.withDraft_heading !== '일정 초안 확인') throw new Error(`${label}: a real draft must read "일정 초안 확인", got "${v.withDraft_heading}"`);
@@ -251,10 +297,29 @@ try {
     if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
     if (v.plain_heading !== '기록 추가') throw new Error(`${label}: a blank fallback must read "기록 추가", got "${v.plain_heading}"`);
     if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
+    assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가'], `${label}: chat answer tools`);
+    assertList(v.shareMenuItems, ['링크 복사', '카카오톡 공유하기'], `${label}: share menu`);
+    if (v.calendarRole !== 'dialog' || v.calendarAriaModal !== 'true') throw new Error(`${label}: Calendar must be an accessible modal dialog`);
+    if (v.calendarIsWorkspace || v.bodyWorkspaceOpen) throw new Error(`${label}: Calendar must not replace chat as a workspace`);
+    if (!v.bodyOverlayOpen || !v.chatRemainsVisible || v.chatIsInert) throw new Error(`${label}: chat must remain mounted and visible behind Calendar`);
+    if (!v.shareMenuClosed) throw new Error(`${label}: choosing a share option must close the share menu`);
+    if (v.kakaoSdkScripts !== 0) throw new Error(`${label}: the Kakao SDK must not be added as a page script here`);
+    if (kakao === 'unset') {
+      // Production today: no Kakao SDK, no dead end - the answer and link are copied.
+      if (v.kakaoFeedback !== '복사했어요. 카카오톡에 붙여넣어 공유해 주세요.' || v.kakaoFeedbackTone) throw new Error(`${label}: unconfigured KakaoTalk share must copy and say so, got "${v.kakaoFeedback}" (${v.kakaoFeedbackTone})`);
+      if (v.kakaoCopied.length !== 1 || !v.kakaoCopied[0].startsWith('오늘은 대체로 맑고') || !v.kakaoCopied[0].endsWith('\n\nhttps://lotbiai.com/')) throw new Error(`${label}: the answer and the LOTBI link must be copied, got ${JSON.stringify(v.kakaoCopied)}`);
+      if (v.kakaoSend.length || v.kakaoInit.length) throw new Error(`${label}: Kakao must not be called while unconfigured`);
+    } else {
+      if (v.kakaoFeedback !== '카카오톡 공유 화면을 열었습니다.') throw new Error(`${label}: configured KakaoTalk share must open, got "${v.kakaoFeedback}"`);
+      if (v.kakaoCopied.length) throw new Error(`${label}: a configured share must not copy instead`);
+      if (JSON.stringify(v.kakaoInit) !== JSON.stringify(['fixture-js-key'])) throw new Error(`${label}: Kakao must be initialised once with Core's key`);
+      if (v.kakaoSend.length !== 1 || v.kakaoSend[0].objectType !== 'text' || v.kakaoSend[0].link?.webUrl !== 'https://lotbiai.com/') throw new Error(`${label}: one KakaoTalk text share with the LOTBI link, got ${JSON.stringify(v.kakaoSend)}`);
+    }
 
     console.log(label, JSON.stringify({
       withDraft: {heading: v.withDraft_heading, title: v.withDraft_title, date: v.withDraft_date},
       plain: {heading: v.plain_heading, title: v.plain_title},
+      kakao: v.kakaoFeedback,
     }));
   }
   console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), and a plain answer with nothing to pre-fill still opens it blank ("기록 추가") instead of landing on the bare calendar view.');
