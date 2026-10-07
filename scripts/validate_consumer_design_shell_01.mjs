@@ -20,6 +20,9 @@ assert.match(js, /\['프로필', openProfile\], \['개인테마', openPersonalTh
 assert.match(js, /mountConsumerSection/);
 assert.match(js, /workspace: section/);
 assert.match(js, /workspace: 'calendar'/);
+assert.match(js, /dismissOnBackdrop = true/);
+assert.match(js, /workspace: 'calendar',\s*dismissOnBackdrop: false/,
+  'Calendar workspace must stay open when its blank backdrop area is clicked');
 assert.match(js, /mainScrollHost.inert = true/);
 assert.match(js, /mainScrollHost.inert = false/);
 assert.match(js, /else if \(!workspace\) trapFocus/);
