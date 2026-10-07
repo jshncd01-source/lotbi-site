@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-5f5748ded3bb';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-bd0135886f4e';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -539,10 +539,13 @@ function safeMessage(error, fallback) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+// Photos (JPG, PNG) or a PDF; a PDF page is drawn into an image in this browser.
 function validateImageFile(file) {
   if (!(file instanceof File)) throw new Error('자료 사진을 선택해 주세요.');
-  if (!['image/jpeg', 'image/png'].includes(file.type)) throw new Error('JPEG 또는 PNG 이미지만 등록할 수 있습니다.');
-  if (file.size > 12 * 1024 * 1024) throw new Error('이미지는 한 장당 12MB 이하로 선택해 주세요.');
+  const pdf = file.type === 'application/pdf' || (!file.type && /\.pdf$/iu.test(file.name));
+  if (!pdf && !['image/jpeg', 'image/png'].includes(file.type)) throw new Error('JPG·PNG 사진이나 PDF만 등록할 수 있습니다.');
+  if (pdf && file.size > 20 * 1024 * 1024) throw new Error('PDF는 20MB 이하로 선택해 주세요.');
+  if (!pdf && file.size > 12 * 1024 * 1024) throw new Error('이미지는 한 장당 12MB 이하로 선택해 주세요.');
 }
 
 export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}} = {}) {
@@ -550,7 +553,7 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
   const label = element('span', 'wallet-photo-label', '자료 사진 · 필수');
   const input = element('input', 'wallet-photo-input');
   input.type = 'file';
-  input.accept = 'image/jpeg,image/png';
+  input.accept = 'image/jpeg,image/png,application/pdf,.pdf';
   label.id = `wallet-photo-${randomId()}`;
   input.setAttribute('aria-labelledby', label.id);
 
@@ -563,7 +566,7 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
   preview.hidden = true;
   const copy = element('span', 'wallet-photo-copy');
   const title = element('strong', '', '자료 사진 추가');
-  const help = element('small', '', 'JPG·PNG · 최대 12MB');
+  const help = element('small', '', 'JPG·PNG 사진 12MB · PDF 20MB 이하');
   copy.append(title, help);
   const trigger = button('사진 선택', () => input.click());
   trigger.classList.add('wallet-photo-action');
@@ -585,7 +588,7 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
     preview.removeAttribute('src');
     preview.alt = '';
     title.textContent = '자료 사진 추가';
-    help.textContent = 'JPG·PNG · 최대 12MB';
+    help.textContent = 'JPG·PNG 사진 12MB · PDF 20MB 이하';
     trigger.textContent = '사진 선택';
   };
 

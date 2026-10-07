@@ -1,4 +1,5 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-5f5748ded3bb';
+import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-bd0135886f4e';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-bd0135886f4e';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -87,12 +88,18 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   const adjust=node('button','consumer-action wallet-scan-adjust','직접 조정'); adjust.type='button'; adjust.dataset.walletScanAdjust=''; choices.append(adjust);
   const actions=node('div','wallet-scan-actions');
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
-  shell.append(heading,privacy,status,workspace,warnings,choices,actions);
+  // A multi-page PDF starts on page 1; these controls pick another page to keep.
+  const pages=node('div','wallet-scan-pages'); pages.hidden=true;
+  const pagePrevious=node('button','consumer-action','‹ 이전 쪽'); pagePrevious.type='button'; pagePrevious.dataset.walletScanPagePrevious='';
+  const pageLabel=node('span','wallet-scan-page-label'); pageLabel.setAttribute('aria-live','polite');
+  const pageNext=node('button','consumer-action','다음 쪽 ›'); pageNext.type='button'; pageNext.dataset.walletScanPageNext='';
+  pages.append(pagePrevious,pageLabel,pageNext);
+  shell.append(heading,privacy,status,pages,workspace,warnings,choices,actions);
 
-  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
+  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfPage=1; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
-  function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}}
+  function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}if(pdfDocument){void pdfDocument.destroy();pdfDocument=null}}
 
   function setCorner(name,x,y) {
     const size=dimensions(source); corners[name]={x:Math.max(0,Math.min(size.width-1,x)),y:Math.max(0,Math.min(size.height-1,y))}; updateOverlay();
@@ -137,11 +144,46 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   }
   for(const [name,label] of CORNER_NAMES)installHandle(name,label);
 
+  const copy=points=>Object.fromEntries(Object.entries(points).map(([name,point])=>[name,{...point}]));
+
+  // Shows one decoded photo or PDF page: find the document on it and render the preview.
+  async function analyse(nextSource) {
+    source=nextSource; detectedCorners=null; fallbackCorners=null; cornerRadius=0; paperPage=false; latest='';
+    const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
+    const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+    let mode=found.mode; let reason=found.reason||'';
+    if(mode==='manual'&&pdfDocument){
+      // A PDF page is the document itself: with no outline to find, keep the whole page.
+      corners={topLeft:{x:0,y:0},topRight:{x:size.width-1,y:0},bottomRight:{x:size.width-1,y:size.height-1},bottomLeft:{x:0,y:size.height-1}};
+      mode='automatic'; reason='pdf-page'; detectedCorners=copy(corners); paperPage=true;
+    }else if(mode==='manual')fallbackCorners=copy(corners);
+    else{detectedCorners=copy(corners);cornerRadius=found.cornerRadius||0;paperPage=Boolean(found.paper)}
+    shell.dataset.scanMode=mode; shell.dataset.scanReason=reason; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay(); await renderPreview();
+  }
+
+  async function showPdfPage(pageNumber) {
+    pdfPage=Math.max(1,Math.min(pdfDocument.pageCount,pageNumber)); pageLabel.textContent=`${pdfPage} / ${pdfDocument.pageCount}쪽`;
+    pagePrevious.disabled=true; pageNext.disabled=true; confirm.disabled=true; shell.dataset.scanState='analysing'; status.textContent=`${pdfPage}쪽 불러오는 중`;
+    try{
+      const page=await pdfDocument.renderPage(pdfPage); if(destroyed)return;
+      shell.dataset.scanPdfPage=String(pdfPage); await analyse(page);
+    }finally{pagePrevious.disabled=pdfPage<=1;pageNext.disabled=pdfPage>=pdfDocument.pageCount}
+  }
+  pagePrevious.addEventListener('click',()=>{void showPdfPage(pdfPage-1).catch(showError)});
+  pageNext.addEventListener('click',()=>{void showPdfPage(pdfPage+1).catch(showError)});
+
+  function showError(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
+
   async function initialize() {
     try{
-      source=await decodeFile(file,resources); if(destroyed){releaseResources();return} const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
-      const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}])); fallbackCorners=found.mode==='manual'?Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}])):null; if(found.mode==='automatic'){detectedCorners=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{...point}]));cornerRadius=found.cornerRadius||0;paperPage=Boolean(found.paper)} shell.dataset.scanMode=found.mode; shell.dataset.scanReason=found.reason||''; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay(); await renderPreview();
-    }catch(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
+      if(isPdfFile(file)){
+        const opened=await openPdfDocument(file); if(destroyed){void opened.destroy();return}
+        pdfDocument=opened; shell.dataset.scanPdfPages=String(opened.pageCount); pages.hidden=opened.pageCount<2;
+        await showPdfPage(1); return;
+      }
+      const decoded=await decodeFile(file,resources); if(destroyed){releaseResources();return}
+      await analyse(decoded);
+    }catch(error){showError(error)}
   }
 
   function openAdjustment(){sourcePane.hidden=false;shell.dataset.scanAdjusting='true';adjust.textContent='조정 닫기';handles.get('topLeft')?.focus()}

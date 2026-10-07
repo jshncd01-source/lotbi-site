@@ -126,12 +126,12 @@ try {
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
   const result = readResult(run.stdout);
-  assert.equal(result.accept, 'image/jpeg,image/png', 'the picker must limit selection to JPEG and PNG');
+  assert.equal(result.accept, 'image/jpeg,image/png,application/pdf,.pdf', 'the picker must limit selection to JPEG, PNG and PDF');
   assert.equal(result.markTag, 'BUTTON', 'the plus tile must expose its click behavior as a button');
   assert.equal(result.plusInputClicks, 1, 'clicking the plus tile must activate the real file input');
   assert.equal(result.allInputClicks, 2, 'both visible photo actions must activate the real file input');
   assert.equal(result.inputHidden, true, 'the native file input must not remain visibly laid out');
-  assert.equal(result.initialError, 'JPEG 또는 PNG 이미지만 등록할 수 있습니다.', 'unsupported images must keep the existing validation');
+  assert.equal(result.initialError, 'JPG·PNG 사진이나 PDF만 등록할 수 있습니다.', 'unsupported files (such as GIF) must still be rejected');
   assert.equal(result.selectedDataUrl, true, 'the selected image must be available to the existing encrypted save flow');
   assert.equal(result.previewVisible, true, 'a selected image must show an immediate preview');
   assert.equal(result.previewAlt, '보정된 wallet-card.png 미리보기', 'the preview must identify the corrected image');

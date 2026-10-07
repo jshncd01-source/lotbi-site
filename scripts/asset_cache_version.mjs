@@ -20,7 +20,8 @@ function walk(dir, out = []) {
     if (entry.isDirectory()) {
       // Runtime avatar modules are cache targets; vendored three.js is sealed
       // and intentionally keeps import-map prefix semantics without queries.
-      if (rel.startsWith('avatar-runtime/vendor')) continue;
+      // Top-level vendor/ libraries are sealed too: a new version gets a new folder.
+      if (rel.startsWith('avatar-runtime/vendor') || rel === 'vendor') continue;
       walk(full, out);
     } else {
       out.push(rel);
@@ -33,14 +34,14 @@ function isRuntimeTarget(rel) {
   const ext = path.extname(rel);
   if (!TARGET_EXTENSIONS.has(ext)) return false;
   if (rel.startsWith('scripts/') || rel.startsWith('.github/')) return false;
-  if (rel.startsWith('avatar-runtime/vendor/')) return false;
+  if (rel.startsWith('avatar-runtime/vendor/') || rel.startsWith('vendor/')) return false;
   return !rel.includes('/test') && !rel.endsWith('.test.js');
 }
 
 function isRuntimeSource(rel) {
   if (!SOURCE_EXTENSIONS.has(path.extname(rel))) return false;
   if (rel.startsWith('scripts/') || rel.startsWith('.github/')) return false;
-  if (rel.startsWith('avatar-runtime/vendor/')) return false;
+  if (rel.startsWith('avatar-runtime/vendor/') || rel.startsWith('vendor/')) return false;
   return true;
 }
 
@@ -48,7 +49,7 @@ function shouldVersionLocalAsset(assetPath) {
   const clean = assetPath.split('?')[0];
   if (!/\.(?:js|mjs|css)$/.test(clean)) return false;
   if (/^(?:https?:)?\/\//.test(clean)) return false;
-  if (clean.includes('/avatar-runtime/vendor/')) return false;
+  if (clean.includes('/avatar-runtime/vendor/') || /^(?:\.\/|\/)?vendor\//.test(clean)) return false;
   return true;
 }
 
