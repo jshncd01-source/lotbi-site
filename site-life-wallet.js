@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-9e02e3c66a21';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-cc3210d9faf8';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -637,8 +637,8 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
       mark.hidden = true;
       preview.hidden = true;
       preview.removeAttribute('src');
-      title.textContent = '사진 보정 중';
-      help.textContent = '모서리와 보정 결과를 확인해 주세요.';
+      title.textContent = file.name;
+      help.textContent = '';
       trigger.textContent = '다시 선택';
       scanner = createWalletDocumentScanner({
         file,
@@ -649,7 +649,7 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
           preview.alt = `보정된 ${file.name} 미리보기`;
           preview.hidden = false;
           title.textContent = file.name;
-          help.textContent = '확인한 보정 결과를 암호화하여 저장합니다.';
+          help.textContent = '';
           trigger.textContent = '사진 변경';
           onReady(true);
         },
@@ -703,7 +703,11 @@ export function createWalletCardCarousel({cards, onOpen}) {
     image.alt = `${index + 1}번째 저장 자료`;
     image.draggable = false;
     item.append(image);
-    track.append(item);
+    // A full-width slide around each card: the scrollable width then ends at the last slide,
+    // not at the last (narrower, centred) card, so the last card can come to the centre too.
+    const slide = element('div', 'wallet-card-slide');
+    slide.append(item);
+    track.append(slide);
     return item;
   });
   viewport.append(track);
@@ -1091,7 +1095,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', walletCardTitle(card)));
     detail.append(header);
     const images = element('div', 'wallet-detail-images');
-    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage, element('figcaption', '', '자료 사진'));
+    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage); if (card.backDataUrl) front.append(element('figcaption', '', '앞면'));
     images.append(front);
     if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${walletCardTitle(card)} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
     detail.append(images);

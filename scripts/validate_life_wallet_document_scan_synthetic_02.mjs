@@ -43,8 +43,12 @@ try {
   // Card lying on a wallet held in the hand (the reported phone photo): only the card may be
   // cropped, never the wallet; a manual fallback is allowed.
   const onWallet = Array.from({length: 8}, (_, index) => ({group: 'SYNTHETIC_CARD_ON_WALLET', name: 'wallet-' + (index + 1), expect: 'card-or-manual', scene: scenes.cardOnWalletScene(index + 1)}));
+  // Cards photographed on their side (portrait photo, card turned a quarter): cropped and
+  // turned back upright; a clockwise-lying card turns 270 degrees, a counter-clockwise one 90.
+  const sideways = [[90, 41], [-90, 42], [88, 43], [-92, 44]].map(([turn, seed], index) => ({group: 'SYNTHETIC_SIDEWAYS', name: 'sideways-' + (index + 1), expect: 'sideways', turn,
+    scene: {width: 900, height: 1400, seed, surfaceKind: index % 2 ? 'olive' : 'felt', cards: [scenes.walletCard({width: 900, height: 1400, margins: {left: -0.044, right: -0.044, top: 0.279, bottom: 0.279}, rotation: turn, glyphDensity: 1.4})]}}));
   const results = [];
-  for (const test of [...named, ...sweep, ...softEdges, ...handHeld, ...onWallet]) {
+  for (const test of [...named, ...sweep, ...softEdges, ...handHeld, ...onWallet, ...sideways]) {
     const width = test.scene.width || W; const height = test.scene.height || H;
     const canvas = await scenes.renderScene({width, height, ...test.scene});
     // Same bounded detection input the scanner UI builds before detection.
@@ -54,7 +58,7 @@ try {
     const started = performance.now();
     const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height));
     const elapsed = performance.now() - started;
-    const row = {group: test.group, name: test.name, expect: test.expect, mode: found.mode, reason: found.reason, paper: Boolean(found.paper), elapsed, diagnostics: found.diagnostics};
+    const row = {group: test.group, name: test.name, expect: test.expect, mode: found.mode, reason: found.reason, paper: Boolean(found.paper), rotation: found.rotation, turn: test.turn, elapsed, diagnostics: found.diagnostics};
     if (test.scene.cards.length === 1) {
       const truth = scan.orderDocumentCorners(test.scene.cards[0].corners);
       const keys = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
@@ -73,7 +77,7 @@ try {
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(page.canvas, 0, 0, small.width, small.height);
     const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height)); const elapsed = performance.now() - started;
     const xs = Object.values(found.corners).map(point => point.x / small.width); const ys = Object.values(found.corners).map(point => point.y / small.height);
-    results.push({group: blank ? 'NEGATIVE' : 'SYNTHETIC_FULL_PAGE', name: blank ? 'blank-page' : 'page-' + index, expect: blank ? 'manual' : 'page', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics, paper: found.paper, pageBox: page.box, sheetBottom: page.sheetBottom, foundBox: {left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys)}});
+    results.push({group: blank ? 'NEGATIVE' : 'SYNTHETIC_FULL_PAGE', name: blank ? 'blank-page' : 'page-' + index, expect: blank ? 'manual' : 'page', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics, paper: found.paper, rotation: found.rotation, pageBox: page.box, sheetBottom: page.sheetBottom, foundBox: {left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys)}});
   }
   // Pet photos are not wallet items: never cropped, refused as not a document.
   for (let index = 1; index <= 4; index += 1) {
@@ -111,6 +115,7 @@ assert.equal(result.ok, true, result.error);
       for (const edge of ['left', 'top']) assert.ok(row.foundBox[edge] <= row.pageBox[edge] + .002 && row.foundBox[edge] >= row.pageBox[edge] - margin, `${label}: ${edge} edge ${row.foundBox[edge].toFixed(3)} vs content ${row.pageBox[edge].toFixed(3)}`);
       for (const edge of ['right', 'bottom']) assert.ok(row.foundBox[edge] >= row.pageBox[edge] - .002 && row.foundBox[edge] <= row.pageBox[edge] + margin, `${label}: ${edge} edge ${row.foundBox[edge].toFixed(3)} vs content ${row.pageBox[edge].toFixed(3)}`);
       assert.equal(row.paper, true, `${label}: a page crop must be marked as paper so it is whitened like a scan`);
+      assert.equal(row.rotation, 0, `${label}: pages are never turned automatically`);
       // The desk below a photographed sheet is not part of the page.
       assert.ok(row.foundBox.bottom <= row.sheetBottom + .005, `${label}: crop bottom ${row.foundBox.bottom.toFixed(3)} reaches into the desk below the sheet (${row.sheetBottom.toFixed(3)})`);
     } else if (row.expect === 'card-or-manual') {
@@ -122,10 +127,14 @@ assert.equal(result.ok, true, result.error);
       assert.equal(row.mode, 'automatic', `${label}: card was not detected automatically: ${row.reason} ${serialized}`);
       assert.equal(row.reason, 'document-quadrilateral');
       assert.equal(row.paper, false, `${label}: a card must keep its colours, not be whitened as a paper page`);
+      assert.equal(row.rotation, 0, `${label}: an upright card must not be turned`);
       // Corners are the intersections of the straight card sides, so rounded corners are
       // neither clipped nor padded: every corner must land within ~1% of the card's short side.
       const tolerance = Math.max(6, row.shortSide * 0.012);
       row.errors.forEach((error, index) => assert.ok(error <= tolerance, `${label}: corner ${index} is ${error.toFixed(1)}px from the card corner (tolerance ${tolerance.toFixed(1)}): ${serialized}`));
+    } else if (row.expect === 'sideways') {
+      assert.equal(row.mode, 'automatic', `${label}: a card on its side must still be cropped: ${serialized}`);
+      assert.equal(row.rotation, row.turn > 0 ? 270 : 90, `${label}: a card lying ${row.turn > 0 ? 'clockwise' : 'counter-clockwise'} must be turned back upright (got ${row.rotation})`);
     } else if (row.expect === 'not-a-document') {
       // Never cropped or saved automatically; fur can look like a few short rows, so a pet may
       // also land in plain manual adjustment instead of the outright refusal.

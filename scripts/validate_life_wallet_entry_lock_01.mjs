@@ -98,6 +98,9 @@ assert.ok(!/window\.confirm\(/u.test(walletSource), 'wallet deletion must not re
 assert.match(walletSource, /await vault\.verifyPin\(accountId, removalPin\.value\);\s*await vault\.remove\(accountId, card\.id\)/u, 'a deletion must verify the wallet PIN first');
 await assert.rejects(() => simplifiedWallet.verifyPin('simplified-add-account', '1111'), /월렛 PIN을 확인해 주세요/u, 'a wrong PIN must not allow deletion');
 await simplifiedWallet.verifyPin('simplified-add-account', '8642');
+// Items carry one photo: the detail view shows it full width, not in a two-column front/back grid.
+assert.match(walletCssSource, /\.wallet-detail-images \{ display: grid; grid-template-columns: minmax\(0, 1fr\);/u, 'the detail photo must use the full width');
+assert.ok(!/wallet-detail-images \{[^}]*repeat\(2/u.test(walletCssSource), 'no two-column front/back grid for a single photo');
 // Titles: memo first line (shortened), else kind and save date; never the whole memo.
 const {walletCardTitle} = await import(pathToFileURL(path.join(root, 'site-life-wallet.js')).href);
 const savedDay = new Date('2026-10-07T00:00:00.000Z'); const day = `${savedDay.getFullYear()}.${String(savedDay.getMonth() + 1).padStart(2, '0')}.${String(savedDay.getDate()).padStart(2, '0')}`;

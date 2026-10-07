@@ -17,11 +17,12 @@ try{
   const {createWalletCardCarousel}=await import('/site-life-wallet.js?card-carousel-test=1');
   const shaped=(width,height)=>{const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,width,height);return canvas.toDataURL('image/png')};
   const idCard=shaped(1012,638);const page=shaped(734,1024);
-  // An ID card, a tall page and another card: the strip must fit whichever one is on screen.
+  // Two ID cards then a tall page last (as on a real wallet): the strip must fit whichever one
+  // is on screen, and the narrow last page must still come to the centre alone.
   const cards=[
     {id:'one',name:'신분·자격 자료',kind:'identity',frontDataUrl:idCard},
-    {id:'two',name:'계약서',kind:'certificate',frontDataUrl:page},
-    {id:'three',name:'회원증',kind:'membership',frontDataUrl:idCard},
+    {id:'two',name:'회원증',kind:'membership',frontDataUrl:idCard},
+    {id:'three',name:'계약서',kind:'certificate',frontDataUrl:page},
   ];
   const opened=[];
   const carousel=createWalletCardCarousel({cards,onOpen:card=>opened.push(card.id)});
@@ -46,7 +47,7 @@ try{
   const dragPosition=position();const draggedOpened=opened.join(',');const pageVisible=onScreen();const pageGap=heightGap();
   dots[2].click();
   await sleep(500);
-  const dotPosition=position();const cardGap=heightGap();
+  const dotPosition=position();const cardGap=heightGap();const lastVisible=onScreen();
   viewport.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));
   await sleep(500);
   const keyboardPosition=position();
@@ -77,9 +78,9 @@ try{
     visibleCategoryText:carousel.innerText.includes('신분·자격 자료'),
     arrowButtons:carousel.querySelectorAll('.wallet-card-arrow,[data-wallet-carousel-next],[data-wallet-carousel-previous]').length,
     dotCount:dots.length,
-    firstVisible,firstGap,dragging,dragPosition,draggedOpened,pageVisible,pageGap,dotPosition,cardGap,keyboardPosition,
+    firstVisible,lastVisible,firstGap,dragging,dragPosition,draggedOpened,pageVisible,pageGap,dotPosition,cardGap,keyboardPosition,
     opened:opened.join(','),
-    swipeEnabled:getComputedStyle(viewport).scrollSnapType.includes('x')&&getComputedStyle(viewport).overflowX==='auto'&&getComputedStyle(items[0]).scrollSnapStop==='always',
+    swipeEnabled:getComputedStyle(viewport).scrollSnapType.includes('x')&&getComputedStyle(viewport).overflowX==='auto'&&getComputedStyle(items[0].parentElement).scrollSnapStop==='always'&&items[0].parentElement.classList.contains('wallet-card-slide'),
     compactCardFrame:firstRect.width<=480,
     completeDocumentEdges:getComputedStyle(items[0].querySelector('.wallet-card-image')).transform==='none'&&getComputedStyle(items[0].querySelector('.wallet-card-image')).objectFit==='contain'&&firstImageRect.width<=firstRect.width+1&&firstImageRect.height<=firstRect.height+1,
     singleControls:single.querySelectorAll('.wallet-card-dots,.wallet-card-position').length,
@@ -112,9 +113,10 @@ if (!result.ok) throw new Error(result.error);
   assert.equal(result.draggedOpened, '', 'a drag must not open the card it started on');
   assert.equal(result.pageVisible, 1, 'exactly one wallet card must be on screen after a drag');
   assert.equal(result.dotPosition, '3 / 3', 'a position dot must move to its card');
+  assert.equal(result.lastVisible, 1, 'the last card must also be shown alone (no part of the previous card beside it)');
   assert.equal(result.keyboardPosition, '2 / 3', 'the left arrow key must move to the previous card');
   // The strip fits the card on screen: a short ID card is not framed by a tall page's height.
-  for (const [name, gap] of [['first ID card', result.firstGap], ['tall page', result.pageGap], ['second ID card', result.cardGap]]) assert.ok(gap >= 0 && gap <= 12, `the wallet strip must fit the ${name} on screen (gap ${gap}px)`);
+  for (const [name, gap] of [['first card', result.firstGap], ['second card', result.pageGap], ['last tall page', result.cardGap]]) assert.ok(gap >= 0 && gap <= 12, `the wallet strip must fit the ${name} on screen (gap ${gap}px)`);
   assert.equal(result.opened, 'two', 'clicking the visible card must preserve the existing detail action');
   assert.equal(result.swipeEnabled, true, 'the wallet card viewport must snap one card per swipe');
   assert.equal(result.compactCardFrame, true, 'wallet cards must stay compact instead of expanding into an image viewer');
