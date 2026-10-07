@@ -73,7 +73,10 @@ assert.match(ui, /Promise\.allSettled/);
 assert.match(ui, /사람 등록과 사진 관리는 사용할 수 있습니다/);
 assert.match(ui, /missingAction\.disabled = !availability\.sos/);
 assert.doesNotMatch(ui, /SOS \/ 실종 신고/);
-assert.match(ui, /image\/jpeg,image\/png,image\/webp/);
+// The picker formats moved into the shared photo preparation module
+// (SAFECARE-PHOTO-UPLOAD-FIX-03); every SafeCare picker uses that constant.
+assert.match(read('site-person-photo-intake.js'), /PERSON_PHOTO_ACCEPT = 'image\/jpeg,image\/png,image\/webp'/);
+assert.equal((ui.match(/input\.accept = PERSON_PHOTO_ACCEPT/g) || []).length, 2, 'identity tiles and the found picker share the formats');
 assert.match(css, /\.person-primary/);
 assert.match(css, /min-height:\s*44px/);
 assert.match(index, /site-person\.css\?v=aset-/);
