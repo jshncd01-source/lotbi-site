@@ -286,6 +286,9 @@ jobs:
         run: |
           node --check site-life-school.js
           node scripts/validate_life_neis_school_01.mjs
+      - name: Validate NEIS school official links (homepage / meal source) on school cards
+        run: |
+          node scripts/validate_neis_school_official_links_01.mjs
 
       - name: Validate voice wake phrase matching
         run: |

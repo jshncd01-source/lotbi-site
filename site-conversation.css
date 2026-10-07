@@ -3282,7 +3282,8 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 .lotbi-school-calendar-add,
 .lotbi-school-change,
-.lotbi-school-candidate {
+.lotbi-school-candidate,
+.lotbi-school-link {
   min-height: 44px;
   padding: 6px 12px;
   border: 1px solid rgba(116, 126, 145, .32);
@@ -3302,7 +3303,18 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 .lotbi-school-calendar-add:focus-visible,
 .lotbi-school-change:focus-visible,
-.lotbi-school-candidate:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+.lotbi-school-candidate:focus-visible,
+.lotbi-school-link:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+
+/* NEIS-SCHOOL-LINKS-01: [급식·식단 원문] / [학교 홈페이지] — rendered only when a link exists. */
+.lotbi-school-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.lotbi-school-link {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  text-decoration: none;
+}
 
 body[data-site-theme="dark"] .lotbi-school-card { border-color: rgba(198, 207, 221, .24); }
 
