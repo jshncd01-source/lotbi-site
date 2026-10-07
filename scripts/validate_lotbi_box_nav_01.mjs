@@ -8,6 +8,8 @@ const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const html = read('index.html');
 const conversation = read('site-conversation.js');
+const routes = read('site-route.js');
+const featureFlags = read('site-feature-flags.js');
 const css = read('site-conversation.css');
 const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 
@@ -18,12 +20,19 @@ assert.equal(
   'LOTBI Box navigation keeps its product identity inside a user-facing saved-items label',
 );
 assert.ok(html.includes(`site-calendar.css?v=${assetVersion}`), 'real Calendar CSS must remain preserved at the generated asset-set version');
-assert.match(html, /site-conversation\.js\?v=[A-Za-z0-9._-]+/, 'LOTBI Box must remain on a cache-busted combined conversation runtime');
+assert.match(html, /site-conversation\.js\?v=[A-Za-z0-9._-]+/, 'the combined conversation runtime remains cache-busted');
 assert.equal((html.match(/data-consumer-section="life"/g) || []).length, 2, 'both nav surfaces expose 생활정보');
-// The life home is a category picker only (LIFE-UTILITY-BILL-MENU-REMOVE-01): no
-// saved-items button there. 롯비함 itself and its /#lotbi-box route are unchanged.
+// LOTBI-BOX-HIDE-02: one source flag hides every entry and save control. Data
+// functions and stored values remain intact so this is reversible.
 assert.doesNotMatch(read('site-consumer-sections.js'), /저장한 정보 다시 보기|onSaved/, 'no saved-items entry on the life home');
-assert.match(conversation, /onSaved: \(\) => \{ closeSurface\(\); openLotbiBox\(\); \}/, 'saved items use their original owner');
+assert.match(featureFlags, /export const LOTBI_BOX_UI_ENABLED = false;/);
+assert.match(routes, /\.\.\.\(LOTBI_BOX_UI_ENABLED \? \['lotbi-box'\] : \[\]\)/, 'the route table uses the same flag');
+assert.match(conversation, /if \(LOTBI_BOX_UI_ENABLED\) \{[\s\S]*?box\.dataset\.lotbiBoxToggleKey[\s\S]*?actions\.appendChild\(box\);/u,
+  'product save controls are created only when the flag is enabled');
+assert.match(conversation, /const openLotbiBox = trigger => \{\s*if \(!LOTBI_BOX_UI_ENABLED\) return;/u,
+  'even an obsolete click path cannot open the surface');
+assert.match(conversation, /LOTBI_BOX_UI_ENABLED && lotbiBoxTrigger instanceof HTMLButtonElement/u,
+  'delegated mouse/keyboard activation is gated');
 
 for (const token of [
   "storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box')",
@@ -31,7 +40,7 @@ for (const token of [
   "modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.')",
   '아직 롯비함에 담은 항목이 없어요.',
   '검색 결과에서 “+ 롯비함”을 눌러 저장할 수 있어요.',
-  'data-lotbi-box-toggle-key',
+  'box.dataset.lotbiBoxToggleKey',
   'refreshLotbiBoxControls',
   '롯비함에서 제거',
   "item.image_reference.startsWith('https://')",
@@ -39,6 +48,9 @@ for (const token of [
   "openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')",
   "new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date'])",
 ]) assert.ok(conversation.includes(token), 'missing LOTBI Box/Calendar preservation behavior: ' + token);
+
+// Storage is preserved: no clear/remove/migration of the lotbi-box key.
+assert.doesNotMatch(conversation, /removeItem\(lotbiBoxKey\(\)\)|clear\(\)/u);
 
 for (const forbidden of ['lotbi-box-v2', 'saved-products-new', "storageKey(namespace || browserAnonymousNamespace(), 'favorites')"]) {
   assert.ok(!conversation.includes(forbidden), 'must not create duplicate LOTBI Box storage: ' + forbidden);
