@@ -1,8 +1,8 @@
 READY_FOR_DEPLOY=YES
 REPO=lotbi-site
 FEATURE_BRANCH=feature/pet-slot-guide-art-01-site
-FEATURE_SHA=PENDING_HANDOFF_COMMIT
-REMOTE_FEATURE_SHA=PENDING_PUSH
+FEATURE_SHA=c190d12a904c61ed21777438f12d02215a9e5743
+REMOTE_FEATURE_SHA=refs/heads/feature/pet-slot-guide-art-01-site
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=90794fec210c9ffefe1418665e22b5aa5c0a92b1
 ROOT_CAUSE=반려동물 사진 10칸에는 사람 등록 화면과 같은 칸별 예시 그림이 없고 작은 SVG 선 아이콘만 표시됐음
 TEST_STATUS=PASS — 20개 PNG 규격/매핑/대체 경로, Pet Family 360/768/1280, 사진 소스 선택, Species Gate, SafeCare 전체 focused validator
