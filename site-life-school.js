@@ -5,6 +5,8 @@
 // 학생 이름 같은 개인정보는 받지도 저장하지도 않는다.
 // 전송: 학교 관련 질문에만 client_context.school 로 싣는다.
 // Calendar: 학사일정은 "캘린더에 추가" 버튼으로만 편집기를 연다. 자동 저장 없음.
+// 링크(NEIS-SCHOOL-LINKS-01): Core가 정한 학교 홈페이지(직원 보완 → NEIS)와
+// 직원이 등록한 급식·식단 원문만 버튼으로 보여 준다. 없으면 버튼도 없다.
 
 const OFFICE_RE = /^[A-Z][0-9]{2}$/u;
 const SCHOOL_CODE_RE = /^[0-9]{7,10}$/u;
@@ -12,7 +14,9 @@ const SAFE_NAME_RE = /^[0-9A-Za-z가-힣·()\- ]{2,60}$/u;
 const CLASS_RE = /^[0-9A-Za-z가-힣]{1,4}$/u;
 const SCHOOL_TOPIC_RE = /(?:급식|학교|학사|방학|개학|시간표|휴업|중간\s*고사|기말\s*고사|시험|운동회|소풍|현장\s*체험|졸업식|입학식|학예회|교시|담임|[1-6]\s*학년)/u;
 const KINDS = new Set(['MEAL', 'SCHEDULE', 'TIMETABLE', 'SCHOOL_CANDIDATES', 'NEEDS_SCHOOL', 'NEEDS_CLASS',
-  'SCHOOL_NOT_FOUND', 'SCHOOL_SAVED', 'UNAVAILABLE', 'TIMETABLE_UNSUPPORTED']);
+  'SCHOOL_NOT_FOUND', 'SCHOOL_SAVED', 'UNAVAILABLE', 'TIMETABLE_UNSUPPORTED', 'HOMEPAGE']);
+const HOMEPAGE_SOURCES = new Set(['STAFF_OVERRIDE', 'NEIS']);
+const PRIVATE_HOST_SUFFIXES = ['.localhost', '.local', '.internal', '.test', '.invalid', '.lan', '.home', '.corp'];
 const ALLERGEN_MARKS = ['', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲'];
 const WEEKDAYS = '일월화수목금토';
 
@@ -72,6 +76,35 @@ export function schoolContextForMessage(text, preference) {
   return normalizeSchoolPreference(preference);
 }
 
+// A link is only ever a public http(s) page Core already checked; this is the
+// browser-side re-check before it becomes an <a href>.
+export function safeSchoolLinkUrl(value) {
+  if (typeof value !== 'string' || !/^https?:\/\//iu.test(value.trim())) return '';
+  let url;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return '';
+  }
+  const host = url.hostname.toLowerCase().replace(/\.$/u, '');
+  if (url.username || url.password) return '';
+  if (url.port && url.port !== '80' && url.port !== '443') return '';
+  if (!host.includes('.') || host === 'localhost' || host.startsWith('[') || /^\d{1,3}(\.\d{1,3}){3}$/u.test(host)) return '';
+  if (PRIVATE_HOST_SUFFIXES.some(suffix => host.endsWith(suffix))) return '';
+  return url.href;
+}
+
+function normalizeLinks(value) {
+  const links = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const homepageUrl = safeSchoolLinkUrl(links.homepage_url);
+  const source = clean(links.homepage_source, 20);
+  return Object.freeze({
+    homepageUrl,
+    homepageSource: homepageUrl && HOMEPAGE_SOURCES.has(source) ? source : '',
+    mealSourceUrl: safeSchoolLinkUrl(links.meal_source_url),
+  });
+}
+
 function dateLabel(isoDate) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(isoDate || '');
   if (!match) return '';
@@ -127,6 +160,7 @@ export function normalizeSchoolResult(value) {
       ? {grade: value.save_preference.grade, class_name: clean(String(value.save_preference.class_name ?? ''), 4)}
       : null,
     coverage: clean(value.coverage, 20) || 'COMPLETE',
+    links: normalizeLinks(value.links),
     allergenLegend: Object.fromEntries(Object.entries(legend)
       .filter(([code, label]) => /^\d{1,2}$/u.test(code) && typeof label === 'string')
       .map(([code, label]) => [code, clean(label, 12)])),
@@ -144,6 +178,32 @@ function element(doc, tag, className, text) {
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
+}
+
+function schoolLink(doc, href, text) {
+  const link = element(doc, 'a', 'lotbi-school-link', text);
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.referrerPolicy = 'no-referrer';
+  link.setAttribute('aria-label', `${text} (새 창에서 열립니다)`);
+  return link;
+}
+
+// [급식·식단 원문] only on meal answers (staff-registered page, never labelled
+// NEIS); [학교 홈페이지] at most once per card. No link, no button.
+function schoolLinkActions(doc, result) {
+  if (!result.school || result.kind === 'SCHOOL_CANDIDATES') return null;
+  const links = [];
+  if (result.links.mealSourceUrl && (result.kind === 'MEAL' || result.kind === 'HOMEPAGE')) {
+    links.push(schoolLink(doc, result.links.mealSourceUrl, '급식·식단 원문'));
+  }
+  if (result.links.homepageUrl) links.push(schoolLink(doc, result.links.homepageUrl, '학교 홈페이지'));
+  if (!links.length) return null;
+  const row = element(doc, 'div', 'lotbi-school-links');
+  row.setAttribute('aria-label', `${result.school.name} 링크`);
+  for (const link of links) row.append(link);
+  return row;
 }
 
 export function createSchoolResultCard(value, {
@@ -236,10 +296,19 @@ export function createSchoolResultCard(value, {
     card.append(list);
   }
 
+  const actions = schoolLinkActions(doc, result);
+  if (actions) card.append(actions);
+
   const footer = element(doc, 'div', 'lotbi-school-card-footer');
   const notes = [];
   if (result.coverage !== 'COMPLETE') notes.push('일부만 확인됨');
-  notes.push('출처: NEIS 교육정보 개방 포털');
+  if (result.kind === 'HOMEPAGE') {
+    // Only the address is shown here: say where it came from, not "NEIS" for a staff entry.
+    if (result.links.homepageSource === 'NEIS') notes.push('홈페이지 주소 출처: NEIS 교육정보 개방 포털');
+    else if (result.links.homepageSource === 'STAFF_OVERRIDE') notes.push('홈페이지 주소: LOTBI 운영 등록');
+  } else {
+    notes.push('출처: NEIS 교육정보 개방 포털');
+  }
   footer.append(element(doc, 'span', 'lotbi-school-source', notes.join(' · ')));
   if (result.school && result.kind !== 'SCHOOL_CANDIDATES') {
     const change = element(doc, 'button', 'lotbi-school-change', '학교 변경');
