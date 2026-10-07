@@ -40,10 +40,20 @@ assert.ok(
 // The flag is refreshed from the reader's own scrolling. Growth does not move
 // scrollTop and so fires no scroll event, which is what lets the pre-growth
 // answer survive long enough to act on.
+//
+// SITE-CHAT-ANSWER-QUALITY-P0 narrowed "the reader's own scrolling" to what it
+// always meant: iOS scrolling to reveal the focused composer, or clamping
+// scrollTop while the keyboard animates, is not the reader and may no longer
+// switch following off. Only a scroll inside a reader gesture (or one that
+// reaches the bottom) refreshes the flag; the browser test in
+// validate_chat_answer_quality_p0_01.mjs measures both directions.
 assert.ok(
-  /mainScrollHost\.addEventListener\('scroll', \(\) => \{\s*followThreadBottom = isThreadNearBottom\(\);/.test(conversation),
+  /mainScrollHost\.addEventListener\('scroll', \(\) => \{\s*if \(!readerScrollActive\(\) && !isThreadNearBottom\(\)\) return;\s*followThreadBottom = isThreadNearBottom\(\);/.test(conversation),
   'the follow-the-bottom intent must be refreshed by the reader’s own scrolling',
 );
+for (const gesture of ["addEventListener('wheel', markReaderScroll", "addEventListener('touchmove', markReaderScroll"]) {
+  assert.ok(conversation.includes(gesture), `reader scrolling must be recognised from ${gesture}`);
+}
 assert.ok(
   conversation.includes('if (followThreadBottom) scrollThread();'),
   'growth must only scroll when the reader was already at the bottom',

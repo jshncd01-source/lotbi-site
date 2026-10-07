@@ -1,27 +1,27 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-250798eafa80';
-import * as siteCore from './site-core.js?v=aset-250798eafa80';
-import {closeScamShield, isScamShieldOpen, openScamShield} from './site-scam-shield.js?v=aset-250798eafa80';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-250798eafa80';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-250798eafa80';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-250798eafa80';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-250798eafa80';
-import * as siteAttachments from './site-attachments.js?v=aset-250798eafa80';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-250798eafa80';
-import {deterministicReply} from './site-deterministic.js?v=aset-250798eafa80';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-250798eafa80';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-250798eafa80';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-250798eafa80';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-250798eafa80';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-250798eafa80';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-250798eafa80';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-250798eafa80';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-250798eafa80';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-250798eafa80';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-250798eafa80';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-250798eafa80';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-250798eafa80';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-250798eafa80';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-250798eafa80';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-70af3055623d';
+import * as siteCore from './site-core.js?v=aset-70af3055623d';
+import {closeScamShield, isScamShieldOpen, openScamShield} from './site-scam-shield.js?v=aset-70af3055623d';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-70af3055623d';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-70af3055623d';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-70af3055623d';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-70af3055623d';
+import * as siteAttachments from './site-attachments.js?v=aset-70af3055623d';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-70af3055623d';
+import {deterministicReply} from './site-deterministic.js?v=aset-70af3055623d';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-70af3055623d';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-70af3055623d';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-70af3055623d';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-70af3055623d';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-70af3055623d';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-70af3055623d';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-70af3055623d';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-70af3055623d';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-70af3055623d';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-70af3055623d';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-70af3055623d';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-70af3055623d';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-70af3055623d';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-70af3055623d';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -180,7 +180,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-250798eafa80';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-70af3055623d';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -273,7 +273,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-250798eafa80');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-70af3055623d');
   return shareWithKakaoTalk(options);
 }
 
@@ -281,7 +281,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-250798eafa80');
+    const module = await import('./site-kakao-share.js?v=aset-70af3055623d');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -1065,16 +1065,84 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // is refreshed on every scroll and never by the growth itself: content
   // getting taller does not move scrollTop and so fires no scroll event, which
   // is exactly what makes the pre-growth answer survive long enough to act on.
+  //
+  // SITE-CHAT-ANSWER-QUALITY-P0 (D/E) — on iPhone the intent was being switched
+  // off by scrolls the reader never made: iOS scrolls the page to reveal the
+  // composer when it gains focus, and clamps scrollTop while the keyboard
+  // animates. Each of those fired a scroll event more than 72px from the
+  // bottom, so the next answer, its sources and its action row were left under
+  // the composer. Only the reader's own scrolling (a drag, the wheel, a scroll
+  // key, the scrollbar) may now switch following off; reaching the bottom by
+  // any means switches it back on.
   let followThreadBottom = true;
+  let readerScrollUntil = 0;
+  const READER_SCROLL_WINDOW_MS = 700;
+  const READER_SCROLL_KEYS = new Set(['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' ']);
+  const readerScrollActive = () => performance.now() <= readerScrollUntil;
+  const markReaderScroll = event => {
+    if (event?.target instanceof Element && event.target.closest('.chat-composer-stack')) return;
+    readerScrollUntil = performance.now() + READER_SCROLL_WINDOW_MS;
+  };
+  mainScrollHost.addEventListener('wheel', markReaderScroll, {passive: true});
+  mainScrollHost.addEventListener('touchmove', markReaderScroll, {passive: true});
+  mainScrollHost.addEventListener('pointerdown', event => { if (event.target === mainScrollHost) markReaderScroll(event); }, {passive: true});
+  mainScrollHost.addEventListener('keydown', event => {
+    const editable = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]');
+    if (!editable && READER_SCROLL_KEYS.has(event.key)) markReaderScroll(event);
+  });
   mainScrollHost.addEventListener('scroll', () => {
+    if (!readerScrollActive() && !isThreadNearBottom()) return;
     followThreadBottom = isThreadNearBottom();
+    // Momentum keeps scrolling after the finger lifts; it is still the reader's.
+    if (readerScrollActive()) readerScrollUntil = performance.now() + 250;
   }, {passive: true});
-  const stickThreadToBottom = () => { scrollThread(); followThreadBottom = true; };
+
+  // The one way the conversation is brought to its newest message. It scrolls
+  // now, after the next frame and once more after the keyboard animation has
+  // settled, because on iOS the visible height keeps changing for ~300ms after
+  // focus and a single scroll lands short of the action row.
+  let tailFrame = 0;
+  let tailTimer = 0;
+  const scrollToConversationTail = ({force = false} = {}) => {
+    if (force) followThreadBottom = true;
+    if (!followThreadBottom || thread.hidden) return;
+    scrollThread();
+    cancelAnimationFrame(tailFrame);
+    tailFrame = requestAnimationFrame(() => { if (followThreadBottom) scrollThread(); });
+    window.clearTimeout(tailTimer);
+    tailTimer = window.setTimeout(() => { if (followThreadBottom && !thread.hidden) scrollThread(); }, 320);
+  };
+  const stickThreadToBottom = () => scrollToConversationTail({force: true});
+  // LOTBI puts the cursor back in the composer after every answer. A plain
+  // focus() makes the browser scroll the composer "into view" - measured at
+  // 390x844, it pulled a reader who had scrolled up 417px down the
+  // conversation the moment the answer arrived. The cursor goes back without
+  // moving the page; following the newest message is scrollToConversationTail's
+  // job alone.
+  const focusComposerInPlace = () => {
+    try { prompt.focus({preventScroll: true}); } catch { prompt.focus(); }
+  };
   if (typeof ResizeObserver === 'function') {
     // Fires for the thread's own growth and for any descendant that changes
     // size later — a loaded image, an expanded card, a late rich result.
     new ResizeObserver(() => { if (followThreadBottom) scrollThread(); }).observe(thread);
+    // The scroller itself shrinking (keyboard, Safari's address bar) and the
+    // composer growing (a long draft, attachments) move the bottom too, and
+    // neither is a change inside the thread.
+    const tailObserver = new ResizeObserver(() => { if (followThreadBottom && !thread.hidden) scrollThread(); });
+    tailObserver.observe(mainScrollHost);
+    const composerStackForTail = document.querySelector('.chat-composer-stack');
+    if (composerStackForTail) tailObserver.observe(composerStackForTail);
   }
+  // Tapping the composer means "I am about to reply": show the latest message
+  // right above it, even if the reader had scrolled up to look at something.
+  // A focus() LOTBI itself calls after an answer does not count — only a tap.
+  prompt.addEventListener('pointerdown', () => {
+    if (!thread.hidden) scrollToConversationTail({force: true});
+  }, {passive: true});
+  window.addEventListener('pageshow', () => {
+    if (document.body.classList.contains('conversation-active')) scrollToConversationTail();
+  });
   const createConversationSeparator = createdAt => {
     const label = formatConversationTimestamp(createdAt);
     if (!label) return null;
@@ -1093,7 +1161,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     timestampRefreshTimer = window.setTimeout(refreshConversationTimeLabels, millisecondsUntilNextLocalMidnight() + 50);
   };
   const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
-    const shouldStick = forceScroll || (!suppressScroll && isThreadNearBottom());
+    // Following is decided by the held intent, not by where scrollTop happens
+    // to be: a shrinking viewport can leave a reader who was following more
+    // than 72px from a bottom that moved.
+    const shouldStick = forceScroll || (!suppressScroll && (followThreadBottom || isThreadNearBottom()));
     showThread();
     if (node instanceof HTMLElement && node.dataset.role === 'assistant') {
       const row = document.createElement('div'); row.className = 'chat-assistant-row';
@@ -2684,7 +2755,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     for (const message of record.messages) {
       appendConversationRecord(message, {suppressScroll: true});
     }
-    scrollThread();
+    // Opening a conversation lands on its newest message, and keeps it there
+    // while late layout (fonts, images, cards) settles.
+    stickThreadToBottom();
   };
   const closeMobileDrawer = () => {
     const close = document.querySelector('[data-mobile-nav-close]');
@@ -2695,7 +2768,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     closeSurface();
     cancelActiveTurn('conversation-switch');
     closeConversationMenus();
-    state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); prompt.focus();
+    state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); focusComposerInPlace();
   };
   const startNewConversation = () => {
     cancelActiveTurn('new-conversation');
@@ -3129,7 +3202,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-250798eafa80');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-70af3055623d');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3157,7 +3230,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-250798eafa80');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-70af3055623d');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3376,8 +3449,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-250798eafa80'),
-          import('./site-pet.js?v=aset-250798eafa80'),
+          import('./site-person.js?v=aset-70af3055623d'),
+          import('./site-pet.js?v=aset-70af3055623d'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3386,11 +3459,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-250798eafa80');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-70af3055623d');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-250798eafa80');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-70af3055623d');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4247,7 +4320,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       publishDiagnostics();
       recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: diagnostics.lastCoreRequestDelta, providerCalls: 0, externalAiCalls: diagnostics.lastExternalAiRequestDelta});
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
-      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
+      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); focusComposerInPlace(); return;
     }
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
@@ -4401,7 +4474,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
       }
       return;
     }
@@ -4443,7 +4516,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
         showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
       }
       return;
     }
@@ -4530,13 +4603,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       forgetPendingTurn(authenticatedRequestId);
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
-      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
     }
   };
+  // The keyboard has already shrunk the scroller by the time this fires, so
+  // "near the bottom" is the wrong question; whether the reader was following
+  // the conversation is the right one.
   window.addEventListener('lotbi:keyboard-viewport', () => {
-    if (!thread.hidden && isThreadNearBottom()) {
-      requestAnimationFrame(scrollThread);
-    }
+    if (!thread.hidden && followThreadBottom) scrollToConversationTail();
   });
 
   // The newest turn of the open conversation is a question whose answer never
