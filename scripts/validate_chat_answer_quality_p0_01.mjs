@@ -225,16 +225,33 @@ try {
     main.dispatchEvent(new Event('scroll'));
     await sleep(60);
   };
-  // What the reader is looking at: the message under the middle of the
-  // visible area, and where it sits. Content above it can change size (the
-  // avatar moves between rows) and the browser's scroll anchoring then moves
-  // scrollTop to keep this message still - so "did the reader's view move?"
-  // is answered by this message's position, not by scrollTop.
+  // What the reader is looking at: the conversation item (message, assistant
+  // row or time separator) across the middle of the visible area, and where it
+  // sits. Content above it can change size (the avatar moves between rows) and
+  // the browser's scroll anchoring then moves scrollTop to keep this item
+  // still - so "did the reader's view move?" is answered by this item's
+  // position, not by scrollTop.
+  // The item is chosen by geometry, not by hit-testing the single middle
+  // point: that point lands beside a right-aligned user bubble or in the gap
+  // between two items at about one reading position in seven, and which
+  // positions those are depends on font metrics (the Linux gate missed where
+  // Windows hit). When the middle is such a gap, the nearest visible item is
+  // the one being read.
+  const thread = document.getElementById('conversation-thread');
   const readingAnchor = () => {
     const rect = main.getBoundingClientRect();
-    const y = Math.round(rect.top + Math.min(rect.height, visibleHeight()) / 2);
-    const node = document.elementFromPoint(Math.round(rect.left + rect.width / 2), y)?.closest('.chat-message, .chat-assistant-row, time');
-    return node ? {node, top: Math.round(node.getBoundingClientRect().top)} : null;
+    const top = rect.top;
+    const bottom = rect.top + Math.min(rect.height, visibleHeight());
+    const middle = (top + bottom) / 2;
+    let best = null;
+    for (const node of thread.children) {
+      if (!node.matches('.chat-message, .chat-assistant-row, time')) continue;
+      const box = node.getBoundingClientRect();
+      if (box.height <= 0 || box.bottom <= top || box.top >= bottom) continue;
+      const away = middle < box.top ? box.top - middle : middle > box.bottom ? middle - box.bottom : 0;
+      if (!best || away < best.away) best = {node, away};
+    }
+    return best ? {node: best.node, top: Math.round(best.node.getBoundingClientRect().top), kind: best.node.className || best.node.tagName} : null;
   };
   const overflow = () => ({
     page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -329,6 +346,7 @@ try {
     await sleep(400);
     result.readerScrolledUp = {
       before: Math.round(readingTop), after: Math.round(main.scrollTop), distance: distance(),
+      anchor: reading ? reading.kind : null,
       anchorShift: reading ? Math.round(reading.node.getBoundingClientRect().top) - reading.top : null,
     };
 
@@ -347,6 +365,7 @@ try {
     await sleep(500);
     result.answerWhileReading = {
       before: Math.round(waitingTop), after: Math.round(main.scrollTop), distance: distance(),
+      anchor: waiting ? waiting.kind : null,
       anchorShift: waiting ? Math.round(waiting.node.getBoundingClientRect().top) - waiting.top : null,
     };
     window.__answerDelay = 0;
@@ -520,8 +539,12 @@ try {
     assert.ok(built.keyboardClosed.distance <= AT_TAIL, `${label}: keyboard close keeps the tail ${built.keyboardClosed.distance}px`);
 
     assert.equal(built.readerScrolledUp.after, built.readerScrolledUp.before, `${label}: a reader scrolled up is not pulled down by growth`);
+    // No visible item means the reader's view could not be measured at all -
+    // a failure of its own, never a silent null.
+    assert.ok(built.readerScrolledUp.anchor, `${label}: no conversation item was visible while reading, so whether the message being read moved could not be measured`);
     assert.equal(built.readerScrolledUp.anchorShift, 0, `${label}: the message being read stays where it was`);
     assert.ok(built.readerScrolledUp.distance > 200, `${label}: reader really is away from the bottom`);
+    assert.ok(built.answerWhileReading.anchor, `${label}: no conversation item was visible while waiting for an answer, so whether the message being read moved could not be measured`);
     assert.ok(Math.abs(built.answerWhileReading.anchorShift) <= 2, `${label}: an answer arriving while reading does not move the message being read (${built.answerWhileReading.anchorShift}px)`);
     assert.ok(built.answerWhileReading.distance > 200, `${label}: an answer arriving while reading does not pull the reader to the bottom`);
 
