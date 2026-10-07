@@ -1,4 +1,6 @@
-READY_FOR_DEPLOY=YES
+READY_FOR_DEPLOY=NO
+
+STATUS=REAL_PHOTO_VALIDATION_PENDING — user decision 2026-10-07 [PRE-DEPLOY FINAL DECISION]: do not deploy until REAL_ID_TEST=PASS, REAL_DOG_TEST=PASS, FALSE_AUTO_ACCEPT=0, GENERIC_COPY_FIX=PASS, SAVED_TITLE_FIX=PASS, NEW_FAILURES=0. Waiting for local paths of real ID and dog photos.
 
 # life-wallet-auto-document-crop-site — release handoff (cards/documents only, PDF page 1, one-card wallet)
 
@@ -38,6 +40,6 @@ POST_DEPLOY_SMOKE=Life Wallet: (1) a pet photo → "신분증이나 문서로 �
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 PRIVACY_BOUNDARY=PASS — no real photo or PDF in repository, fixtures, logs or commits; synthetic images and a test-built PDF only.
-READY_FOR_DEPLOY=YES
+READY_FOR_DEPLOY=NO
 
-USER_DECISION_NEEDED=NONE
+USER_DECISION_NEEDED=real ID and dog photo paths (local files, numbers-only check)
