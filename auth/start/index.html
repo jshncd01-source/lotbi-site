@@ -6,6 +6,63 @@
   <meta name="robots" content="noindex,nofollow,noarchive" />
   <meta name="referrer" content="no-referrer" />
   <title>LOTBI | 로그인</title>
+  <!-- LOTBI-CONSUMER-THEME-SYNC-01 — the same read-only pre-paint theme
+       bootstrap every consumer page carries, so this page paints in the
+       reader's LOTBI screen mode instead of flashing white on the way through.
+       scripts/sync_theme_bootstrap.mjs keeps every copy identical. -->
+  <script>
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
+        var lotbiHour = new Date().getHours();
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 18:00.
+          lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 18 ? 7 : 18);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
+      }
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
+  </script>
   <style>
     [hidden] { display: none !important; }
     /* Inline continuation styling: login redirects must not wait for CSS fetches. */
@@ -16,10 +73,15 @@
     .auth-start-error-shell p { margin: 0 0 24px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
     .auth-start-error-shell a { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border-radius: 10px; background: #f3f4f5; color: inherit; font-size: 14px; font-weight: 500; text-decoration: none; }
     .auth-start-error-shell a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
-    @media (prefers-color-scheme: dark) { body { background: #212121; color: #f5f5f5; } .auth-start-error-shell a { background: #353535; } }
+    /* LOTBI-CONSUMER-THEME-SYNC-01 — "LOTBI로 돌아가기" passes through here, so it
+       follows the chosen screen mode: Dark always, 기기모드 with the device,
+       Light never dark. */
+    @media (prefers-color-scheme: dark) { html:not([data-site-theme-bootstrap="light"]):not([data-site-theme-bootstrap="dark"]) body { background: #212121; color: #f5f5f5; } html:not([data-site-theme-bootstrap="light"]):not([data-site-theme-bootstrap="dark"]) .auth-start-error-shell a { background: #353535; } }
+    html[data-site-theme-bootstrap="dark"] body { background: #212121; color: #f5f5f5; }
+    html[data-site-theme-bootstrap="dark"] .auth-start-error-shell a { background: #353535; }
     @media (max-width: 480px) { .auth-start-error-shell h1 { font-size: 22px; } }
   </style>
-  <script type="module" src="/auth-start.js?v=aset-340323f44d32"></script>
+  <script type="module" src="/auth-start.js?v=aset-c4b5457423b1"></script>
 </head>
 <body class="consumer-transfer">
   <main id="auth-start-error-shell" class="auth-start-error-shell" aria-labelledby="auth-start-error-title" hidden>

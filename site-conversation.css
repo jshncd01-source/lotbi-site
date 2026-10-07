@@ -1593,6 +1593,9 @@ html[data-profile-photo-embed="true"] .site-field-error {
   background: var(--lotbi-surface-primary, #fff); box-shadow: 0 12px 30px rgba(21, 36, 59, .14);
 }
 .profile-photo-source-menu[hidden] { display: none; }
+/* PROFILE-PHOTO-ACCOUNT-SYNC-01 — removes the account photo; only shown when there is one. */
+.profile-photo-remove { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+.profile-photo-remove[hidden] { display: none; }
 .profile-photo-source-option {
   min-width: 0; min-height: 58px; padding: 9px 6px; border: 1px solid var(--lotbi-border-default, #d5dbe6);
   border-radius: 12px; background: var(--lotbi-surface-subtle, #f5f7fa); color: var(--lotbi-text-primary, #303642);

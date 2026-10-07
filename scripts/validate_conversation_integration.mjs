@@ -57,6 +57,7 @@ class MemoryStorage {
   assert.deepEqual(identity, {
     userId: 'user-1', name: '전선혜', publicHandle: 'lotbi_user.01', accountHandle: 'lotbi_user.01', email: 'user@example.com',
     sessionId: 'site-session-1', installationId: 'installation-1', expiresAt: '2030-01-01T00:00:00Z',
+    profilePhoto: null,
   });
   const logout = await logoutSiteSession('site-memory-token', fetchMock);
   assert.deepEqual(logout, {sessionId: 'site-session-1', status: 'REVOKED'});

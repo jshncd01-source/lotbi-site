@@ -1,28 +1,29 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-340323f44d32';
-import * as siteCore from './site-core.js?v=aset-340323f44d32';
-import './site-scam-shield.js?v=aset-340323f44d32';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-340323f44d32';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-340323f44d32';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-340323f44d32';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-340323f44d32';
-import * as siteAttachments from './site-attachments.js?v=aset-340323f44d32';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-340323f44d32';
-import {deterministicReply} from './site-deterministic.js?v=aset-340323f44d32';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-340323f44d32';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-340323f44d32';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-340323f44d32';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-340323f44d32';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-340323f44d32';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-340323f44d32';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-340323f44d32';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-340323f44d32';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-340323f44d32';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-340323f44d32';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-340323f44d32';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-340323f44d32';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-340323f44d32';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-340323f44d32';
-const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-c4b5457423b1';
+import * as siteCore from './site-core.js?v=aset-c4b5457423b1';
+import './site-scam-shield.js?v=aset-c4b5457423b1';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-c4b5457423b1';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-c4b5457423b1';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-c4b5457423b1';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-c4b5457423b1';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-c4b5457423b1';
+import * as siteAttachments from './site-attachments.js?v=aset-c4b5457423b1';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-c4b5457423b1';
+import {deterministicReply} from './site-deterministic.js?v=aset-c4b5457423b1';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-c4b5457423b1';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-c4b5457423b1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-c4b5457423b1';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-c4b5457423b1';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-c4b5457423b1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-c4b5457423b1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-c4b5457423b1';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-c4b5457423b1';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-c4b5457423b1';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-c4b5457423b1';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-c4b5457423b1';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-c4b5457423b1';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-c4b5457423b1';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-c4b5457423b1';
+const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
@@ -42,21 +43,24 @@ const attachmentOnlyPlaceholder = count => `첨부 파일 ${count}개를 확인�
 //
 // It is deliberately not the same answer as '기기모드', which follows the OS.
 // This one follows the clock, which is what 대표 asked for. Both stay on offer.
-const AUTO_THEME_DARK_HOUR = 18;
-const AUTO_THEME_LIGHT_HOUR = 7;
+//
+// LOTBI-CONSUMER-THEME-SYNC-01 — the clock and its 07:00 / 18:00 boundaries now
+// live in site-theme-preference.js, which Account mirrors, so the Site and
+// Account cannot switch at different times.
 function resolveScheduledTheme(now = new Date()) {
-  const hour = now.getHours();
-  return hour >= AUTO_THEME_DARK_HOUR || hour < AUTO_THEME_LIGHT_HOUR ? 'dark' : 'light';
+  return resolveThemePreference('auto', now);
 }
-// When the next switch is due, so a tab left open overnight turns dark at 18:00
-// instead of waiting for a reload.
-function millisecondsUntilNextThemeBoundary(now = new Date()) {
-  const hour = now.getHours();
-  const next = new Date(now.getTime());
-  next.setMinutes(0, 0, 0);
-  next.setHours(hour < AUTO_THEME_LIGHT_HOUR || hour >= AUTO_THEME_DARK_HOUR ? AUTO_THEME_LIGHT_HOUR : AUTO_THEME_DARK_HOUR);
-  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
-  return next.getTime() - now.getTime();
+
+// LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode chosen in Account settings is
+// the shared lotbi_theme_preference_v1 cookie, and it wins over anything this
+// origin stored on its own. Never throws: a blocked cookie jar falls back to the
+// old per-origin key rather than stopping the page.
+function sharedThemePreference() {
+  try {
+    return readThemePreference(globalThis.document?.cookie ?? '');
+  } catch {
+    return undefined;
+  }
 }
 
 // SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
@@ -66,7 +70,7 @@ function millisecondsUntilNextThemeBoundary(now = new Date()) {
 // module also runs on pages that do not carry the inline block, and re-running
 // it is harmless — it writes the same attribute from the same value.
 try {
-  const stored = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const stored = sharedThemePreference() ?? globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
   const savedTheme = stored === 'auto' ? resolveScheduledTheme() : stored;
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
     document.documentElement.dataset.siteThemeBootstrap = savedTheme;
@@ -122,6 +126,21 @@ function resolveNamespaceTheme(storedTheme, durableTheme) {
   if (isSiteTheme(storedTheme)) return storedTheme;
   if (isSiteTheme(durableTheme)) return durableTheme;
   return 'system';
+}
+
+// LOTBI-CONSUMER-THEME-SYNC-01 — someone who chose on this origin before the
+// shared cookie existed keeps that choice: an explicit Light, Dark or 자동 is
+// carried into the shared store, marked as imported so Account (where the
+// screen mode is chosen now) can still prefer its own older explicit choice.
+// 'system' is not carried: it is also the value written when nothing was ever
+// chosen, so it says nothing about the user.
+function adoptLegacyTheme(legacyTheme) {
+  if (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'auto') {
+    try {
+      writeThemePreference(document, legacyTheme, {hostname: location.hostname, protocol: location.protocol, imported: true});
+    } catch {}
+  }
+  return legacyTheme;
 }
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -180,7 +199,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-340323f44d32';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-c4b5457423b1';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -273,7 +292,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-340323f44d32');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-c4b5457423b1');
   return shareWithKakaoTalk(options);
 }
 
@@ -281,7 +300,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-340323f44d32');
+    const module = await import('./site-kakao-share.js?v=aset-c4b5457423b1');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -801,7 +820,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
   let namespace = normalizedNamespace(identityKey);
   let state = {threads: [], activeThreadId: null, draft: ''};
-  let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
+  let preferences = {color: 'default', theme: 'system', displayName: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer, activeVoiceConsumer;
   let lastRenderedCreatedAt;
@@ -1031,6 +1050,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     syncResponseGradeUi();
     document.body.dataset.responseGrade = preferences.responseGrade;
   };
+  // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode can change in Account while
+  // this tab waits in the background, and '자동모드' can cross a boundary while
+  // the machine sleeps. Coming back to the tab re-reads the shared choice and
+  // re-resolves the clock, so the two origins never stay apart.
+  const syncSharedTheme = () => {
+    if (!stateReady) return;
+    const shared = sharedThemePreference();
+    if (shared && shared !== preferences.theme) { preferences.theme = shared; savePreferences(); }
+    applyPreferences();
+  };
+  window.addEventListener('focus', syncSharedTheme);
+  window.addEventListener('pageshow', syncSharedTheme);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncSharedTheme(); });
   const restoreAvatarHome = () => { if (avatar.parentElement !== homeAvatarAnchor) homeAvatarAnchor.appendChild(avatar); };
   const showThread = () => { thread.hidden = false; document.body.classList.add('conversation-active'); };
   const resetBlankHomeScroll = () => {
@@ -3115,12 +3147,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     consumeRequestedConversation();
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
-      theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),
+      theme: sharedThemePreference() ?? adoptLegacyTheme(resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme())),
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
-      photo: typeof loadedPreferences.photo === 'string' && loadedPreferences.photo.startsWith('data:image/') ? loadedPreferences.photo : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the old browser-only photo (raw image data
+    // in these preferences) is not the account photo; drop it from storage.
+    if (Object.prototype.hasOwnProperty.call(loadedPreferences, 'photo')) savePreferences();
     applyPreferences(); renderActiveThread(); renderRecent();
     document.body.dataset.conversationRestore = 'ready';
     schedulePendingTurnResume();
@@ -3132,10 +3166,39 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const emailLocalPart = serverIdentity?.email?.split('@', 1)[0]?.trim();
     return emailLocalPart || 'LOTBI 사용자';
   };
+  // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the account's photo from Core, identical on
+  // Account, Site and App. Only the current version is held, as an in-memory
+  // object URL; a new version (replacement) replaces it, none means initials.
+  let profilePhotoUrl = '', profilePhotoVersion = '', profilePhotoGeneration = 0;
+  const clearProfilePhoto = () => {
+    profilePhotoGeneration += 1;
+    if (profilePhotoUrl) URL.revokeObjectURL(profilePhotoUrl);
+    profilePhotoUrl = ''; profilePhotoVersion = '';
+  };
+  const syncProfilePhoto = async photo => {
+    const version = photo?.version || '';
+    if (!version || !sessionToken) {
+      if (profilePhotoUrl || profilePhotoVersion) { clearProfilePhoto(); refreshAuthenticatedProfileSlots(); }
+      return;
+    }
+    if (version === profilePhotoVersion && profilePhotoUrl) return;
+    const generation = ++profilePhotoGeneration;
+    const token = sessionToken;
+    try {
+      const url = await fetchSiteProfilePhotoObjectUrl(token, photo);
+      if (generation !== profilePhotoGeneration || token !== sessionToken) { URL.revokeObjectURL(url); return; }
+      if (profilePhotoUrl) URL.revokeObjectURL(profilePhotoUrl);
+      profilePhotoUrl = url; profilePhotoVersion = version;
+    } catch {
+      // The photo stays on the account; this view falls back to initials.
+      if (generation !== profilePhotoGeneration) return;
+    }
+    refreshAuthenticatedProfileSlots();
+  };
   const profileVisual = () => {
-    const visual = document.createElement(preferences.photo ? 'img' : 'span');
+    const visual = document.createElement(profilePhotoUrl ? 'img' : 'span');
     visual.className = 'sidebar-profile-avatar';
-    if (visual instanceof HTMLImageElement) { visual.src = preferences.photo; visual.alt = ''; }
+    if (visual instanceof HTMLImageElement) { visual.src = profilePhotoUrl; visual.alt = ''; }
     else { visual.textContent = initials(canonicalProfileName()); visual.setAttribute('aria-hidden', 'true'); }
     return visual;
   };
@@ -3228,6 +3291,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const identity = await getCurrentSiteUser(sessionToken);
       if (namespace && identity.installationId !== namespace) throw new SiteCoreError('Site 사용자 namespace가 일치하지 않습니다.', {code: 'SITE_IDENTITY_NAMESPACE_MISMATCH'});
       serverIdentity = identity; refreshAuthenticatedProfileSlots();
+      void syncProfilePhoto(identity.profilePhoto);
       openProfilePhotoFromHash();
     } catch (error) {
       if (isSessionError(error)) sessionToken = undefined;
@@ -3423,7 +3487,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-340323f44d32');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-c4b5457423b1');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3451,7 +3515,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-340323f44d32');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-c4b5457423b1');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3544,7 +3608,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (profilePhotoEmbed) document.documentElement.dataset.profilePhotoEmbed = 'true';
     const {backdrop, panel, content} = modalShell('프로필 사진');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
-    if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
+    const showPreview = () => { preview.style.backgroundImage = profilePhotoUrl ? `url("${profilePhotoUrl}")` : ''; };
+    showPreview();
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
     const photoPicker = document.createElement('div'); photoPicker.className = 'profile-photo-picker';
     const photoTrigger = document.createElement('button'); photoTrigger.type = 'button'; photoTrigger.className = 'site-button site-button-secondary'; photoTrigger.textContent = '사진 선택';
@@ -3552,17 +3617,55 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const photoMenu = document.createElement('div'); photoMenu.className = 'profile-photo-source-menu'; photoMenu.id = 'profile-photo-source-menu'; photoMenu.setAttribute('role', 'menu'); photoMenu.setAttribute('aria-label', '프로필 사진 가져오기'); photoMenu.hidden = true;
     photoTrigger.setAttribute('aria-controls', photoMenu.id);
     const setPhotoMenuOpen = open => { photoMenu.hidden = !open; photoTrigger.setAttribute('aria-expanded', String(open)); };
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the photo is the account's: it is shown
+    // and announced as saved only after Core stored it. A failed save leaves the
+    // previous photo in place; nothing is kept in this browser.
+    const removeButton = document.createElement('button'); removeButton.type = 'button';
+    removeButton.className = 'site-button site-button-secondary profile-photo-remove'; removeButton.textContent = '사진 삭제';
+    removeButton.hidden = !serverIdentity?.profilePhoto;
+    const setBusy = busy => {
+      photoTrigger.disabled = busy; removeButton.disabled = busy;
+      if (busy) panel.setAttribute('aria-busy', 'true'); else panel.removeAttribute('aria-busy');
+    };
+    const saveFailure = caught => (caught instanceof SiteCoreError
+      && (caught.code === 'SITE_PROFILE_PHOTO_UNSUPPORTED' || caught.status === 415)
+      ? '프로필에는 사진만 사용할 수 있어요.'
+      : '프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     function applyProfilePhoto(file) {
       if (!file) return Promise.resolve();
       error.textContent = '';
-      return readProfilePhoto(file).then(value => {
-        preferences.photo = value;
-        savePreferences();
-        preview.style.backgroundImage = `url(${preferences.photo})`;
-        refreshAuthenticatedProfileSlots();
-        if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-updated'}, ACCOUNT_MANAGE_ORIGIN);
-      }).catch(caught => { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; });
+      return readProfilePhoto(file).then(async value => {
+        setBusy(true);
+        try {
+          const photo = await saveSiteProfilePhoto(sessionToken, value);
+          if (serverIdentity) serverIdentity = Object.freeze({...serverIdentity, profilePhoto: photo});
+          await syncProfilePhoto(photo);
+          showPreview(); removeButton.hidden = false;
+          if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-saved', version: photo.version}, ACCOUNT_MANAGE_ORIGIN);
+          else setStatus('프로필 사진을 저장했습니다.');
+        } catch (caught) {
+          error.textContent = saveFailure(caught);
+        } finally {
+          setBusy(false);
+        }
+      }, caught => { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; });
     }
+    removeButton.addEventListener('click', async () => {
+      error.textContent = '';
+      setBusy(true);
+      try {
+        await deleteSiteProfilePhoto(sessionToken);
+        if (serverIdentity) serverIdentity = Object.freeze({...serverIdentity, profilePhoto: null});
+        await syncProfilePhoto(null);
+        showPreview(); removeButton.hidden = true;
+        if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-deleted'}, ACCOUNT_MANAGE_ORIGIN);
+        else setStatus('프로필 사진을 삭제했습니다.');
+      } catch {
+        error.textContent = '프로필 사진을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      } finally {
+        setBusy(false);
+      }
+    });
     for (const [source, label] of PROFILE_PHOTO_SOURCE_OPTIONS) {
       const option = document.createElement('button'); option.type = 'button'; option.className = 'profile-photo-source-option'; option.textContent = label; option.setAttribute('role', 'menuitem'); option.dataset.profilePhotoSource = source;
       const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.multiple = false; input.className = 'sr-only'; input.dataset.profilePhotoInput = source;
@@ -3588,6 +3691,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     photoTrigger.addEventListener('click', () => setPhotoMenuOpen(photoMenu.hidden));
     photoMenu.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); setPhotoMenuOpen(false); photoTrigger.focus(); } });
     photoPicker.prepend(photoTrigger, photoMenu);
+    photoPicker.append(removeButton);
 
     const accountLink = document.createElement('a'); accountLink.className = 'site-button site-button-secondary';
     accountLink.href = ACCOUNT_MANAGE_URL + '#profile'; accountLink.textContent = '이름 · 이메일 관리';
@@ -3670,8 +3774,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-340323f44d32'),
-          import('./site-pet.js?v=aset-340323f44d32'),
+          import('./site-person.js?v=aset-c4b5457423b1'),
+          import('./site-pet.js?v=aset-c4b5457423b1'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3680,11 +3784,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-340323f44d32');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-c4b5457423b1');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-340323f44d32');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-c4b5457423b1');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -5137,9 +5241,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!detail || typeof detail.authenticated !== 'boolean') return;
     if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
     if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')) closeSurface();
+    // A different (or no) account must never keep showing the previous photo.
+    clearProfilePhoto();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
+      if (serverIdentity?.profilePhoto) void syncProfilePhoto(serverIdentity.profilePhoto);
     } else if (!sessionToken) switchNamespace(anonymousConversationNamespace());
     renderNavigationCalendarStatus({count: 0, hasReminder: false});
     void refreshNavigationCalendarStatus();

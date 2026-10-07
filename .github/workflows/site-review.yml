@@ -55,6 +55,9 @@ jobs:
       - name: Validate iOS Social Auth return bridge
         run: python scripts/validate_ios_social_return_01.py
 
+      - name: Validate nginx script module MIME types
+        run: python scripts/validate_nginx_module_mime_01.py
+
       - name: Validate UI/UX Phase 1 contracts
         run: node scripts/validate_uiux_phase1_01.mjs
 
@@ -98,10 +101,23 @@ jobs:
       - name: Validate 개인테마 profile menu
         run: node scripts/validate_profile_menu_personal_theme_01.mjs
 
+      # 프로필 사진은 계정 데이터 — Core에 저장되고 Account·Site·App이 같은
+      # 사진을 본다. 브라우저 저장소에는 사진이 남지 않는다.
+      - name: Validate account-wide profile photo
+        run: node scripts/validate_profile_photo_account_sync_01.mjs
+
       # '자동모드' follows the clock (18시 다크 · 07시 라이트) and must never
       # leak 'auto' into the attribute the theme tokens style.
       - name: Validate 자동모드 theme schedule
         run: node scripts/validate_theme_auto_schedule_02.mjs
+
+      # 화면 모드는 Account 설정 전용이 아니라 LOTBI 소비자 웹 전체의 설정 —
+      # lotbiai.com 과 account.lotbiai.com 이 같은 공유 cookie 하나를 읽는다.
+      - name: Check every consumer page carries the same theme bootstrap
+        run: node scripts/sync_theme_bootstrap.mjs --check
+
+      - name: Validate one screen mode across Site and Account
+        run: node scripts/validate_consumer_theme_sync_01.mjs
 
       - name: Validate canonical email-first identity profile
         run: node scripts/validate_identity_profile_hotfix_02.mjs
@@ -708,6 +724,11 @@ jobs:
 
           curl --fail --silent --show-error --head 'http://127.0.0.1:4173/.well-known/apple-app-site-association' \
             | tr -d '\r' | grep --ignore-case --quiet '^Content-Type: application/json'
+          for path in /avatar-runtime/runtime/controller.mjs '/avatar-runtime/runtime/faithful-binding.mjs?v=smoke' /avatar-runtime/runtime/refinement.mjs /site-avatar.js; do
+            curl --fail --silent --show-error --head "http://127.0.0.1:4173${path}" \
+              | tr -d '\r' | grep --ignore-case --quiet --extended-regexp '^Content-Type: (application|text)/javascript' \
+              || { echo "module script ${path} must be served as JavaScript" >&2; exit 1; }
+          done
           unknown_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/not-a-real-static-path')"
           [[ "$unknown_status" == '404' ]] || { echo "unrelated static path must remain 404, got $unknown_status" >&2; exit 1; }
 
