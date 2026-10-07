@@ -2,8 +2,11 @@
 //
 // Six account-menu entries remain. Profile identity, personalization/theme and
 // help now have one canonical Account owner rather than duplicate Site forms.
-// This Site fixture checks the menu and local photo editor. Cross-origin Account
-// navigation is source-checked, not reported as an Account runtime/E2E pass.
+// This Site fixture checks the menu and the profile photo picker. Cross-origin
+// Account navigation is source-checked, not reported as an Account runtime/E2E pass.
+// PROFILE-PHOTO-ACCOUNT-SYNC-01: the photo is saved to the account in Core (a
+// fake Core here) and announced to Account only after that save succeeded; no
+// image data is kept in browser storage.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -62,7 +65,7 @@ assert.ok(
   'data-global-nav-action 핸들러는 같은 설정 동작을 유지해야 합니다',
 );
 
-// [4] Identity editing belongs to Account; the Site keeps only local photo editing.
+// [4] Identity editing belongs to Account; the Site picker saves the account photo to Core.
 assert.ok(
   !conversation.includes('계정 페이지에서 관리'),
   "'계정 페이지에서 관리' 버튼은 프로필 창에서 제거되어야 합니다",
@@ -82,7 +85,15 @@ assert.ok(conversation.includes("new URLSearchParams(window.location.search).get
 assert.ok(conversation.includes("window.location.hash === '#profile-photo'"), 'Account embed mode must survive the session handoff return');
 assert.ok(conversation.includes('const profilePhotoEmbed = isProfilePhotoEmbed()'), 'the picker must evaluate embed mode after the handoff restores its hash');
 assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-close'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded close must return control to Account');
-assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-updated'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded save must notify Account');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-saved', version: photo.version}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded save must notify Account once Core saved it');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-deleted'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded delete must notify Account once Core deleted it');
+assert.ok(!conversation.includes('lotbi:profile-photo-updated'), 'a browser-only save must not be announced');
+assert.ok(!conversation.includes('preferences.photo'), 'the profile photo is never kept in Site preferences/localStorage');
+{
+  const save = conversation.slice(conversation.indexOf('function applyProfilePhoto(file)'), conversation.indexOf("removeButton.addEventListener('click'"));
+  assert.ok(save.indexOf('await saveSiteProfilePhoto(sessionToken, value)') < save.indexOf("type: 'lotbi:profile-photo-saved'"), 'the saved signal follows the Core save');
+  assert.ok(save.indexOf('await saveSiteProfilePhoto(sessionToken, value)') < save.indexOf('showPreview()'), 'the preview changes only after the Core save');
+}
 assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-ready'}, ACCOUNT_MANAGE_ORIGIN)"), 'Account must reveal the iframe only after the embedded picker is ready');
 assert.match(conversationCss, /html\[data-profile-photo-embed="true"\]/, 'embedded mode must hide the Site home shell');
 assert.ok(conversation.includes("if (source === 'camera') input.setAttribute('capture', 'environment')"), '카메라 경로만 후면 정지사진 capture를 요청해야 합니다');
@@ -126,7 +137,12 @@ const modal=()=>document.querySelector('.site-modal-backdrop .site-modal');
 const items=()=>[...document.querySelectorAll('.profile-popover [role="menuitem"]')];
 const openMenu=async()=>{click(document.querySelector('[data-profile-menu-trigger]'));await wait(()=>document.querySelector('.profile-popover'),'menu')};
 const closeModal=async()=>{modal().dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await wait(()=>!modal(),'modal close')};
-window.fetch=async input=>{const u=String(typeof input==='string'?input:input?.url||'');
+const photoCalls=[],accountMessages=[];let photoSaveFails=false;
+try{window.parent.postMessage=(data)=>{accountMessages.push(data&&data.type)}}catch{}
+window.fetch=async (input,init={})=>{const u=String(typeof input==='string'?input:input?.url||'');const method=String(init.method||'GET').toUpperCase();
+if(u.endsWith('/v2/account/profile/photo')&&method==='PUT'){const body=JSON.parse(init.body||'{}');photoCalls.push({method,prefix:String(body.photo_data_uri||'').slice(0,15)});if(photoSaveFails)return new Response(JSON.stringify({detail:{code:'PROFILE_PHOTO_INVALID'}}),{status:503,headers:{'Content-Type':'application/json'}});return new Response(JSON.stringify({profile_photo:{version:'mda_fixture'+photoCalls.length,content_path:'/v2/account/profile/photo/content?v=mda_fixture'+photoCalls.length,mime_type:'image/jpeg'}}),{status:200,headers:{'Content-Type':'application/json'}})}
+if(u.endsWith('/v2/account/profile/photo')&&method==='DELETE'){photoCalls.push({method});return new Response(JSON.stringify({profile_photo:null}),{status:200,headers:{'Content-Type':'application/json'}})}
+if(u.includes('/v2/account/profile/photo/content?v=mda_fixture'))return new Response(new Blob([new Uint8Array([255,216,255,224,0,16,74,70,73,70])],{type:'image/jpeg'}),{status:200,headers:{'Content-Type':'image/jpeg'}});
 if(u.endsWith('/v2/me'))return new Response(JSON.stringify({user:{id:'usr',name:'홍길동',account_handle:'hong',email:'hong@example.com'},session:{id:'ses',assurance_level:'FULL',expires_at:'2099-01-01T00:00:00Z'},installation:{id:'install-theme-test'}}),{status:200,headers:{'Content-Type':'application/json'}});
 if(u.endsWith('/v2/subscription'))return new Response(JSON.stringify({plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,free_units:3,used_free_units:1,remaining_free_units:2}),{status:200,headers:{'Content-Type':'application/json'}});
 return new Response('{}',{status:500})};
@@ -183,7 +199,7 @@ document.querySelector('.profile-popover').dispatchEvent(new KeyboardEvent('keyd
 await wait(()=>!document.querySelector('.profile-popover'),'profile menu close');
 
 // [4] 프로필 창
-// Canonical navigation is source-checked above. Photo remains Site-local.
+// Canonical navigation is source-checked above. The photo is saved to the account (fake Core).
 window.location.hash='profile-photo';await wait(()=>modal(),'profile photo modal');
 const profileTitle=modal().querySelector('h2').textContent;
 const profileButtons=[...modal().querySelectorAll('.site-modal-content button')].map(n=>n.textContent);
@@ -230,20 +246,32 @@ await wait(()=>profilePhotoError.textContent==='이미지 파일을 읽지 못�
 const decodeError=profilePhotoError.textContent;
 
 const png=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),c=>c.charCodeAt(0));
+// Core refuses the save: nothing is shown or announced as saved.
+photoSaveFails=true;
 await setProfileFile('camera',new File([png],'profile.png',{type:'image/png'}));
-await wait(()=>profilePhotoPreview.style.backgroundImage.includes('data:image/webp'),'valid preview');
-const validPreview=profilePhotoPreview.style.backgroundImage.includes('data:image/webp');
-const storedPhoto=Object.values(storageSnapshot()).some(v=>String(v).includes('data:image/webp'));
+await wait(()=>profilePhotoError.textContent==='프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.','save failure');
+const saveFailure={error:profilePhotoError.textContent,preview:profilePhotoPreview.style.backgroundImage,messages:[...accountMessages],stored:Object.values(storageSnapshot()).some(v=>String(v).includes('data:image/'))};
+photoSaveFails=false;
+await setProfileFile('camera',new File([png],'profile.png',{type:'image/png'}));
+await wait(()=>profilePhotoPreview.style.backgroundImage.includes('blob:'),'valid preview');
+const validPreview=profilePhotoPreview.style.backgroundImage.includes('blob:');
+const storedPhoto=Object.values(storageSnapshot()).some(v=>String(v).includes('data:image/'));
+const savedMessages=[...accountMessages];
+const removeButton=modal().querySelector('.profile-photo-remove');
+const removeVisibleAfterSave=Boolean(removeButton&&!removeButton.hidden);
 const beforeFinalCancelStorage=JSON.stringify(storageSnapshot());
 const beforeFinalCancelPreview=profilePhotoPreview.style.backgroundImage;
 await setProfileFile('camera',null);
 const finalCancelPreserved=beforeFinalCancelStorage===JSON.stringify(storageSnapshot())&&beforeFinalCancelPreview===profilePhotoPreview.style.backgroundImage;
+click(removeButton);
+await wait(()=>removeButton.hidden&&!profilePhotoPreview.style.backgroundImage,'photo removed');
+const deleted={messages:[...accountMessages],preview:profilePhotoPreview.style.backgroundImage,removeHidden:removeButton.hidden};
 await closeModal();
 
 out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},accountCard,
 labels,disabledItems,deadEnd:popoverText.includes('준비 중'),
 theme:{owner:'ACCOUNT',runtime:'NOT_TESTED'},
-profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,validPreview,storedPhoto,finalCancelPreserved}})
+profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,saveFailure,validPreview,storedPhoto,savedMessages,removeVisibleAfterSave,finalCancelPreserved,deleted,photoCalls}})
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
 
@@ -321,9 +349,16 @@ try {
     assert.equal(v.profile.initialCancelPreserved, true, `${surface}: 최초 picker 취소는 기존 상태를 유지해야 합니다`);
     assert.equal(v.profile.videoError, '프로필에는 사진만 사용할 수 있어요.', `${surface}: video MIME은 사진 전용 문구로 거부해야 합니다`);
     assert.equal(v.profile.decodeError, '이미지 파일을 읽지 못했습니다.', `${surface}: image MIME으로 위장한 비이미지 bytes도 decode 단계에서 거부해야 합니다`);
-    assert.equal(v.profile.validPreview, true, `${surface}: 정상 사진은 즉시 원형 preview에 반영되어야 합니다`);
-    assert.equal(v.profile.storedPhoto, true, `${surface}: 정상 사진은 기존 browser-local 저장 계약을 유지해야 합니다`);
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — saved means saved to the account in Core.
+    assert.deepEqual(v.profile.saveFailure, {error: '프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', preview: '', messages: ['lotbi:profile-photo-ready'], stored: false}, `${surface}: Core 저장 실패는 사진을 보여 주지도, 저장 완료를 알리지도 않아야 합니다`);
+    assert.equal(v.profile.validPreview, true, `${surface}: Core 저장 후 계정 사진이 원형 preview에 반영되어야 합니다`);
+    assert.equal(v.profile.storedPhoto, false, `${surface}: 사진 데이터는 브라우저 저장소에 남지 않아야 합니다`);
+    assert.deepEqual(v.profile.savedMessages, ['lotbi:profile-photo-ready', 'lotbi:profile-photo-saved'], `${surface}: Account에는 Core 저장 성공 뒤 saved 신호 한 번만 가야 합니다`);
+    assert.equal(v.profile.removeVisibleAfterSave, true, `${surface}: 사진이 있으면 사진 삭제가 보여야 합니다`);
     assert.equal(v.profile.finalCancelPreserved, true, `${surface}: 저장 후 picker 취소도 기존 사진을 유지해야 합니다`);
+    assert.deepEqual(v.profile.deleted, {messages: ['lotbi:profile-photo-ready', 'lotbi:profile-photo-saved', 'lotbi:profile-photo-deleted'], preview: '', removeHidden: true}, `${surface}: 사진 삭제는 Core 삭제 뒤 이니셜로 돌아가고 deleted 신호를 보내야 합니다`);
+    assert.deepEqual(v.profile.photoCalls.map(call => call.method), ['PUT', 'PUT', 'DELETE'], `${surface}: 실패 1회 + 저장 1회 + 삭제 1회`);
+    assert.ok(v.profile.photoCalls.filter(call => call.method === 'PUT').every(call => call.prefix.startsWith('data:image/')), `${surface}: 업로드는 정규화된 이미지 data URI만 보냅니다`);
   }
   for (const [surface, v] of measured) console.log('SITE-PROFILE-MENU-PERSONAL-THEME-01 ' + surface, JSON.stringify(v));
   console.log('SITE-PROFILE-MENU-PERSONAL-THEME-01 RUNTIME PASS');
