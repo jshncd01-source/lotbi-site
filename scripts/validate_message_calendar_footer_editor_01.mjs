@@ -250,10 +250,19 @@ try{
   click(calendarBackdrop);
   await new Promise(r=>setTimeout(r,50));
   result.calendarStayedAfterBackdropClick=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
-  document.querySelector('.site-calendar-modal > .site-modal-header .site-modal-close')?.click();
+  const calendarCloseButton=document.querySelector('.site-calendar-modal > .site-modal-header .site-modal-close');
+  result.calendarCloseButtonLabel=calendarCloseButton?.getAttribute('aria-label')||'';
+  calendarCloseButton?.click();
   await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar closed by close button');
   result.calendarClosedByCloseButton=!document.querySelector('.site-modal.site-calendar-modal');
   result.conversationPreservedAfterClose=document.getElementById('conversation-thread').textContent===conversationBeforeBackdrop;
+
+  click(document.querySelector('[data-calendar-view="all"]'));
+  const escapeCalendar=await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),'calendar reopened for Escape');
+  escapeCalendar.parentElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar closed by Escape');
+  result.calendarClosedByEscape=!document.querySelector('.site-modal.site-calendar-modal');
+  result.conversationPreservedAfterEscape=document.getElementById('conversation-thread').textContent===conversationBeforeBackdrop;
 
   result.ok=true;
   out.textContent=JSON.stringify(result);
@@ -323,8 +332,11 @@ try {
     if (!v.bodyOverlayOpen || !v.chatRemainsVisible || v.chatIsInert) throw new Error(`${label}: chat must remain mounted and visible behind Calendar`);
     if (!v.calendarStayedAfterInnerBlankClick) throw new Error(`${label}: Calendar must stay open after a blank area inside the modal is clicked`);
     if (!v.calendarStayedAfterBackdropClick) throw new Error(`${label}: Calendar must stay open after its outer backdrop is clicked`);
+    if (v.calendarCloseButtonLabel !== '캘린더 닫기') throw new Error(`${label}: Calendar modal close button contract changed, got "${v.calendarCloseButtonLabel}"`);
     if (!v.calendarClosedByCloseButton) throw new Error(`${label}: Calendar close button must still close the modal`);
     if (!v.conversationPreservedAfterClose) throw new Error(`${label}: closing Calendar must preserve the conversation`);
+    if (!v.calendarClosedByEscape) throw new Error(`${label}: Escape must still close the Calendar modal`);
+    if (!v.conversationPreservedAfterEscape) throw new Error(`${label}: closing Calendar with Escape must preserve the conversation`);
     if (!v.shareMenuClosed) throw new Error(`${label}: choosing a share option must close the share menu`);
     if (v.kakaoSdkScripts !== 0) throw new Error(`${label}: the Kakao SDK must not be added as a page script here`);
     if (kakao === 'unset') {
