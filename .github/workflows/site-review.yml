@@ -311,6 +311,11 @@ jobs:
       - name: Validate cross-platform Place Card product contract
         run: node scripts/validate_place_card_cross_platform_01.mjs
 
+      # 카드 본문은 네이버 검색(메뉴·사진·리뷰), 지도 버튼만 지도 handoff.
+      # 전화·지도·캐러셀 화살표가 검색을 부르지 않는지 실제 탭/클릭으로 확인한다.
+      - name: Validate Place Card body opens NAVER search
+        run: node scripts/validate_place_card_naver_search_click_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 

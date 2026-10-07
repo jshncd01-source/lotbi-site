@@ -284,6 +284,69 @@ function searchQuery(place) {
   return [name, address].filter(Boolean).join(' ').slice(0, 120);
 }
 
+// PLACE-CARD-NAVER-SEARCH-CLICK-01 — 카드 본문은 지도가 아니라 네이버 "검색"
+// 결과(메뉴·사진·리뷰·영업정보·블로그)로 연다. 검색어는 장소 이름 그대로에
+// 지역 하나만 앞에 붙인다. 지역은 사용자가 검색에 쓴 말(Core query) 중 이
+// 장소 주소의 행정구역과 맞는 것을 먼저 쓰고, 없으면 주소의 시·군(구)을 쓴다.
+// 이름에 이미 그 지역이 들어 있으면 붙이지 않는다. 주소 전체나 query 의 다른
+// 단어("메뉴" 등)는 절대 넣지 않는다.
+const NAVER_SEARCH_URL = 'https://search.naver.com/search.naver';
+const ADMIN_AREA_SUFFIX_RE = /(특별자치도|특별자치시|특별시|광역시|도|시|군|구|읍|면|동)$/u;
+const MUNICIPAL_RE = /^[가-힣]{2,}(특별자치시|특별시|광역시|시|군)$/u;
+const DISTRICT_RE = /^[가-힣]{1,}구$/u;
+
+function compactText(value) {
+  return text(value).replace(/\s+/gu, '');
+}
+
+function shortAreaName(token) {
+  const short = token.replace(ADMIN_AREA_SUFFIX_RE, '');
+  return short.length >= 2 ? short : token;
+}
+
+function addressAreaTokens(address) {
+  return text(address).split(/\s+/u).slice(0, 4).filter(token => /^[가-힣]+$/u.test(token) && ADMIN_AREA_SUFFIX_RE.test(token));
+}
+
+function regionFromSearchContext(searchContext, address) {
+  const forms = new Set();
+  for (const token of addressAreaTokens(address)) {
+    forms.add(token);
+    forms.add(shortAreaName(token));
+  }
+  for (const token of text(searchContext).split(/\s+/u)) {
+    if (forms.has(token)) return token;
+  }
+  return '';
+}
+
+function regionFromAddress(address) {
+  const tokens = addressAreaTokens(address).slice(0, 3);
+  const municipal = tokens.find(token => MUNICIPAL_RE.test(token));
+  if (municipal) return shortAreaName(municipal);
+  return tokens.find(token => DISTRICT_RE.test(token)) || '';
+}
+
+export function buildNaverPlaceSearchQuery(place, {searchContext = ''} = {}) {
+  // Control characters out, whitespace collapsed. Nothing else is stripped: the
+  // query only ever travels URL-encoded in a search parameter.
+  const name = text(place?.name).replace(/[\u0000-\u001f\u007f]/gu, ' ').replace(/\s+/gu, ' ').trim().slice(0, 80);
+  if (!name) return '';
+  const address = text(place?.address) || text(place?.road_address);
+  const region = regionFromSearchContext(searchContext, address) || regionFromAddress(address);
+  const compactName = compactText(name);
+  if (!region || compactName.includes(compactText(region)) || compactName.includes(shortAreaName(region))) return name;
+  return `${region} ${name}`;
+}
+
+export function buildNaverPlaceSearchUrl(place, options = {}) {
+  const query = buildNaverPlaceSearchQuery(place, options);
+  if (!query) throw new TypeError('place search query is required');
+  const url = new URL(NAVER_SEARCH_URL);
+  url.searchParams.set('query', query);
+  return url.href;
+}
+
 function navigationParams(place, appname) {
   const params = new URLSearchParams();
   params.set('dlat', Number(place.latitude).toFixed(7));
