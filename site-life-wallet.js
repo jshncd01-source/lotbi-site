@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-925dc0b45ff9';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-5305984c4861';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -235,6 +235,17 @@ export class MemoryWalletRepository {
   async getCard(scope, id) { return this.cards.get(storageKey(scope, id)) || null; }
   async putCard(card) { this.cards.set(storageKey(card.scope, card.id), card); }
   async removeCard(scope, id) { this.cards.delete(storageKey(scope, id)); }
+}
+
+// What a saved item is called on screen: the first line of its memo (shortened), otherwise
+// its kind with the save date, so new items do not all read "저장 자료". Nothing is read from
+// the image itself.
+export function walletCardTitle(card) {
+  const memo = String(card.note || '').split(/\r?\n/u).map(line => line.trim()).find(Boolean);
+  if (memo) return memo.length > 24 ? `${memo.slice(0, 24)}…` : memo;
+  const saved = new Date(card.updatedAt);
+  if (!Number.isFinite(saved.getTime())) return card.name;
+  return `${card.name} · ${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')}`;
 }
 
 function validateCard(card) {
@@ -1057,12 +1068,12 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderDetail(card) {
     const detail = element('section', 'wallet-detail');
-    const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', card.name));
+    const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', walletCardTitle(card)));
     detail.append(header);
     const images = element('div', 'wallet-detail-images');
-    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${card.name} 자료 사진 원본`; front.append(frontImage, element('figcaption', '', '자료 사진'));
+    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage, element('figcaption', '', '자료 사진'));
     images.append(front);
-    if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${card.name} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
+    if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${walletCardTitle(card)} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
     detail.append(images);
     if (card.note) detail.append(element('p', 'wallet-card-note', card.note));
     const remove = button('자료 삭제', async () => {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import path from 'node:path';
 
 if (!globalThis.crypto) Object.defineProperty(globalThis, 'crypto', {value: webcrypto});
@@ -92,6 +92,14 @@ await simplifiedWallet.save('simplified-add-account', {
 });
 const neutralCard = (await simplifiedWallet.list('simplified-add-account')).find(card => card.id === 'neutral-document');
 assert.equal(neutralCard.name, '저장 자료', 'a neutral item shows a neutral name');
+// Titles: memo first line (shortened), else kind and save date; never the whole memo.
+const {walletCardTitle} = await import(pathToFileURL(path.join(root, 'site-life-wallet.js')).href);
+const savedDay = new Date('2026-10-07T00:00:00.000Z'); const day = `${savedDay.getFullYear()}.${String(savedDay.getMonth() + 1).padStart(2, '0')}.${String(savedDay.getDate()).padStart(2, '0')}`;
+assert.equal(walletCardTitle(neutralCard), `저장 자료 · ${day}`, 'an item without a memo is titled with its save date');
+assert.equal(walletCardTitle({...neutralCard, note: '\n  부동산 임대차 계약서 원본\n두 번째 줄 메모'}), '부동산 임대차 계약서 원본', 'the first memo line is the title');
+const longMemo = '아주 긴 메모 첫 줄이 제목 길이를 넘어가면 줄여서 보여야 합니다';
+assert.equal(walletCardTitle({...neutralCard, note: longMemo}), `${longMemo.slice(0, 24)}…`, 'long memo lines are shortened to 24 characters');
+assert.ok(!/두 번째 줄/u.test(walletCardTitle({...neutralCard, note: '첫 줄\n두 번째 줄'})), 'only the first memo line is used');
 
 const refreshRepository = new MemoryWalletRepository();
 const refreshSession = new MemorySessionStorage();

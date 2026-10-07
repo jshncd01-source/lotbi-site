@@ -146,7 +146,9 @@ const result = await runFixturePage({
   assertCornersNear('narrow-margin document',result.narrowDetection,[{x:20,y:20},{x:700,y:20},{x:700,y:500},{x:20,y:500}]);
   assert.equal(result.narrowPanelDetection.mode,'manual',`competing document and internal-panel boundaries must require confirmation: ${JSON.stringify(result.narrowPanelDetection)}`);
   assertCornersNear('square document',result.squareDetection,[{x:80,y:55},{x:380,y:55},{x:380,y:355},{x:80,y:355}]);
-  assertCornersNear('elongated receipt',result.receiptDetection,[{x:60,y:85},{x:580,y:85},{x:580,y:215},{x:60,y:215}]);
+  // Receipts are not wallet items (user decision 2026-10-07): never saved automatically.
+  assert.equal(result.receiptDetection.mode,'manual',`a long receipt must not be registered automatically: ${JSON.stringify(result.receiptDetection)}`);
+  assert.equal(result.receiptDetection.reason,'receipt-like');
   for (const corner of Object.values(result.manual.corners)) {
     assert.ok(corner.x > 0 && corner.x < 480 && corner.y > 0 && corner.y < 320, `manual corner outside source: ${JSON.stringify(corner)}`);
   }

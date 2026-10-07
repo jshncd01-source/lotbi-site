@@ -1,5 +1,5 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-925dc0b45ff9';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-925dc0b45ff9';
+import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-5305984c4861';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-5305984c4861';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -74,7 +74,7 @@ function detectionPixels(source) {
 
 export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>{},onReplace=()=>{}}={}) {
   const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true'; shell.dataset.scanAdjusting='false';
-  const heading=node('h3','', '신분증을 자동으로 정리하고 있습니다');
+  const heading=node('h3','', '자료를 자동으로 정리하고 있습니다');
   const privacy=node('p','wallet-scan-privacy','사진 보정은 이 브라우저에서만 처리되며 LOTBI 서버로 전송되지 않습니다.');
   const status=node('p','wallet-scan-status','사진 분석 중'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
   const workspace=node('div','wallet-scan-workspace');
@@ -123,7 +123,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
       latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced);
       warnings.replaceChildren(); if(result.warnings.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of result.warnings)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
       const automatic=shell.dataset.scanMode==='automatic';
-      status.textContent=automatic?'배경과 여백을 자동으로 제거했습니다. 결과를 확인해 주세요.':notDocument?'신분증이나 문서로 보이지 않습니다. 신분증이나 문서 사진을 선택해 주세요.':'자료 테두리를 찾지 못했습니다. 다시 선택하거나 직접 조정해 주세요.';
+      status.textContent=automatic?'배경과 여백을 자동으로 제거했습니다. 결과를 확인해 주세요.':notDocument?'신분증이나 문서로 보이지 않습니다. 신분증이나 문서 사진을 선택해 주세요.':shell.dataset.scanReason==='receipt-like'?'영수증은 자동으로 등록하지 않습니다. 신분증·카드·문서 사진을 선택해 주세요.':'자료 테두리를 찾지 못했습니다. 다시 선택하거나 직접 조정해 주세요.';
       confirm.disabled=notDocument||(!automatic&&!manualGeometryChanged()); shell.dataset.scanState='review';
     }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
   }
@@ -148,7 +148,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
     notDocument=reason==='not-a-document'; adjust.hidden=notDocument;
-    if(mode==='manual'&&pdfSource&&!notDocument){
+    if(mode==='manual'&&pdfSource&&!notDocument&&reason!=='receipt-like'){
       // A PDF page is the document itself: with no outline to find, keep the whole page.
       corners={topLeft:{x:0,y:0},topRight:{x:size.width-1,y:0},bottomRight:{x:size.width-1,y:size.height-1},bottomLeft:{x:0,y:size.height-1}};
       mode='automatic'; reason='pdf-page'; detectedCorners=copy(corners); paperPage=true;

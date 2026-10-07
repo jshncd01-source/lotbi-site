@@ -1003,14 +1003,19 @@ function textLines(working,smooth,light,corners){
   return lines;
 }
 
+// Long side over short side of a quadrilateral, averaging opposite sides.
+function quadAspect(corners){
+  const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];const side=(start,end)=>Math.hypot(end.x-start.x,end.y-start.y);
+  const across=(side(ordered[0],ordered[1])+side(ordered[3],ordered[2]))/2;const down=(side(ordered[0],ordered[3])+side(ordered[1],ordered[2]))/2;
+  return Math.max(across,down)/Math.max(1,Math.min(across,down));
+}
+
 // Pages are whitened like scans. A page is a full-page crop, or a large, mostly
 // paper-coloured rectangle with square corners that is not card-shaped: ID-1 cards are
 // 1.59:1 with rounded corners, while A4 is 1.41:1, Letter 1.29:1 and receipts are long strips.
 function pageLike(working,corners){
   const {width,height,color}=working;const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];
-  const side=(start,end)=>Math.hypot(end.x-start.x,end.y-start.y);
-  const across=(side(ordered[0],ordered[1])+side(ordered[3],ordered[2]))/2;const down=(side(ordered[0],ordered[3])+side(ordered[1],ordered[2]))/2;
-  const aspect=Math.max(across,down)/Math.max(1,Math.min(across,down));
+  const aspect=quadAspect(corners);
   if(polygonArea(corners)<width*height*.3||(aspect>1.5&&aspect<1.9))return false;
   const tones=[];let samples=0;
   for(let y=0;y<height;y+=2)for(let x=0;x<width;x+=2){
@@ -1049,6 +1054,9 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
   // rooms a handful); a card needs a couple of lines of print inside its outline.
   else if(chosen&&textLines(working,surface.smooth,surface.light,chosen.corners)<(chosen.source==='full-page'?12:2)){chosen=null;reason='automatic-detection-uncertain'}
+  // Receipts are long thin strips (about 2:1 and longer); cards are 1.59:1, A4 1.41:1, Letter
+  // 1.29:1 and business cards 1.75:1. A receipt is not saved as a wallet item automatically.
+  else if(chosen&&quadAspect(chosen.corners)>=1.85){chosen=null;reason='receipt-like'}
   const diagnostics=scanDiagnostics(working,surface,legacy,chosen);
   diagnostics.textLines=lines;
   if (!chosen) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:legacyConfidence,mode:'manual',reason,diagnostics};

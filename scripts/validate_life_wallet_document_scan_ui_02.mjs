@@ -118,6 +118,8 @@ assert.equal(result.ok, true, result.error);
   assert.equal(automatic.diagnostics.source, 'border-surface', `unexpected detection source: ${detail}`);
   assert.ok(automatic.status.includes('배경과 여백을 자동으로 제거했습니다'), `automatic status copy missing: ${automatic.status}`);
   assert.ok(!automatic.text.includes('테두리를 찾지 못했습니다'), 'manual-fallback copy must not appear for a detectable card');
+  // One scanner for cards, contracts and PDFs: the heading names no document type.
+  assert.ok(automatic.text.includes('자료를 자동으로 정리하고 있습니다') && !automatic.text.includes('신분증을 자동으로 정리'), 'the scanner heading must be generic');
   assert.equal(automatic.confirmEnabled, true, 'save must be enabled after an automatic crop');
   assert.equal(automatic.sourceVisible, false, 'manual corner editor must stay hidden in the default flow');
   assert.equal(automatic.handlesVisible, false, 'corner handles must stay hidden in the default flow');
