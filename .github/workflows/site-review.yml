@@ -339,6 +339,12 @@ jobs:
       - name: Validate Place Card body opens NAVER search
         run: node scripts/validate_place_card_naver_search_click_01.mjs
 
+      # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
+      # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
+      # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.
+      - name: Validate Place Card carousel never drifts
+        run: node scripts/validate_place_card_carousel_no_drift_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
