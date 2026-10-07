@@ -152,6 +152,19 @@ for (const code of ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE']) {
   assert.ok(slotByCode[code].hint.includes('완전히 옆으로') && slotByCode[code].hint.includes('귀와 턱선'), code);
 }
 for (const code of ['FACE_LEFT_ALT', 'FACE_RIGHT_ALT']) assert.ok(slotByCode[code].hint.includes('다른 날·다른 장소'), code);
+// Every slot names what must show in the photo ("보여야 하는 부분").
+for (const slot of PERSON_IDENTITY_SLOTS) assert.ok(typeof slot.visible === 'string' && slot.visible.length >= 8, `${slot.code} needs visible parts`);
+for (const code of ['FACE_LEFT_45', 'FACE_RIGHT_45', 'FACE_LEFT_ALT', 'FACE_RIGHT_ALT']) assert.match(slotByCode[code].visible, /두 눈.*코.*입/, code);
+for (const code of ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE']) {
+  assert.match(slotByCode[code].visible, /한쪽 눈/, code);
+  assert.match(slotByCode[code].visible, /귀 전체/, code);
+  assert.match(slotByCode[code].visible, /턱선/, code);
+}
+assert.match(slotByCode.UPPER_BODY_FRONT.visible, /어깨/);
+assert.match(slotByCode.FULL_BODY_FRONT.visible, /발끝/);
+assert.ok(tile.includes("el('p', 'safecare-slot-visible')") && tile.includes("'보여야 하는 부분'"), 'the tile shows the visible parts');
+assert.ok(/tile\.append\(media, caption, hint, visible, choose, slotError, input\)/.test(tile));
+assert.match(read('site-safecare.css'), /\.safecare-slot-visible \{/);
 
 // 9. A pose refusal says what the slot needed.
 const pose = {code: 'PERSON_IDENTITY_PHOTO_WRONG_POSE', status: 422};
@@ -173,6 +186,11 @@ for (const code of ['FACE_FRONT', 'FACE_FRONT_ALT', 'UPPER_BODY_FRONT', 'FULL_BO
 }
 // Without a slot the generic sentence stays.
 assert.match(client.personErrorMessage(pose, fallback), /촬영 방향이 맞지 않습니다/);
+// NO_FACE in a turned slot says what to change (a profile turned past the side).
+const noFace = {code: 'PERSON_IDENTITY_PHOTO_NO_FACE', status: 422};
+assert.match(client.personIdentityPhotoErrorMessage(noFace, slotByCode.FACE_LEFT_PROFILE, fallback), /정확히 옆을 보고/);
+assert.match(client.personIdentityPhotoErrorMessage(noFace, slotByCode.FACE_RIGHT_45, fallback), /반쯤만 돌려/);
+assert.match(client.personIdentityPhotoErrorMessage(noFace, slotByCode.FACE_FRONT, fallback), /사람 얼굴을 확인할 수 없습니다/);
 const INTERNAL = [/score/i, /yaw/i, /confidence/i, /model/i, /\bAI\b/, /\d+(\.\d+)?\s*%/, /모델/, /점수/, /신뢰도/, /PERSON_/];
 for (const slot of PERSON_IDENTITY_SLOTS) {
   const message = client.personIdentityPhotoErrorMessage(pose, slot, fallback);

@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-3a2133c06bd0';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-18c9d422d49f';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -133,6 +133,14 @@ export function personIdentityPhotoErrorMessage(error, slot, fallback) {
   const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';
   const body = slot?.view === 'upper' || slot?.view === 'full';
   if (code === 'PERSON_IDENTITY_PHOTO_WRONG_POSE' && slot) return identityPoseMessage(slot);
+  // A real person whose turned face could not be judged (FIX-03: a head turned
+  // a little past the side) hears what to change, not just "no face".
+  if (code === 'PERSON_IDENTITY_PHOTO_NO_FACE' && slot?.view === 'profile') {
+    return '옆얼굴을 확인할 수 없습니다. 옆보다 더 뒤로 돌리지 말고, 한쪽 눈과 코끝이 보이게 정확히 옆을 보고 다시 찍어 주세요.';
+  }
+  if (code === 'PERSON_IDENTITY_PHOTO_NO_FACE' && slot?.view === 'turn') {
+    return '얼굴을 확인할 수 없습니다. 두 눈·코·입이 모두 보이게 고개를 반쯤만 돌려 다시 찍어 주세요.';
+  }
   if (code === 'PERSON_IDENTITY_PHOTO_WRONG_FRAMING') {
     return IDENTITY_FRAMING_MESSAGES[slot?.view] || '얼굴 전체가 화면 안에 들어오지 않았습니다. 이마부터 턱까지 잘리지 않게 다시 촬영해 주세요.';
   }

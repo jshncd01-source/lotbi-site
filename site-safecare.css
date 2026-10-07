@@ -436,6 +436,23 @@
   word-break: keep-all;
 }
 
+/* SAFECARE-PHOTO-UPLOAD-FIX-03: what must show in the photo. */
+.safecare-slot-visible {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--lotbi-surface-subtle, #f7f7f7);
+  color: var(--lotbi-text-secondary, #3a4250);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.safecare-slot-visible strong {
+  display: block;
+  font-weight: 700;
+}
+
 .safecare-slot .site-button {
   width: 100%;
   min-height: 44px;

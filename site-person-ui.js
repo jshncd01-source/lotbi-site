@@ -15,15 +15,15 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-3a2133c06bd0';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-3a2133c06bd0';
+} from './site-person.js?v=aset-18c9d422d49f';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-18c9d422d49f';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-3a2133c06bd0';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-3a2133c06bd0';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-3a2133c06bd0';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-3a2133c06bd0';
+} from './site-safecare-common.js?v=aset-18c9d422d49f';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-18c9d422d49f';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-18c9d422d49f';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-18c9d422d49f';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
@@ -430,6 +430,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const caption = el('figcaption', 'safecare-slot-caption');
     caption.append(el('span', 'safecare-slot-index', filled ? '✓' : String(slotIndex)), el('span', 'safecare-slot-label', slot.label));
     const hint = el('p', 'safecare-slot-hint', locked ? '정면 얼굴을 먼저 등록하면 선택할 수 있습니다.' : slot.hint);
+    const visible = el('p', 'safecare-slot-visible');
+    visible.append(el('strong', '', '보여야 하는 부분'), document.createTextNode(` ${slot.visible}`));
     const input = el('input'); input.type = 'file'; input.accept = PERSON_PHOTO_ACCEPT; input.hidden = true; input.dataset.personSlotInput = slot.code;
     const choose = el('button', 'site-button site-button-secondary safecare-slot-choose', filled ? '다른 사진 선택' : '사진 선택');
     choose.type = 'button'; choose.disabled = locked;
@@ -459,7 +461,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       }
       finally { busy = false; }
     });
-    tile.append(media, caption, hint, choose, slotError, input);
+    tile.append(media, caption, hint, visible, choose, slotError, input);
     return tile;
   };
 
