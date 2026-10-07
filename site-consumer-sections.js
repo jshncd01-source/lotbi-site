@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-06561a4f564a';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-06561a4f564a';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-109aa70cbf4b';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-109aa70cbf4b';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -137,7 +137,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, loadCareCounts, mountPeople, mountPets, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -247,11 +247,11 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       const button = node('button', '', index ? '반려동물' : '사람'); button.type = 'button';
       button.setAttribute('role', 'tab'); button.id = `${panelId}-${value}`;
       button.setAttribute('aria-controls', panelId); button.dataset.careTab = value;
-      button.addEventListener('click', () => { void selectTab(value); });
+      button.addEventListener('click', () => { void selectTab(value); onCareTab?.(value); });
       button.addEventListener('keydown', event => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault(); const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
-        buttons[next].focus(); void selectTab(next ? 'pets' : 'people');
+        buttons[next].focus(); void selectTab(next ? 'pets' : 'people'); onCareTab?.(next ? 'pets' : 'people');
       });
       return button;
     });
@@ -304,7 +304,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     if (authenticated && typeof loadCareCounts === 'function') {
       void Promise.resolve(loadCareCounts()).then(applyCounts).catch(() => {});
     }
-    void selectTab('people');
+    void selectTab(careTab === 'pets' ? 'pets' : 'people');
   } else if (section === 'mall') {
     const state = empty('연결한 업체를 롯비에서 이용하세요', '제휴처를 찾아 연결하고, 허용한 권한과 연결 상태를 관리하는 공간입니다.', 'link');
     const catalog = node('a', 'consumer-action', '제휴처 찾아 연결하기');

@@ -1,4 +1,5 @@
-import {SITE_CALLBACK_URI} from './site-core.js?v=aset-06561a4f564a';
+import {SITE_CALLBACK_URI} from './site-core.js?v=aset-109aa70cbf4b';
+import {parseSiteRouteHash} from './site-route.js?v=aset-109aa70cbf4b';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
@@ -64,8 +65,13 @@ const STATE_PATTERN = /^[\x21-\x7e]{16,256}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const PROFILE_PHOTO_RETURN_HASH = '#profile-photo';
 
-function normalizeSiteHandoffReturnHash(value) {
-  return value === PROFILE_PHOTO_RETURN_HASH ? PROFILE_PHOTO_RETURN_HASH : '';
+// The return target is a closed set of fragments on / — #profile-photo and the
+// Site screens of site-route.js — so a login started on /#calendar comes back
+// to the calendar (SITE-REFRESH-ROUTE-RESTORE-01). Anything else returns to /;
+// no path, origin or query is ever taken from the stored value.
+export function normalizeSiteHandoffReturnHash(value) {
+  if (value === PROFILE_PHOTO_RETURN_HASH) return PROFILE_PHOTO_RETURN_HASH;
+  return parseSiteRouteHash(value) ? value : '';
 }
 
 export function siteHandoffReturnPath(returnHash) {
@@ -230,7 +236,7 @@ export function readAndClearSiteHandoffContext(returnedState, storage = browserS
     || now - context.startedAt > HANDOFF_CONTEXT_TTL_MS
     || typeof context.pendingText !== 'string'
     || context.pendingText.length > 1000
-    || (context.returnHash !== undefined && context.returnHash !== '' && context.returnHash !== PROFILE_PHOTO_RETURN_HASH)
+    || (context.returnHash !== undefined && context.returnHash !== normalizeSiteHandoffReturnHash(context.returnHash))
   ) {
     throw new SiteHandoffClientError('로그인 연결 검증값이 만료되었거나 올바르지 않습니다.', 'SITE_HANDOFF_CONTEXT_INVALID');
   }

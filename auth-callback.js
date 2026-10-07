@@ -6,10 +6,11 @@ import {
   recoverMissingSiteHandoffContext,
   siteHandoffReturnPath,
   SiteHandoffClientError,
-} from './site-auth.js?v=aset-06561a4f564a';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-06561a4f564a';
-import {mountConversation} from './site-conversation.js?v=aset-06561a4f564a';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-06561a4f564a';
+} from './site-auth.js?v=aset-109aa70cbf4b';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-109aa70cbf4b';
+import {parseSiteRouteHash} from './site-route.js?v=aset-109aa70cbf4b';
+import {mountConversation} from './site-conversation.js?v=aset-109aa70cbf4b';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-109aa70cbf4b';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -106,8 +107,8 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-  await loadClassicScript('/home-shell.js?v=aset-06561a4f564a');
-  await loadClassicScript('/mobile-entry.js?v=aset-06561a4f564a');
+  await loadClassicScript('/home-shell.js?v=aset-109aa70cbf4b');
+  await loadClassicScript('/mobile-entry.js?v=aset-109aa70cbf4b');
 }
 
 async function completeSiteHandoff() {
@@ -124,6 +125,9 @@ async function completeSiteHandoff() {
   recordTiming('account-handoff-return', {
     durationMs: Math.max(0, Date.now() - context.startedAt),
   });
+  // SITE-REFRESH-ROUTE-RESTORE-01 — returning to a Site screen (/#calendar …):
+  // keep the hydrated home hidden until the conversation opens that screen.
+  if (parseSiteRouteHash(context.returnHash)) document.documentElement.dataset.siteRoutePending = '';
 
   const redeemStartedAt = performanceNow();
   const session = await redeemSiteHandoff({
@@ -183,6 +187,7 @@ async function completeSiteHandoff() {
 }
 
 void completeSiteHandoff().catch(async error => {
+  delete document.documentElement.dataset.siteRoutePending;
   recordTiming('callback-error', {
     durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
   });
