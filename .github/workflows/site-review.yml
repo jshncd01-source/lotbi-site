@@ -583,6 +583,14 @@ jobs:
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
 
+      # JEONBUK-PILOT-01 — 전북 맛집·음식 / 전북 행정기관 연락처 / 전북 의료기관
+      # 등록정보: 이미지 영역 없는 공식 기록 카드, 사용자 지도앱, 공개 번호만, 등록정보만
+      # 있는 병원 카드에 '진료 중' 없음, 생활정보 홈 마지막 줄 빈칸 없음을 360/375/390/412/데스크톱에서 잰다.
+      - name: Validate Jeonbuk real-world pilot cards and life entry
+        run: |
+          node --check site-life-regional.js
+          node scripts/validate_jeonbuk_real_world_pilot_01.mjs
+
       - name: Validate 진위확인 production connection
         run: |
           node --check site-scam-shield.js

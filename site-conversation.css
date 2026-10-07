@@ -3329,3 +3329,85 @@ html[data-site-route-pending] #main-content::before {
 }
 @keyframes site-route-pending-release { to { opacity: 1; visibility: visible; } }
 @keyframes site-route-pending-label { to { visibility: hidden; } }
+
+/* JEONBUK-PILOT-01 — 전북 맛집·음식 / 행정기관 연락처: compact official-record
+   cards. No media area at all; one line per published field; 44px actions;
+   long Korean addresses wrap inside the card. */
+.lotbi-regional-card {
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 16px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.lotbi-regional-card-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.lotbi-regional-card-title { margin: 0; font-size: 14px; font-weight: 800; }
+.lotbi-regional-card-basis,
+.lotbi-regional-meta,
+.lotbi-regional-fax,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-regional-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lotbi-regional-item { display: grid; gap: 2px; min-width: 0; padding-top: 8px; border-top: 1px solid rgba(116, 126, 145, .16); }
+.lotbi-regional-item:first-child { padding-top: 0; border-top: 0; }
+.lotbi-regional-name { margin: 0; font-size: 14px; font-weight: 750; }
+.lotbi-regional-meta,
+.lotbi-regional-address,
+.lotbi-regional-detail,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { margin: 0; }
+.lotbi-regional-detail { font-size: 12.5px; }
+.lotbi-regional-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.lotbi-regional-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 6px 14px;
+  border: 1px solid rgba(116, 126, 145, .32);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.lotbi-regional-source-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.lotbi-regional-card-footer { display: grid; gap: 2px; }
+.lotbi-regional-action:focus-visible,
+.lotbi-regional-source-link:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+body[data-site-theme="dark"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+body[data-site-theme="dark"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+  body[data-site-theme="system"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+  body[data-site-theme="system"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+}
+
+/* 전북 맛집·음식 entry form: a short label above each chip row. */
+.consumer-life-chip-label { margin: 4px 0 -4px; color: var(--lotbi-text-secondary, #4d535d); font-size: 13px; font-weight: 600; }
+
+/* 생활정보 바로가기: whatever the number of entries, the last row has no
+   empty cell (4 columns, 2 columns, and the home page's 2-column list). */
+@media (min-width: 601px) {
+  .consumer-shortcuts > .consumer-shortcut:nth-child(4n+1):last-child { grid-column: 1 / -1; }
+  .consumer-shortcuts > .consumer-shortcut:nth-child(4n+1):nth-last-child(2),
+  .consumer-shortcuts > .consumer-shortcut:nth-child(4n+1):nth-last-child(2) + .consumer-shortcut { grid-column: span 2; }
+  .consumer-shortcuts > .consumer-shortcut:nth-child(4n+3):last-child { grid-column: span 2; }
+  body.chat-home-page .consumer-workspace .consumer-shortcuts > .consumer-shortcut:nth-child(n) { grid-column: auto; }
+  body.chat-home-page .consumer-workspace .consumer-shortcuts > .consumer-shortcut:nth-child(odd):last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .consumer-shortcuts > .consumer-shortcut:nth-child(odd):last-child { grid-column: 1 / -1; }
+}

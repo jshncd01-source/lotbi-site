@@ -1,5 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-9e02e3c66a21';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-9e02e3c66a21';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-d715f1fd4db1';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-d715f1fd4db1';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-d715f1fd4db1';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -11,6 +12,8 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   {id: 'bills', label: '공과금 확인', icon: 'document', prompt: '공과금 고지서를 확인하고 납부기한을 캘린더에 등록할지 알려 줘'},
+  // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
+  {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
 ]);
 
 // Each existing request form should show examples that belong to that service,
@@ -109,6 +112,7 @@ const ICON_PATHS = {
   link: ['M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2', 'M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'],
   hospital: ['M4 3h16v18H4V3Z', 'M12 7v8M8 11h8'],
   pharmacy: ['M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7Z', 'm7 10 7 7'],
+  food: ['M6 2v7a2 2 0 0 0 4 0V2M8 2v20', 'M18 22V2c-2.2 1.4-3.5 4.2-3.5 7.5V14H18'],
 };
 
 function node(tag, className = '', text = '') {
@@ -202,6 +206,15 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
       if (item.medical) { openMedicalDetail(item, back, detail, title); return; }
+      if (item.regionalFood) {
+        // The question goes through the same life handoff (onDraft) as every
+        // other 생활정보 form; Core answers it from the official 전북 data.
+        const {form: foodForm, note} = createJeonbukFoodForm(document, {onSubmit: text => { if (!disposed) onDraft(text); }});
+        detail.dataset.lifeDetail = item.id;
+        detail.append(back, title, foodForm, node('p', 'consumer-feature-note', note));
+        root.replaceChildren(detail); title.focus();
+        return;
+      }
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
       const fields = LIFE_DETAIL_FIELDS[item.id];
