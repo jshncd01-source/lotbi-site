@@ -33,7 +33,21 @@ assert.match(js, /else if \(!workspace\) trapFocus/);
 assert.match(js, /closeSurface\(\); startNewConversation\(\)/);
 assert.match(html, /consumer-brand-fallback/);
 const consumerSections = read('site-consumer-sections.js');
-assert.match(consumerSections, /root\.append\(tabs, body\);[\s\S]*loadCareCounts\(\)[\s\S]*void selectTab\('people'\)/);
+// 안심케어 opens on 사람. Only the restored /#pets route may open 반려동물 first.
+assert.match(consumerSections, /export function mountConsumerSection\(\{[^}]*\bcareTab = 'people',/, 'care tab defaults to people');
+const careStart = consumerSections.indexOf('root.append(tabs, body);');
+const careEnd = consumerSections.indexOf("} else if (section === 'mall')", careStart);
+assert.ok(careStart > 0 && careEnd > careStart, 'care section mount block');
+const careMount = consumerSections.slice(careStart, careEnd);
+assert.match(careMount, /^root\.append\(tabs, body\);[\s\S]*loadCareCounts\(\)[\s\S]*void selectTab\(careTab === 'pets' \? 'pets' : 'people'\);\s*$/);
+assert.equal(careMount.match(/selectTab\(/g).length, 1, 'exactly one initial care tab selection');
+const initialCareTab = new Function('careTab', `return ${careMount.match(/void selectTab\((.+)\);\s*$/)[1]};`);
+for (const value of [undefined, null, '', 'people', 'PETS', 'pet', 'care', 'wallet']) {
+  assert.equal(initialCareTab(value), 'people', `careTab ${String(value)} must fall back to 사람`);
+}
+assert.equal(initialCareTab('pets'), 'pets', 'only careTab pets restores 반려동물');
+assert.match(consumerSections, /addEventListener\('click', \(\) => \{ void selectTab\(value\); onCareTab\?\.\(value\); \}\)/);
+assert.match(consumerSections, /void selectTab\(next \? 'pets' : 'people'\); onCareTab\?\.\(next \? 'pets' : 'people'\);/);
 assert.doesNotMatch(consumerSections, /긴급한 상황이라면|사람 실종 신고|반려동물 실종 신고/);
 assert.match(js, /openFestival/);
 assert.match(js, /openLotbiBox/);

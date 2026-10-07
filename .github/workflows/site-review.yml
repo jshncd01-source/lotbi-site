@@ -64,6 +64,14 @@ jobs:
       - name: Validate Subscribe to Account checkout handoff
         run: node scripts/validate_subscribe_account_checkout_handoff_01.mjs
 
+      # 새로고침하면 보던 화면 그대로 — 캘린더 · Life Wallet · 진위확인 · 안심케어 ·
+      # 반려동물 · 생활정보 · 축제·행사 · 롯비함이 URL fragment(/#calendar …)로
+      # 복원된다. 실제 Chrome 에서 reload(일반·강력), 직접 URL, 뒤로/앞으로,
+      # 로그인 사용자의 Account 왕복 후 복귀, 홈 깜빡임(프레임 단위)을
+      # 375 · 390 · 1280px 에서 확인한다. 약 2분.
+      - name: Validate refresh keeps the current Site screen
+        run: node scripts/validate_site_refresh_route_restore_01.mjs
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts
