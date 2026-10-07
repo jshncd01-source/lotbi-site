@@ -50,7 +50,7 @@ for (const needle of [
   '.observe(mainScrollHost);',
   'const shouldStick = !suppressScroll && !anchorTurn && followThreadBottom;',
 ]) assert.ok(conversation.includes(needle), `conversation tail contract missing: ${needle}`);
-assert.ok(/window\.addEventListener\('lotbi:keyboard-viewport', \(\) => \{\s*if \(thread\.hidden\) return;\s*if \(followThreadBottom\) scrollToConversationTail\(\);\s*else if \(holdTurnAnchor\) scrollToTurnAnchor\(\);/.test(conversation),
+assert.ok(/window\.addEventListener\('lotbi:keyboard-viewport', \(\) => \{\s*settleViewport\(700\);\s*if \(thread\.hidden\) return;\s*if \(followThreadBottom\) scrollToConversationTail\(\);\s*else if \(holdTurnAnchor\) scrollToTurnAnchor\(\);/.test(conversation),
   'the keyboard keeps the tail for a reader following it and the question for a reader held on it');
 assert.ok(/const renderActiveThread = \(\) => \{[\s\S]*?stickThreadToBottom\(\);\s*\};/.test(conversation),
   'reopening a conversation must land on its newest message');
