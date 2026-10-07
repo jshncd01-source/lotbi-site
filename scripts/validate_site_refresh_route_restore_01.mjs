@@ -481,9 +481,11 @@ async function runCase(browser, origin, workDir, testCase) {
     await go(-1);
     state = await settled('life', 'back to life across the reload');
     check('festival: back → 생활정보', state.url === '/#life', state);
-    await tapSelector('[data-site-route="life"] .consumer-section-footer .consumer-action');
+    // The life home has no 저장한 정보 button any more; 롯비함 still opens from its route.
+    await navigate(`${origin}/#lotbi-box`);
+    await reload();
     state = await settled('lotbi-box', 'lotbi-box');
-    check('lotbi-box: 저장한 정보 → /#lotbi-box', state.url === '/#lotbi-box', state);
+    check('lotbi-box: /#lotbi-box opens 롯비함', state.url === '/#lotbi-box', state);
     await reload();
     state = await settled('lotbi-box', 'lotbi-box reload');
     check('lotbi-box: reload → 롯비함', state.url === '/#lotbi-box', state);

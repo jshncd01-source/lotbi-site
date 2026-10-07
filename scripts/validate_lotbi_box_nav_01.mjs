@@ -20,7 +20,9 @@ assert.equal(
 assert.ok(html.includes(`site-calendar.css?v=${assetVersion}`), 'real Calendar CSS must remain preserved at the generated asset-set version');
 assert.match(html, /site-conversation\.js\?v=[A-Za-z0-9._-]+/, 'LOTBI Box must remain on a cache-busted combined conversation runtime');
 assert.equal((html.match(/data-consumer-section="life"/g) || []).length, 2, 'both nav surfaces expose 생활정보');
-assert.match(read('site-consumer-sections.js'), /action\('저장한 정보 다시 보기', onSaved/, 'saved items remain reachable inside 생활정보');
+// The life home is a category picker only (LIFE-UTILITY-BILL-MENU-REMOVE-01): no
+// saved-items button there. 롯비함 itself and its /#lotbi-box route are unchanged.
+assert.doesNotMatch(read('site-consumer-sections.js'), /저장한 정보 다시 보기|onSaved/, 'no saved-items entry on the life home');
 assert.match(conversation, /onSaved: \(\) => \{ closeSurface\(\); openLotbiBox\(\); \}/, 'saved items use their original owner');
 
 for (const token of [
