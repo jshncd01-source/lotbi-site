@@ -64,6 +64,19 @@ try {
   const {scanner: twoCards} = await scanScene(module, scenes, {width: W, height: H, seed: 24, surfaceKind: 'felt', cards: [scenes.walletCard({width: W, height: H, margins: {left: .04, right: .53, top: .2, bottom: .22}, rotation: 2}), scenes.walletCard({width: W, height: H, margins: {left: .53, right: .04, top: .22, bottom: .2}, rotation: -2})]});
   const ambiguous = {mode: twoCards.element.dataset.scanMode, reason: twoCards.element.dataset.scanReason, diagnostics: twoCards.element.dataset.scanDiagnostics, confirmEnabled: !twoCards.element.querySelector('[data-wallet-scan-confirm]').disabled, status: twoCards.element.querySelector('.wallet-scan-status').textContent};
   twoCards.destroy();
+  // A portrait page must be shown at its own aspect: no letterbox bars beside it on wide screens.
+  globalThis.createImageBitmap = nativeBitmap;
+  const page = await scenes.renderPageScene(1);
+  const pageBlob = await page.canvas.convertToBlob({type: 'image/jpeg', quality: .9});
+  globalThis.createImageBitmap = async () => page.canvas;
+  const wide = document.createElement('div'); wide.style.width = '760px'; document.body.append(wide);
+  const pageScanner = module.createWalletDocumentScanner({file: new File([pageBlob], 'synthetic-page.jpg', {type: 'image/jpeg'})});
+  wide.append(pageScanner.element);
+  await wait(() => pageScanner.element.dataset.scanState === 'review', 'page review state');
+  const pagePreview = pageScanner.element.querySelector('.wallet-scan-result-image'); await pagePreview.decode();
+  const pageBox = pagePreview.getBoundingClientRect();
+  const pageView = {mode: pageScanner.element.dataset.scanMode, boxAspect: pageBox.width / pageBox.height, imageAspect: pagePreview.naturalWidth / pagePreview.naturalHeight, boxWidth: pageBox.width, boxHeight: pageBox.height};
+  pageScanner.destroy(); wide.remove(); globalThis.createImageBitmap = nativeBitmap;
   // A phone photo stored as 9000x6000 pixels with EXIF orientation 6 is a 6000x9000 portrait;
   // the bounded decode size must follow the rotated frame or the page is squashed.
   let rotatedOptions = null; globalThis.createImageBitmap = (input, options) => { rotatedOptions = options; return Promise.reject(new Error('decode stub')); };
@@ -71,7 +84,7 @@ try {
   const rotatedScanner = module.createWalletDocumentScanner({file: new File([rotatedHeader], 'rotated.jpg', {type: 'image/jpeg'})});
   await wait(() => rotatedOptions, 'rotated decode options'); rotatedScanner.destroy();
   globalThis.createImageBitmap = nativeBitmap;
-  window.__result = {ok: true, automatic, ambiguous, rotatedOptions};
+  window.__result = {ok: true, automatic, ambiguous, rotatedOptions, pageView};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
@@ -82,7 +95,7 @@ const result = await runFixturePage({
 });
 assert.equal(result.ok, true, result.error);
 {
-  const {automatic, ambiguous, rotatedOptions} = result;
+  const {automatic, ambiguous, rotatedOptions, pageView} = result;
   assert.equal(rotatedOptions.imageOrientation, 'from-image');
   assert.deepEqual([rotatedOptions.resizeWidth, rotatedOptions.resizeHeight], [1707, 2560], `EXIF-rotated photo must be bounded in its rotated frame: ${JSON.stringify(rotatedOptions)}`);
   const detail = JSON.stringify({...automatic, text: undefined});
@@ -105,6 +118,8 @@ assert.equal(result.ok, true, result.error);
   assert.equal(automatic.confirmed, true, 'save must hand the corrected JPEG to the wallet');
   assert.ok(automatic.width <= automatic.viewport, `scanner overflowed the mobile viewport: ${automatic.width}/${automatic.viewport}`);
   assert.equal(ambiguous.mode, 'manual', `two competing cards must not be cropped silently: ${JSON.stringify(ambiguous)}`);
+  assert.equal(pageView.mode, 'automatic', `synthetic page fell back to manual: ${JSON.stringify(pageView)}`);
+  assert.ok(Math.abs(pageView.boxAspect - pageView.imageAspect) < .03, `portrait page preview is letterboxed: ${JSON.stringify(pageView)}`);
   assert.equal(ambiguous.confirmEnabled, false, 'ambiguous scenes keep save disabled until the user adjusts corners');
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_UI_02 PASS — aspect=${automatic.aspect.toFixed(3)} edge_surface=${automatic.edgeSurfaceRatio.toFixed(3)} ambiguous=${ambiguous.reason}`);
 }

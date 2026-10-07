@@ -1,32 +1,9 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
-import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {runFixturePage} from './lib/headless-fixture-result.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FIXTURE_REL = 'scripts/.life-wallet-card-carousel-fixture.html';
-const FIXTURE = path.join(ROOT, FIXTURE_REL);
-const PORT = 20_000 + (process.pid % 20_000);
-const ORIGIN = `http://127.0.0.1:${PORT}`;
-
-function browserPath() {
-  const candidates = [
-    process.env.CHROME_BIN,
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
-    'google-chrome-stable',
-    'google-chrome',
-    'chromium',
-    'chromium-browser',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    if ((candidate.includes('/') || candidate.includes('\\')) && fs.existsSync(candidate)) return candidate;
-    const finder = process.platform === 'win32' ? 'where' : 'which';
-    const found = spawnSync(finder, [candidate], {encoding: 'utf8'});
-    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim().split(/\r?\n/u)[0];
-  }
-  throw new Error('Chrome/Chromium is required for the Life Wallet carousel validation.');
-}
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -66,6 +43,15 @@ try{
   const narrow=createWalletCardCarousel({cards,onOpen:()=>{}});
   narrowHost.append(narrow);
   document.body.append(narrowHost);
+  // Saved pages keep their own shape: a portrait page is not framed by empty bars and a
+  // landscape card still fills the card frame.
+  const shaped=(width,height)=>{const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,width,height);return canvas.toDataURL('image/png')};
+  const portrait=createWalletCardCarousel({cards:[{id:'page',name:'계약서',kind:'certificate',frontDataUrl:shaped(734,1024)}],onOpen:()=>{}});
+  const landscape=createWalletCardCarousel({cards:[{id:'card',name:'카드',kind:'identity',frontDataUrl:shaped(1012,638)}],onOpen:()=>{}});
+  document.getElementById('host').append(portrait,landscape);
+  await Promise.all([...document.querySelectorAll('.wallet-card-image')].map(image=>image.decode().catch(()=>{})));
+  const fit=carouselElement=>{const card=carouselElement.querySelector('.wallet-card').getBoundingClientRect();const image=carouselElement.querySelector('.wallet-card-image').getBoundingClientRect();return {cardWidth:card.width,imageWidth:image.width,imageAspect:image.width/image.height}};
+  const portraitFit=fit(portrait);const landscapeFit=fit(landscape);
   const carouselRect=carousel.getBoundingClientRect();
   const firstRect=items[0].getBoundingClientRect();
   const firstImageRect=items[0].querySelector('.wallet-card-image').getBoundingClientRect();
@@ -87,44 +73,19 @@ try{
     compactTrackPadding:(viewportRect.height-firstRect.height)<=12,
     singleControls:single.querySelectorAll('.wallet-card-navigation,.wallet-card-position').length,
     overflow:narrow.getBoundingClientRect().right>narrowHost.getBoundingClientRect().right,
+    portraitFit,
+    landscapeFit,
   });
 }catch(error){out.textContent=JSON.stringify({ok:false,error:String(error?.stack||error)})}
 </script></body></html>`;
 
-function waitForServer() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    const request = spawnSync('curl', ['--fail', '--silent', `${ORIGIN}/`], {timeout: 1000});
-    if (request.status === 0) return;
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-  }
-  throw new Error('fixture server did not start');
-}
-
-function readResult(output) {
-  const startTag = '<pre id="result">';
-  const start = output.indexOf(startTag);
-  const end = output.indexOf('</pre>', start);
-  if (start < 0 || end < 0) throw new Error('card carousel result missing');
-  const raw = output.slice(start + startTag.length, end)
-    .replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
-  const result = JSON.parse(raw);
-  if (!result.ok) throw new Error(result.error);
-  return result;
-}
-
-fs.writeFileSync(FIXTURE, fixture, 'utf8');
-const python = process.platform === 'win32' ? 'python' : 'python3';
-const server = spawn(python, ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
-try {
-  waitForServer();
-  const run = spawnSync(browserPath(), [
-    '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--window-size=1200,844', '--force-device-scale-factor=1', '--virtual-time-budget=1500',
-    '--dump-dom', `${ORIGIN}/${FIXTURE_REL}`,
-  ], {encoding: 'utf8', timeout: 40000, maxBuffer: 8 * 1024 * 1024});
-  if (run.error) throw run.error;
-  if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
-  const result = readResult(run.stdout);
+const result = await runFixturePage({
+  root: ROOT, fixturePath: '/__life_wallet_card_carousel_01.html', fixtureHtml: fixture,
+  viewport: {width: 1200, height: 844},
+  resultExpression: "(() => { const text = document.getElementById('result')?.textContent || ''; return text === 'pending' ? '' : text; })()",
+});
+if (!result.ok) throw new Error(result.error);
+{
   assert.equal(result.count, 3, 'every saved document must be available in the wallet carousel');
   assert.equal(result.imageOnly, true, 'saved wallet cards must render as image-only cards');
   assert.equal(result.duplicateCopy, 0, 'saved wallet cards must not retain the gallery-style copy block');
@@ -140,8 +101,7 @@ try {
   assert.equal(result.compactTrackPadding, true, 'the wallet slider must not add large vertical whitespace around cards');
   assert.equal(result.singleControls, 0, 'a single wallet card must not show carousel controls or position');
   assert.equal(result.overflow, false, 'the wallet carousel must fit a 390px mobile viewport');
+  assert.ok(result.portraitFit.cardWidth-result.portraitFit.imageWidth<=4&&Math.abs(result.portraitFit.imageAspect-734/1024)<.03, `a portrait page must not be framed by empty bars: ${JSON.stringify(result.portraitFit)}`);
+  assert.ok(result.landscapeFit.cardWidth>=400&&result.landscapeFit.cardWidth-result.landscapeFit.imageWidth<=4&&Math.abs(result.landscapeFit.imageAspect-1012/638)<.03, `a landscape card must fill its card frame: ${JSON.stringify(result.landscapeFit)}`);
   console.log('LIFE_WALLET_CARD_CAROUSEL_01 PASS');
-} finally {
-  server.kill();
-  fs.rmSync(FIXTURE, {force: true});
 }
