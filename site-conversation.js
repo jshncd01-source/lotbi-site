@@ -1,27 +1,26 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-18c9d422d49f';
-import * as siteCore from './site-core.js?v=aset-18c9d422d49f';
-import './site-scam-shield.js?v=aset-18c9d422d49f';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-18c9d422d49f';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges} from './site-navigation.js?v=aset-18c9d422d49f';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-18c9d422d49f';
-import * as siteAttachments from './site-attachments.js?v=aset-18c9d422d49f';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-18c9d422d49f';
-import {deterministicReply} from './site-deterministic.js?v=aset-18c9d422d49f';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-18c9d422d49f';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-18c9d422d49f';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-18c9d422d49f';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-18c9d422d49f';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-18c9d422d49f';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-18c9d422d49f';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-18c9d422d49f';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-18c9d422d49f';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-18c9d422d49f';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-18c9d422d49f';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-18c9d422d49f';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-18c9d422d49f';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-18c9d422d49f';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-18c9d422d49f';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-18c9d422d49f';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-5fe7088d75dd';
+import * as siteCore from './site-core.js?v=aset-5fe7088d75dd';
+import './site-scam-shield.js?v=aset-5fe7088d75dd';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-5fe7088d75dd';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges} from './site-navigation.js?v=aset-5fe7088d75dd';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-5fe7088d75dd';
+import * as siteAttachments from './site-attachments.js?v=aset-5fe7088d75dd';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-5fe7088d75dd';
+import {deterministicReply} from './site-deterministic.js?v=aset-5fe7088d75dd';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-5fe7088d75dd';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-5fe7088d75dd';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-5fe7088d75dd';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-5fe7088d75dd';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-5fe7088d75dd';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-5fe7088d75dd';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-5fe7088d75dd';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-5fe7088d75dd';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-5fe7088d75dd';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-5fe7088d75dd';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-5fe7088d75dd';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-5fe7088d75dd';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-5fe7088d75dd';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-5fe7088d75dd';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -180,7 +179,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-18c9d422d49f';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-5fe7088d75dd';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -255,28 +254,15 @@ function resolvePlaceOrbitPointerIndex({
   return target;
 }
 
-// SITE-MESSAGE-SHARE-ACTIONS-01 — the icon row LOTBI answers carry.
-// Copy is local to the browser. Share hands the answer to the OS share sheet,
-// where KakaoTalk appears next to every other installed target, so it needs no
-// Kakao app key and no registered JavaScript SDK domain. Desktop browsers have
-// no share sheet, so they fall back to copying the answer plus the site link.
-// SITE-VOICE-BROWSER-TTS-01 — reading answers aloud, with the voice the
-// browser already has. Core's /v2/live/tts still is not reachable from a Site
-// session and its provider credentials are not configured, so waiting for it
-// means shipping nothing. speechSynthesis needs no key, no network call of our
-// own and no new environment variable, and where a browser does not have it the
-// control simply is not built — an answer that cannot be read aloud should not
-// grow a button that says it can.
-//
-// When the approved provider does arrive, this is the fallback it falls back
-// to, not code to delete.
-// (superseding) "소리내어 읽기" was absent while Core's /v2/live/tts was unreachable
-// from a Site session; a permanently dead button is worse than no button.
+// SITE-MESSAGE-SHARE-ACTIONS-02 — the answer share control intentionally has
+// exactly two destinations: copy the canonical LOTBI link or open KakaoTalk.
+// It never delegates to the operating-system share sheet, whose changing list
+// of apps made this control unpredictable.
 const MESSAGE_ACTION_SHARE_URL = 'https://lotbiai.com/';
 const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16h-9V7h9v14Z';
 const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
-const MESSAGE_ACTION_ICON_SPEAK = 'M4 9v6h4l5 4V5L8 9H4Zm11.5 3a4 4 0 0 0-2-3.46v6.92A4 4 0 0 0 15.5 12Zm-2-7.77v2.06A6 6 0 0 1 13.5 18.3v2.06a8 8 0 0 0 0-15.6Z';
-const MESSAGE_ACTION_ICON_STOP = 'M6 6h12v12H6V6Z';
+const SHARE_MENU_ICON_LINK = 'M10.59 13.41a2 2 0 0 1 0-2.82l3-3a2 2 0 0 1 2.82 2.82l-1.29 1.3 1.41 1.41 1.3-1.29a4 4 0 0 0-5.66-5.66l-3 3a4 4 0 0 0 0 5.66l.12.12 1.42-1.42-.12-.12Zm2.82-2.82-.12-.12-1.42 1.42.12.12a2 2 0 0 1 0 2.82l-3 3a2 2 0 1 1-2.82-2.82l1.29-1.3-1.41-1.41-1.3 1.29a4 4 0 0 0 5.66 5.66l3-3a4 4 0 0 0 0-5.66Z';
+const SHARE_MENU_ICON_KAKAO = 'M12 3C6.48 3 2 6.46 2 10.73c0 2.76 1.86 5.19 4.67 6.56l-.95 3.49a.42.42 0 0 0 .64.46l4.22-2.79c.46.05.93.08 1.42.08 5.52 0 10-3.46 10-7.8S17.52 3 12 3Z';
 // SITE-MESSAGE-CALENDAR-ACTION-01 — a footer shortcut into the same editor
 // every other Calendar entry point already opens through (openCalendar with
 // initialDraft). It never registers by itself: only fields already known to
@@ -284,71 +270,21 @@ const MESSAGE_ACTION_ICON_STOP = 'M6 6h12v12H6V6Z';
 // address) are pre-filled, and a message with neither opens a blank entry.
 const MESSAGE_ACTION_ICON_CALENDAR = 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5c0-1.1-.9-2-2-2Zm0 16H5V8h14v11Z';
 const MESSAGE_ACTION_FEEDBACK_MS = 2600;
-// Chrome stops a long utterance partway through, so answers are read in
-// sentence-sized pieces queued back to back. cancel() still clears the whole
-// queue, which keeps the stop control honest.
-const SPEECH_CHUNK_LIMIT = 180;
+let shareMenuSequence = 0;
 
-function speechSupported() {
-  return typeof globalThis.speechSynthesis !== 'undefined'
-    && typeof globalThis.SpeechSynthesisUtterance === 'function';
+// Resolves 'shared' (KakaoTalk opened) or 'copied' (KakaoTalk sharing is not
+// configured in Core yet, so the answer and link were copied instead).
+async function shareMessageWithKakao(options) {
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-5fe7088d75dd');
+  return shareWithKakaoTalk({...options, copyFallback: writeMessageTextToClipboard});
 }
 
-// Privacy-safe read-aloud telemetry: event name, playbackId, chunk index and
-// error/fallback reason codes only — never the answer text, never a voice
-// name, never anything that could sit alongside a session token or a full
-// voice list. Reuses the same performance.mark-as-diagnostics idiom
-// site-continuity.js already uses for auth timing, rather than inventing a
-// second telemetry channel for one feature.
-function reportReadAloudTelemetry(event, detail) {
-  try {
-    globalThis.performance?.mark?.(`lotbi-read-aloud:${event}`, {detail: Object.freeze({...detail})});
-  } catch { /* diagnostic-only, must never affect playback */ }
-}
-
-// One playback owner for the whole page — SITE-VOICE-READ-ALOUD-RELIABILITY-02
-// (folding in SITE-VOICE-READALOUD-PLAYBACK-OWNER-01's single-owner fix:
-// window.speechSynthesis is one queue no matter how many "읽어주기" buttons
-// exist, so starting answer B must force answer A's own button back to idle
-// immediately, without waiting for A's onend/onerror — Chrome does not
-// reliably fire either after cancel()). Created in mountConversation(), not
-// here — this sits inside a source range a standalone regression test
-// (validate_home_refresh_persistence_01.mjs) evaluates in isolation, without
-// the module's imports available.
-let readAloud;
-
-const READ_ALOUD_ERROR_MESSAGE = {
-  VOICES_NOT_READY: '음성을 준비하지 못했습니다. 다시 눌러 주세요.',
-  NO_KOREAN_VOICE: '이 기기에 설치된 한국어 음성이 없어 읽어 드릴 수 없습니다.',
-  NETWORK_ERROR: '네트워크 음성을 불러오지 못해 읽어 드리지 못했습니다.',
-  VOICE_UNAVAILABLE: '선택된 음성을 사용할 수 없어 읽어 드리지 못했습니다.',
-  INTERRUPTED: '읽기가 중단되었습니다.',
-};
-const READ_ALOUD_ERROR_MESSAGE_DEFAULT = '읽어 드리지 못했습니다.';
-
-// Picking the best of whatever ko-KR voices the device already has —
-// SITE-VOICE-BROWSER-TTS-QUALITY-01, see site-voice-tts.js for why.
-
-function splitForSpeech(value) {
-  const text = String(value ?? '').replace(/\s+/gu, ' ').trim();
-  if (!text) return [];
-  const chunks = [];
-  let current = '';
-  for (const piece of text.split(/(?<=[.!?。？！]|다\.|요\.)\s+/u)) {
-    if (!piece) continue;
-    if ((current + ' ' + piece).trim().length <= SPEECH_CHUNK_LIMIT) {
-      current = (current ? current + ' ' : '') + piece;
-      continue;
-    }
-    if (current) chunks.push(current);
-    // A single sentence longer than the limit still has to be broken, or the
-    // engine truncates it silently.
-    if (piece.length <= SPEECH_CHUNK_LIMIT) { current = piece; continue; }
-    for (let i = 0; i < piece.length; i += SPEECH_CHUNK_LIMIT) chunks.push(piece.slice(i, i + SPEECH_CHUNK_LIMIT));
-    current = '';
-  }
-  if (current) chunks.push(current);
-  return chunks;
+// Asks Core once, ahead of the tap, whether KakaoTalk sharing is configured,
+// so a tap that falls back to copying still writes inside the user gesture.
+function prepareKakaoShare() {
+  void import('./site-kakao-share.js?v=aset-5fe7088d75dd')
+    .then(module => module.loadKakaoShareConfig())
+    .catch(() => {});
 }
 
 async function writeMessageTextToClipboard(text) {
@@ -371,22 +307,13 @@ async function writeMessageTextToClipboard(text) {
   if (!copied) throw new Error('복사를 완료하지 못했습니다.');
 }
 
-async function shareMessageText(text, {includeUrl = true} = {}) {
-  const value = typeof text === 'string' ? text.trim() : '';
-  if (!value) throw new Error('공유할 내용이 없습니다.');
-  const shareData = includeUrl
-    ? {title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL}
-    : {text: value};
-  if (typeof navigator.share === 'function') {
-    try {
-      await navigator.share(shareData);
-      return 'shared';
-    } catch (error) {
-      if (error && error.name === 'AbortError') return 'cancelled';
-    }
-  }
-  await writeMessageTextToClipboard(includeUrl ? `${value}\n\n${MESSAGE_ACTION_SHARE_URL}` : value);
-  return 'copied';
+function createShareMenuItem(label, iconPath, action) {
+  const item = createIconButton({className: 'lotbi-share-menu-item', label, iconPath, dataset: {shareAction: action}});
+  item.setAttribute('role', 'menuitem');
+  const text = document.createElement('span');
+  text.textContent = label;
+  item.appendChild(text);
+  return item;
 }
 
 function createMessageActions(text, announce, {calendarDraft = null, openCalendarDraft} = {}) {
@@ -426,18 +353,6 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
   });
 
   const share = createIconButton({className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: {messageAction: 'share'}});
-  share.addEventListener('click', () => {
-    // shareMessageText calls navigator.share synchronously before its first await,
-    // preserving the user gesture required by mobile share sheets.
-    void shareMessageText(value).then(result => {
-      if (result === 'cancelled') return;
-      if (result === 'copied') {
-        report('이 브라우저에는 공유 시트가 없어 답변과 링크를 복사했습니다. 카카오톡에 붙여넣어 주세요.');
-        return;
-      }
-      report('공유 앱으로 보냈습니다.');
-    }).catch(() => report('공유를 완료하지 못했습니다.', 'error'));
-  });
 
   // Calendar is a launcher, never a writer: it always opens the same editor
   // dialog every other Calendar entry point uses, pre-filled with only the
@@ -449,57 +364,75 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
     void openCalendarDraft(calendarDraft).catch(() => report('캘린더를 열지 못했습니다.', 'error'));
   });
 
-  // Built only where the browser can actually speak. No dialog, no disabled
-  // button, no promise the page cannot keep — just the copy and share tools.
-  if (speechSupported() && readAloud) {
-    const speak = createIconButton({className: 'chat-message-action', label: '읽어주기', iconPath: MESSAGE_ACTION_ICON_SPEAK, dataset: {messageAction: 'speak'}});
-    const speakIcon = speak.querySelector('path');
-    // Plain action-button semantics with a live label: this toggles between
-    // two genuinely different actions (start reading / stop reading), which
-    // is exactly what aria-pressed on a button describes, so it stays.
-    const setSpeakUi = active => {
-      speak.setAttribute('aria-label', active ? '읽기 멈추기' : '읽어주기');
-      speak.title = active ? '읽기 멈추기' : '읽어주기';
-      speak.setAttribute('aria-pressed', String(active));
-      speakIcon?.setAttribute('d', active ? MESSAGE_ACTION_ICON_STOP : MESSAGE_ACTION_ICON_SPEAK);
-      if (active) speak.dataset.speaking = 'true'; else delete speak.dataset.speaking;
-    };
-    setSpeakUi(false);
+  const shareMenu = document.createElement('div');
+  shareMenu.className = 'lotbi-share-menu';
+  shareMenu.id = `lotbi-share-menu-${++shareMenuSequence}`;
+  shareMenu.setAttribute('role', 'menu');
+  shareMenu.setAttribute('aria-label', '공유 방법');
+  shareMenu.hidden = true;
+  share.setAttribute('aria-haspopup', 'menu');
+  share.setAttribute('aria-controls', shareMenu.id);
+  share.setAttribute('aria-expanded', 'false');
 
-    // This button's identity within the single shared controller — referential
-    // equality only, never persisted, never sent anywhere.
-    const token = Symbol('read-aloud-token');
-    readAloud.onStateChange(({state, token: activeToken, reason}) => {
-      const mine = activeToken === token;
-      if (mine && state === READ_ALOUD_STATE.ERROR) {
-        report(READ_ALOUD_ERROR_MESSAGE[reason] || READ_ALOUD_ERROR_MESSAGE_DEFAULT, 'error');
-      }
-      setSpeakUi(mine && (state === READ_ALOUD_STATE.PLAYING || state === READ_ALOUD_STATE.PREPARING));
-    });
+  const linkCopy = createShareMenuItem('링크 복사', SHARE_MENU_ICON_LINK, 'link-copy');
+  const kakao = createShareMenuItem('카카오톡 공유하기', SHARE_MENU_ICON_KAKAO, 'kakaotalk');
+  shareMenu.append(linkCopy, kakao);
 
-    speak.addEventListener('click', () => {
-      // PREPARING or PLAYING, and this button's own request: the button is the
-      // stop/cancel control from the first click onward — no waiting for a
-      // long answer to get it back.
-      const current = readAloud.getState();
-      if (current.token === token && current.state !== READ_ALOUD_STATE.IDLE) {
-        readAloud.stop();
-        report('읽기를 멈췄습니다.');
+  const menuItems = () => [...shareMenu.querySelectorAll('[role="menuitem"]')];
+  const closeShareMenu = ({restoreFocus = false} = {}) => {
+    if (shareMenu.hidden) return;
+    shareMenu.hidden = true;
+    share.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', onOutsideShareMenu);
+    if (restoreFocus) share.focus();
+  };
+  const onOutsideShareMenu = event => {
+    if (!actions.contains(event.target)) closeShareMenu();
+  };
+  const openShareMenu = () => {
+    prepareKakaoShare();
+    shareMenu.hidden = false;
+    share.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', onOutsideShareMenu);
+    menuItems()[0]?.focus();
+  };
+  share.addEventListener('click', () => {
+    if (shareMenu.hidden) openShareMenu(); else closeShareMenu({restoreFocus: true});
+  });
+  shareMenu.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); closeShareMenu({restoreFocus: true}); return; }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const items = menuItems();
+    const current = Math.max(0, items.indexOf(document.activeElement));
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+    items[next]?.focus();
+  });
+  linkCopy.addEventListener('click', async () => {
+    closeShareMenu();
+    try { await writeMessageTextToClipboard(MESSAGE_ACTION_SHARE_URL); report('링크를 복사했습니다.'); }
+    catch { report('링크를 복사하지 못했습니다.', 'error'); }
+  });
+  kakao.addEventListener('click', async () => {
+    closeShareMenu();
+    try {
+      const result = await shareMessageWithKakao({text: value, url: MESSAGE_ACTION_SHARE_URL});
+      if (result === 'copied') {
+        report('복사했어요. 카카오톡에 붙여넣어 공유해 주세요.');
         return;
       }
-      const chunks = splitForSpeech(value);
-      if (!chunks.length) { report('읽을 내용이 없습니다.', 'error'); return; }
-      report('답변을 읽어 드립니다.');
-      // Starting this request unconditionally stops whatever else the page
-      // was reading — two answers at once is noise, and this controller is
-      // the page's only playback owner.
-      void readAloud.play(chunks, {lang: 'ko-KR', token});
-    });
-    actions.append(copy, share, speak, calendar, feedback);
-    return actions;
-  }
+      report('카카오톡 공유 화면을 열었습니다.');
+    } catch (error) {
+      report(
+        error?.message === 'KAKAO_SHARE_COPY_FAILED'
+          ? '복사하지 못했습니다. 답변을 길게 눌러 직접 선택해 주세요.'
+          : '카카오톡 공유 화면을 열지 못했습니다.',
+        'error',
+      );
+    }
+  });
 
-  actions.append(copy, share, calendar, feedback);
+  actions.append(copy, share, calendar, feedback, shareMenu);
   return actions;
 }
 
@@ -829,7 +762,6 @@ function trapFocus(container, event) {
 }
 
 function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
-  readAloud = speechSupported() ? createReadAloudController({onTelemetry: reportReadAloudTelemetry}) : null;
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
@@ -2532,9 +2464,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const node = createMessage(message.role, message.text, message.meta || {});
     const reusableOutput = message.role === 'assistant' ? message.meta?.reusableOutput : null;
     if (reusableOutput) {
+      prepareKakaoShare();
       const card = createReusableOutputCard(reusableOutput, {
         copyText: writeMessageTextToClipboard,
-        shareText: text => shareMessageText(text, {includeUrl: false}),
+        // 'copied' while KakaoTalk sharing is not configured, 'shared' once it is.
+        shareText: text => shareMessageWithKakao({text, url: MESSAGE_ACTION_SHARE_URL}),
         editText: text => {
           prompt.value = text;
           state.draft = text.slice(0, 1000);
@@ -3034,7 +2968,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-18c9d422d49f');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-5fe7088d75dd');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3062,7 +2996,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-18c9d422d49f');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-5fe7088d75dd');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3274,8 +3208,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-18c9d422d49f'),
-          import('./site-pet.js?v=aset-18c9d422d49f'),
+          import('./site-person.js?v=aset-5fe7088d75dd'),
+          import('./site-pet.js?v=aset-5fe7088d75dd'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3284,27 +3218,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-18c9d422d49f');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-5fe7088d75dd');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-18c9d422d49f');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-5fe7088d75dd');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
     });
   };
-  const openCalendar = async (view, {deepOpen, initialDraft = null, restoreConversation = false} = {}) => {
+  const openCalendar = async (view, {deepOpen, initialDraft = null} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
-
-    const returnState = restoreConversation ? Object.freeze({
-      namespace,
-      threadId: state.activeThreadId,
-      scrollTop: mainScrollHost.scrollTop,
-      draft: prompt.value,
-    }) : null;
 
     const {backdrop, panel, content} = modalShell(
       '캘린더',
@@ -3312,21 +3239,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         ? 'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.'
         : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
     );
-    panel.classList.add('site-calendar-modal');
+    panel.classList.add('site-calendar-modal', 'site-calendar-chat-popup');
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'calendar',
-      onClose: returnState ? () => {
-        if (namespace !== returnState.namespace) return;
-        if (returnState.threadId && state.threads.some(item => item.id === returnState.threadId)) {
-          state.activeThreadId = returnState.threadId;
-          state.draft = returnState.draft.slice(0, 1000);
-          prompt.value = state.draft;
-          prompt.dispatchEvent(new Event('input', {bubbles: true}));
-          saveState();
-          renderActiveThread();
-          requestAnimationFrame(() => { mainScrollHost.scrollTop = returnState.scrollTop; });
-        }
-      } : undefined,
+      modal: true,
     });
     const mounted = await mountLifeCalendarManager({
       sessionToken,
@@ -3464,10 +3379,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   window.addEventListener('pageshow', onNavigationCalendarRefresh);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') { void refreshNavigationCalendarStatus(); return; }
-    // Leaving the tab must stop a "읽어주기" reading in progress — nobody
-    // asked for it to keep talking once they can no longer see which answer
-    // it is, and coming back must not resume it either.
-    readAloud?.stop('PAGE_HIDDEN');
   });
 
   const openLotbiBox = trigger => {
@@ -4700,7 +4611,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // previews so a back-navigation does not restore broken images.
   window.addEventListener('pagehide', event => {
     cancelActiveTurn('pagehide');
-    readAloud?.stop('PAGE_HIDDEN');
     if (event instanceof PageTransitionEvent && event.persisted) return;
     releaseAllAttachmentPreviewUrls();
   });

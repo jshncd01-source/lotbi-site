@@ -15,15 +15,15 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-18c9d422d49f';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-18c9d422d49f';
+} from './site-person.js?v=aset-5fe7088d75dd';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-5fe7088d75dd';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-18c9d422d49f';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-18c9d422d49f';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-18c9d422d49f';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-18c9d422d49f';
+} from './site-safecare-common.js?v=aset-5fe7088d75dd';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-5fe7088d75dd';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-5fe7088d75dd';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-5fe7088d75dd';
 
 const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
