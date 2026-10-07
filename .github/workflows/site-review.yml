@@ -90,6 +90,11 @@ jobs:
       - name: Validate 개인테마 profile menu
         run: node scripts/validate_profile_menu_personal_theme_01.mjs
 
+      # 프로필 사진은 계정 데이터 — Core에 저장되고 Account·Site·App이 같은
+      # 사진을 본다. 브라우저 저장소에는 사진이 남지 않는다.
+      - name: Validate account-wide profile photo
+        run: node scripts/validate_profile_photo_account_sync_01.mjs
+
       # '자동모드' follows the clock (18시 다크 · 07시 라이트) and must never
       # leak 'auto' into the attribute the theme tokens style.
       - name: Validate 자동모드 theme schedule

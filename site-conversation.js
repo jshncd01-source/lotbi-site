@@ -1,27 +1,27 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-51ec5061fe5f';
-import * as siteCore from './site-core.js?v=aset-51ec5061fe5f';
-import './site-scam-shield.js?v=aset-51ec5061fe5f';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-51ec5061fe5f';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-51ec5061fe5f';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-51ec5061fe5f';
-import * as siteAttachments from './site-attachments.js?v=aset-51ec5061fe5f';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-51ec5061fe5f';
-import {deterministicReply} from './site-deterministic.js?v=aset-51ec5061fe5f';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-51ec5061fe5f';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-51ec5061fe5f';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-51ec5061fe5f';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-51ec5061fe5f';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-51ec5061fe5f';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-51ec5061fe5f';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-51ec5061fe5f';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-51ec5061fe5f';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-51ec5061fe5f';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-51ec5061fe5f';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-51ec5061fe5f';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-51ec5061fe5f';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-51ec5061fe5f';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-51ec5061fe5f';
-const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-74caa7e186c3';
+import * as siteCore from './site-core.js?v=aset-74caa7e186c3';
+import './site-scam-shield.js?v=aset-74caa7e186c3';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-74caa7e186c3';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-74caa7e186c3';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-74caa7e186c3';
+import * as siteAttachments from './site-attachments.js?v=aset-74caa7e186c3';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-74caa7e186c3';
+import {deterministicReply} from './site-deterministic.js?v=aset-74caa7e186c3';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-74caa7e186c3';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-74caa7e186c3';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-74caa7e186c3';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-74caa7e186c3';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-74caa7e186c3';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-74caa7e186c3';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-74caa7e186c3';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-74caa7e186c3';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-74caa7e186c3';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-74caa7e186c3';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-74caa7e186c3';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-74caa7e186c3';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-74caa7e186c3';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-74caa7e186c3';
+const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
@@ -179,7 +179,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-51ec5061fe5f';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-74caa7e186c3';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -272,7 +272,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-51ec5061fe5f');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-74caa7e186c3');
   return shareWithKakaoTalk(options);
 }
 
@@ -280,7 +280,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-51ec5061fe5f');
+    const module = await import('./site-kakao-share.js?v=aset-74caa7e186c3');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -800,7 +800,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
   let namespace = normalizedNamespace(identityKey);
   let state = {threads: [], activeThreadId: null, draft: ''};
-  let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
+  let preferences = {color: 'default', theme: 'system', displayName: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer, activeVoiceConsumer;
   let lastRenderedCreatedAt;
@@ -2900,10 +2900,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
       theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
-      photo: typeof loadedPreferences.photo === 'string' && loadedPreferences.photo.startsWith('data:image/') ? loadedPreferences.photo : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the old browser-only photo (raw image data
+    // in these preferences) is not the account photo; drop it from storage.
+    if (Object.prototype.hasOwnProperty.call(loadedPreferences, 'photo')) savePreferences();
     applyPreferences(); renderActiveThread(); renderRecent();
     document.body.dataset.conversationRestore = 'ready';
     schedulePendingTurnResume();
@@ -2915,10 +2917,39 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const emailLocalPart = serverIdentity?.email?.split('@', 1)[0]?.trim();
     return emailLocalPart || 'LOTBI 사용자';
   };
+  // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the account's photo from Core, identical on
+  // Account, Site and App. Only the current version is held, as an in-memory
+  // object URL; a new version (replacement) replaces it, none means initials.
+  let profilePhotoUrl = '', profilePhotoVersion = '', profilePhotoGeneration = 0;
+  const clearProfilePhoto = () => {
+    profilePhotoGeneration += 1;
+    if (profilePhotoUrl) URL.revokeObjectURL(profilePhotoUrl);
+    profilePhotoUrl = ''; profilePhotoVersion = '';
+  };
+  const syncProfilePhoto = async photo => {
+    const version = photo?.version || '';
+    if (!version || !sessionToken) {
+      if (profilePhotoUrl || profilePhotoVersion) { clearProfilePhoto(); refreshAuthenticatedProfileSlots(); }
+      return;
+    }
+    if (version === profilePhotoVersion && profilePhotoUrl) return;
+    const generation = ++profilePhotoGeneration;
+    const token = sessionToken;
+    try {
+      const url = await fetchSiteProfilePhotoObjectUrl(token, photo);
+      if (generation !== profilePhotoGeneration || token !== sessionToken) { URL.revokeObjectURL(url); return; }
+      if (profilePhotoUrl) URL.revokeObjectURL(profilePhotoUrl);
+      profilePhotoUrl = url; profilePhotoVersion = version;
+    } catch {
+      // The photo stays on the account; this view falls back to initials.
+      if (generation !== profilePhotoGeneration) return;
+    }
+    refreshAuthenticatedProfileSlots();
+  };
   const profileVisual = () => {
-    const visual = document.createElement(preferences.photo ? 'img' : 'span');
+    const visual = document.createElement(profilePhotoUrl ? 'img' : 'span');
     visual.className = 'sidebar-profile-avatar';
-    if (visual instanceof HTMLImageElement) { visual.src = preferences.photo; visual.alt = ''; }
+    if (visual instanceof HTMLImageElement) { visual.src = profilePhotoUrl; visual.alt = ''; }
     else { visual.textContent = initials(canonicalProfileName()); visual.setAttribute('aria-hidden', 'true'); }
     return visual;
   };
@@ -3011,6 +3042,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const identity = await getCurrentSiteUser(sessionToken);
       if (namespace && identity.installationId !== namespace) throw new SiteCoreError('Site 사용자 namespace가 일치하지 않습니다.', {code: 'SITE_IDENTITY_NAMESPACE_MISMATCH'});
       serverIdentity = identity; refreshAuthenticatedProfileSlots();
+      void syncProfilePhoto(identity.profilePhoto);
       openProfilePhotoFromHash();
     } catch (error) {
       if (isSessionError(error)) sessionToken = undefined;
@@ -3148,7 +3180,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-51ec5061fe5f');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-74caa7e186c3');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3176,7 +3208,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-51ec5061fe5f');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-74caa7e186c3');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3269,7 +3301,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (profilePhotoEmbed) document.documentElement.dataset.profilePhotoEmbed = 'true';
     const {backdrop, panel, content} = modalShell('프로필 사진');
     const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
-    if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
+    const showPreview = () => { preview.style.backgroundImage = profilePhotoUrl ? `url("${profilePhotoUrl}")` : ''; };
+    showPreview();
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
     const photoPicker = document.createElement('div'); photoPicker.className = 'profile-photo-picker';
     const photoTrigger = document.createElement('button'); photoTrigger.type = 'button'; photoTrigger.className = 'site-button site-button-secondary'; photoTrigger.textContent = '사진 선택';
@@ -3277,17 +3310,55 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const photoMenu = document.createElement('div'); photoMenu.className = 'profile-photo-source-menu'; photoMenu.id = 'profile-photo-source-menu'; photoMenu.setAttribute('role', 'menu'); photoMenu.setAttribute('aria-label', '프로필 사진 가져오기'); photoMenu.hidden = true;
     photoTrigger.setAttribute('aria-controls', photoMenu.id);
     const setPhotoMenuOpen = open => { photoMenu.hidden = !open; photoTrigger.setAttribute('aria-expanded', String(open)); };
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the photo is the account's: it is shown
+    // and announced as saved only after Core stored it. A failed save leaves the
+    // previous photo in place; nothing is kept in this browser.
+    const removeButton = document.createElement('button'); removeButton.type = 'button';
+    removeButton.className = 'site-button site-button-secondary profile-photo-remove'; removeButton.textContent = '사진 삭제';
+    removeButton.hidden = !serverIdentity?.profilePhoto;
+    const setBusy = busy => {
+      photoTrigger.disabled = busy; removeButton.disabled = busy;
+      if (busy) panel.setAttribute('aria-busy', 'true'); else panel.removeAttribute('aria-busy');
+    };
+    const saveFailure = caught => (caught instanceof SiteCoreError
+      && (caught.code === 'SITE_PROFILE_PHOTO_UNSUPPORTED' || caught.status === 415)
+      ? '프로필에는 사진만 사용할 수 있어요.'
+      : '프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     function applyProfilePhoto(file) {
       if (!file) return Promise.resolve();
       error.textContent = '';
-      return readProfilePhoto(file).then(value => {
-        preferences.photo = value;
-        savePreferences();
-        preview.style.backgroundImage = `url(${preferences.photo})`;
-        refreshAuthenticatedProfileSlots();
-        if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-updated'}, ACCOUNT_MANAGE_ORIGIN);
-      }).catch(caught => { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; });
+      return readProfilePhoto(file).then(async value => {
+        setBusy(true);
+        try {
+          const photo = await saveSiteProfilePhoto(sessionToken, value);
+          if (serverIdentity) serverIdentity = Object.freeze({...serverIdentity, profilePhoto: photo});
+          await syncProfilePhoto(photo);
+          showPreview(); removeButton.hidden = false;
+          if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-saved', version: photo.version}, ACCOUNT_MANAGE_ORIGIN);
+          else setStatus('프로필 사진을 저장했습니다.');
+        } catch (caught) {
+          error.textContent = saveFailure(caught);
+        } finally {
+          setBusy(false);
+        }
+      }, caught => { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; });
     }
+    removeButton.addEventListener('click', async () => {
+      error.textContent = '';
+      setBusy(true);
+      try {
+        await deleteSiteProfilePhoto(sessionToken);
+        if (serverIdentity) serverIdentity = Object.freeze({...serverIdentity, profilePhoto: null});
+        await syncProfilePhoto(null);
+        showPreview(); removeButton.hidden = true;
+        if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-deleted'}, ACCOUNT_MANAGE_ORIGIN);
+        else setStatus('프로필 사진을 삭제했습니다.');
+      } catch {
+        error.textContent = '프로필 사진을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      } finally {
+        setBusy(false);
+      }
+    });
     for (const [source, label] of PROFILE_PHOTO_SOURCE_OPTIONS) {
       const option = document.createElement('button'); option.type = 'button'; option.className = 'profile-photo-source-option'; option.textContent = label; option.setAttribute('role', 'menuitem'); option.dataset.profilePhotoSource = source;
       const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.multiple = false; input.className = 'sr-only'; input.dataset.profilePhotoInput = source;
@@ -3313,6 +3384,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     photoTrigger.addEventListener('click', () => setPhotoMenuOpen(photoMenu.hidden));
     photoMenu.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); setPhotoMenuOpen(false); photoTrigger.focus(); } });
     photoPicker.prepend(photoTrigger, photoMenu);
+    photoPicker.append(removeButton);
 
     const accountLink = document.createElement('a'); accountLink.className = 'site-button site-button-secondary';
     accountLink.href = ACCOUNT_MANAGE_URL + '#profile'; accountLink.textContent = '이름 · 이메일 관리';
@@ -3388,8 +3460,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-51ec5061fe5f'),
-          import('./site-pet.js?v=aset-51ec5061fe5f'),
+          import('./site-person.js?v=aset-74caa7e186c3'),
+          import('./site-pet.js?v=aset-74caa7e186c3'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3398,11 +3470,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-51ec5061fe5f');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-74caa7e186c3');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-51ec5061fe5f');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-74caa7e186c3');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4845,9 +4917,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!detail || typeof detail.authenticated !== 'boolean') return;
     if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
     if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')) closeSurface();
+    // A different (or no) account must never keep showing the previous photo.
+    clearProfilePhoto();
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
+      if (serverIdentity?.profilePhoto) void syncProfilePhoto(serverIdentity.profilePhoto);
     } else if (!sessionToken) switchNamespace(anonymousConversationNamespace());
     renderNavigationCalendarStatus({count: 0, hasReminder: false});
     void refreshNavigationCalendarStatus();
