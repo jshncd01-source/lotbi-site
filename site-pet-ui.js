@@ -51,20 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-096b9ae8f165';
+} from './site-pet.js?v=aset-bed268a182b9';
 import {
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-096b9ae8f165';
+} from './site-pet-guides.js?v=aset-bed268a182b9';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-096b9ae8f165';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-096b9ae8f165';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-096b9ae8f165';
+} from './site-pet-gate.js?v=aset-bed268a182b9';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-bed268a182b9';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-bed268a182b9';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -72,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-096b9ae8f165';
+} from './site-safecare-common.js?v=aset-bed268a182b9';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -329,6 +329,9 @@ export async function mountPetFamilyManager({
   let matchNotices = [];
   let catalog = null;
   let registrationDraft = null;
+  // PET-REGISTER-BASIC-FIRST-01: while the registration form is open it is the
+  // whole screen, the same as the person registration — the list steps aside.
+  let registering = false;
   // 'sos' used to be a menu page. The missing state now lives on each pet card,
   // so an 'sos' entry from chat lands on the list where ACTIVE SOS cards show.
   let activeSurface = initialSurface === 'found' ? 'found' : 'pets';
@@ -344,7 +347,7 @@ export async function mountPetFamilyManager({
   const showSurface = target => {
     activeSurface = ['pets', 'sos', 'found'].includes(target) ? target : 'pets';
     surface.dataset.petSurface = activeSurface;
-    listSection.hidden = activeSurface !== 'pets';
+    listSection.hidden = activeSurface !== 'pets' || registering;
     foundCta.hidden = activeSurface !== 'pets';
     detailSection.hidden = activeSurface !== 'pets' || detailSection.childElementCount === 0;
     sosSection.hidden = activeSurface !== 'sos';
@@ -953,6 +956,8 @@ export async function mountPetFamilyManager({
   };
 
   const renderDetail = petId => {
+    registering = false;
+    listSection.hidden = activeSurface !== 'pets';
     addButton.hidden = false;
     const pet = pets.find(item => item.petId === petId);
     if (!pet) {
@@ -1716,44 +1721,50 @@ export async function mountPetFamilyManager({
   // Core's draft keeps its own current_step, and PHOTOS -> BASIC stays Core's
   // server-side photo gate: the screen only asks for that move once all ten
   // photos have passed inspection, and finalize re-validates every required
-  // field and photo regardless. The screen's step is derived from the draft so
-  // a resumed draft opens where it actually is.
-  const draftBasicComplete = draft => Boolean(
-    draft
-    && ['DOG', 'CAT'].includes(draft.species)
-    && draft.name
-    && draft.sex
-    && draft.breedCode
-    && (!['OTHER_DOG', 'OTHER_CAT'].includes(draft.breedCode) || draft.breed),
-  );
-  const draftScreenStep = draft => {
-    if (!draftBasicComplete(draft)) return 'BASIC';
-    return draft.currentStep === 'PHOTOS' ? 'PHOTOS' : 'REVIEW';
-  };
-
+  // field and photo regardless.
+  //
+  // PET-REGISTER-BASIC-FIRST-01 — the same screen as the person registration:
+  // the list and the found CTA step aside, "← 목록으로" leads back, and every
+  // open, a resumed draft included, starts at 1단계 기본정보 with what was saved
+  // filled in. "다음" from there continues to wherever the draft actually is.
+  // The draft keeps autosaving, so going back to the list loses nothing and
+  // the list button reads "등록 계속".
   const renderRegisterForm = async () => {
+    registering = true;
     showSurface('pets');
-    // The list-level action starts or resumes the draft. Once the draft is
-    // open, keeping a disabled "등록 계속" button above the active form looks
-    // like an extra step, so the form owns all navigation from here.
     addButton.hidden = true;
     detailSection.hidden = false;
     detailSection.replaceChildren();
 
-    const header = el('div', 'pet-section-header');
-    header.append(el('h3', 'pet-section-title', '반려동물 등록'));
-    const cancel = el('button', 'site-button site-button-secondary', '나중에 계속');
-    cancel.type = 'button';
-    cancel.addEventListener('click', () => {
+    // Inspection runs after the upload responds, so a PENDING row needs a
+    // second look to ever become ACCEPTED/REJECTED on screen without the
+    // owner reloading the page. Only runs while the PHOTOS step is showing
+    // and only while a row is actually waiting; stops itself otherwise.
+    let draftPollTimer = 0;
+    const stopPoll = () => {
+      clearTimeout(draftPollTimer);
+      draftPollTimer = 0;
+    };
+    const leaveRegister = () => {
       stopPoll();
+      registering = false;
       detailSection.hidden = true;
       detailSection.replaceChildren();
       addButton.hidden = false;
+      showSurface('pets');
+      listSection.scrollIntoView?.({block: 'start', behavior: 'smooth'});
+    };
+    const back = el('button', 'site-button site-button-secondary', '← 목록으로');
+    back.type = 'button';
+    back.dataset.petRegisterBack = '';
+    back.addEventListener('click', () => {
+      leaveRegister();
       addButton.focus();
     });
-    header.appendChild(cancel);
+    const backBar = el('div', 'safecare-back');
+    backBar.appendChild(back);
     const body = el('div', 'pet-draft-body');
-    detailSection.append(header, body);
+    detailSection.append(backBar, body);
     detailSection.scrollIntoView?.({block: 'start', behavior: 'smooth'});
 
     const renderLoading = copy => body.replaceChildren(el('p', 'pet-empty-copy', copy));
@@ -1772,19 +1783,10 @@ export async function mountPetFamilyManager({
 
     const stepCodes = Object.freeze(['BASIC', 'PHOTOS', 'REVIEW', 'DONE']);
     const stepNames = Object.freeze({BASIC: '기본정보', PHOTOS: '사진 10장', REVIEW: '최종 확인', DONE: '등록 완료'});
-    let screenStep = draftScreenStep(registrationDraft);
+    let screenStep = 'BASIC';
     let finalizeRequestId = '';
     let autosaveTimer = 0;
 
-    // Inspection runs after the upload responds, so a PENDING row needs a
-    // second look to ever become ACCEPTED/REJECTED on screen without the
-    // owner reloading the page. Only runs while the PHOTOS step is showing
-    // and only while a row is actually waiting; stops itself otherwise.
-    let draftPollTimer = 0;
-    const stopPoll = () => {
-      clearTimeout(draftPollTimer);
-      draftPollTimer = 0;
-    };
     const schedulePoll = () => {
       stopPoll();
       if (petDraftPhotoProgression(registrationDraft).pendingSlots.length === 0) return;
@@ -1830,28 +1832,35 @@ export async function mountPetFamilyManager({
       }, 500);
     };
 
+    // PET-REGISTER-BASIC-FIRST-01: the person screen's stepper (shared
+    // safecare-step* styles), so both registrations read the same.
     const stepChrome = step => {
       const activeIndex = Math.max(0, stepCodes.indexOf(step));
-      body.appendChild(el(
+      const label = el(
         'p',
-        'pet-draft-progress-label',
+        'safecare-step-label',
         `반려동물 등록 ${activeIndex + 1}단계 / ${stepCodes.length}단계 · ${stepNames[step]}`,
-      ));
-      const progress = el('ol', 'pet-draft-steps');
+      );
+      label.dataset.petDraftProgress = '';
+      const progress = el('ol', 'safecare-steps');
+      progress.setAttribute('aria-label', '등록 단계');
       stepCodes.forEach((code, index) => {
         const complete = index < activeIndex;
-        const item = el('li', 'pet-draft-step');
+        const item = el('li', 'safecare-step');
         item.dataset.petDraftStep = code;
         item.dataset.petDraftStepActive = code === step ? 'true' : 'false';
         item.dataset.petDraftStepComplete = complete ? 'true' : 'false';
+        item.dataset.safecareStepState = complete ? 'done' : code === step ? 'active' : 'todo';
         if (code === step) item.setAttribute('aria-current', 'step');
         item.append(
-          el('span', 'pet-draft-step-number', complete ? '✓' : String(index + 1)),
-          el('span', 'pet-draft-step-name', stepNames[code]),
+          el('span', 'safecare-step-number', complete ? '✓' : String(index + 1)),
+          el('span', 'safecare-step-name', stepNames[code]),
         );
         progress.appendChild(item);
       });
-      body.appendChild(progress);
+      const stepper = el('div', 'safecare-stepper');
+      stepper.append(label, progress);
+      body.appendChild(stepper);
     };
 
     const formError = () => {
@@ -2519,9 +2528,7 @@ export async function mountPetFamilyManager({
           revokePetPreviews(registrationDraft.draftId);
           registrationDraft = null;
           addButton.textContent = '반려동물 등록';
-          addButton.hidden = false;
-          detailSection.hidden = true;
-          detailSection.replaceChildren();
+          leaveRegister();
           status.textContent = '등록 초안을 삭제했습니다.';
         } catch (value) {
           error.textContent = errorMessage(value, '등록 초안을 삭제하지 못했습니다.');
@@ -2552,12 +2559,7 @@ export async function mountPetFamilyManager({
       const actions = el('div', 'pet-draft-actions');
       const toList = el('button', 'site-button site-button-primary', '목록으로');
       toList.type = 'button';
-      toList.addEventListener('click', () => {
-        detailSection.hidden = true;
-        detailSection.replaceChildren();
-        addButton.hidden = false;
-        listSection.scrollIntoView?.({block: 'start', behavior: 'smooth'});
-      });
+      toList.addEventListener('click', leaveRegister);
       actions.appendChild(toList);
       done.appendChild(actions);
       body.appendChild(done);

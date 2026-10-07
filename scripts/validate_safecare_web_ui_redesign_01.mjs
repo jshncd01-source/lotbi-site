@@ -601,9 +601,12 @@ async function run() {
         await __wait(200);
         document.querySelector('.pet-add-button').click();
         await __until(() => document.querySelector('[data-pet-register-form]'));
-        const label = document.querySelector('.pet-draft-progress-label').textContent;
+        const label = document.querySelector('[data-pet-draft-progress]').textContent;
         const slotsAtStart = document.querySelectorAll('[data-pet-draft-slot]').length;
-        return {label, slotsAtStart, ageModes: [...document.querySelectorAll('input[name=pet-age-mode]')].map(input => input.value), family: [...document.querySelectorAll('[data-pet-register-form] .site-field')].some(field => field.firstChild?.textContent === '가족이 된 날 (선택)')};
+        const listHidden = document.querySelector('[data-pet-list]').closest('section').hidden;
+        const back = Boolean(document.querySelector('[data-pet-register-back]'));
+        const activeStep = document.querySelector('[data-pet-draft-step][aria-current=step]')?.dataset.safecareStepState || '';
+        return {label, slotsAtStart, listHidden, back, activeStep, ageModes: [...document.querySelectorAll('input[name=pet-age-mode]')].map(input => input.value), family: [...document.querySelectorAll('[data-pet-register-form] .site-field')].some(field => field.firstChild?.textContent === '가족이 된 날 (선택)')};
       `);
       await shoot('pet-04-register-step1');
       r.petRenewalNotice = await cdp.evaluate(`
@@ -635,7 +638,7 @@ async function run() {
         document.querySelector('[data-safecare-renewal-confirm]').click();
         await __until(() => document.querySelector('[data-pet-draft-slot]'));
         return {
-          label: document.querySelector('.pet-draft-progress-label').textContent,
+          label: document.querySelector('[data-pet-draft-progress]').textContent,
           slots: document.querySelectorAll('[data-pet-draft-slot]').length,
           guide: document.querySelector('[data-safecare-guide]')?.dataset.safecareGuide || '',
           artwork: document.querySelector('.safecare-guide-art')?.getAttribute('src') || '',
@@ -647,6 +650,27 @@ async function run() {
         };
       `);
       await shoot('pet-06-register-step2-photos');
+      // PET-REGISTER-BASIC-FIRST-01: back to the list, then "등록 계속" opens
+      // the saved draft at 1단계 기본정보 again, filled in, on its own screen.
+      r.petResume = await cdp.evaluate(`
+        document.querySelector('[data-pet-register-back]').click();
+        await __until(() => !document.querySelector('[data-pet-draft-slot]'));
+        const listBack = {
+          listVisible: !document.querySelector('[data-pet-list]').closest('section').hidden,
+          button: document.querySelector('.pet-add-button').textContent,
+          buttonHidden: document.querySelector('.pet-add-button').hidden,
+        };
+        document.querySelector('.pet-add-button').click();
+        await __until(() => document.querySelector('[data-pet-register-form]'));
+        return {
+          listBack,
+          label: document.querySelector('[data-pet-draft-progress]')?.textContent || '',
+          name: document.querySelector('[data-pet-register-form] input[type=text]')?.value || '',
+          species: document.querySelector('input[name=pet-species]:checked')?.value || '',
+          listHidden: document.querySelector('[data-pet-list]').closest('section').hidden,
+        };
+      `);
+      await shoot('pet-07-register-resume-step1');
     }
     socket.close();
     return results;
@@ -772,6 +796,17 @@ for (const [label, r] of Object.entries(results)) {
   // pet registration: 기본정보 first, then ten photos with the dog guide
   assert.equal(r.petRegister.label, '반려동물 등록 1단계 / 4단계 · 기본정보');
   assert.equal(r.petRegister.slotsAtStart, 0);
+  // PET-REGISTER-BASIC-FIRST-01: the registration is its own screen like the person one
+  assert.equal(r.petRegister.listHidden, true, `${label}: the pet list must step aside while registering`);
+  assert.equal(r.petRegister.back, true, `${label}: registration must offer ← 목록으로`);
+  assert.equal(r.petRegister.activeStep, 'active', `${label}: pet steps must use the shared SafeCare stepper`);
+  assert.equal(r.petResume.listBack.listVisible, true, `${label}: ← 목록으로 must bring the list back`);
+  assert.equal(r.petResume.listBack.buttonHidden, false);
+  assert.equal(r.petResume.listBack.button, '등록 계속');
+  assert.equal(r.petResume.label, '반려동물 등록 1단계 / 4단계 · 기본정보', `${label}: a resumed draft must open at 기본정보`);
+  assert.equal(r.petResume.name, '보리', `${label}: the resumed 기본정보 keeps what was saved`);
+  assert.equal(r.petResume.species, 'DOG');
+  assert.equal(r.petResume.listHidden, true);
   assert.deepEqual(r.petRegister.ageModes, ['BIRTH_DATE', 'ESTIMATED', 'UNKNOWN']);
   assert.equal(r.petRegister.family, true, `${label}: 가족이 된 날 is stored by Core's draft and must be offered`);
   assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 사진 10장');

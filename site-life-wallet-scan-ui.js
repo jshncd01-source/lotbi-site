@@ -1,4 +1,4 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-096b9ae8f165';
+import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-bed268a182b9';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],

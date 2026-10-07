@@ -611,7 +611,7 @@ function innerFixtureHtml() {
   await new Promise(resolve => setTimeout(resolve, 100));
   const draftSlotsBeforeSpecies = [...document.querySelectorAll('[data-pet-draft-slot]')].length;
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
-  const basicStepLabel = document.querySelector('.pet-draft-progress-label')?.textContent || '';
+  const basicStepLabel = document.querySelector('[data-pet-draft-progress]')?.textContent || '';
   document.querySelector('input[name="pet-species"][value="DOG"]').click();
   await new Promise(resolve => setTimeout(resolve, 100));
   const draftSlotsAfterSpeciesOnly = [...document.querySelectorAll('[data-pet-draft-slot]')].length;
@@ -682,10 +682,10 @@ function innerFixtureHtml() {
   await waitFor(() => draftGate().tiles.find(tile => tile.code === 'NOSE_RIGHT').filled === 'true');
   const noseRightAfterFreeOrder = draftGate().tiles.find(item => item.code === 'NOSE_RIGHT');
 
-  const registrationProgress = document.querySelector('.pet-draft-progress-label')?.textContent || '';
-  const registrationSteps = [...document.querySelectorAll('.pet-draft-step')].map(item => ({
-    number: item.querySelector('.pet-draft-step-number')?.textContent || '',
-    name: item.querySelector('.pet-draft-step-name')?.textContent || '',
+  const registrationProgress = document.querySelector('[data-pet-draft-progress]')?.textContent || '';
+  const registrationSteps = [...document.querySelectorAll('[data-pet-draft-step]')].map(item => ({
+    number: item.querySelector('.safecare-step-number')?.textContent || '',
+    name: item.querySelector('.safecare-step-name')?.textContent || '',
     active: item.dataset.petDraftStepActive,
   }));
   const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
