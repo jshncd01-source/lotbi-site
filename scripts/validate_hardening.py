@@ -167,6 +167,16 @@ def extract_theme_bootstrap(index: str) -> str | None:
     return index[start:end]
 
 
+def extract_route_restore_bootstrap(index: str) -> str | None:
+    """Return the allowlisted pre-paint route marker (SITE-REFRESH-ROUTE-RESTORE-01), or None."""
+    marker = "SITE-REFRESH-ROUTE-RESTORE-01"
+    if marker not in index:
+        return None
+    start = index.index("<script>", index.index(marker))
+    end = index.index("</script>", start) + len("</script>")
+    return index[start:end]
+
+
 def extract_https_origin_bootstrap(index: str) -> str | None:
     """Return the allowlisted custom-domain HTTP→HTTPS bootstrap, or None."""
     marker = "SITE-AUTH-HTTPS-ORIGIN-01"
@@ -242,9 +252,28 @@ def main() -> int:
         avatar_script.group(0) if avatar_script else "__missing_avatar_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
-    # +2 for the exact-purpose inline theme and HTTPS-origin bootstraps verified below.
-    if index.lower().count("<script") != len(approved_scripts) + 2 or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only the approved HTTPS/theme bootstraps, one sealed Avatar import map, and approved Home modules")
+    # +3 for the exact-purpose inline theme, HTTPS-origin and route-marker bootstraps verified below.
+    if index.lower().count("<script") != len(approved_scripts) + 3 or any(script not in index for script in approved_scripts):
+        errors.append("home page may run only the approved HTTPS/theme/route bootstraps, one sealed Avatar import map, and approved Home modules")
+
+    # SITE-REFRESH-ROUTE-RESTORE-01 — a reload of /#calendar hides the home
+    # until that screen opens, which has to be decided before the first paint.
+    # Allowlisted the same way as the theme bootstrap: pinned to reading the
+    # fragment and setting one attribute — no storage, network or navigation.
+    route_bootstrap = extract_route_restore_bootstrap(index)
+    if route_bootstrap is None:
+        errors.append("the pre-paint route marker block is missing from index.html")
+    else:
+        body = route_bootstrap.lower()
+        if "window.location.hash" not in route_bootstrap or "document.documentElement.dataset.siteRoutePending = ''" not in route_bootstrap:
+            errors.append("the pre-paint route marker must only read the fragment and set data-site-route-pending")
+        for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon", "localstorage",
+                      "sessionstorage", "indexeddb", "document.cookie", "location.replace", "location.assign",
+                      "location.href =", "innerhtml", "document.write", "eval(", "import("):
+            if token in body:
+                errors.append(f"the pre-paint route marker must not reach for {token}")
+        if "try" not in route_bootstrap or "catch" not in route_bootstrap:
+            errors.append("the pre-paint route marker must not let a failure stop the render")
 
     https_bootstrap = extract_https_origin_bootstrap(index)
     if https_bootstrap is None:

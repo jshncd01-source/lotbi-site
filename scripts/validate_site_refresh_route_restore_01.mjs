@@ -61,7 +61,9 @@ assert.match(conversation, /window\.history\.pushState\(\{lotbiRoute: visible, l
 assert.match(conversation, /routeEntriesPushedHere\.has\(entry\.lotbiRouteKey\) && entry\.lotbiRouteFrom === visible/u, 'history.back() only into an entry this document wrote');
 assert.doesNotMatch(conversation, /location\.hash\s*=(?!=)/u, 'routes are written through the History API only');
 const scam = read('site-scam-shield.js');
-assert.match(scam, /export function openScamShield\(\)/u);
+assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-open-request', \(\) => \{\s*if \(dialog && !dialog\.hasAttribute\('open'\)\) void openDialog\(\);/u);
+assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-close-request', \(\) => \{\s*if \(dialog\?\.hasAttribute\('open'\)\) closeDialog\(\);/u);
+assert.doesNotMatch(scam, /^\s*(export|import)\s/mu, 'site-scam-shield.js stays a plain script (validate_scam_shield_mvp_01 runs it in a vm)');
 assert.match(scam, /dialog\.close\(\);\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*notifyScamShieldVisibility\(\);/u, 'closing 진위확인 updates the URL without waiting for a frame');
 
 // ── Login return target: a closed set on / ──────────────────────────────

@@ -271,25 +271,20 @@ function closeDialog() {
   notifyScamShieldVisibility();
 }
 
-// SITE-REFRESH-ROUTE-RESTORE-01 — 진위확인 is the /#scam route. The
-// conversation's route owner opens/closes it for reload and back/forward, and
-// hears every open/close here so the URL follows the dialog.
+// SITE-REFRESH-ROUTE-RESTORE-01 — 진위확인 is the /#scam route. Like the
+// session and login requests above, the conversation's route owner talks to
+// this dialog through window events: it asks it to open/close for reload and
+// back/forward, and hears every open/close so the URL follows the dialog.
 function notifyScamShieldVisibility() {
   try { window.dispatchEvent(new CustomEvent('lotbi:scam-shield-visibility')); } catch {}
 }
 
-export function isScamShieldOpen() {
-  return Boolean(dialog?.hasAttribute('open'));
-}
-
-export function openScamShield() {
-  if (!dialog || isScamShieldOpen()) return;
-  void openDialog();
-}
-
-export function closeScamShield() {
-  if (isScamShieldOpen()) closeDialog();
-}
+window.addEventListener('lotbi:scam-shield-open-request', () => {
+  if (dialog && !dialog.hasAttribute('open')) void openDialog();
+});
+window.addEventListener('lotbi:scam-shield-close-request', () => {
+  if (dialog?.hasAttribute('open')) closeDialog();
+});
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !event.defaultPrevented && dialog?.hasAttribute('open')) {
