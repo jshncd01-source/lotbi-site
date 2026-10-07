@@ -6,8 +6,9 @@ REPO=lotbi-site
 FEATURE_BRANCH=feature/chat-answer-quality-p0-20261007-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/chat-answer-quality-p0-20261007-site`)
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=a9affcd5ac887239778e37347cd4d68fbe4ad948
-CODE_SHA=3c08792ff619dc189b4d78800ae20c34dc0e3efe
-ASSET_VERSION=aset-b06c66dc2757
+MAIN_MERGED=e3512a0449c43162086d65083a6774e19f3b55f9 (Calendar backdrop dismissal; 59 token-only conflicts resolved to main, merge a3653093)
+CODE_SHA=3c08792ff619dc189b4d78800ae20c34dc0e3efe (feature code) / a3653093 (after main merge)
+ASSET_VERSION=aset-986b22d69170
 
 ## SCOPE (LOTBI CHAT ANSWER QUALITY & MOBILE CONVERSATION UX P0, 2026-10-07)
 
@@ -25,6 +26,12 @@ Production iPhone 실사용 실패 D·E·G의 Site 부분.
   - baseline만 FAIL: image_attachment_thumbnail_01(feature 단독 재실행 PASS)
   - feature만 FAIL: calendar_expense_summary_01 — 고정 포트 4198 서버가 병렬 실행 중 동적 import를 못 내준 일시 오류, 단독 재실행 2/2 PASS
 - 내장 브라우저(390x844 에뮬레이션, 가짜 Core): 비교 표·5열 표·다크 테마·마지막 답변 버튼이 입력창 위에 보이는 것 확인. 실제 iPhone Safari 실기기는 NOT TESTED.
+
+- main e3512a04 merge 후 재측정: main baseline 125 PASS / 6 FAIL, feature(merge) 127 PASS / 5 FAIL.
+  - 공통 기존 RED: calendar_system_dark_01, image_attachment_thumbnail_01, mobile_footer_legal_sheet_01, site_avatar_fallback_runtime
+  - baseline만 FAIL: calendar_holiday_surface_settings_icon_01, place_card_compact_01 (feature PASS)
+  - feature만 FAIL: profile_menu_personal_theme_01 — 병렬 부하 일시 오류, 단독 재실행 2/2 PASS
+  - main이 바꾼 validate_consumer_design_shell_01 / validate_message_calendar_footer_editor_01, 신규 validate_chat_answer_quality_p0_01 PASS
 
 NEW_FAILURES=0
 
