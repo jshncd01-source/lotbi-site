@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-b39d75b48115';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-12285db20119';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
@@ -172,6 +172,11 @@ const PET_ERROR_MESSAGES = Object.freeze({
   PET_PHOTO_TOO_BLURRY: '사진이 흐려요. 초점을 맞추고 다시 찍어 주세요.',
   PET_PHOTO_TOO_SMALL: '사진이 너무 작아요. 줄이지 말고 원본 크기로 올려 주세요.',
   PET_PHOTO_ANCHOR_REQUIRED: '코·특징 사진은 얼굴이나 몸 전체 사진을 먼저 올린 뒤에 등록할 수 있어요.',
+  // PET-PHOTO-FRAMING-GATE-01 — 몸 왼쪽·몸 오른쪽·뒷모습 칸은 몸 전체가 보여야 한다.
+  PET_PHOTO_BODY_NOT_WHOLE: '몸 전체가 사진에 다 들어오지 않았어요. 머리부터 꼬리, 네 다리까지 한 장에 담기도록 조금 떨어져서 다시 찍어 주세요.',
+  PET_PHOTO_BODY_TOO_SMALL: '반려동물이 너무 작게 나왔어요. 몸 전체가 화면을 채우도록 조금 더 가까이에서 찍어 주세요.',
+  PET_PHOTO_BODY_NOT_SIDE: '옆모습 사진이 아니에요. 반려동물 눈높이에서 옆으로 서서, 머리부터 꼬리까지 보이게 찍어 주세요.',
+  PET_PHOTO_BODY_NOT_REAR: '뒷모습 사진이 아니에요. 바로 뒤에서 등·꼬리·뒷다리가 모두 보이게 찍어 주세요.',
   // SAFECARE-WEB-UI-REDESIGN-01 — Core codes the screen used to show only as
   // a generic failure.
   PET_PHOTO_DUPLICATE: '같은 사진은 여러 각도에 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
