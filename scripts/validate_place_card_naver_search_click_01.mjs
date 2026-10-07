@@ -464,11 +464,7 @@ async function runCase(browser, origin, dir, testCase) {
       await page('Input.dispatchKeyEvent', {type: 'keyUp', key: keyName, ...map[keyName]});
     };
     const step = async (name, action) => {
-      // Chrome's touch emulation scrolls the overflow:hidden rail when a carousel
-      // button takes focus or a swipe moves (same on main a9affcd5; outside this
-      // change). Start every step from the rail's resting position so this test
-      // measures where each tap goes, not that drift.
-      await evaluate("document.querySelector('.lotbi-place-orbit').scrollLeft = 0, globalThis.__anchorClicks.splice(0), true");
+      await evaluate('globalThis.__anchorClicks.splice(0), true');
       const before = await evaluate(PROBE);
       await action(before);
       await sleep(350);
