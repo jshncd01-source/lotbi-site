@@ -2,7 +2,7 @@ import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset
 import * as siteCore from './site-core.js?v=aset-e887153c9820';
 import './site-scam-shield.js?v=aset-e887153c9820';
 import {mountConsumerSection} from './site-consumer-sections.js?v=aset-e887153c9820';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges} from './site-navigation.js?v=aset-e887153c9820';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-e887153c9820';
 import {readDefaultMapProvider} from './site-location-preference.js?v=aset-e887153c9820';
 import * as siteAttachments from './site-attachments.js?v=aset-e887153c9820';
 import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-e887153c9820';
@@ -1502,6 +1502,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.className = 'lotbi-rich-card-price';
       address.textContent = place.address;
       copy.append(source, title, address);
+      // The card body opens a NAVER web search for this place (menu, photos,
+      // reviews). The map handoff stays on the map button only. This link is
+      // the card's keyboard/screen-reader entry; taps on the body forward to it.
+      const searchLink = document.createElement('a');
+      searchLink.className = 'lotbi-place-search-link';
+      searchLink.href = buildNaverPlaceSearchUrl(place, {searchContext: placeResult.query});
+      searchLink.target = '_blank';
+      searchLink.rel = 'noopener noreferrer';
+      searchLink.dataset.placeSearch = 'NAVER_SEARCH';
+      searchLink.tabIndex = placeIndex === 0 ? 0 : -1;
+      searchLink.setAttribute('aria-label', `네이버에서 ${place.name} 검색`);
+      searchLink.addEventListener('click', () => setStatus('네이버에서 이 장소를 검색합니다.'));
+      copy.appendChild(searchLink);
       const lifeBadges = placeLifeBadges(place);
       if (lifeBadges.length) {
         const badges = document.createElement('span');
@@ -1614,6 +1627,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     let wheelLocked = false;
     let pointerOriginIndex = null;
     let dragCaptured = false;
+    let capturedBodyTapIndex = null;
 
     const wrapIndex = index => {
       const count = cards.length;
@@ -1667,7 +1681,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           setActiveIndex(index);
           return;
         }
-        cards[index].querySelector('[data-map-provider]')?.click();
+        cards[index].querySelector('[data-place-search]')?.click();
+      });
+      card.addEventListener('keydown', event => {
+        if (event.target !== card || event.key !== 'Enter' || index !== activeIndex) return;
+        event.preventDefault();
+        card.querySelector('[data-place-search]')?.click();
       });
     });
 
@@ -1749,6 +1768,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         && !crossedDragThreshold
         && Number.isInteger(pointerOriginIndex)
         && pointerOriginIndex !== activeIndex;
+      // A plain tap on the center card. While the rail holds pointer capture,
+      // desktop Chrome fires that click at the rail instead of the card.
+      const tappedActiveCard = !cancelled
+        && dragCaptured
+        && !dragMoved
+        && !crossedDragThreshold
+        && pointerOriginIndex === activeIndex;
 
       if (cancelled) {
         applyOrbitState();
@@ -1764,6 +1790,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         suppressClick = true;
         globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
       }
+      if (tappedActiveCard) {
+        capturedBodyTapIndex = activeIndex;
+        globalThis.setTimeout?.(() => { capturedBodyTapIndex = null; }, 0);
+      }
       dragPointerId = null;
       pointerOriginIndex = null;
       dragMoved = false;
@@ -1772,6 +1802,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     rail.addEventListener('pointerup', event => finishDrag(event));
     rail.addEventListener('pointercancel', event => finishDrag(event, {cancelled: true}));
+    rail.addEventListener('click', event => {
+      if (event.target !== rail || capturedBodyTapIndex === null) return;
+      const index = capturedBodyTapIndex;
+      capturedBodyTapIndex = null;
+      cards[index]?.querySelector('[data-place-search]')?.click();
+    });
 
     applyOrbitState();
     return rail;
