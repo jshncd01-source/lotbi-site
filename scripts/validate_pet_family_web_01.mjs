@@ -611,7 +611,7 @@ function innerFixtureHtml() {
   await new Promise(resolve => setTimeout(resolve, 100));
   const draftSlotsBeforeSpecies = [...document.querySelectorAll('[data-pet-draft-slot]')].length;
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
-  const basicStepLabel = document.querySelector('.pet-draft-progress-label')?.textContent || '';
+  const basicStepLabel = document.querySelector('[data-pet-draft-progress]')?.textContent || '';
   document.querySelector('input[name="pet-species"][value="DOG"]').click();
   await new Promise(resolve => setTimeout(resolve, 100));
   const draftSlotsAfterSpeciesOnly = [...document.querySelectorAll('[data-pet-draft-slot]')].length;
@@ -636,8 +636,9 @@ function innerFixtureHtml() {
   const photoGuide = document.querySelector('[data-safecare-guide]')?.dataset.safecareGuide || '';
 
   // PET-PHOTO-UX-03: FACE_FRONT is the one photo the owner must confirm
-  // before anything else in the registration screen unlocks, and once it
-  // does, the remaining nine take any order the animal cooperates with.
+  // before anything else in the registration screen unlocks.
+  // PET-PHOTO-SEQUENTIAL-01: after that the slots open one at a time in the
+  // order shown — 2번 once 1번 is confirmed, 3번 once 2번 holds a photo.
   const draftGate = () => ({
     banner: document.querySelector('.pet-draft-gate-banner')?.textContent || '',
     tiles: [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => ({
@@ -676,22 +677,24 @@ function innerFixtureHtml() {
   setDraftFile('FACE_FRONT');
   await waitFor(() => draftGate().tiles.find(tile => tile.code === 'FACE_FRONT').stateText === '사진 확인됨');
   const gateAfterFaceFront = draftGate();
-  // A closeup slot far from FACE_FRONT in the display order accepts an
-  // upload immediately: no forced 2 -> 3 -> 4 sequence through the middle.
-  setDraftFile('NOSE_RIGHT');
-  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'NOSE_RIGHT').filled === 'true');
-  const noseRightAfterFreeOrder = draftGate().tiles.find(item => item.code === 'NOSE_RIGHT');
+  setDraftFile('FACE_LEFT');
+  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'FACE_LEFT').filled === 'true');
+  const gateAfterSecond = draftGate();
 
-  const registrationProgress = document.querySelector('.pet-draft-progress-label')?.textContent || '';
-  const registrationSteps = [...document.querySelectorAll('.pet-draft-step')].map(item => ({
-    number: item.querySelector('.pet-draft-step-number')?.textContent || '',
-    name: item.querySelector('.pet-draft-step-name')?.textContent || '',
+  const registrationProgress = document.querySelector('[data-pet-draft-progress]')?.textContent || '';
+  const registrationSteps = [...document.querySelectorAll('[data-pet-draft-step]')].map(item => ({
+    number: item.querySelector('.safecare-step-number')?.textContent || '',
+    name: item.querySelector('.safecare-step-name')?.textContent || '',
     active: item.dataset.petDraftStepActive,
   }));
   const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
-  const speciesMarks = [...document.querySelectorAll('[data-pet-guide-species]')].map(item => item.dataset.petGuideSpecies);
-  const rearSpecies = document.querySelector('[data-pet-rear-species]')?.dataset.petRearSpecies || '';
-  const rearImage = document.querySelector('[data-pet-rear-species] image')?.getAttribute('href') || '';
+  // PET-PHOTO-GUIDE-DEDUPE-01: the direction map above the tiles is gone, so
+  // the species check reads the example picture each empty tile shows.
+  const speciesMarks = [...document.querySelectorAll('[data-pet-draft-slot] .pet-slot-guide-image')].map(item => {
+    const src = item.getAttribute('src') || '';
+    return src.startsWith('assets/pet/dog-') ? 'dog' : src.startsWith('assets/pet/cat-') ? 'cat' : src;
+  });
+  const rearImage = document.querySelector('[data-pet-draft-slot="BACK_REAR"] .pet-slot-guide-image')?.getAttribute('src') || '';
 
   // Measure layout before the result sink is filled.
   const scrollWidth = document.documentElement.scrollWidth;
@@ -723,13 +726,12 @@ function innerFixtureHtml() {
     photoGuide,
     gateBeforeFaceFront,
     gateAfterFaceFront,
-    noseRightAfterFreeOrder,
+    gateAfterSecond,
     speciesChoices,
     registrationProgress,
     registrationSteps,
     registrationActionWhileOpen,
     speciesMarks,
-    rearSpecies,
     rearImage,
     hasConsentCopy: detailTextBeforeReveal.includes('등록 사진은 평소 검색에 사용되지 않습니다')
       && detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
@@ -853,7 +855,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     } else {
       assert.match(
         slot.artworkSrc,
-        /^assets\/pet\/dog-[a-z-]+-v1\.png$/,
+        /^assets\/pet\/dog-[a-z-]+-v2\.webp$/,
         `${label}: empty slot ${slot.code} must show its dog shooting artwork`,
       );
     }
@@ -928,16 +930,25 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     '사진 확인됨',
     `${label}: an accepted FACE_FRONT photo must say so`,
   );
-  for (const tile of result.gateAfterFaceFront.tiles.filter(item => item.code !== 'FACE_FRONT')) {
-    assert.equal(tile.locked, 'false', `${label}: ${tile.code} must unlock once FACE_FRONT is confirmed`);
-    assert.equal(tile.chooseDisabled, false, `${label}: ${tile.code}'s upload action must re-enable once unlocked`);
+  const afterFront = Object.fromEntries(result.gateAfterFaceFront.tiles.map(tile => [tile.code, tile]));
+  assert.equal(afterFront.FACE_LEFT.locked, 'false', `${label}: 2번 must open once FACE_FRONT is confirmed`);
+  assert.equal(afterFront.FACE_LEFT.chooseDisabled, false, `${label}: 2번's upload action must re-enable once open`);
+  for (const tile of result.gateAfterFaceFront.tiles.slice(2)) {
+    assert.equal(tile.locked, 'true', `${label}: ${tile.code} must stay locked until the slot before it holds a photo`);
+    assert.equal(tile.chooseDisabled, true, `${label}: ${tile.code}'s upload action must stay disabled while locked`);
   }
-  assert.match(result.gateAfterFaceFront.banner, /순서와 관계없이/,
-    `${label}: the banner must say the remaining photos are free order once unlocked`);
-  assert.equal(result.noseRightAfterFreeOrder.locked, 'false',
-    `${label}: a closeup slot must accept an upload out of display order once unlocked`);
-  assert.ok(result.noseRightAfterFreeOrder.stateText.length > 0,
-    `${label}: NOSE_RIGHT must show a saved/inspection state once uploaded out of order`);
+  assert.equal(afterFront.FACE_RIGHT.lockHint, '2번 얼굴 왼쪽 사진을 올리면 열려요.',
+    `${label}: a locked slot must name the photo that opens it`);
+  assert.match(result.gateAfterFaceFront.banner, /2번 얼굴 왼쪽/,
+    `${label}: the banner must name the next slot to fill`);
+  const afterSecond = Object.fromEntries(result.gateAfterSecond.tiles.map(tile => [tile.code, tile]));
+  assert.equal(afterSecond.FACE_LEFT.filled, 'true', `${label}: 2번 must take the upload`);
+  assert.ok(afterSecond.FACE_LEFT.stateText.length > 0, `${label}: 2번 must show a saved/inspection state`);
+  assert.equal(afterSecond.FACE_RIGHT.locked, 'false', `${label}: 3번 must open once 2번 holds a photo`);
+  assert.equal(afterSecond.BODY_LEFT.locked, 'true', `${label}: 4번 must wait for 3번`);
+  assert.equal(afterSecond.NOSE_RIGHT.locked, 'true', `${label}: 9번 must not open out of order`);
+  assert.match(result.gateAfterSecond.banner, /3번 얼굴 오른쪽/,
+    `${label}: the banner must move on to the next slot`);
   assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: the first step must offer dog or cat before photos`);
   assert.equal(result.registrationProgress, '반려동물 등록 2단계 / 4단계 · 사진 10장',
     `${label}: registration must identify the current numbered step`);
@@ -950,8 +961,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     `${label}: the list-level registration/resume action must disappear while its form is open`);
   assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => mark === 'dog'),
     `${label}: DOG selection must show only dog photo guides`);
-  assert.equal(result.rearSpecies, 'DOG', `${label}: rear slot must use the selected dog's back-facing guide`);
-  assert.equal(result.rearImage, '/assets/pet/dog-rear-v1.png',
+  assert.equal(result.rearImage, 'assets/pet/dog-back-rear-v2.webp',
     `${label}: slot 9 must use only the selected dog's color rear-view artwork`);
 }
 

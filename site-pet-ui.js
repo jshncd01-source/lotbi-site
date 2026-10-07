@@ -51,22 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-018df3827ede';
+} from './site-pet.js?v=aset-b39d75b48115';
 import {
   petPhotoSlotArtwork,
-  petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-018df3827ede';
+} from './site-pet-guides.js?v=aset-b39d75b48115';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-018df3827ede';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-018df3827ede';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-018df3827ede';
-import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-018df3827ede';
+} from './site-pet-gate.js?v=aset-b39d75b48115';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-b39d75b48115';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-b39d75b48115';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -74,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-018df3827ede';
+} from './site-safecare-common.js?v=aset-b39d75b48115';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -193,34 +191,20 @@ function openPetPhotoSource(sourceInputs) {
   sheet.open();
 }
 
-// SAFECARE-WEB-UI-REDESIGN-01 — the always-visible shooting guide above the
-// ten slots: the chosen animal as a finished illustration, why ten directions, and
-// the direction map drawn with the same per-slot schematics the tiles use.
+// PET-PHOTO-GUIDE-DEDUPE-01 — each of the ten slot tiles below already shows
+// its own example picture, label and shooting hint, and the gate banner says
+// to start with the face. The guide above the tiles therefore says only what
+// they cannot: why ten directions. The earlier boxed banner (an animal
+// illustration, a "촬영 안내" title and a second ten-item direction map)
+// repeated the tiles and the step title on the same screen.
 function petPhotoGuide(species) {
-  const box = el('section', 'safecare-guide');
+  const box = el('section', 'safecare-guide safecare-guide-compact');
   box.dataset.safecareGuide = species === 'CAT' ? 'cat' : 'dog';
-  const head = el('div', 'safecare-guide-head');
-  const figure = el('div', 'safecare-guide-figure');
-  figure.appendChild(createSafeCareGuideArtwork(species === 'CAT' ? 'cat' : 'dog'));
-  const copy = el('div');
-  copy.append(
-    el('h4', 'safecare-guide-title', `${species === 'CAT' ? '고양이' : '강아지'} 촬영 안내 · 서로 다른 방향 10장`),
-    el(
-      'p',
-      'safecare-guide-copy',
-      '실종 때 들어오는 발견 사진은 옆모습이나 뒷모습일 때가 많습니다. 여러 방향의 사진이 있어야 후보를 놓치지 않습니다. 얼굴 정면부터 시작해 주세요.',
-    ),
-  );
-  head.append(figure, copy);
-  const map = el('ol', 'safecare-guide-map');
-  for (const slotCode of PET_PHOTO_DISPLAY_ORDER) {
-    const item = el('li', 'safecare-guide-step');
-    const diagram = petPhotoSlotDiagram(slotCode, species === 'CAT' ? 'CAT' : 'DOG');
-    if (diagram) item.appendChild(diagram);
-    item.appendChild(el('span', '', petPhotoSlotLabel(slotCode)));
-    map.appendChild(item);
-  }
-  box.append(head, map);
+  box.appendChild(el(
+    'p',
+    'safecare-guide-copy',
+    '실종 때 들어오는 발견 사진은 옆모습이나 뒷모습일 때가 많아요. 아래 10개 방향을 모두 채워야 후보를 놓치지 않습니다.',
+  ));
   return box;
 }
 
@@ -345,6 +329,9 @@ export async function mountPetFamilyManager({
   let matchNotices = [];
   let catalog = null;
   let registrationDraft = null;
+  // PET-REGISTER-BASIC-FIRST-01: while the registration form is open it is the
+  // whole screen, the same as the person registration — the list steps aside.
+  let registering = false;
   // 'sos' used to be a menu page. The missing state now lives on each pet card,
   // so an 'sos' entry from chat lands on the list where ACTIVE SOS cards show.
   let activeSurface = initialSurface === 'found' ? 'found' : 'pets';
@@ -360,7 +347,7 @@ export async function mountPetFamilyManager({
   const showSurface = target => {
     activeSurface = ['pets', 'sos', 'found'].includes(target) ? target : 'pets';
     surface.dataset.petSurface = activeSurface;
-    listSection.hidden = activeSurface !== 'pets';
+    listSection.hidden = activeSurface !== 'pets' || registering;
     foundCta.hidden = activeSurface !== 'pets';
     detailSection.hidden = activeSurface !== 'pets' || detailSection.childElementCount === 0;
     sosSection.hidden = activeSurface !== 'sos';
@@ -969,6 +956,8 @@ export async function mountPetFamilyManager({
   };
 
   const renderDetail = petId => {
+    registering = false;
+    listSection.hidden = activeSurface !== 'pets';
     addButton.hidden = false;
     const pet = pets.find(item => item.petId === petId);
     if (!pet) {
@@ -1732,44 +1721,50 @@ export async function mountPetFamilyManager({
   // Core's draft keeps its own current_step, and PHOTOS -> BASIC stays Core's
   // server-side photo gate: the screen only asks for that move once all ten
   // photos have passed inspection, and finalize re-validates every required
-  // field and photo regardless. The screen's step is derived from the draft so
-  // a resumed draft opens where it actually is.
-  const draftBasicComplete = draft => Boolean(
-    draft
-    && ['DOG', 'CAT'].includes(draft.species)
-    && draft.name
-    && draft.sex
-    && draft.breedCode
-    && (!['OTHER_DOG', 'OTHER_CAT'].includes(draft.breedCode) || draft.breed),
-  );
-  const draftScreenStep = draft => {
-    if (!draftBasicComplete(draft)) return 'BASIC';
-    return draft.currentStep === 'PHOTOS' ? 'PHOTOS' : 'REVIEW';
-  };
-
+  // field and photo regardless.
+  //
+  // PET-REGISTER-BASIC-FIRST-01 — the same screen as the person registration:
+  // the list and the found CTA step aside, "← 목록으로" leads back, and every
+  // open, a resumed draft included, starts at 1단계 기본정보 with what was saved
+  // filled in. "다음" from there continues to wherever the draft actually is.
+  // The draft keeps autosaving, so going back to the list loses nothing and
+  // the list button reads "등록 계속".
   const renderRegisterForm = async () => {
+    registering = true;
     showSurface('pets');
-    // The list-level action starts or resumes the draft. Once the draft is
-    // open, keeping a disabled "등록 계속" button above the active form looks
-    // like an extra step, so the form owns all navigation from here.
     addButton.hidden = true;
     detailSection.hidden = false;
     detailSection.replaceChildren();
 
-    const header = el('div', 'pet-section-header');
-    header.append(el('h3', 'pet-section-title', '반려동물 등록'));
-    const cancel = el('button', 'site-button site-button-secondary', '나중에 계속');
-    cancel.type = 'button';
-    cancel.addEventListener('click', () => {
+    // Inspection runs after the upload responds, so a PENDING row needs a
+    // second look to ever become ACCEPTED/REJECTED on screen without the
+    // owner reloading the page. Only runs while the PHOTOS step is showing
+    // and only while a row is actually waiting; stops itself otherwise.
+    let draftPollTimer = 0;
+    const stopPoll = () => {
+      clearTimeout(draftPollTimer);
+      draftPollTimer = 0;
+    };
+    const leaveRegister = () => {
       stopPoll();
+      registering = false;
       detailSection.hidden = true;
       detailSection.replaceChildren();
       addButton.hidden = false;
+      showSurface('pets');
+      listSection.scrollIntoView?.({block: 'start', behavior: 'smooth'});
+    };
+    const back = el('button', 'site-button site-button-secondary', '← 목록으로');
+    back.type = 'button';
+    back.dataset.petRegisterBack = '';
+    back.addEventListener('click', () => {
+      leaveRegister();
       addButton.focus();
     });
-    header.appendChild(cancel);
+    const backBar = el('div', 'safecare-back');
+    backBar.appendChild(back);
     const body = el('div', 'pet-draft-body');
-    detailSection.append(header, body);
+    detailSection.append(backBar, body);
     detailSection.scrollIntoView?.({block: 'start', behavior: 'smooth'});
 
     const renderLoading = copy => body.replaceChildren(el('p', 'pet-empty-copy', copy));
@@ -1788,19 +1783,10 @@ export async function mountPetFamilyManager({
 
     const stepCodes = Object.freeze(['BASIC', 'PHOTOS', 'REVIEW', 'DONE']);
     const stepNames = Object.freeze({BASIC: '기본정보', PHOTOS: '사진 10장', REVIEW: '최종 확인', DONE: '등록 완료'});
-    let screenStep = draftScreenStep(registrationDraft);
+    let screenStep = 'BASIC';
     let finalizeRequestId = '';
     let autosaveTimer = 0;
 
-    // Inspection runs after the upload responds, so a PENDING row needs a
-    // second look to ever become ACCEPTED/REJECTED on screen without the
-    // owner reloading the page. Only runs while the PHOTOS step is showing
-    // and only while a row is actually waiting; stops itself otherwise.
-    let draftPollTimer = 0;
-    const stopPoll = () => {
-      clearTimeout(draftPollTimer);
-      draftPollTimer = 0;
-    };
     const schedulePoll = () => {
       stopPoll();
       if (petDraftPhotoProgression(registrationDraft).pendingSlots.length === 0) return;
@@ -1846,28 +1832,35 @@ export async function mountPetFamilyManager({
       }, 500);
     };
 
+    // PET-REGISTER-BASIC-FIRST-01: the person screen's stepper (shared
+    // safecare-step* styles), so both registrations read the same.
     const stepChrome = step => {
       const activeIndex = Math.max(0, stepCodes.indexOf(step));
-      body.appendChild(el(
+      const label = el(
         'p',
-        'pet-draft-progress-label',
+        'safecare-step-label',
         `반려동물 등록 ${activeIndex + 1}단계 / ${stepCodes.length}단계 · ${stepNames[step]}`,
-      ));
-      const progress = el('ol', 'pet-draft-steps');
+      );
+      label.dataset.petDraftProgress = '';
+      const progress = el('ol', 'safecare-steps');
+      progress.setAttribute('aria-label', '등록 단계');
       stepCodes.forEach((code, index) => {
         const complete = index < activeIndex;
-        const item = el('li', 'pet-draft-step');
+        const item = el('li', 'safecare-step');
         item.dataset.petDraftStep = code;
         item.dataset.petDraftStepActive = code === step ? 'true' : 'false';
         item.dataset.petDraftStepComplete = complete ? 'true' : 'false';
+        item.dataset.safecareStepState = complete ? 'done' : code === step ? 'active' : 'todo';
         if (code === step) item.setAttribute('aria-current', 'step');
         item.append(
-          el('span', 'pet-draft-step-number', complete ? '✓' : String(index + 1)),
-          el('span', 'pet-draft-step-name', stepNames[code]),
+          el('span', 'safecare-step-number', complete ? '✓' : String(index + 1)),
+          el('span', 'safecare-step-name', stepNames[code]),
         );
         progress.appendChild(item);
       });
-      body.appendChild(progress);
+      const stepper = el('div', 'safecare-stepper');
+      stepper.append(label, progress);
+      body.appendChild(stepper);
     };
 
     const formError = () => {
@@ -2230,13 +2223,30 @@ export async function mountPetFamilyManager({
       );
       count.dataset.safecarePhotoCount = String(presence.count);
       const faceFrontConfirmed = petDraftFaceFrontConfirmed(registrationDraft, photosBySlot.get('FACE_FRONT'));
-      const gateBanner = el(
-        'p',
-        'pet-draft-gate-banner',
-        faceFrontConfirmed
-          ? '이제 나머지 사진은 반려동물이 편한 자세에 맞춰 순서와 관계없이 등록할 수 있어요.'
-          : '먼저 얼굴 정면 사진을 확인해 주세요. 확인이 끝나면 나머지 사진을 자유로운 순서로 등록할 수 있어요.',
+      // PET-PHOTO-SEQUENTIAL-01 — the ten slots open one at a time in the
+      // order shown: 1번 얼굴 정면 first (Core's anchor gate), then each slot
+      // once the one before it holds a photo that did not fail inspection.
+      // A slot that already holds a photo stays open so it can be replaced or
+      // deleted. Dog and cat use the same order.
+      const slotOpen = PET_PHOTO_DISPLAY_ORDER.map((slotCode, index) => {
+        if (index === 0) return true;
+        if (!faceFrontConfirmed) return false;
+        if (photosBySlot.has(slotCode)) return true;
+        const previous = photosBySlot.get(PET_PHOTO_DISPLAY_ORDER[index - 1]);
+        return Boolean(previous) && previous.inspectionState !== 'REJECTED';
+      });
+      const nextIndex = PET_PHOTO_DISPLAY_ORDER.findIndex(
+        (slotCode, index) => slotOpen[index] && !photosBySlot.has(slotCode),
       );
+      let gateCopy = '먼저 얼굴 정면 사진을 확인해 주세요. 확인이 끝나면 2번부터 한 장씩 순서대로 열려요.';
+      if (faceFrontConfirmed && nextIndex >= 0) {
+        gateCopy = `이제 ${nextIndex + 1}번 ${petPhotoSlotLabel(PET_PHOTO_DISPLAY_ORDER[nextIndex])} 사진을 올려 주세요. 한 장을 올리면 다음 칸이 열려요.`;
+      } else if (faceFrontConfirmed && photosBySlot.size < PET_PHOTO_DISPLAY_ORDER.length) {
+        gateCopy = '확인을 통과하지 못한 사진을 다시 찍어 교체하면 다음 칸이 열려요.';
+      } else if (faceFrontConfirmed) {
+        gateCopy = '10칸을 모두 채웠어요. 사진 확인이 끝나면 다음 단계로 넘어갈 수 있어요.';
+      }
+      const gateBanner = el('p', 'pet-draft-gate-banner', gateCopy);
       gateBanner.setAttribute('aria-live', 'polite');
       body.append(count, gateBanner, el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression)));
       const grid = el('div', 'pet-slot-grid');
@@ -2244,7 +2254,7 @@ export async function mountPetFamilyManager({
 
       PET_PHOTO_DISPLAY_ORDER.forEach((slotCode, index) => {
         const photo = photosBySlot.get(slotCode);
-        const locked = slotCode !== 'FACE_FRONT' && !faceFrontConfirmed;
+        const locked = !slotOpen[index];
         const tile = el('figure', 'pet-slot');
         tile.dataset.petDraftSlot = slotCode;
         tile.dataset.petSlotFilled = photo ? 'true' : 'false';
@@ -2279,7 +2289,15 @@ export async function mountPetFamilyManager({
         }
         tile.appendChild(stateNode);
         if (locked) {
-          tile.appendChild(el('p', 'pet-draft-photo-locked-hint', '얼굴 정면 사진이 확인되면 선택할 수 있어요.'));
+          const previousSlot = PET_PHOTO_DISPLAY_ORDER[index - 1];
+          const previous = photosBySlot.get(previousSlot);
+          let lockCopy = '얼굴 정면 사진이 확인되면 선택할 수 있어요.';
+          if (faceFrontConfirmed) {
+            lockCopy = previous?.inspectionState === 'REJECTED'
+              ? `${index}번 ${petPhotoSlotLabel(previousSlot)} 사진을 다시 찍어 교체하면 열려요.`
+              : `${index}번 ${petPhotoSlotLabel(previousSlot)} 사진을 올리면 열려요.`;
+          }
+          tile.appendChild(el('p', 'pet-draft-photo-locked-hint', lockCopy));
         }
         const slotError = formError();
         slotError.hidden = true;
@@ -2535,9 +2553,7 @@ export async function mountPetFamilyManager({
           revokePetPreviews(registrationDraft.draftId);
           registrationDraft = null;
           addButton.textContent = '반려동물 등록';
-          addButton.hidden = false;
-          detailSection.hidden = true;
-          detailSection.replaceChildren();
+          leaveRegister();
           status.textContent = '등록 초안을 삭제했습니다.';
         } catch (value) {
           error.textContent = errorMessage(value, '등록 초안을 삭제하지 못했습니다.');
@@ -2568,12 +2584,7 @@ export async function mountPetFamilyManager({
       const actions = el('div', 'pet-draft-actions');
       const toList = el('button', 'site-button site-button-primary', '목록으로');
       toList.type = 'button';
-      toList.addEventListener('click', () => {
-        detailSection.hidden = true;
-        detailSection.replaceChildren();
-        addButton.hidden = false;
-        listSection.scrollIntoView?.({block: 'start', behavior: 'smooth'});
-      });
+      toList.addEventListener('click', leaveRegister);
       actions.appendChild(toList);
       done.appendChild(actions);
       body.appendChild(done);
