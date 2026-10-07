@@ -344,3 +344,48 @@ export function cardOnWalletScene(index) {
   const base = randomWalletScene(1300 + index, {width, height});
   return {...base, width, height, surfaceKind: 'navy', lighting: {left: .9 + random() * .2, right: .9 + random() * .2, top: 1.05, bottom: .9, hotspot: .08}, cards: [card], holder: {corners: holderCorners, tone: 10 + Math.round(random() * 8), sheen: index % 3 === 0 ? 30 : 55 + Math.round(random() * 35), color: index % 4 === 3 ? [3.4, 2.3, 1.6] : undefined}, hand: index % 2 ? {side: 'bottom', at: .9 + random() * .08, palm: .2, thumb: .06, tone: [[222, 178, 146], [196, 150, 120], [236, 196, 170]][index % 3]} : null};
 }
+
+// A scanned page that fills the frame: off-white paper, a title, a ruled table, paragraphs
+// of glyph-like marks, red stamp blobs and a grey scanner shadow along one corner. Returns
+// the canvas and the box the printed content occupies (fractions of the frame).
+export async function renderPageScene(index, {blank = false, photo = false} = {}) {
+  const random = seededRandom(1500 + index); const width = 1240; const height = 1754;
+  const canvas = new OffscreenCanvas(width, height); const context = canvas.getContext('2d');
+  context.fillStyle = 'rgb(246,246,243)'; context.fillRect(0, 0, width, height);
+  const shadow = context.createRadialGradient(0, 0, 10, 0, 0, width * (.12 + random() * .1));
+  shadow.addColorStop(0, 'rgba(120,120,120,.55)'); shadow.addColorStop(1, 'rgba(120,120,120,0)');
+  context.fillStyle = shadow; context.fillRect(0, 0, width, height);
+  const box = {left: .06 + random() * .03, right: .93 - random() * .03, top: .05 + random() * .02, bottom: .93 - random() * .03};
+  if (!blank) {
+    const x0 = width * box.left; const x1 = width * box.right; const y0 = height * box.top; const y1 = height * box.bottom;
+    context.fillStyle = '#222';
+    for (let glyph = 0; glyph < 9; glyph += 1) context.fillRect(x0 + (x1 - x0) * (.22 + glyph * .065), y0, (x1 - x0) * .045, height * .025);
+    const tableTop = y0 + height * .06; const tableBottom = y0 + (y1 - y0) * .4;
+    context.strokeStyle = '#333'; context.lineWidth = 2; context.strokeRect(x0, tableTop, x1 - x0, tableBottom - tableTop);
+    for (let row = 1; row < 7; row += 1) { const y = tableTop + (tableBottom - tableTop) * row / 7; context.beginPath(); context.moveTo(x0, y); context.lineTo(x1, y); context.stroke(); }
+    context.fillStyle = 'rgba(150,150,150,.45)'; context.fillRect(x0, tableTop, (x1 - x0) * .1, tableBottom - tableTop);
+    const glyphRow = (y, from, to) => { let x = from; context.fillStyle = '#2a2a2a'; while (x < to) { const w = 8 + random() * 14; context.fillRect(x, y, w, 14 + random() * 4); x += w + 4 + (random() < .15 ? 14 : 0); } };
+    for (let row = 0; row < 7; row += 1) glyphRow(tableTop + (tableBottom - tableTop) * (row + .35) / 7, x0 + (x1 - x0) * .13, x0 + (x1 - x0) * (.5 + random() * .4));
+    for (let line = 0; line < 22; line += 1) glyphRow(tableBottom + height * .02 + line * (y1 - tableBottom - height * .06) / 22, x0, x1 - random() * (x1 - x0) * .25);
+    context.fillStyle = 'rgba(214,40,70,.55)';
+    for (let stamp = 0; stamp < 4; stamp += 1) { context.beginPath(); context.ellipse(x0 + (x1 - x0) * (.55 + random() * .4), y0 + (y1 - y0) * (.3 + random() * .65), 40 + random() * 30, 50 + random() * 30, random(), 0, Math.PI * 2); context.fill(); }
+    context.strokeStyle = '#333'; context.strokeRect(x0, y1 - (y1 - y0) * .22, x1 - x0, (y1 - y0) * .22);
+  }
+  if (photo) {
+    // Photographed on a table: paper reaches the top and bottom of the frame, the table shows
+    // as slanted strips on both sides, and the hand's shadow darkens one lower corner.
+    const leftTop = width * (.01 + random() * .02); const leftBottom = width * (.02 + random() * .03);
+    const rightTop = width * (.975 - random() * .02); const rightBottom = width * (.985 - random() * .02);
+    context.fillStyle = 'rgb(104,118,96)';
+    context.beginPath(); context.moveTo(0, 0); context.lineTo(leftTop, 0); context.lineTo(leftBottom, height); context.lineTo(0, height); context.closePath(); context.fill();
+    context.beginPath(); context.moveTo(width, 0); context.lineTo(rightTop, 0); context.lineTo(rightBottom, height); context.lineTo(width, height); context.closePath(); context.fill();
+    const dim = context.createRadialGradient(0, height, 10, 0, height, width * .6);
+    dim.addColorStop(0, 'rgba(60,60,70,.35)'); dim.addColorStop(1, 'rgba(60,60,70,0)'); context.fillStyle = dim; context.fillRect(0, 0, width, height);
+  }
+  const pixels = context.getImageData(0, 0, width, height);
+  for (let offset = 0; offset < pixels.data.length; offset += 4) { const jitter = (random() + random() - 1) * 6; for (let channel = 0; channel < 3; channel += 1) pixels.data[offset + channel] = Math.max(0, Math.min(255, pixels.data[offset + channel] + jitter)); }
+  context.putImageData(pixels, 0, 0);
+  const blob = await canvas.convertToBlob({type: 'image/jpeg', quality: .85}); const bitmap = await createImageBitmap(blob);
+  const encoded = new OffscreenCanvas(width, height); encoded.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close?.();
+  return {canvas: encoded, box, width, height};
+}

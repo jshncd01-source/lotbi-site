@@ -63,8 +63,15 @@ try {
   confirm.click(); await wait(() => saved.value, 'confirm callback'); automatic.confirmed = saved.value.startsWith('data:image/jpeg;base64,'); scanner.destroy();
   const {scanner: twoCards} = await scanScene(module, scenes, {width: W, height: H, seed: 24, surfaceKind: 'felt', cards: [scenes.walletCard({width: W, height: H, margins: {left: .04, right: .53, top: .2, bottom: .22}, rotation: 2}), scenes.walletCard({width: W, height: H, margins: {left: .53, right: .04, top: .22, bottom: .2}, rotation: -2})]});
   const ambiguous = {mode: twoCards.element.dataset.scanMode, reason: twoCards.element.dataset.scanReason, diagnostics: twoCards.element.dataset.scanDiagnostics, confirmEnabled: !twoCards.element.querySelector('[data-wallet-scan-confirm]').disabled, status: twoCards.element.querySelector('.wallet-scan-status').textContent};
-  twoCards.destroy(); globalThis.createImageBitmap = nativeBitmap;
-  window.__result = {ok: true, automatic, ambiguous};
+  twoCards.destroy();
+  // A phone photo stored as 9000x6000 pixels with EXIF orientation 6 is a 6000x9000 portrait;
+  // the bounded decode size must follow the rotated frame or the page is squashed.
+  let rotatedOptions = null; globalThis.createImageBitmap = (input, options) => { rotatedOptions = options; return Promise.reject(new Error('decode stub')); };
+  const rotatedHeader = new Uint8Array([0xFF,0xD8,0xFF,0xE1,0x00,0x22,0x45,0x78,0x69,0x66,0x00,0x00,0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x01,0x00,0x12,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x06,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFF,0xC0,0x00,0x11,0x08,0x17,0x70,0x23,0x28,0x03,0x01,0x22,0x00,0x02,0x11,0x01,0x03,0x11,0x01,0xFF,0xD9]);
+  const rotatedScanner = module.createWalletDocumentScanner({file: new File([rotatedHeader], 'rotated.jpg', {type: 'image/jpeg'})});
+  await wait(() => rotatedOptions, 'rotated decode options'); rotatedScanner.destroy();
+  globalThis.createImageBitmap = nativeBitmap;
+  window.__result = {ok: true, automatic, ambiguous, rotatedOptions};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
@@ -75,7 +82,9 @@ const result = await runFixturePage({
 });
 assert.equal(result.ok, true, result.error);
 {
-  const {automatic, ambiguous} = result;
+  const {automatic, ambiguous, rotatedOptions} = result;
+  assert.equal(rotatedOptions.imageOrientation, 'from-image');
+  assert.deepEqual([rotatedOptions.resizeWidth, rotatedOptions.resizeHeight], [1707, 2560], `EXIF-rotated photo must be bounded in its rotated frame: ${JSON.stringify(rotatedOptions)}`);
   const detail = JSON.stringify({...automatic, text: undefined});
   assert.equal(automatic.state, 'review');
   assert.equal(automatic.mode, 'automatic', `real-condition card photo fell back to manual: ${detail}`);

@@ -21,9 +21,10 @@ export function orderDocumentCorners(points) {
   };
 }
 
+// Uncertain photos start from almost the whole frame, so the preview never cuts content.
 export function defaultDocumentCorners(width, height) {
-  const insetX = Math.max(1, Math.round(width * 0.06));
-  const insetY = Math.max(1, Math.round(height * 0.08));
+  const insetX = Math.max(1, Math.round(width * 0.02));
+  const insetY = Math.max(1, Math.round(height * 0.02));
   return {
     topLeft: {x: insetX, y: insetY},
     topRight: {x: Math.max(insetX + 1, width - insetX - 1), y: insetY},
@@ -839,6 +840,34 @@ function surfaceCandidates(smooth,light,edges,width,height,domain,{adaptive=fals
   return {flood,labels,evaluated,adaptive,valid:evaluated.filter(candidate=>!candidate.rejected).sort((left,right)=>right.area-left.area)};
 }
 
+// A scanned or photographed page that fills most of the frame leaves no outline to find:
+// its paper becomes the "surface" or merges with a strip of table at the sides. When most of
+// the frame is paper-like (light, nearly colourless) and printed content covers much of it,
+// the page itself is the document: crop to the content with a small margin. Specks, table
+// strips and scanner shadows touching the frame are ignored.
+function fullPageDocument(smooth,light,width,height){
+  let paper=0;let samples=0;
+  for(let index=0;index<width*height;index+=5){
+    const red=smooth[index*3];const green=smooth[index*3+1];const blue=smooth[index*3+2];samples+=1;
+    if(red*.299+green*.587+blue*.114>=150&&Math.max(red,green,blue)-Math.min(red,green,blue)<=40)paper+=1;
+  }
+  if(paper<samples*.5)return null;
+  // Printed content is fine detail: where the lightly blurred colour departs from the heavily
+  // blurred one. Thin rules and small print stay; smooth shadows and paper tone do not.
+  const content=new Uint8Array(width*height);
+  for(let index=0;index<content.length;index+=1)content[index]=(light[index*3]-smooth[index*3])**2+(light[index*3+1]-smooth[index*3+1])**2+(light[index*3+2]-smooth[index*3+2])**2>18*18?1:0;
+  const {components}=labelComponents(content,width,height,4);
+  const kept=components.filter(component=>component.minimumX>1&&component.minimumY>1&&component.maximumX<width-2&&component.maximumY<height-2&&component.count<width*height*.25);
+  let total=0;let left=width;let right=0;let top=height;let bottom=0;
+  for(const component of kept){total+=component.count;left=Math.min(left,component.minimumX);right=Math.max(right,component.maximumX);top=Math.min(top,component.minimumY);bottom=Math.max(bottom,component.maximumY)}
+  if(total<width*height*.01)return null;
+  const pad=Math.round(Math.min(width,height)*.02);
+  const x0=Math.max(0,left-pad);const x1=Math.min(width-1,right+pad);const y0=Math.max(0,top-pad);const y1=Math.min(height-1,bottom+pad);
+  const area=(x1-x0+1)*(y1-y0+1);const areaRatio=area/(width*height);
+  if(areaRatio<.35||total/area>.5)return null;
+  return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
+}
+
 // Strict surface model first; illumination adaptation only when it finds no document.
 function surfaceLevel(smooth,light,edges,width,height,domain){
   const strict=surfaceCandidates(smooth,light,edges,width,height,domain);
@@ -864,6 +893,8 @@ function borderSurfaceDetection(working,edges){
       if(cards.length>1&&cards[1].area>=cards[0].area*.35)return {...result,status:'multiple',summary};
       if(cards.length)return {...result,status:'document',candidate:cards[0],summary};
     }
+    const page=fullPageDocument(smooth,light,width,height);
+    if(page)return {...result,status:'document',candidate:page,summary};
     return {...result,status:'none'};
   }
   const best=level.valid[0];
