@@ -183,6 +183,14 @@ jobs:
       - name: Validate long answer scroll anchor
         run: node scripts/validate_chat_long_answer_scroll_anchor_01.mjs
 
+      # 실사용 (Samsung 계열 모바일): with the keyboard open the composer rose to
+      # just under the header, and the first characters typed sat behind the +
+      # button. Measured as bounding rects (glyphs, caret, +, send, composer)
+      # at 360-412px phones, 690/750px foldables and 1280 desktop, under three
+      # emulated keyboards (layout resize, visual viewport, panned viewport).
+      - name: Validate mobile composer keyboard layout
+        run: node scripts/validate_mobile_composer_keyboard_layout_01.mjs
+
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
       # `fixed` would pass the first half and eat the second on a short screen.

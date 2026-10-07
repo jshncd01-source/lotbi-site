@@ -1258,6 +1258,15 @@ body.mobile-keyboard-open.conversation-active .chat-home-shell {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+  /* SITE-MOBILE-COMPOSER-KEYBOARD-LAYOUT-HOTFIX — the sticky composer stops at the
+     scroller's padding, so the 6px bottom padding showed the conversation
+     scrolling under the composer, right above the keyboard. The room (and the
+     safe area) is the composer stack's opaque padding instead. */
+  padding-bottom: 0;
+}
+
+body.mobile-keyboard-open.conversation-active .chat-composer-stack {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
 body.mobile-keyboard-open.conversation-active .chat-hero {
