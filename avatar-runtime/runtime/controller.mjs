@@ -1,7 +1,7 @@
-import {sampleClip,zero,smooth,validateControls} from './animation.mjs?v=aset-799573ca1e72';
-import {speechEmphasis,easeSpeechMotionEnergy} from './speech-envelope.mjs?v=aset-799573ca1e72';
-import {AvatarStateMachine} from './state-machine.mjs?v=aset-799573ca1e72';
-import {deriveSpeechVariation,sampleSpeechVariation} from './speech-variation.mjs?v=aset-799573ca1e72';
+import {sampleClip,zero,smooth,validateControls} from './animation.mjs?v=aset-010f0fc8f60a';
+import {speechEmphasis,easeSpeechMotionEnergy} from './speech-envelope.mjs?v=aset-010f0fc8f60a';
+import {AvatarStateMachine} from './state-machine.mjs?v=aset-010f0fc8f60a';
+import {deriveSpeechVariation,sampleSpeechVariation} from './speech-variation.mjs?v=aset-010f0fc8f60a';
 
 const SPEECH_MOTION_KEYS=['head_pitch_deg','head_roll_deg','body_pitch_deg','gaze_y'];
 

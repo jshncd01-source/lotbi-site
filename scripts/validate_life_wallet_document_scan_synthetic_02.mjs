@@ -75,6 +75,15 @@ try {
     const xs = Object.values(found.corners).map(point => point.x / small.width); const ys = Object.values(found.corners).map(point => point.y / small.height);
     results.push({group: blank ? 'NEGATIVE' : 'SYNTHETIC_FULL_PAGE', name: blank ? 'blank-page' : 'page-' + index, expect: blank ? 'manual' : 'page', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics, paper: found.paper, pageBox: page.box, sheetBottom: page.sheetBottom, foundBox: {left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys)}});
   }
+  // Pet photos are not wallet items: never cropped, refused as not a document.
+  for (let index = 1; index <= 4; index += 1) {
+    const pet = await scenes.renderPetPhotoScene(index);
+    const scale = Math.min(1, 1200 / Math.max(pet.width, pet.height));
+    const small = new OffscreenCanvas(Math.round(pet.width * scale), Math.round(pet.height * scale));
+    const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(pet.canvas, 0, 0, small.width, small.height);
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height)); const elapsed = performance.now() - started;
+    results.push({group: 'NOT_A_DOCUMENT', name: 'pet-' + index, expect: 'not-a-document', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics});
+  }
   window.__result = {ok: true, results};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
@@ -86,7 +95,7 @@ const result = await runFixturePage({
 assert.equal(result.ok, true, result.error);
 {
   const groups = new Map();
-  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles', 'floodMode', 'occluder', 'holder', 'nested', 'holderContent', 'innerLighter', 'page']);
+  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles', 'floodMode', 'occluder', 'holder', 'nested', 'holderContent', 'innerLighter', 'page', 'textLines']);
   for (const row of result.results) {
     const label = `${row.group}/${row.name}`;
     const serialized = JSON.stringify(row.diagnostics || {});
@@ -117,10 +126,16 @@ assert.equal(result.ok, true, result.error);
       // neither clipped nor padded: every corner must land within ~1% of the card's short side.
       const tolerance = Math.max(6, row.shortSide * 0.012);
       row.errors.forEach((error, index) => assert.ok(error <= tolerance, `${label}: corner ${index} is ${error.toFixed(1)}px from the card corner (tolerance ${tolerance.toFixed(1)}): ${serialized}`));
+    } else if (row.expect === 'not-a-document') {
+      // Never cropped or saved automatically; fur can look like a few short rows, so a pet may
+      // also land in plain manual adjustment instead of the outright refusal.
+      assert.equal(row.mode, 'manual', `${label}: a pet photo must not be cropped: ${serialized}`);
+      assert.ok(row.diagnostics.textLines < 12, `${label}: fur must not read like a page of text: ${serialized}`);
     } else {
       assert.equal(row.mode, 'manual', `${label}: ambiguous/negative scene must not be cropped automatically: ${serialized}`);
     }
-    const group = groups.get(row.group) || {count: 0, worst: 0, elapsed: 0};
+    const group = groups.get(row.group) || {count: 0, worst: 0, elapsed: 0, lines: Infinity, maxLines: 0};
+    group.lines = Math.min(group.lines, row.diagnostics?.textLines ?? Infinity); group.maxLines = Math.max(group.maxLines, row.diagnostics?.textLines ?? 0);
     group.count += 1; group.elapsed += row.elapsed; group.automatic = (group.automatic || 0) + (row.mode === 'automatic' ? 1 : 0);
     if (row.expect === 'card' || (row.expect === 'card-or-manual' && row.mode === 'automatic')) group.worst = Math.max(group.worst, ...row.errors);
     if (row.expect === 'page') group.worst = Math.max(group.worst, ...['left', 'top', 'right', 'bottom'].map(edge => Math.abs(row.foundBox[edge] - row.pageBox[edge]) * 1000));
@@ -132,6 +147,6 @@ assert.equal(result.ok, true, result.error);
   }
   const average = result.results.reduce((sum, row) => sum + row.elapsed, 0) / result.results.length;
   assert.ok(average < 3000, `average detection time ${average.toFixed(0)}ms suggests a pathological slowdown`);
-  for (const [name, group] of groups) console.log(`${name}=PASS scenes=${group.count} automatic=${group.automatic}${group.worst ? (name === 'SYNTHETIC_FULL_PAGE' ? ` worst_edge_offset_permille=${group.worst.toFixed(1)}` : ` worst_corner_px=${group.worst.toFixed(1)}`) : ''}`);
+  for (const [name, group] of groups) console.log(`${name}=PASS scenes=${group.count} automatic=${group.automatic}${group.worst ? (name === 'SYNTHETIC_FULL_PAGE' ? ` worst_edge_offset_permille=${group.worst.toFixed(1)}` : ` worst_corner_px=${group.worst.toFixed(1)}`) : ''} text_lines=${group.lines}-${group.maxLines}`);
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_SYNTHETIC_02 PASS — scenes=${result.results.length}, average_detection_ms=${average.toFixed(0)}`);
 }

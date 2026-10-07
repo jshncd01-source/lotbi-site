@@ -900,7 +900,7 @@ function borderSurfaceDetection(working,edges){
   const level=surfaceLevel(smooth,light,edges,width,height,null);
   let gradient=null;const gradientOf=()=>gradient??=gradientMagnitude(smooth,width,height);
   const summary={floodThreshold:level.flood?Number(level.flood.threshold.toFixed(1)):null,floodMode:level.adaptive?'adaptive':'strict',calmGradient:level.flood?Number(level.flood.calm.toFixed(2)):null,foregroundRegions:level.evaluated.length,surfaceCandidates:level.valid.length,rejected:level.evaluated.filter(candidate=>candidate.rejected).slice(0,4).map(candidate=>`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`)};
-  const result={background:level.flood?.background||null,labels:level.labels||null,components:level.evaluated.map(candidate=>({...candidate.component,rejected:candidate.rejected||null})),summary};
+  const result={background:level.flood?.background||null,labels:level.labels||null,components:level.evaluated.map(candidate=>({...candidate.component,rejected:candidate.rejected||null})),summary,smooth,light};
   if(!level.valid.length){
     // A card lying on a wallet, tray or book joins the holder in one irregular region.
     // Peel the holder off from that region's own outline; the card is what is left.
@@ -972,6 +972,37 @@ function surfaceConsistent(surface,corners,width,height){
   return quadArea<=regionBox*1.1&&both/Math.max(1,either)>=.85;
 }
 
+// Printed text: small dark marks of similar height standing side by side. A row of at least
+// five, at least six heights long, counts as a line of text. Cards carry a few such lines,
+// pages dozens; pets, faces and rooms produce scattered marks but hardly any rows.
+function textLines(working,smooth,light,corners){
+  const {width,height}=working;const tone=(values,index)=>values[index*3]*.299+values[index*3+1]*.587+values[index*3+2]*.114;
+  const ink=new Uint8Array(width*height);
+  for(let index=0;index<ink.length;index+=1){
+    const difference=(light[index*3]-smooth[index*3])**2+(light[index*3+1]-smooth[index*3+1])**2+(light[index*3+2]-smooth[index*3+2])**2;
+    ink[index]=difference>18*18&&tone(light,index)<tone(smooth,index)-6?1:0;
+  }
+  const {components}=labelComponents(ink,width,height,3);
+  const glyphs=components.filter(component=>{
+    const tall=component.maximumY-component.minimumY+1;const wide=component.maximumX-component.minimumX+1;
+    if(tall<3||tall>height*.05||wide>width*.15||component.minimumX<=1||component.minimumY<=1||component.maximumX>=width-2||component.maximumY>=height-2)return false;
+    return !corners||insideQuadrilateral(corners,{x:(component.minimumX+component.maximumX)/2,y:(component.minimumY+component.maximumY)/2});
+  }).map(component=>({left:component.minimumX,right:component.maximumX,middle:(component.minimumY+component.maximumY)/2,tall:component.maximumY-component.minimumY+1})).sort((first,second)=>first.middle-second.middle);
+  const parent=glyphs.map((_,index)=>index);const root=index=>parent[index]===index?index:(parent[index]=root(parent[index]));
+  for(let index=0;index<glyphs.length;index+=1){
+    const glyph=glyphs[index];
+    for(let other=index-1;other>=0&&glyph.middle-glyphs[other].middle<=glyph.tall;other-=1){
+      const neighbor=glyphs[other];const size=Math.max(glyph.tall,neighbor.tall);
+      if(Math.abs(glyph.middle-neighbor.middle)<=size*.5&&Math.max(neighbor.left-glyph.right,glyph.left-neighbor.right)<=size*2.5&&Math.abs(glyph.tall-neighbor.tall)<=size*.6)parent[root(index)]=root(other);
+    }
+  }
+  const rows=new Map();
+  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);rows.set(key,row)});
+  let lines=0;
+  for(const row of rows.values()){row.heights.sort((first,second)=>first-second);if(row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)])lines+=1}
+  return lines;
+}
+
 // Pages are whitened like scans. A page is a full-page crop, or a large, mostly
 // paper-coloured rectangle with square corners that is not card-shaped: ID-1 cards are
 // 1.59:1 with rounded corners, while A4 is 1.41:1, Letter 1.29:1 and receipts are long strips.
@@ -1011,7 +1042,15 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   else if(surface.status==='multiple')reason='competing-documents';
   else if(surface.status==='nested'){chosen=legacy;if(!legacy)reason='competing-boundaries'}
   else if(surface.status==='none'&&legacy&&surfaceConsistent(surface,legacy.corners,working.width,working.height))chosen=legacy;
+  // Wallet items are cards and documents: they carry printed rows of text. A photo with no
+  // such rows (a pet, a person, a room) is not cropped, and the scanner refuses to save it.
+  const lines=textLines(working,surface.smooth,surface.light,null);
+  if(lines<2){chosen=null;reason='not-a-document'}
+  // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
+  // rooms a handful); a card needs a couple of lines of print inside its outline.
+  else if(chosen&&textLines(working,surface.smooth,surface.light,chosen.corners)<(chosen.source==='full-page'?12:2)){chosen=null;reason='automatic-detection-uncertain'}
   const diagnostics=scanDiagnostics(working,surface,legacy,chosen);
+  diagnostics.textLines=lines;
   if (!chosen) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:legacyConfidence,mode:'manual',reason,diagnostics};
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
@@ -1260,8 +1299,9 @@ export async function rectifyDocument(source, corners, {enhance=true, cornerRadi
   if(cornerRadius>0)fillRoundedCorners(corrected,Math.min(.12,cornerRadius));
   const output=enhance?(paper?whitenPaper(corrected):enhancePixels(corrected)):corrected;
   const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height; canvas.getContext('2d').putImageData(output,0,0);
-  // A page that fills the frame is expected to reach its edges, and white paper is not glare
-  // on a glossy card: pages are checked only for resolution and focus.
-  const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:paper?null:ordered})])].filter(code=>!paper||code!=='glare');
+  // A page that fills the frame is expected to reach its edges, white paper is not glare on a
+  // glossy card, and a page's blank margins drag the whole-image sharpness measure down even
+  // when the print is crisp: pages are checked for resolution only.
+  const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:paper?null:ordered})])].filter(code=>!paper||code==='low-resolution');
   return {dataUrl:canvas.toDataURL('image/jpeg',0.92),width,height,warnings,enhanced:Boolean(enhance)};
 }

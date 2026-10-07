@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-799573ca1e72';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-010f0fc8f60a';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -8,7 +8,9 @@ const INACTIVITY_MS = 10 * 60_000;
 const MAX_PIN_FAILURES = 5;
 const BACKUP_AAD = 'LOTBI_LIFE_WALLET_BACKUP_V1';
 const SESSION_GRANT_KEY = 'lotbi-life-wallet-unlock-v1';
+// New items are saved as 'document'; the older kinds stay readable for saved items and backups.
 const CARD_KINDS = Object.freeze([
+  ['document', '저장 자료'],
   ['identity', '신분·자격 자료'],
   ['membership', '회원증'],
   ['certificate', '증명서'],
@@ -568,7 +570,7 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
   const title = element('strong', '', '자료 사진 추가');
   const help = element('small', '', 'JPG·PNG 사진 12MB · PDF 20MB 이하');
   copy.append(title, help);
-  const trigger = button('사진 선택', () => input.click());
+  const trigger = button('사진 선택', () => input.click(), true);
   trigger.classList.add('wallet-photo-action');
   const scannerHost = element('div', 'wallet-photo-scanner-host');
   let scanner = null;
@@ -1033,25 +1035,24 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderAdd() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
-    const kind = element('select'); for (const [value, label] of CARD_KINDS) { const option = element('option', '', label); option.value = value; kind.append(option); }
     let save;
     const photoPicker = createWalletPhotoPicker({onError: message => { status.textContent = message; }, onReady: ready => { if (save) save.disabled = !ready; }});
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true));
     save = button('암호화하여 저장'); save.type = 'submit'; save.disabled = true; actions.append(save);
-    form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), photoPicker.element, field('메모 · 선택', note), actions, status,
+    form.append(element('h3', '', '자료 추가'), photoPicker.element, field('메모 · 선택', note), actions, status,
       element('p', 'wallet-security-note', '기울기·원근·여백과 화질을 이 브라우저에서만 보정합니다. 원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
         setBusy(form, true);
         const frontDataUrl = await photoPicker.readDataUrl();
-        await vault.save(accountId, {id: randomId(), kind: kind.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
+        await vault.save(accountId, {id: randomId(), kind: 'document', note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
         photoPicker.destroy();
         await renderWallet('자료를 암호화하여 저장했습니다.');
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }
     });
-    root.replaceChildren(form); kind.focus(); activity();
+    root.replaceChildren(form); photoPicker.element.querySelector('button')?.focus(); activity();
   }
 
   function renderDetail(card) {

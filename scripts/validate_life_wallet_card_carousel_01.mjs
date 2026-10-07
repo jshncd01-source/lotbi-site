@@ -65,7 +65,7 @@ try{
   const landscape=createWalletCardCarousel({cards:[{id:'card',name:'카드',kind:'identity',frontDataUrl:shaped(1012,638)}],onOpen:()=>{}});
   document.getElementById('host').append(portrait,landscape);
   await Promise.all([...document.querySelectorAll('.wallet-card-image')].map(image=>image.decode().catch(()=>{})));
-  const fit=carouselElement=>{const card=carouselElement.querySelector('.wallet-card').getBoundingClientRect();const image=carouselElement.querySelector('.wallet-card-image').getBoundingClientRect();return {cardWidth:card.width,imageWidth:image.width,imageAspect:image.width/image.height}};
+  const fit=carouselElement=>{const card=carouselElement.querySelector('.wallet-card').getBoundingClientRect();const image=carouselElement.querySelector('.wallet-card-image').getBoundingClientRect();return {frameWidth:carouselElement.getBoundingClientRect().width,cardWidth:card.width,imageWidth:image.width,imageAspect:image.width/image.height}};
   const portraitFit=fit(portrait);const landscapeFit=fit(landscape);
   const firstRect=items[0].getBoundingClientRect();
   const firstImageRect=items[0].querySelector('.wallet-card-image').getBoundingClientRect();
@@ -90,9 +90,11 @@ try{
 }catch(error){out.textContent=JSON.stringify({ok:false,error:String(error?.stack||error)})}
 </script></body></html>`;
 
+// Desktop and phone widths: one card at a time on both.
+for (const viewport of [{width: 1200, height: 844}, {width: 390, height: 844, mobile: true}]) {
 const result = await runFixturePage({
   root: ROOT, fixturePath: '/__life_wallet_card_carousel_01.html', fixtureHtml: fixture,
-  viewport: {width: 1200, height: 844},
+  viewport,
   resultExpression: "(() => { const text = document.getElementById('result')?.textContent || ''; return text === 'pending' ? '' : text; })()",
 });
 if (!result.ok) throw new Error(result.error);
@@ -120,6 +122,7 @@ if (!result.ok) throw new Error(result.error);
   assert.equal(result.singleControls, 0, 'a single wallet card must not show carousel controls or position');
   assert.equal(result.overflow, false, 'the wallet carousel must fit a 390px mobile viewport');
   assert.ok(result.portraitFit.cardWidth-result.portraitFit.imageWidth<=4&&Math.abs(result.portraitFit.imageAspect-734/1024)<.03, `a portrait page must not be framed by empty bars: ${JSON.stringify(result.portraitFit)}`);
-  assert.ok(result.landscapeFit.cardWidth>=400&&result.landscapeFit.cardWidth-result.landscapeFit.imageWidth<=4&&Math.abs(result.landscapeFit.imageAspect-1012/638)<.03, `a landscape card must fill its card frame: ${JSON.stringify(result.landscapeFit)}`);
-  console.log('LIFE_WALLET_CARD_CAROUSEL_01 PASS');
+  assert.ok(result.landscapeFit.cardWidth>=Math.min(400,result.landscapeFit.frameWidth-4)&&result.landscapeFit.cardWidth-result.landscapeFit.imageWidth<=4&&Math.abs(result.landscapeFit.imageAspect-1012/638)<.03, `a landscape card must fill its card frame: ${JSON.stringify(result.landscapeFit)}`);
 }
+}
+console.log('LIFE_WALLET_CARD_CAROUSEL_01 PASS — desktop and 390px phone');

@@ -60,7 +60,12 @@
 .wallet-photo-copy { min-width: 0; display: grid; gap: 4px; }
 .wallet-photo-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .wallet-photo-copy small { color: var(--consumer-muted); font-size: 12px; font-weight: 400; line-height: 1.45; }
-.wallet-photo-action { white-space: nowrap; }
+/* Fixed columns: while a photo is being corrected the thumbnail is hidden, and auto-placement
+   would push the hint into the narrow thumbnail column and stretch the button. */
+.wallet-photo-mark, .wallet-photo-preview { grid-column: 1; grid-row: 1; }
+.wallet-photo-copy { grid-column: 2; grid-row: 1; }
+.wallet-photo-picker:not(:has(> .wallet-photo-mark:not([hidden]), > .wallet-photo-preview:not([hidden]))) .wallet-photo-copy { grid-column: 1 / 3; }
+.wallet-photo-action { grid-column: 3; grid-row: 1; min-height: 36px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
 .wallet-photo-scanner-host { min-width: 0; }
 .wallet-photo-scanner-host:empty { display: none; }
 .wallet-form-intro { margin: -6px 0 2px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
@@ -111,12 +116,9 @@
   .wallet-scan-workspace { grid-template-columns: 1fr; }
 }
 @media (max-width: 430px) {
-  .wallet-card-track { grid-auto-columns: 88%; gap: 10px; padding-inline: 3%; }
-  .wallet-card-carousel-single .wallet-card-track { grid-auto-columns: 100%; padding-inline: 0; }
   .wallet-card { border-radius: 16px; }
-  .wallet-photo-picker { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .wallet-photo-picker { grid-template-columns: 56px minmax(0, 1fr) auto; gap: 10px; padding: 12px; }
   .wallet-photo-mark, .wallet-photo-preview { width: 56px; height: 48px; }
-  .wallet-photo-action { grid-column: 1 / -1; width: 100%; }
   .wallet-form-actions { flex-direction: column-reverse; }
   .wallet-form-actions .consumer-action { width: 100%; }
   .wallet-scan-actions { flex-direction: column-reverse; }

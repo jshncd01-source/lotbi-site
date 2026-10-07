@@ -397,3 +397,34 @@ export async function renderPageScene(index, {blank = false, photo = false, dim 
   const encoded = new OffscreenCanvas(width, height); encoded.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close?.();
   return {canvas: encoded, box, width, height, sheetBottom};
 }
+
+// Not a document: a pet photographed against a light wall and floor. Fur gives many small
+// marks, but no rows of print, so the wallet must neither crop nor save it.
+export async function renderPetPhotoScene(index) {
+  const random = seededRandom(2600 + index); const width = 1050; const height = 1400;
+  const canvas = new OffscreenCanvas(width, height); const context = canvas.getContext('2d');
+  const wall = context.createLinearGradient(0, 0, 0, height * .7);
+  wall.addColorStop(0, 'rgb(242,240,236)'); wall.addColorStop(1, 'rgb(226,222,214)');
+  context.fillStyle = wall; context.fillRect(0, 0, width, height * .7);
+  context.fillStyle = `rgb(${200 + random() * 20},${178 + random() * 15},${146 + random() * 15})`; context.fillRect(0, height * .7, width, height * .3);
+  const coat = [[214, 176, 128], [236, 232, 224], [92, 70, 52], [168, 132, 96]][index % 4];
+  const centerX = width * (.45 + random() * .1); const centerY = height * (.5 + random() * .1); const radiusX = width * (.28 + random() * .06); const radiusY = height * (.24 + random() * .05);
+  context.fillStyle = `rgb(${coat.join(',')})`; context.beginPath(); context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2); context.fill();
+  context.beginPath(); context.ellipse(centerX + radiusX * .2, centerY - radiusY * .95, radiusX * .55, radiusY * .5, 0, 0, Math.PI * 2); context.fill();
+  for (let strand = 0; strand < 4200; strand += 1) {
+    const angle = random() * Math.PI * 2; const distance = Math.sqrt(random());
+    const x = centerX + Math.cos(angle) * radiusX * distance; const y = centerY + Math.sin(angle) * radiusY * distance - (random() < .25 ? radiusY * .9 : 0);
+    const shade = (random() - .5) * 90; const length = 6 + random() * 12; const direction = angle + (random() - .5) * .8;
+    context.strokeStyle = `rgb(${coat.map(value => Math.max(0, Math.min(255, value + shade))).join(',')})`; context.lineWidth = 1 + random() * 1.5;
+    context.beginPath(); context.moveTo(x, y); context.lineTo(x + Math.cos(direction) * length, y + Math.sin(direction) * length); context.stroke();
+  }
+  context.fillStyle = 'rgb(24,20,18)';
+  for (const side of [-1, 1]) { context.beginPath(); context.arc(centerX + radiusX * .2 + side * radiusX * .2, centerY - radiusY * 1.05, 14, 0, Math.PI * 2); context.fill(); }
+  context.beginPath(); context.ellipse(centerX + radiusX * .2, centerY - radiusY * .8, 22, 16, 0, 0, Math.PI * 2); context.fill();
+  const pixels = context.getImageData(0, 0, width, height);
+  for (let offset = 0; offset < pixels.data.length; offset += 4) { const jitter = (random() + random() - 1) * 6; for (let channel = 0; channel < 3; channel += 1) pixels.data[offset + channel] = Math.max(0, Math.min(255, pixels.data[offset + channel] + jitter)); }
+  context.putImageData(pixels, 0, 0);
+  const blob = await canvas.convertToBlob({type: 'image/jpeg', quality: .85}); const bitmap = await createImageBitmap(blob);
+  const encoded = new OffscreenCanvas(width, height); encoded.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close?.();
+  return {canvas: encoded, width, height};
+}
