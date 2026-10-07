@@ -100,10 +100,14 @@ for (const bad of [undefined, null, '', 'nonsense']) {
 }
 
 // ── 3. The loader actually uses it ───────────────────────────────────────
+// LOTBI-CONSUMER-THEME-SYNC-01 — the shared screen-mode cookie (chosen in
+// Account settings) now comes first; this namespace/durable resolution is what
+// is left for someone who has no shared value yet, and it must still carry the
+// device choice forward rather than resetting to 'system'.
 assert.ok(
-  conversation.includes('theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),'),
-  'switchNamespace must resolve the theme through resolveNamespaceTheme with the durable key as the '
-  + 'fallback — inlining the old ternary brings the reset straight back',
+  conversation.includes('theme: sharedThemePreference() ?? adoptLegacyTheme(resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme())),'),
+  'switchNamespace must take the shared screen mode first and otherwise resolve the theme through '
+  + 'resolveNamespaceTheme with the durable key as the fallback — inlining the old ternary brings the reset straight back',
 );
 assert.ok(
   !/includes\(loadedPreferences\.theme\)\s*\?\s*loadedPreferences\.theme\s*:\s*'system'/.test(conversation),

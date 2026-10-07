@@ -28,15 +28,17 @@ const tokens = read('site-theme-tokens.css');
 const workflow = read('.github/workflows/site-review.yml');
 
 // ── 1. The schedule itself, run rather than read ──────────────────────────
-const start = conversation.indexOf('const AUTO_THEME_DARK_HOUR');
-const end = conversation.indexOf('// SITE-THEME-BOOTSTRAP-FIRST-PAINT-01', start);
-assert.ok(start >= 0 && end > start, 'the theme schedule must remain independently testable');
-const context = {Date};
-vm.runInNewContext(
-  `${conversation.slice(start, end)}\nthis.resolveScheduledTheme = resolveScheduledTheme;\nthis.millisecondsUntilNextThemeBoundary = millisecondsUntilNextThemeBoundary;`,
-  context,
+// LOTBI-CONSUMER-THEME-SYNC-01 — the schedule now lives in the module Account
+// mirrors, so both origins switch on the same minute. It is run from there.
+const themeModule = await import(new URL('../site-theme-preference.js', import.meta.url));
+const resolveScheduledTheme = now => themeModule.resolveThemePreference('auto', now);
+const {millisecondsUntilNextThemeBoundary} = themeModule;
+assert.ok(
+  conversation.includes("return resolveThemePreference('auto', now);"),
+  'site-conversation.js must resolve 자동모드 through the shared module, not a second copy of the clock',
 );
-const {resolveScheduledTheme, millisecondsUntilNextThemeBoundary} = context;
+assert.ok(!conversation.includes('const AUTO_THEME_DARK_HOUR'), 'a second copy of the 자동모드 boundaries must not return');
+void vm;
 
 const at = (hour, minute = 0) => new Date(2026, 8, 23, hour, minute, 0, 0);
 // 18:00 is dark and 07:00 is light, inclusive on the hour itself — an exclusive
@@ -161,6 +163,7 @@ try{
 const conversation=await import('/site-conversation.js?v=20260924-chatmedia3');
 root.innerHTML=\`${SKELETON}\`;
 localStorage.clear();sessionStorage.clear();
+document.cookie='lotbi_theme_preference_v1=; Path=/; Max-Age=0';document.cookie='lotbi_theme_preference_import_v1=; Path=/; Max-Age=0';
 localStorage.setItem('lotbi.site.ux.v1.preferences.'+NS,JSON.stringify({theme:'auto'}));
 localStorage.setItem('lotbi.site.theme.bootstrap.v1','auto');
 document.body.dataset.siteAuthState='authenticated';
@@ -179,12 +182,20 @@ const auto={preference:document.body.dataset.siteThemePreference,
   stored:localStorage.getItem('lotbi.site.theme.bootstrap.v1'),
   expected,hour,
   themeColor:document.querySelector('meta[name="theme-color"]').getAttribute('content')};
-localStorage.setItem('lotbi.site.ux.v1.preferences.'+NS+'-dark',JSON.stringify({theme:'dark'}));
-localStorage.setItem('lotbi.site.theme.bootstrap.v1','dark');
-window.dispatchEvent(new CustomEvent('lotbi:site-session-state',{detail:{authenticated:true,identityKey:NS+'-dark'}}));
+const imported={cookie:document.cookie};
+// LOTBI-CONSUMER-THEME-SYNC-01 — Account settings switch the shared screen mode to
+// 다크 while this tab waits; coming back to the tab must pick it up.
+document.cookie='lotbi_theme_preference_v1=dark; Path=/; SameSite=Lax; Max-Age=600';
+document.cookie='lotbi_theme_preference_import_v1=; Path=/; Max-Age=0';
+window.dispatchEvent(new Event('focus'));
 await wait(()=>document.body.dataset.siteTheme==='dark','dark applied');
 const dark={preference:document.body.dataset.siteThemePreference,applied:document.body.dataset.siteTheme,stored:localStorage.getItem('lotbi.site.theme.bootstrap.v1')};
-out.textContent=JSON.stringify({ok:true,report:{labels,auto,dark}});
+// Signing into another account on this browser keeps the one screen mode.
+localStorage.setItem('lotbi.site.ux.v1.preferences.'+NS+'-light',JSON.stringify({theme:'light'}));
+window.dispatchEvent(new CustomEvent('lotbi:site-session-state',{detail:{authenticated:true,identityKey:NS+'-light'}}));
+await sleep(300);
+dark.afterNamespaceSwitch=document.body.dataset.siteTheme;
+out.textContent=JSON.stringify({ok:true,report:{labels,auto,imported,dark}});
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
 
@@ -231,8 +242,14 @@ assert.equal(report.auto.applied, report.auto.expected, `${report.auto.hour}시�
 assert.equal(report.auto.bootstrap, report.auto.expected, 'html 의 bootstrap 속성도 해석된 값이어야 합니다');
 assert.notEqual(report.auto.applied, 'auto', 'data-site-theme 에 auto 가 새어나가면 안 됩니다');
 assert.equal(report.auto.themeColor, report.auto.expected === 'dark' ? '#212121' : '#ffffff', '브라우저 상단 색도 따라가야 합니다');
-assert.equal(report.dark.preference, 'dark', '자동을 껐다면 preference 도 바뀌어야 합니다');
-assert.equal(report.dark.stored, 'dark', '자동을 껐다면 pre-paint 키도 바뀌어야 합니다');
+// LOTBI-CONSUMER-THEME-SYNC-01 — the old per-origin 자동 was an explicit choice, so
+// it is carried into the shared screen mode, marked as imported from the Site.
+assert.ok(report.imported.cookie.split('; ').includes('lotbi_theme_preference_v1=auto'), '예전 자동모드 선택은 공유 화면 모드로 옮겨져야 합니다');
+assert.ok(report.imported.cookie.split('; ').includes('lotbi_theme_preference_import_v1=site'), 'Site 에서 옮긴 값이라는 표시가 있어야 합니다');
+assert.equal(report.dark.preference, 'dark', 'Account 에서 바꾼 화면 모드는 탭으로 돌아오면 반영되어야 합니다');
+assert.equal(report.dark.applied, 'dark', 'Account 에서 바꾼 다크가 적용되어야 합니다');
+assert.equal(report.dark.stored, 'dark', '정적 페이지가 읽는 예전 키도 공유 값을 따라가야 합니다');
+assert.equal(report.dark.afterNamespaceSwitch, 'dark', '다른 계정으로 바뀌어도 이 브라우저의 화면 모드는 그대로여야 합니다');
 
 console.log('SITE-THEME-AUTO-SCHEDULE-02', JSON.stringify(report));
 console.log('SITE-THEME-AUTO-SCHEDULE-02 OK — 자동모드는 시계를 따라갑니다');

@@ -7,6 +7,15 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # The stock mime.types has no .mjs entry, so the Avatar runtime ES modules
+    # were served as application/octet-stream and browsers refused to run them.
+    # A types block here replaces the inherited http-level map, so re-include
+    # the stock list first and only add what it lacks (.wasm is already there).
+    include /etc/nginx/mime.types;
+    types {
+        application/javascript mjs;
+    }
+
     location = /.well-known/apple-app-site-association {
         default_type application/json;
         try_files $uri =404;
