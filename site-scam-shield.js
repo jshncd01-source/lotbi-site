@@ -226,6 +226,7 @@ async function openDialog(event) {
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
   }
+  notifyScamShieldVisibility();
   const authenticated = await requestSessionAvailability();
   if (sequence !== openSequence || !dialog.hasAttribute('open')) return;
   if (authenticated) showWorkspace();
@@ -259,12 +260,31 @@ function closeDialog() {
   stopVoiceRecognition();
   if (typeof dialog.close === 'function') {
     dialog.close();
+    // Chrome can hold the 'close' event until a frame is rendered, and a hidden
+    // tab renders none; the URL follows the dialog now, not when it is shown.
+    notifyScamShieldVisibility();
     return;
   }
   dialog.removeAttribute('open');
   dialog.removeAttribute('aria-modal');
   restoreDialogFocus();
+  notifyScamShieldVisibility();
 }
+
+// SITE-REFRESH-ROUTE-RESTORE-01 — 진위확인 is the /#scam route. Like the
+// session and login requests above, the conversation's route owner talks to
+// this dialog through window events: it asks it to open/close for reload and
+// back/forward, and hears every open/close so the URL follows the dialog.
+function notifyScamShieldVisibility() {
+  try { window.dispatchEvent(new CustomEvent('lotbi:scam-shield-visibility')); } catch {}
+}
+
+window.addEventListener('lotbi:scam-shield-open-request', () => {
+  if (dialog && !dialog.hasAttribute('open')) void openDialog();
+});
+window.addEventListener('lotbi:scam-shield-close-request', () => {
+  if (dialog?.hasAttribute('open')) closeDialog();
+});
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !event.defaultPrevented && dialog?.hasAttribute('open')) {
@@ -438,6 +458,7 @@ function bindScamShield() {
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog();
     });
     dialog.addEventListener('close', restoreDialogFocus);
+    dialog.addEventListener('close', notifyScamShieldVisibility);
   }
 
   document.querySelectorAll('[data-scam-open]').forEach(button => {

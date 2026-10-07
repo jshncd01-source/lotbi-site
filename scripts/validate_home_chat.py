@@ -308,9 +308,10 @@ def main() -> int:
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
-    # +1 sealed Avatar import map, +2 exact-purpose inline bootstraps:
-    # theme first-paint and HTTP→HTTPS custom-domain canonicalization.
-    if text.lower().count("<script") != len(approved_scripts) + 3 or any(approved not in text for approved in approved_scripts):
+    # +1 sealed Avatar import map, +3 exact-purpose inline bootstraps:
+    # theme first-paint, HTTP→HTTPS custom-domain canonicalization and the
+    # SITE-REFRESH-ROUTE-RESTORE-01 route marker (pinned in validate_hardening.py).
+    if text.lower().count("<script") != len(approved_scripts) + 4 or any(approved not in text for approved in approved_scripts):
         errors.append(
             "index.html: only the approved import map and "
             "home/avatar/mobile/conversation/continuity/footer-legal scripts are allowed"
