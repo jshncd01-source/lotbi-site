@@ -22,7 +22,11 @@ assert.match(js, /workspace: section/);
 const calendarSurface = js.slice(js.indexOf('const openCalendar = async'), js.indexOf('const bindCalendarEntries'));
 assert.match(calendarSurface, /panel\.classList\.add\('site-calendar-modal', 'site-calendar-chat-popup'\)/);
 assert.match(calendarSurface, /installSurfaceBehavior\(backdrop, panel, \{\s*modal: true,/);
+assert.match(calendarSurface, /modal: true,\s*dismissOnBackdrop: false,/,
+  'Calendar chat modal must stay open when its backdrop or blank modal area is clicked');
 assert.doesNotMatch(calendarSurface, /workspace:/, 'Calendar must remain an overlay over the chat');
+assert.match(js, /dismissOnBackdrop = true/,
+  'Other surfaces must retain backdrop dismissal unless they explicitly opt out');
 assert.match(js, /mainScrollHost.inert = true/);
 assert.match(js, /mainScrollHost.inert = false/);
 assert.match(js, /else if \(!workspace\) trapFocus/);
