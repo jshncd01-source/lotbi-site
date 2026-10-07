@@ -90,6 +90,29 @@ try {
   const deskTones = tones(deskPreview, 0, 1); const deskBottom = tones(deskPreview, .97, 1);
   const deskView = {mode: deskScanner.element.dataset.scanMode, paper: deskTones(.8), ink: deskTones(.02), bottomRow: deskBottom(.5), warnings: deskScanner.element.querySelector('.wallet-scan-warnings').textContent};
   deskScanner.destroy(); globalThis.createImageBitmap = nativeBitmap;
+  // Only printed items are saved. A pet photo is refused outright; on an uncertain photo with
+  // print, a hand-placed crop is saved only while it frames the print.
+  const pet = await scenes.renderPetPhotoScene(1);
+  globalThis.createImageBitmap = async () => pet.canvas;
+  const petScanner = module.createWalletDocumentScanner({file: new File([await pet.canvas.convertToBlob({type: 'image/jpeg'})], 'synthetic-pet.jpg', {type: 'image/jpeg'})});
+  document.getElementById('host').replaceChildren(petScanner.element);
+  await wait(() => petScanner.element.dataset.scanState === 'review', 'pet review state');
+  const petView = {mode: petScanner.element.dataset.scanMode, reason: petScanner.element.dataset.scanReason, confirmEnabled: !petScanner.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: petScanner.element.querySelector('[data-wallet-scan-adjust]').hidden};
+  petScanner.destroy();
+  const note = new OffscreenCanvas(900, 700); const noteContext = note.getContext('2d');
+  noteContext.fillStyle = '#cfcfcf'; noteContext.fillRect(0, 0, 900, 700); noteContext.fillStyle = '#2a2a2a';
+  for (let row = 0; row < 4; row += 1) for (let glyph = 0; glyph < 16; glyph += 1) noteContext.fillRect(600 + glyph * 16, 560 + row * 26, 10, 12);
+  globalThis.createImageBitmap = async () => note;
+  const noteScanner = module.createWalletDocumentScanner({file: new File([await note.convertToBlob({type: 'image/png'})], 'synthetic-note.png', {type: 'image/png'})});
+  document.getElementById('host').replaceChildren(noteScanner.element);
+  await wait(() => noteScanner.element.dataset.scanState === 'review', 'uncertain print review state');
+  const noteConfirm = noteScanner.element.querySelector('[data-wallet-scan-confirm]');
+  const press = async (corner, key, times) => { const handle = noteScanner.element.querySelector('.wallet-scan-handle[data-corner="' + corner + '"]'); for (let step = 0; step < times; step += 1) handle.dispatchEvent(new KeyboardEvent('keydown', {key, shiftKey: true, bubbles: true})); await sleep(400); await wait(() => noteScanner.element.dataset.scanState === 'review', 'review after adjusting'); };
+  const manualView = {mode: noteScanner.element.dataset.scanMode, initialConfirm: !noteConfirm.disabled};
+  await press('topLeft', 'ArrowRight', 1); manualView.framingConfirm = !noteConfirm.disabled;
+  await press('bottomRight', 'ArrowUp', 30); await press('bottomRight', 'ArrowLeft', 30);
+  manualView.blankConfirm = !noteConfirm.disabled; manualView.blankStatus = noteScanner.element.querySelector('.wallet-scan-status').textContent;
+  noteScanner.destroy(); globalThis.createImageBitmap = nativeBitmap;
   // A phone photo stored as 9000x6000 pixels with EXIF orientation 6 is a 6000x9000 portrait;
   // the bounded decode size must follow the rotated frame or the page is squashed.
   let rotatedOptions = null; globalThis.createImageBitmap = (input, options) => { rotatedOptions = options; return Promise.reject(new Error('decode stub')); };
@@ -97,7 +120,7 @@ try {
   const rotatedScanner = module.createWalletDocumentScanner({file: new File([rotatedHeader], 'rotated.jpg', {type: 'image/jpeg'})});
   await wait(() => rotatedOptions, 'rotated decode options'); rotatedScanner.destroy();
   globalThis.createImageBitmap = nativeBitmap;
-  window.__result = {ok: true, automatic, ambiguous, rotatedOptions, pageView, deskView};
+  window.__result = {ok: true, automatic, ambiguous, rotatedOptions, pageView, deskView, petView, manualView};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
@@ -108,7 +131,7 @@ const result = await runFixturePage({
 });
 assert.equal(result.ok, true, result.error);
 {
-  const {automatic, ambiguous, rotatedOptions, pageView, deskView} = result;
+  const {automatic, ambiguous, rotatedOptions, pageView, deskView, petView, manualView} = result;
   assert.equal(rotatedOptions.imageOrientation, 'from-image');
   assert.deepEqual([rotatedOptions.resizeWidth, rotatedOptions.resizeHeight], [1707, 2560], `EXIF-rotated photo must be bounded in its rotated frame: ${JSON.stringify(rotatedOptions)}`);
   const detail = JSON.stringify({...automatic, text: undefined});
@@ -141,6 +164,15 @@ assert.equal(result.ok, true, result.error);
   assert.ok(deskView.ink <= 110, `print must stay dark after paper correction: ${JSON.stringify(deskView)}`);
   assert.ok(deskView.bottomRow >= 150, `the dark desk below the sheet must not remain in the page: ${JSON.stringify(deskView)}`);
   assert.equal(deskView.warnings, '', `a page filling the frame must not ask for a retake: ${JSON.stringify(deskView)}`);
+  assert.equal(petView.mode, 'manual', `a pet photo must not be cropped: ${JSON.stringify(petView)}`);
+  assert.equal(petView.reason, 'not-a-document', `a pet photo must be refused: ${JSON.stringify(petView)}`);
+  assert.equal(petView.confirmEnabled, false, 'a pet photo must never be savable');
+  assert.equal(petView.adjustHidden, true, 'no manual adjustment for a pet photo');
+  assert.equal(manualView.mode, 'manual', `the uncertain print scene must need manual corners: ${JSON.stringify(manualView)}`);
+  assert.equal(manualView.initialConfirm, false, 'save stays off until corners are placed');
+  assert.equal(manualView.framingConfirm, true, `corners framing the print must allow saving: ${JSON.stringify(manualView)}`);
+  assert.equal(manualView.blankConfirm, false, `corners framing no print must not allow saving: ${JSON.stringify(manualView)}`);
+  assert.ok(manualView.blankStatus.includes('모서리 안에 신분증이나 문서가 보이지 않습니다'), `blank-crop message: ${manualView.blankStatus}`);
   assert.equal(ambiguous.confirmEnabled, false, 'ambiguous scenes keep save disabled until the user adjusts corners');
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_UI_02 PASS — aspect=${automatic.aspect.toFixed(3)} edge_surface=${automatic.edgeSurfaceRatio.toFixed(3)} ambiguous=${ambiguous.reason}`);
 }

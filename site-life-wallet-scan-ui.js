@@ -1,5 +1,5 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-14d6e47fa107';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-14d6e47fa107';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-cf554b8c19df';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-cf554b8c19df';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -90,7 +90,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
   shell.append(heading,privacy,status,workspace,warnings,choices,actions);
 
-  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
+  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let manualFramesItem=false; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
   function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}if(pdfDocument){void pdfDocument.destroy();pdfDocument=null}}
@@ -123,8 +123,12 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
       latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced);
       warnings.replaceChildren(); if(result.warnings.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of result.warnings)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
       const automatic=shell.dataset.scanMode==='automatic';
-      status.textContent=automatic?'배경과 여백을 자동으로 제거했습니다. 결과를 확인해 주세요.':notDocument?'신분증이나 문서로 보이지 않습니다. 신분증이나 문서 사진을 선택해 주세요.':shell.dataset.scanReason==='receipt-like'?'영수증은 자동으로 등록하지 않습니다. 신분증·카드·문서 사진을 선택해 주세요.':'자료 테두리를 찾지 못했습니다. 다시 선택하거나 직접 조정해 주세요.';
-      confirm.disabled=notDocument||(!automatic&&!manualGeometryChanged()); shell.dataset.scanState='review';
+      // A hand-placed crop is saved only when it frames a printed item (a pet never qualifies).
+      const adjusted=!automatic&&manualGeometryChanged();
+      const printed=adjusted&&framesPrintedItem(detectionImage,Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*detectionScale,y:point.y*detectionScale}])));
+      manualFramesItem=automatic||printed;
+      status.textContent=automatic?'배경과 여백을 자동으로 제거했습니다. 결과를 확인해 주세요.':notDocument?'신분증이나 문서로 보이지 않습니다. 신분증이나 문서 사진을 선택해 주세요.':adjusted&&!printed?'모서리 안에 신분증이나 문서가 보이지 않습니다. 자료에 맞춰 모서리를 조정해 주세요.':shell.dataset.scanReason==='receipt-like'?'영수증은 자동으로 등록하지 않습니다. 신분증·카드·문서 사진을 선택해 주세요.':'자료 테두리를 찾지 못했습니다. 다시 선택하거나 직접 조정해 주세요.';
+      confirm.disabled=notDocument||!manualFramesItem; shell.dataset.scanState='review';
     }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
   }
 
@@ -144,7 +148,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   async function analyse(nextSource) {
     source=nextSource; detectedCorners=null; fallbackCorners=null; cornerRadius=0; paperPage=false; notDocument=false; latest='';
     const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
-    const detection=detectionPixels(source); const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+    const detection=detectionPixels(source); detectionImage=detection.imageData; detectionScale=detection.scale; const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
     notDocument=reason==='not-a-document'; adjust.hidden=notDocument;
@@ -177,7 +181,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   function openAdjustment(){sourcePane.hidden=false;shell.dataset.scanAdjusting='true';adjust.textContent='조정 닫기';handles.get('topLeft')?.focus()}
   function closeAdjustment(){sourcePane.hidden=true;shell.dataset.scanAdjusting='false';adjust.textContent='직접 조정';resultImage.focus?.()}
   adjust.addEventListener('click',()=>shell.dataset.scanAdjusting==='true'?closeAdjustment():openAdjustment());
-  confirm.addEventListener('click',()=>{if(!latest||destroyed||notDocument)return;if(shell.dataset.scanMode!=='automatic'&&!manualGeometryChanged()){confirm.disabled=true;return}onConfirm(latest)});
+  confirm.addEventListener('click',()=>{if(!latest||destroyed||notDocument)return;if(!manualFramesItem){confirm.disabled=true;return}onConfirm(latest)});
   cancel.addEventListener('click',()=>{if(!destroyed)onCancel();destroy()}); replace.addEventListener('click',()=>{if(!destroyed)onReplace();destroy()});
 
   function destroy(){if(destroyed)return;destroyed=true;renderVersion+=1;releaseResources();shell.replaceChildren()}

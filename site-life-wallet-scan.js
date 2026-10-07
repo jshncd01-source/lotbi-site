@@ -1027,6 +1027,18 @@ function pageLike(working,corners){
   return level>=110&&tones.filter(tone=>tone>=level*.72).length>=samples*.55;
 }
 
+// Fewest printed rows a wallet item shows (real IDs show about ten; pets one or two).
+const MINIMUM_TEXT_LINES=3;
+
+// Printed rows inside corners the user placed by hand: a manual crop is only saved when it
+// frames a printed item, so a pet cannot be saved by dragging the corners around it.
+export function framesPrintedItem(imageData,corners,{maximumEdge=720}={}){
+  const working=workingGray(imageData,maximumEdge);const {width,height}=working;
+  const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
+  const scaled=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*working.scale,y:point.y*working.scale}]));
+  return textLines(working,smooth,light,scaled)>=MINIMUM_TEXT_LINES;
+}
+
 export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
@@ -1047,10 +1059,10 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   else if(surface.status==='multiple')reason='competing-documents';
   else if(surface.status==='nested'){chosen=legacy;if(!legacy)reason='competing-boundaries'}
   else if(surface.status==='none'&&legacy&&surfaceConsistent(surface,legacy.corners,working.width,working.height))chosen=legacy;
-  // Wallet items are cards and documents: they carry printed rows of text. A photo with no
-  // such rows (a pet, a person, a room) is not cropped, and the scanner refuses to save it.
+  // Wallet items are IDs, licences, cards and documents: they carry printed rows of text. A
+  // photo with hardly any (a pet, a person, a room) is not cropped, and the scanner refuses it.
   const lines=textLines(working,surface.smooth,surface.light,null);
-  if(lines<2){chosen=null;reason='not-a-document'}
+  if(lines<MINIMUM_TEXT_LINES){chosen=null;reason='not-a-document'}
   // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
   // rooms a handful); a card needs a couple of lines of print inside its outline.
   else if(chosen&&textLines(working,surface.smooth,surface.light,chosen.corners)<(chosen.source==='full-page'?12:2)){chosen=null;reason='automatic-detection-uncertain'}

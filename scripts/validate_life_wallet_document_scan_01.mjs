@@ -29,7 +29,7 @@ try {
   context.fillStyle = '#e9dcae'; context.fill(); context.lineWidth = 8; context.strokeStyle = '#ffffff'; context.stroke();
   context.fillStyle = '#315c7d'; context.fillRect(150,115,190,18); context.fillRect(150,155,150,12); context.fillRect(150,185,210,12);
   // Printed rows, as on any card or document.
-  for(let row=0;row<5;row+=1)for(let glyph=0;glyph<18;glyph+=1){context.fillStyle='#2a2a2a';context.fillRect(125+glyph*13,98+row*30,8,10)};
+  for(const top of [96,205,228,251])for(let glyph=0;glyph<18;glyph+=1){context.fillStyle='#2a2a2a';context.fillRect(125+glyph*13,top,8,10)};
   const automatic = scan.detectDocumentCorners(context.getImageData(0,0,480,320));
   const corrected = await scan.rectifyDocument(canvas, automatic.corners, {enhance:false});
   const correctedImage = new Image(); correctedImage.src = corrected.dataUrl; await correctedImage.decode();
@@ -107,7 +107,7 @@ try {
   const squareDetection=scan.detectDocumentCorners(squareContext.getImageData(0,0,460,420));
   const receiptPhoto=document.createElement('canvas');receiptPhoto.width=640;receiptPhoto.height=300;const receiptContext=receiptPhoto.getContext('2d',{willReadFrequently:true});receiptContext.fillStyle='#2c3b42';receiptContext.fillRect(0,0,640,300);receiptContext.fillStyle='#e7e1c9';receiptContext.fillRect(60,85,520,130);receiptContext.fillStyle='#293d50';receiptContext.fillRect(120,115,350,10);receiptContext.fillRect(120,145,280,8);receiptContext.fillRect(120,175,390,8);
   // A low receipt: rows go in the free bands above and below its printed bars.
-  printRows(receiptContext,[60, 85, 580, 215],[92, 192]);
+  printRows(receiptContext,[60, 85, 580, 215],[92, 161, 192]);
   const receiptDetection=scan.detectDocumentCorners(receiptContext.getImageData(0,0,640,300));
   out.textContent = JSON.stringify({ok:true, ordered, diamond, automatic, manual, internalBorder, walletDetection, framedDetection, smallFramedDetection, compactFramedDetection, texturedDetection, blobDetection, colorDetection, nestedDetection, narrowDetection, narrowPanelDetection, squareDetection, receiptDetection, corrected:{...corrected,dataUrl:corrected.dataUrl.slice(0,32),corners:[sample(2,2),sample(corrected.width-3,2),sample(corrected.width-3,corrected.height-3),sample(2,corrected.height-3)],colorSample:sample(Math.round(corrected.width*.75),Math.round(corrected.height*.75))},largeResult:{width:largeResult.width,height:largeResult.height},smallResult:{width:smallResult.width,height:smallResult.height},quality});
 } catch (error) { out.textContent = JSON.stringify({ok:false,error:String(error?.stack||error)}); }
