@@ -175,6 +175,14 @@ jobs:
       - name: Validate chat answer quality P0 (conversation tail, tables)
         run: node scripts/validate_chat_answer_quality_p0_01.mjs
 
+      # 실사용: a long answer carried the screen to its last line and the
+      # question just sent went off the top. The question now stays at the top
+      # with its answer starting under it; only the reader, ↓ 최신 답변 or the
+      # next question move it. Measured as on-screen item positions at 375x667,
+      # 390x844 and 1280x900, through streaming, completion and the keyboard.
+      - name: Validate long answer scroll anchor
+        run: node scripts/validate_chat_long_answer_scroll_anchor_01.mjs
+
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
       # `fixed` would pass the first half and eat the second on a short screen.

@@ -1,26 +1,26 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-51ec5061fe5f';
-import * as siteCore from './site-core.js?v=aset-51ec5061fe5f';
-import './site-scam-shield.js?v=aset-51ec5061fe5f';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-51ec5061fe5f';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-51ec5061fe5f';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-51ec5061fe5f';
-import * as siteAttachments from './site-attachments.js?v=aset-51ec5061fe5f';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-51ec5061fe5f';
-import {deterministicReply} from './site-deterministic.js?v=aset-51ec5061fe5f';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-51ec5061fe5f';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-51ec5061fe5f';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-51ec5061fe5f';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-51ec5061fe5f';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-51ec5061fe5f';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-51ec5061fe5f';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-51ec5061fe5f';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-51ec5061fe5f';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-51ec5061fe5f';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-51ec5061fe5f';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-51ec5061fe5f';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-51ec5061fe5f';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-51ec5061fe5f';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-51ec5061fe5f';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-27c9f13177a1';
+import * as siteCore from './site-core.js?v=aset-27c9f13177a1';
+import './site-scam-shield.js?v=aset-27c9f13177a1';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-27c9f13177a1';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-27c9f13177a1';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-27c9f13177a1';
+import * as siteAttachments from './site-attachments.js?v=aset-27c9f13177a1';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-27c9f13177a1';
+import {deterministicReply} from './site-deterministic.js?v=aset-27c9f13177a1';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-27c9f13177a1';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-27c9f13177a1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-27c9f13177a1';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-27c9f13177a1';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-27c9f13177a1';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-27c9f13177a1';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-27c9f13177a1';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-27c9f13177a1';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-27c9f13177a1';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-27c9f13177a1';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-27c9f13177a1';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-27c9f13177a1';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-27c9f13177a1';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-27c9f13177a1';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -179,7 +179,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-51ec5061fe5f';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-27c9f13177a1';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -272,7 +272,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-51ec5061fe5f');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-27c9f13177a1');
   return shareWithKakaoTalk(options);
 }
 
@@ -280,7 +280,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-51ec5061fe5f');
+    const module = await import('./site-kakao-share.js?v=aset-27c9f13177a1');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -1039,8 +1039,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!document.body.classList.contains('conversation-active')) mainScrollHost.scrollTop = 0;
     });
   };
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — the newest question, while it is where
+  // the reader reads from (see setTurnAnchor below). The space element sits
+  // between the thread and the composer and is only ever as tall as the room
+  // that question needs to reach the top of the screen.
+  let turnAnchor = null;
+  let holdTurnAnchor = false;
+  const turnSpace = document.createElement('div');
+  turnSpace.className = 'conversation-turn-space';
+  turnSpace.setAttribute('aria-hidden', 'true');
+  thread.after(turnSpace);
+  const releaseTurnAnchor = () => { turnAnchor = null; holdTurnAnchor = false; turnSpace.style.height = '0px'; };
   const showBlankHome = () => {
     restoreAvatarHome(); thread.replaceChildren(); lastRenderedCreatedAt = undefined; thread.hidden = true; document.body.classList.remove('conversation-active');
+    releaseTurnAnchor();
     resetBlankHomeScroll();
   };
   window.addEventListener('pageshow', resetBlankHomeScroll);
@@ -1089,11 +1101,146 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const editable = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]');
     if (!editable && READER_SCROLL_KEYS.has(event.key)) markReaderScroll(event);
   });
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — 실사용: "답변이 길어지면 화면이 답변
+  // 마지막 문장까지 계속 내려가서, 방금 보낸 질문과 답변 시작을 보려면 다시
+  // 올려야 한다". Sending a question used to switch following on, so a long
+  // answer carried the reader to its last line and pushed the question off the
+  // top.
+  //
+  // Sending now anchors instead: the question is brought to the top of the
+  // reading area (under the sticky bar) and held there while the answer, its
+  // cards and its images arrive below it. The hold survives growth, the
+  // keyboard opening or closing and the answer completing; the reader's own
+  // scrolling releases it, and so does a scroll the page itself makes
+  // elsewhere (movedAwayFromTurnAnchor). From then on nothing moves the reading position
+  // but the reader, the ↓ 최신 답변 control, and the next question. Following
+  // the bottom still exists, but a reader only gets it by scrolling to the end
+  // themselves (or by opening a conversation, which lands on its newest message).
+  const TURN_ANCHOR_GAP = 12;
+  const topbar = document.querySelector('.chat-topbar');
+  const readingAreaTop = () => {
+    const hostTop = mainScrollHost.getBoundingClientRect().top;
+    return topbar instanceof HTMLElement ? Math.max(hostTop, topbar.getBoundingClientRect().bottom) : hostTop;
+  };
+  // The scrollTop that puts the anchored question at the top of the reading
+  // area, wherever the reader is now.
+  const turnAnchorScrollTop = () => {
+    if (!(turnAnchor instanceof HTMLElement) || !turnAnchor.isConnected || thread.hidden) return null;
+    return Math.max(0, Math.round(mainScrollHost.scrollTop + turnAnchor.getBoundingClientRect().top - readingAreaTop() - TURN_ANCHOR_GAP));
+  };
+  // A question near the end of a long conversation cannot reach the top while
+  // its answer is shorter than the screen: there is nothing below it to scroll
+  // into. turnSpace supplies exactly the missing height and shrinks as the
+  // answer grows, so it never causes a jump. It stays after the answer
+  // completes, because taking it away would clamp the reader back down.
+  const syncTurnSpace = () => {
+    const target = turnAnchorScrollTop();
+    if (target === null) { if (turnSpace.style.height !== '0px') turnSpace.style.height = '0px'; return; }
+    let space = Number.parseFloat(turnSpace.style.height) || 0;
+    // Part of the space can be absorbed by the free room a short conversation
+    // already has, so measure again until the question can really get there.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const next = Math.max(0, Math.round(space + target - (mainScrollHost.scrollHeight - mainScrollHost.clientHeight)));
+      if (Math.abs(next - space) < 1) break;
+      space = next;
+      turnSpace.style.height = `${space}px`;
+    }
+  };
+  const scrollToTurnAnchor = () => {
+    syncTurnSpace();
+    const target = turnAnchorScrollTop();
+    if (target !== null && Math.abs(mainScrollHost.scrollTop - target) >= 1) mainScrollHost.scrollTop = target;
+  };
+  // The bottom only counts as "following" when it lies past the anchored
+  // question's place at the top. While the answer is shorter than the screen
+  // the two are the same spot, and that spot belongs to the question.
+  const atTailPastTurnAnchor = () => {
+    if (!isThreadNearBottom()) return false;
+    const anchorTop = turnAnchorScrollTop();
+    return anchorTop === null || mainScrollHost.scrollTop > anchorTop + TURN_ANCHOR_GAP;
+  };
+  // Focusing the composer makes the browser scroll the conversation to
+  // "reveal" a composer that is sticky and already on screen - measured 394px
+  // at 375x667 as the keyboard opened, and iOS does the same. A reader on the
+  // tail or held on a question is put back by keepReadingPosition; a reader
+  // somewhere in the middle of an answer is put back here, on the line they
+  // were reading, until the keyboard has settled.
+  let composerFocusHold = null;
+  const readingLine = () => {
+    const top = readingAreaTop();
+    for (const node of thread.querySelectorAll('.chat-message-user, .chat-message-body > *, time.conversation-time-separator')) {
+      const box = node.getBoundingClientRect();
+      if (box.height > 0 && box.bottom > top + 1) return {node, top: box.top};
+    }
+    return null;
+  };
+  // The hold exists to survive growth, the keyboard and the composer. A scroll
+  // that none of those explain - the page's own scrollIntoView, find-in-page, a
+  // focused card being revealed - took the reader somewhere on purpose: the
+  // hold lets go there instead of pulling them back on the next resize.
+  // Right after a tap on the composer the browser reveals it (hundreds of
+  // pixels); while the viewport itself is resizing, the bar and the hero
+  // padding change by a few pixels. Neither is somewhere the reader was taken.
+  let composerFocusUntil = 0;
+  let viewportSettlingUntil = 0;
+  const settleViewport = ms => { viewportSettlingUntil = Math.max(viewportSettlingUntil, performance.now() + ms); };
+  const movedAwayFromTurnAnchor = top => {
+    const now = performance.now();
+    if (now <= composerFocusUntil) return false;
+    const target = turnAnchorScrollTop();
+    if (target === null) return false;
+    // A page that got shorter clamps scrollTop below the question's place;
+    // that is not a move away, and the turn space restores the room.
+    const maxTop = mainScrollHost.scrollHeight - mainScrollHost.clientHeight;
+    if (maxTop < target - 1 && top >= maxTop - 1) return false;
+    return Math.abs(top - target) > (now <= viewportSettlingUntil ? 24 : 2);
+  };
+  const holdReadingLineForComposer = () => {
+    // A finger on the composer is no longer scrolling the conversation (a tap
+    // also stops iOS momentum), so what follows is not the reader's scroll.
+    readerScrollUntil = 0;
+    composerFocusUntil = performance.now() + 900;
+    const line = thread.hidden || followThreadBottom || holdTurnAnchor ? null : readingLine();
+    composerFocusHold = line ? {...line, until: performance.now() + 900} : null;
+  };
+  const restoreReadingLine = () => {
+    const hold = composerFocusHold;
+    if (!hold) return false;
+    if (performance.now() > hold.until || !hold.node.isConnected || followThreadBottom || holdTurnAnchor) {
+      composerFocusHold = null;
+      return false;
+    }
+    const shift = hold.node.getBoundingClientRect().top - hold.top;
+    if (Math.abs(shift) >= 1) mainScrollHost.scrollTop += shift;
+    return true;
+  };
+  prompt.addEventListener('pointerdown', holdReadingLineForComposer, {passive: true});
+  let lastHostScrollTop = mainScrollHost.scrollTop;
   mainScrollHost.addEventListener('scroll', () => {
-    if (!readerScrollActive() && !isThreadNearBottom()) return;
-    followThreadBottom = isThreadNearBottom();
+    const top = mainScrollHost.scrollTop;
+    const moved = top - lastHostScrollTop;
+    lastHostScrollTop = top;
+    scheduleJumpLatestSync();
+    if (!readerScrollActive()) {
+      // Not the reader: iOS revealing the composer, the keyboard clamping
+      // scrollTop, LOTBI's own scrolls. These may switch following back on at
+      // the tail, never off - and never while a question is being held.
+      if (restoreReadingLine()) return;
+      if (holdTurnAnchor && movedAwayFromTurnAnchor(top)) holdTurnAnchor = false;
+      if (!holdTurnAnchor && atTailPastTurnAnchor()) followThreadBottom = true;
+      return;
+    }
+    composerFocusHold = null;
     // Momentum keeps scrolling after the finger lifts; it is still the reader's.
-    if (readerScrollActive()) readerScrollUntil = performance.now() + 250;
+    readerScrollUntil = performance.now() + 250;
+    if (Math.abs(moved) < 1) return;
+    // The reader's own scroll ends any hold. Going up stops following at once,
+    // even inside the 72px band; coming down to the tail starts it again, and
+    // coming down to a question still at the top holds that question again.
+    holdTurnAnchor = false;
+    if (moved < 0) followThreadBottom = false;
+    else if (atTailPastTurnAnchor()) followThreadBottom = true;
+    else if (turnAnchor && isThreadNearBottom()) holdTurnAnchor = true;
   }, {passive: true});
 
   // The one way the conversation is brought to its newest message. It scrolls
@@ -1103,7 +1250,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let tailFrame = 0;
   let tailTimer = 0;
   const scrollToConversationTail = ({force = false} = {}) => {
-    if (force) followThreadBottom = true;
+    if (force) { followThreadBottom = true; holdTurnAnchor = false; }
     if (!followThreadBottom || thread.hidden) return;
     scrollThread();
     cancelAnimationFrame(tailFrame);
@@ -1112,6 +1259,48 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     tailTimer = window.setTimeout(() => { if (followThreadBottom && !thread.hidden) scrollThread(); }, 320);
   };
   const stickThreadToBottom = () => scrollToConversationTail({force: true});
+  // Sending a question: it becomes the reading anchor and goes to the top now,
+  // with the answer to start right under it.
+  const setTurnAnchor = node => {
+    if (!(node instanceof HTMLElement)) return;
+    turnAnchor = node;
+    holdTurnAnchor = true;
+    followThreadBottom = false;
+    cancelAnimationFrame(tailFrame);
+    window.clearTimeout(tailTimer);
+    scrollToTurnAnchor();
+    requestAnimationFrame(() => { if (holdTurnAnchor && turnAnchor === node) scrollToTurnAnchor(); });
+  };
+  // Growth, the keyboard and resizes keep whatever the reader is doing: the
+  // tail for a reader following it, the question for a reader held on it, and
+  // nothing at all for a reader who scrolled somewhere themselves.
+  const keepReadingPosition = () => {
+    if (thread.hidden) return;
+    if (turnAnchor) syncTurnSpace();
+    if (followThreadBottom) scrollThread();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    else restoreReadingLine();
+    scheduleJumpLatestSync();
+  };
+  // ↓ 최신 답변: shown while there is more of the conversation below the screen;
+  // the only control that moves a reader to the newest message on request.
+  const jumpLatest = document.createElement('button');
+  jumpLatest.type = 'button';
+  jumpLatest.className = 'conversation-jump-latest';
+  jumpLatest.hidden = true;
+  jumpLatest.setAttribute('aria-label', '최신 답변으로 이동');
+  jumpLatest.textContent = '↓ 최신 답변';
+  jumpLatest.addEventListener('click', () => { stickThreadToBottom(); jumpLatest.hidden = true; });
+  document.querySelector('.chat-composer-stack')?.prepend(jumpLatest);
+  const JUMP_LATEST_DISTANCE = 120;
+  let jumpLatestFrame = 0;
+  function scheduleJumpLatestSync() {
+    cancelAnimationFrame(jumpLatestFrame);
+    jumpLatestFrame = requestAnimationFrame(() => {
+      const below = mainScrollHost.scrollHeight - mainScrollHost.scrollTop - mainScrollHost.clientHeight;
+      jumpLatest.hidden = thread.hidden || followThreadBottom || below <= JUMP_LATEST_DISTANCE;
+    });
+  }
   // LOTBI puts the cursor back in the composer after every answer. A plain
   // focus() makes the browser scroll the composer "into view" - measured at
   // 390x844, it pulled a reader who had scrolled up 417px down the
@@ -1124,21 +1313,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   if (typeof ResizeObserver === 'function') {
     // Fires for the thread's own growth and for any descendant that changes
     // size later — a loaded image, an expanded card, a late rich result.
-    new ResizeObserver(() => { if (followThreadBottom) scrollThread(); }).observe(thread);
+    new ResizeObserver(keepReadingPosition).observe(thread);
     // The scroller itself shrinking (keyboard, Safari's address bar) and the
     // composer growing (a long draft, attachments) move the bottom too, and
     // neither is a change inside the thread.
-    const tailObserver = new ResizeObserver(() => { if (followThreadBottom && !thread.hidden) scrollThread(); });
-    tailObserver.observe(mainScrollHost);
+    // Only the scroller's own resize is the viewport settling (keyboard,
+    // address bar); the composer shrinking back after a send is not.
+    new ResizeObserver(() => { settleViewport(700); keepReadingPosition(); }).observe(mainScrollHost);
+    const tailObserver = new ResizeObserver(keepReadingPosition);
     const composerStackForTail = document.querySelector('.chat-composer-stack');
     if (composerStackForTail) tailObserver.observe(composerStackForTail);
   }
-  // Tapping the composer means "I am about to reply": show the latest message
-  // right above it, even if the reader had scrolled up to look at something.
-  // A focus() LOTBI itself calls after an answer does not count — only a tap.
-  prompt.addEventListener('pointerdown', () => {
-    if (!thread.hidden) scrollToConversationTail({force: true});
-  }, {passive: true});
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: tapping the composer no longer drags the
+  // reader to the newest message. Someone reading a long answer from its start
+  // taps the composer to ask a follow-up about what they are reading; the
+  // keyboard opening keeps that place (keepReadingPosition), and ↓ 최신 답변 is
+  // there when they want the end. A reader already following the tail keeps
+  // the tail through the keyboard as before.
   window.addEventListener('pageshow', () => {
     if (document.body.classList.contains('conversation-active')) scrollToConversationTail();
   });
@@ -1159,18 +1350,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     window.clearTimeout(timestampRefreshTimer);
     timestampRefreshTimer = window.setTimeout(refreshConversationTimeLabels, millisecondsUntilNextLocalMidnight() + 50);
   };
-  const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
+  const appendNode = (node, {anchorTurn = false, suppressScroll = false} = {}) => {
     // Following is decided by the held intent, not by where scrollTop happens
     // to be: a shrinking viewport can leave a reader who was following more
-    // than 72px from a bottom that moved.
-    const shouldStick = forceScroll || (!suppressScroll && (followThreadBottom || isThreadNearBottom()));
+    // than 72px from a bottom that moved. Being near the bottom without
+    // following is exactly where an anchored question with a short answer
+    // sits, so nearness alone no longer pulls anyone down
+    // (CHAT-LONG-ANSWER-SCROLL-ANCHOR-01).
+    const shouldStick = !suppressScroll && !anchorTurn && followThreadBottom;
     showThread();
     if (node instanceof HTMLElement && node.dataset.role === 'assistant') {
       const row = document.createElement('div'); row.className = 'chat-assistant-row';
       const slot = document.createElement('div'); slot.className = 'assistant-avatar-slot'; slot.setAttribute('aria-hidden', 'true');
       slot.appendChild(avatar); row.append(slot, node); thread.appendChild(row);
     } else thread.appendChild(node);
-    if (!suppressScroll && shouldStick) stickThreadToBottom();
+    if (anchorTurn) setTurnAnchor(node);
+    else if (shouldStick) scrollToConversationTail();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    scheduleJumpLatestSync();
     return node;
   };
   const stopThinking = (handle, reason = 'cancel') => {
@@ -2748,6 +2945,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     releaseRenderedPreviewUrls();
     restoreAvatarHome(); thread.replaceChildren();
     lastRenderedCreatedAt = undefined;
+    releaseTurnAnchor();
     const record = threadRecord();
     if (!record || !record.messages.length) { showBlankHome(); return; }
     showThread();
@@ -3148,7 +3346,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-51ec5061fe5f');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-27c9f13177a1');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3176,7 +3374,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-51ec5061fe5f');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-27c9f13177a1');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3388,8 +3586,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-51ec5061fe5f'),
-          import('./site-pet.js?v=aset-51ec5061fe5f'),
+          import('./site-person.js?v=aset-27c9f13177a1'),
+          import('./site-pet.js?v=aset-27c9f13177a1'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3398,11 +3596,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-51ec5061fe5f');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-27c9f13177a1');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-51ec5061fe5f');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-27c9f13177a1');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4234,8 +4432,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         sizeBytes: item.sizeBytes,
       }));
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
-      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
+      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {anchorTurn: true});
       appendPersistedMessage({...userRecord, meta: {attachments: persistedAttachments}});
+    } else if (recovering && followThreadBottom) {
+      // The conversation was reopened with this question still unanswered: its
+      // answer starts under it exactly as if it had just been sent.
+      const question = [...thread.querySelectorAll('.chat-message-user')].pop();
+      if (question) setTurnAnchor(question);
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
@@ -4548,7 +4751,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // "near the bottom" is the wrong question; whether the reader was following
   // the conversation is the right one.
   window.addEventListener('lotbi:keyboard-viewport', () => {
-    if (!thread.hidden && followThreadBottom) scrollToConversationTail();
+    settleViewport(700);
+    if (thread.hidden) return;
+    if (followThreadBottom) scrollToConversationTail();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    else restoreReadingLine();
   });
 
   // The newest turn of the open conversation is a question whose answer never
