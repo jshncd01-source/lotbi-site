@@ -1,4 +1,4 @@
-import {SITE_CALLBACK_URI} from './site-core.js?v=aset-4d2e58d0bf4f';
+import {SITE_CALLBACK_URI} from './site-core.js?v=aset-251bf63f2c1c';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';

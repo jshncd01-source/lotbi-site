@@ -1,6 +1,6 @@
-import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=aset-4d2e58d0bf4f';
-import {SiteCoreError} from './site-core.js?v=aset-4d2e58d0bf4f';
-export {buildCalendarAriaLabel, countCalendarEventsByMonth, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=aset-4d2e58d0bf4f';
+import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=aset-251bf63f2c1c';
+import {SiteCoreError} from './site-core.js?v=aset-251bf63f2c1c';
+export {buildCalendarAriaLabel, countCalendarEventsByMonth, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=aset-251bf63f2c1c';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
