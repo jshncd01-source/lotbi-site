@@ -2764,6 +2764,25 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   border: 0;
 }
 
+/* PLACE-CARD-NAVER-SEARCH-CLICK-01 — the card body's NAVER search link is not
+   drawn; the card itself shows the focus ring while the link has focus. */
+.lotbi-place-search-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lotbi-place-orbit-card:has(.lotbi-place-search-link:focus-visible) {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 3px;
+}
+
 body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price,
 body[data-site-theme="dark"] .lotbi-place-license-evidence,
 body[data-site-theme="dark"] .lotbi-place-license-status {

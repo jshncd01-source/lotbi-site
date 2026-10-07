@@ -234,10 +234,13 @@ assert.match(renderer, /rail\.addEventListener\('pointerup'/u);
 assert.match(renderer, /Math\.abs\(delta\) >= 44/u);
 assert.match(renderer, /control\.tabIndex = current \? 0 : -1/u);
 assert.match(renderer, /control\.setAttribute\('aria-disabled', current \? 'false' : 'true'\)/u);
+// PLACE-CARD-NAVER-SEARCH-CLICK-01: the card body opens NAVER search; only the
+// map button opens the map handoff.
 assert.match(
   renderer,
-  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*cards\[index\]\.querySelector\('\[data-map-provider\]'\)\?\.click\(\);/u,
+  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*cards\[index\]\.querySelector\('\[data-place-search\]'\)\?\.click\(\);/u,
 );
+assert.doesNotMatch(renderer, /querySelector\('\[data-map-provider\]'\)\?\.click\(\)/u);
 
 // Current generated asset version must be the one the conversation runtime imports.
 assert.ok(conversationSource.includes(`./site-navigation.js?v=${assetVersion}`));

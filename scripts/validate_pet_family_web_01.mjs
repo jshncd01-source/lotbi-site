@@ -532,7 +532,7 @@ function innerFixtureHtml() {
   deleteTrigger.click();
   const deleteAfter = {trigger: box(deleteTrigger), confirm: box(confirmLine)};
 
-  // Photo uploader: 10 tiles, schematics on empty slots, blob previews on
+  // Photo uploader: 10 tiles, finished guides on empty slots, blob previews on
   // filled ones, and a progress line naming what is left.
   await new Promise(resolve => setTimeout(resolve, 400));
   const slotGrid = detail.querySelector('[data-pet-slot-grid]');
@@ -542,6 +542,7 @@ function innerFixtureHtml() {
     label: tile.querySelector('.pet-slot-label').textContent,
     hint: tile.querySelector('.pet-slot-hint').textContent,
     hasDiagram: Boolean(tile.querySelector('.pet-slot-diagram')),
+    artworkSrc: tile.querySelector('.pet-slot-guide-image')?.getAttribute('src') || '',
     previewSrc: tile.querySelector('.pet-slot-photo')?.getAttribute('src')?.slice(0, 5) || '',
     stuckLoading: Boolean(tile.querySelector('.pet-slot-loading')),
     accept: tile.querySelector('input[type="file"]').getAttribute('accept'),
@@ -850,7 +851,11 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     if (slot.filled === 'true') {
       assert.equal(slot.previewSrc, 'blob:', `${label}: filled slot ${slot.code} must preview from a blob, not a URL`);
     } else {
-      assert.ok(slot.hasDiagram, `${label}: empty slot ${slot.code} must show its shooting schematic`);
+      assert.match(
+        slot.artworkSrc,
+        /^assets\/pet\/dog-[a-z-]+-v1\.png$/,
+        `${label}: empty slot ${slot.code} must show its dog shooting artwork`,
+      );
     }
   }
   assert.equal(result.photoCount, '등록 완료 3 / 10 · 남은 사진 7장', `${label}: photo progress must count filled slots and name what is left`);

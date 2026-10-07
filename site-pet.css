@@ -675,12 +675,22 @@
 
 .pet-slot-media {
   position: relative;
-  aspect-ratio: 72 / 52;
+  aspect-ratio: 1;
   display: grid;
   place-items: center;
   overflow: hidden;
   border-radius: 9px;
   background: var(--lotbi-surface-hover, #f1f3f8);
+}
+
+.pet-slot-guide-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgb(46 35 79 / 12%));
 }
 
 .pet-slot-diagram {

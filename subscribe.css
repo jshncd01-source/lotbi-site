@@ -198,6 +198,27 @@
   box-shadow: 0 6px 18px rgba(24, 42, 70, .18);
 }
 
+/* Each card's CTA is a real link to that plan's Account checkout. Scoped
+   under the plan picker so the legal-page link underline (.legal .section a)
+   cannot turn the button back into an underlined text link. */
+.plan-picker .plan-grid .plan-card a.plan-card-cta,
+.plan-picker .plan-grid .plan-card a.plan-card-cta:visited,
+.plan-picker .plan-grid .plan-card a.plan-card-cta:hover {
+  min-height: 44px;
+  color: #fff;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.plan-picker .plan-grid .plan-card a.plan-card-cta:hover {
+  opacity: .92;
+}
+
+.plan-picker .plan-grid .plan-card a.plan-card-cta:focus-visible {
+  outline: 3px solid var(--brand-navy);
+  outline-offset: 3px;
+}
+
 .plan-actions {
   display: flex;
   flex-wrap: wrap;

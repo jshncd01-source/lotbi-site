@@ -61,6 +61,9 @@ jobs:
       - name: Validate footer business information is identical across pages
         run: python scripts/sync_footer_business_info.py --check
 
+      - name: Validate Subscribe to Account checkout handoff
+        run: node scripts/validate_subscribe_account_checkout_handoff_01.mjs
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts
@@ -160,6 +163,11 @@ jobs:
       - name: Validate answer scroll and markdown
         run: node scripts/validate_answer_scroll_markdown_01.mjs
 
+      # A question answered after the reader left (tab closed, phone locked)
+      # comes back once from the same request when they return; and
+      # /?conversation=<id> opens that conversation.
+      - name: Validate chat answer recovery
+        run: node scripts/validate_chat_answer_recovery_01.mjs
       # iPhone: the newest answer's sources and actions ended under the
       # composer with the keyboard open, reopening a long conversation stayed
       # mid-thread, and comparison tables showed raw pipes. Measured in real
@@ -318,6 +326,11 @@ jobs:
       - name: Validate cross-platform Place Card product contract
         run: node scripts/validate_place_card_cross_platform_01.mjs
 
+      # 카드 본문은 네이버 검색(메뉴·사진·리뷰), 지도 버튼만 지도 handoff.
+      # 전화·지도·캐러셀 화살표가 검색을 부르지 않는지 실제 탭/클릭으로 확인한다.
+      - name: Validate Place Card body opens NAVER search
+        run: node scripts/validate_place_card_naver_search_click_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
@@ -440,15 +453,14 @@ jobs:
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
-      # 답변 공유에는 링크 복사와 카카오톡만 노출한다. Kakao SDK is loaded
-      # lazily from the allowlisted Core config, never as an eager page script.
-      - name: Validate message copy and two-option share actions
+      # 답변 공유에는 링크 복사를 항상 노출하고, 명시적 Kakao Share readiness가
+      # 확인된 경우에만 카카오톡을 추가한다. SDK는 eager load하지 않는다.
+      - name: Validate message copy and readiness-gated share actions
         run: node scripts/validate_message_share_actions_01.mjs
 
-      # Until Core configures KakaoTalk sharing, "카카오톡 공유하기" copies the
-      # answer and link without requesting the Kakao SDK; once configured it
-      # opens the KakaoTalk share screen. Both states are exercised.
-      - name: Validate KakaoTalk share fallback and configured paths
+      # Kakao Share가 준비되지 않으면 메뉴를 숨기고 clipboard fallback을
+      # 절대 실행하지 않는다. 준비된 경우에만 실제 Kakao helper를 호출한다.
+      - name: Validate KakaoTalk hidden and real-share paths
         run: node scripts/validate_kakao_share_fallback_01.mjs
 
       # CHATPERF-08 — a chat photo is analysis input, never a thing this Site

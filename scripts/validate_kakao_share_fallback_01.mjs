@@ -1,10 +1,5 @@
-// SITE-MESSAGE-SHARE-ACTIONS-02 — "카카오톡 공유하기" in both Core states.
-//
-// Not configured (navigation.kakao_navi_ready is not true, the key is missing,
-// the SDK URL is not the allowlisted Kakao CDN, or the config cannot be read):
-// the Kakao SDK is never requested, and the answer plus LOTBI link are copied.
-// Configured: the allowlisted SDK is loaded once, initialised with Core's key,
-// and the KakaoTalk text share opens. No Site change between the two states.
+// LOTBI-KAKAO-SHARE-REAL-SHARE-UX-FIX-01 — the legacy filename stays wired
+// into required CI, but this validator now proves there is no copy fallback.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -17,11 +12,9 @@ const conversation = readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8
 const CORE = 'https://core.invalid';
 const SDK = 'https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.js';
 const URL_TO_SHARE = 'https://lotbiai.com/';
-
-// The module's only import is CORE_ORIGIN; replace it so the module runs in
-// isolation, and give each scenario a fresh module instance.
 const importLine = source.match(/^import \{CORE_ORIGIN\} from '\.\/site-core\.js\?v=[^']+';\r?\n/m)?.[0];
 assert.ok(importLine, 'site-kakao-share.js must import only CORE_ORIGIN from site-core.js');
+
 let instance = 0;
 async function freshModule() {
   const body = source.replace(importLine, `const CORE_ORIGIN = ${JSON.stringify(CORE)};\n`)
@@ -29,7 +22,7 @@ async function freshModule() {
   return import(`data:text/javascript;base64,${Buffer.from(body).toString('base64')}`);
 }
 
-function environment({config, configStatus = 200, configThrows = false, sdkLoads = true}) {
+function environment({config, configStatus = 200, configThrows = false, sdkLoads = true, sdkValid = true}) {
   const calls = {fetch: [], scripts: [], init: [], send: [], copied: []};
   globalThis.fetch = async (url, options) => {
     calls.fetch.push({url, options});
@@ -40,9 +33,13 @@ function environment({config, configStatus = 200, configThrows = false, sdkLoads
     initialized: false,
     init(key) { calls.init.push(key); this.initialized = true; },
     isInitialized() { return this.initialized; },
-    Share: {sendDefault: async payload => { calls.send.push(payload); }},
+    Share: sdkValid ? {sendDefault: async payload => { calls.send.push(payload); }} : {},
   };
   delete globalThis.Kakao;
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {clipboard: {writeText: async text => { calls.copied.push(text); }}},
+  });
   globalThis.document = {
     head: {
       appendChild(script) {
@@ -55,67 +52,56 @@ function environment({config, configStatus = 200, configThrows = false, sdkLoads
     },
     createElement(tag) {
       assert.equal(tag, 'script');
-      return {
-        listeners: {},
-        addEventListener(type, listener) { this.listeners[type] = listener; },
-      };
+      return {listeners: {}, addEventListener(type, listener) { this.listeners[type] = listener; }};
     },
   };
-  const copyFallback = async text => { calls.copied.push(text); };
-  return {calls, copyFallback};
+  return calls;
 }
 
-const configured = {navigation: {kakao_navi_ready: true, kakao_javascript_key: 'test-js-key', kakao_javascript_sdk_url: SDK}};
+const configured = {navigation: {kakao_share_ready: true, kakao_javascript_key: 'test-js-key', kakao_javascript_sdk_url: SDK}};
 const notConfiguredStates = {
-  'kakao_navi_ready false (Production today)': {config: {navigation: {kakao_navi_ready: false, kakao_javascript_key: null, kakao_javascript_sdk_url: null}}},
-  'key without kakao_navi_ready': {config: {navigation: {kakao_javascript_key: 'test-js-key', kakao_javascript_sdk_url: SDK}}},
-  'SDK URL off the allowlist': {config: {navigation: {kakao_navi_ready: true, kakao_javascript_key: 'test-js-key', kakao_javascript_sdk_url: 'https://evil.invalid/kakao.min.js'}}},
+  'Production contract has Navi false and no Share readiness': {config: {navigation: {kakao_navi_ready: false, kakao_javascript_key: null, kakao_javascript_sdk_url: null}}},
+  'Navi ready must not authorize Share': {config: {navigation: {kakao_navi_ready: true, kakao_javascript_key: 'test-js-key', kakao_javascript_sdk_url: SDK}}},
+  'Share ready without key': {config: {navigation: {kakao_share_ready: true, kakao_javascript_sdk_url: SDK}}},
+  'Share ready with off-allowlist SDK': {config: {navigation: {kakao_share_ready: true, kakao_javascript_key: 'test-js-key', kakao_javascript_sdk_url: 'https://evil.invalid/kakao.min.js'}}},
   'config request fails': {config: null, configStatus: 503},
   'config network error': {config: null, configThrows: true},
 };
 
 for (const [label, state] of Object.entries(notConfiguredStates)) {
-  const {shareWithKakaoTalk} = await freshModule();
-  const {calls, copyFallback} = environment(state);
-  const result = await shareWithKakaoTalk({text: '  답변 본문  ', url: URL_TO_SHARE, copyFallback});
-  assert.equal(result, 'copied', `${label}: falls back to copying`);
-  assert.deepEqual(calls.copied, [`답변 본문\n\n${URL_TO_SHARE}`], `${label}: copies the answer and the link`);
-  assert.deepEqual(calls.scripts, [], `${label}: never requests the Kakao SDK`);
-  assert.deepEqual(calls.init, [], `${label}: never initialises Kakao`);
-  assert.deepEqual(calls.send, [], `${label}: never opens a Kakao share`);
+  const {shareWithKakaoTalk, loadKakaoShareConfig} = await freshModule();
+  const calls = environment(state);
+  assert.equal(await loadKakaoShareConfig(), null, `${label}: Share readiness fails closed`);
+  await assert.rejects(
+    shareWithKakaoTalk({text: '답변 본문', url: URL_TO_SHARE}),
+    /KAKAO_SHARE_NOT_CONFIGURED/,
+    `${label}: direct invocation must fail rather than copy`,
+  );
+  assert.deepEqual(calls.copied, [], `${label}: clipboard write count must be zero`);
+  assert.deepEqual(calls.scripts, [], `${label}: Kakao SDK must not load`);
+  assert.deepEqual(calls.init, [], `${label}: Kakao must not initialize`);
+  assert.deepEqual(calls.send, [], `${label}: Kakao Share must not be called`);
   assert.equal(calls.fetch[0].url, `${CORE}/app/config.json`);
   assert.equal(calls.fetch[0].options.credentials, 'omit');
 }
 
 {
-  // A failed copy is reported as such, never as a silent success.
-  const {shareWithKakaoTalk} = await freshModule();
-  const {calls} = environment(notConfiguredStates['kakao_navi_ready false (Production today)']);
-  await assert.rejects(
-    shareWithKakaoTalk({text: '답변', url: URL_TO_SHARE, copyFallback: async () => { throw new Error('denied'); }}),
-    /KAKAO_SHARE_COPY_FAILED/,
-  );
-  assert.deepEqual(calls.scripts, []);
-}
-
-{
-  // A failed config read is not remembered: the next tap asks Core again.
-  const {shareWithKakaoTalk} = await freshModule();
+  // A transient config failure is not cached; the next read can recover.
+  const {loadKakaoShareConfig} = await freshModule();
   const first = environment({config: null, configThrows: true});
-  assert.equal(await shareWithKakaoTalk({text: 'a', url: URL_TO_SHARE, copyFallback: first.copyFallback}), 'copied');
+  assert.equal(await loadKakaoShareConfig(), null);
+  assert.equal(first.fetch.length, 1);
   const second = environment({config: configured});
-  assert.equal(await shareWithKakaoTalk({text: 'a', url: URL_TO_SHARE, copyFallback: second.copyFallback}), 'shared');
-  assert.equal(second.calls.fetch.length, 1);
+  assert.deepEqual(await loadKakaoShareConfig(), {sdkUrl: SDK, javascriptKey: 'test-js-key'});
+  assert.equal(second.fetch.length, 1);
 }
 
 {
-  // Configured: the allowlisted SDK loads once, Kakao is initialised once, the
-  // text share opens, and nothing is copied.
+  // READY=true invokes the canonical Kakao helper once and never copies.
   const {shareWithKakaoTalk, loadKakaoShareConfig} = await freshModule();
-  const {calls, copyFallback} = environment({config: configured});
+  const calls = environment({config: configured});
   await loadKakaoShareConfig();
-  const result = await shareWithKakaoTalk({text: '답변 본문', url: URL_TO_SHARE, copyFallback});
-  assert.equal(result, 'shared');
+  assert.equal(await shareWithKakaoTalk({text: '답변 본문', url: URL_TO_SHARE}), 'shared');
   assert.deepEqual(calls.scripts, [SDK]);
   assert.deepEqual(calls.init, ['test-js-key']);
   assert.equal(calls.send.length, 1);
@@ -123,31 +109,30 @@ for (const [label, state] of Object.entries(notConfiguredStates)) {
   assert.equal(calls.send[0].text, '답변 본문');
   assert.deepEqual(calls.send[0].link, {mobileWebUrl: URL_TO_SHARE, webUrl: URL_TO_SHARE});
   assert.deepEqual(calls.copied, []);
-  assert.equal(calls.fetch.length, 1, 'Core config is read once per page');
-  assert.equal(await shareWithKakaoTalk({text: '두 번째', url: URL_TO_SHARE, copyFallback}), 'shared');
-  assert.deepEqual(calls.scripts, [SDK], 'the SDK is requested once');
-  assert.deepEqual(calls.init, ['test-js-key'], 'Kakao is initialised once');
-  assert.equal(calls.fetch.length, 1);
 }
 
-{
-  // Configured but the SDK fails to load: an error, not a false success.
+for (const failure of [
+  {state: {config: configured, sdkLoads: false}, error: /KAKAO_SDK_LOAD_FAILED/},
+  {state: {config: configured, sdkValid: false}, error: /KAKAO_SHARE_SDK_INVALID/},
+]) {
   const {shareWithKakaoTalk} = await freshModule();
-  const {calls, copyFallback} = environment({config: configured, sdkLoads: false});
-  await assert.rejects(shareWithKakaoTalk({text: '답변', url: URL_TO_SHARE, copyFallback}), /KAKAO_SDK_LOAD_FAILED/);
-  assert.deepEqual(calls.copied, []);
+  const calls = environment(failure.state);
+  await assert.rejects(shareWithKakaoTalk({text: '답변', url: URL_TO_SHARE}), failure.error);
+  assert.deepEqual(calls.copied, [], 'SDK failure must never copy');
+  assert.deepEqual(calls.send, [], 'SDK failure must never claim a share');
 }
 
-// The chat wiring: the copy fallback is the answer clipboard writer, the
-// config is read when the menu opens (so the copy stays in the user gesture),
-// and each outcome is announced in plain words.
-assert.match(conversation, /shareWithKakaoTalk\(\{\.\.\.options, copyFallback: writeMessageTextToClipboard\}\)/);
-assert.match(conversation, /const openShareMenu = \(\) => \{\s*\n\s*prepareKakaoShare\(\);/);
-assert.match(conversation, /module\.loadKakaoShareConfig\(\)/);
-assert.match(conversation, /if \(result === 'copied'\) \{\s*\n\s*report\('복사했어요\. 카카오톡에 붙여넣어 공유해 주세요\.'\);/);
-assert.match(conversation, /report\('카카오톡 공유 화면을 열었습니다\.'\)/);
-assert.match(conversation, /'복사하지 못했습니다\. 답변을 길게 눌러 직접 선택해 주세요\.'/);
-assert.match(conversation, /'카카오톡 공유 화면을 열지 못했습니다\.'/);
-assert.doesNotMatch(conversation, /카카오톡 공유 설정이 필요합니다/, 'an unconfigured share must not end in a dead-end error');
+// Chat wiring and accessibility: only Link Copy is initially in the DOM; the
+// Kakao menu item is attached after readiness=true, so false means it is absent
+// from pointer, tab and ARIA trees. Copy remains explicit and independent.
+assert.match(conversation, /return shareWithKakaoTalk\(options\);/);
+assert.match(conversation, /return Boolean\(await module\.loadKakaoShareConfig\(\)\);/);
+assert.match(conversation, /shareMenu\.append\(linkCopy\);/);
+assert.match(conversation, /if \(ready\) \{\s*if \(!shareMenu\.contains\(kakao\)\) shareMenu\.append\(kakao\);\s*\} else \{\s*kakao\.remove\(\);/s);
+assert.match(conversation, /writeMessageTextToClipboard\(MESSAGE_ACTION_SHARE_URL\)/);
+assert.match(conversation, /writeMessageTextToClipboard\(value\)/);
+assert.match(conversation, /카카오톡 공유를 열지 못했어요\. 링크 복사를 이용해 주세요\./);
+assert.doesNotMatch(conversation, /카카오톡에 붙여넣어 공유해 주세요/);
+assert.doesNotMatch(source, /copyFallback|KAKAO_SHARE_COPY_FAILED|return 'copied'/);
 
-console.log('SITE-KAKAO-SHARE-FALLBACK-01 PASS');
+console.log('SITE-KAKAO-SHARE-REAL-ACTION-01 PASS');
