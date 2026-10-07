@@ -160,6 +160,12 @@ jobs:
       - name: Validate answer scroll and markdown
         run: node scripts/validate_answer_scroll_markdown_01.mjs
 
+      # A question answered after the reader left (tab closed, phone locked)
+      # comes back once from the same request when they return; and
+      # /?conversation=<id> opens that conversation.
+      - name: Validate chat answer recovery
+        run: node scripts/validate_chat_answer_recovery_01.mjs
+
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
       # `fixed` would pass the first half and eat the second on a short screen.

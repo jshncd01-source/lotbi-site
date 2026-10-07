@@ -817,6 +817,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
+  // SITE-CHAT-ANSWER-RECOVERY-01 — /?conversation=<thread id> opens that
+  // conversation of this browser (a notification or a shared tab can point at
+  // it). Only ids of conversations stored here can match; anything else is
+  // ignored, and the parameter is removed once used.
+  let requestedConversationId = (() => {
+    try {
+      const value = new URLSearchParams(window.location.search).get('conversation') || '';
+      return /^thread-[A-Za-z0-9-]{8,80}$/.test(value) ? value : '';
+    } catch { return ''; }
+  })();
+  const consumeRequestedConversation = () => {
+    if (!requestedConversationId) return;
+    if (state.threads.some(item => item.id === requestedConversationId)) state.activeThreadId = requestedConversationId;
+    requestedConversationId = '';
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('conversation');
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* the conversation is open either way */ }
+  };
   const guestSessionStorageKey = () => {
     const owner = normalizedNamespace(namespace) || anonymousConversationNamespace();
     return storageKey(owner, 'guest-session');
@@ -904,6 +924,54 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return beginSiteHandoff(pendingText);
   };
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
+  // SITE-CHAT-ANSWER-RECOVERY-01 — a question sent just before the reader left
+  // (tab closed, phone locked, another app) was answered by Core and stored on
+  // its logical request, but the page that asked was gone, so the answer never
+  // reached the conversation. The request key is kept here until the answer is
+  // shown; coming back re-sends the same request with the same key, which
+  // Core answers from what it already stored instead of working again.
+  const PENDING_TURN_MAX_AGE_MS = 30 * 60 * 1000;
+  const PENDING_TURN_RETRY_MS = 2500;
+  const PENDING_TURN_MAX_RETRIES = 24;
+  const pendingTurnRetries = new Map();
+  const pendingTurnStorageKey = () => (namespace ? storageKey(namespace, 'pending-turns') : '');
+  const readPendingTurns = () => {
+    try {
+      const key = pendingTurnStorageKey();
+      const parsed = storage && key ? JSON.parse(storage.getItem(key) || '{}') : {};
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch { return {}; }
+  };
+  const writePendingTurns = turns => {
+    try {
+      const key = pendingTurnStorageKey();
+      if (!storage || !key) return;
+      if (Object.keys(turns).length) storage.setItem(key, JSON.stringify(turns)); else storage.removeItem(key);
+    } catch { /* storage full or blocked: the answer is still shown if the page stays */ }
+  };
+  const rememberPendingTurn = turn => {
+    if (!turn.threadId || !turn.key) return;
+    const turns = readPendingTurns();
+    turns[turn.threadId] = turn;
+    writePendingTurns(turns);
+  };
+  const forgetPendingTurn = key => {
+    const turns = readPendingTurns();
+    let changed = false;
+    for (const [threadId, turn] of Object.entries(turns)) {
+      if (!turn || turn.key === key || Date.now() - Number(turn.turnCreatedAt || 0) > PENDING_TURN_MAX_AGE_MS) {
+        delete turns[threadId];
+        changed = true;
+      }
+    }
+    if (changed) writePendingTurns(turns);
+    pendingTurnRetries.delete(key);
+  };
+  const answerStillRunning = error => error instanceof SiteCoreError
+    && (error.code === 'GUEST_AI_REQUEST_IN_PROGRESS' || error.code === 'AI_REQUEST_IN_FLIGHT');
+  const interruptedByLeaving = error => document.visibilityState === 'hidden'
+    && error instanceof SiteCoreError
+    && (error.code === 'WEB_CONVERSATION_NETWORK_ERROR' || error.code === 'GUEST_CONVERSATION_NETWORK_ERROR');
   const savePreferences = () => {
     if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences));
     try { globalThis.localStorage?.setItem?.(SITE_THEME_BOOTSTRAP_KEY, preferences.theme); } catch {}
@@ -1139,7 +1207,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           badge.className = 'conversation-history-pin'; badge.textContent = '고정'; badge.setAttribute('aria-hidden', 'true');
           button.appendChild(badge);
         }
-        button.addEventListener('click', () => activateThread(item.id));
+        button.addEventListener('click', () => { activateThread(item.id); schedulePendingTurnResume(); });
 
         const actions = document.createElement('details');
         actions.className = 'conversation-history-actions'; actions.dataset.conversationMenu = '';
@@ -2719,6 +2787,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       && normalized !== anonymousConversationNamespace()
       && !(autoSend && typeof initialText === 'string' && initialText.trim());
     if (freshTabEntry) state.activeThreadId = null;
+    consumeRequestedConversation();
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
       theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),
@@ -2729,6 +2798,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
     applyPreferences(); renderActiveThread(); renderRecent();
     document.body.dataset.conversationRestore = 'ready';
+    schedulePendingTurnResume();
     refreshAuthenticatedProfileSlots();
   };
   const canonicalProfileName = () => {
@@ -4008,7 +4078,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0) => {
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0, {recovering = false} = {}) => {
     const message = typeof text === 'string' ? text.trim() : '';
     const sourceTurnCreatedAt = Number.isFinite(Number(turnCreatedAt)) && Number(turnCreatedAt) > 0 ? Number(turnCreatedAt) : Date.now();
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
@@ -4161,6 +4231,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (!turnStillActive()) return;
         const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
         if (!turnStillActive()) return;
+        if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: guestRequestId, scope: 'GUEST', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
         const response = await sendGuestConversationMessage({
           guestToken: token,
           ...(lifeSchool ? {school: lifeSchool} : {}),
@@ -4219,6 +4290,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
         thinking.stop('answer');
         appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
+        forgetPendingTurn(guestRequestId);
         if (attachments.length) clearSentAttachments(attachments, {guest: token});
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
         setStatus(placeResult ? '로그인 없이 실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
@@ -4226,6 +4298,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (!turnStillActive()) return;
         thinking.stop('error');
         if (isGuestSessionError(caught)) clearGuestSession();
+        if (recovering && answerStillRunning(caught) && schedulePendingTurnRetry(guestRequestId)) return;
+        if (interruptedByLeaving(caught)) return;
+        forgetPendingTurn(guestRequestId);
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally {
@@ -4284,6 +4359,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const activeSessionToken = sessionToken;
       const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
       if (!turnStillActive()) return;
+      if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: authenticatedRequestId, scope: 'AUTH', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
       const response = await sendConversationMessage(
         activeSessionToken,
         message,
@@ -4345,12 +4421,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
       thinking.stop('answer');
       appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
+      forgetPendingTurn(authenticatedRequestId);
       if (attachments.length) clearSentAttachments(attachments, {session: activeSessionToken});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(placeResult ? '실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
     } catch (caught) {
       if (!turnStillActive()) return;
       thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
+      if (recovering && answerStillRunning(caught) && schedulePendingTurnRetry(authenticatedRequestId)) return;
+      if (interruptedByLeaving(caught)) return;
+      forgetPendingTurn(authenticatedRequestId);
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
       if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
@@ -4361,6 +4441,40 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       requestAnimationFrame(scrollThread);
     }
   });
+
+  // The newest turn of the open conversation is a question whose answer never
+  // arrived: ask again with the same key. Core replays the stored answer, or
+  // says it is still working (retried a few times), or runs it once if it never
+  // started - never a second, different answer for the same question.
+  const resumePendingTurn = () => {
+    if (inFlight || attachmentUploadsInFlight || !stateReady || document.visibilityState === 'hidden') return;
+    const record = threadRecord();
+    if (!record) return;
+    const turn = readPendingTurns()[record.id];
+    if (!turn || typeof turn.key !== 'string' || typeof turn.text !== 'string') return;
+    if (Date.now() - Number(turn.turnCreatedAt || 0) > PENDING_TURN_MAX_AGE_MS) { forgetPendingTurn(turn.key); return; }
+    if ((turn.scope === 'AUTH') !== Boolean(sessionToken)) return;
+    const last = record.messages[record.messages.length - 1];
+    if (!last || last.role !== 'user' || last.text !== turn.text || Number(last.createdAt) !== Number(turn.turnCreatedAt)) {
+      forgetPendingTurn(turn.key);
+      return;
+    }
+    setStatus('보내 두신 질문의 답변을 이어서 가져오고 있어요.');
+    void requestAssistant(turn.text, false, turn.key, turn.turnCreatedAt, {recovering: true});
+  };
+  const schedulePendingTurnResume = () => { window.setTimeout(resumePendingTurn, 0); };
+  function schedulePendingTurnRetry(key) {
+    const attempts = (pendingTurnRetries.get(key) || 0) + 1;
+    if (attempts > PENDING_TURN_MAX_RETRIES) return false;
+    pendingTurnRetries.set(key, attempts);
+    setStatus('답변을 아직 준비하고 있어요. 준비되면 바로 보여드릴게요.');
+    window.setTimeout(resumePendingTurn, PENDING_TURN_RETRY_MS);
+    return true;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') schedulePendingTurnResume();
+  });
+  window.addEventListener('pageshow', schedulePendingTurnResume);
 
   const submitCurrentPrompt = async () => {
     cancelVoiceAutoSend();
