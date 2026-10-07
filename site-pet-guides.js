@@ -163,6 +163,25 @@ const GUIDES = Object.freeze({
   },
 });
 
+const PET_SLOT_ARTWORK_NAMES = Object.freeze({
+  FACE_FRONT: 'face-front',
+  FACE_LEFT: 'face-left',
+  FACE_RIGHT: 'face-right',
+  BODY_LEFT: 'body-left',
+  BODY_RIGHT: 'body-right',
+  BACK_REAR: 'back-rear',
+  NOSE_FRONT: 'nose-front',
+  NOSE_LEFT: 'nose-left',
+  NOSE_RIGHT: 'nose-right',
+  DISTINCTIVE: 'distinctive',
+});
+
+export const PET_SLOT_ARTWORK = Object.freeze(
+  Object.fromEntries(['DOG', 'CAT'].flatMap(species => Object.entries(PET_SLOT_ARTWORK_NAMES).map(
+    ([slotCode, fileName]) => [`${species}:${slotCode}`, `assets/pet/${species.toLowerCase()}-${fileName}-v1.png`],
+  ))),
+);
+
 export const PET_PHOTO_SLOT_LABELS = Object.freeze(
   Object.fromEntries(Object.entries(GUIDES).map(([code, guide]) => [code, guide.label])),
 );
@@ -173,6 +192,27 @@ export function petPhotoSlotLabel(slotCode) {
 
 export function petPhotoSlotHint(slotCode) {
   return GUIDES[slotCode]?.hint || '';
+}
+
+// Finished examples make the required angle immediately legible. Keep the
+// vector diagram as a local, dependency-free fallback if an asset is missing
+// or a stale cache still points at an older deployment.
+export function petPhotoSlotArtwork(slotCode, species) {
+  const normalizedSpecies = species === 'CAT' ? 'CAT' : species === 'DOG' ? 'DOG' : '';
+  const src = PET_SLOT_ARTWORK[`${normalizedSpecies}:${slotCode}`];
+  if (!src) return null;
+
+  const image = document.createElement('img');
+  image.className = 'pet-slot-guide-image';
+  image.src = src;
+  image.alt = `${petPhotoSlotLabel(slotCode)} 촬영 예시`;
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  image.onerror = () => {
+    const fallback = petPhotoSlotDiagram(slotCode, normalizedSpecies);
+    if (fallback) image.replaceWith(fallback);
+  };
+  return image;
 }
 
 function shape(tag, attributes) {

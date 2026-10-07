@@ -61,6 +61,9 @@ jobs:
       - name: Validate footer business information is identical across pages
         run: python scripts/sync_footer_business_info.py --check
 
+      - name: Validate Subscribe to Account checkout handoff
+        run: node scripts/validate_subscribe_account_checkout_handoff_01.mjs
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts
@@ -159,6 +162,12 @@ jobs:
       # follow it without dragging a reader who scrolled up.
       - name: Validate answer scroll and markdown
         run: node scripts/validate_answer_scroll_markdown_01.mjs
+
+      # A question answered after the reader left (tab closed, phone locked)
+      # comes back once from the same request when they return; and
+      # /?conversation=<id> opens that conversation.
+      - name: Validate chat answer recovery
+        run: node scripts/validate_chat_answer_recovery_01.mjs
 
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
@@ -310,6 +319,11 @@ jobs:
 
       - name: Validate cross-platform Place Card product contract
         run: node scripts/validate_place_card_cross_platform_01.mjs
+
+      # 카드 본문은 네이버 검색(메뉴·사진·리뷰), 지도 버튼만 지도 handoff.
+      # 전화·지도·캐러셀 화살표가 검색을 부르지 않는지 실제 탭/클릭으로 확인한다.
+      - name: Validate Place Card body opens NAVER search
+        run: node scripts/validate_place_card_naver_search_click_01.mjs
 
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs

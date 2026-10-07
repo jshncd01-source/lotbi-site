@@ -1,4 +1,4 @@
-import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-e887153c9820';
+import {detectDocumentCorners, rectifyDocument} from './site-life-wallet-scan.js?v=aset-fc61c7082673';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -23,16 +23,32 @@ async function encodedDimensions(file) {
     const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength); return {width:view.getUint32(16),height:view.getUint32(20)};
   }
   if(bytes.length<4||bytes[0]!==255||bytes[1]!==216)return null;
-  let offset=2;
+  let offset=2;let orientation=1;
   while(offset+9<bytes.length){
     if(bytes[offset]!==255){offset+=1;continue}
     const marker=bytes[offset+1];offset+=2;
     if(marker===216||marker===217||marker===1||(marker>=208&&marker<=215))continue;
     if(offset+2>bytes.length)break;const length=(bytes[offset]<<8)|bytes[offset+1];if(length<2||offset+length>bytes.length)break;
-    if((marker>=192&&marker<=195)||(marker>=197&&marker<=199)||(marker>=201&&marker<=203)||(marker>=205&&marker<=207))return {width:(bytes[offset+5]<<8)|bytes[offset+6],height:(bytes[offset+3]<<8)|bytes[offset+4]};
+    if(marker===225)orientation=exifOrientation(bytes,offset+2,length-2)||orientation;
+    if((marker>=192&&marker<=195)||(marker>=197&&marker<=199)||(marker>=201&&marker<=203)||(marker>=205&&marker<=207)){
+      const width=(bytes[offset+5]<<8)|bytes[offset+6];const height=(bytes[offset+3]<<8)|bytes[offset+4];
+      // Phones often store portrait photos as landscape pixels plus an EXIF rotation; the
+      // decoder rotates before resizing, so the target size must be in the rotated frame.
+      return orientation>=5&&orientation<=8?{width:height,height:width}:{width,height};
+    }
     offset+=length;
   }
   return null;
+}
+
+function exifOrientation(bytes,start,length){
+  if(length<14||String.fromCharCode(...bytes.slice(start,start+4))!=='Exif')return 0;
+  const tiff=start+6;const little=bytes[tiff]===73;
+  const read16=position=>little?bytes[position]|(bytes[position+1]<<8):(bytes[position]<<8)|bytes[position+1];
+  const read32=position=>little?(bytes[position]|(bytes[position+1]<<8)|(bytes[position+2]<<16)|(bytes[position+3]<<24))>>>0:((bytes[position]<<24)|(bytes[position+1]<<16)|(bytes[position+2]<<8)|bytes[position+3])>>>0;
+  const directory=tiff+read32(tiff+4);if(directory+2>bytes.length)return 0;
+  for(let entry=0;entry<read16(directory);entry+=1){const position=directory+2+entry*12;if(position+10>bytes.length)return 0;if(read16(position)===274)return read16(position+8)}
+  return 0;
 }
 
 async function decodeFile(file, resources) {

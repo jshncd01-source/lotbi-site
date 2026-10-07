@@ -51,21 +51,22 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-e887153c9820';
+} from './site-pet.js?v=aset-fc61c7082673';
 import {
+  petPhotoSlotArtwork,
   petPhotoSlotDiagram,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-e887153c9820';
+} from './site-pet-guides.js?v=aset-fc61c7082673';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-e887153c9820';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-e887153c9820';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-e887153c9820';
-import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-e887153c9820';
+} from './site-pet-gate.js?v=aset-fc61c7082673';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-fc61c7082673';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-fc61c7082673';
+import {createSafeCareGuideArtwork} from './site-safecare-guide-art.js?v=aset-fc61c7082673';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -73,7 +74,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-e887153c9820';
+} from './site-safecare-common.js?v=aset-fc61c7082673';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -692,8 +693,8 @@ export async function mountPetFamilyManager({
         image.decoding = 'async';
         media.appendChild(image);
       } else {
-        const diagram = petPhotoSlotDiagram(slotCode, pet.species);
-        if (diagram) media.appendChild(diagram);
+        const artwork = petPhotoSlotArtwork(slotCode, pet.species);
+        if (artwork) media.appendChild(artwork);
         if (filled.has(slotCode)) media.appendChild(el('span', 'pet-slot-loading', '불러오는 중'));
       }
       tile.appendChild(media);
@@ -2258,8 +2259,8 @@ export async function mountPetFamilyManager({
           image.alt = `${petPhotoSlotLabel(slotCode)} 등록 사진`;
           media.appendChild(image);
         } else {
-          const diagram = petPhotoSlotDiagram(slotCode, registrationDraft.species);
-          if (diagram) media.appendChild(diagram);
+          const artwork = petPhotoSlotArtwork(slotCode, registrationDraft.species);
+          if (artwork) media.appendChild(artwork);
         }
         tile.appendChild(media);
         const caption = el('figcaption', 'pet-slot-caption');

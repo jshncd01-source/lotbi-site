@@ -1,10 +1,20 @@
-/* SITE-SUBSCRIBE-PLANS-01 — 등급 선택만 처리한다.
+/* SITE-SUBSCRIBE-PLANS-01 — 등급 선택과 Account 결제 화면으로의 이동만 처리한다.
 
-   이 파일은 결제를 호출하지 않는다. 결제 경로는 PG 심사가 끝난 뒤 별도로 열며,
-   여기서는 어떤 등급을 골랐는지 화면에 반영하고 지금 결제가 어디까지 준비됐는지
-   알려주는 일만 한다. 선택 자체는 결제 준비 여부와 무관하게 항상 동작해야 한다. */
+   이 파일은 결제를 호출하지 않는다. 구매하기는 고른 등급의 이름표(basic·plus·pro)만
+   들고 LOTBI Account의 플랜 업그레이드 화면으로 넘긴다. 로그인, 금액 확인, 결제 가능
+   여부 판단은 모두 Account와 Core가 한다. 가격이나 돌아올 주소는 넘기지 않는다.
+   선택 자체는 결제 준비 여부와 무관하게 항상 동작해야 한다. */
 (function () {
   'use strict';
+
+  // SUBSCRIBE-ACCOUNT-CHECKOUT-HANDOFF-01: 고정된 Account 주소와 허용된 등급 이름표만 쓴다.
+  var ACCOUNT_CHECKOUT_URL = 'https://account.lotbiai.com/account';
+  var CHECKOUT_PLANS = { basic: 'basic', plus: 'plus', pro: 'pro' };
+
+  function checkoutUrl(value) {
+    var plan = Object.prototype.hasOwnProperty.call(CHECKOUT_PLANS, value) ? CHECKOUT_PLANS[value] : '';
+    return plan ? ACCOUNT_CHECKOUT_URL + '?checkout=' + plan : '';
+  }
 
   function ready(run) {
     if (document.readyState === 'loading') {
@@ -65,26 +75,26 @@
     });
 
     form.addEventListener('submit', function (event) {
-      // 결제창이 아직 없다. 제출을 그대로 두면 페이지가 새로고침되면서
-      // 고른 등급이 사라진다.
+      // 폼을 그대로 제출하면 이 페이지가 새로고침되며 고른 등급이 사라진다.
       event.preventDefault();
       var current = selectedRadio();
-      if (!status) return;
+      var target = current ? checkoutUrl(current.value) : '';
 
-      if (!current) {
-        status.innerHTML = '<p>먼저 등급을 하나 선택해 주세요.</p>';
-        status.focus();
+      if (!target) {
+        if (status) {
+          status.innerHTML = '<p>먼저 등급을 하나 선택해 주세요.</p>';
+          status.focus();
+        }
         return;
       }
 
-      // 막다른 길을 만들지 않는다 — 지금 할 수 있는 것을 함께 안내한다.
-      status.innerHTML =
-        '<p><strong>' + planName(current) + '</strong> 등급을 선택하셨습니다. ' +
-        '카드 결제는 결제대행사 가맹 심사가 끝나는 대로 이 화면에서 바로 열립니다.</p>' +
-        '<p>그때까지 LOTBI는 무료 이용 범위 안에서 그대로 쓰실 수 있습니다. ' +
-        '결제가 열리면 알려드릴까요? <a href="/contact">문의하기</a>로 남겨주시면 ' +
-        '준비되는 대로 안내드리겠습니다.</p>';
-      status.focus();
+      // 이동하는 동안 무슨 일이 일어나는지 보이게 한다.
+      if (status) {
+        status.innerHTML =
+          '<p><strong>' + planName(current) + '</strong> 결제 확인 화면으로 이동합니다. ' +
+          '로그인하지 않았다면 LOTBI 로그인 후 이어집니다.</p>';
+      }
+      window.location.assign(target);
     });
 
     paint();
