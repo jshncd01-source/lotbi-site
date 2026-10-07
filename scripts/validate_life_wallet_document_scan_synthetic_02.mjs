@@ -39,8 +39,12 @@ try {
   ];
   const sweep = Array.from({length: 24}, (_, index) => ({group: 'SYNTHETIC_RANDOM_ENVELOPE', name: 'seed-' + (index + 1), expect: 'card', scene: scenes.randomWalletScene(index + 1)}));
   const softEdges = Array.from({length: 12}, (_, index) => ({group: 'SYNTHETIC_SOFT_EDGE', name: 'soft-' + (index + 1), expect: 'card-or-manual', scene: scenes.softEdgeWalletScene(index + 1)}));
+  const handHeld = Array.from({length: 8}, (_, index) => ({group: 'SYNTHETIC_HAND_HELD', name: 'held-' + (index + 1), expect: 'card', scene: scenes.handHeldWalletScene(index + 1)}));
+  // Card lying on a wallet held in the hand (the reported phone photo): only the card may be
+  // cropped, never the wallet; a manual fallback is allowed.
+  const onWallet = Array.from({length: 8}, (_, index) => ({group: 'SYNTHETIC_CARD_ON_WALLET', name: 'wallet-' + (index + 1), expect: 'card-or-manual', scene: scenes.cardOnWalletScene(index + 1)}));
   const results = [];
-  for (const test of [...named, ...sweep, ...softEdges]) {
+  for (const test of [...named, ...sweep, ...softEdges, ...handHeld, ...onWallet]) {
     const width = test.scene.width || W; const height = test.scene.height || H;
     const canvas = await scenes.renderScene({width, height, ...test.scene});
     // Same bounded detection input the scanner UI builds before detection.
@@ -71,7 +75,7 @@ const result = await runFixturePage({
 assert.equal(result.ok, true, result.error);
 {
   const groups = new Map();
-  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles', 'floodMode']);
+  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles', 'floodMode', 'occluder', 'holder', 'nested', 'holderContent', 'innerLighter']);
   for (const row of result.results) {
     const label = `${row.group}/${row.name}`;
     const serialized = JSON.stringify(row.diagnostics || {});
@@ -98,8 +102,10 @@ assert.equal(result.ok, true, result.error);
     if (row.expect === 'card' || (row.expect === 'card-or-manual' && row.mode === 'automatic')) group.worst = Math.max(group.worst, ...row.errors);
     groups.set(row.group, group);
   }
-  const soft = groups.get('SYNTHETIC_SOFT_EDGE');
-  assert.ok(soft.automatic >= Math.ceil(soft.count * 2 / 3), `soft-edge scenes fell back to manual too often: ${soft.automatic}/${soft.count}`);
+  for (const name of ['SYNTHETIC_SOFT_EDGE', 'SYNTHETIC_CARD_ON_WALLET']) {
+    const group = groups.get(name);
+    assert.ok(group.automatic >= Math.ceil(group.count * 2 / 3), `${name} scenes fell back to manual too often: ${group.automatic}/${group.count}`);
+  }
   const average = result.results.reduce((sum, row) => sum + row.elapsed, 0) / result.results.length;
   assert.ok(average < 3000, `average detection time ${average.toFixed(0)}ms suggests a pathological slowdown`);
   for (const [name, group] of groups) console.log(`${name}=PASS scenes=${group.count} automatic=${group.automatic}${group.worst ? ` worst_corner_px=${group.worst.toFixed(1)}` : ''}`);

@@ -36,7 +36,7 @@ function surface(width, height, kind, random) {
   const coarse = valueNoise(width, height, Math.max(24, Math.round(width / 9)), random);
   const middle = valueNoise(width, height, 9, random);
   const fine = valueNoise(width, height, 3, random);
-  const base = kind === 'mat' ? [44, 112, 84] : kind === 'olive' ? [96, 118, 70] : [62, 112, 70];
+  const base = kind === 'mat' ? [44, 112, 84] : kind === 'olive' ? [96, 118, 70] : kind === 'navy' ? [40, 52, 92] : [62, 112, 70];
   const strength = kind === 'strong' ? 2.4 : 1;
   const grid = Math.round(width / 26);
   for (let y = 0; y < height; y += 1) {
@@ -173,9 +173,34 @@ export function cardCorners({width, height, margins, rotation = 0, keystone = 0,
   return points;
 }
 
+// A hand holding the card: the palm/arm enters from the photo edge nearest one card side
+// and the thumb lies across that side, hiding part of the card edge.
+function drawHoldingHand(context, corners, {side = 'left', at = .5, palm = .32, thumb = .16, tone = [222, 178, 146]}, width, height) {
+  const [topLeft, topRight, bottomRight, bottomLeft] = corners;
+  const [start, end] = {left: [bottomLeft, topLeft], right: [topRight, bottomRight], top: [topLeft, topRight], bottom: [bottomRight, bottomLeft]}[side];
+  const center = corners.reduce((sum, point) => ({x: sum.x + point.x / 4, y: sum.y + point.y / 4}), {x: 0, y: 0});
+  const sideLength = Math.hypot(end.x - start.x, end.y - start.y);
+  const short = Math.min(Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y), Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y));
+  const point = {x: start.x + (end.x - start.x) * at, y: start.y + (end.y - start.y) * at};
+  let outward = {x: -(end.y - start.y) / sideLength, y: (end.x - start.x) / sideLength};
+  if ((center.x - point.x) * outward.x + (center.y - point.y) * outward.y > 0) outward = {x: -outward.x, y: -outward.y};
+  const reach = Math.hypot(width, height);
+  context.save(); context.translate(point.x, point.y); context.rotate(Math.atan2(outward.y, outward.x));
+  context.shadowColor = 'rgba(0,0,0,.35)'; context.shadowBlur = short * .04;
+  const palmWidth = sideLength * palm; const overlap = short * .035;
+  const shade = context.createLinearGradient(0, -palmWidth / 2, 0, palmWidth / 2);
+  shade.addColorStop(0, `rgb(${tone.map(value => value - 38).join(',')})`); shade.addColorStop(.45, `rgb(${tone.join(',')})`); shade.addColorStop(1, `rgb(${tone.map(value => value - 52).join(',')})`);
+  context.fillStyle = shade;
+  context.beginPath(); context.moveTo(reach, -palmWidth / 2); context.lineTo(-overlap + palmWidth / 2, -palmWidth / 2);
+  context.arc(-overlap + palmWidth / 2, 0, palmWidth / 2, -Math.PI / 2, Math.PI / 2, true); context.lineTo(reach, palmWidth / 2); context.closePath(); context.fill();
+  const thumbLength = short * thumb * 2; const thumbWidth = short * .085;
+  context.beginPath(); context.ellipse(-thumbLength * .38, -palmWidth * .18, thumbLength / 2, thumbWidth / 2, .08, 0, Math.PI * 2); context.fill();
+  context.restore();
+}
+
 export async function renderScene({
   width = 1266, height = 680, seed = 1, surfaceKind = 'felt', cards = [],
-  lighting = {left: 0.78, right: 1.12, top: 1.04, bottom: 0.94, hotspot: 0.12}, noise = 5, jpegQuality = 0.86, frame = null, focusBlur = 0,
+  lighting = {left: 0.78, right: 1.12, top: 1.04, bottom: 0.94, hotspot: 0.12}, noise = 5, jpegQuality = 0.86, frame = null, focusBlur = 0, hand = null, holder = null,
 } = {}) {
   const random = seededRandom(seed);
   const pixels = surface(width, height, surfaceKind, random);
@@ -185,6 +210,9 @@ export async function renderScene({
     shadowContext.beginPath(); card.corners.forEach((point, index) => index ? shadowContext.lineTo(point.x - 10000, point.y) : shadowContext.moveTo(point.x - 10000, point.y)); shadowContext.closePath(); shadowContext.fill();
   }
   const shadow = shadowContext.getImageData(0, 0, width, height).data;
+  // A dark woven wallet (or similar holder) under the card, larger than it and possibly
+  // running off the photo edge; its lower part is close to a dark surface in colour.
+  const holderInverse = holder ? inverseHomography(holder.corners) : null;
   const textures = cards.map(card => {
     const textureWidth = 960; const textureHeight = Math.round(textureWidth / card.aspect);
     const xs = card.corners.map(point => point.x); const ys = card.corners.map(point => point.y);
@@ -200,6 +228,18 @@ export async function renderScene({
         + lighting.hotspot * Math.exp(-((x - hotX) ** 2 + (y - hotY) ** 2) / (2 * hotSigma * hotSigma));
       const shade = 1 - (shadow[index * 4 + 3] / 255) * 0.42;
       let rgb = [pixels[index * 3] * shade, pixels[index * 3 + 1] * shade, pixels[index * 3 + 2] * shade];
+      if (holderInverse) {
+        const {u, v} = holderInverse(x + .5, y + .5);
+        if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+          // Woven leather: diamond tiles with a sheen gradient and bright ridges, a lighter rim.
+          const tileU = (u * 26 + v * 34) % 2; const tileV = (u * 26 - v * 34 + 40) % 2;
+          const weave = Math.abs(tileU - 1) < .12 || Math.abs(tileV - 1) < .12;
+          const sheen = (holder.sheen ?? 0) * Math.max(0, Math.sin(tileU * Math.PI)) * Math.max(0, Math.sin(tileV * Math.PI)) * (1.2 - v);
+          const tone = (holder.tone ?? 24) + (weave ? 16 + (holder.sheen ?? 0) * .3 : 0) + sheen * .45 + (u < .015 || u > .985 || v < .02 || v > .98 ? 18 + (holder.sheen ?? 0) * .3 : 0);
+          const hue = holder.color ?? [1, 1, 1.12];
+          rgb = [tone * hue[0] * shade, tone * hue[1] * shade, tone * hue[2] * shade];
+        }
+      }
       if (frame && Math.min(x, y, width - 1 - x, height - 1 - y) < Math.min(width, height) * frame.thickness) rgb = [...frame.color];
       for (const {card, bounds, texture, textureWidth, textureHeight, inverse} of textures) {
         if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) continue;
@@ -224,6 +264,7 @@ export async function renderScene({
     }
   }
   let canvas = new OffscreenCanvas(width, height); canvas.getContext('2d').putImageData(output, 0, 0);
+  if (hand && cards.length) drawHoldingHand(canvas.getContext('2d'), cards[0].corners, hand, width, height);
   if (focusBlur) {
     const soft = new OffscreenCanvas(width, height); const softContext = soft.getContext('2d');
     softContext.filter = `blur(${focusBlur}px)`; softContext.drawImage(canvas, 0, 0); canvas = soft;
@@ -274,4 +315,32 @@ export function softEdgeWalletScene(index) {
   const edgeFade = {side: ['left', 'bottom', 'right', 'top'][index % 4], depth: .25 + random() * .2, alpha: .75 + random() * .2, color: [[96, 128, 84], [110, 140, 96], [84, 120, 80], [120, 146, 104]][(index >> 2) % 4]};
   const card = walletCard({width: 1440, height: 811, margins: {left: .15 + random() * .06, right: .08 + random() * .04, top: .06 + random() * .03, bottom: .06 + random() * .03}, rotation: (random() - .5) * 4, keystone: random() * .05, tint, glare: random() < .3, edgeFade});
   return {...base, width: 1440, height: 811, cards: [card], surfaceKind: ['strong', 'olive', 'felt', 'strong'][index % 4], focusBlur: 1.2 + random() * 1.2, noise: 6 + random() * 4};
+}
+
+// A card held in the hand: the palm enters from the photo edge and the thumb lies across
+// one card side. Alternates landscape and portrait phone photos.
+export function handHeldWalletScene(index) {
+  const random = seededRandom(700 + index); const portrait = index % 2 === 0;
+  const width = portrait ? 900 : 1266; const height = portrait ? 1200 : 680;
+  const side = ['left', 'right', 'bottom', 'left'][index % 4];
+  const margins = portrait ? {left: .03 + random() * .05, right: .03 + random() * .05, top: .25 + random() * .08, bottom: .25 + random() * .08} : {left: .12 + random() * .06, right: .06 + random() * .05, top: .05 + random() * .04, bottom: .05 + random() * .04};
+  const card = walletCard({width, height, margins, rotation: (random() - .5) * 6, keystone: random() * .05, keystoneAxis: 'top', tint: [[228, 232, 229], [212, 222, 236], [238, 236, 226]][index % 3]});
+  const base = randomWalletScene(300 + index, {width, height});
+  return {...base, width, height, cards: [card], hand: {side, at: .35 + random() * .3, palm: .22 + random() * .18, thumb: .12 + random() * .08, tone: [[222, 178, 146], [196, 150, 120], [236, 196, 170]][index % 3]}};
+}
+
+// The reported hand-held photo class: a card lying on a dark woven wallet held in the hand
+// over a dark fabric surface, phone portrait frame. The wallet top runs above the card and
+// its left part off the photo edge; fingers enter at a lower corner.
+export function cardOnWalletScene(index) {
+  const random = seededRandom(1100 + index); const width = 900; const height = 1200;
+  const card = walletCard({width, height, margins: {left: .07 + random() * .05, right: .04 + random() * .04, top: .31 + random() * .04, bottom: .24 + random() * .04}, rotation: (random() - .5) * 3, keystone: random() * .03, keystoneAxis: 'top', tint: [[236, 228, 230], [232, 230, 222], [226, 230, 236]][index % 3]});
+  const [topLeft, topRight, bottomRight, bottomLeft] = card.corners;
+  // The wallet runs off the left photo edge, rises well above the card and ends below it.
+  const top = Math.min(topLeft.y, topRight.y) - height * (.08 + random() * .05); const bottom = Math.max(bottomLeft.y, bottomRight.y) + height * (.1 + random() * .06);
+  const left = -width * .03; const right = Math.max(topRight.x, bottomRight.x) + width * (.02 + random() * .03);
+  const tilt = (random() - .5) * height * .02;
+  const holderCorners = [{x: left, y: top - tilt}, {x: right, y: top + tilt}, {x: right, y: bottom + tilt}, {x: left, y: bottom - tilt}];
+  const base = randomWalletScene(1300 + index, {width, height});
+  return {...base, width, height, surfaceKind: 'navy', lighting: {left: .9 + random() * .2, right: .9 + random() * .2, top: 1.05, bottom: .9, hotspot: .08}, cards: [card], holder: {corners: holderCorners, tone: 10 + Math.round(random() * 8), sheen: index % 3 === 0 ? 30 : 55 + Math.round(random() * 35), color: index % 4 === 3 ? [3.4, 2.3, 1.6] : undefined}, hand: index % 2 ? {side: 'bottom', at: .9 + random() * .08, palm: .2, thumb: .06, tone: [[222, 178, 146], [196, 150, 120], [236, 196, 170]][index % 3]} : null};
 }

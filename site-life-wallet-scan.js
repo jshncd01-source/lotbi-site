@@ -550,16 +550,20 @@ function intersectLines(first,second){
 }
 
 // Start from the straight line most contour points agree on (pairs of points spread along
-// the side), so an attached blob such as a shadow or unmodelled light cannot tilt a side.
-function consensusLine(pool,along,tolerance){
+// the side, roughly parallel to it), so an attached blob such as a shadow, unmodelled light
+// or the bite a removed hand leaves cannot tilt or turn a side.
+function consensusLine(pool,along,tolerance,direction=null){
   const sorted=[...pool].sort((left,right)=>along(left)-along(right));
   const agreeing=line=>{let count=0;for(const point of pool)if(Math.abs(lineDistance(line,point))<=tolerance)count+=1;return count};
   let best=fitLine(pool);let bestCount=agreeing(best);
+  if(direction&&Math.abs(best.direction.x*direction.x+best.direction.y*direction.y)<Math.cos(15*Math.PI/180)){best={point:sorted[Math.floor(sorted.length/2)],direction};bestCount=agreeing(best)}
   const half=Math.floor(sorted.length/2);const step=Math.max(1,Math.floor(half/24));
   for(let first=0;first<half;first+=step)for(const fraction of [.35,.5,.65]){
     const start=sorted[first];const end=sorted[Math.min(sorted.length-1,first+Math.floor(sorted.length*fraction))];
     const length=Math.hypot(end.x-start.x,end.y-start.y);if(length<1)continue;
-    const line={point:start,direction:{x:(end.x-start.x)/length,y:(end.y-start.y)/length}};const count=agreeing(line);
+    const line={point:start,direction:{x:(end.x-start.x)/length,y:(end.y-start.y)/length}};
+    if(direction&&Math.abs(line.direction.x*direction.x+line.direction.y*direction.y)<Math.cos(15*Math.PI/180))continue;
+    const count=agreeing(line);
     if(count>bestCount){best=line;bestCount=count}
   }
   return best;
@@ -582,7 +586,7 @@ function fitDocumentSides(points,rectangle){
     const span=spec.end-spec.start;const low=spec.start+span*.1;const high=spec.end-span*.1;
     const pool=points.filter(point=>{const along=project(point,spec.along);return Math.abs(project(point,spec.axis)-spec.value)<=band&&along>=low&&along<=high});
     if(pool.length<8)return null;
-    let line=consensusLine(pool,point=>project(point,spec.along),tolerance*1.5);let inliers=pool;
+    let line=consensusLine(pool,point=>project(point,spec.along),tolerance*1.5,spec.along);let inliers=pool;
     for(const limit of [tolerance*2,tolerance*1.5,tolerance]){
       const next=pool.filter(point=>Math.abs(lineDistance(line,point))<=limit);if(next.length<8)return null;
       inliers=next;line=fitLine(inliers);
@@ -653,7 +657,7 @@ function refineSidesOnEdges(sides,snapped,corners,light,width,height,short){
     const fallback=snapped[index];if(edges.length<20)return fallback;
     const median=[...edges].map(edge=>edge.step).sort((left,right)=>left-right)[Math.floor(edges.length/2)];
     const strong=edges.filter(edge=>edge.step>=median*.5).map(edge=>edge.point);
-    const line=consensusLine(strong,point=>point.x*along.x+point.y*along.y,1.5);
+    const line=consensusLine(strong,point=>point.x*along.x+point.y*along.y,1.5,along);
     const inliers=strong.filter(point=>Math.abs(lineDistance(line,point))<=1.5);if(inliers.length<edges.length*.5)return fallback;
     const fitted=fitLine(inliers);const alignment=fitted.direction.x*along.x+fitted.direction.y*along.y;
     if(Math.abs(alignment)<Math.cos(8*Math.PI/180))return fallback;
@@ -686,6 +690,8 @@ function insideQuadrilateral(corners,point,margin=0){
     const end=polygon[(index+1)%4];const length=Math.hypot(end.x-start.x,end.y-start.y)||1;
     const side=((end.x-start.x)*(point.y-start.y)-(end.y-start.y)*(point.x-start.x))/length;
     const reference=((end.x-start.x)*(center.y-start.y)-(end.y-start.y)*(center.x-start.x))/length;
+    // A negative margin asks for points at least that far inside every side.
+    if(margin<0)return Math.sign(side)===Math.sign(reference)&&Math.abs(side)>=-margin;
     return Math.sign(side)===Math.sign(reference)||Math.abs(side)<=margin;
   });
 }
@@ -710,7 +716,7 @@ function cornerRadiusEstimate(labels,label,corners,sides,width,height){
   return clamp((estimates[1]+estimates[2])/2*1.1/Math.max(1,short),0,.12);
 }
 
-function surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold){
+function surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold,{occluded=false}={}){
   const boundary=componentBoundary(labels,component,width,height);if(boundary.length<40)return {rejected:'small-contour',rectangularity:0};
   const rectangle=minimumAreaRectangle(convexHull(boundary));if(!rectangle)return {rejected:'no-rectangle',rectangularity:0};
   const rectangularity=component.count/Math.max(1,rectangle.area);
@@ -737,9 +743,10 @@ function surfaceCandidate(component,labels,smooth,light,edges,width,height,thres
     [fits,'outside-image'],
     [Math.min(...lengths)>=Math.min(width,height)*.18,'short-side'],
     [angles.every(value=>value>=60&&value<=120),'angles'],
-    [fill>=.86&&fill<=1.25,'fill'],
+    [fill>=(occluded?.8:.86)&&fill<=1.25,'fill'],
     [outside<=.08,'protrusion'],
-    [coverage>=.55&&sides.reduce((sum,side)=>sum+side.coverage,0)/4>=.7,'coverage'],
+    // A removed hand leaves part of one side without contour; the edge refit still has it.
+    [coverage>=(occluded?.35:.55)&&sides.reduce((sum,side)=>sum+side.coverage,0)/4>=(occluded?.6:.7),'coverage'],
     [straightness<=Math.max(1.6,fitted.short*.014),'straightness'],
     [contrast>=Math.max(22,threshold*2)&&metrics.minimumContrast>=Math.max(12,threshold*1.5),'contrast'],
   ];
@@ -749,10 +756,86 @@ function surfaceCandidate(component,labels,smooth,light,edges,width,height,thres
   return {corners:Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:clamp(point.x,0,width-1),y:clamp(point.y,0,height-1)}])),confidence,areaRatio,area,metrics,rectangularity,source:'border-surface'};
 }
 
+// A hand or arm holding the card enters from the photo edge and joins the card in one
+// foreground region. Grow it from where the region meets the photo edge through smooth,
+// similar colour; the card boundary is a sharp step and stops it, so the hand (and the
+// thumb lying on the card) is removed while the card stays. The outermost pixels are
+// darkened by resampling, so growth starts a few pixels inside the frame.
+function withoutFrameOccluder(component,labels,smooth,gradient,width,height){
+  const {label}=component;const occluder=new Uint8Array(width*height);const reference=new Float32Array(width*height*3);const queue=new Int32Array(component.count);let head=0;let tail=0;
+  const rim=4;const inRim=index=>{const x=index%width;const y=(index-x)/width;return x<rim||y<rim||x>=width-rim||y>=height-rim};
+  const seed=(index,edge)=>{if(labels[edge]!==label||labels[index]!==label||occluder[index])return;occluder[index]=1;queue[tail++]=index;for(let channel=0;channel<3;channel+=1)reference[index*3+channel]=smooth[index*3+channel]};
+  for(let x=Math.max(rim,component.minimumX);x<=Math.min(width-1-rim,component.maximumX);x+=1){seed(rim*width+x,x);seed((height-1-rim)*width+x,(height-1)*width+x)}
+  for(let y=Math.max(rim,component.minimumY);y<=Math.min(height-1-rim,component.maximumY);y+=1){seed(y*width+rim,y*width);seed(y*width+width-1-rim,y*width+width-1)}
+  if(tail<Math.max(8,Math.min(width,height)*.03))return null;
+  while(head<tail){
+    const index=queue[head++];const x=index%width;
+    for(const neighbor of [x>0?index-1:-1,x<width-1?index+1:-1,index-width,index+width]){
+      if(neighbor<0||neighbor>=width*height||labels[neighbor]!==label||occluder[neighbor]||inRim(neighbor)||gradient[neighbor]>8)continue;
+      let squared=0;for(let channel=0;channel<3;channel+=1)squared+=(smooth[neighbor*3+channel]-reference[index*3+channel])**2;
+      if(squared>18*18)continue;
+      occluder[neighbor]=1;queue[tail++]=neighbor;
+      for(let channel=0;channel<3;channel+=1){const previous=reference[index*3+channel];reference[neighbor*3+channel]=previous+(smooth[neighbor*3+channel]-previous)*.2}
+    }
+  }
+  if(tail<component.count*.01||tail>component.count*.75)return null;
+  // Widen the hand by its shadow and blurred outline, and take the frame rim with it.
+  let removed=occluder;for(let step=Math.max(2,Math.round(Math.min(width,height)*.02));step>0;step-=1)removed=dilate(removed,width,height);
+  let remaining=new Uint8Array(width*height);
+  for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=component.minimumX;x<=component.maximumX;x+=1){const index=y*width+x;remaining[index]=labels[index]===label&&!removed[index]&&!inRim(index)?1:0}
+  remaining=dilate(dilate(erode(erode(remaining,width,height),width,height),width,height),width,height);
+  const parts=labelComponents(remaining,width,height,component.count*.2);
+  const card=parts.components.sort((left,right)=>right.count-left.count)[0];if(!card)return null;
+  return {component:card,labels:parts.labels,occluderRatio:tail/component.count};
+}
+
+// Evaluate a region as a document; a region that reaches the photo edge and fails may be a
+// card with the holding hand attached, so evaluate it again without that hand.
+function evaluateRegion(component,labels,smooth,light,edges,width,height,threshold,gradientOf){
+  const direct={...surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold),component};
+  const touchesFrame=component.minimumX===0||component.minimumY===0||component.maximumX===width-1||component.maximumY===height-1;
+  if(!direct.rejected||!touchesFrame)return direct;
+  const trimmed=withoutFrameOccluder(component,labels,smooth,gradientOf(),width,height);if(!trimmed)return direct;
+  const held=surfaceCandidate(trimmed.component,trimmed.labels,smooth,light,edges,width,height,threshold,{occluded:true});
+  if(held.rejected)return direct;
+  held.metrics.occluder=trimmed.occluderRatio;
+  return {...held,component,labels:trimmed.labels,heldComponent:trimmed.component};
+}
+
+// A card lying on a wallet, tray or book joins the holder in one irregular region, and the
+// region's outline is part holder, part card. Split the region's colours into two groups
+// (card and holder contrast strongly) and keep the group pieces that pass as a document.
+function splitHolderRegion(component,labels,smooth,light,edges,width,height,threshold,gradientOf){
+  const {label}=component;const pixels=[];
+  for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=component.minimumX;x<=component.maximumX;x+=1){const index=y*width+x;if(labels[index]===label)pixels.push(index)}
+  const luminance=index=>smooth[index*3]*.299+smooth[index*3+1]*.587+smooth[index*3+2]*.114;
+  const sample=pixels.filter((_,position)=>position%7===0).sort((left,right)=>luminance(left)-luminance(right));if(sample.length<50)return [];
+  let centers=[sample[Math.floor(sample.length*.15)],sample[Math.floor(sample.length*.85)]].map(index=>[smooth[index*3],smooth[index*3+1],smooth[index*3+2]]);
+  const nearest=index=>{let best=0;let bestDistance=Infinity;centers.forEach((center,group)=>{const value=(smooth[index*3]-center[0])**2+(smooth[index*3+1]-center[1])**2+(smooth[index*3+2]-center[2])**2;if(value<bestDistance){bestDistance=value;best=group}});return best};
+  for(let iteration=0;iteration<6;iteration+=1){
+    const sums=[[0,0,0,0],[0,0,0,0]];
+    for(const index of sample){const group=nearest(index);for(let channel=0;channel<3;channel+=1)sums[group][channel]+=smooth[index*3+channel];sums[group][3]+=1}
+    centers=sums.map((sum,group)=>sum[3]?[sum[0]/sum[3],sum[1]/sum[3],sum[2]/sum[3]]:centers[group]);
+  }
+  if(Math.hypot(centers[0][0]-centers[1][0],centers[0][1]-centers[1][1],centers[0][2]-centers[1][2])<Math.max(40,threshold*2))return [];
+  const candidates=[];
+  for(let group=0;group<2;group+=1){
+    let mask=new Uint8Array(width*height);for(const index of pixels)if(nearest(index)===group)mask[index]=1;
+    mask=dilate(dilate(erode(erode(mask,width,height),width,height),width,height),width,height);
+    const parts=labelComponents(mask,width,height,width*height*.06);
+    for(const part of parts.components.sort((left,right)=>right.count-left.count).slice(0,3)){
+      const candidate=evaluateRegion(part,parts.labels,smooth,light,edges,width,height,threshold,gradientOf);
+      if(!candidate.rejected&&candidate.areaRatio>=.08)candidates.push({labels:parts.labels,heldComponent:part,...candidate});
+    }
+  }
+  return candidates.sort((left,right)=>right.area-left.area);
+}
+
 function surfaceCandidates(smooth,light,edges,width,height,domain,{adaptive=false}={}){
   const flood=floodSurface(smooth,width,height,domain,{adaptive});if(!flood)return {flood:null,valid:[],evaluated:[],adaptive};
   const {labels,components}=labelComponents(flood.foreground,width,height,Math.max(60,width*height*.03));
-  const evaluated=components.sort((left,right)=>right.count-left.count).slice(0,6).map(component=>({...surfaceCandidate(component,labels,smooth,light,edges,width,height,flood.threshold),component}));
+  let gradient=null;const gradientOf=()=>gradient??=gradientMagnitude(smooth,width,height);
+  const evaluated=components.sort((left,right)=>right.count-left.count).slice(0,6).map(component=>domain?{...surfaceCandidate(component,labels,smooth,light,edges,width,height,flood.threshold),component}:evaluateRegion(component,labels,smooth,light,edges,width,height,flood.threshold,gradientOf));
   return {flood,labels,evaluated,adaptive,valid:evaluated.filter(candidate=>!candidate.rejected).sort((left,right)=>right.area-left.area)};
 }
 
@@ -768,25 +851,54 @@ function borderSurfaceDetection(working,edges){
   const {width,height}=working;
   const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
   const level=surfaceLevel(smooth,light,edges,width,height,null);
+  let gradient=null;const gradientOf=()=>gradient??=gradientMagnitude(smooth,width,height);
   const summary={floodThreshold:level.flood?Number(level.flood.threshold.toFixed(1)):null,floodMode:level.adaptive?'adaptive':'strict',calmGradient:level.flood?Number(level.flood.calm.toFixed(2)):null,foregroundRegions:level.evaluated.length,surfaceCandidates:level.valid.length,rejected:level.evaluated.filter(candidate=>candidate.rejected).slice(0,4).map(candidate=>`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`)};
   const result={background:level.flood?.background||null,labels:level.labels||null,components:level.evaluated.map(candidate=>({...candidate.component,rejected:candidate.rejected||null})),summary};
-  if(!level.valid.length)return {...result,status:'none'};
+  if(!level.valid.length){
+    // A card lying on a wallet, tray or book joins the holder in one irregular region.
+    // Peel the holder off from that region's own outline; the card is what is left.
+    const holder=level.evaluated.find(candidate=>['protrusion','fill','coverage','angles','straightness','no-sides','no-corners'].includes(candidate.rejected)&&candidate.component.count>=width*height*.12);
+    if(holder){
+      const cards=splitHolderRegion(holder.component,level.labels,smooth,light,edges,width,height,level.flood.threshold,gradientOf);
+      summary.holder=`${(holder.component.count/(width*height)).toFixed(2)}/${cards.map(candidate=>candidate.areaRatio.toFixed(2)).join(',')}`;
+      if(cards.length>1&&cards[1].area>=cards[0].area*.35)return {...result,status:'multiple',summary};
+      if(cards.length)return {...result,status:'document',candidate:cards[0],summary};
+    }
+    return {...result,status:'none'};
+  }
   const best=level.valid[0];
   // Another large, rectangular foreground region (a second card, even one we could not
   // fit cleanly) makes the choice ambiguous: never crop one of them silently.
   const competing=level.evaluated.filter(candidate=>candidate!==best&&candidate.component.count>=best.component.count*.35&&(!candidate.rejected||candidate.rectangularity>=.8));
   if(competing.length)return {...result,status:'multiple'};
-  if(nearSourceFrame(best.corners,width,height,best.areaRatio)){
-    const domain=new Uint8Array(width*height);for(let index=0;index<domain.length;index+=1)domain[index]=level.labels[index]===best.component.label?1:0;
-    const inner=surfaceLevel(smooth,light,edges,width,height,domain);
-    const nested=inner.valid.filter(candidate=>candidate.area>=best.area*.18&&candidate.area<=best.area*.86);
-    const contentRatio=inner.contentRatioAdapted??inner.flood?.contentRatio;
-    summary.nested=`${inner.flood?inner.flood.threshold.toFixed(1):'none'}/${inner.flood?contentRatio.toFixed(3):'-'}/${inner.evaluated.map(candidate=>candidate.rejected?`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`:`ok:${candidate.areaRatio.toFixed(2)}`).join(',')}`;
-    if(nested.length)return {...result,status:'nested',candidate:best,summary};
-    // A frame-filling region with no content of its own is the surface seen through a
-    // photo frame or mat, not a document.
-    if(inner.flood&&contentRatio<.01)return {...result,status:'frame',summary};
+  const frameLike=nearSourceFrame(best.corners,width,height,best.areaRatio);
+  const domainLabels=best.labels||level.labels;const domainLabel=(best.heldComponent||best.component).label;
+  const domain=new Uint8Array(width*height);for(let index=0;index<domain.length;index+=1)domain[index]=domainLabels[index]===domainLabel?1:0;
+  const inner=surfaceLevel(smooth,light,edges,width,height,domain);
+  const insideBest=candidate=>candidate.area>=best.area*.18&&candidate.area<=best.area*.86;
+  let nested=inner.valid.filter(insideBest);
+  const contentRatio=inner.contentRatioAdapted??inner.flood?.contentRatio;
+  // Only a large inner region the surface model could not fit is worth splitting by colour.
+  if(!nested.length&&inner.evaluated.some(candidate=>candidate.component.count>=(best.heldComponent||best.component).count*.18))nested=splitHolderRegion(best.heldComponent||best.component,domainLabels,smooth,light,edges,width,height,level.flood.threshold,gradientOf).filter(insideBest);
+  summary.nested=`${inner.flood?inner.flood.threshold.toFixed(1):'none'}/${inner.flood?contentRatio.toFixed(3):'-'}/${inner.evaluated.map(candidate=>candidate.rejected?`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`:`ok:${candidate.areaRatio.toFixed(2)}`).join(',')}`;
+  if(nested.length){
+    // A wallet, tray, book or mat under the card is itself rectangular. Cards and papers are
+    // lighter than the wallets, trays and tables they lie on, so a clearly lighter inner
+    // rectangle is the document; a darker one is a panel printed on the outer document.
+    const card=nested[0];let outside=0;let content=0;let innerLight=0;let innerCount=0;let outerLight=0;const margin=Math.max(3,Math.min(width,height)*.02);
+    for(let index=0;index<domain.length;index+=2){
+      if(!domain[index])continue;const x=index%width;const point={x,y:(index-x)/width};const value=smooth[index*3]*.299+smooth[index*3+1]*.587+smooth[index*3+2]*.114;
+      if(insideQuadrilateral(card.corners,point,-margin)){innerLight+=value;innerCount+=1;continue}
+      if(insideQuadrilateral(card.corners,point,margin))continue;outside+=1;outerLight+=value;content+=inner.flood?.foreground?.[index]||0;
+    }
+    const between=content/Math.max(1,outside);const lighter=innerLight/Math.max(1,innerCount)-outerLight/Math.max(1,outside);
+    summary.holderContent=Number(between.toFixed(3));summary.innerLighter=Math.round(lighter);
+    if(lighter>=25&&!(nested[1]&&nested[1].area>=card.area*.35))return {...result,status:'document',candidate:card,summary};
+    if(frameLike)return {...result,status:'nested',candidate:best,summary};
   }
+  // A frame-filling region with no content of its own is the surface seen through a
+  // photo frame or mat, not a document.
+  if(frameLike&&inner.flood&&contentRatio<.01)return {...result,status:'frame',summary};
   return {...result,status:'document',candidate:best};
 }
 
