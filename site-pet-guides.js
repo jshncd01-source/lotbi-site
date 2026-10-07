@@ -178,7 +178,7 @@ const PET_SLOT_ARTWORK_NAMES = Object.freeze({
 
 export const PET_SLOT_ARTWORK = Object.freeze(
   Object.fromEntries(['DOG', 'CAT'].flatMap(species => Object.entries(PET_SLOT_ARTWORK_NAMES).map(
-    ([slotCode, fileName]) => [`${species}:${slotCode}`, `assets/pet/${species.toLowerCase()}-${fileName}-v1.png`],
+    ([slotCode, fileName]) => [`${species}:${slotCode}`, `assets/pet/${species.toLowerCase()}-${fileName}-v2.webp`],
   ))),
 );
 
@@ -206,7 +206,10 @@ export function petPhotoSlotArtwork(slotCode, species) {
   image.className = 'pet-slot-guide-image';
   image.src = src;
   image.alt = `${petPhotoSlotLabel(slotCode)} 촬영 예시`;
-  image.loading = 'lazy';
+  // PET-PHOTO-GUIDE-DEDUPE-01: the ten examples are what this step shows and
+  // weigh about 45 KB each, so they load with the step instead of waiting to
+  // be scrolled into view (lazy tiles further down were seen blank).
+  image.loading = 'eager';
   image.decoding = 'async';
   image.onerror = () => {
     const fallback = petPhotoSlotDiagram(slotCode, normalizedSpecies);
