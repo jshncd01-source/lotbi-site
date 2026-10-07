@@ -21,7 +21,8 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
+// Line endings follow the checkout (CRLF on Windows), never the contract.
+const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8').replace(/\r\n/g, '\n');
 
 // ── Static contract ─────────────────────────────────────────────────────
 const conversation = read('site-conversation.js');
