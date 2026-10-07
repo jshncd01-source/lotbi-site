@@ -56,7 +56,7 @@ try {
     const small = new OffscreenCanvas(Math.round(width * scale), Math.round(height * scale));
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(canvas, 0, 0, small.width, small.height);
     const started = performance.now();
-    const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height));
+    const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale});
     const elapsed = performance.now() - started;
     const row = {group: test.group, name: test.name, expect: test.expect, mode: found.mode, reason: found.reason, paper: Boolean(found.paper), rotation: found.rotation, turn: test.turn, elapsed, diagnostics: found.diagnostics};
     if (test.scene.cards.length === 1) {
@@ -75,7 +75,7 @@ try {
     const scale = Math.min(1, 1200 / Math.max(page.width, page.height));
     const small = new OffscreenCanvas(Math.round(page.width * scale), Math.round(page.height * scale));
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(page.canvas, 0, 0, small.width, small.height);
-    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height)); const elapsed = performance.now() - started;
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale}); const elapsed = performance.now() - started;
     const xs = Object.values(found.corners).map(point => point.x / small.width); const ys = Object.values(found.corners).map(point => point.y / small.height);
     results.push({group: blank ? 'NEGATIVE' : 'SYNTHETIC_FULL_PAGE', name: blank ? 'blank-page' : 'page-' + index, expect: blank ? 'manual' : 'page', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics, paper: found.paper, rotation: found.rotation, pageBox: page.box, sheetBottom: page.sheetBottom, foundBox: {left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys)}});
   }
@@ -85,7 +85,7 @@ try {
     const scale = Math.min(1, 1200 / Math.max(pet.width, pet.height));
     const small = new OffscreenCanvas(Math.round(pet.width * scale), Math.round(pet.height * scale));
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(pet.canvas, 0, 0, small.width, small.height);
-    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height)); const elapsed = performance.now() - started;
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale}); const elapsed = performance.now() - started;
     results.push({group: 'NOT_A_DOCUMENT', name: 'pet-' + index, expect: 'not-a-document', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics});
   }
   window.__result = {ok: true, results};

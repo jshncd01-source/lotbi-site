@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-cc3210d9faf8';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-cc3210d9faf8';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-7baf9459279f';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-7baf9459279f';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -52,15 +52,28 @@ function exifOrientation(bytes,start,length){
   return 0;
 }
 
+// Camera shots and gallery files take this same path: decoded upright (EXIF orientation) and
+// at most 2560 pixels on the long side. When the header gives no size (WebP, HEIC, camera
+// JPEGs with large maker blocks), the decoded photo is scaled down here instead.
 async function decodeFile(file, resources) {
+  let decoded=null;
   if (typeof createImageBitmap === 'function') {
     try {
       const size=await encodedDimensions(file); const options={imageOrientation:'from-image'};
       if(size&&Math.max(size.width,size.height)>2560){const scale=2560/Math.max(size.width,size.height);options.resizeWidth=Math.round(size.width*scale);options.resizeHeight=Math.round(size.height*scale);options.resizeQuality='high'}
-      const bitmap=await createImageBitmap(file,options); resources.bitmap=bitmap; return bitmap;
+      decoded=await createImageBitmap(file,options); resources.bitmap=decoded;
     } catch {}
   }
-  const url=URL.createObjectURL(file); resources.url=url; const image=new Image(); image.src=url; await image.decode(); return image;
+  if(!decoded){
+    try{const url=URL.createObjectURL(file); resources.url=url; const image=new Image(); image.src=url; await image.decode(); decoded=image}
+    catch{throw new Error(/hei[cf]/iu.test(file.type)||/\.hei[cf]$/iu.test(file.name)?'이 브라우저에서는 HEIC 사진을 열 수 없습니다. 카메라 설정에서 JPG(호환성 우선)로 저장하거나 다른 사진을 선택해 주세요.':'사진을 열지 못했습니다. 다른 사진을 선택해 주세요.')}
+  }
+  const size=dimensions(decoded);
+  if(Math.max(size.width,size.height)<=2560)return decoded;
+  const scale=2560/Math.max(size.width,size.height);const canvas=document.createElement('canvas');
+  canvas.width=Math.round(size.width*scale);canvas.height=Math.round(size.height*scale);canvas.getContext('2d').drawImage(decoded,0,0,canvas.width,canvas.height);
+  resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}
+  return canvas;
 }
 
 function dimensions(source) { return {width:source.naturalWidth||source.width,height:source.naturalHeight||source.height}; }
@@ -157,7 +170,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
   async function analyse(nextSource) {
     source=nextSource; detectedCorners=null; fallbackCorners=null; cornerRadius=0; paperPage=false; notDocument=false; latest='';
     const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
-    const detection=detectionPixels(source); detectionImage=detection.imageData; detectionScale=detection.scale; const found=detectDocumentCorners(detection.imageData); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+    const detection=detectionPixels(source); detectionImage=detection.imageData; detectionScale=detection.scale; const found=detectDocumentCorners(detection.imageData,{sourceScale:detection.scale}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
     notDocument=reason==='not-a-document'||reason==='receipt-like'; adjust.hidden=notDocument; rotate.hidden=notDocument;

@@ -738,8 +738,11 @@ function surfaceCandidate(component,labels,smooth,light,edges,width,height,thres
   const shapeScore=documentShapeScore(corners);
   const metrics={areaRatio,fill,outside,coverage,straightness:straightness/fitted.tolerance,contrast,minimumContrast:Math.min(...contrasts),contrastToSurface:contrast/threshold,edgeSupport,shapeScore,rectangularity,angles:angles.map(value=>Math.round(value))};
   const fits=ordered.every(point=>point.x>=-width*.02&&point.y>=-height*.02&&point.x<=width*1.02&&point.y<=height*1.02);
+  // An ID or business card shot from arm's length fills only a few percent of a phone photo;
+  // such a small region counts only when it is card-shaped (1.45 to 1.8 : 1).
+  const aspect=Math.max(lengths[0]+lengths[2],lengths[1]+lengths[3])/Math.max(1e-6,Math.min(lengths[0]+lengths[2],lengths[1]+lengths[3]));
   const gates=[
-    [areaRatio>=.1&&areaRatio<=.93,'area'],
+    [(areaRatio>=.1||(areaRatio>=.04&&aspect>=1.45&&aspect<=1.8))&&areaRatio<=.93,'area'],
     [!nearSourceFrame(corners,width,height,areaRatio,{strict:true}),'source-frame'],
     [fits,'outside-image'],
     [Math.min(...lengths)>=Math.min(width,height)*.18,'short-side'],
@@ -986,12 +989,13 @@ function printMarks(working,smooth,light){
 }
 
 // Rows running left to right, or top to bottom when `downward`; each row keeps where it
-// starts and ends along its own direction.
-function textRows(working,marks,corners,downward=false){
+// starts and ends along its own direction. Glyphs are at most `tallest` of the image height:
+// small in a whole photo, larger inside a cut-out item (card titles).
+function textRows(working,marks,corners,downward=false,tallest=.05){
   const {width,height}=working;const across=downward?width:height;const along=downward?height:width;
   const glyphs=marks.filter(mark=>{
     const tall=downward?mark.maximumX-mark.minimumX+1:mark.maximumY-mark.minimumY+1;const wide=downward?mark.maximumY-mark.minimumY+1:mark.maximumX-mark.minimumX+1;
-    if(tall<3||tall>across*.05||wide>along*.15||mark.minimumX<=1||mark.minimumY<=1||mark.maximumX>=width-2||mark.maximumY>=height-2)return false;
+    if(tall<3||tall>across*tallest||wide>along*.15||mark.minimumX<=1||mark.minimumY<=1||mark.maximumX>=width-2||mark.maximumY>=height-2)return false;
     return !corners||insideQuadrilateral(corners,{x:(mark.minimumX+mark.maximumX)/2,y:(mark.minimumY+mark.maximumY)/2});
   }).map(mark=>downward
     ?{left:mark.minimumY,right:mark.maximumY,middle:(mark.minimumX+mark.maximumX)/2,tall:mark.maximumX-mark.minimumX+1}
@@ -1017,8 +1021,8 @@ function textLines(working,marks,corners){
 // Inside a found card, rows may run either way: a card photographed on its side still reads
 // as printed. (Dense pages stack glyphs into top-to-bottom chains too, so this two-way count
 // is only used inside card outlines.)
-function cardLines(working,marks,corners){
-  return Math.max(textRows(working,marks,corners).lines,textRows(working,marks,corners,true).lines);
+function cardLines(working,marks,corners,tallest=.05){
+  return Math.max(textRows(working,marks,corners,false,tallest).lines,textRows(working,marks,corners,true,tallest).lines);
 }
 
 // Which way to turn a found card so it stands upright (degrees clockwise). Cards are landscape
@@ -1037,10 +1041,14 @@ function uprightRotation(working,marks,corners){
 }
 
 // Long side over short side of a quadrilateral, averaging opposite sides.
-function quadAspect(corners){
+function quadSides(corners){
   const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];const side=(start,end)=>Math.hypot(end.x-start.x,end.y-start.y);
   const across=(side(ordered[0],ordered[1])+side(ordered[3],ordered[2]))/2;const down=(side(ordered[0],ordered[3])+side(ordered[1],ordered[2]))/2;
-  return Math.max(across,down)/Math.max(1,Math.min(across,down));
+  return {long:Math.max(across,down),short:Math.min(across,down)};
+}
+function quadAspect(corners){
+  const {long,short}=quadSides(corners);
+  return long/Math.max(1,short);
 }
 
 // Pages are whitened like scans. A page is a full-page crop, or a large, mostly
@@ -1062,17 +1070,44 @@ function pageLike(working,corners){
 
 // Fewest printed rows a wallet item shows (real IDs show about ten; pets one or two).
 const MINIMUM_TEXT_LINES=3;
+const ITEM_EDGE=900;
+const ITEM_GLYPH=.12;
+
+// The found item cut out and squared up from the detection image, its long side ITEM_EDGE
+// pixels: print is judged on the item itself, deskewed and without the table, shadow and
+// margins around it, not on the small working copy of the whole photo (where an ID shot from
+// arm's length leaves its print only a few pixels tall).
+function warpItem(imageData,corners){
+  const ordered=orderDocumentCorners(Object.values(corners));
+  const across=(distance(ordered.topLeft,ordered.topRight)+distance(ordered.bottomLeft,ordered.bottomRight))/2;
+  const down=(distance(ordered.topLeft,ordered.bottomLeft)+distance(ordered.topRight,ordered.bottomRight))/2;
+  const scale=ITEM_EDGE/Math.max(1,across,down);const width=Math.max(8,Math.round(across*scale));const height=Math.max(8,Math.round(down*scale));
+  const transform=homography([{x:0,y:0},{x:width-1,y:0},{x:width-1,y:height-1},{x:0,y:height-1}],[ordered.topLeft,ordered.topRight,ordered.bottomRight,ordered.bottomLeft]);
+  const item=new ImageData(width,height);
+  for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){
+    const denominator=transform[6]*x+transform[7]*y+1;const sourceX=(transform[0]*x+transform[1]*y+transform[2])/denominator;const sourceY=(transform[3]*x+transform[4]*y+transform[5])/denominator;
+    const offset=(y*width+x)*4;for(let channel=0;channel<3;channel+=1)item.data[offset+channel]=bilinearSample(imageData.data,imageData.width,imageData.height,sourceX,sourceY,channel);item.data[offset+3]=255;
+  }
+  return item;
+}
+
+function itemMarks(imageData,corners){
+  const working=workingGray(warpItem(imageData,corners),ITEM_EDGE);const {width,height}=working;
+  const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
+  return {working,marks:printMarks(working,smooth,light),whole:{topLeft:{x:0,y:0},topRight:{x:width-1,y:0},bottomRight:{x:width-1,y:height-1},bottomLeft:{x:0,y:height-1}}};
+}
 
 // Printed rows inside corners the user placed by hand: a manual crop is only saved when it
 // frames a printed item, so a pet cannot be saved by dragging the corners around it.
-export function framesPrintedItem(imageData,corners,{maximumEdge=720}={}){
-  const working=workingGray(imageData,maximumEdge);const {width,height}=working;
-  const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
-  const scaled=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*working.scale,y:point.y*working.scale}]));
-  return textLines(working,printMarks(working,smooth,light),scaled)>=MINIMUM_TEXT_LINES;
+// Judged on the squared-up crop like a found item, but rows across only: a pet's fur makes
+// short rows both ways.
+export function framesPrintedItem(imageData,corners){
+  const {working,marks}=itemMarks(imageData,corners);
+  return textRows(working,marks,null,false,ITEM_GLYPH).lines>=MINIMUM_TEXT_LINES;
 }
 
-export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
+// sourceScale: how far the caller shrank the original photo to build imageData (1 = original).
+export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
   const blurred=boxBlur(working.gray,working.width,working.height);
@@ -1092,12 +1127,16 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   else if(surface.status==='multiple')reason='competing-documents';
   else if(surface.status==='nested'){chosen=legacy;if(!legacy)reason='competing-boundaries'}
   else if(surface.status==='none'&&legacy&&surfaceConsistent(surface,legacy.corners,working.width,working.height))chosen=legacy;
+  // A card filling only a few percent of the photo (shot from arm's length) is cropped only
+  // when the original photo still holds it at a legible size.
+  if(chosen&&chosen.source!=='full-page'&&(chosen.areaRatio??1)<.1&&quadSides(chosen.corners).short/working.scale/sourceScale<300){chosen=null;reason='automatic-detection-uncertain'}
   // Wallet items are IDs, licences, cards and documents: they carry printed rows of text. A
   // photo with hardly any (a pet, a person, a room) is not cropped, and the scanner refuses it.
   const marks=printMarks(working,surface.smooth,surface.light);
   const lines=textLines(working,marks,null);
   const card=Boolean(chosen)&&chosen.source!=='full-page';
-  const chosenLines=chosen?(card?cardLines(working,marks,chosen.corners):textLines(working,marks,chosen.corners)):0;
+  const item=card?itemMarks(imageData,Object.fromEntries(Object.entries(chosen.corners).map(([name,point])=>[name,{x:point.x/working.scale,y:point.y/working.scale}]))):null;
+  const chosenLines=chosen?(card?cardLines(item.working,item.marks,null,ITEM_GLYPH):textLines(working,marks,chosen.corners)):0;
   if(lines<MINIMUM_TEXT_LINES&&!(card&&chosenLines>=MINIMUM_TEXT_LINES)){chosen=null;reason='not-a-document'}
   // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
   // rooms a handful); a card needs a couple of lines of print inside its outline.
@@ -1111,7 +1150,7 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   const paper=chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners));
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
-  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation:paper?0:uprightRotation(working,marks,chosen.corners),diagnostics};
+  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation:paper||!card?0:uprightRotation(working,marks,chosen.corners),diagnostics};
 }
 
 // Edge-component and corner-patch candidates (the original pipeline).

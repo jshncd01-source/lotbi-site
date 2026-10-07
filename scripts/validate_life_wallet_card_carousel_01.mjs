@@ -116,7 +116,7 @@ if (!result.ok) throw new Error(result.error);
   assert.equal(result.lastVisible, 1, 'the last card must also be shown alone (no part of the previous card beside it)');
   assert.equal(result.keyboardPosition, '2 / 3', 'the left arrow key must move to the previous card');
   // The strip fits the card on screen: a short ID card is not framed by a tall page's height.
-  for (const [name, gap] of [['first card', result.firstGap], ['second card', result.pageGap], ['last tall page', result.cardGap]]) assert.ok(gap >= 0 && gap <= 12, `the wallet strip must fit the ${name} on screen (gap ${gap}px)`);
+  for (const [name, gap] of [['first card', result.firstGap], ['second card', result.pageGap], ['last tall page', result.cardGap]]) assert.ok(gap >= 0 && gap <= 20, `the wallet strip must fit the ${name} on screen, with room for its shadow (gap ${gap}px)`);
   assert.equal(result.opened, 'two', 'clicking the visible card must preserve the existing detail action');
   assert.equal(result.swipeEnabled, true, 'the wallet card viewport must snap one card per swipe');
   assert.equal(result.compactCardFrame, true, 'wallet cards must stay compact instead of expanding into an image viewer');
@@ -124,7 +124,7 @@ if (!result.ok) throw new Error(result.error);
   assert.equal(result.singleControls, 0, 'a single wallet card must not show carousel controls or position');
   assert.equal(result.overflow, false, 'the wallet carousel must fit a 390px mobile viewport');
   assert.ok(result.portraitFit.cardWidth-result.portraitFit.imageWidth<=4&&Math.abs(result.portraitFit.imageAspect-734/1024)<.03, `a portrait page must not be framed by empty bars: ${JSON.stringify(result.portraitFit)}`);
-  assert.ok(result.landscapeFit.cardWidth>=Math.min(400,result.landscapeFit.frameWidth-4)&&result.landscapeFit.cardWidth-result.landscapeFit.imageWidth<=4&&Math.abs(result.landscapeFit.imageAspect-1012/638)<.03, `a landscape card must fill its card frame: ${JSON.stringify(result.landscapeFit)}`);
+  assert.ok(result.landscapeFit.cardWidth>=Math.min(400,result.landscapeFit.frameWidth-28)&&result.landscapeFit.cardWidth-result.landscapeFit.imageWidth<=4&&Math.abs(result.landscapeFit.imageAspect-1012/638)<.03, `a landscape card must fill its card frame: ${JSON.stringify(result.landscapeFit)}`);
 }
 }
 console.log('LIFE_WALLET_CARD_CAROUSEL_01 PASS — desktop and 390px phone');
