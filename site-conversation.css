@@ -2476,7 +2476,14 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   height: 326px;
   margin-top: 12px;
   padding: 0;
+  /* The orbit places cards with transforms and never scrolls. It inherited
+     the product rail's mandatory inline scroll snap, so every rotation
+     re-snapped this hidden scroller (153-161px on phones) and pushed the
+     center card off to the side. clip (hidden as the fallback) also keeps
+     focus/find-in-page from scrolling it. */
   overflow: hidden;
+  overflow: clip;
+  scroll-snap-type: none;
   overscroll-behavior: contain;
   touch-action: pan-y;
   cursor: grab;
