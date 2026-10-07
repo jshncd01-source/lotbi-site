@@ -98,6 +98,10 @@ assert.ok(!/window\.confirm\(/u.test(walletSource), 'wallet deletion must not re
 assert.match(walletSource, /await vault\.verifyPin\(accountId, removalPin\.value\);\s*await vault\.remove\(accountId, card\.id\)/u, 'a deletion must verify the wallet PIN first');
 await assert.rejects(() => simplifiedWallet.verifyPin('simplified-add-account', '1111'), /월렛 PIN을 확인해 주세요/u, 'a wrong PIN must not allow deletion');
 await simplifiedWallet.verifyPin('simplified-add-account', '8642');
+// A section panel reopens after a reload: ?section= is kept while it is open and read on load.
+assert.match(conversationSource, /if \(REOPENABLE_SECTIONS\.has\(section\)\) rememberSection\(section\);/u, 'an open wallet panel must be remembered in the address');
+assert.match(conversationSource, /onClose: \(\) => \{ forgetSection\(section\); mounted\?\.dispose\(\); \}/u, 'closing the panel must forget it');
+assert.match(conversationSource, /if \(REOPENABLE_SECTIONS\.has\(reopen\)\) void openConsumerSection\(reopen\);/u, 'a reload must reopen the remembered panel');
 // Items carry one photo: the detail view shows it full width, not in a two-column front/back grid.
 assert.match(walletCssSource, /\.wallet-detail-images \{ display: grid; grid-template-columns: minmax\(0, 1fr\);/u, 'the detail photo must use the full width');
 assert.ok(!/wallet-detail-images \{[^}]*repeat\(2/u.test(walletCssSource), 'no two-column front/back grid for a single photo');

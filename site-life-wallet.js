@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-54dc224228a7';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-003e3b140440';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -703,7 +703,11 @@ export function createWalletCardCarousel({cards, onOpen}) {
     image.alt = `${index + 1}번째 저장 자료`;
     image.draggable = false;
     item.append(image);
-    track.append(item);
+    // A full-width slide around each card: the scrollable width then ends at the last slide,
+    // not at the last (narrower, centred) card, so the last card can come to the centre too.
+    const slide = element('div', 'wallet-card-slide');
+    slide.append(item);
+    track.append(slide);
     return item;
   });
   viewport.append(track);
