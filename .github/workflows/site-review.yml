@@ -433,15 +433,14 @@ jobs:
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
-      # 답변 공유에는 링크 복사와 카카오톡만 노출한다. Kakao SDK is loaded
-      # lazily from the allowlisted Core config, never as an eager page script.
-      - name: Validate message copy and two-option share actions
+      # 답변 공유에는 링크 복사를 항상 노출하고, 명시적 Kakao Share readiness가
+      # 확인된 경우에만 카카오톡을 추가한다. SDK는 eager load하지 않는다.
+      - name: Validate message copy and readiness-gated share actions
         run: node scripts/validate_message_share_actions_01.mjs
 
-      # Until Core configures KakaoTalk sharing, "카카오톡 공유하기" copies the
-      # answer and link without requesting the Kakao SDK; once configured it
-      # opens the KakaoTalk share screen. Both states are exercised.
-      - name: Validate KakaoTalk share fallback and configured paths
+      # Kakao Share가 준비되지 않으면 메뉴를 숨기고 clipboard fallback을
+      # 절대 실행하지 않는다. 준비된 경우에만 실제 Kakao helper를 호출한다.
+      - name: Validate KakaoTalk hidden and real-share paths
         run: node scripts/validate_kakao_share_fallback_01.mjs
 
       # CHATPERF-08 — a chat photo is analysis input, never a thing this Site

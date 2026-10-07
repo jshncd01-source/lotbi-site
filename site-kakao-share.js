@@ -1,11 +1,9 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-4d2e58d0bf4f';
+import {CORE_ORIGIN} from './site-core.js?v=aset-6e84605a7ebc';
 
-// SITE-MESSAGE-SHARE-ACTIONS-02 — "카카오톡 공유하기".
-// Core decides whether KakaoTalk sharing is configured (the same
-// navigation.kakao_navi_ready / JavaScript key Kakao Navi uses). Until it is,
-// the Kakao SDK is never requested: the answer and the LOTBI link are copied
-// so the user can paste them into KakaoTalk. The page load after Core turns
-// it on shares through KakaoTalk with no Site change.
+// LOTBI-KAKAO-SHARE-REAL-SHARE-UX-FIX-01 — Kakao Navi readiness does not
+// authorize Kakao Share. The Share action is available only when Core's
+// explicit Share readiness flag, public JavaScript key and allowlisted SDK URL
+// are all present. Missing or unreadable config fails closed without copying.
 const KAKAO_SDK_URL_RE = /^https:\/\/t1\.kakaocdn\.net\/kakao_js_sdk\/[0-9.]+\/kakao(?:\.min)?\.js$/u;
 
 let sdkPromise;
@@ -14,12 +12,12 @@ let configPromise;
 function configuredSdk(navigation) {
   const sdkUrl = String(navigation?.kakao_javascript_sdk_url || '');
   const javascriptKey = String(navigation?.kakao_javascript_key || '');
-  if (navigation?.kakao_navi_ready !== true || !javascriptKey || !KAKAO_SDK_URL_RE.test(sdkUrl)) return null;
+  if (navigation?.kakao_share_ready !== true || !javascriptKey || !KAKAO_SDK_URL_RE.test(sdkUrl)) return null;
   return {sdkUrl, javascriptKey};
 }
 
-// Read once per page. A failed read is not remembered, so the next tap asks
-// Core again; that tap still falls back to copying rather than failing.
+// Read once per page. A failed read is not remembered, so opening the menu
+// again can recover after a temporary config failure.
 export function loadKakaoShareConfig() {
   if (!configPromise) {
     configPromise = fetch(`${CORE_ORIGIN}/app/config.json`, {
@@ -60,20 +58,12 @@ function loadSdk(src) {
   return sdkPromise;
 }
 
-// Resolves 'shared' when the KakaoTalk share screen opened, or 'copied' when
-// sharing is not configured and the text plus link went to the clipboard.
-export async function shareWithKakaoTalk({text, url, copyFallback}) {
+// Resolves 'shared' only after the KakaoTalk share helper has been invoked.
+// Callers own their explicit Link Copy action; this helper never writes to the
+// clipboard as a fallback.
+export async function shareWithKakaoTalk({text, url}) {
   const config = await loadKakaoShareConfig();
-  if (!config) {
-    if (typeof copyFallback !== 'function') throw new Error('KAKAO_SHARE_NOT_CONFIGURED');
-    const body = String(text || '').trim();
-    try {
-      await copyFallback(body ? `${body}\n\n${url}` : String(url));
-    } catch {
-      throw new Error('KAKAO_SHARE_COPY_FAILED');
-    }
-    return 'copied';
-  }
+  if (!config) throw new Error('KAKAO_SHARE_NOT_CONFIGURED');
   const Kakao = await loadSdk(config.sdkUrl);
   if (!Kakao?.Share?.sendDefault || typeof Kakao.init !== 'function') throw new Error('KAKAO_SHARE_SDK_INVALID');
   if (typeof Kakao.isInitialized !== 'function' || !Kakao.isInitialized()) Kakao.init(config.javascriptKey);
