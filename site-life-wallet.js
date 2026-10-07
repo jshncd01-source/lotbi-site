@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-003e3b140440';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-46ed09b63e54';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -637,8 +637,8 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
       mark.hidden = true;
       preview.hidden = true;
       preview.removeAttribute('src');
-      title.textContent = '사진 보정 중';
-      help.textContent = '모서리와 보정 결과를 확인해 주세요.';
+      title.textContent = file.name;
+      help.textContent = '';
       trigger.textContent = '다시 선택';
       scanner = createWalletDocumentScanner({
         file,
@@ -649,7 +649,7 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
           preview.alt = `보정된 ${file.name} 미리보기`;
           preview.hidden = false;
           title.textContent = file.name;
-          help.textContent = '확인한 보정 결과를 암호화하여 저장합니다.';
+          help.textContent = '';
           trigger.textContent = '사진 변경';
           onReady(true);
         },

@@ -11,7 +11,7 @@ import {runFixturePage} from './lib/headless-fixture-result.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:680px;margin:auto}</style></head><body><main id="host"></main><script type="module">
+const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:680px;margin:auto}</style></head><body><main id="host"></main><script type="module">
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const wait = async (predicate, label) => { for (let i = 0; i < 2400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
 const nativeBitmap = globalThis.createImageBitmap;
@@ -97,7 +97,7 @@ try {
   const petScanner = module.createWalletDocumentScanner({file: new File([await pet.canvas.convertToBlob({type: 'image/jpeg'})], 'synthetic-pet.jpg', {type: 'image/jpeg'})});
   document.getElementById('host').replaceChildren(petScanner.element);
   await wait(() => petScanner.element.dataset.scanState === 'review', 'pet review state');
-  const petView = {mode: petScanner.element.dataset.scanMode, reason: petScanner.element.dataset.scanReason, confirmEnabled: !petScanner.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: petScanner.element.querySelector('[data-wallet-scan-adjust]').hidden};
+  const petView = {mode: petScanner.element.dataset.scanMode, reason: petScanner.element.dataset.scanReason, confirmEnabled: !petScanner.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: petScanner.element.querySelector('[data-wallet-scan-adjust]').getClientRects().length === 0, heading: petScanner.element.querySelector('h3').textContent, warnings: petScanner.element.querySelector('.wallet-scan-warnings').textContent};
   petScanner.destroy();
   const note = new OffscreenCanvas(900, 700); const noteContext = note.getContext('2d');
   noteContext.fillStyle = '#cfcfcf'; noteContext.fillRect(0, 0, 900, 700); noteContext.fillStyle = '#2a2a2a';
@@ -108,7 +108,7 @@ try {
   await wait(() => noteScanner.element.dataset.scanState === 'review', 'uncertain print review state');
   const noteConfirm = noteScanner.element.querySelector('[data-wallet-scan-confirm]');
   const press = async (corner, key, times) => { const handle = noteScanner.element.querySelector('.wallet-scan-handle[data-corner="' + corner + '"]'); for (let step = 0; step < times; step += 1) handle.dispatchEvent(new KeyboardEvent('keydown', {key, shiftKey: true, bubbles: true})); await sleep(400); await wait(() => noteScanner.element.dataset.scanState === 'review', 'review after adjusting'); };
-  const manualView = {mode: noteScanner.element.dataset.scanMode, initialConfirm: !noteConfirm.disabled};
+  const manualView = {mode: noteScanner.element.dataset.scanMode, initialConfirm: !noteConfirm.disabled, initialHeading: noteScanner.element.querySelector('h3').textContent, initialStatus: noteScanner.element.querySelector('.wallet-scan-status').textContent, initialWarnings: noteScanner.element.querySelector('.wallet-scan-warnings').textContent};
   await press('topLeft', 'ArrowRight', 1); manualView.framingConfirm = !noteConfirm.disabled;
   await press('bottomRight', 'ArrowUp', 30); await press('bottomRight', 'ArrowLeft', 30);
   manualView.blankConfirm = !noteConfirm.disabled; manualView.blankStatus = noteScanner.element.querySelector('.wallet-scan-status').textContent;
@@ -139,10 +139,10 @@ assert.equal(result.ok, true, result.error);
   assert.equal(automatic.mode, 'automatic', `real-condition card photo fell back to manual: ${detail}`);
   assert.equal(automatic.reason, 'document-quadrilateral');
   assert.equal(automatic.diagnostics.source, 'border-surface', `unexpected detection source: ${detail}`);
-  assert.ok(automatic.status.includes('배경과 여백을 자동으로 제거했습니다'), `automatic status copy missing: ${automatic.status}`);
+  assert.equal(automatic.status, '', `an automatic crop needs no explanation: ${automatic.status}`);
   assert.ok(!automatic.text.includes('테두리를 찾지 못했습니다'), 'manual-fallback copy must not appear for a detectable card');
   // One scanner for cards, contracts and PDFs: the heading names no document type.
-  assert.ok(automatic.text.includes('자료를 자동으로 정리하고 있습니다') && !automatic.text.includes('신분증을 자동으로 정리'), 'the scanner heading must be generic');
+  for (const narration of ['자동으로 정리', '보정된 자료', '이 브라우저에서만', '배경과 여백', '신분증을 자동으로']) assert.ok(!automatic.text.includes(narration), `the scanner must not narrate its own processing: ${narration}`);
   assert.equal(automatic.confirmEnabled, true, 'save must be enabled after an automatic crop');
   assert.equal(automatic.sourceVisible, false, 'manual corner editor must stay hidden in the default flow');
   assert.equal(automatic.handlesVisible, false, 'corner handles must stay hidden in the default flow');
@@ -168,8 +168,13 @@ assert.equal(result.ok, true, result.error);
   assert.equal(petView.reason, 'not-a-document', `a pet photo must be refused: ${JSON.stringify(petView)}`);
   assert.equal(petView.confirmEnabled, false, 'a pet photo must never be savable');
   assert.equal(petView.adjustHidden, true, 'no manual adjustment for a pet photo');
+  assert.equal(petView.heading, '등록할 수 없는 사진입니다', `refused photo heading: ${JSON.stringify(petView)}`);
+  assert.equal(petView.warnings, '', 'no photo-quality advice for a refused photo');
   assert.equal(manualView.mode, 'manual', `the uncertain print scene must need manual corners: ${JSON.stringify(manualView)}`);
   assert.equal(manualView.initialConfirm, false, 'save stays off until corners are placed');
+  assert.equal(manualView.initialHeading, '자료를 찾지 못했습니다', `not-found heading: ${JSON.stringify(manualView)}`);
+  assert.ok(manualView.initialStatus.includes('신분증이나 문서를 찾지 못했습니다'), `not-found guidance: ${manualView.initialStatus}`);
+  assert.equal(manualView.initialWarnings, '', 'no photo-quality advice before an item is found');
   assert.equal(manualView.framingConfirm, true, `corners framing the print must allow saving: ${JSON.stringify(manualView)}`);
   assert.equal(manualView.blankConfirm, false, `corners framing no print must not allow saving: ${JSON.stringify(manualView)}`);
   assert.ok(manualView.blankStatus.includes('모서리 안에 신분증이나 문서가 보이지 않습니다'), `blank-crop message: ${manualView.blankStatus}`);

@@ -10,7 +10,7 @@ import {runFixturePage} from './lib/headless-fixture-result.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:760px;margin:auto}</style></head><body><main id="host"></main><script type="module">
+const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:760px;margin:auto}</style></head><body><main id="host"></main><script type="module">
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const wait = async (predicate, label) => { for (let i = 0; i < 2400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
 // A minimal two-page A4 PDF: page 1 is a printed form (title bar, table, text-like rows),
@@ -59,7 +59,7 @@ try {
   const blank = module.createWalletDocumentScanner({file: new File([buildPdf([block])], 'picture.pdf', {type: 'application/pdf'})});
   document.getElementById('host').replaceChildren(blank.element);
   await wait(() => blank.element.dataset.scanState === 'review' || blank.element.dataset.scanState === 'error', 'textless pdf review');
-  const textless = {mode: blank.element.dataset.scanMode, reason: blank.element.dataset.scanReason, confirmEnabled: !blank.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: blank.element.querySelector('[data-wallet-scan-adjust]').hidden, status: blank.element.querySelector('.wallet-scan-status').textContent};
+  const textless = {mode: blank.element.dataset.scanMode, reason: blank.element.dataset.scanReason, confirmEnabled: !blank.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: blank.element.querySelector('[data-wallet-scan-adjust]').getClientRects().length === 0, status: blank.element.querySelector('.wallet-scan-status').textContent};
   blank.destroy();
   const broken = module.createWalletDocumentScanner({file: new File([new TextEncoder().encode('%PDF-1.4 not really a pdf')], 'broken.pdf', {type: 'application/pdf'})});
   document.getElementById('host').replaceChildren(broken.element);
