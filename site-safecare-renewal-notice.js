@@ -1,4 +1,4 @@
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-51ec5061fe5f';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-a5fcb3676cb2';
 
 const el = (tag, className = '', text = '') => {
   const node = document.createElement(tag);
