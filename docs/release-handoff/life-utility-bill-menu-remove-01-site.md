@@ -2,13 +2,16 @@ READY_FOR_DEPLOY=YES
 
 # life-utility-bill-menu-remove-01-site — release handoff
 
-TASK=생활정보 홈 단순화 (공과금 메뉴 임시 제거 + 상단 자유질문 입력바 제거 + 하단 보조 row 삭제)
+TASK=생활정보 홈 단순화 + LOTBI BOX HIDE 02
 REPO=lotbi-site
 FEATURE_BRANCH=feature/life-utility-bill-menu-remove-01-site
 SITE_BASE_MAIN_SHA=89adbb378a11fba8e42a445b62f5ffab8f358f5f
-CODE_SHA=3241e25bfb3645ff822e67491f07049b65ef1326
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=89adbb378a11fba8e42a445b62f5ffab8f358f5f
+CODE_SHA=62c4f4913a0f37407776f485a9266626a759c35c
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote origin refs/heads/feature/life-utility-bill-menu-remove-01-site`)
-ASSET_VERSION=aset-6a2d620fa472
+REMOTE_FEATURE_SHA=confirm after push with `git ls-remote origin refs/heads/feature/life-utility-bill-menu-remove-01-site`
+SUPERSEDES=25dbeaa994534db16e3276fed31dc2833931e2bc
+ASSET_VERSION=aset-25a1383acf1a
 
 UTILITY_BILL_MENU_REMOVED=YES
 LIFE_INFO_TOP_QUERY_BAR_REMOVED=YES
@@ -18,7 +21,11 @@ SAVED_INFO_HOME_BUTTON_REMOVED=YES
 UTILITY_BILL_HELP_COPY_REMOVED=YES
 BOTTOM_AUX_ROW_REMOVED=YES
 POST_REMOVAL_SPACING_PASS=YES
-MAIN_CHAT_UNCHANGED=YES (site-conversation.js는 asset `?v=` 토큰만 바뀜, 로직·문구 변경 0줄)
+MAIN_CHAT_UNCHANGED=YES (대화 송수신·의료·장소·상품 구매 흐름은 그대로; site-conversation.js 변경은 롯비함 UI gate만)
+LOTBI_BOX_HIDDEN_SURFACES=생활정보 저장 목록 진입 / 상품 검색 결과·상품 카드의 + 롯비함·✓ 롯비함 저장 토글 / data-lotbi-box-open 위임 경로 / `/#lotbi-box` 직접·새로고침 진입
+LOTBI_BOX_DATA_DELETED=NO
+CHANGED_TEST_EXPECTATIONS=validate_lotbi_box_nav_01 / validate_rich_product_cards_01 / validate_site_refresh_route_restore_01
+OTHER_REPO_LOTBI_BOX=lotbi-web latest main c0c10e13: 화면·진입·저장 버튼 없음(CSS selector 잔재만); lotbi-app latest main 2bb7dd09: 관련 문자열 없음
 
 CORE_CHANGED=NO
 MIGRATION=NO
@@ -44,7 +51,19 @@ PRODUCTION_DEPLOYED=NO
   - `.consumer-search*`, `.consumer-section-footer*` 규칙 삭제(생활정보 홈 전용이었음), 공과금 textarea 전용 규칙 삭제.
   - 생활정보 홈에만: 설명 아래 여백 32 → 24px, 라벨 위 여백 12 → 0, 라벨-목록 간격 22 → 8px. Life Wallet·안심케어 등 다른 화면 description 여백은 그대로.
 - validator 갱신: consumer_sections_02, consumer_documents_01, consumer_detail_system_01, life_detail_design_01, lotbi_box_nav_01, uiux_phase1_01, site_refresh_route_restore_01, life_medical_category_entry_01(360·412px 추가, 빈 칸·간격·미노출 검사), site-review.yml 주석.
-- asset token 재계산(aset-6a2d620fa472) — 위 파일 외에는 `?v=` 토큰만 바뀜.
+- asset token 재계산(aset-25a1383acf1a) — 위 파일 외에는 `?v=` 토큰만 바뀜.
+
+## LOTBI BOX HIDE 02
+
+사용자 결정(2026-10-08)인 “롯비함 전부 숨김”을 반영했다.
+
+- 단일 소스 플래그 `site-feature-flags.js`의 `LOTBI_BOX_UI_ENABLED=false`가 UI와 라우트 양쪽의 권위다. 새 환경변수·서버 설정은 없다.
+- 상품 검색 결과/상품 카드에서 `+ 롯비함`·`✓ 롯비함` 버튼 DOM을 만들지 않는다. 따라서 마우스 클릭·터치·Tab/Enter/Space 키보드 경로가 모두 없다.
+- 남아 있을 수 있는 옛 `data-lotbi-box-open` 트리거도 같은 플래그로 차단하고, `openLotbiBox()` 자체도 첫 줄에서 반환한다.
+- `SITE_ROUTES`에서 `lotbi-box`를 제외했다. `/#lotbi-box` 직접 진입과 새로고침은 롯비함 화면을 열지 않고 대화 홈에 남는다. 다른 7개 라우트 계약은 그대로다.
+- `lotbi.site.ux.v1:<namespace>:lotbi-box` 저장 키, load/save/remove/toggle 함수와 숨겨진 화면 구현은 삭제하지 않았다. 저장값 삭제·clear·migration은 없다.
+- Account(lotbi-web) latest main `c0c10e13` 확인: 롯비함 화면·버튼·진입 없음. `site-theme-tokens.css`의 `.lotbi-box-card-source` selector 잔재만 있음.
+- App(lotbi-app) latest main `2bb7dd09` 확인: `롯비함`/`lotbi-box`/`저장한 정보` 관련 문자열 없음.
 
 ## TEST_STATUS
 
@@ -54,11 +73,11 @@ TESTS=PASS
   - 홈 구성 = 라벨 + 목록만. 설명→라벨 24px, 라벨→첫 카드 8px, 첫 카드 151px, 모든 카테고리가 첫 화면 안, 헤더 top ≥ 0.
   - grid 빈 칸 없음: 모바일 1열×4행, 데스크톱 2열×2행, 모든 줄이 꽉 참, 카드 폭·높이 동일, 라벨 한 줄, 가로 스크롤 0.
   - 병원·의원 진입·칩·119 안내·뒤로가기(포커스 복귀)·제출 → 입력창 → 전송 body 동일 문장, 약국 진입·제출, 지역생활정보 진입·제출, 축제·행사 화면 열림.
-- validate_site_refresh_route_restore_01 PASS(375/390/1280): 롯비함은 이제 `/#lotbi-box` 주소로 열고 새로고침·← 생활정보 복귀 확인.
+- validate_site_refresh_route_restore_01 PASS(375/390/1280): `/#lotbi-box` 직접 진입·새로고침 모두 대화 홈, 롯비함 surface/route 0. 다른 7개 라우트 검사는 유지.
 - source validator 6개 PASS, asset_cache_version --check PASS.
-- 전체 회귀(Windows 로컬, workflow run 줄 209개): feature 202 PASS / 7 FAIL, main 89adbb37 baseline 202 PASS / 7 FAIL.
-  - 양쪽 공통 기존 Windows RED 4건: validate_calendar_system_dark_01, validate_image_attachment_thumbnail_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime.
-  - feature에서만 실패한 3건(validate_conversation_calendar_card_02 "result missing", validate_place_card_compact_01 "result missing", validate_site_refresh_route_restore_01 진위확인 로그인 복귀 타이밍)은 부하성 간헐 실패 → 단독 재실행 모두 PASS. baseline에서도 같은 성격의 간헐 실패 3건(calendar_compact_editor_01, festival_event_08_responsive_a11y_01, site_refresh_route_restore_01)이 나왔다.
+- 전체 회귀(Windows 로컬, workflow run 줄 209개): feature 201 PASS / 8 FAIL, main 89adbb37 baseline 205 PASS / 4 FAIL.
+  - main과 feature 공통 기존 Windows RED 4건: validate_calendar_system_dark_01, validate_image_attachment_thumbnail_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime.
+  - feature에서만 병렬 실패한 4건: validate_calendar_day_panel_two_buttons_01·validate_calendar_expense_summary_01·validate_home_fresh_entry_01은 Chrome/module 로드 또는 포커스 타이밍, validate_site_refresh_route_restore_01은 인증 복귀 타이밍. 네 건 모두 단독 재실행 PASS(라우트 검사는 375/390/1280 전체 PASS). 기능 관련 신규 실패 0.
   - Linux CI(site-review.yml) NOT TESTED.
 
 MOBILE_LAYOUT_PASS=YES (360/375/390/412, viewport 에뮬레이션 — 실기기 아님)
@@ -66,9 +85,9 @@ DESKTOP_LAYOUT_PASS=YES (1280x900)
 OTHER_LIFE_INFO_REGRESSION=PASS
 NEW_FAILURES=0
 
-## 사용자 확인 필요 (USER_DECISION_NEEDED)
+## 사용자 결정
 
-USER_DECISION_NEEDED=롯비함(저장한 항목) 목록 화면의 화면 진입이 없어짐. 삭제한 "저장한 정보 다시 보기"가 롯비함을 여는 유일한 버튼이었다(사이드바·모바일 메뉴에는 롯비함 진입이 없고 validator가 0개로 고정). 배포 후에도 검색 결과의 "+ 롯비함" 저장과 `/#lotbi-box` 주소 직접 진입은 그대로 동작하지만, 화면에서 목록을 여는 버튼은 없다. 지시대로 대체 버튼은 만들지 않았다. 이대로 배포할지, 롯비함 진입을 다른 곳(예: 사이드바)에 둘지 결정 필요.
+USER_DECISION_NEEDED=NONE (2026-10-08 사용자 결정 “롯비함 전부 숨김” 반영 완료)
 
 ## 범위 밖으로 남긴 것
 
@@ -80,4 +99,4 @@ USER_DECISION_NEEDED=롯비함(저장한 항목) 목록 화면의 화면 진입�
 Site 단독. Core 변경 없음.
 
 BLOCKER=NONE
-REMAINING_ISSUES=위 USER_DECISION_NEEDED 1건, 실기기 확인 NOT TESTED, Linux CI NOT TESTED
+REMAINING_ISSUES=실기기 확인 NOT TESTED, Linux CI NOT TESTED
