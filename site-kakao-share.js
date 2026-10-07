@@ -1,4 +1,4 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-6f157cd9cb3a';
+import {CORE_ORIGIN} from './site-core.js?v=aset-b9ed102b1cc7';
 
 // SITE-MESSAGE-SHARE-ACTIONS-02 — "카카오톡 공유하기".
 // Core decides whether KakaoTalk sharing is configured (the same

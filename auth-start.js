@@ -1,4 +1,4 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression} from './site-auth.js?v=aset-6f157cd9cb3a';
+import {beginSiteHandoff, clearSiteLogoutSuppression} from './site-auth.js?v=aset-b9ed102b1cc7';
 
 const errorShell = document.getElementById('auth-start-error-shell');
 const statusNode = document.getElementById('auth-start-status');
