@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-cf554b8c19df';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-54dc224228a7';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -338,6 +338,26 @@ export class LifeWalletVault {
     } finally {
       rawMasterKey.fill(0);
     }
+  }
+
+  // Asks for the PIN again before a step that cannot be undone (deleting an item). A wrong
+  // PIN counts as a failed attempt, exactly like unlocking.
+  async verifyPin(accountId, pin) {
+    validateWalletPin(pin);
+    const unlocked = await this.requireUnlocked(accountId);
+    const vault = await this.repository.getVault(unlocked.scope);
+    if (!vault) throw new Error('Life Wallet 설정을 찾지 못했습니다.');
+    this.assertAttemptAllowed(vault);
+    let rawMasterKey;
+    try {
+      rawMasterKey = await this.unwrapMasterKey(unlocked.scope, vault, pin);
+    } catch (error) {
+      if (error?.pinControl === true) throw error;
+      await this.recordFailure(vault);
+      throw new Error('월렛 PIN을 확인해 주세요.');
+    }
+    rawMasterKey.fill(0);
+    await this.repository.putVault({...vault, failedAttempts: 0, pinBlocked: false, retryAfter: undefined});
   }
 
   lock({preserveSession = false} = {}) {
@@ -1076,12 +1096,25 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${walletCardTitle(card)} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
     detail.append(images);
     if (card.note) detail.append(element('p', 'wallet-card-note', card.note));
-    const remove = button('자료 삭제', async () => {
-      if (!window.confirm('이 브라우저에서 이 자료를 삭제할까요? 별도로 내보낸 백업은 삭제되지 않습니다.')) return;
-      remove.disabled = true;
-      try { await vault.remove(accountId, card.id); await renderWallet('자료를 삭제했습니다.'); }
-      catch (error) { remove.disabled = false; detail.append(element('p', 'wallet-message', safeMessage(error, '자료를 삭제하지 못했습니다.'))); }
-    }, true); remove.classList.add('wallet-danger-action'); detail.append(remove);
+    // Deleting asks for the wallet PIN on the page itself: it cannot be undone, and embedded
+    // browsers and app WebViews silently cancel window.confirm.
+    const removal = element('form', 'wallet-delete-confirm'); removal.hidden = true;
+    const removalPin = pinInput('월렛 PIN'); const removalStatus = errorRegion();
+    const remove = button('자료 삭제', () => { remove.hidden = true; removal.hidden = false; removalPin.value = ''; removalStatus.textContent = ''; removalPin.focus(); }, true);
+    remove.classList.add('wallet-danger-action');
+    const removalActions = element('div', 'wallet-form-actions');
+    removalActions.append(button('취소', () => { removal.hidden = true; remove.hidden = false; remove.focus(); }, true));
+    const removalSubmit = button('삭제'); removalSubmit.type = 'submit'; removalSubmit.classList.add('wallet-danger-confirm'); removalActions.append(removalSubmit);
+    removal.append(element('p', '', '이 자료를 삭제하려면 월렛 PIN을 입력해 주세요. 별도로 내보낸 백업은 삭제되지 않습니다.'), field('월렛 PIN', removalPin), removalActions, removalStatus);
+    removal.addEventListener('submit', async event => {
+      event.preventDefault(); removalStatus.textContent = '';
+      try {
+        validateWalletPin(removalPin.value); setBusy(removal, true);
+        await vault.verifyPin(accountId, removalPin.value);
+        await vault.remove(accountId, card.id); await renderWallet('자료를 삭제했습니다.');
+      } catch (error) { removalStatus.textContent = safeMessage(error, '자료를 삭제하지 못했습니다.'); setBusy(removal, false); removalPin.value = ''; removalPin.focus(); }
+    });
+    detail.append(remove, removal);
     root.replaceChildren(detail); activity();
   }
 

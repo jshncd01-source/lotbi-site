@@ -80,6 +80,12 @@
 .wallet-detail-images figcaption { color: var(--consumer-muted); font-size: 12px; text-align: center; }
 .wallet-card-note { margin: 0; padding: 16px; border-radius: 10px; background: var(--lotbi-surface-subtle); white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
 .wallet-danger-action { justify-self: start; color: var(--lotbi-error-text, #b42332); }
+.wallet-danger-action[hidden] { display: none; }
+.wallet-delete-confirm { display: grid; gap: 10px; max-width: 420px; padding: 14px; border: 1px solid color-mix(in srgb, var(--lotbi-error-text, #b42332) 35%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--lotbi-error-text, #b42332) 6%, var(--lotbi-surface-primary)); }
+.wallet-delete-confirm[hidden] { display: none; }
+.wallet-delete-confirm > p { margin: 0; font-size: 13px; line-height: 1.6; }
+.wallet-delete-confirm .wallet-form-actions { padding-top: 0; }
+.wallet-danger-confirm { background: var(--lotbi-error-text, #b42332); color: #fff; }
 .consumer-section-content[data-wallet-state='locked'] { overflow: hidden; }
 .wallet-scan-editor { width: min(920px, 100%); display: grid; gap: 14px; }
 .wallet-scan-editor > h3 { margin: 0; font-size: 22px; }
