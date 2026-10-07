@@ -101,7 +101,8 @@ try {
   petScanner.destroy();
   const note = new OffscreenCanvas(900, 700); const noteContext = note.getContext('2d');
   noteContext.fillStyle = '#cfcfcf'; noteContext.fillRect(0, 0, 900, 700); noteContext.fillStyle = '#2a2a2a';
-  for (let row = 0; row < 4; row += 1) for (let glyph = 0; glyph < 16; glyph += 1) noteContext.fillRect(600 + glyph * 16, 560 + row * 26, 10, 12);
+  // Lettering: marks of differing width, wider gaps between words.
+  for (let row = 0; row < 4; row += 1) for (let glyph = 0, x = 600; glyph < 16; glyph += 1) { const wide = [10, 7, 12, 8, 11, 6][(glyph + row) % 6]; noteContext.fillRect(x, 560 + row * 26, wide, 12); x += wide + (glyph % 5 === 4 ? 12 : 6); }
   globalThis.createImageBitmap = async () => note;
   const noteScanner = module.createWalletDocumentScanner({file: new File([await note.convertToBlob({type: 'image/png'})], 'synthetic-note.png', {type: 'image/png'})});
   document.getElementById('host').replaceChildren(noteScanner.element);
@@ -148,7 +149,10 @@ assert.equal(result.ok, true, result.error);
 {
   const {automatic, ambiguous, rotatedOptions, pageView, deskView, petView, manualView, sideView} = result;
   assert.equal(rotatedOptions.imageOrientation, 'from-image');
-  assert.deepEqual([rotatedOptions.resizeWidth, rotatedOptions.resizeHeight], [1707, 2560], `EXIF-rotated photo must be bounded in its rotated frame: ${JSON.stringify(rotatedOptions)}`);
+  // Only the rotated frame's width is given and the decoder keeps the aspect ratio (1707x2560):
+  // giving both would squash the photo in an engine that sizes the stored pixels before turning
+  // them. validate_life_wallet_camera_parity_01 checks the decoded size of real camera JPEGs.
+  assert.deepEqual([rotatedOptions.resizeWidth, rotatedOptions.resizeHeight], [1707, undefined], `EXIF-rotated photo must be bounded in its rotated frame: ${JSON.stringify(rotatedOptions)}`);
   const detail = JSON.stringify({...automatic, text: undefined});
   assert.equal(automatic.state, 'review');
   assert.equal(automatic.mode, 'automatic', `real-condition card photo fell back to manual: ${detail}`);

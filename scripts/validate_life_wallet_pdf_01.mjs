@@ -28,8 +28,9 @@ function buildPdf(pages) {
   text += 'trailer\\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\\nstartxref\\n' + start + '\\n%%EOF\\n';
   return new TextEncoder().encode(text);
 }
-// Printed text: rows of small glyph-like boxes.
-const rows = []; for (let row = 0; row < 18; row += 1) for (let glyph = 0; glyph < 22 - (row % 4) * 3; glyph += 1) rows.push((60 + glyph * 20) + ' ' + (520 - row * 24) + ' 11 12 re');
+// Printed text: rows of small glyph-like boxes of differing width, wider gaps between words
+// (identical, evenly spaced boxes read as a made pattern such as a building's windows).
+const rows = []; for (let row = 0; row < 18; row += 1) for (let glyph = 0, x = 60; glyph < 22 - (row % 4) * 3; glyph += 1) { const wide = [11, 7, 13, 9, 12, 6][(glyph + row) % 6]; rows.push(x + ' ' + (520 - row * 24) + ' ' + wide + ' 12 re'); x += wide + (glyph % 5 === 4 ? 14 : 8); }
 const form = '0 g 150 760 295 26 re f 1 w 60 560 475 160 re S 60 640 m 535 640 l S 60 600 m 535 600 l S ' + rows.join(' ') + ' f 0.8 0.1 0.2 rg 420 90 70 70 re f';
 const block = '0 g 120 300 300 220 re f';
 try {

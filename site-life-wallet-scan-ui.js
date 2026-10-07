@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-7baf9459279f';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-7baf9459279f';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-5f5fd5e8a5de';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-5f5fd5e8a5de';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -18,28 +18,48 @@ function node(tag, className='', text='') {
   const element=document.createElement(tag); if(className)element.className=className; if(text)element.textContent=text; return element;
 }
 
-async function encodedDimensions(file) {
-  const bytes=new Uint8Array(await file.slice(0,262144).arrayBuffer());
-  if(bytes.length>=24&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71) {
-    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength); return {width:view.getUint32(16),height:view.getUint32(20)};
+// What a chosen file really is, read from its first bytes. Camera apps hand over shots with
+// temporary names, no extension, an empty or a non-standard type (image/jpg); the bytes decide.
+const PHOTO_KINDS = ['jpeg', 'png', 'webp', 'heic', 'avif'];
+export async function sniffWalletFile(file) {
+  let bytes;
+  try { bytes = new Uint8Array(await file.slice(0, 32).arrayBuffer()); } catch { return 'unknown'; }
+  const text = (start, end) => String.fromCharCode(...bytes.slice(start, end));
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'jpeg';
+  if (bytes[0] === 0x89 && text(1, 4) === 'PNG') return 'png';
+  if (text(0, 4) === 'RIFF' && text(8, 12) === 'WEBP') return 'webp';
+  if (text(0, 5) === '%PDF-') return 'pdf';
+  if (text(0, 4) === 'GIF8') return 'gif';
+  if (text(4, 8) === 'ftyp') {
+    const brand = text(8, 12);
+    return /^(?:avif|avis)$/u.test(brand) ? 'avif' : /^(?:heic|heix|heim|heis|hevc|hevx|mif1|msf1)$/u.test(brand) ? 'heic' : 'video';
   }
-  if(bytes.length<4||bytes[0]!==255||bytes[1]!==216)return null;
+  return 'unknown';
+}
+export function isWalletPhotoKind(kind) { return PHOTO_KINDS.includes(kind); }
+
+// Pixel size and EXIF orientation from the header (JPEG, PNG) without decoding the photo.
+async function imageHeader(file) {
+  const bytes=new Uint8Array(await file.slice(0,524288).arrayBuffer());
+  if(bytes.length>=24&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71) {
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength); return {width:view.getUint32(16),height:view.getUint32(20),orientation:1};
+  }
+  const none={width:0,height:0,orientation:1};
+  if(bytes.length<4||bytes[0]!==255||bytes[1]!==216)return none;
   let offset=2;let orientation=1;
   while(offset+9<bytes.length){
     if(bytes[offset]!==255){offset+=1;continue}
     const marker=bytes[offset+1];offset+=2;
     if(marker===216||marker===217||marker===1||(marker>=208&&marker<=215))continue;
+    if(marker===218)break;
     if(offset+2>bytes.length)break;const length=(bytes[offset]<<8)|bytes[offset+1];if(length<2||offset+length>bytes.length)break;
     if(marker===225)orientation=exifOrientation(bytes,offset+2,length-2)||orientation;
     if((marker>=192&&marker<=195)||(marker>=197&&marker<=199)||(marker>=201&&marker<=203)||(marker>=205&&marker<=207)){
-      const width=(bytes[offset+5]<<8)|bytes[offset+6];const height=(bytes[offset+3]<<8)|bytes[offset+4];
-      // Phones often store portrait photos as landscape pixels plus an EXIF rotation; the
-      // decoder rotates before resizing, so the target size must be in the rotated frame.
-      return orientation>=5&&orientation<=8?{width:height,height:width}:{width,height};
+      return {width:(bytes[offset+5]<<8)|bytes[offset+6],height:(bytes[offset+3]<<8)|bytes[offset+4],orientation};
     }
     offset+=length;
   }
-  return null;
+  return {...none,orientation};
 }
 
 function exifOrientation(bytes,start,length){
@@ -48,44 +68,101 @@ function exifOrientation(bytes,start,length){
   const read16=position=>little?bytes[position]|(bytes[position+1]<<8):(bytes[position]<<8)|bytes[position+1];
   const read32=position=>little?(bytes[position]|(bytes[position+1]<<8)|(bytes[position+2]<<16)|(bytes[position+3]<<24))>>>0:((bytes[position]<<24)|(bytes[position+1]<<16)|(bytes[position+2]<<8)|bytes[position+3])>>>0;
   const directory=tiff+read32(tiff+4);if(directory+2>bytes.length)return 0;
-  for(let entry=0;entry<read16(directory);entry+=1){const position=directory+2+entry*12;if(position+10>bytes.length)return 0;if(read16(position)===274)return read16(position+8)}
+  for(let entry=0;entry<read16(directory);entry+=1){const position=directory+2+entry*12;if(position+10>bytes.length)return 0;const value=read16(position+8);if(read16(position)===274)return value>=1&&value<=8?value:0}
   return 0;
 }
 
-// Camera shots and gallery files take this same path: decoded upright (EXIF orientation) and
-// at most 2560 pixels on the long side. When the header gives no size (WebP, HEIC, camera
-// JPEGs with large maker blocks), the decoded photo is scaled down here instead.
-async function decodeFile(file, resources) {
-  let decoded=null;
+// Whether this browser's decoder ('bitmap' or 'image') turns a photo upright from its EXIF
+// orientation (current engines do). Asked only for a mirrored or upside-down photo, whose
+// decoded shape cannot tell: decoding a 2x1 JPEG tagged "rotate 90" gives 1x2 when it does.
+const EXIF_ROTATE_90=[0xFF,0xE1,0x00,0x22,0x45,0x78,0x69,0x66,0x00,0x00,0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x01,0x00,0x12,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x06,0x00,0x00,0x00,0x00,0x00,0x00,0x00];
+const orientationSupport={};
+function decoderAppliesOrientation(method){
+  orientationSupport[method]??=(async()=>{
+    try{
+      const canvas=document.createElement('canvas');canvas.width=2;canvas.height=1;
+      const plain=new Uint8Array(await (await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('encode')),'image/jpeg'))).arrayBuffer());
+      const tagged=new Blob([plain.subarray(0,2),new Uint8Array(EXIF_ROTATE_90),plain.subarray(2)],{type:'image/jpeg'});
+      if(method==='bitmap'){const bitmap=await createImageBitmap(tagged,{imageOrientation:'from-image'});const applied=bitmap.height>bitmap.width;bitmap.close?.();return applied}
+      const url=URL.createObjectURL(tagged);
+      try{const image=new Image();image.src=url;await image.decode();return image.naturalHeight>image.naturalWidth}finally{URL.revokeObjectURL(url)}
+    }catch{return true}
+  })();
+  return orientationSupport[method];
+}
+
+// Draws a photo upright for EXIF orientation 2-8 (mirrors and quarter turns).
+function orientedCanvas(source,orientation){
+  const {width,height}=dimensions(source);const turned=orientation>=5;
+  const canvas=document.createElement('canvas');canvas.width=turned?height:width;canvas.height=turned?width:height;
+  const transforms={2:[-1,0,0,1,width,0],3:[-1,0,0,-1,width,height],4:[1,0,0,-1,0,height],5:[0,1,1,0,0,0],6:[0,1,-1,0,height,0],7:[0,-1,-1,0,height,width],8:[0,-1,1,0,0,width]};
+  const context=canvas.getContext('2d');context.setTransform(...transforms[orientation]);context.drawImage(source,0,0);return canvas;
+}
+
+// Bounds a photo whose header gave no size (WebP, HEIC) like the decoder's high-quality resize
+// does for JPEG and PNG: halving steps with high-quality smoothing.
+function scaledCanvas(source,width,height){
+  let current=source;let size=dimensions(source);
+  while(size.width/2>=width&&size.height/2>=height){
+    const step=document.createElement('canvas');step.width=Math.round(size.width/2);step.height=Math.round(size.height/2);
+    const context=step.getContext('2d');context.imageSmoothingQuality='high';context.drawImage(current,0,0,step.width,step.height);
+    current=step;size={width:step.width,height:step.height};
+  }
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+  const context=canvas.getContext('2d',{willReadFrequently:true});context.imageSmoothingQuality='high';context.drawImage(current,0,0,width,height);
+  return canvas;
+}
+
+// Camera shots and gallery files take this one path, whatever their name or reported type:
+// header (size, EXIF orientation) -> decode -> pixels made upright -> at most 2560 pixels on
+// the long side. Detection, perspective correction and the saved image all start from it.
+async function decodeFile(file, resources, kind='') {
+  const header=await imageHeader(file).catch(()=>({width:0,height:0,orientation:1}));
+  const turned=header.orientation>=5;
+  const upright=header.width?{width:turned?header.height:header.width,height:turned?header.width:header.height}:null;
+  let decoded=null; let method='';
   if (typeof createImageBitmap === 'function') {
     try {
-      const size=await encodedDimensions(file); const options={imageOrientation:'from-image'};
-      if(size&&Math.max(size.width,size.height)>2560){const scale=2560/Math.max(size.width,size.height);options.resizeWidth=Math.round(size.width*scale);options.resizeHeight=Math.round(size.height*scale);options.resizeQuality='high'}
-      decoded=await createImageBitmap(file,options); resources.bitmap=decoded;
+      const options={imageOrientation:'from-image'};
+      // Only the width is given, so the aspect ratio holds even in an engine that would size
+      // the stored (unrotated) pixels.
+      if(upright&&Math.max(upright.width,upright.height)>2560){options.resizeWidth=Math.round(upright.width*2560/Math.max(upright.width,upright.height));options.resizeQuality='high'}
+      decoded=await createImageBitmap(file,options); resources.bitmap=decoded; method='bitmap';
     } catch {}
   }
   if(!decoded){
-    try{const url=URL.createObjectURL(file); resources.url=url; const image=new Image(); image.src=url; await image.decode(); decoded=image}
-    catch{throw new Error(/hei[cf]/iu.test(file.type)||/\.hei[cf]$/iu.test(file.name)?'이 브라우저에서는 HEIC 사진을 열 수 없습니다. 카메라 설정에서 JPG(호환성 우선)로 저장하거나 다른 사진을 선택해 주세요.':'사진을 열지 못했습니다. 다른 사진을 선택해 주세요.')}
+    try{const url=URL.createObjectURL(file); resources.url=url; const image=new Image(); image.src=url; await image.decode(); decoded=image; method='image'}
+    catch{throw new Error(kind==='heic'||/hei[cf]/iu.test(file.type)||/\.hei[cf]$/iu.test(file.name)?'이 브라우저에서는 HEIC 사진을 열 수 없습니다. 카메라 설정에서 JPG(호환성 우선)로 저장하거나 다른 사진을 선택해 주세요.':'사진을 열지 못했습니다. 다른 사진을 선택해 주세요.')}
   }
-  const size=dimensions(decoded);
-  if(Math.max(size.width,size.height)<=2560)return decoded;
-  const scale=2560/Math.max(size.width,size.height);const canvas=document.createElement('canvas');
-  canvas.width=Math.round(size.width*scale);canvas.height=Math.round(size.height*scale);canvas.getContext('2d').drawImage(decoded,0,0,canvas.width,canvas.height);
+  // Turned here only when the decoder ignored the tag: a quarter-turn photo shows it in its
+  // decoded shape; a mirrored or upside-down one needs the decoder check.
+  let photo=decoded;
+  if(header.orientation>1){
+    const decodedSize=dimensions(decoded);
+    const applied=turned&&upright&&upright.width!==upright.height?(decodedSize.width>decodedSize.height)===(upright.width>upright.height):await decoderAppliesOrientation(method);
+    if(!applied)photo=orientedCanvas(decoded,header.orientation);
+  }
+  const size=dimensions(photo);
+  if(photo===decoded&&Math.max(size.width,size.height)<=2560)return decoded;
+  const scale=Math.min(1,2560/Math.max(size.width,size.height));
+  const bounded=scale<1?scaledCanvas(photo,Math.round(size.width*scale),Math.round(size.height*scale)):photo;
   resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}
-  return canvas;
+  return bounded;
 }
 
 function dimensions(source) { return {width:source.naturalWidth||source.width,height:source.naturalHeight||source.height}; }
 
 function detectionPixels(source) {
   const original=dimensions(source); const scale=Math.min(1,1200/Math.max(original.width,original.height));
+  // One plain resampling step: the print detection is tuned to its crisp strokes (a smoothed
+  // multi-step reduction softens thin lettering below the ink threshold).
   const canvas=document.createElement('canvas'); canvas.width=Math.max(8,Math.round(original.width*scale)); canvas.height=Math.max(8,Math.round(original.height*scale));
   const context=canvas.getContext('2d',{willReadFrequently:true}); context.drawImage(source,0,0,canvas.width,canvas.height);
   return {imageData:context.getImageData(0,0,canvas.width,canvas.height),scale};
 }
 
-export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>{},onReplace=()=>{}}={}) {
+// kind: what the file's bytes are (sniffWalletFile); read here when the caller did not.
+export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCancel=()=>{},onReplace=()=>{}}={}) {
   const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true'; shell.dataset.scanAdjusting='false';
   const heading=node('h3',''); heading.hidden=true;
   const status=node('p','wallet-scan-status','확인하고 있습니다'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
@@ -189,7 +266,8 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
 
   async function initialize() {
     try{
-      if(isPdfFile(file)){
+      const type=kind||await sniffWalletFile(file);
+      if(type==='pdf'||(type==='unknown'&&isPdfFile(file))){
         const opened=await openPdfDocument(file); if(destroyed){void opened.destroy();return}
         // Only the first page of a PDF is shown and saved.
         pdfDocument=opened; pdfSource=true; shell.dataset.scanPdfPages=String(opened.pageCount); status.textContent='확인하고 있습니다';
@@ -197,7 +275,7 @@ export function createWalletDocumentScanner({file,onConfirm=()=>{},onCancel=()=>
         void opened.destroy(); pdfDocument=null;
         await analyse(page); return;
       }
-      const decoded=await decodeFile(file,resources); if(destroyed){releaseResources();return}
+      const decoded=await decodeFile(file,resources,type); if(destroyed){releaseResources();return}
       await analyse(decoded);
     }catch(error){showError(error)}
   }

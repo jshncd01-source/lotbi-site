@@ -991,6 +991,16 @@ function printMarks(working,smooth,light){
 // Rows running left to right, or top to bottom when `downward`; each row keeps where it
 // starts and ends along its own direction. Glyphs are at most `tallest` of the image height:
 // small in a whole photo, larger inside a cut-out item (card titles).
+// A row of identical, evenly spaced marks (the windows of a building, tiles, keys, blinds)
+// is a made pattern, not print: lettering varies in mark width and spacing (measured on
+// synthetic cards and pages: width variation >= .08; windows <= .02 with gaps <= .03).
+function madePattern(spans){
+  const ordered=[...spans].sort((first,second)=>first[0]-second[0]);
+  const variation=values=>{const mean=values.reduce((sum,value)=>sum+value,0)/values.length;return mean>0?Math.sqrt(values.reduce((sum,value)=>sum+(value-mean)**2,0)/values.length)/mean:0};
+  const widths=ordered.map(([left,right])=>right-left+1);const gaps=ordered.slice(1).map(([left],index)=>Math.max(1,left-ordered[index][1]));
+  return variation(widths)<.05&&variation(gaps)<.08;
+}
+
 function textRows(working,marks,corners,downward=false,tallest=.05){
   const {width,height}=working;const across=downward?width:height;const along=downward?height:width;
   const glyphs=marks.filter(mark=>{
@@ -1009,8 +1019,8 @@ function textRows(working,marks,corners,downward=false,tallest=.05){
     }
   }
   const rows=new Map();
-  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);rows.set(key,row)});
-  const lines=[...rows.values()].filter(row=>{row.heights.sort((first,second)=>first-second);return row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)]});
+  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[],spans:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);row.spans.push([glyph.left,glyph.right]);rows.set(key,row)});
+  const lines=[...rows.values()].filter(row=>{row.heights.sort((first,second)=>first-second);return row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)]&&!madePattern(row.spans)});
   return {lines:lines.length,starts:lines.map(row=>row.left),ends:lines.map(row=>row.right)};
 }
 

@@ -88,6 +88,32 @@ try {
     const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale}); const elapsed = performance.now() - started;
     results.push({group: 'NOT_A_DOCUMENT', name: 'pet-' + index, expect: 'not-a-document', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics});
   }
+  // A person's portrait (striped shirt), scenery with a building's rows of windows, an empty
+  // light desk: not wallet items either.
+  for (const kind of ['face', 'scenery', 'desk']) for (let index = 0; index < 3; index += 1) {
+    const photo = await scenes.renderNotDocumentScene(kind, index);
+    const scale = Math.min(1, 1200 / Math.max(photo.width, photo.height));
+    const small = new OffscreenCanvas(Math.round(photo.width * scale), Math.round(photo.height * scale));
+    const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(photo.canvas, 0, 0, small.width, small.height);
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale}); const elapsed = performance.now() - started;
+    results.push({group: 'NOT_A_DOCUMENT', name: kind + '-' + index, expect: 'not-a-document', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics});
+  }
+  // Phone camera shots as people take them: portrait 3:4, card 42-90% of the frame width,
+  // tilted up to 12 degrees and seen at an angle, on light desks and dark surfaces, some held
+  // in the hand, thin printed lettering. Detection runs as the scanner runs it for a 12 MP
+  // photo decoded to 1920x2560.
+  for (let index = 0; index < 36; index += 1) {
+    const config = scenes.cameraCardScene(index, {width: 1200, height: 1600});
+    const canvas = await scenes.renderScene(config);
+    const scale = 1200 / 1600;
+    const small = new OffscreenCanvas(900, 1200);
+    const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(canvas, 0, 0, 900, 1200);
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, 900, 1200), {sourceScale: 900 / 1920}); const elapsed = performance.now() - started;
+    const truth = scan.orderDocumentCorners(config.cards[0].corners); const keys = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
+    const lengths = keys.map((key, at) => Math.hypot(truth[keys[(at + 1) % 4]].x - truth[key].x, truth[keys[(at + 1) % 4]].y - truth[key].y));
+    results.push({group: 'SYNTHETIC_CAMERA_SHOT', name: 'camera-' + index + '-' + config.surfaceKind, expect: 'camera', light: ['white'].includes(config.surfaceKind), mode: found.mode, reason: found.reason, paper: Boolean(found.paper), rotation: found.rotation, elapsed, diagnostics: found.diagnostics,
+      shortSide: Math.min(...lengths), errors: keys.map(key => Math.hypot(found.corners[key].x / scale - truth[key].x, found.corners[key].y / scale - truth[key].y))});
+  }
   window.__result = {ok: true, results};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
@@ -135,10 +161,20 @@ assert.equal(result.ok, true, result.error);
     } else if (row.expect === 'sideways') {
       assert.equal(row.mode, 'automatic', `${label}: a card on its side must still be cropped: ${serialized}`);
       assert.equal(row.rotation, row.turn > 0 ? 270 : 90, `${label}: a card lying ${row.turn > 0 ? 'clockwise' : 'counter-clockwise'} must be turned back upright (got ${row.rotation})`);
+    } else if (row.expect === 'camera') {
+      // A real card is never refused outright or taken for a receipt; when cropped, the crop is
+      // the whole card squared up (corners within 2% of its short side), kept in colour and
+      // not turned. A pale card on a white desk may stay with manual adjustment.
+      assert.ok(!['not-a-document', 'receipt-like'].includes(row.reason), `${label}: a camera shot of a card must not be refused: ${row.reason} ${serialized}`);
+      if (row.mode === 'automatic') {
+        row.errors.forEach((error, index) => assert.ok(error <= row.shortSide * 0.02, `${label}: corner ${index} is ${error.toFixed(1)}px off (short side ${row.shortSide.toFixed(0)}): ${serialized}`));
+        assert.equal(row.paper, false, `${label}: a card must keep its colours`);
+        assert.equal(row.rotation, 0, `${label}: a tilted upright card must not be turned`);
+      }
     } else if (row.expect === 'not-a-document') {
       // Never cropped or saved automatically; fur can look like a few short rows, so a pet may
       // also land in plain manual adjustment instead of the outright refusal.
-      assert.equal(row.mode, 'manual', `${label}: a pet photo must not be cropped: ${serialized}`);
+      assert.equal(row.mode, 'manual', `${label}: a photo that is not a wallet item must not be cropped: ${serialized}`);
       assert.ok(row.diagnostics.textLines < 12, `${label}: fur must not read like a page of text: ${serialized}`);
     } else {
       assert.equal(row.mode, 'manual', `${label}: ambiguous/negative scene must not be cropped automatically: ${serialized}`);
@@ -146,7 +182,7 @@ assert.equal(result.ok, true, result.error);
     const group = groups.get(row.group) || {count: 0, worst: 0, elapsed: 0, lines: Infinity, maxLines: 0};
     group.lines = Math.min(group.lines, row.diagnostics?.textLines ?? Infinity); group.maxLines = Math.max(group.maxLines, row.diagnostics?.textLines ?? 0);
     group.count += 1; group.elapsed += row.elapsed; group.automatic = (group.automatic || 0) + (row.mode === 'automatic' ? 1 : 0);
-    if (row.expect === 'card' || (row.expect === 'card-or-manual' && row.mode === 'automatic')) group.worst = Math.max(group.worst, ...row.errors);
+    if (row.expect === 'card' || (['card-or-manual', 'camera'].includes(row.expect) && row.mode === 'automatic')) group.worst = Math.max(group.worst, ...row.errors);
     if (row.expect === 'page') group.worst = Math.max(group.worst, ...['left', 'top', 'right', 'bottom'].map(edge => Math.abs(row.foundBox[edge] - row.pageBox[edge]) * 1000));
     groups.set(row.group, group);
   }
@@ -154,6 +190,10 @@ assert.equal(result.ok, true, result.error);
     const group = groups.get(name);
     assert.ok(group.automatic >= Math.ceil(group.count * 2 / 3), `${name} scenes fell back to manual too often: ${group.automatic}/${group.count}`);
   }
+  // Camera shots off a white desk must be cropped automatically (measured 29/30 on 2026-10-08).
+  const camera = result.results.filter(row => row.expect === 'camera' && !row.light);
+  const cameraAutomatic = camera.filter(row => row.mode === 'automatic').length;
+  assert.ok(cameraAutomatic >= camera.length - 2, `camera shots fell back to manual too often: ${cameraAutomatic}/${camera.length} (${camera.filter(row => row.mode !== 'automatic').map(row => row.name).join(', ')})`);
   const average = result.results.reduce((sum, row) => sum + row.elapsed, 0) / result.results.length;
   assert.ok(average < 3000, `average detection time ${average.toFixed(0)}ms suggests a pathological slowdown`);
   for (const [name, group] of groups) console.log(`${name}=PASS scenes=${group.count} automatic=${group.automatic}${group.worst ? (name === 'SYNTHETIC_FULL_PAGE' ? ` worst_edge_offset_permille=${group.worst.toFixed(1)}` : ` worst_corner_px=${group.worst.toFixed(1)}`) : ''} text_lines=${group.lines}-${group.maxLines}`);

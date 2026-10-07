@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-7baf9459279f';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-5f5fd5e8a5de';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -573,15 +573,19 @@ function safeMessage(error, fallback) {
 }
 
 // Still photos (a phone camera's JPEG/HEIC, PNG, WebP) or a PDF; videos never. A PDF page is
-// drawn into an image in this browser. Some phones hand over camera shots without a type.
+// drawn into an image in this browser. The file's bytes decide what it is: camera shots come
+// with temporary names, no extension, an empty or non-standard type; the reported type and
+// name only help when the bytes are not recognised.
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-function validateImageFile(file) {
+async function walletFileKind(file) {
   if (!(file instanceof File)) throw new Error('자료 사진을 선택해 주세요.');
-  const pdf = file.type === 'application/pdf' || (!file.type && /\.pdf$/iu.test(file.name));
-  const photo = PHOTO_TYPES.includes(file.type) || (!file.type && /\.(?:jpe?g|png|webp|hei[cf])$/iu.test(file.name));
+  const kind = await sniffWalletFile(file);
+  const pdf = kind === 'pdf' || (kind === 'unknown' && (file.type === 'application/pdf' || /\.pdf$/iu.test(file.name)));
+  const photo = isWalletPhotoKind(kind) || (kind === 'unknown' && PHOTO_TYPES.includes(file.type));
   if (!pdf && !photo) throw new Error('사진(JPG·PNG·WebP·HEIC)이나 PDF만 등록할 수 있습니다.');
   if (pdf && file.size > 20 * 1024 * 1024) throw new Error('PDF는 20MB 이하로 선택해 주세요.');
   if (!pdf && file.size > 30 * 1024 * 1024) throw new Error('사진은 한 장당 30MB 이하로 선택해 주세요.');
+  return pdf ? 'pdf' : kind;
 }
 
 export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}} = {}) {
@@ -641,31 +645,36 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
     trigger.textContent = '사진 선택';
   };
 
-  const choose = source => {
+  let choice = 0;
+  const choose = async source => {
     const file = source.files?.[0];
     if (!file) return;
+    const current = ++choice;
     lastInput = source;
     onError('');
     try {
-      validateImageFile(file);
+      const kind = await walletFileKind(file);
+      if (current !== choice) return;
+      const name = file.name || '촬영한 사진';
       clearScanner();
       confirmedDataUrl = '';
       onReady(false);
       mark.hidden = true;
       preview.hidden = true;
       preview.removeAttribute('src');
-      title.textContent = file.name;
+      title.textContent = name;
       help.textContent = '';
       trigger.textContent = '다시 선택';
       scanner = createWalletDocumentScanner({
         file,
+        kind,
         onConfirm(dataUrl) {
           confirmedDataUrl = dataUrl;
           clearScanner();
           preview.src = dataUrl;
-          preview.alt = `보정된 ${file.name} 미리보기`;
+          preview.alt = `보정된 ${name} 미리보기`;
           preview.hidden = false;
-          title.textContent = file.name;
+          title.textContent = name;
           help.textContent = '';
           trigger.textContent = '사진 변경';
           onReady(true);
@@ -684,6 +693,7 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
       });
       scannerHost.append(scanner.element);
     } catch (error) {
+      if (current !== choice) return;
       source.value = '';
       clearScanner();
       resetSelection();

@@ -36,14 +36,16 @@ function surface(width, height, kind, random) {
   const coarse = valueNoise(width, height, Math.max(24, Math.round(width / 9)), random);
   const middle = valueNoise(width, height, 9, random);
   const fine = valueNoise(width, height, 3, random);
-  const base = kind === 'mat' ? [44, 112, 84] : kind === 'olive' ? [96, 118, 70] : kind === 'navy' ? [40, 52, 92] : [62, 112, 70];
-  const strength = kind === 'strong' ? 2.4 : 1;
+  // Light tabletops a phone photo is often taken on: pale wood grain, white and grey desks.
+  const base = kind === 'mat' ? [44, 112, 84] : kind === 'olive' ? [96, 118, 70] : kind === 'navy' ? [40, 52, 92] : kind === 'desk' ? [196, 170, 134] : kind === 'white' ? [224, 224, 220] : kind === 'gray' ? [150, 152, 156] : [62, 112, 70];
+  const strength = kind === 'strong' ? 2.4 : kind === 'white' ? .5 : 1;
   const grid = Math.round(width / 26);
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const index = y * width + x;
       let shade = coarse[index] * 14 + middle[index] * 10 * strength + fine[index] * 9 * strength;
       if (kind === 'felt' || kind === 'strong') shade += Math.sin(x * 0.9 + Math.sin(y * 0.21) * 3) * 4 * strength;
+      if (kind === 'desk') shade += Math.sin(y * 0.06 + coarse[index] * 9 + Math.sin(x * 0.004) * 4) * 7;
       let lift = 0;
       if (kind === 'mat') {
         const gx = x % grid; const gy = y % grid;
@@ -72,7 +74,7 @@ function hologramOverlay(context, width, height, random) {
   }
 }
 
-function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = false, glare = false, edgeFade = null, tint = [228, 232, 229]} = {}, random) {
+function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = false, glare = false, edgeFade = null, tint = [228, 232, 229], font = null} = {}, random) {
   const canvas = new OffscreenCanvas(width, height); const context = canvas.getContext('2d', {willReadFrequently: true});
   context.fillStyle = `rgb(${tint.join(',')})`; context.fillRect(0, 0, width, height);
   if (!plain) hologramOverlay(context, width, height, random);
@@ -94,7 +96,24 @@ function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = fa
     context.fillStyle = `rgba(${40 + random() * 60},${40 + random() * 50},${50 + random() * 40},0.35)`;
     context.beginPath(); context.ellipse(photo.x + random() * photo.w, photo.y + random() * photo.h, photo.w * (0.05 + random() * 0.12), photo.h * (0.04 + random() * 0.1), random() * 3, 0, Math.PI * 2); context.fill();
   }
-  const rows = Math.round(7 * glyphDensity);
+  // font: real thin-stroke lettering instead of block glyphs (random syllables and digits,
+  // no real data); 'small' is the fine print size of an ID card.
+  if (font) {
+    const lines = Math.round(6 * glyphDensity);
+    for (let row = 0; row < lines; row += 1) {
+      const size = height * (row === 0 ? 0.075 : font === 'small' ? 0.034 : 0.045);
+      context.font = `${row === 0 ? 600 : 400} ${size}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
+      context.fillStyle = row === 0 ? '#1d2530' : '#3a4450';
+      let text = '';
+      for (let word = 0, words = 2 + Math.floor(random() * 3); word < words; word += 1) {
+        if (word) text += ' ';
+        if (random() < .3) { for (let digit = 0, count = 4 + Math.floor(random() * 4); digit < count; digit += 1) text += String(Math.floor(random() * 10)); }
+        else { for (let letter = 0, count = 2 + Math.floor(random() * 3); letter < count; letter += 1) text += String.fromCharCode(0xAC00 + Math.floor(random() * 11172)); }
+      }
+      context.fillText(text, width * 0.36, height * (0.15 + row * (0.72 / lines)) + size, width * 0.6);
+    }
+  }
+  const rows = font ? 0 : Math.round(7 * glyphDensity);
   for (let row = 0; row < rows; row += 1) {
     const y = height * (0.14 + row * (0.72 / rows)); const glyphHeight = height * (row === 0 ? 0.075 : 0.045);
     let x = width * 0.36; const end = width * (0.62 + random() * 0.33);
@@ -343,6 +362,70 @@ export function cardOnWalletScene(index) {
   const holderCorners = [{x: left, y: top - tilt}, {x: right, y: top + tilt}, {x: right, y: bottom + tilt}, {x: left, y: bottom - tilt}];
   const base = randomWalletScene(1300 + index, {width, height});
   return {...base, width, height, surfaceKind: 'navy', lighting: {left: .9 + random() * .2, right: .9 + random() * .2, top: 1.05, bottom: .9, hotspot: .08}, cards: [card], holder: {corners: holderCorners, tone: 10 + Math.round(random() * 8), sheen: index % 3 === 0 ? 30 : 55 + Math.round(random() * 35), color: index % 4 === 3 ? [3.4, 2.3, 1.6] : undefined}, hand: index % 2 ? {side: 'bottom', at: .9 + random() * .08, palm: .2, thumb: .06, tone: [[222, 178, 146], [196, 150, 120], [236, 196, 170]][index % 3]} : null};
+}
+
+// A phone camera shot of a card, the way people take it: portrait 3:4 frame, the card
+// covering 42-90% of the frame width, tilted and seen at an angle, on a light desk or a
+// dark surface, sometimes held in the hand, with thin printed lettering.
+export function cameraCardScene(index, {width = 1500, height = 2000} = {}) {
+  const random = seededRandom(4100 + index * 13); const pick = (low, high) => low + random() * (high - low);
+  const fraction = pick(.42, .9); const cardHeight = width * fraction / ID_CARD_ASPECT;
+  const slack = Math.max(0, 1 - cardHeight / height);
+  const top = slack * pick(.3, .7); const leftMargin = (1 - fraction) * pick(.25, .75);
+  const rotation = pick(-12, 12); const keystone = pick(0, .12);
+  const surfaceKind = ['desk', 'white', 'gray', 'felt', 'desk', 'navy'][index % 6];
+  const tint = [[232, 234, 230], [226, 232, 238], [238, 236, 228], [222, 230, 224]][index % 4];
+  const card = walletCard({width, height, margins: {left: leftMargin, right: 1 - fraction - leftMargin, top, bottom: slack - top}, rotation, keystone, keystoneAxis: random() < .7 ? 'top' : 'right', tint, font: index % 3 === 2 ? 'small' : 'regular'});
+  const left = pick(.62, .95); const right = pick(1.0, 1.2);
+  return {
+    width, height, seed: 4200 + index, surfaceKind, cards: [card],
+    lighting: {left, right, top: pick(.92, 1.08), bottom: pick(.8, 1.0), hotspot: pick(0, .2)},
+    noise: pick(3, 7), jpegQuality: pick(.8, .92), focusBlur: random() < .3 ? pick(.5, 1.2) : 0,
+    hand: index % 4 === 3 ? {side: ['left', 'right', 'bottom'][index % 3], at: pick(.35, .65), palm: pick(.22, .34), thumb: pick(.12, .18)} : null,
+    expected: {fraction, rotation, keystone},
+  };
+}
+
+// Photos that are not wallet items, for the false-accept guard: a person's portrait (with a
+// striped shirt), scenery with a building facade (rows of windows) and an empty desk.
+export async function renderNotDocumentScene(kind, index) {
+  const random = seededRandom(5100 + index * 31); const width = 1050; const height = 1400;
+  const canvas = new OffscreenCanvas(width, height); const context = canvas.getContext('2d');
+  if (kind === 'face') {
+    const wall = context.createLinearGradient(0, 0, width, height); wall.addColorStop(0, 'rgb(214,206,196)'); wall.addColorStop(1, 'rgb(170,164,156)');
+    context.fillStyle = wall; context.fillRect(0, 0, width, height);
+    const shirt = [[46, 70, 120], [180, 60, 60], [60, 120, 90]][index % 3];
+    context.fillStyle = `rgb(${shirt.join(',')})`; context.beginPath(); context.ellipse(width * .5, height * 1.02, width * .5, height * .32, 0, 0, Math.PI * 2); context.fill();
+    context.fillStyle = 'rgba(245,245,240,.85)';
+    for (let stripe = 0; stripe < 9; stripe += 1) context.fillRect(0, height * (.74 + stripe * .03), width, height * .012);
+    context.fillStyle = 'rgb(226,186,160)'; context.fillRect(width * .43, height * .5, width * .14, height * .16);
+    context.beginPath(); context.ellipse(width * .5, height * .4, width * .2, height * .17, 0, 0, Math.PI * 2); context.fill();
+    context.fillStyle = 'rgb(40,30,26)'; context.beginPath(); context.ellipse(width * .5, height * .27, width * .22, height * .1, 0, Math.PI, Math.PI * 2); context.fill();
+    for (let strand = 0; strand < 1600; strand += 1) { const x = width * (.29 + random() * .42); const y = height * (.2 + random() * .1); context.strokeStyle = `rgba(${20 + random() * 40},${16 + random() * 30},${14 + random() * 20},.8)`; context.lineWidth = 1 + random(); context.beginPath(); context.moveTo(x, y); context.lineTo(x + (random() - .5) * 20, y + 10 + random() * 30); context.stroke(); }
+    context.fillStyle = 'rgb(30,26,24)'; for (const side of [-1, 1]) { context.beginPath(); context.ellipse(width * (.5 + side * .075), height * .39, 16, 9, 0, 0, Math.PI * 2); context.fill(); }
+    context.fillStyle = 'rgb(160,80,80)'; context.beginPath(); context.ellipse(width * .5, height * .48, 38, 10, 0, 0, Math.PI * 2); context.fill();
+  } else if (kind === 'scenery') {
+    const sky = context.createLinearGradient(0, 0, 0, height * .55); sky.addColorStop(0, 'rgb(120,170,225)'); sky.addColorStop(1, 'rgb(200,222,240)');
+    context.fillStyle = sky; context.fillRect(0, 0, width, height);
+    context.fillStyle = 'rgb(96,120,96)'; context.beginPath(); context.moveTo(0, height * .5);
+    for (let x = 0; x <= width; x += 30) context.lineTo(x, height * (.42 + Math.sin(x / width * 5 + index) * .05 + random() * .02));
+    context.lineTo(width, height); context.lineTo(0, height); context.fill();
+    // A building with rows of windows.
+    const bx = width * (.2 + random() * .2); const bw = width * .45; const by = height * .3; const bh = height * .45;
+    context.fillStyle = 'rgb(206,200,190)'; context.fillRect(bx, by, bw, bh);
+    context.fillStyle = 'rgb(70,90,110)';
+    for (let floor = 0; floor < 9; floor += 1) for (let column = 0; column < 8; column += 1) context.fillRect(bx + bw * (.05 + column * .118), by + bh * (.05 + floor * .105), bw * .07, bh * .06);
+    for (let tree = 0; tree < 40; tree += 1) { const x = random() * width; const y = height * (.72 + random() * .2); context.fillStyle = `rgb(${40 + random() * 30},${90 + random() * 40},${40 + random() * 30})`; context.beginPath(); context.arc(x, y, 20 + random() * 40, 0, Math.PI * 2); context.fill(); }
+  } else {
+    const desk = await renderScene({width, height, seed: 5200 + index, surfaceKind: ['desk', 'white', 'gray'][index % 3], cards: []});
+    context.drawImage(desk, 0, 0);
+  }
+  const pixels = context.getImageData(0, 0, width, height);
+  for (let offset = 0; offset < pixels.data.length; offset += 4) { const jitter = (random() + random() - 1) * 5; for (let channel = 0; channel < 3; channel += 1) pixels.data[offset + channel] = Math.max(0, Math.min(255, pixels.data[offset + channel] + jitter)); }
+  context.putImageData(pixels, 0, 0);
+  const blob = await canvas.convertToBlob({type: 'image/jpeg', quality: .86}); const bitmap = await createImageBitmap(blob);
+  const encoded = new OffscreenCanvas(width, height); encoded.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close?.();
+  return {canvas: encoded, width, height};
 }
 
 // A scanned page that fills the frame: off-white paper, a title, a ruled table, paragraphs
