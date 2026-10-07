@@ -1,4 +1,6 @@
-READY_FOR_DEPLOY=YES
+READY_FOR_DEPLOY=NO
+
+HOLD=IN_PROGRESS — additional P0 (direct camera normalization / document correction parity) being merged into this branch; do not gate 8ed42bd3. A new READY follows on this branch.
 
 STATUS=IMPLEMENTED, focused + mobile-viewport validators PASS on CODE_SHA; real phone NOT TESTED (user real-device feedback 2026-10-07: camcorder in the picker, neighbour card cut into view, camera shot of an ID not recognised, PIN keyboard popping up).
 
