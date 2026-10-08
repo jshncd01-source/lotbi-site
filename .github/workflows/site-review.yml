@@ -393,6 +393,7 @@ jobs:
         run: |
           node scripts/validate_festival_location_manual_region_01.mjs
           node scripts/validate_festival_region_scope_01.mjs
+          node scripts/validate_festival_region_search_consistency_01.mjs
 
       # 공통 위치 권한/현재위치 획득 기반 (GLOBAL-LOCATION-15). 기능별로 권한 확인과
       # GPS 읽기를 다시 개발하지 않는다는 계약을 한곳에서 지킨다: 권한 상태 판정,
