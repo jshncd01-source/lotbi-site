@@ -1,4 +1,5 @@
-// NEIS-SCHOOL-LINKS-01 — [학교 홈페이지] / [급식·식단 원문] on NEIS school cards.
+// NEIS-SCHOOL-LINKS-01 — [학교 홈페이지] / [급식표 보기] on NEIS school cards.
+// (SCHOOL-MEAL-01 renamed the staff meal-page button from 급식·식단 원문 to 급식표 보기.)
 //
 // 계약:
 //  - Core가 정한 링크(school_result.links)만 버튼이 된다. 홈페이지는 직원 보완 →
@@ -75,10 +76,10 @@ await check('links survive normalization; unsafe ones never do', async () => {
   assert.deepEqual({...school.normalizeSchoolResult(result('MEAL', {meals: [MEAL]})).links}, {homepageUrl: '', homepageSource: '', mealSourceUrl: ''});
 });
 
-await check('meal answer: one [급식·식단 원문] and one [학교 홈페이지], new tab, source stays NEIS', async () => {
+await check('meal answer: one [급식표 보기] and one [학교 홈페이지], new tab, source stays NEIS', async () => {
   const card = school.createSchoolResultCard(result('MEAL', {meals: [MEAL], links: LINKS}), {document: fakeDocument()});
   const links = anchors(card);
-  assert.deepEqual(links.map(link => link.textContent), ['급식·식단 원문', '학교 홈페이지']);
+  assert.deepEqual(links.map(link => link.textContent), ['급식표 보기', '학교 홈페이지']);
   assert.deepEqual(links.map(link => link.href), ['https://new.sewon.es.kr/meal', 'http://www.sewon.es.kr/']);
   for (const link of links) {
     assert.equal(link.target, '_blank');
@@ -296,7 +297,7 @@ try {
     await check(`${testCase.label}${testCase.mobile ? "px" : ""}: links fit, are tappable, open safely; none when absent`, async () => {
       const reading = run(browser, testCase, path.join(ROOT, wrapperRel), wrapperRel);
       assert.ok(reading.viewport.scroll <= reading.viewport.w, `${testCase.label}: page scrolls sideways ${reading.viewport.scroll} > ${reading.viewport.w}`);
-      assert.deepEqual(reading.links.map(link => link.text), ['급식·식단 원문', '학교 홈페이지'], `${testCase.label}: actions`);
+      assert.deepEqual(reading.links.map(link => link.text), ['급식표 보기', '학교 홈페이지'], `${testCase.label}: actions`);
       for (const link of reading.links) {
         assert.ok(link.h >= 44, `${testCase.label}: ${link.text} height ${link.h}`);
         assert.ok(link.x >= reading.card.x - 0.5 && link.right <= reading.card.right + 0.5, `${testCase.label}: ${link.text} overflows the card`);

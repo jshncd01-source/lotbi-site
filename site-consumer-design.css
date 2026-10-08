@@ -58,13 +58,7 @@ body.chat-home-page .site-modal-backdrop:has(> .consumer-section-panel) { paddin
 .consumer-section-panel .consumer-section-content { padding: 0; }
 .consumer-section-content { display: grid; gap: 22px; min-width: 0; }
 .consumer-section-label { margin: 14px 0 0; font-size: 13px; font-weight: 500; color: var(--consumer-muted); }
-.consumer-section-footer { margin-top: 20px; padding-top: 24px; border-top: 1px solid var(--lotbi-border-default); display: flex; align-items: center; gap: 24px; }
-.consumer-section-footer .consumer-action { flex-shrink: 0; }
-.consumer-section-footer .consumer-feature-note { margin: 0; }
 .consumer-section-content svg, .scam-input-kinds svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.consumer-search { display: flex; gap: 10px; align-items: center; border: 1px solid var(--lotbi-border-default); border-radius: 16px; padding: 7px; }
-.consumer-search input { flex: 1; width: 0; min-width: 0; min-height: 44px; padding: 8px 12px; background: transparent; border: 0; color: inherit; font: inherit; font-size: 16px; }
-.consumer-search input::placeholder { color: var(--consumer-muted); }
 .consumer-action { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; box-sizing: border-box; padding: 10px 16px; border: 1px solid transparent; border-radius: 10px; background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
 .consumer-action-secondary { background: transparent; border-color: var(--lotbi-border-default); color: inherit; }
 .consumer-action:disabled { opacity: .6; cursor: not-allowed; }
@@ -167,7 +161,6 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
 .consumer-workspace .calendar-toolbar .calendar-title-button { font-size: 18px; font-weight: 600; }
 .consumer-workspace .consumer-shortcuts { gap: 12px; }
 .consumer-workspace .consumer-shortcut { min-height: 120px; padding: 20px 16px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; gap: 20px; }
-.consumer-workspace .consumer-search { max-width: 760px; min-height: 62px; box-shadow: none; }
 .consumer-workspace .consumer-empty { min-height: 360px; }
 .consumer-workspace .consumer-source-options { padding-top: 16px; border-top: 1px solid var(--lotbi-border-default); }
 .consumer-workspace .consumer-section-content > .consumer-feature-note { text-align: center; max-width: 560px; margin: 0 auto; }
@@ -195,9 +188,6 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   body.chat-home-page .consumer-workspace { padding: 20px; }
   .consumer-workspace .consumer-shortcut { min-height: 100px; padding: 16px 12px; gap: 16px; }
   .consumer-workspace .consumer-empty { min-height: 300px; }
-  .consumer-section-footer { flex-direction: column; align-items: flex-start; gap: 16px; }
-  .consumer-workspace .consumer-search { gap: 0; }
-  .consumer-workspace .consumer-search .consumer-action { align-self: flex-end; }
   /* Two rows, not three: ‹ month › 오늘 ⚙ on one line, the views on the next,
      so the month itself starts higher on a phone. */
   .consumer-workspace .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px auto 44px; gap: 4px; }
@@ -215,8 +205,6 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   body.chat-home-page .consumer-section-panel { padding: 20px; }
   .consumer-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .consumer-shortcut { min-height: 84px; padding: 12px 10px; gap: 10px; word-break: keep-all; }
-  .consumer-search { align-items: stretch; flex-direction: column; }
-  .consumer-search input { width: 100%; box-sizing: border-box; }
   .consumer-care-alert { flex-wrap: wrap; }
   .consumer-care-alert .consumer-action { width: 100%; }
   .consumer-empty { min-height: 200px; padding: 20px 0; }
@@ -262,6 +250,5 @@ body.chat-home-page .consumer-workspace[data-workspace='calendar'] > .site-modal
 .consumer-life-detail h3 { margin: 8px 0 0; font-size: 24px; font-weight: 600; letter-spacing: -.035em; }
 .consumer-life-form { display: grid; gap: 20px; }
 .consumer-life-field { display: grid; gap: 10px; color: inherit; font-size: 14px; font-weight: 500; }
-.consumer-life-field :is(input, textarea) { box-sizing: border-box; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
-.consumer-life-field textarea { min-height: 160px; resize: vertical; }
+.consumer-life-field input { box-sizing: border-box; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
 .consumer-life-form > .consumer-action { justify-self: start; }
