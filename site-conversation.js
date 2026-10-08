@@ -2733,6 +2733,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           clearSchoolPreference(lifeSchoolKey(), storage);
           setStatus('저장된 학교를 지웠어요. 학교 이름을 말씀해 주시면 다시 찾아볼게요.');
         },
+        // SCHOOL-MEAL-01: [이번 주 급식] asks as an ordinary turn; the saved
+        // school rides along because the question names 급식.
+        onAsk: text => {
+          if (text && !inFlight) void requestAssistant(text, true);
+        },
       });
       if (schoolCard) node.appendChild(schoolCard);
     }
