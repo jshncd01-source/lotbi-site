@@ -3,7 +3,8 @@
 // type per picker; PDFs have their own), (2) a camera shot takes the same path as a gallery
 // file (EXIF orientation, large photos, header without a size, WebP; HEIC explained where the
 // browser cannot open it) and is recognised even when the card is small in the frame,
-// (3) the wallet strip shows exactly one whole item at phone widths, and (4) the PIN keypad
+// (3) the wallet card deck shows the front item whole at phone widths (LIFE-WALLET-CARD-DECK-01
+// replaced the one-item strip: peeking cards stay inside the deck), and (4) the PIN keypad
 // does not raise the phone keyboard. All images are synthetic.
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -63,27 +64,28 @@ try {
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
 </script></body></html>`;
 
-// One whole item at a time at phone widths.
+// The front item whole at phone widths; the cards peeking out behind it stay inside the deck.
 const carouselFixture = head + `<script type="module">
 ${helpers}
 try {
-  const {createWalletCardCarousel} = await import('/site-life-wallet.js?test=mobile-p0-carousel');
+  const {createWalletCardDeck} = await import('/site-life-wallet.js?test=mobile-p0-deck');
   const shaped = (width, height) => { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const context = canvas.getContext('2d'); context.fillStyle = '#fff'; context.fillRect(0, 0, width, height); context.fillStyle = '#123'; context.fillRect(width * .1, height * .1, width * .8, height * .8); return canvas.toDataURL('image/png'); };
-  const carousel = createWalletCardCarousel({cards: [{id: 'a', name: 'a', kind: 'document', frontDataUrl: shaped(1618, 1044)}, {id: 'b', name: 'b', kind: 'document', frontDataUrl: shaped(1015, 643)}, {id: 'c', name: 'c', kind: 'document', frontDataUrl: shaped(1467, 2048)}], onOpen: () => {}});
-  document.getElementById('host').append(carousel);
-  await Promise.all([...carousel.querySelectorAll('img')].map(image => image.decode().catch(() => {}))); await sleep(200);
-  const viewport = carousel.querySelector('.wallet-card-viewport'); const dots = [...carousel.querySelectorAll('[data-wallet-carousel-dot]')];
+  const deck = createWalletCardDeck({cards: [{id: 'a', name: 'a', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1618, 1044)}, {id: 'b', name: 'b', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1015, 643)}, {id: 'c', name: 'c', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1467, 2048)}], onOpen: () => {}});
+  document.getElementById('host').append(deck);
+  await Promise.all([...deck.querySelectorAll('img')].map(image => image.decode().catch(() => {}))); await sleep(400);
+  const dots = [...deck.querySelectorAll('[data-wallet-carousel-dot]')];
   const views = [];
   for (let index = 0; index < dots.length; index += 1) {
     dots[index].click(); await sleep(600);
-    const frame = viewport.getBoundingClientRect();
-    const slides = [...carousel.querySelectorAll('.wallet-card-slide')];
-    const visible = slides.filter(slide => { const r = slide.getBoundingClientRect(); return r.right > frame.left + 1 && r.left < frame.right - 1; });
-    const card = carousel.querySelectorAll('.wallet-card')[index]; const image = card.querySelector('img');
-    const c = card.getBoundingClientRect(); const i = image.getBoundingClientRect(); const s = slides[index].getBoundingClientRect();
-    views.push({index, visibleSlides: visible.length, slideWidth: s.width, viewportWidth: frame.width, cardInside: c.left >= frame.left - .5 && c.right <= frame.right + .5 && c.top >= frame.top - .5 && c.bottom <= frame.bottom + .5,
-      imageInside: i.left >= c.left - .5 && i.right <= c.right + .5 && i.top >= c.top - .5 && i.bottom <= c.bottom + .5, imageAspect: i.width / i.height, naturalAspect: image.naturalWidth / image.naturalHeight,
-      objectFit: getComputedStyle(image).objectFit, flexShrink: getComputedStyle(slides[index]).flexShrink});
+    const frame = deck.getBoundingClientRect();
+    const card = deck.querySelector('.wallet-deck-card[data-depth="0"]'); const image = card.querySelector('img');
+    const c = card.getBoundingClientRect(); const i = image.getBoundingClientRect();
+    const others = [...deck.querySelectorAll('.wallet-deck-card')].filter(other => other !== card && getComputedStyle(other).opacity !== '0').map(other => other.getBoundingClientRect());
+    views.push({index, shape: card.dataset.shape, frontOnTop: document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2)?.closest('.wallet-deck-card') === card,
+      cardInside: c.left >= frame.left - .5 && c.right <= frame.right + .5 && c.top >= frame.top - .5 && c.right <= innerWidth,
+      othersInside: others.every(r => r.left >= frame.left - .5 && r.right <= frame.right + .5 && r.top >= frame.top - .5),
+      imageInside: i.left >= c.left - .5 && i.right <= c.right + .5 && i.top >= c.top - .5 && i.bottom <= c.bottom + .5,
+      objectFit: getComputedStyle(image).objectFit, overflow: document.documentElement.scrollWidth > innerWidth});
   }
   window.__result = JSON.stringify({ok: true, width: innerWidth, views});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
@@ -137,16 +139,17 @@ const widths = [];
 for (const width of [360, 390, 412]) {
   const carousel = await run(carouselFixture, {width, height: 800, mobile: true}, 'carousel');
   assert.equal(carousel.ok, true, carousel.error);
+  assert.equal(carousel.views.length, 3, JSON.stringify(carousel));
   for (const view of carousel.views) {
     const detail = `${width}px #${view.index + 1}: ${JSON.stringify(view)}`;
-    assert.equal(view.visibleSlides, 1, `exactly one item on screen, no neighbour peeking: ${detail}`);
-    assert.ok(Math.abs(view.slideWidth - view.viewportWidth) <= 1, `a slide is as wide as the visible strip: ${detail}`);
-    assert.equal(view.flexShrink, '0', `slides never shrink: ${detail}`);
-    assert.equal(view.cardInside, true, `the whole item is visible, nothing cut: ${detail}`);
+    assert.equal(view.frontOnTop, true, `the item brought forward is on top: ${detail}`);
+    assert.equal(view.cardInside, true, `the whole front item is visible, nothing cut: ${detail}`);
+    assert.equal(view.othersInside, true, `cards peeking out behind stay inside the deck: ${detail}`);
     assert.equal(view.imageInside, true, `the photo stays inside its card: ${detail}`);
-    assert.equal(view.objectFit, 'contain', `object-fit contain: ${detail}`);
-    assert.ok(Math.abs(view.imageAspect - view.naturalAspect) < .03, `the document is not cropped: ${detail}`);
+    assert.equal(view.objectFit, 'contain', `object-fit contain, the document is not cropped: ${detail}`);
+    assert.equal(view.overflow, false, `no sideways scrolling: ${detail}`);
   }
+  assert.deepEqual(carousel.views.map(view => view.shape), ['card', 'card', 'document'], `shape only: two cards and a page: ${JSON.stringify(carousel)}`);
   widths.push(width);
 }
 const pin = await run(pinFixture, {width: 390, height: 844, mobile: true}, 'pin');
@@ -157,4 +160,4 @@ assert.equal(pin.unlock.type, 'password');
 assert.equal(pin.unlock.ariaLabel, '월렛 PIN', 'the field stays labelled for screen readers and hardware keyboards');
 assert.equal(pin.unlock.typed, 4, 'keypad digits fill the PIN');
 assert.equal(pin.unlock.reopened, true, 'the keypad unlocks the wallet');
-console.log(`LIFE_WALLET_MOBILE_P0_01 PASS — camera near/far automatic (decoded ${picker.near.source}), webp automatic, heic explained, carousel one slide at ${widths.join('/')}px, pin inputmode=none`);
+console.log(`LIFE_WALLET_MOBILE_P0_01 PASS — camera near/far automatic (decoded ${picker.near.source}), webp automatic, heic explained, card deck front item whole at ${widths.join('/')}px, pin inputmode=none`);
