@@ -7,6 +7,12 @@
 // Calendar: 학사일정은 "캘린더에 추가" 버튼으로만 편집기를 연다. 자동 저장 없음.
 // 링크(NEIS-SCHOOL-LINKS-01): Core가 정한 학교 홈페이지(직원 보완 → NEIS)와
 // 직원이 등록한 급식·식단 원문만 버튼으로 보여 준다. 없으면 버튼도 없다.
+// 급식(SCHOOL-MEAL-01): NEIS 급식이 기본, NEIS에 없는 날짜·식사만 직원 보완
+// 급식이 온다. 직원 보완 급식은 "학교 공식자료 기준"(근거 주소 있음) 또는
+// "직원 확인 정보"로만 표시하고 NEIS라고 하지 않는다. 오늘 급식은 짧게,
+// [이번 주 급식]은 그 주에 더 볼 급식이 있을 때만, [급식표 보기]는 직원이
+// 등록한 학교 급식표 주소가 있을 때만 보인다. 알레르기는 받은 그대로 보여 주고
+// 해석하지 않는다.
 
 const OFFICE_RE = /^[A-Z][0-9]{2}$/u;
 const SCHOOL_CODE_RE = /^[0-9]{7,10}$/u;
@@ -17,6 +23,16 @@ const KINDS = new Set(['MEAL', 'SCHEDULE', 'TIMETABLE', 'SCHOOL_CANDIDATES', 'NE
   'SCHOOL_NOT_FOUND', 'SCHOOL_SAVED', 'UNAVAILABLE', 'TIMETABLE_UNSUPPORTED', 'HOMEPAGE']);
 const HOMEPAGE_SOURCES = new Set(['STAFF_OVERRIDE', 'NEIS']);
 const PRIVATE_HOST_SUFFIXES = ['.localhost', '.local', '.internal', '.test', '.invalid', '.lan', '.home', '.corp'];
+const MEAL_TYPES = new Set(['BREAKFAST', 'LUNCH', 'DINNER']);
+const STAFF_SOURCE = 'STAFF_FALLBACK';
+const STAFF_LABEL_WITH_SOURCE = '학교 공식자료 기준';
+const STAFF_LABEL_WITHOUT_SOURCE = '직원 확인 정보';
+const DISH_PREVIEW = 6;
+const ALLERGY_NOTE = '알레르기 정보는 학교·NEIS 제공 내용을 확인하세요.';
+const STALE_NOTE = 'NEIS 연결이 원활하지 않아 최근에 확인한 급식이에요.';
+// "내일은?", "이번 주 전체", "금요일은요?" — a meal follow-up keeps the school.
+// Core decides from the recent turns whether it really is one.
+const MEAL_FOLLOW_UP_RE = /^(?:그럼|그러면|그리고|혹시)?\s*(?:오늘|내일|모레|글피|어제|이번\s*주|금주|다음\s*주|담주|주간|일주일|(?:(?:이번|다음)\s*주\s*|담주\s*)?[월화수목금토일]요일|\d{1,2}\s*월\s*\d{1,2}\s*일)\s*(?:꺼|것|거)?\s*(?:은|는|도)?\s*(?:전체|전부|다|모두)?\s*(?:은|는|도)?\s*(?:요)?\s*(?:뭐야|뭐예요|뭐에요|뭐|어때|어때요|알려\s*줘|보여\s*줘|알려\s*주세요|보여\s*주세요)?\s*[?？!.~]*$/u;
 const ALLERGEN_MARKS = ['', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲'];
 const WEEKDAYS = '일월화수목금토';
 
@@ -69,10 +85,11 @@ export function clearSchoolPreference(key, storage = globalThis.localStorage) {
   try { storage?.removeItem?.(key); } catch { /* the chat stays usable */ }
 }
 
-// Only school-ish questions carry the school; everything else stays as before.
+// Only school-ish questions (and short meal follow-ups such as "내일은?")
+// carry the school; everything else stays as before.
 export function schoolContextForMessage(text, preference) {
   const value = typeof text === 'string' ? text : '';
-  if (!preference || !SCHOOL_TOPIC_RE.test(value)) return null;
+  if (!preference || !(SCHOOL_TOPIC_RE.test(value) || MEAL_FOLLOW_UP_RE.test(value.trim()))) return null;
   return normalizeSchoolPreference(preference);
 }
 
@@ -112,20 +129,66 @@ function dateLabel(isoDate) {
   return `${Number(match[2])}월 ${Number(match[3])}일(${WEEKDAYS[day.getUTCDay()]})`;
 }
 
+function isoDate(item) {
+  return typeof item === 'string' && /^\d{4}-\d{2}-\d{2}$/u.test(item) ? item : '';
+}
+
+function mondayOf(iso) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(iso || '');
+  if (!match) return '';
+  const day = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+  return day.toISOString().slice(0, 10);
+}
+
+function addDays(iso, days) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(iso || '');
+  if (!match) return '';
+  const day = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  day.setUTCDate(day.getUTCDate() + days);
+  return day.toISOString().slice(0, 10);
+}
+
+function normalizeMeal(meal) {
+  const staff = meal?.source_type === STAFF_SOURCE;
+  // A staff entry's provenance follows its evidence page after the browser
+  // re-check: no safe page, no "학교 공식자료" wording.
+  const sourceUrl = staff ? safeSchoolLinkUrl(meal?.source_url) : '';
+  return {
+    date: isoDate(meal?.date),
+    mealName: clean(meal?.meal_name, 12) || '급식',
+    mealType: MEAL_TYPES.has(meal?.meal_type) ? meal.meal_type : '',
+    dishes: (Array.isArray(meal?.dishes) ? meal.dishes : []).slice(0, 30).map(dish => ({
+      name: clean(dish?.name, 60),
+      allergens: staff ? [] : (Array.isArray(dish?.allergens) ? dish.allergens : []).filter(code => Number.isInteger(code) && code >= 1 && code <= 19),
+    })).filter(dish => dish.name),
+    calories: clean(meal?.calories, 20),
+    sourceType: staff ? STAFF_SOURCE : 'NEIS',
+    sourceLabel: staff ? (sourceUrl ? STAFF_LABEL_WITH_SOURCE : STAFF_LABEL_WITHOUT_SOURCE) : '',
+    allergyText: staff ? clean(meal?.allergy_text, 120) : '',
+  };
+}
+
+// The week a one-day answer belongs to, as words a follow-up can use.
+function weekPrompt(summary, today) {
+  if (!summary?.hasMoreWeekly || !summary.weekFrom || !today) return '';
+  const thisWeek = mondayOf(today);
+  if (summary.weekFrom === thisWeek) return '이번 주 급식 보여줘';
+  if (summary.weekFrom === addDays(thisWeek, 7)) return '다음 주 급식 보여줘';
+  return '';
+}
+
 export function normalizeSchoolResult(value) {
   if (!value || typeof value !== 'object' || value.contract_id !== 'CORE-SCHOOL-RESULT-01' || value.schema_version !== 1) return null;
   const kind = clean(value.kind, 32);
   if (!KINDS.has(kind)) return null;
-  const isoDate = item => (/^\d{4}-\d{2}-\d{2}$/u.test(item) ? item : '');
-  const meals = (Array.isArray(value.meals) ? value.meals : []).slice(0, 15).map(meal => ({
-    date: isoDate(meal?.date),
-    mealName: clean(meal?.meal_name, 12) || '급식',
-    dishes: (Array.isArray(meal?.dishes) ? meal.dishes : []).slice(0, 20).map(dish => ({
-      name: clean(dish?.name, 60),
-      allergens: (Array.isArray(dish?.allergens) ? dish.allergens : []).filter(code => Number.isInteger(code) && code >= 1 && code <= 19),
-    })).filter(dish => dish.name),
-    calories: clean(meal?.calories, 20),
-  })).filter(meal => meal.date && meal.dishes.length);
+  const meals = (Array.isArray(value.meals) ? value.meals : []).slice(0, 100).map(normalizeMeal)
+    .filter(meal => meal.date && meal.dishes.length);
+  const weekly = (Array.isArray(value.weekly) ? value.weekly : []).slice(0, 31).map(day => ({
+    date: isoDate(day?.date),
+    meals: (Array.isArray(day?.meals) ? day.meals : []).slice(0, 6).map(normalizeMeal).filter(meal => meal.date && meal.dishes.length),
+  })).filter(day => day.date && day.meals.length);
+  const summary = value.meal_summary && typeof value.meal_summary === 'object' ? value.meal_summary : null;
   const events = (Array.isArray(value.events) ? value.events : []).slice(0, 30).map(event => ({
     date: isoDate(event?.date),
     name: clean(event?.name, 60),
@@ -160,6 +223,16 @@ export function normalizeSchoolResult(value) {
       ? {grade: value.save_preference.grade, class_name: clean(String(value.save_preference.class_name ?? ''), 4)}
       : null,
     coverage: clean(value.coverage, 20) || 'COMPLETE',
+    weekly,
+    mealSummary: summary && isoDate(summary.target_date)
+      ? Object.freeze({
+        targetDate: summary.target_date,
+        hasMoreWeekly: summary.has_more_weekly === true,
+        weekFrom: isoDate(summary.week?.from),
+      })
+      : null,
+    today: isoDate(value.today),
+    stale: value.freshness === 'STALE_CACHE',
     links: normalizeLinks(value.links),
     allergenLegend: Object.fromEntries(Object.entries(legend)
       .filter(([code, label]) => /^\d{1,2}$/u.test(code) && typeof label === 'string')
@@ -190,13 +263,23 @@ function schoolLink(doc, href, text) {
   return link;
 }
 
-// [급식·식단 원문] only on meal answers (staff-registered page, never labelled
-// NEIS); [학교 홈페이지] at most once per card. No link, no button.
-function schoolLinkActions(doc, result) {
+// [이번 주 급식] only when that week has more to show; [급식표 보기] only on
+// meal answers with a staff-registered school meal page (never labelled NEIS,
+// never the homepage standing in for it); [학교 홈페이지] at most once per card.
+// No link, no button.
+function schoolLinkActions(doc, result, onAsk) {
   if (!result.school || result.kind === 'SCHOOL_CANDIDATES') return null;
   const links = [];
+  const prompt = result.kind === 'MEAL' ? weekPrompt(result.mealSummary, result.today) : '';
+  if (prompt) {
+    const week = element(doc, 'button', 'lotbi-school-link lotbi-school-weekly', prompt.startsWith('다음') ? '다음 주 급식' : '이번 주 급식');
+    week.type = 'button';
+    week.dataset.schoolPrompt = prompt;
+    week.addEventListener('click', () => onAsk(prompt));
+    links.push(week);
+  }
   if (result.links.mealSourceUrl && (result.kind === 'MEAL' || result.kind === 'HOMEPAGE')) {
-    links.push(schoolLink(doc, result.links.mealSourceUrl, '급식·식단 원문'));
+    links.push(schoolLink(doc, result.links.mealSourceUrl, '급식표 보기'));
   }
   if (result.links.homepageUrl) links.push(schoolLink(doc, result.links.homepageUrl, '학교 홈페이지'));
   if (!links.length) return null;
@@ -206,15 +289,106 @@ function schoolLinkActions(doc, result) {
   return row;
 }
 
+function dishItem(doc, dish) {
+  const item = element(doc, 'li', 'lotbi-school-dish', dish.name);
+  if (dish.allergens.length) {
+    const marks = element(doc, 'span', 'lotbi-school-allergens', dish.allergens.map(code => ALLERGEN_MARKS[code] || String(code)).join(''));
+    marks.setAttribute('aria-label', `알레르기 ${dish.allergens.join(', ')}번`);
+    item.append(' ', marks);
+  }
+  return item;
+}
+
+function sourceBadge(doc, meal) {
+  if (meal.sourceType !== STAFF_SOURCE) return null;
+  const badge = element(doc, 'span', 'lotbi-school-meal-badge', meal.sourceLabel);
+  badge.dataset.mealSource = meal.sourceType;
+  return badge;
+}
+
+// One meal on a one-day answer: the first dishes, the rest behind "더 보기".
+function mealBlock(doc, meal) {
+  const block = element(doc, 'div', 'lotbi-school-meal');
+  block.dataset.mealSource = meal.sourceType;
+  const head = element(doc, 'div', 'lotbi-school-meal-head');
+  head.append(element(doc, 'span', 'lotbi-school-date', `${dateLabel(meal.date)} ${meal.mealName}`));
+  const badge = sourceBadge(doc, meal);
+  if (badge) head.append(badge);
+  block.append(head);
+  const list = element(doc, 'ul', 'lotbi-school-dishes');
+  for (const dish of meal.dishes.slice(0, DISH_PREVIEW)) list.append(dishItem(doc, dish));
+  block.append(list);
+  if (meal.dishes.length > DISH_PREVIEW) {
+    const more = element(doc, 'details', 'lotbi-school-more');
+    more.append(element(doc, 'summary', '', `메뉴 ${meal.dishes.length - DISH_PREVIEW}개 더 보기`));
+    const rest = element(doc, 'ul', 'lotbi-school-dishes');
+    for (const dish of meal.dishes.slice(DISH_PREVIEW)) rest.append(dishItem(doc, dish));
+    more.append(rest);
+    block.append(more);
+  }
+  if (meal.calories) block.append(element(doc, 'span', 'lotbi-school-calories', meal.calories));
+  if (meal.allergyText) block.append(element(doc, 'span', 'lotbi-school-calories', `알레르기 정보: ${meal.allergyText}`));
+  return block;
+}
+
+// A week: only the days that have meals, today marked; each meal on one line.
+function weekBlock(doc, result) {
+  const week = element(doc, 'div', 'lotbi-school-week');
+  for (const day of result.weekly) {
+    const isToday = day.date === result.today;
+    const block = element(doc, 'section', isToday ? 'lotbi-school-day is-today' : 'lotbi-school-day');
+    block.dataset.schoolDate = day.date;
+    if (isToday) block.setAttribute('aria-current', 'date');
+    block.setAttribute('aria-label', `${dateLabel(day.date)}${isToday ? ' 오늘' : ''} 급식`);
+    const head = element(doc, 'div', 'lotbi-school-day-head');
+    head.append(element(doc, 'span', 'lotbi-school-date', dateLabel(day.date)));
+    if (isToday) head.append(element(doc, 'span', 'lotbi-school-today', '오늘'));
+    block.append(head);
+    for (const meal of day.meals) {
+      const line = element(doc, 'p', 'lotbi-school-day-meal');
+      line.dataset.mealSource = meal.sourceType;
+      line.append(element(doc, 'strong', 'lotbi-school-day-meal-name', meal.mealName));
+      const badge = sourceBadge(doc, meal);
+      if (badge) line.append(badge);
+      const dishes = element(doc, 'span', 'lotbi-school-day-dishes');
+      meal.dishes.forEach((dish, index) => {
+        if (index) dishes.append(', ');
+        dishes.append(dish.name);
+        if (dish.allergens.length) {
+          const marks = element(doc, 'span', 'lotbi-school-allergens', dish.allergens.map(code => ALLERGEN_MARKS[code] || String(code)).join(''));
+          marks.setAttribute('aria-label', `알레르기 ${dish.allergens.join(', ')}번`);
+          dishes.append(marks);
+        }
+      });
+      line.append(dishes);
+      if (meal.calories) line.append(element(doc, 'span', 'lotbi-school-calories', meal.calories));
+      if (meal.allergyText) line.append(element(doc, 'span', 'lotbi-school-calories', `알레르기 정보: ${meal.allergyText}`));
+      block.append(line);
+    }
+    week.append(block);
+  }
+  return week;
+}
+
+// Where the meals on this card came from. A staff entry is never called NEIS.
+function mealSourceNote(meals) {
+  const staff = meals.some(meal => meal.sourceType === STAFF_SOURCE);
+  const neis = meals.some(meal => meal.sourceType !== STAFF_SOURCE);
+  if (staff && neis) return '출처: NEIS 교육정보 개방 포털 · 표시된 일부는 직원 확인 정보';
+  if (staff) return '출처: 학교 자료를 LOTBI 직원이 확인한 정보 (NEIS 급식 없음)';
+  return '출처: NEIS 교육정보 개방 포털';
+}
+
 export function createSchoolResultCard(value, {
   document: doc = globalThis.document,
   onSelectSchool = () => {},
   onAddToCalendar = () => {},
   onChangeSchool = () => {},
+  onAsk = () => {},
 } = {}) {
   const result = normalizeSchoolResult(value);
   if (!result) return null;
-  const hasBody = result.meals.length || result.events.length || result.timetable.length || result.candidates.length;
+  const hasBody = result.meals.length || result.weekly.length || result.events.length || result.timetable.length || result.candidates.length;
   if (!hasBody && !result.school) return null;
   const card = element(doc, 'section', 'lotbi-school-card');
   card.dataset.schoolKind = result.kind;
@@ -227,27 +401,22 @@ export function createSchoolResultCard(value, {
     card.append(header);
   }
 
-  for (const meal of result.meals) {
-    const block = element(doc, 'div', 'lotbi-school-meal');
-    block.append(element(doc, 'span', 'lotbi-school-date', `${dateLabel(meal.date)} ${meal.mealName}`));
-    const list = element(doc, 'ul', 'lotbi-school-dishes');
-    for (const dish of meal.dishes) {
-      const item = element(doc, 'li', 'lotbi-school-dish', dish.name);
-      if (dish.allergens.length) {
-        const marks = element(doc, 'span', 'lotbi-school-allergens', dish.allergens.map(code => ALLERGEN_MARKS[code] || String(code)).join(''));
-        marks.setAttribute('aria-label', `알레르기 ${dish.allergens.join(', ')}번`);
-        item.append(' ', marks);
-      }
-      list.append(item);
+  if (result.weekly.length) {
+    card.append(weekBlock(doc, result));
+  } else {
+    for (const meal of result.meals) card.append(mealBlock(doc, meal));
+    if (result.kind === 'MEAL' && result.mealSummary && !result.meals.length) {
+      card.append(element(doc, 'p', 'lotbi-school-empty', '이 날은 급식 정보가 없어요.'));
     }
-    block.append(list);
-    if (meal.calories) block.append(element(doc, 'span', 'lotbi-school-calories', meal.calories));
-    card.append(block);
   }
   const legend = Object.entries(result.allergenLegend);
   if (result.meals.length && legend.length) {
     card.append(element(doc, 'p', 'lotbi-school-legend', `알레르기 표시: ${legend.map(([code, label]) => `${ALLERGEN_MARKS[Number(code)] || code}${label}`).join(' ')}`));
   }
+  if (result.meals.some(meal => meal.dishes.some(dish => dish.allergens.length) || meal.allergyText)) {
+    card.append(element(doc, 'p', 'lotbi-school-legend lotbi-school-allergy-note', ALLERGY_NOTE));
+  }
+  if (result.kind === 'MEAL' && result.stale) card.append(element(doc, 'p', 'lotbi-school-legend lotbi-school-stale', STALE_NOTE));
 
   if (result.events.length) {
     const list = element(doc, 'ul', 'lotbi-school-events');
@@ -296,7 +465,7 @@ export function createSchoolResultCard(value, {
     card.append(list);
   }
 
-  const actions = schoolLinkActions(doc, result);
+  const actions = schoolLinkActions(doc, result, onAsk);
   if (actions) card.append(actions);
 
   const footer = element(doc, 'div', 'lotbi-school-card-footer');
@@ -306,6 +475,8 @@ export function createSchoolResultCard(value, {
     // Only the address is shown here: say where it came from, not "NEIS" for a staff entry.
     if (result.links.homepageSource === 'NEIS') notes.push('홈페이지 주소 출처: NEIS 교육정보 개방 포털');
     else if (result.links.homepageSource === 'STAFF_OVERRIDE') notes.push('홈페이지 주소: LOTBI 운영 등록');
+  } else if (result.kind === 'MEAL') {
+    notes.push(mealSourceNote(result.meals));
   } else {
     notes.push('출처: NEIS 교육정보 개방 포털');
   }
