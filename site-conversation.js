@@ -1,28 +1,29 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-738bfea7816e';
-import * as siteCore from './site-core.js?v=aset-738bfea7816e';
-import './site-scam-shield.js?v=aset-738bfea7816e';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-738bfea7816e';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-738bfea7816e';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-738bfea7816e';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-738bfea7816e';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-738bfea7816e';
-import * as siteAttachments from './site-attachments.js?v=aset-738bfea7816e';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-738bfea7816e';
-import {deterministicReply} from './site-deterministic.js?v=aset-738bfea7816e';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-738bfea7816e';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-738bfea7816e';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-738bfea7816e';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-738bfea7816e';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-738bfea7816e';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-738bfea7816e';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-738bfea7816e';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-738bfea7816e';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-738bfea7816e';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-738bfea7816e';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-738bfea7816e';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-738bfea7816e';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-738bfea7816e';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-738bfea7816e';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-a12a8f79f272';
+import * as siteCore from './site-core.js?v=aset-a12a8f79f272';
+import './site-scam-shield.js?v=aset-a12a8f79f272';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-a12a8f79f272';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-a12a8f79f272';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-a12a8f79f272';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-a12a8f79f272';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-a12a8f79f272';
+import * as siteAttachments from './site-attachments.js?v=aset-a12a8f79f272';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-a12a8f79f272';
+import {deterministicReply} from './site-deterministic.js?v=aset-a12a8f79f272';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-a12a8f79f272';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-a12a8f79f272';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-a12a8f79f272';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-a12a8f79f272';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-a12a8f79f272';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-a12a8f79f272';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-a12a8f79f272';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-a12a8f79f272';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-a12a8f79f272';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-a12a8f79f272';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-a12a8f79f272';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-a12a8f79f272';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-a12a8f79f272';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-a12a8f79f272';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-a12a8f79f272';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -199,7 +200,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-738bfea7816e';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-a12a8f79f272';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -292,7 +293,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-738bfea7816e');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-a12a8f79f272');
   return shareWithKakaoTalk(options);
 }
 
@@ -300,7 +301,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-738bfea7816e');
+    const module = await import('./site-kakao-share.js?v=aset-a12a8f79f272');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -2693,6 +2694,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (message.role === 'assistant' && rich) {
       const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
     }
+    if (message.role === 'assistant' && message.meta?.productLookup) {
+      const photos = createProductImageComparison(message.meta.productLookup, {document});
+      if (photos) node.appendChild(photos);
+    }
     if (message.role === 'assistant' && message.meta?.emergencyCall === true) {
       node.appendChild(createEmergencyCallNotice(document));
     }
@@ -3271,7 +3276,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-738bfea7816e');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-a12a8f79f272');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3299,7 +3304,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-738bfea7816e');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-a12a8f79f272');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3558,8 +3563,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-738bfea7816e'),
-          import('./site-pet.js?v=aset-738bfea7816e'),
+          import('./site-person.js?v=aset-a12a8f79f272'),
+          import('./site-pet.js?v=aset-a12a8f79f272'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3568,11 +3573,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-738bfea7816e');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-a12a8f79f272');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-738bfea7816e');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-a12a8f79f272');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4562,6 +4567,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
+        const productLookup = compactProductLookupMeta(response.productLookup);
+        if (productLookup) meta.productLookup = productLookup;
         const schoolMeta = compactSchoolResultMeta(response.schoolResult);
         if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
         const placeResult = compactPlaceResultMeta(response.placeResult);
@@ -4693,6 +4700,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
+      const productLookup = compactProductLookupMeta(response.productLookup);
+      if (productLookup) meta.productLookup = productLookup;
       const schoolMeta = compactSchoolResultMeta(response.schoolResult);
       if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
       const placeResult = compactPlaceResultMeta(response.placeResult);
