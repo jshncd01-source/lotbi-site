@@ -6,24 +6,25 @@
 // is never mistaken for the guardian's own list.
 //
 // Core decides every state shown here (photo renewal, SOS eligibility, review
-// state). LOTBI never asserts a match: no "찾았습니다", no "100% 일치", and
-// "확인 가능한 일치 대상 없음" only after Core reports NO_RELIABLE_MATCH.
+// state). LOTBI never asserts a match: no "찾았습니다", no "100% 일치", and a
+// found report's reporter is never told the comparison result.
 import {
   closePersonSos, createHumanSighting, createPerson, createPersonSos, deleteHumanSightingPhoto, deletePerson,
   fetchHumanSightingPhotoObjectUrl, fetchPersonIdentityPhotoObjectUrl, getPerson, listGuardianNotices,
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
-  personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
+  personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice,
   submitHumanSighting, updatePerson,
 } from './site-person.js?v=aset-5934791f742c';
 import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-5934791f742c';
 import {
-  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
+  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-5934791f742c';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-5934791f742c';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-5934791f742c';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-5934791f742c';
+} from './site-safecare-common.js?v=aset-af434d6d05ff';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-af434d6d05ff';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-af434d6d05ff';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-af434d6d05ff';
+import {createPersonBulkPhotos} from './site-person-bulk-photos.js?v=aset-af434d6d05ff';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -488,6 +489,9 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       content.append(note);
       if (activeCaseFor(person.personId)) content.append(el('p', 'person-card-note', '진행 중인 실종 상태는 전환 당시 사진으로 계속 비교합니다. 지금 바꾼 사진은 진행 중인 실종 비교에 반영되지 않습니다.'));
     }
+    // SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten photos at once (site-person-bulk-photos.js); the tiles below stay as they are.
+    if (bulkPhotos?.personId !== person.personId) bulkPhotos = createPersonBulkPhotos({sessionToken, personId: person.personId, isBusy: () => busy, setBusy: value => { busy = value; }, reload: () => reloadPerson(person.personId), rerender: () => render(), isDisposed: () => disposed});
+    content.append(bulkPhotos.render({filledSlots}));
     const grid = el('div', 'safecare-slot-grid');
     grid.dataset.personSlotGrid = '';
     const frontFilled = filledSlots.has(1);
@@ -505,6 +509,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     }
     content.append(actions);
   };
+  let bulkPhotos = null;  // SAFECARE-PHOTO-BULK-UPLOAD-01: the open batch survives the photo step's re-renders.
 
   const renderReviewStep = () => {
     const person = people.find(item => item.personId === view.personId);
@@ -605,7 +610,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       if (!location.value.trim()) { error.textContent = '마지막으로 본 장소를 입력해 주세요.'; error.hidden = false; location.focus(); return; }
       if (!checkbox.checked) { error.textContent = '실종 기간 동안 사진 사용에 동의해 주세요.'; error.hidden = false; return; }
       busy = true; submit.disabled = true; error.hidden = true;
-      try { await createPersonSos(sessionToken, {personId: person.personId, lastSeenAt: when, lastSeenSummary: location.value.trim(), description: description.value.trim(), matchingConsentConfirmed: true}); await refresh(); showStatus(`${person.displayName} 실종 상태로 전환했습니다.`); go({name: 'list'}); }
+      // SAFECARE-SOS-ADMIN-INTAKE: admin inbox / notification lines only when Core reports them; the 112 line always.
+      try { const created = await createPersonSos(sessionToken, {personId: person.personId, lastSeenAt: when, lastSeenSummary: location.value.trim(), description: description.value.trim(), matchingConsentConfirmed: true}); await refresh(); showStatus(personSosReceivedMessage(person.displayName, created)); go({name: 'list'}); }
       catch (value) { fail(error, value, '실종 상태로 전환하지 못했습니다. 사진 10장과 갱신 상태, 동의를 확인해 주세요.'); }
       finally { busy = false; submit.disabled = false; }
     });
@@ -773,7 +779,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
         const submitted = await submitHumanSighting(sessionToken, composer.reportId);
         dropComposer();
         sightings = await listHumanSightings(sessionToken);
-        showStatus(foundReviewStateCopy(submitted.reviewState).detail);
+        showStatus(personFoundReviewStateCopy(submitted.reviewState).detail);
         go({name: 'found', reportId: '', submittedId: submitted.reportId});
       } catch (value) { showStatus(''); fail(error, value, '제보를 제출하지 못했습니다. 서로 다른 방향의 사진 5장 이상인지 확인해 주세요.'); }
       finally { busy = false; submit.disabled = !progress.canSubmit; }
@@ -792,7 +798,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       history.dataset.personFoundHistory = '';
       history.append(el('h4', 'person-form-title', '내 발견 제보'));
       for (const report of mine) {
-        const copy = foundReviewStateCopy(report.reviewState);
+        const copy = personFoundReviewStateCopy(report.reviewState);
         const card = el('article', 'person-card safecare-report');
         card.dataset.personFoundReport = report.reportId;
         card.dataset.safecareReviewState = report.reviewState || '';
