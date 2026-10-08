@@ -80,7 +80,9 @@ export async function createPerson(sessionToken, input, fetchImpl) {
   }
 }
 export async function updatePerson(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method: 'PATCH', body: {expected_revision: input.revision, display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
-export async function deletePerson(sessionToken, value, fetchImpl) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
+// registrationCancel: Core deletes only an unfinished registration (fewer than ten
+// identity photos, no missing-person case ever) — SAFECARE-PERSON-DARK-CANCEL-01.
+export async function deletePerson(sessionToken, value, fetchImpl, {registrationCancel = false} = {}) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}${registrationCancel ? '&registration_cancel=1' : ''}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
 export async function putPersonPhoto(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}/photo`, sessionToken, {method: 'PUT', requestKey: input.requestKey || personRequestKey('photo'), body: {expected_revision: input.revision, photo_data_uri: input.dataUri}}, fetchImpl); return person(payload.person); }
 export async function listPersonIdentityPhotos(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos`, sessionToken, {}, fetchImpl); return Object.freeze((payload.photos || []).map(identityPhoto)); }
 export async function putPersonIdentityPhoto(sessionToken, personId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
@@ -164,6 +166,7 @@ const PERSON_ERROR_MESSAGES = Object.freeze({
   PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
   BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
   PERSON_IDENTITY_PHOTOS_INCOMPLETE: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_REGISTRATION_CANCEL_NOT_ALLOWED: '등록이 끝났거나 실종 기록이 있는 사람은 여기서 삭제할 수 없습니다. 목록에서 정보를 확인해 주세요.',
   PERSON_PHOTO_REQUIRED: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
   PERSON_IDENTITY_PHOTOS_EXPIRED: '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 사진을 먼저 갱신해 주세요.',
   PERSON_REID_CONSENT_REQUIRED: '실종 기간 동안 사진을 후보 검색에 사용하는 데 동의해 주세요.',
