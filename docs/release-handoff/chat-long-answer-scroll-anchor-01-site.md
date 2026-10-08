@@ -2,15 +2,17 @@ READY_FOR_DEPLOY=YES
 
 # chat-long-answer-scroll-anchor-01-site — release handoff
 
-TASK=LOTBI CHAT — LONG ANSWER SCROLL ANCHOR UX FIX P0 + SITE MOBILE COMPOSER KEYBOARD LAYOUT HOTFIX + Linux merge gate 반환 02 (GATE FIX 02)
+TASK=LOTBI CHAT — LONG ANSWER SCROLL ANCHOR UX FIX P0 + SITE MOBILE COMPOSER KEYBOARD LAYOUT HOTFIX + KEYBOARD DISMISS / NO-REFOCUS INTEGRATION FINAL
 REPO=lotbi-site
 FEATURE_BRANCH=feature/chat-long-answer-scroll-anchor-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD)
 REMOTE_FEATURE_SHA=FEATURE_SHA와 동일(`git ls-remote origin refs/heads/feature/chat-long-answer-scroll-anchor-01-site`로 확인)
-SUPERSEDES=fd03d6c1f115b2c9645dfce6c774772bff4c937b (SITE-T17b Linux gate 실패. fd03d6c1·f296c4ce를 배포하지 말 것)
+SUPERSEDES=fd03d6c1f115b2c9645dfce6c774772bff4c937b, f296c4ce880e2db23c389ea41ac3a32f8c3d8e0e (둘 다 배포하지 말 것)
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=0f076722b1bf3f2294b97c0706a0ee4ebcdedab4 (SITE-T18c, 16e7e4e4에서 정상 merge. 지시 시점 843a667b → 89adbb37 → 0f076722로 전진. 그 전 843a667b·a87aafb9·0a03ca12·8a9e414d 순으로 merge)
-CODE_SHA=16e7e4e4
-ASSET_VERSION=aset-c4b5457423b1
+CODE_SHA=2afa1940d7618c6587398ed92e449a67f1647bf6
+ASSET_VERSION=aset-0e0f34657fc8
+KEYBOARD_BRANCH_REMOTE_SHA=e26e289612662668f8e9020f2db952f44ba14fce
+KEYBOARD_MERGE_METHOD=NORMAL_MERGE (--no-ff, parents 6e357e6901329bc47b740b9b4cb36da7585b1976 + e26e289612662668f8e9020f2db952f44ba14fce)
 MERGED_TO_MAIN=NO
 DEPLOYED=NO
 CORE_CHANGE=NONE
@@ -20,12 +22,12 @@ ENV_CHANGE_REQUIRED=NO
 SECRET_CHANGE_REQUIRED=NO
 ROOT_CAUSE=`.chat-home-shell`의 `scroll-padding-bottom: 168px`(대화 항목이 sticky 입력창 밑에 가리지 않게 하는 여백) 안에 입력창 자신의 커서가 있어서, 입력창에 글자를 칠 때마다 Chrome이 커서를 "보여 주려고" 대화 스크롤 영역을 83~93px씩 내렸다. 질문 고정(hold)은 입력창 탭 후 900ms 동안만 이런 스크롤을 무시했고, 그 뒤 입력이 오면 외부 스크롤로 보고 고정을 풀었다. 느린 Linux gate는 둘째 줄 입력이 900ms 뒤에 와서 질문이 -163px로 밀렸다. Windows는 빨라서 900ms 안에 끝나 PASS(그래도 한 줄 입력 직후엔 -71px였는데 그 시점은 검사하지 않았다). 글꼴·줄바꿈 차이는 원인 아님(4줄로 같은 줄 수).
 LINUX_REPRO=이 PC에 WSL·Docker가 없어 Linux 직접 실행은 못 했다. 대신 gate와 같은 Chrome 154(Windows)에서 원래 validator에 "둘째 줄 전 1초 대기"만 넣어 같은 실패를 재현했다: 360x780/layout multiQuestion -164px(gate -163). scroll-padding-bottom을 CDP로 0으로 강제하면 같은 조건에서 입력 중 스크롤 0회·질문 12px → 원인 확정. 수정 후 같은 조건(1초 대기, CPU 6배 감속 포함) 질문 12px. 강화한 validator(사람처럼 1.1초 멈춤, 한 줄 직후 검사)는 수정 전 fd03d6c1에서 360x780/layout -71px로 FAIL, 수정 후 21/21 PASS. Linux 자체 실행은 NOT TESTED.
-KEYBOARD_BRANCH_TRIAL_MERGE=키보드 branch 최신 remote e26e2896(GATE_03 수정은 아직 push 전)을 16e7e4e4 위에 임시 worktree로 merge(push 안 함). 충돌 59개 = token 52 + token 옆 내용 7(키보드 쪽은 merge-base와 같아 우리 쪽 채택). 합친 결과에서 validate_chat_mobile_keyboard_dismiss_01·validate_chat_long_answer_scroll_anchor_01·validate_mobile_composer_keyboard_layout_01·validate_chat_answer_quality_p0_01·validate_site_refresh_route_restore_01 + answer_scroll_markdown_01·mobile_home_ux_stability_01·chat_answer_recovery_01 8/8 PASS. 키보드 branch가 GATE_03을 push하면 그 SHA로 다시 확인 필요.
-TEST_STATUS=scripts/validate_* 213개 직렬(Windows, Chrome 154, CODE_SHA 기준): 209 PASS / 4 FAIL. 4건 모두 main 0f076722 기준선에서도 같은 오류로 FAIL(validate_mobile_footer_legal_sheet_01 `761px: mobile disclosure leaked`, validate_site_avatar_fallback_runtime Node 24 undici assert) 또는 Windows CRLF 체크아웃 문제(validate_calendar_system_dark_01, validate_image_attachment_thumbnail_01 — LF 체크아웃 worktree에서 둘 다 PASS).
+KEYBOARD_BRANCH_INTEGRATION=e26e289612662668f8e9020f2db952f44ba14fce를 최신 long-answer 계보에 정상 merge. `site-conversation.js`의 keyboard dismiss/no-refocus를 long-answer anchor·composer typing hold와 함께 보존했고, workflow·validator를 포함했다. 59개 충돌 중 58개는 asset token-only라 최신 main/long-answer 내용을 유지했고, 실제 코드 충돌 1개는 양쪽 기능을 함께 반영했다.
+TEST_STATUS=CODE_SHA에서 직접 관련 validator 21/21 PASS. short/1000+/3000+/Markdown/list/place-card/delayed-rich-growth, streaming 수동 위·아래 스크롤, completion, 최신 답변 버튼, 다음 질문 re-anchor, composer tap reading-position 보존, keyboard dismiss/no-refocus, 360/375/390/412/Fold 690·750/Desktop 및 safe-area/visualViewport를 포함한다. 추가 임시 경계 실행에서 Fold 601·760도 layout/visual/pan 전부 PASS. 통합 직전 전체 scripts/validate_* 213개는 209 PASS / 4 known baseline FAIL이며 통합 후 직접 영향군 신규 실패는 0.
 NEW_FAILURES=NONE
 USER_DECISION_NEEDED=NONE (validator 기준 0~40px·on-screen 유지, 오히려 강화)
 
-커밋(fd03d6c1 이후): 1ec55a69 GATE FIX 02 본체 → 16e7e4e4 main 0f076722 merge → 이 문서.
+커밋(fd03d6c1 이후): 1ec55a69 GATE FIX 02 본체 → 16e7e4e4 main 0f076722 merge → 6e357e69 문서 → 2afa1940 keyboard dismiss/no-refocus 정상 merge → 이 문서.
 커밋(f296c4ce 이후, 이전 문서): 0dbd7e86 hotfix 본체 → 892d9633 safe-area 1회 → f04869ce main 843a667b merge → fd03d6c1 문서.
 
 ---

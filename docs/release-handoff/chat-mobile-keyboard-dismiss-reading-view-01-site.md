@@ -1,4 +1,6 @@
-READY_FOR_DEPLOY=YES
+READY_FOR_DEPLOY=NO
+READY_STATUS=SUPERSEDED_BY_INTEGRATED_LONG_ANSWER_BRANCH
+SUPERSEDED_BY=docs/release-handoff/chat-long-answer-scroll-anchor-01-site.md
 
 # chat-mobile-keyboard-dismiss-reading-view-01-site — release handoff
 
