@@ -36,14 +36,22 @@ for (let count = 0; count <= 10; count += 1) {
 }
 assert.equal(common.foundPhotoProgress(1).message, '현재 1/5장 · 최종 제출하려면 사진 4장이 더 필요합니다.');
 assert.equal(common.foundPhotoProgress(0).message, '발견한 대상의 사진 1장부터 작성을 시작할 수 있습니다.');
-assert.equal(common.NO_RELIABLE_MATCH_LABEL, '확인 가능한 일치 대상 없음');
-assert.equal(common.foundReviewStateCopy('NO_RELIABLE_MATCH').label, '확인 가능한 일치 대상 없음');
-for (const state of ['DRAFT', 'QUEUED', 'ANALYZING', 'ADMIN_REVIEW', 'INSUFFICIENT_QUALITY', 'CLOSED', null, undefined, 'SOMETHING_NEW']) {
-  assert.ok(!JSON.stringify(common.foundReviewStateCopy(state)).includes('일치 대상 없음'),
-    `review state ${state} must never read as no reliable match`);
-  assert.equal(common.isNoReliableMatchState(state), false);
+// SAFECARE-SIGHTING-RESULT-PRIVACY (2026-10-08): the reporter is never told
+// whether a comparison candidate existed or whether anything matched. Core sends
+// DRAFT / QUEUED / INSUFFICIENT_QUALITY / CLOSED; an older Core's ANALYZING /
+// ADMIN_REVIEW read as QUEUED and NO_RELIABLE_MATCH reads as CLOSED.
+assert.deepEqual(common.foundReviewStateCopy('QUEUED'), {label: '접수됨', tone: 'progress', detail: '제보가 접수되었습니다. 관리자가 확인하고 있으며, 비교 결과는 제보자에게 공개되지 않습니다.'});
+assert.deepEqual(common.foundReviewStateCopy('CLOSED'), {label: '검토 종료', tone: 'neutral', detail: '제보 검토가 종료되었습니다. 비교 결과는 제보자에게 공개되지 않습니다.'});
+for (const state of ['ANALYZING', 'ADMIN_REVIEW']) assert.deepEqual(common.foundReviewStateCopy(state), common.foundReviewStateCopy('QUEUED'), `${state} must read like QUEUED`);
+assert.deepEqual(common.foundReviewStateCopy('NO_RELIABLE_MATCH'), common.foundReviewStateCopy('CLOSED'), 'NO_RELIABLE_MATCH must read like CLOSED');
+assert.equal(common.NO_RELIABLE_MATCH_LABEL, '검토 종료', 'the legacy label must not disclose a result');
+for (const state of ['DRAFT', 'QUEUED', 'ANALYZING', 'ADMIN_REVIEW', 'NO_RELIABLE_MATCH', 'INSUFFICIENT_QUALITY', 'CLOSED', null, undefined, 'SOMETHING_NEW']) {
+  const copy = JSON.stringify(common.foundReviewStateCopy(state));
+  for (const phrase of ['일치 대상 없음', '일치 대상이 없', '비교 후보가 있어', '비교 후보', '일치 대상']) {
+    assert.ok(!copy.includes(phrase), `review state ${state} must never disclose a comparison result ("${phrase}")`);
+  }
+  assert.equal(common.isNoReliableMatchState(state), state === 'NO_RELIABLE_MATCH');
 }
-assert.equal(common.isNoReliableMatchState('NO_RELIABLE_MATCH'), true);
 assert.equal(common.identityPhotoProgress(3).label, '등록 완료 3 / 10');
 assert.equal(common.identityPhotoProgress(3).remainingLabel, '남은 사진 7장');
 assert.equal(common.identityPhotoProgress(10).complete, true);
@@ -772,8 +780,12 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personFoundSubmit.submits, 1);
   assert.equal(r.personFoundSubmit.newState, 'QUEUED');
   assert.ok(!r.personFoundSubmit.newText.includes('확인 가능한 일치 대상 없음'), `${label}: just-submitted must not read as no match`);
-  assert.ok(r.personFoundSubmit.nrmText.includes('확인 가능한 일치 대상 없음'), `${label}: NO_RELIABLE_MATCH must read 확인 가능한 일치 대상 없음`);
-  assert.ok(!r.personFoundSubmit.analyzingText.includes('확인 가능한 일치 대상 없음'), `${label}: ANALYZING must not read as no match`);
+  // SAFECARE-SIGHTING-RESULT-PRIVACY: an older Core's NO_RELIABLE_MATCH reads as a closed review, never as a result.
+  assert.ok(r.personFoundSubmit.nrmText.includes('검토 종료') && r.personFoundSubmit.nrmText.includes('제보 검토가 종료되었습니다. 비교 결과는 제보자에게 공개되지 않습니다.'), `${label}: NO_RELIABLE_MATCH must read as 검토 종료`);
+  assert.ok(r.personFoundSubmit.newText.includes('접수됨') && r.personFoundSubmit.analyzingText.includes('접수됨'), `${label}: QUEUED / ANALYZING must read as 접수됨`);
+  for (const text of [r.personFoundSubmit.newText, r.personFoundSubmit.nrmText, r.personFoundSubmit.analyzingText]) {
+    assert.ok(!text.includes('일치 대상') && !text.includes('비교 후보'), `${label}: a found report must not disclose a comparison result`);
+  }
 
   // pet list and found report
   assert.equal(r.petList.menu, 0);
@@ -787,7 +799,8 @@ for (const [label, r] of Object.entries(results)) {
     assert.equal(step.addDisabled, step.n >= 10, `${label}: pet found ${step.n} photos add state`);
     assert.equal(step.writes, 0, `${label}: pet found photos must stay in the browser until saved`);
   }
-  assert.ok(r.petFound.nrm.includes('확인 가능한 일치 대상 없음'));
+  assert.ok(r.petFound.nrm.includes('검토 종료') && r.petFound.nrm.includes('비교 결과는 제보자에게 공개되지 않습니다.'), `${label}: pet NO_RELIABLE_MATCH must read as 검토 종료`);
+  assert.ok(!r.petFound.nrm.includes('일치 대상') && !r.petFound.nrm.includes('비교 후보'), `${label}: a pet found report must not disclose a comparison result`);
   assert.equal(r.petFoundSubmit.creates, 1);
   assert.equal(r.petFoundSubmit.photoPuts, 10);
   assert.equal(r.petFoundSubmit.submits, 1);
