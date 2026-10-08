@@ -211,8 +211,10 @@
 }
 
 .account-login {
+  /* The fill follows the theme with its ink: a fixed translucent white fill
+     under the dark theme's white ink left 로그인 at 1.69:1 on the mobile header. */
   border: 1px solid var(--brand-line);
-  background: rgba(255, 255, 255, .72);
+  background: var(--lotbi-surface-primary, rgba(255, 255, 255, .72));
   color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
