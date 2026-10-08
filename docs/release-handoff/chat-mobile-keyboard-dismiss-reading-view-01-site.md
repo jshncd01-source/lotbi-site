@@ -1,6 +1,6 @@
 READY_FOR_DEPLOY=NO
-READY_STATUS=SUPERSEDED_BY_INTEGRATED_LONG_ANSWER_BRANCH
-SUPERSEDED_BY=docs/release-handoff/chat-long-answer-scroll-anchor-01-site.md
+READY_STATUS=IN_PROGRESS — iPhone 대화 스크롤·키보드 실사용 P0를 GATE FIX 03 + long-answer a34e838c와 한 branch로 통합 중(코드 push 완료, 전체 validate_* 회귀 실행 중). 끝나면 이 문서를 READY_FOR_DEPLOY=YES로 갱신한다.
+DO_NOT_GATE=68efba972a894c05c36f876c28df7b980f6cbb38 (keyboard GATE FIX 03), a34e838ca59442adea6b791674c392ab8e854a29 (long-answer 통합) — 둘 다 이 branch에 포함되어 곧 하나의 READY로 대체됨
 
 # chat-mobile-keyboard-dismiss-reading-view-01-site — release handoff
 
