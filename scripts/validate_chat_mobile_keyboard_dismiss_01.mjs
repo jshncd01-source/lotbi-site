@@ -185,6 +185,11 @@ try {
   let turn = 0;
   window.__answerDelay = 0;
   window.__requests = [];
+  // GATE FIX 03 — "before the answer" is measured with the answer held back,
+  // not with a fixed delay the measurement has to beat: the Linux gate took
+  // longer than 900ms to reach the snapshot and the answer was already there.
+  window.__answerGate = null;
+  window.__heldAnswers = 0;
   globalThis.fetch = async (url, init) => {
     let parsed;
     try { parsed = new URL(String((url && url.url) || url), location.origin); } catch { return nativeFetch(url, init); }
@@ -199,6 +204,11 @@ try {
       window.__requests.push(text);
       turn += 1;
       if (window.__answerDelay) await new Promise(resolve => setTimeout(resolve, window.__answerDelay));
+      if (window.__answerGate) {
+        window.__heldAnswers += 1;
+        await window.__answerGate.promise;
+        window.__heldAnswers -= 1;
+      }
       if (text.includes('오류')) return json({detail:{code:'UPSTREAM_TEMPORARY',message:'잠시 후 다시 시도해 주세요.',retryable:true}}, 503);
       const base = {
         contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',response_mode:'AI_GROUNDED_CURRENT_FACT',
@@ -303,6 +313,25 @@ try {
     clickRetryLikeIos() { const retry = [...document.querySelectorAll('.chat-retry-button')].at(-1); retry.click(); return Boolean(retry); },
     blurPromptLikeDoneKey() { prompt.blur(); },
     setDelay(ms) { window.__answerDelay = ms; },
+    // Answers wait at the gate until releaseAnswers(); heldAnswers() says how
+    // many requests reached Core and are waiting there.
+    holdAnswers() {
+      if (window.__answerGate) return;
+      let release;
+      const promise = new Promise(resolve => { release = resolve; });
+      window.__answerGate = {promise, release};
+    },
+    releaseAnswers() { const gate = window.__answerGate; window.__answerGate = null; if (gate) gate.release(); },
+    heldAnswers() { return window.__heldAnswers; },
+    // The thinking row appears 350ms after a send; on a slow machine later.
+    // Wait for it (bounded) so "before the answer" is never read too early.
+    async waitForLoading() {
+      for (let i = 0; i < 400; i += 1) {
+        if (document.querySelectorAll('.chat-message-loading').length) return true;
+        await sleep(25);
+      }
+      return false;
+    },
     center(selector) {
       const node = [...document.querySelectorAll(selector)].at(-1);
       if (!node) return null;
@@ -474,6 +503,8 @@ async function runCase(browser, origin, dir, testCase) {
   const r = {};
   try {
     await send('Page.enable');
+    // Slow-machine reproduction (the Linux gate has 2 cores): e.g. 20.
+    if (process.env.LOTBI_VALIDATOR_CPU_THROTTLE) await send('Emulation.setCPUThrottlingRate', {rate: Number(process.env.LOTBI_VALIDATOR_CPU_THROTTLE)});
     await send('Runtime.enable');
     await send('Runtime.addBinding', {name: '__kdKeyboard'});
     await metrics(testCase.height);
@@ -496,16 +527,17 @@ async function runCase(browser, origin, dir, testCase) {
     if (testCase.mobile) {
       // A + B: iPhone-style send button (focus stays in the textarea), and
       // the keyboard is closed by the send itself, before the answer.
-      await evaluate('window.__kd.setDelay(900)');
+      await evaluate('window.__kd.holdAnswers()');
       await openComposer();
       r.keyboardOpen = await snap();
       await type('짧게 답해줘');
       await evaluate('window.__kd.clickSendLikeIos()');
       await settle();
-      r.sentWaiting = await snap();
+      await evaluate('window.__kd.waitForLoading()');
+      r.sentWaiting = {...await snap(), held: await evaluate('window.__kd.heldAnswers()')};
+      await evaluate('window.__kd.releaseAnswers()');
       await answers(count += 1); await settle();
       r.afterButtonIos = await snap();
-      await evaluate('window.__kd.setDelay(0)');
 
       // A: the keyboard's Enter key.
       await openComposer();
@@ -551,34 +583,38 @@ async function runCase(browser, origin, dir, testCase) {
       // E + F: while a slow answer is on its way the reader taps the composer
       // (the keyboard comes back), writes the next question, presses Enter
       // (nothing is sent while a turn runs), then closes the keyboard.
-      await evaluate('window.__kd.setDelay(3500)');
+      await evaluate('window.__kd.holdAnswers()');
       await openComposer();
       await type('천천히 답해줘');
       await enter(); await settle();
-      r.slowSent = await snap();
+      await evaluate('window.__kd.waitForLoading()');
+      r.slowSent = {...await snap(), held: await evaluate('window.__kd.heldAnswers()')};
       await openComposer();
       r.slowTap = await snap();
       await type('다음 질문 초안');
       await enter(); await sleep(300);
-      r.slowEnterWhileRunning = await snap();
+      r.slowEnterWhileRunning = {...await snap(), held: await evaluate('window.__kd.heldAnswers()'), requests: await evaluate('window.__requests.length')};
       assert.ok(await evaluate('window.__kd.markReadingItem()'), `${testCase.label}: a conversation item is visible while waiting`);
       await evaluate('window.__kd.blurPromptLikeDoneKey()'); await settle();
-      r.slowKeyboardClosed = {...await snap(), item: await evaluate('window.__kd.readingItemState()')};
+      r.slowKeyboardClosed = {...await snap(), item: await evaluate('window.__kd.readingItemState()'), held: await evaluate('window.__kd.heldAnswers()')};
+      await evaluate('window.__kd.releaseAnswers()');
       await answers(count += 1); await settle();
-      r.slowAnswered = await snap();
+      r.slowAnswered = {...await snap(), requests: await evaluate('window.__requests.length')};
 
       // E: the answer arrives while the reader is writing - their keyboard stays.
       await evaluate("document.getElementById('lotbi-prompt').value = ''; document.getElementById('lotbi-prompt').dispatchEvent(new Event('input', {bubbles: true}))");
-      await evaluate('window.__kd.setDelay(2000)');
+      await evaluate('window.__kd.holdAnswers()');
       await openComposer();
       await type('작성 중 답변 도착');
       await enter(); await settle();
       await openComposer();
       await type('계속 쓰는 중');
+      await evaluate('window.__kd.waitForLoading()');
+      r.writingBeforeAnswer = {...await snap(), held: await evaluate('window.__kd.heldAnswers()')};
+      await evaluate('window.__kd.releaseAnswers()');
       await answers(count += 1); await settle();
       r.answerWhileWriting = await snap();
       await evaluate("document.getElementById('lotbi-prompt').value = ''; document.getElementById('lotbi-prompt').dispatchEvent(new Event('input', {bubbles: true}))");
-      await evaluate('window.__kd.setDelay(0)');
 
       // H: a failed send — no keyboard over the error, 다시 시도 still there,
       // and a tap on the composer still writes.
@@ -665,6 +701,7 @@ try {
       check(r.keyboardOpen.visibleHeight === testCase.height - testCase.keyboard, `keyboard emulation engaged (${r.keyboardOpen.visibleHeight})`);
       // A: closed by the send itself, while the answer is still on its way.
       check(r.sentWaiting.loading === 1 && r.sentWaiting.answers === 0, 'the answer is still on its way');
+      check(r.sentWaiting.held === 1, `A the question reached Core and its answer is held (${r.sentWaiting.held})`);
       closed(r.sentWaiting, 'A send button (iPhone), before the answer');
       closed(r.afterButtonIos, 'A send button (iPhone), after the answer');
       // B: more room to read, and the question with the start of its answer.
@@ -690,14 +727,19 @@ try {
       // turn runs neither sends nor closes it, and the draft is kept.
       closed(r.slowSent, 'E slow answer sent');
       check(r.slowSent.loading === 1, 'E the answer is still on its way');
+      check(r.slowSent.held === 1, `E the slow question reached Core and its answer is held (${r.slowSent.held})`);
       check(r.slowTap.focused && r.slowTap.kbOpen && r.slowTap.keyboardClass, 'E tapping the composer reopens the keyboard');
       check(r.slowEnterWhileRunning.focused && r.slowEnterWhileRunning.kbOpen && r.slowEnterWhileRunning.draft === '다음 질문 초안', 'E Enter while a turn runs keeps the keyboard and the draft');
       check(r.slowEnterWhileRunning.users === r.slowTap.users, 'E Enter while a turn runs sends nothing');
+      check(r.slowEnterWhileRunning.held === 1 && r.slowAnswered.requests === r.slowEnterWhileRunning.requests, `E nothing reached Core while the turn ran (held ${r.slowEnterWhileRunning.held}, requests ${r.slowEnterWhileRunning.requests} -> ${r.slowAnswered.requests})`);
+      check(r.slowKeyboardClosed.held === 1 && r.slowKeyboardClosed.loading === 1, 'F the keyboard closed while the answer was still on its way');
       // F: closing it again moves nothing the reader was looking at out of view.
       closed(r.slowKeyboardClosed, 'F keyboard closed during the answer');
       check(r.slowKeyboardClosed.item && r.slowKeyboardClosed.item.visible, `F the message being read is still on screen (${JSON.stringify(r.slowKeyboardClosed.item)})`);
       check(!r.slowAnswered.focused && !r.slowAnswered.kbOpen, 'F the completed answer does not reopen the keyboard');
       check(r.slowAnswered.draft === '다음 질문 초안', 'F the draft survives the answer');
+      check(r.writingBeforeAnswer.held === 1 && r.writingBeforeAnswer.loading === 1 && r.writingBeforeAnswer.focused && r.writingBeforeAnswer.kbOpen,
+        `E the reader was writing before the answer arrived (held ${r.writingBeforeAnswer.held}, loading ${r.writingBeforeAnswer.loading})`);
       check(r.answerWhileWriting.focused && r.answerWhileWriting.kbOpen && r.answerWhileWriting.draft.endsWith('계속 쓰는 중'), 'E an answer arriving while writing leaves the keyboard and draft alone');
       // H
       closed(r.error, 'H error');
