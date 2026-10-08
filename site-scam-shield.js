@@ -279,6 +279,22 @@ function notifyScamShieldVisibility() {
   try { window.dispatchEvent(new CustomEvent('lotbi:scam-shield-visibility')); } catch {}
 }
 
+// SITE-REFRESH-ROUTE-FESTIVAL-BACK-04 — the dialog's own ×, 취소, Escape and
+// outside tap. The route owner takes the request (preventDefault) and, when
+// closing returns to the entry the dialog was opened from, steps back in
+// history first and closes it from popstate (the close request above), so the
+// dialog and the URL change together. With no owner listening it closes here.
+function dismissDialog() {
+  let request = null;
+  try {
+    request = new CustomEvent('lotbi:scam-shield-dismiss-request', {cancelable: true});
+    window.dispatchEvent(request);
+  } catch {
+    request = null;
+  }
+  if (!request?.defaultPrevented) closeDialog();
+}
+
 window.addEventListener('lotbi:scam-shield-open-request', () => {
   if (dialog && !dialog.hasAttribute('open')) void openDialog();
 });
@@ -289,7 +305,7 @@ window.addEventListener('lotbi:scam-shield-close-request', () => {
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !event.defaultPrevented && dialog?.hasAttribute('open')) {
     event.preventDefault();
-    closeDialog();
+    dismissDialog();
   }
 });
 
@@ -455,7 +471,7 @@ function bindScamShield() {
     dialog.addEventListener('click', event => {
       if (event.target !== dialog) return;
       const bounds = dialog.getBoundingClientRect();
-      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dismissDialog();
     });
     dialog.addEventListener('close', restoreDialogFocus);
     dialog.addEventListener('close', notifyScamShieldVisibility);
@@ -469,7 +485,7 @@ function bindScamShield() {
   dialog?.querySelectorAll('[data-scam-close], [data-scam-login-cancel]').forEach(button => {
     if (button.dataset.scamBound === 'true') return;
     button.dataset.scamBound = 'true';
-    button.addEventListener('click', closeDialog);
+    button.addEventListener('click', dismissDialog);
   });
   const loginButton = dialog?.querySelector('[data-scam-login]');
   if (loginButton && loginButton.dataset.scamBound !== 'true') {
