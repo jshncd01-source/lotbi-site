@@ -18,8 +18,13 @@ try {
     const width = x1 - x0, height = y1 - y0; const size = Math.max(6, Math.min(11, Math.round(height / 18)));
     const rows = Math.max(2, Math.min(5, Math.floor(height * .34 / (size * 2.2))));
     const tops = rowTops || Array.from({length: rows}, (_, row) => y0 + height * .58 + row * size * 2.2);
+    // Like lettering, marks differ in width and words are separated by wider gaps (identical,
+    // evenly spaced boxes read as a made pattern such as a building's windows).
     ctx.fillStyle = '#2a2a2a';
-    for (const top of tops) for (let x = x0 + width * .3; x < x1 - width * .08 - size; x += size * 1.6) ctx.fillRect(Math.round(x), Math.round(top), Math.round(size * .8), size);
+    for (const top of tops) for (let x = x0 + width * .3, index = 0; x < x1 - width * .08 - size; index += 1) {
+      const wide = Math.round(size * [.8, .55, .95, .65, .85, .5][index % 6]);
+      ctx.fillRect(Math.round(x), Math.round(top), wide, size); x += wide + size * (index % 5 === 4 ? 1.3 : .75);
+    }
   };
   const diamond = scan.orderDocumentCorners([point(240,30), point(440,160), point(240,290), point(40,160)]);
   const canvas = document.createElement('canvas'); canvas.width = 480; canvas.height = 320;
@@ -29,7 +34,7 @@ try {
   context.fillStyle = '#e9dcae'; context.fill(); context.lineWidth = 8; context.strokeStyle = '#ffffff'; context.stroke();
   context.fillStyle = '#315c7d'; context.fillRect(150,115,190,18); context.fillRect(150,155,150,12); context.fillRect(150,185,210,12);
   // Printed rows, as on any card or document.
-  for(const top of [96,205,228,251])for(let glyph=0;glyph<18;glyph+=1){context.fillStyle='#2a2a2a';context.fillRect(125+glyph*13,top,8,10)};
+  for(const top of [96,205,228,251]){let x=125;for(let glyph=0;glyph<18;glyph+=1){const wide=[8,5,9,6,8,4][glyph%6];context.fillStyle='#2a2a2a';context.fillRect(x,top,wide,10);x+=wide+(glyph%5===4?11:5)}};
   const automatic = scan.detectDocumentCorners(context.getImageData(0,0,480,320));
   const corrected = await scan.rectifyDocument(canvas, automatic.corners, {enhance:false});
   const correctedImage = new Image(); correctedImage.src = corrected.dataUrl; await correctedImage.decode();
