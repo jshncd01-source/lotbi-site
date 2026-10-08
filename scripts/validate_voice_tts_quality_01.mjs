@@ -10,18 +10,42 @@
 // pickBestKoreanVoice must always prefer the better voice when both are
 // present, and waitForVoices must not report "no voice" just because the
 // list had not loaded yet on the very first call.
+//
+// CHAT-READ-ALOUD-RESTORE-P0 changed one expectation on purpose: a network
+// ("Google") voice is no longer the preferred one — it is never picked at
+// all, because it sends the answer text off the device. Only voices that
+// report localService === true are eligible.
 import assert from 'node:assert/strict';
-import {pickBestKoreanVoice, scoreKoreanVoice, waitForVoices} from '../site-voice-tts.js';
+import {isLocalVoice, pickBestKoreanVoice, scoreKoreanVoice, selectKoreanVoice, waitForVoices} from '../site-voice-tts.js';
 
 // --- pickBestKoreanVoice ---------------------------------------------------
 
-// A network ("Google") ko-KR voice must beat a compact on-device one — this
-// is the exact Android Chrome shape that produced the complaint.
+// The exact Android Chrome shape: a compact on-device ko-KR voice next to the
+// network "Google 한국의" one. The on-device voice must be the one used.
 {
   const compact = {lang: 'ko-KR', name: '한국어', localService: true, default: true};
   const network = {lang: 'ko-KR', name: 'Google 한국의', localService: false, default: false};
-  const picked = pickBestKoreanVoice([compact, network]);
-  assert.equal(picked, network, 'a network-backed ko-KR voice must be preferred over a compact on-device one');
+  assert.equal(pickBestKoreanVoice([compact, network]), compact, 'an on-device ko-KR voice must be used, never the network one');
+  assert.equal(pickBestKoreanVoice([network, compact]), compact, 'list order must not let the network voice through');
+}
+
+// Only network Korean voices (desktop Edge's "… Online (Natural)" without a
+// Korean language pack): nothing is picked, so the caller can say why.
+{
+  const edgeOnline = {lang: 'ko-KR', name: 'Microsoft SunHi Online (Natural) - Korean (Korea)', localService: false, default: false};
+  const googleNetwork = {lang: 'ko-KR', name: 'Google 한국의', localService: false, default: true};
+  assert.equal(pickBestKoreanVoice([edgeOnline, googleNetwork]), undefined, 'network-only Korean voices must not be picked');
+  // A voice that never says whether it is local is not treated as local.
+  assert.equal(pickBestKoreanVoice([{lang: 'ko-KR', name: '불명', default: true}]), undefined, 'an unconfirmed voice must not be picked');
+  assert.equal(isLocalVoice({localService: undefined}), false);
+}
+
+// The bounded fallback ("best voice other than the one that failed") must
+// not reach for a network voice either.
+{
+  const local = {lang: 'ko-KR', name: 'Microsoft Heami - Korean (Korean)', localService: true, default: false};
+  const network = {lang: 'ko-KR', name: 'Google 한국의', localService: false, default: true};
+  assert.notEqual(selectKoreanVoice([local, network], {avoidNames: new Set([local.name])}), network, 'the fallback must never be a network voice');
 }
 
 // An iOS "Enhanced" download must beat the default compact voice.
@@ -49,12 +73,18 @@ assert.equal(pickBestKoreanVoice([{lang: 'en-US', name: 'English', localService:
 assert.equal(pickBestKoreanVoice([]), undefined);
 assert.equal(pickBestKoreanVoice(undefined), undefined);
 
-// Score ordering itself: network + enhanced-named + default stacks, in case a
-// future device ships more than one axis of quality signal at once.
+// Score ordering among local voices: enhanced-named + default stacks, in case
+// a future device ships more than one axis of quality signal at once. Being a
+// network voice no longer adds anything.
 assert.ok(
-  scoreKoreanVoice({localService: false, name: 'Google 한국의 Neural', default: true})
+  scoreKoreanVoice({localService: true, name: 'Yuna (Premium)', default: true})
     > scoreKoreanVoice({localService: true, name: '한국어', default: false}),
   'combined quality signals must outscore a plain compact voice',
+);
+assert.equal(
+  scoreKoreanVoice({localService: false, name: '한국어', default: false}),
+  scoreKoreanVoice({localService: true, name: '한국어', default: false}),
+  'a network voice must not earn a bonus for being one',
 );
 
 // --- waitForVoices ----------------------------------------------------------

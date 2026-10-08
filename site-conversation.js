@@ -25,6 +25,7 @@ import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, 
 import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-8f81dc83c912';
 import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-8f81dc83c912';
 import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-8f81dc83c912';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-da1f91f5c84e';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -386,6 +387,11 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
     void openCalendarDraft(calendarDraft).catch(() => report('캘린더를 열지 못했습니다.', 'error'));
   });
 
+  // CHAT-READ-ALOUD-RESTORE-P0 — reads this answer on the device, only when
+  // pressed; see site-message-read-aloud.js. Last in the row so the share
+  // menu stays anchored under 공유하기.
+  const readAloud = createMessageReadAloudButton(value, {report});
+
   const shareMenu = document.createElement('div');
   shareMenu.className = 'lotbi-share-menu';
   shareMenu.id = `lotbi-share-menu-${++shareMenuSequence}`;
@@ -454,7 +460,7 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
     }
   });
 
-  actions.append(copy, share, calendar, feedback, shareMenu);
+  actions.append(copy, share, calendar, readAloud, feedback, shareMenu);
   return actions;
 }
 
@@ -1086,6 +1092,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   thread.after(turnSpace);
   const releaseTurnAnchor = () => { turnAnchor = null; holdTurnAnchor = false; turnSpace.style.height = '0px'; };
   const showBlankHome = () => {
+    stopMessageReadAloud('HOME_CLEARED');
     restoreAvatarHome(); thread.replaceChildren(); lastRenderedCreatedAt = undefined; thread.hidden = true; document.body.classList.remove('conversation-active');
     releaseTurnAnchor();
     resetBlankHomeScroll();
@@ -3158,6 +3165,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return appendNode(messageNode(message), options);
   };
   const renderActiveThread = () => {
+    // The answer being read aloud is about to leave the page with the rest.
+    stopMessageReadAloud('CONVERSATION_CHANGED');
     // Thumbnails live only in the document that rendered them; rebuilding the
     // transcript drops those nodes, so their object URLs are released here.
     releaseRenderedPreviewUrls();
@@ -4800,6 +4809,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
+    // A new question ends the reading of the previous answer.
+    stopMessageReadAloud('NEW_TURN');
     const suggestedPetAction = petConversationAction(message, attachments);
     const turnGeneration = ++activeTurnGeneration;
     const turnStillActive = () => turnGeneration === activeTurnGeneration;

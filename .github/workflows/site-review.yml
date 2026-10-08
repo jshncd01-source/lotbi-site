@@ -358,16 +358,21 @@ jobs:
       - name: Validate public Site voice release exclusion
         run: node scripts/validate_voice_public_release_exclusion_01.mjs
 
-      # The isolated controller remains tested for possible reuse, while the
-      # chat integration gate locks the product decision to expose no 읽어주기.
-      - name: Validate read-aloud controller and chat exclusion
+      # CHAT-READ-ALOUD-RESTORE-P0: 읽어주기 is back under LOTBI answers, on
+      # on-device voices only (never a network voice, never /v2/live/tts), and
+      # only when pressed. Microphone, live voice and the wake word stay
+      # excluded by the step above.
+      - name: Validate read-aloud controller and chat read-aloud button
         run: |
           node --check site-voice-tts.js
           node --check site-read-aloud-speech.js
           node --check site-read-aloud-controller.js
+          node --check site-message-read-aloud.js
           node --check site-conversation.js
           node scripts/validate_voice_tts_quality_01.mjs
           node scripts/validate_read_aloud_controller_01.mjs
+          node scripts/validate_chat_read_aloud_restore_01.mjs
+          node scripts/validate_chat_read_aloud_restore_browser_01.mjs
 
       - name: Validate Universal Rich Product Cards
         run: |

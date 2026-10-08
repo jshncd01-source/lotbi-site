@@ -9,7 +9,7 @@
 // See site-read-aloud-speech.js for the engine wrapper this drives, and
 // site-voice-tts.js for how a Korean voice is scored and picked.
 import {awaitVoicesReady, readVoicesSafe, speakChunk} from './site-read-aloud-speech.js?v=aset-8f81dc83c912';
-import {pickBestKoreanVoice, selectKoreanVoice} from './site-voice-tts.js?v=aset-8f81dc83c912';
+import {pickBestKoreanVoice, selectKoreanVoice, isKoreanVoice} from './site-voice-tts.js?v=aset-8f81dc83c912';
 
 export const READ_ALOUD_STATE = Object.freeze({
   IDLE: 'IDLE',
@@ -87,7 +87,9 @@ export function createReadAloudController({
     if (!voices.length) { fail(myId, 'VOICES_NOT_READY'); return; }
 
     let voice = pickBestKoreanVoice(voices);
-    if (!voice) { fail(myId, 'NO_KOREAN_VOICE'); return; }
+    // Korean voices that all need the network are not "no Korean voice": the
+    // person can install an on-device one, and the message has to say so.
+    if (!voice) { fail(myId, voices.some(isKoreanVoice) ? 'NO_LOCAL_KOREAN_VOICE' : 'NO_KOREAN_VOICE'); return; }
     emit('VOICE_SELECTED', {playbackId: myId, network: voice.localService === false});
 
     state = READ_ALOUD_STATE.PLAYING;
