@@ -595,6 +595,11 @@ jobs:
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
 
+      # 생활정보 정리 최종: 공과금 메뉴·상단 질문바·하단 보조 row·롯비함 진입/저장 버튼 없음,
+      # 요금 안내에 공과금 문구 없음, 저장된 롯비함 데이터는 그대로. 360·375·390·412·1280.
+      - name: Validate life info cleanup final
+        run: node scripts/validate_life_info_cleanup_final_01.mjs
+
       - name: Validate 진위확인 production connection
         run: |
           node --check site-scam-shield.js
