@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-8b818f230a85';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-52fa893cda5e';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -884,6 +884,19 @@ function downloadBackup(serialized) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+// The wallet exists only in this browser's storage. Ask the browser to keep that storage
+// (otherwise Chrome may clear it when the disk runs low). The browser decides on its own —
+// Chrome by engagement / installed app / bookmark, Firefox may ask, Safari by its rules — and a
+// refusal changes nothing. In-memory browsers (private windows, some in-app browsers) lose it
+// on close regardless; the setup screen says why a new PIN is asked.
+export async function requestPersistentWalletStorage(storage = globalThis.navigator?.storage) {
+  try {
+    if (typeof storage?.persist !== 'function') return 'unsupported';
+    if (await storage.persisted?.()) return 'persisted';
+    return (await storage.persist()) ? 'persisted' : 'best-effort';
+  } catch { return 'unsupported'; }
+}
+
 export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   const vault = new LifeWalletVault(new IndexedDbWalletRepository());
   let disposed = false;
@@ -988,9 +1001,19 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     if (!disposed) await renderLocked(message);
   }
 
+  // After a PIN is made or entered (a user action): ask once per mount to keep the storage.
+  let storageRequested = false;
+  function keepWalletStorage() {
+    if (storageRequested) return;
+    storageRequested = true;
+    void requestPersistentWalletStorage().then(result => { root.dataset.walletStorage = result; });
+  }
+
   function renderSetup(message = '') {
     const wrap = element('section', 'wallet-gate');
     wrap.append(element('div', 'wallet-lock-mark', '●'), element('h3', '', '4자리 월렛 PIN 만들기'), element('p', '', 'PC에서는 월렛 전용 PIN으로만 잠금을 해제합니다. 계정 로그인 비밀번호와 다른 숫자 4자리를 사용해 주세요.'));
+    // Why a new PIN, on an account that already has a wallet somewhere else.
+    wrap.append(element('p', 'wallet-setup-why', '이 브라우저에는 아직 이 계정의 월렛이 없습니다. 월렛은 기기·브라우저마다 따로 저장되어, 다른 기기나 브라우저, 저장 데이터가 지워진 브라우저(시크릿 창 포함)에서는 PIN을 새로 만들어야 합니다. 다른 곳에 저장한 자료는 그곳의 ⚙ 설정 → 암호화 백업 파일로 옮겨 올 수 있습니다.'));
     const form = element('form', 'wallet-pin-form');
     const pin = pinInput('새 월렛 PIN'); const confirmation = pinInput('새 월렛 PIN 확인'); const status = errorRegion();
     if (message) status.textContent = message;
@@ -1002,7 +1025,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         validateWalletPin(pin.value);
         if (pin.value !== confirmation.value) throw new Error('두 PIN이 일치하지 않습니다.');
         setBusy(form, true); await vault.create(accountId, pin.value);
-        pin.value = ''; confirmation.value = ''; unlocked = true; activity(); await renderWallet();
+        pin.value = ''; confirmation.value = ''; unlocked = true; activity(); keepWalletStorage(); await renderWallet();
       } catch (error) { status.textContent = safeMessage(error, 'PIN을 설정하지 못했습니다.'); setBusy(form, false); pin.focus(); }
     });
     wrap.append(form, element('p', 'wallet-security-note', 'PIN은 저장하거나 전송하지 않습니다. 임의의 256비트 암호화 키를 이 브라우저에 묶어 보호합니다. PIN 분실 시 현재 PC Web에는 안전한 복구 경로가 없으므로 자료를 지우지 말고 LOTBI 지원에 문의해 주세요.'));
@@ -1039,7 +1062,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       event.preventDefault(); status.textContent = '';
       try {
         validateWalletPin(pin.value); setBusy(form, true); await vault.unlock(accountId, pin.value);
-        pin.value = ''; unlocked = true; activity(); await renderWallet();
+        pin.value = ''; unlocked = true; activity(); keepWalletStorage(); await renderWallet();
       } catch (error) { status.textContent = safeMessage(error, '잠금을 해제하지 못했습니다.'); setBusy(form, false); pin.value = ''; refreshDots(); focusPin(); }
     });
     wrap.append(form);
