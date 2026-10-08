@@ -1,6 +1,7 @@
 // SITE-THEME-AUTO-SCHEDULE-02
 //
 // 대표: "시간이 18시 이후에는 다크로 가고 아침 07시 되면 화이트로 가는 거"
+// LOTBI-THEME-AUTO-DARK-22H-01 — 대표가 다크 시작을 22시로 옮겼다(07시 라이트는 그대로).
 //
 // This is the clock schedule that #247 carried, lifted onto the 개인테마 window
 // that #250 shipped. #247's menu restructure (프로필 수정 / 테마 선택 / 순서
@@ -41,12 +42,12 @@ assert.ok(!conversation.includes('const AUTO_THEME_DARK_HOUR'), 'a second copy o
 void vm;
 
 const at = (hour, minute = 0) => new Date(2026, 8, 23, hour, minute, 0, 0);
-// 18:00 is dark and 07:00 is light, inclusive on the hour itself — an exclusive
-// boundary would leave 18:00–18:59 light on the day it matters.
+// 22:00 is dark and 07:00 is light, inclusive on the hour itself — an exclusive
+// boundary would leave 22:00–22:59 light on the day it matters.
 for (const [hour, minute, expected] of [
   [0, 0, 'dark'], [6, 0, 'dark'], [6, 59, 'dark'],
   [7, 0, 'light'], [8, 0, 'light'], [12, 0, 'light'], [17, 59, 'light'],
-  [18, 0, 'dark'], [21, 0, 'dark'], [23, 59, 'dark'],
+  [18, 0, 'light'], [21, 59, 'light'], [22, 0, 'dark'], [23, 59, 'dark'],
 ]) {
   assert.equal(
     resolveScheduledTheme(at(hour, minute)), expected,
@@ -58,9 +59,10 @@ for (const [hour, minute, expected] of [
 // next one — never yesterday's, and never a whole day away when it is hours off.
 const hours = ms => ms / 3_600_000;
 assert.equal(hours(millisecondsUntilNextThemeBoundary(at(3))), 4, '03시 다음 전환은 같은 날 07시');
-assert.equal(hours(millisecondsUntilNextThemeBoundary(at(7))), 11, '07시 정각 다음 전환은 같은 날 18시');
-assert.equal(hours(millisecondsUntilNextThemeBoundary(at(12))), 6, '12시 다음 전환은 같은 날 18시');
-assert.equal(hours(millisecondsUntilNextThemeBoundary(at(18))), 13, '18시 정각 다음 전환은 다음 날 07시');
+assert.equal(hours(millisecondsUntilNextThemeBoundary(at(7))), 15, '07시 정각 다음 전환은 같은 날 22시');
+assert.equal(hours(millisecondsUntilNextThemeBoundary(at(12))), 10, '12시 다음 전환은 같은 날 22시');
+assert.equal(hours(millisecondsUntilNextThemeBoundary(at(18))), 4, '18시는 아직 라이트, 다음 전환은 같은 날 22시');
+assert.equal(hours(millisecondsUntilNextThemeBoundary(at(22))), 9, '22시 정각 다음 전환은 다음 날 07시');
 assert.equal(hours(millisecondsUntilNextThemeBoundary(at(23))), 8, '23시 다음 전환은 다음 날 07시');
 for (let hour = 0; hour < 24; hour += 1) {
   for (const minute of [0, 1, 30, 59]) {
@@ -76,7 +78,7 @@ for (let hour = 0; hour < 24; hour += 1) {
 const scriptOpen = html.indexOf('<script>', html.indexOf('SITE-THEME-BOOTSTRAP-FIRST-PAINT-01'));
 const bootstrap = html.slice(scriptOpen, html.indexOf('</script>', scriptOpen));
 assert.ok(bootstrap.includes("=== 'auto'"), 'the pre-paint bootstrap must resolve 자동모드 itself');
-assert.match(bootstrap, /lotbiHour >= 18 \|\| lotbiHour < 7/, 'the pre-paint bootstrap must use the same boundaries');
+assert.match(bootstrap, /lotbiHour >= 22 \|\| lotbiHour < 7/, 'the pre-paint bootstrap must use the same boundaries');
 assert.ok(!bootstrap.includes('setItem'), 'the pre-paint bootstrap must stay read-only');
 // It resolves before the whitelist, so the attribute itself never says 'auto'.
 assert.ok(
@@ -175,7 +177,7 @@ const items=[...document.querySelectorAll('.profile-popover [role="menuitem"]')]
 const labels=items.map(n=>n.textContent.trim());
 await wait(()=>document.body.dataset.siteThemePreference==='auto','auto applied');
 const hour=new Date().getHours();
-const expected=(hour>=18||hour<7)?'dark':'light';
+const expected=(hour>=22||hour<7)?'dark':'light';
 const auto={preference:document.body.dataset.siteThemePreference,
   applied:document.body.dataset.siteTheme,
   bootstrap:document.documentElement.dataset.siteThemeBootstrap,

@@ -106,7 +106,7 @@ jobs:
       - name: Validate account-wide profile photo
         run: node scripts/validate_profile_photo_account_sync_01.mjs
 
-      # '자동모드' follows the clock (18시 다크 · 07시 라이트) and must never
+      # '자동모드' follows the clock (22시 다크 · 07시 라이트) and must never
       # leak 'auto' into the attribute the theme tokens style.
       - name: Validate 자동모드 theme schedule
         run: node scripts/validate_theme_auto_schedule_02.mjs

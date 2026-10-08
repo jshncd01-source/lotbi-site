@@ -25,11 +25,12 @@ export const THEME_PREFERENCES = Object.freeze(['light', 'dark', 'system', 'auto
 export const THEME_PREFERENCE_EVENT = 'lotbi:theme-preference-change';
 export const LEGACY_SITE_THEME_KEY = 'lotbi.site.theme.bootstrap.v1';
 
-// '자동모드': 07:00 <= local time < 18:00 is light, everything else dark. The
+// '자동모드': 07:00 <= local time < 22:00 is light, everything else dark. The
 // browser's clock, never a server's — someone at 23:00 sees dark wherever the
-// page was rendered.
+// page was rendered. LOTBI-THEME-AUTO-DARK-22H-01 moved the dark start from
+// 18:00 to 22:00 (대표, 2026-10-08); Account's theme-preference.ts mirrors it.
 export const AUTO_THEME_LIGHT_HOUR = 7;
-export const AUTO_THEME_DARK_HOUR = 18;
+export const AUTO_THEME_DARK_HOUR = 22;
 
 const MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
@@ -67,7 +68,7 @@ export function resolveThemePreference(preference, now = new Date()) {
   return preference === 'light' || preference === 'dark' ? preference : 'system';
 }
 
-// When the next '자동모드' switch is due, so a tab left open turns dark at 18:00
+// When the next '자동모드' switch is due, so a tab left open turns dark at 22:00
 // instead of waiting for a reload. Always measured from the clock, so a machine
 // that slept through a boundary corrects itself on the next tick.
 export function millisecondsUntilNextThemeBoundary(now = new Date()) {
