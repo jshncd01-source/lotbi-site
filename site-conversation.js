@@ -3108,6 +3108,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let routeTraversalPending = false;
   let routeTraversalTimer;
   let pendingRouteTarget = null;
+  // The step back over an entry that was renamed for the screen already on
+  // view (syncSiteRouteToScreen): its popstate changes nothing.
+  let routeCollapseStepPending = false;
   // 진위확인 is a <dialog> owned by site-scam-shield.js; like its session and
   // login requests, opening/closing it goes through window events.
   const isScamShieldOpen = () => Boolean(document.querySelector('[data-scam-dialog]')?.hasAttribute('open'));
@@ -3119,7 +3122,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const stepBackToRouteEntry = () => {
     routeTraversalPending = true;
     clearTimeout(routeTraversalTimer);
-    routeTraversalTimer = setTimeout(() => { routeTraversalPending = false; queueSiteRouteSync(); }, 1500);
+    routeTraversalTimer = setTimeout(() => { routeTraversalPending = false; routeCollapseStepPending = false; queueSiteRouteSync(); }, 1500);
     window.history.back();
   };
   const syncSiteRouteToScreen = () => {
@@ -3136,6 +3139,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (visible === inUrl) return;
     const entry = currentRouteEntry();
     if (inUrl && routeEntriesPushedHere.has(entry.lotbiRouteKey) && entry.lotbiRouteFrom === visible) {
+      // SITE-REFRESH-ROUTE-PAGE-CLEANUP-05 — the screen already changed by
+      // other means (새 대화, 대화 전환, a menu over a screen, a session
+      // change…): name it in the URL now, in this task, then step back over
+      // the entry so the history keeps no copy. The entry remembers the screen
+      // it named, so forward reopens it (popstate below).
+      window.history.replaceState({...entry, lotbiRoute: visible, lotbiRouteCollapsedFrom: inUrl}, '', siteRouteUrl(visible));
+      routeCollapseStepPending = true;
       stepBackToRouteEntry();
       return;
     }
@@ -3162,7 +3172,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // of ms on a slow phone — with one screen on view under the other's URL; a
   // reload, a share or a new tab taken then reopened the screen just left
   // (축제·행사 ← showed 생활정보 at /#festival). Any other change is made at
-  // once and the URL follows it (syncSiteRouteToScreen above).
+  // once and syncSiteRouteToScreen above names it in the URL in the same task.
   let pendingRouteLeave = null;
   const leaveSiteRoute = (destination, change) => {
     if (pendingRouteLeave) return;
@@ -5139,12 +5149,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   window.addEventListener('popstate', () => {
     routeTraversalPending = false;
     clearTimeout(routeTraversalTimer);
+    const collapseLanding = routeCollapseStepPending;
+    routeCollapseStepPending = false;
     const leave = pendingRouteLeave;
     pendingRouteLeave = null;
     if (leave) clearTimeout(leave.timer);
     const target = parseSiteRouteHash(window.location.hash);
     // The step a ←/× asked for: its change runs now, with the URL already moved.
     if (leave && target === leave.destination) { leave.change(); queueSiteRouteSync(); return; }
+    // The step over an entry renamed for the screen on view: nothing changes;
+    // a screen opened in the meantime gets its own entry.
+    if (collapseLanding) { queueSiteRouteSync(); return; }
+    // Forward onto such an entry: it names again the screen it was renamed
+    // from, and that screen opens (URL and screen in this task).
+    const entry = currentRouteEntry();
+    const renamedFrom = typeof entry.lotbiRouteCollapsedFrom === 'string' && siteRouteHash(entry.lotbiRouteCollapsedFrom) ? entry.lotbiRouteCollapsedFrom : '';
+    if (renamedFrom && routeEntriesPushedHere.has(entry.lotbiRouteKey) && target === (entry.lotbiRoute || '')) {
+      const named = {...entry, lotbiRoute: renamedFrom};
+      delete named.lotbiRouteCollapsedFrom;
+      window.history.replaceState(named, '', siteRouteUrl(renamedFrom));
+      applySiteRoute(renamedFrom);
+      return;
+    }
     if (target === null) return;
     applySiteRoute(target);
   });
