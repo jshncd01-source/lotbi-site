@@ -13,6 +13,16 @@
 // this script), a frame-by-frame probe for a flash of the conversation home,
 // at 375×812 and 390×844 (iPhone UA, touch) and 1280×900 (desktop).
 // Viewport emulation only — not an iPhone Safari / KakaoTalk device run.
+//
+// SITE-REFRESH-ROUTE-FESTIVAL-BACK-04 — every wait for a screen also waits for
+// the URL to name it, and an in-page probe holds the page to "the screen and
+// the URL change together": after any change of the routed screens, once that
+// task's own work is done, and on every painted frame, the URL names what is
+// on screen (outside the first-paint guard). 축제·행사 ← used to change the
+// screen and then call history.back(), so for one round trip to the browser
+// 생활정보 sat under /#festival — a reload then reopened 축제·행사, and a slow
+// Linux gate (2 cores) caught the screen there. ROUTE_RESTORE_CPU_THROTTLE=4..6
+// runs the browser part under CDP CPU throttling.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -253,6 +263,42 @@ const FLASH_PROBE = `(() => {
   requestAnimationFrame(tick);
 })();`;
 
+// The screen and the URL change together. After any change of the routed
+// screens, once the task that made it has run its own work (a chain of
+// microtasks behind it, where the route owner writes or steps the history),
+// and on every painted frame: the URL names the screen on view. Skipped while
+// the first-paint guard hides the page (a screen still opening from its URL).
+// It also counts popstate events (registered before the page's own handler),
+// and each mismatch carries the count it was seen at.
+const AGREEMENT_PROBE = `(() => {
+  const routes = new Set(${JSON.stringify([...SITE_ROUTES])});
+  const probe = window.__routeAgreement = {looks: 0, pops: 0, mismatches: []};
+  window.addEventListener('popstate', () => { probe.pops += 1; });
+  const urlRoute = () => { const hash = location.hash; if (hash === '' || hash === '#') return ''; return routes.has(hash.slice(1)) ? hash.slice(1) : null; };
+  const onScreen = () => (document.querySelector('[data-scam-dialog]')?.open ? 'scam' : [...document.querySelectorAll('[data-site-route]')].at(-1)?.dataset.siteRoute || '');
+  const look = when => {
+    if (!document.body || document.documentElement.hasAttribute('data-site-route-pending')) return;
+    const url = urlRoute();
+    if (url === null) return;
+    probe.looks += 1;
+    const screen = onScreen();
+    if (screen !== url && probe.mismatches.length < 50) probe.mismatches.push({when, screen, url: location.hash, pops: probe.pops, at: Math.round(performance.now())});
+  };
+  const afterTaskWork = (hops = 0) => (hops < 64 ? queueMicrotask(() => afterTaskWork(hops + 1)) : look('after the change'));
+  const watch = () => {
+    new MutationObserver(() => afterTaskWork()).observe(document.body, {childList: true});
+    new MutationObserver(() => afterTaskWork()).observe(document.documentElement, {subtree: true, attributes: true, attributeFilter: ['data-site-route', 'open']});
+  };
+  if (document.body) watch(); else document.addEventListener('DOMContentLoaded', watch);
+  const tick = () => { look('frame'); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+})();`;
+
+const CPU_THROTTLE = Number(process.env.ROUTE_RESTORE_CPU_THROTTLE || 1);
+// ROUTE_RESTORE_CASES=iPhone-390x844[,…] runs only the named viewports (a
+// slow-environment repeat); unset, every viewport runs.
+const ONLY_CASES = (process.env.ROUTE_RESTORE_CASES || '').split(',').map(item => item.trim()).filter(Boolean);
+
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';
 const CASES = [
@@ -335,10 +381,12 @@ async function runCase(browser, origin, workDir, testCase) {
     await page('Runtime.enable');
     await page('Page.addScriptToEvaluateOnNewDocument', {source: MOCK});
     await page('Page.addScriptToEvaluateOnNewDocument', {source: FLASH_PROBE});
+    await page('Page.addScriptToEvaluateOnNewDocument', {source: AGREEMENT_PROBE});
     await page('Emulation.setDeviceMetricsOverride', {width: testCase.width, height: testCase.height, deviceScaleFactor: 1, mobile: testCase.mobile});
     await page('Emulation.setUserAgentOverride', {userAgent: testCase.userAgent});
     if (testCase.mobile) await page('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
     await page('Emulation.setEmulatedMedia', {features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
+    if (CPU_THROTTLE > 1) await page('Emulation.setCPUThrottlingRate', {rate: CPU_THROTTLE});
 
     const evaluate = async expression => {
       const result = await page('Runtime.evaluate', {expression, returnByValue: true, awaitPromise: true});
@@ -359,16 +407,29 @@ async function runCase(browser, origin, workDir, testCase) {
       homeVisible: (() => { const prompt = document.getElementById('lotbi-prompt'); const block = prompt?.closest('#main-content > *'); return Boolean(prompt && block && getComputedStyle(prompt).visibility === 'visible' && Number(getComputedStyle(block).opacity) > 0.01); })(),
       docId: window.__routeDocId || '',
       flash: window.__routeFlash ? {...window.__routeFlash} : null,
+      agreement: window.__routeAgreement ? {looks: window.__routeAgreement.looks, mismatches: window.__routeAgreement.mismatches.slice(0, 6)} : null,
       authedCoreCalls: (window.__routeTestRequests || []).filter(item => item.auth).map(item => item.path),
       thread: [...document.querySelectorAll('#conversation-thread .chat-message')].map(node => node.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(-4),
     }))()`);
     const visibleRoute = state => (state.scam ? 'scam' : state.routes.at(-1) || '');
-    const settled = async (expectRoute, label, timeoutMs = 15000) => waitFor(async () => {
-      const state = await snapshot();
-      const ok = state.ready && !state.pending && visibleRoute(state) === expectRoute
-        && (expectRoute !== 'scam' || state.scamGate || state.scamWorkspace);
-      return ok ? state : {ok: false, state};
-    }, label, timeoutMs);
+    // The route the URL names: '' (no fragment) or a route; a fragment that is
+    // not a route (#does-not-exist) leaves the home on screen.
+    const urlRoute = state => parseSiteRouteHash(state.url.includes('#') ? state.url.slice(state.url.indexOf('#')) : '');
+    const urlNames = (state, route) => urlRoute(state) === route || (route === '' && urlRoute(state) === null);
+    // A screen is settled when it is on screen AND the URL names it — not when
+    // either one alone has moved.
+    const settled = async (expectRoute, label, timeoutMs = 15000) => {
+      const state = await waitFor(async () => {
+        const s = await snapshot();
+        const ok = s.ready && !s.pending && visibleRoute(s) === expectRoute && urlNames(s, expectRoute)
+          && (expectRoute !== 'scam' || s.scamGate || s.scamWorkspace);
+        return ok ? s : {ok: false, state: s};
+      }, label, timeoutMs);
+      // Since the last settled screen: never one screen under another's URL.
+      check(`${label}: screen and URL changed together`, state.agreement && (state.agreement.looks > 0 || urlRoute(state) === null) && state.agreement.mismatches.length === 0, state.agreement);
+      await evaluate('window.__routeAgreement.mismatches.length = 0; true');
+      return state;
+    };
     const expectScreen = route => evaluate(`(() => { try { sessionStorage.setItem('__routeExpect', ${JSON.stringify(route)}); } catch {} return true; })()`);
     const loadEvent = () => new Promise(resolve => {
       const stop = cdp.on(message => {
@@ -533,6 +594,93 @@ async function runCase(browser, origin, workDir, testCase) {
     const {currentIndex: afterClose} = await page('Page.getNavigationHistory');
     check('G close returns to the home entry (no extra entry)', afterClose === beforeOpen && state.docId === doc, {beforeOpen, afterClose});
 
+    // CASE L — SITE-REFRESH-ROUTE-FESTIVAL-BACK-04. One ← is one step back
+    // however often it fires before the step lands; a step still on its way
+    // never closes the screen that took its place; Escape with the focus
+    // outside a screen closes it like its ×. Each ends 1.8 s later (past the
+    // 1 s leave and 1.5 s traversal fallbacks) with the screen and URL agreed.
+    const popCount = () => evaluate('window.__routeAgreement.pops');
+    const historyIndex = async () => (await page('Page.getNavigationHistory')).currentIndex;
+    const festivalBack = '[data-site-route="festival"] .site-modal-close';
+    const openFestivalFromLife = async label => {
+      await tapSelector('[data-site-route="life"] .consumer-shortcut[data-life-shortcut="festivals"]');
+      return settled('festival', label);
+    };
+    await openFromMenu('life');
+    await settled('life', 'L life');
+    await openFestivalFromLife('L festival');
+    let indexBefore = await historyIndex();
+    let popsBefore = await popCount();
+    // ←, ← again and Escape, all before the step back lands (one task).
+    await evaluate(`(() => {
+      const back = document.querySelector(${JSON.stringify(festivalBack)});
+      back.click(); back.click();
+      back.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+      return true;
+    })()`);
+    await settled('life', 'L festival ← ← Escape');
+    await sleep(1800);
+    state = await settled('life', 'L festival ← ← Escape, 1.8 s later');
+    let indexAfter = await historyIndex();
+    let pops = await popCount() - popsBefore;
+    check('L ←, ← and Escape before the step lands → one step back to 생활정보', state.url === '/#life' && JSON.stringify(state.routes) === '["life"]' && indexAfter === indexBefore - 1 && pops === 1 && state.docId === doc, {state, indexBefore, indexAfter, pops});
+
+    // ← and, before its step lands, 캘린더 from the menu (one task). Until the
+    // step lands the URL can only still name 축제·행사 (a traversal under way
+    // is not overtaken); from the step on it names 캘린더, and the step's own
+    // change (close 축제·행사, open 생활정보) does nothing to 캘린더.
+    await openFestivalFromLife('L festival again');
+    popsBefore = await popCount();
+    await evaluate(`(() => {
+      document.querySelector(${JSON.stringify(festivalBack)}).click();
+      document.querySelector(${JSON.stringify(`${testCase.mobile ? '#mobile-nav-drawer' : '.chat-sidebar-desktop'} [data-calendar-view="all"]`)}).click();
+      return true;
+    })()`);
+    await waitFor(async () => {
+      const s = await snapshot();
+      return s.ready && visibleRoute(s) === 'calendar' && urlNames(s, 'calendar') ? s : {ok: false, state: s};
+    }, 'L calendar once the step lands');
+    const inFlight = await evaluate('window.__routeAgreement.mismatches.slice()');
+    check('L before the step lands only: 캘린더 under the old /#festival', inFlight.every(item => item.pops === popsBefore && item.screen === 'calendar' && item.url === '#festival'), {popsBefore, inFlight});
+    await evaluate('window.__routeAgreement.mismatches.length = 0; true');
+    await sleep(1800);
+    state = await settled('calendar', 'L calendar, 1.8 s later');
+    pops = await popCount() - popsBefore;
+    check('L a step on its way never closes the screen that took its place', state.url === '/#calendar' && JSON.stringify(state.routes) === '["calendar"]' && pops === 1 && state.docId === doc, {state, pops});
+    await closeScreen('calendar');
+    await settled('', 'L calendar closed');
+
+    // 진위확인: ×, 취소 and Escape before the step lands → one step back home.
+    await openFromMenu('scam');
+    await settled('scam', 'L scam');
+    indexBefore = await historyIndex();
+    popsBefore = await popCount();
+    await evaluate(`(() => {
+      const dialog = document.querySelector('[data-scam-dialog]');
+      dialog.querySelector('[data-scam-close]').click();
+      dialog.querySelector('[data-scam-close]').click();
+      dialog.querySelector('[data-scam-login-cancel]')?.click();
+      document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+      return true;
+    })()`);
+    await settled('', 'L scam × × 취소 Escape');
+    await sleep(1800);
+    state = await settled('', 'L scam × × 취소 Escape, 1.8 s later');
+    indexAfter = await historyIndex();
+    pops = await popCount() - popsBefore;
+    check('L 진위확인 ×, ×, 취소 and Escape before the step lands → one step back home', state.url === '/' && !state.scam && indexAfter === indexBefore - 1 && pops === 1 && state.docId === doc, {state, indexBefore, indexAfter, pops});
+
+    // Escape with the focus outside the screen (the document's own Escape).
+    await openFromMenu('life');
+    await settled('life', 'L life for Escape');
+    indexBefore = await historyIndex();
+    await evaluate('document.activeElement?.blur?.(); document.activeElement === document.body');
+    await page('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27});
+    await page('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27});
+    state = await settled('', 'L Escape outside 생활정보');
+    indexAfter = await historyIndex();
+    check('L Escape outside 생활정보 → home, one step back', state.url === '/' && state.routes.length === 0 && indexAfter === indexBefore - 1 && state.docId === doc, {state, indexBefore, indexAfter});
+
     // Typed URL on the same document (address bar fragment + Enter).
     await page('Page.navigate', {url: `${origin}/#care`});
     state = await settled('care', 'typed fragment');
@@ -649,7 +797,10 @@ const server = startServer();
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-route-restore-'));
 try {
   const origin = `http://127.0.0.1:${await serverPort(server)}`;
-  for (const testCase of CASES) {
+  const cases = ONLY_CASES.length ? CASES.filter(item => ONLY_CASES.includes(item.label)) : CASES;
+  assert.equal(cases.length, ONLY_CASES.length || CASES.length, `ROUTE_RESTORE_CASES names unknown viewports: ${ONLY_CASES.join(',')}`);
+  if (CPU_THROTTLE > 1 || ONLY_CASES.length) console.log(`route restore: CPU throttle ${CPU_THROTTLE}x, viewports ${cases.map(item => item.label).join(', ')}`);
+  for (const testCase of cases) {
     const results = await runCase(browser, origin, workDir, testCase);
     console.log(`${testCase.label}: ${results.length} checks PASS`);
   }

@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-4e3933153d6b';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-6674bfd173bd';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -572,23 +572,38 @@ function safeMessage(error, fallback) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-// Photos (JPG, PNG) or a PDF; a PDF page is drawn into an image in this browser.
-function validateImageFile(file) {
+// Still photos (a phone camera's JPEG/HEIC, PNG, WebP) or a PDF; videos never. A PDF page is
+// drawn into an image in this browser. The file's bytes decide what it is: camera shots come
+// with temporary names, no extension, an empty or non-standard type; the reported type and
+// name only help when the bytes are not recognised.
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+async function walletFileKind(file) {
   if (!(file instanceof File)) throw new Error('자료 사진을 선택해 주세요.');
-  const pdf = file.type === 'application/pdf' || (!file.type && /\.pdf$/iu.test(file.name));
-  if (!pdf && !['image/jpeg', 'image/png'].includes(file.type)) throw new Error('JPG·PNG 사진이나 PDF만 등록할 수 있습니다.');
+  const kind = await sniffWalletFile(file);
+  const pdf = kind === 'pdf' || (kind === 'unknown' && (file.type === 'application/pdf' || /\.pdf$/iu.test(file.name)));
+  const photo = isWalletPhotoKind(kind) || (kind === 'unknown' && PHOTO_TYPES.includes(file.type));
+  if (!pdf && !photo) throw new Error('사진(JPG·PNG·WebP·HEIC)이나 PDF만 등록할 수 있습니다.');
   if (pdf && file.size > 20 * 1024 * 1024) throw new Error('PDF는 20MB 이하로 선택해 주세요.');
-  if (!pdf && file.size > 12 * 1024 * 1024) throw new Error('이미지는 한 장당 12MB 이하로 선택해 주세요.');
+  if (!pdf && file.size > 30 * 1024 * 1024) throw new Error('사진은 한 장당 30MB 이하로 선택해 주세요.');
+  return pdf ? 'pdf' : kind;
 }
 
 export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}} = {}) {
   const fieldShell = element('div', 'wallet-field wallet-photo-field');
   const label = element('span', 'wallet-photo-label', '자료 사진 · 필수');
+  // Two pickers, each with one type: a single image type lets Android offer the camera and
+  // the gallery only (several types make it add camcorder and voice recorder); PDFs have
+  // their own picker. Both feed the same decode and scan path.
   const input = element('input', 'wallet-photo-input');
   input.type = 'file';
-  input.accept = 'image/jpeg,image/png,application/pdf,.pdf';
+  input.accept = 'image/*';
+  const pdfInput = element('input', 'wallet-photo-input');
+  pdfInput.type = 'file';
+  pdfInput.accept = 'application/pdf';
   label.id = `wallet-photo-${randomId()}`;
   input.setAttribute('aria-labelledby', label.id);
+  pdfInput.setAttribute('aria-label', 'PDF 선택');
+  let lastInput = input;
 
   const picker = element('div', 'wallet-photo-picker');
   const mark = element('button', 'wallet-photo-mark', '+');
@@ -599,10 +614,15 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
   preview.hidden = true;
   const copy = element('span', 'wallet-photo-copy');
   const title = element('strong', '', '자료 사진 추가');
-  const help = element('small', '', 'JPG·PNG 사진 12MB · PDF 20MB 이하');
+  const help = element('small', '', '사진 또는 PDF');
   copy.append(title, help);
   const trigger = button('사진 선택', () => input.click(), true);
   trigger.classList.add('wallet-photo-action');
+  const pdfTrigger = button('PDF', () => pdfInput.click(), true);
+  pdfTrigger.classList.add('wallet-photo-action', 'wallet-photo-pdf');
+  pdfTrigger.setAttribute('aria-label', 'PDF 선택');
+  const actionsGroup = element('span', 'wallet-photo-actions');
+  actionsGroup.append(trigger, pdfTrigger);
   const scannerHost = element('div', 'wallet-photo-scanner-host');
   let scanner = null;
   let confirmedDataUrl = '';
@@ -621,64 +641,74 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
     preview.removeAttribute('src');
     preview.alt = '';
     title.textContent = '자료 사진 추가';
-    help.textContent = 'JPG·PNG 사진 12MB · PDF 20MB 이하';
+    help.textContent = '사진 또는 PDF';
     trigger.textContent = '사진 선택';
   };
 
-  input.addEventListener('change', () => {
-    const file = input.files?.[0];
+  let choice = 0;
+  const choose = async source => {
+    const file = source.files?.[0];
     if (!file) return;
+    const current = ++choice;
+    lastInput = source;
     onError('');
     try {
-      validateImageFile(file);
+      const kind = await walletFileKind(file);
+      if (current !== choice) return;
+      const name = file.name || '촬영한 사진';
       clearScanner();
       confirmedDataUrl = '';
       onReady(false);
       mark.hidden = true;
       preview.hidden = true;
       preview.removeAttribute('src');
-      title.textContent = '사진 보정 중';
-      help.textContent = '모서리와 보정 결과를 확인해 주세요.';
+      title.textContent = name;
+      help.textContent = '';
       trigger.textContent = '다시 선택';
       scanner = createWalletDocumentScanner({
         file,
+        kind,
         onConfirm(dataUrl) {
           confirmedDataUrl = dataUrl;
           clearScanner();
           preview.src = dataUrl;
-          preview.alt = `보정된 ${file.name} 미리보기`;
+          preview.alt = `보정된 ${name} 미리보기`;
           preview.hidden = false;
-          title.textContent = file.name;
-          help.textContent = '확인한 보정 결과를 암호화하여 저장합니다.';
+          title.textContent = name;
+          help.textContent = '';
           trigger.textContent = '사진 변경';
           onReady(true);
         },
         onCancel() {
-          input.value = '';
+          source.value = '';
           clearScanner();
           resetSelection();
         },
         onReplace() {
-          input.value = '';
+          source.value = '';
           clearScanner();
           resetSelection();
-          input.click();
+          lastInput.click();
         },
       });
       scannerHost.append(scanner.element);
     } catch (error) {
-      input.value = '';
+      if (current !== choice) return;
+      source.value = '';
       clearScanner();
       resetSelection();
       onError(safeMessage(error, '사진을 선택하지 못했습니다.'));
     }
-  });
+  };
+  input.addEventListener('change', () => choose(input));
+  pdfInput.addEventListener('change', () => choose(pdfInput));
 
-  picker.append(input, mark, preview, copy, trigger);
+  picker.append(input, pdfInput, mark, preview, copy, actionsGroup);
   fieldShell.append(label, picker, scannerHost);
   return Object.freeze({
     element: fieldShell,
     input,
+    pdfInput,
     async readDataUrl() {
       if (!confirmedDataUrl) throw new Error('사진 보정 결과를 확인한 뒤 저장해 주세요.');
       return confirmedDataUrl;
@@ -703,7 +733,11 @@ export function createWalletCardCarousel({cards, onOpen}) {
     image.alt = `${index + 1}번째 저장 자료`;
     image.draggable = false;
     item.append(image);
-    track.append(item);
+    // A full-width slide around each card: the scrollable width then ends at the last slide,
+    // not at the last (narrower, centred) card, so the last card can come to the centre too.
+    const slide = element('div', 'wallet-card-slide');
+    slide.append(item);
+    track.append(slide);
     return item;
   });
   viewport.append(track);
@@ -735,7 +769,7 @@ export function createWalletCardCarousel({cards, onOpen}) {
   // empty height of a tall page saved next to it.
   function fitHeight() {
     const item = items[currentIndex];
-    if (item.offsetHeight) viewport.style.height = `${item.offsetHeight + 10}px`;
+    if (item.offsetHeight) viewport.style.height = `${item.offsetHeight + 18}px`;
   }
 
   function updateState(index) {
@@ -983,6 +1017,11 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     wrap.append(element('div', 'wallet-lock-mark', '●'), element('h3', '', 'Life Wallet 잠금 해제'), element('p', '', '등록한 자료를 보려면 월렛 전용 4자리 PIN을 입력하세요.'));
     const form = element('form', 'wallet-pin-form wallet-unlock-form');
     const pin = pinInput('월렛 PIN'); const status = errorRegion(); if (message) status.textContent = message;
+    // The PIN is entered on the keypad below, so the phone's on-screen keyboard stays down
+    // (inputmode none); a hardware keyboard and screen readers still use the field. On touch
+    // screens the field is not focused automatically.
+    pin.inputMode = 'none';
+    const focusPin = () => { if (!window.matchMedia?.('(pointer: coarse)').matches) pin.focus(); };
     const dots = element('div', 'wallet-pin-dots');
     const refreshDots = () => { dots.textContent = '●'.repeat(pin.value.length) + '○'.repeat(4 - pin.value.length); };
     pin.addEventListener('input', refreshDots); refreshDots();
@@ -1004,10 +1043,10 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       try {
         validateWalletPin(pin.value); setBusy(form, true); await vault.unlock(accountId, pin.value);
         pin.value = ''; unlocked = true; activity(); await renderWallet();
-      } catch (error) { status.textContent = safeMessage(error, '잠금을 해제하지 못했습니다.'); setBusy(form, false); pin.value = ''; refreshDots(); pin.focus(); }
+      } catch (error) { status.textContent = safeMessage(error, '잠금을 해제하지 못했습니다.'); setBusy(form, false); pin.value = ''; refreshDots(); focusPin(); }
     });
     wrap.append(form);
-    root.replaceChildren(wrap); pin.focus();
+    root.replaceChildren(wrap); focusPin();
   }
 
   async function renderWallet(message = '') {
@@ -1091,7 +1130,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', walletCardTitle(card)));
     detail.append(header);
     const images = element('div', 'wallet-detail-images');
-    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage, element('figcaption', '', '자료 사진'));
+    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage); if (card.backDataUrl) front.append(element('figcaption', '', '앞면'));
     images.append(front);
     if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${walletCardTitle(card)} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
     detail.append(images);
