@@ -72,7 +72,9 @@ try {
   const shaped = (width, height) => { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const context = canvas.getContext('2d'); context.fillStyle = '#fff'; context.fillRect(0, 0, width, height); context.fillStyle = '#123'; context.fillRect(width * .1, height * .1, width * .8, height * .8); return canvas.toDataURL('image/png'); };
   const deck = createWalletCardDeck({cards: [{id: 'a', name: 'a', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1618, 1044)}, {id: 'b', name: 'b', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1015, 643)}, {id: 'c', name: 'c', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1467, 2048)}], onOpen: () => {}});
   document.getElementById('host').append(deck);
-  await Promise.all([...deck.querySelectorAll('img')].map(image => image.decode().catch(() => {}))); await sleep(400);
+  // Loaded = complete with a size (image.decode() can stay pending in headless Chrome under load).
+  for (let i = 0; i < 400 && ![...deck.querySelectorAll('img')].every(image => image.complete && image.naturalWidth); i += 1) await sleep(25);
+  await sleep(400);
   const dots = [...deck.querySelectorAll('[data-wallet-carousel-dot]')];
   const views = [];
   for (let index = 0; index < dots.length; index += 1) {
