@@ -306,7 +306,7 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: five cards (응급실 added, 공과금 확인 hidden), rows filled in order.
+    // 1. Life main: six cards (응급실 and 온누리상품권 added, 공과금 확인 hidden), every row full.
     await openLife();
     const main = await probe();
     assert.equal(main.title, '생활정보');
@@ -409,4 +409,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, five life cards under the description, no free-question bar or footer row (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, six life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
