@@ -37,7 +37,10 @@ assert.match(conversation, /const value = typeof text === 'string' \? text\.trim
 assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '복사하기', iconPath: MESSAGE_ACTION_ICON_COPY, dataset: \{messageAction: 'copy'\}\}\)/);
 assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: \{messageAction: 'share'\}\}\)/);
 assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: \{messageAction: 'calendar'\}\}\)/);
-assert.match(conversation, /actions\.append\(copy, share, calendar, feedback, shareMenu\);/);
+// CHAT-READ-ALOUD-RESTORE-P0 — 읽어주기 is back as the last tool in the row
+// (after 캘린더에 추가, so the share menu stays anchored under 공유하기).
+assert.match(conversation, /const readAloud = createMessageReadAloudButton\(value, \{report\}\);/);
+assert.match(conversation, /actions\.append\(copy, share, calendar, readAloud, feedback, shareMenu\);/);
 
 // CHATPERF-08 — the Calendar action is a launcher, not a writer: it opens the
 // existing editor dialog and never registers a draft itself.
@@ -79,8 +82,10 @@ assert.match(conversation, /shareMenu\.append\(linkCopy\);/);
 assert.match(conversation, /if \(ready\)[\s\S]*shareMenu\.append\(kakao\)/);
 assert.doesNotMatch(conversation, /카카오톡에 붙여넣어 공유해 주세요/);
 
+// The conversation runtime still never drives the speech engine itself: the
+// button and its engine live in site-message-read-aloud.js.
 assert.doesNotMatch(conversation, /createReadAloudController|READ_ALOUD_STATE|speechSynthesis|SpeechSynthesisUtterance/);
-assert.doesNotMatch(conversation, /messageAction: 'speak'|읽어주기|읽기 멈추기/);
+assert.doesNotMatch(conversation, /messageAction: 'speak'|읽기 멈추기/);
 
 assert.match(conversation, /const \{shareWithKakaoTalk\} = await import\('\.\/site-kakao-share\.js\?v=([^']+)'\)/);
 assert.match(kakao, /Kakao\.Share\.sendDefault/);

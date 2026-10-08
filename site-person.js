@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-c39420e88254';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-4572ba44891f';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';

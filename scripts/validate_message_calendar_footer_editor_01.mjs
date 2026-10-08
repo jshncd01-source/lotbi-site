@@ -334,7 +334,7 @@ try {
     if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
     if (v.plain_heading !== '기록 추가') throw new Error(`${label}: a blank fallback must read "기록 추가", got "${v.plain_heading}"`);
     if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
-    assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가'], `${label}: chat answer tools`);
+    assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가', '답변 읽어주기'], `${label}: chat answer tools`);
     if (v.answerCopied.length !== 1 || !v.answerCopied[0].startsWith('오늘은 대체로 맑고')) throw new Error(`${label}: ordinary answer copy regressed, got ${JSON.stringify(v.answerCopied)}`);
     assertList(v.shareMenuItems, kakao === 'configured' ? ['링크 복사', '카카오톡 공유하기'] : ['링크 복사'], `${label}: share menu`);
     if (v.calendarRole !== 'dialog' || v.calendarAriaModal !== 'true') throw new Error(`${label}: Calendar must be an accessible modal dialog`);
