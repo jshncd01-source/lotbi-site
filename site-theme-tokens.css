@@ -230,8 +230,8 @@ body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabinde
    !important ring above reached the bare textarea, so in Dark a light
    4px-cornered rectangle sat inside the rounded composer whenever it was used
    (Samsung Internet, 2026-10-09). Light already keeps the textarea ring off
-   (.chat-input:focus-visible { outline: 0 }). The focus stays visible on the
-   composer that holds it: its own rounded edge turns to the focus colour. */
+   in home-chat.css. Focus is not removed, it moves: the composer that holds
+   the textarea turns its own rounded edge to the focus colour. */
 body[data-site-theme="dark"] .chat-composer .chat-input:focus-visible {
   outline: none !important;
 }
