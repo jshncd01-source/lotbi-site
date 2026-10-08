@@ -170,10 +170,12 @@ try {
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     mediaState:center.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     photoSrc:center.querySelector('.lotbi-place-photo')?.src||'',
+    sideMediaPresent:Boolean(side.querySelector('.lotbi-rich-card-place-media')),
     sideMediaHidden:side.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     sideMediaState:side.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
-    sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
+    // Phones lay the side card out whole but fully transparent and untappable (PLACE-MEDICAL-CARD-UX-FINAL-01).
+    sideActionsVisible:Number.parseFloat(getComputedStyle(side).opacity)>0&&[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
     consumerText:rail.textContent||'',
     noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
@@ -257,10 +259,13 @@ try {
     assert.equal(reading.mediaHidden,false,`${testCase.label}: verified photo banner remains visible`);
     assert.equal(reading.mediaState,'loaded',`${testCase.label}: verified photo media state`);
     assert.equal(reading.photoSrc,PLACE_RESULT.results[0].image_url,`${testCase.label}: verified photo src preserved`);
-    assert.equal(reading.sideMediaHidden,false,`${testCase.label}: no-photo side banner remains visible`);
-    assert.equal(reading.sideMediaState,'empty-no-photo',`${testCase.label}: no-photo side media state`);
+    // A place without a photo has no photo box at all (PLACE-MEDICAL-CARD-UX-FINAL-01).
+    assert.equal(reading.sideMediaPresent,false,`${testCase.label}: no photo box on the card without a photo`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
-    assert.ok(reading.card.w<=Math.min(testCase.width*.82,286)+2,`${testCase.label}: card width ${reading.card.w}`);
+    // Phones show one whole card inside the rail; wider screens keep the orbit card size.
+    const maxCardWidth=testCase.mobile?Math.min(reading.rail.w-16,400):286;
+    assert.ok(reading.card.w<=maxCardWidth+2,`${testCase.label}: card width ${reading.card.w} (max ${maxCardWidth})`);
+    assert.ok(reading.card.x>=reading.rail.x-1&&reading.card.x+reading.card.w<=reading.rail.x+reading.rail.w+1,`${testCase.label}: card cut by the rail`);
     assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);
     assert.equal(reading.sideActionsVisible,false,`${testCase.label}: side actions visible`);
     assert.ok(reading.sideActionTabIndexes.every(x=>x===-1),`${testCase.label}: side focusable`);

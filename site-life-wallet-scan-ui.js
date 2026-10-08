@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-9346c458ceee';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-9346c458ceee';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-45fcbe18a1ae';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-45fcbe18a1ae';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
