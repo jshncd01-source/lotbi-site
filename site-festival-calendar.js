@@ -19,8 +19,8 @@
 // server field and no longer depends on it. Guest entries need no such
 // index — site-calendar-guest.js persists source_kind/source_ref/
 // visit_scope/visit_date on the entry itself.
-import {createLifeActivity} from './site-calendar.js?v=aset-8dd6ca9d829f';
-import {addLocalDays} from './site-festival-client.js?v=aset-8dd6ca9d829f';
+import {createLifeActivity} from './site-calendar.js?v=aset-c85d33a74785';
+import {addLocalDays} from './site-festival-client.js?v=aset-c85d33a74785';
 export const FESTIVAL_CALENDAR_LINK_INDEX_KEY = 'lotbi.festival.calendar-link.v1';
 const LINK_INDEX_LIMIT = 200;
 
