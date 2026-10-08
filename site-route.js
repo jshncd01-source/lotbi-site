@@ -9,11 +9,13 @@
 // A fragment never reaches the server, so nginx/Render routing is unchanged,
 // and it rides the existing Account handoff the same way #profile-photo does.
 // Route names are the identifiers the page already uses (data-consumer-section,
-// data-scam-open, data-festival-open, data-lotbi-box-open, the 안심케어 pets tab).
+// data-scam-open, data-festival-open and the 안심케어 pets tab).
 //
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-3213074a0ee2';
+
 export const SITE_ROUTES = Object.freeze([
   'calendar',
   'wallet',
@@ -22,7 +24,7 @@ export const SITE_ROUTES = Object.freeze([
   'pets',
   'life',
   'festival',
-  'lotbi-box',
+  ...(LOTBI_BOX_UI_ENABLED ? ['lotbi-box'] : []),
 ]);
 
 const ROUTE_SET = new Set(SITE_ROUTES);
