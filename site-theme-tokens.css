@@ -225,6 +225,28 @@ body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabinde
   outline-offset: 2px;
 }
 
+/* SITE-CHAT-COMPOSER-DARK-FOCUS-01 — the chat input is one rounded composer.
+   A focused textarea always matches :focus-visible (tap or type), and the
+   !important ring above reached the bare textarea, so in Dark a light
+   4px-cornered rectangle sat inside the rounded composer whenever it was used
+   (Samsung Internet, 2026-10-09). Light already keeps the textarea ring off
+   (.chat-input:focus-visible { outline: 0 }). The focus stays visible on the
+   composer that holds it: its own rounded edge turns to the focus colour. */
+body[data-site-theme="dark"] .chat-composer .chat-input:focus-visible {
+  outline: none !important;
+}
+body[data-site-theme="dark"] .chat-composer-stack .chat-composer:focus-within {
+  border-color: var(--lotbi-focus-ring);
+  box-shadow: none;
+}
+
+/* SITE-HEADER-AUTH-BUTTONS-DARK-01 — 로그인 kept the Light edge (#dde3ee) in
+   Dark: a bright ring around a dark pill next to 회원가입, whose edge is its
+   own fill. Dark takes the theme's strong border; ink and size are shared. */
+body[data-site-theme="dark"] .account-login {
+  border-color: var(--lotbi-border-strong);
+}
+
 @media (prefers-color-scheme: dark) {
   body[data-site-theme="system"] {
     background: var(--lotbi-bg-primary);
@@ -283,6 +305,17 @@ body[data-site-theme="dark"] :where(a, button, input, select, textarea, [tabinde
   body[data-site-theme="system"] :where(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: 3px solid var(--lotbi-focus-ring) !important;
     outline-offset: 2px;
+  }
+  /* SITE-CHAT-COMPOSER-DARK-FOCUS-01 — same as Dark above. */
+  body[data-site-theme="system"] .chat-composer .chat-input:focus-visible {
+    outline: none !important;
+  }
+  body[data-site-theme="system"] .chat-composer-stack .chat-composer:focus-within {
+    border-color: var(--lotbi-focus-ring);
+    box-shadow: none;
+  }
+  body[data-site-theme="system"] .account-login {
+    border-color: var(--lotbi-border-strong);
   }
 }
 

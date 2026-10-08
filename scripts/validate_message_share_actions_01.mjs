@@ -68,18 +68,31 @@ assert.match(conversation, /document\.addEventListener\('pointerdown', onOutside
 assert.match(conversation, /event\.key === 'Escape'/);
 assert.match(conversation, /\['ArrowDown', 'ArrowUp', 'Home', 'End'\]/);
 
+// LOTBI-KAKAO-SHARE-ACTUAL-01 — KakaoTalk first, then 링크 복사.
 const menuItems = [...conversation.matchAll(/createShareMenuItem\('([^']+)'[^\n]+, '([^']+)'\)/g)]
   .map(match => [match[1], match[2]]);
 assert.deepEqual(menuItems, [
-  ['링크 복사', 'link-copy'],
   ['카카오톡 공유하기', 'kakaotalk'],
+  ['링크 복사', 'link-copy'],
 ]);
 assert.match(conversation, /writeMessageTextToClipboard\(MESSAGE_ACTION_SHARE_URL\)/);
 assert.match(conversation, /report\('링크를 복사했습니다\.'\)/);
 assert.match(conversation, /shareMessageWithKakao\(\{text: value, url: MESSAGE_ACTION_SHARE_URL\}\)/);
-assert.match(conversation, /report\('카카오톡 공유 화면을 열었습니다\.'\)/);
+// Kakao reports nothing back, so the message never claims a send.
+assert.match(conversation, /report\('카카오톡에서 보낼 친구나 채팅방을 선택해 주세요\.'\)/);
+const kakaoClickHandler = conversation.match(/kakao\.addEventListener\('click'[\s\S]*?\n  \}\);/)?.[0] || '';
+assert.ok(kakaoClickHandler, 'the KakaoTalk menu item click handler must be found');
+assert.doesNotMatch(kakaoClickHandler, /완료|공유했습니다|보냈습니다|열었습니다/);
 assert.match(conversation, /shareMenu\.append\(linkCopy\);/);
-assert.match(conversation, /if \(ready\)[\s\S]*shareMenu\.append\(kakao\)/);
+assert.match(conversation, /if \(ready\)[\s\S]*shareMenu\.prepend\(kakao\)/);
+// The KakaoTalk item says what leaves LOTBI: this answer and the public address.
+assert.match(conversation, /const KAKAO_SHARE_NOTE = '이 답변 내용과 LOTBI 주소만 보내요';/);
+assert.match(conversation, /describeShareMenuItem\(kakao, `\$\{shareMenu\.id\}-kakao-note`, KAKAO_SHARE_NOTE\);/);
+assert.match(conversation, /item\.setAttribute\('aria-describedby', id\);/);
+assert.match(css, /\.lotbi-share-menu-hint \{/);
+// Opening the menu prepares the SDK so the tap that chooses KakaoTalk shares.
+assert.match(conversation, /return Boolean\(await module\.prepareKakaoShare\(\)\);/);
+assert.match(kakao, /export async function prepareKakaoShare\(\)/);
 assert.doesNotMatch(conversation, /카카오톡에 붙여넣어 공유해 주세요/);
 
 // The conversation runtime still never drives the speech engine itself: the

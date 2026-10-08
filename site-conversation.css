@@ -453,6 +453,16 @@
   fill: currentColor;
 }
 
+/* LOTBI-KAKAO-SHARE-ACTUAL-01 — what the KakaoTalk item sends, under its name. */
+.lotbi-share-menu-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
 @media (max-width: 760px) {
   .lotbi-share-menu {
     position: fixed;
