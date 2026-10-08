@@ -477,6 +477,17 @@ jobs:
           node scripts/validate_safecare_capture_art_01.mjs
           node scripts/validate_safecare_web_ui_redesign_01.mjs
 
+      # SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten identity photos at once —
+      # classify hint only, never outside the suggested slots, fronts first
+      # (1,8,2,3,9,10,6,4,5,7), successes kept, per-photo replacement; the
+      # person SOS copy says "not a police report" and found reports never
+      # disclose a comparison result. 360/390/412/1440.
+      - name: Validate SafeCare bulk identity photos and SOS intake copy
+        run: |
+          node --check site-person.js
+          node --check site-person-bulk-photos.js
+          node scripts/validate_safecare_photo_bulk_upload_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
