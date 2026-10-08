@@ -74,7 +74,36 @@ function hologramOverlay(context, width, height, random) {
   }
 }
 
-function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = false, glare = false, edgeFade = null, tint = [228, 232, 229], font = null} = {}, random) {
+// One printed character drawn as thin strokes (no system font, so every OS and browser
+// renders the same pixels): a digit is a few bars; a Hangul-like syllable is an initial
+// consonant (corner, box or ring), a vowel bar with a stub and sometimes a final consonant,
+// so its pieces vary in size like real lettering.
+function strokeGlyph(context, x, y, wide, tall, stroke, digit, random) {
+  const across = (x0, x1, at) => context.fillRect(x + x0 * wide, y + at * tall - stroke / 2, Math.max(stroke, (x1 - x0) * wide), stroke);
+  const down = (y0, y1, at) => context.fillRect(x + at * wide - stroke / 2, y + y0 * tall, stroke, Math.max(stroke, (y1 - y0) * tall));
+  const ring = (cx, cy, radius) => { context.lineWidth = stroke; context.strokeStyle = context.fillStyle; context.beginPath(); context.ellipse(x + cx * wide, y + cy * tall, radius * wide, radius * tall, 0, 0, Math.PI * 2); context.stroke(); };
+  if (digit) {
+    const shape = Math.floor(random() * 5);
+    if (shape === 0) { across(.1, .9, .04); across(.1, .9, .96); down(.04, .96, .1); down(.04, .96, .9); }
+    else if (shape === 1) { down(0, 1, .55); across(.3, .55, .12); }
+    else if (shape === 2) { across(.1, .9, .04); down(.04, .5, .9); across(.1, .9, .5); down(.5, .96, .1); across(.1, .9, .96); }
+    else if (shape === 3) { across(.1, .9, .04); down(.04, .96, .9); across(.3, .9, .5); across(.1, .9, .96); }
+    else { down(0, .6, .15); across(.15, .9, .6); down(0, 1, .72); }
+    return;
+  }
+  const vertical = random() < .6; const final = random() < .4; const bottom = final ? .62 : 1;
+  const initial = Math.floor(random() * 4); const box = vertical ? [0, .58, 0, bottom] : [0, 1, 0, bottom * .48];
+  const [left, right, top, low] = [box[0] + .05, box[1] - .06, box[2] + .05, box[3] - .04];
+  if (initial === 0) { across(left, right, top); down(top, low, right); }
+  else if (initial === 1) { down(top, low, left); across(left, right, low); }
+  else if (initial === 2) { across(left, right, top); across(left, right, low); down(top, low, left); down(top, low, right); }
+  else ring((left + right) / 2, (top + low) / 2, Math.min(right - left, low - top) / 2);
+  if (vertical) { down(0, bottom, .8); across(.8, .97, bottom * (.35 + random() * .3)); }
+  else { across(0, 1, bottom * .74); down(bottom * .5, bottom * .74, .5); }
+  if (final) { if (random() < .5) { down(.7, .98, .2); across(.2, .85, .98); } else { across(.15, .85, .72); down(.72, .98, .85); across(.15, .85, .98); } }
+}
+
+function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = false, glare = false, edgeFade = null, tint = [228, 232, 229], font = null, ink = '#3a4450'} = {}, random) {
   const canvas = new OffscreenCanvas(width, height); const context = canvas.getContext('2d', {willReadFrequently: true});
   context.fillStyle = `rgb(${tint.join(',')})`; context.fillRect(0, 0, width, height);
   if (!plain) hologramOverlay(context, width, height, random);
@@ -96,21 +125,25 @@ function cardTexture(width, height, {glyphDensity = 1, panel = false, plain = fa
     context.fillStyle = `rgba(${40 + random() * 60},${40 + random() * 50},${50 + random() * 40},0.35)`;
     context.beginPath(); context.ellipse(photo.x + random() * photo.w, photo.y + random() * photo.h, photo.w * (0.05 + random() * 0.12), photo.h * (0.04 + random() * 0.1), random() * 3, 0, Math.PI * 2); context.fill();
   }
-  // font: real thin-stroke lettering instead of block glyphs (random syllables and digits,
-  // no real data); 'small' is the fine print size of an ID card.
+  // font: thin-stroke lettering (Hangul-like syllables and digits drawn as strokes, no real
+  // data) instead of block glyphs; 'small' is the fine print size of an ID card; ink is the
+  // print tone (a faint print is a light grey).
   if (font) {
     const lines = Math.round(6 * glyphDensity);
     for (let row = 0; row < lines; row += 1) {
       const size = height * (row === 0 ? 0.075 : font === 'small' ? 0.034 : 0.045);
-      context.font = `${row === 0 ? 600 : 400} ${size}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
-      context.fillStyle = row === 0 ? '#1d2530' : '#3a4450';
-      let text = '';
-      for (let word = 0, words = 2 + Math.floor(random() * 3); word < words; word += 1) {
-        if (word) text += ' ';
-        if (random() < .3) { for (let digit = 0, count = 4 + Math.floor(random() * 4); digit < count; digit += 1) text += String(Math.floor(random() * 10)); }
-        else { for (let letter = 0, count = 2 + Math.floor(random() * 3); letter < count; letter += 1) text += String.fromCharCode(0xAC00 + Math.floor(random() * 11172)); }
+      const stroke = Math.max(1.2, size * (row === 0 ? 0.13 : 0.09));
+      context.fillStyle = row === 0 ? '#1d2530' : ink;
+      const top = height * (0.15 + row * (0.72 / lines)); const end = width * 0.96;
+      let x = width * 0.36;
+      for (let word = 0, words = 2 + Math.floor(random() * 3); word < words && x < end; word += 1) {
+        const digits = random() < .3; const count = digits ? 4 + Math.floor(random() * 4) : 2 + Math.floor(random() * 3);
+        for (let letter = 0; letter < count && x + size < end; letter += 1) {
+          const wide = size * (digits ? .55 : .86 + random() * .12);
+          strokeGlyph(context, x, top, wide, size, stroke, digits, random); x += wide + size * .14;
+        }
+        x += size * .5;
       }
-      context.fillText(text, width * 0.36, height * (0.15 + row * (0.72 / lines)) + size, width * 0.6);
     }
   }
   const rows = font ? 0 : Math.round(7 * glyphDensity);
@@ -367,7 +400,7 @@ export function cardOnWalletScene(index) {
 // A phone camera shot of a card, the way people take it: portrait 3:4 frame, the card
 // covering 42-90% of the frame width, tilted and seen at an angle, on a light desk or a
 // dark surface, sometimes held in the hand, with thin printed lettering.
-export function cameraCardScene(index, {width = 1500, height = 2000} = {}) {
+export function cameraCardScene(index, {width = 1500, height = 2000, ink = undefined} = {}) {
   const random = seededRandom(4100 + index * 13); const pick = (low, high) => low + random() * (high - low);
   const fraction = pick(.42, .9); const cardHeight = width * fraction / ID_CARD_ASPECT;
   const slack = Math.max(0, 1 - cardHeight / height);
@@ -375,7 +408,7 @@ export function cameraCardScene(index, {width = 1500, height = 2000} = {}) {
   const rotation = pick(-12, 12); const keystone = pick(0, .12);
   const surfaceKind = ['desk', 'white', 'gray', 'felt', 'desk', 'navy'][index % 6];
   const tint = [[232, 234, 230], [226, 232, 238], [238, 236, 228], [222, 230, 224]][index % 4];
-  const card = walletCard({width, height, margins: {left: leftMargin, right: 1 - fraction - leftMargin, top, bottom: slack - top}, rotation, keystone, keystoneAxis: random() < .7 ? 'top' : 'right', tint, font: index % 3 === 2 ? 'small' : 'regular'});
+  const card = walletCard({width, height, margins: {left: leftMargin, right: 1 - fraction - leftMargin, top, bottom: slack - top}, rotation, keystone, keystoneAxis: random() < .7 ? 'top' : 'right', tint, font: index % 3 === 2 ? 'small' : 'regular', ink});
   const left = pick(.62, .95); const right = pick(1.0, 1.2);
   return {
     width, height, seed: 4200 + index, surfaceKind, cards: [card],

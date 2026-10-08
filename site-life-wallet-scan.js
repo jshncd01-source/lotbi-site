@@ -1117,7 +1117,10 @@ export function framesPrintedItem(imageData,corners){
 }
 
 // sourceScale: how far the caller shrank the original photo to build imageData (1 = original).
-export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1} = {}) {
+// detail: that original photo (ImageData). A found card's print is then counted on a card
+// squared up from it, where thin lettering is still crisp; on the shrunken copy fine print of
+// a card that is small in a phone photo blurs below the ink threshold.
+export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1, detail = null} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
   const blurred=boxBlur(working.gray,working.width,working.height);
@@ -1145,7 +1148,8 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   const marks=printMarks(working,surface.smooth,surface.light);
   const lines=textLines(working,marks,null);
   const card=Boolean(chosen)&&chosen.source!=='full-page';
-  const item=card?itemMarks(imageData,Object.fromEntries(Object.entries(chosen.corners).map(([name,point])=>[name,{x:point.x/working.scale,y:point.y/working.scale}]))):null;
+  const itemSource=detail?.data&&sourceScale<1?detail:imageData;const itemScale=itemSource===detail?1/(working.scale*sourceScale):1/working.scale;
+  const item=card?itemMarks(itemSource,Object.fromEntries(Object.entries(chosen.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}]))):null;
   const chosenLines=chosen?(card?cardLines(item.working,item.marks,null,ITEM_GLYPH):textLines(working,marks,chosen.corners)):0;
   if(lines<MINIMUM_TEXT_LINES&&!(card&&chosenLines>=MINIMUM_TEXT_LINES)){chosen=null;reason='not-a-document'}
   // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and

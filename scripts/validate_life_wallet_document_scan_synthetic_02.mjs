@@ -17,6 +17,8 @@ try {
   const scan = await import('/site-life-wallet-scan.js?test=synthetic-02');
   const scenes = await import('/scripts/fixtures/life-wallet-scan-scenes.mjs?test=synthetic-02');
   const card = options => scenes.walletCard({width: options.width || W, height: options.height || H, ...options});
+  // As the scanner UI does: the full photo goes along whenever detection used a shrunken copy.
+  const detailOf = (source, scale) => scale < 1 ? source.getContext('2d').getImageData(0, 0, source.width, source.height) : null;
   const named = [
     {group: 'SYNTHETIC_TEXTURED_FIXTURE', name: 'felt-real-like', expect: 'card', scene: {seed: 11, surfaceKind: 'felt', cards: [card({margins: {left: .13, right: .06, top: .03, bottom: .03}, rotation: 1.2, keystone: .03})]}},
     {group: 'SYNTHETIC_TEXTURED_FIXTURE', name: 'cutting-mat-grid', expect: 'card', scene: {seed: 16, surfaceKind: 'mat', cards: [card({margins: {left: .15, right: .06, top: .035, bottom: .03}, rotation: 1.5, keystone: .03})]}},
@@ -56,7 +58,7 @@ try {
     const small = new OffscreenCanvas(Math.round(width * scale), Math.round(height * scale));
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(canvas, 0, 0, small.width, small.height);
     const started = performance.now();
-    const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale});
+    const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale, detail: detailOf(canvas, scale)});
     const elapsed = performance.now() - started;
     const row = {group: test.group, name: test.name, expect: test.expect, mode: found.mode, reason: found.reason, paper: Boolean(found.paper), rotation: found.rotation, turn: test.turn, elapsed, diagnostics: found.diagnostics};
     if (test.scene.cards.length === 1) {
@@ -75,7 +77,7 @@ try {
     const scale = Math.min(1, 1200 / Math.max(page.width, page.height));
     const small = new OffscreenCanvas(Math.round(page.width * scale), Math.round(page.height * scale));
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(page.canvas, 0, 0, small.width, small.height);
-    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale}); const elapsed = performance.now() - started;
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale, detail: detailOf(page.canvas, scale)}); const elapsed = performance.now() - started;
     const xs = Object.values(found.corners).map(point => point.x / small.width); const ys = Object.values(found.corners).map(point => point.y / small.height);
     results.push({group: blank ? 'NEGATIVE' : 'SYNTHETIC_FULL_PAGE', name: blank ? 'blank-page' : 'page-' + index, expect: blank ? 'manual' : 'page', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics, paper: found.paper, rotation: found.rotation, pageBox: page.box, sheetBottom: page.sheetBottom, foundBox: {left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys)}});
   }
@@ -85,7 +87,7 @@ try {
     const scale = Math.min(1, 1200 / Math.max(pet.width, pet.height));
     const small = new OffscreenCanvas(Math.round(pet.width * scale), Math.round(pet.height * scale));
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(pet.canvas, 0, 0, small.width, small.height);
-    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale}); const elapsed = performance.now() - started;
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale, detail: detailOf(pet.canvas, scale)}); const elapsed = performance.now() - started;
     results.push({group: 'NOT_A_DOCUMENT', name: 'pet-' + index, expect: 'not-a-document', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics});
   }
   // A person's portrait (striped shirt), scenery with a building's rows of windows, an empty
@@ -95,23 +97,25 @@ try {
     const scale = Math.min(1, 1200 / Math.max(photo.width, photo.height));
     const small = new OffscreenCanvas(Math.round(photo.width * scale), Math.round(photo.height * scale));
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(photo.canvas, 0, 0, small.width, small.height);
-    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale}); const elapsed = performance.now() - started;
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, small.width, small.height), {sourceScale: scale, detail: detailOf(photo.canvas, scale)}); const elapsed = performance.now() - started;
     results.push({group: 'NOT_A_DOCUMENT', name: kind + '-' + index, expect: 'not-a-document', mode: found.mode, reason: found.reason, elapsed, diagnostics: found.diagnostics});
   }
   // Phone camera shots as people take them: portrait 3:4, card 42-90% of the frame width,
   // tilted up to 12 degrees and seen at an angle, on light desks and dark surfaces, some held
-  // in the hand, thin printed lettering. Detection runs as the scanner runs it for a 12 MP
-  // photo decoded to 1920x2560.
-  for (let index = 0; index < 36; index += 1) {
-    const config = scenes.cameraCardScene(index, {width: 1200, height: 1600});
+  // in the hand, thin lettering drawn as strokes (no system font, identical on every OS).
+  // Detection runs as the scanner runs it: outline on the 1200-pixel copy, print judged on the
+  // full photo. FAINT_PRINT repeats shots with light grey print (worn or washed-out cards).
+  for (const [group, count, ink] of [['SYNTHETIC_CAMERA_SHOT', 36, undefined], ['SYNTHETIC_CAMERA_FAINT_PRINT', 18, '#6e7680']]) for (let index = 0; index < count; index += 1) {
+    const config = scenes.cameraCardScene(index, {width: 1500, height: 2000, ink});
     const canvas = await scenes.renderScene(config);
-    const scale = 1200 / 1600;
+    const scale = 900 / 1500;
     const small = new OffscreenCanvas(900, 1200);
     const context = small.getContext('2d', {willReadFrequently: true}); context.drawImage(canvas, 0, 0, 900, 1200);
-    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, 900, 1200), {sourceScale: 900 / 1920}); const elapsed = performance.now() - started;
+    const detail = canvas.getContext('2d').getImageData(0, 0, 1500, 2000);
+    const started = performance.now(); const found = scan.detectDocumentCorners(context.getImageData(0, 0, 900, 1200), {sourceScale: scale, detail}); const elapsed = performance.now() - started;
     const truth = scan.orderDocumentCorners(config.cards[0].corners); const keys = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
     const lengths = keys.map((key, at) => Math.hypot(truth[keys[(at + 1) % 4]].x - truth[key].x, truth[keys[(at + 1) % 4]].y - truth[key].y));
-    results.push({group: 'SYNTHETIC_CAMERA_SHOT', name: 'camera-' + index + '-' + config.surfaceKind, expect: 'camera', light: ['white'].includes(config.surfaceKind), mode: found.mode, reason: found.reason, paper: Boolean(found.paper), rotation: found.rotation, elapsed, diagnostics: found.diagnostics,
+    results.push({group, name: 'camera-' + index + '-' + config.surfaceKind, expect: 'camera', light: ['white'].includes(config.surfaceKind), mode: found.mode, reason: found.reason, paper: Boolean(found.paper), rotation: found.rotation, elapsed, diagnostics: found.diagnostics,
       shortSide: Math.min(...lengths), errors: keys.map(key => Math.hypot(found.corners[key].x / scale - truth[key].x, found.corners[key].y / scale - truth[key].y))});
   }
   window.__result = {ok: true, results};
@@ -190,10 +194,13 @@ assert.equal(result.ok, true, result.error);
     const group = groups.get(name);
     assert.ok(group.automatic >= Math.ceil(group.count * 2 / 3), `${name} scenes fell back to manual too often: ${group.automatic}/${group.count}`);
   }
-  // Camera shots off a white desk must be cropped automatically (measured 29/30 on 2026-10-08).
-  const camera = result.results.filter(row => row.expect === 'camera' && !row.light);
-  const cameraAutomatic = camera.filter(row => row.mode === 'automatic').length;
-  assert.ok(cameraAutomatic >= camera.length - 2, `camera shots fell back to manual too often: ${cameraAutomatic}/${camera.length} (${camera.filter(row => row.mode !== 'automatic').map(row => row.name).join(', ')})`);
+  // Camera shots off a white desk must be cropped automatically, faint print included.
+  for (const name of ['SYNTHETIC_CAMERA_SHOT', 'SYNTHETIC_CAMERA_FAINT_PRINT']) {
+    const camera = result.results.filter(row => row.group === name && !row.light);
+    const cameraAutomatic = camera.filter(row => row.mode === 'automatic').length;
+    console.log(`${name}_OFF_WHITE automatic=${cameraAutomatic}/${camera.length} manual=${camera.filter(row => row.mode !== 'automatic').map(row => row.name).join(',') || '-'}`);
+    assert.ok(cameraAutomatic >= camera.length - 2, `${name}: camera shots fell back to manual too often: ${cameraAutomatic}/${camera.length} (${camera.filter(row => row.mode !== 'automatic').map(row => row.name).join(', ')})`);
+  }
   const average = result.results.reduce((sum, row) => sum + row.elapsed, 0) / result.results.length;
   assert.ok(average < 3000, `average detection time ${average.toFixed(0)}ms suggests a pathological slowdown`);
   for (const [name, group] of groups) console.log(`${name}=PASS scenes=${group.count} automatic=${group.automatic}${group.worst ? (name === 'SYNTHETIC_FULL_PAGE' ? ` worst_edge_offset_permille=${group.worst.toFixed(1)}` : ` worst_corner_px=${group.worst.toFixed(1)}`) : ''} text_lines=${group.lines}-${group.maxLines}`);

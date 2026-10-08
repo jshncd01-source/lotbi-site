@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-5f5fd5e8a5de';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-5f5fd5e8a5de';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-75d2086f61ed';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-75d2086f61ed';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -181,10 +181,10 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
   shell.append(heading,status,workspace,warnings,choices,actions);
 
-  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let manualFramesItem=false; let rotation=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
+  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let detailImage=null; let manualFramesItem=false; let rotation=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
-  function releaseResources(){resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}if(pdfDocument){void pdfDocument.destroy();pdfDocument=null}}
+  function releaseResources(){detailImage=null;detectionImage=null;resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}if(pdfDocument){void pdfDocument.destroy();pdfDocument=null}}
 
   function setCorner(name,x,y) {
     const size=dimensions(source); corners[name]={x:Math.max(0,Math.min(size.width-1,x)),y:Math.max(0,Math.min(size.height-1,y))}; updateOverlay();
@@ -215,7 +215,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
       const automatic=shell.dataset.scanMode==='automatic';
       // A hand-placed crop is saved only when it frames a printed item (a pet never qualifies).
       const adjusted=!automatic&&manualGeometryChanged();
-      const printed=adjusted&&framesPrintedItem(detectionImage,Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*detectionScale,y:point.y*detectionScale}])));
+      const printed=adjusted&&(detailImage?framesPrintedItem(detailImage,corners):framesPrintedItem(detectionImage,Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*detectionScale,y:point.y*detectionScale}]))));
       manualFramesItem=automatic||printed;
       // Copy follows the outcome: nothing is called "corrected" until an item was found, and
       // photo-quality advice only appears for a found item.
@@ -247,7 +247,11 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   async function analyse(nextSource) {
     source=nextSource; detectedCorners=null; fallbackCorners=null; cornerRadius=0; paperPage=false; notDocument=false; latest='';
     const size=dimensions(source); shell.dataset.scanSourceWidth=String(size.width); shell.dataset.scanSourceHeight=String(size.height); canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(source,0,0,size.width,size.height);
-    const detection=detectionPixels(source); detectionImage=detection.imageData; detectionScale=detection.scale; const found=detectDocumentCorners(detection.imageData,{sourceScale:detection.scale}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+    // The full photo (at most 2560 pixels) is kept for judging the print inside a found or
+    // hand-placed outline; the 1200-pixel copy finds the outline.
+    const detection=detectionPixels(source); detectionImage=detection.imageData; detectionScale=detection.scale;
+    detailImage=detection.scale<1?canvas.getContext('2d').getImageData(0,0,size.width,size.height):null;
+    const found=detectDocumentCorners(detection.imageData,{sourceScale:detection.scale,detail:detailImage}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
     notDocument=reason==='not-a-document'||reason==='receipt-like'; adjust.hidden=notDocument; rotate.hidden=notDocument;
