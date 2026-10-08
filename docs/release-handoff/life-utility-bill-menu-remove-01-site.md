@@ -1,17 +1,60 @@
 READY_FOR_DEPLOY=YES
 
-# life-utility-bill-menu-remove-01-site — release handoff
+# life-utility-bill-menu-remove-01-site — release handoff (LIFE INFO CLEANUP FINAL READY)
 
-TASK=생활정보 홈 단순화 + LOTBI BOX HIDE 02
+TASK=생활정보 홈 단순화 + LOTBI BOX HIDE 02 + 요금 안내 공과금 문구 제거 (최신 main 재통합)
 REPO=lotbi-site
 FEATURE_BRANCH=feature/life-utility-bill-menu-remove-01-site
-SITE_BASE_MAIN_SHA=89adbb378a11fba8e42a445b62f5ffab8f358f5f
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=89adbb378a11fba8e42a445b62f5ffab8f358f5f
-CODE_SHA=62c4f4913a0f37407776f485a9266626a759c35c
-FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote origin refs/heads/feature/life-utility-bill-menu-remove-01-site`)
-REMOTE_FEATURE_SHA=confirm after push with `git ls-remote origin refs/heads/feature/life-utility-bill-menu-remove-01-site`
-SUPERSEDES=25dbeaa994534db16e3276fed31dc2833931e2bc
-ASSET_VERSION=aset-25a1383acf1a
+SITE_BASE_MAIN_SHA=c9c19e4cef9914f0b50d4870cbcc59e58602ddc2 (bf72212b에서 정상 merge. 그 전 0f076722를 86fd5cb5에서 merge, 최초 base 89adbb37)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=c9c19e4cef9914f0b50d4870cbcc59e58602ddc2
+CODE_SHA=bf72212b (이 문서 직전 커밋. merge 86fd5cb5·bf72212b, 정책 6 40cc2e86, 최종 확인 validator 99becc5c)
+FEATURE_SHA=이 문서 커밋(branch HEAD)
+REMOTE_FEATURE_SHA=FEATURE_SHA와 동일(`git ls-remote origin refs/heads/feature/life-utility-bill-menu-remove-01-site`로 확인)
+SUPERSEDES=2f6503a72aca5c2f3682563be0358e5f62bc6878 (그 이전 25dbeaa9)
+ASSET_VERSION=aset-154ecf9860e4
+
+## FINAL READY (2026-10-08) — 6개 정책 최종 확인
+
+UTILITY_BILL_MENU_HIDDEN=PASS
+TOP_QUERY_BAR_HIDDEN=PASS
+BOTTOM_AUX_ROW_HIDDEN=PASS
+LOTBI_BOX_ENTRY_HIDDEN=PASS
+LOTBI_BOX_SAVE_CTA_HIDDEN=PASS
+SUBSCRIBE_UTILITY_TEXT_REMOVED=PASS
+MOBILE_360_PASS=PASS / MOBILE_375_PASS=PASS / MOBILE_390_PASS=PASS / MOBILE_412_PASS=PASS / DESKTOP_PASS=PASS (viewport·터치 에뮬레이션, 실기기 NOT TESTED)
+LOTBI_BOX_DATA_DELETED=NO (DB/API 무변경, 브라우저 저장 키도 그대로임을 브라우저에서 확인)
+
+### 최신 main 재통합
+
+- 대상:
+  - main 0f076722(SITE-T18c: 화면 모드 공유, SafeCare 사람 슬롯 4/5, nginx .mjs)를 86fd5cb5에서 정상 merge했다.
+  - 재검증 중 main이 c9c19e4c(SITE-T20: NEIS 학교 공식 링크)로 바뀌어 bf72212b에서 한 번 더 정상 merge했다.
+- 충돌 처리:
+  - site-conversation.js: 이 branch의 `LOTBI_BOX_UI_ENABLED` import와 main의 `site-theme-preference.js` import를 둘 다 유지했다.
+  - auth/callback/index.html, kakao-navi.html, map-handoff.html: main의 화면 모드 bootstrap을 유지했다(stylesheet 동일). `sync_theme_bootstrap.mjs --check` 16 pages in sync.
+  - 나머지는 asset token 충돌이라 최종 tree 기준으로 재생성했다.
+- main 기능은 되돌리지 않았다. token을 빼면 main과 다른 파일은 이 branch의 원래 변경과 아래 정책 6 수정뿐이다.
+
+### 정책 6 — 요금 안내의 공과금 문구 제거 (40cc2e86)
+
+- subscribe.html 기능 비교표:
+  - "생활비 자동정리 · 영수증·지출·공과금" → "생활비 자동정리 · 영수증·지출"
+  - "생활정보 · 날씨·장소·축제·공과금 등" → "생활정보 · 날씨·장소·축제 등"
+- 한도·가격은 그대로다. 다른 사용자 노출 html/js/css/json에는 "공과금·고지서·납부기한" 문구가 남지 않았다(scripts·docs 제외).
+- `scripts/validate_plan_usage_matrix_v1.py`의 "제공하지 않는 기능 광고 금지" 목록에 "공과금", "고지서"를 추가했다. 옛 문구에서는 실패하고 새 문구에서는 통과하는 것을 확인했다.
+
+### 최종 확인 validator (99becc5c)
+
+`scripts/validate_life_info_cleanup_final_01.mjs`(site-review 등록, CDP 실시간, 가짜 Core)는 360 / 375 / 390 / 412 / 1280에서 다음을 확인한다.
+- 생활정보 메뉴 = 병원·의원·약국·축제·행사·지역생활정보(공과금 없음).
+- 상세 화면에 공과금 문구가 없다.
+- 상단 질문바·하단 보조 row가 0개다. 화면 텍스트에 공과금·저장한 정보·롯비함·질문바 문구가 없다.
+- 홈·생활정보 어디에도 롯비함으로 가는 버튼·링크가 없다.
+- `/#lotbi-box`는 입력·직접 진입·새로고침 모두 롯비함 화면을 열지 않는다.
+- 상품 카드 2개에 `+ 롯비함` 저장 토글이 0개다(상세보기·구매하기만).
+- 미리 넣어 둔 롯비함 저장값이 끝까지 그대로다.
+- subscribe 화면 텍스트에 공과금·고지서가 없다. 생활비 자동정리는 표시되고 가로 넘침도 없다.
+- 같은 validator를 정책 반영 전 main 0f076722에 돌리면 "생활정보 menu without 공과금"에서 실패한다(빈 통과 아님).
 
 UTILITY_BILL_MENU_REMOVED=YES
 LIFE_INFO_TOP_QUERY_BAR_REMOVED=YES
@@ -65,7 +108,19 @@ PRODUCTION_DEPLOYED=NO
 - Account(lotbi-web) latest main `c0c10e13` 확인: 롯비함 화면·버튼·진입 없음. `site-theme-tokens.css`의 `.lotbi-box-card-source` selector 잔재만 있음.
 - App(lotbi-app) latest main `2bb7dd09` 확인: `롯비함`/`lotbi-box`/`저장한 정보` 관련 문자열 없음.
 
-## TEST_STATUS
+## TEST_STATUS — 최신 main 재통합 후 (2026-10-08)
+
+- 전체 site-review validator(Windows 로컬, workflow의 한 줄 run + 여러 줄 run 블록 안 명령, 병렬):
+  - 최종 tree bf72212b(main c9c19e4c 포함) 144개: 136 PASS / 8 FAIL.
+    - 단독 재실행 PASS 4건(병렬 부하·포트 경합 일시 오류): auth_unknown_recovery_browser_01(임시 폴더 EPERM), conversation_calendar_card_02·place_card_compact_01(고정 포트 4213 경합 — 다른 세션의 서버가 같은 포트 사용, 포트가 빈 뒤 PASS), site_refresh_route_restore_01(로그인 복귀 타이밍, 단독 PASS).
+    - 기존 RED 4건: calendar_system_dark_01, image_attachment_thumbnail_01, mobile_footer_legal_sheet_01, site_avatar_fallback_runtime. 최신 main c9c19e4c 단독 실행에서도 같은 단정으로 실패한다.
+  - 직전 tree 99becc5c(main 0f076722 포함) 143개: 138 PASS / 5 FAIL(같은 기존 RED 4건 + site_refresh_route_restore_01 병렬 타이밍, 단독 2회 PASS).
+- 이번 정책 관련 validator는 모두 PASS: validate_life_info_cleanup_final_01(신규), validate_life_medical_category_entry_01(360·375·390·412·1280), validate_lotbi_box_nav_01, validate_rich_product_cards_01, validate_plan_usage_matrix_v1, validate_site_refresh_route_restore_01(/#lotbi-box), sync_theme_bootstrap --check, asset_cache_version --check.
+- Production API CORS 실측과 docker 단계는 외부 호출·도구 미설치로 실행하지 않았다.
+- NEW_FAILURES=0
+
+## TEST_STATUS — 이전 base 89adbb37 기준 기록
+
 
 TESTS=PASS
 - validate_life_medical_category_entry_01 (CDP 실제 터치/마우스, 360x780 · 375x812 · 390x844 · 412x915 · 1280x900):
