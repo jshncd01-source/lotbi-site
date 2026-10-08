@@ -279,13 +279,15 @@ body.chat-home-page .scam-dialog-inner {
 body.chat-home-page .scam-dialog-description { margin: 0; font-size: 17px; line-height: 1.7; }
 body.chat-home-page .scam-dialog .scam-input-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 20px 0 8px; }
 body.chat-home-page .scam-dialog .scam-input-kinds svg { width: 28px; height: 28px; }
-body.chat-home-page .scam-check-step { display: grid; gap: 16px; }
+/* minmax(0, 1fr): a long file name with no break point (KakaoTalk saves them,
+   some URL-like) must not widen the step past the dialog, whose body clips. */
+body.chat-home-page .scam-check-step { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 body.chat-home-page .scam-method-back {
   justify-self: start; min-height: 48px; padding: 0 4px; border: 0; border-radius: 8px;
   background: transparent; color: var(--lotbi-text-primary); font-size: 16px; cursor: pointer;
 }
 body.chat-home-page .scam-method-back:hover { background: var(--lotbi-surface-subtle); }
-body.chat-home-page .scam-input-panel { min-width: 0; display: grid; gap: 8px; }
+body.chat-home-page .scam-input-panel { position: relative; min-width: 0; display: grid; gap: 8px; }
 body.chat-home-page .scam-input-panel > label { font-size: 18px; font-weight: 600; line-height: 1.6; word-break: keep-all; }
 body.chat-home-page .scam-dialog .scam-input-panel input[type=file] {
   box-sizing: border-box; width: 100%; min-width: 0; min-height: 58px; padding: 7px;
@@ -298,13 +300,35 @@ body.chat-home-page .scam-input-panel input[type=file]::file-selector-button {
   border: 1px solid var(--lotbi-border-default); border-radius: 8px;
   background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; cursor: pointer;
 }
+/* 사진·스크린샷 / 카메라: iOS labels every file control "파일 선택", even the one
+   that opens the camera, so the visible control is a named button and the input
+   stays focusable but visually hidden. */
+body.chat-home-page .scam-dialog .scam-input-panel input.scam-file-input[type=file] {
+  position: absolute; width: 1px; height: 1px; min-height: 0; margin: -1px; padding: 0;
+  border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; opacity: 0;
+}
+body.chat-home-page .scam-dialog .scam-input-panel .scam-file-pick {
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 8px 18px;
+  border: 1px solid var(--lotbi-text-primary); border-radius: 12px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary);
+  font-size: 17px; font-weight: 600; line-height: 1.4; text-align: center; word-break: keep-all; cursor: pointer;
+}
+body.chat-home-page .scam-dialog .scam-input-panel .scam-file-pick:hover { background: var(--lotbi-surface-subtle); }
+body.chat-home-page .scam-dialog .scam-file-input:focus-visible + .scam-file-pick { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
 body.chat-home-page .scam-field-help { margin: 0; color: var(--consumer-detail-muted); font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
 body.chat-home-page .scam-file-preview {
-  display: grid; gap: 12px; padding: 16px; border: 1px solid var(--lotbi-border-default);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--lotbi-border-default);
   border-radius: 14px; background: var(--lotbi-surface-subtle);
 }
-body.chat-home-page .scam-file-preview img { display: block; width: 100%; max-height: 300px; object-fit: contain; border-radius: 10px; background: #fff; }
-body.chat-home-page .scam-file-preview p { margin: 0; color: var(--lotbi-text-primary); font-size: 18px; font-weight: 600; line-height: 1.6; }
+/* The whole picture at its own aspect ratio, centered: the box is the picture
+   (no letterbox), capped by the preview width and 300px. Display only — the
+   chosen file itself is sent unchanged. */
+body.chat-home-page .scam-file-preview img { display: block; justify-self: center; width: auto; height: auto; max-width: 100%; max-height: 300px; object-fit: contain; border-radius: 10px; background: #fff; }
+/* The prompt carries the file name: wrap anywhere, at most three lines. */
+body.chat-home-page .scam-file-preview p {
+  display: -webkit-box; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
+  color: var(--lotbi-text-primary); font-size: 18px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;
+}
 body.chat-home-page .scam-file-preview button { min-height: 52px; border: 1px solid var(--lotbi-border-default); background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font-size: 16px; }
 body.chat-home-page .scam-clicked { min-height: 44px; align-items: flex-start; padding-block: 10px; }
 body.chat-home-page .scam-clicked input { margin-top: 3px; }
