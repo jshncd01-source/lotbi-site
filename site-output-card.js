@@ -1,4 +1,4 @@
-import {createSafeMessageBody} from './site-message-body.js?v=aset-fd1d5c35966a';
+import {createSafeMessageBody} from './site-message-body.js?v=aset-be84966ec5ae';
 
 const SWIPE_THRESHOLD = 44;
 const EDGE_GUARD = 28;
