@@ -1,7 +1,8 @@
 READY_FOR_DEPLOY=NO
 READY_FOR_DEPLOY_REASON=지역뉴스 카드는 Core feature/regional-news-p0-core 배포 + NAVER 뉴스 검색 연결(NAVER_NEWS_SEARCH_ENABLED) 뒤에만 뉴스 카드로 답한다. 연결 전에 Site만 나가면 지역뉴스 질문이 일반 대화 답변으로 간다.
 READY_FOR_PROVIDER_CONNECT=YES
-BLOCKER=NAVER_NEWS_PROVIDER_CONNECTION_REQUIRED
+NAVER_NEWS_API_ENABLE_REQUIRED=YES
+BLOCKER=NAVER_NEWS_API_ENABLE_REQUIRED (2026-10-08 콘솔 확인: API HUB 애플리케이션 LOTBI-Local-Search에 검색>뉴스 미등록 — Core handoff 참고)
 
 # regional-news-p0-site — release handoff
 
@@ -28,6 +29,7 @@ MOBILE_412_PASS=YES
 DESKTOP_REGRESSION=PASS (1280x900)
 DARK_THEME_PASS=YES (390x844 dark)
 NO_AUTO_KEYBOARD=YES (지역뉴스 양식은 제목에 포커스. 1탭 전송·키보드 닫힘은 life-info-direct-chat-card-compaction-01-site와 합친 상태에서 PASS — 이 branch 단독은 main의 기존 "입력창에 넣기" 동작을 그대로 씀)
+DEPENDS_ON_FOR_ONE_TAP_SEND=feature/life-info-direct-chat-card-compaction-01-site (지역뉴스 카드·양식은 기존 onDraft만 호출한다. 질문 바로 전송·키보드 비호출은 그 branch가 onDraft를 바꿔 주는 기능이며, 이 branch 단독 배포 시에는 main 동작 유지)
 
 CORE_CHANGED=YES (별도 branch feature/regional-news-p0-core)
 MIGRATION=NO
@@ -90,6 +92,14 @@ TESTS=PASS (Windows 로컬, Chrome headless CDP 실제 터치/마우스, viewpor
   3. `scripts/validate_life_medical_category_entry_01.mjs`: 목록 2곳에 '지역뉴스' 추가(5개), 카드 수 대기는 `LIFE_SHORTCUTS.length`, 제목 `'지역정보'`, 공과금 branch의 "모든 행이 꽉 참" 검사는 "홀수 마지막 카드는 한 줄 전체"를 허용하도록:
      `oddLast = shortcuts.length % gridColumns` → 행 개수 = [gridColumns × floor(n/gridColumns), (oddLast ? 1)], 폭 동일 검사는 마지막 홀수 카드 제외, 그 카드 폭 > 1.5 × 일반 카드. 나머지(지역생활정보 전송 부분)는 공과금 branch 쪽.
   위 해소본으로 병합 미리보기 validator 전부 PASS (위 TEST_STATUS).
+
+## 2026-10-08 최신 통합 재확인 (fresh remote HEAD)
+
+- Site main 89adbb37 → c9c19e4c (NEIS 학교 링크, SafeCare 슬롯, 화면 모드 공유, nginx mjs). 토큰 정규화 merge-tree: 실질 충돌 없음.
+- life-info-direct-chat-card-compaction-01-site @ 5e2ca2c5: 실질 충돌 없음.
+- life-utility-bill-menu-remove-01-site @ 2f6503a7 (롯비함 숨김 02 추가): 위 3개 파일 + `site-conversation.js` 1줄.
+  4. `site-conversation.js` 롯비함 화면 `installSurfaceBehavior(... route: LOTBI_BOX_UI_ENABLED ? 'lotbi-box' : '' ...)`: 공과금 branch 줄을 쓰고 backLabel만 `'지역정보로 돌아가기'`.
+- Core provider: 실제 NAVER 뉴스 호출 미실행(검색>뉴스 미등록). 이 branch는 Core 연결 GREEN 뒤에만 release-ready로 올린다.
 
 ## DEPLOY_ORDER
 
