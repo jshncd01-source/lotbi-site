@@ -181,7 +181,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
   shell.append(heading,status,workspace,warnings,choices,actions);
 
-  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let detailImage=null; let manualFramesItem=false; let rotation=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
+  const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let detailImage=null; let flatPicture=false; let glareCovers=false; let manualFramesItem=false; let rotation=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
 
   function releaseResources(){detailImage=null;detectionImage=null;resources.bitmap?.close?.();resources.bitmap=null;if(resources.url){URL.revokeObjectURL(resources.url);resources.url=''}if(pdfDocument){void pdfDocument.destroy();pdfDocument=null}}
@@ -210,7 +210,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   async function renderPreview() {
     if(!source||!corners||destroyed)return; const version=++renderVersion; confirm.disabled=true; status.textContent='확인하고 있습니다';
     try{
-      const result=await rectifyDocument(source,corners,{enhance:enhanced,cornerRadius:automaticGeometryKept()?cornerRadius:0,paper:paperPage,rotation}); shell.dataset.scanRotation=String(rotation); if(destroyed||version!==renderVersion)return;
+      const result=await rectifyDocument(source,corners,{enhance:enhanced,cornerRadius:automaticGeometryKept()?cornerRadius:0,paper:paperPage,rotation,gloss:!pdfSource&&!flatPicture}); shell.dataset.scanRotation=String(rotation); if(destroyed||version!==renderVersion)return;
       latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced);
       const automatic=shell.dataset.scanMode==='automatic';
       // A hand-placed crop is saved only when it frames a printed item (a pet never qualifies).
@@ -220,14 +220,19 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
       // Copy follows the outcome: nothing is called "corrected" until an item was found, and
       // photo-quality advice only appears for a found item.
       const receipt=shell.dataset.scanReason==='receipt-like';
-      heading.textContent=manualFramesItem?'':notDocument?'등록할 수 없는 사진입니다':'자료를 찾지 못했습니다'; heading.hidden=!heading.textContent;
-      warnings.replaceChildren(); if(manualFramesItem&&result.warnings.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of result.warnings)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
-      status.textContent=manualFramesItem?''
+      // Light reflected over the print hides part of the item (a number, a name): not savable,
+      // the photo is retaken at another angle.
+      glareCovers=manualFramesItem&&result.warnings.includes('glare-covers-print'); shell.dataset.scanGlare=String(glareCovers);
+      const advice=result.warnings.filter(code=>code!=='glare-covers-print');
+      heading.textContent=glareCovers?'다시 촬영해 주세요':manualFramesItem?'':notDocument?'등록할 수 없는 사진입니다':'자료를 찾지 못했습니다'; heading.hidden=!heading.textContent;
+      warnings.replaceChildren(); if(manualFramesItem&&!glareCovers&&advice.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of advice)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
+      status.textContent=glareCovers?'빛 반사 때문에 자료의 일부가 보이지 않습니다. 빛이 비치지 않게 각도를 바꿔 다시 찍어 주세요.'
+        :manualFramesItem?''
         :receipt?'영수증은 등록하지 않습니다. 신분증·자격증·문서 사진을 선택해 주세요.'
         :notDocument?'신분증이나 문서로 보이지 않습니다. 신분증·자격증 사진을 선택해 주세요.'
         :adjusted?'모서리 안에 신분증이나 문서가 보이지 않습니다. 자료에 맞춰 모서리를 조정해 주세요.'
         :'신분증이나 문서를 찾지 못했습니다. 신분증·자격증이 잘 보이게 다시 선택해 주세요. 신분증이 맞다면 직접 조정으로 모서리를 맞출 수 있습니다.';
-      confirm.disabled=notDocument||!manualFramesItem; shell.dataset.scanState='review';
+      confirm.disabled=notDocument||!manualFramesItem||glareCovers; shell.dataset.scanState='review';
     }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
   }
 
@@ -263,6 +268,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
       mode='automatic'; reason='pdf-page'; detectedCorners=copy(corners); paperPage=true;
     }else if(mode==='manual')fallbackCorners=copy(corners);
     else{detectedCorners=copy(corners);cornerRadius=found.cornerRadius||0;paperPage=Boolean(found.paper)}
+    flatPicture=found.diagnostics?.source==='full-frame-card';
     shell.dataset.scanMode=mode; shell.dataset.scanReason=reason; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay(); await renderPreview();
   }
 
@@ -288,7 +294,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   function closeAdjustment(){sourcePane.hidden=true;shell.dataset.scanAdjusting='false';adjust.textContent='직접 조정';resultImage.focus?.()}
   adjust.addEventListener('click',()=>shell.dataset.scanAdjusting==='true'?closeAdjustment():openAdjustment());
   rotate.addEventListener('click',()=>{if(!source||destroyed)return;rotation=(rotation+90)%360;void renderPreview()});
-  confirm.addEventListener('click',()=>{if(!latest||destroyed||notDocument)return;if(!manualFramesItem){confirm.disabled=true;return}onConfirm(latest)});
+  confirm.addEventListener('click',()=>{if(!latest||destroyed||notDocument)return;if(!manualFramesItem||glareCovers){confirm.disabled=true;return}onConfirm(latest)});
   cancel.addEventListener('click',()=>{if(!destroyed)onCancel();destroy()}); replace.addEventListener('click',()=>{if(!destroyed)onReplace();destroy()});
 
   function destroy(){if(destroyed)return;destroyed=true;renderVersion+=1;releaseResources();shell.replaceChildren()}

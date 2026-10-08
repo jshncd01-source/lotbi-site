@@ -260,6 +260,7 @@ function validateCard(card) {
   if (typeof backDataUrl !== 'string' || (backDataUrl && (backDataUrl.length > 17_000_000 || !/^data:image\/(?:jpeg|png);base64,/u.test(backDataUrl)))) throw new Error('뒷면 이미지를 확인해 주세요.');
   if (typeof card.note !== 'string' || card.note.length > 1000) throw new Error('메모는 1,000자 이하로 입력해 주세요.');
   if (typeof card.updatedAt !== 'string' || !Number.isFinite(Date.parse(card.updatedAt))) throw new Error('자료 수정 시간이 올바르지 않습니다.');
+  if (card.shape !== undefined && !WALLET_ITEM_SHAPES.includes(card.shape)) throw new Error('자료 분류가 올바르지 않습니다.');
   return Object.freeze({...card, name, backDataUrl});
 }
 
@@ -717,165 +718,161 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
   });
 }
 
-export function createWalletCardCarousel({cards, onOpen}) {
-  const shell = element('section', 'wallet-card-carousel');
+// Shape of a saved item, from its picture alone (nothing is read from it): a landscape
+// card (ID, licence, certificate card, business card: about 1.3-2.1 : 1) or a document (a page,
+// a portrait or square picture). The deck shows a card photo as the card face and a document as
+// a document card: its first page small, beside its title.
+export const WALLET_ITEM_SHAPES = Object.freeze(['card', 'document']);
+export function walletItemShape(width, height) {
+  if (!(width > 0) || !(height > 0)) return '';
+  const ratio = width / height;
+  return ratio >= 1.25 && ratio <= 2.1 ? 'card' : 'document';
+}
+
+function savedDateLabel(card) {
+  const saved = new Date(card.updatedAt);
+  if (!Number.isFinite(saved.getTime())) return '';
+  return `${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')} 등록`;
+}
+
+// A Samsung Pay-like card deck: every saved item is a card of one size (ID-1, 85.6 x 54 mm);
+// the card in front is shown whole and up to three next cards peek out above it, stacked.
+// Swipe or drag sideways, the arrow keys, the dots or a tap on a peeking card bring another
+// card to the front; a tap on the front card (or 보기) opens it. Pictures are never cut: they
+// fit inside the card face. When cards and documents are both saved, 전체·카드·문서 filter them.
+export function createWalletCardDeck({cards, onOpen}) {
+  const shell = element('section', 'wallet-deck-shell');
   shell.setAttribute('aria-label', '저장 자료');
-  const viewport = element('div', 'wallet-card-viewport');
-  viewport.tabIndex = 0;
-  viewport.setAttribute('aria-label', '저장 자료 카드 슬라이더');
-  const track = element('div', 'wallet-card-track');
-  const items = cards.map((card, index) => {
-    const item = button('', () => onOpen(card), true);
-    item.className = 'wallet-card';
-    item.setAttribute('aria-label', `${index + 1}번째 저장 자료 열기`);
-    const image = element('img', 'wallet-card-image');
-    image.src = card.frontDataUrl;
-    image.alt = `${index + 1}번째 저장 자료`;
-    image.draggable = false;
-    item.append(image);
-    // A full-width slide around each card: the scrollable width then ends at the last slide,
-    // not at the last (narrower, centred) card, so the last card can come to the centre too.
-    const slide = element('div', 'wallet-card-slide');
-    slide.append(item);
-    track.append(slide);
-    return item;
-  });
-  viewport.append(track);
-  shell.append(viewport);
+  const filters = element('div', 'wallet-deck-filters'); filters.setAttribute('role', 'group'); filters.setAttribute('aria-label', '자료 모양'); filters.hidden = true;
+  const deck = element('div', 'wallet-deck'); deck.tabIndex = 0; deck.setAttribute('aria-roledescription', '카드 덱'); deck.setAttribute('aria-label', '저장 자료 카드');
+  const info = element('div', 'wallet-deck-info');
+  const title = element('strong', 'wallet-deck-title'); const date = element('span', 'wallet-deck-date');
+  const dotsRow = element('div', 'wallet-card-dots');
+  const position = element('span', 'wallet-card-position'); position.setAttribute('aria-live', 'polite');
+  const open = button('보기', () => { const card = visible[index]; if (card) onOpen(card); }, true); open.classList.add('wallet-deck-open');
+  info.append(title, date, dotsRow, position, open);
+  shell.append(filters, deck, info);
 
-  if (items.length < 2) {
-    shell.classList.add('wallet-card-carousel-single');
-    items[0]?.setAttribute('aria-current', 'true');
-    return shell;
-  }
+  const shapes = new Map();
+  let filter = 'all';
+  let visible = cards.slice();
+  let index = 0;
+  let suppressClick = false;
 
-  // One card at a time, like a phone wallet: swipe or drag to the next card; the dots show
-  // where you are and also move there for keyboard and screen-reader users.
-  let currentIndex = 0;
-  let programmaticTargetLeft = null;
-  const navigation = element('div', 'wallet-card-dots');
-  const dots = items.map((_, index) => {
-    const dot = element('button', 'wallet-card-dot');
-    dot.type = 'button';
-    dot.dataset.walletCarouselDot = String(index);
-    dot.setAttribute('aria-label', `${index + 1}번째 자료 보기`);
-    dot.addEventListener('click', () => show(index));
-    return dot;
-  });
-  const position = element('span', 'wallet-card-position');
-  position.setAttribute('aria-live', 'polite');
-
-  // The strip is as tall as the card on screen, so a short ID card is not framed by the
-  // empty height of a tall page saved next to it.
-  function fitHeight() {
-    const item = items[currentIndex];
-    if (item.offsetHeight) viewport.style.height = `${item.offsetHeight + 18}px`;
-  }
-
-  function updateState(index) {
-    currentIndex = Math.max(0, Math.min(index, items.length - 1));
-    items.forEach((item, itemIndex) => {
-      if (itemIndex === currentIndex) item.setAttribute('aria-current', 'true');
-      else item.removeAttribute('aria-current');
+  const faces = new Map(cards.map((card, cardIndex) => {
+    const face = element('button', 'wallet-deck-card'); face.type = 'button'; face.dataset.walletDeckCard = card.id;
+    const photo = element('img', 'wallet-deck-photo'); photo.src = card.frontDataUrl; photo.alt = `${cardIndex + 1}번째 저장 자료`; photo.draggable = false;
+    face.append(photo);
+    face.addEventListener('click', event => {
+      if (suppressClick) { event.preventDefault(); return; }
+      const at = visible.indexOf(card);
+      if (at === index) onOpen(card); else if (at >= 0) show(at);
     });
-    dots.forEach((dot, dotIndex) => {
-      if (dotIndex === currentIndex) dot.setAttribute('aria-current', 'true');
-      else dot.removeAttribute('aria-current');
-    });
-    position.textContent = `${currentIndex + 1} / ${items.length}`;
-    fitHeight();
-  }
-  items.forEach(item => item.querySelector('img').addEventListener('load', fitHeight));
-
-  // Card centres in the strip's own scroll coordinates (offsetLeft would add the page margin).
-  function centerOf(item) {
-    const frame = viewport.getBoundingClientRect();
-    const rect = item.getBoundingClientRect();
-    return viewport.scrollLeft + rect.left - frame.left + (rect.width / 2);
-  }
-
-  function show(index) {
-    updateState(index);
-    const item = items[currentIndex];
-    const centeredLeft = centerOf(item) - (viewport.clientWidth / 2);
-    programmaticTargetLeft = Math.max(0, Math.min(centeredLeft, viewport.scrollWidth - viewport.clientWidth));
-    viewport.scrollTo({
-      left: programmaticTargetLeft,
-      behavior: 'smooth',
-    });
-  }
-
-  let scrollFrame = 0;
-  viewport.addEventListener('scroll', () => {
-    cancelAnimationFrame(scrollFrame);
-    scrollFrame = requestAnimationFrame(() => {
-      if (programmaticTargetLeft !== null) {
-        if (Math.abs(viewport.scrollLeft - programmaticTargetLeft) > 2) return;
-        programmaticTargetLeft = null;
+    // Its shape decides the face: a card photo fills it, a page becomes a document card. The
+    // owner's own choice (상세 → 분류) wins over the measured shape.
+    const measure = () => {
+      const shape = card.shape || walletItemShape(photo.naturalWidth, photo.naturalHeight);
+      if (!shape || shapes.get(card.id) === shape) return;
+      shapes.set(card.id, shape); face.dataset.shape = shape;
+      if (shape === 'document') {
+        const text = element('span', 'wallet-deck-doc-text');
+        text.append(element('span', 'wallet-deck-doc-kind', '문서'), element('strong', '', walletCardTitle(card)), element('span', '', savedDateLabel(card)));
+        photo.className = 'wallet-deck-doc-thumb';
+        face.replaceChildren(text, photo);
       }
-      const center = viewport.scrollLeft + (viewport.clientWidth / 2);
-      let nearestIndex = 0;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-      items.forEach((item, index) => {
-        const distance = Math.abs(center - centerOf(item));
-        if (distance < nearestDistance) { nearestDistance = distance; nearestIndex = index; }
-      });
-      if (nearestIndex !== currentIndex) updateState(nearestIndex);
-    });
-  }, {passive: true});
-  viewport.addEventListener('keydown', event => {
+      renderFilters();
+    };
+    if (card.shape || (photo.complete && photo.naturalWidth)) measure(); else photo.addEventListener('load', measure, {once: true});
+    deck.append(face);
+    return [card, face];
+  }));
+
+  function renderFilters() {
+    const counts = {card: 0, document: 0};
+    for (const card of cards) if (shapes.get(card.id)) counts[shapes.get(card.id)] += 1;
+    filters.hidden = !(counts.card && counts.document);
+    if (filters.hidden) return;
+    filters.replaceChildren(...[['all', `전체 ${cards.length}`], ['card', `카드 ${counts.card}`], ['document', `문서 ${counts.document}`]].map(([id, label]) => {
+      const chip = button(label, () => applyFilter(id), id !== filter); chip.classList.add('wallet-deck-filter'); chip.dataset.walletDeckFilter = id;
+      chip.setAttribute('aria-pressed', String(id === filter));
+      return chip;
+    }));
+  }
+
+  function applyFilter(id) {
+    const front = visible[index];
+    filter = id;
+    visible = id === 'all' ? cards.slice() : cards.filter(card => shapes.get(card.id) === id);
+    index = Math.max(0, visible.indexOf(front));
+    renderFilters(); layout();
+  }
+
+  function layout() {
+    for (const [card, face] of faces) {
+      const at = visible.indexOf(card);
+      const depth = at - index;
+      face.hidden = at < 0;
+      face.dataset.depth = at < 0 ? '' : String(Math.max(-1, Math.min(depth, 4)));
+      face.style.transform = '';
+      face.tabIndex = depth === 0 ? 0 : -1;
+      face.setAttribute('aria-hidden', String(depth < 0 || depth > 3));
+      face.setAttribute('aria-label', depth === 0 ? `${walletCardTitle(card)} 열기` : `${walletCardTitle(card)} 앞으로 가져오기`);
+      if (depth === 0) face.setAttribute('aria-current', 'true'); else face.removeAttribute('aria-current');
+    }
+    const card = visible[index];
+    title.textContent = card ? walletCardTitle(card) : '';
+    date.textContent = card ? savedDateLabel(card) : '';
+    position.textContent = visible.length ? `${index + 1} / ${visible.length}` : '';
+    shell.classList.toggle('wallet-deck-single', visible.length < 2);
+    dotsRow.replaceChildren(...(visible.length < 2 ? [] : visible.map((entry, dotIndex) => {
+      const dot = element('button', 'wallet-card-dot'); dot.type = 'button'; dot.dataset.walletCarouselDot = String(dotIndex);
+      dot.setAttribute('aria-label', `${dotIndex + 1}번째 자료 보기`);
+      if (dotIndex === index) dot.setAttribute('aria-current', 'true');
+      dot.addEventListener('click', () => show(dotIndex));
+      return dot;
+    })));
+  }
+
+  function show(next) {
+    index = Math.max(0, Math.min(next, visible.length - 1));
+    layout();
+  }
+
+  deck.addEventListener('keydown', event => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
-    show(currentIndex + (event.key === 'ArrowRight' ? 1 : -1));
+    show(index + (event.key === 'ArrowRight' ? 1 : -1));
   });
-  // A mouse drags the strip the way a finger swipes it (touch and pen already scroll
-  // natively). Snapping pauses while dragging; on release the strip settles on the card the
-  // drag reached, or the next one in the drag direction. A drag never opens a card. No
-  // pointer capture: it would retarget a plain click away from the card.
+  // A finger, pen or mouse drags the front card sideways; far enough and the next (or the
+  // previous) card comes to the front, otherwise it settles back. Vertical scrolling stays
+  // with the page (touch-action: pan-y). No pointer capture: it would retarget a plain tap.
   let drag = null;
-  let suppressClick = false;
-  const dragMove = event => {
+  const move = event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const distance = event.clientX - drag.x;
-    if (!drag.moved && Math.abs(distance) < 6) return;
-    if (!drag.moved) {
-      drag.moved = true;
-      programmaticTargetLeft = null;
-      viewport.dataset.dragging = 'true';
-    }
-    event.preventDefault();
-    viewport.scrollLeft = drag.left - distance;
+    if (!drag.moved && Math.abs(distance) < 8) return;
+    drag.moved = true; deck.dataset.dragging = 'true';
+    drag.face.style.transform = `translateX(${distance}px) rotate(${distance / 40}deg)`;
   };
-  const dragEnd = event => {
+  const end = event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const {moved, x, startIndex} = drag;
-    drag = null;
-    window.removeEventListener('pointermove', dragMove);
-    window.removeEventListener('pointerup', dragEnd);
-    window.removeEventListener('pointercancel', dragEnd);
+    const {moved, x, face} = drag; drag = null;
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+    delete deck.dataset.dragging; face.style.transform = '';
     if (!moved) return;
-    delete viewport.dataset.dragging;
-    suppressClick = true;
-    setTimeout(() => { suppressClick = false; }, 0);
+    suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
     const distance = event.clientX - x;
-    const reached = currentIndex;
-    show(reached === startIndex && Math.abs(distance) > viewport.clientWidth * .12 ? startIndex + (distance < 0 ? 1 : -1) : reached);
+    if (Math.abs(distance) > Math.min(80, deck.clientWidth * .18)) show(index + (distance < 0 ? 1 : -1));
   };
-  viewport.addEventListener('pointerdown', event => {
-    if (event.pointerType !== 'mouse' || event.button !== 0 || drag) return;
-    drag = {pointerId: event.pointerId, x: event.clientX, left: viewport.scrollLeft, startIndex: currentIndex, moved: false};
-    window.addEventListener('pointermove', dragMove);
-    window.addEventListener('pointerup', dragEnd);
-    window.addEventListener('pointercancel', dragEnd);
+  deck.addEventListener('pointerdown', event => {
+    if (drag || (event.pointerType === 'mouse' && event.button !== 0) || visible.length < 2) return;
+    const face = faces.get(visible[index]);
+    if (!face || !face.contains(event.target)) return;
+    drag = {pointerId: event.pointerId, x: event.clientX, face, moved: false};
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
   });
-  viewport.addEventListener('click', event => {
-    if (!suppressClick) return;
-    event.preventDefault();
-    event.stopPropagation();
-  }, true);
-  navigation.append(...dots, position);
-  shell.append(navigation);
-  updateState(0);
+
+  layout();
   return shell;
 }
 
@@ -885,6 +882,19 @@ function downloadBackup(serialized) {
   anchor.href = url; anchor.download = `lotbi-life-wallet-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}.lotbiwallet`;
   anchor.rel = 'noopener'; anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+// The wallet exists only in this browser's storage. Ask the browser to keep that storage
+// (otherwise Chrome may clear it when the disk runs low). The browser decides on its own —
+// Chrome by engagement / installed app / bookmark, Firefox may ask, Safari by its rules — and a
+// refusal changes nothing. In-memory browsers (private windows, some in-app browsers) lose it
+// on close regardless; the setup screen says why a new PIN is asked.
+export async function requestPersistentWalletStorage(storage = globalThis.navigator?.storage) {
+  try {
+    if (typeof storage?.persist !== 'function') return 'unsupported';
+    if (await storage.persisted?.()) return 'persisted';
+    return (await storage.persist()) ? 'persisted' : 'best-effort';
+  } catch { return 'unsupported'; }
 }
 
 export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
@@ -991,9 +1001,19 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     if (!disposed) await renderLocked(message);
   }
 
+  // After a PIN is made or entered (a user action): ask once per mount to keep the storage.
+  let storageRequested = false;
+  function keepWalletStorage() {
+    if (storageRequested) return;
+    storageRequested = true;
+    void requestPersistentWalletStorage().then(result => { root.dataset.walletStorage = result; });
+  }
+
   function renderSetup(message = '') {
     const wrap = element('section', 'wallet-gate');
     wrap.append(element('div', 'wallet-lock-mark', '●'), element('h3', '', '4자리 월렛 PIN 만들기'), element('p', '', 'PC에서는 월렛 전용 PIN으로만 잠금을 해제합니다. 계정 로그인 비밀번호와 다른 숫자 4자리를 사용해 주세요.'));
+    // Why a new PIN, on an account that already has a wallet somewhere else.
+    wrap.append(element('p', 'wallet-setup-why', '이 브라우저에는 아직 이 계정의 월렛이 없습니다. 월렛은 기기·브라우저마다 따로 저장되어, 다른 기기나 브라우저, 저장 데이터가 지워진 브라우저(시크릿 창 포함)에서는 PIN을 새로 만들어야 합니다. 다른 곳에 저장한 자료는 그곳의 ⚙ 설정 → 암호화 백업 파일로 옮겨 올 수 있습니다.'));
     const form = element('form', 'wallet-pin-form');
     const pin = pinInput('새 월렛 PIN'); const confirmation = pinInput('새 월렛 PIN 확인'); const status = errorRegion();
     if (message) status.textContent = message;
@@ -1005,7 +1025,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         validateWalletPin(pin.value);
         if (pin.value !== confirmation.value) throw new Error('두 PIN이 일치하지 않습니다.');
         setBusy(form, true); await vault.create(accountId, pin.value);
-        pin.value = ''; confirmation.value = ''; unlocked = true; activity(); await renderWallet();
+        pin.value = ''; confirmation.value = ''; unlocked = true; activity(); keepWalletStorage(); await renderWallet();
       } catch (error) { status.textContent = safeMessage(error, 'PIN을 설정하지 못했습니다.'); setBusy(form, false); pin.focus(); }
     });
     wrap.append(form, element('p', 'wallet-security-note', 'PIN은 저장하거나 전송하지 않습니다. 임의의 256비트 암호화 키를 이 브라우저에 묶어 보호합니다. PIN 분실 시 현재 PC Web에는 안전한 복구 경로가 없으므로 자료를 지우지 말고 LOTBI 지원에 문의해 주세요.'));
@@ -1042,7 +1062,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       event.preventDefault(); status.textContent = '';
       try {
         validateWalletPin(pin.value); setBusy(form, true); await vault.unlock(accountId, pin.value);
-        pin.value = ''; unlocked = true; activity(); await renderWallet();
+        pin.value = ''; unlocked = true; activity(); keepWalletStorage(); await renderWallet();
       } catch (error) { status.textContent = safeMessage(error, '잠금을 해제하지 못했습니다.'); setBusy(form, false); pin.value = ''; refreshDots(); focusPin(); }
     });
     wrap.append(form);
@@ -1094,7 +1114,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
         shell.append(empty);
       } else {
-        shell.append(createWalletCardCarousel({cards, onOpen: renderDetail}));
+        shell.append(createWalletCardDeck({cards, onOpen: renderDetail}));
       }
       shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
@@ -1134,6 +1154,14 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     images.append(front);
     if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${walletCardTitle(card)} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
     detail.append(images);
+    // 크게 보기: the photo at its own size, scrolled inside the frame (small print, a number).
+    const zoom = button('크게 보기', () => {
+      const zoomed = images.classList.toggle('wallet-detail-zoomed');
+      zoom.textContent = zoomed ? '맞춰 보기' : '크게 보기'; zoom.setAttribute('aria-pressed', String(zoomed));
+    }, true);
+    zoom.setAttribute('aria-pressed', 'false');
+    const facts = element('p', 'wallet-detail-facts', savedDateLabel(card));
+    detail.append(facts, zoom, shapeChoice(card, frontImage));
     if (card.note) detail.append(element('p', 'wallet-card-note', card.note));
     // Deleting asks for the wallet PIN on the page itself: it cannot be undone, and embedded
     // browsers and app WebViews silently cancel window.confirm.
@@ -1155,6 +1183,41 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     });
     detail.append(remove, removal);
     root.replaceChildren(detail); activity();
+  }
+
+  // 분류: 카드 | 문서. Shown as measured from the picture until the owner picks one; the pick is
+  // saved with the item (encrypted) and the deck and its filter follow it. The save time is kept,
+  // so the item keeps its place in the deck.
+  function shapeChoice(card, frontImage) {
+    const row = element('div', 'wallet-detail-shape'); row.setAttribute('role', 'group'); row.setAttribute('aria-label', '자료 분류');
+    const status = element('p', 'wallet-detail-shape-status'); status.setAttribute('aria-live', 'polite');
+    const choices = WALLET_ITEM_SHAPES.map(shape => {
+      const choice = button(shape === 'card' ? '카드' : '문서', () => void choose(shape), true);
+      choice.classList.add('wallet-deck-filter'); choice.dataset.walletShapeChoice = shape; return choice;
+    });
+    let current = card;
+    const paint = () => {
+      const shape = current.shape || walletItemShape(frontImage.naturalWidth, frontImage.naturalHeight);
+      for (const choice of choices) {
+        const selected = choice.dataset.walletShapeChoice === shape;
+        choice.setAttribute('aria-pressed', String(selected));
+        choice.classList.toggle('consumer-action-secondary', !selected);
+      }
+    };
+    const choose = async shape => {
+      if (current.shape === shape) return;
+      status.textContent = '';
+      try {
+        setBusy(row, true);
+        current = await vault.save(accountId, {...current, shape});
+        status.textContent = shape === 'card' ? '카드로 옮겼습니다.' : '문서로 옮겼습니다.';
+      } catch (error) { status.textContent = safeMessage(error, '분류를 바꾸지 못했습니다.'); }
+      finally { setBusy(row, false); paint(); activity(); }
+    };
+    row.append(element('span', 'wallet-detail-shape-label', '분류'), ...choices);
+    if (frontImage.complete) paint(); else { paint(); frontImage.addEventListener('load', paint, {once: true}); }
+    const wrap = element('div', 'wallet-detail-shape-wrap'); wrap.append(row, status);
+    return wrap;
   }
 
   function renderChangePin() {
