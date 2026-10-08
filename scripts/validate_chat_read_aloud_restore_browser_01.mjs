@@ -16,7 +16,8 @@
 //     no new answer, nothing that could count against the monthly usage)
 //   - network-only Korean voices, no Korean voice, no speech engine: a plain
 //     message and nothing spoken
-//   - layout at 320/375/390/1280px, light and dark: one row, 44px tall, no
+//   - layout at 320/375/390/1280px, light and dark: one row whenever the four
+//     tools fit (else 읽어주기 starts the next line, whole), 44px tall, no
 //     horizontal scroll, readable label contrast
 import fs from 'node:fs';
 import path from 'node:path';
@@ -191,7 +192,15 @@ function layoutOf(button){
   const tools=[...row.querySelectorAll(':scope > button')];
   const rects=tools.map(t=>t.getBoundingClientRect());
   const r=button.getBoundingClientRect();
+  const rowRect=row.getBoundingClientRect();
+  const gap=parseFloat(getComputedStyle(row).columnGap)||0;
+  // The row wraps by design (flex-wrap): the four tools must share one line
+  // whenever they fit in it, and only a row too narrow for all four may move
+  // 읽어주기 down — to the start of the next line, whole.
+  const fitsOneRow=rects.reduce((sum,x)=>sum+x.width,0)+gap*(rects.length-1)<=rowRect.width+1;
+  const wrappedToLineStart=Math.abs(r.left-rowRect.left)<=1&&r.top>=rects[0].bottom-1;
   return {rowLabels:tools.map(t=>t.getAttribute('aria-label')),oneRow:rects.every(x=>Math.abs(x.top-rects[0].top)<=1),
+    fitsOneRow,wrappedToLineStart,rowWidth:Math.round(rowRect.width),
     height:Math.round(r.height),width:Math.round(r.width),right:Math.round(r.right),viewport:innerWidth,
     pageScrollWidth:document.documentElement.scrollWidth,iconCount:button.querySelectorAll('svg').length,
     micControls:document.querySelectorAll('.mic-button,[data-wake-toggle],[aria-label*="마이크"],[aria-label*="음성 입력"]').length,
@@ -395,7 +404,8 @@ const ACTIVE = {label: '읽기 중지', text: '중지', title: '읽기 중지', 
 
 function checkLayout(label, layout, theme) {
   check(same(layout.rowLabels, ['복사하기', '공유하기', '캘린더에 추가', '답변 읽어주기']), `${label} ${theme}: answer tools ${JSON.stringify(layout.rowLabels)}`);
-  check(layout.oneRow, `${label} ${theme}: the answer tools must stay on one row`);
+  check(layout.oneRow || (!layout.fitsOneRow && layout.wrappedToLineStart),
+    `${label} ${theme}: the answer tools must share one row when they fit (row ${layout.rowWidth}px, fits=${layout.fitsOneRow}, wrapped to line start=${layout.wrappedToLineStart})`);
   check(layout.height >= 44, `${label} ${theme}: 읽어주기 must keep the 44px touch height (got ${layout.height})`);
   check(layout.right <= layout.viewport, `${label} ${theme}: 읽어주기 must stay inside the screen (right ${layout.right} > ${layout.viewport})`);
   check(layout.pageScrollWidth <= layout.viewport, `${label} ${theme}: no horizontal page scroll (${layout.pageScrollWidth} > ${layout.viewport})`);
