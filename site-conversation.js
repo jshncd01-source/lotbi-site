@@ -1,28 +1,28 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-c4b5457423b1';
-import * as siteCore from './site-core.js?v=aset-c4b5457423b1';
-import './site-scam-shield.js?v=aset-c4b5457423b1';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-c4b5457423b1';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-c4b5457423b1';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-c4b5457423b1';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-c4b5457423b1';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-c4b5457423b1';
-import * as siteAttachments from './site-attachments.js?v=aset-c4b5457423b1';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-c4b5457423b1';
-import {deterministicReply} from './site-deterministic.js?v=aset-c4b5457423b1';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-c4b5457423b1';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-c4b5457423b1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-c4b5457423b1';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-c4b5457423b1';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-c4b5457423b1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-c4b5457423b1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-c4b5457423b1';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-c4b5457423b1';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-c4b5457423b1';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-c4b5457423b1';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-c4b5457423b1';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-c4b5457423b1';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-c4b5457423b1';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-c4b5457423b1';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-0e0f34657fc8';
+import * as siteCore from './site-core.js?v=aset-0e0f34657fc8';
+import './site-scam-shield.js?v=aset-0e0f34657fc8';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-0e0f34657fc8';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-0e0f34657fc8';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-0e0f34657fc8';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-0e0f34657fc8';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-0e0f34657fc8';
+import * as siteAttachments from './site-attachments.js?v=aset-0e0f34657fc8';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-0e0f34657fc8';
+import {deterministicReply} from './site-deterministic.js?v=aset-0e0f34657fc8';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-0e0f34657fc8';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-0e0f34657fc8';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-0e0f34657fc8';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-0e0f34657fc8';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-0e0f34657fc8';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-0e0f34657fc8';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-0e0f34657fc8';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-0e0f34657fc8';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-0e0f34657fc8';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-0e0f34657fc8';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-0e0f34657fc8';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-0e0f34657fc8';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-0e0f34657fc8';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-0e0f34657fc8';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -199,7 +199,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-c4b5457423b1';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-0e0f34657fc8';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -292,7 +292,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-c4b5457423b1');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-0e0f34657fc8');
   return shareWithKakaoTalk(options);
 }
 
@@ -300,7 +300,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-c4b5457423b1');
+    const module = await import('./site-kakao-share.js?v=aset-0e0f34657fc8');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -1360,6 +1360,29 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // job alone.
   const focusComposerInPlace = () => {
     try { prompt.focus({preventScroll: true}); } catch { prompt.focus(); }
+  };
+  // CHAT-MOBILE-KEYBOARD-DISMISS-01 — on a phone, an accepted send switches
+  // from writing to reading. Release the textarea so the software keyboard
+  // closes, and do not restore focus when LOTBI later completes or errors.
+  // Desktop keeps its cursor because no software keyboard covers the answer.
+  const coarsePointerQuery = globalThis.matchMedia?.('(pointer: coarse)');
+  const composerUsesSoftwareKeyboard = () => (
+    coarsePointerQuery?.matches === true || document.body.classList.contains('mobile-keyboard-open')
+  );
+  const dismissComposerKeyboard = () => {
+    if (!composerUsesSoftwareKeyboard()) return;
+    if (document.activeElement === prompt) prompt.blur();
+  };
+  // requestAssistant starts a turn synchronously before its first await. A
+  // refused send (empty, another turn active, uploads in flight) keeps focus.
+  const sendFromReader = startTurn => {
+    const turnBefore = activeTurnGeneration;
+    const turn = startTurn();
+    if (activeTurnGeneration !== turnBefore) dismissComposerKeyboard();
+    return turn;
+  };
+  const returnComposerFocusAfterTurn = () => {
+    if (!composerUsesSoftwareKeyboard()) focusComposerInPlace();
   };
   if (typeof ResizeObserver === 'function') {
     // Fires for the thread's own growth and for any descendant that changes
@@ -3487,7 +3510,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-c4b5457423b1');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-0e0f34657fc8');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3515,7 +3538,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-c4b5457423b1');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-0e0f34657fc8');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3774,8 +3797,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-c4b5457423b1'),
-          import('./site-pet.js?v=aset-c4b5457423b1'),
+          import('./site-person.js?v=aset-0e0f34657fc8'),
+          import('./site-pet.js?v=aset-0e0f34657fc8'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3784,11 +3807,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-c4b5457423b1');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-0e0f34657fc8');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-c4b5457423b1');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-0e0f34657fc8');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4567,7 +4590,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt);
+        wrapper.remove(); await sendFromReader(() => requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt));
       });
       wrapper.appendChild(retry);
     }
@@ -4596,7 +4619,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           const timeoutError = new Error('응답 시간이 오래 걸려 중단했어요. 다시 시도해 주세요.');
           showError(timeoutError, message, true, logicalRequestId, sourceTurnCreatedAt);
           setStatus('LOTBI 응답 시간이 초과되었습니다.');
-          prompt.focus();
+          if (!composerUsesSoftwareKeyboard()) prompt.focus();
         },
       });
       return handle;
@@ -4650,7 +4673,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       publishDiagnostics();
       recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: diagnostics.lastCoreRequestDelta, providerCalls: 0, externalAiCalls: diagnostics.lastExternalAiRequestDelta});
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
-      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); focusComposerInPlace(); return;
+      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); returnComposerFocusAfterTurn(); return;
     }
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
@@ -4715,7 +4738,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           thinking.stop('cancel');
           inFlight = false;
           updateSendState();
-          prompt.focus();
+          if (!composerUsesSoftwareKeyboard()) prompt.focus();
         }
       }
       return;
@@ -4804,7 +4827,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -4846,7 +4869,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
         showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -4933,7 +4956,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       forgetPendingTurn(authenticatedRequestId);
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
-      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
+      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
     }
   };
   // The keyboard has already shrunk the scroller by the time this fires, so
@@ -4989,7 +5012,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
     prompt.value = ''; state.draft = ''; saveState();
     prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    await requestAssistant(message, true);
+    await sendFromReader(() => requestAssistant(message, true));
   };
 
   if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && micButton instanceof HTMLButtonElement) {

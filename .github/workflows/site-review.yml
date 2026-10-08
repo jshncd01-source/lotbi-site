@@ -182,6 +182,14 @@ jobs:
       - name: Validate container focus ring
         run: node scripts/validate_focus_ring_container_01.mjs
 
+      # 실사용: on a phone the keyboard stayed open after sending and covered
+      # the answer. An accepted send now lets go of the composer, nothing but
+      # the reader's tap brings the keyboard back, and desktop keeps its cursor.
+      # Real taps and Enter at 375x812, 390x844 (keyboard on visualViewport)
+      # and 412x915 (viewport resized), plus 1280x900.
+      - name: Validate mobile keyboard dismiss on send
+        run: node scripts/validate_chat_mobile_keyboard_dismiss_01.mjs
+
       # A long answer keeps growing after it is appended; the thread has to
       # follow it without dragging a reader who scrolled up.
       - name: Validate answer scroll and markdown
