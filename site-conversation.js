@@ -23,6 +23,7 @@ import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-8dd6c
 import {resolveLifeLocationContext} from './site-life-location.js?v=aset-8dd6ca9d829f';
 import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-8dd6ca9d829f';
 import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-8dd6ca9d829f';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-154ecf9860e4';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -1464,20 +1465,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-rich-card-action'; detail.disabled = true;
         detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
       }
-      const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
-      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
-      const syncBoxLabel = () => {
-        const saved = isInLotbiBox(rich, card);
-        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
-        box.setAttribute('aria-pressed', String(saved));
-      };
-      syncBoxLabel();
-      box.addEventListener('click', () => {
-        const added = toggleLotbiBox(rich, card);
-        refreshLotbiBoxControls();
-        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
-      });
-      actions.appendChild(box);
+      if (LOTBI_BOX_UI_ENABLED) {
+        const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
+        box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
+        const syncBoxLabel = () => {
+          const saved = isInLotbiBox(rich, card);
+          box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+          box.setAttribute('aria-pressed', String(saved));
+        };
+        syncBoxLabel();
+        box.addEventListener('click', () => {
+          const added = toggleLotbiBox(rich, card);
+          refreshLotbiBoxControls();
+          setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
+        });
+        actions.appendChild(box);
+      }
       const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
       buy.disabled = rich.expired || card.available === false;
       if (rich.expired) buy.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
@@ -3782,6 +3785,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   });
 
   const openLotbiBox = trigger => {
+    if (!LOTBI_BOX_UI_ENABLED) return;
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
     panel.classList.add('site-lotbi-box-modal');
@@ -3860,7 +3864,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     content.appendChild(list);
     render();
-    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: 'lotbi-box', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life'});
+    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: LOTBI_BOX_UI_ENABLED ? 'lotbi-box' : '', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life'});
   };
 
   const openHelp = () => {
@@ -5027,7 +5031,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       return;
     }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
-    if (lotbiBoxTrigger instanceof HTMLButtonElement) {
+    if (LOTBI_BOX_UI_ENABLED && lotbiBoxTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       openLotbiBox(lotbiBoxTrigger);
       return;
@@ -5104,7 +5108,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     pets: () => openConsumerSection('care', {careTab: 'pets'}),
     life: () => openConsumerSection('life'),
     festival: () => openFestival(),
-    'lotbi-box': () => openLotbiBox(),
+    ...(LOTBI_BOX_UI_ENABLED ? {'lotbi-box': () => openLotbiBox()} : {}),
   };
   const applySiteRoute = target => {
     if (target !== 'scam' && isScamShieldOpen()) closeScamShield();

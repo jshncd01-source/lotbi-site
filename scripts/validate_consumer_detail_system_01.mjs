@@ -32,7 +32,7 @@ assert.match(authStart, /a:focus-visible/);
 assert.match(authStart, /\[hidden\] \{ display: none !important/);
 assert.match(read('site-scam-shield.js'), /분석 근거 자세히 보기/);
 assert.match(read('site-consumer-sections.js'), /질문 준비하기/);
-assert.match(read('site-consumer-sections.js'), /확인 없이 진행하지 않습니다/);
+assert.match(read('site-consumer-sections.js'), /다음 화면에서 질문을 확인한 뒤 보내세요/);
 // Conditional scam questions must stay hidden until the user chooses the incident path.
 assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);
 const layout = read('site-consumer-layout.css');
@@ -50,7 +50,8 @@ assert.match(layout, /\.calendar-mini-weekdays\s*\{ font-size: 12px/);
 assert.match(layout, /\.calendar-year-month\s*\{ display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start/);
 assert.match(layout, /\.calendar-mini-grid span\s*\{ min-height: 22px; font-size: 12px/);
 // Workspace is the backdrop's class; .site-modal is its child, not its ancestor.
-assert.match(layout, /body\.chat-home-page \.consumer-workspace \.site-modal \.consumer-search input\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*transparent\s*!important/);
-assert.match(layout, /\.consumer-search:focus-within\s*\{[^}]*outline:/);
+// 생활정보 home has no free-question bar or footer row any more; no leftover styles.
+assert.doesNotMatch(layout + read('site-consumer-design.css'), /consumer-search|consumer-section-footer/);
+assert.match(layout, /\.consumer-workspace:has\(\[data-consumer-surface='life'\]\) \.site-modal-description \{ margin-bottom: 24px; \}/);
 assert.match(layout, /\.scam-dialog\s*\{[^}]*width:\s*min\(640px, calc\(100vw - 32px\)\)/);
 console.log('CONSUMER_DETAIL_SYSTEM_01 PASS — source coverage, not authenticated E2E');
