@@ -5,7 +5,64 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>지도앱 연결 · LOTBI</title>
-  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-25a1383acf1a">
+  <!-- LOTBI-CONSUMER-THEME-SYNC-01 — the same read-only pre-paint theme
+       bootstrap every consumer page carries, so this page paints in the
+       reader's LOTBI screen mode instead of flashing white on the way through.
+       scripts/sync_theme_bootstrap.mjs keeps every copy identical. -->
+  <script>
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
+        var lotbiHour = new Date().getHours();
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 18:00.
+          lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 18 ? 7 : 18);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
+      }
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
+  </script>
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-fa530dbd1041">
   <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--lotbi-surface,#f7f8fb);color:var(--lotbi-text-primary,#17191d);font-family:system-ui,-apple-system,sans-serif}
     main{box-sizing:border-box;width:min(92vw,420px);padding:24px;border:1px solid var(--lotbi-border-default,#d9dde5);border-radius:20px;background:var(--lotbi-surface-elevated,#fff);box-shadow:0 12px 32px rgb(12 27 52/.12)}
@@ -24,6 +81,6 @@
     <a id="fallback" href="/" target="_blank" rel="noopener noreferrer" hidden>웹 지도에서 계속하기</a>
     <a href="/" rel="noopener">LOTBI로 돌아가기</a>
   </main>
-  <script type="module" src="site-map-handoff.js?v=aset-25a1383acf1a"></script>
+  <script type="module" src="site-map-handoff.js?v=aset-fa530dbd1041"></script>
 </body>
 </html>
