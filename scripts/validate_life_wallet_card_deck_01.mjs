@@ -17,7 +17,9 @@ const helpers = `
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const wait = async (predicate, label) => { for (let i = 0; i < 2400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
 const shaped = (width, height, colour) => { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const context = canvas.getContext('2d'); context.fillStyle = '#fff'; context.fillRect(0, 0, width, height); context.fillStyle = colour || '#1f3b5a'; context.fillRect(width * .1, height * .1, width * .8, height * .8); return canvas.toDataURL('image/png'); };
-const loaded = async root => { await Promise.all([...root.querySelectorAll('img')].map(image => image.decode().catch(() => {}))); await sleep(400); };
+// Images are ready once loaded (complete with a size). Not image.decode(): it waits on the
+// compositor and can stay pending in headless Chrome on a saturated machine.
+const loaded = async root => { for (let i = 0; i < 400 && ![...root.querySelectorAll('img')].every(image => image.complete && image.naturalWidth); i += 1) await sleep(25); await sleep(400); };
 `;
 
 const deckFixture = head + `<script type="module">
