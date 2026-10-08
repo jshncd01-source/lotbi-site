@@ -1468,7 +1468,69 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+    profilePhoto: normalizeSiteProfilePhoto(user.profile_photo),
   });
+}
+
+// PROFILE-PHOTO-ACCOUNT-SYNC-01 — the profile photo belongs to the LOTBI
+// account, not to this browser: Core stores it and Account, Site and App all
+// read the same one. /v2/me carries only its version (a new one on every
+// replacement); the bytes come from the owner-only route with the session
+// bearer and live in memory as an object URL, never in storage.
+const PROFILE_PHOTO_PATH = '/v2/account/profile/photo';
+const PROFILE_PHOTO_VERSION_PATTERN = /^mda_[A-Za-z0-9_-]{1,60}$/;
+
+export function normalizeSiteProfilePhoto(value) {
+  // Lenient on purpose: a malformed photo must never break identity/login.
+  if (!value || typeof value !== 'object') return null;
+  const version = typeof value.version === 'string' ? value.version.trim() : '';
+  return PROFILE_PHOTO_VERSION_PATTERN.test(version) ? Object.freeze({version}) : null;
+}
+
+export async function saveSiteProfilePhoto(sessionToken, photoDataUri, fetchImpl = globalThis.fetch) {
+  if (typeof photoDataUri !== 'string' || !/^data:image\/(?:jpeg|png|webp);base64,/.test(photoDataUri)) {
+    throw new SiteCoreError('프로필에는 사진만 사용할 수 있어요.', {code: 'SITE_PROFILE_PHOTO_UNSUPPORTED'});
+  }
+  const payload = await siteSessionRequest(PROFILE_PHOTO_PATH, sessionToken, {method: 'PUT', body: {photo_data_uri: photoDataUri}}, fetchImpl);
+  const photo = normalizeSiteProfilePhoto(payload?.profile_photo);
+  if (!photo) {
+    throw new SiteCoreError('프로필 사진 저장 결과를 확인하지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  }
+  return photo;
+}
+
+export async function deleteSiteProfilePhoto(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(PROFILE_PHOTO_PATH, sessionToken, {method: 'DELETE'}, fetchImpl);
+  if (!payload || payload.profile_photo !== null) {
+    throw new SiteCoreError('프로필 사진 삭제 결과를 확인하지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  }
+}
+
+export async function fetchSiteProfilePhotoObjectUrl(sessionToken, photo, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const version = normalizeSiteProfilePhoto(photo)?.version;
+  if (!version) throw new SiteCoreError('프로필 사진 정보가 올바르지 않습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${PROFILE_PHOTO_PATH}/content?v=${encodeURIComponent(version)}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {Authorization: `Bearer ${bearerToken(sessionToken)}`, Accept: 'image/jpeg'},
+    });
+  } catch {
+    throw new SiteCoreError('프로필 사진을 불러오지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_NETWORK_ERROR', retryable: true});
+  }
+  if (!response.ok) {
+    throw new SiteCoreError('프로필 사진을 불러오지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_UNAVAILABLE', status: response.status});
+  }
+  const blob = await response.blob();
+  if (!blob.size || !/^image\/jpeg(?:;|$)/.test(blob.type || response.headers.get('content-type') || '')) {
+    throw new SiteCoreError('프로필 사진 형식이 올바르지 않습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  }
+  return URL.createObjectURL(blob);
 }
 
 export async function updateCurrentSiteProfile(sessionToken, {

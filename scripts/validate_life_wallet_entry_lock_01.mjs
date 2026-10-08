@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import path from 'node:path';
 
 if (!globalThis.crypto) Object.defineProperty(globalThis, 'crypto', {value: webcrypto});
@@ -82,6 +82,30 @@ await simplifiedWallet.save('simplified-add-account', {
 const [simplifiedCard] = await simplifiedWallet.list('simplified-add-account');
 assert.equal(simplifiedCard.name, '증명서', 'the selected kind must provide the stored display name');
 assert.equal(simplifiedCard.backDataUrl, '', 'the single-photo flow must preserve an empty legacy back image');
+// The add form no longer asks for a kind; new items are neutral 'document' items and the
+// older kinds stay readable.
+assert.ok(!/field\('자료 종류'/u.test(walletSource), 'the add form must not ask for a document kind');
+assert.match(walletSource, /kind: 'document', note: note\.value/u, 'new items are saved with the neutral document kind');
+await simplifiedWallet.save('simplified-add-account', {
+  id: 'neutral-document', kind: 'document', note: '',
+  frontDataUrl: 'data:image/png;base64,AA==', updatedAt: '2026-10-07T00:00:00.000Z',
+});
+const neutralCard = (await simplifiedWallet.list('simplified-add-account')).find(card => card.id === 'neutral-document');
+assert.equal(neutralCard.name, '저장 자료', 'a neutral item shows a neutral name');
+// Deleting needs the wallet PIN again, asked on the page (no window.confirm, which embedded
+// browsers and app WebViews cancel silently); a wrong PIN counts as a failed attempt.
+assert.ok(!/window\.confirm\(/u.test(walletSource), 'wallet deletion must not rely on window.confirm');
+assert.match(walletSource, /await vault\.verifyPin\(accountId, removalPin\.value\);\s*await vault\.remove\(accountId, card\.id\)/u, 'a deletion must verify the wallet PIN first');
+await assert.rejects(() => simplifiedWallet.verifyPin('simplified-add-account', '1111'), /월렛 PIN을 확인해 주세요/u, 'a wrong PIN must not allow deletion');
+await simplifiedWallet.verifyPin('simplified-add-account', '8642');
+// Titles: memo first line (shortened), else kind and save date; never the whole memo.
+const {walletCardTitle} = await import(pathToFileURL(path.join(root, 'site-life-wallet.js')).href);
+const savedDay = new Date('2026-10-07T00:00:00.000Z'); const day = `${savedDay.getFullYear()}.${String(savedDay.getMonth() + 1).padStart(2, '0')}.${String(savedDay.getDate()).padStart(2, '0')}`;
+assert.equal(walletCardTitle(neutralCard), `저장 자료 · ${day}`, 'an item without a memo is titled with its save date');
+assert.equal(walletCardTitle({...neutralCard, note: '\n  부동산 임대차 계약서 원본\n두 번째 줄 메모'}), '부동산 임대차 계약서 원본', 'the first memo line is the title');
+const longMemo = '아주 긴 메모 첫 줄이 제목 길이를 넘어가면 줄여서 보여야 합니다';
+assert.equal(walletCardTitle({...neutralCard, note: longMemo}), `${longMemo.slice(0, 24)}…`, 'long memo lines are shortened to 24 characters');
+assert.ok(!/두 번째 줄/u.test(walletCardTitle({...neutralCard, note: '첫 줄\n두 번째 줄'})), 'only the first memo line is used');
 
 const refreshRepository = new MemoryWalletRepository();
 const refreshSession = new MemorySessionStorage();

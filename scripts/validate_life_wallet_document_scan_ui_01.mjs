@@ -13,7 +13,7 @@ const out=document.getElementById('result'); const sleep=ms=>new Promise(resolve
 // load into a false product failure after only three seconds.
 const wait=async (predicate,label)=>{for(let i=0;i<500;i+=1){const value=predicate();if(value)return value;await sleep(30)}throw new Error('timed out '+label+' state='+document.querySelector('.wallet-scan-editor')?.dataset.scanState+' text='+document.getElementById('host').textContent)};
 try{
- const source=document.createElement('canvas');source.width=480;source.height=320;const c=source.getContext('2d');c.fillStyle='#18212d';c.fillRect(0,0,480,320);c.beginPath();c.moveTo(70,55);c.lineTo(420,40);c.lineTo(440,275);c.lineTo(50,285);c.closePath();c.fillStyle='#e9dcae';c.fill();c.lineWidth=8;c.strokeStyle='#fff';c.stroke();c.fillStyle='#315c7d';c.fillRect(150,115,190,18);
+ const source=document.createElement('canvas');source.width=480;source.height=320;const c=source.getContext('2d');c.fillStyle='#18212d';c.fillRect(0,0,480,320);c.beginPath();c.moveTo(70,55);c.lineTo(420,40);c.lineTo(440,275);c.lineTo(50,285);c.closePath();c.fillStyle='#e9dcae';c.fill();c.lineWidth=8;c.strokeStyle='#fff';c.stroke();c.fillStyle='#315c7d';c.fillRect(150,115,190,18);for(let row=0;row<5;row+=1)for(let glyph=0;glyph<18;glyph+=1){c.fillStyle='#2a2a2a';c.fillRect(125+glyph*13,98+row*30,8,10)};
  globalThis.createImageBitmap=async()=>source;
  const blob=await new Promise(resolve=>source.toBlob(resolve,'image/png'));const file=new File([blob],'synthetic-wallet.png',{type:'image/png'});
  const module=await import('/site-life-wallet-scan-ui.js?test=1');let confirmed='';let cancelled=0;let replaced=0;

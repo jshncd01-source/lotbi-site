@@ -123,13 +123,21 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # document CSS and heading-navigation script; policy text/links are unchanged.
 # Clean URL canonical/head links and the approved privacy table containment
 # are preserved from main. styles.css also keeps the reviewed neutral palette.
+# LOTBI-CONSUMER-THEME-SYNC-01 — privacy/terms/account-deletion/contact 의 잠금
+# 값이 다시 움직였다. 바뀐 것은 <head> 안 테마 bootstrap <script> 하나뿐이다:
+# Account 설정에서 고른 화면 모드(공유 cookie lotbi_theme_preference_v1)를 먼저
+# 읽고, 없을 때만 예전 localStorage 키를 읽는다. 읽기만 하고 아무것도 쓰지 않는다.
+# NO LEGAL TEXT CHANGED. 확인 방법: scripts/sync_theme_bootstrap.mjs 의
+# locateThemeBootstrap 으로 두 revision 에서 그 <script> 를 들어내면 네 파일 모두
+# 나머지가 바이트까지 같다. 이 블록은 sync_theme_bootstrap.mjs --check 가 모든
+# 소비자 페이지에서 동일하게 유지한다.
 # Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
-    'privacy.html': '99b0eb892bd215a88d73276cf6ee7cc7c9ad10fe2bbe770e4acb30fd66ccaf25',
-    'terms.html': '53891a54ccd41077217a9eeb42bad29b0163fdc49e948ba12a73cb935f011a19',
-    'account-deletion.html': '4975d2eff55f370753afa9e9c0acbb22e94caf465065b12f18836fd297f02676',
-    'contact.html': '4ea3c572e9de7b81d9e125bcc55f7e61dc7ea8923ab0eb1fdb02fba18532075f',
+    'privacy.html': 'e742b3e03596fcd1fdc2d6a38535853d25d1b1bdfe3c9617bd13ab2d4614eefc',
+    'terms.html': '4356c44a73bada0b79e3a62927e4d2e891646c730591d6774c3497ebb3df527b',
+    'account-deletion.html': '12e007c9a7f24ad2371405b3fa947b582f3f113c0b5f7dfe32bd50c151454849',
+    'contact.html': '6d393367fd3160da070eaabb164addae6a41d2246089487f84be4dd103264590',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': '32eedab514f6e237f762a35ac18b1ae0ce643bc04023547ee9be60d135a43c66',
@@ -160,6 +168,16 @@ def locked_bytes(rel: str, path: Path) -> bytes:
 def extract_theme_bootstrap(index: str) -> str | None:
     """Return the allowlisted pre-paint theme bootstrap block, or None."""
     marker = "SITE-THEME-BOOTSTRAP-FIRST-PAINT-01"
+    if marker not in index:
+        return None
+    start = index.index("<script>", index.index(marker))
+    end = index.index("</script>", start) + len("</script>")
+    return index[start:end]
+
+
+def extract_route_restore_bootstrap(index: str) -> str | None:
+    """Return the allowlisted pre-paint route marker (SITE-REFRESH-ROUTE-RESTORE-01), or None."""
+    marker = "SITE-REFRESH-ROUTE-RESTORE-01"
     if marker not in index:
         return None
     start = index.index("<script>", index.index(marker))
@@ -242,9 +260,28 @@ def main() -> int:
         avatar_script.group(0) if avatar_script else "__missing_avatar_module__",
         footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
-    # +2 for the exact-purpose inline theme and HTTPS-origin bootstraps verified below.
-    if index.lower().count("<script") != len(approved_scripts) + 2 or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only the approved HTTPS/theme bootstraps, one sealed Avatar import map, and approved Home modules")
+    # +3 for the exact-purpose inline theme, HTTPS-origin and route-marker bootstraps verified below.
+    if index.lower().count("<script") != len(approved_scripts) + 3 or any(script not in index for script in approved_scripts):
+        errors.append("home page may run only the approved HTTPS/theme/route bootstraps, one sealed Avatar import map, and approved Home modules")
+
+    # SITE-REFRESH-ROUTE-RESTORE-01 — a reload of /#calendar hides the home
+    # until that screen opens, which has to be decided before the first paint.
+    # Allowlisted the same way as the theme bootstrap: pinned to reading the
+    # fragment and setting one attribute — no storage, network or navigation.
+    route_bootstrap = extract_route_restore_bootstrap(index)
+    if route_bootstrap is None:
+        errors.append("the pre-paint route marker block is missing from index.html")
+    else:
+        body = route_bootstrap.lower()
+        if "window.location.hash" not in route_bootstrap or "document.documentElement.dataset.siteRoutePending = ''" not in route_bootstrap:
+            errors.append("the pre-paint route marker must only read the fragment and set data-site-route-pending")
+        for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon", "localstorage",
+                      "sessionstorage", "indexeddb", "document.cookie", "location.replace", "location.assign",
+                      "location.href =", "innerhtml", "document.write", "eval(", "import("):
+            if token in body:
+                errors.append(f"the pre-paint route marker must not reach for {token}")
+        if "try" not in route_bootstrap or "catch" not in route_bootstrap:
+            errors.append("the pre-paint route marker must not let a failure stop the render")
 
     https_bootstrap = extract_https_origin_bootstrap(index)
     if https_bootstrap is None:
@@ -281,9 +318,17 @@ def main() -> int:
         if "lotbi.site.theme.bootstrap.v1" not in theme_bootstrap:
             errors.append("the pre-paint theme bootstrap must touch only the theme key")
         for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon",
-                      "indexeddb", "document.cookie", "sessionstorage"):
+                      "indexeddb", "sessionstorage"):
             if token in theme_bootstrap.lower():
                 errors.append(f"the pre-paint theme bootstrap must not reach for {token}")
+        # LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode chosen in Account is the
+        # shared lotbi_theme_preference_v1 cookie, so the bootstrap reads
+        # document.cookie. Reading only: an assignment would let the first paint
+        # change what the user chose.
+        if re.search(r"document\.cookie\s*=(?!=)", theme_bootstrap):
+            errors.append("the pre-paint theme bootstrap must only read document.cookie, never write it")
+        if "lotbi_theme_preference_v1" not in theme_bootstrap:
+            errors.append("the pre-paint theme bootstrap must read the shared screen-mode cookie")
         if "try" not in theme_bootstrap or "catch" not in theme_bootstrap:
             errors.append("the pre-paint theme bootstrap must not let a storage failure stop the render")
 

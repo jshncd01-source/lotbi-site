@@ -14,29 +14,64 @@
        Reads only. Wrapped in try/catch and does nothing on a bad or missing
        value: a storage failure must not stop a legal page from rendering. -->
   <script>
-    try {
-      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
-      if (lotbiSavedTheme === 'auto') {
-        // SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' is resolved here, with the same
-        // 18:00/07:00 boundaries index.html uses, rather than stored already
-        // resolved: a stored answer goes stale the moment the clock crosses one.
-        // Measured before this: with the key at 'auto' these pages set no
-        // attribute at all and fell back to the OS, so at 22:00 on a light OS
-        // Home went dark by the clock and a legal page stayed rgb(247,248,251).
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
         var lotbiHour = new Date().getHours();
-        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 18:00.
+          lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 18 ? 7 : 18);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
       }
-      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
-        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
-      }
-    } catch (error) {}
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=aset-683dba8da5af" />
-  <link rel="stylesheet" href="/mobile-entry.css?v=aset-683dba8da5af" />
-  <link rel="stylesheet" href="/site-static-theme.css?v=aset-683dba8da5af" />
-  <script src="/mobile-entry.js?v=aset-683dba8da5af" defer></script>
-  <link rel="stylesheet" href="site-consumer-documents.css?v=aset-683dba8da5af" />
-  <script src="site-document-navigation.js?v=aset-683dba8da5af" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=aset-639080af4f23" />
+  <link rel="stylesheet" href="/mobile-entry.css?v=aset-639080af4f23" />
+  <link rel="stylesheet" href="/site-static-theme.css?v=aset-639080af4f23" />
+  <script src="/mobile-entry.js?v=aset-639080af4f23" defer></script>
+  <link rel="stylesheet" href="site-consumer-documents.css?v=aset-639080af4f23" />
+  <script src="site-document-navigation.js?v=aset-639080af4f23" defer></script>
 </head>
 <body class="consumer-document">
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
