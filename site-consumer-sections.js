@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-738bfea7816e';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-738bfea7816e';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-79354e37f7d8';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-79354e37f7d8';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -9,6 +9,9 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'hospital', label: '병원·의원', icon: 'hospital', medical: true},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', medical: true},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
+  // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
+  // official logo is not used before approval; brandSlot reserves its place.
+  {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   {id: 'bills', label: '공과금 확인', icon: 'document', prompt: '공과금 고지서를 확인하고 납부기한을 캘린더에 등록할지 알려 줘'},
 ]);
@@ -125,6 +128,13 @@ function icon(name) {
   }
   return svg;
 }
+// Reserved place for an approved partner logo. Renders nothing until then.
+function brandSlot(name) {
+  const slot = node('i', `${name}-logo-slot`);   // not a <span>: the label stays the tile's first span
+  slot.dataset.brandLogoSlot = name; slot.dataset.logoState = 'PENDING_APPROVAL';
+  slot.setAttribute('aria-hidden', 'true');
+  return slot;
+}
 function action(label, run, {secondary = false, disabled = false} = {}) {
   const button = node('button', `consumer-action${secondary ? ' consumer-action-secondary' : ''}`, label);
   button.type = 'button'; button.disabled = disabled;
@@ -137,7 +147,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, onSaved, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -228,8 +238,8 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
-      button.append(icon(item.icon), node('span', '', item.label));
-      button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : openLifeDetail(item));
+      button.append(item.brandSlot ? brandSlot(item.brandSlot) : icon(item.icon), node('span', '', item.label));
+      button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : item.id === 'onnuri' ? onOnnuri?.() : openLifeDetail(item));
       grid.append(button);
     }
     const saved = action('저장한 정보 다시 보기', onSaved, {secondary: true});

@@ -597,6 +597,12 @@ jobs:
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
 
+      # ONNURI-MERCHANT-01: 생활정보 온누리상품권 가맹점 찾기 — 지역/현재 위치,
+      # Top 3 + 더 보기, 필터, 0건·준비 중 안내, 검증된 좌표 없이는 거리 없음,
+      # 승인 전 공식 로고 미사용을 375·390·1280에서 실제 탭으로 확인한다.
+      - name: Validate Onnuri merchant search
+        run: node scripts/validate_onnuri_merchant_search_01.mjs
+
       - name: Validate 진위확인 production connection
         run: |
           node --check site-scam-shield.js
