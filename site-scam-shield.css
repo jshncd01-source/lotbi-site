@@ -4,18 +4,30 @@
 .scam-dialog-eyebrow { margin: 0 0 6px; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: .82rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .scam-shield-card button, .scam-dialog button { min-height: 44px; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
 .scam-shield-card > button { border: 0; padding: 0 18px; background: #1258d8; color: #fff; }
-.scam-dialog { width: min(680px, calc(100% - 24px)); max-height: calc(100dvh - 24px); border: 0; border-radius: 22px; padding: 0; color: var(--lotbi-text-primary, var(--text, #212121)); background: #fff; box-shadow: 0 24px 80px #10182842; }
+.scam-dialog { width: min(680px, calc(100% - 24px)); max-height: calc(100dvh - 24px); border: 0; border-radius: 22px; padding: 0; color: var(--lotbi-text-primary, var(--text, #212121)); background: var(--lotbi-surface-primary, #fff); box-shadow: 0 24px 80px #10182842; }
 .scam-dialog::backdrop { background: #10182899; }
 .scam-dialog-inner { padding: clamp(20px, 5vw, 32px); }
 .scam-dialog-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
 .scam-dialog-header h2 { margin: 0; font-size: 1.55rem; }
-.scam-dialog-close { width: 44px; border: 1px solid #d8dee8; background: #fff; font-size: 1.4rem; }
-.scam-login-gate { display: grid; gap: 18px; padding: 8px 0; }
-.scam-login-gate h3 { margin: 0; font-size: clamp(1.3rem, 4vw, 1.65rem); line-height: 1.4; }
-.scam-login-gate p { margin: 0; font-size: 1.05rem; line-height: 1.7; }
-.scam-login-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.scam-login-actions button { min-width: 160px; padding: 0 18px; border: 1px solid #b7c1d0; background: #fff; }
-.scam-login-actions [data-scam-login] { border-color: #1258d8; background: #1258d8; color: #fff; }
+.scam-dialog-close { width: 44px; border: 1px solid var(--lotbi-border-default); background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font-size: 1.4rem; }
+/* 로그인 안내: every button takes its fill and its ink together from the theme
+   tokens. 취소 once set only a white fill, so under color-scheme: dark it kept
+   the browser's white button text and showed as an empty white box. */
+.scam-login-gate { display: grid; gap: 12px; padding: 4px 0 0; }
+.scam-login-gate h3 { margin: 0; font-size: clamp(1.25rem, 4.5vw, 1.5rem); line-height: 1.45; word-break: keep-all; }
+.scam-login-gate p { margin: 0; font-size: 1.05rem; line-height: 1.7; word-break: keep-all; }
+.scam-login-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.scam-login-actions button { min-height: 52px; padding: 8px 18px; border: 1px solid var(--lotbi-text-primary); background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); line-height: 1.4; word-break: keep-all; }
+.scam-login-actions [data-scam-login] { border-color: var(--lotbi-brand-solid-bg); background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); }
+.scam-login-actions button:not(:disabled):active { background: var(--lotbi-surface-hover); }
+.scam-login-actions [data-scam-login]:not(:disabled):active { border-color: var(--lotbi-brand-solid-bg-hover); background: var(--lotbi-brand-solid-bg-hover); }
+@media (hover: hover) {
+  .scam-login-actions button:not(:disabled):hover { background: var(--lotbi-surface-hover); }
+  .scam-login-actions [data-scam-login]:not(:disabled):hover { border-color: var(--lotbi-brand-solid-bg-hover); background: var(--lotbi-brand-solid-bg-hover); }
+}
+.scam-login-actions button:disabled { border-color: var(--lotbi-border-strong); background: var(--lotbi-surface-subtle); color: var(--lotbi-text-disabled); cursor: not-allowed; }
+.scam-login-status:empty { display: none; }
+@media (max-width: 560px) { .scam-login-actions { grid-template-columns: minmax(0, 1fr); } }
 .scam-scope-note { margin: 8px 0 0; color: var(--lotbi-text-secondary, #4b5563); font-size: .95rem; line-height: 1.65; word-break: keep-all; }
 .scam-input-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 20px 0 16px; }
 .scam-input-kinds label { min-height: 44px; display: grid; place-items: center; border: 1px solid #ccd5e3; border-radius: 12px; font-weight: 700; }
@@ -44,6 +56,6 @@
 .scam-result h4 { margin: 16px 0 6px; font-size: 1rem; }
 .scam-result ul { margin: 0; padding-left: 22px; line-height: 1.65; }
 .scam-result details { margin-top: 18px; }
-.scam-usage-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 18px; padding: 0 16px; border: 1px solid #1258d8; border-radius: 12px; color: #1258d8; font-weight: 800; text-decoration: none; }
+.scam-usage-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 18px; padding: 0 16px; border: 1px solid var(--lotbi-text-primary); border-radius: 12px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font-weight: 800; text-decoration: none; }
 .scam-dialog :is(button, a, input, textarea, select):focus-visible { outline: 3px solid var(--lotbi-focus-ring, #1258d8); outline-offset: 3px; }
 @media (max-width: 560px) { .scam-dialog { width: 100%; max-width: none; max-height: 92dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; } .scam-incident { grid-template-columns: 1fr; } }

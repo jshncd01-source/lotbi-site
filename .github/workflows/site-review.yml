@@ -695,6 +695,13 @@ jobs:
           node scripts/validate_scam_shield_photo_picker_01.mjs
           node scripts/validate_scam_shield_result_banner_contrast_01.mjs
 
+      # 로그인하지 않은 진위확인 로그인 안내의 로그인하고 확인하기·취소·× 글자와
+      # 테두리 대비를 360/375/390/412/1280, 라이트·다크·시스템(전환 포함)에서
+      # 보통·hover·눌림·포커스·비활성 상태로 재고, 취소·×·뒤로가기·로그인 동작과
+      # 모바일 헤더 로그인 대비를 확인한다(실기기 아님).
+      - name: Validate 진위확인 login gate buttons in light and dark
+        run: node scripts/validate_scam_shield_login_gate_contrast_01.mjs
+
       - name: Validate Production Core CORS contract
         shell: bash
         run: |
