@@ -4,11 +4,66 @@ READY_FOR_DEPLOY=YES
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/chat-mobile-keyboard-dismiss-reading-view-01-site
-FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/chat-mobile-keyboard-dismiss-reading-view-01-site`)
-REMOTE_FEATURE_SHA=same as FEATURE_SHA after push (verified with git ls-remote at push time)
-BASE_MAIN_SHA=0a03ca12d3f551c62517a760e20346ee8cf44561 (Ncloud main at start and at push; Production served aset-a5fcb3676cb2 = this main)
-CODE_SHA=39dba78748275a343efda4c753f93a449b71a20c
-ASSET_VERSION=aset-683dba8da5af
+FEATURE_SHA=이 문서 커밋(branch HEAD)
+REMOTE_FEATURE_SHA=FEATURE_SHA와 동일(`git ls-remote origin refs/heads/feature/chat-mobile-keyboard-dismiss-reading-view-01-site`로 확인)
+SUPERSEDES=e26e289612662668f8e9020f2db952f44ba14fce (SITE-T16 Linux gate에서 validator 타이밍으로 FAIL)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=c9c19e4cef9914f0b50d4870cbcc59e58602ddc2 (SITE-T20, f6603a68에서 정상 merge. 지시 시점 843a667b 이후 전진. 첫 base 0a03ca12)
+CODE_SHA=f6603a68
+ASSET_VERSION=aset-639080af4f23
+PRODUCT_CODE_CHANGED_IN_GATE_FIX_03=NO (site-conversation.js 키보드 동작은 그대로. 바뀐 것은 validator 1개와 main merge뿐)
+ROOT_CAUSE=제품이 아니라 validator 타이밍. "답변 오기 전" 상태(A sentWaiting)를 가짜 Core의 고정 900ms 지연과 경주시켜 쟀다. 전송 → settle(키보드 애니메이션 대기+프레임+400ms) → snap이 900ms를 넘으면 답변이 이미 도착해 loading=0·answers=1로 측정된다. Linux gate(2 core)는 그보다 느렸다. gate 측정값(키보드 닫힘·포커스 해제)은 정상이었다. 같은 구조의 E·F(3500ms)와 "작성 중 답변 도착"(2000ms)도 같은 경주였다.
+CHANGED_TEST_EXPECTATIONS=단정 삭제·완화 없음. 측정 방식만 "고정 지연과 경주" → "답변 보류 후 측정, 측정 뒤 명시적 해제"(holdAnswers/releaseAnswers). 측정 전 생각 중 표시가 뜰 때까지 대기(최대 10초). 강화한 단정: A 질문이 Core에 도착해 보류 중(held=1), E 느린 질문 보류 중(held=1), E 실행 중 Enter가 Core 요청을 하나도 만들지 않음(held=1·요청 수 동일), F 답변 대기 중에 키보드가 닫힘(held=1·loading=1), E 답변이 오기 전에 이미 작성 중이었음(held=1·loading=1·포커스·키보드). 느린 환경 재현용 env `LOTBI_VALIDATOR_CPU_THROTTLE`(미설정이면 영향 없음).
+SLOW_ENV_REPRO=Windows Chrome 154 + CDP Emulation.setCPUThrottlingRate. 수정 전 validator: x1·x4·x6·x10 PASS, x20 FAIL — iphone-safari-390x844·samsung-android-412x915 "the answer is still on its way"(sentWaiting answers=1 loading=0, gate와 같은 신호) + E/F 3건(Enter while a turn runs, F draft survives). 수정 후: x1 PASS, x20 PASS(모바일 3개 모두 sentWaiting/slowSent/writingBeforeAnswer loading=1·held=1). long-answer 통합 a34e838c와 합친 상태에서도 x20 PASS. Linux 자체 실행은 이 PC에 WSL·Docker가 없어 NOT TESTED.
+LONG_ANSWER_TRIAL_MERGE=지시의 f296c4ce는 이미 대체됐고, 현재 long-answer remote a34e838c가 키보드 e26e2896과 main c9c19e4c를 포함한 통합 READY다. a34e838c에 이 branch(f6603a68)를 임시 worktree로 merge(push 안 함): 충돌 59개 모두 asset token, 결과는 a34e838c 대비 이 validator 1개만 다름(asset token 동일). 그 상태에서 chat_mobile_keyboard_dismiss_01·chat_long_answer_scroll_anchor_01·chat_answer_quality_p0_01·site_refresh_route_restore_01·conversation_message_ux_final_01·mobile_home_ux_stability_01 + mobile_composer_keyboard_layout_01 7/7 PASS.
+INTEGRATED_BRANCH_NOTE=long-answer 통합 READY a34e838c는 옛 validator(e26e2896과 동일)를 담고 있어 Linux gate에서 같은 이유로 실패할 수 있다. release에서 두 branch를 함께 merge하면 3-way merge로 이 branch의 새 validator가 들어간다(long-answer 쪽은 이 파일을 바꾸지 않음). a34e838c 단독 배포라면 이 validator 커밋(3ccbbf06)을 먼저 그 branch에 merge해야 한다.
+TEST_STATUS=아래 GATE FIX 03 절
+NEW_FAILURES=NONE
+MIGRATION=NO
+ENV_CHANGE_REQUIRED=NO
+CORE_CHANGED=NO
+PRODUCTION_DEPLOYED=NO
+USER_DECISION_NEEDED=NONE
+
+커밋(e26e2896 이후): 3ccbbf06 validator 답변 보류 방식 → f6603a68 main c9c19e4c merge → 이 문서.
+
+---
+
+## GATE FIX 03 — Linux merge gate 반환 (SITE-T16, run 20261007T121625Z-4128521-80833861)
+
+### 증거
+- `validate_chat_mobile_keyboard_dismiss_01.mjs`: `iphone-safari-390x844: the answer is still on its way`, `samsung-android-412x915: the answer is still on its way`.
+- 같은 run의 sentWaiting: loading=0 answers=1 focused=false kbOpen=false visibleHeight=844 → 제품 동작(키보드 닫힘·포커스 해제)은 정상이었고, 측정 시점이 답변 도착 뒤였다.
+
+### 고정 지연을 쓰던 측정 전부 정리
+| 단계 | 전 | 후 |
+|---|---|---|
+| A 전송 직후 (sentWaiting) | setDelay(900)과 경주 | 답변 보류 → 생각 중 표시 대기 → 측정 → 해제 |
+| E·F 느린 답변 중 탭·초안·Enter·키보드 닫기 | setDelay(3500)과 경주 | 보류 상태에서 전 단계 측정 → 해제 |
+| E 작성 중 답변 도착 | setDelay(2000)과 경주(작성이 먼저였는지 미확인) | 보류 → 작성 시작 확인(held=1·loading=1·키보드) → 해제 → 답변 후 측정 |
+
+### 느린 환경 재현 (CPU 감속, iPhone 390x844 + Samsung 412x915)
+| CPU 감속 | 수정 전 | 수정 후 |
+|---|---|---|
+| x1 | PASS | PASS (4 케이스) |
+| x4 / x6 / x10 | PASS | — |
+| x20 | **FAIL**: A "the answer is still on its way"(answers=1 loading=0) ×2, E Enter while running ×2, F draft ×1 | PASS (4 케이스, held=1·loading=1) |
+
+### 회귀 (Windows, Chrome 154, `CHROME_BIN=C:/Program Files/Google/Chrome/Application/chrome.exe`, CODE_SHA 기준, scripts/validate_* 213개 직렬)
+전체 213개: 204 PASS / 9 FAIL — 9건 모두 이 branch와 무관(아래 근거). 실행 중 PC는 다른 세션의 validator 동시 실행으로 CPU 100%(Chrome 75~107개)였다.
+| FAIL | 근거 |
+|---|---|
+| validate_mobile_footer_legal_sheet_01 | main c9c19e4c 기준선에서도 같은 `761px: mobile disclosure leaked into desktop` |
+| validate_site_avatar_fallback_runtime | main 기준선에서도 같은 Node 24 undici assert |
+| validate_calendar_system_dark_01, validate_image_attachment_thumbnail_01 | Windows CRLF 체크아웃 문제. 같은 커밋을 LF로 꺼낸 worktree에서 둘 다 PASS |
+| validate_pinned_conversation_section_01, validate_theme_auto_schedule_02 | 단독 재실행 PASS |
+| validate_message_calendar_footer_editor_01, validate_calendar_touch_monthnav_daysheet_01 | `Failed to fetch dynamically imported module`(모듈 로드 실패). 수정본 단독 재실행 PASS(footer_editor 재시도 1회째, calendar_touch 2회째). footer_editor는 main 기준선도 같은 부하에서 같은 오류로 1회 FAIL. calendar_touch는 기준선에서는 3/3 PASS였지만 오류 종류가 부하성 모듈 로드 실패와 같음 |
+| validate_place_card_compact_01 | 같은 오류가 매번 다른 경우(344·360·412·760, 지도 앱 종류도 다름)에서 무작위로 남. 고정 포트를 바꾼 복사본(저장소 밖)에서도 같아 포트 충돌은 아님. main c9c19e4c 기준선도 같은 조건에서 5번 중 4번 같은 오류로 FAIL → 이 PC 부하 문제. 이전 gate·저부하 Windows 실행에서는 PASS |
+키보드·대화 관련 직접 영향군은 전부 PASS: chat_mobile_keyboard_dismiss_01, chat_answer_quality_p0_01, answer_scroll_markdown_01, chat_answer_recovery_01, composer_interaction, composer_auto_grow, user_bubble_content_fit, conversation_message_ux_final_01, mobile_home_ux_stability_01, site_refresh_route_restore_01.
+
+### 남은 한계 (변경 없음)
+- iPhone Safari·Samsung Internet·KakaoTalk 인앱·Android Chrome 실기기 smoke는 배포 후 필요(NOT VERIFIED).
+
+---
 
 ## SCOPE
 
@@ -70,6 +125,4 @@ MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 DEPENDENCIES=없음(단독 배포 가능 — 단독이면 키보드는 닫히고 긴 답변 위치는 현재 Production과 같은 bottom-follow). 완전한 읽기 UX는 ANCHOR branch와 함께 배포 권장, 순서 무관, merge 시 asset token 충돌은 재계산으로 해결.
 PRODUCTION_DEPLOYED=NO
-READY_FOR_DEPLOY=YES
-
 USER_DECISION_NEEDED=NONE
