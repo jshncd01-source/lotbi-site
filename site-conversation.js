@@ -1,27 +1,28 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-75d2086f61ed';
-import * as siteCore from './site-core.js?v=aset-75d2086f61ed';
-import './site-scam-shield.js?v=aset-75d2086f61ed';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-75d2086f61ed';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-75d2086f61ed';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-75d2086f61ed';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-75d2086f61ed';
-import * as siteAttachments from './site-attachments.js?v=aset-75d2086f61ed';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-75d2086f61ed';
-import {deterministicReply} from './site-deterministic.js?v=aset-75d2086f61ed';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-75d2086f61ed';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-75d2086f61ed';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-75d2086f61ed';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-75d2086f61ed';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-75d2086f61ed';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-75d2086f61ed';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-75d2086f61ed';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-75d2086f61ed';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-75d2086f61ed';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-75d2086f61ed';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-75d2086f61ed';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-75d2086f61ed';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-75d2086f61ed';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-75d2086f61ed';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-fd1d5c35966a';
+import * as siteCore from './site-core.js?v=aset-fd1d5c35966a';
+import './site-scam-shield.js?v=aset-fd1d5c35966a';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-fd1d5c35966a';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-fd1d5c35966a';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-fd1d5c35966a';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-fd1d5c35966a';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-fd1d5c35966a';
+import * as siteAttachments from './site-attachments.js?v=aset-fd1d5c35966a';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-fd1d5c35966a';
+import {deterministicReply} from './site-deterministic.js?v=aset-fd1d5c35966a';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-fd1d5c35966a';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-fd1d5c35966a';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-fd1d5c35966a';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-fd1d5c35966a';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-fd1d5c35966a';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-fd1d5c35966a';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-fd1d5c35966a';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-fd1d5c35966a';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-fd1d5c35966a';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-fd1d5c35966a';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-fd1d5c35966a';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-fd1d5c35966a';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-fd1d5c35966a';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-fd1d5c35966a';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -42,21 +43,24 @@ const attachmentOnlyPlaceholder = count => `첨부 파일 ${count}개를 확인�
 //
 // It is deliberately not the same answer as '기기모드', which follows the OS.
 // This one follows the clock, which is what 대표 asked for. Both stay on offer.
-const AUTO_THEME_DARK_HOUR = 18;
-const AUTO_THEME_LIGHT_HOUR = 7;
+//
+// LOTBI-CONSUMER-THEME-SYNC-01 — the clock and its 07:00 / 18:00 boundaries now
+// live in site-theme-preference.js, which Account mirrors, so the Site and
+// Account cannot switch at different times.
 function resolveScheduledTheme(now = new Date()) {
-  const hour = now.getHours();
-  return hour >= AUTO_THEME_DARK_HOUR || hour < AUTO_THEME_LIGHT_HOUR ? 'dark' : 'light';
+  return resolveThemePreference('auto', now);
 }
-// When the next switch is due, so a tab left open overnight turns dark at 18:00
-// instead of waiting for a reload.
-function millisecondsUntilNextThemeBoundary(now = new Date()) {
-  const hour = now.getHours();
-  const next = new Date(now.getTime());
-  next.setMinutes(0, 0, 0);
-  next.setHours(hour < AUTO_THEME_LIGHT_HOUR || hour >= AUTO_THEME_DARK_HOUR ? AUTO_THEME_LIGHT_HOUR : AUTO_THEME_DARK_HOUR);
-  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
-  return next.getTime() - now.getTime();
+
+// LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode chosen in Account settings is
+// the shared lotbi_theme_preference_v1 cookie, and it wins over anything this
+// origin stored on its own. Never throws: a blocked cookie jar falls back to the
+// old per-origin key rather than stopping the page.
+function sharedThemePreference() {
+  try {
+    return readThemePreference(globalThis.document?.cookie ?? '');
+  } catch {
+    return undefined;
+  }
 }
 
 // SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
@@ -66,7 +70,7 @@ function millisecondsUntilNextThemeBoundary(now = new Date()) {
 // module also runs on pages that do not carry the inline block, and re-running
 // it is harmless — it writes the same attribute from the same value.
 try {
-  const stored = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const stored = sharedThemePreference() ?? globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
   const savedTheme = stored === 'auto' ? resolveScheduledTheme() : stored;
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
     document.documentElement.dataset.siteThemeBootstrap = savedTheme;
@@ -122,6 +126,21 @@ function resolveNamespaceTheme(storedTheme, durableTheme) {
   if (isSiteTheme(storedTheme)) return storedTheme;
   if (isSiteTheme(durableTheme)) return durableTheme;
   return 'system';
+}
+
+// LOTBI-CONSUMER-THEME-SYNC-01 — someone who chose on this origin before the
+// shared cookie existed keeps that choice: an explicit Light, Dark or 자동 is
+// carried into the shared store, marked as imported so Account (where the
+// screen mode is chosen now) can still prefer its own older explicit choice.
+// 'system' is not carried: it is also the value written when nothing was ever
+// chosen, so it says nothing about the user.
+function adoptLegacyTheme(legacyTheme) {
+  if (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'auto') {
+    try {
+      writeThemePreference(document, legacyTheme, {hostname: location.hostname, protocol: location.protocol, imported: true});
+    } catch {}
+  }
+  return legacyTheme;
 }
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -180,7 +199,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-75d2086f61ed';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-fd1d5c35966a';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -273,7 +292,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-75d2086f61ed');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-fd1d5c35966a');
   return shareWithKakaoTalk(options);
 }
 
@@ -281,7 +300,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-75d2086f61ed');
+    const module = await import('./site-kakao-share.js?v=aset-fd1d5c35966a');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -1031,6 +1050,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     syncResponseGradeUi();
     document.body.dataset.responseGrade = preferences.responseGrade;
   };
+  // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode can change in Account while
+  // this tab waits in the background, and '자동모드' can cross a boundary while
+  // the machine sleeps. Coming back to the tab re-reads the shared choice and
+  // re-resolves the clock, so the two origins never stay apart.
+  const syncSharedTheme = () => {
+    if (!stateReady) return;
+    const shared = sharedThemePreference();
+    if (shared && shared !== preferences.theme) { preferences.theme = shared; savePreferences(); }
+    applyPreferences();
+  };
+  window.addEventListener('focus', syncSharedTheme);
+  window.addEventListener('pageshow', syncSharedTheme);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncSharedTheme(); });
   const restoreAvatarHome = () => { if (avatar.parentElement !== homeAvatarAnchor) homeAvatarAnchor.appendChild(avatar); };
   const showThread = () => { thread.hidden = false; document.body.classList.add('conversation-active'); };
   const resetBlankHomeScroll = () => {
@@ -2899,7 +2931,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     consumeRequestedConversation();
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
-      theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),
+      theme: sharedThemePreference() ?? adoptLegacyTheme(resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme())),
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
@@ -3239,7 +3271,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-75d2086f61ed');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-fd1d5c35966a');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3267,7 +3299,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-75d2086f61ed');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-fd1d5c35966a');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3526,8 +3558,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-75d2086f61ed'),
-          import('./site-pet.js?v=aset-75d2086f61ed'),
+          import('./site-person.js?v=aset-fd1d5c35966a'),
+          import('./site-pet.js?v=aset-fd1d5c35966a'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3536,11 +3568,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-75d2086f61ed');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-fd1d5c35966a');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-75d2086f61ed');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-fd1d5c35966a');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },

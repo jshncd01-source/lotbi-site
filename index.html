@@ -60,21 +60,57 @@
        Wrapped in try/catch and deliberately does nothing on a bad or missing
        value: a storage failure must not stop the page from rendering. -->
   <script>
-    try {
-      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
-      if (lotbiSavedTheme === 'auto') {
-        // SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' is resolved here rather than
-        // stored already resolved, because a stored answer goes stale the moment
-        // the clock crosses 07:00 or 18:00 and the reader would get yesterday's
-        // theme on the first paint. The attribute only ever carries
-        // light/dark/system, so no new CSS state is needed.
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
         var lotbiHour = new Date().getHours();
-        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 18:00.
+          lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 18 ? 7 : 18);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
       }
-      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
-        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
-      }
-    } catch (error) {}
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
   </script>
   <!-- SITE-REFRESH-ROUTE-RESTORE-01 — a reload of /#calendar (or any screen
        fragment) must not paint the conversation home before that screen
@@ -89,30 +125,30 @@
       if (/^#[a-z][a-z-]{1,30}$/.test(window.location.hash)) document.documentElement.dataset.siteRoutePending = '';
     } catch (error) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="home-chat.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-hardening.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-avatar.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-calendar.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-pet.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-person.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-safecare.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-festival.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="footer-business-info.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="mobile-entry.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="home-bare-white.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-conversation.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-scam-shield.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-consumer-design.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-consumer-detail.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-consumer-layout.css?v=aset-75d2086f61ed" />
-  <link rel="stylesheet" href="site-life-wallet.css?v=aset-75d2086f61ed" />
+  <link rel="stylesheet" href="styles.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-person.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-safecare.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-festival.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-scam-shield.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-consumer-design.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-consumer-detail.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-consumer-layout.css?v=aset-fd1d5c35966a" />
+  <link rel="stylesheet" href="site-life-wallet.css?v=aset-fd1d5c35966a" />
   <style>
     body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
     }
@@ -125,13 +161,13 @@
     }
   }
   </script>
-  <script src="home-shell.js?v=aset-75d2086f61ed" defer></script>
-  <script src="site-consumer-layout.js?v=aset-75d2086f61ed" defer></script>
-  <script src="mobile-entry.js?v=aset-75d2086f61ed" defer></script>
-  <script type="module" src="site-avatar.js?v=aset-75d2086f61ed"></script>
-  <script type="module" src="site-conversation.js?v=aset-75d2086f61ed"></script>
-  <script type="module" src="site-continuity.js?v=aset-75d2086f61ed"></script>
-  <script type="module" src="site-footer-legal.js?v=aset-75d2086f61ed"></script></head>
+  <script src="home-shell.js?v=aset-fd1d5c35966a" defer></script>
+  <script src="site-consumer-layout.js?v=aset-fd1d5c35966a" defer></script>
+  <script src="mobile-entry.js?v=aset-fd1d5c35966a" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-fd1d5c35966a"></script>
+  <script type="module" src="site-conversation.js?v=aset-fd1d5c35966a"></script>
+  <script type="module" src="site-continuity.js?v=aset-fd1d5c35966a"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-fd1d5c35966a"></script></head>
 <body class="chat-home-page" data-conversation-restore="pending">  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 
   <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
