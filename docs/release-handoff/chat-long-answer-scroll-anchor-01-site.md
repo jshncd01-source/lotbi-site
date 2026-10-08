@@ -8,9 +8,9 @@ FEATURE_BRANCH=feature/chat-long-answer-scroll-anchor-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD)
 REMOTE_FEATURE_SHA=FEATURE_SHA와 동일(`git ls-remote origin refs/heads/feature/chat-long-answer-scroll-anchor-01-site`로 확인)
 SUPERSEDES=fd03d6c1f115b2c9645dfce6c774772bff4c937b, f296c4ce880e2db23c389ea41ac3a32f8c3d8e0e (둘 다 배포하지 말 것)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=0f076722b1bf3f2294b97c0706a0ee4ebcdedab4 (SITE-T18c, 16e7e4e4에서 정상 merge. 지시 시점 843a667b → 89adbb37 → 0f076722로 전진. 그 전 843a667b·a87aafb9·0a03ca12·8a9e414d 순으로 merge)
-CODE_SHA=2afa1940d7618c6587398ed92e449a67f1647bf6
-ASSET_VERSION=aset-0e0f34657fc8
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=c9c19e4cef9914f0b50d4870cbcc59e58602ddc2 (push 직전 fresh 확인에서 0f076722 이후 전진을 발견해 4a5563ca에서 정상 merge)
+CODE_SHA=4a5563ca033017fa2789565a02f078d57f6fb543
+ASSET_VERSION=aset-d32ef67e78c7
 KEYBOARD_BRANCH_REMOTE_SHA=e26e289612662668f8e9020f2db952f44ba14fce
 KEYBOARD_MERGE_METHOD=NORMAL_MERGE (--no-ff, parents 6e357e6901329bc47b740b9b4cb36da7585b1976 + e26e289612662668f8e9020f2db952f44ba14fce)
 MERGED_TO_MAIN=NO
@@ -23,11 +23,11 @@ SECRET_CHANGE_REQUIRED=NO
 ROOT_CAUSE=`.chat-home-shell`의 `scroll-padding-bottom: 168px`(대화 항목이 sticky 입력창 밑에 가리지 않게 하는 여백) 안에 입력창 자신의 커서가 있어서, 입력창에 글자를 칠 때마다 Chrome이 커서를 "보여 주려고" 대화 스크롤 영역을 83~93px씩 내렸다. 질문 고정(hold)은 입력창 탭 후 900ms 동안만 이런 스크롤을 무시했고, 그 뒤 입력이 오면 외부 스크롤로 보고 고정을 풀었다. 느린 Linux gate는 둘째 줄 입력이 900ms 뒤에 와서 질문이 -163px로 밀렸다. Windows는 빨라서 900ms 안에 끝나 PASS(그래도 한 줄 입력 직후엔 -71px였는데 그 시점은 검사하지 않았다). 글꼴·줄바꿈 차이는 원인 아님(4줄로 같은 줄 수).
 LINUX_REPRO=이 PC에 WSL·Docker가 없어 Linux 직접 실행은 못 했다. 대신 gate와 같은 Chrome 154(Windows)에서 원래 validator에 "둘째 줄 전 1초 대기"만 넣어 같은 실패를 재현했다: 360x780/layout multiQuestion -164px(gate -163). scroll-padding-bottom을 CDP로 0으로 강제하면 같은 조건에서 입력 중 스크롤 0회·질문 12px → 원인 확정. 수정 후 같은 조건(1초 대기, CPU 6배 감속 포함) 질문 12px. 강화한 validator(사람처럼 1.1초 멈춤, 한 줄 직후 검사)는 수정 전 fd03d6c1에서 360x780/layout -71px로 FAIL, 수정 후 21/21 PASS. Linux 자체 실행은 NOT TESTED.
 KEYBOARD_BRANCH_INTEGRATION=e26e289612662668f8e9020f2db952f44ba14fce를 최신 long-answer 계보에 정상 merge. `site-conversation.js`의 keyboard dismiss/no-refocus를 long-answer anchor·composer typing hold와 함께 보존했고, workflow·validator를 포함했다. 59개 충돌 중 58개는 asset token-only라 최신 main/long-answer 내용을 유지했고, 실제 코드 충돌 1개는 양쪽 기능을 함께 반영했다.
-TEST_STATUS=CODE_SHA에서 직접 관련 validator 21/21 PASS. short/1000+/3000+/Markdown/list/place-card/delayed-rich-growth, streaming 수동 위·아래 스크롤, completion, 최신 답변 버튼, 다음 질문 re-anchor, composer tap reading-position 보존, keyboard dismiss/no-refocus, 360/375/390/412/Fold 690·750/Desktop 및 safe-area/visualViewport를 포함한다. 추가 임시 경계 실행에서 Fold 601·760도 layout/visual/pan 전부 PASS. 통합 직전 전체 scripts/validate_* 213개는 209 PASS / 4 known baseline FAIL이며 통합 후 직접 영향군 신규 실패는 0.
+TEST_STATUS=keyboard 통합 merge SHA에서 직접 관련 validator 21/21 PASS. 최신 main merge 뒤 CODE_SHA에서 keyboard dismiss, long-answer anchor, composer keyboard layout, answer quality, NEIS school links, asset coherence 6/6 PASS. short/1000+/3000+/Markdown/list/place-card/delayed-rich-growth, streaming 수동 위·아래 스크롤, completion, 최신 답변 버튼, 다음 질문 re-anchor, composer tap reading-position 보존, keyboard dismiss/no-refocus, 360/375/390/412/Fold 690·750/Desktop 및 safe-area/visualViewport를 포함한다. 추가 임시 경계 실행에서 Fold 601·760도 layout/visual/pan 전부 PASS. 통합 직전 전체 scripts/validate_* 213개는 209 PASS / 4 known baseline FAIL이며 통합 및 최신 main merge 후 직접 영향군 신규 실패는 0.
 NEW_FAILURES=NONE
 USER_DECISION_NEEDED=NONE (validator 기준 0~40px·on-screen 유지, 오히려 강화)
 
-커밋(fd03d6c1 이후): 1ec55a69 GATE FIX 02 본체 → 16e7e4e4 main 0f076722 merge → 6e357e69 문서 → 2afa1940 keyboard dismiss/no-refocus 정상 merge → 이 문서.
+커밋(fd03d6c1 이후): 1ec55a69 GATE FIX 02 본체 → 16e7e4e4 main 0f076722 merge → 6e357e69 문서 → 2afa1940 keyboard dismiss/no-refocus 정상 merge → 5b712d2f 통합 문서 → 4a5563ca latest main c9c19e4c 정상 merge → 이 문서.
 커밋(f296c4ce 이후, 이전 문서): 0dbd7e86 hotfix 본체 → 892d9633 safe-area 1회 → f04869ce main 843a667b merge → fd03d6c1 문서.
 
 ---
