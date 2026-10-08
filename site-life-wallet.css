@@ -37,10 +37,14 @@
 .wallet-card-viewport[data-dragging='true'] { scroll-snap-type: none; user-select: none; cursor: grabbing; }
 @media (hover: hover) and (pointer: fine) { .wallet-card-carousel:not(.wallet-card-carousel-single) .wallet-card-viewport:not([data-dragging='true']) { cursor: grab; } }
 .wallet-card-viewport:focus-visible { border-radius: 20px; box-shadow: 0 0 0 3px var(--lotbi-focus-ring, rgba(29, 78, 216, .24)); }
-.wallet-card-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; align-items: start; padding: 2px 0 8px; }
+/* Exactly one saved item on screen: each slide is as wide as the visible strip and never
+   shrinks; the card keeps a small gutter and room below for its shadow, so neither its
+   rounded edge nor a neighbour is ever cut into view. */
+.wallet-card-track { display: flex; align-items: flex-start; padding: 2px 0 16px; }
 .wallet-card-carousel-single .wallet-card-viewport { overflow-x: hidden; }
-.wallet-card-carousel-single .wallet-card-track { grid-auto-columns: min(100%, 460px); justify-content: center; padding-inline: 0; }
-.wallet-card { min-width: 0; max-width: min(100%, 460px); display: block; justify-self: center; align-self: start; padding: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--lotbi-border-default) 75%, transparent); border-radius: 20px; background: var(--lotbi-surface-subtle); color: inherit; cursor: pointer; appearance: none; scroll-snap-align: center; scroll-snap-stop: always; box-shadow: 0 12px 30px rgba(25, 31, 43, .14); }
+.wallet-card-carousel-single .wallet-card-track { justify-content: center; padding-inline: 0; }
+.wallet-card-slide { flex: 0 0 100%; width: 100%; min-width: 0; box-sizing: border-box; display: flex; justify-content: center; align-items: flex-start; padding-inline: 12px; scroll-snap-align: start; scroll-snap-stop: always; }
+.wallet-card { min-width: 0; max-width: min(100%, 460px); display: block; flex: 0 1 auto; padding: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--lotbi-border-default) 75%, transparent); border-radius: 20px; background: var(--lotbi-surface-subtle); color: inherit; cursor: pointer; appearance: none; box-shadow: 0 12px 30px rgba(25, 31, 43, .14); }
 .wallet-card-image { display: block; width: auto; min-width: 200px; max-width: 100%; height: auto; max-height: 520px; object-fit: contain; object-position: center; transform: none; background: var(--lotbi-surface-subtle); }
 .wallet-card-dots { display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 4px; }
 .wallet-card-dot { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; background: none; cursor: pointer; appearance: none; }
@@ -65,7 +69,8 @@
 .wallet-photo-mark, .wallet-photo-preview { grid-column: 1; grid-row: 1; }
 .wallet-photo-copy { grid-column: 2; grid-row: 1; }
 .wallet-photo-picker:not(:has(> .wallet-photo-mark:not([hidden]), > .wallet-photo-preview:not([hidden]))) .wallet-photo-copy { grid-column: 1 / 3; }
-.wallet-photo-action { grid-column: 3; grid-row: 1; min-height: 36px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+.wallet-photo-actions { grid-column: 3; grid-row: 1; display: flex; gap: 6px; }
+.wallet-photo-action { min-height: 36px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
 .wallet-photo-scanner-host { min-width: 0; }
 .wallet-photo-scanner-host:empty { display: none; }
 .wallet-form-intro { margin: -6px 0 2px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
@@ -74,9 +79,11 @@
 .wallet-detail { display: grid; gap: 24px; }
 .wallet-detail-header { display: flex; align-items: center; gap: 16px; }
 .wallet-detail-header h3 { min-width: 0; overflow-wrap: anywhere; }
-.wallet-detail-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.wallet-detail-images figure { margin: 0; display: grid; gap: 8px; }
-.wallet-detail-images img { width: 100%; max-height: 560px; object-fit: contain; border-radius: 12px; background: var(--lotbi-surface-subtle); }
+/* One photo per item (no back photo is taken): shown full width at its own shape, a tall
+   page as tall as the screen allows. A legacy back photo follows below. */
+.wallet-detail-images { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.wallet-detail-images figure { margin: 0; display: grid; justify-items: center; gap: 8px; }
+.wallet-detail-images img { display: block; width: auto; max-width: 100%; height: auto; max-height: max(520px, min(80vh, 960px)); object-fit: contain; border-radius: 12px; background: var(--lotbi-surface-subtle); }
 .wallet-detail-images figcaption { color: var(--consumer-muted); font-size: 12px; text-align: center; }
 .wallet-card-note { margin: 0; padding: 16px; border-radius: 10px; background: var(--lotbi-surface-subtle); white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
 .wallet-danger-action { justify-self: start; color: var(--lotbi-error-text, #b42332); }
@@ -93,6 +100,8 @@
 .wallet-scan-workspace { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .wallet-scan-pane { min-width: 0; display: grid; gap: 8px; }
 .wallet-scan-pane[hidden] { display: none; }
+/* The button's inline-flex display would otherwise override the hidden attribute. */
+.wallet-scan-adjust[hidden], .wallet-scan-rotate[hidden] { display: none; }
 .wallet-scan-pane h4 { margin: 0; font-size: 14px; }
 .wallet-scan-stage { position: relative; min-width: 0; overflow: hidden; border-radius: 16px; background: #111827; touch-action: none; user-select: none; }
 .wallet-scan-source { width: 100%; height: auto; display: block; }
@@ -118,7 +127,6 @@
   .wallet-toolbar > div { flex-basis: 100%; }
   .wallet-toolbar > .wallet-settings { flex-basis: auto; }
   .wallet-toolbar .consumer-action { flex: 1; }
-  .wallet-detail-images { grid-template-columns: 1fr; }
   .wallet-scan-workspace { grid-template-columns: 1fr; }
 }
 @media (max-width: 430px) {
