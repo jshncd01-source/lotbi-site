@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-a97d4c8b5323';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-0de77382419c';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
