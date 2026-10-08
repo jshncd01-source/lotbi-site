@@ -5,10 +5,11 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 4);
-// Medical entries build their sentence from the form (LIFE-MEDICAL-CATEGORY-ENTRY-01).
-assert.ok(LIFE_SHORTCUTS.filter(item => item.id !== 'festivals' && !item.medical).every(item => typeof item.prompt === 'string'));
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역생활정보']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 5);
+// Medical entries ask a fixed question at once (LIFE-MEDICAL-AUTO-SEARCH-01).
+assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), ['hospital', 'pharmacy', 'emergency']);
+assert.ok(LIFE_SHORTCUTS.filter(item => item.id !== 'festivals' && !item.ask).every(item => typeof item.prompt === 'string'));
 // 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
 assert.doesNotMatch(source, /공과금|고지서|납부기한/);
@@ -27,7 +28,7 @@ assert.match(source, /mounted\?\.dispose\?\.\(\)/);
 assert.match(conversation, /onClose: \(\) => mounted\?\.dispose\(\)/);
 assert.match(conversation, /mountPetFamilyManager\(\{sessionToken, root, subscription: serverSubscription/);
 assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface/);
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/);
+assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?closeSurface\(\);\s*askWithoutKeyboard\(text\);/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.match(css, /min-height: 44px/);
 assert.match(css, /input:focus-visible/);

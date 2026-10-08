@@ -2,8 +2,9 @@
 //
 // What a person sees after a place or 병원·약국 search:
 //  - phones (≤760px) have no ‹ › arrows over the card; a swipe turns the cards
-//    round (last → first), and only the center card shows — no side card is
-//    cut off at the screen edge or drawn over the center card;
+//    round (last → first). LIFE-MEDICAL-AUTO-SEARCH-CARD-01: the center card is
+//    the largest and the next cards' edges show beside it (inside the rail,
+//    never over the center card), so turning is visible without the arrows;
 //  - a card without a photo has no photo box; the center card fits on the
 //    screen whole, with 이름·거리·주소·진료시간·전화·길찾기 inside it;
 //  - "1/3" under the card says where you are; three cards first, the rest of
@@ -29,7 +30,7 @@ const SCREENSHOT_DIR = process.env.PLACE_MEDICAL_CARD_SCREENSHOT_DIR || '';
 
 // ── Source contract ─────────────────────────────────────────────────────
 const conversation = read('site-conversation.js');
-const rendererStart = conversation.indexOf('const createPlaceCardRail = placeValue => {');
+const rendererStart = conversation.indexOf('const createPlaceCardRail = (placeValue, placeOptions = {}) => {');
 const rendererEnd = conversation.indexOf('const normalizeConversationCalendarResult = value => {', rendererStart);
 assert.ok(rendererStart >= 0 && rendererEnd > rendererStart, 'place card renderer');
 const renderer = conversation.slice(rendererStart, rendererEnd);
@@ -258,7 +259,7 @@ const PROBE = `(() => {
   return {
     vw: document.documentElement.clientWidth, vh: innerHeight,
     pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    rail: box(rail), scrollLeft: rail.scrollLeft, railMinHeight: rail.style.minHeight,
+    rail: box(rail), scrollLeft: rail.scrollLeft, railMinHeight: rail.style.minHeight, dragging: rail.classList.contains('is-dragging'),
     hasFooterClass: rail.classList.contains('has-orbit-footer'),
     cardCount: Number(rail.dataset.cardCount), placeCount: Number(rail.dataset.placeCount),
     shown: cards.filter(card => !card.hidden).length, total: cards.length,
@@ -416,13 +417,20 @@ function checkLayout(where, p, testCase, scenarioKey, {announced = true} = {}) {
     assert.equal(p.position.box, null, `${where}: no position for one card`);
   }
   if (testCase.mobile) {
-    // No arrows; side cards wait unseen beside the card, never over it.
+    // No arrows; the next cards' edges show beside the card, never over it.
     assert.equal(p.prev.display, 'none', `${where}: ‹ on a phone`);
     assert.equal(p.next.display, 'none', `${where}: › on a phone`);
     for (const side of p.sides) {
-      assert.equal(side.opacity, 0, `${where}: side card ${side.name} (${side.slot}) visible`);
-      assert.equal(side.pointer, 'none', `${where}: side card ${side.name} takes taps`);
       assert.equal(overlapArea(side.box, p.center), 0, `${where}: side card ${side.name} (${side.slot}) under the center card`);
+      if (side.slot.endsWith('_BACK')) {
+        assert.equal(side.opacity, 0, `${where}: back card ${side.name} hidden behind the front one`);
+        continue;
+      }
+      const edge = side.slot.startsWith('LEFT') ? side.box.r - p.rail.x : p.rail.r - side.box.x;
+      if (!p.dragging) {
+        assert.ok(edge >= 10 && edge <= 40, `${where}: side card ${side.name} (${side.slot}) shows its edge (${edge}px)`);
+        assert.ok(side.opacity >= 0.3, `${where}: side card ${side.name} (${side.slot}) visible (${side.opacity})`);
+      }
     }
   } else {
     assert.notEqual(p.prev.display, 'none', `${where}: ‹ on desktop`);

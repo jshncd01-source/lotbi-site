@@ -752,7 +752,8 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
 function normalizeMedicalResultNotice(value) {
   if (!value || typeof value !== 'object' || value.contract_id !== 'CORE-MEDICAL-RESULT-01') return null;
   const notices = Array.isArray(value.notices) ? value.notices : [];
-  return Object.freeze({emergencyCall: notices.includes('CALL_119')});
+  // partial: Core read only part of a long registry list (shown on the cards).
+  return Object.freeze({emergencyCall: notices.includes('CALL_119'), partial: value.coverage === 'PARTIAL'});
 }
 
 function normalizeAttachmentIds(attachmentIds) {
