@@ -3760,6 +3760,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
+  // ONNURI-MERCHANT-01: 생활정보 → 온누리상품권 가맹점 찾기 (public Core read).
+  // It stays on the existing 'life' route, so a reload lands on 생활정보.
+  const openOnnuri = async () => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('온누리상품권 가맹점', '공공데이터에 등록된 가맹점을 현재 위치나 지역으로 찾아보세요.');
+    panel.classList.add('site-onnuri-modal');
+    let releaseOnnuriSurface = null;
+    // Same route as the 생활정보 section it belongs to (openConsumerSection).
+    const route = 'life';
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'),
+      onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
+    });
+    try {
+      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-1ad46a60d49c');
+      const mounted = await mountOnnuriMerchants({root: content});
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'onnuri-error',
+        textContent: '온누리상품권 가맹점 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
   const openRenameThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
     const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
@@ -4000,6 +4026,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       sessionExpiresAt: serverIdentity?.expiresAt || '',
       onDraft: text => { closeSurface(); draft(text); },
       onFestival: () => { closeSurface(); void openFestival(); },
+      onOnnuri: () => { closeSurface(); void openOnnuri(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
@@ -4961,7 +4988,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
         const token = await ensureGuestSession();
         if (!turnStillActive()) return;
-        const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
+        const lifeLocation = await resolveLifeLocationContext(message, {recentContext: recentConversationContext()}).catch(() => null);
         if (!turnStillActive()) return;
         if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: guestRequestId, scope: 'GUEST', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
         const response = await sendGuestConversationMessage({
@@ -5091,7 +5118,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
     try {
       const activeSessionToken = sessionToken;
-      const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
+      const lifeLocation = await resolveLifeLocationContext(message, {recentContext: recentConversationContext()}).catch(() => null);
       if (!turnStillActive()) return;
       if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: authenticatedRequestId, scope: 'AUTH', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
       const response = await sendConversationMessage(

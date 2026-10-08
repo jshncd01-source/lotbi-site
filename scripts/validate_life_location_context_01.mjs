@@ -51,6 +51,17 @@ await check('생활 조회 의도에만 반응한다', async () => {
   }
 });
 
+await check('온누리상품권 가맹점 질문과 그 후속 질문에만 반응한다 (ONNURI-MERCHANT-01)', async () => {
+  for (const text of ['내 주변 온누리상품권 가맹점 찾아줘', '모바일 온누리 되는 곳만 보여줘', '온누리 가능한 카페 가까운 순서로 보여줘']) {
+    assert.equal(lifeLocationIntent(text), true, text);
+  }
+  assert.equal(lifeLocationIntent('온누리약국 전화번호 알려줘'), false);
+  const thread = [{role: 'assistant', text: ['**온누리상품권 가맹점**', '조건: 현재 위치 근처'].join(' ')}];
+  assert.equal(lifeLocationIntent('가까운 2곳 알려줘', thread), true);
+  assert.equal(lifeLocationIntent('가까운 2곳 알려줘'), false);
+  assert.equal(lifeLocationIntent('가까운 2곳 알려줘', [{role: 'assistant', text: '전주 맛집 검색 결과예요.'}]), false);
+});
+
 await check('현재 위치가 있으면 반올림 좌표만 보낸다 (사용자 요청이 곧 명시적 동작)', async () => {
   const calls = [];
   const context = await resolveLifeLocationContext('근처 동물병원 찾아줘', {
@@ -151,7 +162,9 @@ await check('좌표는 공통 위치 계층에서만 얻고 이 모듈은 아무
     assert.doesNotMatch(source, forbidden);
   }
   const conversation = read('site-conversation.js');
-  assert.match(conversation, /const lifeLocation = await resolveLifeLocationContext\(message\)\.catch\(\(\) => null\);/);
+  // ONNURI-MERCHANT-01: both paths also pass the visible thread, so a short
+  // follow-up after an 온누리 answer ("가까운 2곳") carries the same location.
+  assert.equal((conversation.match(/const lifeLocation = await resolveLifeLocationContext\(message, \{recentContext: recentConversationContext\(\)\}\)\.catch\(\(\) => null\);/g) || []).length, 2);
   assert.equal((conversation.match(/\.\.\.\(lifeLocation \? \{location: lifeLocation\} : \{\}\)/g) || []).length, 2,
     '게스트와 로그인 두 경로 모두 같은 방식으로 위치를 싣는다');
 });
