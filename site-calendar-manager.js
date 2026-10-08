@@ -3135,6 +3135,12 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   const actions = document.createElement('div'); actions.className = 'calendar-editor-actions';
   const cancel = button('취소', 'calendar-editor-cancel');
   const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
+  // 저장 waits for a title (and for a save already in flight); 취소 never
+  // waits on anything.
+  let saveInFlight = false;
+  const refreshSave = () => { save.disabled = saveInFlight || !titleInput.value.trim(); };
+  titleInput.addEventListener('input', refreshSave);
+  refreshSave();
   actions.append(cancel);
   if (!item || itemPolicy.canUpdate) actions.append(save);
 
@@ -3354,7 +3360,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       place: placeInput.value,
       merchant: merchantInput.value,
     };
-    save.disabled = true;
+    saveInFlight = true; refreshSave();
     try {
       if (item) await controller.update(item, value); else await controller.create(value);
       cleanupDeleteConfirmation({restoreFocus: false});
@@ -3365,7 +3371,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       // The guest quota itself is unchanged; only its words follow the Calendar's.
       else if (caught?.code === 'GUEST_CALENDAR_CREATE_QUOTA_REACHED') error.textContent = `로그인 없이 남길 수 있는 기록 ${GUEST_CREATE_QUOTA}개를 모두 썼어요. 로그인하면 계속 남길 수 있어요.`;
       else error.textContent = caught instanceof Error ? caught.message : '기록을 저장하지 못했어요.';
-      save.disabled = false;
+      saveInFlight = false; refreshSave();
     }
   });
   queueMicrotask(() => titleInput.focus());
