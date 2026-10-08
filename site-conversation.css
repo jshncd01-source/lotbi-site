@@ -461,6 +461,7 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1.35;
+  word-break: keep-all;
 }
 
 @media (max-width: 760px) {
