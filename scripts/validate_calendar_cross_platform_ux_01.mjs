@@ -11,8 +11,12 @@ const css = fs.readFileSync('site-calendar.css', 'utf8');
 assert.ok(manager.includes("const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);"));
 assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
-assert.ok(manager.includes("const layout = 'timegrid';"));
-assert.ok(manager.includes('section.appendChild(renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}))'));
+// A desk keeps the seven-column hour grid; a touch width lists the days down
+// a rail beside the picked day (validate_calendar_week_mobile_vertical_01).
+assert.ok(manager.includes("return usesFlowingDayDetail() ? 'vertical' : 'timegrid';"));
+assert.ok(manager.includes('const layout = calendarWeekLayout();'));
+assert.ok(manager.includes(': renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));'));
+assert.ok(manager.includes('? renderWeekVertical(state, actions, {weatherByDate, holidayMap})'));
 assert.ok(manager.includes("group.dataset.calendarWeekGroup = day.date"));
 assert.ok(manager.includes("group.dataset.weekday = String(day.weekday)"));
 assert.ok(manager.includes("'이번 주에는 기록이 없어요.'"));
