@@ -696,13 +696,16 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(cards['김하늘'].transition, false, `${label}: a person already missing must not offer the transition again`);
   for (const name of ['박영자', '이도윤', '최민준']) {
     assert.equal(cards[name].activeSos, false, `${label}: ${name} has no ACTIVE SOS and must show no missing state`);
-    assert.equal(cards[name].transition, true, `${label}: ${name} must offer 실종 상태로 전환`);
+    // An unfinished registration (박영자 3/10) offers 이어서 등록하기 instead of a blocked transition.
+    assert.equal(cards[name].transition, name !== '박영자', `${label}: ${name} 실종 상태로 전환`);
   }
-  assert.equal(cards['김하늘'].badge, '정상');
+  // SAFECARE-PERSON-DARK-CANCEL-01: 등록 완료 / 등록 중 / 사진 갱신 필요.
+  assert.equal(cards['김하늘'].badge, '등록 완료');
   assert.equal(cards['이도윤'].badge, '사진 갱신 필요');
   assert.equal(cards['최민준'].badge, '갱신 예정 · 7일 남음');
   assert.ok(cards['최민준'].text.includes('2026.10.12'), `${label}: Core's next renewal date must show`);
-  assert.equal(cards['박영자'].photoAction, '사진 등록 이어하기');
+  assert.equal(cards['박영자'].photoAction, '이어서 등록하기');
+  assert.equal(cards['박영자'].badge, '등록 중 · 사진 3/10');
   assert.equal(cards['김하늘'].photoAction, '사진 갱신·관리');
 
   // person photos: exactly ten labelled slots, progress, card-local artwork, web wording

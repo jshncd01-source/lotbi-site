@@ -364,11 +364,15 @@
 }
 
 .safecare-slot[data-safecare-slot-locked="true"] {
-  opacity: .62;
+
+  border-style: dashed;
+  background: var(--lotbi-surface-subtle, #f7f7f7);
 }
 
 .safecare-slot[data-safecare-slot-working="true"] {
-  opacity: .6;
+
+  border-style: dashed;
+  cursor: progress;
 }
 
 .safecare-slot-media {
@@ -536,7 +540,8 @@
   cursor: not-allowed;
   border-style: dashed;
   background: var(--lotbi-surface-hover, #f1f3f8);
-  color: var(--lotbi-text-disabled, #8a8a8a);
+  color: color-mix(in srgb, var(--lotbi-text-primary, #212121) 72%, var(--lotbi-surface-hover, #f0f0f0));
+  opacity: 1;
 }
 
 .safecare-submit-hint {
@@ -698,9 +703,9 @@
   width: 100%;
   min-height: 52px;
   padding: 12px 44px 12px 14px;
-  border: 1px solid var(--lotbi-border, #d8dde5);
+  border: 1px solid var(--lotbi-border-strong, #c9c9c9);
   border-radius: 12px;
-  background: var(--lotbi-surface, #fff);
+  background: var(--lotbi-surface-primary, #fff);
   color: var(--lotbi-text-muted, #5d6675);
   font: inherit;
   font-weight: 800;
@@ -715,7 +720,7 @@
   right: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--lotbi-accent, #315d9b);
+  color: var(--lotbi-text-primary, #212121);
   font-size: 18px;
 }
 
@@ -754,9 +759,10 @@
   overflow-y: auto;
   scroll-snap-type: y mandatory;
   scrollbar-width: thin;
-  border-block: 1px solid var(--lotbi-border, #d8dde5);
+  border-block: 1px solid var(--lotbi-border-strong, #c9c9c9);
   background: linear-gradient(to bottom, transparent 40%, rgba(79, 120, 197, .1) 40%, rgba(79, 120, 197, .1) 60%, transparent 60%);
   overscroll-behavior: contain;
+  background-color: var(--lotbi-surface-primary, #fff);
 }
 
 .person-birth-wheel-option {
@@ -782,12 +788,6 @@
 
 .person-birth-picker-actions { display: grid; }
 .person-birth-picker-actions .site-button { min-height: 48px; }
-
-body[data-site-theme="dark"] .person-birth-trigger,
-body[data-site-theme="dark"] .person-birth-wheel {
-  border-color: #465162;
-  background-color: #121720;
-}
 
 .person-consent-check {
   display: flex;
@@ -842,8 +842,9 @@ body[data-site-theme="dark"] .person-birth-wheel {
   width: 48px;
   height: 48px;
   border-radius: 16px;
-  background: #fff3d6;
+  background: color-mix(in srgb, var(--lotbi-warning-text, #8a4b16) 14%, var(--lotbi-surface-elevated, #fff));
   font-size: 24px;
+  color: var(--lotbi-text-primary, #212121);
 }
 
 .safecare-renewal-title,
@@ -859,7 +860,7 @@ body[data-site-theme="dark"] .person-birth-wheel {
 }
 
 .safecare-renewal-lead {
-  color: var(--color-text-secondary, var(--site-text-muted, #667085));
+  color: var(--lotbi-text-muted, #5d6675);
   line-height: 1.6;
 }
 
@@ -873,18 +874,18 @@ body[data-site-theme="dark"] .person-birth-wheel {
 
 .safecare-renewal-rules li {
   padding: 13px 14px;
-  border: 1px solid #d8e2f0;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
   border-radius: 13px;
-  background: #f7faff;
-  color: var(--color-text-primary, #172033);
+  background: var(--lotbi-surface-subtle, #f7f7f7);
+  color: var(--lotbi-text-primary, #212121);
   font-weight: 800;
 }
 
 .safecare-renewal-reminder {
   padding: 12px 14px;
   border-radius: 12px;
-  background: #fff8e8;
-  color: #7a4b00;
+  background: color-mix(in srgb, var(--lotbi-warning-text, #8a4b16) 14%, var(--lotbi-surface-elevated, #fff));
+  color: var(--lotbi-warning-text, #8a4b16);
   font-weight: 750;
   line-height: 1.5;
 }
@@ -896,9 +897,9 @@ body[data-site-theme="dark"] .person-birth-wheel {
 
 .safecare-notice-section {
   overflow: hidden;
-  border: 1px solid #d8e2f0;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
   border-radius: 14px;
-  background: #fff;
+  background: var(--lotbi-surface-elevated, #fff);
 }
 
 .safecare-notice-section-header {
@@ -918,12 +919,12 @@ body[data-site-theme="dark"] .person-birth-wheel {
 }
 
 .safecare-notice-section-copy strong {
-  color: var(--color-text-primary, #172033);
+  color: var(--lotbi-text-primary, #212121);
   font-size: 15px;
 }
 
 .safecare-notice-section-copy span {
-  color: var(--color-text-secondary, #667085);
+  color: var(--lotbi-text-muted, #5d6675);
   font-size: 13px;
 }
 
@@ -938,8 +939,8 @@ body[data-site-theme="dark"] .person-birth-wheel {
   display: grid;
   gap: 12px;
   padding: 14px;
-  border-top: 1px solid #e6ebf2;
-  background: #f9fbfe;
+  border-top: 1px solid var(--lotbi-border-default, #e5e5e5);
+  background: var(--lotbi-surface-subtle, #f7f7f7);
 }
 
 .safecare-notice-detail[hidden] {
@@ -948,7 +949,7 @@ body[data-site-theme="dark"] .person-birth-wheel {
 
 .safecare-consent-copy {
   margin: 0;
-  color: var(--color-text-secondary, #475467);
+  color: var(--lotbi-text-muted, #5d6675);
   font-size: 14px;
   line-height: 1.65;
   word-break: keep-all;
@@ -960,10 +961,10 @@ body[data-site-theme="dark"] .person-birth-wheel {
   align-items: start;
   gap: 9px;
   padding: 12px;
-  border: 1px solid #cbd7e6;
+  border: 1px solid var(--lotbi-border-strong, #c9c9c9);
   border-radius: 12px;
-  background: #fff;
-  color: var(--color-text-primary, #172033);
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #212121);
   font-weight: 750;
   line-height: 1.45;
   word-break: keep-all;
@@ -974,11 +975,11 @@ body[data-site-theme="dark"] .person-birth-wheel {
   width: 20px;
   height: 20px;
   margin: 1px 0 0;
-  accent-color: var(--site-primary, #17375e);
+  accent-color: var(--lotbi-brand-solid-bg, #212121);
 }
 
 .safecare-renewal-error {
-  color: var(--site-danger, #b42318);
+  color: var(--lotbi-error-text, #a02645);
   font-weight: 700;
 }
 

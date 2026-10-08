@@ -15,15 +15,15 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-663b145f9c93';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-663b145f9c93';
+} from './site-person.js?v=aset-5df39ead1a29';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-5df39ead1a29';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-663b145f9c93';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-663b145f9c93';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-663b145f9c93';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-663b145f9c93';
+} from './site-safecare-common.js?v=aset-5df39ead1a29';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-5df39ead1a29';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-5df39ead1a29';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-5df39ead1a29';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -110,12 +110,113 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
   const go = next => { clearSheet(); view = next; render(); surface.scrollIntoView?.({block: 'start', behavior: 'smooth'}); };
   const backBar = (label = '목록으로') => { const bar = el('div', 'safecare-back'); bar.append(button(`← ${label}`, () => go({name: 'list'}))); return bar; };
   const activeCaseFor = personId => cases.find(record => record.personId === personId && record.status === 'ACTIVE');
+  const isUnfinished = item => Number(item?.identityPhotoCount || 0) < 10;
+  // 등록 완료 / 등록 중 / 사진 갱신 필요 on the person card (pets keep renewalBadge).
+  const personStatusBadge = item => {
+    if (isUnfinished(item)) return {label: `등록 중 · 사진 ${identityPhotoProgress(item.identityPhotoCount).count}/10`, tone: 'progress'};
+    if (item.identityPhotoState === 'CURRENT') return {label: '등록 완료', tone: 'ok'};
+    return renewalBadge({state: item.identityPhotoState, daysRemaining: item.identityPhotoDaysRemaining});
+  };
+
+  // ---------------------------------------------------- 등록 취소 (steps 1-3)
+  // A new registration can be left at any step: kept as "등록 중" to resume
+  // later, deleted after a separate confirmation (only while unfinished — Core
+  // refuses a finished profile or one with a missing-person case), or kept going.
+  // Editing a profile or managing its photos never offers this; those screens
+  // keep the original registration as it is.
+  const registrationBar = person => {
+    const bar = el('div', 'safecare-back person-registration-bar');
+    const cancel = button('등록 취소', () => openRegistrationCancel(person));
+    cancel.dataset.personRegistrationCancel = '';
+    bar.append(cancel);
+    return bar;
+  };
+  const openRegistrationCancel = person => {
+    clearSheet();
+    if (!person) {  // nothing was created on the server yet: just close the screen
+      go({name: 'list'});
+      return;
+    }
+    const latest = people.find(item => item.personId === person.personId) || person;
+    const photos = identityPhotoProgress(latest.identityPhotoCount).count;
+    const canDelete = isUnfinished(latest) && !activeCaseFor(latest.personId);
+    const panel = el('section', 'person-cancel-sheet');
+    panel.dataset.personCancelSheet = latest.personId;
+    panel.append(
+      el('h3', 'person-cancel-title', '등록을 취소할까요?'),
+      el('p', 'person-cancel-lead', `${latest.displayName} 등록이 아직 끝나지 않았습니다. 지금까지 저장된 내용: 기본정보 · 식별 사진 ${photos}/10장`),
+    );
+    if (view.step === 1) panel.append(el('p', 'person-field-hint', '이 화면에서 아직 저장하지 않은 수정 내용은 반영되지 않습니다.'));
+    const choices = el('div', 'person-cancel-choices');
+    const keep = button('임시 저장하고 나가기', () => {
+      activeSheet?.close();
+      showStatus(`${latest.displayName} 등록을 임시 저장했습니다. 목록의 '이어서 등록하기'로 계속할 수 있습니다.`);
+      go({name: 'list'});
+    }, true);
+    keep.dataset.personCancelKeep = '';
+    const keepNote = el('p', 'person-field-hint', `입력한 기본정보와 통과한 사진 ${photos}장이 그대로 남고, 목록의 '등록 중'에서 이어서 등록할 수 있습니다.`);
+    const remove = button('등록 취소하고 삭제', () => openRegistrationDelete(latest));
+    remove.classList.add('person-danger');
+    remove.dataset.personCancelDelete = '';
+    remove.disabled = !canDelete;
+    const removeNote = el('p', 'person-field-hint', canDelete
+      ? '기본정보와 저장된 사진을 모두 삭제합니다. 삭제 전에 한 번 더 확인합니다.'
+      : '사진 10장이 모두 등록되었거나 실종 상태인 사람은 여기서 삭제할 수 없습니다. 필요하면 목록의 정보 수정에서 삭제해 주세요.');
+    const resume = button('계속 등록하기', () => activeSheet?.close());
+    resume.dataset.personCancelContinue = '';
+    choices.append(keep, keepNote, remove, removeNote, resume);
+    panel.append(choices);
+    activeSheet = createBottomSheet({
+      label: '등록 취소', content: panel, presentation: SHEET_PRESENTATION.SHEET, dismissLabel: '계속 등록하기',
+      onClose: () => { activeSheet = null; },
+    });
+    activeSheet.open();
+  };
+  const openRegistrationDelete = person => {
+    clearSheet();
+    const photos = identityPhotoProgress(person.identityPhotoCount).count;
+    const panel = el('section', 'person-cancel-sheet');
+    panel.dataset.personDeleteConfirm = person.personId;
+    const facts = el('dl', 'person-review');
+    facts.append(
+      el('dt', '', '삭제 대상'), el('dd', '', `${person.displayName} (${relationshipLabel(person.relationship)}${person.birthYear ? ` · ${person.birthYear}년 ${person.birthMonth}월생` : ''})`),
+      el('dt', '', '함께 삭제'), el('dd', '', `기본정보 · 식별 사진 ${photos}장`),
+      el('dt', '', '복구'), el('dd', '', '삭제하면 되돌릴 수 없습니다'),
+    );
+    const error = errorNode();
+    const confirm = button('삭제', async () => {
+      if (busy) return;
+      busy = true; confirm.disabled = true; error.hidden = true;
+      try {
+        await deletePerson(sessionToken, person, undefined, {registrationCancel: true});
+        activeSheet?.close();
+        await refresh();
+        showStatus(`${person.displayName} 등록을 취소하고 삭제했습니다.`);
+        go({name: 'list'});
+      } catch (value) {
+        fail(error, value, '삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        confirm.disabled = false;
+      } finally { busy = false; }
+    });
+    confirm.classList.add('person-danger');
+    confirm.dataset.personDeleteConfirmButton = '';
+    const back = button('돌아가기', () => openRegistrationCancel(person));
+    const actions = el('div', 'person-form-actions');
+    actions.append(back, confirm);
+    panel.append(el('h3', 'person-cancel-title', '등록을 삭제할까요?'), facts, error, actions);
+    activeSheet = createBottomSheet({
+      label: '등록 삭제 확인', content: panel, presentation: SHEET_PRESENTATION.SHEET, dismissLabel: '돌아가기',
+      onClose: () => { activeSheet = null; },
+    });
+    activeSheet.open();
+  };
 
   // ---------------------------------------------------------------- list
   const renderList = () => {
     const heading = el('div', 'person-section-heading');
     const headingCopy = el('div');
-    headingCopy.append(el('h3', 'person-title', `등록된 사람${people.length ? ` ${people.length}` : ''}`), el('p', 'person-empty', '보호 대상의 사진 갱신과 실종 상태를 한곳에서 관리합니다.'));
+    const finishedCount = people.filter(item => !isUnfinished(item)).length;
+    headingCopy.append(el('h3', 'person-title', `등록된 사람${finishedCount ? ` ${finishedCount}` : ''}`), el('p', 'person-empty', '보호 대상의 사진 갱신과 실종 상태를 한곳에서 관리합니다.'));
     heading.append(headingCopy, button('사람 등록', () => go({name: 'register', step: 1, personId: ''}), true));
 
     const found = el('section', 'safecare-found-cta');
@@ -137,7 +238,26 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     }
     const list = el('div', 'person-list');
     list.dataset.personList = '';
-    for (const item of people) list.append(personCard(item));
+    // SAFECARE-PERSON-DARK-CANCEL-01: a registration with fewer than ten photos
+    // is "등록 중", listed apart from finished profiles, and can be resumed.
+    const unfinished = people.filter(isUnfinished);
+    const finished = people.filter(item => !isUnfinished(item));
+    if (unfinished.length) {
+      const group = el('section', 'person-group');
+      group.dataset.personGroup = 'unfinished';
+      group.append(el('h4', 'person-group-title', `등록 중 ${unfinished.length}`), el('p', 'person-empty', '사진 10장을 모두 등록하면 등록이 완료되고 실종 상태로 전환할 수 있습니다.'));
+      for (const item of unfinished) group.append(personCard(item));
+      list.append(group);
+    }
+    if (finished.length && unfinished.length) {
+      const group = el('section', 'person-group');
+      group.dataset.personGroup = 'finished';
+      group.append(el('h4', 'person-group-title', `등록 완료 ${finished.length}`));
+      for (const item of finished) group.append(personCard(item));
+      list.append(group);
+    } else {
+      for (const item of finished) list.append(personCard(item));
+    }
     if (!people.length) {
       const empty = el('div', 'person-empty person-empty-panel');
       empty.append(el('p', '', '아직 등록된 사람이 없습니다.'), el('p', '', '기본정보와 서로 다른 방향의 사진 10장을 등록하면 실종 시 바로 실종 상태로 전환할 수 있습니다.'));
@@ -152,7 +272,9 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const card = el('article', 'person-card');
     card.dataset.personCard = item.personId;
     const activeCase = activeCaseFor(item.personId);
-    const badge = renewalBadge({state: item.identityPhotoState, daysRemaining: item.identityPhotoDaysRemaining});
+    const unfinished = isUnfinished(item);
+    card.dataset.personRegistration = unfinished ? 'unfinished' : 'finished';
+    const badge = personStatusBadge(item);
     const head = el('div', 'person-card-head');
     const name = el('div', 'person-card-title');
     name.append(el('strong', 'person-card-name', item.displayName), el('span', 'person-card-meta', [relationshipLabel(item.relationship), item.birthYear ? `${item.birthYear}년 ${item.birthMonth}월생` : '출생정보 없음'].join(' · ')));
@@ -199,15 +321,18 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     }
 
     const actions = el('div', 'person-card-actions');
-    const complete = item.identityPhotoCount >= 10;
-    const photoAction = button(complete ? '사진 갱신·관리' : '사진 등록 이어하기', () => go({name: 'register', step: 2, personId: item.personId, manage: complete}));
+    const complete = !unfinished;
+    const photoAction = button(complete ? '사진 갱신·관리' : '이어서 등록하기', () => go({name: 'register', step: 2, personId: item.personId, manage: complete}), !complete);
     photoAction.dataset.personPhotos = item.personId;
+    if (!complete) photoAction.dataset.personResume = item.personId;
     const missingAction = button('실종 상태로 전환', () => go({name: 'sos', personId: item.personId}), true);
     missingAction.dataset.personSosOpen = item.personId;
     missingAction.disabled = !availability.sos;
     if (!availability.sos) missingAction.title = '실종 관리 연결을 준비 중입니다.';
     actions.append(photoAction);
-    if (!activeCase) actions.append(missingAction);
+    // An unfinished registration cannot be reported missing yet (Core needs all
+    // ten photos), so its card offers resuming instead of a blocked transition.
+    if (!activeCase && complete) actions.append(missingAction);
     const edit = el('button', 'person-text-button', '정보 수정');
     edit.type = 'button';
     edit.addEventListener('click', () => go({name: 'register', step: 1, personId: item.personId, edit: true}));
@@ -242,7 +367,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
 
   const renderBasicStep = () => {
     const person = view.personId ? people.find(item => item.personId === view.personId) : null;
-    content.replaceChildren(backBar());
+    content.replaceChildren(view.edit ? backBar() : registrationBar(person));
     if (!view.edit) content.append(stepper(1));
     const form = el('form', 'person-form');
     form.dataset.personBasicForm = '';
@@ -465,7 +590,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
   const renderPhotoStep = () => {
     const person = people.find(item => item.personId === view.personId);
     if (!person) { go({name: 'list'}); return; }
-    content.replaceChildren(backBar());
+    content.replaceChildren(view.manage ? backBar() : registrationBar(person));
     if (!view.manage) content.append(stepper(2));
     const photos = identityPhotos.get(person.personId) || [];
     const filledSlots = new Map(photos.map(photo => [photo.slotIndex, photo]));
@@ -509,7 +634,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
   const renderReviewStep = () => {
     const person = people.find(item => item.personId === view.personId);
     if (!person) { go({name: 'list'}); return; }
-    content.replaceChildren(backBar(), stepper(3));
+    content.replaceChildren(registrationBar(person), stepper(3));
     const box = el('section', 'person-form');
     box.append(el('h4', 'person-form-title', '등록 내용을 마지막으로 확인해 주세요'));
     const facts = el('dl', 'person-review');
