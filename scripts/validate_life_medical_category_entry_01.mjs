@@ -4,9 +4,14 @@
 // it to the existing conversation draft (onDraft). Core's medical route
 // (국립중앙의료원 data) answers it; nothing here searches by itself.
 //
+// LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 is hidden until an official
+// integration exists, so the life home has four cards and no empty grid cell.
+// The life home is a category picker only: no free-question bar (the main
+// chat owns free questions) and no saved-items/help row under the list.
+//
 // Browser part: real touch/mouse input through the DevTools protocol on
-// 375x812, 390x844 and 1280x900. Viewport emulation only — not an iPhone
-// Safari / Android device run. External hosts do not resolve.
+// 360x780, 375x812, 390x844, 412x915 and 1280x900. Viewport emulation only —
+// not an iPhone Safari / Android device run. External hosts do not resolve.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,9 +24,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보', '공과금 확인']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보']);
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.medical).map(item => item.id), ['hospital', 'pharmacy']);
-for (const id of ['festivals', 'local', 'bills']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+for (const id of ['festivals', 'local']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS));
 
 // ── Sentence rule (checked against Core main medical_conversation) ──────
@@ -117,10 +123,13 @@ function browserPath() {
 }
 
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';
 const CASES = [
+  {label: 'mobile-360x780', width: 360, height: 780, mobile: true, userAgent: ANDROID_UA},
   {label: 'mobile-375x812', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA},
   {label: 'mobile-390x844', width: 390, height: 844, mobile: true, userAgent: IPHONE_UA},
+  {label: 'mobile-412x915', width: 412, height: 915, mobile: true, userAgent: ANDROID_UA},
   {label: 'desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA},
 ];
 
@@ -190,7 +199,11 @@ const PROBE = `(() => {
     viewport: {w: innerWidth, h: innerHeight}, panel: box(panel),
     panelOverflowX: panel ? panel.scrollWidth - panel.clientWidth : null,
     pageOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    search: Boolean(workspace?.querySelector('.consumer-search input')), saved: [...(workspace?.querySelectorAll('.consumer-action') || [])].some(b => b.textContent === '저장한 정보 다시 보기'),
+    search: Boolean(workspace?.querySelector('.consumer-search, input[type=search]')), saved: /저장한 정보 다시 보기/u.test(workspace?.textContent || ''),
+    freeQuery: /어떤 생활정보가 필요하세요|롯비에게 물어보기/u.test(workspace?.textContent || ''), footer: Boolean(workspace?.querySelector('.consumer-section-footer')),
+    homeChildren: [...(workspace?.querySelector('[data-consumer-surface]')?.children || [])].map(child => child.className),
+    header: box(panel?.querySelector('.site-modal-header')), description: box(panel?.querySelector('.site-modal-description')), label: box(workspace?.querySelector('.consumer-section-label')),
+    focusedShortcut: document.activeElement?.dataset?.lifeShortcut || '',
     shortcuts,
     detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '생활정보로 돌아가기')),
       submit: box(detail.querySelector('form button[type=submit]')), note: detail.querySelector('.consumer-feature-note')?.textContent || '',
@@ -198,6 +211,8 @@ const PROBE = `(() => {
       call: detail.querySelector('.conversation-emergency-call-link')?.getAttribute('href') || '', fields, chips} : null,
     composer: document.getElementById('lotbi-prompt')?.value ?? null,
     festival: Boolean(document.querySelector('.festival-manager')),
+    gridColumns: (() => { const grid = workspace?.querySelector('.consumer-shortcuts'); return grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 0; })(),
+    billsVisible: Boolean(workspace?.querySelector('[data-life-shortcut="bills"]')) || /공과금|고지서/u.test(workspace?.textContent || ''),
   };
 })()`;
 
@@ -332,7 +347,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 5, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === 4, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -343,13 +358,30 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: five cards, existing order kept after the two new ones.
+    // 1. Life main: four cards (공과금 확인 hidden), full rows, no empty cell.
     await openLife();
     const main = await probe();
     assert.equal(main.title, '생활정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보', '공과금 확인']);
-    assert.equal(main.search, true, 'life search box kept');
-    assert.equal(main.saved, true, '저장한 정보 다시 보기 kept');
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보']);
+    assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
+    assert.ok(main.gridColumns >= 1 && main.shortcuts.length % main.gridColumns === 0, `${testCase.label}: ${main.shortcuts.length} cards fill ${main.gridColumns} columns without an empty cell`);
+    const rows = new Map();
+    for (const card of main.shortcuts) { const top = Math.round(card.box.y); rows.set(top, (rows.get(top) || 0) + 1); }
+    assert.deepEqual([...rows.values()], Array(main.shortcuts.length / main.gridColumns).fill(main.gridColumns), `${testCase.label}: every row is full ${JSON.stringify([...rows])}`);
+    assert.equal(new Set(main.shortcuts.map(item => Math.round(item.box.w))).size, 1, `${testCase.label}: all cards share one width`);
+    // Category list right under the description; nothing above or below it.
+    assert.equal(main.search, false, `${testCase.label}: no free-question bar on the life home`);
+    assert.equal(main.freeQuery, false, `${testCase.label}: no 어떤 생활정보가 필요하세요 / 롯비에게 물어보기`);
+    assert.equal(main.saved, false, `${testCase.label}: no 저장한 정보 다시 보기 on the life home`);
+    assert.equal(main.footer, false, `${testCase.label}: no footer row`);
+    assert.deepEqual(main.homeChildren, ['consumer-section-label', 'consumer-shortcuts'], `${testCase.label}: the home is label + list only`);
+    assert.ok(main.header.y >= 0, `${testCase.label}: header inside the viewport (${main.header.y})`);
+    const descriptionToLabel = main.label.y - main.description.bottom;
+    const labelToList = main.shortcuts[0].box.y - main.label.bottom;
+    assert.ok(descriptionToLabel >= 12 && descriptionToLabel <= 32, `${testCase.label}: description → 생활에 필요한 정보 ${descriptionToLabel}px`);
+    assert.ok(labelToList >= 4 && labelToList <= 16, `${testCase.label}: label → first category ${labelToList}px`);
+    assert.ok(main.shortcuts[0].box.y <= 160, `${testCase.label}: first category at ${main.shortcuts[0].box.y}px (was 251px with the bar)`);
+    assert.ok(main.shortcuts.at(-1).box.bottom <= main.viewport.h, `${testCase.label}: every category on the first screen`);
     assert.ok(main.pageOverflowX <= 0, `${testCase.label}: no horizontal page scroll (${main.pageOverflowX})`);
     assert.ok(main.panelOverflowX <= 0, `${testCase.label}: panel does not scroll sideways (${main.panelOverflowX})`);
     const heights = main.shortcuts.map(item => Math.round(item.box.h));
@@ -404,8 +436,10 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.detail.fields[1].value, '지금 진료하는 병원');
     await shot('03-hospital-now');
     await tap(await reveal('.consumer-life-detail > .consumer-action'));
-    state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 5 ? value : null; }, `${testCase.label}: back to life main`);
+    state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 4 ? value : null; }, `${testCase.label}: back to life main`);
     assert.deepEqual(state.shortcuts.map(item => item.label), main.shortcuts.map(item => item.label), 'back → 생활정보 메인');
+    assert.equal(state.focusedShortcut, 'hospital', `${testCase.label}: back returns focus to the card that opened the detail`);
+    assert.deepEqual(state.homeChildren, ['consumer-section-label', 'consumer-shortcuts'], `${testCase.label}: back restores label + list only`);
 
     // 3. 병원·의원 submit → composer holds the Core-compatible sentence → send.
     await tapShortcut('hospital');
@@ -437,7 +471,7 @@ async function runCase(browser, origin, dir, testCase) {
     state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: pharmacy submit`);
     assert.equal(state.composer, '전주 효자동에서 오늘 밤 여는 약국 알려줘', `${testCase.label}: pharmacy draft`);
 
-    // 5. Existing shortcuts and search box unchanged.
+    // 5. Existing shortcuts unchanged.
     await openLife();
     await tapShortcut('local');
     state = await waitFor(async () => { const value = await probe(); return value.detail ? value : null; }, `${testCase.label}: local detail`);
@@ -449,18 +483,6 @@ async function runCase(browser, origin, dir, testCase) {
     await tap(await reveal('.consumer-life-detail form button[type=submit]'));
     state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: local submit`);
     assert.equal(state.composer, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일');
-    await openLife();
-    await tapShortcut('bills');
-    state = await waitFor(async () => { const value = await probe(); return value.detail ? value : null; }, `${testCase.label}: bills detail`);
-    assert.equal(state.detail.title, '공과금 확인');
-    assert.deepEqual(state.detail.fields.map(field => [field.label, field.tag]), [['고지서 내용', 'TEXTAREA']]);
-    await tap(await reveal('.consumer-life-detail > .consumer-action'));
-    await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 5; }, `${testCase.label}: back from bills`);
-    await typeInto('.consumer-search input', '전주 쓰레기 배출일 알려줘');
-    await page('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r'});
-    await page('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13});
-    state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: life search submit`);
-    assert.equal(state.composer, '전주 쓰레기 배출일 알려줘');
     await openLife();
     await tapShortcut('festivals');
     state = await waitFor(async () => { const value = await probe(); return value.festival ? value : null; }, `${testCase.label}: festival surface`);
@@ -488,4 +510,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국 cards open their forms and hand a Core medical sentence to the conversation; existing life shortcuts unchanged (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국 cards open their forms and hand a Core medical sentence to the conversation; 공과금 확인 hidden, four life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
