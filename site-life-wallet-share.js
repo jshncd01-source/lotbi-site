@@ -11,9 +11,9 @@
 // Only the item's label (a title the sharer can edit, and its kind) is sent. The document
 // stays encrypted on this device: moving it to another account is not enabled yet (it needs
 // an end-to-end encrypted design and the owner's approval), and every screen says so.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-e6af742de2ce';
-import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-e6af742de2ce';
-import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-e6af742de2ce';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-687d6fe79263';
+import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-687d6fe79263';
+import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-687d6fe79263';
 
 const BASE = '/v2/life-wallet/share';
 const QR_VALUE_RE = /^https:\/\/lotbiai\.com\/#wallet-share=qr\.([A-Za-z0-9_-]{24,64})$/u;

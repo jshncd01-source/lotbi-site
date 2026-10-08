@@ -3103,6 +3103,197 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   }
 }
 
+/* PLACE-MEDICAL-CARD-UX-FINAL-01 — 장소·의료 카드 최종 정리.
+   - 카드 아래 한 줄: 지금 위치(1/3)와, Core 가 세 곳보다 많이 보냈을 때만
+     "다른 병원 보기". 카드와 화살표는 그 줄을 뺀 높이의 가운데에 선다.
+   - 사진이 없는 카드에는 사진 칸이 없다(site-conversation.js).
+   - 휴대폰(≤760px)에는 좌우 화살표가 없다. 손가락으로 밀면 돈다. 가운데 카드
+     하나만 보이고, 옆 카드는 화면 밖에서 기다리다 미는 동안에만 들어온다 —
+     잘리거나 겹쳐 보이는 카드가 없다. 넓은 화면은 회전형 배치와 화살표를
+     그대로 둔다. */
+.lotbi-place-orbit {
+  --lotbi-place-orbit-footer: 0px;
+}
+
+.lotbi-place-orbit.has-orbit-footer {
+  --lotbi-place-orbit-footer: 40px;
+}
+
+.lotbi-place-orbit-card,
+.lotbi-place-orbit-control {
+  top: calc((100% - var(--lotbi-place-orbit-footer)) / 2);
+}
+
+.lotbi-place-orbit-card[hidden] {
+  display: none;
+}
+
+.lotbi-place-orbit-card.is-orbit-repositioning {
+  transition: none;
+}
+
+/* The card's text answers a press itself. Besides showing the press, this
+   keeps a tap on the text — just above the 전화 / 길찾기 row — on the text:
+   Chrome moves a tap that lands within a few px of a link onto that link
+   unless the spot under the finger responds to touch on its own, and the
+   card around the text does not count (it holds the links). Without it a tap
+   on the address could call the place. */
+.lotbi-place-orbit-card[data-orbit-slot="CENTER"] .lotbi-rich-card-copy:active {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 92%, #cbd6e5);
+}
+
+.lotbi-place-orbit-footer {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--lotbi-place-orbit-footer);
+  pointer-events: none;
+}
+
+.lotbi-place-orbit-footer > * {
+  pointer-events: auto;
+}
+
+.lotbi-place-orbit-footer[hidden],
+.lotbi-place-orbit-position[hidden],
+.lotbi-place-orbit-more[hidden] {
+  display: none;
+}
+
+.lotbi-place-orbit-position {
+  min-width: 2.6em;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lotbi-place-orbit-more {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lotbi-place-orbit-more:hover {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+.lotbi-place-orbit-more:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .lotbi-place-orbit-more {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .lotbi-place-orbit-more:hover {
+  background: #262d38;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit-control {
+    display: none;
+  }
+
+  /* The cards share one grid cell, so the rail is as tall as its tallest
+     card plus the footer row by layout alone — nothing is cut at the top or
+     bottom before (or without) the script's fit. */
+  .lotbi-place-orbit,
+  .lotbi-place-orbit.has-place-photo,
+  .lotbi-place-orbit.has-place-banner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: center;
+    justify-items: center;
+    height: auto;
+    padding: 4px 0;
+  }
+
+  .lotbi-place-orbit.has-orbit-footer {
+    grid-template-rows: auto var(--lotbi-place-orbit-footer);
+  }
+
+  .lotbi-place-orbit-card {
+    grid-area: 1 / 1;
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(calc(100% - 16px), 360px);
+    min-width: 0;
+  }
+
+  .lotbi-place-orbit-footer {
+    grid-area: 2 / 1;
+    position: static;
+    width: 100%;
+  }
+
+  /* Side cards wait off the card, unseen, with their full content so every
+     card counts at its real height and the rail never jumps. */
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+    opacity: 0;
+    filter: none;
+    pointer-events: none;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="CENTER"] {
+    transform: translateX(var(--lotbi-orbit-drag-x));
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform: translateX(calc(-100% - 16px + var(--lotbi-orbit-drag-x)));
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform: translateX(calc(100% + 16px + var(--lotbi-orbit-drag-x)));
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-copy {
+    gap: 3px;
+    padding: 9px 11px 7px;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-price {
+    display: -webkit-box;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-badges,
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+    display: flex;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-license-note {
+    display: block;
+  }
+
+  /* While a finger drags, the next card shows at the edge it comes in from. */
+  .lotbi-place-orbit.is-dragging .lotbi-place-orbit-card[data-orbit-slot$="_FRONT"] {
+    opacity: 1;
+  }
+}
+
 
 /* LOTBI reusable text output card — completed text meant to be copied, shared,
    edited or reused. Ordinary assistant replies never use this surface. */
