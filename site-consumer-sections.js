@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-5df39ead1a29';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-5df39ead1a29';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-5865cca86b96';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-5865cca86b96';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
