@@ -1,5 +1,5 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-c39420e88254';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-c39420e88254';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-fed623561605';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-fed623561605';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -782,9 +782,52 @@ export async function getLifeActivity(sessionToken, activityId, fetchImpl = glob
   return assertMutationResponse(payload);
 }
 
+// 반복 규칙(Core RecurrenceIn): DAILY/WEEKLY/MONTHLY/YEARLY, interval 1..99,
+// WEEKLY만 요일(월=0..일=6), until은 마지막 날짜(포함). 형식이 틀리면 보내기 전에 막는다.
+const RECURRENCE_FREQUENCIES = new Set(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']);
+export const CALENDAR_REMINDER_OFFSETS = Object.freeze([0, 5, 10, 30, 60, 1440]);
+
+export function calendarRecurrenceBody(value) {
+  if (value == null) return null;
+  const frequency = String(value.frequency || '');
+  const interval = value.interval == null ? 1 : Number(value.interval);
+  const weekdays = Array.isArray(value.weekdays) ? [...new Set(value.weekdays.map(Number))].sort((a, b) => a - b) : [];
+  const until = value.until ? String(value.until) : null;
+  if (
+    !RECURRENCE_FREQUENCIES.has(frequency)
+    || !Number.isInteger(interval) || interval < 1 || interval > 99
+    || weekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6)
+    || (weekdays.length && frequency !== 'WEEKLY')
+    || (until !== null && !/^\d{4}-\d{2}-\d{2}$/.test(until))
+  ) {
+    throw new SiteCoreError('반복 설정이 올바르지 않습니다.', {code: 'LIFE_RECURRENCE_INPUT_INVALID', status: 422});
+  }
+  return {frequency, interval, weekdays, until};
+}
+
+function calendarReminderOffsetsBody(value) {
+  const offsets = [...new Set((Array.isArray(value) ? value : []).map(Number))].sort((a, b) => a - b);
+  if (offsets.length > 3 || offsets.some(offset => !CALENDAR_REMINDER_OFFSETS.includes(offset))) {
+    throw new SiteCoreError('알림 설정이 올바르지 않습니다.', {code: 'LIFE_REMINDER_INPUT_INVALID', status: 422});
+  }
+  return offsets;
+}
+
+function occurrenceScopeBody(scope, occurrenceKey) {
+  if (scope == null) return {};
+  if (scope === 'SERIES') return {scope};
+  if (scope !== 'OCCURRENCE' || !/^\d{4}-\d{2}-\d{2}$/.test(String(occurrenceKey || ''))) {
+    throw new SiteCoreError('반복 일정 범위가 올바르지 않습니다.', {code: 'LIFE_RECURRENCE_SCOPE_INVALID', status: 422});
+  }
+  return {scope, occurrence_key: occurrenceKey};
+}
+
 export async function createLifeActivity(
   sessionToken,
-  {logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN', entry = {}, usageType = null},
+  {
+    logicalRequestId: requestId, title, temporal, temporalSemantics = 'USER_PLANNED_TIME', busy = 'UNKNOWN', entry = {}, usageType = null,
+    recurrence = null, reminderOffsets = null,
+  },
   fetchImpl = globalThis.fetch,
 ) {
   const normalizedTitle = typeof title === 'string' ? title.trim() : '';
@@ -792,6 +835,8 @@ export async function createLifeActivity(
     throw new SiteCoreError('일정 입력값이 올바르지 않습니다.', {code: 'LIFE_ACTIVITY_INPUT_INVALID', status: 422});
   }
   const details = calendarEntryDetails(entry);
+  const recurrenceBody = calendarRecurrenceBody(recurrence);
+  const reminders = calendarReminderOffsetsBody(reminderOffsets);
   const payload = await calendarRequest(
     usageType === 'SCHEDULE_AUTO' || usageType === 'RECEIPT_AUTO'
       ? '/v2/life/activities/automated'
@@ -807,6 +852,9 @@ export async function createLifeActivity(
         busy,
         ...(usageType === 'SCHEDULE_AUTO' || usageType === 'RECEIPT_AUTO' ? {usage_type: usageType} : {}),
         ...(hasCalendarEntryDetails(details) ? {entry: details} : {}),
+        // 반복·알림은 쓸 때만 보낸다 — 한 번짜리 기록의 요청 본문은 그대로다.
+        ...(recurrenceBody ? {recurrence: recurrenceBody} : {}),
+        ...(reminders.length ? {reminder_offsets_minutes: reminders} : {}),
       },
     },
     fetchImpl,
@@ -826,6 +874,13 @@ export async function editLifeActivity(
     temporalSemantics = 'USER_PLANNED_TIME',
     busy = 'UNKNOWN',
     entry = {},
+    // 반복 기록: scope OCCURRENCE는 occurrenceKey 한 회차만, SERIES는 전체.
+    // recurrence/reminderOffsets는 undefined면 보내지 않아 저장값이 유지되고,
+    // recurrence null은 반복을 끈다.
+    scope = null,
+    occurrenceKey = null,
+    recurrence = undefined,
+    reminderOffsets = undefined,
   },
   fetchImpl = globalThis.fetch,
 ) {
@@ -844,6 +899,11 @@ export async function editLifeActivity(
   ) {
     throw new SiteCoreError('일정 변경값이 올바르지 않습니다.', {code: 'LIFE_ACTIVITY_EDIT_INPUT_INVALID', status: 422});
   }
+  const scopeBody = occurrenceScopeBody(scope, occurrenceKey);
+  const seriesBody = scope === 'OCCURRENCE' ? {} : {
+    ...(recurrence !== undefined ? {recurrence: calendarRecurrenceBody(recurrence)} : {}),
+    ...(reminderOffsets !== undefined ? {reminder_offsets_minutes: calendarReminderOffsetsBody(reminderOffsets)} : {}),
+  };
   const payload = await calendarRequest(
     `/v2/life/activities/${encodeURIComponent(id)}/entry`,
     sessionToken,
@@ -858,6 +918,8 @@ export async function editLifeActivity(
         temporal_semantics: temporalSemantics,
         busy,
         entry: calendarEntryDetails(entry),
+        ...scopeBody,
+        ...seriesBody,
       },
     },
     fetchImpl,
@@ -894,7 +956,7 @@ export async function rescheduleLifeActivity(
 export async function removeLifeActivity(
   sessionToken,
   activityId,
-  {logicalRequestId: requestId, expectedRevision},
+  {logicalRequestId: requestId, expectedRevision, scope = null, occurrenceKey = null},
   fetchImpl = globalThis.fetch,
 ) {
   const id = typeof activityId === 'string' ? activityId.trim() : '';
@@ -909,6 +971,7 @@ export async function removeLifeActivity(
       body: {
         logical_request_id: logicalRequestId(requestId),
         expected_revision: expectedRevision,
+        ...occurrenceScopeBody(scope, occurrenceKey),
       },
     },
     fetchImpl,

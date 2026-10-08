@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-c39420e88254';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-c39420e88254';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-c39420e88254';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-fed623561605';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-fed623561605';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-fed623561605';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-c39420e88254';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-c39420e88254';
+} from './site-calendar-model.js?v=aset-fed623561605';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-fed623561605';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-c39420e88254';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-c39420e88254';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-c39420e88254';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-fed623561605';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-fed623561605';
+import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-fed623561605';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-c39420e88254';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-c39420e88254';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-c39420e88254';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-c39420e88254';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-c39420e88254';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-c39420e88254';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-c39420e88254';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-c39420e88254';
+} from './site-calendar-product.js?v=aset-fed623561605';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-fed623561605';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-fed623561605';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-fed623561605';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-fed623561605';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-fed623561605';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-fed623561605';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-fed623561605';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -836,6 +836,9 @@ export function createCalendarMutationController({
         place: typeof input?.place === 'string' ? input.place : '',
         merchant: typeof input?.merchant === 'string' ? input.merchant : '',
       },
+      // 반복·알림(로그인 기록만). undefined는 "바꾸지 않음"이라 보내지 않는다.
+      recurrence: input?.recurrence === undefined ? undefined : (input.recurrence || null),
+      reminderOffsets: Array.isArray(input?.reminderOffsets) ? input.reminderOffsets : undefined,
     };
   };
   const guestPayload = (value, temporal) => ({
@@ -855,9 +858,11 @@ export function createCalendarMutationController({
       return createLifeActivity(sessionToken, {
         logicalRequestId: requestId('create'), title: value.title, temporal,
         temporalSemantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', entry: value.entry,
+        ...(value.recurrence ? {recurrence: value.recurrence} : {}),
+        ...(value.reminderOffsets?.length ? {reminderOffsets: value.reminderOffsets} : {}),
       }, fetchImpl);
     },
-    async update(item, input) {
+    async update(item, input, {scope = null} = {}) {
       if (!calendarItemActionPolicy(item).canUpdate) {
         throw new SiteCoreError('읽기 전용 일정은 수정할 수 없습니다.', {
           code: 'LIFE_ACTION_NOT_ALLOWED',
@@ -888,18 +893,45 @@ export function createCalendarMutationController({
       const temporalSemantics = item.temporal_semantics === 'DEADLINE' && temporal.kind === 'DATE_ONLY'
         ? 'DEADLINE'
         : 'USER_PLANNED_TIME';
+      const recurring = isRecurringCalendarItem(item);
+      if (recurring && scope === 'OCCURRENCE') {
+        // 이 날짜만: 반복 규칙·알림은 그대로, 이 회차만 다른 내용이 된다.
+        return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
+          logicalRequestId: requestId('edit'),
+          expectedActivityRevision: item.activity_revision ?? item.activityRevision,
+          expectedOccurrenceRevision: item.occurrence_revision ?? item.occurrenceRevision,
+          title: value.title,
+          temporal,
+          temporalSemantics,
+          busy: 'UNKNOWN',
+          entry: {...value.entry, ...sourceLink},
+          scope: 'OCCURRENCE',
+          occurrenceKey: item.occurrence_key,
+        }, fetchImpl);
+      }
+      // 반복 전체: 이 회차에서 날짜를 옮겼다면 반복 시작일도 그만큼 옮긴다.
+      let seriesTemporal = temporal;
+      if (recurring && validCivilDate(item.series_start || '') && validCivilDate(value.localDate) && validCivilDate(item.local_date || '')) {
+        const delta = civilDayNumber(value.localDate) - civilDayNumber(item.local_date);
+        const anchor = shiftCivilDate(item.series_start, delta);
+        const anchorEnd = validCivilDate(value.endDate) ? shiftCivilDate(value.endDate, civilDayNumber(anchor) - civilDayNumber(value.localDate)) : value.endDate;
+        seriesTemporal = buildCalendarTemporal({...value, localDate: anchor, endDate: anchorEnd, timezone});
+      }
       return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
         logicalRequestId: requestId('edit'),
         expectedActivityRevision: item.activity_revision ?? item.activityRevision,
         expectedOccurrenceRevision: item.occurrence_revision ?? item.occurrenceRevision,
         title: value.title,
-        temporal,
+        temporal: seriesTemporal,
         temporalSemantics,
         busy: 'UNKNOWN',
         entry: {...value.entry, ...sourceLink},
+        ...(recurring ? {scope: 'SERIES'} : {}),
+        ...(value.recurrence !== undefined ? {recurrence: value.recurrence} : {}),
+        ...(value.reminderOffsets !== undefined ? {reminderOffsets: value.reminderOffsets} : {}),
       }, fetchImpl);
     },
-    async remove(item) {
+    async remove(item, {scope = null} = {}) {
       if (!calendarItemActionPolicy(item).canRemove) {
         throw new SiteCoreError('읽기 전용 일정은 삭제할 수 없습니다.', {
           code: 'LIFE_ACTION_NOT_ALLOWED',
@@ -907,8 +939,10 @@ export function createCalendarMutationController({
         });
       }
       if (!authenticated) return guestRepository.remove(item.id);
+      const oneDate = isRecurringCalendarItem(item) && scope === 'OCCURRENCE';
       return removeLifeActivity(sessionToken, item.activity_id || item.activityId, {
         logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision ?? item.activityRevision,
+        ...(oneDate ? {scope: 'OCCURRENCE', occurrenceKey: item.occurrence_key} : {}),
       }, fetchImpl);
     },
   });
@@ -1262,6 +1296,13 @@ function lifeRow(item, {date, today, onSelect} = {}) {
   title.className = 'calendar-life-title';
   title.textContent = presentation.title || '제목 없음';
   copy.appendChild(title);
+  const repeating = isRecurringCalendarItem(item);
+  if (repeating) {
+    const repeat = document.createElement('span');
+    repeat.className = 'calendar-life-repeat';
+    repeat.textContent = recurrenceSummary(item.recurrence);
+    copy.appendChild(repeat);
+  }
   if (presentation.secondaryText) {
     const meta = document.createElement('small');
     meta.className = 'calendar-life-meta';
@@ -1292,6 +1333,7 @@ function lifeRow(item, {date, today, onSelect} = {}) {
       presentation.amountOnThisDay ? presentation.amountLabel : '',
       presentation.secondaryText,
       presentation.statusLabel,
+      repeating ? `반복 ${recurrenceSummary(item.recurrence)}` : '',
     ].filter(Boolean).join(', ');
     li.setAttribute('aria-label', spoken);
     li.addEventListener('click', event => onSelect(item, event.currentTarget));
@@ -1338,6 +1380,79 @@ function longKoreanDate(value) {
 function weekdayOf(value) {
   const {year, month, day} = civilDateParts(value);
   return new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+}
+
+// 반복 기록 전체를 한 회차에서 고칠 때, 그 회차에서 옮긴 날짜만큼 반복 시작일을 옮긴다.
+function civilDayNumber(value) {
+  const {year, month, day} = civilDateParts(value);
+  return Math.round(Date.UTC(year, month - 1, day) / 86400000);
+}
+
+function shiftCivilDate(value, days) {
+  const {year, month, day} = civilDateParts(value);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+// Core는 월요일=0 … 일요일=6, 화면은 월 화 수 목 금 토 일 순서다.
+const RECURRENCE_WEEKDAY_LABELS = Object.freeze(['월', '화', '수', '목', '금', '토', '일']);
+const RECURRENCE_CHOICES = Object.freeze([
+  ['', '반복 안 함'],
+  ['DAILY', '매일'],
+  ['WEEKLY', '매주'],
+  ['BIWEEKLY', '2주마다'],
+  ['MONTHLY', '매월'],
+  ['YEARLY', '매년'],
+  ['CUSTOM', '사용자 지정'],
+]);
+const REMINDER_CHOICES = Object.freeze([
+  ['', '알림 없음'],
+  ['0', '정각'],
+  ['5', '5분 전'],
+  ['10', '10분 전'],
+  ['30', '30분 전'],
+  ['60', '1시간 전'],
+  ['1440', '1일 전'],
+]);
+
+function mondayWeekday(value) {
+  return (weekdayOf(value) + 6) % 7;
+}
+
+function isRecurringCalendarItem(item) {
+  return Boolean(item && item.recurrence && typeof item.recurrence === 'object' && validCivilDate(item.occurrence_key || ''));
+}
+
+// The editor's repeat choice for a stored rule; a shape the editor cannot
+// produce is kept as-is (KEEP) rather than silently rewritten on save.
+function recurrenceChoice(rule, startDate) {
+  if (!rule || typeof rule !== 'object') return '';
+  const weekdays = Array.isArray(rule.weekdays) ? rule.weekdays : [];
+  const ownDay = validCivilDate(startDate) ? [mondayWeekday(startDate)] : [];
+  const plainWeekdays = !weekdays.length || (weekdays.length === 1 && weekdays[0] === ownDay[0]);
+  const interval = Number(rule.interval || 1);
+  if (rule.frequency === 'DAILY' && interval === 1) return 'DAILY';
+  if (rule.frequency === 'WEEKLY' && interval === 1 && plainWeekdays) return 'WEEKLY';
+  if (rule.frequency === 'WEEKLY' && interval === 2 && plainWeekdays) return 'BIWEEKLY';
+  if (rule.frequency === 'MONTHLY' && interval === 1) return 'MONTHLY';
+  if (rule.frequency === 'YEARLY' && interval === 1) return 'YEARLY';
+  if (rule.frequency === 'WEEKLY') return 'CUSTOM';
+  return 'KEEP';
+}
+
+function recurrenceSummary(rule) {
+  if (!rule) return '';
+  const interval = Number(rule.interval || 1);
+  const weekdays = Array.isArray(rule.weekdays) ? rule.weekdays : [];
+  let text;
+  if (rule.frequency === 'DAILY') text = interval === 1 ? '매일' : `${interval}일마다`;
+  else if (rule.frequency === 'WEEKLY') {
+    const days = weekdays.length ? weekdays.map(day => RECURRENCE_WEEKDAY_LABELS[day]).join('·') : '';
+    const every = interval === 1 ? '매주' : `${interval}주마다`;
+    text = days ? `${every} ${days}` : every;
+  } else if (rule.frequency === 'MONTHLY') text = interval === 1 ? '매월' : `${interval}개월마다`;
+  else text = interval === 1 ? '매년' : `${interval}년마다`;
+  if (validCivilDate(rule.until || '')) text += ` ~${Number(rule.until.slice(5, 7))}/${Number(rule.until.slice(8, 10))}`;
+  return text;
 }
 
 // "☀ 14° / 23°" for a day header: the glyph, then the range when Core sent one.
@@ -3028,11 +3143,112 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   const merchantInput = document.createElement('input'); merchantInput.className = 'calendar-editor-merchant'; merchantInput.maxLength = 240; merchantInput.value = entry.merchant || ''; merchantLabel.appendChild(merchantInput);
   moreSection.appendChild(merchantLabel);
 
+  // ── 반복 · 알림 (로그인 기록만: 알림은 서버가 보내고, 반복은 서버가 펼친다) ──
+  const recurringItem = isRecurringCalendarItem(item);
+  const seriesRule = recurringItem ? item.recurrence : null;
+  const seriesStart = recurringItem && validCivilDate(item.series_start || '') ? item.series_start : initialDate;
+  const repeatSection = document.createElement('div'); repeatSection.className = 'calendar-editor-section calendar-editor-repeat-control';
+  const repeatLabel = document.createElement('label'); repeatLabel.className = 'calendar-editor-wide';
+  const repeatText = document.createElement('span'); repeatText.className = 'calendar-editor-section-label'; repeatText.textContent = '반복';
+  const repeatSelect = document.createElement('select'); repeatSelect.className = 'calendar-editor-repeat';
+  for (const [value, label] of RECURRENCE_CHOICES) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; repeatSelect.appendChild(option);
+  }
+  const initialRepeat = recurrenceChoice(seriesRule, seriesStart);
+  if (initialRepeat === 'KEEP') {
+    const option = document.createElement('option'); option.value = 'KEEP'; option.textContent = `지금 반복 유지 (${recurrenceSummary(seriesRule)})`;
+    repeatSelect.appendChild(option);
+  }
+  repeatSelect.value = initialRepeat;
+  repeatLabel.append(repeatText, repeatSelect);
+  // 사용자 지정: 요일(여러 개) + 몇 주마다.
+  const repeatCustom = document.createElement('div'); repeatCustom.className = 'calendar-editor-repeat-custom';
+  const weekdayGroup = document.createElement('div'); weekdayGroup.className = 'calendar-editor-weekdays';
+  weekdayGroup.setAttribute('role', 'group'); weekdayGroup.setAttribute('aria-label', '반복할 요일');
+  const initialWeekdays = new Set(initialRepeat === 'CUSTOM' && Array.isArray(seriesRule?.weekdays) && seriesRule.weekdays.length
+    ? seriesRule.weekdays
+    : validCivilDate(seriesStart) ? [mondayWeekday(seriesStart)] : []);
+  const weekdayButtons = RECURRENCE_WEEKDAY_LABELS.map((label, weekday) => {
+    const toggle = button(label, 'calendar-editor-weekday'); toggle.dataset.weekday = String(weekday);
+    toggle.setAttribute('aria-pressed', String(initialWeekdays.has(weekday)));
+    toggle.addEventListener('click', () => {
+      toggle.setAttribute('aria-pressed', String(toggle.getAttribute('aria-pressed') !== 'true'));
+      refreshChips();
+    });
+    weekdayGroup.appendChild(toggle);
+    return toggle;
+  });
+  const intervalLabel = document.createElement('label'); intervalLabel.className = 'calendar-editor-repeat-interval-label';
+  const intervalInput = document.createElement('input'); intervalInput.className = 'calendar-editor-repeat-interval'; intervalInput.type = 'number'; intervalInput.inputMode = 'numeric'; intervalInput.min = '1'; intervalInput.max = '12';
+  intervalInput.value = String(initialRepeat === 'CUSTOM' ? Number(seriesRule?.interval || 1) : 1);
+  intervalLabel.append(intervalInput, '주마다');
+  repeatCustom.append(weekdayGroup, intervalLabel);
+  // 반복 종료: 종료 없음 / 날짜까지(그날 포함).
+  const repeatEndRow = document.createElement('div'); repeatEndRow.className = 'calendar-editor-repeat-end';
+  const repeatEndLabel = document.createElement('label'); repeatEndLabel.className = 'calendar-editor-repeat-end-label';
+  const repeatEndSelect = document.createElement('select'); repeatEndSelect.className = 'calendar-editor-repeat-end-mode';
+  for (const [value, label] of [['', '종료 없음'], ['UNTIL', '날짜까지']]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; repeatEndSelect.appendChild(option);
+  }
+  const untilInput = document.createElement('input'); untilInput.className = 'calendar-editor-repeat-until'; untilInput.type = 'date';
+  untilInput.setAttribute('aria-label', '반복 마지막 날짜');
+  untilInput.value = validCivilDate(seriesRule?.until || '') ? seriesRule.until : '';
+  repeatEndSelect.value = untilInput.value ? 'UNTIL' : '';
+  repeatEndLabel.append('반복 종료', repeatEndSelect);
+  repeatEndRow.append(repeatEndLabel, untilInput);
+  const repeatHint = document.createElement('small'); repeatHint.className = 'calendar-editor-hint calendar-editor-repeat-hint';
+  repeatSection.append(repeatLabel, repeatCustom, repeatEndRow, repeatHint);
+
+  const reminderSection = document.createElement('div'); reminderSection.className = 'calendar-editor-section calendar-editor-reminder-control';
+  const reminderLabel = document.createElement('label'); reminderLabel.className = 'calendar-editor-wide';
+  const reminderText = document.createElement('span'); reminderText.className = 'calendar-editor-section-label'; reminderText.textContent = '알림';
+  const reminderSelect = document.createElement('select'); reminderSelect.className = 'calendar-editor-reminder';
+  for (const [value, label] of REMINDER_CHOICES) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; reminderSelect.appendChild(option);
+  }
+  const storedOffsets = Array.isArray(item?.reminder_offsets_minutes) ? item.reminder_offsets_minutes : [];
+  reminderSelect.value = storedOffsets.length && REMINDER_CHOICES.some(([value]) => value === String(storedOffsets[0])) ? String(storedOffsets[0]) : '';
+  reminderLabel.append(reminderText, reminderSelect);
+  const reminderStatus = document.createElement('p'); reminderStatus.className = 'calendar-editor-reminder-status'; reminderStatus.setAttribute('role', 'status');
+  const reminderAllDay = document.createElement('small'); reminderAllDay.className = 'calendar-editor-hint calendar-editor-reminder-all-day';
+  reminderAllDay.textContent = '하루 종일 기록은 그날 오전 9시를 기준으로 알려 드려요.';
+  reminderSection.append(reminderLabel, reminderStatus, reminderAllDay);
+  // 알림 권한 안내: 권한을 여기서 묻지 않는다(설정의 '알림 사용' 버튼만 묻는다).
+  const reminderDeliveryNote = () => {
+    const permission = getBrowserNotificationPermissionState();
+    let subscribed = false;
+    try { subscribed = Boolean(globalThis.localStorage?.getItem(CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY)); } catch { subscribed = false; }
+    if (permission === BROWSER_NOTIFICATION_PERMISSION.DENIED) return {state: 'DENIED', text: '이 브라우저는 알림이 꺼져 있어요. 브라우저 사이트 설정에서 알림을 허용해 주세요. LOTBI 앱에서는 앱 알림으로 받을 수 있어요.'};
+    if (permission === BROWSER_NOTIFICATION_PERMISSION.UNAVAILABLE) return {state: 'UNAVAILABLE', text: '이 브라우저에서는 알림을 받을 수 없어요. LOTBI 앱을 쓰면 앱 알림으로 받을 수 있어요.'};
+    if (permission === BROWSER_NOTIFICATION_PERMISSION.GRANTED && subscribed) return {state: 'READY', text: '이 브라우저와 LOTBI 앱으로 알려 드려요.'};
+    return {state: 'SETUP', text: 'LOTBI 앱 알림으로 알려 드려요. 이 브라우저로도 받으려면 캘린더 설정의 알림에서 \'알림 사용\'을 눌러 주세요.'};
+  };
+  const repeatEditable = authenticated && (!item || itemPolicy.canUpdate);
+
   // ── chips ──────────────────────────────────────────────────────────
   const shorten = (text, length = 10) => (text.length > length ? `${text.slice(0, length - 1)}…` : text);
+  const repeatValue = () => {
+    const choice = repeatSelect.value;
+    if (!choice) return null;
+    const until = repeatEndSelect.value === 'UNTIL' && validCivilDate(untilInput.value) ? untilInput.value : null;
+    if (choice === 'KEEP') return {...seriesRule, until};
+    if (choice === 'CUSTOM') {
+      const weekdays = weekdayButtons.filter(toggle => toggle.getAttribute('aria-pressed') === 'true').map(toggle => Number(toggle.dataset.weekday));
+      const interval = Math.min(12, Math.max(1, Number.parseInt(intervalInput.value, 10) || 1));
+      return {frequency: 'WEEKLY', interval, weekdays, until};
+    }
+    if (choice === 'BIWEEKLY') return {frequency: 'WEEKLY', interval: 2, weekdays: [], until};
+    return {frequency: choice, interval: 1, weekdays: [], until};
+  };
   const fields = [
     {key: 'time', label: '시간', section: timeSection, focus: () => timeInput,
       summary: () => (timeInput.value.trim() ? `시간 ${timeInput.value.trim()}` : '')},
+    ...(repeatEditable ? [
+      {key: 'repeat', label: '반복', section: repeatSection, focus: () => repeatSelect,
+        summary: () => recurrenceSummary(repeatValue())},
+      {key: 'reminder', label: '알림', section: reminderSection, focus: () => reminderSelect,
+        summary: () => (reminderSelect.value ? `알림 ${REMINDER_CHOICES.find(([value]) => value === reminderSelect.value)?.[1] || ''}` : '')},
+    ] : []),
     {key: 'amount', label: '금액', section: amountSection, focus: () => amountInput,
       summary: () => {
         const digits = amountDigits(amountInput.value);
@@ -3075,7 +3291,10 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   }
   // Sections stack in reading order regardless of the chip that opened them:
   // when, until when, how much, where, notes, the rest.
-  for (const key of ['time', 'end', 'amount', 'place', 'memo', 'more']) sections.appendChild(fields.find(field => field.key === key).section);
+  for (const key of ['time', 'end', 'repeat', 'reminder', 'amount', 'place', 'memo', 'more']) {
+    const field = fields.find(candidate => candidate.key === key);
+    if (field) sections.appendChild(field.section);
+  }
   function refreshChips() {
     for (const field of fields) {
       const summary = field.summary();
@@ -3087,6 +3306,23 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
     const hasStart = Boolean(timeInput.value.trim());
     endTimeInput.disabled = !hasStart;
     endTimeHint.hidden = hasStart;
+    if (repeatEditable) {
+      repeatCustom.hidden = repeatSelect.value !== 'CUSTOM';
+      repeatEndRow.hidden = !repeatSelect.value;
+      untilInput.hidden = repeatEndSelect.value !== 'UNTIL';
+      untilInput.min = dateInput.value || '';
+      const day = validCivilDate(dateInput.value) ? Number(dateInput.value.slice(8, 10)) : 0;
+      const clamps = (repeatSelect.value === 'MONTHLY' && day >= 29) || (repeatSelect.value === 'YEARLY' && dateInput.value.slice(5) === '02-29');
+      repeatHint.hidden = !clamps;
+      repeatHint.textContent = repeatSelect.value === 'YEARLY'
+        ? '2월 29일 반복은 평년에는 2월 28일에 표시돼요.'
+        : `${day}일이 없는 달에는 그 달 마지막 날에 표시돼요.`;
+      const note = reminderDeliveryNote();
+      reminderStatus.hidden = !reminderSelect.value;
+      reminderStatus.dataset.reminderDelivery = note.state;
+      reminderStatus.textContent = note.text;
+      reminderAllDay.hidden = !reminderSelect.value || hasStart;
+    }
   }
   // Whatever already has a value opens with it: an edit or a draft shows what
   // it holds, a blank record shows nothing it was not asked for.
@@ -3109,6 +3345,8 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
     timeInput.focus();
   });
   for (const input of [timeInput, endTimeInput, placeInput, memoInput, merchantInput]) input.addEventListener('input', refreshChips);
+  for (const control of [repeatSelect, repeatEndSelect, untilInput, intervalInput, reminderSelect]) control.addEventListener('change', refreshChips);
+  intervalInput.addEventListener('input', refreshChips);
   for (const input of [timeInput, endTimeInput]) {
     input.addEventListener('blur', () => {
       const normalized = normalizeCalendarClockInput(input.value);
@@ -3166,6 +3404,11 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       const confirmationDescription = document.createElement('p');
       confirmationDescription.id = 'calendar-delete-confirm-description';
       confirmationDescription.textContent = '삭제한 기록은 복구할 수 없습니다.';
+      if (recurringItem) {
+        // 반복 기록은 이 날짜만 지울지, 반복 전체를 지울지 고른다.
+        confirmationTitle.textContent = '반복 기록을 삭제하시겠습니까?';
+        confirmationDescription.textContent = `${longKoreanDate(item.local_date)} 한 번만 지우거나 반복 전체를 지울 수 있어요. 삭제한 기록은 복구할 수 없습니다.`;
+      }
       const confirmationError = document.createElement('p');
       confirmationError.className = 'calendar-delete-confirm-error';
       confirmationError.setAttribute('role', 'alert');
@@ -3174,7 +3417,13 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       confirmationActions.className = 'calendar-delete-confirm-actions';
       const cancelDelete = button('취소', 'calendar-delete-confirm-cancel');
       const confirmDelete = button('삭제', 'calendar-delete-confirm-submit');
-      confirmationActions.append(cancelDelete, confirmDelete);
+      const deleteOneDate = recurringItem ? button('이 날짜만 삭제', 'calendar-delete-confirm-occurrence') : null;
+      if (deleteOneDate) {
+        confirmDelete.textContent = '반복 전체 삭제';
+        confirmationActions.append(cancelDelete, deleteOneDate, confirmDelete);
+      } else {
+        confirmationActions.append(cancelDelete, confirmDelete);
+      }
       confirmationDialog.append(confirmationTitle, confirmationDescription, confirmationError, confirmationActions);
       confirmationBackdrop.appendChild(confirmationDialog);
 
@@ -3207,7 +3456,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
           return;
         }
         if (event.key !== 'Tab') return;
-        const focusable = [cancelDelete, confirmDelete].filter(control => !control.disabled);
+        const focusable = [cancelDelete, deleteOneDate, confirmDelete].filter(control => control && !control.disabled);
         if (!focusable.length) {
           event.preventDefault();
           return;
@@ -3223,15 +3472,16 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
         }
       });
 
-      confirmDelete.addEventListener('click', async () => {
+      const runDelete = async scope => {
         if (deleteRequestInFlight) return;
         deleteRequestInFlight = true;
         confirmationError.textContent = '';
         remove.disabled = true;
         cancelDelete.disabled = true;
         confirmDelete.disabled = true;
+        if (deleteOneDate) deleteOneDate.disabled = true;
         try {
-          await controller.remove(item);
+          await controller.remove(item, {scope});
           cleanupDeleteConfirmation({restoreFocus: false});
           releaseEditorEnvironment();
           backdrop.remove();
@@ -3241,12 +3491,15 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
           remove.disabled = false;
           cancelDelete.disabled = false;
           confirmDelete.disabled = false;
+          if (deleteOneDate) deleteOneDate.disabled = false;
           confirmationError.textContent = caught?.code === 'STALE_REVISION'
             ? '기록이 바뀌었어요. 저장 상태를 확인한 뒤 다시 시도해 주세요.'
             : '기록을 삭제하지 못했어요. 다시 시도해 주세요.';
           confirmDelete.focus();
         }
-      });
+      };
+      confirmDelete.addEventListener('click', () => runDelete(recurringItem ? 'SERIES' : null));
+      deleteOneDate?.addEventListener('click', () => runDelete('OCCURRENCE'));
 
       root.appendChild(confirmationBackdrop);
       queueMicrotask(() => cancelDelete.focus());
@@ -3306,10 +3559,48 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
     else setTimeout(reveal, 0);
   });
   const revealField = field => {
+    if (!field) return;
     field.section.hidden = false;
     refreshChips();
     field.focus()?.focus();
   };
+  // 반복 기록 수정 범위: 이 날짜만 / 반복 전체 / 취소(null).
+  const chooseRecurringScope = () => new Promise(resolve => {
+    const scopeBackdrop = document.createElement('div'); scopeBackdrop.className = 'calendar-delete-confirm-backdrop calendar-scope-confirm-backdrop';
+    const scopeDialog = document.createElement('section'); scopeDialog.className = 'calendar-delete-confirm-dialog calendar-scope-confirm-dialog';
+    scopeDialog.setAttribute('role', 'dialog'); scopeDialog.setAttribute('aria-modal', 'true');
+    scopeDialog.setAttribute('aria-labelledby', 'calendar-scope-confirm-title');
+    const scopeTitle = document.createElement('h4'); scopeTitle.id = 'calendar-scope-confirm-title'; scopeTitle.textContent = '반복 기록을 어떻게 바꿀까요?';
+    const scopeDescription = document.createElement('p'); scopeDescription.textContent = `${longKoreanDate(item.local_date)} 한 번만 바꾸거나, 반복 전체를 바꿀 수 있어요.`;
+    const scopeActions = document.createElement('div'); scopeActions.className = 'calendar-delete-confirm-actions';
+    const scopeCancel = button('취소', 'calendar-scope-confirm-cancel');
+    const scopeOne = button('이 날짜만', 'calendar-scope-confirm-occurrence');
+    const scopeAll = button('반복 전체', 'calendar-scope-confirm-series');
+    scopeActions.append(scopeCancel, scopeOne, scopeAll);
+    scopeDialog.append(scopeTitle, scopeDescription, scopeActions);
+    scopeBackdrop.appendChild(scopeDialog);
+    dialog.inert = true;
+    const finish = value => {
+      scopeBackdrop.remove();
+      dialog.inert = false;
+      resolve(value);
+      if (!value) save.focus();
+    };
+    scopeCancel.addEventListener('click', () => finish(null));
+    scopeOne.addEventListener('click', () => finish('OCCURRENCE'));
+    scopeAll.addEventListener('click', () => finish('SERIES'));
+    scopeBackdrop.addEventListener('click', event => { if (event.target === scopeBackdrop) finish(null); });
+    scopeDialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finish(null); return; }
+      if (event.key !== 'Tab') return;
+      const order = [scopeCancel, scopeOne, scopeAll];
+      const index = order.indexOf(document.activeElement);
+      event.preventDefault();
+      order[(index + (event.shiftKey ? order.length - 1 : 1)) % order.length].focus();
+    });
+    root.appendChild(scopeBackdrop);
+    queueMicrotask(() => scopeOne.focus());
+  });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
     if (item && !itemPolicy.canUpdate) {
@@ -3336,6 +3627,38 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
     timeInput.value = startClock; endTimeInput.value = effectiveEndClock; refreshChips();
     const digits = amountDigits(amountInput.value);
     const endDate = validCivilDate(endDateInput.value) && endDateInput.value !== dateInput.value ? endDateInput.value : '';
+    const repeat = repeatEditable ? repeatValue() : undefined;
+    const reminderOffsets = repeatEditable ? (reminderSelect.value ? [Number(reminderSelect.value)] : []) : undefined;
+    if (repeat) {
+      const repeatError = !validCivilDate(dateInput.value)
+        ? '반복하려면 날짜를 정해 주세요.'
+        : repeat.frequency === 'WEEKLY' && repeatSelect.value === 'CUSTOM' && !repeat.weekdays.length
+          ? '반복할 요일을 하나 이상 골라 주세요.'
+          : repeat.until && repeat.until < (recurringItem ? seriesStart : dateInput.value)
+            ? '반복 종료일은 시작일 이후로 정해 주세요.'
+            : digits
+              ? '반복 기록에는 금액을 함께 저장할 수 없어요. 금액을 지우거나 반복을 끄고 저장해 주세요.'
+              : '';
+      if (repeatError) {
+        error.textContent = repeatError;
+        const amountProblem = repeatError.startsWith('반복 기록에는 금액');
+        revealField(fields.find(field => field.key === (amountProblem ? 'amount' : 'repeat')));
+        return;
+      }
+    }
+    if (reminderOffsets?.length && !validCivilDate(dateInput.value)) {
+      error.textContent = '알림을 받으려면 날짜를 정해 주세요.';
+      revealField(fields.find(field => field.key === 'reminder'));
+      return;
+    }
+    // 반복 기록을 고칠 때: 반복·알림을 바꿨다면 반복 전체, 아니면 이 날짜만/반복 전체를 묻는다.
+    let scope = null;
+    if (recurringItem) {
+      const seriesChanged = JSON.stringify(repeat ?? null) !== JSON.stringify(seriesRule ? {...seriesRule, weekdays: seriesRule.weekdays || [], until: seriesRule.until || null} : null)
+        || JSON.stringify(reminderOffsets ?? []) !== JSON.stringify(storedOffsets);
+      scope = seriesChanged ? 'SERIES' : await chooseRecurringScope();
+      if (!scope) return;
+    }
     const value = {
       title: titleInput.value,
       localDate: dateInput.value,
@@ -3353,10 +3676,11 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       memo: memoInput.value,
       place: placeInput.value,
       merchant: merchantInput.value,
+      ...(repeatEditable ? {recurrence: repeat, reminderOffsets} : {}),
     };
     save.disabled = true;
     try {
-      if (item) await controller.update(item, value); else await controller.create(value);
+      if (item) await controller.update(item, value, {scope}); else await controller.create(value);
       cleanupDeleteConfirmation({restoreFocus: false});
       releaseEditorEnvironment();
       backdrop.remove(); await onSaved(value.localDate);
