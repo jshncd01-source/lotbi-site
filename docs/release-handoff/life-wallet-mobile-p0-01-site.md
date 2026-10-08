@@ -1,16 +1,18 @@
 READY_FOR_DEPLOY=YES
 
-STATUS=IMPLEMENTED, focused + mobile-viewport validators PASS on CODE_SHA (18/18); real phone NOT TESTED. Scope = user real-device feedback 2026-10-07 (camcorder in the picker, neighbour card cut into view, camera shot of an ID not recognised, PIN keyboard popping up) + the additional P0 "direct camera normalization / document correction" (camera shots must take the gallery path).
-SUPERSEDES=8ed42bd3 (earlier READY of this branch) and the hold 1c622df4.
+STATUS=GATE FIX 02 done (SITE-T18 Linux gate return, see section below); full scripts/validate_* 213 run serially on the merged tree: 209 PASS, 4 = pre-existing Windows failures (fail identically on main), NEW_FAILURES=0; real phone NOT TESTED. Scope = user real-device feedback 2026-10-07 (camcorder in the picker, neighbour card cut into view, camera shot of an ID not recognised, PIN keyboard popping up) + the additional P0 "direct camera normalization / document correction" (camera shots must take the gallery path).
+SUPERSEDES=c8f1eedc897300bea2d042ec21614bb7165c525f (gate-returned READY), 8ed42bd3 and the hold 1c622df4.
 
 # life-wallet-mobile-p0-01-site — release handoff (Life Wallet mobile P0 + direct camera parity)
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/life-wallet-mobile-p0-01-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/life-wallet-mobile-p0-01-site`)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=89adbb37 (Merge release/20261007-site-t17c-work via LOTBI Ncloud merge gate); re-checked unchanged right before this commit
-CODE_SHA=22285fbb (contains main 89adbb37)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=0f076722b1bf3f2294b97c0706a0ee4ebcdedab4 (Merge release/20261008-site-t18c-work via LOTBI Ncloud merge gate); re-checked unchanged right before this commit
+CODE_SHA=11af13d4 (merge of main 0f076722 into a5ee05dd; conflicts = asset tokens only, 59 files, resolved per hunk against the merge base and regenerated)
 CODE_COMMITS (none in main yet):
+  11af13d4 merge Ncloud main 0f076722 (cross-checked: merged tree vs main differs only in this branch's Life Wallet files/tests/doc; vs a5ee05dd only in main's own changes)
+  a5ee05dd GATE FIX 02: card print judged on the full photo; OS-independent camera test lettering
   22285fbb direct camera parity (bytes decide the type, EXIF upright, no window-grid documents, camera tests)
   66850b26 mobile P0 (picker, decode bound, small far card, one-slide carousel, PIN keyboard)
   2c39fb41 merge of the Life Wallet fixes made after the last deploy (main a87aafb9 / READY de89f284), not yet released:
@@ -18,9 +20,28 @@ CODE_COMMITS (none in main yet):
     81a0e210 last wallet card centred alone (its "section panels reopen after reload" part was dropped in the merge: main's SITE-REFRESH-ROUTE-RESTORE-01 already owns reload restore; main's site-conversation.js kept as is)
     e575d78d scanner copy only when the user has something to do
     0634e0f0 card photographed on its side turned upright, with a rotate button
-ASSET_VERSION=aset-5f5fd5e8a5de (node scripts/asset_cache_version.mjs --write; all other files differ from main only by this token)
+ASSET_VERSION=aset-fd1d5c35966a (node scripts/asset_cache_version.mjs --write after the merge; all other files differ from main only by this token)
 
 SCOPE=lotbi-site only: site-life-wallet.js, site-life-wallet.css, site-life-wallet-scan.js, site-life-wallet-scan-ui.js, tests (scripts/lib/headless-fixture-result.mjs gains optional userAgent/touch emulation, unused by other validators). No Core/Web/App change, no data migration.
+
+## GATE FIX 02 (SITE-T18 Linux merge gate return, run 20261007T224839Z-63835-1347522454)
+
+GATE_FAILURE=validate_life_wallet_camera_parity_01: tilted camera shot 32 (rotation -7.9°, keystone 0.10, small print) mode manual / not-a-document on Linux (Chrome for Testing 154 headless); PASS on Windows (same tree 5171582b).
+ROOT_CAUSE=
+  1. Judgement fragility (real, not only the test): the print inside a found card was counted on a card squared up from the 1200-pixel detection copy. When the card is small in a phone photo its thin small print is only ~1px strokes there and blurs below the ink threshold; if the card's rows and the whole-frame rows (720-pixel working copy) both fall below 3, the photo is refused outright as not-a-document (no manual adjust) — the worst outcome for a real ID. Scene 32 had only 1 card row even on Windows when rendered at 1200x1600 (its rows reappear on a sharper source).
+  2. The synthetic camera cards drew their lettering with the system font (canvas fillText "Malgun Gothic", "Noto Sans KR", sans-serif): Linux has other fonts and text rasterisation, so the same scene printed thinner/lighter there and fell over the edge of (1).
+LINUX_REPRO=no Linux on this PC (no WSL distribution, no Docker daemon, 4.5 GB free disk); the gate server belongs to the Release & Deploy room and was not used. Reproduced on Windows Chrome 154 (same major as the gate) by rendering the print lighter/thinner (Linux-like rasterisation): before the fix, real camera cards refused as not-a-document: 0/36 normal, 9/36 light (#6e7680, weight 300), 17/36 lighter (#8c939b, weight 300); card rows < 3 on 14 camera shots (10 small print, 4 regular): 1200-pixel copy 0/4/10 vs full photo 0/1/4. The new deterministic test (stroke lettering + 18 faint-print shots) FAILS on c8f1eedc (camera-3-felt refused as not-a-document) and PASSES after the fix. A run on Linux itself is NOT VERIFIED here; the gate is the first Linux run.
+FIX=
+  - site-life-wallet-scan.js: detectDocumentCorners(imageData, {sourceScale, detail}) — `detail` is the full photo the caller shrank (at most 2560 px); a found card's print is counted on a card squared up from it. Outline detection still runs on the 1200-pixel copy. No threshold changed (MINIMUM_TEXT_LINES 3, card >= 2, page >= 12, receipt >= 1.85:1, made-pattern rows excluded).
+  - site-life-wallet-scan-ui.js: keeps the full photo's pixels (getImageData of the decoded source, only when it was shrunk) for the found outline and for hand-placed outlines (framesPrintedItem); released with the scanner.
+  - Tests: camera cards draw lettering as strokes (strokeGlyph: Hangul-like syllables and digits; no system font, identical pixels on every OS) with an `ink` option; synthetic_02 passes the full photo like the scanner, renders camera shots at 1500x2000 and adds SYNTHETIC_CAMERA_FAINT_PRINT (18 shots, ink #6e7680): never refused, off-white-desk shots automatic >= n-2. Assertions were not weakened (automatic still required).
+MARGIN_AFTER (card rows on the full photo, true card outline, 36 normal + 36 faint camera shots): minimum 4 rows off the white desk (automatic needs 2, or 3 when the whole frame shows < 3); 0 real cards refused.
+FALSE_AUTO_ACCEPT=0 — camera path (UI, 4000x3000 EXIF-6 JPEGs): face x3, window-row scenery x3, empty desk x3, pets x4 → 0 automatic, 0 savable (deployed main: 1 automatic + savable, the window-row scenery); synthetic_02 NOT_A_DOCUMENT 13/13 manual and NEGATIVE 8/8 manual with the full photo passed; receipts stay receipt-like (scan_01).
+CAMERA_RESULTS=camera-shaped set 36 shots through the UI: deployed main 25/36 automatic, this branch 29/36 (the 7 manual: 6 pale card on near-white desk + 1; never a wrong crop); synthetic_02: SYNTHETIC_CAMERA_SHOT 29/36 (off-white 29/30), FAINT_PRINT 15/18 (off-white 15/15), worst corner 1.7 px.
+TEST_STATUS=scripts/validate_* all 213 (195 mjs, 17 py, 1 js) run serially on the merged tree 11af13d4 (+ this doc): 209 PASS; 4 FAIL = validate_calendar_system_dark_01 (CRLF checkout on this PC), validate_image_attachment_thumbnail_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime — identical failure messages on main 89adbb37 on this PC (pre-existing Windows, not Life Wallet). All 11 life_wallet validators PASS (camera_parity_01 36 s, synthetic_02 180 s).
+NEW_FAILURES=NONE
+MIGRATION=NO
+ENV_CHANGE_REQUIRED=NO
 
 DIRECT_CAMERA_ROOT_CAUSE (reproduced with synthetic camera files; real photos NOT available on this PC):
   1. Type decided by name/MIME: a camera shot handed over with an empty type and a temporary name without extension, or as image/jpg / application/octet-stream, was refused before scanning ("사진(JPG·PNG·WebP·HEIC)이나 PDF만 …"). Gallery/PC files always carry image/jpeg + .jpg, so only camera shots hit it. Fail-before reproduced on 66850b26 with validate_life_wallet_camera_parity_01.
@@ -45,8 +66,9 @@ CHANGED_TEST_EXPECTATIONS:
   - scan_ui_01 / scan_ui_02: decode options resizeHeight 1707/2560 → undefined (only the bounded width is given; the decoder keeps the aspect ratio). camera_parity_01 checks the real decoded size (1920x2560 from 4000x3000/8000x6000 + EXIF).
   - scan_01, scan_ui_02 (note), pdf_01: synthetic glyph boxes now differ in width with wider word gaps; identical evenly spaced boxes are exactly the made-pattern signature (windows). Assertions unchanged.
   - synthetic_02: + NOT_A_DOCUMENT face x3 / scenery with window rows x3 / empty light desk x3 (never cropped); + SYNTHETIC_CAMERA_SHOT 36 portrait camera shots (tilt up to 12°, keystone up to .12, card 42-90% of width, desk/white/grey/felt/navy, hand-held, thin lettering): never refused, every automatic crop within 2% of the card's short side, off-white-desk shots automatic >= n-2 (measured 29/30). Detection called with the scanner's sourceScale. Existing 86 expectations unchanged.
-  - Added validate_life_wallet_mobile_p0_01 (66850b26) and validate_life_wallet_camera_parity_01 (this commit; Samsung Internet UA, 412x915, touch).
-TEST_STATUS=PASS on CODE_SHA (18/18) — life wallet validators scan_01, scan_ui_01, scan_ui_02, document_save_01, photo_picker_01 (3 consecutive runs), card_carousel_01, entry_lock_01, synthetic_02 (131 scenes), pdf_01, mobile_p0_01, camera_parity_01; validate_site.py, validate_hardening.py, validate_accessibility.py, asset check, node --check (scan, scan-ui, wallet).
+  - Added validate_life_wallet_mobile_p0_01 (66850b26) and validate_life_wallet_camera_parity_01 (22285fbb; Samsung Internet UA, 412x915, touch).
+  - GATE FIX 02 (a5ee05dd): camera test lettering drawn as strokes instead of the system font; synthetic_02 passes the full photo, renders camera shots at 1500x2000 (was 1200x1600) and adds SYNTHETIC_CAMERA_FAINT_PRINT; no assertion removed or loosened.
+TEST_STATUS_22285fbb=PASS (18/18) — life wallet validators scan_01, scan_ui_01, scan_ui_02, document_save_01, photo_picker_01 (3 consecutive runs), card_carousel_01, entry_lock_01, synthetic_02 (131 scenes), pdf_01, mobile_p0_01, camera_parity_01; validate_site.py, validate_hardening.py, validate_accessibility.py, asset check, node --check (scan, scan-ui, wallet).
 NEW_FAILURES=NONE
 
 REPORT:
