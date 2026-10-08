@@ -106,7 +106,7 @@ jobs:
       - name: Validate account-wide profile photo
         run: node scripts/validate_profile_photo_account_sync_01.mjs
 
-      # '자동모드' follows the clock (18시 다크 · 07시 라이트) and must never
+      # '자동모드' follows the clock (22시 다크 · 07시 라이트) and must never
       # leak 'auto' into the attribute the theme tokens style.
       - name: Validate 자동모드 theme schedule
         run: node scripts/validate_theme_auto_schedule_02.mjs
@@ -286,6 +286,7 @@ jobs:
           node scripts/validate_calendar_editor_field_height_01.mjs
           node scripts/validate_calendar_settings_expansion_01.mjs
           node scripts/validate_calendar_system_dark_01.mjs
+          node scripts/validate_calendar_editor_footer_contrast_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
           node --check site-calendar-draft-write.js
           node scripts/validate_conversation_calendar_auto_suggest_01.mjs
@@ -393,6 +394,7 @@ jobs:
         run: |
           node scripts/validate_festival_location_manual_region_01.mjs
           node scripts/validate_festival_region_scope_01.mjs
+          node scripts/validate_festival_region_search_consistency_01.mjs
 
       # 공통 위치 권한/현재위치 획득 기반 (GLOBAL-LOCATION-15). 기능별로 권한 확인과
       # GPS 읽기를 다시 개발하지 않는다는 계약을 한곳에서 지킨다: 권한 상태 판정,
@@ -617,6 +619,17 @@ jobs:
           node scripts/validate_scam_shield_mvp_01.mjs
           node scripts/validate_scam_shield_connection_01.mjs
           node scripts/validate_verification_dialog_design_01.mjs
+
+      # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
+      # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
+      # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지
+      # 않는지, 세로·가로·정사각형 사진과 긴 파일명 미리보기가 화면 안에
+      # 들어오는지 375·390x844(라이트·다크)·412·데스크톱에서 확인하고,
+      # 결론 배너 5단계의 글자 대비(WCAG AA)를 라이트·다크에서 잰다(실기기 아님).
+      - name: Validate 진위확인 photo library, camera, preview and result banner
+        run: |
+          node scripts/validate_scam_shield_photo_picker_01.mjs
+          node scripts/validate_scam_shield_result_banner_contrast_01.mjs
 
       - name: Validate Production Core CORS contract
         shell: bash
