@@ -49,6 +49,7 @@ import {
   FESTIVAL_TIME_FILTER_LABEL,
   FESTIVAL_USER_TIME_FILTERS,
   buildFestivalBrowseLocationQuery,
+  festivalBrowseScopeLabel,
   browseFestivals,
   computeFestivalStatus,
   formatFestivalDateLabel,
@@ -743,16 +744,14 @@ export async function mountFestivalManager({
     // the banner (e.g. the outer "현재 위치로 보기" tap) while it is open.
     locationBanner.replaceChildren();
     const label = el('span', 'festival-location-label');
-    if (state.region) {
-      label.textContent = state.municipality ? `📍 ${state.region} · ${state.municipality}` : `📍 ${state.region}`;
-    } else if (state.locationMode === 'CURRENT') {
-      label.textContent = state.currentRegionLabel
-        ? `📍 현재 위치 기준 · ${state.currentRegionLabel}`
-        : '📍 현재 위치 기준';
+    // Same words as the 0건 message (festivalBrowseScopeLabel): "OO 전체" and
+    // "현재 위치 기준 · OO 전체" are whole-province searches.
+    if (state.region || state.locationMode === 'CURRENT') {
+      label.textContent = `📍 ${festivalBrowseScopeLabel(state)}`;
     } else if (state.locationResolving || state.locationBusy) {
       label.textContent = '📍 현재 위치 확인 중…';
     } else {
-      label.textContent = '📍 전국';
+      label.textContent = `📍 ${festivalBrowseScopeLabel(state)}`;
     }
     locationBanner.appendChild(label);
 
@@ -1067,17 +1066,11 @@ export async function mountFestivalManager({
     return query;
   }
 
+  // Names the scope that was actually searched, in the banner's own words:
+  // "현재 위치 기준 · 전북특별자치도 전체" is a whole-province search, so the
+  // message must not read as "nothing near you".
   function emptyMessageFor() {
-    if (state.region) {
-      const label = state.municipality ? `${state.region} ${state.municipality}` : state.region;
-      return `현재 조건에 맞는 축제·행사가 없어요 (${label})`;
-    }
-    if (state.locationMode === 'CURRENT') {
-      return state.currentRegionLabel
-        ? `현재 ${state.currentRegionLabel}에 조건에 맞는 축제·행사가 없어요`
-        : '현재 위치 주변에 조건에 맞는 축제·행사가 없어요';
-    }
-    return '현재 조건에 맞는 축제·행사가 없어요';
+    return `현재 조건에 맞는 축제·행사가 없어요 (${festivalBrowseScopeLabel(state)})`;
   }
 
   function showList() {
