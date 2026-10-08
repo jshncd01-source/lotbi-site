@@ -1,28 +1,29 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-e1ccc24fb25f';
-import * as siteCore from './site-core.js?v=aset-e1ccc24fb25f';
-import './site-scam-shield.js?v=aset-e1ccc24fb25f';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-e1ccc24fb25f';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-e1ccc24fb25f';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-e1ccc24fb25f';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-e1ccc24fb25f';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-e1ccc24fb25f';
-import * as siteAttachments from './site-attachments.js?v=aset-e1ccc24fb25f';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-e1ccc24fb25f';
-import {deterministicReply} from './site-deterministic.js?v=aset-e1ccc24fb25f';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-e1ccc24fb25f';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-e1ccc24fb25f';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-e1ccc24fb25f';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-e1ccc24fb25f';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-e1ccc24fb25f';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-e1ccc24fb25f';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-e1ccc24fb25f';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-e1ccc24fb25f';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-e1ccc24fb25f';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-e1ccc24fb25f';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-e1ccc24fb25f';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-e1ccc24fb25f';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-e1ccc24fb25f';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-e1ccc24fb25f';
+import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-6d75e204179b';
+import * as siteCore from './site-core.js?v=aset-6d75e204179b';
+import './site-scam-shield.js?v=aset-6d75e204179b';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-6d75e204179b';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-6d75e204179b';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-6d75e204179b';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-6d75e204179b';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-6d75e204179b';
+import * as siteAttachments from './site-attachments.js?v=aset-6d75e204179b';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-6d75e204179b';
+import {deterministicReply} from './site-deterministic.js?v=aset-6d75e204179b';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-6d75e204179b';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-6d75e204179b';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6d75e204179b';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-6d75e204179b';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-6d75e204179b';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-6d75e204179b';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-6d75e204179b';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-6d75e204179b';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-6d75e204179b';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-6d75e204179b';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-6d75e204179b';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-6d75e204179b';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-6d75e204179b';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-6d75e204179b';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-6d75e204179b';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -199,7 +200,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-e1ccc24fb25f';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-6d75e204179b';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -292,7 +293,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-e1ccc24fb25f');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-6d75e204179b');
   return shareWithKakaoTalk(options);
 }
 
@@ -300,7 +301,7 @@ async function shareMessageWithKakao(options) {
 // exposed to pointer, keyboard or accessibility navigation.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-e1ccc24fb25f');
+    const module = await import('./site-kakao-share.js?v=aset-6d75e204179b');
     return Boolean(await module.loadKakaoShareConfig());
   } catch {
     return false;
@@ -1464,20 +1465,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-rich-card-action'; detail.disabled = true;
         detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
       }
-      const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
-      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
-      const syncBoxLabel = () => {
-        const saved = isInLotbiBox(rich, card);
-        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
-        box.setAttribute('aria-pressed', String(saved));
-      };
-      syncBoxLabel();
-      box.addEventListener('click', () => {
-        const added = toggleLotbiBox(rich, card);
-        refreshLotbiBoxControls();
-        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
-      });
-      actions.appendChild(box);
+      if (LOTBI_BOX_UI_ENABLED) {
+        const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
+        box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
+        const syncBoxLabel = () => {
+          const saved = isInLotbiBox(rich, card);
+          box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+          box.setAttribute('aria-pressed', String(saved));
+        };
+        syncBoxLabel();
+        box.addEventListener('click', () => {
+          const added = toggleLotbiBox(rich, card);
+          refreshLotbiBoxControls();
+          setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
+        });
+        actions.appendChild(box);
+      }
       const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
       buy.disabled = rich.expired || card.available === false;
       if (rich.expired) buy.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
@@ -2733,6 +2736,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           clearSchoolPreference(lifeSchoolKey(), storage);
           setStatus('저장된 학교를 지웠어요. 학교 이름을 말씀해 주시면 다시 찾아볼게요.');
         },
+        // SCHOOL-MEAL-01: [이번 주 급식] asks as an ordinary turn; the saved
+        // school rides along because the question names 급식.
+        onAsk: text => {
+          if (text && !inFlight) void requestAssistant(text, true);
+        },
       });
       if (schoolCard) node.appendChild(schoolCard);
     }
@@ -3107,6 +3115,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const closeScamShield = () => window.dispatchEvent(new CustomEvent('lotbi:scam-shield-close-request'));
   const visibleSiteRoute = () => (isScamShieldOpen() ? 'scam' : openSurface?.dataset.siteRoute || '');
   const settleSiteRoutePending = () => { delete document.documentElement.dataset.siteRoutePending; };
+  const currentRouteEntry = () => (window.history.state && typeof window.history.state === 'object' ? window.history.state : {});
+  const stepBackToRouteEntry = () => {
+    routeTraversalPending = true;
+    clearTimeout(routeTraversalTimer);
+    routeTraversalTimer = setTimeout(() => { routeTraversalPending = false; queueSiteRouteSync(); }, 1500);
+    window.history.back();
+  };
   const syncSiteRouteToScreen = () => {
     routeSyncQueued = false;
     if (routeTraversalPending) return;
@@ -3119,12 +3134,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     const inUrl = parseSiteRouteHash(window.location.hash) || '';
     if (visible === inUrl) return;
-    const entry = window.history.state && typeof window.history.state === 'object' ? window.history.state : {};
+    const entry = currentRouteEntry();
     if (inUrl && routeEntriesPushedHere.has(entry.lotbiRouteKey) && entry.lotbiRouteFrom === visible) {
-      routeTraversalPending = true;
-      clearTimeout(routeTraversalTimer);
-      routeTraversalTimer = setTimeout(() => { routeTraversalPending = false; queueSiteRouteSync(); }, 1500);
-      window.history.back();
+      stepBackToRouteEntry();
       return;
     }
     const key = `route-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -3139,10 +3151,42 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // A tab inside one screen (안심케어 사람/반려동물) replaces the entry in place.
   const replaceSiteRouteInPlace = route => {
     if (routeTraversalPending || parseSiteRouteHash(window.location.hash) === route) return;
-    const entry = window.history.state && typeof window.history.state === 'object' ? window.history.state : {};
-    window.history.replaceState({...entry, lotbiRoute: route}, '', siteRouteUrl(route));
+    window.history.replaceState({...currentRouteEntry(), lotbiRoute: route}, '', siteRouteUrl(route));
   };
   window.addEventListener('lotbi:scam-shield-visibility', queueSiteRouteSync);
+  // SITE-REFRESH-ROUTE-FESTIVAL-BACK-04 — a screen's own ← / × (and Escape)
+  // that returns to the entry this document came from goes back in history
+  // first; the popstate handler then makes the change, so the screen and the
+  // URL change in the same task. Changing the screen first and calling
+  // history.back() after it left a window — a round trip to the browser, tens
+  // of ms on a slow phone — with one screen on view under the other's URL; a
+  // reload, a share or a new tab taken then reopened the screen just left
+  // (축제·행사 ← showed 생활정보 at /#festival). Any other change is made at
+  // once and the URL follows it (syncSiteRouteToScreen above).
+  let pendingRouteLeave = null;
+  const leaveSiteRoute = (destination, change) => {
+    if (pendingRouteLeave) return;
+    const visible = visibleSiteRoute();
+    const entry = currentRouteEntry();
+    const stepsBack = !routeTraversalPending && pendingRouteTarget === null && Boolean(visible)
+      && parseSiteRouteHash(window.location.hash) === visible
+      && routeEntriesPushedHere.has(entry.lotbiRouteKey) && entry.lotbiRouteFrom === destination;
+    if (!stepsBack) { change(); return; }
+    const leave = pendingRouteLeave = {destination, change, timer: 0};
+    // No popstate within a second: make the change anyway; the URL follows
+    // when the step lands (routeTraversalPending holds off a second step).
+    leave.timer = setTimeout(() => {
+      if (pendingRouteLeave !== leave) return;
+      pendingRouteLeave = null;
+      change();
+    }, 1000);
+    stepBackToRouteEntry();
+  };
+  // 진위확인's ×, 취소, Escape and outside tap ask first (site-scam-shield.js).
+  window.addEventListener('lotbi:scam-shield-dismiss-request', event => {
+    event.preventDefault();
+    leaveSiteRoute('', closeScamShield);
+  });
 
   const closeSurface = () => {
     if (!openSurface) return;
@@ -3162,24 +3206,31 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     surfaceRestoreFocus = undefined;
     queueSiteRouteSync();
   };
-  const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', route = '', dismissOnBackdrop = true, trigger, onClose, onBack, backLabel = '대화로 돌아가기'} = {}) => {
+  // backRoute: the screen onBack opens (← of 축제·행사 / 롯비함 → 생활정보).
+  const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', route = '', dismissOnBackdrop = true, trigger, onClose, onBack, backRoute = '', backLabel = '대화로 돌아가기'} = {}) => {
     const initiatingFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = initiatingFocus; surfaceCloseCallback = typeof onClose === 'function' ? onClose : undefined;
     if (route) surface.dataset.siteRoute = route;
     queueSiteRouteSync();
+    // The surface's own ×/← (and Escape) leave it through leaveSiteRoute; a
+    // change that lands after another screen took its place leaves that one be.
+    const dismiss = () => leaveSiteRoute('', () => { if (openSurface === surface) closeSurface(); });
+    const goBack = typeof onBack === 'function'
+      ? () => leaveSiteRoute(backRoute, () => { if (openSurface !== surface) return; closeSurface(); onBack(); })
+      : dismiss;
+    const back = panel.querySelector('.site-modal-close');
+    if (back) {
+      back.removeEventListener('click', closeSurface);
+      back.addEventListener('click', goBack);
+    }
     document.body.appendChild(surface); document.body.classList.add(workspace ? 'site-workspace-open' : 'site-overlay-open');
     if (workspace) {
       surface.dataset.workspace = workspace;
       surface.classList.add('consumer-workspace'); panel.setAttribute('role', 'region');
       mainScrollHost.inert = true;
-      const back = panel.querySelector('.site-modal-close');
       if (back) {
         back.textContent = '←'; back.title = backLabel;
         back.setAttribute('aria-label', backLabel);
-        if (typeof onBack === 'function') {
-          back.removeEventListener('click', closeSurface);
-          back.addEventListener('click', () => { closeSurface(); onBack(); });
-        }
         panel.querySelector('.site-modal-header')?.prepend(back);
       }
       for (const entry of document.querySelectorAll('.consumer-primary-nav button')) {
@@ -3191,10 +3242,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (dismissOnBackdrop) {
       const backdropDismiss = createBackdropDismissGuard(surface);
       surface.addEventListener('pointerdown', event => backdropDismiss.notePointerDown(event));
-      surface.addEventListener('click', event => { if (backdropDismiss.shouldDismiss(event)) closeSurface(); });
+      surface.addEventListener('click', event => { if (backdropDismiss.shouldDismiss(event)) dismiss(); });
     }
     surface.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSurface(); if (typeof onBack === 'function') onBack(); } else if (!workspace) trapFocus(panel, event);
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); goBack(); } else if (!workspace) trapFocus(panel, event);
     });
     if (modal) panel.setAttribute('aria-modal', 'true');
     queueMicrotask(() => focusableNodes(panel)[0]?.focus());
@@ -3265,13 +3316,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // must release them rather than leak the private bytes into the page.
     let releasePetSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'care', route: 'pets', backLabel: '안심케어로 돌아가기', onBack: () => openConsumerSection('care'),
+      workspace: 'care', route: 'pets', backLabel: '안심케어로 돌아가기', onBack: () => openConsumerSection('care'), backRoute: 'care',
       onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
     });
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-e1ccc24fb25f');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6d75e204179b');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3293,13 +3344,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     panel.classList.add('site-festival-modal');
     let releaseFestivalSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'life', route: 'festival', backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'),
+      workspace: 'life', route: 'festival', backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
       onClose: () => { releaseFestivalSurface?.(); releaseFestivalSurface = null; },
     });
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-e1ccc24fb25f');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-6d75e204179b');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3329,7 +3380,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
     });
     try {
-      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-e1ccc24fb25f');
+      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-6d75e204179b');
       const mounted = await mountOnnuriMerchants({root: content});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -3585,8 +3636,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-e1ccc24fb25f'),
-          import('./site-pet.js?v=aset-e1ccc24fb25f'),
+          import('./site-person.js?v=aset-6d75e204179b'),
+          import('./site-pet.js?v=aset-6d75e204179b'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3595,11 +3646,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-e1ccc24fb25f');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-6d75e204179b');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-e1ccc24fb25f');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6d75e204179b');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -3761,6 +3812,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   });
 
   const openLotbiBox = trigger => {
+    if (!LOTBI_BOX_UI_ENABLED) return;
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
     panel.classList.add('site-lotbi-box-modal');
@@ -3839,7 +3891,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     content.appendChild(list);
     render();
-    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: 'lotbi-box', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life')});
+    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: LOTBI_BOX_UI_ENABLED ? 'lotbi-box' : '', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life'});
   };
 
   const openHelp = () => {
@@ -5006,7 +5058,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       return;
     }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
-    if (lotbiBoxTrigger instanceof HTMLButtonElement) {
+    if (LOTBI_BOX_UI_ENABLED && lotbiBoxTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       openLotbiBox(lotbiBoxTrigger);
       return;
@@ -5028,7 +5080,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       closeConversationMenus();
-      if (openSurface?.dataset.workspace) closeSurface();
+      // Escape with the focus outside the screen closes it like its ×: through
+      // history first when that steps back (leaveSiteRoute).
+      const surface = openSurface;
+      if (surface?.dataset.workspace) leaveSiteRoute('', () => { if (openSurface === surface) closeSurface(); });
     }
   });
   // Page teardown releases every object URL. A bfcache-persisted page keeps its
@@ -5080,7 +5135,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     pets: () => openConsumerSection('care', {careTab: 'pets'}),
     life: () => openConsumerSection('life'),
     festival: () => openFestival(),
-    'lotbi-box': () => openLotbiBox(),
+    ...(LOTBI_BOX_UI_ENABLED ? {'lotbi-box': () => openLotbiBox()} : {}),
   };
   const applySiteRoute = target => {
     if (target !== 'scam' && isScamShieldOpen()) closeScamShield();
@@ -5111,7 +5166,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   window.addEventListener('popstate', () => {
     routeTraversalPending = false;
     clearTimeout(routeTraversalTimer);
+    const leave = pendingRouteLeave;
+    pendingRouteLeave = null;
+    if (leave) clearTimeout(leave.timer);
     const target = parseSiteRouteHash(window.location.hash);
+    // The step a ←/× asked for: its change runs now, with the URL already moved.
+    if (leave && target === leave.destination) { leave.change(); queueSiteRouteSync(); return; }
     if (target === null) return;
     applySiteRoute(target);
   });

@@ -159,3 +159,9 @@ body.chat-home-page .consumer-workspace .consumer-shortcut .onnuri-logo-slot {
   width: 20px;
   height: 20px;
 }
+
+/* An odd number of 생활정보 cards: the last card takes the whole row so no
+   empty cell is left (same rule as the 유치원·학교 branch, merge-safe). */
+.consumer-shortcuts > .consumer-shortcut:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}

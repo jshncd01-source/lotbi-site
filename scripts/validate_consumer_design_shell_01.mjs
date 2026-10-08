@@ -56,5 +56,8 @@ assert.match(js, /backLabel: '안심케어로 돌아가기', onBack: \(\) => ope
 assert.match(js, /back.removeEventListener\('click', closeSurface\)/);
 for (const text of ['일상을 챙겨주는 AI 생활비서', '생활 전반을 더 많이 맡기는 개인비서', 'LOTBI를 가장 넉넉하게 사용', '9,900원', '19,900원', '39,900원', '프로필 1개', '프로필 5개', '프로필 15개']) assert.ok(subscribe.includes(text));
 assert.doesNotMatch(subscribe, /29,900원/);
-assert.match(js, /event\.preventDefault\(\); event\.stopPropagation\(\); closeSurface\(\); if \(typeof onBack === 'function'\) onBack\(\)/, 'nested ESC must not also reach the global surface closer');
+// SITE-REFRESH-ROUTE-FESTIVAL-BACK-04: Escape takes the same path as the ←
+// (close this screen, then onBack), through history first when it can.
+assert.match(js, /event\.preventDefault\(\); event\.stopPropagation\(\); goBack\(\);/, 'nested ESC must not also reach the global surface closer');
+assert.match(js, /const goBack = typeof onBack === 'function'\s*\? \(\) => leaveSiteRoute\(backRoute, \(\) => \{ if \(openSurface !== surface\) return; closeSurface\(\); onBack\(\); \}\)/, 'ESC and ← close the nested screen, then open the screen it returns to');
 console.log('CONSUMER_DESIGN_SHELL_01 PASS (source contracts, not live E2E)');

@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-e1ccc24fb25f';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-e1ccc24fb25f';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-6d75e204179b';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-6d75e204179b';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -13,7 +13,6 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // official logo is not used before approval; brandSlot reserves its place.
   {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
-  {id: 'bills', label: '공과금 확인', icon: 'document', prompt: '공과금 고지서를 확인하고 납부기한을 캘린더에 등록할지 알려 줘'},
 ]);
 
 // Each existing request form should show examples that belong to that service,
@@ -25,7 +24,6 @@ const LIFE_DETAIL_FIELDS = Object.freeze({
   facilities: [['지역 또는 장소', '예: 전주시 덕진구'], ['찾고 싶은 시설', '예: 주차 가능한 카페, 야간 약국']],
   local: [['지역 또는 장소', '예: 전주시 덕진구'], ['궁금한 생활정보', '예: 쓰레기 배출일, 주민센터 운영시간']],
   support: [['지역 또는 장소', '예: 전주시'], ['찾고 싶은 지원', '예: 청년 주거 지원, 자녀 돌봄 지원']],
-  bills: [['고지서 내용', '기관 · 금액 · 납부기한을 입력하세요']],
 });
 
 // LIFE-MEDICAL-CATEGORY-ENTRY-01 — entry forms for the Core medical lookup.
@@ -147,7 +145,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, onSaved, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -157,12 +155,8 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
   let releaseWallet;
 
   if (section === 'life') {
-    const form = node('form', 'consumer-search');
-    const input = node('input'); input.type = 'search'; input.maxLength = 1000;
-    input.placeholder = '어떤 생활정보가 필요하세요?'; input.setAttribute('aria-label', input.placeholder);
-    const submit = action('롯비에게 물어보기'); submit.type = 'submit';
-    form.append(input, submit);
-    form.addEventListener('submit', event => { event.preventDefault(); if (input.value.trim()) onDraft(input.value.trim()); else input.focus(); });
+    // The life home only picks a category: free questions belong to the main
+    // chat, and saved items are not duplicated here.
     const grid = node('div', 'consumer-shortcuts');
     function openMedicalDetail(item, back, detail, title) {
       const spec = LIFE_MEDICAL_FORMS[item.id];
@@ -208,7 +202,10 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
       root.replaceChildren(detail); title.focus();
     }
     function openLifeDetail(item) {
-      const back = action('생활정보로 돌아가기', () => { root.replaceChildren(form, heading, grid, footer); input.focus(); }, {secondary: true});
+      const back = action('생활정보로 돌아가기', () => {
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
       if (item.medical) { openMedicalDetail(item, back, detail, title); return; }
@@ -217,8 +214,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
       const fields = LIFE_DETAIL_FIELDS[item.id];
       for (const [labelText, placeholder] of fields) {
         const label = node('label', 'consumer-life-field', labelText);
-        const field = node(item.id === 'bills' ? 'textarea' : 'input');
-        if (item.id !== 'bills') field.type = 'text';
+        const field = node('input'); field.type = 'text';
         field.placeholder = placeholder; field.maxLength = 1000; field.required = true;
         field.setAttribute('aria-label', labelText); label.append(field); controls.push([labelText, field]); queryForm.append(label);
       }
@@ -230,9 +226,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
         if (missing) { missing[1].focus(); return; }
         onDraft([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
       });
-      const note = item.id === 'bills'
-        ? '다음 화면에서 질문을 확인한 뒤 보내세요. 사진·PDF는 대화창에 첨부할 수 있어요. 납기일 등록과 납부는 확인 없이 진행하지 않습니다.'
-        : '다음 화면에서 질문을 확인한 뒤 보내세요. 현재 위치는 자동으로 수집하지 않습니다.';
+      const note = '다음 화면에서 질문을 확인한 뒤 보내세요. 현재 위치는 자동으로 수집하지 않습니다.';
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }
@@ -242,11 +236,8 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
       button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : item.id === 'onnuri' ? onOnnuri?.() : openLifeDetail(item));
       grid.append(button);
     }
-    const saved = action('저장한 정보 다시 보기', onSaved, {secondary: true});
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
-    const footer = node('div', 'consumer-section-footer');
-    footer.append(saved, node('p', 'consumer-feature-note', '원하는 정보를 선택하고 조건을 입력하세요. 공과금 납기는 확인 후 일정 등록을 제안합니다.'));
-    root.append(form, heading, grid, footer);
+    root.append(heading, grid);
   } else if (section === 'wallet') {
     releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt});
   } else if (section === 'care') {
