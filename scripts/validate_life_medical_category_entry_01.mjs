@@ -5,7 +5,7 @@
 // (국립중앙의료원 data) answers it; nothing here searches by itself.
 //
 // LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 is hidden until an official
-// integration exists, so the life home has four cards and no empty grid cell.
+// integration exists, so the life home has five cards (유치원·학교 last, taking its row) and no empty grid cell.
 // The life home is a category picker only: no free-question bar (the main
 // chat owns free questions) and no saved-items/help row under the list.
 //
@@ -349,7 +349,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 4, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === 5, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -440,7 +440,7 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.detail.fields[1].value, '지금 진료하는 병원');
     await shot('03-hospital-now');
     await tap(await reveal('.consumer-life-detail > .consumer-action'));
-    state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 4 ? value : null; }, `${testCase.label}: back to life main`);
+    state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === 5 ? value : null; }, `${testCase.label}: back to life main`);
     assert.deepEqual(state.shortcuts.map(item => item.label), main.shortcuts.map(item => item.label), 'back → 생활정보 메인');
     assert.equal(state.focusedShortcut, 'hospital', `${testCase.label}: back returns focus to the card that opened the detail`);
     assert.deepEqual(state.homeChildren, ['consumer-section-label', 'consumer-shortcuts'], `${testCase.label}: back restores label + list only`);
@@ -514,4 +514,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국 cards open their forms and hand a Core medical sentence to the conversation; 공과금 확인 hidden, four life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국 cards open their forms and hand a Core medical sentence to the conversation; 공과금 확인 hidden, five life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');

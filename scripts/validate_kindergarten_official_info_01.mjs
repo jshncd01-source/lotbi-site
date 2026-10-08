@@ -73,7 +73,9 @@ await check('a saved region label picks one 시군구 of the code table', () => 
 await check('school questions go to the chat; the saved school key is not this screen\'s', () => {
   assert.equal(education.buildSchoolPrompt('meal_week', '전주서원초'), '전주서원초 이번 주 급식 알려줘');
   assert.equal(education.buildSchoolPrompt('meal_today', ''), '오늘 급식 알려줘');
-  assert.equal(education.buildSchoolPrompt('basic', ''), '우리 학교 기본정보 알려줘');
+  assert.equal(education.buildSchoolPrompt('basic', ''), '');                  // a name is asked for
+  assert.equal(education.buildSchoolPrompt('basic', '전주서원초'), '전주서원초 알려줘');
+  assert.equal(education.buildSchoolPrompt('schedule', ''), '이번 달 학사일정 알려줘');
   assert.equal(education.buildKindergartenPrompt({name: '예일유치원', area: '전북 전주시 덕진구'}), '전주시 덕진구 예일유치원 알려줘');
   assert.equal(education.kindergartenPreferenceKey('user_1'), 'lotbi.site.ux.v1.life-kindergarten.user_1');
   assert.equal(education.kindergartenPreferenceKey(''), 'lotbi.site.ux.v1.life-kindergarten.guest');

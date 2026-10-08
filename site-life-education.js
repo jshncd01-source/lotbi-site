@@ -17,8 +17,8 @@ import {
   safeKindergartenLink,
   searchKindergartens,
   telHref,
-} from './site-kindergarten-client.js?v=aset-286a694c2120';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-286a694c2120';
+} from './site-kindergarten-client.js?v=aset-72f13b48e1ca';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-72f13b48e1ca';
 
 const PREFERENCE_PREFIX = 'lotbi.site.ux.v1.life-kindergarten';
 const LAST_REGION_KEY = 'lotbi.site.ux.v1.life-kindergarten-region';
@@ -36,12 +36,13 @@ function clean(value, max = 60) {
   return String(value ?? '').replace(/\s+/gu, ' ').trim().slice(0, max);
 }
 
-// The chat's NEIS school answer reads these sentences; without a name it uses
-// the school the user saved there.
+// The chat's NEIS school answer reads these sentences; without a name its
+// 급식·학사일정 use the school the user saved there. 기본정보 needs a name
+// (Core answers a named school only): '' asks the user for one.
 export function buildSchoolPrompt(actionId, schoolName = '') {
   const name = clean(schoolName, 40).replace(/[^0-9A-Za-z가-힣 ]/gu, '');
   const tail = SCHOOL_ACTION_TEXT[actionId] || SCHOOL_ACTION_TEXT.basic;
-  if (!name) return actionId === 'basic' ? '우리 학교 기본정보 알려줘' : tail;
+  if (!name) return actionId === 'basic' || !SCHOOL_ACTION_TEXT[actionId] ? '' : tail;
   return `${name} ${tail}`;
 }
 
@@ -212,10 +213,14 @@ export function mountEducation({
       chips.append(chip);
     }
     const send = node('button', 'consumer-action', '질문 준비하기'); send.type = 'submit';
-    form.append(label, chips, send);
+    const status = node('p', 'lotbi-kinder-status'); status.setAttribute('role', 'status');
+    form.append(label, chips, send, status);
     form.addEventListener('submit', event => {
       event.preventDefault();
-      if (!disposed) onDraft?.(buildSchoolPrompt(chosen, input.value));
+      if (disposed) return;
+      const prompt = buildSchoolPrompt(chosen, input.value);
+      if (!prompt) { status.textContent = '학교 기본정보는 학교 이름을 입력해 주세요.'; input.focus(); return; }
+      onDraft?.(prompt);
     });
     const intro = node('p', 'lotbi-edu-intro', '초·중·고 급식·학사일정·기본정보는 교육부 NEIS 공식 자료로 대화에서 알려 드려요.');
     const note = node('p', 'consumer-feature-note',
