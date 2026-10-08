@@ -277,8 +277,8 @@ try {
       const home = await runPhase(devtools, `${origin}/${innerRel}?phase=home`, `${label}/home`);
       console.log(`LIFE_INFO_CLEANUP ${label}`, JSON.stringify({shortcuts: home.life.shortcuts.map(s => s.label), topBar: home.life.topBar, footer: home.life.footer, products: home.products, hash: home.hashOpen.surface}));
       // 1 공과금 menu
-      assert.deepEqual(home.life.shortcuts.map(item => item.id), ['hospital', 'pharmacy', 'festivals', 'local'], `${label}: 생활정보 menu without 공과금`);
-      assert.ok(home.life.shortcuts.every(item => item.visible), `${label}: the four menus are visible`);
+      assert.deepEqual(home.life.shortcuts.map(item => item.id), ['hospital', 'pharmacy', 'festivals', 'local', 'education'], `${label}: 생활정보 menu without 공과금`);
+      assert.ok(home.life.shortcuts.every(item => item.visible), `${label}: every menu is visible`);
       for (const detail of home.details) assert.ok(!/공과금|고지서/u.test(detail.text), `${label}: ${detail.id} detail mentions no 공과금`);
       // 2 top question bar
       assert.equal(home.life.topBar, 0, `${label}: no top question bar`);

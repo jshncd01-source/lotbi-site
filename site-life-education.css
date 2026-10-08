@@ -1,0 +1,76 @@
+/* KINDERGARTEN-OFFICIAL-INFO-01 — 생활정보 → 유치원·학교 (site-life-education.js).
+   Theme tokens only (site-theme-tokens.css), so light/dark/system follow the
+   site theme without overrides. Touch targets ≥ 44px; one column ≤ 600px. */
+/* 생활정보 home: an odd last card (유치원·학교 as the fifth) takes its whole row,
+   so the grid never shows an empty cell in 4-, 2- or 1-column layouts. */
+.consumer-shortcuts > .consumer-shortcut:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.lotbi-edu { display: grid; gap: 16px; min-width: 0; }
+.lotbi-edu-tabs .lotbi-edu-tab { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 52px; }
+.lotbi-edu-tab-label { font-size: 15px; }
+.lotbi-edu-tab-sub { font-size: 12px; color: var(--lotbi-text-muted); font-weight: 400; }
+.lotbi-edu-panel { display: grid; gap: 14px; min-width: 0; }
+.lotbi-edu-intro { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; line-height: 1.55; }
+.lotbi-kinder-region { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lotbi-kinder-search select {
+  width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--lotbi-border-default); border-radius: 10px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; font-size: 16px;
+}
+.lotbi-kinder-search select:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+.lotbi-kinder-status { margin: 0; min-height: 1.4em; color: var(--lotbi-text-secondary); font-size: 14px; }
+.lotbi-kinder-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.lotbi-kinder-card {
+  display: grid; gap: 4px; width: 100%; min-height: 44px; padding: 14px 16px; text-align: left; cursor: pointer;
+  border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary); font: inherit;
+}
+.lotbi-kinder-card:hover { background: var(--lotbi-surface-hover); }
+.lotbi-kinder-card:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+.lotbi-kinder-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.lotbi-kinder-card-top strong { font-size: 16px; overflow-wrap: anywhere; }
+.lotbi-kinder-card-line { color: var(--lotbi-text-secondary); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.lotbi-kinder-badge {
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--lotbi-border-default);
+  color: var(--lotbi-text-secondary); font-size: 12px; white-space: nowrap;
+}
+.lotbi-kinder-title { margin: 4px 0 0; font-size: 20px; line-height: 1.35; color: var(--lotbi-text-primary); overflow-wrap: anywhere; }
+.lotbi-kinder-detail, .lotbi-kinder-mine, .lotbi-kinder-state {
+  display: grid; gap: 12px; padding: 16px; border: 1px solid var(--lotbi-border-default); border-radius: 16px;
+  background: var(--lotbi-surface-elevated, var(--lotbi-surface-primary)); color: var(--lotbi-text-primary);
+}
+.lotbi-kinder-state h4, .lotbi-kinder-state p { margin: 0; }
+.lotbi-kinder-state p { color: var(--lotbi-text-secondary); line-height: 1.55; }
+.lotbi-kinder-mine-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.lotbi-kinder-mine-label { font-size: 12px; color: var(--lotbi-text-muted); }
+.lotbi-kinder-mine-area { font-size: 13px; color: var(--lotbi-text-secondary); }
+.lotbi-kinder-facts, .lotbi-kinder-items { margin: 0; display: grid; gap: 8px; }
+.lotbi-kinder-fact { display: grid; grid-template-columns: 8.5em minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.lotbi-kinder-fact dt { color: var(--lotbi-text-muted); font-size: 13px; }
+.lotbi-kinder-fact dd { margin: 0; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.lotbi-kinder-fact a { color: var(--lotbi-link-primary); text-decoration: underline; text-underline-offset: 2px; }
+.lotbi-kinder-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lotbi-kinder-actions .consumer-action { min-height: 44px; }
+.lotbi-kinder-sections { display: grid; gap: 8px; }
+.lotbi-kinder-sections-title { margin: 6px 0 0; font-size: 15px; color: var(--lotbi-text-primary); }
+.lotbi-kinder-section {
+  border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary); padding: 0 14px;
+}
+.lotbi-kinder-section summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; cursor: pointer; list-style: none;
+}
+.lotbi-kinder-section summary::-webkit-details-marker { display: none; }
+.lotbi-kinder-section summary::after { content: '＋'; color: var(--lotbi-text-muted); }
+.lotbi-kinder-section[open] summary::after { content: '－'; }
+.lotbi-kinder-section summary:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; border-radius: 8px; }
+.lotbi-kinder-section-label { font-weight: 600; font-size: 15px; }
+.lotbi-kinder-section-meta { margin-left: auto; color: var(--lotbi-text-muted); font-size: 12px; white-space: nowrap; }
+.lotbi-kinder-section[open] { padding-bottom: 12px; }
+.lotbi-kinder-part-label { margin: 10px 0 4px; font-size: 13px; font-weight: 600; color: var(--lotbi-text-secondary); }
+.lotbi-kinder-part-note { margin: 6px 0 0; font-size: 13px; color: var(--lotbi-text-muted); line-height: 1.5; }
+.lotbi-kinder-source { margin: 0; font-size: 12px; color: var(--lotbi-text-muted); line-height: 1.6; }
+.lotbi-kinder-source a { color: var(--lotbi-link-primary); }
+@media (max-width: 600px) {
+  .lotbi-kinder-region { grid-template-columns: 1fr; }
+  .lotbi-kinder-fact { grid-template-columns: 1fr; gap: 2px; }
+  .lotbi-kinder-detail, .lotbi-kinder-mine, .lotbi-kinder-state { padding: 14px; }
+}
