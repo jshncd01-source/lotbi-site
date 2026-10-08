@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = (
     (
         "TERMS",
-        "LOTBI_TERMS_2026-09-17_R1",
+        "LOTBI_TERMS_2026-10-08_R1",
         ROOT / "terms.html",
         "https://lotbiai.com/terms",
     ),

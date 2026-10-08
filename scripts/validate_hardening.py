@@ -143,8 +143,9 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # `git diff --unified=0 origin/main -- terms.html` 이 제8조 한 줄만 보인다(asset 토큰 제외).
 # 플랜 변경(상위 즉시 차액 일할 결제 / 하위 다음 결제일) 기준은 잠금 대상이 아닌
 # refund.html 제6조(#plan-change)에 적었다. 약관 본문 바이트가 바뀌었으므로 Social
-# Signup 동의 증빙용 LOTBI_SOCIAL_TERMS_SHA256 은 emit_social_signup_legal_manifest.py
-# 출력값으로 배포와 함께 갱신해야 실제 게시본을 가리킨다.
+# Signup 동의 증빙용 LOTBI_SOCIAL_TERMS_VERSION(LOTBI_TERMS_2026-10-08_R1 로 올림)과
+# LOTBI_SOCIAL_TERMS_SHA256 은 emit_social_signup_legal_manifest.py 출력값으로 배포와
+# 함께 갱신해야 실제 게시본을 가리킨다.
 # Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
