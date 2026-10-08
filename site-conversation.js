@@ -1604,43 +1604,62 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const fresh = isPlaceResultFresh(placeResult);
     const defaultMapProvider = readDefaultMapProvider(document.cookie);
     const mapPresentation = defaultMapProviderPresentation(defaultMapProvider);
+    // PLACE-MEDICAL-CARD-UX-FINAL-01 — one card per institution, in Core's
+    // order. Core folds NMC rows by hpid only and NAVER rows not at all (their
+    // ids are list positions), so the same name at the same address, or under
+    // the same verified phone, is one place listed twice.
+    const placeIdentity = value => String(value || '').toLowerCase().replace(/[\s()[\]·.,-]/gu, '');
+    const seenPlaceKeys = new Set();
+    const places = placeResult.results.filter(place => {
+      const keys = [`${placeIdentity(place.name)}@${placeIdentity(place.address)}`];
+      if (place.phoneHref) keys.push(`${placeIdentity(place.name)}@${place.phoneHref}`);
+      if (keys.some(key => seenPlaceKeys.has(key))) return false;
+      for (const key of keys) seenPlaceKeys.add(key);
+      return true;
+    });
+    // Three cards first; the rest of Core's list waits behind "다른 … 보기".
+    let shownCount = Math.min(places.length, 3);
+    const placeKinds = new Set(places.map(place => (place.animalHospitalVerification ? 'ANIMAL' : (place.medicalStatus?.kind || (place.emergencyStatus ? 'EMERGENCY' : '')))));
+    const placeNoun = placeKinds.size === 1
+      ? ({HOSPITAL: '병원', EMERGENCY: '병원', PHARMACY: '약국', ANIMAL: '동물병원'}[[...placeKinds][0]] || '장소')
+      : '장소';
     const rail = document.createElement('section');
-    rail.className = 'lotbi-rich-card-rail lotbi-place-orbit';
-    rail.classList.toggle('has-place-photo', placeResult.results.some(place => Boolean(place.imageUrl)));
-    rail.classList.add('has-place-banner');
+    rail.className = 'lotbi-rich-card-rail lotbi-place-orbit has-orbit-footer';
+    rail.classList.toggle('has-place-photo', places.some(place => Boolean(place.imageUrl)));
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
-    rail.dataset.cardCount = String(placeResult.results.length);
+    rail.dataset.cardCount = String(shownCount);
+    rail.dataset.placeCount = String(places.length);
     rail.dataset.freshness = fresh ? 'fresh' : 'stale';
     rail.setAttribute('aria-label', '장소 검색 결과');
     rail.setAttribute('aria-roledescription', 'carousel');
     rail.tabIndex = 0;
 
-    const preserveEmptyMedia = media => {
-      media.replaceChildren();
-      media.classList.remove('lotbi-rich-card-media-loading');
-      media.classList.add('lotbi-rich-card-media-empty');
-      media.hidden = false;
-      media.setAttribute('aria-hidden', 'true');
-      media.dataset.mediaState = 'empty-no-photo';
-      media.dataset.mediaSource = 'NONE';
+    // No photo, no photo box: a card without a usable photo starts with its
+    // 유형·이름·주소. A photo that fails to load takes its box with it, and
+    // the rail may shrink again (fitRail below).
+    let fittedRailHeight = 0;
+    const dropPlaceMedia = media => {
+      media.remove();
+      fittedRailHeight = 0;
+      rail.classList.toggle('has-place-photo', Boolean(rail.querySelector('.lotbi-rich-card-place-media')));
     };
 
     const cards = [];
-    for (const [placeIndex, place] of placeResult.results.entries()) {
+    for (const [placeIndex, place] of places.entries()) {
       const item = document.createElement('article');
       item.className = 'lotbi-rich-card lotbi-rich-card-place lotbi-place-orbit-card';
       item.dataset.candidateIndex = String(place.candidateIndex);
       item.dataset.orbitIndex = String(placeIndex);
       item.setAttribute('role', 'group');
       item.setAttribute('aria-roledescription', 'slide');
-      item.setAttribute('aria-label', `${placeIndex + 1} / ${placeResult.results.length} · ${place.name}`);
+      item.setAttribute('aria-label', `${placeIndex + 1} / ${shownCount} · ${place.name}`);
       item.tabIndex = placeIndex === 0 ? 0 : -1;
 
-      const media = document.createElement('div');
-      media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
-      media.dataset.mediaState = 'loading';
-      if (place.imageUrl) {
+      const media = place.imageUrl ? document.createElement('div') : null;
+      if (media) {
+        media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
+        media.dataset.mediaState = 'loading';
         const image = document.createElement('img');
         image.className = 'lotbi-rich-card-image lotbi-place-photo';
         image.alt = `${place.name} 대표 사진`;
@@ -1658,11 +1677,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           media.dataset.mediaSource = 'VERIFIED_PLACE_PHOTO';
         };
         image.addEventListener('load', () => { void revealImage(); }, {once: true});
-        image.addEventListener('error', () => preserveEmptyMedia(media), {once: true});
+        image.addEventListener('error', () => dropPlaceMedia(media), {once: true});
         image.src = place.imageUrl;
         media.appendChild(image);
-      } else {
-        preserveEmptyMedia(media);
       }
 
       const copy = document.createElement('div');
@@ -1768,7 +1785,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         status.textContent = line.text;
         copy.appendChild(status);
       }
-      item.append(media, copy, actions);
+      if (media) item.append(media);
+      item.append(copy, actions);
       cards.push(item);
       rail.appendChild(item);
     }
@@ -1790,10 +1808,40 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     next.setAttribute('aria-label', '다음 장소');
     next.textContent = '›';
 
-    rail.append(previous, next, status);
+    // Where you are (1/3) and, when Core sent more than three, the rest of its
+    // list. Phones have no arrows (CSS): a swipe or drag turns the cards. The
+    // arrows stay for a mouse on wider screens, and the keys work everywhere.
+    const footer = document.createElement('div');
+    footer.className = 'lotbi-place-orbit-footer';
+    const position = document.createElement('span');
+    position.className = 'lotbi-place-orbit-position';
+    position.setAttribute('aria-hidden', 'true');
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'lotbi-place-orbit-more';
+    more.textContent = `다른 ${placeNoun} 보기`;
+    more.setAttribute('aria-label', `다른 ${placeNoun} ${places.length - shownCount}곳 더 보기`);
+    footer.append(position, more);
+
+    rail.append(previous, next, footer, status);
+
+    // The rail is at least as tall as its tallest card plus the footer, so a
+    // long name or a 진료시간 line is never cut off at the top or bottom (the
+    // CSS photo / no-photo heights stay the floor). It only grows while the
+    // cards turn, so the answer below does not jump with each card.
+    if (typeof ResizeObserver === 'function') {
+      const fitRail = () => {
+        const tallest = Math.max(0, ...cards.map(card => card.offsetHeight));
+        fittedRailHeight = Math.max(fittedRailHeight, tallest ? Math.ceil(tallest + footer.offsetHeight) + 8 : 0);
+        rail.style.minHeight = fittedRailHeight ? `${fittedRailHeight}px` : '';
+      };
+      const fitObserver = new ResizeObserver(fitRail);
+      for (const node of [...cards, footer]) fitObserver.observe(node);
+    }
 
     const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
     let activeIndex = 0;
+    let lastStep = 0;
     let suppressClick = false;
     let dragPointerId = null;
     let dragStartX = 0;
@@ -1805,49 +1853,86 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     let capturedBodyTapIndex = null;
 
     const wrapIndex = index => {
-      const count = cards.length;
+      const count = shownCount;
       return count ? ((index % count) + count) % count : 0;
     };
 
     const orbitSlotFor = (index, centerIndex) => {
-      const count = cards.length;
+      const count = shownCount;
       if (!count || index === centerIndex) return 'CENTER';
       const forward = (index - centerIndex + count) % count;
       const backward = (centerIndex - index + count) % count;
       if (forward < backward) return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
       if (backward < forward) return backward === 1 ? 'LEFT_FRONT' : 'LEFT_BACK';
+      // Halfway round (the other of two cards): it waits on the side the last
+      // turn came from, so the card just left goes out the way it was pushed.
+      if (lastStep > 0) return forward === 1 ? 'LEFT_FRONT' : 'LEFT_BACK';
       return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
     };
+    // A turn without a stated direction (a tap on a side card) goes toward the
+    // side that card is on.
+    const stepToward = index => (String(cards[index]?.dataset.orbitSlot || '').startsWith('LEFT') ? -1 : 1);
 
     const applyOrbitState = ({announce = false} = {}) => {
       cards.forEach((card, index) => {
-        const current = index === activeIndex;
-        const slot = orbitSlotFor(index, activeIndex);
-        card.dataset.orbitSlot = slot;
+        const shown = index < shownCount;
+        const current = shown && index === activeIndex;
+        card.hidden = !shown;
+        if (shown) card.dataset.orbitSlot = orbitSlotFor(index, activeIndex);
+        else delete card.dataset.orbitSlot;
         card.classList.toggle('is-primary', current);
         card.setAttribute('aria-current', current ? 'true' : 'false');
+        card.setAttribute('aria-label', `${index + 1} / ${shownCount} · ${places[index].name}`);
         card.tabIndex = current ? 0 : -1;
         for (const control of card.querySelectorAll('a, button')) {
           control.tabIndex = current ? 0 : -1;
           control.setAttribute('aria-disabled', current ? 'false' : 'true');
         }
       });
-      previous.disabled = cards.length < 2;
-      next.disabled = cards.length < 2;
+      previous.disabled = shownCount < 2;
+      next.disabled = shownCount < 2;
+      position.textContent = `${activeIndex + 1}/${shownCount}`;
+      position.hidden = shownCount < 2;
+      more.hidden = shownCount >= places.length;
+      footer.hidden = position.hidden && more.hidden;
+      rail.classList.toggle('has-orbit-footer', !footer.hidden);
       if (announce && cards[activeIndex]) {
-        status.textContent = `${activeIndex + 1} / ${cards.length} · ${placeResult.results[activeIndex].name}`;
+        status.textContent = `${activeIndex + 1} / ${shownCount} · ${places[activeIndex].name}`;
       }
     };
 
-    const setActiveIndex = (index, {focus = false, announce = true} = {}) => {
-      activeIndex = wrapIndex(index);
+    const setActiveIndex = (index, {focus = false, announce = true, step = stepToward(wrapIndex(index))} = {}) => {
+      const target = wrapIndex(index);
+      if (step && target !== activeIndex) {
+        lastStep = step;
+        // The card coming in enters from the side the turn goes toward. With
+        // two cards it can be waiting on the other side; it moves over first,
+        // without animating.
+        const incoming = cards[target];
+        const side = step > 0 ? 'RIGHT' : 'LEFT';
+        if (incoming && !String(incoming.dataset.orbitSlot || '').startsWith(side)) {
+          incoming.hidden = false;
+          incoming.classList.add('is-orbit-repositioning');
+          incoming.dataset.orbitSlot = `${side}_FRONT`;
+          void incoming.offsetWidth;
+          incoming.classList.remove('is-orbit-repositioning');
+        }
+      }
+      activeIndex = target;
       rail.style.removeProperty('--lotbi-orbit-drag-x');
       applyOrbitState({announce});
       if (focus) cards[activeIndex]?.focus({preventScroll: true});
     };
 
-    previous.addEventListener('click', () => setActiveIndex(activeIndex - 1));
-    next.addEventListener('click', () => setActiveIndex(activeIndex + 1));
+    previous.addEventListener('click', () => setActiveIndex(activeIndex - 1, {step: -1}));
+    next.addEventListener('click', () => setActiveIndex(activeIndex + 1, {step: 1}));
+    more.addEventListener('click', () => {
+      if (shownCount >= places.length) return;
+      const firstAdded = shownCount;
+      shownCount = places.length;
+      rail.dataset.cardCount = String(shownCount);
+      setActiveIndex(firstAdded, {focus: true, step: 1});
+    });
 
     cards.forEach((card, index) => {
       card.addEventListener('click', event => {
@@ -1867,33 +1952,37 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     rail.addEventListener('keydown', event => {
       let nextIndex = null;
-      if (event.key === 'ArrowRight') nextIndex = activeIndex + 1;
-      else if (event.key === 'ArrowLeft') nextIndex = activeIndex - 1;
-      else if (event.key === 'Home') nextIndex = 0;
-      else if (event.key === 'End') nextIndex = cards.length - 1;
+      let step = 0;
+      if (event.key === 'ArrowRight') { nextIndex = activeIndex + 1; step = 1; }
+      else if (event.key === 'ArrowLeft') { nextIndex = activeIndex - 1; step = -1; }
+      else if (event.key === 'Home') { nextIndex = 0; step = -1; }
+      else if (event.key === 'End') { nextIndex = shownCount - 1; step = 1; }
       if (nextIndex === null) return;
       event.preventDefault();
-      setActiveIndex(nextIndex, {focus: true});
+      setActiveIndex(nextIndex, {focus: true, step});
     });
 
     rail.addEventListener('wheel', event => {
-      if (cards.length < 2 || wheelLocked) return;
+      if (shownCount < 2 || wheelLocked) return;
       if (Math.abs(event.deltaX) < 24 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
       event.preventDefault();
       wheelLocked = true;
-      setActiveIndex(activeIndex + (event.deltaX > 0 ? 1 : -1));
+      const step = event.deltaX > 0 ? 1 : -1;
+      setActiveIndex(activeIndex + step, {step});
       globalThis.setTimeout?.(() => { wheelLocked = false; }, reducedMotion ? 0 : 180);
     }, {passive: false});
 
     rail.addEventListener('pointerdown', event => {
-      if (cards.length < 2 || (event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
+      // One card does not turn, but a drag on it is still a drag, not a tap
+      // that opens the search.
+      if ((event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
       const originCard = event.target?.closest?.('.lotbi-place-orbit-card');
       const originIndex = Number(originCard?.dataset?.orbitIndex);
       const centerRect = cards[activeIndex]?.getBoundingClientRect?.() || null;
       pointerOriginIndex = resolvePlaceOrbitPointerIndex({
         targetIndex: Number.isInteger(originIndex) ? originIndex : null,
         activeIndex,
-        cardCount: cards.length,
+        cardCount: shownCount,
         clientX: event.clientX,
         clientY: event.clientY,
         centerRect,
@@ -1953,8 +2042,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
       if (cancelled) {
         applyOrbitState();
+      } else if (crossedDragThreshold && shownCount > 1) {
+        const step = delta < 0 ? 1 : -1;
+        setActiveIndex(activeIndex + step, {step});
       } else if (crossedDragThreshold) {
-        setActiveIndex(activeIndex + (delta < 0 ? 1 : -1));
+        applyOrbitState();
       } else if (Number.isInteger(pointerOriginIndex)) {
         setActiveIndex(pointerOriginIndex);
       } else {
