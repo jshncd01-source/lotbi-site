@@ -201,16 +201,17 @@ assert.equal(bulk.personBulkMismatchMessage(8), '새 사진은 추가 정면 칸
   const listed = await client.listPersonSos('t', async () => new Response(JSON.stringify({items: [sosRow(undefined), sosRow({received: true, admin_notification: 'DELIVERED'})]}), {status: 200, headers: {'Content-Type': 'application/json'}}));
   assert.equal(listed.length, 2);
 }
-// Found-report review states as the reporter reads them.
-assert.deepEqual({...common.foundReviewStateCopy('QUEUED')}, {label: '접수됨', tone: 'progress', detail: QUEUED_DETAIL});
-assert.deepEqual({...common.foundReviewStateCopy('CLOSED')}, {label: '검토 종료', tone: 'neutral', detail: CLOSED_DETAIL});
-for (const state of ['ANALYZING', 'ADMIN_REVIEW']) assert.equal(common.foundReviewStateCopy(state), common.foundReviewStateCopy('QUEUED'), state);
-assert.equal(common.foundReviewStateCopy('NO_RELIABLE_MATCH'), common.foundReviewStateCopy('CLOSED'));
+// Person found-report review states as the reporter reads them. The pet found
+// report keeps the shared foundReviewStateCopy table (pet Core is unchanged).
+assert.deepEqual({...common.personFoundReviewStateCopy('QUEUED')}, {label: '접수됨', tone: 'progress', detail: QUEUED_DETAIL});
+assert.deepEqual({...common.personFoundReviewStateCopy('CLOSED')}, {label: '검토 종료', tone: 'neutral', detail: CLOSED_DETAIL});
+for (const state of ['ANALYZING', 'ADMIN_REVIEW']) assert.equal(common.personFoundReviewStateCopy(state), common.personFoundReviewStateCopy('QUEUED'), state);
+assert.equal(common.personFoundReviewStateCopy('NO_RELIABLE_MATCH'), common.personFoundReviewStateCopy('CLOSED'));
 for (const state of REVIEW_STATES) {
-  const copy = JSON.stringify(common.foundReviewStateCopy(state));
-  for (const phrase of RESULT_DISCLOSURE) assert.ok(!copy.includes(phrase), `review state ${state} must not say "${phrase}"`);
+  const copy = JSON.stringify(common.personFoundReviewStateCopy(state));
+  for (const phrase of RESULT_DISCLOSURE) assert.ok(!copy.includes(phrase), `person review state ${state} must not say "${phrase}"`);
 }
-assert.ok(!RESULT_DISCLOSURE.some(phrase => common.NO_RELIABLE_MATCH_LABEL.includes(phrase)));
+assert.equal(common.foundReviewStateCopy('NO_RELIABLE_MATCH').label, common.NO_RELIABLE_MATCH_LABEL, 'the pet table stays as it was');
 console.log('SAFECARE-PHOTO-BULK-UPLOAD-01 rules PASS');
 
 // ------------------------------------------------------------ B. source
@@ -236,9 +237,9 @@ const callback = read('auth/callback/index.html');
 assert.match(index, /<link rel="stylesheet" href="site-person-bulk\.css\?v=aset-[0-9a-f]{12}" \/>/);
 assert.match(callback, /<link rel="stylesheet" href="\/site-person-bulk\.css\?v=aset-[0-9a-f]{12}" \/>/);
 assert.match(read('site-person-bulk.css'), /\.person-bulk \{/);
-for (const file of ['site-safecare-common.js', 'site-person-ui.js', 'site-pet-ui.js']) {
-  for (const phrase of RESULT_DISCLOSURE) assert.ok(!copyOf(read(file)).includes(phrase), `${file} must not render "${phrase}"`);
-}
+for (const phrase of RESULT_DISCLOSURE) assert.ok(!copyOf(ui).includes(phrase), `site-person-ui.js must not render "${phrase}"`);
+assert.ok(!/(^|[^A-Za-z])foundReviewStateCopy\(/.test(ui), 'the person screen reads review states only from the person table');
+assert.equal((ui.match(/personFoundReviewStateCopy\(/g) || []).length, 2, 'both person review-state texts use the person table');
 console.log('SAFECARE-PHOTO-BULK-UPLOAD-01 source PASS');
 
 // ------------------------------------------------------------ C. browser

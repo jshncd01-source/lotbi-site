@@ -15,16 +15,16 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-13230d0ddce9';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-13230d0ddce9';
+} from './site-person.js?v=aset-4e3933153d6b';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-4e3933153d6b';
 import {
-  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, foundReviewStateCopy,
+  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-13230d0ddce9';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-13230d0ddce9';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-13230d0ddce9';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-13230d0ddce9';
-import {createPersonBulkPhotos} from './site-person-bulk-photos.js?v=aset-13230d0ddce9';
+} from './site-safecare-common.js?v=aset-4e3933153d6b';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-4e3933153d6b';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-4e3933153d6b';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-4e3933153d6b';
+import {createPersonBulkPhotos} from './site-person-bulk-photos.js?v=aset-4e3933153d6b';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -779,7 +779,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
         const submitted = await submitHumanSighting(sessionToken, composer.reportId);
         dropComposer();
         sightings = await listHumanSightings(sessionToken);
-        showStatus(foundReviewStateCopy(submitted.reviewState).detail);
+        showStatus(personFoundReviewStateCopy(submitted.reviewState).detail);
         go({name: 'found', reportId: '', submittedId: submitted.reportId});
       } catch (value) { showStatus(''); fail(error, value, '제보를 제출하지 못했습니다. 서로 다른 방향의 사진 5장 이상인지 확인해 주세요.'); }
       finally { busy = false; submit.disabled = !progress.canSubmit; }
@@ -798,7 +798,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       history.dataset.personFoundHistory = '';
       history.append(el('h4', 'person-form-title', '내 발견 제보'));
       for (const report of mine) {
-        const copy = foundReviewStateCopy(report.reviewState);
+        const copy = personFoundReviewStateCopy(report.reviewState);
         const card = el('article', 'person-card safecare-report');
         card.dataset.personFoundReport = report.reportId;
         card.dataset.safecareReviewState = report.reviewState || '';
