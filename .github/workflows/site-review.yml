@@ -238,6 +238,14 @@ jobs:
       - name: Validate iOS touch scroll and keyboard
         run: node scripts/validate_chat_ios_touch_scroll_keyboard_01.mjs
 
+      # 실사용 (삼성 인터넷): the + covered the first characters, the composer
+      # rose above the keyboard leaving empty space, and the Home shook as the
+      # keyboard opened and closed. Samsung Internet UA on Galaxy S/S+/Ultra
+      # and Z Fold cover/inner viewports, keyboard in three steps, layout and
+      # visual models.
+      - name: Validate Samsung Internet composer and keyboard
+        run: node scripts/validate_samsung_composer_keyboard_01.mjs
+
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
       # `fixed` would pass the first half and eat the second on a short screen.
