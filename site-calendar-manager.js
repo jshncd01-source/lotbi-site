@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-c39420e88254';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-c39420e88254';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-c39420e88254';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-9d81fcdb301d';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-9d81fcdb301d';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-9d81fcdb301d';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-c39420e88254';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-c39420e88254';
+} from './site-calendar-model.js?v=aset-9d81fcdb301d';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-9d81fcdb301d';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-c39420e88254';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-c39420e88254';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-c39420e88254';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-9d81fcdb301d';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-9d81fcdb301d';
+import {lunarDateCompactLabel, lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-9d81fcdb301d';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-c39420e88254';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-c39420e88254';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-c39420e88254';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-c39420e88254';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-c39420e88254';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-c39420e88254';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-c39420e88254';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-c39420e88254';
+} from './site-calendar-product.js?v=aset-9d81fcdb301d';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-9d81fcdb301d';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-9d81fcdb301d';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-9d81fcdb301d';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-9d81fcdb301d';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-9d81fcdb301d';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-9d81fcdb301d';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-9d81fcdb301d';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1875,17 +1875,23 @@ function renderMonth(state, actions, weatherCredit = null) {
     number.className = 'calendar-date-number';
     number.textContent = String(cell.day);
     date.textContent = '';
-    date.appendChild(number);
-    if (state.showLunarDates) {
-      const lunarLabel = lunarDateLabel(solarToLunar(cell.date));
-      if (lunarLabel) {
-        const lunar = document.createElement('span');
-        lunar.className = 'calendar-date-lunar';
-        lunar.textContent = lunarLabel;
-        lunar.setAttribute('aria-hidden', 'true');
-        date.appendChild(lunar);
-        date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
-      }
+    const lunarDate = state.showLunarDates ? solarToLunar(cell.date) : null;
+    const lunarLabel = lunarDateLabel(lunarDate);
+    if (lunarLabel) {
+      // 음력은 양력 숫자 바로 오른쪽 한 줄 — 칸 높이는 음력을 끈 때와 같다.
+      // 화면에는 '음28'(월이 바뀌는 날만 '음8.1'), 읽어 주는 이름에는 전체 표기.
+      const line = document.createElement('span');
+      line.className = 'calendar-date-line';
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-date-lunar';
+      lunar.textContent = lunarDateCompactLabel(lunarDate);
+      lunar.setAttribute('aria-hidden', 'true');
+      line.append(number, lunar);
+      date.appendChild(line);
+      cellNode.dataset.lunar = 'true';
+      date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
+    } else {
+      date.appendChild(number);
     }
     // On a phone the date button is the whole cell and these dots ride inside
     // it, so the cell is one target and nothing in it is a separate control.
@@ -1942,7 +1948,11 @@ function renderMonth(state, actions, weatherCredit = null) {
         precip.textContent = weatherPresentation.precipLabel;
         weatherSummary.appendChild(precip);
       }
-      if (weatherSummary.childElementCount) header.appendChild(weatherSummary);
+      if (weatherSummary.childElementCount) {
+        header.appendChild(weatherSummary);
+        // 음력 칸이 날씨 글리프 자리를 비워 둘 수 있게(site-calendar.css).
+        cellNode.dataset.weather = 'true';
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const {solarToLunar, lunarDateLabel} = await import('../site-calendar-lunar.js');
+const {solarToLunar, lunarDateLabel, lunarDateCompactLabel} = await import('../site-calendar-lunar.js');
 
 // Widely published reference dates (설날/추석 and a known leap-month start),
 // checked against this vendored KASI-based table so a future edit to the
@@ -59,5 +59,26 @@ assert.equal(lunarDateLabel(solarToLunar('2025-10-06')), '8월 15일');
 assert.equal(lunarDateLabel(solarToLunar('2026-02-17')), '1월 1일');
 assert.equal(lunarDateLabel(null), '');
 assert.equal(lunarDateLabel(solarToLunar('not-a-date')), '');
+
+// Month-cell compact label (right of the solar day number): the day only,
+// '음28'; the day a lunar month starts carries the month so the turn of the
+// month is visible ('음9.1'), a leap month keeps its 윤 ('음윤2.1'). Week and
+// Day keep the full lunarDateLabel above.
+assert.equal(lunarDateCompactLabel(solarToLunar('2025-10-06')), '음15');
+assert.equal(lunarDateCompactLabel(solarToLunar('2025-10-07')), '음16');
+assert.equal(lunarDateCompactLabel(solarToLunar('2025-10-21')), '음9.1');
+assert.equal(lunarDateCompactLabel(solarToLunar('2026-02-17')), '음1.1');
+assert.equal(lunarDateCompactLabel(solarToLunar('2023-03-22')), '음윤2.1');
+assert.equal(lunarDateCompactLabel(solarToLunar('2023-03-23')), '음2');
+assert.equal(lunarDateCompactLabel(solarToLunar('2027-10-29')), '음10.1');
+assert.equal(lunarDateCompactLabel(null), '');
+assert.equal(lunarDateCompactLabel(solarToLunar('not-a-date')), '');
+// Every day of a year renders a non-empty compact label, and only lunar day 1
+// carries a month.
+for (const civilDate of eachDate(2026)) {
+  const lunar = solarToLunar(civilDate);
+  const label = lunarDateCompactLabel(lunar);
+  assert.match(label, lunar.day === 1 ? /^음(윤)?\d{1,2}\.1$/ : /^음\d{1,2}$/, `${civilDate} -> ${label}`);
+}
 
 console.log('LOTBI Calendar lunar (음력) model: PASS');

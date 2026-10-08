@@ -51,20 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-c39420e88254';
+} from './site-pet.js?v=aset-9d81fcdb301d';
 import {
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-c39420e88254';
+} from './site-pet-guides.js?v=aset-9d81fcdb301d';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-c39420e88254';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-c39420e88254';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-c39420e88254';
+} from './site-pet-gate.js?v=aset-9d81fcdb301d';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-9d81fcdb301d';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-9d81fcdb301d';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -72,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-c39420e88254';
+} from './site-safecare-common.js?v=aset-9d81fcdb301d';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
