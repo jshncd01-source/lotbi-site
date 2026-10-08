@@ -223,6 +223,15 @@ jobs:
       - name: Validate mobile composer keyboard layout
         run: node scripts/validate_mobile_composer_keyboard_layout_01.mjs
 
+      # 실사용 (iPhone 카카오톡 내장 브라우저): the conversation would not scroll
+      # under a finger, and with the keyboard open the composer floated far
+      # above it with empty space under it. Real touch drags (from the
+      # conversation, the composer and its text) at 375/390/412 and 1280,
+      # under iOS-shaped late visualViewport values, an iOS 26 viewport left
+      # displaced after the keyboard, and Android Chrome.
+      - name: Validate iOS touch scroll and keyboard
+        run: node scripts/validate_chat_ios_touch_scroll_keyboard_01.mjs
+
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
       # `fixed` would pass the first half and eat the second on a short screen.

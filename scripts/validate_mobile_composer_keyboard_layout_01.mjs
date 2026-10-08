@@ -257,7 +257,11 @@ const PAGE_TOOLS = `(() => {
     const r = q.getBoundingClientRect();
     return {offset: Math.round(r.top - readingTop()), onScreen: r.top >= readingTop() - 1 && r.bottom <= readingBottom() + 1};
   };
-  // The item nearest the middle of the reading area, by geometry.
+  // The item nearest the middle of the reading area, by geometry. Its place is
+  // where it is on screen (rect − offsetTop, as everywhere in this file): under
+  // the pan keyboard the screen itself moves down by the keyboard's height,
+  // and a line that kept its layout position would jump up by as much
+  // (CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01; identical for layout and visual).
   let held = null;
   const holdReadingItem = () => {
     const top = readingTop(), bottom = readingBottom(), middle = (top + bottom) / 2;
@@ -266,12 +270,12 @@ const PAGE_TOOLS = `(() => {
       const r = node.getBoundingClientRect();
       if (r.height <= 0 || r.bottom <= top || r.top >= bottom) continue;
       const away = middle < r.top ? r.top - middle : middle > r.bottom ? middle - r.bottom : 0;
-      if (!best || away < best.away) best = {node, away, top: r.top};
+      if (!best || away < best.away) best = {node, away, top: r.top - visible().top};
     }
     held = best;
     return Boolean(best);
   };
-  const heldShift = () => (held && held.node.isConnected ? Math.round(held.node.getBoundingClientRect().top - held.top) : null);
+  const heldShift = () => (held && held.node.isConnected ? Math.round(held.node.getBoundingClientRect().top - visible().top - held.top) : null);
   const readerScroll = delta => {
     main.dispatchEvent(new WheelEvent('wheel', {deltaY: delta, bubbles: true}));
     main.scrollTop = Math.max(0, main.scrollTop + delta);
