@@ -1616,18 +1616,28 @@ function calendarWeekDisplaySegments(start, end) {
   ];
 }
 
+// A desk reads the week as the familiar time grid. A phone cannot fit seven
+// columns, and scrolling a grid sideways hid most of the week, so a touch
+// width lists the seven days down the left and gives the picked day the rest
+// of the screen. Both read the same items; only the drawing differs.
+export function calendarWeekLayout() {
+  return usesFlowingDayDetail() ? 'vertical' : 'timegrid';
+}
+
 // Week keeps LOTBI's visual language while using the familiar calendar model:
 // dates run left-to-right and clock time runs top-to-bottom. The grid owns its
 // horizontal overflow on narrow screens so the surrounding page never does.
 function renderWeek(state, actions, weatherCredit = null) {
   const section = document.createElement('section');
   section.className = 'calendar-week-agenda';
-  section.setAttribute('aria-label', '주간 시간표');
-  const layout = 'timegrid';
+  const layout = calendarWeekLayout();
+  section.setAttribute('aria-label', layout === 'vertical' ? '주간 일정' : '주간 시간표');
   section.dataset.weekLayout = layout;
   const weatherByDate = calendarWeatherByDate(state.weather);
   const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
-  section.appendChild(renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
+  section.appendChild(layout === 'vertical'
+    ? renderWeekVertical(state, actions, {weatherByDate, holidayMap})
+    : renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
 
   if (weatherCredit) {
     const credit = document.createElement('p');
@@ -1642,6 +1652,134 @@ function renderWeek(state, actions, weatherCredit = null) {
     section.appendChild(notice);
   }
   return section;
+}
+
+// Phone Week: the seven days run down a narrow rail, the picked day's records
+// fill the rest as cards in day order. A tap only redraws -- the week's records
+// are already loaded -- so the right side follows the finger at once.
+function renderWeekVertical(state, actions, {weatherByDate, holidayMap}) {
+  const days = calendarWeekDays(state.selectedDate, state.weekStart);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'calendar-week-vertical';
+
+  const rail = document.createElement('div');
+  rail.className = 'calendar-week-rail';
+  rail.setAttribute('role', 'group');
+  rail.setAttribute('aria-label', '요일 선택');
+  const controls = [];
+  for (const day of days) {
+    const selected = day.date === state.selectedDate;
+    const isToday = day.date === state.todayDate;
+    const holiday = holidayMap.get(day.date);
+    const count = calendarItemsOnDate(state.items, day.date).length;
+    const control = button('', 'calendar-week-rail-day');
+    control.dataset.calendarWeekDate = day.date;
+    control.dataset.weekday = String(day.weekday);
+    control.dataset.selected = String(selected);
+    control.dataset.today = String(isToday);
+    control.dataset.holiday = String(Boolean(holiday));
+    control.dataset.recordCount = String(count);
+    control.setAttribute('aria-pressed', String(selected));
+    if (isToday) control.setAttribute('aria-current', 'date');
+    control.tabIndex = selected ? 0 : -1;
+    control.setAttribute('aria-label', [
+      koreanDate(day.date),
+      isToday ? '오늘' : '',
+      holiday ? holiday.name : '',
+      `기록 ${count}개`,
+    ].filter(Boolean).join(', '));
+    const weekday = document.createElement('span');
+    weekday.className = 'calendar-week-rail-weekday';
+    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    const number = document.createElement('strong');
+    number.className = 'calendar-week-rail-number';
+    number.textContent = String(day.day);
+    const dots = recordDots(count);
+    control.append(weekday, number, dots);
+    control.addEventListener('click', () => { void actions.selectDate(day.date); });
+    control.addEventListener('keydown', event => {
+      const index = days.findIndex(entry => entry.date === day.date);
+      const target = event.key === 'ArrowUp' ? addCivilDays(day.date, -1)
+        : event.key === 'ArrowDown' ? addCivilDays(day.date, 1)
+          : event.key === 'Home' ? days[0].date
+            : event.key === 'End' ? days.at(-1).date
+              : '';
+      if (!target || index < 0) return;
+      event.preventDefault();
+      void actions.selectDate(target);
+    });
+    controls.push(control);
+  }
+  rail.append(...controls);
+  wrapper.append(rail, renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}));
+  return wrapper;
+}
+
+// The right side of the phone Week: the picked day's heading, its weather and
+// holiday, then the same life rows the day panel draws, shown as cards.
+function renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}) {
+  const date = state.selectedDate;
+  const detail = document.createElement('section');
+  detail.className = 'calendar-week-day-detail';
+  detail.dataset.selectedDate = date;
+  detail.setAttribute('aria-label', `${longKoreanDate(date)} 기록`);
+
+  const head = document.createElement('div');
+  head.className = 'calendar-week-day-detail-head';
+  const heading = document.createElement('h3');
+  heading.className = 'calendar-week-day-heading';
+  if (date === state.todayDate) {
+    const todayBadge = document.createElement('span');
+    todayBadge.className = 'calendar-day-today';
+    todayBadge.textContent = '오늘';
+    heading.append(todayBadge, ' ');
+  }
+  heading.append(longKoreanDate(date));
+  head.appendChild(heading);
+  if (state.showLunarDates) {
+    const lunarLabel = lunarDateLabel(solarToLunar(date));
+    if (lunarLabel) {
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-week-day-detail-lunar';
+      lunar.textContent = `음력 ${lunarLabel}`;
+      head.appendChild(lunar);
+    }
+  }
+  const weather = dayWeatherNode(weatherByDate.get(date), {precipitation: state.showPrecipitation !== false});
+  if (weather) head.appendChild(weather);
+  detail.appendChild(head);
+
+  const holiday = holidayMap.get(date);
+  if (holiday) {
+    const note = document.createElement('p');
+    note.className = 'calendar-day-holiday calendar-week-day-holiday';
+    note.setAttribute('role', 'note');
+    note.textContent = `${holiday.name} · 공휴일`;
+    detail.appendChild(note);
+  }
+
+  const timeline = lifeTimelineNodes(state.items, date, {today: state.todayDate, onSelect: actions.onEvent});
+  const cards = document.createElement('div');
+  cards.className = 'calendar-week-day-cards';
+  if (timeline) {
+    cards.appendChild(timeline);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'calendar-week-day-empty';
+    if (state.loading) {
+      empty.appendChild(emptyMessage('기록을 불러오는 중…'));
+    } else {
+      empty.appendChild(emptyMessage(date === state.todayDate ? '오늘은 아직 기록이 없어요.' : '이 날은 기록이 없어요.'));
+      const hint = document.createElement('p');
+      hint.className = 'calendar-week-day-empty-hint';
+      hint.textContent = '위의 + 기록이나 사진에서 기록 읽기로 남길 수 있어요.';
+      empty.appendChild(hint);
+    }
+    cards.appendChild(empty);
+  }
+  detail.dataset.empty = String(!timeline);
+  detail.appendChild(cards);
+  return detail;
 }
 
 // The hour grid is the Week view: seven date columns and a vertical clock.
@@ -3798,12 +3936,19 @@ export async function mountLifeCalendarManager({
       markCalendarContextNavigation();
       const parts = civilDateParts(date);
       const monthChanged = parts.year !== state.year || parts.month !== state.month;
+      // Week has the whole week's records already: a day inside it only
+      // redraws, even when the week straddles two months. Leaving the week
+      // reads the new one.
+      const leavesLoadedWeek = state.mode === 'week'
+        && !calendarWeekDays(state.selectedDate, state.weekStart).some(day => day.date === date);
       state.selectedDate = date;
       state.year = parts.year;
       state.month = parts.month;
       state.detailOpen = state.mode === 'month';
       state.dayCollapsed = false;
-      if (monthChanged) await afterMonthChange(); else render();
+      if (state.mode === 'week') {
+        if (leavesLoadedWeek) await refresh(); else render();
+      } else if (monthChanged) await afterMonthChange(); else render();
       focusSelectedCalendarTarget({detail: openDetail, date, focusDetail, revealWeekDay});
     },
     closeDayDetail: () => {
@@ -4011,6 +4156,7 @@ export async function mountLifeCalendarManager({
     const focusedAddControl = active?.matches?.('[data-calendar-add]') ? '[data-calendar-add]'
       : active?.matches?.('[data-calendar-add-image]') ? '[data-calendar-add-image]' : '';
     const focusedCalendarDate = active ? active.getAttribute('data-calendar-date-trigger') : null;
+    const focusedRailDate = active?.closest?.('.calendar-week-rail') ? active.getAttribute('data-calendar-week-date') : null;
     render();
     if (focusedAddControl) {
       root.querySelector(focusedAddControl)?.focus({preventScroll: true});
@@ -4022,6 +4168,10 @@ export async function mountLifeCalendarManager({
       (sameRow || root.querySelector('.calendar-day-heading'))?.focus({preventScroll: true});
     } else if (focusedCalendarDate && state.mode === 'month' && focusedCalendarDate === state.selectedDate) {
       root.querySelector(`[data-calendar-date-trigger="${focusedCalendarDate}"]`)?.focus({preventScroll: true});
+    } else if (focusedRailDate && state.mode === 'week' && validCivilDate(focusedRailDate)) {
+      // The phone Week's day rail keeps its place when weather or holidays
+      // arrive after a tap.
+      root.querySelector(`.calendar-week-rail [data-calendar-week-date="${focusedRailDate}"]`)?.focus({preventScroll: true});
     } else if (/^[A-Za-z0-9_-]+$/.test(focusedEventId)) {
       // A record in Week's or 목록's list keeps focus through a background render.
       root.querySelector(`[data-calendar-event-id="${focusedEventId}"]`)?.focus({preventScroll: true});
@@ -4301,7 +4451,8 @@ export async function mountLifeCalendarManager({
     const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"], .calendar-day-panel[data-day-panel-bound="true"]');
     if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
-    const showsAmountSummary = state.mode === 'day' || state.mode === 'week' || state.mode === 'month';
+    // The month's amount total belongs to the month view only.
+    const showsAmountSummary = state.mode === 'month';
     const amountSummary = showsAmountSummary ? renderAmountSummary(state, actions) : null;
     amountSlot.replaceChildren(...(amountSummary ? [amountSummary] : []));
     amountSlot.hidden = !amountSummary;
@@ -4583,7 +4734,7 @@ export async function mountLifeCalendarManager({
         }
         // 일정은 여기서 이미 화면에 오른다 -- 날씨·공휴일은 기다리지 않는다.
         state.loading = false; renderPreservingFocus();
-        if (state.mode === 'day' || state.mode === 'week' || state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
         // 날씨·공휴일은 따로 도착한다. 그 사이 다른 달로 넘어갔거나(새
         // refreshGeneration) 위치/지역이 다시 바뀌었으면(새 weatherGeneration) 이
         // 응답은 조용히 버려진다 -- 화면은 이미 최신 요청이 맡고 있다.
@@ -4619,7 +4770,7 @@ export async function mountLifeCalendarManager({
         // then decorate it with weather/holiday data fail-soft.
         state.loading = false;
         renderPreservingFocus();
-        if (state.mode === 'day' || state.mode === 'week' || state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
 
         // Which dates the guest month/week grid can show weather for is a
         // property of the visible date range intersected with the forecast
@@ -5088,6 +5239,12 @@ export async function mountLifeCalendarManager({
   previous.addEventListener('click', () => { void shiftMonth(-1); });
   next.addEventListener('click', () => { void shiftMonth(1); });
   today.addEventListener('click', async () => {
+    // The phone Week already is a day view beside its rail, so 오늘 brings
+    // today's week and today's records there instead of leaving the week.
+    if (state.mode === 'week' && calendarWeekLayout() === 'vertical') {
+      await actions.selectDate(state.todayDate);
+      return;
+    }
     markCalendarContextNavigation();
     const parts = civilDateParts(state.todayDate);
     state.year = parts.year;
@@ -5118,8 +5275,18 @@ export async function mountLifeCalendarManager({
   });
 
   let lastDayDetailPresentation = dayDetailPresentation();
+  let lastWeekLayout = calendarWeekLayout();
   const onResize = () => {
     const nextDayDetailPresentation = dayDetailPresentation();
+    // Week swaps between the phone rail and the desk grid on its own width
+    // rule, which a fixed day-detail presentation does not follow.
+    const nextWeekLayout = calendarWeekLayout();
+    const weekLayoutChanged = nextWeekLayout !== lastWeekLayout;
+    lastWeekLayout = nextWeekLayout;
+    if (weekLayoutChanged && state.mode === 'week' && nextDayDetailPresentation === lastDayDetailPresentation) {
+      render();
+      return;
+    }
     if (nextDayDetailPresentation !== lastDayDetailPresentation) {
       lastDayDetailPresentation = nextDayDetailPresentation;
       const detailOwnedFocus = Boolean(document.activeElement?.closest?.('.calendar-day-panel'));

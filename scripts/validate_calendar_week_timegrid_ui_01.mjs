@@ -2,7 +2,8 @@
 //
 // Dates run Sunday through Saturday across the top while clock time runs down
 // the left axis. Timed records occupy their real date/time position, including
-// overlapping lanes, and mobile keeps the same model via horizontal scrolling.
+// overlapping lanes. This is the desk Week; a touch width (900px and below)
+// lists the days down a rail instead -- validate_calendar_week_mobile_vertical_01.
 // Geometry claims need a real layout engine.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -225,9 +226,9 @@ fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
-  // Desktop shows the whole week when space permits; mobile keeps the same
-  // date-across/time-down model and scrolls the grid itself horizontally.
-  const results = [[1440, 900], [360, 780]].map(([w, h]) => run(browser, w, h));
+  // The desk shows the whole week when space permits, down to the smallest
+  // width that is not a touch layout.
+  const results = [[1440, 900], [1024, 768]].map(([w, h]) => run(browser, w, h));
   for (const v of results) {
     const where = `${v.viewport.width}x${v.viewport.height}`;
     if (v.initialLayout !== 'timegrid') throw new Error(`${where}: Week must open on the vertical time grid, got "${v.initialLayout}"`);
@@ -263,7 +264,6 @@ try {
     if (!v.alldayFound || !v.alldayAboveScroll) throw new Error(`${where}: all-day records must sit above the hourly scroller`);
     if (v.maxColumnEdgeDelta > 1) throw new Error(`${where}: week header, all-day row and hourly columns must stay aligned (max edge drift=${v.maxColumnEdgeDelta.toFixed(2)}px)`);
     if (v.hourLabelCount !== 24) throw new Error(`${where}: expected a 24-hour vertical axis, got ${v.hourLabelCount}`);
-    if (v.viewport.width <= 900 && v.horizontalOverflow <= 0) throw new Error(`${where}: mobile must scroll the weekly grid horizontally instead of squeezing seven days`);
     if (v.viewport.width > 900 && v.horizontalOverflow > 1) throw new Error(`${where}: desktop week should fit without page-level horizontal overflow`);
   }
   console.log('CALENDAR WEEK VERTICAL-TIMEGRID UI PASS', JSON.stringify(results));
