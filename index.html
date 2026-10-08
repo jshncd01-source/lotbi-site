@@ -88,8 +88,8 @@
         var lotbiHour = new Date().getHours();
         if (lotbiSavedTheme === 'auto') {
           // '자동모드' is resolved here, by this device's clock, rather than
-          // stored resolved: a stored answer goes stale at 07:00 and 18:00.
-          lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+          // stored resolved: a stored answer goes stale at 07:00 and 22:00.
+          lotbiSavedTheme = (lotbiHour >= 22 || lotbiHour < 7) ? 'dark' : 'light';
         }
         if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
           document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
@@ -99,7 +99,7 @@
         if (lotbiPreference === 'auto') {
           var lotbiNext = new Date();
           lotbiNext.setMinutes(0, 0, 0);
-          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 18 ? 7 : 18);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 22 ? 7 : 22);
           if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
           lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
         }
@@ -125,30 +125,30 @@
       if (/^#[a-z][a-z-]{1,30}$/.test(window.location.hash)) document.documentElement.dataset.siteRoutePending = '';
     } catch (error) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="home-chat.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-hardening.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-avatar.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-calendar.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-pet.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-person.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-safecare.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-festival.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="footer-business-info.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="mobile-entry.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="home-bare-white.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-conversation.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-scam-shield.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-consumer-design.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-consumer-detail.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-consumer-layout.css?v=aset-d1841e72a59b" />
-  <link rel="stylesheet" href="site-life-wallet.css?v=aset-d1841e72a59b" />
+  <link rel="stylesheet" href="styles.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-person.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-safecare.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-festival.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-scam-shield.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-consumer-design.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-consumer-detail.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-consumer-layout.css?v=aset-a81afd328713" />
+  <link rel="stylesheet" href="site-life-wallet.css?v=aset-a81afd328713" />
   <style>
     body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
     }
@@ -161,13 +161,13 @@
     }
   }
   </script>
-  <script src="home-shell.js?v=aset-d1841e72a59b" defer></script>
-  <script src="site-consumer-layout.js?v=aset-d1841e72a59b" defer></script>
-  <script src="mobile-entry.js?v=aset-d1841e72a59b" defer></script>
-  <script type="module" src="site-avatar.js?v=aset-d1841e72a59b"></script>
-  <script type="module" src="site-conversation.js?v=aset-d1841e72a59b"></script>
-  <script type="module" src="site-continuity.js?v=aset-d1841e72a59b"></script>
-  <script type="module" src="site-footer-legal.js?v=aset-d1841e72a59b"></script></head>
+  <script src="home-shell.js?v=aset-a81afd328713" defer></script>
+  <script src="site-consumer-layout.js?v=aset-a81afd328713" defer></script>
+  <script src="mobile-entry.js?v=aset-a81afd328713" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-a81afd328713"></script>
+  <script type="module" src="site-conversation.js?v=aset-a81afd328713"></script>
+  <script type="module" src="site-continuity.js?v=aset-a81afd328713"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-a81afd328713"></script></head>
 <body class="chat-home-page" data-conversation-restore="pending">  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 
   <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
@@ -443,8 +443,8 @@
           <p class="scam-scope-note">이메일·QR 코드·기관 안내문·거래 안내·법원·세금 문서·의심스러운 사이트도 확인할 수 있어요.</p>
           <form data-scam-form>
             <div class="scam-input-kinds" data-scam-methods aria-label="확인 방법 선택">
-              <label><input type="radio" name="scam-input-kind" value="camera" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v13H4V7Zm8 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg><span><strong>받은 문자 화면 찍기</strong><small>지금 카메라로 찍어요</small></span></label>
-              <label><input type="radio" name="scam-input-kind" value="photo" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm3 12 4-4 3 3 2-2 3 3M8 9h.01" /></svg><span><strong>휴대폰 사진에서 고르기</strong><small>이미 찍어 둔 사진을 골라요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="photo" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm3 12 4-4 3 3 2-2 3 3M8 9h.01" /></svg><span><strong>사진·스크린샷 선택</strong><small>사진 보관함이나 스크린샷에서 골라요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="camera" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v13H4V7Zm8 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg><span><strong>카메라로 촬영</strong><small>지금 카메라로 찍어요</small></span></label>
               <label><input type="radio" name="scam-input-kind" value="document" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 0v5h4M9 12h6m-6 4h6" /></svg><span><strong>문서·PDF 선택하기</strong><small>저장된 안내문을 골라요</small></span></label>
               <label><input type="radio" name="scam-input-kind" value="text" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v14H9l-6 4V3Zm4 5h10M7 12h7" /></svg><span><strong>문자 내용 붙여넣기</strong><small>받은 글을 복사해서 넣어요</small></span></label>
               <label><input type="radio" name="scam-input-kind" value="url" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2" /></svg><span><strong>인터넷 주소 확인하기</strong><small>의심되는 주소를 붙여넣어요</small></span></label>
@@ -453,12 +453,14 @@
               <button class="scam-method-back" type="button" data-scam-method-back>← 다른 방법 선택</button>
               <div class="scam-input-panel" data-scam-input-panel="camera" hidden>
                 <label for="scam-camera">받은 문자나 안내문을 화면 가득 찍어 주세요</label>
-                <input id="scam-camera" name="scamCamera" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-describedby="scam-camera-help" disabled />
+                <input id="scam-camera" class="scam-file-input" name="scamCamera" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-describedby="scam-camera-help" disabled />
+                <label class="scam-file-pick" for="scam-camera" data-scam-file-pick="camera">카메라로 촬영</label>
                 <p id="scam-camera-help" class="scam-field-help">사진은 확인하기를 누르기 전에는 전송되지 않습니다. · 최대 10MB</p>
               </div>
               <div class="scam-input-panel" data-scam-input-panel="photo" hidden>
-                <label for="scam-photo">휴대폰이나 컴퓨터에 저장된 사진을 골라 주세요</label>
-                <input id="scam-photo" name="scamPhoto" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="scam-photo-help" disabled />
+                <label for="scam-photo">사진 보관함이나 스크린샷에서 확인할 사진을 골라 주세요</label>
+                <input id="scam-photo" class="scam-file-input" name="scamPhoto" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="scam-photo-help" disabled />
+                <label class="scam-file-pick" for="scam-photo" data-scam-file-pick="photo">사진·스크린샷 선택</label>
                 <p id="scam-photo-help" class="scam-field-help">사진(JPEG·PNG·WEBP) · 최대 10MB</p>
               </div>
               <div class="scam-input-panel" data-scam-input-panel="document" hidden>
