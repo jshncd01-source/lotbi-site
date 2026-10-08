@@ -1,5 +1,5 @@
-import {SITE_CALLBACK_URI} from './site-core.js?v=aset-9f2cb75a81ec';
-import {parseSiteRouteHash} from './site-route.js?v=aset-9f2cb75a81ec';
+import {SITE_CALLBACK_URI} from './site-core.js?v=aset-3d99fd22ff64';
+import {parseSiteRouteHash} from './site-route.js?v=aset-3d99fd22ff64';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
@@ -246,6 +246,16 @@ export function readAndClearSiteHandoffContext(returnedState, storage = browserS
   }
 
   return Object.freeze({...context, returnHash: normalizeSiteHandoffReturnHash(context.returnHash)});
+}
+
+// SOCIAL-LOGIN-4P-RECOVERY-01 — the callback strips code/state from its URL the
+// moment it boots, so the same tab landing on /auth/callback again (reload, Back,
+// a mobile browser restoring a discarded tab) arrives with no query at all. That
+// is a visit to an already-consumed callback, not a handoff to verify; it used to
+// dead-end on "로그인 연결 파라미터가 올바르지 않습니다". Any query at all — even
+// one with a missing or extra parameter — is still checked and fails closed.
+export function isConsumedSiteHandoffCallback(url) {
+  return [...url.searchParams.keys()].length === 0;
 }
 
 export function parseSiteHandoffCallback(url) {

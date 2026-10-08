@@ -198,6 +198,12 @@ jobs:
       # time at 390x844, 375x667 and 1280x900.
       - name: Validate chat answer quality P0 (conversation tail, tables)
         run: node scripts/validate_chat_answer_quality_p0_01.mjs
+      # "크록스 클래식과 바야 사진으로 비교해줘" got a table and no picture.
+      # Core now returns each product's official page image; the answer shows
+      # them side by side with the official page link, a plain box when there
+      # is no verified image or it fails to load, and nothing for spec answers.
+      - name: Validate product photo comparison cards
+        run: node scripts/validate_product_photo_compare_01.mjs
 
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
@@ -365,6 +371,13 @@ jobs:
       - name: Validate Place Card carousel never drifts
         run: node scripts/validate_place_card_carousel_no_drift_01.mjs
 
+      # 장소·의료 카드 최종 정리: 휴대폰은 화살표 없이 밀어서 돌리고 카드 한 장이
+      # 온전히 보인다. 사진이 없으면 사진 칸이 없고, 1/3 위치와 세 곳 다음의
+      # "다른 병원 보기", 같은 기관 한 장, 설정 지도앱·네이버 검색 유지를 실제
+      # 터치/마우스로 잰다(버튼 바로 위 본문 탭이 전화로 넘어가지 않는지 포함).
+      - name: Validate Place / medical card final UX
+        run: node scripts/validate_place_medical_card_ux_final_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
@@ -463,6 +476,17 @@ jobs:
           node --check site-person-ui.js
           node scripts/validate_safecare_capture_art_01.mjs
           node scripts/validate_safecare_web_ui_redesign_01.mjs
+
+      # SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten identity photos at once —
+      # classify hint only, never outside the suggested slots, fronts first
+      # (1,8,2,3,9,10,6,4,5,7), successes kept, per-photo replacement; the
+      # person SOS copy says "not a police report" and found reports never
+      # disclose a comparison result. 360/390/412/1440.
+      - name: Validate SafeCare bulk identity photos and SOS intake copy
+        run: |
+          node --check site-person.js
+          node --check site-person-bulk-photos.js
+          node scripts/validate_safecare_photo_bulk_upload_01.mjs
 
 
       - name: Validate user bubble content-fit rendering

@@ -328,6 +328,15 @@ export async function renderScene({
   return encoded;
 }
 
+// A card saved as a flat picture (a business card or ID image file, a flat scan): the whole
+// image is the card, no background around it. Same printed design as photographed cards.
+export function flatCardImage(width, height, options = {}, seed = 1) {
+  const random = seededRandom(seed);
+  const canvas = new OffscreenCanvas(width, height);
+  canvas.getContext('2d').putImageData(cardTexture(width, height, {tint: [250, 250, 248], ...options}, random), 0, 0);
+  return canvas;
+}
+
 // Wallet-like ID-1 card: 85.60 x 53.98 mm with ~3.2 mm corner radius.
 export const ID_CARD_ASPECT = 85.6 / 53.98;
 

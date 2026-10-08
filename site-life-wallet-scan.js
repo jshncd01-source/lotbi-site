@@ -886,7 +886,7 @@ function fullPageDocument(smooth,light,width,height){
   const x0=Math.max(sheetLeft,left-pad);const x1=Math.min(sheetRight,right+pad);const y0=Math.max(sheetTop,top-pad);const y1=Math.min(sheetBottom,bottom+pad);
   const area=(x1-x0+1)*(y1-y0+1);const areaRatio=area/(width*height);
   if(areaRatio<.35||total/area>.5)return null;
-  return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
+  return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',sheet:{left:sheetLeft,top:sheetTop,right:sheetRight,bottom:sheetBottom},metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
 }
 
 // Strict surface model first; illumination adaptation only when it finds no document.
@@ -1147,10 +1147,16 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   // photo with hardly any (a pet, a person, a room) is not cropped, and the scanner refuses it.
   const marks=printMarks(working,surface.smooth,surface.light);
   const lines=textLines(working,marks,null);
-  const card=Boolean(chosen)&&chosen.source!=='full-page';
   const itemSource=detail?.data&&sourceScale<1?detail:imageData;const itemScale=itemSource===detail?1/(working.scale*sourceScale):1/working.scale;
-  const item=card?itemMarks(itemSource,Object.fromEntries(Object.entries(chosen.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}]))):null;
-  const chosenLines=chosen?(card?cardLines(item.working,item.marks,null,ITEM_GLYPH):textLines(working,marks,chosen.corners)):0;
+  // Print rows: a page counts rows on the working image; a card counts them on a card squared
+  // up from the full photo.
+  const rowsOf=candidate=>{
+    if(!candidate)return 0;if(candidate.source==='full-page')return textLines(working,marks,candidate.corners);
+    const item=itemMarks(itemSource,Object.fromEntries(Object.entries(candidate.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}])));
+    return cardLines(item.working,item.marks,null,ITEM_GLYPH);
+  };
+  let card=Boolean(chosen)&&chosen.source!=='full-page';
+  let chosenLines=rowsOf(chosen);
   if(lines<MINIMUM_TEXT_LINES&&!(card&&chosenLines>=MINIMUM_TEXT_LINES)){chosen=null;reason='not-a-document'}
   // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
   // rooms a handful); a card needs a couple of lines of print inside its outline.
@@ -1158,13 +1164,44 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   // Receipts are long thin strips (about 2:1 and longer); cards are 1.59:1, A4 1.41:1, Letter
   // 1.29:1 and business cards 1.75:1. A receipt is not saved as a wallet item automatically.
   else if(chosen&&quadAspect(chosen.corners)>=1.85){chosen=null;reason='receipt-like'}
+  // Nothing found, but the picture may itself be the card: a business card or ID saved as an
+  // image file or a flat scan (its photo block or logo is no card of its own). Never for a
+  // photo already refused as not a document or as a receipt.
+  if(!chosen&&['automatic-detection-uncertain','competing-documents','competing-boundaries'].includes(reason)){
+    const frame=fullFrameCard(surface,working,marks);const rows=rowsOf(frame);
+    if(frame&&rows>=MINIMUM_TEXT_LINES){chosen=frame;card=true;chosenLines=rows;reason='document-quadrilateral'}
+  }
   const diagnostics=scanDiagnostics(working,surface,legacy,chosen);
   diagnostics.textLines=lines;
   if (!chosen) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:legacyConfidence,mode:'manual',reason,diagnostics};
-  const paper=chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners));
+  // A full-frame card keeps its colours and the orientation it was saved in.
+  const flat=chosen.source==='full-frame-card';
+  const paper=!flat&&(chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners)));
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
-  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation:paper||!card?0:uprightRotation(working,marks,chosen.corners),diagnostics};
+  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation:paper||!card||flat?0:uprightRotation(working,marks,chosen.corners),diagnostics};
+}
+
+// The whole picture as a card: its paper (light, nearly colourless) spans the frame, the frame
+// is card-shaped (1.45 to 1.85 : 1 either way; photos are 1.33 or 1.5, phone screens 2 and
+// longer), it holds fewer rows than a page, and it is flat: the paper is equally bright in all
+// four quarters, as in an image file or a scan, while a camera photo of a desk falls off
+// towards one side with the light.
+function fullFrameCard(surface,working,marks){
+  const {width,height}=working;const page=fullPageDocument(surface.smooth,surface.light,width,height);
+  if(!page?.sheet||textLines(working,marks,page.corners)>=12)return null;
+  const {left,top,right,bottom}=page.sheet;const across=right-left+1;const down=bottom-top+1;const ratio=Math.max(across,down)/Math.max(1,Math.min(across,down));
+  if(ratio<1.45||ratio>1.85||across<width*.9||down<height*.9)return null;
+  const sums=[0,0,0,0];const counts=[0,0,0,0];const smooth=surface.smooth;
+  for(let y=top;y<=bottom;y+=2)for(let x=left;x<=right;x+=2){
+    const index=y*width+x;const red=smooth[index*3];const green=smooth[index*3+1];const blue=smooth[index*3+2];const tone=red*.299+green*.587+blue*.114;
+    if(tone<150||Math.max(red,green,blue)-Math.min(red,green,blue)>40)continue;
+    const quarter=(y<(top+bottom)/2?0:2)+(x<(left+right)/2?0:1);sums[quarter]+=tone;counts[quarter]+=1;
+  }
+  if(counts.some(count=>count<20))return null;
+  const means=sums.map((sum,quarter)=>sum/counts[quarter]);
+  if(Math.max(...means)-Math.min(...means)>10)return null;
+  return {corners:{topLeft:{x:left,y:top},topRight:{x:right,y:top},bottomRight:{x:right,y:bottom},bottomLeft:{x:left,y:bottom}},confidence:.8,areaRatio:across*down/(width*height),area:across*down,source:'full-frame-card',metrics:{cornerRadius:0}};
 }
 
 // Edge-component and corner-patch candidates (the original pipeline).
