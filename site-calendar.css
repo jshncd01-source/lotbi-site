@@ -1219,8 +1219,9 @@ body.calendar-editor-open { overflow: hidden; }
   border-top: 1px solid #e8ecf2;
   background: inherit;
 }
-.calendar-editor-actions button { min-height: 44px; padding: 8px 14px; border: 1px solid #cfd6e2; border-radius: 10px; background: #fff; color: var(--lotbi-text-primary, var(--text, #212121)); cursor: pointer; font: inherit; font-weight: 800; }
+.calendar-editor-actions button { min-height: 44px; padding: 8px 14px; border: 1px solid #7d8796; border-radius: 10px; background: #fff; color: var(--lotbi-text-primary, var(--text, #212121)); cursor: pointer; font: inherit; font-weight: 800; }
 .calendar-editor-save { border-color: var(--brand-navy, #182a46) !important; background: var(--brand-navy, #182a46) !important; color: #fff !important; }
+.calendar-editor-save:disabled { cursor: not-allowed; opacity: .45; }
 .calendar-editor-delete { margin-right: auto; border-color: #c95555 !important; color: #a13232 !important; }
 
 .calendar-readonly-backdrop {
@@ -1540,6 +1541,11 @@ body[data-site-theme="dark"] .calendar-editor-body > label { color: var(--lotbi-
 body[data-site-theme="dark"] .calendar-editor-header,
 body[data-site-theme="dark"] .calendar-editor-actions { border-color: #39424f; }
 body[data-site-theme="dark"] .calendar-editor-close { color: var(--lotbi-text-primary, var(--text, #212121)); }
+/* The footer kept the light #fff fill under dark-theme ink: 취소 read 1.09:1.
+   Dark fill, light ink, a border that stands out; 저장 as the photo confirm. */
+body[data-site-theme="dark"] .calendar-editor-actions button { border-color: #7d8796; background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .calendar-editor-save { border-color: #edf0f5 !important; background: #edf0f5 !important; color: #212121 !important; }
+body[data-site-theme="dark"] .calendar-editor-delete { border-color: #d36b6b !important; color: #f2a1a1 !important; }
 body[data-site-theme="dark"] .calendar-readonly-dialog { border-color: #39424f; background: #171c25; }
 body[data-site-theme="dark"] .calendar-readonly-header,
 body[data-site-theme="dark"] .calendar-readonly-actions { border-color: #39424f; }
@@ -2881,6 +2887,12 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-actions { border-color: #39424f; }
   body[data-site-theme="system"] .calendar-editor-close,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-close { color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .calendar-editor-actions button,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-actions button { border-color: #7d8796; background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .calendar-editor-save,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-save { border-color: #edf0f5 !important; background: #edf0f5 !important; color: #212121 !important; }
+  body[data-site-theme="system"] .calendar-editor-delete,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-delete { border-color: #d36b6b !important; color: #f2a1a1 !important; }
   body[data-site-theme="system"] .calendar-readonly-dialog,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-readonly-dialog { border-color: #39424f; background: #171c25; }
   body[data-site-theme="system"] .calendar-readonly-header,

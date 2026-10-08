@@ -49,8 +49,8 @@
         var lotbiHour = new Date().getHours();
         if (lotbiSavedTheme === 'auto') {
           // '자동모드' is resolved here, by this device's clock, rather than
-          // stored resolved: a stored answer goes stale at 07:00 and 18:00.
-          lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+          // stored resolved: a stored answer goes stale at 07:00 and 22:00.
+          lotbiSavedTheme = (lotbiHour >= 22 || lotbiHour < 7) ? 'dark' : 'light';
         }
         if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
           document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
@@ -60,7 +60,7 @@
         if (lotbiPreference === 'auto') {
           var lotbiNext = new Date();
           lotbiNext.setMinutes(0, 0, 0);
-          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 18 ? 7 : 18);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 22 ? 7 : 22);
           if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
           lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
         }
@@ -73,13 +73,13 @@
       });
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=aset-9d81fcdb301d" />
-  <link rel="stylesheet" href="about.css?v=aset-9d81fcdb301d" />
-  <link rel="stylesheet" href="mobile-entry.css?v=aset-9d81fcdb301d" />
-  <link rel="stylesheet" href="site-static-theme.css?v=aset-9d81fcdb301d" />
-  <script src="mobile-entry.js?v=aset-9d81fcdb301d" defer></script>
-  <link rel="stylesheet" href="site-consumer-documents.css?v=aset-9d81fcdb301d" />
-  <script src="site-document-navigation.js?v=aset-9d81fcdb301d" defer></script>
+  <link rel="stylesheet" href="styles.css?v=aset-da1cc4911b7a" />
+  <link rel="stylesheet" href="about.css?v=aset-da1cc4911b7a" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-da1cc4911b7a" />
+  <link rel="stylesheet" href="site-static-theme.css?v=aset-da1cc4911b7a" />
+  <script src="mobile-entry.js?v=aset-da1cc4911b7a" defer></script>
+  <link rel="stylesheet" href="site-consumer-documents.css?v=aset-da1cc4911b7a" />
+  <script src="site-document-navigation.js?v=aset-da1cc4911b7a" defer></script>
 </head>
 <body class="consumer-document">
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>

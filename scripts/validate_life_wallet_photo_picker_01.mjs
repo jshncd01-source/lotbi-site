@@ -82,6 +82,8 @@ try{
     ok:true,
     scanning,
     accept:input.accept,
+    pdfAccept:picker.pdfInput.accept,
+    capture:[input,picker.pdfInput].some(field=>field.hasAttribute('capture')),
     markTag:mark.tagName,
     plusInputClicks,
     allInputClicks,
@@ -131,7 +133,11 @@ try {
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
   const result = readResult(run.stdout);
-  assert.equal(result.accept, 'image/jpeg,image/png,application/pdf,.pdf', 'the picker must limit selection to JPEG, PNG and PDF');
+  // One image type per picker: Android then offers camera and gallery only (no camcorder or
+  // voice recorder); PDFs have their own picker.
+  assert.equal(result.accept, 'image/*', 'the photo picker must accept still images only');
+  assert.equal(result.pdfAccept, 'application/pdf', 'PDFs must use their own picker');
+  assert.equal(result.capture, false, 'the pickers must not force the camera');
   assert.equal(result.scanning.text, '다시 선택');
   assert.equal(result.scanning.secondary, true, `the change button must be an outlined secondary button, not a large black one: ${JSON.stringify(result.scanning)}`);
   assert.ok(result.scanning.actionWidth <= 120 && result.scanning.actionHeight <= 40, `the change button must stay compact: ${JSON.stringify(result.scanning)}`);
@@ -141,7 +147,7 @@ try {
   assert.equal(result.plusInputClicks, 1, 'clicking the plus tile must activate the real file input');
   assert.equal(result.allInputClicks, 2, 'both visible photo actions must activate the real file input');
   assert.equal(result.inputHidden, true, 'the native file input must not remain visibly laid out');
-  assert.equal(result.initialError, 'JPG·PNG 사진이나 PDF만 등록할 수 있습니다.', 'unsupported files (such as GIF) must still be rejected');
+  assert.equal(result.initialError, '사진(JPG·PNG·WebP·HEIC)이나 PDF만 등록할 수 있습니다.', 'unsupported files (such as GIF) must still be rejected');
   assert.equal(result.selectedDataUrl, true, 'the selected image must be available to the existing encrypted save flow');
   assert.equal(result.previewVisible, true, 'a selected image must show an immediate preview');
   assert.equal(result.previewAlt, '보정된 wallet-card.png 미리보기', 'the preview must identify the corrected image');

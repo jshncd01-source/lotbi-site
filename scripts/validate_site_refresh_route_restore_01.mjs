@@ -1,7 +1,7 @@
 // SITE-REFRESH-ROUTE-RESTORE-01 — a reload keeps the screen the reader was on.
 //
 // The Site is one document (/). Its screens (캘린더 · Life Wallet · 진위확인 ·
-// 안심케어 · 반려동물 · 생활정보 · 축제·행사 · 롯비함) are surfaces over the
+// 안심케어 · 반려동물 · 생활정보 · 축제·행사) are surfaces over the
 // conversation and are now named by the URL fragment (site-route.js), so
 // reload, a typed URL, a new tab and back/forward reach the same screen.
 //
@@ -37,7 +37,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Route table ─────────────────────────────────────────────────────────
 const {SITE_ROUTES, isSiteRoute, parseSiteRouteHash, siteRouteHash, siteRouteUrl} = await import('../site-route.js');
-const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'festival', 'lotbi-box'];
+const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'festival'];
 assert.deepEqual([...SITE_ROUTES], EXPECTED_ROUTES);
 assert.ok(Object.isFrozen(SITE_ROUTES));
 for (const route of SITE_ROUTES) {
@@ -46,7 +46,7 @@ for (const route of SITE_ROUTES) {
   assert.ok(isSiteRoute(route));
 }
 for (const none of ['', '#', undefined, null, 7]) assert.equal(parseSiteRouteHash(none), '', String(none));
-for (const foreign of ['#profile-photo', '#main-content', '#does-not-exist', '#CALENDAR', '#calendar/', '#calendar?x=1', 'calendar', '#//evil.example', '#https://evil.example', '#javascript:alert(1)']) {
+for (const foreign of ['#profile-photo', '#main-content', '#does-not-exist', '#lotbi-box', '#CALENDAR', '#calendar/', '#calendar?x=1', 'calendar', '#//evil.example', '#https://evil.example', '#javascript:alert(1)']) {
   assert.equal(parseSiteRouteHash(foreign), null, String(foreign));
 }
 assert.equal(siteRouteHash('admin'), '');
@@ -62,7 +62,7 @@ assert.ok(openersStart > 0 && openersEnd > openersStart, 'siteRouteOpeners table
 const openerKeys = [...conversation.slice(openersStart, openersEnd).matchAll(/^\s*'?([a-z-]+)'?: \(\) =>/gmu)].map(match => match[1]);
 assert.deepEqual(openerKeys, EXPECTED_ROUTES, 'one opener per route, same order as site-route.js');
 const surfaceRoutes = [...conversation.matchAll(/route: '([a-z-]+)'/gu)].map(match => match[1]);
-assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'festival', 'lotbi-box', 'pets'].sort());
+assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'festival', 'pets'].sort());
 for (const route of surfaceRoutes) assert.ok(isSiteRoute(route), route);
 assert.match(conversation, /installSurfaceBehavior\(backdrop, panel, \{workspace: section, route, onClose/u, 'wallet/care/life surfaces carry their section route');
 assert.match(conversation, /const route = section === 'care' && careTab === 'pets' \? 'pets' : section;/u);
@@ -96,7 +96,7 @@ for (const route of SITE_ROUTES) {
   assert.equal(siteHandoffReturnPath(`#${route}`), `/#${route}`);
 }
 assert.equal(siteHandoffReturnPath('#profile-photo'), '/#profile-photo');
-for (const hostile of ['#//evil.example', '//evil.example', 'https://evil.example/#calendar', '/#calendar', '#calendar?next=https://evil.example', '#calendar#x', '#javascript:alert(1)', '#unexpected', '', undefined, null, {}]) {
+for (const hostile of ['#lotbi-box', '#//evil.example', '//evil.example', 'https://evil.example/#calendar', '/#calendar', '#calendar?next=https://evil.example', '#calendar#x', '#javascript:alert(1)', '#unexpected', '', undefined, null, {}]) {
   assert.equal(normalizeSiteHandoffReturnHash(hostile), '', String(hostile));
   assert.equal(siteHandoffReturnPath(hostile), '/', String(hostile));
 }
@@ -542,19 +542,16 @@ async function runCase(browser, origin, workDir, testCase) {
     await go(-1);
     state = await settled('life', 'back to life across the reload');
     check('festival: back → 생활정보', state.url === '/#life', state);
-    await tapSelector('[data-site-route="life"] .consumer-section-footer .consumer-action');
-    state = await settled('lotbi-box', 'lotbi-box');
-    check('lotbi-box: 저장한 정보 → /#lotbi-box', state.url === '/#lotbi-box', state);
+    // LOTBI-BOX-HIDE-02: the former route is now a foreign fragment. It must
+    // stay on the conversation home before and after reload, never opening a
+    // hidden surface or creating a route entry.
+    await navigate('about:blank');
+    await navigate(`${origin}/#lotbi-box`);
+    state = await settled('', 'hidden lotbi-box direct URL');
+    check('lotbi-box hidden: direct URL → home', state.homeVisible && state.url === '/#lotbi-box' && state.routes.length === 0 && !state.surfaceText.includes('롯비함'), state);
     await reload();
-    state = await settled('lotbi-box', 'lotbi-box reload');
-    check('lotbi-box: reload → 롯비함', state.url === '/#lotbi-box', state);
-    // Its ← is "생활정보로 돌아가기": the parent screen, not the home.
-    await closeScreen('lotbi-box');
-    state = await settled('life', 'lotbi-box back arrow');
-    check('lotbi-box: ← → /#life', state.url === '/#life', state);
-    await closeScreen('life');
-    state = await settled('', 'life closed');
-    check('life: close → /', state.url === '/', state);
+    state = await settled('', 'hidden lotbi-box reload');
+    check('lotbi-box hidden: reload → home', state.homeVisible && state.url === '/#lotbi-box' && state.routes.length === 0 && !state.surfaceText.includes('롯비함'), state);
 
     // CASE G — back/forward inside one document: no reload, the same screens.
     await navigate(`${origin}/`);
