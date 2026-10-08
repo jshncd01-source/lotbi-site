@@ -131,13 +131,18 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # locateThemeBootstrap 으로 두 revision 에서 그 <script> 를 들어내면 네 파일 모두
 # 나머지가 바이트까지 같다. 이 블록은 sync_theme_bootstrap.mjs --check 가 모든
 # 소비자 페이지에서 동일하게 유지한다.
+# LOTBI-THEME-AUTO-DARK-22H-01 — 같은 네 파일의 잠금 값이 다시 움직였다. 대표가
+# '자동모드' 다크 시작을 18시에서 22시로 옮겨, 테마 bootstrap <script> 안의 시각 두
+# 줄(lotbiHour >= 22, setHours(... 22))과 그 주석 한 줄만 바뀌었다. NO LEGAL TEXT
+# CHANGED — 위와 같은 방법으로 bootstrap 을 들어내면 16개 소비자 페이지 모두
+# origin/main 과 바이트까지 같다.
 # Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
-    'privacy.html': 'e742b3e03596fcd1fdc2d6a38535853d25d1b1bdfe3c9617bd13ab2d4614eefc',
-    'terms.html': '4356c44a73bada0b79e3a62927e4d2e891646c730591d6774c3497ebb3df527b',
-    'account-deletion.html': '12e007c9a7f24ad2371405b3fa947b582f3f113c0b5f7dfe32bd50c151454849',
-    'contact.html': '6d393367fd3160da070eaabb164addae6a41d2246089487f84be4dd103264590',
+    'privacy.html': 'c1a0be94cf8165c9c0b26d5b1c31fc3f91516ef30abb0bfcf6c2a6b8c0098545',
+    'terms.html': '4614bccf9ad1b842f0a45598211c2923504a7c1b1bd1f8041a4ec955e66392b4',
+    'account-deletion.html': 'ae770a20ce93249613a77d0c63872726f0935516e8444cf51be86444c83866ed',
+    'contact.html': '396e62b7a857dd3f6a9b27f54a25be032f2629648aac672af524d3bad2a2fa5a',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': '32eedab514f6e237f762a35ac18b1ae0ce643bc04023547ee9be60d135a43c66',

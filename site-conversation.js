@@ -45,7 +45,7 @@ const attachmentOnlyPlaceholder = count => `첨부 파일 ${count}개를 확인�
 // It is deliberately not the same answer as '기기모드', which follows the OS.
 // This one follows the clock, which is what 대표 asked for. Both stay on offer.
 //
-// LOTBI-CONSUMER-THEME-SYNC-01 — the clock and its 07:00 / 18:00 boundaries now
+// LOTBI-CONSUMER-THEME-SYNC-01 — the clock and its 07:00 / 22:00 boundaries now
 // live in site-theme-preference.js, which Account mirrors, so the Site and
 // Account cannot switch at different times.
 function resolveScheduledTheme(now = new Date()) {
@@ -1029,7 +1029,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   // SITE-THEME-AUTO-SCHEDULE-02 — only armed while '자동모드' is selected, and
   // always re-armed from the clock rather than a fixed interval, so a machine
-  // that slept through 18:00 corrects itself on the next tick instead of drifting.
+  // that slept through 22:00 corrects itself on the next tick instead of drifting.
   const scheduleThemeBoundary = storedTheme => {
     if (themeBoundaryTimer) { clearTimeout(themeBoundaryTimer); themeBoundaryTimer = undefined; }
     if (storedTheme !== 'auto' || typeof setTimeout !== 'function') return;
