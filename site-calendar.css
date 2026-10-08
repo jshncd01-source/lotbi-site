@@ -2382,6 +2382,7 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
     min-width: 0;
     line-height: 1.25;
     white-space: normal;
+    word-break: keep-all;
   }
 }
 @media (max-width: 360px) {
