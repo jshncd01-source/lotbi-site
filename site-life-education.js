@@ -17,8 +17,8 @@ import {
   safeKindergartenLink,
   searchKindergartens,
   telHref,
-} from './site-kindergarten-client.js?v=aset-72f13b48e1ca';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-72f13b48e1ca';
+} from './site-kindergarten-client.js?v=aset-3bfab1689095';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-3bfab1689095';
 
 const PREFERENCE_PREFIX = 'lotbi.site.ux.v1.life-kindergarten';
 const LAST_REGION_KEY = 'lotbi.site.ux.v1.life-kindergarten-region';
@@ -239,12 +239,33 @@ export function mountEducation({
     return footer;
   }
 
+  // Core has the 공시 connection off: the chat's earlier basic answer (NAVER
+  // 지역검색, labelled "공시 자료 아님") still finds a named 유치원.
   function disabledNotice() {
     const box = node('section', 'lotbi-kinder-state');
     box.dataset.kinderState = 'DISABLED';
     box.append(node('h4', '', '유치원 공식정보 연결을 준비하고 있어요'),
-      node('p', '', '지금은 대화에서 "전주 예일유치원 알려줘"처럼 물어보시면 지역 검색으로 찾아 드려요. 이때 답은 공시 자료가 아니에요.'));
-    box.append(button('대화로 물어보기', () => onDraft?.('전주 예일유치원 알려줘')));
+      node('p', '', '지금은 지역과 유치원 이름으로 대화에서 기본정보를 찾아 드려요. 이때 답은 지역 검색 결과이고 공시 자료가 아니에요.'));
+    const form = node('form', 'consumer-life-form lotbi-kinder-fallback');
+    const fields = [['region', '지역', '예: 전주시 덕진구'], ['name', '유치원 이름', '예: 예일유치원']].map(([key, labelText, placeholder]) => {
+      const label = node('label', 'consumer-life-field', labelText);
+      const input = node('input'); input.type = 'text'; input.maxLength = 30; input.placeholder = placeholder;
+      input.setAttribute('aria-label', labelText); input.dataset.kinderFallback = key;
+      label.append(input); form.append(label);
+      return input;
+    });
+    const send = node('button', 'consumer-action', '대화로 물어보기'); send.type = 'submit';
+    const status = node('p', 'lotbi-kinder-status'); status.setAttribute('role', 'status');
+    form.append(send, status);
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (disposed) return;
+      const [region, name] = fields.map(input => clean(input.value, 30).replace(/[^0-9A-Za-z가-힣 ]/gu, ''));
+      if (!name) { status.textContent = '유치원 이름을 입력해 주세요.'; fields[1].focus(); return; }
+      const full = /유치원$/u.test(name) ? name : `${name}유치원`;
+      onDraft?.(`${region ? `${region} ` : ''}${full} 알려줘`);
+    });
+    box.append(form);
     return box;
   }
 

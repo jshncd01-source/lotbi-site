@@ -180,7 +180,13 @@ const SCENARIO = `(async () => {
   result.tabs = [...edu.querySelectorAll('[data-edu-tab]')].map(t => ({id: t.dataset.eduTab, text: t.textContent.trim(), selected: t.getAttribute('aria-selected'), h: box(t).h}));
   if (${'${DISABLED}'}) {
     const state = await wait(() => edu.querySelector('[data-kinder-state="DISABLED"]'), 'disabled notice');
-    result.disabled = {text: state.textContent, button: [...state.querySelectorAll('button')].map(b => b.textContent)};
+    result.disabled = {text: state.textContent, button: [...state.querySelectorAll('button')].map(b => b.textContent),
+      small: visibleSmall(edu), overflow: overflowOf(edu)};
+    state.querySelector('[data-kinder-fallback="region"]').value = '전주시 덕진구';
+    state.querySelector('[data-kinder-fallback="name"]').value = '예일';
+    state.querySelector('.lotbi-kinder-fallback').requestSubmit();
+    await sleep(300);
+    result.disabled.composer = document.getElementById('lotbi-prompt')?.value ?? null;
     return result;
   }
   const sido = await wait(() => edu.querySelector('[data-kinder-sido]'), 'region picker');
@@ -426,6 +432,9 @@ try {
     assert.match(off.disabled.text, /유치원 공식정보 연결을 준비하고 있어요/u);
     assert.match(off.disabled.text, /공시 자료가 아니에요/u);
     assert.deepEqual(off.disabled.button, ['대화로 물어보기']);
+    assert.deepEqual(off.disabled.small, []);
+    assert.deepEqual(off.disabled.overflow, []);
+    assert.equal(off.disabled.composer, '전주시 덕진구 예일유치원 알려줘');
   });
 } finally {
   server.kill('SIGTERM');
