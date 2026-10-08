@@ -613,6 +613,17 @@ jobs:
           node scripts/validate_scam_shield_connection_01.mjs
           node scripts/validate_verification_dialog_design_01.mjs
 
+      # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
+      # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
+      # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지
+      # 않는지, 세로·가로·정사각형 사진과 긴 파일명 미리보기가 화면 안에
+      # 들어오는지 375·390x844(라이트·다크)·412·데스크톱에서 확인하고,
+      # 결론 배너 5단계의 글자 대비(WCAG AA)를 라이트·다크에서 잰다(실기기 아님).
+      - name: Validate 진위확인 photo library, camera, preview and result banner
+        run: |
+          node scripts/validate_scam_shield_photo_picker_01.mjs
+          node scripts/validate_scam_shield_result_banner_contrast_01.mjs
+
       - name: Validate Production Core CORS contract
         shell: bash
         run: |
