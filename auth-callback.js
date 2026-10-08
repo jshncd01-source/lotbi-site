@@ -1,6 +1,7 @@
 import {
   callbackPathWithoutQuery,
   clearSiteHandoffRecovery,
+  isConsumedSiteHandoffCallback,
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
   recoverMissingSiteHandoffContext,
@@ -54,6 +55,9 @@ function callbackErrorMessage(error) {
     }
     if (error.code === 'SITE_HANDOFF_SOURCE_SESSION_INVALID') {
       return '계정 로그인 상태가 더 이상 유효하지 않습니다. 홈에서 다시 연결해 주세요.';
+    }
+    if (error.code === 'RATE_LIMITED') {
+      return '로그인 요청이 잠시 많습니다. 잠시 후 홈에서 다시 시도해 주세요.';
     }
   }
   if (error instanceof SiteHandoffClientError || error instanceof Error) return error.message;
@@ -112,6 +116,14 @@ async function hydrateHomeShell() {
 }
 
 async function completeSiteHandoff() {
+  // Nothing left to redeem here: go Home, where Account continuity decides
+  // whether this person is signed in and restarts the handoff if so.
+  if (isConsumedSiteHandoffCallback(new URL(window.location.href))) {
+    recordTiming('callback-consumed-revisit');
+    window.location.replace('/');
+    return;
+  }
+
   let callback;
   try {
     callback = parseSiteHandoffCallback(new URL(window.location.href));
