@@ -299,15 +299,30 @@ async function shareMessageWithKakao(options) {
   return shareWithKakaoTalk(options);
 }
 
-// Fail closed: config or import failures mean the KakaoTalk menu item is not
-// exposed to pointer, keyboard or accessibility navigation.
+// Fail closed: config, SDK or import failures mean the KakaoTalk menu item is
+// not exposed to pointer, keyboard or accessibility navigation. A ready item
+// already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
     const module = await import('./site-kakao-share.js?v=aset-7428e1c042e2');
-    return Boolean(await module.loadKakaoShareConfig());
+    return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
   }
+}
+
+// LOTBI-KAKAO-SHARE-ACTUAL-01 — says what leaves LOTBI before it does: this
+// answer (its first 200 characters) and the public lotbiai.com address, never
+// the conversation, its address or anything about the account.
+const KAKAO_SHARE_NOTE = '이 답변 내용과 LOTBI 주소만 보내요';
+
+function describeShareMenuItem(item, id, note) {
+  const hint = document.createElement('small');
+  hint.className = 'lotbi-share-menu-hint';
+  hint.id = id;
+  hint.textContent = note;
+  item.querySelector('span')?.append(hint);
+  item.setAttribute('aria-describedby', id);
 }
 
 async function writeMessageTextToClipboard(text) {
@@ -402,14 +417,16 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
   share.setAttribute('aria-controls', shareMenu.id);
   share.setAttribute('aria-expanded', 'false');
 
-  const linkCopy = createShareMenuItem('링크 복사', SHARE_MENU_ICON_LINK, 'link-copy');
+  // LOTBI-KAKAO-SHARE-ACTUAL-01 — KakaoTalk first, then 링크 복사.
   const kakao = createShareMenuItem('카카오톡 공유하기', SHARE_MENU_ICON_KAKAO, 'kakaotalk');
+  const linkCopy = createShareMenuItem('링크 복사', SHARE_MENU_ICON_LINK, 'link-copy');
+  describeShareMenuItem(kakao, `${shareMenu.id}-kakao-note`, KAKAO_SHARE_NOTE);
   shareMenu.append(linkCopy);
 
   const syncKakaoShareMenuItem = async () => {
     const ready = await prepareKakaoShare();
     if (ready) {
-      if (!shareMenu.contains(kakao)) shareMenu.append(kakao);
+      if (!shareMenu.contains(kakao)) shareMenu.prepend(kakao);
     } else {
       kakao.remove();
     }
@@ -454,7 +471,9 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
     closeShareMenu();
     try {
       await shareMessageWithKakao({text: value, url: MESSAGE_ACTION_SHARE_URL});
-      report('카카오톡 공유 화면을 열었습니다.');
+      // Kakao hands over to KakaoTalk (or its share window) and reports no
+      // result back, so this never claims the message was sent.
+      report('카카오톡에서 보낼 친구나 채팅방을 선택해 주세요.');
     } catch {
       report('카카오톡 공유를 열지 못했어요. 링크 복사를 이용해 주세요.', 'error');
     }
