@@ -2,23 +2,62 @@ READY_FOR_DEPLOY=YES
 
 # chat-long-answer-scroll-anchor-01-site — release handoff
 
-TASK=LOTBI CHAT — LONG ANSWER SCROLL ANCHOR UX FIX P0 + SITE MOBILE COMPOSER KEYBOARD LAYOUT HOTFIX
+TASK=LOTBI CHAT — LONG ANSWER SCROLL ANCHOR UX FIX P0 + SITE MOBILE COMPOSER KEYBOARD LAYOUT HOTFIX + Linux merge gate 반환 02 (GATE FIX 02)
 REPO=lotbi-site
 FEATURE_BRANCH=feature/chat-long-answer-scroll-anchor-01-site
-FEATURE_SHA=이 문서 커밋(branch HEAD; `git ls-remote origin refs/heads/feature/chat-long-answer-scroll-anchor-01-site`로 확인)
-SUPERSEDES=f296c4ce880e2db23c389ea41ac3a32f8c3d8e0e (이전 READY. 이 문서가 대체한다. f296c4ce를 배포하지 말 것)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=843a667bc25dbf7d03e9eebdf1cf238990febeee (SITE-T15, f04869ce에서 정상 merge. 그 전 a87aafb9·0a03ca12·8a9e414d 순으로 merge)
-CODE_SHA=f04869ce
-ASSET_VERSION=aset-109aa70cbf4b
+FEATURE_SHA=이 문서 커밋(branch HEAD)
+REMOTE_FEATURE_SHA=FEATURE_SHA와 동일(`git ls-remote origin refs/heads/feature/chat-long-answer-scroll-anchor-01-site`로 확인)
+SUPERSEDES=fd03d6c1f115b2c9645dfce6c774772bff4c937b (SITE-T17b Linux gate 실패. fd03d6c1·f296c4ce를 배포하지 말 것)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=0f076722b1bf3f2294b97c0706a0ee4ebcdedab4 (SITE-T18c, 16e7e4e4에서 정상 merge. 지시 시점 843a667b → 89adbb37 → 0f076722로 전진. 그 전 843a667b·a87aafb9·0a03ca12·8a9e414d 순으로 merge)
+CODE_SHA=16e7e4e4
+ASSET_VERSION=aset-c4b5457423b1
 MERGED_TO_MAIN=NO
 DEPLOYED=NO
 CORE_CHANGE=NONE
-APP_CHANGE=별도 branch feature/chat-long-answer-scroll-anchor-01-app (lotbi-app, long-answer 부분만). 이번 hotfix는 Site만. 배포 순서 제약 없음.
+APP_CHANGE=별도 branch feature/chat-long-answer-scroll-anchor-01-app (lotbi-app, long-answer 부분만). 이번 수정은 Site만. 배포 순서 제약 없음.
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 SECRET_CHANGE_REQUIRED=NO
+ROOT_CAUSE=`.chat-home-shell`의 `scroll-padding-bottom: 168px`(대화 항목이 sticky 입력창 밑에 가리지 않게 하는 여백) 안에 입력창 자신의 커서가 있어서, 입력창에 글자를 칠 때마다 Chrome이 커서를 "보여 주려고" 대화 스크롤 영역을 83~93px씩 내렸다. 질문 고정(hold)은 입력창 탭 후 900ms 동안만 이런 스크롤을 무시했고, 그 뒤 입력이 오면 외부 스크롤로 보고 고정을 풀었다. 느린 Linux gate는 둘째 줄 입력이 900ms 뒤에 와서 질문이 -163px로 밀렸다. Windows는 빨라서 900ms 안에 끝나 PASS(그래도 한 줄 입력 직후엔 -71px였는데 그 시점은 검사하지 않았다). 글꼴·줄바꿈 차이는 원인 아님(4줄로 같은 줄 수).
+LINUX_REPRO=이 PC에 WSL·Docker가 없어 Linux 직접 실행은 못 했다. 대신 gate와 같은 Chrome 154(Windows)에서 원래 validator에 "둘째 줄 전 1초 대기"만 넣어 같은 실패를 재현했다: 360x780/layout multiQuestion -164px(gate -163). scroll-padding-bottom을 CDP로 0으로 강제하면 같은 조건에서 입력 중 스크롤 0회·질문 12px → 원인 확정. 수정 후 같은 조건(1초 대기, CPU 6배 감속 포함) 질문 12px. 강화한 validator(사람처럼 1.1초 멈춤, 한 줄 직후 검사)는 수정 전 fd03d6c1에서 360x780/layout -71px로 FAIL, 수정 후 21/21 PASS. Linux 자체 실행은 NOT TESTED.
+KEYBOARD_BRANCH_TRIAL_MERGE=키보드 branch 최신 remote e26e2896(GATE_03 수정은 아직 push 전)을 16e7e4e4 위에 임시 worktree로 merge(push 안 함). 충돌 59개 = token 52 + token 옆 내용 7(키보드 쪽은 merge-base와 같아 우리 쪽 채택). 합친 결과에서 validate_chat_mobile_keyboard_dismiss_01·validate_chat_long_answer_scroll_anchor_01·validate_mobile_composer_keyboard_layout_01·validate_chat_answer_quality_p0_01·validate_site_refresh_route_restore_01 + answer_scroll_markdown_01·mobile_home_ux_stability_01·chat_answer_recovery_01 8/8 PASS. 키보드 branch가 GATE_03을 push하면 그 SHA로 다시 확인 필요.
+TEST_STATUS=scripts/validate_* 213개 직렬(Windows, Chrome 154, CODE_SHA 기준): 209 PASS / 4 FAIL. 4건 모두 main 0f076722 기준선에서도 같은 오류로 FAIL(validate_mobile_footer_legal_sheet_01 `761px: mobile disclosure leaked`, validate_site_avatar_fallback_runtime Node 24 undici assert) 또는 Windows CRLF 체크아웃 문제(validate_calendar_system_dark_01, validate_image_attachment_thumbnail_01 — LF 체크아웃 worktree에서 둘 다 PASS).
+NEW_FAILURES=NONE
+USER_DECISION_NEEDED=NONE (validator 기준 0~40px·on-screen 유지, 오히려 강화)
 
-커밋(f296c4ce 이후): 0dbd7e86 hotfix 본체 → 892d9633 safe-area 1회 → f04869ce main 843a667b merge → 이 문서.
+커밋(fd03d6c1 이후): 1ec55a69 GATE FIX 02 본체 → 16e7e4e4 main 0f076722 merge → 이 문서.
+커밋(f296c4ce 이후, 이전 문서): 0dbd7e86 hotfix 본체 → 892d9633 safe-area 1회 → f04869ce main 843a667b merge → fd03d6c1 문서.
+
+---
+
+## GATE FIX 02 — Linux merge gate 반환 (SITE-T17b, run 20261007T130814Z-4162729-320143614)
+
+### 증거
+- `validate_mobile_composer_keyboard_layout_01.mjs` 360x780/layout: `a growing draft does not move the anchored question (-163)`. 같은 트리가 배포총괄 Windows에서는 PASS.
+
+### 재현과 원인 (gate와 같은 Chrome 154, 진단용 복사본 — 저장소 밖)
+| 조건 (360x780/layout) | 한 줄 입력 뒤 질문 | 여러 줄 입력 뒤 질문 | 입력 중 대화 스크롤 |
+|---|---|---|---|
+| fd03d6c1, 대기 없음 | -71 | 12 (900ms 안이라 되돌림) | 209→292→385→209 |
+| fd03d6c1, 둘째 줄 전 1초 대기 | -71 | **-164** (gate -163) | 209→292 … 385, 되돌리지 않음 |
+| fd03d6c1 + `scroll-padding-bottom:0` 강제, 1초 대기 | 12 | 12 | 없음 |
+| 수정본, 1초 대기 / CPU 6배 감속 | 12 | 12 | 없음 |
+| 수정본에서 CSS 수정만 끈 상태(JS 보강만), 1초 대기 | 12 | 12 | 커서 스크롤 즉시 209로 복원 |
+
+### 수정
+1. `site-conversation.css`: `.chat-home-shell:has(.chat-input:focus) { scroll-padding-bottom: 0; }` — 입력창에 포커스가 있는 동안만 여백을 뺀다. 포커스가 대화 쪽으로 가면 168px 여백은 그대로 동작.
+2. `site-conversation.js`: 입력창 `beforeinput`이 짧은 입력 구간(600ms)을 연다. 그 안의 독자가 아닌 스크롤은 질문 고정이면 즉시 질문 위치로, 답변 중간을 읽던 중이면 읽던 줄로 되돌린다. `:has`를 모르는 브라우저 대비 보강.
+3. `validate_mobile_composer_keyboard_layout_01.mjs`: 기준 그대로(0~40px, on-screen)에 검사 추가 — 각 입력 전 1.1초 멈춤(페이지 안 어떤 짧은 유예보다 길게), 한 줄 입력 직후 질문 위치, 여러 줄 뒤 질문 on-screen, 답변 중간을 읽다가 입력해도 읽던 줄 유지.
+4. `validate_chat_long_answer_scroll_anchor_01.mjs`: 위 CSS·`beforeinput` 정적 계약 추가.
+
+### 검사 결과 (수정본)
+- `validate_mobile_composer_keyboard_layout_01`: 360·375·390·412·690(폴드)·750(폴드) × layout/visual/pan 18 + safe-area 34px 2 + desktop 1280x900 = 21/21 PASS.
+- 관련: chat_long_answer_scroll_anchor_01, chat_answer_quality_p0_01, answer_scroll_markdown_01, mobile_home_ux_stability_01, site_refresh_route_restore_01, place_card_carousel_no_drift_01 PASS.
+- 전체 213개: 위 TEST_STATUS.
+
+### 남은 한계
+- Linux gate 자체 실행, 실제 Android Chrome·Samsung Internet·iPhone Safari 실기기: NOT TESTED.
+- `:has()`는 iOS Safari 15.4+, Samsung Internet 20+, Chrome 105+. 그보다 오래된 브라우저는 JS 보강으로 질문을 되돌린다(커서 스크롤이 한 프레임 보일 수 있음).
 
 ---
 
