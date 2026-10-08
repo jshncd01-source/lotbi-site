@@ -736,6 +736,42 @@ async function runCase(browser, origin, workDir, testCase) {
     await closeScreen('calendar');
     await settled('', 'conversation calendar closed');
 
+    // CASE M — SITE-REFRESH-ROUTE-PAGE-CLEANUP-05. A screen left by other
+    // means than its own ←/× (새 대화, 대화 전환, 생활정보 → 입력창 초안; the
+    // profile menu, signed in, below CASE H) takes the URL with it in the same
+    // task (settled's agreement probe), leaves no copy in the history (one
+    // step back), and forward reopens it.
+    const leaveLifeByOtherMeans = async (label, act, inspect = 'null') => {
+      await openFromMenu('life');
+      await settled('life', `M ${label}: 생활정보`);
+      const before = await historyIndex();
+      await evaluate(act);
+      const left = await settled('', `M ${label}`);
+      const after = await historyIndex();
+      left.inspected = await evaluate(inspect);
+      check(`M ${label} over 생활정보 → / with the screen, one step back`, left.url === '/' && left.routes.length === 0 && after === before - 1 && left.docId === state.docId, {left, before, after});
+      await go(1);
+      const again = await settled('life', `M ${label}: forward`);
+      check(`M ${label}: forward reopens 생활정보`, again.url === '/#life' && (await historyIndex()) === before && again.docId === state.docId, again);
+      await closeScreen('life');
+      await settled('', `M ${label}: closed`);
+      return left;
+    };
+    state = await snapshot();
+    let left = await leaveLifeByOtherMeans('새 대화', "document.querySelector('button[data-new-conversation]').click(); true");
+    check('M 새 대화: blank conversation', left.thread.length === 0, left);
+    left = await leaveLifeByOtherMeans('대화 전환', "document.querySelector('.conversation-history-open[data-thread-id]').click(); true");
+    check('M 대화 전환: that conversation on view', left.thread.some(text => text.includes('새로고침 경로 테스트 질문')), left);
+    await leaveLifeByOtherMeans('입력창 초안', `(() => {
+      document.querySelector('[data-site-route="life"] [data-life-shortcut="local"]').click();
+      const form = document.querySelector('[data-site-route="life"] .consumer-life-form');
+      for (const field of form.querySelectorAll('input, textarea')) field.value = '전주';
+      form.requestSubmit();
+      return true;
+    })()`);
+    const drafted = await evaluate("document.getElementById('lotbi-prompt').value");
+    check('M 입력창 초안: the question waits in the composer', drafted.includes('우리 지역 생활정보'), drafted);
+
     // CASE I + 10 — signed out on a protected screen, then login from it comes back to it.
     // Life Wallet's 로그인하기 goes through /auth/start/ (the fallback page).
     await navigate('about:blank');
@@ -785,6 +821,12 @@ async function runCase(browser, origin, workDir, testCase) {
     state = await settled('life', 'signed-in direct life', 20000);
     check('H signed-in direct /#life → Account round trip → 생활정보', handoffs.length === directCount + 1 && state.url === '/#life' && state.auth === 'authenticated', {handoffs: handoffs.length, state});
     await flashCheck(state, 'signed-in direct URL');
+    // CASE M, signed in: the profile menu (its 로그아웃 leaves for Account)
+    // opened over 생활정보 takes the screen's place and the URL with it.
+    await closeScreen('life');
+    state = await settled('', 'signed-in life closed');
+    left = await leaveLifeByOtherMeans('프로필 메뉴', "document.querySelector('[data-profile-menu-trigger]').click(); true", "Boolean(document.querySelector('.profile-popover .profile-menu-logout:not(:disabled)'))");
+    check('M 프로필 메뉴: the menu took the screen\'s place, 로그아웃 offered', left.auth === 'authenticated' && left.inspected === true, left);
     await evaluate("localStorage.setItem('__routeTestMode', 'anonymous'); true");
     return results;
   } finally {
