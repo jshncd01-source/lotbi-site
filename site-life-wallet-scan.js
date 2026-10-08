@@ -1403,6 +1403,57 @@ export function assessDocumentQuality(imageData, {corners} = {}) {
   return warnings;
 }
 
+// Light reflected off a glossy card or its laminate blows part of it out to white and the
+// print under it is lost. Such a spot is a compact, colourless patch at the top of the range,
+// clearly brighter than the card beyond its halo (210 or darker there), empty of print while
+// the rows it lies on are printed beside it (the lettering runs into it and stops). A card
+// that is bright all over, or a bright blank area, is not glare: its print still shows or
+// nothing is there. Returns the share of the item (inside a 6% border) covered by such spots,
+// judged on the squared-up photo before any enhancement.
+export function coveringGlare(imageData){
+  const {data,width,height}=imageData;const step=Math.max(1,Math.ceil(Math.max(width,height)/600));
+  const left=Math.round(width*.06);const top=Math.round(height*.06);
+  const w=Math.max(1,Math.floor((width-2*left)/step));const h=Math.max(1,Math.floor((height-2*top)/step));
+  const tone=new Float32Array(w*h);const bright=new Uint8Array(w*h);
+  for(let y=0;y<h;y+=1)for(let x=0;x<w;x+=1){
+    const offset=((top+y*step)*width+left+x*step)*4;const red=data[offset];const green=data[offset+1];const blue=data[offset+2];
+    const value=red*.299+green*.587+blue*.114;tone[y*w+x]=value;bright[y*w+x]=value>=248&&Math.max(red,green,blue)-Math.min(red,green,blue)<=14?1:0;
+  }
+  // A card that is bright all over (median above 215: a white card in strong light, a white
+  // scan) leaves too little room above it to tell a reflection from its own blank areas.
+  const sorted=Float32Array.from(tone).sort();const median=sorted[Math.floor(sorted.length/2)];if(median>215)return 0;
+  const inkLevel=Math.min(150,median-30);let ink=0;for(let index=0;index<tone.length;index+=1)if(tone[index]<inkLevel)ink+=1;const printed=ink/(w*h);
+  if(printed<=0)return 0;
+  const {components}=labelComponents(bright,w,h,Math.max(4,Math.round(w*h*.001)));
+  // Mean tone and share of print in a band around the patch's box, and share of print inside it.
+  const around=(component,pad)=>{let sum=0;let count=0;let marks=0;
+    for(let y=Math.max(0,component.minimumY-pad);y<=Math.min(h-1,component.maximumY+pad);y+=1)for(let x=Math.max(0,component.minimumX-pad);x<=Math.min(w-1,component.maximumX+pad);x+=1){
+      if(x>=component.minimumX&&x<=component.maximumX&&y>=component.minimumY&&y<=component.maximumY)continue;
+      const value=tone[y*w+x];sum+=value;count+=1;if(value<inkLevel)marks+=1;
+    }
+    return count?{tone:sum/count,print:marks/count}:{tone:255,print:0};};
+  let covered=0;
+  for(const component of components){
+    const boxWidth=component.maximumX-component.minimumX+1;const boxHeight=component.maximumY-component.minimumY+1;
+    if(component.count/(boxWidth*boxHeight)<.4)continue;
+    let marks=0;for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=component.minimumX;x<=component.maximumX;x+=1)if(tone[y*w+x]<inkLevel)marks+=1;
+    if(marks/(boxWidth*boxHeight)>printed*.3)continue;
+    // The card beyond the reflection's soft halo is darker than the patch, and the printed rows
+    // it lies on carry on at its left and right (lettering runs into it and stops).
+    if(around(component,Math.max(8,Math.round(Math.max(boxWidth,boxHeight)*.8))).tone>210)continue;
+    const span=Math.max(8,boxWidth);let sidePrint=0;
+    for(const [from,to] of [[component.minimumX-span,component.minimumX-1],[component.maximumX+1,component.maximumX+span]]){
+      let marks=0;let count=0;
+      for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=Math.max(0,from);x<=Math.min(w-1,to);x+=1){count+=1;if(tone[y*w+x]<inkLevel)marks+=1}
+      if(count)sidePrint=Math.max(sidePrint,marks/count);
+    }
+    if(sidePrint<.05)continue;
+    covered+=component.count;
+  }
+  return covered/(w*h);
+}
+const GLARE_COVERS_PRINT=.003;
+
 // Pixels outside a rounded card corner are surface, not card: give them the colour of the
 // card just inside the corner arc so the corrected card carries no background wedges.
 function fillRoundedCorners(imageData,relativeRadius){
@@ -1425,7 +1476,9 @@ function fillRoundedCorners(imageData,relativeRadius){
   }
 }
 
-export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0, paper=false, rotation=0} = {}) {
+// gloss: check for light reflected over the print (a camera photo of a card); off for pages,
+// PDF pages and pictures that are the card itself.
+export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0, paper=false, rotation=0, gloss=true} = {}) {
   const sourcePixels=sourceImageData(source); const ordered=orderDocumentCorners(Object.values(corners));
   // Turning the output clockwise by quarter turns: the output's top-left comes from the corner
   // a quarter turn back. Quality checks keep the corners as found.
@@ -1454,5 +1507,7 @@ export async function rectifyDocument(source, corners, {enhance=true, cornerRadi
   // glossy card, and a page's blank margins drag the whole-image sharpness measure down even
   // when the print is crisp: pages are checked for resolution only.
   const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:paper?null:ordered})])].filter(code=>!paper||code==='low-resolution');
+  // A reflection over the print hides part of the item: it cannot be kept as it is.
+  if(gloss&&!paper&&coveringGlare(corrected)>=GLARE_COVERS_PRINT)warnings.push('glare-covers-print');
   return {dataUrl:canvas.toDataURL('image/jpeg',0.92),width,height,warnings,enhanced:Boolean(enhance)};
 }
