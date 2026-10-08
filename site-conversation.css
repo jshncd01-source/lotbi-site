@@ -3373,6 +3373,57 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 body[data-site-theme="dark"] .lotbi-school-card { border-color: rgba(198, 207, 221, .24); }
 
+/* SCHOOL-MEAL-01: compact one-day meals ("더 보기" for long menus), a week with
+   only the days that have meals and today marked, and the staff-entry badge. */
+.lotbi-school-card { min-width: 0; overflow-wrap: anywhere; }
+.lotbi-school-meal { display: grid; gap: 2px; min-width: 0; }
+.lotbi-school-meal-head,
+.lotbi-school-day-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lotbi-school-meal-badge,
+.lotbi-school-today {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(116, 126, 145, .14);
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.lotbi-school-today { background: rgba(79, 120, 197, .16); color: inherit; }
+.lotbi-school-dish { overflow-wrap: anywhere; }
+.lotbi-school-more summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.lotbi-school-more summary:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+.lotbi-school-week { display: grid; gap: 6px; min-width: 0; }
+.lotbi-school-day {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(116, 126, 145, .18);
+  border-radius: 12px;
+}
+.lotbi-school-day.is-today { border-color: rgba(79, 120, 197, .55); background: rgba(79, 120, 197, .07); }
+.lotbi-school-day-meal { margin: 0; overflow-wrap: anywhere; }
+.lotbi-school-day-meal-name { margin-right: 6px; }
+.lotbi-school-day-meal .lotbi-school-meal-badge { margin-right: 6px; }
+.lotbi-school-day-meal .lotbi-school-calories { display: block; }
+.lotbi-school-empty { margin: 0; color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-school-weekly { justify-content: center; }
+
+body[data-site-theme="dark"] .lotbi-school-day { border-color: rgba(198, 207, 221, .2); }
+body[data-site-theme="dark"] .lotbi-school-day.is-today { border-color: rgba(138, 170, 230, .6); background: rgba(138, 170, 230, .12); }
+body[data-site-theme="dark"] .lotbi-school-meal-badge { background: rgba(198, 207, 221, .16); }
+body[data-site-theme="dark"] .lotbi-school-today { background: rgba(138, 170, 230, .24); }
+
 /* SITE-REFRESH-ROUTE-RESTORE-01 — neutral shell while a reload reopens the
    screen its URL names (html[data-site-route-pending], set in index.html and
    auth-callback.js); the conversation home must not flash first. The
