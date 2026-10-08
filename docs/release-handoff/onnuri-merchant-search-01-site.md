@@ -5,10 +5,10 @@ READY_FOR_DEPLOY=YES
 REPO=lotbi-site
 FEATURE_BRANCH=feature/onnuri-merchant-search-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD). `git ls-remote`로 확인한다.
-CODE_SHA=bc90d114 (main c311be85 정상 merge 포함)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=c311be85 (개발 시작 c9c19e4c → 82a8874e → ee8c1b6f → c311be85 순서로 정상 merge)
-ASSET_VERSION=aset-59bd0e16056a (asset_cache_version 정합성 PASS, 61 files / 127 targets)
-TEST_STATUS=CI 명령 전체 162개를 main 82a8874e 병합 트리에서 실행(병렬 2): 144 PASS / 18 FAIL → 18개를 feature·baseline(main 82a8874e)에서 번갈아 단독 재실행: feature에서만 실패 0, 12개는 baseline도 같은 실패(mobile_footer_legal_sheet·site_avatar_fallback_runtime·calendar_system_dark 등 기존 RED와 Chrome 로딩 시간 초과·임시폴더 EPERM 같은 Windows 부하 환경), 6개는 단독 재실행 PASS. main ee8c1b6f 병합 뒤 영향 validator 14개 PASS(refresh_route_restore_01, onnuri_merchant_search_01, consumer_sections_02, life_medical_category_entry_01, life_info_cleanup_final_01, life_location_context_01, festival_region_search_consistency_01, calendar_editor_footer_contrast_01, consumer_theme_sync_01, theme_auto_schedule_02, scam_shield_photo_picker_01, scam_shield_result_banner_contrast_01, scam_shield_mvp_01, validate_hardening.py). main c311be85 병합 뒤 12개 + auth_continuity_02 PASS(place_medical_card_ux_final_01, place_card_naver_search_click_01, place_card_carousel_no_drift_01, product_photo_compare_01, life_wallet_full_frame_card_01 포함). validate_place_card_compact_01은 고정 포트 4213의 python http.server 모듈 로드 실패로 feature·baseline(main c311be85) 모두 같은 오류가 번갈아 나는 환경 흔들림(baseline 단독 1회 PASS·1회 FAIL).
+CODE_SHA=7f7a02f9 (main e13c0dfd 정상 merge 포함)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=e13c0dfd (개발 시작 c9c19e4c → 82a8874e → ee8c1b6f → c311be85 → e13c0dfd 순서로 정상 merge)
+ASSET_VERSION=aset-1ad46a60d49c (asset_cache_version 정합성 PASS, 62 files / 129 targets)
+TEST_STATUS=CI 명령 전체 162개를 main 82a8874e 병합 트리에서 실행(병렬 2): 144 PASS / 18 FAIL → 18개를 feature·baseline(main 82a8874e)에서 번갈아 단독 재실행: feature에서만 실패 0, 12개는 baseline도 같은 실패(mobile_footer_legal_sheet·site_avatar_fallback_runtime·calendar_system_dark 등 기존 RED와 Chrome 로딩 시간 초과·임시폴더 EPERM 같은 Windows 부하 환경), 6개는 단독 재실행 PASS. main ee8c1b6f 병합 뒤 영향 validator 14개 PASS(refresh_route_restore_01, onnuri_merchant_search_01, consumer_sections_02, life_medical_category_entry_01, life_info_cleanup_final_01, life_location_context_01, festival_region_search_consistency_01, calendar_editor_footer_contrast_01, consumer_theme_sync_01, theme_auto_schedule_02, scam_shield_photo_picker_01, scam_shield_result_banner_contrast_01, scam_shield_mvp_01, validate_hardening.py). main c311be85 병합 뒤 12개 + auth_continuity_02 PASS(place_medical_card_ux_final_01, place_card_naver_search_click_01, place_card_carousel_no_drift_01, product_photo_compare_01, life_wallet_full_frame_card_01 포함). validate_place_card_compact_01은 고정 포트 4213의 python http.server 모듈 로드 실패로 feature·baseline(main c311be85) 모두 같은 오류가 번갈아 나는 환경 흔들림(baseline 단독 1회 PASS·1회 FAIL). main e13c0dfd 병합 뒤 8개 PASS(auth_continuity_02, consumer_sections_02, life_info_cleanup_final_01, life_medical_category_entry_01, onnuri_merchant_search_01, safecare_photo_bulk_upload_01, safecare_web_ui_redesign_01, site_refresh_route_restore_01).
 NEW_FAILURES=0
 DEVICE_TEST=NOT TESTED — iPhone Safari·카카오톡 내장 브라우저 실기기 확인 없음. 375/390/412/1280 viewport·iPhone UA·터치 emulation만.
 MIGRATION=NO
@@ -32,6 +32,7 @@ USER_DECISION_NEEDED=1) Site 공개 시점(데이터 게시 전 배포하면 메
 
 - 유치원 공식정보 방(feature/kindergarten-official-info-01-site)과 합의한 합친 모양: LIFE_SHORTCUTS = hospital, pharmacy, festivals, onnuri, local, education. 클릭 줄 `item.id === 'festivals' ? onFestival() : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item)`. 아이콘 줄은 이 branch의 `item.brandSlot ? brandSlot(item.brandSlot) : icon(item.icon)`. 검사기 라벨·id 목록 끝에 '유치원·학교'/'education', 개수 6. spansRow 측정은 두 구현 중 하나만 남긴다.
 - 홀수 카드 규칙 `.consumer-shortcuts > .consumer-shortcut:last-child:nth-child(odd) { grid-column: 1 / -1; }`이 site-life-onnuri.css에 있다(유치원 branch의 site-life-education.css에도 같은 규칙, 중복 무해).
+- 유치원 방과 합의: 두 branch 중 나중에 main에 들어가는 쪽 개발방이 새 main을 정상 merge해 카드 6개·스타일시트 두 줄(onnuri·education) 모양으로 다시 READY를 낸다(배포총괄방이 검사기를 고치지 않도록).
 - 나머지 충돌은 asset 토큰(`?v=aset-`)뿐 → 한쪽을 택하고 `node scripts/asset_cache_version.mjs --write`.
 
 ## 롤백
