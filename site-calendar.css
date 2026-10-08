@@ -2275,6 +2275,123 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-week-day-group[data-selected="true"] .calendar-week-day-heading { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
 .calendar-week-day-group > .life-calendar-empty { margin: 0; padding: 2px 4px 4px; color: var(--lotbi-calendar-muted-ink); font-size: 13px; }
 
+/* Phone Week: the seven days down a narrow rail, the picked day's records as
+   cards beside it. Colours are the Calendar's theme tokens only, so Light,
+   Dark and the system preference follow without rules of their own. */
+.calendar-week-vertical {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.calendar-week-rail {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 16px;
+  background: var(--lotbi-calendar-sheet-surface);
+}
+.calendar-week-rail-day {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.calendar-week-rail-day:focus-visible { outline: 2px solid var(--lotbi-focus-ring, #212121); outline-offset: 1px; }
+.calendar-week-rail-weekday { color: var(--lotbi-calendar-weekday-ink); font-size: 12px; font-weight: 750; line-height: 1.2; }
+.calendar-week-rail-number {
+  width: 30px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+}
+.calendar-week-rail-day .calendar-record-dots { display: flex; justify-content: center; gap: 3px; min-height: 5px; }
+.calendar-week-rail-day[data-weekday="0"] :is(.calendar-week-rail-weekday, .calendar-week-rail-number) { color: var(--lotbi-calendar-weekend-sun); }
+.calendar-week-rail-day[data-weekday="6"] :is(.calendar-week-rail-weekday, .calendar-week-rail-number) { color: var(--lotbi-calendar-weekend-sat); }
+.calendar-week-rail-day[data-holiday="true"] :is(.calendar-week-rail-weekday, .calendar-week-rail-number) { color: var(--lotbi-calendar-holiday-ink); }
+.calendar-week-rail-day[data-today="true"] .calendar-week-rail-number { box-shadow: inset 0 0 0 1.5px var(--lotbi-calendar-today-ring); }
+.calendar-week-rail-day[data-selected="true"] { background: var(--lotbi-calendar-today-ring); color: var(--lotbi-calendar-sheet-surface); }
+.calendar-week-rail-day[data-selected="true"] :is(.calendar-week-rail-weekday, .calendar-week-rail-number) { color: var(--lotbi-calendar-sheet-surface); }
+.calendar-week-rail-day[data-selected="true"][data-today="true"] .calendar-week-rail-number { box-shadow: inset 0 0 0 1.5px var(--lotbi-calendar-sheet-surface); }
+.calendar-week-rail-day[data-selected="true"] .calendar-record-dot { opacity: 1; }
+
+.calendar-week-day-detail { min-width: 0; display: grid; align-content: start; gap: 10px; }
+.calendar-week-day-detail-head { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 4px 2px 0; }
+.calendar-week-day-detail .calendar-week-day-heading { font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; }
+.calendar-week-day-detail-lunar { color: var(--lotbi-calendar-muted-ink); font-size: 12px; white-space: nowrap; }
+.calendar-week-day-detail .calendar-day-weather { white-space: normal; }
+.calendar-week-day-cards { min-width: 0; display: grid; gap: 8px; }
+.calendar-week-day-cards .calendar-life-list { gap: 8px; }
+/* One record, one card: the time and the amount share the top line so the
+   title gets the card's full width even beside the rail on a 320px phone. */
+.calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row {
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "time amount" "copy copy";
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 14px;
+  background: var(--lotbi-calendar-sheet-surface);
+}
+.calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row:hover { background: var(--lotbi-calendar-week-selected-surface); }
+.calendar-week-day-cards .calendar-life-row[data-life-group="UNTIMED"] { grid-template-areas: "copy amount"; }
+.calendar-week-day-cards .calendar-life-row[data-life-group="UNTIMED"] .calendar-life-time { display: none; }
+.calendar-week-day-cards .calendar-life-time { grid-area: time; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; padding-top: 0; }
+.calendar-week-day-cards .calendar-life-copy { grid-area: copy; }
+.calendar-week-day-cards .calendar-day-event.calendar-life-row .calendar-life-title { -webkit-line-clamp: 3; }
+.calendar-week-day-cards .calendar-life-amount { grid-area: amount; padding-top: 0; }
+.calendar-week-day-cards .calendar-life-section-label { margin: 4px 0 0; padding: 0 2px; }
+.calendar-week-day-empty {
+  display: grid;
+  gap: 4px;
+  padding: 22px 14px;
+  border: 1px dashed var(--lotbi-calendar-grid-line);
+  border-radius: 14px;
+  text-align: center;
+}
+.calendar-week-day-empty .life-calendar-empty { font-size: 14px; font-weight: 650; }
+.calendar-week-day-empty-hint { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 12.5px; line-height: 1.5; }
+/* "+ 9월 23일에 기록" beside 사진에서 기록 읽기 ran 9px past a 320px phone. On
+   a touch width the two share the row and may wrap rather than be clipped. */
+@media (max-width: 900px) {
+  .calendar-action-slot[data-calendar-action-bar="week-top"] .calendar-add-actions .calendar-add-button {
+    flex: 1 1 0;
+    min-width: 0;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: keep-all;
+  }
+}
+@media (max-width: 360px) {
+  .calendar-week-vertical { grid-template-columns: 50px minmax(0, 1fr); gap: 8px; }
+  .calendar-week-rail { padding: 3px; }
+  .calendar-week-rail-number { width: 28px; font-size: 16px; }
+  .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row { padding: 10px; }
+}
+
 /* 목록 */
 .calendar-agenda-day h3[data-today="true"]::after { content: ' · 오늘'; color: var(--lotbi-calendar-muted-ink); font-weight: 600; }
 
@@ -2683,6 +2800,12 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
      label still says it opens the year. */
   .calendar-title-button::after { display: none; }
   .calendar-toolbar .calendar-title-button { padding-inline: 2px; font-size: 15px; }
+  /* Even without the caret, "9월 20–26일" and "2026년 9월" were cut to a
+     few letters on a 320px phone: five 44px controls left the title ~37px.
+     설정 moves down beside the view tabs so the title keeps the row. */
+  .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px auto; }
+  .calendar-toolbar > .calendar-settings-button { grid-column: -2; grid-row: 2; }
+  .calendar-toolbar > .calendar-mode-tabs { grid-column: 1 / -2; }
 }
 @media (max-width: 350px) {
   /* ~43px cells: the date and its dots first; the forecast stays in the day

@@ -74,6 +74,7 @@ on:
       - 'scripts/validate_calendar_add_from_image_01.mjs'
       - 'scripts/validate_calendar_week_timegrid_model_01.mjs'
       - 'scripts/validate_calendar_week_timegrid_ui_01.mjs'
+      - 'scripts/validate_calendar_week_mobile_vertical_01.mjs'
       - 'site-calendar-lunar.js'
       - 'scripts/validate_calendar_lunar_model_01.mjs'
       - 'scripts/validate_calendar_lunar_settings_ui_01.mjs'
@@ -201,6 +202,7 @@ jobs:
         run: |
           node scripts/validate_calendar_week_timegrid_model_01.mjs
           node scripts/validate_calendar_week_timegrid_ui_01.mjs
+          node scripts/validate_calendar_week_mobile_vertical_01.mjs
       - name: 음력 (lunar date) display setting
         run: |
           node --check site-calendar-lunar.js

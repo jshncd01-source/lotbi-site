@@ -369,6 +369,27 @@
   background: var(--lotbi-surface-hover, #f0f2f7);
 }
 
+/* CHAT-READ-ALOUD-RESTORE-P0 — 읽어주기 is the one answer tool with a word
+   next to its icon: it changes meaning while it plays (읽어주기 ↔ 중지), and
+   an icon alone does not say which. Same 44px touch height as the row. */
+.chat-message-action-read {
+  gap: 4px;
+  padding: 0 10px 0 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chat-message-action-read .chat-message-action-label {
+  pointer-events: none;
+}
+
+.chat-message-action-read[data-speaking="true"] {
+  background: var(--lotbi-surface-hover, #f0f2f7);
+  color: var(--lotbi-text-primary, #303642);
+}
+
 .chat-message-action-feedback {
   margin-left: 6px;
   color: var(--lotbi-text-muted, #737b88);
@@ -430,6 +451,17 @@
   height: 18px;
   display: block;
   fill: currentColor;
+}
+
+/* LOTBI-KAKAO-SHARE-ACTUAL-01 — what the KakaoTalk item sends, under its name. */
+.lotbi-share-menu-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: keep-all;
 }
 
 @media (max-width: 760px) {
