@@ -31,7 +31,7 @@
 // sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
 // ordering/filtering (region, time window, distance) is Core-authoritative
 // via browseFestivals; nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-fed623561605';
+import {CORE_ORIGIN} from './site-core.js?v=aset-486f76db5e27';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';
@@ -139,6 +139,29 @@ export function buildFestivalBrowseLocationQuery({
   const resolvedRegion = String(currentRegionLabel || '').trim();
   if (resolvedRegion) query.region = resolvedRegion;
   return query;
+}
+
+// The words the banner and the 0건 message use for the scope above, from the
+// same state, so the screen can never describe a different search than the
+// one buildFestivalBrowseLocationQuery sent. "현재 위치 기준 · OO 전체" is a
+// whole-province search (the province the GPS reading falls in); the
+// coordinates only add each card's distance. There is no radius search.
+export function festivalBrowseScopeLabel({
+  region = '',
+  municipality = '',
+  locationMode = 'NONE',
+  currentRegionLabel = '',
+} = {}) {
+  const manualRegion = String(region || '').trim();
+  if (manualRegion) {
+    const manualMunicipality = String(municipality || '').trim();
+    return manualMunicipality ? `${manualRegion} · ${manualMunicipality}` : `${manualRegion} 전체`;
+  }
+  if (locationMode === 'CURRENT') {
+    const resolvedRegion = String(currentRegionLabel || '').trim();
+    return resolvedRegion ? `현재 위치 기준 · ${resolvedRegion} 전체` : '현재 위치 기준';
+  }
+  return '전국';
 }
 
 // Each 광역시·도's official administrative-center coordinates, used only to
@@ -702,9 +725,11 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Classifies a GPS reading into one of the 17 광역시·도 for display only
- * (never for filtering/query — the raw coordinates, not this label, are what
- * goes to browseFestivals). Returns '' if the coordinates are unusable.
+ * Classifies a GPS reading into one of the 17 광역시·도. Since
+ * festival-region-scope-site-01 this label is also the `region` of a
+ * current-location browse (buildFestivalBrowseLocationQuery), i.e. the whole
+ * province is searched; the raw coordinates go along only for distance.
+ * Returns '' if the coordinates are unusable.
  */
 export function resolveCurrentRegionLabel(latitude, longitude) {
   if (typeof latitude !== 'number' || !Number.isFinite(latitude)) return '';

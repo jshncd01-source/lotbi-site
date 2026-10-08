@@ -35,9 +35,12 @@
 .scam-status { min-height: 24px; margin: 12px 0 0; color: var(--lotbi-text-primary, var(--text, #212121)); }
 .scam-result { margin-top: 18px; border-top: 1px solid #e3e8ef; padding-top: 18px; overflow-wrap: anywhere; }
 .scam-result h3 { margin: 0 0 10px; font-size: 1.2rem; }
-.scam-result-headline { display: inline-block; padding: 10px 14px; border-radius: 999px; background: #fff0d8; color: #7a3e00; font-size: 1.15rem; font-weight: 800; }
-.scam-result[data-risk-level="CURRENTLY_NO_RISK_SIGNAL"] .scam-result-headline { background: #e5f7ec; color: var(--lotbi-text-primary, var(--text, #212121)); }
-.scam-result[data-risk-level="HIGH_RISK"] .scam-result-headline, .scam-result[data-risk-level="CONFIRMED_MALICIOUS"] .scam-result-headline { background: #ffe5e5; color: #a31313; }
+/* 결론 banner: each risk level is a fixed light tint with a fixed dark ink of the
+   same hue, so it reads the same in light and dark (a theme text token here
+   turned white on the mint in dark mode). */
+.scam-result-headline { display: inline-block; padding: 10px 14px; border: 1px solid #e3b26f; border-radius: 999px; background: #fff0d8; color: #7a3e00; font-size: 1.15rem; font-weight: 800; }
+.scam-result[data-risk-level="CURRENTLY_NO_RISK_SIGNAL"] .scam-result-headline { border-color: #86c79f; background: #e5f7ec; color: #14532d; }
+.scam-result[data-risk-level="HIGH_RISK"] .scam-result-headline, .scam-result[data-risk-level="CONFIRMED_MALICIOUS"] .scam-result-headline { border-color: #eb9f9f; background: #ffe5e5; color: #a31313; }
 .scam-result h4 { margin: 16px 0 6px; font-size: 1rem; }
 .scam-result ul { margin: 0; padding-left: 22px; line-height: 1.65; }
 .scam-result details { margin-top: 18px; }

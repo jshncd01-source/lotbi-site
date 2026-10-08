@@ -7,7 +7,7 @@
 // read the other's. The fix is one shared, non-identifying cookie on the parent
 // domain — lotbi_theme_preference_v1 = light | dark | system | auto — read
 // before first paint on every consumer page. This gate locks that contract:
-//   1. the shared module: strict parsing, the 07:00/18:00 clock, cookie scope;
+//   1. the shared module: strict parsing, the 07:00/22:00 clock, cookie scope;
 //   2. every consumer page carries the same read-only pre-paint bootstrap;
 //   3. that bootstrap, executed, follows the shared value, the clock and the
 //      legacy fallback, and never writes anything;
@@ -46,7 +46,7 @@ assert.equal(theme.readThemeImportMarker('lotbi_theme_preference_import_v1=site'
 assert.equal(theme.readThemeImportMarker('lotbi_theme_preference_import_v1=other'), undefined);
 
 for (const [hour, minute, expected] of [
-  [0, 0, 'dark'], [6, 59, 'dark'], [7, 0, 'light'], [12, 0, 'light'], [17, 59, 'light'], [18, 0, 'dark'], [23, 59, 'dark'],
+  [0, 0, 'dark'], [6, 59, 'dark'], [7, 0, 'light'], [12, 0, 'light'], [18, 0, 'light'], [21, 59, 'light'], [22, 0, 'dark'], [23, 59, 'dark'],
 ]) {
   assert.equal(theme.resolveThemePreference('auto', at(hour, minute)), expected, `자동모드 ${hour}:${minute} → ${expected}`);
 }
@@ -56,9 +56,10 @@ assert.equal(theme.resolveThemePreference('dark', at(12)), 'dark');
 assert.equal(theme.resolveThemePreference('nonsense', at(12)), 'system', 'anything unknown fails safe to 기기모드');
 const hours = ms => ms / 3_600_000;
 assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(6, 59))), 1 / 60);
-assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(7))), 11);
-assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(17, 59))), 1 / 60);
-assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(18))), 13);
+assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(7))), 15);
+assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(18))), 4);
+assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(21, 59))), 1 / 60);
+assert.equal(hours(theme.millisecondsUntilNextThemeBoundary(at(22))), 9);
 
 const prod = theme.serializeThemePreference('auto', 'lotbiai.com', 'https:');
 assert.match(prod, /^lotbi_theme_preference_v1=auto; /);
@@ -158,8 +159,9 @@ const cases = [
   [{cookie: 'lotbi_theme_preference_v1=system', legacy: 'dark'}, 'system', 'system', '기기모드 follows the device'],
   [{cookie: 'lotbi_theme_preference_v1=auto', now: at(6, 59)}, 'dark', 'auto', '자동 06:59 is dark'],
   [{cookie: 'lotbi_theme_preference_v1=auto', now: at(7)}, 'light', 'auto', '자동 07:00 is light'],
-  [{cookie: 'lotbi_theme_preference_v1=auto', now: at(17, 59)}, 'light', 'auto', '자동 17:59 is light'],
-  [{cookie: 'lotbi_theme_preference_v1=auto', now: at(18)}, 'dark', 'auto', '자동 18:00 is dark'],
+  [{cookie: 'lotbi_theme_preference_v1=auto', now: at(18)}, 'light', 'auto', '자동 18:00 is still light'],
+  [{cookie: 'lotbi_theme_preference_v1=auto', now: at(21, 59)}, 'light', 'auto', '자동 21:59 is light'],
+  [{cookie: 'lotbi_theme_preference_v1=auto', now: at(22)}, 'dark', 'auto', '자동 22:00 is dark'],
   [{cookie: 'lotbi_theme_preference_v1=auto', now: at(23)}, 'dark', 'auto', '자동 at 23:00 is dark on the Site too'],
   [{cookie: '', legacy: 'dark'}, 'dark', 'dark', 'without the shared cookie the old Site key still applies'],
   [{cookie: 'lotbi_theme_preference_v1=purple', legacy: 'light'}, 'light', 'light', 'a malformed shared value falls back'],
@@ -177,11 +179,11 @@ for (const [input, bootstrap, preference, label] of cases) {
   assert.equal(html.dataset.siteThemeBootstrap, undefined, 'nothing chosen anywhere leaves the page on its default');
 }
 {
-  // 자동 at 17:30 arms one timer for 18:00, and coming back to the tab re-reads
+  // 자동 at 21:30 arms one timer for 22:00, and coming back to the tab re-reads
   // a choice made in Account meanwhile.
-  const run = runBootstrap({cookie: 'lotbi_theme_preference_v1=auto', now: at(17, 30)});
+  const run = runBootstrap({cookie: 'lotbi_theme_preference_v1=auto', now: at(21, 30)});
   assert.equal(run.timers.length, 1);
-  assert.equal(run.timers[0].ms, 30 * 60 * 1000, '자동 must switch at 18:00 on an open page');
+  assert.equal(run.timers[0].ms, 30 * 60 * 1000, '자동 must switch at 22:00 on an open page');
   run.state.cookie = 'lotbi_theme_preference_v1=light';
   for (const fn of run.listeners.visibilitychange ?? []) fn();
   assert.equal(run.html.dataset.siteThemeBootstrap, 'light', 'returning to the tab picks up the new choice');
