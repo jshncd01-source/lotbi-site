@@ -1,6 +1,6 @@
-import {createLifeActivity} from './site-calendar.js?v=aset-8a411321148d';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-8a411321148d';
-import {getCurrentSiteUser, SiteCoreError} from './site-core.js?v=aset-8a411321148d';
+import {createLifeActivity} from './site-calendar.js?v=aset-ba2f5759858f';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-ba2f5759858f';
+import {getCurrentSiteUser, SiteCoreError} from './site-core.js?v=aset-ba2f5759858f';
 
 const ACTION_ID_RE = /^calact_[0-9a-f]{24}$/;
 const CANDIDATE_ID_RE = /^calcand_[0-9a-f]{24}$/;
