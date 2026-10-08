@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-80e4575c4a43';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-80e4575c4a43';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-e6af742de2ce';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-e6af742de2ce';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -135,7 +135,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -229,7 +229,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, loadCa
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
     root.append(heading, grid);
   } else if (section === 'wallet') {
-    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt});
+    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription});
   } else if (section === 'care') {
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');

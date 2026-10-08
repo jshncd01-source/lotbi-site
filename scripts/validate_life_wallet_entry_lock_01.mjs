@@ -186,7 +186,11 @@ assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page tr
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);
 assert.match(walletSource, /detail\?\.authenticated === false/u);
-assert.match(consumerSource, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt\}\)/u);
+// LIFE-WALLET-SHARE-01: the session token reaches the wallet only for share requests (labels,
+// in site-life-wallet-share.js) and the plan for the Free one-item limit; the wallet module
+// itself still never calls fetch (below), and validate_life_wallet_share_01 checks that no
+// image or wallet data leaves the device.
+assert.match(consumerSource, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription\}\)/u);
 assert.match(walletSource, /MAX_PIN_FAILURES = 5/u);
 assert.doesNotMatch(walletSource, /localStorage/u, 'wallet must not store secrets or data in localStorage');
 assert.doesNotMatch(walletSource, /fetch\s*\(/u, 'wallet must not upload data');
