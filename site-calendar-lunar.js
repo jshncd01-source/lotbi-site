@@ -516,3 +516,19 @@ export function lunarDateLabel(lunar) {
   if (!lunar || !lunar.month || !lunar.day) return '';
   return `${lunar.intercalation ? '윤' : ''}${LUNAR_MONTH_LABEL[lunar.month]} ${lunar.day}일`;
 }
+
+/**
+ * The Month grid's compact form, sitting right of the solar day number:
+ * "음28" -- the day only, since a month cell has no room for more. The day a
+ * lunar month starts spells the month out ("음8.1", a leap month "음윤6.1"),
+ * so the reader still sees where one lunar month turns into the next. The
+ * full lunarDateLabel stays in the cell's accessible name, and Week/Day keep
+ * using it where there is room.
+ * @param {{year: number, month: number, day: number, intercalation: boolean} | null} lunar
+ * @returns {string}
+ */
+export function lunarDateCompactLabel(lunar) {
+  if (!lunar || !lunar.month || !lunar.day) return '';
+  if (lunar.day === 1) return `음${lunar.intercalation ? '윤' : ''}${lunar.month}.1`;
+  return `음${lunar.day}`;
+}
