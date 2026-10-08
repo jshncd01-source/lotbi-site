@@ -625,10 +625,16 @@ jobs:
 
       # 생활정보 병원·의원/약국 카드는 진입 UI만 더한다. 상세 화면이 만든 문장을
       # 기존 대화 입력창으로 넘겨 Core 의료 조회가 답하는지(문장 규칙), 카드·칩이
-      # 375·390x844·데스크톱에서 잘리지 않고 탭되는지, 기존 축제·지역·공과금
-      # 바로가기가 그대로인지 실제 탭/클릭으로 확인한다.
+      # 360·375·390x844·412·데스크톱에서 잘리지 않고 탭되는지, 공과금 메뉴·상단 질문
+      # 입력바·하단 저장/안내 줄 없이 설명 바로 아래 카테고리 목록만 빈 칸 없이
+      # 보이는지 실제 탭/클릭으로 확인한다.
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
+
+      # 생활정보 정리 최종: 공과금 메뉴·상단 질문바·하단 보조 row·롯비함 진입/저장 버튼 없음,
+      # 요금 안내에 공과금 문구 없음, 저장된 롯비함 데이터는 그대로. 360·375·390·412·1280.
+      - name: Validate life info cleanup final
+        run: node scripts/validate_life_info_cleanup_final_01.mjs
 
       - name: Validate 진위확인 production connection
         run: |

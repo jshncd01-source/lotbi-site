@@ -10,7 +10,7 @@ import {runFixturePage} from './lib/headless-fixture-result.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:760px;margin:auto}</style></head><body><main id="host"></main><script type="module">
+const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:760px;margin:auto}</style></head><body><main id="host"></main><script type="module">
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const wait = async (predicate, label) => { for (let i = 0; i < 2400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
 // A minimal two-page A4 PDF: page 1 is a printed form (title bar, table, text-like rows),
@@ -28,8 +28,9 @@ function buildPdf(pages) {
   text += 'trailer\\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\\nstartxref\\n' + start + '\\n%%EOF\\n';
   return new TextEncoder().encode(text);
 }
-// Printed text: rows of small glyph-like boxes.
-const rows = []; for (let row = 0; row < 18; row += 1) for (let glyph = 0; glyph < 22 - (row % 4) * 3; glyph += 1) rows.push((60 + glyph * 20) + ' ' + (520 - row * 24) + ' 11 12 re');
+// Printed text: rows of small glyph-like boxes of differing width, wider gaps between words
+// (identical, evenly spaced boxes read as a made pattern such as a building's windows).
+const rows = []; for (let row = 0; row < 18; row += 1) for (let glyph = 0, x = 60; glyph < 22 - (row % 4) * 3; glyph += 1) { const wide = [11, 7, 13, 9, 12, 6][(glyph + row) % 6]; rows.push(x + ' ' + (520 - row * 24) + ' ' + wide + ' 12 re'); x += wide + (glyph % 5 === 4 ? 14 : 8); }
 const form = '0 g 150 760 295 26 re f 1 w 60 560 475 160 re S 60 640 m 535 640 l S 60 600 m 535 600 l S ' + rows.join(' ') + ' f 0.8 0.1 0.2 rg 420 90 70 70 re f';
 const block = '0 g 120 300 300 220 re f';
 try {
@@ -59,7 +60,7 @@ try {
   const blank = module.createWalletDocumentScanner({file: new File([buildPdf([block])], 'picture.pdf', {type: 'application/pdf'})});
   document.getElementById('host').replaceChildren(blank.element);
   await wait(() => blank.element.dataset.scanState === 'review' || blank.element.dataset.scanState === 'error', 'textless pdf review');
-  const textless = {mode: blank.element.dataset.scanMode, reason: blank.element.dataset.scanReason, confirmEnabled: !blank.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: blank.element.querySelector('[data-wallet-scan-adjust]').hidden, status: blank.element.querySelector('.wallet-scan-status').textContent};
+  const textless = {mode: blank.element.dataset.scanMode, reason: blank.element.dataset.scanReason, confirmEnabled: !blank.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: blank.element.querySelector('[data-wallet-scan-adjust]').getClientRects().length === 0, status: blank.element.querySelector('.wallet-scan-status').textContent};
   blank.destroy();
   const broken = module.createWalletDocumentScanner({file: new File([new TextEncoder().encode('%PDF-1.4 not really a pdf')], 'broken.pdf', {type: 'application/pdf'})});
   document.getElementById('host').replaceChildren(broken.element);
