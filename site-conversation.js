@@ -24,6 +24,7 @@ import {resolveLifeLocationContext} from './site-life-location.js?v=aset-c4bb368
 import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-c4bb36809825';
 import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-c4bb36809825';
 import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-c4bb36809825';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-a12a8f79f272';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -2788,6 +2789,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (message.role === 'assistant' && rich) {
       const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
     }
+    if (message.role === 'assistant' && message.meta?.productLookup) {
+      const photos = createProductImageComparison(message.meta.productLookup, {document});
+      if (photos) node.appendChild(photos);
+    }
     if (message.role === 'assistant' && message.meta?.emergencyCall === true) {
       node.appendChild(createEmergencyCallNotice(document));
     }
@@ -4716,6 +4721,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
+        const productLookup = compactProductLookupMeta(response.productLookup);
+        if (productLookup) meta.productLookup = productLookup;
         const schoolMeta = compactSchoolResultMeta(response.schoolResult);
         if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
         const placeResult = compactPlaceResultMeta(response.placeResult);
@@ -4847,6 +4854,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
+      const productLookup = compactProductLookupMeta(response.productLookup);
+      if (productLookup) meta.productLookup = productLookup;
       const schoolMeta = compactSchoolResultMeta(response.schoolResult);
       if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
       const placeResult = compactPlaceResultMeta(response.placeResult);

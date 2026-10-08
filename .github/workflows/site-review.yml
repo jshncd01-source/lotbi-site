@@ -198,6 +198,12 @@ jobs:
       # time at 390x844, 375x667 and 1280x900.
       - name: Validate chat answer quality P0 (conversation tail, tables)
         run: node scripts/validate_chat_answer_quality_p0_01.mjs
+      # "크록스 클래식과 바야 사진으로 비교해줘" got a table and no picture.
+      # Core now returns each product's official page image; the answer shows
+      # them side by side with the official page link, a plain box when there
+      # is no verified image or it fails to load, and nothing for spec answers.
+      - name: Validate product photo comparison cards
+        run: node scripts/validate_product_photo_compare_01.mjs
 
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
