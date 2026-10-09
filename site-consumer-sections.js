@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-691184698bff';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-691184698bff';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-691184698bff';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-52e6f3183ad1';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-52e6f3183ad1';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-52e6f3183ad1';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -114,7 +114,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -206,7 +206,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-691184698bff').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-52e6f3183ad1').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -253,7 +253,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-691184698bff').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-52e6f3183ad1').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -300,7 +300,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
     root.append(heading, grid);
   } else if (section === 'wallet') {
-    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt, sessionToken});
+    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription});
   } else if (section === 'care') {
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');
