@@ -2603,6 +2603,54 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   font-weight: 700;
 }
 .calendar-editor-note { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 12.5px; line-height: 1.5; }
+/* 반복 · 알림 (로그인 기록). 셀렉트·요일 버튼·날짜 칸도 다른 칸과 같은 44px
+   터치 높이이고, 색은 캘린더 토큰만 써서 세 가지 화면 모드를 그대로 따른다. */
+.calendar-editor-repeat,
+.calendar-editor-reminder,
+.calendar-editor-repeat-end-mode,
+.calendar-editor-repeat-until,
+.calendar-editor-repeat-interval {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 10px;
+  background: var(--lotbi-calendar-sheet-surface);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 15px;
+}
+.calendar-editor-repeat-custom { display: grid; gap: 10px; }
+.calendar-editor-repeat-custom[hidden],
+.calendar-editor-repeat-end[hidden],
+.calendar-editor-repeat-until[hidden],
+.calendar-editor-reminder-status[hidden] { display: none; }
+.calendar-editor-weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.calendar-editor-weekday {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+}
+.calendar-editor-weekday[aria-pressed="true"] {
+  border-color: var(--lotbi-text-primary, var(--text, #212121));
+  background: var(--lotbi-calendar-week-selected-surface);
+  font-weight: 700;
+}
+.calendar-editor-repeat-interval-label { display: flex; align-items: center; gap: 8px; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 14px; }
+.calendar-editor-repeat-interval { width: 80px; font-variant-numeric: tabular-nums; }
+.calendar-editor-repeat-end { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.calendar-editor-repeat-end-label { display: grid; gap: 6px; color: var(--lotbi-calendar-muted-ink); font-size: 13px; font-weight: 650; }
+.calendar-editor-reminder-status { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 12.5px; line-height: 1.5; }
+.calendar-editor-reminder-status:is([data-reminder-delivery="DENIED"], [data-reminder-delivery="UNAVAILABLE"]) { color: var(--lotbi-calendar-holiday-ink); }
+/* 하루 목록의 반복 표시: 제목 밑 작은 회색 한 줄('↻ 매주'). */
+.calendar-life-repeat { justify-self: start; color: var(--lotbi-calendar-muted-ink); font-size: 12px; line-height: 1.4; }
+.calendar-life-repeat::before { content: '\21BB  '; }
 
 /* Dark: the base sheet rules paint every day row as a card; a timeline row is
    a line on the panel's own surface instead. */
