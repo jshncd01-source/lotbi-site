@@ -39,7 +39,7 @@
 
 | 질의 | 응답 `level` | 내용 |
 |---|---|---|
-| (없음) | `SIDO` | 시·도 17개(2026 경계, 전남광주통합특별시 포함) |
+| (없음) | `SIDO` | 시·도 16개(2026 경계, 전남광주통합특별시 포함) |
 | `sido` | `SIGUNGU` | 그 시·도의 시·군·구(구가 있는 시는 시 단위로 묶음: `수원시`) |
 | `sido`+`sigungu`+`level=DONG` | `DONG` | 게시된 가맹점 주소에서 나온 읍·면·동 이름 |
 
@@ -108,7 +108,7 @@ MerchantView:
 {"id": "vm_...", "name": "하쏘헤어", "address": "강원특별자치도 원주시 ... 12", "sido": "강원특별자치도", "sigungu": "원주시", "dong": "단계동" | null,
  "category": {"code": "LIVING", "label": "생활"} | null, "category_detail": "이용 및 미용업" | null,
  "phone": "0337431234" | null,
- "location": {"latitude": 37.3, "longitude": 127.9, "precision": "OFFICIAL" | "STAFF_VERIFIED"} | null,
+ "location": {"latitude": 37.3, "longitude": 127.9, "precision": "OFFICIAL" | "PROVIDED" | "STAFF_VERIFIED"} | null,
  "distance_meters": 420 | null,
  "business_status": "OPERATING" | "SUSPENDED" | "UNKNOWN",
  "accepts": [{"scheme_id": "vs_...", "scheme_name": "원주사랑상품권",
@@ -202,7 +202,7 @@ AdminMerchantView = MerchantView 필드 + {"version", "status_summary", "accepta
    - 응답 201: `{"batch": BatchView, "headers": ["지역화폐명", ...], "suggested_mapping": {"voucher_name": "지역화폐명", "merchant_name": "가맹점명", ...}, "sample_rows": [[...]], "reused": false}`
 2. `POST /imports/{id}/validate` (write) `{"expected_version", "mapping": {"merchant_name": "가맹점명", ...}, "scheme_id": 선택}` → 행마다 판정 → 배치 `PENDING_REVIEW`
    - 표준 필드: `voucher_name, merchant_name, sido, sigungu, dong, address, category, phone, latitude, longitude, source_name, source_date` (한글 머리글 자동 인식: 지역화폐명·가맹점명·시도·시군구·읍면동·주소·업종·전화번호·위도·경도·출처·자료기준일)
-   - 행 판정 `outcome`: `NEW`(새 가게+연결) · `LINK`(있는 가게에 이 상품권 연결 추가) · `UPDATE`(이미 연결된 가게 정보 변경, 전후 비교) · `UNCHANGED` · `DUPLICATE_IN_FILE`(파일 안 중복, 첫 행만 처리) · `ERROR`(행번호·사유)
+   - 행 판정 `outcome`: `NEW`(새 가게+연결) · `LINK`(있는 가게에 이 상품권 연결 추가) · `UPDATE`(이미 연결된 가게 정보 변경, 전후 비교) · `UNCHANGED` · `DUPLICATE_IN_FILE`(파일 안 중복, 첫 행만 처리) · `ERROR`(행번호·사유) · `DUPLICATE_CANDIDATE`(같은 가게 후보, 자동으로 합치지 않음) · `WITHDRAW`(폐업·해지 → 비공개) · `UNMAPPED`(공식 행의 지역화폐를 하나로 못 정함, 공식 동기화만)
 3. `GET /imports/{id}/rows?outcome=&limit=&offset=` → `{"items": [{"row_number", "outcome", "errors": [{"code","field","message"}], "values": {...}, "before": {...}|null, "target_merchant_id"}], "total_count"}`
 4. `GET /imports/{id}/errors.csv` → 오류 행만(행번호·사유·원래 값). 셀이 `= + - @ TAB CR`로 시작하면 앞에 `'`를 붙여 수식으로 실행되지 않게 한다.
 5. `POST /imports/{id}/publish` (publish) `{"expected_version", "policy": "VALID_ROWS_ONLY"}` → 오류 행을 뺀 행만 게시. `{"batch": BatchView, "applied": {"NEW": n, "LINK": n, "UPDATE": n}, "skipped_conflicts": n}`
