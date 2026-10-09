@@ -151,13 +151,28 @@ function hasCurrentSiteHandoffRecovery(now, storage) {
   return false;
 }
 
-export async function recoverMissingSiteHandoffContext(error, {
+const STALE_HANDOFF_RECOVERY_CODES = new Set([
+  'SITE_HANDOFF_CONTEXT_MISSING',
+  'SITE_HANDOFF_STATE_MISMATCH',
+  'SITE_HANDOFF_CONTEXT_INVALID',
+  'SITE_HANDOFF_CALLBACK_INVALID',
+  'SITE_HANDOFF_REPLAY_OR_INVALID',
+  'SITE_HANDOFF_EXPIRED',
+  'SITE_HANDOFF_SOURCE_SESSION_INVALID',
+]);
+
+export async function recoverStaleSiteHandoff(error, {
   storage = optionalSessionStorage(),
   now = Date.now(),
   readStatus = readAccountSessionStatus,
-  beginHandoff = pendingText => beginSiteHandoff(pendingText, {recoveryAttempt: true}),
+  beginHandoff = (pendingText, returnHash) => beginSiteHandoff(
+    pendingText,
+    {recoveryAttempt: true, returnHash},
+  ),
+  pendingText = '',
+  returnHash = '',
 } = {}) {
-  if (!(error instanceof SiteHandoffClientError) || error.code !== 'SITE_HANDOFF_CONTEXT_MISSING') return false;
+  if (!STALE_HANDOFF_RECOVERY_CODES.has(error?.code)) return false;
   if (!storage || hasCurrentSiteHandoffRecovery(now, storage)) return false;
   if (!await readStatus()) return false;
 
@@ -166,9 +181,11 @@ export async function recoverMissingSiteHandoffContext(error, {
     startedAt: now,
     attemptCount: 1,
   }));
-  await beginHandoff('');
+  await beginHandoff(pendingText, returnHash);
   return true;
 }
+
+export const recoverMissingSiteHandoffContext = recoverStaleSiteHandoff;
 
 export async function createSiteHandoffContext(pendingText = '', now = Date.now(), returnHash = '') {
   if (!globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle || typeof globalThis.btoa !== 'function') {
@@ -351,11 +368,14 @@ export function shouldUseAccountSiteFallback(error) {
     && (error.code === 'SITE_HANDOFF_CRYPTO_UNAVAILABLE' || error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
 }
 
-export async function beginSiteHandoff(pendingText = '', {recoveryAttempt = false} = {}) {
+export async function beginSiteHandoff(
+  pendingText = '',
+  {recoveryAttempt = false, returnHash = window.location.hash} = {},
+) {
   if (!recoveryAttempt) clearSiteHandoffRecovery();
   let context;
   try {
-    context = await createSiteHandoffContext(pendingText, Date.now(), window.location.hash);
+    context = await createSiteHandoffContext(pendingText, Date.now(), returnHash);
     storeSiteHandoffContext(context);
   } catch (error) {
     if (!shouldUseAccountSiteFallback(error)) throw error;
