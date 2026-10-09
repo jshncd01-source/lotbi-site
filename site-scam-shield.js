@@ -120,6 +120,101 @@ function resultHeadline(payload) {
   return payload.headline;
 }
 
+// SCAM-SHIELD-DOUBLE-CHECK-P0 — Core answers only after a second, independent
+// check. Three short lines say what that check found; sources and the police
+// statistics stay below, the statistics folded away as background only.
+function doubleCheckSection(check) {
+  if (!check) return null;
+  const section = document.createElement('section');
+  section.className = 'scam-double-check';
+  section.dataset.scamDoubleCheck = check.status;
+  const heading = document.createElement('h4');
+  heading.textContent = '2단계 확인 결과';
+  section.append(heading);
+  const rows = document.createElement('dl');
+  const row = (term, text) => {
+    const dt = document.createElement('dt');
+    dt.textContent = term;
+    const dd = document.createElement('dd');
+    dd.textContent = text;
+    rows.append(dt, dd);
+  };
+  if (check.status === 'FAILED') {
+    row('확인 상태', '2단계 확인을 끝내지 못했어요. 확인되지 않은 부분이 있으니 공식 연락처로 직접 확인하세요.');
+  } else {
+    const confirmed = check.signals
+      .filter(item => item.severity !== 'INFO' && item.confirmedBy !== 'FIRST_ONLY' && item.label)
+      .map(item => item.label);
+    row('위험 신호', confirmed.length ? `다시 확인함 — ${[...new Set(confirmed)].slice(0, 4).join(', ')}` : '다시 확인한 위험 신호는 없어요.');
+    if (check.officialMessage) row('공식 근거', check.officialMessage);
+    row('확인 안 된 것', check.unverifiedCount ? `${check.unverifiedCount}가지 — 아래 ‘아직 확인되지 않은 내용’을 봐 주세요.` : '따로 남은 항목은 없어요.');
+  }
+  section.append(rows);
+  return section;
+}
+
+function sourceList(title, sources, className) {
+  if (!Array.isArray(sources) || !sources.length) return null;
+  const section = document.createElement('section');
+  section.className = className;
+  const heading = document.createElement('h4');
+  heading.textContent = title;
+  const ul = document.createElement('ul');
+  sources.forEach(source => {
+    const li = document.createElement('li');
+    const name = document.createElement('strong');
+    name.textContent = `${source.agency} · ${source.title}`;
+    li.append(name);
+    if (source.statement) {
+      const statement = document.createElement('span');
+      statement.className = 'scam-source-statement';
+      statement.textContent = source.statement;
+      li.append(statement);
+    }
+    const meta = document.createElement('span');
+    meta.className = 'scam-source-meta';
+    meta.textContent = source.checkedAt ? `확인한 날 ${source.checkedAt}${source.stale ? ' · 오래된 자료' : ''}` : '';
+    if (source.url) {
+      const link = document.createElement('a');
+      link.href = source.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = '공식 페이지 열기';
+      meta.append(meta.textContent ? ' · ' : '', link);
+    }
+    if (meta.textContent) li.append(meta);
+    ul.append(li);
+  });
+  section.append(heading, ul);
+  return section;
+}
+
+function policeStatisticsDetails(stats) {
+  if (!stats) return null;
+  const details = document.createElement('details');
+  details.className = 'scam-police-stats';
+  const summary = document.createElement('summary');
+  summary.textContent = `참고: 경찰청 ${stats.category} 보이스피싱 통계 (${stats.baseYear}년)`;
+  const figures = document.createElement('p');
+  const parts = [];
+  if (stats.cases !== null) parts.push(`발생 ${stats.cases.toLocaleString('ko-KR')}건`);
+  if (stats.damage100mKrw !== null) parts.push(`피해액 ${stats.damage100mKrw.toLocaleString('ko-KR')}억원`);
+  if (stats.arrested !== null) parts.push(`검거 ${stats.arrested.toLocaleString('ko-KR')}명`);
+  figures.textContent = `${stats.baseYear}년 전국 ${stats.category}: ${parts.join(' · ')}`;
+  const note = document.createElement('p');
+  note.textContent = stats.note;
+  details.append(summary, figures, note);
+  if (stats.sourceUrl) {
+    const link = document.createElement('a');
+    link.href = stats.sourceUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = `출처: ${stats.agency} ${stats.title} (공공데이터포털)`;
+    details.append(link);
+  }
+  return details;
+}
+
 function render(payload) {
   result.replaceChildren();
   result.hidden = false;
@@ -131,14 +226,26 @@ function render(payload) {
   badge.className = 'scam-result-headline';
   badge.textContent = resultHeadline(payload);
   conclusion.append(heading, badge);
+  if (payload.summary) {
+    const summary = document.createElement('p');
+    summary.className = 'scam-result-summary';
+    summary.textContent = payload.summary;
+    conclusion.append(summary);
+  }
   result.append(conclusion);
+  const check = payload.doubleCheck || null;
   [
+    doubleCheckSection(check),
     list('지금 하실 일', payload.doNow),
     list('하지 마세요', payload.doNot),
     list('왜 그렇게 판단했나요?', payload.reasons),
     list('확인된 내용', payload.confirmedFacts),
     list('아직 확인되지 않은 내용', payload.unverifiedItems),
     payload.incidentTriage ? list('이미 눌렀다면 해야 할 일', payload.incidentTriage.actions) : null,
+    sourceList('피해가 생겼다면', check?.reportPaths, 'scam-official-sources scam-report-paths'),
+    sourceList('공식 근거', payload.officialSources, 'scam-official-sources'),
+    sourceList('번호·계좌를 직접 조회할 수 있는 공식 서비스', check?.selfChecks, 'scam-official-sources scam-self-checks'),
+    policeStatisticsDetails(payload.policeStatistics),
   ].filter(Boolean).forEach(section => result.append(section));
   if (payload.evidence.length) {
     const details = document.createElement('details');
