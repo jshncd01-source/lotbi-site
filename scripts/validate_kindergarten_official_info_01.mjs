@@ -31,12 +31,16 @@ const client = await import('../site-kindergarten-client.js');
 const education = await import('../site-life-education.js');
 const sections = await import('../site-consumer-sections.js');
 
-await check('생활정보 lists 유치원·학교 with its own screen', () => {
-  const item = sections.LIFE_SHORTCUTS.find(entry => entry.id === 'education');
-  assert.ok(item && item.label === '유치원·학교' && !item.prompt);
+await check('지역정보: 유치원·학교 찾기 opens its own screen from 내 아이 학교·유치원', () => {
+  // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: no separate 유치원·학교 card; the public
+  // lookup stays one tap inside the 내 아이 학교·유치원 card.
+  assert.equal(sections.LIFE_SHORTCUTS.some(entry => entry.id === 'education'), false);
+  const card = sections.LIFE_SHORTCUTS.find(entry => entry.id === 'my-child');
+  const choice = card?.children?.find(entry => entry.id === 'education');
+  assert.ok(choice && choice.label === '유치원·학교 찾기' && !card.prompt);
   const source = read('site-consumer-sections.js');
   assert.match(source, /import\('\.\/site-life-education\.js\?v=aset-[0-9a-f]{12}'\)/u);
-  assert.match(source, /item\.id === 'education' \? openEducation\(item\)/u);
+  assert.match(source, /if \(choice\.id === 'education'\) openEducation\(\{id: 'education', label: '유치원·학교'\}, item\.id\);/u);
 });
 
 await check('Core contract normalizes and keeps the kinder code', () => {
@@ -186,9 +190,12 @@ const SCENARIO = `(async () => {
 
   document.querySelector('[data-consumer-section="life"]').click();
   const panel = await wait(() => document.querySelector('.consumer-section-panel'), 'life surface');
-  const shortcut = await wait(() => panel.querySelector('[data-life-shortcut="education"]'), 'education shortcut');
+  const shortcut = await wait(() => panel.querySelector('[data-life-shortcut="my-child"]'), 'my-child shortcut');
   result.shortcut = {label: shortcut.textContent.trim(), box: box(shortcut), grid: box(shortcut.parentElement)};
   shortcut.click();
+  const choice = await wait(() => panel.querySelector('[data-child-choice="education"]'), '유치원·학교 찾기 choice');
+  result.choice = {label: choice.textContent.trim(), h: box(choice).h};
+  choice.click();
   const edu = await wait(() => panel.querySelector('.lotbi-edu'), 'education screen');
   result.tabs = [...edu.querySelectorAll('[data-edu-tab]')].map(t => ({id: t.dataset.eduTab, text: t.textContent.trim(), selected: t.getAttribute('aria-selected'), h: box(t).h}));
   if (${'${DISABLED}'}) {
@@ -392,7 +399,9 @@ try {
     const r = await runCase(browser, origin, dir, testCase, 'inner.html', false);
     const label = testCase.label;
     await check(`${label}: 유치원·학교 opens 학교 / 유치원 tabs, 유치원 first`, () => {
-      assert.equal(r.shortcut.label, '유치원·학교');
+      assert.equal(r.shortcut.label, '내 아이 학교·유치원');
+      assert.equal(r.choice.label, '유치원·학교 찾기');
+      assert.ok(r.choice.h >= 44, `choice touch target ${r.choice.h}`);
       assert.deepEqual(r.tabs.map(tab => [tab.id, tab.selected]), [['school', 'false'], ['kindergarten', 'true']]);
       assert.ok(r.tabs.every(tab => tab.h >= 44), JSON.stringify(r.tabs));
     });

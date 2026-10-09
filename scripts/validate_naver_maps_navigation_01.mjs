@@ -219,8 +219,11 @@ assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
 assert.match(renderer, /mapAction\.target = '_blank'/u);
 assert.match(renderer, /mapAction\.rel = 'noopener noreferrer'/u);
 assert.match(renderer, /mapAction\.dataset\.action = mapPresentation\.action/u);
-// LIFE-MEDICAL-AUTO-SEARCH-CARD-01: one line route icon; the chosen map app is named in its label.
-assert.match(renderer, /addActionIcon\(mapAction, 'route'\)/u);
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the chosen map app's approved icon
+// image again (not a generic route line); its name stays in the label.
+assert.match(renderer, /addActionIcon\(mapAction, mapPresentation\.icon\)/u);
+assert.match(renderer, /\/assets\/place-actions\/\$\{iconName\}\.png\?v=\$\{PLACE_ACTION_ICON_VERSION\}/u);
+assert.doesNotMatch(renderer, /PLACE_ACTION_ICON_PATHS|addActionIcon\(mapAction, 'route'\)/u);
 assert.match(renderer, /길찾기 \(\$\{mapPresentation\.label\}\)/u);
 assert.match(renderer, /addActionIcon\(phone, 'phone'\)/u);
 assert.doesNotMatch(renderer, /addActionLabel|lotbi-place-action-label/u);
