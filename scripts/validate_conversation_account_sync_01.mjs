@@ -387,10 +387,12 @@ async function main() {
   const server = await startServer();
   const origin = `http://127.0.0.1:${server.address().port}`;
   // The browser profile lives in a temporary folder inside the repository, like
-  // the other browser validators: the Linux gate's browser could not report
-  // DevToolsActivePort from a profile under the system temp folder.
+  // the other browser validators. The profile folder itself must exist before
+  // launch: the Linux gate's browser wrapper copies DevToolsActivePort into it
+  // (cp fails on a missing folder), while Windows Chrome creates it on its own.
   const workDir = fs.mkdtempSync(path.join(ROOT, 'scripts/.conversation-sync-'));
-  const cdp = await openBrowser(browser, path.join(workDir, 'profile'));
+  const profile = fs.mkdtempSync(path.join(workDir, 'profile-'));
+  const cdp = await openBrowser(browser, profile);
   const passed = [];
   const step = label => { passed.push(label); console.log(`PASS ${label}`); };
   const U1 = 'user-one';
