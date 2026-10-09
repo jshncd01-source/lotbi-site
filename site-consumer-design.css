@@ -184,6 +184,32 @@ body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 28px;
   }
   body.chat-home-page .site-modal-backdrop:has(> .site-calendar-chat-popup) { padding: 12px; }
 }
+/* Calendar popup on a phone: the title row and one short line above the
+   Calendar, so the week -- all seven days -- starts within the first screen. */
+@media (max-width: 600px) {
+  body.chat-home-page .site-modal-backdrop:has(> .site-calendar-chat-popup) { padding: 8px; }
+  body.chat-home-page .site-modal.site-calendar-chat-popup {
+    width: 100%;
+    height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 16px);
+    padding: 8px 12px 12px;
+    border-radius: 16px;
+  }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-header { padding: 0; gap: 8px; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-header h2 { font-size: 18px; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-header .site-modal-close { margin-right: -8px; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-description { padding: 0 0 8px; font-size: 12.5px; line-height: 1.45; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-content { padding: 2px 4px 8px; }
+  body.chat-home-page .site-calendar-chat-popup .calendar-product-shell { gap: 8px; }
+}
+/* With the slimmer frame a 360px phone has room for ‹ 기간 › 오늘 설정 on one
+   row, as every wider phone already shows; only a 320px phone still moves
+   설정 down beside the view tabs to keep the title whole. */
+@media (min-width: 341px) and (max-width: 380px) {
+  body.chat-home-page .site-calendar-chat-popup .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px auto 44px; }
+  body.chat-home-page .site-calendar-chat-popup .calendar-toolbar > .calendar-settings-button { grid-column: 5; grid-row: 1; }
+  body.chat-home-page .site-calendar-chat-popup .calendar-toolbar > .calendar-mode-tabs { grid-column: 1 / -1; }
+}
 @media (max-width: 600px) {
   body.chat-home-page .consumer-workspace { padding: 20px; }
   .consumer-workspace .consumer-shortcut { min-height: 100px; padding: 16px 12px; gap: 16px; }

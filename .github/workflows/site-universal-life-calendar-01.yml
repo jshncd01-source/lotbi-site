@@ -76,6 +76,7 @@ on:
       - 'scripts/validate_calendar_week_timegrid_ui_01.mjs'
       - 'scripts/validate_calendar_recurring_events_01.mjs'
       - 'scripts/validate_calendar_week_mobile_vertical_01.mjs'
+      - 'scripts/validate_calendar_mobile_week_ux_weather_01.mjs'
       - 'site-calendar-lunar.js'
       - 'scripts/validate_calendar_lunar_model_01.mjs'
       - 'scripts/validate_calendar_lunar_settings_ui_01.mjs'
@@ -204,6 +205,7 @@ jobs:
           node scripts/validate_calendar_week_timegrid_model_01.mjs
           node scripts/validate_calendar_week_timegrid_ui_01.mjs
           node scripts/validate_calendar_week_mobile_vertical_01.mjs
+          node scripts/validate_calendar_mobile_week_ux_weather_01.mjs
       - name: 반복 일정·반복 알림 (repeat + reminders in the record editor)
         run: node scripts/validate_calendar_recurring_events_01.mjs
       - name: 음력 (lunar date) display setting
