@@ -186,8 +186,9 @@ await check('registry-only medical card says there are no hours and never "진�
 });
 
 await check('the 전북 맛집·음식 entry builds the sentence Core reads; location only for 내 주변', async () => {
-  // Right after 지역생활정보, before 유치원·학교 and 내 아이 학교·유치원 (main's order).
-  assert.deepEqual(LIFE_SHORTCUTS.slice(-4).map(item => item.label), ['지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
+  // Right after 지역생활정보, before 내 아이 학교·유치원 (REGIONAL-INFO-APPROVED-UX-RESTORE-P0:
+  // 유치원·학교 now opens from inside 내 아이 학교·유치원).
+  assert.deepEqual(LIFE_SHORTCUTS.slice(-3).map(item => item.label), ['지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
   assert.equal(regional.buildJeonbukFoodPrompt({}), '전북 맛집 알려줘');
   assert.equal(regional.buildJeonbukFoodPrompt({region: '전주', food: '비빔밥'}), '전북 전주 비빔밥 맛집 알려줘');
   assert.equal(regional.buildJeonbukFoodPrompt({region: '완산구에서'}), '전북 완산구 맛집 알려줘');

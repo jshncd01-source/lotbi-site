@@ -1,5 +1,5 @@
-import {redeemSiteHandoff, SITE_CALLBACK_URI} from './site-core.js?v=aset-4ba1a3ab58c0';
-import {parseSiteRouteHash} from './site-route.js?v=aset-4ba1a3ab58c0';
+import {redeemSiteHandoff, SITE_CALLBACK_URI} from './site-core.js?v=aset-64e669944e50';
+import {parseSiteRouteHash} from './site-route.js?v=aset-64e669944e50';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';

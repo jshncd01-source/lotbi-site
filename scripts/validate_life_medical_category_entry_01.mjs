@@ -358,7 +358,10 @@ async function runCase(browser, origin, dir, testCase) {
     for (const card of main.shortcuts) {
       assert.ok(card.box.x >= main.panel.x - 0.5 && card.box.right <= main.panel.right + 0.5, `${testCase.label}: ${card.label} inside the panel ${JSON.stringify(card.box)} / ${JSON.stringify(main.panel)}`);
       assert.ok(card.box.x >= 0 && card.box.right <= main.viewport.w, `${testCase.label}: ${card.label} inside the viewport`);
-      assert.equal(card.lines, 1, `${testCase.label}: ${card.label} label stays on one line`);
+      // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: in the phone two-column menu a long
+      // name (내 아이 학교·유치원) wraps at a word gap to a second line inside the
+      // same card height — never a third line, never clipped (checked below).
+      assert.ok(card.lines >= 1 && card.lines <= 2, `${testCase.label}: ${card.label} label on one or two lines (${card.lines})`);
       assert.equal(card.labelClipped, false, `${testCase.label}: ${card.label} label not clipped`);
       assert.ok(card.box.h >= 44, `${testCase.label}: ${card.label} touch target ${card.box.h}px`);
       // 온누리상품권 keeps a reserved logo slot instead of an icon until the

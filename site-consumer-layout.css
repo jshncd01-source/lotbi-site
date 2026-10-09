@@ -165,7 +165,8 @@ body.chat-home-page .scam-status { font-size: 13px; line-height: 1.7; }
   /* Phones keep the approved two columns; long names wrap at word gaps. */
   body.chat-home-page .consumer-workspace .consumer-shortcuts { gap: 0 16px; }
   body.chat-home-page .consumer-workspace .consumer-shortcut { min-height: 60px; padding: 10px 4px; gap: 10px; }
-  body.chat-home-page .consumer-workspace .consumer-shortcut > span { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.35; }
+  /* 1.25 keeps a two-line name inside the same 60px card as a one-line one. */
+  body.chat-home-page .consumer-workspace .consumer-shortcut > span { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.25; }
   body.chat-home-page .consumer-workspace .consumer-life-detail h3 { font-size: 25px; }
   body.chat-home-page .consumer-workspace .consumer-empty { min-height: 280px; }
   body.chat-home-page .scam-input-kinds label { flex-direction: row; min-height: 48px; }
