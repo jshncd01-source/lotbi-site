@@ -161,7 +161,10 @@ try {
     actions:actions.map(node=>({
       action:node.dataset.action,
       text:(node.textContent||'').trim(),
-      iconSize:(()=>{const icon=node.querySelector('svg.lotbi-place-action-icon');if(!icon)return 0;const r=icon.getBoundingClientRect();return Math.round(Math.max(r.width,r.height));})(),
+      // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the approved LOTBI icon images again.
+      iconSrc:node.querySelector('.lotbi-place-action-icon-image')?.getAttribute('src')||'',
+      iconSize:(()=>{const icon=node.querySelector('.lotbi-place-action-icon');if(!icon)return 0;const r=icon.getBoundingClientRect();return Math.round(Math.max(r.width,r.height));})(),
+      lineIcon:Boolean(node.querySelector('svg.lotbi-place-action-icon')),
       aria:node.getAttribute('aria-label')||'',
       target:node.getAttribute('target')||'',
       rel:node.getAttribute('rel')||'',
@@ -249,7 +252,11 @@ try {
       // LIFE-MEDICAL-AUTO-SEARCH-CARD-01: a small round icon button, not half the card.
       assert.ok(action.w<=48&&action.h<=48,`${testCase.label}: ${action.action} stays a small icon button (${action.w}x${action.h})`);
       assert.equal(action.text,'',`${testCase.label}: ${action.action} visible label`);
-      assert.ok(action.iconSize>=20&&action.iconSize<=24,`${testCase.label}: ${action.action} icon ${action.iconSize}px`);
+      // The approved LOTBI phone icon and the chosen map app's icon (no line drawing).
+      const iconName={phone:'phone','naver-map':'naver-map','kakao-navi':'kakao-map',tmap:'tmap','google-maps':'google-maps'}[action.action];
+      assert.equal(action.iconSrc,`/assets/place-actions/${iconName}.png?v=place-icons-20260925`,`${testCase.label}: ${action.action} icon`);
+      assert.equal(action.lineIcon,false,`${testCase.label}: ${action.action} has no generic line icon`);
+      assert.equal(action.iconSize,32,`${testCase.label}: ${action.action} icon ${action.iconSize}px`);
       assert.ok(action.aria.includes(PLACE_RESULT.results[0].name),`${testCase.label}: aria`);
       if(action.action!=='phone') {
         assert.equal(action.target,'_blank');
