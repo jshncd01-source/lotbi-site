@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-0ba63926561c';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-0ba63926561c';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-61e987070df0';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-61e987070df0';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -149,7 +149,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -250,7 +250,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-0ba63926561c').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-61e987070df0').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
       }).catch(() => {
@@ -267,7 +267,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
     root.append(heading, grid);
   } else if (section === 'wallet') {
-    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt});
+    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt, sessionToken});
   } else if (section === 'care') {
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');

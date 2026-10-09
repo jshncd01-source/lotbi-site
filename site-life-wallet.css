@@ -91,6 +91,13 @@
 .wallet-photo-scanner-host:empty { display: none; }
 .wallet-form-intro { margin: -6px 0 2px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
 .wallet-backup-warning { margin: -4px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--lotbi-surface-subtle); color: var(--consumer-text-secondary, var(--consumer-muted)); font-size: 13px; line-height: 1.65; }
+.wallet-server-backup-notice { margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--lotbi-border-default); background: var(--lotbi-surface-subtle); color: var(--lotbi-text-primary, inherit); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.wallet-empty .wallet-server-backup-notice { margin: 14px 0 8px; }
+.wallet-password-strength { margin: -6px 0 0; color: var(--consumer-muted); font-size: 12px; }
+.wallet-password-strength[data-strength='weak'] { color: var(--lotbi-error-text, #b42332); }
+.wallet-password-strength[data-strength='strong'] { color: var(--lotbi-success-text, #2e7d32); }
+.wallet-confirm-check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.55; color: var(--lotbi-text-primary, inherit); cursor: pointer; }
+.wallet-confirm-check input { flex: 0 0 auto; width: 18px; height: 18px; margin: 1px 0 0; }
 .wallet-form-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 6px; }
 .wallet-detail { display: grid; gap: 24px; }
 .wallet-detail-header { display: flex; align-items: center; gap: 16px; }
