@@ -578,7 +578,7 @@ async function runCase(browser, origin, dir, testCase) {
     await evaluate('history.back(), true');
     await sleep(900);
     await evaluate('history.forward(), true');
-    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 6"), `${label}: forward restores 생활정보`);
+    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 7"), `${label}: forward restores 생활정보`);
     await sleep(600);
     state = await probe();
     assert.equal(state.sent.length, 4, `${label}: back / forward sends nothing`);
