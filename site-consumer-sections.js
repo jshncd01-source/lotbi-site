@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-70f733afa919';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-70f733afa919';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-c59eb03d8c21';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-c59eb03d8c21';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -199,7 +199,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-70f733afa919').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-c59eb03d8c21').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
