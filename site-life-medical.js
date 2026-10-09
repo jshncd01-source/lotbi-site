@@ -26,6 +26,18 @@ export function medicalStatusLines(place, {partial = false} = {}) {
     if (partial) limits.push('일부 기관만 확인');
     lines.push({state: 'CONFIRM', text: limits.join(' · ')});
   }
+  // JEONBUK-PILOT-01: 전북 의료기관 현황 adds what kind of institution it is.
+  // The registry has no hours: a registry-only card says so, never "진료 중".
+  const registry = place?.medicalRegistry;
+  if (registry) {
+    const parts = [registry.institutionType, registry.departments.slice(0, 4).join(', ')].filter(Boolean);
+    lines.push({state: 'REGISTRY', text: `전북 의료기관 등록정보${parts.length ? ` · ${parts.join(' · ')}` : ''}`});
+    if (registry.registryState === 'CLOSED_IN_REGISTRY' || registry.registryState === 'SUSPENDED_IN_REGISTRY') {
+      const word = registry.registryState === 'CLOSED_IN_REGISTRY' ? '폐업' : '휴업';
+      lines.push({state: 'REGISTRY_CONFLICT', text: `전북 등록정보에는 ${word}으로 표시돼 있어요 · 방문 전 전화로 확인해 주세요`});
+    }
+    if (registry.registryOnly) lines.push({state: 'REGISTRY_NO_HOURS', text: '진료시간 정보 없음 · 방문 전 전화로 확인해 주세요'});
+  }
   const emergency = place?.emergencyStatus;
   if (emergency) {
     if (emergency.realtimeState === 'FRESH') {
