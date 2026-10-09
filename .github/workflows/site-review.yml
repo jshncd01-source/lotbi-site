@@ -122,6 +122,9 @@ jobs:
       - name: Validate canonical email-first identity profile
         run: node scripts/validate_identity_profile_hotfix_02.mjs
 
+      - name: Validate new social signup profile summary
+        run: node scripts/validate_social_signup_profile_ux_01.mjs
+
       # Run the feature-owned profile regression before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
 

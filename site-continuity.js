@@ -1,5 +1,5 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=aset-f0f202fb6c78';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-f0f202fb6c78';
+import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=aset-881009a228c5';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-881009a228c5';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -268,7 +268,7 @@ function markAuthenticatedSidebarAccountUi() {
     button.setAttribute('aria-label', '계정 메뉴 열기');
     const primary = document.createElement('span');
     primary.className = 'sidebar-account-name';
-    primary.textContent = 'LOTBI 사용자';
+    primary.textContent = '내 프로필';
     button.append(primary);
     slot.replaceChildren(button);
     setSidebarAuthState(slot, AUTH_STATE_AUTHENTICATED, false);
