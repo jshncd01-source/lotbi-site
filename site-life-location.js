@@ -8,23 +8,44 @@
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-da1cc4911b7a';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-da1cc4911b7a';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-da1cc4911b7a';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-1349a7eafa03';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-1349a7eafa03';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-1349a7eafa03';
 
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이)/u;
 const LIFE_NEARBY_RE = /(?:근처|주변|부근|인근|가까운|가까이|내\s*위치|우리\s*동네|여기)/u;
 const LIFE_TIME_RE = /(?:지금|현재|당장|문\s*(?:연|열린|여는)|야간|심야|밤|새벽|일요일|토요일|주말|공휴일|휴일|연휴|24\s*시|응급실)/u;
 const LABEL_UNSAFE_RE = /[^0-9A-Za-z가-힣·.\- ]/gu;
+// ONNURI-MERCHANT-01: an 온누리상품권 merchant question is answered nearest-first
+// when no region is named, so it carries the same coarse location. "온누리약국"
+// and similar shop names are not voucher questions.
+const ONNURI_RE = /온누리(?!\s*(?:약국|교회|병원|의원|한의원|치과|안과|마트|아파트|빌딩|타워|센터|호텔))/u;
+const ONNURI_CUE_RE = /(?:상품권|가맹|되는|돼|가능|사용|쓸\s*수|결제|받는|취급)/u;
+const ONNURI_ANSWER_HEADER = '**온누리상품권 가맹점**';
+const ONNURI_FOLLOW_UP_RE = /(?:가까운|가장|제일|근처|주변|길\s*찾기|길\s*안내|더\s*보여|\d+\s*곳|모바일|디지털|지류|카드|식당|카페|번째)/u;
 
 export const LIFE_LOCATION_SOURCE = Object.freeze({
   CURRENT: 'BROWSER_CURRENT',
   SAVED_REGION: 'SAVED_REGION',
 });
 
-export function lifeLocationIntent(text) {
+export function onnuriLocationIntent(text, recentContext = []) {
   const value = typeof text === 'string' ? text : '';
-  if (!value || !LIFE_TARGET_RE.test(value)) return false;
+  if (!value) return false;
+  if (ONNURI_RE.test(value) && ONNURI_CUE_RE.test(value)) return true;
+  // A short follow-up right after an Onnuri answer ("가까운 2곳", "그중 가장 가까운 곳 길찾기").
+  const last = Array.isArray(recentContext)
+    ? [...recentContext].reverse().find(item => item && item.role === 'assistant')
+    : null;
+  return Boolean(last && typeof last.text === 'string' && last.text.startsWith(ONNURI_ANSWER_HEADER)
+    && value.length <= 60 && ONNURI_FOLLOW_UP_RE.test(value));
+}
+
+export function lifeLocationIntent(text, recentContext = []) {
+  const value = typeof text === 'string' ? text : '';
+  if (!value) return false;
+  if (onnuriLocationIntent(value, recentContext)) return true;
+  if (!LIFE_TARGET_RE.test(value)) return false;
   return LIFE_NEARBY_RE.test(value) || LIFE_TIME_RE.test(value);
 }
 
@@ -55,8 +76,9 @@ export async function resolveLifeLocationContext(text, {
   readSavedRegion = readCalendarManualWeatherRegion,
   locationUsageEnabled = isLocationUsageEnabled,
   timeoutMs = 8_000,
+  recentContext = [],
 } = {}) {
-  if (!lifeLocationIntent(text)) return null;
+  if (!lifeLocationIntent(text, recentContext)) return null;
   let usageEnabled = false;
   try { usageEnabled = locationUsageEnabled() === true; } catch { usageEnabled = false; }
   if (usageEnabled) {

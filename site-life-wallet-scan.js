@@ -886,7 +886,7 @@ function fullPageDocument(smooth,light,width,height){
   const x0=Math.max(sheetLeft,left-pad);const x1=Math.min(sheetRight,right+pad);const y0=Math.max(sheetTop,top-pad);const y1=Math.min(sheetBottom,bottom+pad);
   const area=(x1-x0+1)*(y1-y0+1);const areaRatio=area/(width*height);
   if(areaRatio<.35||total/area>.5)return null;
-  return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
+  return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',sheet:{left:sheetLeft,top:sheetTop,right:sheetRight,bottom:sheetBottom},metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
 }
 
 // Strict surface model first; illumination adaptation only when it finds no document.
@@ -1147,10 +1147,16 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   // photo with hardly any (a pet, a person, a room) is not cropped, and the scanner refuses it.
   const marks=printMarks(working,surface.smooth,surface.light);
   const lines=textLines(working,marks,null);
-  const card=Boolean(chosen)&&chosen.source!=='full-page';
   const itemSource=detail?.data&&sourceScale<1?detail:imageData;const itemScale=itemSource===detail?1/(working.scale*sourceScale):1/working.scale;
-  const item=card?itemMarks(itemSource,Object.fromEntries(Object.entries(chosen.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}]))):null;
-  const chosenLines=chosen?(card?cardLines(item.working,item.marks,null,ITEM_GLYPH):textLines(working,marks,chosen.corners)):0;
+  // Print rows: a page counts rows on the working image; a card counts them on a card squared
+  // up from the full photo.
+  const rowsOf=candidate=>{
+    if(!candidate)return 0;if(candidate.source==='full-page')return textLines(working,marks,candidate.corners);
+    const item=itemMarks(itemSource,Object.fromEntries(Object.entries(candidate.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}])));
+    return cardLines(item.working,item.marks,null,ITEM_GLYPH);
+  };
+  let card=Boolean(chosen)&&chosen.source!=='full-page';
+  let chosenLines=rowsOf(chosen);
   if(lines<MINIMUM_TEXT_LINES&&!(card&&chosenLines>=MINIMUM_TEXT_LINES)){chosen=null;reason='not-a-document'}
   // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
   // rooms a handful); a card needs a couple of lines of print inside its outline.
@@ -1158,13 +1164,44 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   // Receipts are long thin strips (about 2:1 and longer); cards are 1.59:1, A4 1.41:1, Letter
   // 1.29:1 and business cards 1.75:1. A receipt is not saved as a wallet item automatically.
   else if(chosen&&quadAspect(chosen.corners)>=1.85){chosen=null;reason='receipt-like'}
+  // Nothing found, but the picture may itself be the card: a business card or ID saved as an
+  // image file or a flat scan (its photo block or logo is no card of its own). Never for a
+  // photo already refused as not a document or as a receipt.
+  if(!chosen&&['automatic-detection-uncertain','competing-documents','competing-boundaries'].includes(reason)){
+    const frame=fullFrameCard(surface,working,marks);const rows=rowsOf(frame);
+    if(frame&&rows>=MINIMUM_TEXT_LINES){chosen=frame;card=true;chosenLines=rows;reason='document-quadrilateral'}
+  }
   const diagnostics=scanDiagnostics(working,surface,legacy,chosen);
   diagnostics.textLines=lines;
   if (!chosen) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:legacyConfidence,mode:'manual',reason,diagnostics};
-  const paper=chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners));
+  // A full-frame card keeps its colours and the orientation it was saved in.
+  const flat=chosen.source==='full-frame-card';
+  const paper=!flat&&(chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners)));
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
-  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation:paper||!card?0:uprightRotation(working,marks,chosen.corners),diagnostics};
+  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation:paper||!card||flat?0:uprightRotation(working,marks,chosen.corners),diagnostics};
+}
+
+// The whole picture as a card: its paper (light, nearly colourless) spans the frame, the frame
+// is card-shaped (1.45 to 1.85 : 1 either way; photos are 1.33 or 1.5, phone screens 2 and
+// longer), it holds fewer rows than a page, and it is flat: the paper is equally bright in all
+// four quarters, as in an image file or a scan, while a camera photo of a desk falls off
+// towards one side with the light.
+function fullFrameCard(surface,working,marks){
+  const {width,height}=working;const page=fullPageDocument(surface.smooth,surface.light,width,height);
+  if(!page?.sheet||textLines(working,marks,page.corners)>=12)return null;
+  const {left,top,right,bottom}=page.sheet;const across=right-left+1;const down=bottom-top+1;const ratio=Math.max(across,down)/Math.max(1,Math.min(across,down));
+  if(ratio<1.45||ratio>1.85||across<width*.9||down<height*.9)return null;
+  const sums=[0,0,0,0];const counts=[0,0,0,0];const smooth=surface.smooth;
+  for(let y=top;y<=bottom;y+=2)for(let x=left;x<=right;x+=2){
+    const index=y*width+x;const red=smooth[index*3];const green=smooth[index*3+1];const blue=smooth[index*3+2];const tone=red*.299+green*.587+blue*.114;
+    if(tone<150||Math.max(red,green,blue)-Math.min(red,green,blue)>40)continue;
+    const quarter=(y<(top+bottom)/2?0:2)+(x<(left+right)/2?0:1);sums[quarter]+=tone;counts[quarter]+=1;
+  }
+  if(counts.some(count=>count<20))return null;
+  const means=sums.map((sum,quarter)=>sum/counts[quarter]);
+  if(Math.max(...means)-Math.min(...means)>10)return null;
+  return {corners:{topLeft:{x:left,y:top},topRight:{x:right,y:top},bottomRight:{x:right,y:bottom},bottomLeft:{x:left,y:bottom}},confidence:.8,areaRatio:across*down/(width*height),area:across*down,source:'full-frame-card',metrics:{cornerRadius:0}};
 }
 
 // Edge-component and corner-patch candidates (the original pipeline).
@@ -1366,6 +1403,57 @@ export function assessDocumentQuality(imageData, {corners} = {}) {
   return warnings;
 }
 
+// Light reflected off a glossy card or its laminate blows part of it out to white and the
+// print under it is lost. Such a spot is a compact, colourless patch at the top of the range,
+// clearly brighter than the card beyond its halo (210 or darker there), empty of print while
+// the rows it lies on are printed beside it (the lettering runs into it and stops). A card
+// that is bright all over, or a bright blank area, is not glare: its print still shows or
+// nothing is there. Returns the share of the item (inside a 6% border) covered by such spots,
+// judged on the squared-up photo before any enhancement.
+export function coveringGlare(imageData){
+  const {data,width,height}=imageData;const step=Math.max(1,Math.ceil(Math.max(width,height)/600));
+  const left=Math.round(width*.06);const top=Math.round(height*.06);
+  const w=Math.max(1,Math.floor((width-2*left)/step));const h=Math.max(1,Math.floor((height-2*top)/step));
+  const tone=new Float32Array(w*h);const bright=new Uint8Array(w*h);
+  for(let y=0;y<h;y+=1)for(let x=0;x<w;x+=1){
+    const offset=((top+y*step)*width+left+x*step)*4;const red=data[offset];const green=data[offset+1];const blue=data[offset+2];
+    const value=red*.299+green*.587+blue*.114;tone[y*w+x]=value;bright[y*w+x]=value>=248&&Math.max(red,green,blue)-Math.min(red,green,blue)<=14?1:0;
+  }
+  // A card that is bright all over (median above 215: a white card in strong light, a white
+  // scan) leaves too little room above it to tell a reflection from its own blank areas.
+  const sorted=Float32Array.from(tone).sort();const median=sorted[Math.floor(sorted.length/2)];if(median>215)return 0;
+  const inkLevel=Math.min(150,median-30);let ink=0;for(let index=0;index<tone.length;index+=1)if(tone[index]<inkLevel)ink+=1;const printed=ink/(w*h);
+  if(printed<=0)return 0;
+  const {components}=labelComponents(bright,w,h,Math.max(4,Math.round(w*h*.001)));
+  // Mean tone and share of print in a band around the patch's box, and share of print inside it.
+  const around=(component,pad)=>{let sum=0;let count=0;let marks=0;
+    for(let y=Math.max(0,component.minimumY-pad);y<=Math.min(h-1,component.maximumY+pad);y+=1)for(let x=Math.max(0,component.minimumX-pad);x<=Math.min(w-1,component.maximumX+pad);x+=1){
+      if(x>=component.minimumX&&x<=component.maximumX&&y>=component.minimumY&&y<=component.maximumY)continue;
+      const value=tone[y*w+x];sum+=value;count+=1;if(value<inkLevel)marks+=1;
+    }
+    return count?{tone:sum/count,print:marks/count}:{tone:255,print:0};};
+  let covered=0;
+  for(const component of components){
+    const boxWidth=component.maximumX-component.minimumX+1;const boxHeight=component.maximumY-component.minimumY+1;
+    if(component.count/(boxWidth*boxHeight)<.4)continue;
+    let marks=0;for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=component.minimumX;x<=component.maximumX;x+=1)if(tone[y*w+x]<inkLevel)marks+=1;
+    if(marks/(boxWidth*boxHeight)>printed*.3)continue;
+    // The card beyond the reflection's soft halo is darker than the patch, and the printed rows
+    // it lies on carry on at its left and right (lettering runs into it and stops).
+    if(around(component,Math.max(8,Math.round(Math.max(boxWidth,boxHeight)*.8))).tone>210)continue;
+    const span=Math.max(8,boxWidth);let sidePrint=0;
+    for(const [from,to] of [[component.minimumX-span,component.minimumX-1],[component.maximumX+1,component.maximumX+span]]){
+      let marks=0;let count=0;
+      for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=Math.max(0,from);x<=Math.min(w-1,to);x+=1){count+=1;if(tone[y*w+x]<inkLevel)marks+=1}
+      if(count)sidePrint=Math.max(sidePrint,marks/count);
+    }
+    if(sidePrint<.05)continue;
+    covered+=component.count;
+  }
+  return covered/(w*h);
+}
+const GLARE_COVERS_PRINT=.003;
+
 // Pixels outside a rounded card corner are surface, not card: give them the colour of the
 // card just inside the corner arc so the corrected card carries no background wedges.
 function fillRoundedCorners(imageData,relativeRadius){
@@ -1388,7 +1476,9 @@ function fillRoundedCorners(imageData,relativeRadius){
   }
 }
 
-export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0, paper=false, rotation=0} = {}) {
+// gloss: check for light reflected over the print (a camera photo of a card); off for pages,
+// PDF pages and pictures that are the card itself.
+export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0, paper=false, rotation=0, gloss=true} = {}) {
   const sourcePixels=sourceImageData(source); const ordered=orderDocumentCorners(Object.values(corners));
   // Turning the output clockwise by quarter turns: the output's top-left comes from the corner
   // a quarter turn back. Quality checks keep the corners as found.
@@ -1417,5 +1507,7 @@ export async function rectifyDocument(source, corners, {enhance=true, cornerRadi
   // glossy card, and a page's blank margins drag the whole-image sharpness measure down even
   // when the print is crisp: pages are checked for resolution only.
   const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:paper?null:ordered})])].filter(code=>!paper||code==='low-resolution');
+  // A reflection over the print hides part of the item: it cannot be kept as it is.
+  if(gloss&&!paper&&coveringGlare(corrected)>=GLARE_COVERS_PRINT)warnings.push('glare-covers-print');
   return {dataUrl:canvas.toDataURL('image/jpeg',0.92),width,height,warnings,enhanced:Boolean(enhance)};
 }

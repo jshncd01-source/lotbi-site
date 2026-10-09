@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-da1cc4911b7a';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-1349a7eafa03';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -23,7 +23,39 @@ async function request(path, sessionToken, {method = 'GET', body, requestKey = '
 function person(row) { return Object.freeze({personId: row.person_id, displayName: row.display_name, nickname: row.nickname || '', relationship: row.relationship, birthYear: row.birth_year == null ? null : Number(row.birth_year), birthMonth: row.birthday_month == null ? null : Number(row.birthday_month), revision: row.revision, hasPhoto: row.has_photo === true, identityPhotoCount: Number(row.identity_photo_count || 0), identityPhotoRequired: Number(row.identity_photo_required || 10), identityPhotoState: row.identity_photo_state || 'INCOMPLETE', identityPhotoExpiresAt: row.identity_photo_expires_at || null, identityPhotoDaysRemaining: row.identity_photo_days_remaining ?? null, identityPhotoRenewalReminderDays: row.identity_photo_renewal_reminder_days ?? null, identityPhotoValidityDays: row.identity_photo_validity_days ?? null, identityPhotoRenewalPolicy: row.identity_photo_renewal_policy || null}); }
 function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_index), slotCode: row.slot_code || row.angle_code, revision: Number(row.revision), width: Number(row.width), height: Number(row.height), updatedAt: row.updated_at}); }
 function sighting(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('사람 제보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({reportId: row.report_id, observedAt: row.observed_at, locationSummary: row.location_summary, description: row.description || '', reviewState: row.review_state, photoCount: Number(row.photo_count), minimumPhotoCount: Number(row.minimum_photo_count), maximumPhotoCount: Number(row.maximum_photo_count), canSubmit: row.can_submit === true, message: row.message}); }
-function sos(row) { if (row.matching_scope !== 'ACTIVE_SOS_ONLY' || row.automatic_identity_decision !== false) throw new SiteCoreError('SOS 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({sosId: row.sos_id, personId: row.person_id, displayName: row.display_name, status: row.status, lastSeenAt: row.last_seen_at, lastSeenSummary: row.last_seen_summary, description: row.description || ''}); }
+function sos(row) { if (row.matching_scope !== 'ACTIVE_SOS_ONLY' || row.automatic_identity_decision !== false) throw new SiteCoreError('SOS 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({sosId: row.sos_id, personId: row.person_id, displayName: row.display_name, status: row.status, lastSeenAt: row.last_seen_at, lastSeenSummary: row.last_seen_summary, description: row.description || '', intake: sosIntake(row.intake)}); }
+// SAFECARE-SOS-ADMIN-INTAKE (contract B1): Core records every SOS in the
+// LOTBI SafeCare admin inbox and reports whether the admins were notified. An
+// older Core sends no `intake` block (null = unknown). The block can never fail
+// the SOS itself, and `police_report_filed` is not read: LOTBI never files a
+// police report and the screen never says it did.
+const SOS_REVIEW_STATUSES = new Set(['RECEIVED', 'IN_REVIEW', 'RESOLVED']);
+const SOS_ADMIN_NOTIFICATIONS = new Set(['PENDING', 'DELIVERED', 'RETRYING', 'FAILED']);
+function sosIntake(value) {
+  if (!value || typeof value !== 'object') return null;
+  return Object.freeze({
+    received: value.received === true,
+    reviewStatus: SOS_REVIEW_STATUSES.has(value.review_status) ? value.review_status : '',
+    adminNotification: SOS_ADMIN_NOTIFICATIONS.has(value.admin_notification) ? value.admin_notification : '',
+  });
+}
+export const PERSON_SOS_NOT_POLICE_NOTICE = '이 접수는 경찰 신고가 아닙니다. 긴급한 경우 112에 바로 신고해 주세요.';
+const SOS_ADMIN_NOTIFICATION_COPY = Object.freeze({
+  DELIVERED: '담당 관리자에게 알림을 보냈습니다.',
+  PENDING: '관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
+  RETRYING: '관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
+  FAILED: '관리자 알림 전송이 지연되고 있습니다. 접수는 완료되었으며 계속 다시 보냅니다.',
+});
+// The guardian's sentence after a successful POST /v2/person-sos. The 112 line
+// is always there; the admin inbox and notification lines only when Core said so.
+export function personSosReceivedMessage(displayName, value) {
+  const name = typeof displayName === 'string' && displayName.trim() ? `${displayName.trim()} ` : '';
+  const intake = value?.intake;
+  const lines = intake?.received === true
+    ? [`${name}실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다.`, SOS_ADMIN_NOTIFICATION_COPY[intake.adminNotification] || '']
+    : [`${name}실종 상태로 전환했습니다.`];
+  return [...lines.filter(Boolean), PERSON_SOS_NOT_POLICE_NOTICE].join(' ');
+}
 function notice(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('후보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({noticeId: row.notice_id, candidateId: row.candidate_id, personId: row.person_id, displayName: row.display_name, status: row.status, response: row.response || '', faceScore: row.face_score, photoPath: row.registered_photo_path}); }
 function personRequestKeyRandomHex() {
   const uuid = globalThis.crypto?.randomUUID?.();
@@ -48,10 +80,52 @@ export async function createPerson(sessionToken, input, fetchImpl) {
   }
 }
 export async function updatePerson(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method: 'PATCH', body: {expected_revision: input.revision, display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
-export async function deletePerson(sessionToken, value, fetchImpl) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
+// registrationCancel: Core deletes only an unfinished registration (fewer than ten
+// identity photos, no missing-person case ever) — SAFECARE-PERSON-DARK-CANCEL-01.
+export async function deletePerson(sessionToken, value, fetchImpl, {registrationCancel = false} = {}) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}${registrationCancel ? '&registration_cancel=1' : ''}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
 export async function putPersonPhoto(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}/photo`, sessionToken, {method: 'PUT', requestKey: input.requestKey || personRequestKey('photo'), body: {expected_revision: input.revision, photo_data_uri: input.dataUri}}, fetchImpl); return person(payload.person); }
 export async function listPersonIdentityPhotos(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos`, sessionToken, {}, fetchImpl); return Object.freeze((payload.photos || []).map(identityPhoto)); }
 export async function putPersonIdentityPhoto(sessionToken, personId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
+
+// SAFECARE-PHOTO-BULK-UPLOAD-01 (contract A): Core's identity slot table
+// (slot_index = position + 1) and the classify hint. Classify stores nothing
+// and compares no people; it only says which slot kinds the unchanged intake
+// gate would take. The per-slot PUT above still decides every save.
+export const PERSON_IDENTITY_SLOT_CODES = Object.freeze([
+  'FACE_FRONT', 'FACE_LEFT_45', 'FACE_RIGHT_45', 'FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE',
+  'UPPER_BODY_FRONT', 'FULL_BODY_FRONT', 'FACE_FRONT_ALT', 'FACE_LEFT_ALT', 'FACE_RIGHT_ALT',
+]);
+const CLASSIFY_STATUSES = new Set(['CLEAR', 'UNCERTAIN', 'REJECTED']);
+const CLASSIFY_VIEWS = new Set(['FRONT', 'LEFT_TURN', 'RIGHT_TURN', 'LEFT_PROFILE', 'RIGHT_PROFILE', 'UPPER_BODY', 'FULL_BODY', 'UNKNOWN']);
+function classification(row) {
+  const invalid = () => new SiteCoreError('사진 분류 결과를 확인하지 못했습니다.', {code: 'PERSON_RESPONSE_INVALID'});
+  if (!row || typeof row !== 'object') throw invalid();
+  // A hint that claims an identity check or a stored photo is not this contract.
+  if (row.identity_checked !== false || row.stored !== false) throw invalid();
+  if (!CLASSIFY_STATUSES.has(row.status) || typeof row.detected_view !== 'string') throw invalid();
+  const indexes = row.suggested_slot_indexes;
+  const codes = row.suggested_slot_codes;
+  if (!Array.isArray(indexes) || !Array.isArray(codes) || indexes.length !== codes.length || new Set(indexes).size !== indexes.length) throw invalid();
+  indexes.forEach((index, position) => {
+    if (!Number.isInteger(index) || index < 1 || index > PERSON_IDENTITY_SLOT_CODES.length || codes[position] !== PERSON_IDENTITY_SLOT_CODES[index - 1]) throw invalid();
+  });
+  const rejected = row.status === 'REJECTED';
+  if (rejected && (typeof row.rejection_code !== 'string' || !/^[A-Z0-9_]{1,80}$/.test(row.rejection_code) || indexes.length)) throw invalid();
+  if (!rejected && (row.rejection_code != null || !indexes.length)) throw invalid();
+  return Object.freeze({
+    status: row.status,
+    detectedView: CLASSIFY_VIEWS.has(row.detected_view) ? row.detected_view : 'UNKNOWN',
+    suggestedSlotIndexes: Object.freeze([...indexes]),
+    suggestedSlotCodes: Object.freeze([...codes]),
+    rejectionCode: rejected ? row.rejection_code : null,
+    identityChecked: false,
+    stored: false,
+  });
+}
+export async function classifyPersonIdentityPhoto(sessionToken, personId, dataUri, fetchImpl) {
+  const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/classify`, sessionToken, {method: 'POST', body: {photo_data_uri: dataUri}}, fetchImpl);
+  return classification(payload?.classification);
+}
 export async function listPersonSos(sessionToken, fetchImpl) { const payload = await request('/v2/person-sos?status=ACTIVE', sessionToken, {}, fetchImpl); return Object.freeze((payload.items || []).map(sos)); }
 export async function createPersonSos(sessionToken, input, fetchImpl) { const payload = await request('/v2/person-sos', sessionToken, {method: 'POST', body: {person_id: input.personId, last_seen_at: input.lastSeenAt, last_seen_summary: input.lastSeenSummary, description: input.description || null, matching_consent_confirmed: input.matchingConsentConfirmed === true}}, fetchImpl); return sos(payload.sos); }
 export async function closePersonSos(sessionToken, sosId, fetchImpl) { const payload = await request(`/v2/person-sos/${encodeURIComponent(sosId)}/close`, sessionToken, {method: 'PUT'}, fetchImpl); return sos(payload.sos); }
@@ -92,6 +166,7 @@ const PERSON_ERROR_MESSAGES = Object.freeze({
   PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
   BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
   PERSON_IDENTITY_PHOTOS_INCOMPLETE: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_REGISTRATION_CANCEL_NOT_ALLOWED: '등록이 끝났거나 실종 기록이 있는 사람은 여기서 삭제할 수 없습니다. 목록에서 정보를 확인해 주세요.',
   PERSON_PHOTO_REQUIRED: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
   PERSON_IDENTITY_PHOTOS_EXPIRED: '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 사진을 먼저 갱신해 주세요.',
   PERSON_REID_CONSENT_REQUIRED: '실종 기간 동안 사진을 후보 검색에 사용하는 데 동의해 주세요.',
