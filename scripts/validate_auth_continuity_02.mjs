@@ -19,7 +19,7 @@ const {
   hasSiteLogoutSuppression,
   markSiteLogoutSuppression,
   readAccountSessionStatus,
-  recoverMissingSiteHandoffContext,
+  recoverStaleSiteHandoff,
   shouldUseAccountSiteFallback,
 } = await import('../site-auth.js?v=20260920-authux1');
 
@@ -51,26 +51,33 @@ assert.equal(HANDOFF_RECOVERY_TTL_MS, 2 * 60 * 1000);
   };
   let statusChecks = 0;
   let handoffs = 0;
-  const recovered = await recoverMissingSiteHandoffContext(
+  let recoveredInput;
+  const recovered = await recoverStaleSiteHandoff(
     new SiteHandoffClientError('missing', 'SITE_HANDOFF_CONTEXT_MISSING'),
     {
       storage,
       now: 10_000,
       readStatus: async () => { statusChecks += 1; return true; },
-      beginHandoff: async () => { handoffs += 1; },
+      beginHandoff: async (pendingText, returnHash) => {
+        handoffs += 1;
+        recoveredInput = {pendingText, returnHash};
+      },
+      pendingText: '작성 중인 질문',
+      returnHash: '#calendar',
     },
   );
   assert.equal(recovered, true);
   assert.equal(statusChecks, 1);
   assert.equal(handoffs, 1);
+  assert.deepEqual(recoveredInput, {pendingText: '작성 중인 질문', returnHash: '#calendar'});
   assert.deepEqual(JSON.parse(data.get(HANDOFF_RECOVERY_KEY)), {
     version: 1,
     startedAt: 10_000,
     attemptCount: 1,
   });
 
-  const second = await recoverMissingSiteHandoffContext(
-    new SiteHandoffClientError('missing', 'SITE_HANDOFF_CONTEXT_MISSING'),
+  const second = await recoverStaleSiteHandoff(
+    new SiteHandoffClientError('replayed', 'SITE_HANDOFF_REPLAY_OR_INVALID'),
     {
       storage,
       now: 10_001,
@@ -83,26 +90,39 @@ assert.equal(HANDOFF_RECOVERY_TTL_MS, 2 * 60 * 1000);
   assert.equal(handoffs, 1);
 }
 
-for (const code of ['SITE_HANDOFF_STATE_MISMATCH', 'SITE_HANDOFF_CONTEXT_INVALID', 'SITE_HANDOFF_CALLBACK_INVALID', 'SITE_HANDOFF_REPLAY_OR_INVALID']) {
+for (const code of [
+  'SITE_HANDOFF_CONTEXT_MISSING',
+  'SITE_HANDOFF_STATE_MISMATCH',
+  'SITE_HANDOFF_CONTEXT_INVALID',
+  'SITE_HANDOFF_CALLBACK_INVALID',
+  'SITE_HANDOFF_REPLAY_OR_INVALID',
+  'SITE_HANDOFF_EXPIRED',
+  'SITE_HANDOFF_SOURCE_SESSION_INVALID',
+]) {
+  const data = new Map();
   let statusChecks = 0;
   let handoffs = 0;
-  const recovered = await recoverMissingSiteHandoffContext(
-    new SiteHandoffClientError('fail closed', code),
+  const recovered = await recoverStaleSiteHandoff(
+    {code},
     {
-      storage: {getItem: () => null, setItem() {}, removeItem() {}},
+      storage: {
+        getItem: key => data.get(key) ?? null,
+        setItem: (key, value) => data.set(key, String(value)),
+        removeItem: key => data.delete(key),
+      },
       readStatus: async () => { statusChecks += 1; return true; },
       beginHandoff: async () => { handoffs += 1; },
     },
   );
-  assert.equal(recovered, false, `${code} must not auto-recover`);
-  assert.equal(statusChecks, 0);
-  assert.equal(handoffs, 0);
+  assert.equal(recovered, true, `${code} must recover through a fresh verified handoff`);
+  assert.equal(statusChecks, 1);
+  assert.equal(handoffs, 1);
 }
 
 {
   let handoffs = 0;
-  const recovered = await recoverMissingSiteHandoffContext(
-    new SiteHandoffClientError('missing', 'SITE_HANDOFF_CONTEXT_MISSING'),
+  const recovered = await recoverStaleSiteHandoff(
+    new SiteHandoffClientError('invalid', 'SITE_HANDOFF_CALLBACK_INVALID'),
     {
       storage: {getItem: () => null, setItem() {}, removeItem() {}},
       readStatus: async () => false,
@@ -284,9 +304,10 @@ assert.ok(callback.includes("new CustomEvent('lotbi:site-session-state'"));
 assert.ok(callback.includes('authenticated: true'));
 assert.ok(callback.includes('expiresAt: session.expiresAt'));
 assert.ok(callback.includes('showCallbackError'));
-assert.ok(callback.includes('recoverMissingSiteHandoffContext'));
-assert.ok(callback.includes("error.code === 'SITE_HANDOFF_CONTEXT_MISSING'"));
-assert.ok(callback.includes('if (await recoverMissingSiteHandoffContext(error)) return;'));
+assert.ok(callback.includes('recoverStaleSiteHandoff'));
+assert.ok(callback.includes('if (await recoverStaleSiteHandoff(error, {'));
+assert.ok(callback.includes("pendingText: callbackRecoveryContext?.pendingText ?? ''"));
+assert.ok(callback.includes("returnHash: callbackRecoveryContext?.returnHash ?? ''"));
 assert.ok(callback.includes("document.body.classList.add('auth-callback-error-page')"));
 assert.ok(callback.includes('callbackShell.hidden = false'));
 assert.ok(callback.includes('retryLink.hidden = false'));
