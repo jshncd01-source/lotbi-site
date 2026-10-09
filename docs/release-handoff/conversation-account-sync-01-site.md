@@ -1,58 +1,81 @@
 READY_FOR_DEPLOY=YES
-MIGRATION=YES(Core p0_0110_conversation_history, 28자 — Site 자체는 migration 없음)
+SUPERSEDES=a1e8448699c64de6b11f2cde942174c85545e050 (이전 READY, main 9e39edd0 기준)
+MIGRATION=YES(Core p0_0110_conversation_history — Site 자체는 migration 없음)
 DEPLOY_ORDER=CORE → SITE(→ APP)
 APP_STORAGE_CHECK=앱 "최근 대화"는 Site WebView가 아니라 앱 자체 AsyncStorage를 씀 → lotbi-app feature/conversation-account-sync-01-app에서 같은 API로 맞춤(Android 내부 테스트까지만)
-USER_DECISION_NEEDED=개인정보처리방침 개정 시점(초안 첨부: docs/privacy-policy-conversation-history-draft-01.md) · 제6.1조 국외 이전 표에 "대화 기록" 추가 여부
+USER_DECISION_NEEDED=개인정보처리방침 개정 시점(초안: docs/privacy-policy-conversation-history-draft-01.md) · 제6.1조 국외 이전 표에 "대화 기록" 추가 여부 — 배포 차단 아님
 
-# conversation-account-sync-01 (Site) — release handoff
+# conversation-account-sync-01 (Site) — release handoff (main 576ec346 재병합)
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/conversation-account-sync-01-site
-BASE_MAIN=9e39edd06446b3e93ec68170de49df9f702e0d07 (READY 직전 `git ls-remote` 재확인, main drift 없음)
-CODE_SHA=379f62d2 (이 문서 커밋 직전의 마지막 코드 커밋)
-ASSET_VERSION=aset-ade0e342fd9c
-PAIRED=lotbi-core feature/conversation-account-sync-01-core(먼저 배포) · lotbi-app feature/conversation-account-sync-01-app
-MERGE_NOTE=로그인 유지 수정(feature/auth-session-continuity-p0-02-site 36867671)과 같은 site-conversation.js·site-continuity.js·site-auth.js를 건드림. 시험 병합(merge-tree + 실제 merge 후 abort) 결과 충돌은 import 줄 합집합과 asset 토큰뿐(기능 코드 충돌 0). 명령문대로 그 수정이 main에 들어간 뒤 배포총괄방 알림을 받으면 최신 main을 정상 merge해 재READY한다.
+FEATURE_SHA=이 문서 커밋(branch HEAD). `git ls-remote origin refs/heads/feature/conversation-account-sync-01-site`로 확인한다.
+CODE_SHA=89bb1ccca6148213e7c097cb08eb2c63d11303e5
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=576ec3465e3685e21fbe26a02a02129c76667739 (SITE-T43, 운영 aset-70f733afa919)
+MERGE_METHOD=NORMAL MERGE 1회(576ec346 → 854d9cdf). rebase·force push·reset 없음
+ASSET_VERSION=aset-f54a2f734ab0 (scripts/asset_cache_version.mjs --check PASS)
+PAIRED=lotbi-core feature/conversation-account-sync-01-core(p0_0110, 먼저 배포 — 2026-10-10 01:1x 기준 CORE-T31 gate 중) · lotbi-app feature/conversation-account-sync-01-app
+TAKEOVER=원래 개발방 세션이 없어 배포총괄방 요청(2026-10-10 01:0x)으로 생활정보 직전송 Site 방이 이어받았다. 원래 worktree `conversation-account-sync-01-site`를 썼다. 쓰는 세션·프로세스가 없음을 확인했다(남은 미추적 파일 = 원래 방 검사기 임시 폴더 4개, 손대지 않음).
 
-## 목적
-로그인 사용자의 "최근 대화"를 계정에 저장해 휴대폰·PC 어디서든 이어 보기(소유자 결정 2026-10-09). 비로그인은 지금처럼 기기에만 저장.
+## 이번 재병합
 
-## 변경
-- `site-conversation-sync.js`(새 모듈): Core `/v2/conversation-history`와 기기 사본(`lotbi.site.ux.v1.threads.<namespace>`)을 맞춘다.
-  - 로그인하면 서버 목록으로 "최근 대화"를 채운다(다른 기기 대화는 제목 먼저, 열면 메시지를 불러옴). 90초마다·탭 복귀·재연결 시 다시 확인.
-  - 충돌 규칙: 메시지 id 단위 추가, 덮어쓰지 않음. 제목·고정만 마지막 변경 우선. 메시지에 id를 붙이고(기존 메시지는 시각·역할·내용으로 만든 고정 id라 다시 올려도 중복 없음).
-  - 오프라인·실패: 기기 사본 그대로 쓰고 "동기화 대기" 표시, 5초~5분 간격 재시도 + `online`·탭 복귀 시 재시도.
-  - 처음 로그인 안내: "이 기기의 대화 N개를 계정에 올릴까요?" 계정·기기당 한 번(예 = 한 번만 올림, 아니오 = 이 기기에만, 닫으면 다음에 다시 물음).
-  - 저장 끄기: 그 뒤 대화는 기기에만(다시 켜도 끈 동안의 대화는 올리지 않음).
-  - 다른 기기에서 지운 대화는 이 기기에서도 사라짐(여기서 아직 안 올린 메시지가 있으면 다시 올림).
-  - 캘린더 초안·승인, 반려동물 SOS 동작 등 기기 전용 meta는 올리지 않음. 첨부는 id·형식·크기만.
-- `site-conversation-sync-ui.js`(새 모듈): "최근 대화" 제목 옆 상태 표시("동기화 대기" / "이 기기에만 저장")와 "대화 기록 설정" 버튼, 설정 창(계정에 대화 기록 저장 켜기·끄기, 상태 문구, 전체 대화 삭제 → 확인), 기기 대화 올리기 질문 창. 색은 테마 토큰만 사용(`site-theme-tokens.css` 무변경). 데스크톱 사이드바(좁음)에서는 상태 표시를 제목 아래 줄로.
-  - 프로필 메뉴 6항목은 기존 validator가 고정하므로 메뉴에 넣지 않았다.
-- `site-conversation.js`: 연결 줄만(메시지 추가·이름 바꾸기·고정·삭제·대화 열기 시 알림, 계정 전환 시 중지). 동기화 모듈 2개는 **/v2/me로 로그인 프로필이 확인된 뒤에만 동적 import** — 게스트와 첫 화면은 이전과 같은 모듈만 받는다(Windows python 정적 서버를 쓰는 기존 fixture validator에서 추가 병렬 모듈 요청이 연결 거부되던 문제도 이것으로 해소). 엔진이 뜨기 전에 쓴 메시지는 시작 시 id를 받고, 저장이 꺼진 상태로 시작하면 아직 안 올라간 메시지는 기기 전용으로 둔다. 삭제·이름 바꾸기 확인 문구는 계정 저장 중일 때 "이 기기와 계정에서 삭제" 등으로 안내.
-- 로그아웃: 기존 정책 그대로(기기 사본을 지우지 않고 익명 namespace로 전환). namespace는 installationId인데 Core `ClientInstallation`이 user_id에 묶여 있어 같은 브라우저라도 계정마다 다르다 → 다음 사람에게 보이지 않음(validator로 확인).
-- `.github/workflows/site-review.yml`: 새 validator 단계 추가.
-- `scripts/validate_profile_menu_improvement_01.mjs`: fixture의 가짜 Core가 새 `/v2/conversation-history/` 경로에 응답(따로 셈)하도록 한 줄 추가. "예상 밖 요청 0건" 계약은 그대로.
-- `privacy.html`·`terms.html`: 본문 무변경(asset 토큰 줄만 자동 갱신). 개정 초안은 `docs/privacy-policy-conversation-history-draft-01.md`.
+- main 9e39edd0 → 576ec346 사이에 다음이 들어왔다.
+  - 로그인 유지 P0-02(세션 갱신, `registerSiteSessionAdopter`·`SITE_SESSION_RENEWAL_REQUEST_EVENT`)
+  - 지역뉴스, 의료 자동검색, 생활정보 1탭(onAsk), 내 아이 학교·유치원
+- 충돌 66파일은 전부 asset token, 그리고 이 branch가 바꾸지 않은 import 줄·CSS 링크 목록이었다. 모두 main 쪽(새 줄)을 썼다.
+  - import 줄: site-auth / site-calendar-manager / site-consumer-sections / site-continuity / site-conversation
+  - CSS 링크 목록: index.html / auth/callback
+- 동기화 연결(`site-conversation.js` 연결 줄 9곳 + `loadConversationSync`·`renderConversationSyncUi`)은 자동 병합됐다. 연결이 부르는 main 함수 11개가 모두 그대로 있다.
+  - sortThreads, saveState, renderRecent, renderActiveThread, showBlankHome, cancelActiveTurn, modalShell, installSurfaceBehavior, newId, closeSurface, setStatus
+- 결과의 main 대비 기능 차이는 이 branch 원래 변경 8파일과 줄 수까지 같다.
+  - site-conversation.js 94, site-conversation-sync.js 732, site-conversation-sync-ui.js 302, 검사기 622 + profile_menu 1, site-review.yml 4, 문서 2개
+  - 즉 병합으로 빠지거나 더해진 기능 코드가 없다.
+- 기능·설계는 이전 READY(a1e84486)와 같다. 아래 "기능 요약" 참고.
 
-## 검증 (로컬 Windows, headless Chrome)
-- 새 validator `scripts/validate_conversation_account_sync_01.mjs` PASS(13): 실제 index.html + 실제 로그인 콜백, 브라우저 컨텍스트 = 기기, 프로세스 안 가짜 계정 저장소(Core 계약 동일).
-  1. 기기 올리기 예: 2대화·4메시지 한 번
-  2. A에서 대화 → B(360 폰)에서 목록에 보이고 열림
-  3. B가 이어 쓰기 → A에서 두 기기 메시지 모두, 순서 유지(덮어쓰기 없음)
-  4. 오프라인 → "동기화 대기"(데스크톱 제목 한 줄·표시 온전) → 재연결 후 업로드·표시 사라짐
-  5. 공유 기기: 로그아웃 후 게스트에 U1 대화 0개·설정 버튼 없음, 같은 브라우저 U2 로그인 시 U2 대화만·질문 없음
-  6. 기기 올리기 아니오: 올라가지 않음, 다시 묻지 않음
-  7. 저장 끄기: 그 뒤 대화는 기기에만, 다시 켜도 안 올라감
-  8. 하나 삭제(계정·다른 기기 반영), 전체 삭제(계정·기기 비움, 다른 계정 무관)
-  9. 폰 320/360/412 다크 + 360 라이트: 제목 줄·버튼·설정 창·질문 창이 화면 안, 가로 넘침 없음, 대비(표시 ≥4.5, 아이콘 ≥3, 창 문구 ≥4.5), 탭 크기 ≥32px
-  - 요청 경로가 모두 `/v2/conversation-history/`(답변 요청 계수 `/v2/conversation/`에 섞이지 않음) 확인.
-- 기존 `validate_*` 전체 회귀(240개, CHROME_BIN=로컬 Chrome):
-  - 1차(순차, 작업 중 코드): 231 PASS. 여기서 실제 결함 3건을 찾아 고침 — ① 전체 삭제 직후 기기 목록이 한 박자 늦게 비던 순서(기기 사본 먼저 비우고 계정 삭제 대기 표시 먼저), ② 데스크톱 사이드바에서 "최근 대화"가 한 글자씩 접힘(스크린샷으로 발견, validator에 데스크톱 검사 추가), ③ `validate_profile_menu_improvement_01` — 새 모듈 2개가 첫 모듈 묶음에 들어가 Windows python 정적 서버가 병렬 요청 하나를 연결 거부(CDP로 `ERR_CONNECTION_REFUSED` 확인) + 그 검사의 "예상 밖 요청 0건" 계약 → 동기화 모듈 지연 로드로 바꾸고 그 fixture가 새 경로에 응답하도록 수정.
-  - 최종(코드 379f62d2, 포트가 겹치는 검사는 같은 줄에 두고 두 줄 병렬): 232 PASS / 8 FAIL → 8건 단독 재실행: 5건 PASS(병렬 부하 중 로컬 서버 연결 거부·결과 누락), `validate_place_card_compact_01` 단독 2/2 PASS(기준선 9e39edd0도 같은 모듈 로드 오류로 1/2 실패하는 부하성), `validate_mobile_footer_legal_sheet_01`·`validate_site_avatar_fallback_runtime`은 기준선 9e39edd0에서도 실패(기존 Windows RED). 1차에서 실패한 `validate_auth_unknown_recovery_browser_01`(임시 프로필 삭제 EPERM, 기준선 동일)은 최종에서 PASS.
-  - 결론: 이 변경으로 새로 생긴 실패 0.
-- 스크린샷(데스크톱 질문 창·동기화 대기, 폰 320/360/412 다크·360 라이트 서랍·설정 창)은 로컬에서 확인(`CONVERSATION_SYNC_SCREENSHOTS=<dir>`로 재생성 가능).
-- NOT VERIFIED: 실기기(삼성 인터넷·iPhone Safari·PC Chrome 교차), 운영 Core와의 실제 E2E(Core 미배포). 모바일 viewport 에뮬레이션은 실기기 PASS가 아니다.
+## 기능 요약 (a1e84486와 같음)
+
+- 로그인 사용자의 "최근 대화"를 계정에 저장해 휴대폰·PC 어디서든 이어 본다. 비로그인은 지금처럼 기기에만 저장한다.
+- `site-conversation-sync.js`: Core `/v2/conversation-history`와 기기 사본을 맞춘다.
+  - 메시지 id 단위 추가만 한다(덮어쓰지 않음). 제목·고정은 마지막 변경이 우선한다.
+  - 오프라인이면 "동기화 대기"로 두고 재시도한다.
+  - 처음 로그인할 때 기기 대화를 올릴지 계정·기기당 한 번 묻는다.
+  - 저장을 끌 수 있다. 다른 기기에서 지운 대화는 여기서도 사라진다.
+  - 기기 전용 meta(캘린더 초안·SOS 등)는 올리지 않는다.
+- `site-conversation-sync-ui.js`: "최근 대화" 옆 상태 표시와 "대화 기록 설정" 버튼, 설정 창(켜기·끄기, 전체 삭제), 기기 대화 올리기 질문 창. 색은 테마 토큰만 쓴다.
+- 동기화 모듈은 `/v2/me`로 로그인 프로필이 확인된 뒤에만 동적 import한다. 게스트와 첫 화면은 이전과 같은 모듈만 받는다.
+- 로그아웃은 기존 정책 그대로다. namespace = installationId(계정마다 다름)라서 공유 기기에서 다음 사람에게 보이지 않는다.
+- `scripts/validate_profile_menu_improvement_01.mjs`: 가짜 Core가 `/v2/conversation-history/`에 응답하도록 한 줄 추가했다. "예상 밖 요청 0건" 계약은 그대로다.
+
+## TEST_STATUS
+
+검사 환경:
+- Windows 로컬, Chrome headless(DevTools protocol), 가짜 Core.
+- 커밋 내용 그대로(LF, `git -c core.autocrlf=false archive 89bb1ccc`)를 풀어서 검사했다.
+- 다른 방과 겹치지 않게 한 번에 하나씩 돌렸다.
+
+- 모듈 구문 검사(`site-conversation.js`, `site-conversation-sync.js`, `site-conversation-sync-ui.js`): PASS.
+- `node scripts/asset_cache_version.mjs --check`: PASS(aset-f54a2f734ab0, targets 140, refs 168).
+- 관련 검사기 24개: 24 PASS.
+  - conversation_account_sync_01(두 기기·오프라인 복구·올리기 예/아니오·저장 끄기·삭제·공유 기기·폰 폭·다크)
+  - profile_menu_improvement_01, profile_menu_personal_theme_01, single_profile_entry_01, social_signup_profile_ux_01
+  - auth_continuity_02, auth_session_continuity_p0_02(main의 로그인 유지 P0-02와 함께)
+  - anonymous_conversation_persistence_01, conversation_management_10, conversation_sidebar_ux_01, pinned_conversation_section_01
+  - home_refresh_persistence_01, home_fresh_entry_01, mobile_home_initial_scroll_01, sidebar_information_architecture_04, sidebar_viewports_04
+  - chat_answer_recovery_01, site_refresh_route_restore_01, chat_mobile_keyboard_dismiss_01
+  - my_child_school_01, consumer_sections_02, life_direct_chat_card_compaction_01
+  - validate_hardening.py, validate_home_chat.py(UTF-8 출력)
+  - `chat_mobile_keyboard_dismiss_01`: 묶음 실행 중 세 번째 폭에서 Chrome 포트 파일 읽기가 Windows 파일 잠금(EBUSY)으로 멈췄다. 단독으로 다시 돌려 PASS. 제품 코드와 관계없다.
+- 전체 site-review 회귀: NOT RUN(이 PC CPU 제약). 최종 전체 gate는 배포총괄방(Linux).
+
+NEW_FAILURES=0 (관련 검사기 24개 기준)
+
+ENV_CHANGE_REQUIRED=NO (Core kill switch `CONVERSATION_HISTORY_SYNC_AVAILABLE`는 Core 쪽)
+NEW_SECRET_CREATED=NO
+THEME_TOKENS_CHANGED=NO
+DEVICE_E2E=NOT VERIFIED (삼성 인터넷·iPhone Safari·PC Chrome 교차 실기기 미확인. 모바일은 viewport 에뮬레이션)
+CORE_E2E=NOT VERIFIED (짝 Core p0_0110 운영 미배포 시점. 검사기는 Core 계약과 같은 프로세스 내 가짜 계정 저장소를 쓴다)
 
 ## 배포 메모
-- Core 먼저. Site만 먼저 나가면 새 API가 404 → "동기화 대기"만 보이고 기기 저장은 그대로(데이터 손실 없음).
+
+- Core 먼저. Site만 먼저 나가면 새 API가 404 → "동기화 대기"만 보이고 기기 저장은 그대로다(데이터 손실 없음).
 - 배포 후 smoke: 로그인 상태에서 대화 1회 → 다른 브라우저(또는 시크릿) 같은 계정 로그인 시 최근 대화에 보이는지, 설정 버튼 → 켜기·끄기 저장.
