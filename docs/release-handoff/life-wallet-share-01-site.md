@@ -1,9 +1,8 @@
-READY_FOR_DEPLOY=NO
-REASON=WAITS_FOR_CORE — Core feature/life-wallet-share-01-core is READY=NO only for MIGRATION_WAIT (p0_0112 must follow p0_0111 once p0_0109 → p0_0110 → p0_0111 are in main). This Site has nothing left but that dependency; it flips to YES together with Core (re-merge of the then-current main first).
-SUPERSEDES=77ec0f0f (old READY=NO) — earlier pushes 93c49eea, dc7eb4fc were READY=NO too
-MIGRATION=NO (Site); Core p0_0112_life_wallet_share
-DEPLOY_ORDER=CORE → SITE (this Site without that Core: 공유 opens to "공유 목록을 불러오지 못했습니다" and the wallet itself keeps working)
-ACTIVATION=LOTBI_LIFE_WALLET_SHARE_TRANSFER_ENABLED on Core (default false); the Site follows Core's inbox.document_transfer — nothing to switch on the Site
+READY_FOR_DEPLOY=YES
+SUPERSEDES=2987ef47 (READY=NO) / 77ec0f0f
+MIGRATION=NO (Site); Core p0_0112_life_wallet_share is live since 2026-10-10 06:07 (CORE-T34, core main 3ce2370d)
+DEPLOY_ORDER=CORE → SITE (Core part is live)
+ACTIVATION=LOTBI_LIFE_WALLET_SHARE_TRANSFER_ENABLED on Core (not set = false); the Site follows Core's inbox.document_transfer — nothing to switch on the Site
 USER_DECISION_NEEDED=NONE for deploying with the switch off
 LAUNCH_CHECK=개인정보 처리방침 문구(출시 전 점검)
 SENSITIVE_DOCUMENT_ORIGINAL_SHARING=HOLD (see Core handoff SECURITY: 2026-10-05 audit findings not addressed)
@@ -13,11 +12,18 @@ SENSITIVE_DOCUMENT_ORIGINAL_SHARING=HOLD (see Core handoff SECURITY: 2026-10-05 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/life-wallet-share-01-site
 FEATURE_SHA=this document's commit (branch HEAD; `git ls-remote ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git refs/heads/feature/life-wallet-share-01-site`)
-AUTHORITATIVE_MAIN=819ead3a (Merge release/20261009-site-t41-work)
-CODE_SHA=c42febf5
-ASSET_VERSION=aset-bfbcbc7508d2
+AUTHORITATIVE_MAIN=b6dc768d (Merge release/20261010-site-t46-work; includes the backup Site and the PIN/attach P0)
+CODE_SHA=5275e381
+ASSET_VERSION=aset-a4588971cc98
 CODE_COMMITS=e349892e share requests, 93c49eea encrypted originals, dc7eb4fc merge of main 819ead3a, 4af9ecdc default label never carries the memo, dd389fe9 relay note only while the switch is on, c42febf5 consumer_sections_02 expects the new wallet mount
 NON_TOKEN_DIFF_VS_MAIN=site-life-wallet-share.js (new), site-life-wallet-share-crypto.js (new), site-life-wallet.js, site-life-wallet.css, site-route.js (share-link intent), site-conversation.js (intent capture + sessionToken/subscription to the wallet), site-consumer-sections.js (passes them), scripts/validate_life_wallet_share_01.mjs (new), scripts/validate_life_wallet_share_transfer_01.mjs (new), scripts/validate_life_wallet_entry_lock_01.mjs (mount call), scripts/validate_consumer_sections_02.mjs (mount call), docs/release-handoff/life-wallet-share-01-site.md
+
+## Re-merge 2026-10-10 (main 56c26095 → b6dc768d)
+- 41e1aacd merge of main 56c26095 (backup Site, my-child, PIN/attach P0): per-file 3-way re-merge against 819ead3a with tokens normalised. Kept both sides: mountLifeWallet(... sessionToken, subscription) with the backup client and the share client; the reassurance keeps the backup wording and adds the relay note (still hidden unless the switch is on); the toolbar keeps main's "+ 자료 추가 only once something is saved" with the Free limit (openAdd) and the 공유 button; the mount-call source checks expect sessionToken and subscription. The share label/encryption paths do not touch exportBackup (customs-code P0 contract: never pass includeItems).
+- 16cd6521 validate_life_wallet_share_01 waits for main's `.wallet-attach` (was `.wallet-photo-field`, renamed by the PIN/attach P0); same check.
+- 5275e381 merge of main b6dc768d (SITE-T46): token-only conflicts, tokens regenerated.
+- Checks on 5275e381, one at a time: 29 PASS — life_wallet_share_01, life_wallet_share_transfer_01, life_wallet_server_backup_01, life_wallet_entry_lock_01, life_wallet_pin_attachment_ux_p0, consumer_sections_02, life_wallet_document_save_01, site, hardening, accessibility, anonymous_conversation_persistence_01, chat_dark_login_kakao_share_01, consumer_design_shell_01, consumer_detail_system_01, consumer_documents_01, consumer_theme_sync_01, conversation_account_sync_01, conversation_calendar_actions_01, conversation_calendar_auto_suggest_01, my_child_school_01, jeonbuk_real_world_pilot_01, kindergarten_official_info_01, life_direct_chat_card_compaction_01, life_info_cleanup_final_01, life_medical_auto_search_card_01, life_medical_category_entry_01, naver_maps_navigation_01, place_card_compact_01, regional_news_p0_01.
+- On 41e1aacd (35 validators): only validate_site_refresh_route_restore_01 failed, and it fails the same way on main 56c26095 alone (2/2: login state still 'checking') → existing, not this branch.
 
 ## Fixed in this room
 1. Privacy: a share request's default label was the wallet memo's first line (walletCardTitle), which Core stores as plain text and the recipient sees before accepting. It now defaults to name · date (walletShareLabel); the label stays editable and a note says it is visible to the recipient and the LOTBI server (4af9ecdc).
@@ -30,7 +36,7 @@ CROSS_CLIENT_CRYPTO_TESTS=PASS — this Site module ↔ Python cryptography both
 SITE_CORE_RELAY_E2E=PASS 25/25 — real Core API (TestClient) + this Site crypto module in Node, requests shaped like site-life-wallet-share.js call(); every response carried the Site CORS header; see the Core handoff
 FEATURE_FLAG_OFF_TESTS=PASS — off: no 원본 보내기/원본 열기, no key registration, no relay calls (only /inbox), the 'not sent yet' note, the wallet's relay note hidden
 RECEIVED_ITEM_SAFETY=checked in code — a received item is shown with textContent and jpeg/png data-URL images only, and saved through the wallet's own validation
-ASSET_CHECK=PASS (node scripts/asset_cache_version.mjs: aset-bfbcbc7508d2, 135 targets)
+ASSET_CHECK=PASS (node scripts/asset_cache_version.mjs: aset-a4588971cc98, 146 targets)
 REGRESSION_SITE=NEW_FAILURES=0 — 252 validators in scripts/:
   - this room (code dd389fe9, validator fix c42febf5), one at a time: the 165 the previous room never reached → 162 PASS, 3 FAIL; the previous room's 9 FAILs + 28 earlier PASSes that touch the changed files (chat/conversation/consumer/route/wallet/auth/composer/attachment) → 34 PASS, 3 FAIL; the 3 share validators → PASS
   - FAIL that also fail on main 819ead3a (baseline worktree, same CRLF checkout): validate_image_attachment_thumbnail_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime (known Windows-local RED)
