@@ -44,16 +44,23 @@ try{
   let ready=false;
   const picker=createWalletPhotoPicker({onError:message=>errors.push(message),onReady:()=>{ready=true}});
   document.getElementById('host').append(picker.element);
-  const input=picker.input;
-  const trigger=picker.element.querySelector('.wallet-photo-action');
-  const mark=picker.element.querySelector('.wallet-photo-mark');
+  // 내 파일 through its input here (the document-picker path is covered by the PIN/attach P0 validation).
+  window.showOpenFilePicker=undefined;
+  const input=picker.filesInput;
+  const zone=picker.element.querySelector('.wallet-attach-zone');
+  const menu=picker.element.querySelector('.wallet-attach-menu');
   const preview=picker.element.querySelector('img');
-  let inputClicks=0;
-  input.addEventListener('click',()=>{inputClicks+=1});
-  mark.click();
-  const plusInputClicks=inputClicks;
-  trigger.click();
-  const allInputClicks=inputClicks;
+  const clicks={camera:0,files:0};
+  picker.cameraInput.addEventListener('click',event=>{clicks.camera+=1;event.preventDefault()});
+  input.addEventListener('click',event=>{clicks.files+=1;event.preventDefault()});
+  zone.click();
+  const zoneOpensMenu=!menu.hidden&&clicks.camera+clicks.files===0;
+  menu.querySelector('[data-wallet-attach-source="camera"]').click();
+  picker.cameraInput.dispatchEvent(new Event('cancel'));
+  zone.click();
+  menu.querySelector('[data-wallet-attach-source="files"]').click();
+  input.dispatchEvent(new Event('cancel'));
+  const sourceClicks={...clicks};
 
   const invalidTransfer=new DataTransfer();
   invalidTransfer.items.add(new File([new Uint8Array([1,2,3])],'wrong.gif',{type:'image/gif'}));
@@ -69,10 +76,9 @@ try{
   input.files=validTransfer.files;
   input.dispatchEvent(new Event('change',{bubbles:true}));
   const confirm=await wait(()=>{const candidate=picker.element.querySelector('[data-wallet-scan-confirm]');return candidate&&!candidate.disabled&&picker.element.querySelector('[data-scan-state="review"]')?candidate:null},'enabled scan confirmation');
-  // While the photo is being corrected the change button stays a small outlined button and
-  // leaves room for the full hint text.
-  const scanningAction=picker.element.querySelector('.wallet-photo-action');const scanningHint=picker.element.querySelector('.wallet-photo-copy small');
-  const scanning={text:scanningAction.textContent,secondary:scanningAction.classList.contains('consumer-action-secondary'),actionWidth:scanningAction.getBoundingClientRect().width,actionHeight:scanningAction.getBoundingClientRect().height,hintClipped:scanningHint.scrollWidth>scanningHint.clientWidth+1,hintWidth:scanningHint.getBoundingClientRect().width};
+  // While the photo is being corrected the change pill stays small and leaves room for the name.
+  const change=zone.querySelector('.wallet-attach-change');const name=zone.querySelector('.wallet-photo-copy strong');
+  const scanning={text:change.hidden?'':change.textContent,changeWidth:change.getBoundingClientRect().width,changeHeight:change.getBoundingClientRect().height,nameWidth:name.getBoundingClientRect().width};
   confirm.click();
   await wait(()=>ready,'photo ready callback');
   const selectedDataUrl=await picker.readDataUrl();
@@ -82,17 +88,19 @@ try{
     ok:true,
     scanning,
     accept:input.accept,
-    pdfAccept:picker.pdfInput.accept,
-    capture:[input,picker.pdfInput].some(field=>field.hasAttribute('capture')),
-    markTag:mark.tagName,
-    plusInputClicks,
-    allInputClicks,
+    cameraAccept:picker.cameraInput.accept,
+    cameraCapture:picker.cameraInput.getAttribute('capture'),
+    filesCapture:input.hasAttribute('capture'),
+    fileInputs:picker.element.querySelectorAll('input[type=file]').length,
+    zoneTag:zone.tagName,
+    zoneOpensMenu,
+    sourceClicks,
     inputHidden:inputRect.width<=1&&inputRect.height<=1,
     initialError:errors.find(Boolean)||'',
     selectedDataUrl:selectedDataUrl.startsWith('data:image/jpeg;base64,'),
     previewVisible:!preview.hidden&&preview.src.startsWith('data:image/jpeg;base64,'),
     previewAlt:preview.alt,
-    buttonText:trigger.textContent,
+    buttonText:change.hidden?'':change.textContent,
     fileName:picker.element.textContent.includes('wallet-card.png'),
     overflow:pickerRect.right>document.documentElement.clientWidth,
   });
@@ -133,25 +141,25 @@ try {
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(`headless browser failed (${run.status}): ${run.stderr}`);
   const result = readResult(run.stdout);
-  // One image type per picker: Android then offers camera and gallery only (no camcorder or
-  // voice recorder); PDFs have their own picker.
-  assert.equal(result.accept, 'image/*', 'the photo picker must accept still images only');
-  assert.equal(result.pdfAccept, 'application/pdf', 'PDFs must use their own picker');
-  assert.equal(result.capture, false, 'the pickers must not force the camera');
-  assert.equal(result.scanning.text, '다시 선택');
-  assert.equal(result.scanning.secondary, true, `the change button must be an outlined secondary button, not a large black one: ${JSON.stringify(result.scanning)}`);
-  assert.ok(result.scanning.actionWidth <= 120 && result.scanning.actionHeight <= 40, `the change button must stay compact: ${JSON.stringify(result.scanning)}`);
-  assert.equal(result.scanning.hintClipped, false, `the hint text must not be cut off: ${JSON.stringify(result.scanning)}`);
-  assert.ok(result.scanning.hintWidth >= 140, `the hint text needs room beside the button: ${JSON.stringify(result.scanning)}`);
-  assert.equal(result.markTag, 'BUTTON', 'the plus tile must expose its click behavior as a button');
-  assert.equal(result.plusInputClicks, 1, 'clicking the plus tile must activate the real file input');
-  assert.equal(result.allInputClicks, 2, 'both visible photo actions must activate the real file input');
+  // 카메라: one image type plus capture (the camera, no camcorder or voice recorder); 내 파일:
+  // photos and PDFs in one input. No other file input.
+  assert.equal(result.cameraAccept, 'image/*', 'the camera source must accept still images only');
+  assert.equal(result.cameraCapture, 'environment', 'the camera source opens the camera');
+  assert.equal(result.accept, 'image/*,application/pdf', '내 파일 takes photos and PDFs');
+  assert.equal(result.filesCapture, false, '내 파일 must not force the camera');
+  assert.equal(result.fileInputs, 2, 'exactly two file inputs: 카메라 and 내 파일');
+  assert.equal(result.scanning.text, '파일 변경');
+  assert.ok(result.scanning.changeWidth <= 120 && result.scanning.changeHeight <= 40, `the change pill must stay compact: ${JSON.stringify(result.scanning)}`);
+  assert.ok(result.scanning.nameWidth >= 140, `the file name needs room beside the pill: ${JSON.stringify(result.scanning)}`);
+  assert.equal(result.zoneTag, 'BUTTON', 'the attach area must expose its click behavior as a button');
+  assert.equal(result.zoneOpensMenu, true, 'the attach area opens the source menu (it does not open a chooser itself)');
+  assert.deepEqual(result.sourceClicks, {camera: 1, files: 1}, 'each source activates its real file input');
   assert.equal(result.inputHidden, true, 'the native file input must not remain visibly laid out');
   assert.equal(result.initialError, '사진(JPG·PNG·WebP·HEIC)이나 PDF만 등록할 수 있습니다.', 'unsupported files (such as GIF) must still be rejected');
   assert.equal(result.selectedDataUrl, true, 'the selected image must be available to the existing encrypted save flow');
   assert.equal(result.previewVisible, true, 'a selected image must show an immediate preview');
   assert.equal(result.previewAlt, '보정된 wallet-card.png 미리보기', 'the preview must identify the corrected image');
-  assert.equal(result.buttonText, '사진 변경', 'the action must change after a photo is selected');
+  assert.equal(result.buttonText, '파일 변경', 'the attach area offers 파일 변경 after a photo is selected');
   assert.equal(result.fileName, true, 'the selected filename must be visible');
   assert.equal(result.overflow, false, 'the custom picker must fit a 390px mobile viewport');
   console.log('LIFE_WALLET_PHOTO_PICKER_01 PASS');
