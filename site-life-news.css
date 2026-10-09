@@ -1,0 +1,39 @@
+/* REGIONAL-NEWS-SCREEN-LIST-01 — 지역정보 → 지역뉴스 title list (site-life-news.js).
+   Theme tokens only, so light/dark/system follow the site theme. Touch
+   targets ≥ 44px; titles wrap to two lines; no sideways scroll. */
+.lotbi-news { display: grid; gap: 12px; min-width: 0; }
+.lotbi-news-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lotbi-news-glyph { flex: 0 0 auto; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lotbi-news-title { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 20px; font-weight: 700; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-news-title:focus { outline: none; }
+.lotbi-news-region-toggle { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; }
+.lotbi-news-region-toggle[aria-expanded="true"],
+.lotbi-news-region-toggle:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.lotbi-news-region-toggle:focus-visible,
+.lotbi-news-period:focus-visible,
+.lotbi-news-item:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.lotbi-news-basis { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; }
+.lotbi-news-basis:empty { display: none; }
+.lotbi-news-picker { display: grid; gap: 8px; }
+.lotbi-news-picker[hidden] { display: none; }
+.lotbi-news-field { display: grid; gap: 8px; font-size: 14px; }
+.lotbi-news-field select { box-sizing: border-box; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
+.lotbi-news-allow,
+.lotbi-news-retry { justify-self: start; min-height: 44px; }
+.lotbi-news-allow[hidden],
+.lotbi-news-retry[hidden],
+.lotbi-news-periods[hidden] { display: none; }
+.lotbi-news-periods { display: flex; flex-wrap: wrap; gap: 8px; }
+.lotbi-news-period { min-height: 44px; min-width: 72px; padding: 0 18px; border: 1px solid var(--lotbi-border-default); border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 15px; cursor: pointer; }
+.lotbi-news-period[aria-pressed="true"] { border-color: var(--lotbi-text-primary); background: var(--lotbi-text-primary); color: var(--lotbi-surface-primary); font-weight: 600; }
+.lotbi-news-list { margin: 0; padding: 0; list-style: none; }
+.lotbi-news-list:empty { display: none; }
+.lotbi-news-row { border-top: 1px solid var(--lotbi-border-default); }
+.lotbi-news-row:last-child { border-bottom: 1px solid var(--lotbi-border-default); }
+.lotbi-news-item { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 14px 2px; color: inherit; text-decoration: none; }
+.lotbi-news-item-copy { display: grid; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.lotbi-news-item-title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 16px; font-weight: 600; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-news-item-meta { color: var(--lotbi-text-secondary); font-size: 13px; line-height: 1.4; }
+.lotbi-news-item .lotbi-news-glyph-open { width: 18px; height: 18px; color: var(--lotbi-text-secondary); }
+.lotbi-news-status { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; line-height: 1.5; }
+.lotbi-news-status:empty { display: none; }

@@ -1,9 +1,6 @@
 /* KINDERGARTEN-OFFICIAL-INFO-01 — 생활정보 → 유치원·학교 (site-life-education.js).
    Theme tokens only (site-theme-tokens.css), so light/dark/system follow the
    site theme without overrides. Touch targets ≥ 44px; one column ≤ 600px. */
-/* 생활정보 home: an odd last card (유치원·학교 as the fifth) takes its whole row,
-   so the grid never shows an empty cell in 4-, 2- or 1-column layouts. */
-.consumer-shortcuts > .consumer-shortcut:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .lotbi-edu { display: grid; gap: 16px; min-width: 0; }
 .lotbi-edu-tabs .lotbi-edu-tab { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 52px; }
 .lotbi-edu-tab-label { font-size: 15px; }

@@ -1,12 +1,11 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-ef4dd10097af';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-ef4dd10097af';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-ef4dd10097af';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-77558304eaca';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-77558304eaca';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-77558304eaca';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
 // onAsk(text) hands a finished question to the conversation, which sends it
 // right away: one tap asks LOTBI, with nothing to confirm or send again.
-// The 유치원·학교 screen asks the same way (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
 //
 // LIFE-MEDICAL-AUTO-SEARCH-01 — 병원·약국·응급실 have no form. The tap sends a
 // fixed question the existing Core medical route (국립중앙의료원 data) reads as
@@ -19,12 +18,27 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
   pharmacy: '근처 약국 찾아줘',
   emergency: '근처 응급실 찾아줘',
 });
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0 — the approved 지역정보 menu: one
+// 병원·응급실 card opens a two-way choice (병원·의원 찾기 / 응급실 찾기, each the
+// existing medical question), 약국 stays its own card and asks at once, and the
+// separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이 학교·유치원
+// is the one education card and opens 내 아이 정보 (signed-in, MY-CHILD-SCHOOL-01)
+// or 유치원·학교 찾기 (the public lookup, KINDERGARTEN-OFFICIAL-INFO-01).
+// Eight cards with 전북 맛집·음식: every row of two is full (an odd count would
+// let the last card span its row, site-consumer-design.css).
+export const LIFE_MEDICAL_CHOICES = Object.freeze([
+  Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
+  Object.freeze({id: 'emergency', label: '응급실 찾기'}),
+]);
+export const LIFE_CHILD_CHOICES = Object.freeze([
+  Object.freeze({id: 'my-child', label: '내 아이 정보'}),
+  Object.freeze({id: 'education', label: '유치원·학교 찾기'}),
+]);
 export const LIFE_SHORTCUTS = Object.freeze([
-  {id: 'hospital', label: '병원·의원', icon: 'hospital', ask: LIFE_MEDICAL_QUESTIONS.hospital},
+  {id: 'medical', label: '병원·응급실', icon: 'hospital', choices: LIFE_MEDICAL_CHOICES},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', ask: LIFE_MEDICAL_QUESTIONS.pharmacy},
-  {id: 'emergency', label: '응급실', icon: 'emergency', ask: LIFE_MEDICAL_QUESTIONS.emergency},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
-  // REGIONAL-NEWS-P0: saved region in one tap, otherwise a one-field form.
+  // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
   {id: 'news', label: '지역뉴스', icon: 'news'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot reserves its place.
@@ -32,13 +46,8 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
   {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
-  // KINDERGARTEN-OFFICIAL-INFO-01: 학교(NEIS, 대화) / 유치원(유치원알리미 공시).
-  {id: 'education', label: '유치원·학교', icon: 'school'},
-  // MY-CHILD-SCHOOL-01: the signed-in reader's saved schools / 유치원
-  // (site-life-my-child.js). Last. With 10 cards (전북 맛집·음식 included) every
-  // row of two is full; an odd count would let the last card span its row
-  // (site-life-education.css), so the grid has no empty cell.
-  {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack'},
+  // MY-CHILD-SCHOOL-01 + KINDERGARTEN-OFFICIAL-INFO-01 behind one card. Last.
+  {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack', children: LIFE_CHILD_CHOICES},
 ]);
 
 // Each existing request form should show examples that belong to that service,
@@ -51,15 +60,6 @@ const LIFE_DETAIL_FIELDS = Object.freeze({
   local: [['지역 또는 장소', '예: 전주시 덕진구'], ['궁금한 생활정보', '예: 쓰레기 배출일, 주민센터 운영시간']],
   support: [['지역 또는 장소', '예: 전주시'], ['찾고 싶은 지원', '예: 청년 주거 지원, 자녀 돌봄 지원']],
 });
-
-// REGIONAL-NEWS-P0 — 지역뉴스 asks for one region's latest news in a sentence
-// Core's news route reads ("전주시 뉴스 알려 줘"). No region means 내 주변:
-// the life-location contract then sends the current position only when
-// location use is on, else the saved region, else Core asks which region.
-export function buildRegionalNewsPrompt(region) {
-  const place = String(region ?? '').replace(/\s+/gu, ' ').trim().slice(0, 100).replace(/\s*(?:의|에서|에)$/u, '');
-  return place ? `${place} 뉴스 알려 줘` : '내 주변 뉴스 알려 줘';
-}
 
 const ICON_PATHS = {
   sun: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8', 'M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5'],
@@ -123,6 +123,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
   let releasePets;
   let releaseWallet;
   let releaseEducation;
+  let releaseNews;
   let releaseMyChild;
 
   if (section === 'life') {
@@ -166,46 +167,85 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }
-    // 지역뉴스: with a saved region one tap asks for that region's news;
-    // without one, a one-field form asks which region (or 내 주변). Like the
-    // other life cards the question is sent at once (onAsk), not drafted.
-    function openNewsEntry(item) {
-      const saved = savedLifeRegionLabel();
-      if (saved) { onAsk(buildRegionalNewsPrompt(saved)); return; }
-      const home = [...root.children];
+    // 병원·응급실: nothing is asked until the reader picks 병원·의원 or 응급실;
+    // the pick sends that existing medical question once.
+    function openMedicalChoice(item) {
       const back = action('지역정보로 돌아가기', () => {
-        root.replaceChildren(...home);
+        root.replaceChildren(heading, grid);
         grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
       }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
-      const queryForm = node('form', 'consumer-life-form');
-      const label = node('label', 'consumer-life-field', '지역');
-      const field = node('input'); field.type = 'text'; field.required = true; field.maxLength = 40;
-      field.placeholder = '예: 전주시, 군산시, 완산구'; field.dataset.newsField = 'region';
-      field.setAttribute('aria-label', '지역'); label.append(field); queryForm.append(label);
-      const send = action('뉴스 찾기'); send.type = 'submit'; queryForm.append(send);
-      queryForm.addEventListener('submit', event => {
-        event.preventDefault();
-        if (disposed) return;
-        if (!field.value.trim()) { field.focus(); return; }
-        onAsk(buildRegionalNewsPrompt(field.value));
+      const choices = node('div', 'consumer-life-choices');
+      let asked = false;
+      for (const choice of item.choices) {
+        const button = action(choice.label, () => {
+          if (disposed || asked) return;
+          asked = true;
+          onAsk(LIFE_MEDICAL_QUESTIONS[choice.id]);
+        });
+        button.dataset.medicalChoice = choice.id;
+        choices.append(button);
+      }
+      detail.append(back, title, choices);
+      root.replaceChildren(detail); title.focus();
+    }
+    // 지역뉴스: its own module lists the 광역시·도 news titles in this screen
+    // (current location, saved region or a picked 시·도; 오늘 / 1주일). Nothing
+    // goes to the conversation.
+    function openNewsEntry(item) {
+      const current = ++generation;
+      const back = action('지역정보로 돌아가기', () => {
+        releaseNews?.(); releaseNews = undefined; generation += 1;
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const host = node('div', 'consumer-life-news');
+      detail.append(back, host);
+      root.replaceChildren(detail); back.focus();
+      import('./site-life-news.js?v=aset-77558304eaca').then(({mountRegionalNews}) => {
+        if (disposed || current !== generation) return;
+        const mounted = mountRegionalNews({root: host});
+        releaseNews = mounted.dispose;
+        mounted.focus();
+      }).catch(() => {
+        if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '지역뉴스를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
       });
-      const nearby = action('내 주변 뉴스', () => { if (!disposed) onAsk(buildRegionalNewsPrompt('')); }, {secondary: true});
-      nearby.dataset.newsNearby = 'true';
-      const note = '기본 지역을 저장해 두면 다음부터 바로 그 지역 뉴스를 보여 드려요. 현재 위치는 내 주변 뉴스를 누르고 위치 사용을 켠 경우에만 써요. 기사는 각 언론사 원문으로 연결돼요.';
-      detail.append(back, title, queryForm, nearby, node('p', 'consumer-feature-note', note));
+    }
+    // 내 아이 학교·유치원: one card, two features — 내 아이 정보 (the reader's saved
+    // schools / 유치원, its own sign-in rules) and 유치원·학교 찾기 (public lookup).
+    function openChildChoice(item) {
+      const back = action('지역정보로 돌아가기', () => {
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = `${item.id}-choice`;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const choices = node('div', 'consumer-life-choices');
+      for (const choice of item.children) {
+        const button = action(choice.label, () => {
+          if (disposed) return;
+          if (choice.id === 'education') openEducation({id: 'education', label: '유치원·학교'}, item.id);
+          else openMyChild(item);
+        });
+        button.dataset.childChoice = choice.id;
+        choices.append(button);
+      }
+      detail.append(back, title, choices);
       root.replaceChildren(detail); title.focus();
     }
     // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen is its own module,
     // loaded on first use; it owns its reads and its "내 유치원" key.
-    function openEducation(item) {
+    function openEducation(item, cardId = item.id) {
       const current = ++generation;
       const back = action('지역정보로 돌아가기', () => {
         releaseEducation?.(); releaseEducation = undefined; generation += 1;
         root.replaceChildren(heading, grid);
-        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+        grid.querySelector(`[data-life-shortcut="${cardId}"]`)?.focus();
       }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
@@ -213,7 +253,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-ef4dd10097af').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-77558304eaca').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -249,10 +289,11 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       button.addEventListener('click', () => {
         if (disposed) return;
         if (item.ask) onAsk(item.ask);
+        else if (item.choices) openMedicalChoice(item);
         else if (item.id === 'festivals') onFestival();
+        else if (item.children) openChildChoice(item);
         else item.id === 'news' ? openNewsEntry(item)
-          : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item)
-            : item.id === 'my-child' ? openMyChild(item) : openLifeDetail(item);
+          : item.id === 'onnuri' ? onOnnuri?.() : openLifeDetail(item);
       });
       grid.append(button);
     }
@@ -334,5 +375,5 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseMyChild?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseNews?.(); releaseMyChild?.(); }};
 }
