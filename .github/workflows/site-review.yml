@@ -89,6 +89,11 @@ jobs:
       - name: Validate PHASE 10 conversation management
         run: node scripts/validate_conversation_management_10.mjs
 
+      # CONVERSATION-ACCOUNT-SYNC-01: two devices, offline recovery, device
+      # upload yes/no, sync off, delete, shared device, phone widths and dark.
+      - name: Validate conversation account sync
+        run: node scripts/validate_conversation_account_sync_01.mjs
+
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 

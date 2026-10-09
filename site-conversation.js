@@ -1,33 +1,33 @@
-import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-80a36d07492c';
-import * as siteCore from './site-core.js?v=aset-80a36d07492c';
-import './site-scam-shield.js?v=aset-80a36d07492c';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-80a36d07492c';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-80a36d07492c';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-80a36d07492c';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-80a36d07492c';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-80a36d07492c';
-import * as siteAttachments from './site-attachments.js?v=aset-80a36d07492c';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-80a36d07492c';
-import {deterministicReply} from './site-deterministic.js?v=aset-80a36d07492c';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-80a36d07492c';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-80a36d07492c';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-80a36d07492c';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-80a36d07492c';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-80a36d07492c';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-80a36d07492c';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-80a36d07492c';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-80a36d07492c';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-80a36d07492c';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-80a36d07492c';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-80a36d07492c';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-80a36d07492c';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-80a36d07492c';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-80a36d07492c';
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-80a36d07492c';
-import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-80a36d07492c';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-80a36d07492c';
-import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-80a36d07492c';
-import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-80a36d07492c';
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-fce27a4d0d4f';
+import * as siteCore from './site-core.js?v=aset-fce27a4d0d4f';
+import './site-scam-shield.js?v=aset-fce27a4d0d4f';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-fce27a4d0d4f';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-fce27a4d0d4f';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-fce27a4d0d4f';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-fce27a4d0d4f';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-fce27a4d0d4f';
+import * as siteAttachments from './site-attachments.js?v=aset-fce27a4d0d4f';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-fce27a4d0d4f';
+import {deterministicReply} from './site-deterministic.js?v=aset-fce27a4d0d4f';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-fce27a4d0d4f';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-fce27a4d0d4f';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-fce27a4d0d4f';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-fce27a4d0d4f';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-fce27a4d0d4f';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-fce27a4d0d4f';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-fce27a4d0d4f';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-fce27a4d0d4f';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-fce27a4d0d4f';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-fce27a4d0d4f';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-fce27a4d0d4f';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-fce27a4d0d4f';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-fce27a4d0d4f';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-fce27a4d0d4f';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-fce27a4d0d4f';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-fce27a4d0d4f';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-fce27a4d0d4f';
+import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-fce27a4d0d4f';
+import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-fce27a4d0d4f';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -204,7 +204,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-80a36d07492c';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-fce27a4d0d4f';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -297,7 +297,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-80a36d07492c');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-fce27a4d0d4f');
   return shareWithKakaoTalk(options);
 }
 
@@ -306,7 +306,7 @@ async function shareMessageWithKakao(options) {
 // already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-80a36d07492c');
+    const module = await import('./site-kakao-share.js?v=aset-fce27a4d0d4f');
     return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
@@ -981,6 +981,80 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return beginSiteHandoff(pendingText);
   };
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
+  // CONVERSATION-ACCOUNT-SYNC-01 — a signed-in reader's conversations are kept
+  // on the account (site-conversation-sync.js); the browser copy stays what the
+  // screen shows. The sync code loads only once a signed-in profile is
+  // confirmed, so guests and the first paint never fetch it.
+  let conversationSync = null;
+  let conversationSyncUi = null;
+  let conversationSyncLoading = null;
+  const conversationSyncDeps = {
+    storage,
+    namespace: () => namespace,
+    token: () => sessionToken,
+    threads: () => state.threads,
+    setThreads: threads => { state.threads = threads; },
+    activeThreadId: () => state.activeThreadId,
+    busy: () => inFlight,
+    commit: ({rerenderActive = false} = {}) => { sortThreads(); saveState(); renderRecent(); if (rerenderActive) renderActiveThread(); },
+    onActiveRemoved: () => { state.activeThreadId = null; if (!inFlight) showBlankHome(); },
+    newId,
+    threadLimit: THREAD_LIMIT,
+    messageLimit: MESSAGE_LIMIT,
+    askImport: count => waitForQuietScreen().then(ready => (ready && conversationSyncUi
+      ? conversationSyncUi.askDeviceUpload({count, modalShell, installSurfaceBehavior, closeSurface})
+      : null)),
+    onStatus: () => renderConversationSyncUi(),
+  };
+  const loadConversationSync = () => {
+    if (conversationSync) return Promise.resolve(conversationSync);
+    if (!conversationSyncLoading) {
+      conversationSyncLoading = Promise.all([
+        import('./site-conversation-sync.js?v=aset-fce27a4d0d4f'),
+        import('./site-conversation-sync-ui.js?v=aset-fce27a4d0d4f'),
+      ]).then(([engine, ui]) => {
+        conversationSyncUi = ui;
+        ui.ensureConversationSyncStyles();
+        conversationSync = engine.createConversationSync(conversationSyncDeps);
+        return conversationSync;
+      }).catch(() => {
+        // Not reachable now (offline): the device copy keeps working; the next
+        // signed-in profile check tries again.
+        conversationSyncLoading = null;
+        return null;
+      });
+    }
+    return conversationSyncLoading;
+  };
+  // The one-time upload question waits until nothing else is on screen.
+  function waitForQuietScreen() {
+    return new Promise(resolve => {
+      let tries = 0;
+      const check = () => {
+        if (!openSurface && !inFlight) { resolve(true); return; }
+        tries += 1;
+        if (tries > 120) { resolve(false); return; }
+        setTimeout(check, 1000);
+      };
+      check();
+    });
+  }
+  function renderConversationSyncUi() {
+    if (!conversationSync || !conversationSyncUi) return;
+    conversationSyncUi.renderConversationSyncControls({
+      status: conversationSync.status(),
+      signedIn: conversationSync.running(),
+      onOpenSettings: trigger => conversationSyncUi.openConversationSyncSettings({
+        sync: conversationSync, modalShell, installSurfaceBehavior, closeSurface, trigger, setStatus,
+        onDeleteAll: () => {
+          cancelActiveTurn('conversation-delete-all');
+          state.threads = []; state.activeThreadId = null; state.draft = ''; prompt.value = '';
+          prompt.dispatchEvent(new Event('input', {bubbles: true}));
+          saveState(); showBlankHome(); renderRecent();
+        },
+      }),
+    });
+  }
   // SITE-CHAT-ANSWER-RECOVERY-01 — a question sent just before the reader left
   // (tab closed, phone locked, another app) was answered by Core and stored on
   // its logical request, but the page that asked was gone, so the answer never
@@ -1593,6 +1667,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     record.pinned = record.pinned !== true;
     record.pinnedAt = record.pinned ? Date.now() : 0;
     sortThreads(); saveState(); renderRecent();
+    conversationSync?.noteThreadMeta(id);
     setStatus(record.pinned ? '대화를 상단에 고정했습니다.' : '대화 고정을 해제했습니다.');
   };
   const renderRecent = () => {
@@ -1658,8 +1733,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const appendPersistedMessage = message => {
     const record = threadRecord(); if (!record) return;
+    conversationSync?.prepareMessage(record, message);
     record.messages.push(message); record.messages = record.messages.slice(-MESSAGE_LIMIT); record.updatedAt = Date.now();
     sortThreads(); saveState(); renderRecent();
+    conversationSync?.noteAppended();
   };
   const lotbiBoxKey = () => storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box');
   // LIFE-PUBLIC-DATA-01 / NEIS: the chosen school lives with this namespace's settings.
@@ -3289,6 +3366,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     cancelActiveTurn('conversation-switch');
     closeConversationMenus();
     state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); focusComposerInPlace();
+    // A conversation from another device arrives as its title first.
+    void conversationSync?.ensureLoaded(id);
   };
   const startNewConversation = () => {
     cancelActiveTurn('new-conversation');
@@ -3370,6 +3449,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const switchNamespace = nextNamespace => {
     const normalized = normalizedNamespace(nextNamespace);
     if (!normalized || (normalized === namespace && stateReady)) return;
+    // Another account (or signed out): the previous account's sync stops here.
+    conversationSync?.stop();
     namespace = normalized;
     const loadedState = safeParse(storage?.getItem(storageKey(namespace, 'threads')), {});
     const loadedPreferences = safeParse(storage?.getItem(storageKey(namespace, 'preferences')), {});
@@ -3427,7 +3508,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the old browser-only photo (raw image data
     // in these preferences) is not the account photo; drop it from storage.
     if (Object.prototype.hasOwnProperty.call(loadedPreferences, 'photo')) savePreferences();
-    applyPreferences(); renderActiveThread(); renderRecent();
+    applyPreferences(); renderActiveThread(); renderRecent(); renderConversationSyncUi();
     document.body.dataset.conversationRestore = 'ready';
     schedulePendingTurnResume();
     refreshAuthenticatedProfileSlots();
@@ -3582,7 +3663,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       const identity = await getCurrentSiteUser(sessionToken);
       if (namespace && identity.installationId !== namespace) throw new SiteCoreError('Site 사용자 namespace가 일치하지 않습니다.', {code: 'SITE_IDENTITY_NAMESPACE_MISMATCH'});
-      serverIdentity = identity; refreshAuthenticatedProfileSlots();
+      serverIdentity = identity; refreshAuthenticatedProfileSlots(); void loadConversationSync().then(sync => sync?.start());
       void syncProfilePhoto(identity.profilePhoto);
       openProfilePhotoFromHash();
     } catch (error) {
@@ -3832,7 +3913,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-80a36d07492c');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-fce27a4d0d4f');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3860,7 +3941,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-80a36d07492c');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-fce27a4d0d4f');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3890,7 +3971,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
     });
     try {
-      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-80a36d07492c');
+      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-fce27a4d0d4f');
       const mounted = await mountOnnuriMerchants({root: content});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -3904,7 +3985,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   const openRenameThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
-    const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
+    const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', conversationSync?.onAccount(record)
+      ? '이 이름은 계정에 저장된 이 대화에도 반영되어 로그인한 다른 기기에서도 보입니다.'
+      : '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
     const label = document.createElement('label'); label.className = 'site-field'; label.textContent = '대화 이름';
     const input = document.createElement('input'); input.type = 'text'; input.maxLength = THREAD_TITLE_LIMIT; input.value = record.title; input.autocomplete = 'off'; label.appendChild(input);
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
@@ -3914,7 +3997,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const commit = () => {
       const title = normalizedThreadTitle(input.value);
       if (!title) { error.textContent = '대화 이름을 입력해 주세요.'; input.focus(); return; }
-      record.title = title; saveState(); closeSurface(); renderRecent(); setStatus('대화 이름을 바꿨습니다.');
+      record.title = title; saveState(); closeSurface(); renderRecent(); conversationSync?.noteThreadMeta(record.id); setStatus('대화 이름을 바꿨습니다.');
     };
     save.addEventListener('click', commit);
     input.addEventListener('keydown', event => {
@@ -3925,13 +4008,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const openDeleteThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
-    const {backdrop, panel, content} = modalShell('대화 삭제', `“${record.title}” 대화를 이 브라우저에서 삭제합니다. 이 작업은 되돌릴 수 없습니다.`);
+    const {backdrop, panel, content} = modalShell('대화 삭제', conversationSync?.onAccount(record)
+      ? `“${record.title}” 대화를 이 기기와 계정에서 삭제합니다. 로그인한 다른 기기에서도 사라지며 되돌릴 수 없습니다.`
+      : `“${record.title}” 대화를 이 브라우저에서 삭제합니다. 이 작업은 되돌릴 수 없습니다.`);
     const actions = document.createElement('div'); actions.className = 'conversation-management-modal-actions';
     const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'site-button site-button-secondary'; cancel.textContent = '취소'; cancel.addEventListener('click', closeSurface);
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'site-button conversation-delete-confirm'; remove.textContent = '삭제';
     remove.addEventListener('click', () => {
       const deletingActive = state.activeThreadId === id;
       state.threads = state.threads.filter(item => item.id !== id);
+      conversationSync?.noteThreadDeleted(record);
       if (deletingActive) {
         state.activeThreadId = null; state.draft = ''; prompt.value = '';
         prompt.dispatchEvent(new Event('input', {bubbles: true}));
@@ -4153,8 +4239,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-80a36d07492c'),
-          import('./site-pet.js?v=aset-80a36d07492c'),
+          import('./site-person.js?v=aset-fce27a4d0d4f'),
+          import('./site-pet.js?v=aset-fce27a4d0d4f'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -4163,11 +4249,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-80a36d07492c');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-fce27a4d0d4f');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-80a36d07492c');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-fce27a4d0d4f');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4175,7 +4261,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       // only). It asks through the onAsk handed over by the life section, so a
       // question is sent at once without the keyboard, like every life card.
       mountMyChild: async (root, {onAsk: askFromMyChild} = {}) => {
-        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-80a36d07492c');
+        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-fce27a4d0d4f');
         return mountMyChild({sessionToken, root, authenticated: Boolean(sessionToken), onAsk: askFromMyChild});
       },
     });
