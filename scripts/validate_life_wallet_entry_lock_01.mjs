@@ -186,7 +186,8 @@ assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page tr
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);
 assert.match(walletSource, /detail\?\.authenticated === false/u);
-assert.match(consumerSource, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt\}\)/u);
+// LIFE-WALLET-ENCRYPTED-BACKUP-01: the signed-in session also reaches the wallet (server backup).
+assert.match(consumerSource, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt, sessionToken\}\)/u);
 assert.match(walletSource, /MAX_PIN_FAILURES = 5/u);
 assert.doesNotMatch(walletSource, /localStorage/u, 'wallet must not store secrets or data in localStorage');
 assert.doesNotMatch(walletSource, /fetch\s*\(/u, 'wallet must not upload data');
