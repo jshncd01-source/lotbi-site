@@ -752,7 +752,8 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
 function normalizeMedicalResultNotice(value) {
   if (!value || typeof value !== 'object' || value.contract_id !== 'CORE-MEDICAL-RESULT-01') return null;
   const notices = Array.isArray(value.notices) ? value.notices : [];
-  return Object.freeze({emergencyCall: notices.includes('CALL_119')});
+  // partial: Core read only part of a long registry list (shown on the cards).
+  return Object.freeze({emergencyCall: notices.includes('CALL_119'), partial: value.coverage === 'PARTIAL'});
 }
 
 function normalizeAttachmentIds(attachmentIds) {
@@ -941,6 +942,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
+    newsResult: payload.news_result && typeof payload.news_result === 'object' && payload.news_result.contract_id === 'CORE-REGIONAL-NEWS-01' ? Object.freeze({...payload.news_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
@@ -1146,6 +1148,7 @@ export async function sendGuestConversationMessage({
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
     schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
+    newsResult: payload.news_result && typeof payload.news_result === 'object' && payload.news_result.contract_id === 'CORE-REGIONAL-NEWS-01' ? Object.freeze({...payload.news_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
@@ -1424,6 +1427,7 @@ export async function reviewProductCard(sessionToken, {
 }
 
 const SYNTHETIC_EMAIL_FIRST_HANDLE_RE = /^e1[0-9a-f]{20}$/;
+const SIGNUP_PROVIDERS = Object.freeze(['KAKAO', 'NAVER', 'GOOGLE', 'APPLE']);
 
 function optionalIdentityText(value, field) {
   if (value === null || value === undefined) return '';
@@ -1443,11 +1447,16 @@ function userFacingIdentity(user) {
   const synthetic = user?.account_handle_is_synthetic === true
     || Boolean(rawAccountHandle && email && SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle));
   const publicHandle = canonicalPublicHandle || (!synthetic ? rawAccountHandle : '');
+  // SOCIAL-SIGNUP-PROFILE-UX-01 — Core marks the social signup placeholder name
+  // and the server-generated u... handle; neither is the person's own choice.
+  // Older Core sends no marks and everything stays as it was.
   return Object.freeze({
-    name,
+    name: user?.display_name_is_default === true ? '' : name,
     email,
     publicHandle,
     accountHandle: publicHandle,
+    ...(publicHandle && user?.public_handle_is_generated === true ? {publicHandleGenerated: true} : {}),
+    ...(SIGNUP_PROVIDERS.includes(user?.signup_provider) ? {signupProvider: user.signup_provider} : {}),
   });
 }
 

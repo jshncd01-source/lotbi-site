@@ -759,7 +759,9 @@ async function runCase(browser, origin, workDir, testCase) {
     check('M 새 대화: blank conversation', left.thread.length === 0, left);
     left = await leaveLifeByOtherMeans('대화 전환', "document.querySelector('.conversation-history-open[data-thread-id]').click(); true");
     check('M 대화 전환: that conversation on view', left.thread.some(text => text.includes('새로고침 경로 테스트 질문')), left);
-    await leaveLifeByOtherMeans('입력창 초안', `(() => {
+    // LIFE-MEDICAL-AUTO-SEARCH-01: a life request is sent at once, never left
+    // in the composer for a second tap.
+    left = await leaveLifeByOtherMeans('질문 바로 전송', `(() => {
       document.querySelector('[data-site-route="life"] [data-life-shortcut="local"]').click();
       const form = document.querySelector('[data-site-route="life"] .consumer-life-form');
       for (const field of form.querySelectorAll('input, textarea')) field.value = '전주';
@@ -767,7 +769,7 @@ async function runCase(browser, origin, workDir, testCase) {
       return true;
     })()`);
     const drafted = await evaluate("document.getElementById('lotbi-prompt').value");
-    check('M 입력창 초안: the question waits in the composer', drafted.includes('우리 지역 생활정보'), drafted);
+    check('M 질문 바로 전송: asked at once, nothing left in the composer', drafted === '' && left.thread.some(text => text.includes('우리 지역 생활정보')), {drafted, thread: left.thread});
 
     // CASE I + 10 — signed out on a protected screen, then login from it comes back to it.
     // Life Wallet's 로그인하기 goes through /auth/start/ (the fallback page).

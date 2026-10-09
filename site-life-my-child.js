@@ -139,7 +139,7 @@ export function mountMyChild({
   root,
   sessionToken = '',
   authenticated = false,
-  onDraft,
+  onAsk,
   fetchImpl = globalThis.fetch,
 } = {}) {
   let disposed = false;
@@ -567,7 +567,7 @@ export function mountMyChild({
     fact('관할', k.officeEdu);
     fact('공시 기준', k.disclosureLabel);
     section.append(node('h5', '', '기본정보'), facts);
-    const ask = button('대화로 더 물어보기', () => onDraft?.(`${k.area ? `${k.area.replace(/^\S+\s+/u, '')} ` : ''}${k.name} 알려줘`));
+    const ask = button('대화로 더 물어보기', () => onAsk?.(`${k.area ? `${k.area.replace(/^\S+\s+/u, '')} ` : ''}${k.name} 알려줘`));
     section.append(ask);
     return section;
   }

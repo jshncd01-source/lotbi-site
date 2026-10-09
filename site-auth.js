@@ -1,5 +1,5 @@
-import {SITE_CALLBACK_URI} from './site-core.js?v=aset-f638d054d3f5';
-import {parseSiteRouteHash} from './site-route.js?v=aset-f638d054d3f5';
+import {redeemSiteHandoff, SITE_CALLBACK_URI} from './site-core.js?v=aset-288dae9f4243';
+import {parseSiteRouteHash} from './site-route.js?v=aset-288dae9f4243';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
@@ -9,6 +9,11 @@ export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/
 // the normal same-region response budget while still bounding a stalled mobile
 // radio / background-resume request. A timeout is UNKNOWN, never logged-out.
 export const ACCOUNT_SESSION_STATUS_TIMEOUT_MS = 5000;
+// AUTH-SESSION-CONTINUITY-P0-02 — Account answers the Site's own fetch with a
+// one-time, PKCE-bound handoff code, so a 30-minute Site session is renewed in
+// place instead of sending the whole page through /auth/callback/.
+export const ACCOUNT_SITE_SESSION_RENEWAL_URL = 'https://account.lotbiai.com/api/auth/site-session-renewal';
+export const ACCOUNT_SITE_SESSION_RENEWAL_TIMEOUT_MS = 8000;
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
 export const HANDOFF_RECOVERY_KEY = 'lotbi.site-handoff-recovery.v1';
@@ -275,6 +280,22 @@ export function isConsumedSiteHandoffCallback(url) {
   return [...url.searchParams.keys()].length === 0;
 }
 
+// AUTH-SESSION-CONTINUITY-P0-02 — what a callback URL looked like, without a
+// single value from it: how many code and state parameters it carried and how
+// many other names. The error page prints this so a phone screenshot says which
+// way the callback was entered; code/state themselves are never read here.
+export function describeSiteHandoffCallbackQuery(url) {
+  let other = 0;
+  for (const key of url.searchParams.keys()) {
+    if (key !== 'code' && key !== 'state') other += 1;
+  }
+  return Object.freeze({
+    code: url.searchParams.getAll('code').length,
+    state: url.searchParams.getAll('state').length,
+    other,
+  });
+}
+
 export function parseSiteHandoffCallback(url) {
   const params = url.searchParams;
   const allowed = new Set(['code', 'state']);
@@ -362,6 +383,104 @@ export async function readAccountSessionStatus(
 
   return payload.authenticated;
 }
+
+// AUTH-SESSION-CONTINUITY-P0-02 — silent renewal.
+//
+// The same PKCE handoff as beginSiteHandoff(), minus the page navigation: a
+// fresh state/verifier/challenge is made in memory (never stored), Account
+// answers with a one-time code bound to that challenge, the echoed state is
+// compared, and Core redeems the code only with the verifier this page holds.
+// Results:
+//   {status: 'RENEWED', session}  a new Site child session
+//   {status: 'SIGNED_OUT'}        Account says there is no session — the only
+//                                  answer that may show the login button
+// Anything else (offline, timeout, Account not yet deployed, contract drift)
+// throws SiteHandoffClientError and is never read as a logout.
+export async function renewSiteSessionSilently({
+  fetchImpl = globalThis.fetch,
+  redeem = redeemSiteHandoff,
+  timeoutMs = ACCOUNT_SITE_SESSION_RENEWAL_TIMEOUT_MS,
+  now = Date.now(),
+} = {}) {
+  if (typeof fetchImpl !== 'function') {
+    throw new SiteHandoffClientError('LOTBI 계정 연결을 확인할 수 없습니다.', 'SITE_SESSION_RENEWAL_UNAVAILABLE');
+  }
+  const context = await createSiteHandoffContext('', now, '');
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = globalThis.setTimeout(() => {
+      reject(new SiteHandoffClientError('LOTBI 계정 연결 확인 시간이 초과되었습니다.', 'SITE_SESSION_RENEWAL_TIMEOUT'));
+      try { controller?.abort(); } catch {}
+    }, timeoutMs);
+  });
+
+  let response;
+  let payload;
+  try {
+    const request = Promise.resolve().then(async () => {
+      const answer = await fetchImpl(ACCOUNT_SITE_SESSION_RENEWAL_URL, {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'include',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+        body: JSON.stringify({state: context.state, code_challenge: context.codeChallenge}),
+        ...(controller ? {signal: controller.signal} : {}),
+      });
+      let body = {};
+      try { body = await answer.json(); } catch {}
+      return [answer, body];
+    });
+    [response, payload] = await Promise.race([request, timeout]);
+  } catch (error) {
+    if (error instanceof SiteHandoffClientError) throw error;
+    throw new SiteHandoffClientError('LOTBI 계정 연결 서버에 접속하지 못했습니다.', 'SITE_SESSION_RENEWAL_NETWORK_ERROR');
+  } finally {
+    if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+  }
+
+  const contractMatches = payload?.contract_id === 'ACCOUNT-SITE-SESSION-RENEWAL-01' && payload?.schema_version === 1;
+  if (response.status === 401 && contractMatches && payload.authenticated === false) {
+    return Object.freeze({status: 'SIGNED_OUT'});
+  }
+  if (!response.ok || !contractMatches || payload.authenticated !== true) {
+    throw new SiteHandoffClientError('LOTBI 계정 연결을 잠시 확인하지 못했습니다.', 'SITE_SESSION_RENEWAL_UNAVAILABLE');
+  }
+  if (typeof payload.state !== 'string' || payload.state !== context.state) {
+    throw new SiteHandoffClientError('로그인 연결 상태값이 일치하지 않습니다.', 'SITE_HANDOFF_STATE_MISMATCH');
+  }
+  if (typeof payload.code !== 'string' || payload.code.length < 32 || payload.code.length > 256) {
+    throw new SiteHandoffClientError('LOTBI 계정 연결 응답이 올바르지 않습니다.', 'SITE_SESSION_RENEWAL_UNAVAILABLE');
+  }
+  const session = await redeem({
+    handoffCode: payload.code,
+    state: context.state,
+    codeVerifier: context.codeVerifier,
+  });
+  return Object.freeze({status: 'RENEWED', session});
+}
+
+// AUTH-SESSION-CONTINUITY-P0-02 — the mounted conversation registers how a
+// renewed Site session reaches it; site-continuity.js hands sessions over
+// through here, so the bearer never travels on a window event.
+let siteSessionAdopter;
+
+export function registerSiteSessionAdopter(adopter) {
+  siteSessionAdopter = typeof adopter === 'function' ? adopter : undefined;
+}
+
+export function adoptSiteSession(session) {
+  if (typeof siteSessionAdopter !== 'function') return false;
+  try {
+    return siteSessionAdopter(session) === true;
+  } catch {
+    return false;
+  }
+}
+
+export const SITE_SESSION_RENEWAL_REQUEST_EVENT = 'lotbi:site-session-renewal-request';
 
 export function shouldUseAccountSiteFallback(error) {
   return error instanceof SiteHandoffClientError

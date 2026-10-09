@@ -1039,7 +1039,8 @@ function cardLines(working,marks,corners,tallest=.05){
 // by design, so a card cropped taller than wide lies on its side. Its print is left-aligned:
 // rows that start evenly at the top mean it lies turned clockwise, so it turns back 270
 // degrees; evenly at the bottom, 90. Undecided, 270; the scanner's 회전 button corrects it.
-// Pages are never turned automatically: portrait and landscape pages both exist.
+// Only used when the print itself does not say which way it runs (uprightFromPrint); pages
+// are not turned by their shape: portrait and landscape pages both exist.
 function uprightRotation(working,marks,corners){
   const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];const side=(start,end)=>Math.hypot(end.x-start.x,end.y-start.y);
   const across=(side(ordered[0],ordered[1])+side(ordered[3],ordered[2]))/2;const down=(side(ordered[0],ordered[3])+side(ordered[1],ordered[2]))/2;
@@ -1107,6 +1108,59 @@ function itemMarks(imageData,corners){
   return {working,marks:printMarks(working,smooth,light),whole:{topLeft:{x:0,y:0},topRight:{x:width-1,y:0},bottomRight:{x:width-1,y:height-1},bottomLeft:{x:0,y:height-1}}};
 }
 
+// Which way the print runs inside a found item, on the squared-up crop. Lines of print leave
+// empty bands between them across the reading direction; glyph gaps rarely line up over
+// several lines, so the other axis has few such bands. Dense pages, which also chain glyphs
+// top to bottom, still leave clean bands only between their lines. Large shapes (a photo,
+// ruled lines, stamps) are left out; a band is a run of positions nearly free of glyphs.
+function printBands(working,marks){
+  const {width,height}=working;const short=Math.min(width,height);
+  const glyphs=marks.filter(mark=>{
+    const wide=mark.maximumX-mark.minimumX+1;const tall=mark.maximumY-mark.minimumY+1;
+    return Math.min(wide,tall)>=2&&Math.max(wide,tall)<=short*.08&&mark.minimumX>1&&mark.minimumY>1&&mark.maximumX<width-2&&mark.maximumY<height-2;
+  });
+  if(glyphs.length<12)return {across:0,down:0,glyphs:glyphs.length};
+  const sizes=glyphs.map(mark=>Math.min(mark.maximumX-mark.minimumX+1,mark.maximumY-mark.minimumY+1)).sort((first,second)=>first-second);
+  const unit=sizes[Math.floor(sizes.length/2)];
+  const bands=(length,from,to)=>{
+    const occupied=new Uint16Array(length);for(const mark of glyphs)for(let index=from(mark);index<=to(mark);index+=1)occupied[index]+=1;
+    const filled=[...occupied].filter(Boolean).sort((first,second)=>first-second);if(!filled.length)return 0;
+    const quiet=Math.floor(filled[Math.floor(filled.length*.9)]*.04);
+    let first=0;while(first<length&&occupied[first]<=quiet)first+=1;let last=length-1;while(last>first&&occupied[last]<=quiet)last-=1;
+    let count=0;let run=0;const minimum=Math.max(1,unit*.25);
+    for(let index=first;index<=last;index+=1){if(occupied[index]<=quiet)run+=1;else{if(run>=minimum)count+=1;run=0}}
+    return count;
+  };
+  return {across:bands(height,mark=>mark.minimumY,mark=>mark.maximumY),down:bands(width,mark=>mark.minimumX,mark=>mark.maximumX),glyphs:glyphs.length};
+}
+
+// How evenly lines start (or end): for each line, the share of the other lines that start
+// within a few pixels of it. Left-aligned print scores high at its starts even in two columns
+// (two pages of a bankbook), where a plain spread of the positions would not.
+function lineAlignment(values,tolerance){
+  if(values.length<2)return 0;
+  let total=0;for(const value of values){let near=-1;for(const other of values)if(Math.abs(other-value)<=tolerance)near+=1;total+=near/(values.length-1)}
+  return total/values.length;
+}
+
+// Degrees clockwise that stand a found item's print upright, or null when the print does
+// not say clearly. Print running down the crop (photographed on its side) turns a quarter:
+// its lines are left-aligned, so lines starting evenly at the top lie turned clockwise (turn
+// back 270), evenly at the bottom 90. Print running across stays, unless its lines clearly
+// end evenly and start ragged — upside down, 180.
+function uprightFromPrint(working,marks){
+  const bands=printBands(working,marks);
+  // Only a clear answer counts (a page gives some 20 to 30 bands one way and 0 to 2 the other).
+  const clearly=(one,other)=>one>=6&&one>=other*3+1;
+  const direction=clearly(bands.down,bands.across)?'down':clearly(bands.across,bands.down)?'across':'';
+  if(!direction)return {turn:null,bands};
+  const rows=textRows(working,marks,null,direction==='down',ITEM_GLYPH);
+  const tolerance=Math.max(3,(direction==='down'?working.height:working.width)*.012);
+  const starts=lineAlignment(rows.starts,tolerance);const ends=lineAlignment(rows.ends,tolerance);
+  if(direction==='down')return {turn:rows.lines>=3&&ends>starts+.15?90:270,bands};
+  return {turn:rows.lines>=6&&ends>starts+.15?180:0,bands};
+}
+
 // Printed rows inside corners the user placed by hand: a manual crop is only saved when it
 // frames a printed item, so a pet cannot be saved by dragging the corners around it.
 // Judged on the squared-up crop like a found item, but rows across only: a pet's fur makes
@@ -1150,9 +1204,10 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   const itemSource=detail?.data&&sourceScale<1?detail:imageData;const itemScale=itemSource===detail?1/(working.scale*sourceScale):1/working.scale;
   // Print rows: a page counts rows on the working image; a card counts them on a card squared
   // up from the full photo.
+  const itemOf=candidate=>itemMarks(itemSource,Object.fromEntries(Object.entries(candidate.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}])));
   const rowsOf=candidate=>{
     if(!candidate)return 0;if(candidate.source==='full-page')return textLines(working,marks,candidate.corners);
-    const item=itemMarks(itemSource,Object.fromEntries(Object.entries(candidate.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}])));
+    const item=itemOf(candidate);
     return cardLines(item.working,item.marks,null,ITEM_GLYPH);
   };
   let card=Boolean(chosen)&&chosen.source!=='full-page';
@@ -1179,7 +1234,21 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   const paper=!flat&&(chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners)));
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
-  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation:paper||!card||flat?0:uprightRotation(working,marks,chosen.corners),diagnostics};
+  // Stood upright by its print, so nobody has to press 회전: a square-cornered item (a page,
+  // a bankbook spread, a contract, a business card) with many lines says clearly which way it
+  // reads, in all four turns. A rounded card (ID-1) does not — a few lines beside a photo, and
+  // dense small print can line up both ways — so it keeps the shape rule (a card cropped
+  // taller than wide lies on its side); an upside-down card is left for 회전. A full-frame
+  // card picture keeps the orientation it was saved in.
+  let rotation=0;
+  if(!flat){
+    const square=chosen.source==='full-page'||(chosen.metrics?.cornerRadius||0)<.04;
+    let upright={turn:null,bands:{across:'-',down:'-'}};
+    if(square){const item=itemOf(chosen);upright=uprightFromPrint(item.working,item.marks)}
+    diagnostics.print=`${upright.bands.across}/${upright.bands.down}`;
+    rotation=upright.turn??(paper||!card?0:uprightRotation(working,marks,chosen.corners));
+  }
+  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation,diagnostics};
 }
 
 // The whole picture as a card: its paper (light, nearly colourless) spans the frame, the frame

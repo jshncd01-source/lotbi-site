@@ -133,6 +133,7 @@ try {
   const nativeFetch = globalThis.fetch.bind(globalThis);
   const json = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}}));
   globalThis.__kinderCalls = [];
+  globalThis.__sent = [];
   globalThis.fetch = (url, init) => {
     let parsed;
     try { parsed = new URL(String((url && url.url) || url), location.origin); } catch { return nativeFetch(url, init); }
@@ -146,6 +147,18 @@ try {
     }
     if (parsed.pathname === '/v2/conversation/guest/sessions') return json({contract_id: 'CORE-GUEST-SESSION-01', schema_version: 1,
       guest_token: 'g'.repeat(43), expires_at: new Date(Date.now() + 3600000).toISOString()});
+    // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: a question from this screen is sent
+    // right away; record what Core receives.
+    if (parsed.pathname === '/v2/conversation/guest/messages') {
+      try { globalThis.__sent.push(JSON.parse(String(init?.body || '{}')).text ?? null); } catch { globalThis.__sent.push(null); }
+      return json({contract_id: 'CORE-WEB-CHAT-01', schema_version: 1, status: 'ANSWERED',
+        assistant_text: '확인했어요.', response_mode: 'DETERMINISTIC', correlation_id: 'req_kindergartenofficial01',
+        intent: {action: 'ANSWER', domain: 'GENERAL'},
+        follow_up: {required: false, action: 'NONE', automatic_execution: false},
+        safety: {execution_authority: false, external_side_effect: false, transaction_created: false,
+          order_created: false, payment_attempted: false, reservation_created: false, merchant_execution_started: false},
+        retry_safe: true});
+    }
     if (parsed.origin !== location.origin) return json({items: []});
     return nativeFetch(url, init);
   };
@@ -185,8 +198,11 @@ const SCENARIO = `(async () => {
     state.querySelector('[data-kinder-fallback="region"]').value = '전주시 덕진구';
     state.querySelector('[data-kinder-fallback="name"]').value = '예일';
     state.querySelector('.lotbi-kinder-fallback').requestSubmit();
+    await wait(() => globalThis.__sent.length, 'fallback question sent');
     await sleep(300);
     result.disabled.composer = document.getElementById('lotbi-prompt')?.value ?? null;
+    result.disabled.composerFocused = document.activeElement === document.getElementById('lotbi-prompt');
+    result.disabled.sent = globalThis.__sent.slice();
     return result;
   }
   const sido = await wait(() => edu.querySelector('[data-kinder-sido]'), 'region picker');
@@ -245,15 +261,20 @@ const SCENARIO = `(async () => {
   await wait(() => !edu.querySelector('[data-kinder-mine]') && edu.querySelector('[data-kinder-sido]'), 'mine cleared');
   result.mineCleared = localStorage.getItem('lotbi.site.ux.v1.life-kindergarten.guest');
   result.calls = globalThis.__kinderCalls.map(c => c.credentials);
-  // 학교 tab: the question goes to the chat composer.
+  // 학교 tab: the question is sent to the chat right away
+  // (LIFE-DIRECT-CHAT-CARD-COMPACTION-01), not left in the composer.
   edu.querySelector('[data-edu-tab="school"]').click();
   const schoolName = await wait(() => edu.querySelector('[data-edu-school-name]'), 'school form');
   schoolName.value = '전주서원초';
   edu.querySelector('[data-school-action="meal_week"]').click();
   result.schoolMeasure = {small: visibleSmall(edu), overflow: overflowOf(edu)};
+  result.schoolButton = edu.querySelector('.lotbi-edu-school button[type=submit]')?.textContent || '';
   edu.querySelector('.lotbi-edu-school').requestSubmit();
+  await wait(() => globalThis.__sent.length, 'school question sent');
   await sleep(300);
   result.composer = document.getElementById('lotbi-prompt')?.value ?? null;
+  result.composerFocused = document.activeElement === document.getElementById('lotbi-prompt');
+  result.sent = globalThis.__sent.slice();
   result.surfaceOpen = Boolean(document.querySelector('.consumer-section-panel .lotbi-edu'));
   return result;
 })()`;
@@ -423,7 +444,12 @@ try {
       assert.equal(r.mineCleared, null);
       assert.deepEqual(r.schoolKeys, []);
       assert.ok(r.calls.length >= 3 && r.calls.every(value => value === 'omit'), JSON.stringify(r.calls));
-      assert.equal(r.composer, '전주서원초 이번 주 급식 알려줘');
+      // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: one tap sends the question once;
+      // the composer stays empty and unfocused (no keyboard).
+      assert.equal(r.schoolButton, '롯비에게 물어보기');
+      assert.deepEqual(r.sent, ['전주서원초 이번 주 급식 알려줘']);
+      assert.equal(r.composer, '');
+      assert.equal(r.composerFocused, false);
       assert.equal(r.surfaceOpen, false);
     });
   }
@@ -434,7 +460,9 @@ try {
     assert.deepEqual(off.disabled.button, ['대화로 물어보기']);
     assert.deepEqual(off.disabled.small, []);
     assert.deepEqual(off.disabled.overflow, []);
-    assert.equal(off.disabled.composer, '전주시 덕진구 예일유치원 알려줘');
+    assert.deepEqual(off.disabled.sent, ['전주시 덕진구 예일유치원 알려줘']);
+    assert.equal(off.disabled.composer, '');
+    assert.equal(off.disabled.composerFocused, false);
   });
 } finally {
   server.kill('SIGTERM');

@@ -371,6 +371,25 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   font-weight: 850;
 }
 
+/* SOCIAL-SIGNUP-PROFILE-UX-01 — no name given and no photo: a plain person icon, not letters. */
+.sidebar-profile-avatar-default {
+  color: var(--lotbi-text-muted, #667085);
+}
+
+.sidebar-profile-avatar-icon {
+  width: 58%;
+  height: 58%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-photo-preview-filled > .sidebar-profile-avatar-icon {
+  visibility: hidden;
+}
+
 .sidebar-profile-chevron {
   flex: 0 0 16px;
   width: 16px;

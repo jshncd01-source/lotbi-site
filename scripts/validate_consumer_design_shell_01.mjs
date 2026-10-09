@@ -4,7 +4,7 @@ const read = file => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'ut
 const html = read('index.html');
 const js = read('site-conversation.js');
 const subscribe = read('subscribe.html');
-const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '안심케어', '생활정보', '제휴몰'];
+const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '안심케어', '지역정보', '제휴몰'];
 const navs = [...html.matchAll(/<div class="consumer-primary-nav"[^>]*>([\s\S]*?)<\/div>/g)];
 assert.equal(navs.length, 2, 'desktop and mobile use the same navigation');
 for (const [,nav] of navs) {
@@ -51,11 +51,11 @@ assert.match(consumerSections, /void selectTab\(next \? 'pets' : 'people'\); onC
 assert.doesNotMatch(consumerSections, /긴급한 상황이라면|사람 실종 신고|반려동물 실종 신고/);
 assert.match(js, /openFestival/);
 assert.match(js, /openLotbiBox/);
-assert.match(js, /backLabel: '생활정보로 돌아가기', onBack: \(\) => openConsumerSection\('life'\)/);
+assert.match(js, /backLabel: '지역정보로 돌아가기', onBack: \(\) => openConsumerSection\('life'\)/);
 assert.match(js, /backLabel: '안심케어로 돌아가기', onBack: \(\) => openConsumerSection\('care'\)/);
 assert.match(js, /back.removeEventListener\('click', closeSurface\)/);
-for (const text of ['일상을 챙겨주는 AI 생활비서', '생활 전반을 더 많이 맡기는 개인비서', 'LOTBI를 가장 넉넉하게 사용', '9,900원', '19,900원', '39,900원', '프로필 1개', '프로필 5개', '프로필 15개']) assert.ok(subscribe.includes(text));
-assert.doesNotMatch(subscribe, /29,900원/);
+for (const text of ['일상을 챙겨주는 AI 생활비서', '생활 전반을 더 많이 맡기는 개인비서', 'LOTBI를 가장 넉넉하게 사용', '9,900원', '29,900원', '39,900원', '프로필 1개', '프로필 5개', '프로필 15개']) assert.ok(subscribe.includes(text));
+assert.doesNotMatch(subscribe, /19,900원/);
 // SITE-REFRESH-ROUTE-FESTIVAL-BACK-04: Escape takes the same path as the ←
 // (close this screen, then onBack), through history first when it can.
 assert.match(js, /event\.preventDefault\(\); event\.stopPropagation\(\); goBack\(\);/, 'nested ESC must not also reach the global surface closer');

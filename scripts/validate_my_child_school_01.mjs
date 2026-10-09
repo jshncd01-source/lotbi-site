@@ -1,8 +1,10 @@
 // MY-CHILD-SCHOOL-01 — 생활정보 → 내 아이 학교·유치원.
 //
 // Contract checked here:
-// * 생활정보 shows a seventh card "내 아이 학교·유치원" (the six existing cards
-//   and their order stay); it opens a screen with "생활정보로 돌아가기"
+// * 생활정보 shows a ninth (last) card "내 아이 학교·유치원" (the eight existing
+//   cards and their order stay); it opens a screen with "지역정보로 돌아가기"
+//   (the label every life screen uses); its "대화로 더 물어보기" asks through
+//   the same onAsk as every life card (one tap, no keyboard)
 // * signed out: a login notice (/auth/start/), no Core call
 // * signed in: NEIS school search → pick → nickname (default "첫째") +
 //   allergen numbers + the first-save consent → save; 유치원 via the
@@ -38,8 +40,8 @@ const sections = await import('../site-consumer-sections.js');
 const screen = await import('../site-life-my-child.js');
 const client = await import('../site-my-child-client.js');
 
-await check('생활정보: six existing cards kept in order, 내 아이 학교·유치원 seventh with its own screen', () => {
-  assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['hospital', 'pharmacy', 'festivals', 'onnuri', 'local', 'education', 'my-child']);
+await check('생활정보: eight existing cards kept in order, 내 아이 학교·유치원 ninth with its own screen', () => {
+  assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['hospital', 'pharmacy', 'emergency', 'festivals', 'news', 'onnuri', 'local', 'education', 'my-child']);
   const item = sections.LIFE_SHORTCUTS.at(-1);
   assert.equal(item.label, '내 아이 학교·유치원');
   assert.ok(!item.prompt && !item.medical);
@@ -47,8 +49,17 @@ await check('생활정보: six existing cards kept in order, 내 아이 학교·
   assert.match(source, /item\.id === 'my-child' \? openMyChild\(item\)/u);
   assert.doesNotMatch(source, /\bfetch\(|localStorage|innerHTML/u);
   const conversation = read('site-conversation.js');
-  assert.match(conversation, /mountMyChild: async root => \{\r?\n\s+const \{mountMyChild\} = await import\('\.\/site-life-my-child\.js\?v=aset-[0-9a-f]{12}'\);/u);
-  assert.match(conversation, /return mountMyChild\(\{sessionToken, root, authenticated: Boolean\(sessionToken\),/u);
+  assert.match(conversation, /mountMyChild: async \(root, \{onAsk: askFromMyChild\} = \{\}\) => \{\r?\n\s+const \{mountMyChild\} = await import\('\.\/site-life-my-child\.js\?v=aset-[0-9a-f]{12}'\);/u);
+  assert.match(conversation, /return mountMyChild\(\{sessionToken, root, authenticated: Boolean\(sessionToken\), onAsk: askFromMyChild\}\);/u);
+  // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: "대화로 더 물어보기" asks through the
+  // life section's onAsk (closes 생활정보, sends at once, no keyboard); no
+  // draft handoff is left anywhere.
+  assert.match(source, /mountMyChild\(host, \{onAsk\}\)/u, 'the life section hands its onAsk to the screen');
+  const screenSource = read('site-life-my-child.js');
+  assert.match(screenSource, /button\('대화로 더 물어보기', \(\) => onAsk\?\.\(/u, '대화로 더 물어보기 asks through onAsk');
+  for (const [file, text] of [['site-conversation.js', conversation], ['site-consumer-sections.js', source], ['site-life-my-child.js', screenSource]]) {
+    assert.doesNotMatch(text, /\bonDraft\b|draft\(text\)/u, `${file}: no draft handoff`);
+  }
 });
 
 await check('screen sources: no storage, no HTML injection, nothing medical', () => {
@@ -418,7 +429,7 @@ const SCENARIO = `(async () => {
   const save4 = await wait(() => host.querySelector('[data-my-child-save="SCHOOL"]'), 'save form 4');
   result.consentAgain = Boolean(save4.querySelector('[data-my-child-consent-check]'));
 
-  // 6. 생활정보로 돌아가기.
+  // 6. 지역정보로 돌아가기.
   panel.querySelector('.consumer-life-detail > .consumer-action').click();
   await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.lotbi-mychild'), 'back to life');
   result.backHome = document.activeElement?.dataset?.lifeShortcut || '';
@@ -547,11 +558,11 @@ try {
   for (const testCase of CASES) {
     const r = await runCase(browser, origin, dir, testCase, 'inner.html', true);
     const label = testCase.label;
-    await check(`${label}: seventh card opens the screen with 생활정보로 돌아가기; empty list explains storage`, () => {
-      assert.deepEqual(r.cards, ['hospital', 'pharmacy', 'festivals', 'onnuri', 'local', 'education', 'my-child']);
+    await check(`${label}: ninth card opens the screen with 지역정보로 돌아가기; empty list explains storage`, () => {
+      assert.deepEqual(r.cards, ['hospital', 'pharmacy', 'emergency', 'festivals', 'news', 'onnuri', 'local', 'education', 'my-child']);
       assert.equal(r.card.label, '내 아이 학교·유치원');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
-      assert.equal(r.back, '생활정보로 돌아가기');
+      assert.equal(r.back, '지역정보로 돌아가기');
       assert.match(r.empty.text, /아직 저장한 학교·유치원이 없어요/u);
       assert.match(r.empty.footer, /아이 이름·생년월일·사진·학년·반은 받지 않아요/u);
       assert.equal(r.backHome, 'my-child', 'focus returns to the card');
@@ -655,7 +666,7 @@ try {
   await check('signed out: login notice to /auth/start/, back button, no Core call', () => {
     assert.match(out.login.text, /로그인하고 아이 학교·유치원을 저장하세요/u);
     assert.equal(out.login.href, '/auth/start/');
-    assert.equal(out.back, '생활정보로 돌아가기');
+    assert.equal(out.back, '지역정보로 돌아가기');
     assert.equal(out.calls, 0);
     assert.deepEqual(out.login.measure.small, []);
     assert.deepEqual(out.login.measure.overflow, []);
