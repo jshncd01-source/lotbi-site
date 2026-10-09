@@ -1,17 +1,27 @@
 READY_FOR_DEPLOY=YES
+SUPERSEDES=f22ace1140ac4de7890eae343103d6db57e6c959 (SITE-T39 Linux gate TEST_FAILED, run 20261009T051502Z-1194340-2706526855)
 
 # calendar-mobile-week-ux-weather-01-site — release handoff
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/calendar-mobile-week-ux-weather-01-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote origin refs/heads/feature/calendar-mobile-week-ux-weather-01-site`)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=ddcc573dca618a3289594220e53bb22d6c414bad (SITE-T37 merge; Production served fa6ed88d aset-1349a7eafa03 at start and at push)
-CODE_SHA=2edd6b23a55c5c491ab7bcc89f35a46477386b6b
-ASSET_VERSION=aset-5d392d51866c (main ddcc573d: aset-f0f202fb6c78)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=9e39edd06446b3e93ec68170de49df9f702e0d07 (SITE-T38c; Production served aset-976965940207 = this main). 정상 merge 9441a54a (rebase·force push 없음). 첫 개발 기준은 ddcc573d.
+CODE_SHA=506b7860f0d2f2494c43b060224dc9b6e35e45d7 (2edd6b23 본체 + 9441a54a main 병합 + 506b7860 Linux 글꼴 시간 칸 수정·검사 보강)
+ASSET_VERSION=aset-05f15210ca62 (main 9e39edd0: aset-976965940207)
 CORE_CHANGE=NONE (Core API·데이터·날씨 제공자·인증키 변경 없음)
-DEPLOY_ORDER=SITE 단독. 단, 기준 main ddcc573d에 반복 일정 Site(c34cf05b)가 이미 들어 있으므로 RELEASE_QUEUE 2026-10-09 11:35 규칙(Core 반복 일정 수정본 배포 뒤에만 Site 배포)을 그대로 따른다. 이 branch가 새로 만드는 순서 제약은 없다.
+DEPLOY_ORDER=SITE 단독 (반복 일정 Site는 이미 main·운영에 있음)
 PAIRED_WEB_THEME_SYNC=NOT_NEEDED (site-theme-tokens.css 무변경)
 USER_DECISION_NEEDED=NONE
+
+## GATE RETURN 수정 (SITE-T39, 2026-10-09 14:22)
+
+- 실패: Linux Chrome `validate_calendar_mobile_week_ux_weather_01` — `320x640 light weather=on: time, title and amount must share the first line` (`rows.firstLine=false`).
+- 원인 [확인된 사실, Windows 재현]: 휴대폰 주간 일정 행의 시간 칸이 고정 38px(≤360px)/40px였다. Linux 기본 글꼴(DejaVu Sans 계열)은 숫자가 넓어 `09:00`(14px 굵게)이 약 45px로 그려져 시간 칸을 넘어 제목 시작점을 침범했다. Windows Segoe UI에서는 38px 안에 들어가 통과했다. 금액·제목 칸 문제가 아니었다(금액은 이미 줄바꿈 금지).
+  - 재현: 페이지 전체에 `'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR'`를 강제하면 Windows에서도 수정 전 CSS가 gate와 같은 메시지로 FAIL(시간 있는 4개 행 모두, `<time>` 45px > 칸 38px).
+- 수정(`site-calendar.css`, 세로 주간 행만): 시간 칸 `minmax(40px, max-content)`(≤360px `minmax(38px, max-content)`). 시각은 고정폭 숫자라 모든 행의 시간 칸 폭이 같다(측정: 기본 글꼴 38/40px, 넓은 글꼴 45.5px). 시간·금액 `white-space: nowrap`, 금액 `justify-self: end`, 제목 칸·제목 `min-width: 0`. 긴 제목 4줄, 분류는 제목 아래, 겹침·넘침 0 유지. 검사 기준 완화 없음.
+- 검사 보강(`validate_calendar_mobile_week_ux_weather_01.mjs`): 넓은 글꼴 단계 3개(320x640 라이트 날씨 켬, 320x640 다크 날씨 끔, 360x640 라이트) 추가, 10/6에 `월세 08:00 1,000,000원`과 `아파트 관리비와 가스요금 자동이체 확인하고 영수증 정리하기 18:00 1,000,000원` 행 추가, 첫 줄 검사를 첫 행 하나에서 **모든 행**으로 확대, 모든 행 시간 칸 폭 동일(차이 ≤0.5px), 긴 제목+큰 금액 행 4줄 이하.
+- 넓은 글꼴 측정(320px): 시간 칸 45.5px · 제목 54~69px · 금액 78px(200,000원)/93px(1,000,000원), 5개 행 모두 첫 줄 한 줄. 긴 제목+1,000,000원 행은 4줄에서 `…`(기존 4줄 제한 정책, 전체 제목은 눌러 편집기에서 확인).
 
 ## SCOPE
 
@@ -29,7 +39,7 @@ USER_DECISION_NEEDED=NONE
   - `dayWeatherNode`: `condition` 옵션(기본 false → 일간 패널·월간 무변경).
 - `site-calendar.css` (세로 주간 구역만)
   - rail: 열 58px(≤360px 54px), 날짜 버튼 높이 44px, 숫자 24px 원(오늘 링 유지), 점 4px.
-  - 일정: 테두리 카드 → 구분선 행(`시간 40px | 제목·분류 | 금액`, 최소 44px, 테두리·배경 없음, hover만 배경). 시간 없는 기록은 `제목 | 금액`. 긴 제목 4줄까지.
+  - 일정: 테두리 카드 → 구분선 행(`시간(최소 40px, 글자 폭만큼) | 제목·분류 | 금액`, 최소 44px, 테두리·배경 없음, hover만 배경). 시간 없는 기록은 `제목 | 금액`. 긴 제목 4줄까지.
   - 선택 날짜 제목 줄 아래 구분선, 빈 날짜 = 점선 상자 없이 문구 두 줄.
   - 색은 기존 캘린더 토큰만 사용(다크·기기 설정 다크 자동, system-dark 미러 재생성 불필요). 금액 색은 제목과 같음(큰 금액 경고색 없음).
 - `site-consumer-design.css`
@@ -55,39 +65,41 @@ WEATHER_ROOT_CAUSE=세로 주간 출처를 주 전체 날씨로 계산 → 날�
 WEATHER_ON_OFF=IMPLEMENTED — 위치·지역 없음: 날씨·출처·안내 모두 없음 / 있음: 선택 날짜 날씨 + 그 날씨의 출처 / 조회 실패: 기존 실패 문구만, 일정 표시 영향 없음
 PAST_DATE_FALLBACK=IMPLEMENTED — `지난 날짜 날씨 정보 없음`, 출처 없음
 WEEK_DATE_HORIZONTAL=IMPLEMENTED — `4 일`~`10 토` 한 줄, 44px, 점·선택·오늘·주말·공휴일 유지
-EVENT_ROW_COMPACT=IMPLEMENTED — `09:00 점심 200,000원` / `기타`, 구분선 행, 상세·편집 그대로
-MOBILE_320_360_390_430=PASS(헤드리스 Chrome) — 7일 모두 첫 화면 안, 가로 넘침 0, 겹침 0. 삼성 인터넷·iPhone Safari 실기기 NOT VERIFIED
+EVENT_ROW_COMPACT=IMPLEMENTED — `09:00 점심 200,000원` / `기타`, 구분선 행, 상세·편집 그대로. 넓은(Linux) 글꼴 320px에서도 모든 행 첫 줄 한 줄
+MOBILE_320_360_390_430=PASS(헤드리스 Chrome, Windows + 넓은 글꼴 단계) — 7일 모두 첫 화면 안, 가로 넘침 0, 겹침 0. Linux 실행·삼성 인터넷·iPhone Safari 실기기 NOT VERIFIED
 DESKTOP_REGRESSION=PASS — 1280·1024 7열 시간표·열별 날씨·주 출처 그대로, 768 태블릿 세로 주간 정상
 CALENDAR_REGRESSION=PASS — 아래 TEST_STATUS
 BLOCKERS=NONE
 
 ## TEST_STATUS
 
-NEW VALIDATOR — scripts/validate_calendar_mobile_week_ux_weather_01.mjs: PASS
-- 폰 7가지(320x640·360x640·390x844·430x932 라이트, 360x780 다크, 360x780 날씨 끔, 390x844 날씨 실패) + PC 2가지(1280x900 라이트·1024x768 다크).
-- rail `4일`~`10토` 한 줄(숫자 오른쪽 끝 ≤ 요일 왼쪽, 세로 중심 차 <2px), 44px, 폭 54~58px, 7일 모두 첫 화면(마지막 날 아래 583px ≤ 내용 아래 619px @360x640), 점 [0,0,3,0,0,1,0], 선택 채움·오늘 링 구분, 일·토·공휴일 색.
+NEW VALIDATOR — scripts/validate_calendar_mobile_week_ux_weather_01.mjs: PASS (506b7860)
+- 폰 10가지: 320x640·360x640·390x844·430x932 라이트, 360x780 다크, 360x780 날씨 끔, 390x844 날씨 실패, **넓은 글꼴** 320x640 라이트·320x640 다크 날씨 끔·360x640 라이트. PC 2가지: 1280x900 라이트·1024x768 다크.
+- 수정 전 CSS(9441a54a)에 같은 검사를 돌리면 넓은 글꼴 320x640 단계에서 gate와 같은 메시지로 FAIL(월세·점심·정형외과·아파트 행) → 수정 후 PASS.
+- rail `4일`~`10토` 한 줄(숫자 오른쪽 끝 ≤ 요일 왼쪽, 세로 중심 차 <2px), 44px, 폭 54~58px, 7일 모두 첫 화면(마지막 날 아래 583~590px ≤ 내용 아래 619px @320·360x640), 점 [0,0,3,0,0,1,0], 선택 채움·오늘 링 구분, 일·토·공휴일 색.
 - 팝업: 제목 줄 44px, 주 시작 241~266px, 툴바 44px 대상·제목 잘림 0, 341px 이상 ⚙ 첫 줄.
-- 10/6: 탭 즉시 전환(추가 요청 0), 행 [점심, 정형외과…, 장보기 목록], 첫 행 `09:00`·`점심`·`기타`·`200,000원` 같은 줄(분류는 제목 아래), 좌우·위 테두리 0 + 구분선, 행 44px 이상, 금액 색 = 제목 색, 행 → 편집기(점심·200,000·OTHER 그대로) → 취소 → 같은 날.
+- 10/6: 탭 즉시 전환(추가 요청 0), 행 [월세, 점심, 정형외과…, 아파트 관리비…, 장보기 목록], 모든 행 시간|제목|금액 첫 줄, 시간 칸 폭 동일(38/40/45.5px), 점심 행 `09:00`·`점심`·`기타`·`200,000원`(분류는 제목 아래), 좌우·위 테두리 0 + 구분선, 행 44px 이상, 금액 색 = 제목 색, 긴 제목(금액 없음) 전체 표시, 긴 제목+1,000,000원 4줄 이하, 점심 행 → 편집기(점심·200,000·OTHER 그대로) → 취소 → 같은 날.
 - 날씨: 오늘 `맑음 14° / 24°`가 제목 옆 + 출처 `· 11:00 발표`, 10/6 날씨·출처 0 + `지난 날짜 날씨 정보 없음`, 10/10 `흐림 … 💧30%` + 출처, 끔 = 셋 다 없음, 실패 = 실패 문구만(출처·지난 날짜 안내 없음).
 - 사진에서 기록 읽기·+ 10월 10일에 기록 버튼 유지.
 
-UPDATED — scripts/validate_calendar_week_mobile_vertical_01.mjs: PASS (320~412 라이트·다크 7가지 + PC 2가지, + 기록 저장·삭제·다음/이전 주·오늘·월 합계 포함)
+UPDATED — scripts/validate_calendar_week_mobile_vertical_01.mjs: PASS (506b7860; 320~412 라이트·다크 7가지 + PC 2가지, + 기록 저장·삭제·다음/이전 주·오늘·월 합계 포함)
 
-REPO_VALIDATORS (Windows 로컬, 워크플로 등록 195개 + 워크플로 밖 캘린더·날씨·소비자 화면 9개)
-- 1차(병렬 3): PASS 182 / FAIL 13.
-- 직렬 재실행: 8개 PASS(동시 부하 모듈 로드 실패 6개 + 인자 누락 sync 2개 `--check`). 남은 5개:
-  - main ddcc573d worktree에서도 같은 오류로 FAIL(Windows 기존 RED) 4개: validate_image_attachment_thumbnail_01(CRLF 소스 정규식), validate_mobile_footer_legal_sheet_01(761px), validate_place_card_compact_01(모듈 로드), validate_site_avatar_fallback_runtime.
-  - validate_profile_menu_improvement_01: 간헐 실패. feature 직렬 7회 중 5회 PASS(실패 2회 모두 `site-conversation.js` 동적 import 로드 실패, 가상 시간 8초), main 4/4 PASS. 이 branch의 `site-conversation.js` 변경은 설명 문자열 2개와 토큰뿐이라 부하성으로 판정 [추정].
-- NEW_FAILURES=0. 캘린더 검사 52개 전부 PASS(단독 판정 포함), 반복 일정(validate_calendar_recurring_events_01)·사진에서 기록(validate_calendar_add_from_image_01)·월 합계·PC 시간표·월간 geometry PASS. 워크플로 밖 9개(weather_attribution_01·manual_weather_region_settings_01·weather_region_preference_01·editor_spacing_01·consumer_design_shell_01·consumer_detail_system_01·consumer_documents_01·consumer_predeploy_guards_01·conversation_calendar_result_time_01) PASS.
-- asset 일관성 SITE-ASSET-CACHE-COHERENCE-01 PASS(aset-5d392d51866c).
+REPO_VALIDATORS (Windows 로컬, 506b7860, `scripts/validate_*` 전체 240개 — .mjs + .py)
+- 1차(병렬 3): PASS 236 / FAIL 4.
+- 직렬 재실행: validate_chat_long_answer_scroll_anchor_01 PASS(1차 실패 = Chrome 시작 DevToolsActivePort, 부하성).
+- 남은 3개는 main 9e39edd0 worktree에서도 같은 오류로 FAIL(Windows 기존 RED): validate_image_attachment_thumbnail_01(CRLF 소스 정규식), validate_mobile_footer_legal_sheet_01(761px), validate_site_avatar_fallback_runtime.
+- NEW_FAILURES=0. 캘린더 검사 57/57 PASS(1차에서 바로): 반복 일정 recurring_events_01, 월간 month_geometry_01, 편집기 compact_editor_01·editor_field_height_01·editor_footer_contrast_01, 월 합계 expense_summary_01, 사진에서 기록 add_from_image_01, 날씨 출처 weather_attribution_01, PC 시간표 week_timegrid_ui_01, toolbar_polish_01, system_dark_01, 비회원 guest_calendar_local_01 포함.
+- asset 일관성 SITE-ASSET-CACHE-COHERENCE-01 PASS(aset-05f15210ca62).
+- Linux 실행: NOT RUN — 이 PC에 WSL 배포판·Docker가 없다. 대신 넓은 글꼴 단계로 Linux 글꼴 폭을 Windows에서 재현했고(수정 전 FAIL 재현 확인), 이 단계는 Linux gate에서도 같은 조건으로 돈다.
 
 ## NOT VERIFIED
 
+- Linux Chrome에서 직접 실행: NOT RUN (위 이유). 다음 gate가 첫 Linux 실행이다.
 - 실기기 삼성 인터넷·iPhone Safari·Android Chrome: NOT VERIFIED (헤드리스 Chrome 320·344·360·390·412·430·768·1024·1280px 측정만). 권장 확인: 폰에서 캘린더 → 주 → 지난 날짜·오늘·내일 탭.
 - 로그인 계정 실데이터 화면: NOT VERIFIED (게스트 저장소 + 고정 fixture, 날씨는 운영 응답 형식을 본뜬 mock). 운영 날씨 API 응답 범위는 실측함.
-- Linux CI 실행: NOT RUN (Windows 로컬만).
 
 ## MERGE_NOTES
 
-- `feature/calendar-lunar-compact-01`(8a31a674, SITE-T38 대기)와 시험 병합: 충돌 64개 중 63개는 asset 토큰뿐. 실제 충돌 1개 = `site-calendar-manager.js` lunar import 한 줄 → 그쪽 `lunarDateCompactLabel` 추가를 받아들이면 된다. CSS·워크플로는 자동 병합(음력은 월간 칸·≤600/≤380 구역, 이 branch는 세로 주간 구역과 consumer-design 팝업 블록). 병합 결과에서 토큰 재생성 후 9개 PASS: lunar_compact_layout_01·lunar_settings_ui_01·lunar_model_01·mobile_week_ux_weather_01·week_mobile_vertical_01·toolbar_polish_01·system_dark_01·cross_platform_ux_01·week_timegrid_ui_01, asset 일관성 PASS.
-- 반복 일정 Site(c34cf05b)는 이미 main에 있고, 이 branch는 같은 `lifeRow`를 그대로 쓰므로 반복 표시는 새 행 안에 그대로 나온다.
+- main 9e39edd0 병합(9441a54a): 충돌 64개 중 62개는 asset 토큰뿐. 실제 충돌 2개(`index.html`, `auth/callback/index.html`)는 main 쪽이 유치원·학교 스타일시트 링크를 추가한 줄 → main 쪽 채택(이 branch는 두 파일에서 토큰만 바꿈). 병합 후 main 대비 index.html 차이는 토큰뿐.
+- `feature/calendar-lunar-compact-01`(f08dcbda, 미병합)과 시험 병합(별도 worktree): 충돌 66개 중 실제 충돌 1개 = `site-calendar-manager.js` lunar import 한 줄 → 그쪽 `lunarDateCompactLabel` 추가를 받아들이면 된다. CSS·워크플로는 자동 병합. 병합 결과에서 토큰 재생성 후 PASS: mobile_week_ux_weather_01·week_mobile_vertical_01·lunar_compact_layout_01(1차는 1024px 한 경우 모듈 로드 실패, 단독 재실행 PASS), asset 일관성 PASS.
+- 반복 일정 Site는 이미 main에 있고, 이 branch는 같은 `lifeRow`를 그대로 쓰므로 반복 표시는 새 행 안에 그대로 나온다.
