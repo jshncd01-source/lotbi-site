@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-b072855d0eb0';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-99da53f2c78c';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -475,11 +475,14 @@ export class LifeWalletVault {
     const unlocked = await this.requireUnlocked(accountId);
     let backup;
     try { backup = JSON.parse(serialized); } catch { throw new Error('선택한 파일은 LOTBI Life Wallet 백업이 아닙니다.'); }
+    // Rounds recorded in the backup are used, so a backup made with more rounds later still opens;
+    // never fewer than today's.
     if (backup?.format !== 'LOTBI_LIFE_WALLET' || backup?.version !== 1 || backup?.kdf?.name !== 'PBKDF2-HMAC-SHA-256'
-      || backup?.kdf?.iterations !== BACKUP_KDF_ITERATIONS || backup?.cipher?.aad !== BACKUP_AAD) {
+      || !Number.isInteger(backup?.kdf?.iterations) || backup.kdf.iterations < BACKUP_KDF_ITERATIONS || backup.kdf.iterations > 10_000_000
+      || backup?.cipher?.aad !== BACKUP_AAD) {
       throw new Error('지원하지 않거나 손상된 LOTBI Life Wallet 백업입니다.');
     }
-    const key = await deriveAesKey(password, base64ToBytes(backup.kdf.salt), BACKUP_KDF_ITERATIONS);
+    const key = await deriveAesKey(password, base64ToBytes(backup.kdf.salt), backup.kdf.iterations);
     let payload;
     try { payload = JSON.parse(await openEnvelope(key, backup.cipher, BACKUP_AAD)); }
     catch { throw new Error('백업 암호를 확인해 주세요.'); }
@@ -983,8 +986,34 @@ export async function requestPersistentWalletStorage(storage = globalThis.naviga
   } catch { return 'unsupported'; }
 }
 
-export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+// When a server backup was made (YYYY.MM.DD HH:mm, local time).
+function serverBackupTime(meta) {
+  const at = new Date(meta?.created_at || '');
+  if (!Number.isFinite(at.getTime())) return '';
+  const two = value => String(value).padStart(2, '0');
+  return `${at.getFullYear()}.${two(at.getMonth() + 1)}.${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+}
+
+export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = ''} = {}) {
   const vault = new LifeWalletVault(new IndexedDbWalletRepository());
+  // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
+  // session). Core sees the envelope, never the backup password, the key or an item.
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-99da53f2c78c') : null;
+  let serverBackupClient = null;
+  const serverBackup = async () => {
+    const module = await serverBackupModule;
+    serverBackupClient ||= module.createWalletServerBackup({sessionToken});
+    return {module, client: serverBackupClient};
+  };
+  // What Core says about this account's backup: null when there is none or Core does not answer
+  // in time — the wallet never waits long for it.
+  const describeServerBackup = async () => {
+    if (!serverBackupModule) return null;
+    try {
+      const {client} = await serverBackup();
+      return await Promise.race([client.describe(), new Promise(resolve => setTimeout(() => resolve(null), 4000))]);
+    } catch { return null; }
+  };
   let disposed = false;
   let unlocked = false;
   let sessionAuthenticated = authenticated;
@@ -1129,13 +1158,24 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     if (message) status.textContent = message;
     const submit = button('PIN 설정하고 열기'); submit.type = 'submit';
     form.append(field('새 PIN', pin), field('PIN 다시 입력', confirmation), submit, status);
+    let setupBackup = null;
+    if (serverBackupModule) {
+      void describeServerBackup().then(meta => {
+        if (!meta || !form.isConnected) return;
+        setupBackup = meta;
+        const notice = element('p', 'wallet-server-backup-notice', `서버에 백업한 월렛이 있습니다 (${serverBackupTime(meta)}). PIN을 만든 뒤 바로 불러올 수 있습니다.`);
+        notice.dataset.walletServerBackupNotice = '';
+        form.before(notice);
+      });
+    }
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
         validateWalletPin(pin.value);
         if (pin.value !== confirmation.value) throw new Error('두 PIN이 일치하지 않습니다.');
         setBusy(form, true); await vault.create(accountId, pin.value);
-        pin.value = ''; confirmation.value = ''; unlocked = true; activity(); keepWalletStorage(); await renderWallet();
+        pin.value = ''; confirmation.value = ''; unlocked = true; activity(); keepWalletStorage();
+        if (setupBackup) renderServerRestore(setupBackup); else await renderWallet();
       } catch (error) { status.textContent = safeMessage(error, 'PIN을 설정하지 못했습니다.'); setBusy(form, false); pin.focus(); }
     });
     wrap.append(form, element('p', 'wallet-security-note', 'PIN은 저장하거나 전송하지 않습니다. 임의의 256비트 암호화 키를 이 브라우저에 묶어 보호합니다. PIN 분실 시 현재 PC Web에는 안전한 복구 경로가 없으므로 자료를 지우지 말고 LOTBI 지원에 문의해 주세요.'));
@@ -1186,14 +1226,19 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     try {
       const cards = await vault.list(accountId);
       if (disposed || !unlocked || generation !== renderGeneration) return;
+      const backupMeta = await describeServerBackup();
+      if (disposed || !unlocked || generation !== renderGeneration) return;
       const shell = element('section', 'wallet-shell');
       const toolbar = element('div', 'wallet-toolbar');
       const copy = element('div', 'wallet-storage-copy');
       const reassurance = element('div', 'wallet-storage-reassurance');
-      reassurance.append(
+      reassurance.append(...(backupMeta ? [
+        element('strong', '', '자료는 이 기기에 저장되고, 서버에는 암호화된 백업만 보관됩니다.'),
+        element('span', '', 'LOTBI 관리자도 원본과 백업 내용을 볼 수 없습니다. 새 기기에서는 같은 계정으로 로그인한 뒤 백업 비밀번호로 불러올 수 있습니다.'),
+      ] : [
         element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
         element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
-      );
+      ]));
       copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
       const settings = element('div', 'wallet-settings');
       const settingsMenu = element('div', 'wallet-settings-menu');
@@ -1211,6 +1256,17 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       const importAction = button('백업에서 복원', renderImport, true); importAction.setAttribute('role', 'menuitem');
       settingsMenu.append(pinAction, backupAction, importAction);
       if (!canExportWalletBackup(cards)) settingsMenu.append(element('small', 'wallet-settings-help', '저장된 자료가 있을 때 백업 파일을 만들 수 있습니다.'));
+      if (serverBackupModule) {
+        const keepAction = button('서버에 백업하기', () => renderServerBackup(backupMeta), true); keepAction.setAttribute('role', 'menuitem'); keepAction.dataset.walletServerBackup = 'keep';
+        keepAction.disabled = !canExportWalletBackup(cards);
+        settingsMenu.append(keepAction);
+        if (backupMeta) {
+          const restoreAction = button('서버 백업 불러오기', () => renderServerRestore(backupMeta), true); restoreAction.setAttribute('role', 'menuitem'); restoreAction.dataset.walletServerBackup = 'restore';
+          const deleteAction = button('서버 백업 삭제', () => renderServerBackupDelete(), true); deleteAction.setAttribute('role', 'menuitem'); deleteAction.dataset.walletServerBackup = 'delete';
+          settingsMenu.append(restoreAction, deleteAction);
+        }
+        settingsMenu.append(element('small', 'wallet-settings-help', backupMeta ? `마지막 서버 백업: ${serverBackupTime(backupMeta)}` : '서버에 보관한 백업이 없습니다.'));
+      }
       settings.addEventListener('keydown', event => {
         if (event.key !== 'Escape' || settingsMenu.hidden) return;
         settingsMenu.hidden = true; settingsToggle.setAttribute('aria-expanded', 'false'); settingsToggle.focus();
@@ -1223,6 +1279,10 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       if (!cards.length) {
         const empty = element('section', 'wallet-empty');
         empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
+        if (backupMeta) {
+          const restore = button('서버 백업 불러오기', () => renderServerRestore(backupMeta), true); restore.dataset.walletServerBackup = 'restore';
+          empty.append(element('p', 'wallet-server-backup-notice', `서버에 ${serverBackupTime(backupMeta)} 백업한 월렛이 있습니다.`), restore);
+        }
         shell.append(empty);
       } else {
         shell.append(createWalletCardDeck({cards, onOpen: renderDetail}));
@@ -1381,6 +1441,108 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       } catch (error) { status.textContent = safeMessage(error, '백업 파일을 만들지 못했습니다.'); setBusy(form, false); password.focus(); }
     });
     root.replaceChildren(form); focusUnlessTouch(password); activity();
+  }
+
+  // 서버에 백업하기: sealed here with the backup password (never the PIN), only the envelope leaves.
+  function renderServerBackup(meta) {
+    const form = element('form', 'wallet-editor wallet-server-backup'); const status = errorRegion();
+    const password = element('input'); password.type = 'password'; password.minLength = 10; password.maxLength = 128; password.autocomplete = 'new-password';
+    const confirmation = element('input'); confirmation.type = 'password'; confirmation.minLength = 10; confirmation.maxLength = 128; confirmation.autocomplete = 'new-password';
+    const strength = element('p', 'wallet-password-strength', '비밀번호 강도: -'); strength.setAttribute('aria-live', 'polite');
+    const understood = element('input'); understood.type = 'checkbox';
+    const check = element('label', 'wallet-confirm-check'); check.append(understood, element('span', '', '백업 비밀번호를 잊으면 LOTBI도 백업을 열거나 복구할 수 없다는 것을 확인했습니다.'));
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
+    const submit = button('서버에 백업하기'); submit.type = 'submit'; actions.append(submit);
+    form.append(
+      element('h3', '', '서버에 백업하기'),
+      element('p', 'wallet-form-intro', '월렛 자료 전체를 이 브라우저에서 암호화한 뒤, 암호화된 내용만 LOTBI 서버에 보관합니다. 새 기기에서 같은 계정으로 로그인하고 백업 비밀번호를 입력하면 불러올 수 있습니다. LOTBI는 백업 비밀번호와 자료 내용을 볼 수 없습니다.'),
+      ...(meta ? [element('p', 'wallet-backup-warning', `${serverBackupTime(meta)}에 만든 서버 백업이 있습니다. 새로 백업하면 이전 백업을 대신합니다.`)] : []),
+      field('백업 비밀번호 · 10자 이상, 문자·숫자·기호 중 2가지 이상', password), strength,
+      field('백업 비밀번호 확인', confirmation),
+      element('p', 'wallet-backup-warning', '월렛 4자리 PIN과 다른 비밀번호를 정해 주세요. 백업 비밀번호를 잊으면 LOTBI도 백업을 열거나 복구할 수 없습니다.'),
+      check, actions, status,
+    );
+    const labels = {weak: '약함', fair: '보통', strong: '강함'};
+    password.addEventListener('input', async () => {
+      const {module} = await serverBackup();
+      const level = password.value ? module.backupPasswordStrength(password.value) : '';
+      strength.dataset.strength = level; strength.textContent = `비밀번호 강도: ${labels[level] || '-'}`;
+    });
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); status.textContent = '';
+      try {
+        const {module, client} = await serverBackup();
+        const backupPassword = module.validateServerBackupPassword(password.value, confirmation.value);
+        if (!understood.checked) throw new Error('백업 비밀번호를 잊으면 복구할 수 없다는 안내를 확인하고 체크해 주세요.');
+        setBusy(form, true); status.textContent = '이 브라우저에서 암호화하고 있습니다.';
+        const sealed = await vault.exportBackup(accountId, backupPassword);
+        status.textContent = '암호화된 백업을 서버에 올리고 있습니다.';
+        const kept = await client.keep(sealed);
+        password.value = ''; confirmation.value = '';
+        await renderWallet(`서버에 백업했습니다 (${serverBackupTime(kept)}). 새 기기에서는 같은 계정과 백업 비밀번호로 불러올 수 있습니다.`);
+      } catch (error) { status.textContent = safeMessage(error, '서버에 백업하지 못했습니다.'); setBusy(form, false); password.focus(); }
+    });
+    root.replaceChildren(form); password.focus(); activity();
+  }
+
+  // 서버 백업 불러오기: fetched once per screen, opened here; a wrong password can be retried
+  // without fetching again (Core counts fetches, not attempts).
+  function renderServerRestore(meta) {
+    const form = element('form', 'wallet-editor wallet-server-restore'); const status = errorRegion();
+    const password = element('input'); password.type = 'password'; password.minLength = 10; password.maxLength = 128; password.autocomplete = 'current-password';
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('나중에', () => void renderWallet(), true));
+    const submit = button('불러오기'); submit.type = 'submit'; actions.append(submit);
+    form.append(
+      element('h3', '', '서버 백업 불러오기'),
+      element('p', 'wallet-form-intro', `${serverBackupTime(meta)}에 서버에 백업한 월렛을 이 기기로 불러옵니다. 백업할 때 정한 백업 비밀번호를 입력해 주세요.`),
+      field('백업 비밀번호 (월렛 4자리 PIN이 아닙니다)', password),
+      element('p', 'wallet-backup-warning', '불러온 자료는 이 기기에 암호화되어 저장되고, 이 기기의 월렛 PIN으로 열립니다.'),
+      actions, status,
+    );
+    let sealed = null;
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); status.textContent = '';
+      try {
+        if (!password.value) throw new Error('백업 비밀번호를 입력해 주세요.');
+        const {client} = await serverBackup();
+        setBusy(form, true);
+        if (!sealed) { status.textContent = '서버에서 암호화된 백업을 받고 있습니다.'; sealed = await client.fetchSealed(); }
+        status.textContent = '이 브라우저에서 백업을 풀고 있습니다.';
+        let count;
+        try { count = await vault.importBackup(accountId, sealed, password.value); }
+        catch (error) {
+          if (error?.message === '백업 암호를 확인해 주세요.') throw new Error('백업 비밀번호가 맞지 않거나 백업이 손상되었습니다. 다시 확인해 주세요.');
+          throw error;
+        }
+        password.value = '';
+        await renderWallet(`서버 백업에서 ${count}개 자료를 불러왔습니다.`);
+      } catch (error) { status.textContent = safeMessage(error, '서버 백업을 불러오지 못했습니다.'); setBusy(form, false); password.value = ''; password.focus(); }
+    });
+    root.replaceChildren(form); password.focus(); activity();
+  }
+
+  // 서버 백업 삭제: asks for the wallet PIN on the page (cannot be undone; WebViews cancel confirm()).
+  function renderServerBackupDelete() {
+    const form = element('form', 'wallet-editor wallet-server-backup-delete'); const status = errorRegion();
+    const pin = pinInput('월렛 PIN');
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
+    const submit = button('서버 백업 삭제'); submit.type = 'submit'; submit.classList.add('wallet-danger-confirm'); actions.append(submit);
+    form.append(
+      element('h3', '', '서버 백업 삭제'),
+      element('p', 'wallet-form-intro', '서버에 보관한 암호화 백업을 지웁니다. 이 기기의 월렛 자료는 그대로 남습니다. 지운 백업은 되살릴 수 없습니다.'),
+      field('월렛 PIN', pin), actions, status,
+    );
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); status.textContent = '';
+      try {
+        validateWalletPin(pin.value); setBusy(form, true);
+        await vault.verifyPin(accountId, pin.value);
+        const {client} = await serverBackup();
+        await client.remove();
+        await renderWallet('서버 백업을 삭제했습니다.');
+      } catch (error) { status.textContent = safeMessage(error, '서버 백업을 삭제하지 못했습니다.'); setBusy(form, false); pin.value = ''; pin.focus(); }
+    });
+    root.replaceChildren(form); pin.focus(); activity();
   }
 
   function renderImport() {
