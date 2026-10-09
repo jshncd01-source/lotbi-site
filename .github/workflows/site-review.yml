@@ -671,6 +671,13 @@ jobs:
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
 
+      # KINDERGARTEN-OFFICIAL-INFO-01: 생활정보 → 유치원·학교 → 유치원. 유치원알리미
+      # 시도·시군구 → 목록 → 설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·
+      # 공시 기준 + 상세 공시 8개, 내 유치원(학교 저장값과 분리), Core 꺼짐 안내,
+      # 360·375·390·412·데스크톱 light/dark 실제 Chrome 확인.
+      - name: Validate kindergarten official info
+        run: node scripts/validate_kindergarten_official_info_01.mjs
+
       # 생활정보 정리 최종: 공과금 메뉴·상단 질문바·하단 보조 row·롯비함 진입/저장 버튼 없음,
       # 요금 안내에 공과금 문구 없음, 저장된 롯비함 데이터는 그대로. 360·375·390·412·1280.
       - name: Validate life info cleanup final
