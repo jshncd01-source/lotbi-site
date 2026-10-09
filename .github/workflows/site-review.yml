@@ -745,6 +745,12 @@ jobs:
       - name: Validate regional news (지역정보 · 지역뉴스)
         run: node scripts/validate_regional_news_p0_01.mjs
 
+      # TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV는 대화가 아니라 자체 선택 화면
+      # (도로 → 노선 → 방향 → 구간 → CCTV, 위치·GPS 사용 없음, HTTPS 영상만 재생, 영상 닫으면 해제,
+      # 뒤로가기 영상 → 목록 → 지역정보 → 홈, 저장한 지도앱 아이콘, 360~412px·데스크톱, 라이트·다크).
+      - name: Validate traffic CCTV route selection
+        run: node scripts/validate_traffic_cctv_route_select_p0_01.mjs
+
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
       # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지
