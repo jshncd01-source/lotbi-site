@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="LOTBI 유료 플랜과 월 이용료 안내입니다. Basic 월 9,900원, Plus 월 29,900원, Pro 월 39,900원이며 모든 금액은 부가가치세를 포함합니다." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://lotbiai.com/subscribe" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LOTBI" />
+  <meta property="og:title" content="구독 안내 | LOTBI" />
+  <meta property="og:description" content="LOTBI 구독 등급과 월 이용료를 확인하고 등급을 선택하세요." />
+  <meta property="og:url" content="https://lotbiai.com/subscribe" />
+  <meta property="og:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <title>구독 안내 | LOTBI</title>
+  <!-- SITE-STATIC-PAGES-THEME-01 — same pre-paint bootstrap as index.html, and
+       for the same reasons: inline, blocking, above every stylesheet. These
+       pages load no module, so this script is the ONLY thing that puts the
+       theme on the document. site-static-theme.css keys entirely on the
+       attribute it sets.
+       Reads only. Wrapped in try/catch and does nothing on a bad or missing
+       value: a storage failure must not stop a legal page from rendering. -->
+  <script>
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
+        var lotbiHour = new Date().getHours();
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 22:00.
+          lotbiSavedTheme = (lotbiHour >= 22 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 22 ? 7 : 22);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
+      }
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="subscribe.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-static-theme.css?v=aset-092264d18d78" />
+  <script src="mobile-entry.js?v=aset-092264d18d78" defer></script>
+  <script src="subscribe.js?v=aset-092264d18d78" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <main id="main-content" class="wrap legal">
+    <header class="topbar">
+      <a class="brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈"><img class="lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /></a>
+      <nav aria-label="주요 메뉴"><a href="index.html">홈</a><a href="/contact">문의</a></nav>
+    </header>
+
+    <section class="section">
+      <p class="kicker">SUBSCRIPTION</p>
+      <h1>LOTBI 구독 안내</h1>
+      <p class="plan-lead">내 일상을 챙기는 AI 생활비서. 일정과 생활비를 정리하고, 의심스러운 안내를 확인하며, 가족과 반려동물을 함께 챙기세요. 플랜마다 이용량과 등록할 수 있는 보호 대상 수가 다릅니다.</p>
+      <p class="plan-price-note">판매 주체는 유한회사 알에이디홀딩스이며, 표시 금액은 부가세를 포함한 원화 가격입니다. 현재 유료 결제는 결제대행사 심사 및 테스트 단계로 실제 결제와 자동갱신이 열려 있지 않습니다.</p>
+      <p class="plan-price-note" data-plan-change-policy>이용 중에 상위 플랜으로 바꾸면 남은 이용기간만큼 요금 차액만 일할 계산해 결제하고 결제가 끝나는 즉시 적용되며, 다음 정기결제일은 그대로입니다. 하위 플랜으로 바꾸면 다음 정기결제일부터 적용되고 별도 결제나 환불은 없습니다.</p>
+
+      <form id="plan-form" novalidate>
+        <fieldset class="plan-picker">
+          <legend>등급 선택</legend>
+
+          <div class="plan-grid">
+            <label class="plan-card" data-plan-card data-selected="false">
+              <input type="radio" name="plan" value="basic" data-plan-name="LOTBI Basic" checked />
+              <span class="plan-card-head">
+                <span class="plan-name">LOTBI Basic</span>
+                <span class="plan-check" aria-hidden="true">선택됨</span>
+              </span>
+              <span class="plan-positioning">일상을 챙겨주는 AI 생활비서</span>
+              <span class="plan-price">9,900원<span class="plan-period"> / 월</span></span>
+              <span class="plan-price-caption">부가세 포함, 매월 결제</span>
+              <ul class="plan-features">
+                <li><span class="plan-feature-label">AI 채팅·음성</span><span class="plan-feature-value">기본 이용</span></li>
+                <li><span class="plan-feature-label">캘린더 자동화</span><span class="plan-feature-value">월 50건</span></li>
+                <li><span class="plan-feature-label">생활비 자동정리</span><span class="plan-feature-value">월 50건</span></li>
+                <li><span class="plan-feature-label">안심케어</span><span class="plan-feature-value">프로필 1개</span></li>
+                <li><span class="plan-feature-label">진위확인 심층분석</span><span class="plan-feature-value">월 20건</span></li>
+                <li data-plan-trusted-devices><span class="plan-feature-label">신뢰 기기 등록</span><span class="plan-feature-value">최대 2대</span></li>
+              </ul>
+              <a class="plan-card-cta" href="https://account.lotbiai.com/account?checkout=basic" data-plan-checkout="basic">Basic 시작하기</a>
+            </label>
+
+            <label class="plan-card plan-card-recommended" data-plan-card data-selected="false">
+              <input type="radio" name="plan" value="plus" data-plan-name="LOTBI Plus" />
+              <span class="plan-card-head">
+                <span class="plan-name">LOTBI Plus <span class="recommended-badge">추천</span></span>
+                <span class="plan-check" aria-hidden="true">선택됨</span>
+              </span>
+              <span class="plan-positioning">생활 전반을 더 많이 맡기는 개인비서</span>
+              <span class="plan-price">29,900원<span class="plan-period"> / 월</span></span>
+              <span class="plan-price-caption">부가세 포함, 매월 결제</span>
+              <ul class="plan-features">
+                <li><span class="plan-feature-label">AI 채팅·음성</span><span class="plan-feature-value">더 넉넉하게</span></li>
+                <li><span class="plan-feature-label">캘린더 자동화</span><span class="plan-feature-value">월 300건</span></li>
+                <li><span class="plan-feature-label">생활비 자동정리</span><span class="plan-feature-value">월 300건</span></li>
+                <li><span class="plan-feature-label">안심케어</span><span class="plan-feature-value">프로필 5개</span></li>
+                <li><span class="plan-feature-label">진위확인 심층분석</span><span class="plan-feature-value">월 100건</span></li>
+                <li data-plan-trusted-devices><span class="plan-feature-label">신뢰 기기 등록</span><span class="plan-feature-value">최대 5대</span></li>
+              </ul>
+              <a class="plan-card-cta" href="https://account.lotbiai.com/account?checkout=plus" data-plan-checkout="plus">Plus 시작하기</a>
+            </label>
+
+            <label class="plan-card" data-plan-card data-selected="false">
+              <input type="radio" name="plan" value="pro" data-plan-name="LOTBI Pro" />
+              <span class="plan-card-head">
+                <span class="plan-name">LOTBI Pro</span>
+                <span class="plan-check" aria-hidden="true">선택됨</span>
+              </span>
+              <span class="plan-positioning">LOTBI를 가장 넉넉하게 사용</span>
+              <span class="plan-price">39,900원<span class="plan-period"> / 월</span></span>
+              <span class="plan-price-caption">부가세 포함, 매월 결제</span>
+              <ul class="plan-features">
+                <li><span class="plan-feature-label">AI 채팅·음성</span><span class="plan-feature-value">가장 넉넉하게</span></li>
+                <li><span class="plan-feature-label">캘린더 자동화</span><span class="plan-feature-value">월 500건</span></li>
+                <li><span class="plan-feature-label">생활비 자동정리</span><span class="plan-feature-value">월 500건</span></li>
+                <li><span class="plan-feature-label">안심케어</span><span class="plan-feature-value">프로필 15개</span></li>
+                <li><span class="plan-feature-label">진위확인 심층분석</span><span class="plan-feature-value">월 500건</span></li>
+                <li data-plan-trusted-devices><span class="plan-feature-label">신뢰 기기 등록</span><span class="plan-feature-value">최대 15대</span></li>
+              </ul>
+              <a class="plan-card-cta" href="https://account.lotbiai.com/account?checkout=pro" data-plan-checkout="pro">Pro로 업그레이드</a>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="plan-actions">
+          <button type="submit" class="plan-buy">구매하기</button>
+          <p class="plan-selected-readout" id="plan-selected-readout">선택한 등급: <strong>LOTBI Basic</strong></p>
+        </div>
+      </form>
+
+      <div class="plan-status" id="plan-status" role="status" aria-live="polite" tabindex="-1"></div>
+
+      <section class="plan-comparison" aria-labelledby="plan-comparison-title">
+        <h2 id="plan-comparison-title">전체 기능 비교</h2>
+        <div class="comparison-scroll" tabindex="0" aria-label="플랜별 전체 기능 비교표">
+          <table>
+            <thead><tr><th scope="col">기능</th><th scope="col">Basic</th><th scope="col">Plus</th><th scope="col">Pro</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">캘린더 자동화</th><td>월 50건</td><td>월 300건</td><td>월 500건</td></tr>
+              <tr><th scope="row">생활비 자동정리 · 영수증·지출</th><td>월 50건</td><td>월 300건</td><td>월 500건</td></tr>
+              <tr><th scope="row">안심케어 프로필</th><td>1개</td><td>5개</td><td>15개</td></tr>
+              <tr><th scope="row">진위확인 심층분석</th><td>월 20건</td><td>월 100건</td><td>월 500건</td></tr>
+              <tr data-plan-trusted-devices><th scope="row">신뢰 기기 등록</th><td>최대 2대</td><td>최대 5대</td><td>최대 15대</td></tr>
+              <tr><th scope="row">AI 채팅·음성</th><td>기본 이용</td><td>더 넉넉한 이용</td><td>최대 이용</td></tr>
+              <tr><th scope="row">Life Wallet</th><td>기본 이용</td><td>확장 이용</td><td>최대 이용</td></tr>
+              <tr><th scope="row">지역정보 · 날씨·장소·축제 등</th><td>기본 이용</td><td>확대 이용</td><td>최대 이용</td></tr>
+              <tr><th scope="row">제휴몰</th><td>이용 가능</td><td>이용 가능</td><td>이용 가능</td></tr>
+              <tr><th scope="row">사용량 확인</th><td>조회·새로고침 시 최신 표시</td><td>동일</td><td>동일</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="plan-price-note" data-trusted-device-limit-summary>신뢰 기기 등록 한도: 무료 1대 / 베이직 2대 / 플러스 5대 / 프로 15대</p>
+        <p class="plan-price-note" data-trusted-device-optional-notice>신뢰 기기 등록은 선택 사항이며, 등록하지 않아도 일반 로그인으로 LOTBI를 이용할 수 있습니다. 신뢰 기기 수는 로그인한 브라우저나 로그인 횟수가 아니라, 직접 동의해 등록한 기기 수입니다.</p>
+      </section>
+
+      <h2>지금 결제가 되나요</h2>
+      <p>등급의 시작하기나 구매하기를 누르면 LOTBI 계정에 로그인한 뒤, 선택한 플랜과 월 결제금액·정기결제 여부를 확인하는 결제 화면으로 이어집니다. 지금은 결제대행사 가맹 심사 중이어서 마지막 결제하기 단계에서 실제 결제와 청구가 진행되지 않으며, 심사가 끝나면 같은 화면에서 결제를 시작할 수 있습니다.</p>
+      <p>결제를 열 때에는 적용 플랜과 결제금액, 즉시 서비스 이용 개시 여부, 자동갱신 여부, 결제주기와 다음 결제일, 해지 방법과 그 효력, 결제 실패 시 처리, 청약철회 제한 가능성과 환불 조건을 결제화면에서 다시 확인하고 동의할 수 있도록 안내합니다.</p>
+
+      <h2>이용량 한도에 닿았을 때</h2>
+      <p>월간 자동처리 사용량을 모두 쓰셨더라도 기본적인 위험 경고와 직접 입력 기능은 계속 이용할 수 있습니다. 캘린더 자동화, 생활비 자동정리, 진위확인 심층분석의 다음 초기화 날짜는 설정의 구독 및 사용량에서 확인할 수 있습니다. 안심케어 프로필 수는 월간 사용량이 아니라 동시에 보유할 수 있는 용량입니다.</p>
+      <p>더 많은 건수가 필요하시면 위에서 상위 등급을 살펴봐 주세요. 어떤 등급이 맞을지 판단이 어려우시면 <a href="/contact">문의하기</a>로 알려주시면 함께 확인해 드리겠습니다.</p>
+
+      <h2>해지와 환불</h2>
+      <p>구독은 언제든지 다음 갱신을 중단할 수 있으며, 남은 기간의 이용을 포기하는 즉시 중도해지는 별도로 환불을 신청할 수 있습니다. 철회 기간과 일할 환불 계산, 서비스 장애·하자 처리, 분쟁 기준은 아래 문서에 정리해 두었습니다.</p>
+      <ul class="plan-legal-links">
+        <li><a href="/refund">구독 철회 및 해지</a></li>
+        <li><a href="/exchange">서비스 장애·하자 처리</a></li>
+        <li><a href="/dispute">소비자 분쟁 해결 기준</a></li>
+        <li><a href="/terms">이용약관</a></li>
+        <li><a href="/privacy">개인정보처리방침</a></li>
+      </ul>
+    </section>
+
+    <footer class="lotbi-footer">
+      <div class="footer-links">
+        <a href="/about">회사 소개</a>
+        <a href="/subscribe" aria-current="page">구독 안내</a>
+        <a href="/refund">구독 철회 및 해지</a>
+        <a href="/exchange">반품 및 교환</a>
+        <a href="/dispute">소비자 분쟁 해결 기준</a>
+        <a href="/terms">이용약관</a>
+        <a href="/privacy">개인정보처리방침</a>
+        <a href="/account-deletion">계정 삭제</a>
+        <a href="/contact">문의하기</a>
+      </div>
+      <div class="company-legal" aria-label="LOTBI 사업자 정보">
+        <div class="company-legal-row">
+          <span>유한회사 알에이디홀딩스</span>
+          <span class="company-separator" aria-hidden="true">|</span>
+          <span>대표자: 전선혜</span>
+          <span class="company-separator" aria-hidden="true">|</span>
+          <span>사업자등록번호: 583-88-03679</span>
+          <span class="company-separator" aria-hidden="true">|</span>
+          <span>통신판매업신고번호: 2026-전주덕진-0798</span>
+          <span class="company-separator" aria-hidden="true">|</span>
+          <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679" target="_blank" rel="noopener noreferrer">사업자정보확인</a>
+        </div>
+        <div class="company-legal-row">
+          <span>주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)</span>
+          <span class="company-separator" aria-hidden="true">|</span>
+          <span>전화: <a href="tel:0632370930">063-237-0930</a></span>
+          <span class="company-separator" aria-hidden="true">|</span>
+          <span>이메일: <a href="mailto:developer@lotbiai.com">developer@lotbiai.com</a></span>
+        </div>
+        <div class="company-legal-row">
+          <span>LOTBI (롯비) © 2026 · AI Voice Commerce Agent</span>
+          <span class="company-separator" aria-hidden="true">|</span>
+          <span>호스팅서비스 제공: 네이버클라우드 주식회사 (NAVER Cloud)</span>
+        </div>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>

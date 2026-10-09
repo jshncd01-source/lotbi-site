@@ -1,0 +1,3941 @@
+.conversation-thread {
+  width: min(820px, 100%);
+  max-height: min(46vh, 520px);
+  margin: 10px 0 18px;
+  padding: 2px 4px 8px;
+  display: grid;
+  gap: 16px;
+  overflow: visible;
+  text-align: left;
+}
+
+.conversation-thread[hidden] {
+  display: none;
+}
+
+/* SITE-CHAT-LAYOUT-TYPO-01 — role-specific message presentation.
+   User messages remain compact bubbles; LOTBI replies are plain text in the
+   shared conversation column so the Avatar and answer read as one speaker. */
+.chat-message {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.chat-message-user {
+  width: fit-content;
+  height: auto;
+  min-height: 0;
+  max-width: min(78%, 640px);
+  padding: 9px 13px;
+  align-self: start;
+  justify-self: end;
+  border-radius: 18px;
+  border-bottom-right-radius: 6px;
+  background: var(--user-bubble, var(--brand-navy));
+  color: var(--user-bubble-foreground, #fff);
+}
+
+.chat-message-user.is-collapsible .chat-message-body {
+  position: relative;
+}
+
+.chat-message-user.is-collapsible:not(.is-expanded) .chat-message-body {
+  max-height: 13.5em;
+  overflow: hidden;
+}
+
+.chat-message-user.is-collapsible:not(.is-expanded) .chat-message-body::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 44px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(245, 243, 242, 0), var(--user-bubble, #f5f3f2));
+}
+
+.chat-message-user.is-collapsible.is-expanded .chat-message-body {
+  max-height: none;
+  overflow: visible;
+}
+
+.chat-message-expand-button {
+  min-width: 44px;
+  min-height: 36px;
+  margin: 5px 0 -2px;
+  padding: 5px 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-message-expand-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chat-message-expand-button:focus-visible {
+  outline: 2px solid #6b7280;
+  outline-offset: 2px;
+}
+
+.chat-message-body .chat-code-block {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 8px 0;
+  padding: 10px 11px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid rgba(48, 50, 56, .10);
+  border-radius: 10px;
+  background: rgba(48, 50, 56, .055);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  tab-size: 2;
+}
+
+.chat-message-body .chat-code-block code,
+.chat-message-body .chat-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.chat-message-body .chat-code-block code {
+  white-space: inherit;
+}
+
+.chat-message-body .chat-inline-code {
+  padding: .08em .28em;
+  border-radius: 5px;
+  background: rgba(48, 50, 56, .07);
+  font-size: .92em;
+}
+
+.chat-message-assistant {
+  width: min(100%, 720px);
+  max-width: 720px;
+  padding: 0 8px;
+  justify-self: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--lotbi-text-primary, #303642);
+}
+
+.chat-message-loading {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  color: var(--lotbi-text-muted, #687180);
+}
+
+.chat-message-error {
+  width: auto;
+  justify-self: stretch;
+  max-width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e5b9c3;
+  border-radius: 16px;
+  background: #fff6f8;
+  color: #7b2438;
+}
+
+.chat-message-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+/* SITE-ANSWER-MARKDOWN-01 — block nodes the answer renderer now produces.
+   The body keeps white-space: pre-wrap for text that is genuinely preformatted;
+   these carry their own spacing so paragraphs and list items do not collapse
+   into one another. */
+.chat-message-paragraph {
+  margin: 0;
+}
+
+.chat-message-paragraph + .chat-message-paragraph,
+.chat-message-paragraph + .chat-message-list,
+.chat-message-list + .chat-message-paragraph {
+  margin-top: 10px;
+}
+
+.chat-message-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  /* The body is pre-wrap; a list must not inherit it or every marker sits on
+     its own line. */
+  white-space: normal;
+}
+
+.chat-message-list li {
+  margin: 0;
+}
+
+/* SITE-CHAT-ANSWER-QUALITY-P0 — comparison tables. A phone used to show the
+   raw "| a | b |" source. "항목 | A | B" fits a 375px screen as two columns
+   with a divider between the options; wider tables scroll sideways inside
+   their own box, never the page. */
+.chat-table-scroll {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 10px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #ffffff);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.chat-table-scroll:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring, #454545);
+  outline-offset: 2px;
+}
+
+.chat-message-paragraph + .chat-table-scroll,
+.chat-message-list + .chat-table-scroll {
+  margin-top: 12px;
+}
+
+.chat-table-scroll + .chat-message-paragraph,
+.chat-table-scroll + .chat-message-list {
+  margin-top: 10px;
+}
+
+.chat-message-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  white-space: normal;
+  color: inherit;
+}
+
+.chat-message-table th,
+.chat-message-table td {
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--lotbi-border-default, #e5e5e5);
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.chat-message-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.chat-message-table thead th {
+  background: var(--lotbi-surface-hover, #f0f0f0);
+  font-weight: 600;
+}
+
+.chat-message-table tbody th {
+  font-weight: 600;
+  color: inherit;
+}
+
+.chat-message-table .chat-table-empty {
+  color: var(--lotbi-text-disabled, #8a8a8a);
+}
+
+/* 항목 | A | B: fixed columns so long product names wrap instead of pushing
+   the table wider than the bubble, and a vertical divider between A and B. */
+.chat-message-table.is-comparison {
+  table-layout: fixed;
+}
+
+.chat-message-table.is-comparison :is(th, td):first-child {
+  width: 26%;
+}
+
+.chat-message-table.is-comparison :is(th, td):nth-child(2) {
+  border-left: 1px solid var(--lotbi-border-default, #e5e5e5);
+}
+
+.chat-message-table.is-comparison :is(th, td):nth-child(3) {
+  border-left: 1px solid var(--lotbi-border-strong, #c9c9c9);
+}
+
+/* Three or more options: keep each column readable and let the box scroll. */
+.chat-table-scroll.is-wide .chat-message-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.chat-table-scroll.is-wide .chat-message-table :is(th, td) {
+  min-width: 6.5em;
+  max-width: 14em;
+}
+
+.chat-table-scroll.is-wide .chat-message-table :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 5.5em;
+  background: var(--lotbi-surface-primary, #ffffff);
+  border-right: 1px solid var(--lotbi-border-default, #e5e5e5);
+}
+
+.chat-table-scroll.is-wide .chat-message-table thead th:first-child {
+  background: var(--lotbi-surface-hover, #f0f0f0);
+}
+
+@media (max-width: 480px) {
+  .chat-message-table {
+    font-size: 14px;
+  }
+
+  .chat-message-table th,
+  .chat-message-table td {
+    padding: 8px 8px;
+  }
+}
+
+.chat-message-meta {
+  display: block;
+  margin-top: 8px;
+  color: var(--lotbi-text-muted, #667085);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+/* SITE-MESSAGE-SHARE-ACTIONS-01 — copy/share row under each LOTBI answer.
+   Ghost buttons so the row never competes with the answer, but on the
+   composer's 44px touch contract so a thumb hits them on every phone. */
+.chat-message-actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 2px 0 0 -10px;
+}
+
+.chat-message-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--lotbi-text-muted, #737b88);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .16s ease, color .16s ease, transform .12s ease;
+}
+
+.chat-message-action svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.chat-message-action:hover {
+  background: var(--lotbi-surface-hover, #f0f2f7);
+  color: var(--lotbi-text-primary, #303642);
+}
+
+.chat-message-action:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .26);
+  outline-offset: 2px;
+  color: var(--lotbi-text-primary, #303642);
+}
+
+.chat-message-action:active {
+  transform: scale(.94);
+  background: var(--lotbi-surface-hover, #f0f2f7);
+}
+
+/* CHAT-READ-ALOUD-RESTORE-P0 — 읽어주기 is the one answer tool with a word
+   next to its icon: it changes meaning while it plays (읽어주기 ↔ 중지), and
+   an icon alone does not say which. Same 44px touch height as the row. */
+.chat-message-action-read {
+  gap: 4px;
+  padding: 0 10px 0 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chat-message-action-read .chat-message-action-label {
+  pointer-events: none;
+}
+
+.chat-message-action-read[data-speaking="true"] {
+  background: var(--lotbi-surface-hover, #f0f2f7);
+  color: var(--lotbi-text-primary, #303642);
+}
+
+.chat-message-action-feedback {
+  margin-left: 6px;
+  color: var(--lotbi-text-muted, #737b88);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.chat-message-action-feedback[data-tone="error"] {
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-weight: 700;
+}
+
+.lotbi-share-menu {
+  position: absolute;
+  left: 46px;
+  bottom: 46px;
+  z-index: 45;
+  width: 224px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--lotbi-border-default, #d9dee8);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary, #fff);
+  box-shadow: 0 14px 34px rgb(24 42 70 / 14%);
+}
+
+.lotbi-share-menu[hidden] { display: none; }
+
+.lotbi-share-menu-item {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-primary, #303642);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lotbi-share-menu-item:hover,
+.lotbi-share-menu-item:focus-visible { background: var(--lotbi-surface-hover, #f0f2f7); }
+
+.lotbi-share-menu-item:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring, #4f78c5);
+  outline-offset: -2px;
+}
+
+.lotbi-share-menu-item svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;
+}
+
+/* LOTBI-KAKAO-SHARE-ACTUAL-01 — what the KakaoTalk item sends, under its name. */
+.lotbi-share-menu-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+@media (max-width: 760px) {
+  .lotbi-share-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: 390px;
+    margin-inline: auto;
+    padding: 8px;
+    border-radius: 18px;
+    box-shadow: 0 18px 52px rgb(20 31 49 / 22%);
+  }
+
+  .lotbi-share-menu-item { min-height: 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-message-action {
+    transition: none;
+  }
+
+  .chat-message-action:active {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .chat-message-action {
+    border: 1px solid ButtonBorder;
+    color: ButtonText;
+  }
+
+  .chat-message-action svg {
+    fill: currentColor;
+  }
+
+  .lotbi-share-menu-item {
+    border: 1px solid ButtonBorder;
+    color: ButtonText;
+  }
+}
+
+.chat-message-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.chat-message-sources-label {
+  color: var(--lotbi-text-muted, #667085);
+  font-weight: 700;
+}
+
+.chat-message-source-link {
+  color: var(--lotbi-text-secondary, #4b5870);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.chat-message-source-link:hover,
+.chat-message-source-link:focus-visible {
+  color: var(--lotbi-text-primary, #303642);
+  text-decoration-thickness: 2px;
+}
+
+.chat-error-evidence {
+  overflow-wrap: anywhere;
+  color: #7b5260;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.chat-retry-button {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chat-retry-button:disabled {
+  cursor: wait;
+  opacity: .56;
+}
+
+/* The upgrade control is an anchor, not a button, so it needs the box the
+   shared pill styling assumes and none of the underline an anchor brings. */
+.chat-upgrade-link {
+  display: inline-block;
+  text-decoration: none;
+}
+
+/* SITE-COMPOSER-UX-CLICK-01 — premium LOTBI action states without moving the bottom slot. */
+.chat-composer {
+  border-color: rgba(79, 120, 197, .28);
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(115deg, rgba(236, 102, 133, .18), rgba(123, 98, 187, .16), rgba(79, 120, 197, .20)) border-box;
+  box-shadow: 0 16px 44px rgba(24, 42, 70, .11), 0 2px 8px rgba(79, 120, 197, .06);
+}
+
+.chat-composer:focus-within {
+  border-color: rgba(123, 98, 187, .58);
+  box-shadow: 0 18px 48px rgba(24, 42, 70, .13), 0 0 0 3px rgba(123, 98, 187, .09);
+}
+
+.response-grade-control {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.response-grade-trigger {
+  min-width: 104px;
+  height: 44px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #d9e0ec;
+  border-radius: 999px;
+  background: #f7f9fc;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .72);
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.response-grade-trigger:hover,
+.response-grade-trigger:focus-visible,
+.response-grade-trigger[aria-expanded="true"] {
+  border-color: rgba(123, 98, 187, .42);
+  background: #f5f2fb;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.response-grade-trigger:focus-visible,
+.response-grade-option:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .26);
+  outline-offset: 2px;
+}
+
+.response-grade-chevron {
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.response-grade-trigger[aria-expanded="true"] .response-grade-chevron {
+  transform: rotate(180deg);
+}
+
+.response-grade-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 30;
+  width: 224px;
+  padding: 6px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid #d9dee8;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  box-shadow: 0 18px 48px rgba(24, 42, 70, .18);
+  text-align: left;
+}
+
+.response-grade-menu[hidden] {
+  display: none;
+}
+
+.response-grade-option {
+  min-height: 58px;
+  padding: 9px 10px;
+  display: grid;
+  gap: 2px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.response-grade-option:hover,
+.response-grade-option:focus-visible {
+  background: #f2f4f8;
+}
+
+.response-grade-option[aria-checked="true"] {
+  background: #f4f2fb;
+  box-shadow: inset 0 0 0 1px rgba(123, 98, 187, .18);
+}
+
+.response-grade-name {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.response-grade-description {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.composer-button {
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.composer-button:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .26);
+  outline-offset: 2px;
+}
+
+.composer-button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.composer-button:active {
+  transform: scale(.96);
+}
+
+.composer-button:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.mic-button,
+.wake-button {
+  border-color: #d9e0ec;
+  background: #f7f9fc;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .72);
+}
+
+/* Listening for a call, not recording a question. Kept cooler and quieter than
+   the mic button's active state so the two are tellable apart at a glance —
+   this one can sit on for minutes, and a loud badge would wear thin. */
+.wake-button[data-listening="true"] {
+  border-color: rgba(79, 120, 197, .5);
+  background: linear-gradient(135deg, rgba(79, 120, 197, .14), rgba(123, 98, 187, .11));
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  box-shadow: 0 0 0 3px rgba(79, 120, 197, .10);
+}
+
+.mic-button:not(:disabled):hover,
+.wake-button:not(:disabled):hover,
+.mic-button:not(:disabled):focus-visible,
+.wake-button:not(:disabled):focus-visible {
+  border-color: rgba(123, 98, 187, .42);
+  background: #f5f2fb;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.mic-button[data-requesting="true"] {
+  cursor: wait;
+  background: #f3f1f8;
+}
+
+.mic-button[data-listening="true"] {
+  border-color: rgba(236, 102, 133, .55);
+  background: linear-gradient(135deg, rgba(236, 102, 133, .13), rgba(123, 98, 187, .12), rgba(79, 120, 197, .14));
+  color: #9a3f66;
+  box-shadow: 0 0 0 4px rgba(236, 102, 133, .10), 0 7px 18px rgba(123, 98, 187, .12);
+}
+
+.send-button {
+  border-color: #e0e5ee;
+  background: #e9edf4;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  box-shadow: none;
+}
+
+.send-button:not(:disabled) {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--brand-pink) 0%, var(--brand-violet) 52%, var(--brand-blue) 100%);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(79, 120, 197, .24), 0 3px 10px rgba(123, 98, 187, .16);
+}
+
+.send-button:not(:disabled):hover {
+  box-shadow: 0 10px 24px rgba(79, 120, 197, .28), 0 4px 12px rgba(123, 98, 187, .20);
+}
+
+#chat-state-region[data-composer-voice="true"] {
+  width: min(720px, calc(100% - 12px));
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-color: rgba(123, 98, 187, .20);
+  background: #faf9fd;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+/* The existing sealed Avatar DOM is reparented into the newest assistant row.
+   This preserves one runtime and one WebGL context across Home/Conversation. */
+.chat-assistant-row {
+  width: min(100%, 772px);
+  max-width: 772px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  justify-self: center;
+}
+
+.assistant-avatar-slot {
+  width: 48px;
+  min-height: 52px;
+}
+
+.conversation-active .chat-character-wrap {
+  width: 44px;
+  height: 52px;
+  margin: 0;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  flex: 0 0 auto;
+}
+
+.conversation-active .chat-character-logo {
+  display: block;
+  height: 52px;
+  visibility: visible;
+  opacity: 1;
+}
+
+.conversation-active .conversation-thread {
+  flex: 1 1 160px;
+  min-height: 96px;
+  max-height: min(40vh, 460px);
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.conversation-active .chat-composer {
+  margin-top: auto;
+  flex: 0 0 auto;
+}
+
+.auth-callback-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f7f8fb;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.auth-callback-shell {
+  width: min(100%, 520px);
+  padding: 32px;
+  border: 1px solid #e0e5ed;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(24, 42, 70, .10);
+  text-align: center;
+}
+
+.auth-callback-brand {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 24px;
+  text-decoration: none;
+}
+
+.auth-callback-shell h1 {
+  margin: 0 0 12px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 24px;
+}
+
+.auth-callback-shell p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.auth-callback-error {
+  color: #9b2441;
+}
+
+/* AUTH-SESSION-CONTINUITY-P0-02 — one quiet line a screenshot can carry:
+   error code, how many code/state parameters arrived, running asset version. */
+.auth-callback-shell .auth-callback-diagnostic {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  opacity: 0.72;
+  overflow-wrap: anywhere;
+}
+
+.auth-callback-retry {
+  margin-top: 20px;
+  display: inline-flex;
+  min-height: 42px;
+  padding: 9px 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--brand-navy);
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .conversation-thread {
+    width: 100%;
+    max-height: 40svh;
+    margin: 8px 0 12px;
+    padding-inline: 0;
+    gap: 14px;
+  }
+
+  .chat-message-user {
+    width: fit-content;
+    max-width: 88%;
+    padding: 9px 12px;
+    border-radius: 16px;
+    border-bottom-right-radius: 6px;
+  }
+
+  .chat-message-assistant {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 4px;
+  }
+
+  .chat-message-error {
+    padding: 11px 12px;
+  }
+
+  .chat-message-body {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .composer-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  #chat-state-region[data-composer-voice="true"] {
+    width: min(100%, 350px);
+  }
+
+  .conversation-active .chat-character-wrap {
+    width: 38px;
+    height: 46px;
+    margin: 0;
+  }
+
+  .conversation-active .chat-character-logo {
+    height: 46px;
+  }
+
+  .conversation-active .conversation-thread {
+    flex-basis: 120px;
+    min-height: 84px;
+    max-height: min(34svh, 320px);
+    margin-top: 0;
+  }
+
+  .conversation-active .chat-composer {
+    margin-top: auto;
+  }
+
+  .auth-callback-page {
+    padding: 18px;
+  }
+
+  .auth-callback-shell {
+    padding: 26px 20px;
+    border-radius: 20px;
+  }
+}
+
+body[data-chat-color="default"] { --user-bubble: #f5f3f2; --user-bubble-foreground: #303238; }
+body[data-chat-color="blue"] { --user-bubble: #1d4ed8; }
+body[data-chat-color="purple"] { --user-bubble: #6d28d9; }
+body[data-chat-color="green"] { --user-bubble: #047857; }
+body[data-chat-color="orange"] { --user-bubble: #c2410c; }
+body[data-chat-color="pink"] { --user-bubble: #be185d; }
+body[data-chat-color="gray"] { --user-bubble: #374151; }
+
+/* SITE-CHAT-RIGHT-EDGE-SCROLL-01 — one viewport, one full-width main conversation scroller. */
+.chat-home-page {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-home-shell {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-bottom: 168px;
+}
+
+/* CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 GATE FIX 02 — the padding keeps a focused
+   or revealed conversation item clear of the sticky composer. The composer's
+   own caret sits inside that band, so while the composer has focus Chrome
+   scrolled the transcript on every keystroke to "reveal" it (83-93px per
+   line at 360x780) and the question held at the top went off screen. With
+   the composer focused there is nothing of the conversation to reveal. */
+.chat-home-shell:has(.chat-input:focus) {
+  scroll-padding-bottom: 0;
+}
+
+.conversation-active .chat-home-shell {
+  width: 100%;
+  margin-inline: 0;
+}
+
+/* SITE-STICKY-TOPBAR-01 — the bar rides the main scroller instead of sliding
+   away with the thread. sticky, not fixed: the bar keeps the flow box it
+   already had, so a short screen (folded cover display, landscape, keyboard
+   open) loses no conversation height to it. The background is opaque because
+   messages now scroll underneath. */
+.chat-topbar {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: #fff;
+}
+
+.chat-hero {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.conversation-active .chat-hero {
+  flex: 0 0 auto;
+  min-height: calc(100dvh - 82px);
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.conversation-thread,
+.conversation-active .conversation-thread {
+  width: min(760px, 100%);
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0 0 8px;
+  padding: 10px 6px 24px;
+  gap: 12px;
+  align-content: start;
+  grid-auto-rows: max-content;
+  overflow: visible;
+}
+
+.chat-message-assistant {
+  width: 100%;
+  max-width: 704px;
+}
+
+.chat-assistant-row {
+  width: 100%;
+  max-width: 760px;
+}
+
+.chat-message-user + .chat-assistant-row {
+  margin-top: -4px;
+}
+
+.conversation-time-separator {
+  width: 100%;
+  margin: 4px 0 2px;
+  justify-self: center;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 400;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  white-space: nowrap;
+}
+
+.chat-composer-stack {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  width: min(760px, 100%);
+  margin-top: auto;
+  padding-top: 18px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  flex: 0 0 auto;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #fff 18px, #fff 100%);
+}
+
+.chat-composer-stack .chat-composer {
+  width: 100%;
+  margin: 0;
+}
+
+/* CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — the room the newest question needs to
+   reach the top of the screen while its answer is still shorter than the
+   screen. Its height is set and shrunk by site-conversation.js only. */
+.conversation-turn-space {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 0;
+  pointer-events: none;
+}
+
+/* The one control that moves a reader to the newest message on request. It
+   floats just above the composer, so it costs the conversation no height. */
+.conversation-jump-latest {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 1;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #212121);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.conversation-jump-latest[hidden] {
+  display: none;
+}
+
+.chat-safety-copy {
+  margin: 0 8px 7px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.attachment-preview-strip {
+  width: 100%;
+  margin: 0 0 8px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.attachment-preview-strip[hidden] {
+  display: none;
+}
+
+.attachment-button {
+  flex: 0 0 auto;
+  border-color: #d9e0ec;
+  background: #f7f9fc;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.attachment-button:not(:disabled):hover,
+.attachment-button:not(:disabled):focus-visible {
+  border-color: rgba(123, 98, 187, .42);
+  background: #f5f2fb;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.attachment-preview-card,
+.message-attachment-card {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dbe1eb;
+  border-radius: 12px;
+  background: #f8f9fc;
+}
+
+.attachment-preview-card {
+  max-width: 240px;
+  padding: 6px 7px;
+  flex: 0 0 auto;
+}
+
+.attachment-preview-image,
+.message-attachment-image {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.attachment-preview-icon,
+.message-attachment-icon {
+  min-width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #eceff5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.attachment-preview-name,
+.message-attachment-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.attachment-preview-remove {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.attachment-preview-remove:hover,
+.attachment-preview-remove:focus-visible { background: #e6eaf1; }
+
+.message-attachment-list {
+  margin-top: 9px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.message-attachment-card { padding: 7px; }
+
+/* CHAT-ATTACHMENT-NO-FILENAME-01 — a sent image is the content. Its private
+   filename is not a caption; documents use a generic type label. Thumbnails
+   are contained, never square-cropped, so a reservation stays readable. */
+/* Flex, not the grid above: an auto-fit track stretches to fill the bubble, so
+   every image card came out as wide as the row instead of as wide as its photo. */
+.message-attachment-list[data-image-count] {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.message-attachment-card-image {
+  --thumbnail-size: 220px;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px;
+  width: fit-content;
+}
+
+/* The user bubble is light on the default chat colour and saturated on the
+   others, so the image card uses a neutral translucent frame that reads on
+   both, in light and dark theme alike. */
+.chat-message-user .message-attachment-card-image {
+  border-color: rgba(128, 138, 152, .40);
+  background: rgba(128, 138, 152, .10);
+}
+
+.message-attachment-card-image .message-attachment-image {
+  width: auto;
+  height: auto;
+  flex: 0 1 auto;
+  max-width: var(--thumbnail-size);
+  max-height: var(--thumbnail-size);
+  border-radius: 10px;
+  object-fit: contain;
+  background: rgba(128, 138, 152, .14);
+}
+
+.message-attachment-list[data-image-count="2"] .message-attachment-card-image { --thumbnail-size: 150px; }
+.message-attachment-list[data-image-count="3"] .message-attachment-card-image { --thumbnail-size: 116px; }
+
+/* An image-only turn: the thumbnail is the content, the generated sentence
+   stays in the DOM for assistive technology only. */
+.chat-message-user.chat-message-attachment-only {
+  padding: 6px;
+}
+
+.chat-message-attachment-only .message-attachment-list {
+  margin-top: 0;
+}
+
+.conversation-active .chat-home-footer {
+  display: none;
+}
+
+body.mobile-keyboard-open.conversation-active .chat-home-shell {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  /* SITE-MOBILE-COMPOSER-KEYBOARD-LAYOUT-HOTFIX — the sticky composer stops at the
+     scroller's padding, so the 6px bottom padding showed the conversation
+     scrolling under the composer, right above the keyboard. The room (and the
+     safe area) is the composer stack's opaque padding instead. */
+  padding-bottom: 0;
+}
+
+body.mobile-keyboard-open.conversation-active .chat-composer-stack {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+body.mobile-keyboard-open.conversation-active .chat-hero {
+  flex: 0 0 auto;
+  min-height: calc(100% - 56px);
+  overflow: visible;
+}
+
+body.mobile-keyboard-open.conversation-active .conversation-thread {
+  flex: 0 0 auto;
+}
+
+
+@media (max-width: 760px) {
+  .conversation-active .chat-hero {
+    min-height: calc(100dvh - 68px);
+  }
+
+  .conversation-thread,
+  .conversation-active .conversation-thread {
+    max-height: none;
+    margin-bottom: 6px;
+    padding-bottom: 16px;
+  }
+
+  .chat-home-shell {
+    scrollbar-gutter: auto;
+  }
+
+  .chat-composer-stack {
+    width: 100%;
+  }
+
+  .chat-safety-copy {
+    margin-inline: 2px;
+    font-size: 11px;
+  }
+
+  /* SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — mobile thumbnails stay inside the
+     bubble so a multi-image turn never scrolls the page sideways. */
+  .message-attachment-card-image { --thumbnail-size: 180px; }
+  .message-attachment-list[data-image-count="2"] .message-attachment-card-image { --thumbnail-size: 124px; }
+  .message-attachment-list[data-image-count="3"] .message-attachment-card-image { --thumbnail-size: 92px; }
+}
+
+.profile-popover-layer,
+.site-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+}
+
+.profile-popover-layer {
+  background: transparent;
+}
+
+.profile-popover {
+  position: absolute;
+  left: 12px;
+  bottom: 80px;
+  width: 264px;
+  padding: 7px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #d9dee8;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(24, 42, 70, .13);
+}
+
+.profile-popover-summary {
+  margin-bottom: 4px;
+  padding: 11px 10px 13px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #e6e9ef;
+}
+
+.profile-popover-summary .sidebar-profile-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.profile-popover-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.profile-popover-summary-name,
+.profile-popover-summary-handle,
+.profile-popover-summary-plan {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-popover-summary-name {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 14px;
+}
+
+.profile-popover-summary-handle,
+.profile-popover-summary-plan {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-popover-summary-plan {
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.profile-popover button,
+.profile-popover a[role="menuitem"] {
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.profile-menu-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-menu-chevron {
+  width: 6px;
+  height: 6px;
+  justify-self: end;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  transform: rotate(45deg);
+}
+
+.profile-popover button:not(:disabled):hover,
+.profile-popover button:not(:disabled):focus-visible,
+.profile-popover a[role="menuitem"]:hover,
+.profile-popover a[role="menuitem"]:focus-visible {
+  background: #f0f2f7;
+}
+
+.profile-popover button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.profile-popover .profile-menu-logout {
+  margin-top: 4px;
+  box-shadow: inset 0 1px #e6e9ef;
+  color: #9b2f49;
+}
+
+.profile-popover .profile-menu-logout .profile-menu-chevron {
+  visibility: hidden;
+}
+
+.profile-contract-note {
+  margin: 3px 8px 5px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.site-modal-backdrop {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 28, 40, .42);
+}
+
+html[data-profile-photo-embed="true"],
+html[data-profile-photo-embed="true"] body {
+  min-height: 100%;
+  background: transparent !important;
+}
+
+html[data-profile-photo-embed="true"] body > :not(.site-modal-backdrop) {
+  display: none !important;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-backdrop {
+  padding: 0;
+  background: transparent;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-close {
+  display: none;
+}
+
+html[data-profile-photo-embed="true"] .site-modal {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-header {
+  padding: 22px 24px 8px;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-header h2 {
+  font-size: 20px;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-content {
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 16px;
+  padding: 10px 24px 22px;
+}
+
+html[data-profile-photo-embed="true"] .profile-photo-preview {
+  grid-row: 1 / span 2;
+  width: 72px;
+  height: 72px;
+  font-size: 21px;
+}
+
+html[data-profile-photo-embed="true"] .profile-photo-picker {
+  width: 100%;
+}
+
+html[data-profile-photo-embed="true"] .site-field-error {
+  grid-column: 2;
+  margin: 0;
+}
+
+.site-modal {
+  width: min(100%, 520px);
+  max-height: min(84vh, 720px);
+  overflow-y: auto;
+  border: 1px solid var(--lotbi-border-default, #d9dee8);
+  border-radius: 22px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #303642);
+  box-shadow: 0 24px 70px rgba(20, 28, 40, .24);
+  text-align: left;
+}
+
+.site-modal-header {
+  padding: 20px 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.site-modal-header h2 { margin: 0; font-size: 21px; }
+.site-modal-close {
+  width: 40px; height: 40px; border: 0; border-radius: 10px;
+  background: transparent; color: inherit; font-size: 28px; cursor: pointer;
+}
+.site-modal-close:hover, .site-modal-close:focus-visible { background: var(--lotbi-surface-hover, #f0f2f7); }
+.site-modal-description { margin: 0; padding: 0 20px 10px; color: var(--lotbi-text-muted, #626b78); font-size: 14px; line-height: 1.55; }
+.site-modal-content { padding: 12px 20px 22px; display: grid; gap: 16px; }
+
+.site-field { display: grid; gap: 7px; color: var(--lotbi-text-secondary, #3d4653); font-size: 14px; font-weight: 750; }
+.site-field input, .site-field select, .site-field textarea {
+  min-height: 44px; padding: 9px 11px; border: 1px solid var(--lotbi-border-strong, #cfd6e2); border-radius: 11px;
+  background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); font: inherit;
+}
+.site-readonly-field { padding: 11px 12px; display: grid; gap: 3px; border-radius: 11px; background: var(--lotbi-surface-subtle, #f5f7fa); }
+.site-readonly-field strong { font-size: 13px; }
+.site-readonly-field span { color: var(--lotbi-text-muted, #737b88); font-size: 13px; }
+.site-field-error { min-height: 18px; margin: -8px 0 0; color: var(--lotbi-error-text, #a02645); font-size: 13px; }
+.site-button {
+  min-height: 42px; padding: 9px 14px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 11px; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+.site-button-primary { border: 1px solid #18345f; background: #18345f; color: #fff; }
+.site-button-secondary { width: fit-content; border: 1px solid var(--lotbi-border-strong, #cfd6e2); background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); }
+.profile-photo-preview {
+  width: 88px; height: 88px; display: grid; place-items: center; border-radius: 50%;
+  background: #e7ebf3 center / cover no-repeat; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 24px; font-weight: 850;
+}
+.profile-photo-picker { width: min(100%, 390px); display: grid; gap: 10px; justify-items: start; }
+.profile-photo-source-menu {
+  width: 100%; padding: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  border: 1px solid var(--lotbi-border-strong, #cfd6e2); border-radius: 15px;
+  background: var(--lotbi-surface-primary, #fff); box-shadow: 0 12px 30px rgba(21, 36, 59, .14);
+}
+.profile-photo-source-menu[hidden] { display: none; }
+/* PROFILE-PHOTO-ACCOUNT-SYNC-01 — removes the account photo; only shown when there is one. */
+.profile-photo-remove { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+.profile-photo-remove[hidden] { display: none; }
+.profile-photo-source-option {
+  min-width: 0; min-height: 58px; padding: 9px 6px; border: 1px solid var(--lotbi-border-default, #d5dbe6);
+  border-radius: 12px; background: var(--lotbi-surface-subtle, #f5f7fa); color: var(--lotbi-text-primary, #303642);
+  font: inherit; font-size: 14px; font-weight: 800; line-height: 1.25; cursor: pointer;
+}
+.profile-photo-source-option:hover, .profile-photo-source-option:focus-visible {
+  border-color: #18345f; background: var(--lotbi-surface-hover, #f0f2f7); outline: 2px solid rgba(24, 52, 95, .15); outline-offset: 1px;
+}
+.color-picker { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border: 0; }
+.color-picker legend { grid-column: 1 / -1; margin-bottom: 4px; color: var(--lotbi-text-secondary, #3d4653); font-size: 14px; font-weight: 800; }
+.color-option {
+  min-height: 44px; padding: 8px 10px; display: flex; align-items: center; gap: 9px;
+  border: 1px solid var(--lotbi-border-default, #d5dbe6); border-radius: 11px; background: var(--lotbi-surface-primary, #fff); color: var(--lotbi-text-primary, #303642); font: inherit; cursor: pointer;
+}
+.color-option[aria-pressed="true"] { border-color: #18345f; box-shadow: 0 0 0 2px rgba(24, 52, 95, .12); }
+.color-swatch { width: 22px; height: 22px; border-radius: 50%; background: var(--swatch, #18345f); }
+.color-option[data-color="blue"] .color-swatch { --swatch: #1d4ed8; }
+.color-option[data-color="purple"] .color-swatch { --swatch: #6d28d9; }
+.color-option[data-color="green"] .color-swatch { --swatch: #047857; }
+.color-option[data-color="orange"] .color-swatch { --swatch: #c2410c; }
+.color-option[data-color="pink"] .color-swatch { --swatch: #be185d; }
+.color-option[data-color="gray"] .color-swatch { --swatch: #374151; }
+.help-links { display: grid; gap: 6px; }
+.help-links a { min-height: 44px; padding: 10px 12px; border-radius: 10px; color: var(--lotbi-link-primary, #18345f); font-weight: 750; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.help-links a:hover, .help-links a:focus-visible { background: var(--lotbi-surface-hover, #f0f2f7); color: var(--lotbi-link-hover, #4f78c5); }
+
+
+/* LOTBI Box — existing namespace-local saved Product surface. */
+.site-lotbi-box-modal {
+  width: min(100%, 760px);
+}
+
+.lotbi-box-list {
+  display: grid;
+  gap: 12px;
+}
+
+.lotbi-box-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 28px 18px;
+  border: 1px dashed #cfd6e2;
+  border-radius: 16px;
+  background: #f8f9fb;
+  text-align: center;
+}
+
+.lotbi-box-empty strong {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 16px;
+}
+
+.lotbi-box-empty p {
+  margin: 0;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.lotbi-box-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid #dfe4ec;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.lotbi-box-card-media {
+  width: 112px;
+  min-height: 112px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #f2f4f7;
+}
+
+.lotbi-box-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lotbi-box-card-placeholder {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lotbi-box-card-body {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 12px 14px;
+}
+
+.lotbi-box-card-source {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lotbi-box-card-title {
+  margin: 0;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.lotbi-box-card-price {
+  font-size: 16px;
+}
+
+.lotbi-box-card-actions {
+  width: 132px;
+  padding: 10px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  border-left: 1px solid #e5e8ef;
+}
+
+.lotbi-box-card-action {
+  min-height: 40px;
+  padding: 8px 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cfd6e2;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 780;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lotbi-box-card-action:hover:not(:disabled),
+.lotbi-box-card-action:focus-visible {
+  background: #f0f2f7;
+}
+
+.lotbi-box-card-action:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .24);
+  outline-offset: 2px;
+}
+
+.lotbi-box-card-action:disabled {
+  opacity: .52;
+  cursor: not-allowed;
+}
+
+.lotbi-box-card-remove {
+  color: #8a2940;
+}
+
+body[data-site-theme="dark"] .lotbi-box-empty,
+body[data-site-theme="dark"] .lotbi-box-card,
+body[data-site-theme="dark"] .lotbi-box-card-action {
+  background: #202631;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  border-color: #424b59;
+}
+
+body[data-site-theme="dark"] .lotbi-box-card-media {
+  background: #171c25;
+}
+
+body[data-site-theme="dark"] .lotbi-box-empty strong {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .lotbi-box-empty p,
+body[data-site-theme="dark"] .lotbi-box-card-source,
+body[data-site-theme="dark"] .lotbi-box-card-placeholder {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+@media (max-width: 620px) {
+  .lotbi-box-card {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .lotbi-box-card-media {
+    width: 88px;
+    min-height: 96px;
+  }
+
+  .lotbi-box-card-actions {
+    grid-column: 1 / -1;
+    width: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid #e5e8ef;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-box-card {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .lotbi-box-card-media {
+    width: 76px;
+  }
+
+  .lotbi-box-card-body {
+    padding-inline: 10px;
+  }
+
+  .lotbi-box-card-action {
+    min-height: 44px;
+    padding-inline: 6px;
+    font-size: 11.5px;
+  }
+}
+
+body[data-site-theme="dark"] { background: #151922; color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .chat-home-shell { background: #151922; }
+body[data-site-theme="dark"] .chat-message-assistant { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .chat-composer-stack { background: linear-gradient(to bottom, rgba(21, 25, 34, 0), #151922 18px, #151922 100%); }
+body[data-site-theme="dark"] .chat-topbar { background: #151922; }
+body[data-site-theme="dark"] .chat-composer,
+body[data-site-theme="dark"] .site-modal,
+body[data-site-theme="dark"] .profile-popover,
+body[data-site-theme="dark"] .response-grade-menu { background: #202631; color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #424b59; }
+body[data-site-theme="dark"] .response-grade-trigger,
+body[data-site-theme="dark"] .response-grade-option { color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #515b69; }
+body[data-site-theme="dark"] .response-grade-trigger { background: #171c25; box-shadow: none; }
+body[data-site-theme="dark"] .response-grade-description { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .response-grade-option:hover,
+body[data-site-theme="dark"] .response-grade-option:focus-visible,
+body[data-site-theme="dark"] .response-grade-option[aria-checked="true"] { background: #2a3140; }
+body[data-site-theme="dark"] .chat-input,
+body[data-site-theme="dark"] .profile-popover button,
+body[data-site-theme="dark"] .profile-popover a[role="menuitem"],
+body[data-site-theme="dark"] .profile-popover-summary-name { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .profile-popover-summary { border-color: #424b59; }
+body[data-site-theme="dark"] .profile-popover button:not(:disabled):hover,
+body[data-site-theme="dark"] .profile-popover button:not(:disabled):focus-visible,
+body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:hover,
+body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
+body[data-site-theme="dark"] .profile-popover .profile-menu-logout { color: var(--lotbi-error-text, #ff8ba7); }
+body[data-site-theme="dark"] .profile-popover-summary-handle,
+body[data-site-theme="dark"] .profile-popover-summary-plan { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .site-field input,
+body[data-site-theme="dark"] .site-field select,
+body[data-site-theme="dark"] .color-option { background: #171c25; color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #515b69; }
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] { background: #151922; color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .chat-home-shell { background: #151922; }
+  body[data-site-theme="system"] .chat-message-assistant { color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .chat-composer-stack { background: linear-gradient(to bottom, rgba(21, 25, 34, 0), #151922 18px, #151922 100%); }
+  body[data-site-theme="system"] .chat-topbar { background: #151922; }
+  body[data-site-theme="system"] .chat-composer { background: #202631; }
+  body[data-site-theme="system"] .chat-input { color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .profile-popover button,
+  body[data-site-theme="system"] .profile-popover a[role="menuitem"],
+  body[data-site-theme="system"] .profile-popover-summary-name { color: var(--lotbi-text-primary, #edf0f5); }
+  body[data-site-theme="system"] .profile-popover button:not(:disabled):hover,
+  body[data-site-theme="system"] .profile-popover button:not(:disabled):focus-visible,
+  body[data-site-theme="system"] .profile-popover a[role="menuitem"]:hover,
+  body[data-site-theme="system"] .profile-popover a[role="menuitem"]:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
+  body[data-site-theme="system"] .profile-popover .profile-menu-logout { color: var(--lotbi-error-text, #ff8ba7); }
+}
+
+@media (max-width: 900px) {
+  .profile-popover {
+    position: absolute; inset: auto 10px 10px; width: auto; border-radius: 18px;
+    padding: 9px max(9px, env(safe-area-inset-right)) max(9px, env(safe-area-inset-bottom)) max(9px, env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 760px) {
+  .response-grade-trigger {
+    min-width: 90px;
+    padding-inline: 10px;
+    font-size: 13px;
+  }
+
+  .response-grade-menu {
+    width: min(220px, calc(100vw - 28px));
+  }
+
+  .chat-assistant-row { grid-template-columns: 42px minmax(0, 1fr); gap: 8px; }
+  .assistant-avatar-slot { width: 42px; min-height: 46px; }
+  .site-modal-backdrop { padding: 0; place-items: end center; }
+  .site-modal { width: 100%; max-height: 88svh; border-radius: 22px 22px 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-popover, .site-modal { scroll-behavior: auto; }
+}
+
+@media (max-width: 390px) {
+  .response-grade-trigger {
+    min-width: 84px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  .chat-message-user {
+    max-width: 92%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-thread {
+    scroll-behavior: auto;
+  }
+
+  .composer-button {
+    transition: none !important;
+  }
+
+  .composer-button:not(:disabled):hover,
+  .composer-button:active {
+    transform: none;
+  }
+}
+
+
+/* LOTBI Universal Rich Action Cards — Phase 1 product vertical slice */
+.lotbi-rich-card-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(244px, 286px);
+  gap: 12px;
+  width: min(100%, 960px);
+  margin-top: 14px;
+  padding: 2px 4px 10px 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline mandatory;
+  scrollbar-width: thin;
+}
+
+.lotbi-rich-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 10px 28px rgba(18, 28, 45, .08);
+  scroll-snap-align: start;
+}
+
+.lotbi-rich-card-media {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #f3f5f8;
+}
+
+.lotbi-rich-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lotbi-rich-card-place-media {
+  aspect-ratio: 16 / 9;
+  background: #fff;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image {
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image.is-ready {
+  opacity: 1;
+}
+
+.lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
+  background: #fff;
+}
+
+.lotbi-rich-card-placeholder {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.lotbi-rich-card-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px 14px 10px;
+}
+
+.lotbi-rich-card-source {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lotbi-rich-card-title {
+  display: -webkit-box;
+  min-height: 44px;
+  margin: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lotbi-rich-card-price {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.lotbi-rich-card-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.lotbi-rich-card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 10px 10px 12px;
+  border-top: 1px solid rgba(116, 126, 145, .16);
+}
+
+.lotbi-rich-card-action {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 7px;
+  border: 1px solid rgba(84, 95, 114, .28);
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lotbi-rich-card-action-primary {
+  background: #151b28;
+  color: #fff;
+  border-color: #151b28;
+}
+
+.lotbi-rich-card-action:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.lotbi-rich-card-action:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card,
+body[data-site-theme="system"] .lotbi-rich-card {
+  border-color: rgba(173, 184, 201, .24);
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card {
+  background: #202631;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-media {
+  background: #171c25;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-source,
+body[data-site-theme="dark"] .lotbi-rich-card-evidence,
+body[data-site-theme="dark"] .lotbi-rich-card-placeholder {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-action-primary {
+  background: #edf0f5;
+  color: #212121;
+  border-color: #edf0f5;
+}
+
+@media (max-width: 760px) {
+  .lotbi-rich-card-rail {
+    grid-auto-columns: minmax(252px, 82vw);
+    width: calc(100vw - 70px);
+    max-width: 100%;
+    margin-right: -8px;
+    padding-bottom: 12px;
+  }
+
+  .lotbi-rich-card-actions {
+    gap: 5px;
+  }
+
+  .lotbi-rich-card-action {
+    min-height: 44px;
+    padding-inline: 5px;
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 390px) {
+  .lotbi-rich-card-rail {
+    grid-auto-columns: minmax(238px, 84vw);
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-rich-card-rail {
+    grid-auto-columns: minmax(196px, 62vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-rich-card-rail {
+    scroll-behavior: auto;
+  }
+}
+
+
+/* PHASE 16 attachment chooser */
+.attachment-preview-strip[hidden],
+.attachment-menu[hidden] {
+  display: none;
+}
+
+.attachment-chip {
+  max-width: min(100%, 280px);
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px 5px 10px;
+  border: 1px solid #d9e0ec;
+  border-radius: 999px;
+  background: #f7f9fc;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.attachment-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* CHAT-ATTACHMENT-NO-FILENAME-01 — the composer shows the chosen image and a
+   remove target only. Documents use a generic type label. */
+.attachment-chip-with-thumb,
+.attachment-chip-pending {
+  flex: 0 0 auto;
+}
+
+.attachment-chip-with-thumb {
+  padding-left: 5px;
+}
+
+.attachment-chip-pending {
+  opacity: .84;
+}
+
+.attachment-chip-thumb {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #e9edf4;
+  pointer-events: none;
+}
+
+.attachment-chip-meta {
+  flex: 0 0 auto;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.attachment-chip-remove {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attachment-chip-remove:hover,
+.attachment-chip-remove:focus-visible {
+  background: #e9edf4;
+  color: #8f2c47;
+}
+
+.attachment-chip-remove:focus-visible {
+  outline: 2px solid rgba(79, 120, 197, .30);
+  outline-offset: 1px;
+}
+
+.attachment-control {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.attachment-button {
+  border-color: #d9e0ec;
+  background: #f7f9fc;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.attachment-button[aria-expanded="true"],
+.attachment-button:not(:disabled):hover,
+.attachment-button:not(:disabled):focus-visible {
+  border-color: rgba(123, 98, 187, .42);
+  background: #f5f2fb;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.attachment-menu {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: 176px;
+  padding: 6px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid #d9dee8;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(24, 42, 70, .18);
+}
+
+.attachment-menu button {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.attachment-menu button:hover,
+.attachment-menu button:focus-visible {
+  background: #f2f4f8;
+}
+
+.attachment-uploading {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 750;
+  align-self: center;
+}
+body[data-site-theme="dark"] .attachment-chip,
+body[data-site-theme="dark"] .attachment-menu { background: #202631; color: var(--lotbi-text-primary, var(--text, #212121)); border-color: #424b59; }
+body[data-site-theme="dark"] .attachment-menu button { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .attachment-menu button:hover,
+body[data-site-theme="dark"] .attachment-menu button:focus-visible,
+body[data-site-theme="dark"] .attachment-chip-remove:hover,
+body[data-site-theme="dark"] .attachment-chip-remove:focus-visible { background: #2a3140; }
+body[data-site-theme="dark"] .attachment-chip-meta { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .attachment-chip-thumb { background: #2a3140; }
+
+/* Conversation → Calendar action */
+.conversation-calendar-action {
+  margin-top: 10px;
+  padding: 10px 0 2px;
+  border-top: 1px solid #e6e9ef;
+  display: grid;
+  gap: 8px;
+}
+
+.conversation-calendar-action-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.conversation-calendar-action-icon {
+  flex: 0 0 auto;
+  line-height: 1.4;
+}
+
+.conversation-calendar-action-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+}
+
+.conversation-calendar-action-copy strong {
+  overflow-wrap: anywhere;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.conversation-calendar-action-copy small {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+}
+
+.conversation-calendar-action-status {
+  min-height: 18px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.conversation-calendar-action-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.conversation-calendar-partial-guide {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.conversation-calendar-action-button {
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid #cfd6e1;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conversation-calendar-action-button:hover:not(:disabled),
+.conversation-calendar-action-button:focus-visible {
+  border-color: #8a96a8;
+  background: #f7f8fa;
+}
+
+.conversation-calendar-action-button:focus-visible {
+  outline: 2px solid rgba(79, 120, 197, .30);
+  outline-offset: 2px;
+}
+
+.conversation-calendar-action-button:disabled {
+  cursor: wait;
+  opacity: .62;
+}
+
+/* 등록 is what the card is asking for, so it reads as the answer. 아니요 keeps
+   the same height and the same hit area right beside it — a filled button and
+   an outlined one, not a button and a whisper. */
+.conversation-calendar-action-button-primary {
+  border-color: #334155;
+  background: #334155;
+  color: #ffffff;
+}
+
+.conversation-calendar-action-button-primary:hover:not(:disabled),
+.conversation-calendar-action-button-primary:focus-visible {
+  border-color: #1f2937;
+  background: #1f2937;
+}
+
+body[data-site-theme="dark"] .conversation-calendar-action { border-top-color: #3d4654; }
+body[data-site-theme="dark"] .conversation-calendar-action-button-primary {
+  border-color: #dbe2ec;
+  background: #dbe2ec;
+  color: #212121;
+}
+body[data-site-theme="dark"] .conversation-calendar-action-button-primary:hover:not(:disabled),
+body[data-site-theme="dark"] .conversation-calendar-action-button-primary:focus-visible {
+  border-color: #eef2f7;
+  background: #eef2f7;
+}
+body[data-site-theme="dark"] .conversation-calendar-action-copy,
+body[data-site-theme="dark"] .conversation-calendar-action-status { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .conversation-calendar-action-copy strong { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .conversation-calendar-action-copy small { color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .conversation-calendar-action-button {
+  border-color: #536071;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+body[data-site-theme="dark"] .conversation-calendar-action-button:hover:not(:disabled),
+body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible { background: #262d38; }
+
+/* LIFE-PUBLIC-DATA-01 / LIFE-MEDICAL-AUTO-SEARCH-01: a message describing an
+   emergency symptom gets a one-tap 119 call under the answer (whose first
+   sentence already says to call 119) — one small button, no box. A plain
+   응급실 search has none. */
+.conversation-emergency-call {
+  display: flex;
+  margin-top: 8px;
+}
+
+.conversation-emergency-call-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #be2626;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.conversation-emergency-call-link:focus-visible {
+  outline: 2px solid rgba(190, 38, 38, .45);
+  outline-offset: 2px;
+}
+
+.conversation-pet-action-button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 9px 14px;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  background: #334155;
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conversation-pet-action-button:hover,
+.conversation-pet-action-button:focus-visible {
+  border-color: #1f2937;
+  background: #1f2937;
+}
+
+/* LIFE-PUBLIC-DATA-01: the nearby-vet hand-off sits next to the Pet SOS action. */
+.conversation-life-action-button {
+  margin-left: 8px;
+}
+
+.conversation-pet-action-button:focus-visible {
+  outline: 2px solid rgba(79, 120, 197, .30);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .conversation-pet-action-button {
+  border-color: #dbe2ec;
+  background: #dbe2ec;
+  color: #212121;
+}
+
+body[data-site-theme="dark"] .conversation-pet-action-button:hover,
+body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
+  border-color: #eef2f7;
+  background: #eef2f7;
+}
+
+@media (max-width: 520px) {
+  .conversation-calendar-action-controls { width: 100%; }
+  .conversation-calendar-action-button { min-width: 0; max-width: 100%; }
+}
+
+
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-rich-card-place-media .lotbi-rich-card-image {
+    transition: none;
+  }
+}
+
+
+/* LOTBI PLACE CARD TRUE ORBIT + PLACE PHOTO — place-only overrides */
+.lotbi-place-orbit {
+  --lotbi-orbit-drag-x: 0px;
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: min(100%, 960px);
+  max-width: 100%;
+  height: 326px;
+  margin-top: 12px;
+  padding: 0;
+  /* The orbit places cards with transforms and never scrolls. It inherited
+     the product rail's mandatory inline scroll snap, so every rotation
+     re-snapped this hidden scroller (153-161px on phones) and pushed the
+     center card off to the side. clip (hidden as the fallback) also keeps
+     focus/find-in-page from scrolling it. */
+  overflow: hidden;
+  overflow: clip;
+  scroll-snap-type: none;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  cursor: grab;
+  isolation: isolate;
+}
+
+.lotbi-place-orbit.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.lotbi-place-orbit-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(32%, 236px);
+  min-width: 192px;
+  margin: 0;
+  opacity: .46;
+  z-index: 1;
+  pointer-events: auto;
+  transform-origin: center center;
+  transition:
+    transform 220ms cubic-bezier(.2, .78, .2, 1),
+    opacity 180ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+  will-change: transform, opacity;
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="CENTER"] {
+  z-index: 5;
+  opacity: 1;
+  filter: none;
+  transform: translate(calc(-50% + var(--lotbi-orbit-drag-x)), -50%) scale(1);
+  box-shadow: 0 18px 42px rgba(18, 28, 45, .14);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"] {
+  z-index: 4;
+  opacity: .84;
+  filter: saturate(.94);
+  transform: translate(calc(-108% + var(--lotbi-orbit-drag-x)), -46%) scale(.84);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  z-index: 4;
+  opacity: .84;
+  filter: saturate(.94);
+  transform: translate(calc(8% + var(--lotbi-orbit-drag-x)), -46%) scale(.84);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+  z-index: 2;
+  opacity: .48;
+  filter: saturate(.82);
+  transform: translate(calc(-158% + var(--lotbi-orbit-drag-x)), -63%) scale(.68);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+  z-index: 2;
+  opacity: .48;
+  filter: saturate(.82);
+  transform: translate(calc(58% + var(--lotbi-orbit-drag-x)), -63%) scale(.68);
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-price,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-badges,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-license-note,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+  display: none;
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+  cursor: pointer;
+}
+
+.lotbi-place-orbit.is-dragging .lotbi-place-orbit-card {
+  cursor: grabbing;
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-copy {
+  gap: 2px;
+  padding: 7px 9px 8px;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-copy {
+  gap: 3px;
+  padding: 8px 10px 6px;
+}
+
+.lotbi-rich-card-place-media {
+  aspect-ratio: 16 / 9;
+  background: #f5f6f8;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image {
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+
+.lotbi-rich-card-place-media .lotbi-rich-card-image.is-ready {
+  opacity: 1;
+}
+
+.lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(89, 109, 138, .10), transparent 31%),
+    linear-gradient(155deg, #f7f8fa 0%, #eef1f5 100%);
+}
+
+.lotbi-place-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  letter-spacing: 0;
+}
+
+.lotbi-place-placeholder-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(79, 93, 113, .18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .76);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.lotbi-place-placeholder-label {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-title {
+  min-height: 0;
+  font-size: 14px;
+  line-height: 1.28;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-price {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11.5px;
+  line-height: 1.32;
+  font-weight: 620;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The 인허가 line had no rule of its own, so it inherited the thread's reading
+   size — on a phone that one line was setting the card's height and pushing
+   the action row past the rail's clip. It is evidence attached to the address,
+   so it reads at the address's size, not the answer's. */
+.lotbi-place-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 5px;
+}
+
+.lotbi-place-license-evidence,
+.lotbi-place-license-status {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.lotbi-place-license-status {
+  padding: 0 5px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 999px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+/* 공공데이터가 늦을 수 있다는 사실만 적는다. 주어는 데이터이고, 업소가 아니다. */
+.lotbi-place-license-note {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 10.5px;
+  line-height: 1.3;
+  font-weight: 620;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-source {
+  overflow: hidden;
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 버튼이 넷(전화·네이버·카카오·티맵)이 되면서 44px 타깃 넷과 여백의 합이 가장
+   좁은 카드(데스크톱 215.7px, 360px 화면 214px)를 넘지 않아야 합니다.
+   44*4 + 6*3 + 6*2 = 206px. 줄이는 것은 여백뿐이고 타깃은 44px 그대로입니다.
+   카드·레일 치수(PR #278)는 건드리지 않습니다 — min-height 46px 도 그대로. */
+.lotbi-place-card-actions {
+  display: flex;
+  grid-template-columns: none;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 46px;
+  padding: 3px 6px 6px;
+}
+
+.lotbi-rich-card-icon-action {
+  box-sizing: border-box;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  flex: 0 0 auto;
+  gap: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.lotbi-rich-card-icon-action:hover {
+  background: #f7f8fa;
+}
+
+.lotbi-phone-action[data-phone-state="UNAVAILABLE"] {
+  opacity: .48;
+}
+
+.lotbi-place-orbit-control {
+  position: absolute;
+  z-index: 8;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: 1px solid rgba(77, 89, 107, .22);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .92);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  box-shadow: 0 8px 22px rgba(18, 28, 45, .10);
+  font: inherit;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.lotbi-place-orbit-control-prev {
+  left: 8px;
+}
+
+.lotbi-place-orbit-control-next {
+  right: 8px;
+}
+
+.lotbi-place-orbit-control:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.lotbi-place-orbit:focus-visible,
+.lotbi-place-orbit-card:focus-visible,
+.lotbi-place-orbit-control:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 3px;
+}
+
+.lotbi-place-orbit-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* PLACE-CARD-NAVER-SEARCH-CLICK-01 — the card body's NAVER search link is not
+   drawn; the card itself shows the focus ring while the link has focus. */
+.lotbi-place-search-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lotbi-place-orbit-card:has(.lotbi-place-search-link:focus-visible) {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 3px;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price,
+body[data-site-theme="dark"] .lotbi-place-license-evidence,
+body[data-site-theme="dark"] .lotbi-place-license-status {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .lotbi-place-license-status {
+  border-color: rgba(198, 207, 221, .24);
+}
+
+body[data-site-theme="dark"] .lotbi-place-license-note {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-place-media.lotbi-rich-card-placeholder {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(176, 188, 207, .10), transparent 31%),
+    linear-gradient(155deg, #242b36 0%, #1b212b 100%);
+}
+
+body[data-site-theme="dark"] .lotbi-place-placeholder-mark {
+  border-color: rgba(198, 207, 221, .18);
+  background: rgba(20, 25, 34, .68);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-icon-action,
+body[data-site-theme="dark"] .lotbi-place-orbit-control {
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  border-color: #515b69;
+}
+
+body[data-site-theme="dark"] .lotbi-rich-card-icon-action:hover,
+body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
+  background: #262d38;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    width: 100%;
+    max-width: 100%;
+    height: 326px;
+    margin-right: 0;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(58vw, 222px);
+    min-width: min(50vw, 186px);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"] {
+    transform: translate(calc(-110% + var(--lotbi-orbit-drag-x)), -47%) scale(.74);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+    transform: translate(calc(10% + var(--lotbi-orbit-drag-x)), -47%) scale(.74);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform: translate(calc(-162% + var(--lotbi-orbit-drag-x)), -61%) scale(.56);
+    opacity: .26;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform: translate(calc(62% + var(--lotbi-orbit-drag-x)), -61%) scale(.56);
+    opacity: .26;
+  }
+
+  .lotbi-place-orbit-control {
+    width: 40px;
+    height: 40px;
+    margin-top: -20px;
+    font-size: 27px;
+  }
+
+  .lotbi-place-orbit-control-prev {
+    left: 4px;
+  }
+
+  .lotbi-place-orbit-control-next {
+    right: 4px;
+  }
+
+  .lotbi-place-card-actions {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 390px) {
+  .lotbi-place-orbit {
+    height: 324px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(60vw, 220px);
+    min-width: min(52vw, 182px);
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-place-orbit {
+    height: 320px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(62vw, 214px);
+    min-width: min(54vw, 178px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card,
+  .lotbi-rich-card-place-media .lotbi-rich-card-image {
+    transition: none;
+  }
+}
+
+/* SITE-IOS-INPUT-ZOOM-01 — iOS Safari zooms the whole page in when a focused
+   field's text is under 16px, which scrolls the form sideways and cuts off its
+   right edge. .site-field's inputs inherited the label's 14px, and its
+   textareas were not in the rule at all, so they sat at the UA default
+   13.33px. The Calendar editor already carries this fix for its own fields;
+   this brings the shared form controls in line.
+
+   Only the controls move — the 14px label is left alone, and desktop keeps the
+   smaller text since Safari there does not do this.
+
+   Bounded at the site's own mobile breakpoint rather than the Calendar's
+   520px, because Safari zooms on every iOS viewport: an iPad in portrait is
+   768px and would otherwise still be missed.
+
+   Raising the font size is the fix. Do NOT reach for
+   `maximum-scale=1, user-scalable=no` on the viewport meta instead: it stops
+   the zoom by taking pinch-zoom away from everyone who needs it. */
+@media (max-width: 900px) {
+  .site-field input,
+  .site-field select,
+  .site-field textarea {
+    font-size: 16px;
+  }
+}
+
+
+/* SITE-PLACE-CARD-CROSS-PLATFORM-01 — compact photo-aware consumer contract */
+.lotbi-place-orbit {
+  height: 190px;
+}
+
+.lotbi-place-orbit.has-place-photo,
+.lotbi-place-orbit.has-place-banner {
+  height: 300px;
+}
+
+.lotbi-place-orbit-card {
+  width: min(38%, 280px);
+  min-width: 220px;
+  border-color: rgba(73, 91, 118, .22);
+  border-radius: 16px;
+  background: var(--lotbi-surface-elevated, #fff);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  opacity: .18;
+  filter: saturate(.7) blur(.5px);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"] {
+  transform: translate(calc(-116% + var(--lotbi-orbit-drag-x)), -50%) scale(.82);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  transform: translate(calc(16% + var(--lotbi-orbit-drag-x)), -50%) scale(.82);
+}
+
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+  opacity: .08;
+  filter: saturate(.55) blur(1px);
+}
+
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+  pointer-events: none;
+}
+
+.lotbi-rich-card-place-media[hidden] {
+  display: none;
+}
+
+.lotbi-rich-card-place-media {
+  aspect-ratio: 16 / 8.25;
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 88%, #dfe6ef);
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-copy {
+  gap: 3px;
+  padding: 9px 11px 7px;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-title {
+  color: var(--lotbi-text-primary, #202632);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-source {
+  color: var(--lotbi-text-muted, #687180);
+}
+
+.lotbi-rich-card-place .lotbi-rich-card-price {
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 11.5px;
+}
+
+.lotbi-place-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(44px, 1fr));
+  gap: 6px;
+  min-height: 54px;
+  padding: 4px 5px 6px;
+  border-color: color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 74%, transparent);
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px;
+  flex-direction: row;
+  gap: 0;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-secondary, #4d535d);
+  line-height: 1;
+}
+
+.lotbi-place-action-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.lotbi-place-action-icon-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action:hover,
+.lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    width: min(100%, calc(100vw - 24px));
+    height: 178px;
+    margin-inline: auto;
+  }
+
+  .lotbi-place-orbit.has-place-photo,
+  .lotbi-place-orbit.has-place-banner {
+    height: 286px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(76vw, 286px);
+    min-width: min(76vw, 244px);
+  }
+
+  .lotbi-place-orbit-control {
+    opacity: .78;
+  }
+}
+
+@media (max-width: 390px) {
+  .lotbi-place-orbit-card {
+    width: min(78vw, 278px);
+    min-width: min(78vw, 238px);
+  }
+
+  .lotbi-place-card-actions {
+    gap: 1px;
+    padding-inline: 3px;
+  }
+
+  .lotbi-place-card-actions .lotbi-rich-card-action {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .lotbi-place-orbit-card {
+    width: min(80vw, 272px);
+    min-width: 232px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card {
+    transition: none;
+  }
+}
+
+/* PLACE-MEDICAL-CARD-UX-FINAL-01 — 장소·의료 카드 최종 정리.
+   - 카드 아래 한 줄: 지금 위치(1/3)와, Core 가 세 곳보다 많이 보냈을 때만
+     "다른 병원 보기". 카드와 화살표는 그 줄을 뺀 높이의 가운데에 선다.
+   - 사진이 없는 카드에는 사진 칸이 없다(site-conversation.js).
+   - 휴대폰(≤760px)에는 좌우 화살표가 없다. 손가락으로 밀면 돈다. 가운데 카드
+     하나만 보이고, 옆 카드는 화면 밖에서 기다리다 미는 동안에만 들어온다 —
+     잘리거나 겹쳐 보이는 카드가 없다. 넓은 화면은 회전형 배치와 화살표를
+     그대로 둔다. */
+.lotbi-place-orbit {
+  --lotbi-place-orbit-footer: 0px;
+}
+
+.lotbi-place-orbit.has-orbit-footer {
+  --lotbi-place-orbit-footer: 40px;
+}
+
+.lotbi-place-orbit-card,
+.lotbi-place-orbit-control {
+  top: calc((100% - var(--lotbi-place-orbit-footer)) / 2);
+}
+
+.lotbi-place-orbit-card[hidden] {
+  display: none;
+}
+
+.lotbi-place-orbit-card.is-orbit-repositioning {
+  transition: none;
+}
+
+/* The card's text answers a press itself. Besides showing the press, this
+   keeps a tap on the text — just above the 전화 / 길찾기 row — on the text:
+   Chrome moves a tap that lands within a few px of a link onto that link
+   unless the spot under the finger responds to touch on its own, and the
+   card around the text does not count (it holds the links). Without it a tap
+   on the address could call the place. */
+.lotbi-place-orbit-card[data-orbit-slot="CENTER"] .lotbi-rich-card-copy:active {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 92%, #cbd6e5);
+}
+
+.lotbi-place-orbit-footer {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--lotbi-place-orbit-footer);
+  pointer-events: none;
+}
+
+.lotbi-place-orbit-footer > * {
+  pointer-events: auto;
+}
+
+.lotbi-place-orbit-footer[hidden],
+.lotbi-place-orbit-position[hidden],
+.lotbi-place-orbit-more[hidden] {
+  display: none;
+}
+
+.lotbi-place-orbit-position {
+  min-width: 2.6em;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lotbi-place-orbit-more {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lotbi-place-orbit-more:hover {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+.lotbi-place-orbit-more:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .lotbi-place-orbit-more {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .lotbi-place-orbit-more:hover {
+  background: #262d38;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit-control {
+    display: none;
+  }
+
+  /* The cards share one grid cell, so the rail is as tall as its tallest
+     card plus the footer row by layout alone — nothing is cut at the top or
+     bottom before (or without) the script's fit. */
+  .lotbi-place-orbit,
+  .lotbi-place-orbit.has-place-photo,
+  .lotbi-place-orbit.has-place-banner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: center;
+    justify-items: center;
+    height: auto;
+    padding: 4px 0;
+  }
+
+  .lotbi-place-orbit.has-orbit-footer {
+    grid-template-rows: auto var(--lotbi-place-orbit-footer);
+  }
+
+  .lotbi-place-orbit-card {
+    grid-area: 1 / 1;
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(calc(100% - 16px), 360px);
+    min-width: 0;
+  }
+
+  .lotbi-place-orbit-footer {
+    grid-area: 2 / 1;
+    position: static;
+    width: 100%;
+  }
+
+  /* Side cards wait off the card, unseen, with their full content so every
+     card counts at its real height and the rail never jumps. */
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+    opacity: 0;
+    filter: none;
+    pointer-events: none;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="CENTER"] {
+    transform: translateX(var(--lotbi-orbit-drag-x));
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform: translateX(calc(-100% - 16px + var(--lotbi-orbit-drag-x)));
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform: translateX(calc(100% + 16px + var(--lotbi-orbit-drag-x)));
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-copy {
+    gap: 3px;
+    padding: 9px 11px 7px;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-price {
+    display: -webkit-box;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-badges,
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+    display: flex;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-license-note {
+    display: block;
+  }
+
+  /* While a finger drags, the next card shows at the edge it comes in from. */
+  .lotbi-place-orbit.is-dragging .lotbi-place-orbit-card[data-orbit-slot$="_FRONT"] {
+    opacity: 1;
+  }
+}
+
+/* LIFE-MEDICAL-AUTO-SEARCH-CARD-01 — 병원·약국·응급실(및 모든 장소) 회전형 카드.
+   - 휴대폰: 가운데 카드가 가장 크고, 양옆 카드의 끝(약 20px)이 보여 넘겨 볼
+     카드가 더 있다는 것을 숫자(1/3) 없이도 안다. 화살표는 계속 없고, 손가락으로
+     밀거나 옆 카드 끝을 누르면 돈다. 옆 카드 안의 전화·지도·검색 링크는 보이지도
+     눌리지도 않는다. 레일 밖은 잘려 가로 스크롤이 생기지 않는다.
+   - 다섯 곳을 다 펼치면 뒤쪽 카드(_BACK)는 앞쪽 카드 뒤에 숨는다.
+   - 넓은 화면: 같은 배치에 옆 카드를 흐리게만(블러 없이) 보여 준다.
+   - 전화·지도: 원형 44px 버튼에 22px 선 아이콘 두 개, 카드 오른쪽 끝.
+   - 카드 한 장이면 옆 카드도 1/3 도 없다(site-conversation.js). */
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  opacity: .5;
+  filter: saturate(.85);
+}
+
+.lotbi-place-orbit-card {
+  transition:
+    transform 280ms cubic-bezier(.22, .8, .24, 1),
+    opacity 240ms ease,
+    filter 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.lotbi-place-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 2px 8px 8px;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-secondary, #4d535d);
+}
+
+/* The approved LOTBI icon images (32px, rounded tile); a missing image shows
+   its short word instead (data-icon-state="MISSING"). */
+.lotbi-place-card-actions .lotbi-place-action-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.lotbi-place-card-actions .lotbi-place-action-icon[data-icon-state="MISSING"] {
+  width: auto;
+  min-width: 32px;
+  overflow: visible;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action:hover,
+.lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action {
+  border-color: transparent;
+  background: transparent;
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action:hover,
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: #262d38;
+}
+
+/* "실제 운영 여부는 전화로 확인" — one muted line under the hours. */
+.lotbi-place-medical-line[data-medical-state="CONFIRM"] {
+  color: var(--lotbi-text-muted, #687180);
+  font-weight: 500;
+  word-break: keep-all;
+}
+
+/* 약국 결과 아래 조건 고르기: 지금 운영 중 · 야간 · 휴일 · 24시간. */
+.lotbi-place-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 8px;
+}
+
+.lotbi-place-filter-chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lotbi-place-filter-chip:hover {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+.lotbi-place-filter-chip:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .lotbi-place-filter-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+
+body[data-site-theme="dark"] .lotbi-place-filter-chip:hover {
+  background: #262d38;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    --lotbi-place-peek: 20px;
+    --lotbi-place-gap: 8px;
+  }
+
+  /* The answer text sits right of the 42px avatar column (+ 8px gap, + the
+     message's 4px padding: the mobile .chat-assistant-row rule above). The
+     cards sit below that text, so on a phone they also use the width under
+     the avatar: at 320px the center card is ~216px instead of ~162px. */
+  .chat-assistant-row .chat-message-assistant > .lotbi-place-orbit,
+  .chat-assistant-row .chat-message-assistant > .lotbi-place-filter-row {
+    width: calc(100% + 54px);
+    max-width: none;
+    margin-left: -54px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(calc(100% - 2 * (var(--lotbi-place-peek) + var(--lotbi-place-gap))), 380px);
+    min-width: 0;
+  }
+
+  /* Only one card: it uses the width the side cards would have shown in. */
+  .lotbi-place-orbit[data-card-count="1"] .lotbi-place-orbit-card {
+    width: min(calc(100% - 16px), 380px);
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+    opacity: .5;
+    filter: saturate(.85);
+    pointer-events: auto;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform-origin: right center;
+    transform: translateX(calc(-100% - var(--lotbi-place-gap) + var(--lotbi-orbit-drag-x))) scale(.92);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform-origin: left center;
+    transform: translateX(calc(100% + var(--lotbi-place-gap) + var(--lotbi-orbit-drag-x))) scale(.92);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot$="_BACK"] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* A side card keeps its full content (so every card counts at its real
+     height) but nothing in it can be seen or pressed: a tap on its edge only
+     turns the cards. */
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions,
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-search-link {
+    visibility: hidden;
+  }
+
+  .lotbi-place-orbit.is-dragging .lotbi-place-orbit-card[data-orbit-slot$="_FRONT"] {
+    opacity: .85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card {
+    transition: none;
+  }
+}
+
+
+/* LOTBI reusable text output card — completed text meant to be copied, shared,
+   edited or reused. Ordinary assistant replies never use this surface. */
+.reusable-output-card {
+  width: min(100%, 720px);
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-subtle, #e1e5eb);
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #202631);
+  box-sizing: border-box;
+  touch-action: pan-y;
+}
+
+.reusable-output-title {
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 800;
+}
+
+.reusable-output-variant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--lotbi-text-muted, #667085);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.reusable-output-page {
+  min-width: 0;
+  margin-top: 8px;
+  padding: 12px 0 4px;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+.reusable-output-page .chat-message-body {
+  max-width: 100%;
+}
+
+.reusable-output-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.reusable-output-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 42px;
+}
+
+.reusable-output-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lotbi-border-strong, #a8b0bd);
+  opacity: .35;
+}
+
+.reusable-output-dot[data-current="true"] {
+  opacity: 1;
+}
+
+.reusable-output-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.reusable-output-action {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 13px;
+  border: 1px solid var(--lotbi-border-subtle, #dce1e8);
+  border-radius: 12px;
+  background: var(--lotbi-surface-subtle, #f7f8fa);
+  color: var(--lotbi-text-primary, #303642);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reusable-output-action:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.reusable-output-action:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.reusable-output-feedback {
+  display: block;
+  min-height: 18px;
+  margin-top: 4px;
+  color: var(--lotbi-text-muted, #667085);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reusable-output-feedback[data-tone="error"] {
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .reusable-output-card {
+    width: 100%;
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .reusable-output-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reusable-output-action {
+    width: 100%;
+    padding-inline: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reusable-output-action {
+    transition: none;
+  }
+}
+
+/* LIFE-PUBLIC-DATA-01 / NEIS school card: meals, 학사일정, 시간표, school choice. */
+.lotbi-school-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 16px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.lotbi-school-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.lotbi-school-card-title { font-size: 14px; font-weight: 800; }
+.lotbi-school-card-range,
+.lotbi-school-date,
+.lotbi-school-calories,
+.lotbi-school-legend,
+.lotbi-school-source { color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-school-legend { margin: 0; }
+.lotbi-school-dishes,
+.lotbi-school-events,
+.lotbi-school-timetable { margin: 4px 0 0; padding-left: 18px; }
+.lotbi-school-timetable { list-style: none; padding-left: 0; }
+.lotbi-school-allergens { color: var(--lotbi-text-secondary, #4d535d); font-size: 11px; letter-spacing: .02em; }
+.lotbi-school-event { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin: 2px 0; }
+
+.lotbi-school-calendar-add,
+.lotbi-school-change,
+.lotbi-school-candidate,
+.lotbi-school-link {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid rgba(116, 126, 145, .32);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.lotbi-school-candidates { display: grid; gap: 6px; }
+.lotbi-school-candidate { display: grid; gap: 2px; justify-items: start; border-radius: 14px; text-align: left; }
+.lotbi-school-candidate span { color: var(--lotbi-text-secondary, #4d535d); font-size: 11.5px; font-weight: 600; }
+.lotbi-school-card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+
+.lotbi-school-calendar-add:focus-visible,
+.lotbi-school-change:focus-visible,
+.lotbi-school-candidate:focus-visible,
+.lotbi-school-link:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+
+/* NEIS-SCHOOL-LINKS-01: [급식·식단 원문] / [학교 홈페이지] — rendered only when a link exists. */
+.lotbi-school-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.lotbi-school-link {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  text-decoration: none;
+}
+
+body[data-site-theme="dark"] .lotbi-school-card { border-color: rgba(198, 207, 221, .24); }
+
+/* SCHOOL-MEAL-01: compact one-day meals ("더 보기" for long menus), a week with
+   only the days that have meals and today marked, and the staff-entry badge. */
+.lotbi-school-card { min-width: 0; overflow-wrap: anywhere; }
+.lotbi-school-meal { display: grid; gap: 2px; min-width: 0; }
+.lotbi-school-meal-head,
+.lotbi-school-day-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lotbi-school-meal-badge,
+.lotbi-school-today {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(116, 126, 145, .14);
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.lotbi-school-today { background: rgba(79, 120, 197, .16); color: inherit; }
+.lotbi-school-dish { overflow-wrap: anywhere; }
+.lotbi-school-more summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.lotbi-school-more summary:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+.lotbi-school-week { display: grid; gap: 6px; min-width: 0; }
+.lotbi-school-day {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(116, 126, 145, .18);
+  border-radius: 12px;
+}
+.lotbi-school-day.is-today { border-color: rgba(79, 120, 197, .55); background: rgba(79, 120, 197, .07); }
+.lotbi-school-day-meal { margin: 0; overflow-wrap: anywhere; }
+.lotbi-school-day-meal-name { margin-right: 6px; }
+.lotbi-school-day-meal .lotbi-school-meal-badge { margin-right: 6px; }
+.lotbi-school-day-meal .lotbi-school-calories { display: block; }
+.lotbi-school-empty { margin: 0; color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-school-weekly { justify-content: center; }
+
+body[data-site-theme="dark"] .lotbi-school-day { border-color: rgba(198, 207, 221, .2); }
+body[data-site-theme="dark"] .lotbi-school-day.is-today { border-color: rgba(138, 170, 230, .6); background: rgba(138, 170, 230, .12); }
+body[data-site-theme="dark"] .lotbi-school-meal-badge { background: rgba(198, 207, 221, .16); }
+body[data-site-theme="dark"] .lotbi-school-today { background: rgba(138, 170, 230, .24); }
+
+/* SITE-REFRESH-ROUTE-RESTORE-01 — neutral shell while a reload reopens the
+   screen its URL names (html[data-site-route-pending], set in index.html and
+   auth-callback.js); the conversation home must not flash first. The
+   animations lift it on their own after 8 s if the runtime never answers. */
+html[data-site-route-pending] #main-content > * {
+  opacity: 0;
+  visibility: hidden;
+  animation: site-route-pending-release 0s linear 8s forwards;
+}
+html[data-site-route-pending] #main-content::before {
+  content: '화면을 불러오고 있어요';
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+  animation: site-route-pending-label 0s linear 8s forwards;
+}
+@keyframes site-route-pending-release { to { opacity: 1; visibility: visible; } }
+@keyframes site-route-pending-label { to { visibility: hidden; } }
+
+/* JEONBUK-PILOT-01 — 전북 맛집·음식 / 행정기관 연락처: compact official-record
+   cards. No media area at all; one line per published field; 44px actions;
+   long Korean addresses wrap inside the card. */
+.lotbi-regional-card {
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 16px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.lotbi-regional-card-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.lotbi-regional-card-title { margin: 0; font-size: 14px; font-weight: 800; }
+.lotbi-regional-card-basis,
+.lotbi-regional-meta,
+.lotbi-regional-fax,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-regional-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lotbi-regional-item { display: grid; gap: 2px; min-width: 0; padding-top: 8px; border-top: 1px solid rgba(116, 126, 145, .16); }
+.lotbi-regional-item:first-child { padding-top: 0; border-top: 0; }
+.lotbi-regional-name { margin: 0; font-size: 14px; font-weight: 750; }
+.lotbi-regional-meta,
+.lotbi-regional-address,
+.lotbi-regional-detail,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { margin: 0; }
+.lotbi-regional-detail { font-size: 12.5px; }
+.lotbi-regional-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.lotbi-regional-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 6px 14px;
+  border: 1px solid rgba(116, 126, 145, .32);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.lotbi-regional-source-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.lotbi-regional-card-footer { display: grid; gap: 2px; }
+.lotbi-regional-action:focus-visible,
+.lotbi-regional-source-link:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+body[data-site-theme="dark"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+body[data-site-theme="dark"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+  body[data-site-theme="system"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+  body[data-site-theme="system"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+}
+
+/* 전북 맛집·음식 entry form: a short label above each chip row. */
+.consumer-life-chip-label { margin: 4px 0 -4px; color: var(--lotbi-text-secondary, #4d535d); font-size: 13px; font-weight: 600; }

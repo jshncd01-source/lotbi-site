@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <base href="/">
+  <meta charset="utf-8" />
+  <!-- SITE-AUTH-HTTPS-ORIGIN-01 — Account session status is credentialed CORS
+       and intentionally trusts only https://lotbiai.com. Upgrade/canonicalize
+       the public custom-domain document before any runtime can issue the
+       Account request; never weaken the Account allowlist to accept HTTP. -->
+  <script>
+    (() => {
+      try {
+        const hostname = window.location.hostname.toLowerCase();
+        const isLotbiHost = hostname === 'lotbiai.com' || hostname === 'www.lotbiai.com';
+        if (!isLotbiHost) return;
+        if (window.location.protocol === 'https:' && hostname === 'lotbiai.com') return;
+        const secureUrl = new URL(window.location.href);
+        secureUrl.protocol = 'https:';
+        secureUrl.hostname = 'lotbiai.com';
+        secureUrl.port = '';
+        window.location.replace(secureUrl.href);
+      } catch {}
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://lotbiai.com/" />
+  <link rel="icon" href="/favicon.ico?v=20260922-officiallogo1" sizes="any" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/lotbi-mark-48.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/assets/brand/lotbi-mark-96.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/lotbi-mark-32.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/brand/lotbi-mark-192.png?v=20260922-officiallogo1" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/lotbi-mark-192.png?v=20260922-officiallogo1" />
+  <link rel="manifest" href="/site.webmanifest?v=20260922-officiallogo1" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LOTBI" />
+  <meta property="og:title" content="LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI" />
+  <meta property="og:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta property="og:url" content="https://lotbiai.com/" />
+  <meta property="og:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI" />
+  <meta name="twitter:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta name="twitter:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <title>LOTBI | 일상을 이해하고 계획하고 실행하는 AI</title>
+  <!-- SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — this is the authoritative theme
+       bootstrap and it has to stay here: inline, blocking, and above every
+       stylesheet. site-theme-tokens.css keys its pre-paint rules on
+       html[data-site-theme-bootstrap], and the copy of this code inside
+       site-conversation.js could never satisfy them — that file loads as a
+       module, so it defers past first paint and the stylesheets below had
+       already painted a light page. That was the white flash on reload in
+       Dark.
+       The module still sets the same attribute; it is now a no-op on load and
+       the live writer when the user changes themes.
+       Wrapped in try/catch and deliberately does nothing on a bad or missing
+       value: a storage failure must not stop the page from rendering. -->
+  <script>
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
+        var lotbiHour = new Date().getHours();
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 22:00.
+          lotbiSavedTheme = (lotbiHour >= 22 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 22 ? 7 : 22);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
+      }
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
+  </script>
+  <!-- SITE-REFRESH-ROUTE-RESTORE-01 — a reload of /#calendar (or any screen
+       fragment) must not paint the conversation home before that screen
+       opens, and only an inline block above the stylesheets runs before the
+       first paint. site-route.js owns the list of routes; the conversation
+       lifts this marker once the screen is open or the fragment turns out not
+       to be a route, and site-conversation.css lifts it on its own if the
+       runtime never answers. Reads the URL fragment only: no storage, no
+       network, no navigation. -->
+  <script>
+    try {
+      if (/^#[a-z][a-z-]{1,30}$/.test(window.location.hash)) document.documentElement.dataset.siteRoutePending = '';
+    } catch (error) {}
+  </script>
+  <link rel="stylesheet" href="styles.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-person.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-person-bulk.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-safecare.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-festival.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-life-onnuri.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-life-ev-chargers.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-life-news.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-scam-shield.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-consumer-design.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-consumer-detail.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-consumer-layout.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-life-wallet.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-life-education.css?v=aset-092264d18d78" />
+  <link rel="stylesheet" href="site-life-my-child.css?v=aset-092264d18d78" />
+  <style>
+    body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/avatar-runtime/vendor/three/three.module.js",
+      "three/addons/": "/avatar-runtime/vendor/three/addons/"
+    }
+  }
+  </script>
+  <script src="home-shell.js?v=aset-092264d18d78" defer></script>
+  <script src="site-consumer-layout.js?v=aset-092264d18d78" defer></script>
+  <script src="mobile-entry.js?v=aset-092264d18d78" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-092264d18d78"></script>
+  <script type="module">
+const out = document.getElementById('mcs-result');
+const F = {"note":"Produced by lotbi-core app/my_child_api.py (MY-CHILD-SCHOOL-01) on real NEIS / 유치원알리미 rows (meals, schools, 유치원 are captured rows; 학사일정 uses real event names with dates moved into the 10-11월 window); ids are re-issued by the validator.","listing_empty":{"entries":[],"max_entries":10,"consent":{"key":"LIFE_MY_CHILD_INSTITUTIONS","version":"my-child-institutions-2026-10-09","text":"자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.","sha256":"75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0","accepted":false,"accepted_at":null},"allergen_catalog":[{"code":1,"name":"난류"},{"code":2,"name":"우유"},{"code":3,"name":"메밀"},{"code":4,"name":"땅콩"},{"code":5,"name":"대두"},{"code":6,"name":"밀"},{"code":7,"name":"고등어"},{"code":8,"name":"게"},{"code":9,"name":"새우"},{"code":10,"name":"돼지고기"},{"code":11,"name":"복숭아"},{"code":12,"name":"토마토"},{"code":13,"name":"아황산류"},{"code":14,"name":"호두"},{"code":15,"name":"닭고기"},{"code":16,"name":"쇠고기"},{"code":17,"name":"오징어"},{"code":18,"name":"조개류"},{"code":19,"name":"잣"}],"allergy_basis":"급식표 알레르기 표기 기준","nickname_max_length":20},"consent_required":{"detail":{"code":"MY_CHILD_CONSENT_REQUIRED","message":"처음 저장할 때는 저장 안내에 동의해 주세요.","consent":{"key":"LIFE_MY_CHILD_INSTITUTIONS","version":"my-child-institutions-2026-10-09","text":"자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.","sha256":"75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0","accepted":false,"accepted_at":null}}},"search":{"query":"서원초","schools":[{"office_code":"P10","office_name":"전북특별자치도교육청","school_code":"8332169","name":"전주서원초등학교","kind":"초등학교","region":"전북특별자치도","address":"전북특별자치도 전주시 완산구 오두정길 45","kind_label":"초등학교"},{"office_code":"B10","office_name":"서울특별시교육청","school_code":"7091393","name":"서울서원초등학교","kind":"초등학교","region":"서울특별시","address":"서울특별시 서초구 고무래로 63","kind_label":"초등학교"},{"office_code":"G10","office_name":"대전광역시교육청","school_code":"7451097","name":"대전서원초등학교","kind":"초등학교","region":"대전광역시","address":"대전광역시 서구 문정로 279","kind_label":"초등학교"},{"office_code":"J10","office_name":"경기도교육청","school_code":"7751090","name":"서원초등학교","kind":"초등학교","region":"경기도","address":"경기 용인시 수지구 상현로 45","kind_label":"초등학교"},{"office_code":"K10","office_name":"강원특별자치도교육청","school_code":"7892021","name":"서원초등학교","kind":"초등학교","region":"강원특별자치도","address":"강원도 횡성군 서원면 서원로 173","kind_label":"초등학교"},{"office_code":"M10","office_name":"충청북도교육청","school_code":"8011186","name":"서원초등학교","kind":"초등학교","region":"충청북도","address":"충청북도 청주시 흥덕구 가로수로 1340-6","kind_label":"초등학교"}],"truncated":true,"source":{"code":"NEIS","label":"출처: NEIS","fetched_at":"2026-10-09T04:56:33.362194+00:00"}},"created_school":{"entry":{"id":"mci_b23e645f9c5b4db18005","kind":"SCHOOL","nickname":"첫째","allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"institution_ref":{"kind":"SCHOOL","office_code":"P10","school_code":"8332169"},"institution":{"office_code":"P10","office_name":"전북특별자치도교육청","school_code":"8332169","name":"전주서원초등학교","kind":"초등학교","region":"전북특별자치도","address":"전북특별자치도 전주시 완산구 오두정길 45","kind_label":"초등학교"},"institution_status":"OK","created_at":"2026-10-09T04:56:33.473551+00:00","updated_at":"2026-10-09T04:56:33.473551+00:00"},"consent":{"key":"LIFE_MY_CHILD_INSTITUTIONS","version":"my-child-institutions-2026-10-09","text":"자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.","sha256":"75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0","accepted":true,"accepted_at":"2026-10-09T04:56:33.473551+00:00"}},"listing_three":{"entries":[{"id":"mci_b23e645f9c5b4db18005","kind":"SCHOOL","nickname":"첫째","allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"institution_ref":{"kind":"SCHOOL","office_code":"P10","school_code":"8332169"},"institution":{"office_code":"P10","office_name":"전북특별자치도교육청","school_code":"8332169","name":"전주서원초등학교","kind":"초등학교","region":"전북특별자치도","address":"전북특별자치도 전주시 완산구 오두정길 45","kind_label":"초등학교"},"institution_status":"OK","created_at":"2026-10-09T04:56:33.473551+00:00","updated_at":"2026-10-09T04:56:33.473551+00:00"},{"id":"mci_8d10b8205a024990bac9","kind":"SCHOOL","nickname":"둘째","allergens":[],"institution_ref":{"kind":"SCHOOL","office_code":"B10","school_code":"7091393"},"institution":{"office_code":"B10","office_name":"서울특별시교육청","school_code":"7091393","name":"서울서원초등학교","kind":"초등학교","region":"서울특별시","address":"서울특별시 서초구 고무래로 63","kind_label":"초등학교"},"institution_status":"OK","created_at":"2026-10-09T04:56:33.553324+00:00","updated_at":"2026-10-09T04:56:33.553324+00:00"},{"id":"mci_6df56210432a425790fc","kind":"KINDERGARTEN","nickname":"셋째","allergens":[{"code":2,"name":"우유"}],"institution_ref":{"kind":"KINDERGARTEN","kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","sgg_code":"52113"},"institution":{"kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","sgg_code":"52113","name":"예일유치원","kind_label":"유치원","establishment":"사립(사인)","area":"전북 전주시 덕진구","address":"전북특별자치도 전주시 덕진구 한배미5길 12-6"},"institution_status":"OK","created_at":"2026-10-09T04:56:33.630239+00:00","updated_at":"2026-10-09T04:56:33.630239+00:00"}],"max_entries":10,"consent":{"key":"LIFE_MY_CHILD_INSTITUTIONS","version":"my-child-institutions-2026-10-09","text":"자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.","sha256":"75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0","accepted":true,"accepted_at":"2026-10-09T04:56:33.473551+00:00"},"allergen_catalog":[{"code":1,"name":"난류"},{"code":2,"name":"우유"},{"code":3,"name":"메밀"},{"code":4,"name":"땅콩"},{"code":5,"name":"대두"},{"code":6,"name":"밀"},{"code":7,"name":"고등어"},{"code":8,"name":"게"},{"code":9,"name":"새우"},{"code":10,"name":"돼지고기"},{"code":11,"name":"복숭아"},{"code":12,"name":"토마토"},{"code":13,"name":"아황산류"},{"code":14,"name":"호두"},{"code":15,"name":"닭고기"},{"code":16,"name":"쇠고기"},{"code":17,"name":"오징어"},{"code":18,"name":"조개류"},{"code":19,"name":"잣"}],"allergy_basis":"급식표 알레르기 표기 기준","nickname_max_length":20},"overview_school":{"entry":{"id":"mci_b23e645f9c5b4db18005","kind":"SCHOOL","nickname":"첫째","allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"institution_ref":{"kind":"SCHOOL","office_code":"P10","school_code":"8332169"},"institution":null,"institution_status":"OK","created_at":"2026-10-09T04:56:33.473551+00:00","updated_at":"2026-10-09T04:56:33.473551+00:00"},"today":"2026-10-08","allergy_basis":"급식표 알레르기 표기 기준","status":"OK","school":{"office_code":"P10","office_name":"전북특별자치도교육청","school_code":"8332169","name":"전주서원초등학교","kind":"초등학교","region":"전북특별자치도","address":"전북특별자치도 전주시 완산구 오두정길 45","kind_label":"초등학교"},"meals":{"status":"OK","week":{"from":"2026-10-05","to":"2026-10-11"},"today":[{"date":"2026-10-08","meal_code":"2","meal_name":"중식","meal_type":"LUNCH","dishes":[{"name":"친환경발아찰현미밥","allergens":[],"matched_allergens":[],"contains_text":null},{"name":"솎음배추된장국","allergens":[5,6],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"견과류모듬","allergens":[14],"matched_allergens":[],"contains_text":null},{"name":"닭고기야채카레찜","allergens":[2,5,6,12,13,15,16,18],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"볼카츠/케챱","allergens":[1,5,6,10,12],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"보쌈김치","allergens":[9],"matched_allergens":[],"contains_text":null},{"name":"쌈다시마파프리카표고버섯초장","allergens":[5,6,13],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"}],"calories":"601.1 Kcal","nutrition":[{"label":"탄수화물(g)","value":"71.0"},{"label":"단백질(g)","value":"24.8"},{"label":"지방(g)","value":"24.2"},{"label":"비타민A(R.E)","value":"94.6"},{"label":"티아민(mg)","value":"0.4"},{"label":"리보플라빈(mg)","value":"0.3"},{"label":"비타민C(mg)","value":"19.4"},{"label":"칼슘(mg)","value":"227.2"},{"label":"철분(mg)","value":"2.9"}],"source_type":"NEIS","allergen_codes_available":true,"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}]}],"days":[{"date":"2026-10-06","meals":[{"date":"2026-10-06","meal_code":"2","meal_name":"중식","meal_type":"LUNCH","dishes":[{"name":"친환경쌀흑미밥","allergens":[],"matched_allergens":[],"contains_text":null},{"name":"돼지등뼈감자탕","allergens":[5,6,9,10],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"메추리알표고장조림","allergens":[1,5,6,13],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"새우살애호박볶음","allergens":[9,13],"matched_allergens":[],"contains_text":null},{"name":"삼치구이/깐풍소스","allergens":[5,6,13,18],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"갓김치/배추김치","allergens":[9],"matched_allergens":[],"contains_text":null},{"name":"망고블루요거트","allergens":[2,5,6],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"}],"calories":"577.4 Kcal","nutrition":[{"label":"탄수화물(g)","value":"78.8"},{"label":"단백질(g)","value":"28.0"},{"label":"지방(g)","value":"15.5"},{"label":"비타민A(R.E)","value":"149.7"},{"label":"티아민(mg)","value":"0.5"},{"label":"리보플라빈(mg)","value":"0.5"},{"label":"비타민C(mg)","value":"15.6"},{"label":"칼슘(mg)","value":"154.6"},{"label":"철분(mg)","value":"2.6"}],"source_type":"NEIS","allergen_codes_available":true,"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}]}]},{"date":"2026-10-07","meals":[{"date":"2026-10-07","meal_code":"2","meal_name":"중식","meal_type":"LUNCH","dishes":[{"name":"짜장밥","allergens":[2,5,6,10,13,16],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"달걀실파국","allergens":[1,5,6],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"반달단무지","allergens":[],"matched_allergens":[],"contains_text":null},{"name":"모듬탕수육/소스","allergens":[1,5,6,10,12,13],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"배추김치","allergens":[9],"matched_allergens":[],"contains_text":null},{"name":"아삭오이무침","allergens":[9],"matched_allergens":[],"contains_text":null},{"name":"사과즙","allergens":[13],"matched_allergens":[],"contains_text":null}],"calories":"586.0 Kcal","nutrition":[{"label":"탄수화물(g)","value":"90.3"},{"label":"단백질(g)","value":"26.5"},{"label":"지방(g)","value":"12.3"},{"label":"비타민A(R.E)","value":"88.9"},{"label":"티아민(mg)","value":"0.6"},{"label":"리보플라빈(mg)","value":"0.3"},{"label":"비타민C(mg)","value":"58.6"},{"label":"칼슘(mg)","value":"133.8"},{"label":"철분(mg)","value":"2.0"}],"source_type":"NEIS","allergen_codes_available":true,"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}]}]},{"date":"2026-10-08","meals":[{"date":"2026-10-08","meal_code":"2","meal_name":"중식","meal_type":"LUNCH","dishes":[{"name":"친환경발아찰현미밥","allergens":[],"matched_allergens":[],"contains_text":null},{"name":"솎음배추된장국","allergens":[5,6],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"견과류모듬","allergens":[14],"matched_allergens":[],"contains_text":null},{"name":"닭고기야채카레찜","allergens":[2,5,6,12,13,15,16,18],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"볼카츠/케챱","allergens":[1,5,6,10,12],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"},{"name":"보쌈김치","allergens":[9],"matched_allergens":[],"contains_text":null},{"name":"쌈다시마파프리카표고버섯초장","allergens":[5,6,13],"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}],"contains_text":"대두·밀 포함"}],"calories":"601.1 Kcal","nutrition":[{"label":"탄수화물(g)","value":"71.0"},{"label":"단백질(g)","value":"24.8"},{"label":"지방(g)","value":"24.2"},{"label":"비타민A(R.E)","value":"94.6"},{"label":"티아민(mg)","value":"0.4"},{"label":"리보플라빈(mg)","value":"0.3"},{"label":"비타민C(mg)","value":"19.4"},{"label":"칼슘(mg)","value":"227.2"},{"label":"철분(mg)","value":"2.9"}],"source_type":"NEIS","allergen_codes_available":true,"matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}]}]}],"sources":["NEIS"],"truncated":false,"today_matched_allergens":[{"code":5,"name":"대두"},{"code":6,"name":"밀"}]},"links":{"homepage_url":"http://www.sewon.es.kr/","homepage_source":"NEIS","meal_source_url":null},"schedule":{"status":"OK","range":{"from":"2026-10-01","to":"2026-11-30"},"items":[{"type":"DISCRETIONARY_HOLIDAY","type_label":"재량휴업일","name":"재량휴업일","start":"2026-10-12","end":"2026-10-12","day_count":1},{"type":"VACATION","type_label":"방학","name":"가을방학","start":"2026-11-20","end":"2026-11-24","day_count":3},{"type":"SCHOOL_START","type_label":"개학","name":"2학기 개학식","start":"2026-11-26","end":"2026-11-26","day_count":1}],"truncated":false,"shown_types":["방학","재량휴업일","개학"]},"source":{"code":"NEIS","label":"출처: NEIS","fetched_at":"2026-10-09T04:56:34.277114+00:00","stale":false},"info_requests":{},"requestable":[]},"overview_school_empty":{"entry":{"id":"mci_8d10b8205a024990bac9","kind":"SCHOOL","nickname":"둘째","allergens":[],"institution_ref":{"kind":"SCHOOL","office_code":"B10","school_code":"7091393"},"institution":null,"institution_status":"OK","created_at":"2026-10-09T04:56:33.553324+00:00","updated_at":"2026-10-09T04:56:33.553324+00:00"},"today":"2026-10-08","allergy_basis":"급식표 알레르기 표기 기준","status":"OK","school":{"office_code":"B10","office_name":"서울특별시교육청","school_code":"7091393","name":"서울서원초등학교","kind":"초등학교","region":"서울특별시","address":"서울특별시 서초구 고무래로 63","kind_label":"초등학교"},"meals":{"status":"NONE","week":{"from":"2026-10-05","to":"2026-10-11"},"today":[],"days":[],"sources":[],"truncated":false,"today_matched_allergens":[]},"links":{"homepage_url":"https://seo-won.sen.es.kr/","homepage_source":"NEIS","meal_source_url":null},"schedule":{"status":"NONE","range":{"from":"2026-10-01","to":"2026-11-30"},"items":[],"truncated":false,"shown_types":["방학","재량휴업일","개학"]},"source":{"code":"NEIS","label":"출처: NEIS","fetched_at":"2026-10-09T04:56:34.374679+00:00","stale":false},"info_requests":{},"requestable":["MEAL","SCHEDULE"]},"info_request":{"id":"mci_8d10b8205a024990bac9","results":{"MEAL":"REQUESTED"},"info_requests":{"MEAL":"PENDING"}},"overview_kindergarten":{"entry":{"id":"mci_6df56210432a425790fc","kind":"KINDERGARTEN","nickname":"셋째","allergens":[{"code":2,"name":"우유"}],"institution_ref":{"kind":"KINDERGARTEN","kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","sgg_code":"52113"},"institution":null,"institution_status":"OK","created_at":"2026-10-09T04:56:33.630239+00:00","updated_at":"2026-10-09T04:56:33.630239+00:00"},"today":"2026-10-08","status":"OK","kindergarten":{"kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","sgg_code":"52113","name":"예일유치원","establishment":"사립(사인)","address":"전북특별자치도 전주시 덕진구 한배미5길 12-6","phone":"063-245-1133","homepage":"http://cafe.naver.com/yeail1133","hours":"08:30~17:00","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","area":"전북 전주시 덕진구","classes_total":11,"capacity_total":253,"enrolled_total":208,"disclosure_label":"2026년 1차"},"source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","fetched_at":"2026-10-08T03:00:00+00:00","stale":false},"info_requests":{},"requestable":[]}};
+const K = {"regions":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"code_table":{"url":"https://e-childschoolinfo.moe.go.kr/openApi/sidoSigunguCode.do","read_on":"2026-10-08"},"regions":[{"sido_code":"11","sido_name":"서울특별시","sggs":[{"sgg_code":"11110","sgg_name":"종로구"},{"sgg_code":"11140","sgg_name":"중구"},{"sgg_code":"11170","sgg_name":"용산구"},{"sgg_code":"11200","sgg_name":"성동구"},{"sgg_code":"11215","sgg_name":"광진구"},{"sgg_code":"11230","sgg_name":"동대문구"},{"sgg_code":"11260","sgg_name":"중랑구"},{"sgg_code":"11290","sgg_name":"성북구"},{"sgg_code":"11305","sgg_name":"강북구"},{"sgg_code":"11320","sgg_name":"도봉구"},{"sgg_code":"11350","sgg_name":"노원구"},{"sgg_code":"11380","sgg_name":"은평구"},{"sgg_code":"11410","sgg_name":"서대문구"},{"sgg_code":"11440","sgg_name":"마포구"},{"sgg_code":"11470","sgg_name":"양천구"},{"sgg_code":"11500","sgg_name":"강서구"},{"sgg_code":"11530","sgg_name":"구로구"},{"sgg_code":"11545","sgg_name":"금천구"},{"sgg_code":"11560","sgg_name":"영등포구"},{"sgg_code":"11590","sgg_name":"동작구"},{"sgg_code":"11620","sgg_name":"관악구"},{"sgg_code":"11650","sgg_name":"서초구"},{"sgg_code":"11680","sgg_name":"강남구"},{"sgg_code":"11710","sgg_name":"송파구"},{"sgg_code":"11740","sgg_name":"강동구"}]},{"sido_code":"12","sido_name":"전남광주통합특별시","sggs":[{"sgg_code":"12110","sgg_name":"목포시"},{"sgg_code":"12130","sgg_name":"여수시"},{"sgg_code":"12150","sgg_name":"순천시"},{"sgg_code":"12170","sgg_name":"나주시"},{"sgg_code":"12190","sgg_name":"광양시"},{"sgg_code":"12210","sgg_name":"동구"},{"sgg_code":"12240","sgg_name":"서구"},{"sgg_code":"12270","sgg_name":"남구"},{"sgg_code":"12300","sgg_name":"북구"},{"sgg_code":"12330","sgg_name":"광산구"},{"sgg_code":"12710","sgg_name":"담양군"},{"sgg_code":"12720","sgg_name":"곡성군"},{"sgg_code":"12730","sgg_name":"구례군"},{"sgg_code":"12740","sgg_name":"고흥군"},{"sgg_code":"12750","sgg_name":"보성군"},{"sgg_code":"12760","sgg_name":"화순군"},{"sgg_code":"12770","sgg_name":"장흥군"},{"sgg_code":"12780","sgg_name":"강진군"},{"sgg_code":"12790","sgg_name":"해남군"},{"sgg_code":"12800","sgg_name":"영암군"},{"sgg_code":"12810","sgg_name":"무안군"},{"sgg_code":"12820","sgg_name":"함평군"},{"sgg_code":"12830","sgg_name":"영광군"},{"sgg_code":"12840","sgg_name":"장성군"},{"sgg_code":"12850","sgg_name":"완도군"},{"sgg_code":"12860","sgg_name":"진도군"},{"sgg_code":"12870","sgg_name":"신안군"}]},{"sido_code":"26","sido_name":"부산광역시","sggs":[{"sgg_code":"26110","sgg_name":"중구"},{"sgg_code":"26140","sgg_name":"서구"},{"sgg_code":"26170","sgg_name":"동구"},{"sgg_code":"26200","sgg_name":"영도구"},{"sgg_code":"26230","sgg_name":"부산진구"},{"sgg_code":"26260","sgg_name":"동래구"},{"sgg_code":"26290","sgg_name":"남구"},{"sgg_code":"26320","sgg_name":"북구"},{"sgg_code":"26350","sgg_name":"해운대구"},{"sgg_code":"26380","sgg_name":"사하구"},{"sgg_code":"26410","sgg_name":"금정구"},{"sgg_code":"26440","sgg_name":"강서구"},{"sgg_code":"26470","sgg_name":"연제구"},{"sgg_code":"26500","sgg_name":"수영구"},{"sgg_code":"26530","sgg_name":"사상구"},{"sgg_code":"26710","sgg_name":"기장군"}]},{"sido_code":"27","sido_name":"대구광역시","sggs":[{"sgg_code":"27110","sgg_name":"중구"},{"sgg_code":"27140","sgg_name":"동구"},{"sgg_code":"27170","sgg_name":"서구"},{"sgg_code":"27200","sgg_name":"남구"},{"sgg_code":"27230","sgg_name":"북구"},{"sgg_code":"27260","sgg_name":"수성구"},{"sgg_code":"27290","sgg_name":"달서구"},{"sgg_code":"27710","sgg_name":"달성군"},{"sgg_code":"27720","sgg_name":"군위군"}]},{"sido_code":"28","sido_name":"인천광역시","sggs":[{"sgg_code":"28125","sgg_name":"제물포구"},{"sgg_code":"28155","sgg_name":"영종구"},{"sgg_code":"28177","sgg_name":"미추홀구"},{"sgg_code":"28185","sgg_name":"연수구"},{"sgg_code":"28200","sgg_name":"남동구"},{"sgg_code":"28237","sgg_name":"부평구"},{"sgg_code":"28245","sgg_name":"계양구"},{"sgg_code":"28275","sgg_name":"서해구"},{"sgg_code":"28290","sgg_name":"검단구"},{"sgg_code":"28710","sgg_name":"강화군"},{"sgg_code":"28720","sgg_name":"옹진군"}]},{"sido_code":"30","sido_name":"대전광역시","sggs":[{"sgg_code":"30110","sgg_name":"동구"},{"sgg_code":"30140","sgg_name":"중구"},{"sgg_code":"30170","sgg_name":"서구"},{"sgg_code":"30200","sgg_name":"유성구"},{"sgg_code":"30230","sgg_name":"대덕구"}]},{"sido_code":"31","sido_name":"울산광역시","sggs":[{"sgg_code":"31110","sgg_name":"중구"},{"sgg_code":"31140","sgg_name":"남구"},{"sgg_code":"31170","sgg_name":"동구"},{"sgg_code":"31200","sgg_name":"북구"},{"sgg_code":"31710","sgg_name":"울주군"}]},{"sido_code":"36","sido_name":"세종특별자치시","sggs":[{"sgg_code":"36110","sgg_name":"세종특별자치시"}]},{"sido_code":"41","sido_name":"경기도","sggs":[{"sgg_code":"41110","sgg_name":"수원시"},{"sgg_code":"41111","sgg_name":"수원시 장안구"},{"sgg_code":"41113","sgg_name":"수원시 권선구"},{"sgg_code":"41115","sgg_name":"수원시 팔달구"},{"sgg_code":"41117","sgg_name":"수원시 영통구"},{"sgg_code":"41130","sgg_name":"성남시"},{"sgg_code":"41131","sgg_name":"성남시 수정구"},{"sgg_code":"41133","sgg_name":"성남시 중원구"},{"sgg_code":"41135","sgg_name":"성남시 분당구"},{"sgg_code":"41150","sgg_name":"의정부시"},{"sgg_code":"41170","sgg_name":"안양시"},{"sgg_code":"41171","sgg_name":"안양시 만안구"},{"sgg_code":"41173","sgg_name":"안양시 동안구"},{"sgg_code":"41192","sgg_name":"부천시 원미구"},{"sgg_code":"41194","sgg_name":"부천시 소사구"},{"sgg_code":"41196","sgg_name":"부천시 오정구"},{"sgg_code":"41210","sgg_name":"광명시"},{"sgg_code":"41220","sgg_name":"평택시"},{"sgg_code":"41250","sgg_name":"동두천시"},{"sgg_code":"41271","sgg_name":"안산시 상록구"},{"sgg_code":"41273","sgg_name":"안산시 단원구"},{"sgg_code":"41281","sgg_name":"고양시 덕양구"},{"sgg_code":"41285","sgg_name":"고양시 일산동구"},{"sgg_code":"41287","sgg_name":"고양시 일산서구"},{"sgg_code":"41290","sgg_name":"과천시"},{"sgg_code":"41310","sgg_name":"구리시"},{"sgg_code":"41360","sgg_name":"남양주시"},{"sgg_code":"41370","sgg_name":"오산시"},{"sgg_code":"41390","sgg_name":"시흥시"},{"sgg_code":"41410","sgg_name":"군포시"},{"sgg_code":"41430","sgg_name":"의왕시"},{"sgg_code":"41450","sgg_name":"하남시"},{"sgg_code":"41461","sgg_name":"용인시 처인구"},{"sgg_code":"41463","sgg_name":"용인시 기흥구"},{"sgg_code":"41465","sgg_name":"용인시 수지구"},{"sgg_code":"41480","sgg_name":"파주시"},{"sgg_code":"41500","sgg_name":"이천시"},{"sgg_code":"41550","sgg_name":"안성시"},{"sgg_code":"41570","sgg_name":"김포시"},{"sgg_code":"41591","sgg_name":"화성시 만세구"},{"sgg_code":"41593","sgg_name":"화성시 효행구"},{"sgg_code":"41595","sgg_name":"화성시 병점구"},{"sgg_code":"41597","sgg_name":"화성시 동탄구"},{"sgg_code":"41610","sgg_name":"광주시"},{"sgg_code":"41630","sgg_name":"양주시"},{"sgg_code":"41650","sgg_name":"포천시"},{"sgg_code":"41670","sgg_name":"여주시"},{"sgg_code":"41800","sgg_name":"연천군"},{"sgg_code":"41820","sgg_name":"가평군"},{"sgg_code":"41830","sgg_name":"양평군"}]},{"sido_code":"43","sido_name":"충청북도","sggs":[{"sgg_code":"43111","sgg_name":"청주시 상당구"},{"sgg_code":"43112","sgg_name":"청주시 서원구"},{"sgg_code":"43113","sgg_name":"청주시 흥덕구"},{"sgg_code":"43114","sgg_name":"청주시 청원구"},{"sgg_code":"43130","sgg_name":"충주시"},{"sgg_code":"43150","sgg_name":"제천시"},{"sgg_code":"43720","sgg_name":"보은군"},{"sgg_code":"43730","sgg_name":"옥천군"},{"sgg_code":"43740","sgg_name":"영동군"},{"sgg_code":"43745","sgg_name":"증평군"},{"sgg_code":"43750","sgg_name":"진천군"},{"sgg_code":"43760","sgg_name":"괴산군"},{"sgg_code":"43770","sgg_name":"음성군"},{"sgg_code":"43800","sgg_name":"단양군"}]},{"sido_code":"44","sido_name":"충청남도","sggs":[{"sgg_code":"44131","sgg_name":"천안시 동남구"},{"sgg_code":"44133","sgg_name":"천안시 서북구"},{"sgg_code":"44150","sgg_name":"공주시"},{"sgg_code":"44180","sgg_name":"보령시"},{"sgg_code":"44200","sgg_name":"아산시"},{"sgg_code":"44210","sgg_name":"서산시"},{"sgg_code":"44230","sgg_name":"논산시"},{"sgg_code":"44250","sgg_name":"계룡시"},{"sgg_code":"44270","sgg_name":"당진시"},{"sgg_code":"44710","sgg_name":"금산군"},{"sgg_code":"44760","sgg_name":"부여군"},{"sgg_code":"44770","sgg_name":"서천군"},{"sgg_code":"44790","sgg_name":"청양군"},{"sgg_code":"44800","sgg_name":"홍성군"},{"sgg_code":"44810","sgg_name":"예산군"},{"sgg_code":"44825","sgg_name":"태안군"}]},{"sido_code":"47","sido_name":"경상북도","sggs":[{"sgg_code":"47110","sgg_name":"포항시"},{"sgg_code":"47111","sgg_name":"포항시 남구"},{"sgg_code":"47113","sgg_name":"포항시 북구"},{"sgg_code":"47130","sgg_name":"경주시"},{"sgg_code":"47150","sgg_name":"김천시"},{"sgg_code":"47170","sgg_name":"안동시"},{"sgg_code":"47190","sgg_name":"구미시"},{"sgg_code":"47210","sgg_name":"영주시"},{"sgg_code":"47230","sgg_name":"영천시"},{"sgg_code":"47250","sgg_name":"상주시"},{"sgg_code":"47280","sgg_name":"문경시"},{"sgg_code":"47290","sgg_name":"경산시"},{"sgg_code":"47730","sgg_name":"의성군"},{"sgg_code":"47750","sgg_name":"청송군"},{"sgg_code":"47760","sgg_name":"영양군"},{"sgg_code":"47770","sgg_name":"영덕군"},{"sgg_code":"47820","sgg_name":"청도군"},{"sgg_code":"47830","sgg_name":"고령군"},{"sgg_code":"47840","sgg_name":"성주군"},{"sgg_code":"47850","sgg_name":"칠곡군"},{"sgg_code":"47900","sgg_name":"예천군"},{"sgg_code":"47920","sgg_name":"봉화군"},{"sgg_code":"47930","sgg_name":"울진군"},{"sgg_code":"47940","sgg_name":"울릉군"}]},{"sido_code":"48","sido_name":"경상남도","sggs":[{"sgg_code":"48120","sgg_name":"창원시"},{"sgg_code":"48121","sgg_name":"창원시 의창구"},{"sgg_code":"48123","sgg_name":"창원시 성산구"},{"sgg_code":"48125","sgg_name":"창원시 마산합포구"},{"sgg_code":"48127","sgg_name":"창원시 마산회원구"},{"sgg_code":"48129","sgg_name":"창원시 진해구"},{"sgg_code":"48170","sgg_name":"진주시"},{"sgg_code":"48220","sgg_name":"통영시"},{"sgg_code":"48240","sgg_name":"사천시"},{"sgg_code":"48250","sgg_name":"김해시"},{"sgg_code":"48270","sgg_name":"밀양시"},{"sgg_code":"48310","sgg_name":"거제시"},{"sgg_code":"48330","sgg_name":"양산시"},{"sgg_code":"48720","sgg_name":"의령군"},{"sgg_code":"48730","sgg_name":"함안군"},{"sgg_code":"48740","sgg_name":"창녕군"},{"sgg_code":"48820","sgg_name":"고성군"},{"sgg_code":"48840","sgg_name":"남해군"},{"sgg_code":"48850","sgg_name":"하동군"},{"sgg_code":"48860","sgg_name":"산청군"},{"sgg_code":"48870","sgg_name":"함양군"},{"sgg_code":"48880","sgg_name":"거창군"},{"sgg_code":"48890","sgg_name":"합천군"}]},{"sido_code":"50","sido_name":"제주특별자치도","sggs":[{"sgg_code":"50110","sgg_name":"제주시"},{"sgg_code":"50130","sgg_name":"서귀포시"}]},{"sido_code":"51","sido_name":"강원특별자치도","sggs":[{"sgg_code":"51110","sgg_name":"춘천시"},{"sgg_code":"51130","sgg_name":"원주시"},{"sgg_code":"51150","sgg_name":"강릉시"},{"sgg_code":"51170","sgg_name":"동해시"},{"sgg_code":"51190","sgg_name":"태백시"},{"sgg_code":"51210","sgg_name":"속초시"},{"sgg_code":"51230","sgg_name":"삼척시"},{"sgg_code":"51720","sgg_name":"홍천군"},{"sgg_code":"51730","sgg_name":"횡성군"},{"sgg_code":"51750","sgg_name":"영월군"},{"sgg_code":"51760","sgg_name":"평창군"},{"sgg_code":"51770","sgg_name":"정선군"},{"sgg_code":"51780","sgg_name":"철원군"},{"sgg_code":"51790","sgg_name":"화천군"},{"sgg_code":"51800","sgg_name":"양구군"},{"sgg_code":"51810","sgg_name":"인제군"},{"sgg_code":"51820","sgg_name":"고성군"},{"sgg_code":"51830","sgg_name":"양양군"}]},{"sido_code":"52","sido_name":"전북특별자치도","sggs":[{"sgg_code":"52111","sgg_name":"전주시 완산구"},{"sgg_code":"52113","sgg_name":"전주시 덕진구"},{"sgg_code":"52130","sgg_name":"군산시"},{"sgg_code":"52140","sgg_name":"익산시"},{"sgg_code":"52180","sgg_name":"정읍시"},{"sgg_code":"52190","sgg_name":"남원시"},{"sgg_code":"52210","sgg_name":"김제시"},{"sgg_code":"52710","sgg_name":"완주군"},{"sgg_code":"52720","sgg_name":"진안군"},{"sgg_code":"52730","sgg_name":"무주군"},{"sgg_code":"52740","sgg_name":"장수군"},{"sgg_code":"52750","sgg_name":"임실군"},{"sgg_code":"52770","sgg_name":"순창군"},{"sgg_code":"52790","sgg_name":"고창군"},{"sgg_code":"52800","sgg_name":"부안군"}]}],"enabled":true},"search":{"52111|ALL|":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52111","sgg_name":"전주시 완산구","label":"전북 전주시 완산구"},"items":[{"kinder_code":"1ecec08c-f9b3-b044-e053-0a32095ab044","name":"미래유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 서신천변1길 16","phone":"063-271-5330","fax":"063-275-1475","homepage":"https://blog.naver.com/jjmiraekids","hours":"08:00~20:00","founded_on":"2012-02-01","opened_on":"2012-03-02","classes":{"age3":2,"age4":1,"age5":1,"mixed":1,"special":0,"total":5},"capacity":{"age3":32,"age4":20,"age5":23,"mixed":22,"special":0,"total":125},"enrolled":{"age3":25,"age4":18,"age5":17,"mixed":17,"special":0,"total":77},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.826738574,"longitude":127.1135257633,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-037a-b044-e053-0a32095ab044","name":"성심유치원","establishment":"사립(법인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 태조로 51","phone":"063-284-8347","fax":"063-284-8348","homepage":"https://sungshimjeongdong.modoo.at/","hours":"09:00~17:00","founded_on":"1948-03-03","opened_on":"1948-03-03","classes":{"age3":0,"age4":0,"age5":0,"mixed":2,"special":0,"total":2},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":38,"special":0,"total":81},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":24,"special":0,"total":24},"disclosure_timing":"20242","disclosure_label":"2024년 2차","latitude":35.8138170628,"longitude":127.1498639592,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-037b-b044-e053-0a32095ab044","name":"엔젤유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 용머리로 9-40","phone":"063-223-2227","fax":"063-223-2888","homepage":"http://cafe.daum.net/angelatelier","hours":"08:00~20:00","founded_on":"1993-01-29","opened_on":"1993-01-29","classes":{"age3":3,"age4":2,"age5":2,"mixed":0,"special":0,"total":7},"capacity":{"age3":48,"age4":40,"age5":46,"mixed":0,"special":0,"total":135},"enrolled":{"age3":44,"age4":40,"age5":43,"mixed":0,"special":0,"total":127},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.808178820276,"longitude":127.112125544098,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-02f5-b044-e053-0a32095ab044","name":"예일킨더유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 신촌2길 10","phone":"063-228-8844","fax":"063-228-9094","homepage":"http://cafe.naver.com/yalekinder","hours":"08:30~18:30","founded_on":"2010-01-18","opened_on":"2010-03-01","classes":{"age3":2,"age4":3,"age5":3,"mixed":3,"special":0,"total":11},"capacity":{"age3":36,"age4":60,"age5":75,"mixed":58,"special":0,"total":225},"enrolled":{"age3":32,"age4":60,"age5":75,"mixed":57,"special":0,"total":224},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8143619584,"longitude":127.1171424626,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"67f27e96-81cd-4f51-be63-e4042223f321","name":"전주문정유치원","establishment":"공립(단설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 구이로 1981","phone":"063-237-5233","fax":"063-237-5232","homepage":"https://school.jbedu.kr/jjmunjeong","hours":"08:00~19:00","founded_on":"2024-03-01","opened_on":"2024-03-01","classes":{"age3":2,"age4":4,"age5":2,"mixed":0,"special":3,"total":11},"capacity":{"age3":28,"age4":64,"age5":36,"mixed":0,"special":12,"total":140},"enrolled":{"age3":28,"age4":51,"age5":24,"mixed":0,"special":11,"total":114},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7762559831,"longitude":127.1270638233,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-040b-b044-e053-0a32095ab044","name":"전주삼천남초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 거마남로 65","phone":"063-903-2916","fax":"063-223-2914","homepage":"http://www.samnam.es.kr/","hours":"08:30~17:00","founded_on":"2014-03-01","opened_on":"2014-03-03","classes":{"age3":0,"age4":0,"age5":1,"mixed":1,"special":1,"total":3},"capacity":{"age3":0,"age4":0,"age5":18,"mixed":14,"special":4,"total":36},"enrolled":{"age3":0,"age4":0,"age5":12,"mixed":5,"special":2,"total":19},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7964902498974,"longitude":127.123759040634,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0ae2-b044-e053-0a32095ab044","name":"전주용흥초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 삼천천변1길 16","phone":"063-904-5007","fax":"063-227-4639","homepage":null,"hours":"08:30~18:30","founded_on":"2013-03-01","opened_on":"2013-03-01","classes":{"age3":0,"age4":0,"age5":1,"mixed":1,"special":0,"total":2},"capacity":{"age3":0,"age4":0,"age5":18,"mixed":14,"special":0,"total":52},"enrolled":{"age3":0,"age4":0,"age5":8,"mixed":7,"special":0,"total":15},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7945986906126,"longitude":127.11185745178,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-05ca-b044-e053-0a32095ab044","name":"전주우전초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 우전2길 11","phone":"063-226-4155","fax":"063-224-3898","homepage":"https://school.jbedu.kr/ujeon","hours":"08:30~17:00","founded_on":"1984-03-07","opened_on":"1984-03-07","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":7,"special":0,"total":7},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8056051086,"longitude":127.1069754086,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"03b97ccf-cfd1-45b0-babb-ddfd90d8e6e3","name":"전주홍산유치원","establishment":"공립(단설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 마전들로 30","phone":"063-224-9595","fax":"063-224-9449","homepage":"http://school.jbedu.kr/hongsan","hours":"08:00~19:00","founded_on":"2019-09-01","opened_on":"2019-09-01","classes":{"age3":2,"age4":3,"age5":2,"mixed":0,"special":1,"total":8},"capacity":{"age3":28,"age4":48,"age5":36,"mixed":0,"special":4,"total":116},"enrolled":{"age3":28,"age4":35,"age5":36,"mixed":0,"special":0,"total":99},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8206720669578,"longitude":127.098952510516,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0c61-b044-e053-0a32095ab044","name":"전주효문초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 거마평로 105","phone":"063-221-6839","fax":"063-221-6837","homepage":"https://school.jbedu.kr/hyomoon","hours":"08:30~18:30","founded_on":"2007-12-01","opened_on":"2008-03-07","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":7,"special":0,"total":7},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8015353024,"longitude":127.1164970188,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"492f3f45-af49-41bb-a94b-2c0622523dea","name":"전주효천초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 효천중앙로 31","phone":"063-717-6103","fax":"063-717-6106","homepage":"http://school.jbedu.kr/hyocheon/M0110/","hours":"08:00~19:00","founded_on":"2020-03-01","opened_on":"2020-03-01","classes":{"age3":1,"age4":1,"age5":1,"mixed":0,"special":1,"total":4},"capacity":{"age3":14,"age4":16,"age5":18,"mixed":0,"special":4,"total":52},"enrolled":{"age3":10,"age4":5,"age5":14,"mixed":0,"special":4,"total":33},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7996840218,"longitude":127.1051107074,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":11,"query":{"q":null,"establishment":"ALL"},"stale":false},"52111|ALL|예일":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52111","sgg_name":"전주시 완산구","label":"전북 전주시 완산구"},"items":[{"kinder_code":"1ecec08d-02f5-b044-e053-0a32095ab044","name":"예일킨더유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 신촌2길 10","phone":"063-228-8844","fax":"063-228-9094","homepage":"http://cafe.naver.com/yalekinder","hours":"08:30~18:30","founded_on":"2010-01-18","opened_on":"2010-03-01","classes":{"age3":2,"age4":3,"age5":3,"mixed":3,"special":0,"total":11},"capacity":{"age3":36,"age4":60,"age5":75,"mixed":58,"special":0,"total":225},"enrolled":{"age3":32,"age4":60,"age5":75,"mixed":57,"special":0,"total":224},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8143619584,"longitude":127.1171424626,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":1,"query":{"q":"예일","establishment":"ALL"},"stale":false},"52111|PUBLIC|":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52111","sgg_name":"전주시 완산구","label":"전북 전주시 완산구"},"items":[{"kinder_code":"67f27e96-81cd-4f51-be63-e4042223f321","name":"전주문정유치원","establishment":"공립(단설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 구이로 1981","phone":"063-237-5233","fax":"063-237-5232","homepage":"https://school.jbedu.kr/jjmunjeong","hours":"08:00~19:00","founded_on":"2024-03-01","opened_on":"2024-03-01","classes":{"age3":2,"age4":4,"age5":2,"mixed":0,"special":3,"total":11},"capacity":{"age3":28,"age4":64,"age5":36,"mixed":0,"special":12,"total":140},"enrolled":{"age3":28,"age4":51,"age5":24,"mixed":0,"special":11,"total":114},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7762559831,"longitude":127.1270638233,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-040b-b044-e053-0a32095ab044","name":"전주삼천남초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 거마남로 65","phone":"063-903-2916","fax":"063-223-2914","homepage":"http://www.samnam.es.kr/","hours":"08:30~17:00","founded_on":"2014-03-01","opened_on":"2014-03-03","classes":{"age3":0,"age4":0,"age5":1,"mixed":1,"special":1,"total":3},"capacity":{"age3":0,"age4":0,"age5":18,"mixed":14,"special":4,"total":36},"enrolled":{"age3":0,"age4":0,"age5":12,"mixed":5,"special":2,"total":19},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7964902498974,"longitude":127.123759040634,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0ae2-b044-e053-0a32095ab044","name":"전주용흥초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 삼천천변1길 16","phone":"063-904-5007","fax":"063-227-4639","homepage":null,"hours":"08:30~18:30","founded_on":"2013-03-01","opened_on":"2013-03-01","classes":{"age3":0,"age4":0,"age5":1,"mixed":1,"special":0,"total":2},"capacity":{"age3":0,"age4":0,"age5":18,"mixed":14,"special":0,"total":52},"enrolled":{"age3":0,"age4":0,"age5":8,"mixed":7,"special":0,"total":15},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7945986906126,"longitude":127.11185745178,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-05ca-b044-e053-0a32095ab044","name":"전주우전초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 우전2길 11","phone":"063-226-4155","fax":"063-224-3898","homepage":"https://school.jbedu.kr/ujeon","hours":"08:30~17:00","founded_on":"1984-03-07","opened_on":"1984-03-07","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":7,"special":0,"total":7},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8056051086,"longitude":127.1069754086,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"03b97ccf-cfd1-45b0-babb-ddfd90d8e6e3","name":"전주홍산유치원","establishment":"공립(단설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 마전들로 30","phone":"063-224-9595","fax":"063-224-9449","homepage":"http://school.jbedu.kr/hongsan","hours":"08:00~19:00","founded_on":"2019-09-01","opened_on":"2019-09-01","classes":{"age3":2,"age4":3,"age5":2,"mixed":0,"special":1,"total":8},"capacity":{"age3":28,"age4":48,"age5":36,"mixed":0,"special":4,"total":116},"enrolled":{"age3":28,"age4":35,"age5":36,"mixed":0,"special":0,"total":99},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8206720669578,"longitude":127.098952510516,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0c61-b044-e053-0a32095ab044","name":"전주효문초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 거마평로 105","phone":"063-221-6839","fax":"063-221-6837","homepage":"https://school.jbedu.kr/hyomoon","hours":"08:30~18:30","founded_on":"2007-12-01","opened_on":"2008-03-07","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":7,"special":0,"total":7},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8015353024,"longitude":127.1164970188,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"492f3f45-af49-41bb-a94b-2c0622523dea","name":"전주효천초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 효천중앙로 31","phone":"063-717-6103","fax":"063-717-6106","homepage":"http://school.jbedu.kr/hyocheon/M0110/","hours":"08:00~19:00","founded_on":"2020-03-01","opened_on":"2020-03-01","classes":{"age3":1,"age4":1,"age5":1,"mixed":0,"special":1,"total":4},"capacity":{"age3":14,"age4":16,"age5":18,"mixed":0,"special":4,"total":52},"enrolled":{"age3":10,"age4":5,"age5":14,"mixed":0,"special":4,"total":33},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.7996840218,"longitude":127.1051107074,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":7,"query":{"q":null,"establishment":"PUBLIC"},"stale":false},"52111|PUBLIC|예일":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52111","sgg_name":"전주시 완산구","label":"전북 전주시 완산구"},"items":[],"total":0,"query":{"q":"예일","establishment":"PUBLIC"},"stale":false},"52111|PRIVATE|":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52111","sgg_name":"전주시 완산구","label":"전북 전주시 완산구"},"items":[{"kinder_code":"1ecec08c-f9b3-b044-e053-0a32095ab044","name":"미래유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 서신천변1길 16","phone":"063-271-5330","fax":"063-275-1475","homepage":"https://blog.naver.com/jjmiraekids","hours":"08:00~20:00","founded_on":"2012-02-01","opened_on":"2012-03-02","classes":{"age3":2,"age4":1,"age5":1,"mixed":1,"special":0,"total":5},"capacity":{"age3":32,"age4":20,"age5":23,"mixed":22,"special":0,"total":125},"enrolled":{"age3":25,"age4":18,"age5":17,"mixed":17,"special":0,"total":77},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.826738574,"longitude":127.1135257633,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-037a-b044-e053-0a32095ab044","name":"성심유치원","establishment":"사립(법인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 태조로 51","phone":"063-284-8347","fax":"063-284-8348","homepage":"https://sungshimjeongdong.modoo.at/","hours":"09:00~17:00","founded_on":"1948-03-03","opened_on":"1948-03-03","classes":{"age3":0,"age4":0,"age5":0,"mixed":2,"special":0,"total":2},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":38,"special":0,"total":81},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":24,"special":0,"total":24},"disclosure_timing":"20242","disclosure_label":"2024년 2차","latitude":35.8138170628,"longitude":127.1498639592,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-037b-b044-e053-0a32095ab044","name":"엔젤유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 용머리로 9-40","phone":"063-223-2227","fax":"063-223-2888","homepage":"http://cafe.daum.net/angelatelier","hours":"08:00~20:00","founded_on":"1993-01-29","opened_on":"1993-01-29","classes":{"age3":3,"age4":2,"age5":2,"mixed":0,"special":0,"total":7},"capacity":{"age3":48,"age4":40,"age5":46,"mixed":0,"special":0,"total":135},"enrolled":{"age3":44,"age4":40,"age5":43,"mixed":0,"special":0,"total":127},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.808178820276,"longitude":127.112125544098,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-02f5-b044-e053-0a32095ab044","name":"예일킨더유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 신촌2길 10","phone":"063-228-8844","fax":"063-228-9094","homepage":"http://cafe.naver.com/yalekinder","hours":"08:30~18:30","founded_on":"2010-01-18","opened_on":"2010-03-01","classes":{"age3":2,"age4":3,"age5":3,"mixed":3,"special":0,"total":11},"capacity":{"age3":36,"age4":60,"age5":75,"mixed":58,"special":0,"total":225},"enrolled":{"age3":32,"age4":60,"age5":75,"mixed":57,"special":0,"total":224},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8143619584,"longitude":127.1171424626,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":4,"query":{"q":null,"establishment":"PRIVATE"},"stale":false},"52111|PRIVATE|예일":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52111","sgg_name":"전주시 완산구","label":"전북 전주시 완산구"},"items":[{"kinder_code":"1ecec08d-02f5-b044-e053-0a32095ab044","name":"예일킨더유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 신촌2길 10","phone":"063-228-8844","fax":"063-228-9094","homepage":"http://cafe.naver.com/yalekinder","hours":"08:30~18:30","founded_on":"2010-01-18","opened_on":"2010-03-01","classes":{"age3":2,"age4":3,"age5":3,"mixed":3,"special":0,"total":11},"capacity":{"age3":36,"age4":60,"age5":75,"mixed":58,"special":0,"total":225},"enrolled":{"age3":32,"age4":60,"age5":75,"mixed":57,"special":0,"total":224},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8143619584,"longitude":127.1171424626,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":1,"query":{"q":"예일","establishment":"PRIVATE"},"stale":false},"52113|ALL|":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"items":[{"kinder_code":"1ecec08d-0379-b044-e053-0a32095ab044","name":"새봄유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 초포다리로 50","phone":"063-253-8006","fax":"063-253-8613","homepage":null,"hours":"08:00~19:00","founded_on":"1995-10-27","opened_on":"1996-03-01","classes":{"age3":0,"age4":0,"age5":1,"mixed":1,"special":0,"total":2},"capacity":{"age3":0,"age4":0,"age5":25,"mixed":20,"special":0,"total":170},"enrolled":{"age3":0,"age4":0,"age5":15,"mixed":9,"special":0,"total":24},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8603989452961,"longitude":127.159595673432,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","name":"예일유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 한배미5길 12-6","phone":"063-245-1133","fax":"063-245-2778","homepage":"http://cafe.naver.com/yeail1133","hours":"08:30~17:00","founded_on":"2002-02-26","opened_on":"2002-03-01","classes":{"age3":4,"age4":3,"age5":3,"mixed":1,"special":0,"total":11},"capacity":{"age3":64,"age4":60,"age5":75,"mixed":18,"special":0,"total":253},"enrolled":{"age3":56,"age4":60,"age5":75,"mixed":17,"special":0,"total":208},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8241488951,"longitude":127.1670730772,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-06fd-b044-e053-0a32095ab044","name":"인후유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 진버들3길 15","phone":"063-245-9696","fax":"063-241-2623","homepage":null,"hours":"08:00~19:00","founded_on":"1980-12-03","opened_on":"2012-12-02","classes":{"age3":1,"age4":1,"age5":1,"mixed":0,"special":0,"total":3},"capacity":{"age3":18,"age4":22,"age5":25,"mixed":0,"special":0,"total":75},"enrolled":{"age3":5,"age4":12,"age5":11,"mixed":0,"special":0,"total":28},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8351378947471,"longitude":127.161376715689,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0b69-b044-e053-0a32095ab044","name":"전주덕일초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 하가로 71","phone":"063-279-3194","fax":"063-251-3527","homepage":null,"hours":"08:30~13:00","founded_on":"2010-03-04","opened_on":"2010-03-04","classes":{"age3":0,"age4":0,"age5":1,"mixed":0,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":18,"mixed":0,"special":0,"total":18},"enrolled":{"age3":0,"age4":0,"age5":3,"mixed":0,"special":0,"total":3},"disclosure_timing":"20252","disclosure_label":"2025년 2차","latitude":35.848557407,"longitude":127.1117899179,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-06fe-b044-e053-0a32095ab044","name":"전주덕진초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 들사평로 61","phone":"063-274-9640","fax":"063-251-0864","homepage":null,"hours":"08:30~17:00","founded_on":"1984-02-22","opened_on":"1984-03-26","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":6,"special":0,"total":6},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8417475025,"longitude":127.1242596562,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0b6a-b044-e053-0a32095ab044","name":"전주동신초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 우아9길 1","phone":"063-241-8705","fax":"063-242-6887","homepage":"http://www.jds.es.kr/","hours":"08:30~17:00","founded_on":"1996-03-01","opened_on":"1996-03-01","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":13,"special":0,"total":13},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8518208649,"longitude":127.1563742951,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0b6b-b044-e053-0a32095ab044","name":"전주미산초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 전미로 160","phone":"063-254-4334","fax":null,"homepage":null,"hours":"08:30~16:30","founded_on":"1984-03-26","opened_on":"1984-03-26","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":6,"special":0,"total":16},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":6,"special":0,"total":6},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8840913376,"longitude":127.1092124105,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0e77-b044-e053-0a32095ab044","name":"전주송천초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 송천1길 10","phone":"063-273-0334","fax":"063-251-4495","homepage":"http://www.songchun.es.kr/","hours":"08:30~19:00","founded_on":"1984-03-01","opened_on":"1984-03-10","classes":{"age3":1,"age4":1,"age5":1,"mixed":0,"special":0,"total":3},"capacity":{"age3":14,"age4":16,"age5":18,"mixed":0,"special":0,"total":48},"enrolled":{"age3":14,"age4":15,"age5":5,"mixed":0,"special":0,"total":34},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8580993021,"longitude":127.1200181217,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0f3b-b044-e053-0a32095ab044","name":"전주온샘유치원","establishment":"공립(단설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 심방죽로 24","phone":"063-242-5412","fax":"063-242-1770","homepage":"http://xn--4g4b50hpo5j11bs4br1t.kr/","hours":"08:00~19:00","founded_on":"2013-09-01","opened_on":"2013-09-01","classes":{"age3":2,"age4":3,"age5":2,"mixed":0,"special":1,"total":8},"capacity":{"age3":28,"age4":48,"age5":36,"mixed":0,"special":4,"total":112},"enrolled":{"age3":27,"age4":48,"age5":36,"mixed":0,"special":0,"total":111},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8394543523,"longitude":127.1523008719,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"001a671f-3582-48c1-a4c1-56cb92ee93f4","name":"전주원동초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 원동로 3","phone":"063-212-9119","fax":"063-211-5086","homepage":"https://school.jbedu.kr/wondong/index.do","hours":"08:30~16:30","founded_on":"2015-03-05","opened_on":"2015-03-05","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":4,"special":0,"total":4},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8605603344,"longitude":127.0458451781,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":10,"query":{"q":null,"establishment":"ALL"},"stale":false},"52113|ALL|예일":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"items":[{"kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","name":"예일유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 한배미5길 12-6","phone":"063-245-1133","fax":"063-245-2778","homepage":"http://cafe.naver.com/yeail1133","hours":"08:30~17:00","founded_on":"2002-02-26","opened_on":"2002-03-01","classes":{"age3":4,"age4":3,"age5":3,"mixed":1,"special":0,"total":11},"capacity":{"age3":64,"age4":60,"age5":75,"mixed":18,"special":0,"total":253},"enrolled":{"age3":56,"age4":60,"age5":75,"mixed":17,"special":0,"total":208},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8241488951,"longitude":127.1670730772,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":1,"query":{"q":"예일","establishment":"ALL"},"stale":false},"52113|PUBLIC|":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"items":[{"kinder_code":"1ecec08d-0b69-b044-e053-0a32095ab044","name":"전주덕일초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 하가로 71","phone":"063-279-3194","fax":"063-251-3527","homepage":null,"hours":"08:30~13:00","founded_on":"2010-03-04","opened_on":"2010-03-04","classes":{"age3":0,"age4":0,"age5":1,"mixed":0,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":18,"mixed":0,"special":0,"total":18},"enrolled":{"age3":0,"age4":0,"age5":3,"mixed":0,"special":0,"total":3},"disclosure_timing":"20252","disclosure_label":"2025년 2차","latitude":35.848557407,"longitude":127.1117899179,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-06fe-b044-e053-0a32095ab044","name":"전주덕진초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 들사평로 61","phone":"063-274-9640","fax":"063-251-0864","homepage":null,"hours":"08:30~17:00","founded_on":"1984-02-22","opened_on":"1984-03-26","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":6,"special":0,"total":6},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8417475025,"longitude":127.1242596562,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0b6a-b044-e053-0a32095ab044","name":"전주동신초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 우아9길 1","phone":"063-241-8705","fax":"063-242-6887","homepage":"http://www.jds.es.kr/","hours":"08:30~17:00","founded_on":"1996-03-01","opened_on":"1996-03-01","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":13,"special":0,"total":13},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8518208649,"longitude":127.1563742951,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0b6b-b044-e053-0a32095ab044","name":"전주미산초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 전미로 160","phone":"063-254-4334","fax":null,"homepage":null,"hours":"08:30~16:30","founded_on":"1984-03-26","opened_on":"1984-03-26","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":6,"special":0,"total":16},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":6,"special":0,"total":6},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8840913376,"longitude":127.1092124105,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0e77-b044-e053-0a32095ab044","name":"전주송천초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 송천1길 10","phone":"063-273-0334","fax":"063-251-4495","homepage":"http://www.songchun.es.kr/","hours":"08:30~19:00","founded_on":"1984-03-01","opened_on":"1984-03-10","classes":{"age3":1,"age4":1,"age5":1,"mixed":0,"special":0,"total":3},"capacity":{"age3":14,"age4":16,"age5":18,"mixed":0,"special":0,"total":48},"enrolled":{"age3":14,"age4":15,"age5":5,"mixed":0,"special":0,"total":34},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8580993021,"longitude":127.1200181217,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-0f3b-b044-e053-0a32095ab044","name":"전주온샘유치원","establishment":"공립(단설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 심방죽로 24","phone":"063-242-5412","fax":"063-242-1770","homepage":"http://xn--4g4b50hpo5j11bs4br1t.kr/","hours":"08:00~19:00","founded_on":"2013-09-01","opened_on":"2013-09-01","classes":{"age3":2,"age4":3,"age5":2,"mixed":0,"special":1,"total":8},"capacity":{"age3":28,"age4":48,"age5":36,"mixed":0,"special":4,"total":112},"enrolled":{"age3":27,"age4":48,"age5":36,"mixed":0,"special":0,"total":111},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8394543523,"longitude":127.1523008719,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"001a671f-3582-48c1-a4c1-56cb92ee93f4","name":"전주원동초등학교병설유치원","establishment":"공립(병설)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 원동로 3","phone":"063-212-9119","fax":"063-211-5086","homepage":"https://school.jbedu.kr/wondong/index.do","hours":"08:30~16:30","founded_on":"2015-03-05","opened_on":"2015-03-05","classes":{"age3":0,"age4":0,"age5":0,"mixed":1,"special":0,"total":1},"capacity":{"age3":0,"age4":0,"age5":0,"mixed":14,"special":0,"total":14},"enrolled":{"age3":0,"age4":0,"age5":0,"mixed":4,"special":0,"total":4},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8605603344,"longitude":127.0458451781,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":7,"query":{"q":null,"establishment":"PUBLIC"},"stale":false},"52113|PUBLIC|예일":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"items":[],"total":0,"query":{"q":"예일","establishment":"PUBLIC"},"stale":false},"52113|PRIVATE|":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"items":[{"kinder_code":"1ecec08d-0379-b044-e053-0a32095ab044","name":"새봄유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 초포다리로 50","phone":"063-253-8006","fax":"063-253-8613","homepage":null,"hours":"08:00~19:00","founded_on":"1995-10-27","opened_on":"1996-03-01","classes":{"age3":0,"age4":0,"age5":1,"mixed":1,"special":0,"total":2},"capacity":{"age3":0,"age4":0,"age5":25,"mixed":20,"special":0,"total":170},"enrolled":{"age3":0,"age4":0,"age5":15,"mixed":9,"special":0,"total":24},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8603989452961,"longitude":127.159595673432,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","name":"예일유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 한배미5길 12-6","phone":"063-245-1133","fax":"063-245-2778","homepage":"http://cafe.naver.com/yeail1133","hours":"08:30~17:00","founded_on":"2002-02-26","opened_on":"2002-03-01","classes":{"age3":4,"age4":3,"age5":3,"mixed":1,"special":0,"total":11},"capacity":{"age3":64,"age4":60,"age5":75,"mixed":18,"special":0,"total":253},"enrolled":{"age3":56,"age4":60,"age5":75,"mixed":17,"special":0,"total":208},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8241488951,"longitude":127.1670730772,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},{"kinder_code":"1ecec08d-06fd-b044-e053-0a32095ab044","name":"인후유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 진버들3길 15","phone":"063-245-9696","fax":"063-241-2623","homepage":null,"hours":"08:00~19:00","founded_on":"1980-12-03","opened_on":"2012-12-02","classes":{"age3":1,"age4":1,"age5":1,"mixed":0,"special":0,"total":3},"capacity":{"age3":18,"age4":22,"age5":25,"mixed":0,"special":0,"total":75},"enrolled":{"age3":5,"age4":12,"age5":11,"mixed":0,"special":0,"total":28},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8351378947471,"longitude":127.161376715689,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":3,"query":{"q":null,"establishment":"PRIVATE"},"stale":false},"52113|PRIVATE|예일":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"items":[{"kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","name":"예일유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 한배미5길 12-6","phone":"063-245-1133","fax":"063-245-2778","homepage":"http://cafe.naver.com/yeail1133","hours":"08:30~17:00","founded_on":"2002-02-26","opened_on":"2002-03-01","classes":{"age3":4,"age4":3,"age5":3,"mixed":1,"special":0,"total":11},"capacity":{"age3":64,"age4":60,"age5":75,"mixed":18,"special":0,"total":253},"enrolled":{"age3":56,"age4":60,"age5":75,"mixed":17,"special":0,"total":208},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8241488951,"longitude":127.1670730772,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"}],"total":1,"query":{"q":"예일","establishment":"PRIVATE"},"stale":false}},"detail":{"1ecec08c-f46d-b044-e053-0a32095ab044":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"kindergarten":{"kinder_code":"1ecec08c-f46d-b044-e053-0a32095ab044","name":"예일유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 덕진구 한배미5길 12-6","phone":"063-245-1133","fax":"063-245-2778","homepage":"http://cafe.naver.com/yeail1133","hours":"08:30~17:00","founded_on":"2002-02-26","opened_on":"2002-03-01","classes":{"age3":4,"age4":3,"age5":3,"mixed":1,"special":0,"total":11},"capacity":{"age3":64,"age4":60,"age5":75,"mixed":18,"special":0,"total":253},"enrolled":{"age3":56,"age4":60,"age5":75,"mixed":17,"special":0,"total":208},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8241488951,"longitude":127.1670730772,"sido_code":"52","sgg_code":"52113","area":"전북 전주시 덕진구","source":"KINDERGARTEN_ALIMI_OPEN_API"},"categories":[{"key":"bus","label":"통학차량","status":"OK","parts":[{"service":"schoolBus","label":"통학차량현황","items":[{"label":"통학차량 운영","value":"운영"},{"label":"운행 차량","value":"3대"},{"label":"신고 차량","value":"4대"},{"label":"신고 차량 구성","value":"12인승 1대, 15인승 3대"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"meal","label":"급식운영","status":"OK","parts":[{"service":"schoolMeal","label":"급식운영현황","items":[{"label":"급식 운영 방식","value":"직영"},{"label":"급식 원아","value":"208명"},{"label":"전체 원아","value":"208명"},{"label":"영양교사","value":"배치 (단독 1명, 공동 0명)"},{"label":"조리 인력","value":"2명"},{"label":"집단급식소 신고","value":"신고"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"after_school","label":"방과후 과정","status":"OK","parts":[{"service":"afterSchoolPresent","label":"방과후 과정 편성·운영현황","items":[{"label":"독립 편성 학급","value":"11개"},{"label":"오후 재편성 학급","value":"0개"},{"label":"방과후 과정 운영시간","value":"08:30~17:00"},{"label":"독립 편성 참여 원아","value":"208명"},{"label":"오후 재편성 참여 원아","value":"0명"},{"label":"정규 교사","value":"14명"},{"label":"기간제 교사","value":"0명"},{"label":"방과후 전담사","value":"0명"},{"label":"보육교사","value":"0명"},{"label":"기타 전담사","value":"0명"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"teachers","label":"교직원","status":"OK","parts":[{"service":"teachersInfo","label":"직위·자격별 교직원현황","items":[{"label":"원장","value":"1명"},{"label":"원감","value":"1명"},{"label":"수석교사","value":"0명"},{"label":"보직교사","value":"0명"},{"label":"일반교사","value":"14명"},{"label":"특수교사","value":"0명"},{"label":"보건교사","value":"0명"},{"label":"영양교사","value":"1명"},{"label":"기간제 교사·강사","value":"0명"},{"label":"직원","value":"0명"},{"label":"정교사 1급 자격","value":"5명"},{"label":"정교사 2급 자격","value":"9명"},{"label":"준교사 자격","value":"0명"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"yearOfWork","label":"근속연수현황","items":[{"label":"근속 1년 미만 교사","value":"3명"},{"label":"근속 1~2년 교사","value":"2명"},{"label":"근속 2~4년 교사","value":"4명"},{"label":"근속 4~6년 교사","value":"3명"},{"label":"근속 6년 이상 교사","value":"3명"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"lesson_days","label":"수업일수","status":"OK","parts":[{"service":"lessonDay","label":"수업일수현황","items":[{"label":"만 3세 수업일수","value":"230일"},{"label":"만 4세 수업일수","value":"230일"},{"label":"만 5세 수업일수","value":"228일"},{"label":"혼합연령 수업일수","value":"230일"},{"label":"방과후 과정 수업일수","value":"230일"},{"label":"법정 수업일수 미달","value":"아니요"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"safety","label":"안전·환경위생","status":"OK","parts":[{"service":"safetyEdu","label":"안전점검현황","items":[{"label":"소방 대피훈련","value":"실시 (2025-11-27)"},{"label":"가스 점검","value":"실시 (2025-09-30)"},{"label":"소방 안전점검","value":"실시 (2026-02-13)"},{"label":"전기설비 점검","value":"실시 (2026-03-05)"},{"label":"놀이시설 안전검사","value":"대상 · 2024-06-11 · 적합"},{"label":"CCTV","value":"설치 29대 (건물 안 25, 밖 4)"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"safetyInstruct","label":"안전교육현황","items":[{"label":"1학기 생활안전교육 (공시 수치)","value":"5"},{"label":"1학기 교통안전교육 (공시 수치)","value":"5"},{"label":"1학기 폭력예방·신변보호교육 (공시 수치)","value":"6"},{"label":"1학기 약물중독예방교육 (공시 수치)","value":"4"},{"label":"1학기 사이버중독예방교육 (공시 수치)","value":"2"},{"label":"1학기 재난안전교육 (공시 수치)","value":"5"},{"label":"1학기 직업안전교육 (공시 수치)","value":"1"},{"label":"1학기 응급처치교육 (공시 수치)","value":"1"},{"label":"2학기 생활안전교육 (공시 수치)","value":"8"},{"label":"2학기 교통안전교육 (공시 수치)","value":"5"},{"label":"2학기 폭력예방·신변보호교육 (공시 수치)","value":"2"},{"label":"2학기 약물중독예방교육 (공시 수치)","value":"1"},{"label":"2학기 사이버중독예방교육 (공시 수치)","value":"3"},{"label":"2학기 재난안전교육 (공시 수치)","value":"1"},{"label":"2학기 직업안전교육 (공시 수치)","value":"1"},{"label":"2학기 응급처치교육 (공시 수치)","value":"1"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"environmentHygiene","label":"환경위생관리현황","items":[{"label":"실내공기질 점검","value":"2025-10-17 · 적합"},{"label":"정기 소독","value":"의무 대상 · 2026-02-06 · 실시"},{"label":"마시는 물","value":"정수기, 상수도"},{"label":"미세먼지 점검","value":"2025-10-17 · 적합"},{"label":"조도 점검","value":"2025-10-17 · 적합"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"building","label":"건물·교실","status":"OK","parts":[{"service":"building","label":"건물현황","items":[{"label":"건축 연도","value":"2002년"},{"label":"층수","value":"지상2층/ 지하0층"},{"label":"건물 전용면적","value":"1119㎡"},{"label":"대지 면적","value":"1118㎡"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"classArea","label":"교실면적현황","items":[{"label":"교실 수","value":"15개"},{"label":"교실 면적","value":"970㎡"},{"label":"체육장(실내)","value":"0㎡"},{"label":"보건·위생 공간","value":"66㎡"},{"label":"조리실·급식 공간","value":"50㎡"},{"label":"기타 공간","value":"33㎡"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"insurance","label":"보험·공제회","status":"OK","parts":[{"service":"insurance","label":"보험별 가입현황","items":[{"label":"가스배상책임보험","value":"대상 · 가입 · 현대해상화재보험"},{"label":"화재보험","value":"대상 · 가입 · 한국교육시설안전원"},{"label":"통학버스 책임보험","value":"대상 · 가입 · 현대해상화재보험"},{"label":"통학버스 종합보험","value":"대상 · 가입 · 현대해상화재보험"},{"label":"영유아생명신체피해(상해)보험","value":"대상 · 가입 · 학교안전공제회"},{"label":"놀이시설 안전보험","value":"대상 · 가입 · 현대해상화재보험"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"deductionSociety","label":"공제회 가입현황","items":[{"label":"학교안전공제회","value":"대상 · 가입"},{"label":"교육시설 재난공제","value":"대상 · 가입"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]}],"timing":null,"stale":false,"provider_errors":[]},"1ecec08d-02f5-b044-e053-0a32095ab044":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"OK","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52111","sgg_name":"전주시 완산구","label":"전북 전주시 완산구"},"kindergarten":{"kinder_code":"1ecec08d-02f5-b044-e053-0a32095ab044","name":"예일킨더유치원","establishment":"사립(사인)","office_edu":"전북특별자치도교육청","sub_office_edu":"전주교육지원청","address":"전북특별자치도 전주시 완산구 신촌2길 10","phone":"063-228-8844","fax":"063-228-9094","homepage":"http://cafe.naver.com/yalekinder","hours":"08:30~18:30","founded_on":"2010-01-18","opened_on":"2010-03-01","classes":{"age3":2,"age4":3,"age5":3,"mixed":3,"special":0,"total":11},"capacity":{"age3":36,"age4":60,"age5":75,"mixed":58,"special":0,"total":225},"enrolled":{"age3":32,"age4":60,"age5":75,"mixed":57,"special":0,"total":224},"disclosure_timing":"20261","disclosure_label":"2026년 1차","latitude":35.8143619584,"longitude":127.1171424626,"sido_code":"52","sgg_code":"52111","area":"전북 전주시 완산구","source":"KINDERGARTEN_ALIMI_OPEN_API"},"categories":[{"key":"bus","label":"통학차량","status":"OK","parts":[{"service":"schoolBus","label":"통학차량현황","items":[{"label":"통학차량 운영","value":"운영"},{"label":"운행 차량","value":"4대"},{"label":"신고 차량","value":"4대"},{"label":"신고 차량 구성","value":"12인승 1대, 15인승 3대"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"meal","label":"급식운영","status":"OK","parts":[{"service":"schoolMeal","label":"급식운영현황","items":[{"label":"급식 운영 방식","value":"직영"},{"label":"급식 원아","value":"224명"},{"label":"전체 원아","value":"224명"},{"label":"영양교사","value":"배치 (단독 1명, 공동 0명)"},{"label":"조리 인력","value":"1명"},{"label":"집단급식소 신고","value":"신고"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"after_school","label":"방과후 과정","status":"OK","parts":[{"service":"afterSchoolPresent","label":"방과후 과정 편성·운영현황","items":[{"label":"독립 편성 학급","value":"11개"},{"label":"오후 재편성 학급","value":"0개"},{"label":"방과후 과정 운영시간","value":"08:30~18:30"},{"label":"독립 편성 참여 원아","value":"224명"},{"label":"오후 재편성 참여 원아","value":"0명"},{"label":"정규 교사","value":"11명"},{"label":"기간제 교사","value":"0명"},{"label":"방과후 전담사","value":"0명"},{"label":"보육교사","value":"2명"},{"label":"기타 전담사","value":"0명"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"teachers","label":"교직원","status":"OK","parts":[{"service":"teachersInfo","label":"직위·자격별 교직원현황","items":[{"label":"원장","value":"1명"},{"label":"원감","value":"1명"},{"label":"수석교사","value":"0명"},{"label":"보직교사","value":"0명"},{"label":"일반교사","value":"12명"},{"label":"특수교사","value":"0명"},{"label":"보건교사","value":"0명"},{"label":"영양교사","value":"0명"},{"label":"기간제 교사·강사","value":"0명"},{"label":"직원","value":"0명"},{"label":"정교사 1급 자격","value":"2명"},{"label":"정교사 2급 자격","value":"10명"},{"label":"준교사 자격","value":"0명"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"yearOfWork","label":"근속연수현황","items":[{"label":"근속 1년 미만 교사","value":"3명"},{"label":"근속 1~2년 교사","value":"0명"},{"label":"근속 2~4년 교사","value":"6명"},{"label":"근속 4~6년 교사","value":"1명"},{"label":"근속 6년 이상 교사","value":"2명"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"lesson_days","label":"수업일수","status":"OK","parts":[{"service":"lessonDay","label":"수업일수현황","items":[{"label":"만 3세 수업일수","value":"230일"},{"label":"만 4세 수업일수","value":"230일"},{"label":"만 5세 수업일수","value":"229일"},{"label":"혼합연령 수업일수","value":"230일"},{"label":"방과후 과정 수업일수","value":"230일"},{"label":"법정 수업일수 미달","value":"아니요"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"safety","label":"안전·환경위생","status":"OK","parts":[{"service":"safetyEdu","label":"안전점검현황","items":[{"label":"소방 대피훈련","value":"실시 (2025-04-28)"},{"label":"가스 점검","value":"실시 (2025-10-17)"},{"label":"소방 안전점검","value":"실시 (2025-09-18)"},{"label":"전기설비 점검","value":"실시 (2025-11-19)"},{"label":"놀이시설 안전검사","value":"대상 · 2026-01-02 · 적합"},{"label":"CCTV","value":"설치 32대 (건물 안 29, 밖 3)"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"safetyInstruct","label":"안전교육현황","items":[{"label":"1학기 생활안전교육 (공시 수치)","value":"7"},{"label":"1학기 교통안전교육 (공시 수치)","value":"7"},{"label":"1학기 폭력예방·신변보호교육 (공시 수치)","value":"2"},{"label":"1학기 약물중독예방교육 (공시 수치)","value":"3"},{"label":"1학기 사이버중독예방교육 (공시 수치)","value":"3"},{"label":"1학기 재난안전교육 (공시 수치)","value":"3"},{"label":"1학기 직업안전교육 (공시 수치)","value":"1"},{"label":"1학기 응급처치교육 (공시 수치)","value":"1"},{"label":"2학기 생활안전교육 (공시 수치)","value":"7"},{"label":"2학기 교통안전교육 (공시 수치)","value":"6"},{"label":"2학기 폭력예방·신변보호교육 (공시 수치)","value":"2"},{"label":"2학기 약물중독예방교육 (공시 수치)","value":"2"},{"label":"2학기 사이버중독예방교육 (공시 수치)","value":"2"},{"label":"2학기 재난안전교육 (공시 수치)","value":"3"},{"label":"2학기 직업안전교육 (공시 수치)","value":"1"},{"label":"2학기 응급처치교육 (공시 수치)","value":"1"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"environmentHygiene","label":"환경위생관리현황","items":[{"label":"실내공기질 점검","value":"2025-09-24 · 적합"},{"label":"정기 소독","value":"의무 대상 · 2026-02-27 · 실시"},{"label":"마시는 물","value":"정수기, 상수도"},{"label":"미세먼지 점검","value":"2025-09-24 · 적합"},{"label":"조도 점검","value":"2025-09-24 · 적합"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"building","label":"건물·교실","status":"OK","parts":[{"service":"building","label":"건물현황","items":[{"label":"건축 연도","value":"2008년"},{"label":"층수","value":"지상3층/ 지하1층"},{"label":"건물 전용면적","value":"1135㎡"},{"label":"대지 면적","value":"1649㎡"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"classArea","label":"교실면적현황","items":[{"label":"교실 수","value":"15개"},{"label":"교실 면적","value":"721㎡"},{"label":"체육장(실내)","value":"150㎡"},{"label":"보건·위생 공간","value":"90㎡"},{"label":"조리실·급식 공간","value":"125㎡"},{"label":"기타 공간","value":"49㎡"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]},{"key":"insurance","label":"보험·공제회","status":"OK","parts":[{"service":"insurance","label":"보험별 가입현황","items":[{"label":"가스배상책임보험","value":"대상 · 가입 · 현대해상화재보험"},{"label":"놀이시설 안전보험","value":"대상 · 가입 · 현대해상화재보험"},{"label":"영유아생명신체피해(상해)보험","value":"대상 · 가입 · 학교안전공제회"},{"label":"통학버스 종합보험","value":"대상 · 가입 · 현대해상화재보험"},{"label":"통학버스 책임보험","value":"대상 · 가입 · 현대해상화재보험"},{"label":"화재보험","value":"대상 · 가입 · 현대해상화재보험"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false},{"service":"deductionSociety","label":"공제회 가입현황","items":[{"label":"학교안전공제회","value":"대상 · 가입"},{"label":"교육시설 재난공제","value":"대상 · 가입"}],"disclosure_timing":"20261","disclosure_label":"2026년 1차","status":"OK","stale":false}]}],"timing":null,"stale":false,"provider_errors":[]}},"disabled_regions":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"code_table":{"url":"https://e-childschoolinfo.moe.go.kr/openApi/sidoSigunguCode.do","read_on":"2026-10-08"},"regions":[{"sido_code":"11","sido_name":"서울특별시","sggs":[{"sgg_code":"11110","sgg_name":"종로구"},{"sgg_code":"11140","sgg_name":"중구"},{"sgg_code":"11170","sgg_name":"용산구"},{"sgg_code":"11200","sgg_name":"성동구"},{"sgg_code":"11215","sgg_name":"광진구"},{"sgg_code":"11230","sgg_name":"동대문구"},{"sgg_code":"11260","sgg_name":"중랑구"},{"sgg_code":"11290","sgg_name":"성북구"},{"sgg_code":"11305","sgg_name":"강북구"},{"sgg_code":"11320","sgg_name":"도봉구"},{"sgg_code":"11350","sgg_name":"노원구"},{"sgg_code":"11380","sgg_name":"은평구"},{"sgg_code":"11410","sgg_name":"서대문구"},{"sgg_code":"11440","sgg_name":"마포구"},{"sgg_code":"11470","sgg_name":"양천구"},{"sgg_code":"11500","sgg_name":"강서구"},{"sgg_code":"11530","sgg_name":"구로구"},{"sgg_code":"11545","sgg_name":"금천구"},{"sgg_code":"11560","sgg_name":"영등포구"},{"sgg_code":"11590","sgg_name":"동작구"},{"sgg_code":"11620","sgg_name":"관악구"},{"sgg_code":"11650","sgg_name":"서초구"},{"sgg_code":"11680","sgg_name":"강남구"},{"sgg_code":"11710","sgg_name":"송파구"},{"sgg_code":"11740","sgg_name":"강동구"}]},{"sido_code":"12","sido_name":"전남광주통합특별시","sggs":[{"sgg_code":"12110","sgg_name":"목포시"},{"sgg_code":"12130","sgg_name":"여수시"},{"sgg_code":"12150","sgg_name":"순천시"},{"sgg_code":"12170","sgg_name":"나주시"},{"sgg_code":"12190","sgg_name":"광양시"},{"sgg_code":"12210","sgg_name":"동구"},{"sgg_code":"12240","sgg_name":"서구"},{"sgg_code":"12270","sgg_name":"남구"},{"sgg_code":"12300","sgg_name":"북구"},{"sgg_code":"12330","sgg_name":"광산구"},{"sgg_code":"12710","sgg_name":"담양군"},{"sgg_code":"12720","sgg_name":"곡성군"},{"sgg_code":"12730","sgg_name":"구례군"},{"sgg_code":"12740","sgg_name":"고흥군"},{"sgg_code":"12750","sgg_name":"보성군"},{"sgg_code":"12760","sgg_name":"화순군"},{"sgg_code":"12770","sgg_name":"장흥군"},{"sgg_code":"12780","sgg_name":"강진군"},{"sgg_code":"12790","sgg_name":"해남군"},{"sgg_code":"12800","sgg_name":"영암군"},{"sgg_code":"12810","sgg_name":"무안군"},{"sgg_code":"12820","sgg_name":"함평군"},{"sgg_code":"12830","sgg_name":"영광군"},{"sgg_code":"12840","sgg_name":"장성군"},{"sgg_code":"12850","sgg_name":"완도군"},{"sgg_code":"12860","sgg_name":"진도군"},{"sgg_code":"12870","sgg_name":"신안군"}]},{"sido_code":"26","sido_name":"부산광역시","sggs":[{"sgg_code":"26110","sgg_name":"중구"},{"sgg_code":"26140","sgg_name":"서구"},{"sgg_code":"26170","sgg_name":"동구"},{"sgg_code":"26200","sgg_name":"영도구"},{"sgg_code":"26230","sgg_name":"부산진구"},{"sgg_code":"26260","sgg_name":"동래구"},{"sgg_code":"26290","sgg_name":"남구"},{"sgg_code":"26320","sgg_name":"북구"},{"sgg_code":"26350","sgg_name":"해운대구"},{"sgg_code":"26380","sgg_name":"사하구"},{"sgg_code":"26410","sgg_name":"금정구"},{"sgg_code":"26440","sgg_name":"강서구"},{"sgg_code":"26470","sgg_name":"연제구"},{"sgg_code":"26500","sgg_name":"수영구"},{"sgg_code":"26530","sgg_name":"사상구"},{"sgg_code":"26710","sgg_name":"기장군"}]},{"sido_code":"27","sido_name":"대구광역시","sggs":[{"sgg_code":"27110","sgg_name":"중구"},{"sgg_code":"27140","sgg_name":"동구"},{"sgg_code":"27170","sgg_name":"서구"},{"sgg_code":"27200","sgg_name":"남구"},{"sgg_code":"27230","sgg_name":"북구"},{"sgg_code":"27260","sgg_name":"수성구"},{"sgg_code":"27290","sgg_name":"달서구"},{"sgg_code":"27710","sgg_name":"달성군"},{"sgg_code":"27720","sgg_name":"군위군"}]},{"sido_code":"28","sido_name":"인천광역시","sggs":[{"sgg_code":"28125","sgg_name":"제물포구"},{"sgg_code":"28155","sgg_name":"영종구"},{"sgg_code":"28177","sgg_name":"미추홀구"},{"sgg_code":"28185","sgg_name":"연수구"},{"sgg_code":"28200","sgg_name":"남동구"},{"sgg_code":"28237","sgg_name":"부평구"},{"sgg_code":"28245","sgg_name":"계양구"},{"sgg_code":"28275","sgg_name":"서해구"},{"sgg_code":"28290","sgg_name":"검단구"},{"sgg_code":"28710","sgg_name":"강화군"},{"sgg_code":"28720","sgg_name":"옹진군"}]},{"sido_code":"30","sido_name":"대전광역시","sggs":[{"sgg_code":"30110","sgg_name":"동구"},{"sgg_code":"30140","sgg_name":"중구"},{"sgg_code":"30170","sgg_name":"서구"},{"sgg_code":"30200","sgg_name":"유성구"},{"sgg_code":"30230","sgg_name":"대덕구"}]},{"sido_code":"31","sido_name":"울산광역시","sggs":[{"sgg_code":"31110","sgg_name":"중구"},{"sgg_code":"31140","sgg_name":"남구"},{"sgg_code":"31170","sgg_name":"동구"},{"sgg_code":"31200","sgg_name":"북구"},{"sgg_code":"31710","sgg_name":"울주군"}]},{"sido_code":"36","sido_name":"세종특별자치시","sggs":[{"sgg_code":"36110","sgg_name":"세종특별자치시"}]},{"sido_code":"41","sido_name":"경기도","sggs":[{"sgg_code":"41110","sgg_name":"수원시"},{"sgg_code":"41111","sgg_name":"수원시 장안구"},{"sgg_code":"41113","sgg_name":"수원시 권선구"},{"sgg_code":"41115","sgg_name":"수원시 팔달구"},{"sgg_code":"41117","sgg_name":"수원시 영통구"},{"sgg_code":"41130","sgg_name":"성남시"},{"sgg_code":"41131","sgg_name":"성남시 수정구"},{"sgg_code":"41133","sgg_name":"성남시 중원구"},{"sgg_code":"41135","sgg_name":"성남시 분당구"},{"sgg_code":"41150","sgg_name":"의정부시"},{"sgg_code":"41170","sgg_name":"안양시"},{"sgg_code":"41171","sgg_name":"안양시 만안구"},{"sgg_code":"41173","sgg_name":"안양시 동안구"},{"sgg_code":"41192","sgg_name":"부천시 원미구"},{"sgg_code":"41194","sgg_name":"부천시 소사구"},{"sgg_code":"41196","sgg_name":"부천시 오정구"},{"sgg_code":"41210","sgg_name":"광명시"},{"sgg_code":"41220","sgg_name":"평택시"},{"sgg_code":"41250","sgg_name":"동두천시"},{"sgg_code":"41271","sgg_name":"안산시 상록구"},{"sgg_code":"41273","sgg_name":"안산시 단원구"},{"sgg_code":"41281","sgg_name":"고양시 덕양구"},{"sgg_code":"41285","sgg_name":"고양시 일산동구"},{"sgg_code":"41287","sgg_name":"고양시 일산서구"},{"sgg_code":"41290","sgg_name":"과천시"},{"sgg_code":"41310","sgg_name":"구리시"},{"sgg_code":"41360","sgg_name":"남양주시"},{"sgg_code":"41370","sgg_name":"오산시"},{"sgg_code":"41390","sgg_name":"시흥시"},{"sgg_code":"41410","sgg_name":"군포시"},{"sgg_code":"41430","sgg_name":"의왕시"},{"sgg_code":"41450","sgg_name":"하남시"},{"sgg_code":"41461","sgg_name":"용인시 처인구"},{"sgg_code":"41463","sgg_name":"용인시 기흥구"},{"sgg_code":"41465","sgg_name":"용인시 수지구"},{"sgg_code":"41480","sgg_name":"파주시"},{"sgg_code":"41500","sgg_name":"이천시"},{"sgg_code":"41550","sgg_name":"안성시"},{"sgg_code":"41570","sgg_name":"김포시"},{"sgg_code":"41591","sgg_name":"화성시 만세구"},{"sgg_code":"41593","sgg_name":"화성시 효행구"},{"sgg_code":"41595","sgg_name":"화성시 병점구"},{"sgg_code":"41597","sgg_name":"화성시 동탄구"},{"sgg_code":"41610","sgg_name":"광주시"},{"sgg_code":"41630","sgg_name":"양주시"},{"sgg_code":"41650","sgg_name":"포천시"},{"sgg_code":"41670","sgg_name":"여주시"},{"sgg_code":"41800","sgg_name":"연천군"},{"sgg_code":"41820","sgg_name":"가평군"},{"sgg_code":"41830","sgg_name":"양평군"}]},{"sido_code":"43","sido_name":"충청북도","sggs":[{"sgg_code":"43111","sgg_name":"청주시 상당구"},{"sgg_code":"43112","sgg_name":"청주시 서원구"},{"sgg_code":"43113","sgg_name":"청주시 흥덕구"},{"sgg_code":"43114","sgg_name":"청주시 청원구"},{"sgg_code":"43130","sgg_name":"충주시"},{"sgg_code":"43150","sgg_name":"제천시"},{"sgg_code":"43720","sgg_name":"보은군"},{"sgg_code":"43730","sgg_name":"옥천군"},{"sgg_code":"43740","sgg_name":"영동군"},{"sgg_code":"43745","sgg_name":"증평군"},{"sgg_code":"43750","sgg_name":"진천군"},{"sgg_code":"43760","sgg_name":"괴산군"},{"sgg_code":"43770","sgg_name":"음성군"},{"sgg_code":"43800","sgg_name":"단양군"}]},{"sido_code":"44","sido_name":"충청남도","sggs":[{"sgg_code":"44131","sgg_name":"천안시 동남구"},{"sgg_code":"44133","sgg_name":"천안시 서북구"},{"sgg_code":"44150","sgg_name":"공주시"},{"sgg_code":"44180","sgg_name":"보령시"},{"sgg_code":"44200","sgg_name":"아산시"},{"sgg_code":"44210","sgg_name":"서산시"},{"sgg_code":"44230","sgg_name":"논산시"},{"sgg_code":"44250","sgg_name":"계룡시"},{"sgg_code":"44270","sgg_name":"당진시"},{"sgg_code":"44710","sgg_name":"금산군"},{"sgg_code":"44760","sgg_name":"부여군"},{"sgg_code":"44770","sgg_name":"서천군"},{"sgg_code":"44790","sgg_name":"청양군"},{"sgg_code":"44800","sgg_name":"홍성군"},{"sgg_code":"44810","sgg_name":"예산군"},{"sgg_code":"44825","sgg_name":"태안군"}]},{"sido_code":"47","sido_name":"경상북도","sggs":[{"sgg_code":"47110","sgg_name":"포항시"},{"sgg_code":"47111","sgg_name":"포항시 남구"},{"sgg_code":"47113","sgg_name":"포항시 북구"},{"sgg_code":"47130","sgg_name":"경주시"},{"sgg_code":"47150","sgg_name":"김천시"},{"sgg_code":"47170","sgg_name":"안동시"},{"sgg_code":"47190","sgg_name":"구미시"},{"sgg_code":"47210","sgg_name":"영주시"},{"sgg_code":"47230","sgg_name":"영천시"},{"sgg_code":"47250","sgg_name":"상주시"},{"sgg_code":"47280","sgg_name":"문경시"},{"sgg_code":"47290","sgg_name":"경산시"},{"sgg_code":"47730","sgg_name":"의성군"},{"sgg_code":"47750","sgg_name":"청송군"},{"sgg_code":"47760","sgg_name":"영양군"},{"sgg_code":"47770","sgg_name":"영덕군"},{"sgg_code":"47820","sgg_name":"청도군"},{"sgg_code":"47830","sgg_name":"고령군"},{"sgg_code":"47840","sgg_name":"성주군"},{"sgg_code":"47850","sgg_name":"칠곡군"},{"sgg_code":"47900","sgg_name":"예천군"},{"sgg_code":"47920","sgg_name":"봉화군"},{"sgg_code":"47930","sgg_name":"울진군"},{"sgg_code":"47940","sgg_name":"울릉군"}]},{"sido_code":"48","sido_name":"경상남도","sggs":[{"sgg_code":"48120","sgg_name":"창원시"},{"sgg_code":"48121","sgg_name":"창원시 의창구"},{"sgg_code":"48123","sgg_name":"창원시 성산구"},{"sgg_code":"48125","sgg_name":"창원시 마산합포구"},{"sgg_code":"48127","sgg_name":"창원시 마산회원구"},{"sgg_code":"48129","sgg_name":"창원시 진해구"},{"sgg_code":"48170","sgg_name":"진주시"},{"sgg_code":"48220","sgg_name":"통영시"},{"sgg_code":"48240","sgg_name":"사천시"},{"sgg_code":"48250","sgg_name":"김해시"},{"sgg_code":"48270","sgg_name":"밀양시"},{"sgg_code":"48310","sgg_name":"거제시"},{"sgg_code":"48330","sgg_name":"양산시"},{"sgg_code":"48720","sgg_name":"의령군"},{"sgg_code":"48730","sgg_name":"함안군"},{"sgg_code":"48740","sgg_name":"창녕군"},{"sgg_code":"48820","sgg_name":"고성군"},{"sgg_code":"48840","sgg_name":"남해군"},{"sgg_code":"48850","sgg_name":"하동군"},{"sgg_code":"48860","sgg_name":"산청군"},{"sgg_code":"48870","sgg_name":"함양군"},{"sgg_code":"48880","sgg_name":"거창군"},{"sgg_code":"48890","sgg_name":"합천군"}]},{"sido_code":"50","sido_name":"제주특별자치도","sggs":[{"sgg_code":"50110","sgg_name":"제주시"},{"sgg_code":"50130","sgg_name":"서귀포시"}]},{"sido_code":"51","sido_name":"강원특별자치도","sggs":[{"sgg_code":"51110","sgg_name":"춘천시"},{"sgg_code":"51130","sgg_name":"원주시"},{"sgg_code":"51150","sgg_name":"강릉시"},{"sgg_code":"51170","sgg_name":"동해시"},{"sgg_code":"51190","sgg_name":"태백시"},{"sgg_code":"51210","sgg_name":"속초시"},{"sgg_code":"51230","sgg_name":"삼척시"},{"sgg_code":"51720","sgg_name":"홍천군"},{"sgg_code":"51730","sgg_name":"횡성군"},{"sgg_code":"51750","sgg_name":"영월군"},{"sgg_code":"51760","sgg_name":"평창군"},{"sgg_code":"51770","sgg_name":"정선군"},{"sgg_code":"51780","sgg_name":"철원군"},{"sgg_code":"51790","sgg_name":"화천군"},{"sgg_code":"51800","sgg_name":"양구군"},{"sgg_code":"51810","sgg_name":"인제군"},{"sgg_code":"51820","sgg_name":"고성군"},{"sgg_code":"51830","sgg_name":"양양군"}]},{"sido_code":"52","sido_name":"전북특별자치도","sggs":[{"sgg_code":"52111","sgg_name":"전주시 완산구"},{"sgg_code":"52113","sgg_name":"전주시 덕진구"},{"sgg_code":"52130","sgg_name":"군산시"},{"sgg_code":"52140","sgg_name":"익산시"},{"sgg_code":"52180","sgg_name":"정읍시"},{"sgg_code":"52190","sgg_name":"남원시"},{"sgg_code":"52210","sgg_name":"김제시"},{"sgg_code":"52710","sgg_name":"완주군"},{"sgg_code":"52720","sgg_name":"진안군"},{"sgg_code":"52730","sgg_name":"무주군"},{"sgg_code":"52740","sgg_name":"장수군"},{"sgg_code":"52750","sgg_name":"임실군"},{"sgg_code":"52770","sgg_name":"순창군"},{"sgg_code":"52790","sgg_name":"고창군"},{"sgg_code":"52800","sgg_name":"부안군"}]}],"enabled":false},"disabled_search":{"contract_id":"CORE-KINDERGARTEN-RESULT-01","schema_version":1,"status":"DISABLED","source":{"code":"KINDERGARTEN_ALIMI_OPEN_API","label":"교육부 유치원알리미","url":"https://e-childschoolinfo.moe.go.kr","license":"출처 표시 조건 자유이용 (유치원알리미 Open API 이용허락조건)","fetched_on":"2026-10-08"},"ai_used":false,"region":{"sido_code":"52","sido_name":"전북특별자치도","sgg_code":"52113","sgg_name":"전주시 덕진구","label":"전북 전주시 덕진구"},"items":[],"total":0}};
+const SIGNED_IN = false;
+try {
+  localStorage.clear();
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  const json = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}}));
+  const names = Object.fromEntries(F.listing_empty.allergen_catalog.map(item => [item.code, item.name]));
+  const state = {accepted: false, entries: [], pending: {}, seq: 0};
+  const calls = globalThis.__mcsCalls = [];
+  const view = entry => ({id: entry.id, kind: entry.kind, nickname: entry.nickname,
+    allergens: entry.allergens.map(code => ({code, name: names[code]})), institution_ref: entry.ref,
+    institution: entry.institution, institution_status: 'OK', created_at: '2026-10-08T00:00:00+00:00', updated_at: '2026-10-08T00:00:00+00:00'});
+  const listing = () => ({...F.listing_empty, entries: state.entries.map(view), consent: {...F.listing_empty.consent, accepted: state.accepted}});
+  const detail = (status, code, message, extra = {}) => json({detail: {code, message, ...extra}}, status);
+  const remark = (overview, entry) => {
+    // Core marks NEIS dishes from the printed numbers ∩ the entry's numbers.
+    const wanted = new Set(entry.allergens);
+    const mark = meal => {
+      const numbered = meal.source_type === 'NEIS';
+      const dishes = meal.dishes.map(dish => {
+        const hits = numbered ? dish.allergens.filter(code => wanted.has(code)).sort((a, b) => a - b) : [];
+        return {...dish, matched_allergens: hits.map(code => ({code, name: names[code]})), contains_text: hits.length ? hits.map(code => names[code]).join('·') + ' 포함' : null};
+      });
+      const all = [...new Set(dishes.flatMap(dish => dish.matched_allergens.map(hit => hit.code)))].sort((a, b) => a - b);
+      return {...meal, dishes, matched_allergens: all.map(code => ({code, name: names[code]}))};
+    };
+    if (!overview.meals) return overview;
+    return {...overview, meals: {...overview.meals, today: overview.meals.today.map(mark), days: overview.meals.days.map(day => ({...day, meals: day.meals.map(mark)}))}};
+  };
+  const myChildren = (parsed, init) => {
+    const method = (init?.method || 'GET').toUpperCase();
+    const body = init?.body ? JSON.parse(init.body) : null;
+    const auth = new Headers(init?.headers || {}).get('authorization') || '';
+    calls.push({method, path: parsed.pathname + parsed.search, body, auth, credentials: init?.credentials || '', mode: init?.mode || ''});
+    if (auth !== 'Bearer site-token') return detail(401, 'SESSION_REQUIRED', '');
+    const rest = parsed.pathname.slice('/v2/life/my-children'.length);
+    if (rest === '' && method === 'GET') return json(listing());
+    if (rest === '' && method === 'DELETE') {
+      const count = state.entries.length; state.entries = []; state.pending = {}; state.accepted = false;
+      return json({deleted: {entries_deleted: count, info_requests_deleted: 0}});
+    }
+    if (rest === '/schools') return json(F.search);
+    if (rest === '' && method === 'POST') {
+      const allowed = new Set(['kind', 'office_code', 'school_code', 'kinder_code', 'sgg_code', 'nickname', 'allergens', 'consent_version']);
+      if (Object.keys(body).some(key => !allowed.has(key))) return detail(422, 'VALIDATION', 'extra field');
+      if (!state.accepted && body.consent_version !== F.listing_empty.consent.version) return json(F.consent_required, 428);
+      if (state.entries.some(entry => entry.nickname === body.nickname)) return detail(409, 'MY_CHILD_NICKNAME_DUPLICATE', '같은 이름으로 저장한 항목이 있어요. 다른 이름을 써 주세요.', {field: 'nickname'});
+      const id = 'mci_' + String(++state.seq).padStart(20, '0');
+      let institution, ref;
+      if (body.kind === 'SCHOOL') {
+        const school = F.search.schools.find(item => item.school_code === body.school_code);
+        institution = school; ref = {kind: 'SCHOOL', office_code: body.office_code, school_code: body.school_code};
+      } else {
+        const k = F.overview_kindergarten.kindergarten;
+        institution = {kinder_code: body.kinder_code, sgg_code: body.sgg_code, name: k.name, kind_label: '유치원', establishment: k.establishment, area: k.area, address: k.address};
+        ref = {kind: 'KINDERGARTEN', kinder_code: body.kinder_code, sgg_code: body.sgg_code};
+      }
+      const entry = {id, kind: body.kind, nickname: body.nickname, allergens: body.allergens, institution, ref};
+      state.entries.push(entry); state.accepted = true;
+      return json({entry: view(entry), consent: listing().consent}, 201);
+    }
+    const match = /^\/(mci_[0-9a-f]{20})(\/overview|\/info-requests)?$/u.exec(rest);
+    const entry = match && state.entries.find(item => item.id === match[1]);
+    if (!entry) return detail(404, 'MY_CHILD_ENTRY_NOT_FOUND', '저장한 항목을 찾지 못했어요.');
+    const base = () => entry.kind === 'KINDERGARTEN' ? F.overview_kindergarten
+      : entry.ref.school_code === '8332169' ? F.overview_school : F.overview_school_empty;
+    if (!match[2] && method === 'PATCH') {
+      if (body.nickname !== undefined) entry.nickname = body.nickname;
+      if (body.allergens !== undefined) entry.allergens = body.allergens;
+      return json({entry: view(entry), changed: Object.keys(body)});
+    }
+    if (!match[2] && method === 'DELETE') { state.entries = state.entries.filter(item => item !== entry); return json({deleted: true, id: entry.id}); }
+    if (match[2] === '/overview') return json(remark({...base(), entry: view(entry), info_requests: state.pending[entry.id] || {}}, entry));
+    if (match[2] === '/info-requests') {
+      const results = {};
+      state.pending[entry.id] = state.pending[entry.id] || {};
+      for (const item of body.items) {
+        if (!base().requestable.includes(item)) { results[item] = 'NOT_EMPTY'; continue; }
+        results[item] = state.pending[entry.id][item] ? 'ALREADY_REQUESTED' : 'REQUESTED';
+        state.pending[entry.id][item] = 'PENDING';
+      }
+      return json({id: entry.id, results, info_requests: state.pending[entry.id]});
+    }
+    return detail(405, 'METHOD', '');
+  };
+  globalThis.fetch = (url, init) => {
+    let parsed;
+    try { parsed = new URL(String((url && url.url) || url), location.origin); } catch { return nativeFetch(url, init); }
+    if (parsed.pathname.startsWith('/v2/life/my-children')) return myChildren(parsed, init);
+    if (parsed.pathname.startsWith('/v2/life/kindergartens')) {
+      calls.push({method: 'GET', path: parsed.pathname + parsed.search, kinder: true, credentials: init?.credentials || ''});
+      if (parsed.pathname.endsWith('/regions')) return json(K.regions);
+      const key = [parsed.searchParams.get('sgg_code'), parsed.searchParams.get('establishment') || 'ALL', parsed.searchParams.get('q') || ''].join('|');
+      return json(K.search[key] || {contract_id: 'CORE-KINDERGARTEN-RESULT-01', status: 'UNAVAILABLE', items: []});
+    }
+    if (parsed.pathname === '/v2/me') return json({user: {id: 'usr_mychild', name: '보호자', account_handle: 'parent'},
+      session: {id: 'ses', assurance_level: 'FULL', expires_at: '2099-01-01T00:00:00Z'}, installation: {id: 'install-mychild-test'}});
+    if (parsed.pathname === '/v2/subscription') return json({plan: 'FREE', status: 'NONE', entitled: false});
+    if (parsed.pathname === '/v2/conversation/guest/sessions') return json({contract_id: 'CORE-GUEST-SESSION-01', schema_version: 1,
+      guest_token: 'g'.repeat(43), expires_at: new Date(Date.now() + 3600000).toISOString()});
+    if (parsed.origin !== location.origin) return json({items: []});
+    return nativeFetch(url, init);
+  };
+  // site-conversation.js mounts a guest conversation on import when the
+  // composer exists (autoMount); the signed-in run detaches it until the
+  // module is loaded, the way auth/callback mounts after hydration.
+  const composer = document.getElementById('lotbi-prompt');
+  const slot = document.createComment('composer');
+  if (SIGNED_IN) composer.replaceWith(slot);
+  const conversation = await import('/site-conversation.js?v=mychildschool01');
+  if (SIGNED_IN) { slot.replaceWith(composer); document.body.dataset.siteAuthState = 'authenticated'; }
+  const mounted = SIGNED_IN ? conversation.mountConversation({sessionToken: 'site-token', identityKey: 'install-mychild-test'}) : conversation.mountConversation();
+  if (!mounted) throw new Error('mount');
+  out.textContent = JSON.stringify({ok: true});
+} catch (e) { out.textContent = JSON.stringify({ok: false, error: String((e && e.stack) || e)}); }
+</script><pre id="mcs-result">pending</pre>
+  <script type="module" src="site-continuity.js?v=aset-092264d18d78"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-092264d18d78"></script></head>
+<body class="chat-home-page" data-conversation-restore="pending">  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+
+  <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="lotbi-icon-message" viewBox="0 0 24 24"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M14.5 8.5 17 11l-4.8 4.8-3 .5.5-3 4.8-4.8Z"/></symbol>
+    <symbol id="lotbi-icon-inbox" viewBox="0 0 24 24"><path d="M4.5 6.5h15l1.5 8.5v2.5h-18V15l1.5-8.5Z"/><path d="M3.5 14.5h5l1.5 2h4l1.5-2h5"/></symbol>
+    <symbol id="lotbi-icon-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></symbol>
+    <symbol id="lotbi-icon-paw" viewBox="0 0 24 24"><circle cx="9.3" cy="6.1" r="2.1"/><circle cx="14.7" cy="6.1" r="2.1"/><circle cx="5.1" cy="9.5" r="2.1"/><circle cx="18.9" cy="9.5" r="2.1"/><path d="M12 12c2.9 0 5.4 2.2 5.4 4.7 0 2.1-1.8 3.5-3.8 3.5h-3.2c-2 0-3.8-1.4-3.8-3.5 0-2.5 2.5-4.7 5.4-4.7Z"/></symbol>
+    <symbol id="lotbi-icon-festival" viewBox="0 0 24 24"><path d="M6 21V8.5L12 4l6 4.5V21"/><path d="M9.5 21v-6h5v6"/><path d="M4 21h16"/></symbol>
+    <symbol id="lotbi-icon-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4.5v4h4M12 8v4.5l3 1.5"/></symbol>
+    <symbol id="lotbi-icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.8-4 3-6 6.5-6s5.7 2 6.5 6"/></symbol>
+    <symbol id="lotbi-icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.5 1.5M16.5 16.5 18 18M18 6l-1.5 1.5M7.5 16.5 6 18"/></symbol>
+    <symbol id="lotbi-icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 2-2.5 2.1-2.5 4M12 17.4h.01"/></symbol>
+    <symbol id="lotbi-icon-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9.5"/><path d="M7.5 16.5 6 18a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"/><path d="m16.5 7.5 1.5-1.5a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/></symbol>
+    <symbol id="lotbi-icon-bell" viewBox="0 0 24 24"><path d="M6.5 16.5h11l-1.5-2V10a4 4 0 1 0-8 0v4.5l-1.5 2Z"/><path d="M10 19h4"/></symbol>
+    <symbol id="lotbi-icon-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Zm-3 9 2 2 4-4"/></symbol>
+    <symbol id="lotbi-icon-store" viewBox="0 0 24 24"><path d="M4 10v10h16V10M3 10l2-6h14l2 6M9 20v-6h6v6M3 10c0 3 4 3 4 0 0 3 5 3 5 0 0 3 5 3 5 0 0 3 4 3 4 0"/></symbol>
+  </svg>
+
+  <div class="chat-app-shell">
+    <aside class="chat-sidebar chat-sidebar-desktop" aria-label="LOTBI 탐색 메뉴">
+      <a class="sidebar-brand" href="index.html" aria-label="LOTBI 홈" data-new-conversation>
+        <img class="sidebar-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="sidebar-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+      </a>
+
+      <nav class="sidebar-nav sidebar-nav-desktop" aria-label="대화 및 서비스 탐색">
+        <div class="consumer-primary-nav" aria-label="LOTBI 주요 기능">
+        <button class="nav-item nav-link nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+          <span class="nav-item-label">새 대화</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-calendar-view="all" aria-label="캘린더">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+          <span class="nav-item-label">캘린더</span>
+          <span class="nav-item-status" aria-hidden="true"><span class="calendar-status-badge" data-calendar-count hidden></span><svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg></span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="wallet" aria-label="Life Wallet">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+          <span class="nav-item-label">Life Wallet</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-scam-open aria-label="진위확인">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-shield"></use></svg>
+          <span class="nav-item-label">진위확인</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="care" aria-label="안심케어">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
+          <span class="nav-item-label">안심케어</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="life" aria-label="지역정보">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-festival"></use></svg>
+          <span class="nav-item-label">지역정보</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="mall" aria-label="제휴몰">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-store"></use></svg>
+          <span class="nav-item-label">제휴몰</span>
+        </button>
+      </div>
+
+      <div class="sidebar-history-shell">
+        <div class="sidebar-history-scroll">
+          <section class="nav-section sidebar-pinned-section" data-pinned-conversations-section hidden aria-labelledby="desktop-pinned-title">
+            <h2 id="desktop-pinned-title" class="nav-section-title">고정</h2>
+            <ul class="nav-history-list" data-pinned-conversations aria-label="고정 대화 목록"></ul>
+          </section>
+          <section class="nav-section sidebar-history-section" aria-labelledby="desktop-recent-title">
+            <h2 id="desktop-recent-title" class="nav-section-title nav-section-title-icon">
+              <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+              <span>최근 대화</span>
+            </h2>
+            <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
+          </section>
+        </div>
+      </div>
+
+        <div class="sidebar-account-footer">
+          <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- SITE-FOCUS-RING-CONTAINER-01 — tabindex="0" stays.
+         This element owns the page's vertical scrolling, and a scrollable
+         region has to be reachable by keyboard: validate_chat_layout_attachment_01
+         measures exactly that (mainOverflow "auto", mainTabIndex 0, "main pane
+         must accept scrolling") at every width it checks. An earlier revision of
+         this fix dropped it to "-1" and that gate caught it.
+         What was wrong was never the tab stop — it was where the ring got
+         drawn. The shared rule adds outline-offset: 2px, and this box is
+         exactly as tall as the viewport, so the ring's top and bottom edges
+         landed off screen and only its two vertical sides reached the user:
+         the blue lines down the edges of the content column. The offset is
+         now negative for this one element, in site-theme-tokens.css. -->
+    <main id="main-content" class="chat-home-shell" tabindex="0">
+      <h1 class="sr-only">LOTBI</h1>
+      <header class="chat-topbar" aria-label="LOTBI 홈 헤더">
+        <div class="topbar-left">
+          <button
+            class="mobile-menu-button"
+            type="button"
+            aria-label="메뉴 열기"
+            aria-controls="mobile-nav-drawer"
+            aria-expanded="false"
+            data-mobile-nav-open
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+              <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" />
+            </svg>
+          </button>
+          <a class="chat-brand mobile-header-brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈" data-new-conversation>
+            <img class="mobile-header-logo lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="mobile-header-logo lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+          </a>
+        </div>
+
+        <nav class="account-actions" aria-label="계정 메뉴" data-auth-state="checking" aria-busy="true">
+          <span class="account-auth-placeholder" aria-hidden="true">계정 확인 중</span>
+          <span class="sr-only" role="status">계정 상태 확인 중</span>
+        </nav>
+      </header>
+
+      <section class="chat-hero" aria-label="LOTBI 대화 시작">
+        <img class="consumer-brand-fallback" src="assets/brand/lotbi-mark-512.png" alt="손을 흔드는 LOTBI 캐릭터" width="104" height="104" decoding="async" />
+        <div class="home-avatar-anchor" data-home-avatar-anchor>
+          <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
+            <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
+            <img
+              src="assets/brand/lotbi-mark-512.png"
+              class="chat-character-logo"
+              data-lotbi-avatar-fallback
+              alt="웃으며 손을 흔드는 LOTBI 캐릭터"
+              width="512"
+              height="512"
+              decoding="async"
+              fetchpriority="high"
+            />
+          </div>
+        </div>
+
+        <section class="home-value-proposition" aria-label="LOTBI 활용 안내">
+          <h2>무엇을 도와드릴까요?</h2>
+          <p class="sr-only">궁금한 것부터 챙겨야 할 일까지, 롯비에게 말해 보세요.</p>
+        </section>
+
+        <div class="home-example-prompts" aria-label="예시 질문">
+          <button type="button" data-home-prompt="이번 주 해야 할 일을 정리해 줘">이번 주 일정 정리</button>
+          <button type="button" data-scam-open>의심되는 문자 확인</button>
+          <button type="button" data-home-prompt="이번 달 생활비를 정리하고 싶어">생활비 정리하기</button>
+        </div>
+
+        <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
+
+        <div class="chat-composer-stack">
+          <div id="attachment-preview-strip" class="attachment-preview-strip" data-attachment-preview aria-live="polite" hidden></div>
+          <p class="chat-safety-copy">LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.</p>
+          <div class="chat-composer" aria-labelledby="composer-label" aria-describedby="chat-status chat-attachment-help">
+          <label id="composer-label" class="sr-only" for="lotbi-prompt">LOTBI에게 요청할 내용</label>
+          <textarea
+            id="lotbi-prompt"
+            class="chat-input"
+            rows="1"
+            maxlength="1000"
+            placeholder="LOTBI에게 무엇이든 물어보세요"
+            autocomplete="off"
+            autocapitalize="sentences"
+            spellcheck="true"
+          ></textarea>
+
+          <div class="composer-actions">
+            <div class="attachment-control" data-attachment-control>
+              <button
+                class="composer-button attachment-button"
+                type="button"
+                aria-label="첨부 추가"
+                title="첨부 추가"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                data-attachment-trigger
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z" />
+                </svg>
+              </button>
+              <div class="attachment-menu" role="menu" aria-label="첨부 추가" data-attachment-menu hidden>
+                <button type="button" role="menuitem" data-attachment-action="camera">카메라</button>
+                <button type="button" role="menuitem" data-attachment-action="photos">사진·스크린샷</button>
+                <button type="button" role="menuitem" data-attachment-action="files">파일</button>
+              </div>
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept="image/jpeg,image/png" capture="environment" data-attachment-input="camera" />
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept="image/jpeg,image/png" multiple data-attachment-input="photos" />
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept=".pdf,.docx,.txt,.csv,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv,application/json" multiple data-attachment-input="files" />
+            </div>
+            <div class="response-grade-control" data-response-grade-control hidden inert aria-hidden="true">
+              <button
+                class="response-grade-trigger"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="response-grade-menu"
+                aria-label="응답 등급: 스탠다드"
+                data-response-grade-trigger
+                disabled
+              >
+                <span data-response-grade-label>스탠다드</span>
+                <span class="response-grade-chevron" aria-hidden="true">▾</span>
+              </button>
+
+              <div
+                id="response-grade-menu"
+                class="response-grade-menu"
+                role="menu"
+                aria-label="응답 등급"
+                data-response-grade-menu
+                hidden
+              >
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="LIGHT">
+                  <span class="response-grade-name">라이트</span>
+                  <span class="response-grade-description">빠르고 간단한 답변</span>
+                </button>
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="true" disabled data-response-grade="STANDARD">
+                  <span class="response-grade-name">스탠다드</span>
+                  <span class="response-grade-description">균형 잡힌 기본 모드</span>
+                </button>
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="PREMIUM">
+                  <span class="response-grade-name">프리미엄</span>
+                  <span class="response-grade-description">복잡한 질문 · 깊은 분석</span>
+                </button>
+              </div>
+            </div>
+
+            <button class="composer-button send-button" type="button" disabled aria-label="전송" title="전송">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="m4 4 17 8-17 8 3-7 9-1-9-1-3-7Z" />
+              </svg>
+            </button>
+          </div>
+          </div>
+          <p id="chat-attachment-help" class="sr-only">이미지는 JPEG·PNG, 파일은 PDF·DOCX·TXT·CSV·JSON을 지원하며 메시지당 최대 3개까지 첨부할 수 있습니다.</p>
+        </div>
+
+        <p id="chat-status" class="sr-only" role="status">
+          메시지를 입력하면 LOTBI와 대화를 시작합니다. 로그인 연결이 필요하면 안전한 Account handoff로 이동합니다.
+        </p>
+
+        <div id="chat-state-region" class="chat-state-banner" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+        <template id="chat-state-templates">
+          <span data-chat-state="loading">LOTBI 응답을 기다리는 중입니다.</span>
+          <span data-chat-state="unavailable">LOTBI 로그인이 필요합니다.</span>
+          <span data-chat-state="error">LOTBI 대화를 완료하지 못했습니다.</span>
+        </template>
+      </section>
+
+      <dialog class="scam-dialog" data-scam-dialog aria-labelledby="scam-dialog-title">
+        <header class="scam-dialog-header">
+          <div>
+            <p class="scam-dialog-eyebrow">LOTBI 진위확인</p>
+            <h2 id="scam-dialog-title">“롯비야, 이거 진짜야?”</h2>
+          </div>
+          <button class="scam-dialog-close" type="button" aria-label="진위확인 닫기" data-scam-close>×</button>
+        </header>
+        <div class="scam-dialog-inner">
+          <section class="scam-login-gate" data-scam-login-gate hidden>
+            <h3>진위확인은 로그인 후 사용할 수 있어요</h3>
+            <p>확인할 자료를 안전하게 보호하기 위해 로그인이 필요합니다.</p>
+            <div class="scam-login-actions">
+              <button type="button" data-scam-login>로그인하고 확인하기</button>
+              <button type="button" data-scam-login-cancel>취소</button>
+            </div>
+            <p class="scam-login-status" role="status" aria-live="polite" data-scam-login-status></p>
+          </section>
+          <div data-scam-workspace hidden>
+          <p class="scam-dialog-description" data-scam-description>받은 문자나 파일이 의심되면 아래에서 가장 쉬운 방법 하나를 선택하세요.</p>
+          <p class="scam-scope-note">이메일·QR 코드·기관 안내문·거래 안내·법원·세금 문서·의심스러운 사이트도 확인할 수 있어요.</p>
+          <form data-scam-form>
+            <div class="scam-input-kinds" data-scam-methods aria-label="확인 방법 선택">
+              <label><input type="radio" name="scam-input-kind" value="photo" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm3 12 4-4 3 3 2-2 3 3M8 9h.01" /></svg><span><strong>사진·스크린샷 선택</strong><small>사진 보관함이나 스크린샷에서 골라요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="camera" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v13H4V7Zm8 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg><span><strong>카메라로 촬영</strong><small>지금 카메라로 찍어요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="document" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 0v5h4M9 12h6m-6 4h6" /></svg><span><strong>문서·PDF 선택하기</strong><small>저장된 안내문을 골라요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="text" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v14H9l-6 4V3Zm4 5h10M7 12h7" /></svg><span><strong>문자 내용 붙여넣기</strong><small>받은 글을 복사해서 넣어요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="url" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2" /></svg><span><strong>인터넷 주소 확인하기</strong><small>의심되는 주소를 붙여넣어요</small></span></label>
+            </div>
+            <div class="scam-check-step" data-scam-step hidden>
+              <button class="scam-method-back" type="button" data-scam-method-back>← 다른 방법 선택</button>
+              <div class="scam-input-panel" data-scam-input-panel="camera" hidden>
+                <label for="scam-camera">받은 문자나 안내문을 화면 가득 찍어 주세요</label>
+                <input id="scam-camera" class="scam-file-input" name="scamCamera" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-describedby="scam-camera-help" disabled />
+                <label class="scam-file-pick" for="scam-camera" data-scam-file-pick="camera">카메라로 촬영</label>
+                <p id="scam-camera-help" class="scam-field-help">사진은 확인하기를 누르기 전에는 전송되지 않습니다. · 최대 10MB</p>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="photo" hidden>
+                <label for="scam-photo">사진 보관함이나 스크린샷에서 확인할 사진을 골라 주세요</label>
+                <input id="scam-photo" class="scam-file-input" name="scamPhoto" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="scam-photo-help" disabled />
+                <label class="scam-file-pick" for="scam-photo" data-scam-file-pick="photo">사진·스크린샷 선택</label>
+                <p id="scam-photo-help" class="scam-field-help">사진(JPEG·PNG·WEBP) · 최대 10MB</p>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="document" hidden>
+                <label for="scam-document">확인할 문서나 PDF를 골라 주세요</label>
+                <input id="scam-document" name="scamDocument" type="file" accept=".txt,text/plain,.html,.htm,text/html,application/pdf" aria-describedby="scam-document-help" disabled />
+                <p id="scam-document-help" class="scam-field-help">PDF·TXT·HTML 파일을 선택할 수 있어요 · 최대 10MB</p>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="text" hidden>
+                <label for="scam-text">받은 문자나 이메일 내용을 여기에 붙여넣어 주세요</label>
+                <textarea id="scam-text" name="scamText" rows="5" maxlength="20000" placeholder="이곳을 누른 뒤 받은 내용을 붙여넣으세요" disabled></textarea>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="url" hidden>
+                <label for="scam-url">의심되는 인터넷 주소를 붙여넣어 주세요</label>
+                <input id="scam-url" name="scamUrl" type="url" placeholder="https://…" disabled />
+              </div>
+              <div class="scam-file-preview" data-scam-file-preview hidden>
+                <img data-scam-preview-image alt="선택한 사진 미리보기" hidden />
+                <p data-scam-preview-prompt></p>
+                <button type="button" data-scam-reselect>다시 고르기</button>
+              </div>
+              <label class="scam-clicked"><input type="checkbox" data-scam-clicked /> 이미 눌렀거나 개인정보를 입력했어요</label>
+              <div class="scam-incident" data-scam-incident hidden>
+                <label>어느 기기인가요?
+                  <select name="device"><option value="">선택해 주세요</option><option value="Galaxy">Android / Galaxy</option><option value="iPhone">iPhone</option><option value="Windows">Windows PC</option><option value="macOS">Mac</option></select>
+                </label>
+                <label>어디까지 했나요?
+                  <select name="incidentLevel"><option value="1">링크나 파일을 열었어요</option><option value="2">개인정보 일부를 입력했어요</option><option value="3">비밀번호·OTP를 입력했어요</option><option value="4">앱·프로그램을 설치했어요</option><option value="5">접근성·원격제어 권한을 줬어요</option><option value="6">송금·결제가 발생했어요</option></select>
+                </label>
+              </div>
+              <button class="scam-submit" type="submit">확인하기</button>
+            </div>
+          </form>
+          <p class="scam-status" role="status" aria-live="polite" data-scam-status>확인 방법을 하나 선택해 주세요.</p>
+          <div class="scam-result" data-scam-result aria-live="polite" hidden></div>
+          </div>
+        </div>
+      </dialog>
+
+      <footer class="lotbi-footer chat-home-footer">
+        <details class="footer-legal-disclosure" data-footer-legal-disclosure>
+          <summary
+            class="footer-legal-summary"
+            data-footer-legal-toggle
+            aria-controls="footer-legal-panels"
+          >
+            <span class="footer-legal-summary-text">LOTBI · 회사 및 이용 안내</span>
+            <svg class="footer-legal-summary-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4-6.7 6.7-6.7-6.7 1.4-1.4Z" /></svg>
+          </summary>
+        </details>
+
+        <div id="footer-legal-panels" class="footer-legal-panels">
+        <div class="footer-links">
+          <a href="/about">회사 소개</a>
+          <a href="/subscribe">구독 안내</a>
+          <a href="/refund">구독 철회 및 해지</a>
+          <a href="/exchange">반품 및 교환</a>
+          <a href="/dispute">소비자 분쟁 해결 기준</a>
+          <a href="/terms">이용약관</a>
+          <a href="/privacy">개인정보처리방침</a>
+          <a href="/account-deletion">계정 삭제</a>
+          <a href="/contact">문의하기</a>
+        </div>
+
+        <div class="company-legal" aria-label="LOTBI 사업자 정보">
+          <div class="company-legal-row">
+            <span>유한회사 알에이디홀딩스</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>대표자: 전선혜</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>사업자등록번호: 583-88-03679</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>통신판매업신고번호: 2026-전주덕진-0798</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679" target="_blank" rel="noopener noreferrer">사업자정보확인</a>
+          </div>
+          <div class="company-legal-row">
+            <span>주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>전화: <a href="tel:0632370930">063-237-0930</a></span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>이메일: <a href="mailto:developer@lotbiai.com">developer@lotbiai.com</a></span>
+          </div>
+          <div class="company-legal-row">
+            <span>LOTBI (롯비) © 2026 · AI Voice Commerce Agent</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>호스팅서비스 제공: 네이버클라우드 주식회사 (NAVER Cloud)</span>
+          </div>
+        </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <div class="mobile-nav-backdrop" data-mobile-nav-backdrop aria-hidden="true"></div>
+  <aside
+    id="mobile-nav-drawer"
+    class="mobile-nav-drawer"
+    aria-labelledby="mobile-nav-title"
+    aria-hidden="true"
+    inert
+  >
+    <div class="mobile-drawer-header">
+      <strong id="mobile-nav-title" class="mobile-drawer-brand lotbi-official-brand">
+        <img class="mobile-drawer-brand-logo lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="mobile-drawer-brand-logo lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+      </strong>
+      <button class="mobile-drawer-close" type="button" aria-label="메뉴 닫기" data-mobile-nav-close>×</button>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="LOTBI 모바일 탐색 메뉴">
+      <div class="consumer-primary-nav" aria-label="LOTBI 주요 기능">
+        <button class="nav-item nav-link nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+          <span class="nav-item-label">새 대화</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-calendar-view="all" aria-label="캘린더">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+          <span class="nav-item-label">캘린더</span>
+          <span class="nav-item-status" aria-hidden="true"><span class="calendar-status-badge" data-calendar-count hidden></span><svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg></span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="wallet" aria-label="Life Wallet">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+          <span class="nav-item-label">Life Wallet</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-scam-open aria-label="진위확인">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-shield"></use></svg>
+          <span class="nav-item-label">진위확인</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="care" aria-label="안심케어">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
+          <span class="nav-item-label">안심케어</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="life" aria-label="지역정보">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-festival"></use></svg>
+          <span class="nav-item-label">지역정보</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="mall" aria-label="제휴몰">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-store"></use></svg>
+          <span class="nav-item-label">제휴몰</span>
+        </button>
+      </div>
+
+      <div class="sidebar-history-shell">
+        <div class="sidebar-history-scroll">
+          <section class="nav-section sidebar-pinned-section" data-pinned-conversations-section hidden aria-labelledby="mobile-pinned-title">
+            <h2 id="mobile-pinned-title" class="nav-section-title">고정</h2>
+            <ul class="nav-history-list" data-pinned-conversations aria-label="고정 대화 목록"></ul>
+          </section>
+          <section class="nav-section sidebar-history-section" aria-labelledby="mobile-recent-title">
+            <h2 id="mobile-recent-title" class="nav-section-title nav-section-title-icon">
+              <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+              <span>최근 대화</span>
+            </h2>
+            <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
+          </section>
+        </div>
+      </div>
+
+      <div class="sidebar-account-footer">
+        <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
+          </div>
+      </div>
+    </nav>
+  </aside>
+</body>
+</html>

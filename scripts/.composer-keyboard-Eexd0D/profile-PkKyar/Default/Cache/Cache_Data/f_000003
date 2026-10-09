@@ -1,0 +1,1294 @@
+/* SITE-PET-FAMILY-WEB-01 — PET FAMILY surface, Mobile Web first then Desktop. */
+.pet-family-surface {
+  display: grid;
+  gap: 18px;
+}
+
+.pet-status {
+  margin: 0;
+  min-height: 18px;
+  color: var(--lotbi-text-muted, #626b78);
+  font-size: 13px;
+}
+
+.pet-status:empty {
+  display: none;
+}
+
+.pet-error {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--lotbi-error-surface, #fff0f0);
+  color: var(--lotbi-error-text, #a02645);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.pet-section {
+  display: grid;
+  gap: 12px;
+}
+
+.pet-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pet-section-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* The surface lives inside .site-pet-modal, so the card grid must follow the
+   container it actually gets, not the viewport width. */
+.pet-card-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.pet-card {
+  display: grid;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.pet-card-actions .site-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.pet-profile-thumbnail {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--lotbi-surface-muted, #eef1f5);
+  display: grid;
+  place-items: center;
+}
+
+.pet-profile-thumbnail-image,
+.pet-candidate-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pet-profile-thumbnail-loading,
+.pet-candidate-photo-loading {
+  color: var(--lotbi-text-muted, #687386);
+  font-size: 0.8rem;
+}
+
+.pet-profile-age,
+.pet-profile-family,
+.pet-profile-identity,
+.pet-profile-sos,
+.pet-profile-resolved,
+.pet-profile-birthday {
+  margin: 5px 0 0;
+  color: var(--lotbi-text-muted, #596579);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.pet-profile-sos { color: #b42318; font-weight: 700; }
+.pet-profile-resolved { color: var(--lotbi-text-primary, var(--text, #212121)); font-weight: 700; }
+.pet-profile-birthday { color: #8a4b00; font-weight: 700; }
+
+.pet-candidate-cta {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px solid #f79009;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pet-profile-controls,
+.pet-timeline,
+.pet-candidate-section {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--lotbi-border, #d8dee8);
+  border-radius: 16px;
+}
+
+.pet-profile-controls-title,
+.pet-timeline-title,
+.pet-candidate-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.pet-timeline-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.pet-timeline-item { margin: 8px 0; }
+.pet-timeline-time { display: block; color: var(--lotbi-text-muted, #687386); font-size: 0.78rem; }
+.pet-timeline-label { display: block; margin-top: 2px; }
+
+.pet-candidate-safety,
+.pet-candidate-privacy,
+.pet-candidate-evidence,
+.pet-candidate-response {
+  margin: 8px 0 0;
+  color: var(--lotbi-text-muted, #596579);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.pet-candidate-card {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #fdb022;
+  border-radius: 14px;
+  background: #fffcf5;
+}
+
+.pet-candidate-photo {
+  width: min(100%, 280px);
+  aspect-ratio: 4 / 3;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f2f4f7;
+  display: grid;
+  place-items: center;
+}
+
+.pet-candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pet-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.pet-card-name {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lotbi-text-primary, #1d2330);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.pet-card-species {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eef1f6);
+  color: var(--lotbi-text-secondary, #4c5563);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pet-progress {
+  display: grid;
+  gap: 5px;
+}
+
+.pet-progress-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eceff5);
+  overflow: hidden;
+}
+
+.pet-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand-violet, #7b62bb);
+}
+
+.pet-progress-label,
+.pet-card-consent {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pet-card-open {
+  justify-self: start;
+}
+
+.pet-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 20px 16px;
+  border: 1px dashed var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 14px;
+}
+
+.pet-empty-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pet-empty-copy {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pet-login-link {
+  text-decoration: none;
+}
+
+.pet-detail-section {
+  padding: 15px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 14px;
+  background: var(--lotbi-surface-elevated, #f8f9fc);
+}
+
+.pet-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.pet-facts dt {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-weight: 800;
+}
+
+.pet-facts dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--lotbi-text-primary, #262c38);
+  overflow-wrap: anywhere;
+}
+
+.pet-registration {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.pet-registration-term {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-weight: 800;
+}
+
+.pet-registration-value {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.pet-registration-reveal {
+  padding: 4px 9px;
+  border: 1px solid var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 999px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-secondary, #495264);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-form {
+  display: grid;
+  gap: 12px;
+}
+
+.pet-draft-body {
+  display: grid;
+  gap: 14px;
+}
+
+.pet-draft-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.pet-draft-progress-label {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.pet-draft-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pet-draft-step {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: var(--lotbi-surface-hover, #eef1f6);
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pet-draft-step-number {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.pet-draft-step-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pet-draft-step[data-pet-draft-step-active='true'] {
+  background: var(--brand-violet, #7b62bb);
+  color: #fff;
+}
+
+.pet-draft-step[data-pet-draft-step-complete='true'] {
+  background: #e8f5ee;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.pet-draft-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.pet-draft-photo-state {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pet-draft-photo-state-accepted {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.pet-draft-photo-state-rejected {
+  color: var(--lotbi-error-text, #a02645);
+}
+
+.pet-draft-photo-state-uploading {
+  color: var(--lotbi-text-secondary, #495264);
+}
+
+.pet-draft-gate-banner {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+  color: var(--lotbi-text-primary, #262c38);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.pet-draft-species-field {
+  padding: 12px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-draft-species-choice {
+  min-width: 124px;
+  justify-content: center;
+}
+
+.pet-draft-species-choice:has(input:checked) {
+  border-color: var(--brand-violet, #7b62bb);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-violet, #7b62bb) 18%, transparent);
+}
+
+.pet-draft-species-icon {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 22px;
+}
+
+.pet-draft-species-prompt {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 12px;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.pet-draft-review {
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 13px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-choice-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.pet-choice-field legend {
+  padding: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.pet-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  .pet-card-actions { grid-template-columns: 1fr; }
+  .pet-draft-step { font-size: 10px; }
+}
+
+.pet-choice-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pet-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--lotbi-border-strong, #cfd6e2);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #2f3540);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-choice:focus-within {
+  outline: 2px solid var(--brand-violet, #7b62bb);
+  outline-offset: 2px;
+}
+
+.pet-field-hint {
+  margin: -6px 0 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.pet-consent {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-consent-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  color: var(--lotbi-text-primary, #262c38);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-consent-copy {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.pet-delete-button {
+  justify-self: start;
+  border: 1px solid #a02645;
+  background: transparent;
+  color: #a02645;
+}
+
+/* .site-button and the layout classes below all set display, which beats the
+   UA [hidden] rule, so every element this surface toggles with .hidden needs
+   its hidden state spelled out. */
+.pet-section[hidden],
+.pet-add-button[hidden],
+.pet-delete-confirm[hidden],
+.pet-delete-button[hidden],
+.pet-detail-section[hidden],
+.pet-error[hidden] {
+  display: none;
+}
+
+.pet-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 10-slot photo uploader. Two tiles across on Mobile Web so the schematic
+   stays readable; more as the container allows. */
+.pet-photo-section {
+  display: grid;
+  gap: 9px;
+  padding-top: 4px;
+  border-top: 1px solid var(--lotbi-border-default, #e2e6ee);
+}
+
+.pet-photo-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pet-photo-title {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.pet-photo-count {
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pet-photo-progress-note,
+.pet-photo-limits {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.pet-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.pet-slot {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-slot[data-pet-slot-filled="true"] {
+  border-color: var(--brand-violet, #7b62bb);
+}
+
+.pet-slot[data-pet-slot-working="true"] {
+  opacity: .6;
+}
+
+.pet-slot[data-pet-draft-slot-locked="true"] {
+  opacity: .8;
+}
+
+.pet-draft-photo-locked-hint {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.pet-slot-media {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+}
+
+.pet-slot-guide-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgb(46 35 79 / 12%));
+}
+
+.pet-slot-diagram {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--lotbi-text-secondary, #475065);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pet-slot-species-mark {
+  stroke: none;
+  fill: currentColor;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 30px;
+}
+
+.pet-slot-guide-arrow,
+.pet-slot-guide-copy,
+.pet-slot-guide-accent {
+  stroke: none;
+  fill: var(--brand-violet, #7b62bb);
+  font-family: inherit;
+  font-weight: 900;
+}
+
+.pet-slot-guide-arrow { font-size: 18px; }
+.pet-slot-guide-copy { font-size: 8px; }
+.pet-slot-guide-accent { font-size: 17px; }
+
+.pet-slot-guide-focus {
+  fill: none;
+  stroke: var(--brand-violet, #7b62bb);
+  stroke-width: 1.8;
+  stroke-dasharray: 2.5 2;
+}
+
+.pet-slot-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pet-slot-loading {
+  position: absolute;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pet-slot-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pet-slot-index {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eceff5);
+  color: var(--lotbi-text-secondary, #4c5563);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.pet-slot-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lotbi-text-primary, #262c38);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pet-slot-hint {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.pet-slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pet-slot-choose {
+  min-height: 36px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.pet-slot-remove {
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: #a02645;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-slot-actions .site-button:disabled,
+.pet-slot-remove:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* SITE-PET-PHOTO-SOURCE-01 — the Camera / Gallery / File choice shown inside
+   the shared bottom sheet (site-bottom-sheet.css) on Mobile Web only. */
+.pet-photo-source-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 4px 2px 2px;
+}
+
+.pet-photo-source-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 76px;
+  padding: 10px 6px;
+  border: 1px solid #dbe1ea;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pet-photo-source-option:hover,
+.pet-photo-source-option:focus-visible {
+  border-color: #b9c2d2;
+  background: #f3f5f9;
+}
+
+.pet-photo-source-option:focus-visible {
+  outline: 3px solid rgba(79, 120, 197, .34);
+  outline-offset: 2px;
+}
+
+.pet-photo-source-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.pet-photo-source-label {
+  font-size: 12px;
+  text-align: center;
+}
+
+body[data-site-theme="dark"] .pet-photo-source-option {
+  border-color: #465162;
+  background: #171c25;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .pet-photo-source-option:hover,
+body[data-site-theme="dark"] .pet-photo-source-option:focus-visible {
+  border-color: #5a6577;
+  background: #1d2430;
+}
+
+.pet-slot-error[hidden] {
+  display: none;
+}
+
+.pet-slot-error {
+  margin: 0;
+  color: var(--lotbi-error-text, #a02645);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* 강아지·고양이가 아니면 등록되지 않는다. The refusal is only half the answer;
+   this is the half the owner can act on, so it sits directly under the
+   sentence that caused it rather than in the tile's action row. */
+.pet-slot-retry[hidden] {
+  display: none;
+}
+
+.pet-slot-retry {
+  display: flex;
+}
+
+.pet-slot-retry-action {
+  min-height: 36px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+/* 실종 SOS / 발견 신고 cases. */
+.pet-case-section {
+  padding-top: 10px;
+  border-top: 1px solid var(--lotbi-border-default, #e2e6ee);
+}
+
+.pet-case-safety {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--lotbi-warning-surface, #fff6e8);
+  color: var(--lotbi-warning-text, #8a5a14);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.pet-case-card {
+  display: grid;
+  gap: 7px;
+  padding: 13px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 13px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.pet-case-card[data-pet-case-status="ACTIVE"] {
+  border-color: #a02645;
+}
+
+.pet-case-status {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #eef1f6);
+  color: var(--lotbi-text-secondary, #4c5563);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pet-case-card[data-pet-case-status="ACTIVE"] .pet-case-status {
+  background: #fdeaef;
+  color: #a02645;
+}
+
+.pet-case-line {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #495264);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.pet-case-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.pet-case-cancel {
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--lotbi-text-muted, #6a7280);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-case-photos {
+  display: grid;
+  gap: 7px;
+}
+
+.pet-case-photo-count {
+  margin: 0;
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pet-case-photo-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pet-case-photo {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+}
+
+.pet-case-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pet-case-photo-loading {
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pet-case-photo-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(20, 24, 34, .72);
+  color: #fff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pet-case-photo-add {
+  justify-self: start;
+  min-height: 36px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.pet-case-form-host:empty {
+  display: none;
+}
+
+.pet-notice {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--lotbi-border-default, #e2e6ee);
+  color: var(--lotbi-text-muted, #6a7280);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.pet-family-surface[data-pet-busy="true"] {
+  cursor: progress;
+}
+
+/* The panel is wider than the default modal so two cards fit side by side on
+   Desktop; on Mobile Web it takes the full sheet like the Calendar does. */
+.site-pet-modal {
+  width: min(100%, 720px);
+  max-height: min(88vh, 820px);
+}
+
+@media (max-width: 760px) {
+  .site-pet-modal {
+    width: 100%;
+    max-height: 92svh;
+  }
+}
+
+@media (min-width: 901px) {
+  .pet-facts {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+}
+
+body[data-site-theme="dark"] .pet-card,
+body[data-site-theme="dark"] .pet-consent,
+body[data-site-theme="dark"] .pet-choice,
+body[data-site-theme="dark"] .pet-registration-reveal {
+  background: var(--lotbi-surface-primary, #1f2632);
+  border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-profile-controls,
+body[data-site-theme="dark"] .pet-timeline,
+body[data-site-theme="dark"] .pet-candidate-section,
+body[data-site-theme="dark"] .pet-candidate-card {
+  border-color: var(--lotbi-border, #384357);
+  background: var(--lotbi-surface-raised, #182033);
+}
+
+body[data-site-theme="dark"] .pet-candidate-cta {
+  background: #3b2508;
+  color: #ffd7a1;
+}
+
+body[data-site-theme="dark"] .pet-detail-section {
+  background: var(--lotbi-surface-elevated, #202631);
+  border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-progress-bar,
+body[data-site-theme="dark"] .pet-card-species,
+body[data-site-theme="dark"] .pet-slot-media,
+body[data-site-theme="dark"] .pet-slot-index {
+  background: #2a3140;
+}
+
+body[data-site-theme="dark"] .pet-slot {
+  background: var(--lotbi-surface-primary, #1f2632);
+  border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-case-card {
+  background: var(--lotbi-surface-primary, #1f2632);
+  border-color: var(--lotbi-border-default, #424b59);
+}
+
+body[data-site-theme="dark"] .pet-case-status,
+body[data-site-theme="dark"] .pet-case-photo {
+  background: #2a3140;
+}
+
+body[data-site-theme="dark"] .pet-case-safety {
+  background: #3a2f1c;
+  color: #f0d8a8;
+}
+
+/* 유료 게이트 안내. 등록에 성공한 뒤 뜨는 안내이고, 등록을 막는 경고가
+   아니므로 경고색을 쓰지 않습니다. */
+.pet-gate-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(23, 27, 33, 0.42);
+}
+
+.pet-gate-panel {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(16, 20, 28, 0.24);
+}
+
+.pet-gate-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.pet-gate-copy {
+  margin: 0;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.pet-gate-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 사이드바 비활성 표시. 항목을 지우거나 못 누르게 만들지 않습니다. */
+.pet-nav-lock {
+  margin-inline-start: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef1f5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body[data-site-theme="dark"] .pet-gate-panel {
+  background: #222a36;
+}
+
+body[data-site-theme="dark"] .pet-gate-copy {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .pet-nav-lock {
+  background: #333c4b;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+/* 번호가 두 가지입니다. 롯비 번호와 국가 동물등록번호가 한눈에 다른 것으로
+   보여야 합니다 — 섞이면 사용자가 국가 등록을 마쳤다고 오해합니다. */
+.pet-number-block {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #dfe4ec;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+
+.pet-number-term {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pet-number-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.pet-number-note {
+  margin: 0;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+body[data-site-theme="dark"] .pet-number-block {
+  border-color: #3b4554;
+  background: #262f3c;
+}
+
+body[data-site-theme="dark"] .pet-number-note,
+body[data-site-theme="dark"] .pet-number-term {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+/* SAFECARE-WEB-UI-REDESIGN-01 ------------------------------------------- */
+/* Several new controls set display, which beats the UA [hidden] rule. */
+.pet-family-surface [hidden] {
+  display: none !important;
+}
+
+.pet-profile-renewal,
+.pet-photo-context-note {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.pet-draft-extra {
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  padding: 0 12px;
+}
+
+.pet-draft-extra[open] {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.pet-draft-extra > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  word-break: keep-all;
+}
+
+.pet-draft-review-photos {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pet-draft-review-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.pet-draft-done {
+  display: grid;
+  gap: 12px;
+}
+
+.pet-family-surface .safecare-found {
+  display: grid;
+  gap: 12px;
+}

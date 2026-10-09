@@ -1,0 +1,770 @@
+/* SITE-SIDEBAR-NAV-CLEANUP-01 — Desktop navigation hierarchy without changing feature readiness. */
+.sidebar-brand {
+  min-height: 48px;
+  margin: 0 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.sidebar-brand:hover,
+.sidebar-brand:visited,
+.sidebar-brand:focus-visible {
+  text-decoration: none;
+}
+
+/* Official LOTBI lockup. No cropping and no retyped wordmark: the asset is
+   the approved artwork, including the red-to-blue gradient O. */
+.sidebar-brand-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 44px;
+  min-width: 0;
+  object-fit: contain;
+  object-position: left center;
+  flex: 0 0 auto;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+}
+
+/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — authenticated Header renders no control,
+   so the slot site-auth-continuity.css reserves for the anonymous
+   로그인/회원가입 pair must not hold 174px of blank space open. */
+.account-actions[data-auth-state="authenticated"] {
+  min-width: 0;
+  min-height: 0;
+}
+
+.mobile-header-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.mobile-header-logo {
+  display: block;
+  width: auto;
+  height: 34px;
+  object-fit: contain;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+}
+
+.mobile-drawer-brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.mobile-drawer-brand-logo {
+  display: block;
+  width: auto;
+  height: 38px;
+  object-fit: contain;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+}
+
+/* SITE-SIDEBAR-INFORMATION-ARCHITECTURE-04 — fixed primary actions +
+   independently scrolling recent conversations + fixed account identity. */
+.sidebar-primary-nav {
+  display: grid;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the sidebar secondary menu is gone; its
+   four items (연결 서비스 / 프로필 / 설정 / 도움말) live only in the account
+   menu, which also carries 개인 맞춤 설정 and 로그아웃. The focus ring below is
+   kept for the account row, which still needs it. */
+.sidebar-account-entry:focus-visible {
+  outline: 2px solid var(--brand-violet, #7b62bb);
+  outline-offset: 2px;
+}
+
+.sidebar-history-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-history-scroll {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.sidebar-history-shell .sidebar-history-section {
+  min-height: auto;
+  overflow: visible;
+}
+
+.sidebar-pinned-section {
+  margin-bottom: 18px;
+}
+
+.nav-history-list li {
+  justify-content: flex-start;
+}
+
+.nav-history-list a,
+.nav-history-list button {
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* SITE-DARK-CONVERSATION-LIST-CONTRAST-01 — this used --brand-navy, a raw
+   brand colour with no dark form. The selected row's background flips to
+   #262e3a in Dark while the text stayed #182a46: 1.05:1, which is why the
+   conversation 대표 was reading became less legible the moment it was
+   selected. The token flips with the background it sits on. */
+.nav-history-list button[aria-current="true"] {
+  color: var(--lotbi-nav-history-text-active, #182a46);
+  font-weight: 800;
+}
+
+.nav-history-list [data-conversation-title] {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nav-history-list .conversation-history-item {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.nav-history-list .conversation-history-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+}
+
+.conversation-history-pin {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #e9e4f7;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.conversation-history-actions {
+  position: absolute;
+  z-index: 30;
+  top: 50%;
+  right: 2px;
+  min-width: 0;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+
+.nav-history-list .conversation-history-item:hover .conversation-history-actions,
+.nav-history-list .conversation-history-item:focus-within .conversation-history-actions,
+.conversation-history-actions[open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.conversation-history-menu-trigger {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.conversation-history-menu-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.conversation-history-menu-trigger:hover,
+.conversation-history-menu-trigger:focus-visible,
+.conversation-history-actions[open] > .conversation-history-menu-trigger {
+  background: #eceff5;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.conversation-history-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 138px;
+  padding: 5px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #d8dde7;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(25, 36, 56, .14);
+}
+
+.nav-history-list .conversation-history-menu button {
+  inline-size: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  text-align: left;
+}
+
+.nav-history-list .conversation-history-menu button:hover,
+.nav-history-list .conversation-history-menu button:focus-visible {
+  background: #f0f2f7;
+}
+
+.nav-history-list .conversation-history-delete {
+  color: #a02645;
+}
+
+.conversation-management-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.conversation-delete-confirm {
+  border: 1px solid #a02645;
+  background: #a02645;
+  color: #fff;
+}
+
+body[data-site-theme="dark"] .conversation-history-pin {
+  background: #352e4b;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+body[data-site-theme="dark"] .conversation-history-menu {
+  border-color: #424b59;
+  background: #1f2632;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+}
+
+body[data-site-theme="dark"] .conversation-history-menu-trigger:hover,
+body[data-site-theme="dark"] .conversation-history-menu-trigger:focus-visible,
+body[data-site-theme="dark"] .conversation-history-actions[open] > .conversation-history-menu-trigger,
+body[data-site-theme="dark"] .conversation-history-menu button:hover,
+body[data-site-theme="dark"] .conversation-history-menu button:focus-visible {
+  background: #2a3140;
+}
+body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
+  background: #202631;
+  border-color: #424b59;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .sidebar-guest-actions .sidebar-account-entry {
+    background: var(--lotbi-surface-elevated, #202631);
+    border-color: var(--lotbi-border-default, #424b59);
+    color: var(--lotbi-text-primary, #edf0f5);
+  }
+  body[data-site-theme="system"] .mobile-nav-drawer .sidebar-profile-trigger::after {
+    color: var(--lotbi-text-muted, #aeb6c3);
+  }
+}
+
+.sidebar-account-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding: 8px 4px 0;
+  border-top: 0;
+  background: transparent;
+}
+
+.sidebar-account-slot {
+  min-height: 54px;
+  display: grid;
+  align-items: center;
+}
+
+.sidebar-account-entry {
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 10px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  border-radius: 12px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-account-entry:hover {
+  background: #eceff5;
+}
+
+.sidebar-account-entry:active {
+  background: #e7eaf1;
+}
+
+.sidebar-profile-trigger {
+  inline-size: 100%;
+  min-height: 50px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  align-content: normal;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  transition: background-color 140ms ease;
+}
+
+.sidebar-profile-trigger:hover {
+  background: #eceff5;
+}
+
+.sidebar-profile-trigger:active {
+  background: #f1f3f8;
+}
+
+.sidebar-profile-avatar {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #dde2eb;
+  background: #eef0f6;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 850;
+}
+
+/* SOCIAL-SIGNUP-PROFILE-UX-01 — no name given and no photo: a plain person icon, not letters. */
+.sidebar-profile-avatar-default {
+  color: var(--lotbi-text-muted, #667085);
+}
+
+.sidebar-profile-avatar-icon {
+  width: 58%;
+  height: 58%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-photo-preview-filled > .sidebar-profile-avatar-icon {
+  visibility: hidden;
+}
+
+.sidebar-profile-chevron {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--lotbi-text-muted, #667085);
+  transition: transform 140ms ease, color 140ms ease;
+}
+
+.sidebar-profile-chevron::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(135deg);
+}
+
+.sidebar-profile-trigger:hover .sidebar-profile-chevron,
+.sidebar-profile-trigger:focus-visible .sidebar-profile-chevron {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.sidebar-profile-trigger[aria-expanded="true"] .sidebar-profile-chevron {
+  transform: rotate(180deg);
+}
+
+.sidebar-profile-copy {
+  min-width: 0;
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 4px;
+}
+
+.sidebar-account-name,
+.sidebar-account-handle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-name {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.sidebar-account-handle {
+  flex-basis: 100%;
+  color: var(--lotbi-text-muted, #667085);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.sidebar-account-plan {
+  max-width: 100%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
+  overflow: hidden;
+  color: var(--lotbi-text-muted, #667085);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-plan::before {
+  content: '·';
+  margin-right: 4px;
+}
+
+body[data-site-theme="dark"] .sidebar-profile-trigger {
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-site-theme="dark"] .sidebar-profile-trigger:hover {
+  border-color: #566172;
+  background: #272e3a;
+}
+
+body[data-site-theme="dark"] .sidebar-account-plan {
+  color: var(--lotbi-text-muted, #aeb6c3);
+  background: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .sidebar-profile-trigger {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body[data-site-theme="system"] .sidebar-profile-trigger:hover {
+    border-color: #566172;
+    background: #272e3a;
+  }
+
+  body[data-site-theme="system"] .sidebar-account-plan {
+    color: var(--lotbi-text-muted, #aeb6c3);
+    background: transparent;
+  }
+}
+
+.sidebar-account-placeholder {
+  display: grid;
+  align-items: center;
+  inline-size: 100%;
+  height: 54px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sidebar-account-placeholder::after {
+  content: "계정 확인 중";
+}
+
+.sidebar-account-unknown {
+  cursor: default;
+}
+
+.sidebar-account-unknown:hover {
+  background: transparent;
+}
+
+.sidebar-account-recovery-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.sidebar-account-recovery-action {
+  min-height: 32px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sidebar-account-recovery-action:hover,
+.sidebar-account-recovery-action:focus-visible {
+  background: #eceff5;
+}
+
+.sidebar-guest-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.sidebar-guest-actions .sidebar-account-entry {
+  min-height: 44px;
+  padding: 8px 10px;
+  place-items: center;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #dde2ea;
+}
+
+.sidebar-guest-actions .sidebar-account-handle:empty {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .chat-sidebar-desktop {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-nav-desktop {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 14px;
+  }
+
+  /* Desktop account access lives in the fixed sidebar; mobile keeps the top affordance. */
+  .topbar-left,
+  .account-actions {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .mobile-nav-drawer {
+    overflow: hidden;
+  }
+
+  .mobile-nav-drawer .sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .mobile-nav-drawer .sidebar-primary-nav,
+  .mobile-nav-drawer .sidebar-calendar-nav,
+  .mobile-nav-drawer .sidebar-festival-nav,
+  .mobile-nav-drawer .sidebar-pet-nav {
+    gap: 2px;
+  }
+
+  .nav-history-list .conversation-history-open {
+    min-height: 44px;
+    padding-right: 44px;
+  }
+
+  .conversation-history-actions {
+    right: 0;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .conversation-history-menu-trigger {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+
+
+/* LOTBI-GLOBAL-NAV-MONOCHROME-CALENDAR-BADGE-01 */
+.lotbi-nav-icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nav-item {
+  cursor: pointer;
+}
+
+.nav-item .nav-icon,
+.nav-section-title-icon .nav-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-item-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-section-title-icon {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-section-title-icon .nav-icon {
+  width: 17px;
+  height: 17px;
+  flex-basis: 17px;
+}
+
+/* SITE-PET-FAMILY-WEB-01 — 반려동물 navigation entry reuses the Calendar row grid. */
+.sidebar-pet-nav {
+  flex: 0 0 auto;
+}
+
+.sidebar-festival-nav {
+  flex: 0 0 auto;
+}
+
+.nav-calendar-status,
+.nav-pet-status {
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.nav-item-status {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.calendar-status-badge,
+.pet-status-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-item-pending {
+  height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px dashed currentColor;
+  border-radius: 999px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.nav-item-pending[hidden] {
+  display: none;
+}
+
+.nav-status-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.calendar-status-badge[hidden],
+.pet-status-badge[hidden],
+.calendar-reminder-icon[hidden] {
+  display: none;
+}
+
+body[data-site-theme="dark"] .calendar-status-badge,
+body[data-site-theme="dark"] .pet-status-badge,
+body[data-site-theme="dark"] .nav-item-pending,
+body[data-site-theme="dark"] .nav-status-icon {
+  color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+.nav-item[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.72;
+}
