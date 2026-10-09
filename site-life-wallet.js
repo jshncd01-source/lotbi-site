@@ -1,6 +1,6 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-4eb6d0d69d4a';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-4eb6d0d69d4a';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-4eb6d0d69d4a';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-ade2514f1dd3';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-ade2514f1dd3';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-ade2514f1dd3';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -246,9 +246,17 @@ export class MemoryWalletRepository {
 export function walletCardTitle(card) {
   const memo = String(card.note || '').split(/\r?\n/u).map(line => line.trim()).find(Boolean);
   if (memo) return memo.length > 24 ? `${memo.slice(0, 24)}…` : memo;
+  return walletShareLabel(card);
+}
+
+// What a share request calls an item by default. Core keeps the label as it is and the
+// recipient sees it before accepting, so it never comes from the memo (the memo leaves the
+// device only inside the sealed original).
+export function walletShareLabel(card) {
+  const name = String(card.name || '').trim() || CARD_KINDS.find(([value]) => value === card.kind)?.[1] || '저장 자료';
   const saved = new Date(card.updatedAt);
-  if (!Number.isFinite(saved.getTime())) return card.name;
-  return `${card.name} · ${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')}`;
+  if (!Number.isFinite(saved.getTime())) return name;
+  return `${name} · ${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')}`;
 }
 
 function validateCard(card) {
@@ -1187,7 +1195,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       root.replaceChildren(shell);
       // A share link opened before (#wallet-share=…) continues here once the wallet is open.
       const intent = share ? takeWalletShareIntent() : null;
-      if (intent) await share.handleIntent(intent, cards, walletCardTitle);
+      if (intent) await share.handleIntent(intent, cards, walletCardTitle, walletShareLabel);
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
     }
@@ -1262,7 +1270,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       } catch (error) { removalStatus.textContent = safeMessage(error, '자료를 삭제하지 못했습니다.'); setBusy(removal, false); removalPin.value = ''; removalPin.focus(); }
     });
     if (share) {
-      const shareAction = button('공유하기', () => share.openShareItem(card, walletCardTitle(card)), true); shareAction.dataset.walletShareItem = '';
+      const shareAction = button('공유하기', () => share.openShareItem(card, walletCardTitle(card), walletShareLabel(card)), true); shareAction.dataset.walletShareItem = '';
       detail.append(shareAction);
     }
     detail.append(remove, removal);

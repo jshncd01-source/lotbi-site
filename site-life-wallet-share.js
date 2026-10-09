@@ -16,10 +16,10 @@
 // ciphertext only, hands it only to the recipient, and deletes it when the share is revoked,
 // when the recipient has saved it, or after 30 days. Without the switch every screen says the
 // original is not sent.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-4eb6d0d69d4a';
-import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-4eb6d0d69d4a';
-import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-4eb6d0d69d4a';
-import {sealWalletShareItem, shareSafetyCode} from './site-life-wallet-share-crypto.js?v=aset-4eb6d0d69d4a';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-ade2514f1dd3';
+import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-ade2514f1dd3';
+import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-ade2514f1dd3';
+import {sealWalletShareItem, shareSafetyCode} from './site-life-wallet-share-crypto.js?v=aset-ade2514f1dd3';
 
 const BASE = '/v2/life-wallet/share';
 const QR_VALUE_RE = /^https:\/\/lotbiai\.com\/#wallet-share=qr\.([A-Za-z0-9_-]{24,64})$/u;
@@ -368,9 +368,10 @@ export function createWalletShare({root, sessionToken, wallet = null, onBack, on
   }
 
   // ── 자료 공유하기 ────────────────────────────────────────────────────────
-  function openShareItem(card, title) {
-    const label = element('input', 'wallet-share-input'); label.maxLength = 80; label.value = title; label.setAttribute('aria-label', '받는 분에게 보일 자료 이름');
+  function openShareItem(card, title, defaultLabel = title) {
+    const label = element('input', 'wallet-share-input'); label.maxLength = 80; label.value = defaultLabel; label.setAttribute('aria-label', '받는 분에게 보일 자료 이름');
     const field = element('label', 'wallet-field'); field.append(element('span', '', '받는 분에게 보일 이름'), label);
+    const labelHelp = element('p', 'wallet-share-help', '이 이름은 받는 분과 LOTBI 서버에 그대로 보입니다. 주민등록번호·면허번호 같은 내용은 넣지 마세요.');
     const item = () => [{ref: card.id, title: label.value.trim(), kind: card.kind || 'document'}];
     const methods = element('div', 'wallet-share-methods');
     methods.append(
@@ -378,7 +379,7 @@ export function createWalletShare({root, sessionToken, wallet = null, onBack, on
       button('LOTBI ID로 보내기', () => askLotbiId(card, item), true),
       button('카카오톡·링크로 보내기', () => void sendLink(card, item), true),
     );
-    screen(`‘${title}’ 공유하기`, field, methods, element('p', 'wallet-security-note', note()));
+    screen(`‘${title}’ 공유하기`, field, labelHelp, methods, element('p', 'wallet-security-note', note()));
   }
 
   function askLotbiId(card, item, notice = '') {
@@ -487,7 +488,7 @@ export function createWalletShare({root, sessionToken, wallet = null, onBack, on
   }
 
   // ── 링크로 열린 공유 (#wallet-share=…) ──────────────────────────────────
-  async function handleIntent(intent, cards, titleOf) {
+  async function handleIntent(intent, cards, titleOf, labelOf = titleOf) {
     if (intent.kind === 'invite') {
       try {
         await api('/invites/claim', {method: 'POST', body: {invite_token: intent.token}});
@@ -500,7 +501,7 @@ export function createWalletShare({root, sessionToken, wallet = null, onBack, on
     catch (error) { return openHub('received', message(error)); }
     if (!cards.length) return openHub('sent', '공유할 자료가 없습니다. 먼저 자료를 등록해 주세요.');
     const list = element('div', 'wallet-share-methods');
-    for (const card of cards) list.append(button(titleOf(card), () => confirmSend(card, () => [{ref: card.id, title: titleOf(card), kind: card.kind || 'document'}], recipient, {qr_token: intent.token}), true));
+    for (const card of cards) list.append(button(titleOf(card), () => confirmSend(card, () => [{ref: card.id, title: labelOf(card), kind: card.kind || 'document'}], recipient, {qr_token: intent.token}), true));
     screen(`${personLabel(recipient)}님에게 공유할 자료`, list, element('p', 'wallet-security-note', note()));
   }
 

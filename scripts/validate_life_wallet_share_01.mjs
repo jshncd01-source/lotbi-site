@@ -95,8 +95,10 @@ try {
   results.myQr = qrImage.src.startsWith('data:image/svg+xml') && /분 \\d\\d초 동안 쓸 수 있습니다/u.test(text()) && !host.querySelector('.wallet-share-qr svg');
 
   // 4. Share an item by LOTBI ID (label editable; only the label is sent).
-  ui.openShareItem(card, wallet.walletCardTitle(card));
+  ui.openShareItem(card, wallet.walletCardTitle(card), wallet.walletShareLabel(card));
   results.shareScreen = text().includes('‘내 운전면허증’ 공유하기') && ['상대방 QR 스캔', 'LOTBI ID로 보내기', '카카오톡·링크로 보내기'].every(label => text().includes(label));
+  // The label the server keeps defaults to kind and date, never the memo.
+  results.defaultLabelNoMemo = host.querySelector('.wallet-share-input').value === '저장 자료 · 2026.10.08' && text().includes('LOTBI 서버에 그대로 보입니다');
   host.querySelector('.wallet-share-input').value = '면허증 사본';
   click('LOTBI ID로 보내기');
   const idInput = await wait(() => host.querySelector('.wallet-share-form input'), 'id input');
@@ -113,12 +115,13 @@ try {
   const stream = canvas.captureStream(5); let stopped = 0; stream.getTracks().forEach(track => { const stop = track.stop.bind(track); track.stop = () => { stopped += 1; stop(); }; });
   class FakeDetector { constructor(options) { this.options = options; } async detect() { return [{rawValue: 'https://lotbiai.com/#wallet-share=qr.' + QR}]; } }
   ui = make({mediaDevices: {getUserMedia: async constraints => { results.cameraConstraints = constraints; return stream; }}, BarcodeDetectorImpl: FakeDetector});
-  ui.openShareItem(card, wallet.walletCardTitle(card));
+  ui.openShareItem(card, wallet.walletCardTitle(card), wallet.walletShareLabel(card));
   click('상대방 QR 스캔');
   await wait(() => text().includes('받는 분 확인'), 'qr confirm');
   results.cameraStopped = stopped > 0 && results.cameraConstraints.video.facingMode === 'environment' && results.cameraConstraints.audio === false;
   click('공유 요청 보내기'); await wait(() => text().includes('공유 요청을 보냈습니다'), 'qr sent');
-  results.qrShare = calls.filter(c => c.path === '/v2/life-wallet/share/requests').at(-1).body.qr_token === QR;
+  const qrSent = calls.filter(c => c.path === '/v2/life-wallet/share/requests').at(-1).body;
+  results.qrShare = qrSent.qr_token === QR && JSON.stringify(qrSent.items) === JSON.stringify([{ref: 'card-1', title: '저장 자료 · 2026.10.08', kind: 'document'}]);
 
   // 6. Camera denied, and no BarcodeDetector at all: LOTBI ID instead, with the reason.
   ui = make({mediaDevices: {getUserMedia: async () => { throw Object.assign(new Error('denied'), {name: 'NotAllowedError'}); }}, BarcodeDetectorImpl: FakeDetector});
@@ -190,7 +193,7 @@ try {
 
   // 10. Nothing but labels ever left: no body carries an image, a note or wallet data.
   const bodies = JSON.stringify(calls.map(c => c.body || null));
-  results.labelsOnly = !/data:image|frontDataUrl|메모 둘째 줄|AAAA/u.test(bodies) && calls.filter(c => c.path.startsWith('/v2/life-wallet/share')).every(c => c.auth === 'Bearer tok' && c.credentials === 'omit');
+  results.labelsOnly = !/data:image|frontDataUrl|내 운전면허증|메모 둘째 줄|AAAA/u.test(bodies) && calls.filter(c => c.path.startsWith('/v2/life-wallet/share')).every(c => c.auth === 'Bearer tok' && c.credentials === 'omit');
   window.__result = JSON.stringify({ok: true, results});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
 </script></body></html>`;
@@ -198,7 +201,7 @@ try {
 const result = await runFixturePage({root: ROOT, fixturePath: '/__life_wallet_share_01.html', fixtureHtml, resultExpression: 'window.__result || ""', viewport: {width: 390, height: 844, mobile: true, deviceScaleFactor: 1}, timeoutMs: 300_000});
 assert.equal(result.ok, true, result.error);
 const r = result.results;
-for (const key of ['receivedListed', 'accepted', 'blockCalled', 'revoked', 'myQr', 'shareScreen', 'idShare', 'cameraStopped', 'qrShare', 'cameraDenied', 'cameraUnsupported',
+for (const key of ['receivedListed', 'accepted', 'blockCalled', 'revoked', 'myQr', 'shareScreen', 'defaultLabelNoMemo', 'idShare', 'cameraStopped', 'qrShare', 'cameraDenied', 'cameraUnsupported',
   'inviteLink', 'capture', 'intent', 'badLinkIgnored', 'claimed', 'usedLink', 'freeLimit', 'cardsKept', 'plusAdds', 'noTokenNoShare', 'labelsOnly']) {
   assert.equal(r[key], true, `${key}: ${JSON.stringify(r)}`);
 }
