@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-21f52e749ca9';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-21f52e749ca9';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-1bb3339af2e8';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-1bb3339af2e8';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -150,10 +150,11 @@ export function mountConsumerSection({section, root, onAsk, onDraft, onFestival,
       root.replaceChildren(detail); title.focus();
     }
     // 지역뉴스: with a saved region one tap asks for that region's news;
-    // without one, a one-field form asks which region (or 내 주변).
+    // without one, a one-field form asks which region (or 내 주변). Like the
+    // other life cards the question is sent at once (onAsk), not drafted.
     function openNewsEntry(item) {
       const saved = savedLifeRegionLabel();
-      if (saved) { onDraft(buildRegionalNewsPrompt(saved)); return; }
+      if (saved) { onAsk(buildRegionalNewsPrompt(saved)); return; }
       const home = [...root.children];
       const back = action('지역정보로 돌아가기', () => {
         root.replaceChildren(...home);
@@ -172,9 +173,9 @@ export function mountConsumerSection({section, root, onAsk, onDraft, onFestival,
         event.preventDefault();
         if (disposed) return;
         if (!field.value.trim()) { field.focus(); return; }
-        onDraft(buildRegionalNewsPrompt(field.value));
+        onAsk(buildRegionalNewsPrompt(field.value));
       });
-      const nearby = action('내 주변 뉴스', () => { if (!disposed) onDraft(buildRegionalNewsPrompt('')); }, {secondary: true});
+      const nearby = action('내 주변 뉴스', () => { if (!disposed) onAsk(buildRegionalNewsPrompt('')); }, {secondary: true});
       nearby.dataset.newsNearby = 'true';
       const note = '기본 지역을 저장해 두면 다음부터 바로 그 지역 뉴스를 보여 드려요. 현재 위치는 내 주변 뉴스를 누르고 위치 사용을 켠 경우에만 써요. 기사는 각 언론사 원문으로 연결돼요.';
       detail.append(back, title, queryForm, nearby, node('p', 'consumer-feature-note', note));
@@ -195,7 +196,7 @@ export function mountConsumerSection({section, root, onAsk, onDraft, onFestival,
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-21f52e749ca9').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-1bb3339af2e8').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
       }).catch(() => {
@@ -209,8 +210,8 @@ export function mountConsumerSection({section, root, onAsk, onDraft, onFestival,
         if (disposed) return;
         if (item.ask) onAsk(item.ask);
         else if (item.id === 'festivals') onFestival();
-        else if (item.id === 'news') openNewsEntry(item);
-        else item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item);
+        else item.id === 'news' ? openNewsEntry(item)
+          : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item);
       });
       grid.append(button);
     }

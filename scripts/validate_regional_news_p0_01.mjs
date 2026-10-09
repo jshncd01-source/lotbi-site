@@ -548,7 +548,12 @@ async function runCase(browser, origin, dir, testCase) {
     // location use off the position is not even asked for. Never guessed.
     await evaluate(`localStorage.removeItem('lotbi.calendar.weather-region.v1'), true`);
     for (const usage of ['default', 'off']) {
-      if (usage === 'off') await evaluate(`document.cookie = 'lotbi_location_usage_v1=off; path=/', true`);
+      if (usage === 'off') {
+        await evaluate(`document.cookie = 'lotbi_location_usage_v1=off; path=/', true`);
+        // The same tapped question twice within 2.5 s is one question
+        // (askWithoutKeyboard double-tap guard), so the second run waits.
+        await sleep(2600);
+      }
       await openLife();
       before = (await evaluate('globalThis.__sent.length'));
       const geolocationBefore = await evaluate('globalThis.__geolocationCalls');
