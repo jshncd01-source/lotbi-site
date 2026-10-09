@@ -952,6 +952,7 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
     calendarDraft: normalizeSmartCalendarDraft(payload.calendar_draft),
+    productLookup: payload.lookup_result && typeof payload.lookup_result === 'object' && payload.lookup_result.contract_id === 'CORE-PRODUCT-LOOKUP-01' ? Object.freeze({...payload.lookup_result}) : null,
   });
 }
 
@@ -1155,6 +1156,7 @@ export async function sendGuestConversationMessage({
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
+    productLookup: payload.lookup_result && typeof payload.lookup_result === 'object' && payload.lookup_result.contract_id === 'CORE-PRODUCT-LOOKUP-01' ? Object.freeze({...payload.lookup_result}) : null,
   });
 }
 

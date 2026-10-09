@@ -252,7 +252,7 @@ function drawHoldingHand(context, corners, {side = 'left', at = .5, palm = .32, 
 
 export async function renderScene({
   width = 1266, height = 680, seed = 1, surfaceKind = 'felt', cards = [],
-  lighting = {left: 0.78, right: 1.12, top: 1.04, bottom: 0.94, hotspot: 0.12}, noise = 5, jpegQuality = 0.86, frame = null, focusBlur = 0, hand = null, holder = null,
+  lighting = {left: 0.78, right: 1.12, top: 1.04, bottom: 0.94, hotspot: 0.12}, noise = 5, jpegQuality = 0.86, frame = null, focusBlur = 0, hand = null, holder = null, specular = [],
 } = {}) {
   const random = seededRandom(seed);
   const pixels = surface(width, height, surfaceKind, random);
@@ -317,6 +317,13 @@ export async function renderScene({
   }
   let canvas = new OffscreenCanvas(width, height); canvas.getContext('2d').putImageData(output, 0, 0);
   if (hand && cards.length) drawHoldingHand(canvas.getContext('2d'), cards[0].corners, hand, width, height);
+  // Light reflected off a glossy card: a blown-out white core with a soft halo ({x, y, radius}
+  // in pixels), drawn over whatever is printed there.
+  for (const spot of specular) {
+    const context = canvas.getContext('2d'); const glow = context.createRadialGradient(spot.x, spot.y, 0, spot.x, spot.y, spot.radius);
+    glow.addColorStop(0, 'rgba(255,255,255,1)'); glow.addColorStop(.75, 'rgba(255,255,255,1)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+    context.fillStyle = glow; context.beginPath(); context.ellipse(spot.x, spot.y, spot.radius * 1.6, spot.radius, 0, 0, Math.PI * 2); context.fill();
+  }
   if (focusBlur) {
     const soft = new OffscreenCanvas(width, height); const softContext = soft.getContext('2d');
     softContext.filter = `blur(${focusBlur}px)`; softContext.drawImage(canvas, 0, 0); canvas = soft;
@@ -326,6 +333,15 @@ export async function renderScene({
   const bitmap = await createImageBitmap(blob);
   const encoded = new OffscreenCanvas(width, height); encoded.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close?.();
   return encoded;
+}
+
+// A card saved as a flat picture (a business card or ID image file, a flat scan): the whole
+// image is the card, no background around it. Same printed design as photographed cards.
+export function flatCardImage(width, height, options = {}, seed = 1) {
+  const random = seededRandom(seed);
+  const canvas = new OffscreenCanvas(width, height);
+  canvas.getContext('2d').putImageData(cardTexture(width, height, {tint: [250, 250, 248], ...options}, random), 0, 0);
+  return canvas;
 }
 
 // Wallet-like ID-1 card: 85.60 x 53.98 mm with ~3.2 mm corner radius.
@@ -400,14 +416,14 @@ export function cardOnWalletScene(index) {
 // A phone camera shot of a card, the way people take it: portrait 3:4 frame, the card
 // covering 42-90% of the frame width, tilted and seen at an angle, on a light desk or a
 // dark surface, sometimes held in the hand, with thin printed lettering.
-export function cameraCardScene(index, {width = 1500, height = 2000, ink = undefined} = {}) {
+export function cameraCardScene(index, {width = 1500, height = 2000, ink = undefined, tint: cardTint = undefined} = {}) {
   const random = seededRandom(4100 + index * 13); const pick = (low, high) => low + random() * (high - low);
   const fraction = pick(.42, .9); const cardHeight = width * fraction / ID_CARD_ASPECT;
   const slack = Math.max(0, 1 - cardHeight / height);
   const top = slack * pick(.3, .7); const leftMargin = (1 - fraction) * pick(.25, .75);
   const rotation = pick(-12, 12); const keystone = pick(0, .12);
   const surfaceKind = ['desk', 'white', 'gray', 'felt', 'desk', 'navy'][index % 6];
-  const tint = [[232, 234, 230], [226, 232, 238], [238, 236, 228], [222, 230, 224]][index % 4];
+  const tint = cardTint || [[232, 234, 230], [226, 232, 238], [238, 236, 228], [222, 230, 224]][index % 4];
   const card = walletCard({width, height, margins: {left: leftMargin, right: 1 - fraction - leftMargin, top, bottom: slack - top}, rotation, keystone, keystoneAxis: random() < .7 ? 'top' : 'right', tint, font: index % 3 === 2 ? 'small' : 'regular', ink});
   const left = pick(.62, .95); const right = pick(1.0, 1.2);
   return {

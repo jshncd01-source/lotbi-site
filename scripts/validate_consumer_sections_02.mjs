@@ -5,10 +5,11 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 4);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '온누리상품권', '지역생활정보']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 5);
 // Medical entries build their sentence from the form (LIFE-MEDICAL-CATEGORY-ENTRY-01).
-assert.ok(LIFE_SHORTCUTS.filter(item => item.id !== 'festivals' && !item.medical).every(item => typeof item.prompt === 'string'));
+// 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01).
+assert.ok(LIFE_SHORTCUTS.filter(item => !['festivals', 'onnuri'].includes(item.id) && !item.medical).every(item => typeof item.prompt === 'string'));
 // 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
 assert.doesNotMatch(source, /공과금|고지서|납부기한/);

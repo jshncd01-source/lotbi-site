@@ -1,13 +1,15 @@
 // Locks the Calendar month amount line (LIFE UX 01).
 //
-// A month's recorded amounts keep one clear total line at the top of Today,
-// Week and Month, with the five user-facing categories visible immediately
-// beneath it. The detailed
+// A month's recorded amounts keep one clear total line at the top of Month,
+// with the five user-facing categories visible immediately beneath it. The
+// month total belongs to Month only: Today and Week show no month total (the
+// owner's decision in CALENDAR P0 mobile week vertical 01). The detailed
 // currency/count view still opens from the total line.
 //
 // Covered contracts:
 //   - the summary sits directly below the toolbar and before the view in
-//     Today, Week and Month, so scrolling the schedule does not hide it first
+//     Month, so scrolling the schedule does not hide it first; Today and Week
+//     draw no month total
 //   - one line: label, total and chevron share a row; a real button with a
 //     44px touch target; no category name and no ledger words on the line
 //   - a month with no recorded amount draws no line at all (no 0원 ledger)
@@ -200,11 +202,13 @@ try{
     const control=[...root.querySelectorAll(selector)].find(node=>node.textContent.trim()===label)||root.querySelector(selector);
     control?.click();
     await wait(()=>root.querySelector(viewSelector),label+' view');
-    await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' top amount');
+    if(label==='월') await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' top amount');
+    else { await waitForDomIdle(root); await new Promise(resolve=>setTimeout(resolve,120)); }
     const activeLine=line(root);
     result.summaryModes.push({
       label,
       view:Boolean(root.querySelector(viewSelector)),
+      shown:Boolean(activeLine) && !root.querySelector('.calendar-amount-slot')?.hidden,
       inTopSlot:Boolean(root.querySelector('.calendar-amount-slot')?.contains(activeLine)),
       topSlotBeforeView:Boolean(root.querySelector('.calendar-amount-slot')?.compareDocumentPosition(root.querySelector('.calendar-viewport'))&Node.DOCUMENT_POSITION_FOLLOWING),
     });
@@ -490,8 +494,13 @@ try {
     if (!value.lineInsideTopSlot || !value.summaryDirectlyBelowToolbar || !value.summaryBeforeViewport) {
       fail('the amount summary must sit directly below the toolbar and before the calendar viewport');
     }
-    if (value.summaryModes.length!==3 || value.summaryModes.some(mode=>!mode.view||!mode.inTopSlot||!mode.topSlotBeforeView)) {
-      fail(`Today, Week and Month must all keep the amount summary above their content, got ${JSON.stringify(value.summaryModes)}`);
+    const monthMode = value.summaryModes.find(mode=>mode.label==='월');
+    if (value.summaryModes.length!==3 || value.summaryModes.some(mode=>!mode.view)
+      || !monthMode?.shown || !monthMode.inTopSlot || !monthMode.topSlotBeforeView) {
+      fail(`Month must keep the amount summary above its content, got ${JSON.stringify(value.summaryModes)}`);
+    }
+    if (value.summaryModes.some(mode=>mode.label!=='월' && mode.shown)) {
+      fail(`Today and Week must not show the month total, got ${JSON.stringify(value.summaryModes)}`);
     }
 
     // One quiet line.

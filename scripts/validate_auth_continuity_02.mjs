@@ -454,4 +454,24 @@ for (const preserved of [
   assert.ok(conversation.includes(preserved), `composer regression: ${preserved}`);
 }
 
+// SOCIAL-LOGIN-4P-RECOVERY-01 — a bare /auth/callback is the same tab coming back
+// to an already-consumed callback (reload, Back, restored tab). It goes Home
+// instead of dead-ending; anything carrying a query is still verified fail-closed.
+{
+  const {isConsumedSiteHandoffCallback, parseSiteHandoffCallback} = await import('../site-auth.js?v=20260920-authux1');
+  assert.equal(isConsumedSiteHandoffCallback(new URL('https://lotbiai.com/auth/callback')), true);
+  assert.equal(isConsumedSiteHandoffCallback(new URL('https://lotbiai.com/auth/callback/')), true);
+  assert.equal(isConsumedSiteHandoffCallback(new URL('https://lotbiai.com/auth/callback/?')), true);
+  for (const query of ['?state=abcdefghijklmnopqrstuvwxyz', '?code=x', '?error=access_denied', '?code=a&code=b&state=c']) {
+    const url = new URL(`https://lotbiai.com/auth/callback/${query}`);
+    assert.equal(isConsumedSiteHandoffCallback(url), false, query);
+    assert.throws(() => parseSiteHandoffCallback(url), error => error.code === 'SITE_HANDOFF_CALLBACK_INVALID', query);
+  }
+  const consumedAt = callback.indexOf('if (isConsumedSiteHandoffCallback(new URL(window.location.href))) {');
+  const parsedAt = callback.indexOf('callback = parseSiteHandoffCallback(new URL(window.location.href));');
+  assert.ok(consumedAt > 0 && consumedAt < parsedAt, 'consumed callback revisit must be decided before parsing');
+  assert.ok(callback.slice(consumedAt, parsedAt).includes("window.location.replace('/');"), 'consumed callback revisit must go Home');
+  assert.ok(callback.includes("error.code === 'RATE_LIMITED'"), 'Core 429 on redeem must not surface English "Too many requests"');
+}
+
 console.log('SITE-AUTH-CONTINUITY-02 / FLASH-01 / SEAMLESS-02 CONTRACT PASS');
