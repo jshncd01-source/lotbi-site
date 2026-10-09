@@ -197,7 +197,7 @@ assert.match(decodeURIComponent(fallbackUri).replace(/\+/gu, ' '), /전주 실�
 assert.equal(typeof nav.buildNaverStaticMapThumbnailUrl, 'undefined');
 assert.doesNotMatch(navSource, /buildNaverStaticMapThumbnailUrl|maps\.apigw\.ntruss\.com|x-ncp-apigw-api-key/iu);
 
-const rendererStart = conversationSource.indexOf('const createPlaceCardRail = placeValue => {');
+const rendererStart = conversationSource.indexOf('const createPlaceCardRail = (placeValue, placeOptions = {}) => {');
 const rendererEnd = conversationSource.indexOf('const normalizeConversationCalendarResult = value => {', rendererStart);
 assert.ok(rendererStart >= 0 && rendererEnd > rendererStart);
 const renderer = conversationSource.slice(rendererStart, rendererEnd);
@@ -219,7 +219,9 @@ assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
 assert.match(renderer, /mapAction\.target = '_blank'/u);
 assert.match(renderer, /mapAction\.rel = 'noopener noreferrer'/u);
 assert.match(renderer, /mapAction\.dataset\.action = mapPresentation\.action/u);
-assert.match(renderer, /addActionIcon\(mapAction, mapPresentation\.icon\)/u);
+// LIFE-MEDICAL-AUTO-SEARCH-CARD-01: one line route icon; the chosen map app is named in its label.
+assert.match(renderer, /addActionIcon\(mapAction, 'route'\)/u);
+assert.match(renderer, /길찾기 \(\$\{mapPresentation\.label\}\)/u);
 assert.match(renderer, /addActionIcon\(phone, 'phone'\)/u);
 assert.doesNotMatch(renderer, /addActionLabel|lotbi-place-action-label/u);
 

@@ -31,8 +31,10 @@ assert.match(authStart, /max-width: 460px/);
 assert.match(authStart, /a:focus-visible/);
 assert.match(authStart, /\[hidden\] \{ display: none !important/);
 assert.match(read('site-scam-shield.js'), /분석 근거 자세히 보기/);
-assert.match(read('site-consumer-sections.js'), /질문 준비하기/);
-assert.match(read('site-consumer-sections.js'), /다음 화면에서 질문을 확인한 뒤 보내세요/);
+// LIFE-MEDICAL-AUTO-SEARCH-01: a life request is sent at once, never drafted for a second tap.
+assert.match(read('site-consumer-sections.js'), /롯비에게 물어보기/);
+assert.match(read('site-consumer-sections.js'), /누르면 바로 롯비에게 물어봐요/);
+assert.doesNotMatch(read('site-consumer-sections.js'), /질문 준비하기|다음 화면에서 질문을 확인한 뒤 보내세요/);
 // Conditional scam questions must stay hidden until the user chooses the incident path.
 assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);
 const layout = read('site-consumer-layout.css');

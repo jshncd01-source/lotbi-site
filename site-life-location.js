@@ -71,6 +71,17 @@ function timeout(ms) {
   return new Promise(resolve => { setTimeout(() => resolve(null), ms); });
 }
 
+// LIFE-MEDICAL-AUTO-SEARCH-01: the browser is asked for permission at most
+// once per page. After a lookup that was allowed to ask got no position
+// (denied, dismissed, timed out), later lookups on this page — another menu,
+// a pharmacy filter — use what is already allowed, else the saved region,
+// without asking again. A permission already granted is still used.
+let permissionAskedWithoutLocation = false;
+
+export function resetLifeLocationPromptMemory() {
+  permissionAskedWithoutLocation = false;
+}
+
 export async function resolveLifeLocationContext(text, {
   resolveCurrent = resolveSharedBrowserCurrentLocation,
   readSavedRegion = readCalendarManualWeatherRegion,
@@ -82,10 +93,12 @@ export async function resolveLifeLocationContext(text, {
   let usageEnabled = false;
   try { usageEnabled = locationUsageEnabled() === true; } catch { usageEnabled = false; }
   if (usageEnabled) {
+    // The user just asked for something "nearby"/"now": that request is the
+    // explicit action that may show the browser's permission prompt — the
+    // first time on this page.
+    const allowPrompt = !permissionAskedWithoutLocation;
     try {
-      // The user just asked for something "nearby"/"now": that request is the
-      // explicit action that may show the browser's permission prompt.
-      const outcome = await Promise.race([resolveCurrent({allowPrompt: true}), timeout(timeoutMs)]);
+      const outcome = await Promise.race([resolveCurrent({allowPrompt}), timeout(timeoutMs)]);
       const location = outcome?.location;
       const latitude = Number(location?.latitude);
       const longitude = Number(location?.longitude);
@@ -99,6 +112,7 @@ export async function resolveLifeLocationContext(text, {
     } catch {
       // Fall through to the saved region.
     }
+    if (allowPrompt) permissionAskedWithoutLocation = true;
   }
   let saved = null;
   try { saved = readSavedRegion(); } catch { saved = null; }
