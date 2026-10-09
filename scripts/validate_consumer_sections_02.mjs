@@ -5,14 +5,15 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 8);
-// Medical entries ask a fixed question at once (LIFE-MEDICAL-AUTO-SEARCH-01).
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 9);
+// Medical entries ask a fixed question at once (LIFE-MEDICAL-AUTO-SEARCH-01);
+// 지역뉴스 builds its sentence from the saved or typed region (REGIONAL-NEWS-P0).
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), ['hospital', 'pharmacy', 'emergency']);
 // 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01);
 // 유치원·학교 opens its own screen (KINDERGARTEN-OFFICIAL-INFO-01).
 // 전북 맛집·음식 builds its sentence from its own form (JEONBUK-PILOT-01).
-assert.ok(LIFE_SHORTCUTS.filter(item => !['festivals', 'onnuri', 'education'].includes(item.id) && !item.ask && !item.regionalFood).every(item => typeof item.prompt === 'string'));
+assert.ok(LIFE_SHORTCUTS.filter(item => !['festivals', 'news', 'onnuri', 'education'].includes(item.id) && !item.ask && !item.regionalFood).every(item => typeof item.prompt === 'string'));
 // 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
 assert.doesNotMatch(source, /공과금|고지서|납부기한/);
@@ -32,8 +33,11 @@ assert.match(conversation, /onClose: \(\) => mounted\?\.dispose\(\)/);
 assert.match(conversation, /mountPetFamilyManager\(\{sessionToken, root, subscription: serverSubscription/);
 assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface/);
 assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?closeSurface\(\);\s*askWithoutKeyboard\(text\);/);
-// 유치원·학교 keeps the draft handoff (KINDERGARTEN-OFFICIAL-INFO-01).
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/);
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so no
+// draft handoff is left anywhere in 생활정보.
+assert.doesNotMatch(conversation, /onDraft|draft\(text\)|요청을 입력창에 넣었어요/);
+assert.doesNotMatch(source, /onDraft/);
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.match(css, /min-height: 44px/);
 assert.match(css, /input:focus-visible/);

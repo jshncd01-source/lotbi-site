@@ -307,10 +307,10 @@ try {
   reading.food.darkColor = getComputedStyle(food).color;
   document.body.dataset.siteTheme = 'light';
 
-  // 생활정보 home: eight shortcuts, no empty cell in any row (and still none
-  // with main's seven, i.e. if the 전북 card were ever taken out).
+  // 생활정보 home: nine shortcuts, no empty cell in any row (and still none
+  // with main's eight, i.e. if the 전북 card were ever taken out).
   document.querySelector('[data-consumer-section="life"]').click();
-  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 8 ? g : null; }, 'life grid');
+  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 9 ? g : null; }, 'life grid');
   await sleep(300);
   const rows = () => {
     const g = box(grid), byRow = new Map();
@@ -439,9 +439,9 @@ try {
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
       // 생활정보 home grid.
-      assert.deepEqual(r.life.labels, ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
-      assertRowsFilled(`${where} eight`, r.life.withFood);
-      assertRowsFilled(`${where} seven without 전북`, r.life.withoutFood);
+      assert.deepEqual(r.life.labels, ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
+      assertRowsFilled(`${where} nine`, r.life.withFood);
+      assertRowsFilled(`${where} eight without 전북`, r.life.withoutFood);
       // 전북 맛집·음식 detail.
       assert.equal(r.detail.title, '전북 맛집·음식');
       assert.ok(r.detail.panelScroll <= 0, `${where}: the panel scrolls sideways`);

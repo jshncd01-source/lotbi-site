@@ -30,31 +30,21 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Static contract ─────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
 assert.deepEqual(LIFE_MEDICAL_QUESTIONS, {hospital: '근처 병원 찾아줘', pharmacy: '근처 약국 찾아줘', emergency: '근처 응급실 찾아줘'});
 for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
   assert.equal(lifeLocationIntent(question), true, `${question} reaches the life-location contract`);
 }
-// KINDERGARTEN-OFFICIAL-INFO-01: 유치원·학교 is the one life screen that still
-// drafts its question. Its two exact onDraft uses are taken out first; the same
-// "no draft handoff" check then runs on everything else.
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk as well,
+// so no life screen drafts its question any more.
 const sectionsSource = read('site-consumer-sections.js');
-let sections = sectionsSource;
-for (const [use, without] of [
-  ['{section, root, onAsk, onDraft, onFestival,', '{section, root, onAsk, onFestival,'],
-  ['mountEducation({root: host, onDraft, accountId})', 'mountEducation({root: host, accountId})'],
-]) {
-  assert.equal(sections.split(use).length, 2, `education draft handoff appears exactly once: ${use}`);
-  sections = sections.replace(use, without);
-}
-assert.doesNotMatch(sections, /질문 준비하기|onDraft|openMedicalDetail|data-medical-field|LIFE_MEDICAL_FORMS/u, 'no medical form or draft handoff left');
+assert.match(sectionsSource, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
+assert.doesNotMatch(sectionsSource, /질문 준비하기|onDraft|openMedicalDetail|data-medical-field|LIFE_MEDICAL_FORMS/u, 'no medical form or draft handoff left');
 assert.doesNotMatch(sectionsSource, /\bfetch\(|geolocation|getCurrentPosition/u, 'the menu does not search or ask for a location itself');
 const conversation = read('site-conversation.js');
-// The old draft-then-send path is gone for the life cards: the one draft helper
-// left is called only from the 유치원·학교 onDraft handoff, and onAsk sends.
-assert.equal(conversation.split('요청을 입력창에 넣었어요. 내용을 확인한 뒤 전송하세요.').length, 2, 'one draft helper');
-assert.equal(conversation.split('draft(text)').length, 2, 'the draft helper has one caller');
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/u, 'that caller is the 유치원·학교 handoff');
+// The old draft-then-send path is gone: no draft helper, no onDraft handoff;
+// onAsk sends.
+assert.doesNotMatch(conversation, /요청을 입력창에 넣었어요|draft\(text\)|onDraft/u, 'no draft handoff left');
 const consumerMountAt = conversation.indexOf('mounted = mountConsumerSection({');
 assert.ok(consumerMountAt >= 0, 'the 생활정보 surface is mounted from the conversation');
 const onAskHandler = conversation.slice(consumerMountAt).match(/onAsk: text => \{[\s\S]*?\n {6}\},/u)?.[0] || '';
@@ -413,7 +403,7 @@ async function runCase(browser, origin, dir, testCase) {
     const openLife = async () => {
       // The 생활정보 entry sits in the (closed) phone drawer; opening it is not under test.
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 8"), `${label}: life menu`);
+      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 9"), `${label}: life menu`);
       await sleep(200);
     };
     // Marks the newest answer so selectors reach its cards, not an older one's.
@@ -578,7 +568,7 @@ async function runCase(browser, origin, dir, testCase) {
     await evaluate('history.back(), true');
     await sleep(900);
     await evaluate('history.forward(), true');
-    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 8"), `${label}: forward restores 생활정보`);
+    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 9"), `${label}: forward restores 생활정보`);
     await sleep(600);
     state = await probe();
     assert.equal(state.sent.length, 4, `${label}: back / forward sends nothing`);

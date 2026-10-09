@@ -8,9 +8,9 @@
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-dbb393b8010d';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-dbb393b8010d';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-dbb393b8010d';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-fde894948e9b';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-fde894948e9b';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-fde894948e9b';
 
 // JEONBUK-PILOT-01: "근처 전북 맛집" (전북 맛집·음식) is a life public-data lookup too.
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이|전북[^.?!\n]{0,24}?(?:맛집|음식점|식당|막걸리집))/u;
@@ -48,6 +48,25 @@ export function lifeLocationIntent(text, recentContext = []) {
   if (onnuriLocationIntent(value, recentContext)) return true;
   if (!LIFE_TARGET_RE.test(value)) return false;
   return LIFE_NEARBY_RE.test(value) || LIFE_TIME_RE.test(value);
+}
+
+// REGIONAL-NEWS-P0 — 지역뉴스 turns carry the saved region (캘린더 날씨 지역)
+// so "우리 지역 소식" needs no question. The current position is used only
+// when the person asks for 근처/주변/여기 news, and only with location use on.
+// A region named in the question always wins in Core.
+const NEWS_RE = /(?:뉴스|소식|기사|속보)/u;
+const NOT_NEWS_RE = /(?:뉴스\s*(?:앱|레터|룸|구독)|(?:택시|대리|버스|화물|트럭)\s*기사|기사\s*님|소식지)/u;
+
+export function newsLocationIntent(text) {
+  const value = typeof text === 'string' ? text : '';
+  return Boolean(value) && NEWS_RE.test(value) && !NOT_NEWS_RE.test(value);
+}
+
+// The saved region's display label ("전주시 덕진구"), or '' when none is saved.
+export function savedLifeRegionLabel(readSavedRegion = readCalendarManualWeatherRegion) {
+  let saved = null;
+  try { saved = readSavedRegion(); } catch { saved = null; }
+  return savedRegionLabel(saved?.label);
 }
 
 function round3(value) {
@@ -90,10 +109,11 @@ export async function resolveLifeLocationContext(text, {
   timeoutMs = 8_000,
   recentContext = [],
 } = {}) {
-  if (!lifeLocationIntent(text, recentContext)) return null;
+  const lifeLookup = lifeLocationIntent(text, recentContext);
+  if (!lifeLookup && !newsLocationIntent(text)) return null;
   let usageEnabled = false;
   try { usageEnabled = locationUsageEnabled() === true; } catch { usageEnabled = false; }
-  if (usageEnabled) {
+  if (usageEnabled && (lifeLookup || LIFE_NEARBY_RE.test(text))) {
     // The user just asked for something "nearby"/"now": that request is the
     // explicit action that may show the browser's permission prompt — the
     // first time on this page.
