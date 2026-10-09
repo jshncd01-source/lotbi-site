@@ -8,9 +8,9 @@
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-008c4b2e18cc';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-008c4b2e18cc';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-008c4b2e18cc';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-e37c99b26fbd';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-e37c99b26fbd';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-e37c99b26fbd';
 
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이)/u;
 const LIFE_NEARBY_RE = /(?:근처|주변|부근|인근|가까운|가까이|내\s*위치|우리\s*동네|여기)/u;
@@ -71,6 +71,17 @@ function timeout(ms) {
   return new Promise(resolve => { setTimeout(() => resolve(null), ms); });
 }
 
+// LIFE-MEDICAL-AUTO-SEARCH-01: the browser is asked for permission at most
+// once per page. After a lookup that was allowed to ask got no position
+// (denied, dismissed, timed out), later lookups on this page — another menu,
+// a pharmacy filter — use what is already allowed, else the saved region,
+// without asking again. A permission already granted is still used.
+let permissionAskedWithoutLocation = false;
+
+export function resetLifeLocationPromptMemory() {
+  permissionAskedWithoutLocation = false;
+}
+
 export async function resolveLifeLocationContext(text, {
   resolveCurrent = resolveSharedBrowserCurrentLocation,
   readSavedRegion = readCalendarManualWeatherRegion,
@@ -82,10 +93,12 @@ export async function resolveLifeLocationContext(text, {
   let usageEnabled = false;
   try { usageEnabled = locationUsageEnabled() === true; } catch { usageEnabled = false; }
   if (usageEnabled) {
+    // The user just asked for something "nearby"/"now": that request is the
+    // explicit action that may show the browser's permission prompt — the
+    // first time on this page.
+    const allowPrompt = !permissionAskedWithoutLocation;
     try {
-      // The user just asked for something "nearby"/"now": that request is the
-      // explicit action that may show the browser's permission prompt.
-      const outcome = await Promise.race([resolveCurrent({allowPrompt: true}), timeout(timeoutMs)]);
+      const outcome = await Promise.race([resolveCurrent({allowPrompt}), timeout(timeoutMs)]);
       const location = outcome?.location;
       const latitude = Number(location?.latitude);
       const longitude = Number(location?.longitude);
@@ -99,6 +112,7 @@ export async function resolveLifeLocationContext(text, {
     } catch {
       // Fall through to the saved region.
     }
+    if (allowPrompt) permissionAskedWithoutLocation = true;
   }
   let saved = null;
   try { saved = readSavedRegion(); } catch { saved = null; }

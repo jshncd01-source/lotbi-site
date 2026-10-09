@@ -161,7 +161,7 @@ try {
     actions:actions.map(node=>({
       action:node.dataset.action,
       text:(node.textContent||'').trim(),
-      iconSrc:node.querySelector('.lotbi-place-action-icon-image')?.getAttribute('src')||'',
+      iconSize:(()=>{const icon=node.querySelector('svg.lotbi-place-action-icon');if(!icon)return 0;const r=icon.getBoundingClientRect();return Math.round(Math.max(r.width,r.height));})(),
       aria:node.getAttribute('aria-label')||'',
       target:node.getAttribute('target')||'',
       rel:node.getAttribute('rel')||'',
@@ -174,8 +174,9 @@ try {
     sideMediaPlaceholder:side.querySelectorAll('.lotbi-rich-card-media, .lotbi-rich-card-placeholder, .lotbi-rich-card-media-empty').length,
     railPhotoClass:rail.classList.contains('has-place-photo'),
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
-    // Phones lay the side card out whole but fully transparent and untappable (PLACE-MEDICAL-CARD-UX-FINAL-01).
-    sideActionsVisible:Number.parseFloat(getComputedStyle(side).opacity)>0&&[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
+    // A side card is shown dimmed (on phones only its edge, LIFE-MEDICAL-AUTO-SEARCH-CARD-01);
+    // its phone / map links are never shown or pressable.
+    sideActionsVisible:Number.parseFloat(getComputedStyle(side).opacity)>0&&[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0&&getComputedStyle(n).visibility==='visible'),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
     consumerText:rail.textContent||'',
     noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
@@ -245,10 +246,10 @@ try {
     assert.deepEqual(reading.actions.map(x=>x.action),expected,`${testCase.label}: actions`);
     for(const action of reading.actions) {
       assert.ok(action.w>=44&&action.h>=44,`${testCase.label}: ${action.action} ${action.w}x${action.h}`);
-      assert.ok(action.w>=(reading.card.w-24)/2,`${testCase.label}: ${action.action} does not fill the simplified two-action row`);
+      // LIFE-MEDICAL-AUTO-SEARCH-CARD-01: a small round icon button, not half the card.
+      assert.ok(action.w<=48&&action.h<=48,`${testCase.label}: ${action.action} stays a small icon button (${action.w}x${action.h})`);
       assert.equal(action.text,'',`${testCase.label}: ${action.action} visible label`);
-      assert.match(action.iconSrc,/^\/assets\/place-actions\/[a-z-]+\.png\?v=place-icons-20260925$/u,
-        `${testCase.label}: ${action.action} icon`);
+      assert.ok(action.iconSize>=20&&action.iconSize<=24,`${testCase.label}: ${action.action} icon ${action.iconSize}px`);
       assert.ok(action.aria.includes(PLACE_RESULT.results[0].name),`${testCase.label}: aria`);
       if(action.action!=='phone') {
         assert.equal(action.target,'_blank');
@@ -268,7 +269,7 @@ try {
     const maxCardWidth=testCase.mobile?Math.min(reading.rail.w-16,400):286;
     assert.ok(reading.card.w<=maxCardWidth+2,`${testCase.label}: card width ${reading.card.w} (max ${maxCardWidth})`);
     assert.ok(reading.card.x>=reading.rail.x-1&&reading.card.x+reading.card.w<=reading.rail.x+reading.rail.w+1,`${testCase.label}: card cut by the rail`);
-    assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);
+    assert.ok(reading.sideOpacity>=.3&&reading.sideOpacity<=.6,`${testCase.label}: side card shown dimmed (${reading.sideOpacity})`);
     assert.equal(reading.sideActionsVisible,false,`${testCase.label}: side actions visible`);
     assert.ok(reading.sideActionTabIndexes.every(x=>x===-1),`${testCase.label}: side focusable`);
     assert.equal(reading.noPhoneActions,0,`${testCase.label}: dead phone visible`);
