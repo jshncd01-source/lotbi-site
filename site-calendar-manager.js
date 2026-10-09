@@ -18,7 +18,7 @@ import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFrom
 // unchanged here, so it keeps the version the Calendar already loads.
 import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-ec7dacdb09b2';
 import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-ec7dacdb09b2';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-ec7dacdb09b2';
+import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-ec7dacdb09b2';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -2154,17 +2154,25 @@ function renderMonth(state, actions, weatherCredit = null) {
     number.className = 'calendar-date-number';
     number.textContent = String(cell.day);
     date.textContent = '';
-    date.appendChild(number);
-    if (state.showLunarDates) {
-      const lunarLabel = lunarDateLabel(solarToLunar(cell.date));
-      if (lunarLabel) {
-        const lunar = document.createElement('span');
-        lunar.className = 'calendar-date-lunar';
-        lunar.textContent = lunarLabel;
-        lunar.setAttribute('aria-hidden', 'true');
-        date.appendChild(lunar);
-        date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
-      }
+    const lunarDate = state.showLunarDates ? solarToLunar(cell.date) : null;
+    const lunarLabel = lunarDateLabel(lunarDate);
+    if (lunarLabel) {
+      // 화면에는 compact 표기, 접근성 이름에는 완전한 음력 날짜를 유지한다.
+      const line = document.createElement('span');
+      line.className = 'calendar-date-line';
+      // 일반 음력 일자는 두 자리여도 양력 숫자 옆 한 줄을 지킨다. 월초·윤달
+      // 시작 표기만 좁은 칸에서 기존처럼 다음 줄을 쓸 수 있다.
+      line.dataset.lunarKind = lunarDate.day === 1 ? 'month-start' : 'ordinary';
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-date-lunar';
+      lunar.textContent = lunarDateCompactLabel(lunarDate);
+      lunar.setAttribute('aria-hidden', 'true');
+      line.append(number, lunar);
+      date.appendChild(line);
+      cellNode.dataset.lunar = 'true';
+      date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
+    } else {
+      date.appendChild(number);
     }
     // On a phone the date button is the whole cell and these dots ride inside
     // it, so the cell is one target and nothing in it is a separate control.
@@ -2221,7 +2229,10 @@ function renderMonth(state, actions, weatherCredit = null) {
         precip.textContent = weatherPresentation.precipLabel;
         weatherSummary.appendChild(precip);
       }
-      if (weatherSummary.childElementCount) header.appendChild(weatherSummary);
+      if (weatherSummary.childElementCount) {
+        header.appendChild(weatherSummary);
+        cellNode.dataset.weather = 'true';
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');
