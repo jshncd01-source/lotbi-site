@@ -75,7 +75,8 @@ const {normalizeOnnuriMerchant, normalizeOnnuriSearch, onnuriMerchantCard} = awa
   assert.equal(card.byClass('onnuri-card-address').textContent, '시장 주소 서울특별시 중구 마른내로 1');
   assert.match(card.byClass('onnuri-card-basis').textContent, /소속 시장 기준/u);
   const link = card.byClass('onnuri-card-map');
-  assert.equal(link.textContent, '시장 길찾기');
+  // ONNURI-MERCHANT-LOCATION-UX-P0: the chosen map app is named on the button.
+  assert.equal(link.textContent, '네이버지도 시장 길찾기');
   assert.match(link.getAttribute('aria-label'), /중부시장 길찾기$/u, 'navigation goes to the market');
   assert.ok(link.href && !link.href.includes(encodeURIComponent('제일상회')), 'the shop name is not sent as the destination');
 
@@ -83,13 +84,14 @@ const {normalizeOnnuriMerchant, normalizeOnnuriSearch, onnuriMerchantCard} = awa
     geo_state: 'VERIFIED', latitude: 35.847, longitude: 127.061, distance_meters: 80}), {mapProvider: 'NAVER_MAP'});
   assert.equal(building.byClass('onnuri-card-distance').textContent, '80m');
   assert.equal(building.byClass('onnuri-card-basis'), null);
-  assert.equal(building.byClass('onnuri-card-map').textContent, '길찾기');
+  assert.equal(building.byClass('onnuri-card-map').textContent, '네이버지도 길찾기');
 
   const unknown = onnuriMerchantCard(normalizeOnnuriMerchant({id: ID(3), name: '중앙떡집', address: '경기', market_name: '중앙시장',
     geo_state: 'AMBIGUOUS'}), {mapProvider: 'NAVER_MAP'});
   assert.equal(unknown.byClass('onnuri-card-distance'), null, 'no distance without a point');
   assert.equal(unknown.byClass('onnuri-card-address').textContent, '경기');
-  assert.equal(unknown.byClass('onnuri-card-map').textContent, '지도에서 찾기');
+  assert.equal(unknown.byClass('onnuri-card-map').textContent, '네이버지도에서 찾기');
+  assert.equal(unknown.byClass('onnuri-card-map').dataset.mapAction, 'search', 'no point: a name search, never a route');
 }
 
 // ── source guards ──────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-70f733afa919';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-1e6995800cf3';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -551,12 +551,29 @@ function field(labelText, input) {
   return label;
 }
 
+// The wallet PIN is not a website password. A type=password field makes browsers and Samsung Pass
+// treat each PIN form (set, unlock, change, delete) as a login and offer to save the PIN as the
+// site's password; autocomplete=off does not stop them. So the PIN is a masked text field with a
+// number pad, and password-manager extensions are asked to skip it. A browser that cannot mask
+// text keeps the password type: the digits are never shown.
+const TEXT_MASK_SUPPORTED = (() => {
+  try { return Boolean(globalThis.CSS?.supports?.('-webkit-text-security', 'disc')); } catch { return false; }
+})();
 function pinInput(label) {
   const input = element('input', 'wallet-pin-input');
-  input.type = 'password'; input.inputMode = 'numeric'; input.autocomplete = 'off'; input.maxLength = 4;
+  input.type = TEXT_MASK_SUPPORTED ? 'text' : 'password'; input.inputMode = 'numeric'; input.autocomplete = 'off'; input.maxLength = 4;
   input.pattern = '[0-9]{4}'; input.setAttribute('aria-label', label);
+  input.spellcheck = false; input.setAttribute('autocorrect', 'off'); input.setAttribute('autocapitalize', 'off');
+  for (const hint of ['data-lpignore', 'data-1p-ignore', 'data-bwignore']) input.setAttribute(hint, 'true');
+  input.dataset.formType = 'other';
   input.addEventListener('input', () => { input.value = input.value.replace(/\D/gu, '').slice(0, 4); });
   return input;
+}
+
+// On a phone, focusing a field on its own raises the keyboard (and the browser's sign-in bar);
+// fields are focused for mouse and keyboard users only, and on a phone when the person taps.
+function focusUnlessTouch(field) {
+  if (!globalThis.matchMedia?.('(pointer: coarse)').matches) field.focus();
 }
 
 function setBusy(form, busy) {
@@ -589,44 +606,84 @@ async function walletFileKind(file) {
   return pdf ? 'pdf' : kind;
 }
 
-export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}} = {}) {
-  const fieldShell = element('div', 'wallet-field wallet-photo-field');
-  const label = element('span', 'wallet-photo-label', '자료 사진 · 필수');
-  // Two pickers, each with one type: a single image type lets Android offer the camera and
-  // the gallery only (several types make it add camcorder and voice recorder); PDFs have
-  // their own picker. Both feed the same decode and scan path.
-  const input = element('input', 'wallet-photo-input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  const pdfInput = element('input', 'wallet-photo-input');
-  pdfInput.type = 'file';
-  pdfInput.accept = 'application/pdf';
-  label.id = `wallet-photo-${randomId()}`;
-  input.setAttribute('aria-labelledby', label.id);
-  pdfInput.setAttribute('aria-label', 'PDF 선택');
-  let lastInput = input;
+// One way in for an item: the attach area (or its 파일 변경) opens one menu with two sources.
+//   카메라  a still photo straight from the camera: one image type plus capture, so the phone opens
+//           its camera (no gallery list, no camcorder or voice recorder).
+//   내 파일 a photo or a PDF already on the device. Where the browser has a document picker
+//           (showOpenFilePicker) it is used: it lists files only, no camera apps. Otherwise one
+//           input takes both types, and the system chooser may add its own entries (Android
+//           Chrome adds its camera next to the files for an image type; older engines may add
+//           more). The page cannot remove those.
+// A chosen file replaces the current one only when it is a supported file: a cancelled or a
+// rejected choice leaves the previous photo, its preview or the open scanner as they were.
+const DOCUMENT_PICKER_TYPES = Object.freeze([{description: '사진·PDF', accept: {
+  'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'],
+  'image/heic': ['.heic'], 'image/heif': ['.heif'], 'application/pdf': ['.pdf'],
+}}]);
+// A second tap while a chooser is opening is ignored; the chooser closing ends the wait sooner.
+const PICKER_REOPEN_MS = 1500;
 
-  const picker = element('div', 'wallet-photo-picker');
-  const mark = element('button', 'wallet-photo-mark', '+');
-  mark.type = 'button';
-  mark.setAttribute('aria-label', '자료 사진 선택');
-  mark.addEventListener('click', () => input.click());
-  const preview = element('img', 'wallet-photo-preview');
-  preview.hidden = true;
+function documentPickerAvailable() {
+  try { return typeof globalThis.showOpenFilePicker === 'function' && globalThis.isSecureContext && globalThis.self === globalThis.top; }
+  catch { return false; }
+}
+
+export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}, onPickerOpen = () => {}, onPickerClose = () => {}} = {}) {
+  const fieldShell = element('div', 'wallet-field wallet-attach-field');
+  const label = element('span', 'wallet-attach-label', '자료 첨부');
+  label.id = `wallet-attach-${randomId()}`;
+  const help = element('small', 'wallet-attach-help', '사진 또는 PDF를 등록할 수 있어요.');
+  help.id = `${label.id}-help`;
+
+  const cameraInput = element('input', 'wallet-photo-input');
+  cameraInput.type = 'file'; cameraInput.accept = 'image/*'; cameraInput.setAttribute('capture', 'environment');
+  const filesInput = element('input', 'wallet-photo-input');
+  filesInput.type = 'file'; filesInput.accept = 'image/*,application/pdf';
+  for (const [input, name] of [[cameraInput, '카메라로 촬영'], [filesInput, '내 파일에서 사진·PDF 선택']]) {
+    input.tabIndex = -1; input.setAttribute('aria-label', name); input.setAttribute('aria-hidden', 'true');
+  }
+
+  const attach = element('div', 'wallet-attach');
+  const zone = element('button', 'wallet-attach-zone'); zone.type = 'button';
+  zone.setAttribute('aria-haspopup', 'menu'); zone.setAttribute('aria-expanded', 'false'); zone.setAttribute('aria-describedby', help.id);
+  const mark = element('span', 'wallet-photo-mark', '+'); mark.setAttribute('aria-hidden', 'true');
+  const preview = element('img', 'wallet-photo-preview'); preview.hidden = true;
   const copy = element('span', 'wallet-photo-copy');
-  const title = element('strong', '', '자료 사진 추가');
-  const help = element('small', '', '사진 또는 PDF');
-  copy.append(title, help);
-  const trigger = button('사진 선택', () => input.click(), true);
-  trigger.classList.add('wallet-photo-action');
-  const pdfTrigger = button('PDF', () => pdfInput.click(), true);
-  pdfTrigger.classList.add('wallet-photo-action', 'wallet-photo-pdf');
-  pdfTrigger.setAttribute('aria-label', 'PDF 선택');
-  const actionsGroup = element('span', 'wallet-photo-actions');
-  actionsGroup.append(trigger, pdfTrigger);
+  const title = element('strong');
+  copy.append(title);
+  const change = element('span', 'wallet-attach-change', '파일 변경'); change.setAttribute('aria-hidden', 'true');
+  zone.append(mark, preview, copy, change);
+
+  const menu = element('div', 'wallet-attach-menu'); menu.id = `${label.id}-menu`; menu.hidden = true;
+  menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '자료 가져오기');
+  zone.setAttribute('aria-controls', menu.id);
+  const options = [['camera', '카메라', '직접 촬영'], ['files', '내 파일', '기기에 저장된 사진·PDF 선택']].map(([source, name, note]) => {
+    const option = element('button', 'wallet-attach-option'); option.type = 'button'; option.dataset.walletAttachSource = source;
+    option.setAttribute('role', 'menuitem');
+    option.append(element('strong', '', name), element('span', '', note));
+    option.addEventListener('click', () => void openSource(source));
+    return option;
+  });
+  menu.append(...options);
+  attach.append(cameraInput, filesInput, zone, menu);
   const scannerHost = element('div', 'wallet-photo-scanner-host');
+  fieldShell.append(label, help, attach, scannerHost);
+
   let scanner = null;
   let confirmedDataUrl = '';
+  let selectedName = '';
+  let state = 'empty';
+  let pickerUntil = 0;
+  let destroyed = false;
+
+  function paint() {
+    zone.dataset.state = state;
+    mark.hidden = state !== 'empty';
+    preview.hidden = state !== 'ready';
+    change.hidden = state === 'empty';
+    title.textContent = state === 'empty' ? '카메라 또는 내 파일에서 선택' : selectedName;
+    zone.setAttribute('aria-label', state === 'empty' ? '자료 첨부: 카메라 또는 내 파일 선택' : `첨부한 자료 ${selectedName}, 파일 변경`);
+  }
 
   const clearScanner = () => {
     scanner?.destroy();
@@ -635,86 +692,115 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}}
   };
 
   const resetSelection = () => {
-    confirmedDataUrl = '';
+    confirmedDataUrl = ''; selectedName = ''; state = 'empty';
     onReady(false);
-    mark.hidden = false;
-    preview.hidden = true;
-    preview.removeAttribute('src');
-    preview.alt = '';
-    title.textContent = '자료 사진 추가';
-    help.textContent = '사진 또는 PDF';
-    trigger.textContent = '사진 선택';
+    preview.removeAttribute('src'); preview.alt = '';
+    paint();
   };
+
+  const outsidePress = event => { if (!attach.contains(event.target)) setMenu(false); };
+  function setMenu(open) {
+    if (open === !menu.hidden) return;
+    menu.hidden = !open; zone.setAttribute('aria-expanded', String(open));
+    if (open) { document.addEventListener('pointerdown', outsidePress, true); options[0].focus(); }
+    else document.removeEventListener('pointerdown', outsidePress, true);
+  }
+  zone.addEventListener('click', () => setMenu(menu.hidden));
+  menu.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); setMenu(false); zone.focus(); return; }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    const at = options.indexOf(document.activeElement);
+    options[(at + (event.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length].focus();
+  });
+
+  const pickerClosed = () => { pickerUntil = 0; onPickerClose(); };
+  async function openSource(source) {
+    setMenu(false);
+    if (destroyed || Date.now() < pickerUntil) return;
+    pickerUntil = Date.now() + PICKER_REOPEN_MS;
+    onError('');
+    onPickerOpen(source);
+    if (source === 'files' && documentPickerAvailable()) {
+      try {
+        const [handle] = await globalThis.showOpenFilePicker({multiple: false, excludeAcceptAllOption: true, types: DOCUMENT_PICKER_TYPES});
+        const file = await handle?.getFile?.();
+        pickerClosed();
+        if (file) await choose(file);
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') { pickerClosed(); return; }
+        // Not allowed here (a policy, a frame): the file input below takes over.
+      }
+    }
+    const input = source === 'camera' ? cameraInput : filesInput;
+    input.value = '';
+    input.click();
+  }
+  for (const input of [cameraInput, filesInput]) {
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      // Emptied at once, so choosing the same file again is a new choice.
+      input.value = '';
+      pickerClosed();
+      if (file) void choose(file);
+    });
+    input.addEventListener('cancel', pickerClosed);
+  }
 
   let choice = 0;
-  const choose = async source => {
-    const file = source.files?.[0];
-    if (!file) return;
+  async function choose(file) {
     const current = ++choice;
-    lastInput = source;
+    setMenu(false);
     onError('');
+    let kind;
     try {
-      const kind = await walletFileKind(file);
-      if (current !== choice) return;
-      const name = file.name || '촬영한 사진';
-      clearScanner();
-      confirmedDataUrl = '';
-      onReady(false);
-      mark.hidden = true;
-      preview.hidden = true;
-      preview.removeAttribute('src');
-      title.textContent = name;
-      help.textContent = '';
-      trigger.textContent = '다시 선택';
-      scanner = createWalletDocumentScanner({
-        file,
-        kind,
-        onConfirm(dataUrl) {
-          confirmedDataUrl = dataUrl;
-          clearScanner();
-          preview.src = dataUrl;
-          preview.alt = `보정된 ${name} 미리보기`;
-          preview.hidden = false;
-          title.textContent = name;
-          help.textContent = '';
-          trigger.textContent = '사진 변경';
-          onReady(true);
-        },
-        onCancel() {
-          source.value = '';
-          clearScanner();
-          resetSelection();
-        },
-        onReplace() {
-          source.value = '';
-          clearScanner();
-          resetSelection();
-          lastInput.click();
-        },
-      });
-      scannerHost.append(scanner.element);
+      kind = await walletFileKind(file);
     } catch (error) {
-      if (current !== choice) return;
-      source.value = '';
-      clearScanner();
-      resetSelection();
-      onError(safeMessage(error, '사진을 선택하지 못했습니다.'));
+      if (current === choice && !destroyed) onError(safeMessage(error, '파일을 선택하지 못했습니다.'));
+      return;
     }
-  };
-  input.addEventListener('change', () => choose(input));
-  pdfInput.addEventListener('change', () => choose(pdfInput));
+    if (current !== choice || destroyed) return;
+    clearScanner();
+    confirmedDataUrl = ''; onReady(false);
+    preview.removeAttribute('src'); preview.alt = '';
+    selectedName = file.name || '촬영한 사진'; state = 'scanning'; paint();
+    const name = selectedName;
+    scanner = createWalletDocumentScanner({
+      file,
+      kind,
+      onConfirm(dataUrl) {
+        confirmedDataUrl = dataUrl;
+        clearScanner();
+        preview.src = dataUrl;
+        preview.alt = `보정된 ${name} 미리보기`;
+        state = 'ready'; paint();
+        onReady(true);
+      },
+      onCancel() {
+        clearScanner();
+        resetSelection();
+      },
+    });
+    scannerHost.append(scanner.element);
+  }
 
-  picker.append(input, pdfInput, mark, preview, copy, actionsGroup);
-  fieldShell.append(label, picker, scannerHost);
+  paint();
   return Object.freeze({
     element: fieldShell,
-    input,
-    pdfInput,
+    // 내 파일 (photos and PDFs) and 카메라; both lead to the same check, scanner and save.
+    input: filesInput,
+    filesInput,
+    cameraInput,
     async readDataUrl() {
       if (!confirmedDataUrl) throw new Error('사진 보정 결과를 확인한 뒤 저장해 주세요.');
       return confirmedDataUrl;
     },
-    destroy: clearScanner,
+    destroy() {
+      destroyed = true;
+      setMenu(false);
+      clearScanner();
+    },
   });
 }
 
@@ -926,17 +1012,31 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       void lockAndRender('로그아웃되어 Life Wallet이 잠겼습니다.');
     }
   };
+  // A camera or file chooser opened from the add form covers the page on a phone, which hides it.
+  // The key leaves memory as on any trip to the background, but the add form stays (no saved item
+  // is on it), so the chosen photo arrives where it was asked for; back on the page the session
+  // grant reopens the wallet, or it locks if that grant ran out.
+  let pickerOpen = false;
+  let pickerSuspended = false;
+  let resuming = null;
   const visibilityListener = () => {
     clearTimeout(backgroundTimer);
     if (document.visibilityState === 'hidden' && unlocked) {
+      const keepAddForm = pickerOpen && Boolean(root.querySelector('[data-wallet-view="add"]'));
       backgroundTimer = setTimeout(() => {
         if (document.visibilityState === 'hidden' && unlocked) {
           unlocked = false;
           vault.suspend();
           clearTimeout(timer);
+          if (keepAddForm) { pickerSuspended = true; return; }
           root.replaceChildren();
         }
       }, 150);
+      return;
+    }
+    if (document.visibilityState === 'visible' && pickerSuspended) {
+      pickerSuspended = false;
+      resuming = resumeAfterPicker().finally(() => { resuming = null; });
       return;
     }
     if (document.visibilityState === 'visible' && !unlocked && root.childElementCount === 0) void restoreOrRender();
@@ -991,6 +1091,16 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     }
   }
 
+  async function resumeAfterPicker() {
+    const generation = renderGeneration;
+    if (!disposed && sessionAuthenticated && accountId && await vault.resumeUnlock(accountId)) {
+      if (disposed || generation !== renderGeneration) return;
+      unlocked = true; activity();
+      return;
+    }
+    if (!disposed && generation === renderGeneration) await renderLocked();
+  }
+
   async function restoreOrRender(message = '') {
     if (!disposed && sessionAuthenticated && accountId && await vault.resumeUnlock(accountId)) {
       unlocked = true;
@@ -1011,7 +1121,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderSetup(message = '') {
     const wrap = element('section', 'wallet-gate');
-    wrap.append(element('div', 'wallet-lock-mark', '●'), element('h3', '', '4자리 월렛 PIN 만들기'), element('p', '', 'PC에서는 월렛 전용 PIN으로만 잠금을 해제합니다. 계정 로그인 비밀번호와 다른 숫자 4자리를 사용해 주세요.'));
+    wrap.append(element('div', 'wallet-lock-mark', '●'), element('h3', '', '4자리 월렛 PIN 만들기'), element('p', '', '월렛은 계정 로그인과 별도로 월렛 전용 PIN으로만 열립니다. 계정 로그인 비밀번호와 다른 숫자 4자리를 사용해 주세요.'));
     // Why a new PIN, on an account that already has a wallet somewhere else.
     wrap.append(element('p', 'wallet-setup-why', '이 브라우저에는 아직 이 계정의 월렛이 없습니다. 월렛은 기기·브라우저마다 따로 저장되어, 다른 기기나 브라우저, 저장 데이터가 지워진 브라우저(시크릿 창 포함)에서는 PIN을 새로 만들어야 합니다. 다른 곳에 저장한 자료는 그곳의 ⚙ 설정 → 암호화 백업 파일로 옮겨 올 수 있습니다.'));
     const form = element('form', 'wallet-pin-form');
@@ -1029,7 +1139,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       } catch (error) { status.textContent = safeMessage(error, 'PIN을 설정하지 못했습니다.'); setBusy(form, false); pin.focus(); }
     });
     wrap.append(form, element('p', 'wallet-security-note', 'PIN은 저장하거나 전송하지 않습니다. 임의의 256비트 암호화 키를 이 브라우저에 묶어 보호합니다. PIN 분실 시 현재 PC Web에는 안전한 복구 경로가 없으므로 자료를 지우지 말고 LOTBI 지원에 문의해 주세요.'));
-    root.replaceChildren(wrap); pin.focus();
+    root.replaceChildren(wrap); focusUnlessTouch(pin);
   }
 
   function renderUnlock(message = '') {
@@ -1106,7 +1216,8 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         settingsMenu.hidden = true; settingsToggle.setAttribute('aria-expanded', 'false'); settingsToggle.focus();
       });
       settings.append(settingsToggle, settingsMenu);
-      toolbar.append(copy, button('+ 자료 추가', renderAdd), button('잠그기', () => void lockAndRender(), true), settings);
+      // One way to add: 첫 자료 등록하기 on an empty wallet, + 자료 추가 once something is saved.
+      toolbar.append(copy, ...(cards.length ? [button('+ 자료 추가', renderAdd)] : []), button('잠그기', () => void lockAndRender(), true), settings);
       shell.append(toolbar);
       if (message) shell.append(element('p', 'wallet-message', message));
       if (!cards.length) {
@@ -1125,8 +1236,16 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderAdd() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
+    form.dataset.walletView = 'add';
+    pickerOpen = false;
     let save;
-    const photoPicker = createWalletPhotoPicker({onError: message => { status.textContent = message; }, onReady: ready => { if (save) save.disabled = !ready; }});
+    const photoPicker = createWalletPhotoPicker({
+      onError: message => { status.textContent = message; },
+      // 암호화하여 저장 turns on only when a checked item is ready.
+      onReady: ready => { if (save) save.disabled = !ready; },
+      onPickerOpen: () => { pickerOpen = true; },
+      onPickerClose: () => { pickerOpen = false; },
+    });
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true));
     save = button('암호화하여 저장'); save.type = 'submit'; save.disabled = true; actions.append(save);
@@ -1136,6 +1255,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       event.preventDefault(); status.textContent = '';
       try {
         setBusy(form, true);
+        if (resuming) await resuming;
         const frontDataUrl = await photoPicker.readDataUrl();
         await vault.save(accountId, {id: randomId(), kind: 'document', note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
         photoPicker.destroy();
@@ -1234,7 +1354,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         setBusy(form, true); await vault.changePin(accountId, current.value, next.value); await renderWallet('월렛 PIN을 변경했습니다.');
       } catch (error) { status.textContent = safeMessage(error, 'PIN을 변경하지 못했습니다.'); setBusy(form, false); current.value = ''; current.focus(); }
     });
-    root.replaceChildren(form); current.focus(); activity();
+    root.replaceChildren(form); focusUnlessTouch(current); activity();
   }
 
   function renderBackup() {
@@ -1260,13 +1380,14 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         await renderWallet('암호화된 백업 파일을 만들었습니다. 파일과 백업 전용 암호를 함께 안전하게 보관해 주세요.');
       } catch (error) { status.textContent = safeMessage(error, '백업 파일을 만들지 못했습니다.'); setBusy(form, false); password.focus(); }
     });
-    root.replaceChildren(form); password.focus(); activity();
+    root.replaceChildren(form); focusUnlessTouch(password); activity();
   }
 
   function renderImport() {
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     const fileInput = element('input'); fileInput.type = 'file'; fileInput.accept = '.lotbiwallet,application/octet-stream'; fileInput.required = true;
-    const password = element('input'); password.type = 'password'; password.minLength = 8; password.maxLength = 128; password.autocomplete = 'current-password';
+    // The backup password is not the account password: no hint that invites a saved login here.
+    const password = element('input'); password.type = 'password'; password.minLength = 8; password.maxLength = 128; password.autocomplete = 'off';
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const submit = button('Life Wallet 자료 복원'); submit.type = 'submit'; actions.append(submit);
     form.append(

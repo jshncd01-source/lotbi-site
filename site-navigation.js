@@ -114,6 +114,22 @@ export function normalizeMedicalStatus(value) {
   });
 }
 
+// JEONBUK-PILOT-01. 전북특별자치도 의료기관 현황: 종별·진료과목·등록 상태 only.
+// It never carries hours, so it can never make a card say "진료 중".
+const REGISTRY_STATES = new Set(['ACTIVE', 'CLOSED_IN_REGISTRY', 'SUSPENDED_IN_REGISTRY', 'UNKNOWN']);
+
+export function normalizeMedicalRegistry(value) {
+  if (!value || typeof value !== 'object' || value.source !== 'JEONBUK_MEDICAL_REGISTRY' || value.hours_provided !== false) return null;
+  const registryState = boundedText(value.registry_state).toUpperCase();
+  if (!REGISTRY_STATES.has(registryState)) return null;
+  return Object.freeze({
+    institutionType: boundedText(value.institution_type, 30),
+    departments: Object.freeze((Array.isArray(value.departments) ? value.departments : []).map(item => boundedText(item, 20)).filter(Boolean).slice(0, 8)),
+    registryState,
+    registryOnly: value.registry_only === true,
+  });
+}
+
 export function normalizeEmergencyStatus(value) {
   if (!value || typeof value !== 'object') return null;
   const realtimeState = boundedText(value.realtime_state).toUpperCase();
@@ -214,6 +230,7 @@ function normalizePlace(place, index) {
   if (!name || !address) return null;
   const medicalStatus = normalizeMedicalStatus(place.medical_status);
   const emergencyStatus = normalizeEmergencyStatus(place.emergency_status);
+  const medicalRegistry = normalizeMedicalRegistry(place.medical_registry);
   const latitude = finiteCoordinate(place.latitude);
   const longitude = finiteCoordinate(place.longitude);
   const sourceUrl = text(place.source_url);
@@ -227,6 +244,7 @@ function normalizePlace(place, index) {
     resultId: text(place.result_id) || `place-${index + 1}`,
     medicalStatus,
     emergencyStatus,
+    medicalRegistry,
     placeId: text(place.place_id),
     name,
     category: text(place.category),

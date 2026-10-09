@@ -566,9 +566,11 @@ async function runCase(browser, origin, dir, testCase) {
       assert.ok(usage === 'off' ? asked === 0 : asked <= 1, `${testCase.label}: geolocation requests with location use ${usage}: ${asked}`);
     }
 
-    // 6. Desktop: nine categories (응급실 + 지역뉴스 + 내 아이 학교·유치원) — the
-    // odd last card takes its whole row and the rows before it are full, so
-    // there is no empty cell (MY-CHILD-SCHOOL-01).
+    // 6. Desktop: ten categories (응급실 + 지역뉴스 + 내 아이 학교·유치원, and
+    // 전북 맛집·음식 from JEONBUK-PILOT-01) fill every row of two — no empty
+    // cell. With an even count the last row holds two column-wide cards; with
+    // an odd count the last card takes its whole row and the row before it is
+    // full (MY-CHILD-SCHOOL-01, site-life-education.css).
     if (!testCase.mobile) {
       await openLife();
       await evaluate(`document.querySelector('.consumer-workspace [data-life-shortcut="bills"]')?.remove(), true`);
@@ -578,12 +580,17 @@ async function runCase(browser, origin, dir, testCase) {
       const beforeLast = state.shortcuts.at(-2).box;
       const pair = state.shortcuts.at(-3).box;
       const rowRight = Math.max(...state.shortcuts.slice(0, -1).map(item => item.box.right));
-      assert.equal(state.shortcuts.length, 9);
+      assert.equal(state.shortcuts.length, 10);
       assert.equal(state.shortcuts.at(-2).id, 'education');
       assert.equal(state.shortcuts.at(-1).id, 'my-child');
-      assert.ok(Math.abs(last.x - first.x) <= 1 && Math.abs(last.right - rowRight) <= 1 && last.y > beforeLast.bottom - 1, `${testCase.label}: the odd last card takes its whole row (${Math.round(last.x)}..${Math.round(last.right)} vs ${Math.round(first.x)}..${Math.round(rowRight)})`);
-      assert.ok(Math.abs(beforeLast.y - pair.y) <= 1 && beforeLast.x > pair.right - 1 && Math.abs(beforeLast.w - first.w) <= 1, `${testCase.label}: the row before it holds two column-wide cards (no empty cell)`);
-      await shot('05-even-rows');
+      if (state.shortcuts.length % 2 === 0) {
+        assert.ok(Math.abs(last.w - first.w) <= 1, `${testCase.label}: last card keeps the column width (${Math.round(last.w)} vs ${Math.round(first.w)})`);
+        assert.ok(Math.abs(last.y - beforeLast.y) <= 1 && last.x > beforeLast.right - 1, `${testCase.label}: the last row holds two cards (no empty cell)`);
+      } else {
+        assert.ok(Math.abs(last.x - first.x) <= 1 && Math.abs(last.right - rowRight) <= 1 && last.y > beforeLast.bottom - 1, `${testCase.label}: the odd last card takes its whole row (${Math.round(last.x)}..${Math.round(last.right)} vs ${Math.round(first.x)}..${Math.round(rowRight)})`);
+        assert.ok(Math.abs(beforeLast.y - pair.y) <= 1 && beforeLast.x > pair.right - 1 && Math.abs(beforeLast.w - first.w) <= 1, `${testCase.label}: the row before it holds two column-wide cards (no empty cell)`);
+      }
+      await shot('05-full-rows');
     }
     return {entry: typed.mode, cards: state.cards?.length ?? 0, firstCard: `${Math.round(state.cards?.[0]?.box.w || 0)}x${Math.round(state.cards?.[0]?.box.h || 0)}`};
   } finally {
